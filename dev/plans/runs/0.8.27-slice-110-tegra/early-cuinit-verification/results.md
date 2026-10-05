@@ -24,6 +24,12 @@ Files:
 - [experiment/](experiment/) holds the earlier experiment's analyses and its
   hook patch, with local paths redacted. That experiment established the
   heap-size thresholds and the cost of the heavier variants.
+- Fix round 3 (§ "Fix round 3" below) adds
+  [worker-consumer.mjs](worker-consumer.mjs),
+  [analysis-round3.txt](analysis-round3.txt),
+  [sample-logs-round3/](sample-logs-round3/) and
+  [python-smoke-round3.txt](python-smoke-round3.txt), and appends to
+  [red-green.txt](red-green.txt) and [artifacts.sha256](artifacts.sha256).
 
 ## Results ([analysis.txt](analysis.txt))
 
@@ -84,8 +90,8 @@ As in earlier rounds, the path is inferred from the bimodal steady embed (over
 18 ms is synchronous). Across the 78 passing CUDA runs, 51 were synchronous
 and 27 stream-ordered. The ratio of medians (synchronous over stream-ordered)
 was 1.79–2.22 in the 7 series with both paths. Together with the 10 earlier
-series of Slice 110, the range is 1.8–2.4 times. That is the figure used in
-the receipt and the docs.
+series of Slice 110, the range was 1.8–2.4 times. Fix round 3 (below)
+widened it to 1.8–2.8, the figure now used in the receipt and the docs.
 
 ### Not compiled elsewhere
 
@@ -95,3 +101,67 @@ the receipt and the docs.
 `default-embedder,default-reranker` build of the same crate on this host has
 neither the symbols nor the text. On other targets the
 `target_arch = "aarch64"` gate removes them by construction.
+
+## Fix round 3: `cuInit` at module registration
+
+The review of the early-cuInit round found that a shared-library constructor
+runs inside the dynamic loader under its lock. The call now runs from the
+napi-rs 2.16.17 `module_exports` callback. napi-rs registers that callback
+from its own constructor, which only stores a function pointer, and calls it
+inside `napi_register_module_v1` after the exports are registered: on the
+loading thread, once `dlopen` has returned, once per env. A
+`std::sync::Once` keeps the `cuInit` to one per process.
+`FATHOMDB_CUDA_EARLY_INIT=off` turns it off. Each probe now records its own
+`cuInit` outcome, and a refusal's hint reads its own probe's entry, so the
+reranker's memoized refusal keeps its cause.
+
+The addon `3ecc99e6…` was built from `377ab9569` with the same recipe. `nm`
+shows `cuda_early_init::EARLY_INIT` and napi-rs's
+`__napi__explicit_module_register` registration. No constructor of ours calls
+`cuInit`. The new unit test `loading_the_addon_library_does_not_initialise_cuda`
+failed against the constructor build (`Some(Initialized)`, want `None`) and
+passes now ([red-green.txt](red-green.txt)).
+
+Results ([analysis-round3.txt](analysis-round3.txt)). No run wrote to
+stderr, and every CUDA run had the same leading embedding values.
+
+| Scenario | Node | Form | Runs | Result |
+| --- | --- | --- | --- | --- |
+| Import first, then 400k objects (68–79 MiB heap) | 25.9.0 | in-tree | 15 | 15 pass |
+| Import first, then 1M objects (157–182 MiB heap) | 25.9.0 | in-tree | 15 | 15 pass |
+| Import first, then 400k / 1M objects | 24.15.0 | in-tree | 5 + 5 | 10 pass |
+| Import first, then 400k / 1M objects | 26.10.0 | in-tree | 5 + 5 | 10 pass |
+| First load inside a `worker_threads` worker, then 1M objects in the worker | 25.9.0 | in-tree | 5 | 5 pass; worker import +64125–65141 MiB VmSize |
+| Late import, 1M objects | 25.9.0 | installed | 5 | 0 pass: all `FDB_EMBED_DEVICE_POLICY` / `cuda_probe_failed` with the hint, heap 174–176 MiB |
+| Late import under `node --import fathomdb` | 25.9.0 | installed | 5 | 5 pass |
+| Small consumer | 25.9.0 | in-tree / installed | 10 + 10 | 20 pass |
+| `FATHOMDB_CUDA_EARLY_INIT=off`, import only | 25.9.0 | installed | 10 | 10 pass; no reservation (+821 MiB VmSize) |
+| `FATHOMDB_CUDA_EARLY_INIT=off`, forced CUDA, small | 25.9.0 | installed | 3 | 3 pass |
+
+Import cost, median of 10 installed imports on Node 25: 33.2 ms with the
+hook, 21.1 ms with it skipped (both policies `cpu`), 20.9 ms for the review
+fix 2 build without a hook, 20.3 ms opted out. That is about +12 ms, +3 MiB
+of RSS and +61.5 GiB of VmSize. The slowest import of every series whose
+measured import called `cuInit` took 131–144 ms (the first `cuInit` after
+the GPU had been idle); the series without a `cuInit` call stayed under
+23 ms.
+
+Paths: of the 83 passing CUDA runs, 65 were synchronous and 18
+stream-ordered. The ratio of medians was 1.91–2.82 in the 9 series with both
+paths; five of those series had a single stream-ordered run. Across all 26
+such series of Slice 110 the range is 1.79–2.82 (synchronous medians
+24.7–28.2 ms, stream-ordered 9.2–14.6 ms), so the docs now say about
+1.8–2.8 times.
+
+Other checks on this round's tree: `scripts/tests/test_tegra_node_early_cuinit.sh`
+passed 3 / 3 in-tree and installed and failed 3 / 3 on the no-hook addon;
+the vendored cudarc tests passed 14 / 14; `device_policy` 7 / 7 and
+`slice71_reranker_policy` 8 / 8 with default and CUDA features;
+`tegra_fragmented_va_cuda` 10 / 10. The Tegra Python wheel was rebuilt
+(`d861de34…`) and passed 10 / 10, 5 normal and 5 fragmented
+([python-smoke-round3.txt](python-smoke-round3.txt)).
+
+The constructor named under "Not compiled elsewhere" above no longer exists.
+The embedder's `cuda_driver_init` items and the probes' record calls compile
+into every aarch64 Linux CUDA build (Node addon, Tegra Python wheel, CLI);
+only the napi hook and the hint are Node-only.

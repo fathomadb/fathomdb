@@ -39,9 +39,10 @@ sections after this one are the pre-fix handoff, kept as history.
   GPU with the AGX Orin 64 GB's memory and skips elsewhere (12 / 12 on the
   final code). `scripts/tests/test_vendored_cudarc.sh` runs the vendored unit
   tests (fast tier, 14 tests covering both the on-target and the off-target
-  rule, after the tautological scope test was removed). Since the early-cuInit
-  round, the regression test skips on any driver failure before `cuda:0` is
-  identified.
+  rule, after the tautological scope test was removed). Since fix round 3,
+  the regression test skips only on an absent driver library,
+  `CUDA_ERROR_STUB_LIBRARY`, `CUDA_ERROR_NO_DEVICE` or an unmeasured device,
+  and fails on any other driver error (10 / 10 on the Orin).
 - **Verification.** 100 / 100 fresh forced-CUDA open/embed/rerank/witness Node
   processes passed (Node 25, 24 and 26; in-tree and installed package);
   forced CPU passed 6 / 6. After review fix 1, a rebuilt artifact passed
@@ -53,21 +54,28 @@ sections after this one are the pre-fix handoff, kept as history.
   the [receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md#allocator-root-cause-and-fix).
 - **Early `cuInit` (Node, aarch64 Linux CUDA builds).** `cuInit` needs a
   4 GiB hole in the same window and failed once a JavaScript heap of roughly
-  70 MiB or more had grown first. The addon now calls `cuInit` from a
-  shared-library constructor when it is loaded
-  (`src/rust/crates/fathomdb-napi/src/cuda_early_init.rs`). It is skipped
-  only when both device policies are `cpu`. A forced-CUDA refusal after an
-  out-of-memory `cuInit` names the cause and the remedy (import first, or
-  `node --import fathomdb`). `scripts/tests/test_tegra_node_early_cuinit.sh`
-  failed 3 / 3 before and passed 5 / 5 after. Behind an early import,
-  50 / 50 heap-heavy processes passed. A late import was refused 5 / 5 with
-  the new message, and `--import` rescued it 8 / 8. Cost: about +11 ms per
-  import and about 61.5 GiB of reserved virtual address space. See the
-  [receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md#early-cuinit-in-the-node-addon)
+  70 MiB or more had grown first. The addon now calls `cuInit` while Node
+  registers the module (napi-rs `module_exports` callback, once per process
+  behind a `std::sync::Once`; fix round 3 moved it out of a shared-library
+  constructor) in `src/rust/crates/fathomdb-napi/src/cuda_early_init.rs`.
+  It is skipped when every component built with CUDA has an exact `cpu`
+  policy, or when `FATHOMDB_CUDA_EARLY_INIT=off`. A forced-CUDA refusal whose
+  own probe saw an out-of-memory `cuInit` names the cause and the remedy
+  (import first, or `node --import fathomdb`); the reranker's memoized
+  refusal keeps it. The embedder items it uses are `#[doc(hidden)]` and
+  unstable (`dev/interfaces/rust.md`); they and the probes' records compile
+  into every aarch64 Linux CUDA build, while the hook and the hint are
+  Node-only. `scripts/tests/test_tegra_node_early_cuinit.sh` failed 3 / 3
+  before and passes after. Behind an early import, 50 / 50 heap-heavy
+  processes passed in each of two rounds, and 5 / 5 first loads inside a
+  worker passed. A late import was refused 10 / 10 with the new message,
+  and `--import` rescued it 13 / 13. Cost: about +12 ms per import and about
+  61.5 GiB of reserved virtual address space. See the
+  [receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md#fix-round-3-review-of-the-early-cuinit-round)
   and the user section in `docs/embedder.md`.
 - **Still open.** A late import into a large heap still fails. The
-  synchronous path is about 1.8–2.4 times slower per steady embed (one
-  definition, in the receipt). Only the AGX Orin 64 GB was measured. Slice 110
+  synchronous path is about 1.8–2.8 times slower per steady embed (one
+  definition, in the receipt), and early `cuInit` does not avoid it. Only the AGX Orin 64 GB was measured. Slice 110
   stays IN_PROGRESS until independent review. Do not change release state
   before then.
 

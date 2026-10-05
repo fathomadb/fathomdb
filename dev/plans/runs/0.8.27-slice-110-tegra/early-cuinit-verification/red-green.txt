@@ -26,3 +26,77 @@ test cuda_early_init::tests::the_address_space_hint_needs_a_probe_failure_and_an
 test cuda_early_init::tests::the_hint_names_the_cause_and_both_remedies ... ok
 test cuda_early_init::tests::the_refusal_message_keeps_its_prefix_and_appends_the_hint ... ok
 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+
+# Fix round 3: cuInit at module registration, per-caller cuInit record, opt-out
+
+## cargo test -p fathomdb-embedder --lib cuda_driver_init
+### red (tests committed first, a1a67bb2a)
+      1 error: could not compile `fathomdb-embedder` (lib test) due to 11 previous errors
+      9 error[E0433]: cannot find type `CudaInitCaller` in this scope
+      2 error[E0433]: cannot find type `InitRecord` in this scope
+### green
+test cuda_driver_init::tests::each_caller_keeps_only_its_most_recent_outcome ... ok
+test cuda_driver_init::tests::a_probe_keeps_the_cu_init_it_saw_when_another_caller_succeeds_later ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+## cargo test -p fathomdb-napi --lib cuda_early_init (default features)
+### red (a1a67bb2a)
+      1 error: could not compile `fathomdb-napi` (lib test) due to 3 previous errors
+      2 error[E0425]: cannot find function `early_cuda_init_opted_out` in this scope
+      1 error[E0425]: cannot find function `register_once` in this scope
+### green
+test cuda_early_init::tests::a_component_built_without_cuda_never_asks_for_early_init ... ok
+test cuda_early_init::tests::only_the_exact_value_off_opts_out_of_early_init ... ok
+test cuda_early_init::tests::early_init_runs_unless_every_cuda_capable_policy_is_cpu ... ok
+test cuda_early_init::tests::registration_initialises_at_most_once_across_envs ... ok
+test cuda_early_init::tests::the_refusal_message_keeps_its_prefix_and_appends_the_hint ... ok
+test cuda_early_init::tests::the_address_space_hint_needs_a_probe_failure_and_an_out_of_memory_cu_init ... ok
+test cuda_early_init::tests::the_hint_names_the_cause_and_both_remedies ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+
+## cargo test -p fathomdb-napi --features embed-cuda,rerank-cuda --lib cuda_early_init
+### red: a1a67bb2a's tests against the constructor build, with compile-only stubs for the two new helpers (stubs not committed)
+test cuda_early_init::tests::a_component_built_without_cuda_never_asks_for_early_init ... ok
+test cuda_early_init::tests::early_init_runs_unless_every_cuda_capable_policy_is_cpu ... ok
+test cuda_early_init::tests::the_address_space_hint_needs_a_probe_failure_and_an_out_of_memory_cu_init ... ok
+test cuda_early_init::tests::only_the_exact_value_off_opts_out_of_early_init ... FAILED
+test cuda_early_init::tests::registration_initialises_at_most_once_across_envs ... FAILED
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... FAILED
+test cuda_early_init::tests::the_hint_names_the_cause_and_both_remedies ... ok
+test cuda_early_init::tests::the_refusal_message_keeps_its_prefix_and_appends_the_hint ... ok
+thread 'cuda_early_init::tests::only_the_exact_value_off_opts_out_of_early_init' panicked at src/rust/crates/fathomdb-napi/src/cuda_early_init.rs:264:9:
+thread 'cuda_early_init::tests::registration_initialises_at_most_once_across_envs' panicked at src/rust/crates/fathomdb-napi/src/cuda_early_init.rs:259:9:
+  left: 0
+ right: 1
+thread 'cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda' panicked at src/rust/crates/fathomdb-napi/src/cuda_early_init.rs:283:9:
+  left: Some(Initialized)
+ right: None
+test result: FAILED. 5 passed; 3 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+### green
+test cuda_early_init::tests::the_address_space_hint_needs_a_probe_failure_and_an_out_of_memory_cu_init ... ok
+test cuda_early_init::tests::early_init_runs_unless_every_cuda_capable_policy_is_cpu ... ok
+test cuda_early_init::tests::registration_initialises_at_most_once_across_envs ... ok
+test cuda_early_init::tests::a_component_built_without_cuda_never_asks_for_early_init ... ok
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... ok
+test cuda_early_init::tests::only_the_exact_value_off_opts_out_of_early_init ... ok
+test cuda_early_init::tests::the_hint_names_the_cause_and_both_remedies ... ok
+test cuda_early_init::tests::the_refusal_message_keeps_its_prefix_and_appends_the_hint ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+
+## scripts/tests/test_tegra_node_early_cuinit.sh (3 runs each)
+### green: in-tree src/ts, fix-round-3 addon 3ecc99e6
+PASS  run 1/3: import first, 1000000 heap objects, forced cuda:0 open and embed
+PASS  run 2/3: import first, 1000000 heap objects, forced cuda:0 open and embed
+PASS  run 3/3: import first, 1000000 heap objects, forced cuda:0 open and embed
+exit=0
+### green: installed consumer, fix-round-3 addon 3ecc99e6
+PASS  run 1/3: import first, 1000000 heap objects, forced cuda:0 open and embed
+PASS  run 2/3: import first, 1000000 heap objects, forced cuda:0 open and embed
+PASS  run 3/3: import first, 1000000 heap objects, forced cuda:0 open and embed
+exit=0
+### red: installed consumer, review fix 2 addon 057eed2b (no hook)
+FAIL  run 1/3 (exit 1): {"outcome":"fail","step":"open","node":"v25.9.0","heapObjects":1000000,"heapUsedMiB":177,"error":{"name":"EmbedDevicePolicyError","code":"FDB_EMBED_DEVICE_POLICY","kind":"cuda_probe_failed","message":"cuda:0 requested but unavailable: CudaProbeFailed"},"keepAlive":1000000}
+FAIL  run 2/3 (exit 1): {"outcome":"fail","step":"open","node":"v25.9.0","heapObjects":1000000,"heapUsedMiB":177,"error":{"name":"EmbedDevicePolicyError","code":"FDB_EMBED_DEVICE_POLICY","kind":"cuda_probe_failed","message":"cuda:0 requested but unavailable: CudaProbeFailed"},"keepAlive":1000000}
+FAIL  run 3/3 (exit 1): {"outcome":"fail","step":"open","node":"v25.9.0","heapObjects":1000000,"heapUsedMiB":177,"error":{"name":"EmbedDevicePolicyError","code":"FDB_EMBED_DEVICE_POLICY","kind":"cuda_probe_failed","message":"cuda:0 requested but unavailable: CudaProbeFailed"},"keepAlive":1000000}
+FAIL  tegra-node-early-cuinit: 3 of 3 runs failed
+exit=1

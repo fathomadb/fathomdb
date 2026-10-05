@@ -13,7 +13,7 @@
 | --- | --- | --- |
 | Node 25 thin-main and installed CPU package | PASS | Fresh external consumer, runtime surface, subscriber, reopen, typecheck, and CPU embedding all pass. |
 | Tegra `embed-cuda,rerank-cuda` package build and installed package | PASS | The host-native CUDA package builds and a fresh external consumer passes the same package, surface, subscriber, reopen, and typecheck checks. Forced CPU embedding and reranking through this CUDA-capable package also pass. |
-| Node NAPI forced-CUDA runtime | FIXED for the allocator failure and for heap growth after an early import; pending independent review | Root cause and fix: [allocator fallback](#allocator-root-cause-and-fix) and [early `cuInit`](#early-cuinit-in-the-node-addon). With the allocator fix, 100 / 100 fresh forced-CUDA processes passed open, embed, rerank and the allocation witness (Node 25, 24 and 26; in-tree and installed). With early `cuInit`, 50 / 50 passed after growing the heap to 69–181 MiB behind an early import. Open limitations: a late import into a large heap, and a slower fallback path. |
+| Node NAPI forced-CUDA runtime | FIXED for the allocator failure and for heap growth after an early import; pending independent review | Root cause and fix: [allocator fallback](#allocator-root-cause-and-fix) and [early `cuInit`](#early-cuinit-in-the-node-addon). With the allocator fix, 100 / 100 fresh forced-CUDA processes passed open, embed, rerank and the allocation witness (Node 25, 24 and 26; in-tree and installed). With early `cuInit`, 50 / 50 passed after growing the heap to 69–181 MiB behind an early import, and after fix round 3 moved it to module registration, 50 / 50 again (68–182 MiB) plus 5 / 5 first loads inside a worker. Open limitations: a late import into a large heap, and a slower fallback path. |
 
 The sections before [the allocator fix](#allocator-root-cause-and-fix) record
 the investigation while this row was OPEN; their OPEN wording is historical.
@@ -377,8 +377,8 @@ series in this receipt, the synchronous / stream-ordered split is **inferred**
 from steady embed latency, which is bimodal: 72 of the 100 CUDA runs
 were synchronous (24.5–32.7 ms steady median) and 28 stream-ordered
 (8.8–17.3 ms). Medians: synchronous 25.7 ms, stream-ordered 10.9 ms in-tree
-and 12.4 ms installed. The fallback costs about 1.8–2.4 times per steady embed,
-the single range used throughout this slice (see
+and 12.4 ms installed. The fallback costs about 1.8–2.8 times per steady embed,
+the single range used throughout this slice since fix round 3 (see
 [Open limitations](#open-limitations)). First embed was 59–62 ms against 47 ms; open time was unchanged at about
 1.4 s. Every witness delta cleared the 64 MiB floor (105–164 MiB). All 100
 CUDA embeddings had identical leading values, as did all six CPU ones.
@@ -580,7 +580,9 @@ there is no context at all. The experiment's analyses and its hook patch are
 in [early-cuinit-verification/experiment/](early-cuinit-verification/experiment/),
 with local paths redacted.
 
-**Change.**
+**Change.** Fix round 3 (below) moved the call from the constructor to
+module registration and changed how the refusal finds its `cuInit` outcome.
+This list describes the round as first landed.
 
 - The Node addon calls `cuInit(0)` from a shared-library constructor
   (`napi::module_init`) when the `.node` file is loaded. It is compiled only
@@ -598,8 +600,13 @@ with local paths redacted.
   When forced CUDA then refuses with `cuda_probe_failed` after an
   out-of-memory `cuInit`, the message names the cause and both remedies. The
   code, kind and no-CPU-fallback contract are unchanged.
-- Python, the CLI and every other target compile none of this. `git diff`
-  from the slice baseline touches nothing under
+- What compiles where (corrected in fix round 3). The embedder's
+  `cuda_driver_init` module and the probes' calls that record `cuInit`
+  compile into every aarch64 Linux build with `embed-cuda` or `rerank-cuda`:
+  the Node addon, the Tegra Python wheel and the CLI. Only the napi hook and
+  the refusal hint are Node-only. Nothing outside the Node addon reads the
+  record, so behaviour there is unchanged. Other targets compile none of it.
+  `git diff` from the slice baseline touches nothing under
   `src/rust/crates/fathomdb-py` or `src/python`. The CPU release build on
   this host carries neither the symbols nor the message text.
 
@@ -674,8 +681,9 @@ The embedder's new `cuInit` record compiles into it but is never read there.
   skips with the reason on any driver failure before `cuda:0` is identified
   (`16d091c18`). The on-target assertions are unchanged and passed 1 / 1.
   With the stub `libcuda` it skips instead of panicking.
-- **One slowdown figure.** The synchronous path is 1.8–2.4 times slower per
-  steady embed. For each Node CUDA series (round, form, Node version, heap)
+- **One slowdown figure.** Superseded in fix round 3, which adds 9 series and
+  widens the range to 1.8–2.8. As first recorded: the synchronous path is
+  1.8–2.4 times slower per steady embed. For each Node CUDA series (round, form, Node version, heap)
   with runs on both paths, the ratio is the median steady embed of its
   synchronous runs over that of its stream-ordered runs. The range covers
   all 17 such series in this slice: 1.79–2.41, with synchronous medians
@@ -728,19 +736,120 @@ lint verb uses default features. Clippy with `embed-cuda`, `rerank-cuda` and
 both, for the embedder and the napi crate, was run separately on the Jetson
 and is clean.
 
+### Fix round 3 (review of the early-cuInit round)
+
+**Commits:** failing tests `a1a67bb2a` (registration placement, opt-out,
+per-caller record) and `b544bfe68` (narrowed skip), implementation
+`377ab9569`, test header `89ff8ffcc`, then the docs and evidence commits
+that follow it.
+
+- **Registration, not a constructor.** `napi::module_init` is a `ctor`
+  (`.init_array`), so `cuInit` ran inside `_dl_init` under the loader lock.
+  In napi-rs 2.16.17 (`compat-mode`, a default feature of `napi` and
+  `napi-derive`, already on), `#[napi_derive::module_exports]` registers a
+  callback through a constructor that only stores a function pointer, and
+  `napi_register_module_v1` calls it after the exports are registered, once
+  per env, on the loading thread after `dlopen` returns. The hook now runs
+  there, behind a `std::sync::Once`, with the same gating, presence check,
+  `catch_unwind` and silence. `nm` on the new addon shows no constructor of
+  ours that calls `cuInit`. Red: `loading_the_addon_library_does_not_initialise_cuda`
+  saw `Some(Initialized)` against the constructor build; green 8 / 8 with CUDA
+  features and 7 / 7 with default features
+  ([red-green.txt](early-cuinit-verification/red-green.txt)).
+- **Opt-out.** `FATHOMDB_CUDA_EARLY_INIT=off`, exact value only, skips the
+  hook. Registration cannot report a malformed value, so anything else keeps
+  the default. Documented in `dev/interfaces/typescript.md` and
+  `docs/embedder.md`.
+- **Hidden embedder items.** `initialize_cuda_driver`,
+  `last_cuda_driver_init`, `cuda_driver_init_seen_by`, `CudaDriverInit` and
+  `CudaInitCaller` are `#[doc(hidden)]` and recorded as unstable binding
+  support in `dev/interfaces/rust.md`.
+- **Qualified claim.** The module docs and `docs/embedder.md` now say early
+  init secures `cuInit` and the driver's initial reservation only. The
+  default pool can still need a new range and was unavailable in most Node
+  runs, which is why the synchronous fallback is usually taken.
+- **Narrowed skip.** `tegra_fragmented_va_cuda` skips only when the driver
+  library is absent, on `CUDA_ERROR_STUB_LIBRARY` or `CUDA_ERROR_NO_DEVICE`,
+  or when `cuda:0` is not the measured integrated 60–64 GiB device. Any
+  other `cuInit` or device-query error fails. The allowlist reason says the
+  same. It passed 10 / 10 here, and skipped with the stub-library reason
+  under the toolkit stub `libcuda`.
+- **What compiles where.** Corrected above and in the platform reference:
+  the embedder module and the probes' record calls are in every aarch64
+  Linux CUDA build; only the hook and the hint are Node-only.
+- **Rule and memoized refusal.** `dev/interfaces/typescript.md` now states
+  the code's rule (skip when every component built with CUDA has an exact
+  `cpu` policy). The embedder records each caller's `cuInit` outcome
+  (`ModuleLoad`, `EmbedderProbe`, `RerankerProbe`), and the refusal mapper
+  reads the refusing component's own entry. The reranker's refusal is
+  memoized in `fathomdb-engine/src/rerank.rs` and its probe does not run
+  again, so its entry stays the failure that caused the refusal even if a
+  later `cuInit` elsewhere succeeds.
+- **Test header.** `test_tegra_node_early_cuinit.sh` no longer promises a
+  SKIP when the model is not cached; a run that cannot load it fails.
+
+**Verification** ([results](early-cuinit-verification/results.md#fix-round-3-cuinit-at-module-registration),
+[analysis](early-cuinit-verification/analysis-round3.txt)). Fresh processes
+under the GPU lock, new addon `3ecc99e6…`:
+
+| Scenario | Node 25.9.0 | Node 24.15.0 | Node 26.10.0 |
+| --- | --- | --- | --- |
+| Import first, then 400k objects | 15 / 15 | 5 / 5 | 5 / 5 |
+| Import first, then 1M objects | 15 / 15 | 5 / 5 | 5 / 5 |
+| First load inside a `worker_threads` worker, 1M objects | 5 / 5 | — | — |
+| Late import, 1M objects (installed) | 0 / 5, each with the hint | — | — |
+| Late import under `node --import fathomdb` (installed) | 5 / 5 | — | — |
+| Small consumer, in-tree and installed | 10 / 10 and 10 / 10 | — | — |
+| `FATHOMDB_CUDA_EARLY_INIT=off`: import only / forced CUDA small | 10 / 10, no reservation / 3 / 3 | — | — |
+
+No run wrote to stderr, and all CUDA embeddings had the same leading values.
+Import cost (median of 10, installed, Node 25): 33.2 ms with the hook,
+21.1 ms skipped, 20.9 ms without a hook, 20.3 ms opted out. About +12 ms,
++3 MiB RSS and +61.5 GiB VmSize; 131–144 ms for the first `cuInit` after
+the GPU has been idle.
+
+Of 83 passing CUDA runs, 65 took the synchronous path. This round adds 9
+series with both paths (ratios 1.91–2.82; five of them have one
+stream-ordered run). Across all 26 such series of Slice 110 the slowdown is
+1.79–2.82 (synchronous medians 24.7–28.2 ms, stream-ordered 9.2–14.6 ms), so
+the docs, platform reference, patch note and handoff now say about
+1.8–2.8 times. The patch note is excluded from the vendor tree digest, and
+`check-pinned-override-rot.py` still passes.
+
+Other checks: the Node heap check passed 3 / 3 in-tree and installed and
+failed 3 / 3 on the no-hook addon `057eed2b…`; vendored cudarc 14 / 14;
+`device_policy` 7 / 7 and `slice71_reranker_policy` 8 / 8 with default and
+`embed-cuda,rerank-cuda` features; napi and embedder clippy `-D warnings`
+clean with default, `embed-cuda`, `rerank-cuda` and both.
+
+**Tegra Python wheel.** Rebuilt on `89ff8ffcc` with the same script and
+maturin 1.14.1; `cargo tree` resolves the vendored cudarc. Installed offline
+into a fresh scratch venv, it passed 10 / 10 (5 normal, 5 fragmented), all
+on `cuda`, witness deltas 96–143 MiB
+([python-smoke-round3.txt](early-cuinit-verification/python-smoke-round3.txt)).
+It contains the embedder record but no hook and no hint.
+
+| Artifact (fix round 3) | SHA-256 |
+| --- | --- |
+| CUDA/rerank `.node` (built and installed) | `3ecc99e67497cf3dad15e5b09eb5c50002e96537c6f59b37d01a5c5036648889` |
+| CUDA/rerank platform tarball | `5e8d6e85dc5f7dfa160d7d04f8180d89a3659e55844c4e0c03ca2c8299805d66` |
+| Main tarball (unchanged) | `9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257` |
+| Tegra Python wheel | `d861de3416d1ee80566a13bcfde359135b0d037d1c0f1bb571a31281f7f1431c` |
+
 ### Open limitations
 
 - **Late import.** If the JavaScript heap grows before fathomdb is loaded,
   `cuInit` can already be impossible, and forced CUDA refuses. 1M objects
-  failed 5 / 5 here; in the experiment, 400k objects failed about half of
+  failed 5 / 5 in each of two rounds; in the experiment, 400k objects failed about half of
   the processes. The refusal now names the cause and the remedies: import
   first, or `node --import fathomdb`. Under `auto` the engine silently uses
   the CPU, with reason `cuda_probe_failed`.
 - **Not every window range is claimed at `cuInit`.** The default pool can
   still `mmap` a 20.47 GiB range at its first query
   ([teardown evidence](pool-teardown-evidence/results.md)). That is why the
-  synchronous fallback stays. It is 1.8–2.4 times slower per steady embed (see
-  the follow-up above), and 51 of 78 passing CUDA runs this round took it.
+  synchronous fallback stays. It is 1.8–2.8 times slower per steady embed (see
+  fix round 3 above). 51 of 78 passing CUDA runs in the early-cuInit round
+  and 65 of 83 in fix round 3 took it.
 - **Unmeasured devices.** Only the Jetson AGX Orin 64 GB was measured. Other
   Jetsons and non-Tegra aarch64 Linux CUDA hosts compile both changes. Their
   regression checks skip unless the device is identified as the measured
@@ -768,4 +877,6 @@ other per-run logs are omitted. The early-cuInit round's
 [verification](early-cuinit-verification/results.md) keeps its scripts,
 analysis, red/green record, hashes and 13 sample files, plus the experiment's
 redacted analyses. Raw per-run logs, maps archives and `strace` output stay
-on the host.
+on the host. Fix round 3 adds its analysis, the worker consumer, 14 sample
+files under `sample-logs-round3/`, the wheel smoke record and appended
+red/green and hash records, with no local paths.

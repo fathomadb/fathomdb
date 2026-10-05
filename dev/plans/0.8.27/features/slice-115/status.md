@@ -1,19 +1,24 @@
 ---
 title: FathomDB 0.8.27 Slice 115 — engine characterization status
-status: IMPLEMENTED_PENDING_INDEPENDENT_REVIEW
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.27
 engine_source_sha: 4ca09d443d7bcc24072e39fb3c683905a9134f27
+measurement_sha: 012e132920147396ac195f14af74444dd698f48e
 ---
 
 # Slice 115 status
 
-The measurement-only workload ran against engine source
-`4ca09d443d7bcc24072e39fb3c683905a9134f27`. No engine or public API
-behavior was edited. The [final receipt](evidence/final) validates its exact
-source, dependency lock, protocol, runner, corpus, model and binary bindings. The raw run has
-twelve paths, one warm-up and seven valid semantic samples per path. Independent
-code review and Terra verification remain pending
-before this slice can be marked complete on the release branch.
+Slice 115 is complete on the local release branch under the HITL's instruction
+to proceed while Slice 110 remains open. The measurement-only workload ran
+against engine source `4ca09d443d7bcc24072e39fb3c683905a9134f27` and
+is committed at `012e132920147396ac195f14af74444dd698f48e`. No engine or
+public API behavior was edited. The [final receipt](evidence/final) validates
+its exact source, dependency lock, protocol, runner, corpus, model and binary
+bindings. The raw run has twelve paths, one warm-up and seven valid semantic
+samples per path. [Independent code review](code-review.md) and Terra
+verification pass. The broader repository gate has an inherited Slice 90
+inventory failure, so this status does not claim a full-workspace green result
+or close Slice 110.
 
 ## Acceptance assessment
 
@@ -92,9 +97,13 @@ cache, feature, seed and metric semantics.
 
 ## Verification and review state
 
-- Fifteen focused receipt/profile/model/lock/security-policy checks pass; the real-engine release
-  workload passed all twelve cells and the copied receipt revalidated with an
-  identical summary.
+- Fifteen focused receipt/profile/model/lock/security-policy checks pass; the
+  real-engine release workload passed all twelve cells and the copied receipt
+  revalidated with an identical summary. Independent `gpt-6-sol` high code
+  rereview closed three findings and found no remaining issue. Independent
+  Terra high read-only verification recomputed the receipt, passed 15 focused
+  tests, Ruff and Markdown lint, and confirmed the inherited Slice 90 mismatch
+  at the untouched base.
 - The pre-review full `./scripts/agent-verify.sh` passed lint, typecheck,
   security, and the Rust workspace suite. It failed three test suites: Slice
   90 root reconciliation has an inventory blob mismatch already present at
@@ -110,3 +119,11 @@ cache, feature, seed and metric semantics.
   different high-entropy digests; the pre-commit scanner remains enabled.
 - The TDD sequence and retained invalid attempts are recorded in
   [chronology](tdd-chronology.md) and the [attempt register](evidence/invalid/attempts.md).
+- After the implementation commit, a focused clean-checkout Python run with
+  an isolated, non-editable wheel and `PYTHONPATH=src/python` passed
+  **1,579 tests, 27 skipped**. The clean candidate test-hook wheel receipt
+  passed its SHA, module digest and nonce check at documentation-only head
+  `157dbe8a71460d58d1e8d35c2c1d19d4fb32a2b6`; 19 targeted projection
+  tests passed. These resolve the pre-commit Python environment failure but
+  do not erase the inherited Slice 90 inventory failure or turn the earlier
+  full run green.

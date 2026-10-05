@@ -374,7 +374,7 @@ user actually commissioned.
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 110** (`NAPI`) — napi-rs binding decomposition
 
-**Remaining ladder:** 110 → 115 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 110 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1098,7 +1098,8 @@ evidence or runtime behavior that should have blocked Slice 90's checkpoint.
 
 ### Slice 115 — engine performance data collection and lightweight profiling
 
-**PLANNED; uncommissioned.** On the refactored Rust engine, collect repeatable
+**COMPLETE_ON_RELEASE_BRANCH at `012e13292` under the HITL's sequencing
+exception.** On the refactored Rust engine, collect repeatable
 performance data and lightweight profiling evidence for representative
 open/close, write/ingest, projection/embed, search, graph, evidence, and
 erasure paths. Record the exact candidate, hardware and software environment,
@@ -1111,6 +1112,10 @@ cell, a frozen-before-run protocol, raw receipts, and lightweight attribution
 for every path. It reuses the accepted Slice 90
 D27 qualification and existing performance gates without changing their
 thresholds; Slice 135 retains ownership of the full 0.8.26 comparison.
+The [status and receipt](0.8.27/features/slice-115/status.md) record twelve
+current-source engine cells, independent reviews, and the inherited Slice 90
+inventory mismatch that prevents a full-workspace green claim. Slice 110's
+Tegra row remains open; its closure still gates Slice 120.
 
 This slice characterizes the release candidate; it does not tune by anecdote or
 silently alter feature/function. It must preserve raw or reproducible receipts

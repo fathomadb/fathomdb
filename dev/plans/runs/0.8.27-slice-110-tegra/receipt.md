@@ -836,6 +836,37 @@ It contains the embedder record but no hook and no hint.
 | Main tarball (unchanged) | `9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257` |
 | Tegra Python wheel | `d861de3416d1ee80566a13bcfde359135b0d037d1c0f1bb571a31281f7f1431c` |
 
+### Full `agent-verify` (fix round 3)
+
+Run on commit `43aa065d0` with the same two host adjustments: `TERM` unset,
+and the untracked omitted evidence (plus one stray empty untracked file,
+`src/rust/crates/fathomdb-napi/src/errors.rs.chk`, that the sandbox would
+not let the agent delete) hidden through an environment-scoped
+`core.excludesFile`.
+
+`./scripts/agent-verify.sh` **failed at the lint step and stopped**, again
+only at `check-runtime-checkpoints` (the Slice 90 D27 bundle is missing on
+this host). The Markdown checks after it were run directly and passed:
+markdownlint on the changed files, plans, design and findings status, plan
+anchors, track runner, release-state views, traceability, architecture
+authority, design lifecycle, the `docs/` lint and the offline link check.
+Then:
+
+- typecheck rc=0;
+- `STRICT=1 AC037_LIVE_OPTIONAL=1 agent-security.sh` rc=0, with AC-036;
+- `agent-test.sh --tier=all`: 184 registered, 178 passed, 6 failed. They
+  are the same 6 suites with the same causes as the early-cuInit round:
+  `test-preflight-release-state`, `test-pypi-publish-roundtrip` (no `cgi` in
+  Python 3.13), `test-check-release-state-views` (arm R5, the shallow-clone
+  probe's remote transport), `test-shell-pipefail-guards` (its arm 4 reruns
+  that suite), `test-rust` (only `fathomdb-py --lib`, which cannot load
+  `libpython3.13`; with its directory on the loader path the binary passed
+  19 / 19) and `test-python` (1565 passed, 10 failed: nine subprocess tests
+  that cannot import `fathomdb` or `eval` without an editable install, and
+  the `classic_tegra` platform probe).
+
+No failure involves a file changed in this round.
+
 ### Open limitations
 
 - **Late import.** If the JavaScript heap grows before fathomdb is loaded,

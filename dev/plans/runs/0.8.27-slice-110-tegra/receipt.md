@@ -477,6 +477,37 @@ Final verification on commit `c7e3f2748`:
 | Main tarball (contents unchanged) | `9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257` |
 | Tegra Python wheel | `29df2ead4bc4f3c0fc336a25755f73af919191fbc6aa0084305acba6de135a86` |
 
+### Full `agent-verify` (review fix 2)
+
+Run on commit `4832e7909` with two host adjustments:
+
+- `TERM` was unset. With `xterm-256color`, libtest probes `$HOME/.terminfo`,
+  which breaks a CLI doctor test.
+- A scratch `core.excludesFile` hid only the untracked omitted evidence, so the
+  Python suites see the clean tree they require.
+
+`./scripts/agent-verify.sh` **failed at the lint step and stopped**. The only
+failing lint check was `check-runtime-checkpoints`: the Slice 90 D27 bundle
+directory under the sibling `qualification-evidence` checkout does not exist on
+this host, and the check fails the same way at the slice baseline. The later
+verbs were then run directly in the same order:
+
+- typecheck rc=0;
+- `STRICT=1 AC037_LIVE_OPTIONAL=1 agent-security.sh` rc=0, AC-036 included;
+- `agent-test.sh --tier=all`: 183 suites registered, 177 passed and 6 failed.
+  No failure involves a changed file.
+
+| Failing suite | Cause |
+| --- | --- |
+| `test-preflight-release-state` | no local `refs/heads/release/0.8.27` in this checkout |
+| `test-pypi-publish-roundtrip` | the minimal PyPI index fails to bind: the `.venv`'s Python 3.13 has no `cgi` module |
+| `test-check-release-state-views` | arm R5's shallow clone hits "remote transport reported error" |
+| `test-shell-pipefail-guards` | its arm 4 reruns the arm R5 suite above |
+| `test-rust` | one target, `fathomdb-py --lib`: the test binary links the worktree `.venv`'s uv CPython 3.13, whose `libpython3.13.so` is not on the loader path. With that directory added, the same binary passes 19 / 19 |
+| `test-python` | 1564 passed, 11 failed. 9 subprocess tests cannot import `fathomdb`, because no editable install exists and none may be made from a worktree. 1 platform probe sees `classic_tegra` on this Jetson. 1 logging-subscriber timing test (`test_real_write_delivers_structured_started_and_finished`) failed under suite load and passed 5 / 5 when rerun alone |
+
+`test-python-native-receipt` passed.
+
 ### Blast radius
 
 The vendored cudarc is compiled only where Candle's CUDA backend is: the Node

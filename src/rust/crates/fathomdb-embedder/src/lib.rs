@@ -37,6 +37,22 @@ pub use reranker_device_policy::{
     RerankerDeviceResolutionReason, ENV_RERANK_DEVICE,
 };
 
+// The most recent cuInit outcome, read by the Node addon on aarch64 Linux to
+// initialise the driver at load and to explain an out-of-memory cuInit in a
+// forced-CUDA refusal. Binding support, not a public SDK surface.
+#[cfg(all(
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+mod cuda_driver_init;
+#[cfg(all(
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+pub use cuda_driver_init::{initialize_cuda_driver, last_cuda_driver_init, CudaDriverInit};
+
 // 0.8.23 Slice 80.5 (D-80.5-4) — the Tegra-portable GPU allocation witness.
 // Compiled UNCONDITIONALLY: only its driver sampler/allocator and end-to-end
 // runner are `embed-cuda`-gated, so the verdict, the typed failures, the floor

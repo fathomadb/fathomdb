@@ -60,8 +60,15 @@ impl CudaProvider for RerankerCudaProvider {
             use candle_core::cuda::cudarc::driver::{result, sys};
 
             let driver_present = unsafe { sys::is_culib_present() };
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            if !driver_present {
+                crate::cuda_driver_init::record_driver_library_absent();
+            }
             driver_present.then_some(()).ok_or(CudaProbeError::NoVisibleDevice)?;
-            result::init().map_err(classify_cuda_driver_error)?;
+            let init = result::init();
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            crate::cuda_driver_init::record_init_result(&init);
+            init.map_err(classify_cuda_driver_error)?;
             let count = result::device::get_count().map_err(classify_cuda_driver_error)?;
             let count = usize::try_from(count).map_err(|_| CudaProbeError::ProbeFailed {
                 message: "CUDA driver returned a negative device count".to_owned(),

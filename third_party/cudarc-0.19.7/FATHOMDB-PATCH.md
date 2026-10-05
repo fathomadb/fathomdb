@@ -18,8 +18,11 @@ The only changed file is `src/driver/safe/core.rs`. Every change is marked
 
 **Scope: aarch64 Linux only.** Items 1 to 3 apply only when the crate is
 built for `cfg(all(target_os = "linux", target_arch = "aarch64"))`, the
-platform of the measured Jetson failure. On every other target the crate
-behaves as published 0.19.7:
+platform of the measured Jetson failure. That predicate also covers non-Tegra
+aarch64 Linux CUDA hosts, such as Grace Hopper, GB10 and other SBSA servers.
+They are in scope of the cfg, but nothing here was measured on them. The
+FathomDB artifacts that compile this crate for aarch64 Linux are Tegra
+(Jetson) builds. On every other target the crate behaves as published 0.19.7:
 
 - each context chooses stream-ordered allocation from
   `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED` alone;
@@ -39,7 +42,11 @@ differences are structural: helper functions and doc comments.
 `SYNC_FALLBACK` constant is `false`. The off-target branch has not been
 compiled for a real non-aarch64 target on the Jetson used for this work. It
 was compiled, clippy-checked and unit-tested there from a copy with the cfg
-predicate flipped. A real x86_64 build is left to CI.
+predicate flipped. A real x86_64 build is left to CI. The off-target
+constructor paths (`CudaContext::new` and the other constructors calling the
+upstream rule on a live device) are exercised only by a real off-target build
+running the GPU tests on a CUDA host; the flipped copy and the pure tests do
+not cover them.
 
 1. **Allocator selection.** Upstream decides once per context to use
    stream-ordered allocation (`cuMemAllocAsync`) whenever
@@ -73,14 +80,22 @@ predicate flipped. A real x86_64 build is left to CI.
    per-wrapper copy that `CudaStream::null`, `CudaStream::alloc` and
    `CudaSlice::drop` read, and all copies for one device are now equal.
    The decision lasts for the process lifetime. A cached "stream-ordered"
-   decision stays valid because the default pool outlives the contexts that
-   use it. This was measured on the Jetson in 40 fresh processes: primary
-   context released to refcount 0, or non-primary context destroyed, in both
-   an unobstructed layout and one where the pool had to `mmap` a new 20.47 GiB
-   range into a hole. The driver unmapped nothing in the window. After every
-   remaining hole was blocked, re-retaining or re-creating the context
-   returned the same pool handle, and `cuMemAllocAsync` succeeded. The probe
-   and its results are in the FathomDB repository under
+   decision relies on the default pool outliving the contexts that use it.
+   That was measured only on the Jetson AGX Orin 64 GB (L4T R36, CUDA 12.6),
+   in plain C and fresh processes. A primary context was released to
+   refcount 0, or a non-primary context destroyed, in both an unobstructed
+   layout and one where the pool had to `mmap` a new 20.47 GiB range into a
+   hole. The pool survived in 40 / 40 runs with an explicit pool kept alive,
+   40 / 40 with no explicit pool ever created and 20 / 20 with the explicit
+   pool destroyed before teardown. The driver unmapped nothing in the window.
+   After every remaining hole was blocked, re-retaining or re-creating the
+   context returned the same pool handle, and `cuMemAllocAsync` succeeded. In
+   a control, blocking every hole after `cuInit` but before the first pool
+   query made the pool unavailable in 10 / 10 runs, so the probe does detect
+   a missing pool. Not measured: a co-resident library calling
+   `cuDevicePrimaryCtxReset` or `cudaDeviceReset` (neither cudarc nor Candle
+   does), and other Jetson models. The probe and its results are in the
+   FathomDB repository under
    `dev/plans/runs/0.8.27-slice-110-tegra/pool-teardown-evidence/`. A cached
    "synchronous" decision is conservative: if the address space later frees a
    20960 MiB hole, the device stays on the slower but correct synchronous
@@ -113,6 +128,10 @@ predicate flipped. A real x86_64 build is left to CI.
      On aarch64 Linux only, they also check that two wrappers of device 0 share
      the decision, the zero-byte request, and a sync-allocating context's null
      zero-length buffers; a data round trip runs everywhere.
+
+   No test compares `SYNC_FALLBACK` with its own defining `cfg!` expression;
+   which rule a build applies is shown by the tests above running on that
+   build's target.
 
    Run the module with `scripts/tests/test_vendored_cudarc.sh`.
 

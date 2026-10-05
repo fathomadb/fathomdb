@@ -1,5 +1,5 @@
 diff --git a/src/driver/safe/core.rs b/src/driver/safe/core.rs
-index 2f938ec03..8eb283d01 100644
+index 2f938ec03..9dc48afb3 100644
 --- a/src/driver/safe/core.rs
 +++ b/src/driver/safe/core.rs
 @@ -42,6 +42,187 @@ pub struct CudaContext {
@@ -334,7 +334,7 @@ index 2f938ec03..8eb283d01 100644
      pub unsafe fn upgrade_device_ptr<T>(
          self: &Arc<Self>,
          cu_device_ptr: sys::CUdeviceptr,
-@@ -2921,3 +3111,269 @@ mod tests {
+@@ -2921,3 +3111,261 @@ mod tests {
          handle.join().unwrap();
      }
  }
@@ -366,14 +366,6 @@ index 2f938ec03..8eb283d01 100644
 +
 +    const ON_TARGET: bool = true;
 +    const OFF_TARGET: bool = false;
-+
-+    #[test]
-+    fn the_fallback_applies_only_to_aarch64_linux_builds() {
-+        assert_eq!(
-+            SYNC_FALLBACK,
-+            cfg!(all(target_os = "linux", target_arch = "aarch64"))
-+        );
-+    }
 +
 +    #[test]
 +    fn off_target_selection_is_the_upstream_rule_whatever_the_pool_would_say() {

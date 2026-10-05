@@ -3141,14 +3141,6 @@ mod fathomdb_alloc_fallback {
     const OFF_TARGET: bool = false;
 
     #[test]
-    fn the_fallback_applies_only_to_aarch64_linux_builds() {
-        assert_eq!(
-            SYNC_FALLBACK,
-            cfg!(all(target_os = "linux", target_arch = "aarch64"))
-        );
-    }
-
-    #[test]
     fn off_target_selection_is_the_upstream_rule_whatever_the_pool_would_say() {
         use sys::CUresult::{
             CUDA_ERROR_ILLEGAL_ADDRESS, CUDA_ERROR_NOT_SUPPORTED, CUDA_ERROR_OUT_OF_MEMORY,

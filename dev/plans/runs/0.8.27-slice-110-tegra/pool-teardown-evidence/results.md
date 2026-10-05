@@ -60,15 +60,51 @@ Layouts:
 An earlier run of the same probe without the hole-filling step gave the same
 answer in 40 / 40 runs.
 
+### Without a live explicit pool, and a control after `cuInit`
+
+The series above keep the explicit pool alive across teardown. That pool
+lives in the window too, so it could have held the driver's pool machinery in
+place and confounded "the default pool survives". A later round added two
+`explicit=` options to the probe and a control
+([run-variants.sh](run-variants.sh),
+[results-variants-summary.txt](results-variants-summary.txt)):
+
+- `explicit=none` never creates the explicit pool.
+- `explicit=destroy` creates and uses it, then calls `cuMemPoolDestroy`
+  before teardown.
+- `fill-before-pool` is a control. In the free-gap layout, right after the
+  context exists and before the first `cuDeviceGetDefaultMemPool`, it maps a
+  blocker every 4 GiB through every unmapped hole of the window.
+
+| Series | Runs | Added by pool | Freed by teardown | Pool after re-retain | Same handle | `cuMemAllocAsync` after |
+| --- | --- | --- | --- | --- | --- | --- |
+| primary, open, no explicit pool | 10 | 0 | 0 | success | 10 / 10 | success |
+| primary, free gap, no explicit pool | 10 | 20.47 GiB | 0 | success | 10 / 10 | success |
+| non-primary, open, no explicit pool | 10 | 0 | 0 | success | 10 / 10 | success |
+| non-primary, free gap, no explicit pool | 10 | 20.47 GiB | 0 | success | 10 / 10 | success |
+| primary, free gap, explicit pool destroyed | 10 | 20.47 GiB | 0 | success | 10 / 10 | success |
+| non-primary, free gap, explicit pool destroyed | 10 | 20.47 GiB | 0 | success | 10 / 10 | success |
+| control: holes filled after `cuInit`, before the first pool query | 10 | 0 | 0 | `CUDA_ERROR_OUT_OF_MEMORY` | — | `CUDA_ERROR_OUT_OF_MEMORY` |
+
+`cuMemAlloc` succeeded in every run, the control included.
+
 ## Conclusions
 
-- **The default pool survives context teardown.** This holds whether its
-  context is a primary context released to refcount 0 or a destroyed
-  non-primary context. The driver unmapped nothing in the window. With every
-  remaining hole blocked, re-retaining returned the same pool handle, and
-  stream-ordered allocation worked in 40 / 40 runs. A cached "stream-ordered"
-  decision therefore stays valid for the process, and the patch needs no
-  re-check.
+- **On this Jetson, the default pool survives context teardown.** This holds
+  whether its context is a primary context released to refcount 0 or a
+  destroyed non-primary context, and whether an explicit pool is kept alive
+  (40 / 40), never created (40 / 40) or destroyed before teardown (20 / 20).
+  The driver unmapped nothing in the window. With every remaining hole
+  blocked, re-retaining returned the same pool handle, and stream-ordered
+  allocation worked in all 100 runs. A cached "stream-ordered" decision
+  therefore stays valid for the process on the measured device, and the
+  patch needs no re-check there.
+- **The control detects an unavailable pool after `cuInit`.** Blocking every
+  hole after `cuInit` but before the first pool query left the pool at
+  `CUDA_ERROR_OUT_OF_MEMORY` in 10 / 10 runs. The probe's hole filling is
+  therefore able to deny the pool a range, so the survival above is not an
+  artefact of a layout that could never fail. It also confirms that the
+  free-gap pool range is mapped lazily, at the first pool query.
 - **Refuted:** "the driver makes all window reservations inside `cuInit`".
   In the free-gap layout the default pool added a new 20.47 GiB mapping when
   first obtained, in 20 / 20 runs. That mapping was then kept across
@@ -76,9 +112,11 @@ answer in 40 / 40 runs.
 - **Confirmed:** an explicit pool survives primary-context release and
   re-retain, and non-primary destroy and re-create, in 40 / 40 runs. It also
   works in the control layout.
-- **Not measured:** `cuDevicePrimaryCtxReset`, which neither cudarc nor Candle
-  calls, and other Jetson models.
+- **Not measured:** a co-resident library calling `cuDevicePrimaryCtxReset`
+  or `cudaDeviceReset` (neither cudarc nor Candle does), other Jetson models,
+  and non-Tegra aarch64 Linux CUDA hosts.
 
-Sample logs: [sample-logs/](sample-logs/). The remaining per-run logs are
-omitted; each repeats its series' `RESULT` line, and those lines are counted
-in the summary.
+Sample logs: [sample-logs/](sample-logs/), one per series (`*-none-01`,
+`*-destroy-01` and `*-fillbeforepool-01` are from the later round). The
+remaining per-run logs are omitted; each repeats its series' `RESULT` line,
+and those lines are counted in the summaries.

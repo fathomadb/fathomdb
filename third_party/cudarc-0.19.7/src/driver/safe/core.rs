@@ -43,7 +43,7 @@ pub struct CudaContext {
 }
 
 // FATHOMDB PATCH BEGIN: allocator fallback (see FATHOMDB-PATCH.md).
-/// Whether a context should use stream-ordered allocation.
+/// Whether a device should use stream-ordered allocation.
 ///
 /// Stream-ordered allocation (`cuMemAllocAsync`) draws from the device's
 /// default memory pool. A driver can report memory-pool support yet be unable
@@ -51,19 +51,77 @@ pub struct CudaContext {
 /// of about a third of device memory in the process address space, and in a
 /// fragmented process `cuDeviceGetDefaultMemPool` and every `cuMemAllocAsync`
 /// return `CUDA_ERROR_OUT_OF_MEMORY` while `cuMemAlloc` succeeds. Such a
-/// context allocates synchronously instead.
-fn use_async_alloc(
+/// device allocates synchronously instead.
+///
+/// `default_pool` is queried only when pools are supported. Only the results
+/// that mean "this device has no usable default pool" select the synchronous
+/// allocator: `CUDA_ERROR_OUT_OF_MEMORY` (measured above) and
+/// `CUDA_ERROR_NOT_SUPPORTED` (the documented answer of a device without
+/// pools). Any other error, for example a sticky error from earlier
+/// asynchronous work, says nothing about the pool and is returned, so a
+/// healthy device is never silently downgraded.
+fn async_alloc_decision(
     memory_pools_supported: i32,
-    default_pool: &Result<sys::CUmemoryPool, DriverError>,
-) -> bool {
-    memory_pools_supported > 0 && default_pool.is_ok()
+    default_pool: impl FnOnce() -> Result<sys::CUmemoryPool, DriverError>,
+) -> Result<bool, DriverError> {
+    if memory_pools_supported <= 0 {
+        return Ok(false);
+    }
+    match default_pool() {
+        Ok(_) => Ok(true),
+        Err(DriverError(
+            sys::CUresult::CUDA_ERROR_OUT_OF_MEMORY | sys::CUresult::CUDA_ERROR_NOT_SUPPORTED,
+        )) => Ok(false),
+        Err(error) => Err(error),
+    }
 }
 
-/// Queries the inputs of [use_async_alloc] for a newly created context.
+/// The allocator decision for each device, made once per process.
 ///
-/// This runs once per context. Every allocation and its matching free branch
-/// on the stored result, so a buffer is always freed by the API that
-/// allocated it.
+/// A buffer may outlive or move between [CudaContext] wrappers of one device
+/// (`CudaContext::new` may be called repeatedly for the same primary context,
+/// and [CudaSlice::leak] / [CudaStream::upgrade_device_ptr] move raw
+/// pointers), and it is freed by whichever wrapper owns it last. If two
+/// wrappers chose differently, a `cuMemAlloc` buffer could reach
+/// `cuMemFreeAsync`. Keying the decision by device makes every wrapper of a
+/// device agree. Default-pool availability is a device property that is fixed
+/// once the process has initialized the driver, so the first decision is also
+/// the one every later probe would make.
+struct AllocModeByDevice(std::sync::Mutex<Vec<(sys::CUdevice, bool)>>);
+
+impl AllocModeByDevice {
+    const fn new() -> Self {
+        Self(std::sync::Mutex::new(Vec::new()))
+    }
+
+    /// Returns the recorded decision for `cu_device`, or runs `decide` and
+    /// records its result if it succeeds. The lock is held across `decide`, so
+    /// racing constructors cannot record different answers; a failed `decide`
+    /// records nothing and the next wrapper probes again.
+    fn get_or_decide(
+        &self,
+        cu_device: sys::CUdevice,
+        decide: impl FnOnce() -> Result<bool, DriverError>,
+    ) -> Result<bool, DriverError> {
+        // Entries are pushed only after a successful `decide`, so a poisoned
+        // lock still guards a consistent list.
+        let mut decided = self.0.lock().unwrap_or_else(|poison| poison.into_inner());
+        if let Some(&(_, async_alloc)) = decided.iter().find(|(device, _)| *device == cu_device) {
+            return Ok(async_alloc);
+        }
+        let async_alloc = decide()?;
+        decided.push((cu_device, async_alloc));
+        Ok(async_alloc)
+    }
+}
+
+static PROCESS_ALLOC_MODE: AllocModeByDevice = AllocModeByDevice::new();
+
+/// The process-wide allocator decision ([async_alloc_decision]) for the device
+/// of a newly created or wrapped context.
+///
+/// Every allocation and its matching free branch on the stored result, so a
+/// buffer is always freed by the API that allocated it.
 ///
 /// # Safety
 /// `cu_ctx` must be a live context created for `cu_device`; it is made current
@@ -72,16 +130,18 @@ unsafe fn select_async_alloc(
     cu_device: sys::CUdevice,
     cu_ctx: sys::CUcontext,
 ) -> Result<bool, DriverError> {
-    let memory_pools_supported = result::device::get_attribute(
-        cu_device,
-        sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
-    )?;
-    if memory_pools_supported <= 0 {
-        return Ok(false);
-    }
-    result::ctx::set_current(cu_ctx)?;
-    let default_pool = result::device::get_default_mem_pool(cu_device);
-    Ok(use_async_alloc(memory_pools_supported, &default_pool))
+    PROCESS_ALLOC_MODE.get_or_decide(cu_device, || {
+        let memory_pools_supported = result::device::get_attribute(
+            cu_device,
+            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
+        )?;
+        if memory_pools_supported > 0 {
+            result::ctx::set_current(cu_ctx)?;
+        }
+        async_alloc_decision(memory_pools_supported, || {
+            result::device::get_default_mem_pool(cu_device)
+        })
+    })
 }
 
 /// Synchronous allocation that returns a null pointer for zero bytes.
@@ -136,7 +196,10 @@ impl CudaContext {
         let cu_device = result::device::get(ordinal as i32)?;
         let cu_ctx = unsafe { result::primary_ctx::retain(cu_device) }?;
         // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
-        let has_async_alloc = unsafe { select_async_alloc(cu_device, cu_ctx) }?;
+        let has_async_alloc =
+            unsafe { select_async_alloc(cu_device, cu_ctx) }.inspect_err(|_| {
+                let _ = unsafe { result::primary_ctx::release(cu_device) };
+            })?;
         let ctx = Arc::new(CudaContext {
             cu_device,
             cu_ctx,
@@ -203,7 +266,10 @@ impl CudaContext {
         let cu_ctx = unsafe { result::ctx::create_v3(flags, cu_device) }?;
 
         // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
-        let has_async_alloc = unsafe { select_async_alloc(cu_device, cu_ctx) }?;
+        let has_async_alloc =
+            unsafe { select_async_alloc(cu_device, cu_ctx) }.inspect_err(|_| {
+                let _ = unsafe { sys::cuCtxDestroy_v2(cu_ctx) };
+            })?;
         let ctx = Arc::new(CudaContext {
             cu_device,
             cu_ctx,
@@ -249,7 +315,10 @@ impl CudaContext {
         };
         let cu_ctx = unsafe { result::ctx::create_v4(&mut ctx_create_params, flags, cu_device) }?;
         // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
-        let has_async_alloc = unsafe { select_async_alloc(cu_device, cu_ctx) }?;
+        let has_async_alloc =
+            unsafe { select_async_alloc(cu_device, cu_ctx) }.inspect_err(|_| {
+                let _ = unsafe { sys::cuCtxDestroy_v2(cu_ctx) };
+            })?;
         let ctx = Arc::new(CudaContext {
             cu_device,
             cu_ctx,
@@ -274,7 +343,11 @@ impl CudaContext {
     /// - `cu_ctx` must be a valid CUDA context that was created (not yet destroyed).
     /// - `cu_device` must be the device the context was created for.
     /// - The caller must not destroy or release the context after calling this function;
-    ///   ownership is transferred to the returned `Arc<CudaContext>`.
+    ///   ownership is transferred to the returned `Arc<CudaContext>`. If this returns an
+    ///   error, ownership stays with the caller (FathomDB patch).
+    ///
+    /// The allocator is the one already chosen for `cu_device` in this process, if any
+    /// (FathomDB patch; see [CudaContext::has_async_alloc]).
     pub unsafe fn from_raw_context(
         ordinal: usize,
         cu_device: sys::CUdevice,
@@ -306,9 +379,11 @@ impl CudaContext {
 
     /// Returns whether this context supports asynchronous memory allocation.
     ///
-    /// The value is decided once, when the context is created: it is `true` only if the
-    /// `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED` attribute is greater than 0 and the device's
-    /// default memory pool can be obtained (FathomDB patch; see `FATHOMDB-PATCH.md`).
+    /// The value is decided once per device per process, by the first context created for
+    /// or wrapping that device, and every later context of the device reuses it: it is `true`
+    /// only if the `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED` attribute is greater than 0 and
+    /// the device's default memory pool can be obtained (FathomDB patch; see
+    /// `FATHOMDB-PATCH.md`).
     /// Memory allocations performed through the default [CudaStream] will use `cuMemAllocAsync`
     /// over `cuMemAlloc` if this method returns `true`.
     pub fn has_async_alloc(&self) -> bool {
@@ -2536,6 +2611,12 @@ impl CudaStream {
     /// - `cu_device_ptr` must space for `len * std::mem::size_of<T>()` bytes
     /// - The memory may not be valid for type `T`, so some sort of memset operation
     ///   should be called on the memory.
+    /// - The slice frees the pointer with `cuMemFreeAsync` if
+    ///   [CudaContext::has_async_alloc] is `true` for this stream's context and with
+    ///   `cuMemFree` otherwise, so the pointer must come from the matching allocator.
+    ///   A pointer from [`CudaSlice::leak()`] on any context of the same device
+    ///   satisfies this, because every context of a device shares one decision
+    ///   (FathomDB patch).
     pub unsafe fn upgrade_device_ptr<T>(
         self: &Arc<Self>,
         cu_device_ptr: sys::CUdeviceptr,

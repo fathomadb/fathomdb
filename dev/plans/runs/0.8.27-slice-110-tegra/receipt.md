@@ -13,7 +13,7 @@
 | --- | --- | --- |
 | Node 25 thin-main and installed CPU package | PASS | Fresh external consumer, runtime surface, subscriber, reopen, typecheck, and CPU embedding all pass. |
 | Tegra `embed-cuda,rerank-cuda` package build and installed package | PASS | The host-native CUDA package builds and a fresh external consumer passes the same package, surface, subscriber, reopen, and typecheck checks. Forced CPU embedding and reranking through this CUDA-capable package also pass. |
-| Node NAPI forced-CUDA runtime | FIXED for the allocator failure; pending independent review | Root cause and fix: [allocator fallback](#allocator-root-cause-and-fix). With the fix, 100 / 100 fresh forced-CUDA processes passed open, embed, rerank and the allocation witness (Node 25, 24 and 26; in-tree and installed). Open limitations: `cuInit` failure in very heap-heavy processes and a slower fallback path. |
+| Node NAPI forced-CUDA runtime | FIXED for the allocator failure and for heap growth after an early import; pending independent review | Root cause and fix: [allocator fallback](#allocator-root-cause-and-fix) and [early `cuInit`](#early-cuinit-in-the-node-addon). With the allocator fix, 100 / 100 fresh forced-CUDA processes passed open, embed, rerank and the allocation witness (Node 25, 24 and 26; in-tree and installed). With early `cuInit`, 50 / 50 passed after growing the heap to 69–181 MiB behind an early import. Open limitations: a late import into a large heap, and a slower fallback path. |
 
 The sections before [the allocator fix](#allocator-root-cause-and-fix) record
 the investigation while this row was OPEN; their OPEN wording is historical.
@@ -377,8 +377,9 @@ series in this receipt, the synchronous / stream-ordered split is **inferred**
 from steady embed latency, which is bimodal: 72 of the 100 CUDA runs
 were synchronous (24.5–32.7 ms steady median) and 28 stream-ordered
 (8.8–17.3 ms). Medians: synchronous 25.7 ms, stream-ordered 10.9 ms in-tree
-and 12.4 ms installed, so the fallback costs about 2.1–2.4 times per steady
-embed. First embed was 59–62 ms against 47 ms; open time was unchanged at about
+and 12.4 ms installed. The fallback costs about 1.8–2.4 times per steady embed,
+the single range used throughout this slice (see
+[Open limitations](#open-limitations)). First embed was 59–62 ms against 47 ms; open time was unchanged at about
 1.4 s. Every witness delta cleared the 64 MiB floor (105–164 MiB). All 100
 CUDA embeddings had identical leading values, as did all six CPU ones.
 Runner, consumer, analysis and hashes are in
@@ -443,6 +444,9 @@ also narrowed the fallback's scope.
   patch note now state this measured claim. The free-gap runs refute
   "the driver makes all window reservations in `cuInit`": the pool `mmap`ed a
   new 20.47 GiB range. They confirm that an explicit pool survives teardown.
+  These runs kept an explicit pool alive across teardown. The
+  [early-cuInit round](#review-follow-ups-in-the-early-cuinit-round) repeated
+  them without one and scoped the claim to the measured Orin.
 - **`from_raw_context` ownership.** The doc now says that a `bind_to_thread`
   failure after the wrapper exists destroys the context on drop. Upstream
   behaves the same way.
@@ -527,6 +531,9 @@ no-feature builds do not compile it.
   discrete GPUs off aarch64 Linux. They compile upstream's allocator logic.
 - **Root patches do not propagate.** Downstream Rust builds of the published
   crates with `embed-cuda` still resolve the unpatched crates.io cudarc.
+- **Early `cuInit`** (later round) changes only the Node addon built for
+  aarch64 Linux with `embed-cuda` or `rerank-cuda`. The published Linux
+  AArch64 npm package is CPU-only and does not contain it.
 
 ### Tegra Python wheel
 
@@ -556,23 +563,151 @@ unified memory, and 8 passed. Both failures were the witness's
 resolution. The witness reads a system-wide `cuMemGetInfo` counter, so it
 needs the process to be the only GPU consumer.
 
+### Early `cuInit` in the Node addon
+
+**Commits:** failing tests `b48cfe549` (napi unit tests) and `cd374dd24` (Node
+heap check), implementation `2868f1e83`. User-fixed scope: early `cuInit`
+plus the synchronous fallback, both limited to aarch64 Linux.
+
+**Problem.** On this Orin, `cuInit` makes one 61.36 GiB reservation at
+`0x200000000` and returns `CUDA_ERROR_OUT_OF_MEMORY` when no unmapped hole of
+at least 4 GiB is left in [8 GiB, 128 GiB). V8 on ARM64 Linux places 256 KiB
+heap pages at random hints across [0, 256 GiB). In the experiment, a heap of
+about 74 MiB already failed about half of the processes, and about 160 MiB or
+more failed all of them. Without early init, 26 of 40 processes failed, and
+0 / 15 passed with 1M live objects. The allocator fallback cannot help:
+there is no context at all. The experiment's analyses and its hook patch are
+in [early-cuinit-verification/experiment/](early-cuinit-verification/experiment/),
+with local paths redacted.
+
+**Change.**
+
+- The Node addon calls `cuInit(0)` from a shared-library constructor
+  (`napi::module_init`) when the `.node` file is loaded. It is compiled only
+  for `cfg(all(target_os = "linux", target_arch = "aarch64"))` with
+  `embed-cuda` or `rerank-cuda`.
+- It runs once per process, on whichever thread first loads the addon.
+  `worker_threads` that require the addon later reuse the loaded library, so
+  it does not run again.
+- It loads the driver library only after cudarc's presence check. It never
+  prints, and it never panics out of or fails the load.
+- It is skipped when every component built with CUDA has an exact `cpu`
+  policy. This uses the open-time parsers, so unset means `auto`.
+- The embedder records the most recent `cuInit` outcome, from the hook or
+  from its own embedder and reranker probes, on aarch64 Linux CUDA builds.
+  When forced CUDA then refuses with `cuda_probe_failed` after an
+  out-of-memory `cuInit`, the message names the cause and both remedies. The
+  code, kind and no-CPU-fallback contract are unchanged.
+- Python, the CLI and every other target compile none of this. `git diff`
+  from the slice baseline touches nothing under
+  `src/rust/crates/fathomdb-py` or `src/python`. The CPU release build on
+  this host carries neither the symbols nor the message text.
+
+**Red and green** ([red-green.txt](early-cuinit-verification/red-green.txt)):
+
+- `scripts/tests/test_tegra_node_early_cuinit.sh`: 1M objects behind an early
+  import, forced `cuda:0`. On the review fix 2 addon `057eed2b…`, 3 / 3 runs
+  were refused with `cuda_probe_failed`. On the new addon `fb40b9ae…`, 5 / 5
+  passed.
+- The napi unit tests failed to compile (15 errors), then passed 5 / 5.
+- `device_policy` passed 7 / 7 and `slice71_reranker_policy` 8 / 8, with
+  default features and with `embed-cuda,rerank-cuda`.
+
+**Verification** ([results](early-cuinit-verification/results.md),
+[analysis](early-cuinit-verification/analysis.txt)). Fresh processes, under
+the GPU lock:
+
+| Scenario | Node 25.9.0 | Node 24.15.0 | Node 26.10.0 |
+| --- | --- | --- | --- |
+| Import first, then 400k objects | 15 / 15 | 5 / 5 | 5 / 5 |
+| Import first, then 1M objects | 15 / 15 | 5 / 5 | 5 / 5 |
+| Late import, 1M objects (installed) | 0 / 5, each with the new message | — | — |
+| Late import under `node --import fathomdb` (installed) | 5 / 5 | — | — |
+| Late import under `NODE_OPTIONS=--import=fathomdb` (installed) | 3 / 3 | — | — |
+| Small consumer, in-tree and installed | 10 / 10 and 10 / 10 | — | — |
+| Forced CPU (in-tree) | 3 / 3, no reservation | — | — |
+| `CUDA_VISIBLE_DEVICES=` with `auto` (in-tree) | 3 / 3 on CPU, silent | — | — |
+
+No run wrote to stderr. All CUDA and CPU embeddings had the same leading
+values, and witness deltas were 106–144 MiB.
+
+**Import cost.** Medians of 10 imports, installed form, Node 25:
+
+- with the hook: 32.4 ms;
+- the same build with both policies `cpu`: 20.9 ms;
+- the review fix 2 build with no hook: 21.0 ms.
+
+That is about +11 ms per import, +1–3 MiB of RSS and +61.5 GiB of virtual
+size. The first import after the GPU has been idle costs about 110 ms more:
+134–144 ms against 21–22 ms without `cuInit`.
+
+| Artifact (early `cuInit`) | SHA-256 |
+| --- | --- |
+| CUDA/rerank `.node` (built and installed) | `fb40b9aec0f6cb4a8bc260b0e3fe63e1657b891ab6cbd23b4094006e74eb8bde` |
+| CUDA/rerank platform tarball | `37deae961cf6ab6a45a36b055e451d5c34f183f262e0eaa950290c9c2392c0e4` |
+| Main tarball (contents unchanged) | `9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257` |
+
+The Tegra Python wheel was not rebuilt this round. Its bindings are unchanged.
+The embedder's new `cuInit` record compiles into it but is never read there.
+
+### Review follow-ups in the early-cuInit round
+
+- **Teardown confound.** `pool_teardown.c` gained `explicit=none|destroy` and
+  a `fill-before-pool` control. Without a live explicit pool, the default pool
+  survived teardown in 40 / 40 processes (never created) and 20 / 20
+  (destroyed first). The control made the pool unavailable in 10 / 10, so no
+  allocator rework is needed
+  ([results](pool-teardown-evidence/results.md#without-a-live-explicit-pool-and-a-control-after-cuinit)).
+  The patch note, this receipt, the handoff and the platform reference now
+  scope survival to this Orin. They name what is unmeasured: a co-resident
+  library calling `cuDevicePrimaryCtxReset` or `cudaDeviceReset`, and other
+  Jetson models.
+- **Non-Tegra aarch64.** Grace Hopper, GB10 and SBSA hosts are inside the
+  cfg but unmeasured. The artifacts that compile it for aarch64 Linux are
+  Tegra builds, and the published Linux AArch64 npm package is CPU-only.
+- **Tautological test.** `the_fallback_applies_only_to_aarch64_linux_builds`
+  was removed (`b7c77dc56`). The patch note says the off-target constructor
+  paths are exercised only by a real off-target build. The regenerated patch
+  still reproduces `core.rs`. The vendor tree digest is now `92284bf5…`, and
+  the vendored tests pass 14 / 14.
+- **Regression test on unmeasured hosts.** `tegra_fragmented_va_cuda` now
+  skips with the reason on any driver failure before `cuda:0` is identified
+  (`16d091c18`). The on-target assertions are unchanged and passed 1 / 1.
+  With the stub `libcuda` it skips instead of panicking.
+- **One slowdown figure.** The synchronous path is 1.8–2.4 times slower per
+  steady embed. For each Node CUDA series (round, form, Node version, heap)
+  with runs on both paths, the ratio is the median steady embed of its
+  synchronous runs over that of its stream-ordered runs. The range covers
+  all 17 such series in this slice: 1.79–2.41, with synchronous medians
+  24.8–27.1 ms and stream-ordered 10.4–14.6 ms. The ledger's "about 2.0–2.4x"
+  is append-only and was left as written.
+- **Reranker clippy on aarch64** (`a849e4d53`). The reranker's UUID cast
+  failed `clippy -D warnings` with `rerank-cuda` on the Jetson, at the slice
+  baseline too. It now carries the same `allow` as the embedder's helper.
+
 ### Open limitations
 
-- In very heap-heavy Node processes `cuInit` itself can fail with
-  `CUDA_ERROR_OUT_OF_MEMORY` before any context exists, apparently when no
-  4 GiB hole is left in the window. In the explicit-pool experiment's
-  400k-object variants 25 of 68 processes created no CUDA context
-  ([analysis](explicit-pool-experiment/analysis.txt)). The allocator fallback
-  does not address it; forced CUDA still refuses with the typed error there.
-- The synchronous path is about 1.9–2.4 times slower per steady embed. This
-  range comes from the steady-embed medians of all three Node rounds:
-  25.4–26.7 ms synchronous against 10.9–13.9 ms stream-ordered.
-- **Revisit obligation.** At the user's direction, this aarch64-Linux-only
-  allocator workaround, and the early `cuInit` that will follow in this slice,
-  must be revisited at the next micro release and loudly at the next minor
-  release (todos ledger `TC-9fef1b7c-4442-4c77-b925-992f338c9aac`, seq 270).
-- The Slice 110 runtime row is fixed for the allocator failure but remains
-  **IN_PROGRESS** pending independent review.
+- **Late import.** If the JavaScript heap grows before fathomdb is loaded,
+  `cuInit` can already be impossible, and forced CUDA refuses. 1M objects
+  failed 5 / 5 here; in the experiment, 400k objects failed about half of
+  the processes. The refusal now names the cause and the remedies: import
+  first, or `node --import fathomdb`. Under `auto` the engine silently uses
+  the CPU, with reason `cuda_probe_failed`.
+- **Not every window range is claimed at `cuInit`.** The default pool can
+  still `mmap` a 20.47 GiB range at its first query
+  ([teardown evidence](pool-teardown-evidence/results.md)). That is why the
+  synchronous fallback stays. It is 1.8–2.4 times slower per steady embed (see
+  the follow-up above), and 51 of 78 passing CUDA runs this round took it.
+- **Unmeasured devices.** Only the Jetson AGX Orin 64 GB was measured. Other
+  Jetsons and non-Tegra aarch64 Linux CUDA hosts compile both changes. Their
+  regression checks skip unless the device is identified as the measured
+  target.
+- **Revisit obligation.** At the user's direction, the aarch64-Linux-only
+  allocator workaround and the early `cuInit` must be revisited at the next
+  micro release and loudly at the next minor release (todos ledger
+  `TC-9fef1b7c-4442-4c77-b925-992f338c9aac`, seq 270).
+- The Slice 110 runtime row remains **IN_PROGRESS** pending independent
+  review.
 
 ### Evidence retained and omitted
 
@@ -586,4 +721,8 @@ per-run logs (`logs*/`, `c-logs/`, `cuinit-threshold/`, `replay/`), the
 `strace` output, and the build logs. The review fix 2
 [pool-teardown-evidence](pool-teardown-evidence/results.md) keeps the probe,
 the runner, the counted `RESULT` lines and one sample log per series; the
-other per-run logs are omitted.
+other per-run logs are omitted. The early-cuInit round's
+[verification](early-cuinit-verification/results.md) keeps its scripts,
+analysis, red/green record, hashes and 13 sample files, plus the experiment's
+redacted analyses. Raw per-run logs, maps archives and `strace` output stay
+on the host.

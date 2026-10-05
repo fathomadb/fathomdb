@@ -1,0 +1,63 @@
+# c-series (window empty at cuInit)
+pre= 0 early arm=1 n=  100 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=16.00..27.00 hole_after_scatter=6.13..15.13
+pre= 0 early arm=1 n=  500 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=109.00..125.00 hole_after_scatter=1.96..3.47
+pre= 0 early arm=1 n= 1000 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=213.00..250.00 hole_after_scatter=1.04..1.64
+pre= 0 early arm=1 n= 2000 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=427.00..494.00 hole_after_scatter=0.73..1.44
+pre= 0 early arm=2 n=  100 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=16.00..27.00 hole_after_scatter=6.13..15.13
+pre= 0 early arm=2 n=  500 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=109.00..125.00 hole_after_scatter=1.96..3.47
+pre= 0 early arm=2 n= 1000 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=213.00..250.00 hole_after_scatter=1.04..1.64
+pre= 0 early arm=2 n= 2000 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=427.00..494.00 hole_after_scatter=0.73..1.44
+pre= 0 early arm=3 n=  100 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=16.00..27.00 hole_after_scatter=6.13..15.13
+pre= 0 early arm=3 n=  500 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=109.00..125.00 hole_after_scatter=1.96..3.47
+pre= 0 early arm=3 n= 1000 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=213.00..250.00 hole_after_scatter=1.04..1.64
+pre= 0 early arm=3 n= 2000 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=427.00..494.00 hole_after_scatter=0.73..1.44
+pre= 0 early arm=4 n=  100 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=16.00..27.00 hole_after_scatter=6.13..15.13
+pre= 0 early arm=4 n=  500 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=109.00..125.00 hole_after_scatter=1.96..3.47
+pre= 0 early arm=4 n= 1000 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=213.00..250.00 hole_after_scatter=1.04..1.64
+pre= 0 early arm=4 n= 2000 runs=10 all_ok=10 init_hole=58.64..58.64 init_max_resv=61.36..61.36 scatter_in_window=427.00..494.00 hole_after_scatter=0.73..1.44
+pre= 0 late  arm=2 n=  100 runs=10 all_ok=10 init_hole=3.35..3.97 init_max_resv=4.00..11.67 scatter_in_window=33.00..54.00 hole_after_scatter=6.86..15.13
+      default_pool_query: rc2 x10
+pre= 0 late  arm=2 n=  500 runs=10 all_ok= 0 init_hole=- init_max_resv=- scatter_in_window=219.00..244.00 hole_after_scatter=1.96..3.78
+      init: rc2 x10
+pre= 0 late  arm=2 n= 1000 runs=10 all_ok= 0 init_hole=- init_max_resv=- scatter_in_window=449.00..484.00 hole_after_scatter=1.25..1.89
+      init: rc2 x10
+pre= 0 late  arm=2 n= 2000 runs=10 all_ok= 0 init_hole=- init_max_resv=- scatter_in_window=897.00..983.00 hole_after_scatter=0.84..1.44
+      init: rc2 x10
+pre= 0 late  arm=4 n=  100 runs=10 all_ok=10 init_hole=3.35..3.97 init_max_resv=4.00..11.67 scatter_in_window=33.00..54.00 hole_after_scatter=6.86..15.13
+      default_pool_query: rc2 x10
+pre= 0 late  arm=4 n=  500 runs=10 all_ok= 0 init_hole=- init_max_resv=- scatter_in_window=219.00..244.00 hole_after_scatter=1.96..3.78
+      init: rc2 x10
+pre= 0 late  arm=4 n= 1000 runs=10 all_ok= 0 init_hole=- init_max_resv=- scatter_in_window=449.00..484.00 hole_after_scatter=1.25..1.89
+      init: rc2 x10
+pre= 0 late  arm=4 n= 2000 runs=10 all_ok= 0 init_hole=- init_max_resv=- scatter_in_window=897.00..983.00 hole_after_scatter=0.84..1.44
+      init: rc2 x10
+
+# c-series-pre25 (PRE_N=25 hinted pages before cuInit, Node-like)
+pre=25 early arm=2 n=  500 runs=10 all_ok=10 init_hole=7.31..21.83 init_max_resv=7.67..30.68 scatter_in_window=107.00..133.00 hole_after_scatter=1.61..2.90
+      default_pool_query: rc2 x8
+pre=25 early arm=2 n= 2000 runs=10 all_ok=10 init_hole=7.31..21.83 init_max_resv=7.67..30.68 scatter_in_window=427.00..491.00 hole_after_scatter=0.62..1.44
+      default_pool_query: rc2 x8
+pre=25 early arm=3 n=  500 runs=10 all_ok= 2 init_hole=7.31..21.83 init_max_resv=7.67..30.68 scatter_in_window=107.00..133.00 hole_after_scatter=1.61..2.90
+      default_pool_query: rc2 x8
+      early_default_async_0M: rc2 x8
+      early_default_pool: rc2 x8
+pre=25 early arm=3 n= 2000 runs=10 all_ok= 2 init_hole=7.31..21.83 init_max_resv=7.67..30.68 scatter_in_window=427.00..491.00 hole_after_scatter=0.62..1.44
+      default_pool_query: rc2 x8
+      early_default_async_0M: rc2 x8
+      early_default_pool: rc2 x8
+pre=25 early arm=4 n=  500 runs=10 all_ok=10 init_hole=7.31..21.83 init_max_resv=7.67..30.68 scatter_in_window=107.00..133.00 hole_after_scatter=1.61..2.90
+      default_pool_query: rc2 x8
+pre=25 early arm=4 n= 2000 runs=10 all_ok=10 init_hole=7.31..21.83 init_max_resv=7.67..30.68 scatter_in_window=427.00..491.00 hole_after_scatter=0.62..1.44
+      default_pool_query: rc2 x8
+
+# retry_init (failed cuInit, then unmap blockers, retry)
+RESULT n=500 seed=1 in_window=236 init1=2 init2_same_layout=2 unmapped=236 init3_after_unmap=0 retain=0 alloc=0
+RESULT n=500 seed=2 in_window=232 init1=2 init2_same_layout=2 unmapped=232 init3_after_unmap=0 retain=0 alloc=0
+RESULT n=500 seed=3 in_window=233 init1=2 init2_same_layout=2 unmapped=233 init3_after_unmap=0 retain=0 alloc=0
+RESULT n=500 seed=4 in_window=240 init1=2 init2_same_layout=2 unmapped=240 init3_after_unmap=0 retain=0 alloc=0
+RESULT n=500 seed=5 in_window=219 init1=2 init2_same_layout=2 unmapped=219 init3_after_unmap=0 retain=0 alloc=0
+RESULT n=2000 seed=1 in_window=919 init1=2 init2_same_layout=2 unmapped=919 init3_after_unmap=0 retain=0 alloc=0
+RESULT n=2000 seed=2 in_window=929 init1=2 init2_same_layout=2 unmapped=929 init3_after_unmap=0 retain=0 alloc=0
+RESULT n=2000 seed=3 in_window=897 init1=2 init2_same_layout=2 unmapped=897 init3_after_unmap=0 retain=0 alloc=0
+RESULT n=2000 seed=4 in_window=950 init1=2 init2_same_layout=2 unmapped=950 init3_after_unmap=0 retain=0 alloc=0
+RESULT n=2000 seed=5 in_window=922 init1=2 init2_same_layout=2 unmapped=922 init3_after_unmap=0 retain=0 alloc=0

@@ -1,0 +1,4 @@
+# passing B+D runs grouped by effective allocator (first context); ms
+async-default-pool     n= 41 embedSteady median=11.2 IQR=[10.3,14.2] | embedFirst median=42.3 IQR=[41.9,43.7] | open median=1306.8 IQR=[1280.5,1853.6] | rerankFirst median=150.0 IQR=[133.1,153.2]
+async-explicit-pool    n=109 embedSteady median=11.4 IQR=[10.5,14.4] | embedFirst median=43.8 IQR=[41.6,46.0] | open median=1286.1 IQR=[1275.5,1307.2] | rerankFirst median=148.4 IQR=[127.1,155.1]
+sync                   n=117 embedSteady median=25.2 IQR=[24.8,26.1] | embedFirst median=55.1 IQR=[53.2,58.8] | open median=1294.9 IQR=[1075.3,1353.3] | rerankFirst median=141.2 IQR=[116.1,156.5]

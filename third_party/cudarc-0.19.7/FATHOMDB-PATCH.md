@@ -148,10 +148,13 @@ crate-private, so Candle cannot select it. A C reproducer and measurements
 are in the FathomDB repository under
 `dev/plans/runs/0.8.27-slice-110-tegra/driver-isolation-evidence/`.
 
-The cost is speed on the fallback path: with synchronous allocation a steady
-embedding took about 25 ms against about 10 ms with stream-ordered
-allocation on the same Orin. On aarch64 Linux, processes whose default pool
-is available keep the upstream allocator. Other targets are unaffected.
+The cost is speed on the fallback path: a steady FathomDB embedding is about
+1.8–2.4 times slower with synchronous allocation on the same Orin. For each
+Node series with runs on both paths, that is the median steady embedding of
+its synchronous runs over that of its stream-ordered runs (synchronous
+24.8–27.1 ms, stream-ordered 10.4–14.6 ms). On aarch64 Linux, processes whose
+default pool is available keep the upstream allocator. Other targets are
+unaffected.
 
 FathomDB must revisit this workaround at its next micro release and loudly at
 its next minor release. The obligation is recorded in

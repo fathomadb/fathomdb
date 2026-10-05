@@ -1,0 +1,7 @@
+# Slice 110 early cuInit, Jetson AGX Orin 64 GB. Built with the receipt's recipe
+# (napi build --platform --release --features embed-cuda,rerank-cuda; CUDA 12.6,
+# CUDA_COMPUTE_CAP=87, Node 25.9.0, npm 11.12.1, Rust 1.95.0).
+fb40b9aec0f6cb4a8bc260b0e3fe63e1657b891ab6cbd23b4094006e74eb8bde  fathomdb.linux-arm64-gnu.node (early cuInit; built in-tree and installed, byte-identical)
+37deae961cf6ab6a45a36b055e451d5c34f183f262e0eaa950290c9c2392c0e4  fathomdb-linux-arm64-gnu-0.8.26.tgz (platform package, early cuInit)
+9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257  fathomdb-0.8.26.tgz (thin main package; same bytes as review fix 2)
+057eed2b344862592cfdd7fe7eec885dc66bd466a59c2b15d090bd30d05c4db0  fathomdb.linux-arm64-gnu.node (review fix 2, no hook: the red build and the import-cost baseline)

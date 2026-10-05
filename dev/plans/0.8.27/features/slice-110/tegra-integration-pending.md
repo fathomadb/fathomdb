@@ -52,13 +52,7 @@ allocator selection.
    unmeasured Jetsons; and reconcile slowdown ranges. Do not duplicate that
    work while it is underway. If the teardown result changes, reassess the
    once-per-device cached decision and repeat the affected runtime tests.
-2. **Resolve the remaining runtime scope.** The branch calls out early
-   `cuInit` as work to follow and records the heavy-heap failure separately.
-   Decide and document whether early initialization is needed for Slice 110
-   closure; implement and test it if so. Preserve forced-CUDA refusal rather
-   than silently falling back to CPU. Keep the next-micro and next-minor
-   revisit obligation visible in the subsequent release plan.
-3. **Review and qualify the final candidate.** After the Tegra agent's final
+2. **Review and qualify the final candidate.** After the Tegra agent's final
    push, independently review the exact vendored delta, patch
    reproducibility, governance exception, tests and evidence. Run real x86_64
    CI compilation and applicable hosted platform builds, then repeat
@@ -66,7 +60,7 @@ allocator selection.
    the required full source gate on a capable release executor; classify any
    environmental failure against an unchanged baseline rather than counting
    it as green.
-4. **Reconcile branch state before merge.** Bring the allocator commits onto
+3. **Reconcile branch state before merge.** Bring the allocator commits onto
    the current `release/0.8.27` without replacing the completed Slice 114/115
    records or the live `next_slice: 110`. The branch handoff reports its todos
    ledger at seq 270 versus origin/main at seq 242. Use `ledgerwatch` and
@@ -77,3 +71,28 @@ allocator selection.
 
 Only after these items have candidate-bound evidence should Slice 110 status
 and the release ladder advance. No publication follows from this intake.
+
+## Separate early-initialization investigation
+
+The repository owner's 2026-10-05 direction supersedes the branch handoff's
+statement that early `cuInit` will follow **in Slice 110**. The Tegra agent may
+investigate it and other approaches, but they are unlikely to land in 0.8.27.
+They are not prerequisites for integrating the reviewed allocator fallback or
+closing Slice 110. Any 0.8.27 inclusion needs its own explicit scope decision,
+review and candidate-bound verification. The very-heavy-heap `cuInit` refusal
+remains a stated limitation of the allocator fix meanwhile; forced CUDA must
+not silently fall back to CPU.
+
+The proposed experiment is a silent, non-failing `cuInit` at Node addon load,
+compiled only for aarch64 Linux with a CUDA feature and skipped when both
+device policies are CPU. It would keep the typed error and refusal contract,
+but make address-space fragmentation errors clearer. Before claiming a user
+remedy, the agent must verify that `node --import fathomdb` works with the
+published package layout. Proposed Jetson guidance would then cover early
+import, the roughly 61 GiB additional virtual-size observation, late-import
+limits and synchronous-path cost. The proposed RED/GREEN check imports, grows
+the heap to one million objects and forces CUDA. Its investigation matrix
+includes Node 24/25/26, late import with and without `--import`, installed
+packages, CPU-only and no-GPU cases, import-time cost, and every
+`agent-verify` leg. Record results for a later release decision; do not turn
+this experiment into a Slice 110 acceptance gate by implication.

@@ -24,6 +24,8 @@
     // libsqlite3-sys vendor copy. The FathomDB patch note remains linted.
     "third_party/libsqlite3-sys-0.38.1/README.md",
     "third_party/libsqlite3-sys-0.38.1/Upgrade.md",
+    // Same for the reviewed cudarc vendor copy.
+    "third_party/cudarc-0.19.7/README.md",
     ".cache/**",
     ".wake/**",
 

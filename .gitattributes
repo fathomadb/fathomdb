@@ -7,3 +7,7 @@ scripts/tests/fixtures/dorny-paths-filter-v4/dist/index.js -whitespace
 # The pinned upstream libsqlite3-sys crate contains existing whitespace in C
 # sources. Preserve its reviewed tree hash instead of rewriting copied files.
 third_party/libsqlite3-sys-0.38.1/** -whitespace
+
+# The pinned upstream cudarc crate is preserved byte-for-byte apart from the
+# reviewed allocator delta; keep its tree hash instead of normalizing files.
+third_party/cudarc-0.19.7/** -whitespace

@@ -233,6 +233,9 @@ fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
 
 #[cfg(feature = "rerank-cuda")]
 fn cuda_uuid_string(bytes: [std::os::raw::c_char; 16]) -> String {
+    // `c_char` is `i8` on x86_64 and `u8` on AArch64 Linux, so the cast is a
+    // no-op only on the Jetson, where clippy would otherwise reject it.
+    #[allow(clippy::unnecessary_cast)]
     let bytes = bytes.map(|byte| byte as u8);
     format!(
         "GPU-{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",

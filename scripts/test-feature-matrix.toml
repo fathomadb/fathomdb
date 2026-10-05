@@ -30,6 +30,10 @@ features = ["default-embedder", "onnx-embedder"]
 
 [[entry]]
 crate = "fathomdb-embedder"
+features = ["embed-cuda"]
+
+[[entry]]
+crate = "fathomdb-embedder"
 features = ["loader-test-hooks"]
 
 [[entry]]

@@ -24,6 +24,12 @@ excluded_on = 'not(all(target_arch = "aarch64", target_os = "linux"))'
 reason = "#![cfg(all(target_arch = \"aarch64\", target_os = \"linux\", ...))]: the Jetson Candle CPU check compiles to nothing elsewhere and runs on aarch64 Linux hosts."
 
 [[entry]]
+id = "fathomdb-embedder::tegra_fragmented_va_cuda"
+class = "platform-excluded"
+excluded_on = 'not(all(target_arch = "aarch64", target_os = "linux"))'
+reason = "#![cfg(all(target_os = \"linux\", target_arch = \"aarch64\", feature = \"embed-cuda\"))]: the Jetson default-memory-pool regression maps Tegra-specific address-space blockers before cuInit; it compiles to nothing elsewhere and runs on aarch64 Linux CUDA hosts."
+
+[[entry]]
 id = "fathomdb-engine::durability_soak"
 class = "platform-excluded"
 excluded_on = "not(unix)"

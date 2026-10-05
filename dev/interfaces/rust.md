@@ -127,6 +127,20 @@ provider directly and must not supply deadline, queue-bound, lock-order, or
 performance evidence. Production open, projection, search, frozen-search, and
 direct-embed paths have no such exception.
 
+### Unstable binding-support items in `fathomdb-embedder` (0.8.27 Slice 110)
+
+`fathomdb-embedder` exports five `#[doc(hidden)]` items for the Node addon's
+early CUDA initialisation on Jetson: `initialize_cuda_driver`,
+`last_cuda_driver_init`, `cuda_driver_init_seen_by`, `CudaDriverInit` and
+`CudaInitCaller`. They exist only in builds for
+`cfg(all(target_os = "linux", target_arch = "aarch64"))` with `embed-cuda` or
+`rerank-cuda`, so every such build compiles them (the Node addon, the Tegra
+Python wheel, the CLI), but only the Node addon calls them. The probes in
+those builds record their own `cuInit` outcomes as well. These items are
+binding support, not an SDK surface. They are unstable, are not re-exported
+by the `fathomdb` facade, are outside the AC-074 governed set, and may change
+or disappear in any release without a successor ADR.
+
 ## Governed-surface contract (AC-074, Q5 = BIND-RUST — landed Slice 27; method-level + feature-gated by Slice 27 fix-1)
 
 This file **owns** the governed Rust-facade surface. The `fathomdb` facade is a

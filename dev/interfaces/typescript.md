@@ -795,18 +795,38 @@ graph work used the GPU.
 ### Early CUDA initialisation on aarch64 Linux (0.8.27 Slice 110)
 
 A native addon built for aarch64 Linux with `embed-cuda` or `rerank-cuda`
-calls `cuInit(0)` once, when the `.node` file is loaded. It does so unless
-both `FATHOMDB_EMBED_DEVICE` and `FATHOMDB_RERANK_DEVICE` are exactly `cpu`.
-This adds no export and no option, and loading never throws because of it.
-When forced CUDA later refuses with kind `cuda_probe_failed` and the most
-recent `cuInit` returned `CUDA_ERROR_OUT_OF_MEMORY`, the
+calls `cuInit(0)` while Node registers the module, from the addon's
+module-exports callback after its exports are registered. That is on the
+loading thread once `dlopen` has returned, never in a shared-library
+constructor. It runs at most once per process: a `worker_threads` worker
+that registers the module again, or a worker that is the first to load it,
+shares one guard. Its environment is the process environment at that moment.
+
+- It is skipped when every component built with CUDA has an exact `cpu`
+  policy, read with the open-time parsers (unset means `auto`). An addon
+  built with only `embed-cuda` therefore skips it when
+  `FATHOMDB_EMBED_DEVICE=cpu`, whatever `FATHOMDB_RERANK_DEVICE` says. An
+  addon built with both skips it only when both are `cpu`.
+- `FATHOMDB_CUDA_EARLY_INIT=off` (that exact value; any other value is
+  ignored) skips it unconditionally. This is an escape hatch, for example for
+  a process that loads fathomdb but must not reserve CUDA address space until
+  it opens an engine. Without early init the Jetson heap limits in
+  `docs/embedder.md` apply again.
+- It checks for the driver library before calling it, never prints, and
+  never panics out of or fails registration. It adds no export.
+
+When forced CUDA later refuses with kind `cuda_probe_failed` and the refusing
+component's own CUDA probe saw `cuInit` return `CUDA_ERROR_OUT_OF_MEMORY`, the
 `EmbedDevicePolicyError` / `RerankerDevicePolicyError` message keeps its
 `cuda:N requested ... but unavailable: CudaProbeFailed` prefix and appends the
 cause and remedy. The remedy is to import fathomdb first or to start Node
-with `--import fathomdb`. The code, `kind`, `ordinal` and the no-CPU-fallback
-rule are unchanged. As with other messages, the text is for people; match on
-`code` and `kind`. Other targets do not compile this. User guide:
-`docs/embedder.md` § "Node.js on Jetson: load fathomdb first".
+with `--import fathomdb`. Each probe's `cuInit` outcome is recorded
+separately, so the reranker's refusal, which is memoized for the process,
+keeps its hint even if another `cuInit` succeeds later. The code, `kind`,
+`ordinal` and the no-CPU-fallback rule are unchanged. As with other messages,
+the text is for people; match on `code` and `kind`. Other targets do not
+compile this. User guide: `docs/embedder.md` § "Node.js on Jetson: load
+fathomdb first".
 
 TypeScript exposes one concrete class per canonical row in
 `design/errors.md` — **41** of them as of 0.8.25, 1:1 with the Python set

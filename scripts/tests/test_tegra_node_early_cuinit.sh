@@ -7,8 +7,9 @@
 # V8 scatters 256 KiB heap pages through that window as the heap grows. With
 # about a million live objects cuInit returned CUDA_ERROR_OUT_OF_MEMORY in 45 of
 # 45 measured processes, so forced cuda:0 refused with cuda_probe_failed. The
-# Node addon on aarch64 Linux initialises the CUDA driver when it is loaded, so
-# an application that imports fathomdb before growing its heap keeps CUDA.
+# Node addon on aarch64 Linux initialises the CUDA driver when Node registers
+# the module, so an application that imports fathomdb before growing its heap
+# keeps CUDA.
 #
 # Each run is a fresh Node process (tegra_node_early_cuinit_consumer.mjs):
 # import the package, grow the heap to HEAP_OBJECTS objects, open with the

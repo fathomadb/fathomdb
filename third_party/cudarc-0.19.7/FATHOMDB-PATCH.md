@@ -149,10 +149,10 @@ are in the FathomDB repository under
 `dev/plans/runs/0.8.27-slice-110-tegra/driver-isolation-evidence/`.
 
 The cost is speed on the fallback path: a steady FathomDB embedding is about
-1.8–2.4 times slower with synchronous allocation on the same Orin. For each
+1.8–2.8 times slower with synchronous allocation on the same Orin. For each
 Node series with runs on both paths, that is the median steady embedding of
 its synchronous runs over that of its stream-ordered runs (synchronous
-24.8–27.1 ms, stream-ordered 10.4–14.6 ms). On aarch64 Linux, processes whose
+24.7–28.2 ms, stream-ordered 9.2–14.6 ms). On aarch64 Linux, processes whose
 default pool is available keep the upstream allocator. Other targets are
 unaffected.
 

@@ -178,8 +178,10 @@ virtual address space when it starts. On the Jetson AGX Orin 64 GB that range
 is about 61 GiB. Node.js scatters its JavaScript heap across the same region
 as the heap grows. Once an application holds roughly 70 MiB or more of
 JavaScript data, CUDA may be unable to start at all. The FathomDB addon
-therefore starts CUDA as soon as it is loaded, and later heap growth no longer
-matters.
+therefore starts CUDA as soon as Node loads it, which secures that first
+reservation, so later heap growth can no longer stop CUDA from starting.
+CUDA's default memory pool can still need further address space later; see
+"Steady embeddings can be slower" below.
 
 **What to do:** load fathomdb before your application builds large in-memory
 data. Either make it the first import of your entry module:
@@ -200,11 +202,17 @@ NODE_OPTIONS=--import=fathomdb node app.js
 
 - The process's virtual size (`VSZ`, `VmSize`) grows by about 61 GiB right
   after the import. This is reserved address space, not RAM. Resident memory
-  grows by about 1–3 MiB. The import takes about 11 ms longer, or about
-  120 ms longer when the GPU has been idle.
-- When `FATHOMDB_EMBED_DEVICE` and `FATHOMDB_RERANK_DEVICE` are both `cpu`
-  in the environment the process starts with, the addon does not start CUDA
-  at all.
+  grows by about 1–3 MiB. The import takes about 12 ms longer, or about 120 ms
+  longer when the GPU has been idle.
+- CUDA starts once per process. Loading fathomdb first inside a
+  `worker_threads` worker works the same way.
+- When every device that the addon was built to run on CUDA is set to `cpu`
+  (`FATHOMDB_EMBED_DEVICE`, and `FATHOMDB_RERANK_DEVICE` if it has the
+  cross-encoder) at the time fathomdb is loaded, the addon does not start
+  CUDA at all.
+- `FATHOMDB_CUDA_EARLY_INIT=off` turns early start-up off. Use it only if
+  you must not reserve the address space before opening an engine. A large
+  heap can then stop CUDA from starting again.
 - With no visible GPU, the import still succeeds silently, and `auto` uses
   the CPU.
 
@@ -226,9 +234,10 @@ earlier instead of retrying.
 **Steady embeddings can be slower.** CUDA's default memory pool on the
 Jetson needs a further contiguous range of about 20 GiB. When the process
 layout cannot provide it, FathomDB falls back to synchronous GPU allocation.
-Steady-state embeddings are then about 1.8–2.4 times slower: about 25 ms
-against 10–15 ms per embedding on the AGX Orin 64 GB. Most Node.js processes
-in the measurements took this path. Results are correct either way.
+Steady-state embeddings are then about 1.8–2.8 times slower: about 25 ms
+against 9–15 ms per embedding on the AGX Orin 64 GB. Loading fathomdb first
+does not prevent this, and most Node.js processes in the measurements took
+this path. Results are correct either way.
 
 These measurements come from one Jetson AGX Orin 64 GB (L4T R36, CUDA 12.6).
 Other Jetson models are unmeasured. So are non-Tegra AArch64 Linux CUDA hosts

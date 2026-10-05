@@ -564,12 +564,13 @@ plain Python process usually passed.
   skips with a notice. The
   C reproducer and the address-space measurements are in
   `dev/plans/runs/0.8.27-slice-110-tegra/driver-isolation-evidence/`.
-- The fallback is slower: a steady default-embedder embed is about 1.8–2.4
+- The fallback is slower: a steady default-embedder embed is about 1.8–2.8
   times slower on the synchronous path. For each Node CUDA series (round,
   form and Node version) with runs on both paths, the ratio is the median
   steady embed of its synchronous runs over that of its stream-ordered runs;
-  the range covers all 17 such series of Slice 110 (synchronous medians
-  24.8–27.1 ms, stream-ordered 10.4–14.6 ms). Which path a process took is
+  the range covers all 26 such series of Slice 110 (synchronous medians
+  24.7–28.2 ms, stream-ordered 9.2–14.6 ms). The ratios above 2.5 come from
+  series with only one to three stream-ordered runs. Which path a process took is
   inferred from that bimodal latency; the product does not report it.
 - Root `[patch.crates-io]` entries do not propagate. A downstream Rust build
   of the published crates with `embed-cuda` resolves unpatched cudarc and
@@ -586,7 +587,7 @@ plain Python process usually passed.
   explicit-pool work to recover stream-ordered speed. Tracked as todos-ledger
   `TC-9fef1b7c-4442-4c77-b925-992f338c9aac`.
 
-### 7.8 `cuInit` needs a 4 GiB hole: the Node addon initialises CUDA at load
+### 7.8 `cuInit` needs a 4 GiB hole: the Node addon initialises CUDA at registration
 
 Measured on this Orin in Slice 110. Unobstructed, `cuInit` makes one
 61.36 GiB reservation at `0x200000000`, and the driver then works inside it.
@@ -597,36 +598,52 @@ random hints across [0, 256 GiB), so a Node heap of about 74 MiB already made
 more in all of them. Forcing a GC does not give the window back. A failed
 `cuInit` is not sticky: in C it succeeded once the blockers were unmapped.
 
-- **The remedy.** The Node addon calls `cuInit(0)` from a shared-library
-  constructor when the `.node` file is loaded
-  (`src/rust/crates/fathomdb-napi/src/cuda_early_init.rs`). It is compiled
-  only for aarch64 Linux with `embed-cuda` or `rerank-cuda`, so Python, the
-  CLI and every other target are unchanged. It runs once per process, on the
-  thread that first loads the addon. It checks for the driver library first,
-  never prints or fails the load, and is skipped when both
-  `FATHOMDB_EMBED_DEVICE` and `FATHOMDB_RERANK_DEVICE` are exactly `cpu`.
-  Once the reservation exists, later heap growth does not matter: an
-  application that imports fathomdb first passed 200 / 200 in the
-  experiment and 50 / 50 in verification (heaps of 69–181 MiB).
-- **Cost.** About +11 ms per import (median 32.4 ms against 21.0 ms without
-  the hook), or about +120 ms for the first `cuInit` after the GPU has been
-  idle. It also adds 1–3 MiB of RSS and about 61.5 GiB of virtual size
-  (reserved address space, not memory). With no visible GPU, `cuInit` returns
-  `CUDA_ERROR_NO_DEVICE` and `auto` falls back to CPU silently. Retaining a
-  context or creating a pool at load cost 75–92 ms and about 110 MiB with no
-  reliability gain, so the hook does `cuInit` only.
+- **The remedy.** The Node addon calls `cuInit(0)` while Node registers the
+  module, from its napi-rs `module_exports` callback
+  (`src/rust/crates/fathomdb-napi/src/cuda_early_init.rs`). napi-rs 2.16.17
+  invokes that callback inside `napi_register_module_v1`, after the exports
+  are registered, on the loading thread once `dlopen` has returned, so the
+  call never runs under the dynamic loader's lock. A `std::sync::Once` keeps
+  it to one call per process, including when `worker_threads` register the
+  module again or a worker loads it first. It checks for the driver library
+  first, never prints or fails registration, and is skipped when every
+  component built with CUDA has an exact `cpu` policy (open-time parsers,
+  unset means `auto`) or when `FATHOMDB_CUDA_EARLY_INIT=off`. Behind an
+  early import, later heap growth no longer stops `cuInit`: an application
+  that imports fathomdb first passed 200 / 200 in the experiment, 50 / 50 in
+  the first verification and 50 / 50 after the move to registration (heaps
+  of 68–182 MiB, Node 24, 25 and 26), and a first load inside a worker
+  passed 5 / 5.
+- **What compiles where.** The hook and the refusal hint are in the Node
+  addon only. The embedder's `cuda_driver_init` module and the probes'
+  per-caller `cuInit` records compile into every aarch64 Linux build with
+  `embed-cuda` or `rerank-cuda` (the Node addon, the Tegra Python wheel and
+  the CLI). Outside the Node addon nothing reads the records, so behaviour
+  there is unchanged. Other targets compile none of it.
+- **Cost.** About +12 ms per import (median 33.2 ms against 20.9 ms for a
+  build without the hook and 21.1 ms with the hook skipped), or about
+  +120 ms for the first `cuInit` after the GPU has been idle. It also adds
+  1–3 MiB of RSS and about 61.5 GiB of virtual size (reserved address space,
+  not memory). With no visible GPU, `cuInit` returns `CUDA_ERROR_NO_DEVICE`
+  and `auto` falls back to CPU silently. Retaining a context or creating a
+  pool at load cost 75–92 ms and about 110 MiB with no reliability gain, so
+  the hook does `cuInit` only.
 - **Limit: late import.** If the heap grows before the addon is loaded,
   `cuInit` can already be impossible: 1M live objects (about 175 MiB) failed
-  5 / 5. `node --import fathomdb` (or `NODE_OPTIONS=--import=fathomdb`) loads
-  the addon before the application and passed 8 / 8 with the same late heap.
-  Forced CUDA then refuses with `FDB_EMBED_DEVICE_POLICY` /
-  `cuda_probe_failed`, and on aarch64 Linux the message names the
-  out-of-memory `cuInit` and both remedies. The kind and the no-CPU-fallback
-  contract are unchanged.
-- **Not a full guarantee.** The driver can still `mmap` new window ranges
-  after `cuInit`: in the free-gap layout the default pool added a 20.47 GiB
-  range at its first query. Early `cuInit` secures CUDA initialisation, and
-  the synchronous fallback in § 7.7 covers a default pool that no longer fits.
+  10 / 10 over two rounds. Forced CUDA then refuses with
+  `FDB_EMBED_DEVICE_POLICY` / `cuda_probe_failed`, and the Node message names
+  the out-of-memory `cuInit` and both remedies; the kind and the
+  no-CPU-fallback contract are unchanged. The hint uses the `cuInit` outcome
+  the refusing component's own probe saw, so the reranker's memoized refusal
+  keeps it. `node --import fathomdb` (or `NODE_OPTIONS=--import=fathomdb`)
+  loads the addon before the application and passed 13 / 13 with the same
+  late heap.
+- **Not a full guarantee.** Early init secures `cuInit` and the driver's
+  initial reservation only. The default memory pool can still need a new
+  20.47 GiB range at its first query, and in most measured Node processes it
+  was unavailable even behind an early import (51 of 78 CUDA runs in the
+  first verification, 65 of 83 after the move to registration, were
+  synchronous). The synchronous fallback in § 7.7 covers that.
 - **Scope.** The published Linux AArch64 npm package is CPU-only (§ 3.7), so
   this matters for Node addons built with CUDA on a Jetson. The regression
   check is `scripts/tests/test_tegra_node_early_cuinit.sh`; it needs a

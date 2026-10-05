@@ -15,11 +15,12 @@ runtime overhead. Diagnostics preserves those facilities for measurement and
 troubleshooting. The 0.8.25 runtime also performs bounded prepared-statement
 reuse internally; there is no caller tuning knob for its cache.
 
-The choice is process-wide and lasts until restart. An identical repeat is
-idempotent; a conflicting or post-open request raises
-`RuntimeConfigurationError` with the requested/effective mode and optional
-SQLite code. This API does not call `sqlite3_shutdown()` and is not a database
-permission or file-access boundary.
+The choice is process-wide and lasts until restart. Repeating the effective
+mode succeeds, including after an Engine opens. A conflicting request raises
+`RuntimeConfigurationError` with the requested and effective modes. A first
+request made after another user of SQLite has initialized the runtime fails
+as too late, with an optional SQLite code. This API does not call
+`sqlite3_shutdown()` and is not a database permission or file-access boundary.
 
 ## Engine configuration
 

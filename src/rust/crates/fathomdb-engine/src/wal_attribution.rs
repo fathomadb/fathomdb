@@ -242,7 +242,7 @@ pub(super) type ReaderHandoffPause = (Arc<Barrier>, Arc<Barrier>);
 pub(super) type ReaderCompletionPause = (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>);
 
 /// Private diagnostic state. It is off unless controlled CI/test config opts in
-/// via `FATHOMDB_WAL_ATTRIBUTION=1`; the off path is a single atomic read.
+/// via presence of `FATHOMDB_WAL_ATTRIBUTION`; the off path is a single atomic read.
 pub(super) struct WalAttributionCollector {
     pub(super) enabled: bool,
     pub(super) started: Instant,

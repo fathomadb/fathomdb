@@ -39,7 +39,7 @@ def configure(engine: "Engine", *, name: str, body: str) -> WriteReceipt:
 def configure_runtime(
     *, sqlite_mode: Literal["performance", "diagnostics"]
 ) -> RuntimeConfiguration:
-    """Select SQLite's process-wide startup mode before opening an Engine."""
+    """Select SQLite's process-wide mode; repeating the effective mode is safe after open."""
 
     if sqlite_mode not in {"performance", "diagnostics"}:
         raise ValueError("sqlite_mode must be 'performance' or 'diagnostics'")

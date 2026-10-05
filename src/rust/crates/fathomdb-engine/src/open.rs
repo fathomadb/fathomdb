@@ -1083,7 +1083,7 @@ impl Engine {
         // (page_size, etc.) BEFORE journal_mode + migrations. page_size
         // is silently ignored once any table exists; this is the only
         // legal window to set it on a fresh DB. Gated on
-        // FATHOMDB_PERF_EXPERIMENTS=1; no-op in production.
+        // Runs only when FATHOMDB_PERF_EXPERIMENTS is present.
         apply_perf_experiment_writer_pragmas(&connection);
         // OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — standing
         // `secure_delete=ON` on the writer, applied at EVERY open (fresh + migrated).

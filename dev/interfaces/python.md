@@ -64,7 +64,9 @@ synchronous startup runtime control, not a governed application command. It
 returns frozen `RuntimeConfiguration(sqlite_mode=...)`. Invalid strings raise
 `ValueError`; native startup failures raise `RuntimeConfigurationError` with
 `reason`, `requested_mode`, `effective_mode`, and `sqlite_code` attributes.
-Call it before any Engine open. Without a call, first open selects performance.
+Call it before any Engine open to select a non-default mode. A same-mode repeat
+also succeeds after open; a conflicting choice fails. Without a call, first
+open selects performance.
 Performance disables SQLite global memory accounting and heap-limit enforcement
 for the loaded runtime; diagnostics preserves them. Mode changes require a
 process restart.

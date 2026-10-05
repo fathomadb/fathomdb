@@ -433,7 +433,8 @@ console.assert(runtime.sqliteMode === "performance");
 
 `RuntimeSqliteMode` is `"performance" | "diagnostics"`. With no explicit
 call, the first Engine open selects performance. Repeating the effective mode
-is idempotent; conflicting or late calls throw `RuntimeConfigurationError` and
+is idempotent even after Engine open. A conflicting choice or a first request
+after SQLite was initialized elsewhere throws `RuntimeConfigurationError`;
 changing mode requires a process restart. This synchronous startup control is
 not a database permission or a governed application command.
 

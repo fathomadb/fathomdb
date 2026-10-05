@@ -1717,12 +1717,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let text_candidates: Vec<SearchHit> = {
         #[cfg(feature = "tc5-benchmark")]
         tc5_benchmark::record_fts_route();
-        // 0.7.0 perf-experiments: optional FTS5 LIMIT cap. Gated on
-        // FATHOMDB_PERF_EXPERIMENTS=1; opt-in via
-        // FATHOMDB_PERF_SEARCH_LIMIT=<k>. No-op by default — preserves
-        // 0.6.x unbounded result-set semantics. Removed (or made the
-        // hardcoded default) at Wave 5 landing per
-        // dev/plans/0.7.0-perf-experiments.md.
+        // Optional experimental FTS5 LIMIT cap. It applies only when
+        // FATHOMDB_PERF_EXPERIMENTS is present and
+        // FATHOMDB_PERF_SEARCH_LIMIT parses as a number. The default path
+        // keeps the uncapped candidate set.
         let perf_limit: Option<usize> = if std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some() {
             std::env::var("FATHOMDB_PERF_SEARCH_LIMIT").ok().and_then(|s| s.parse().ok())
         } else {

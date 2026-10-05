@@ -52,8 +52,6 @@ mod data_plane_integrity;
 mod dependency;
 mod dependency_closure;
 mod dependency_trace;
-// Foreground routing and bounded close join consume the remaining core seams
-// in the next integration batches.
 #[allow(dead_code)]
 mod embed_dispatch;
 mod embedding;

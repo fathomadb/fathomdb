@@ -64,10 +64,11 @@ static SQLITE_RUNTIME_STATE: Mutex<RuntimeState> = Mutex::new(RuntimeState::Unco
 
 /// Configure the SQLite runtime before opening any FathomDB Engine.
 ///
-/// Repeating the same mode is idempotent. Selecting a different mode or
-/// configuring after any SQLite initialization fails without shutdown or
-/// reconfiguration. The setting applies to the SQLite image linked into this
-/// artifact and persists for the process lifetime.
+/// Repeating the effective mode is idempotent, even after an Engine opens.
+/// Selecting a different mode fails. A first configuration request made after
+/// SQLite was initialized elsewhere fails without shutdown or reconfiguration.
+/// The setting applies to the SQLite image linked into this artifact and
+/// persists for the process lifetime.
 pub fn configure_runtime(
     sqlite_mode: RuntimeSqliteMode,
 ) -> Result<RuntimeConfiguration, RuntimeConfigurationError> {

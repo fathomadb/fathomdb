@@ -1,15 +1,29 @@
 ---
 title: FathomDB 0.8.27 Slice 114 — engine configuration audit plan
-status: PLANNED
+status: APPROVED
 target_release: 0.8.27
 planning_baseline: 1a6cd4938
 ---
 
 # Slice 114 — engine configuration audit
 
-This is a reviewed planning draft, not a start authorization. Slice 110 must
-close before execution. Reconcile the inventory against its final merge SHA;
-the current baseline is `release/0.8.27` at `1a6cd4938`.
+This is the execution plan for candidate `eefc2e3d8`. Slice 110 remains
+`IN_PROGRESS` in release state because its Tegra forced-CUDA row is open. On
+2026-10-04 the HITL explicitly directed Slice 114 to proceed as if 110 were
+complete. This is a sequencing exception for Slice 114, not a Slice 110
+qualification or a change to release state.
+
+## Entry reconciliation on 2026-10-04
+
+The September 28 planning baseline was `1a6cd4938`. Three subsequent commits
+(`b3858ffef`, `a65d6d32e`, `eefc2e3d8`) changed only this slice plan, the
+Slice 115 plan, the release master plan, and the release-state JSON. No engine,
+binding, interface, ADR, or public-doc source changed between that baseline and
+this candidate. The source-linked census still needs to use the actual
+`eefc2e3d8` tree, including any changes found during execution. The current
+assigned feature is an audit and correction of concrete drift, not a new
+configuration surface. Slice 115 retains profiling and Slice 120/132/140
+retain their allocated SDK and seam work.
 
 ## Changes since the September 28 draft
 
@@ -48,7 +62,7 @@ public guide and Rust API comment if the current behavior is confirmed.
 | R27-114A | The production configuration, constant and limit inventory has no unexplained owner or consumer. | AC27-114A: a source-linked census covers every production engine module-level `const`/`static`, `EngineConfig`, process-wide SQLite mode, engine-consumed environment variables, public setters, and operational capacity/timeout/retention/search/reader/WAL limits across default and relevant feature builds. Every declaration has an owner, location, reference or unused status, and setting/internal/schema/SQL/test-only classification; each setting and operational limit names its consumer. Source search and compiler warning checks reconcile omissions. |
 | R27-114B | Public settings match the effective runtime and all supported language contracts. | AC27-114B: for each public setting the inventory records exact spelling per language, default, unit, accepted range or grammar, omission/zero meaning, precedence, open-time or live mutability, consuming effect and observable invalid/fallback outcome. It is checked against the accepted ADR, Rust/Python/TypeScript interfaces, `dev/design/engine.md`, `dev/design/scheduler.md`, `dev/design/embedder.md` and `docs/reference/config.md`. |
 | R27-114C | Dead or misleading production values receive a justified disposition. | AC27-114C: each unused or deliberately suppressed production constant, static or local binding found by the census and warning audit is retained with a concrete invariant, removed with a focused behavior witness, or assigned to a named follow-up. Contradictory comments and docs are corrected in this slice, including the observed post-open same-mode discrepancy after a focused runtime witness; no stale claim is left as a placeholder. |
-| R27-114D | The audit does not silently change runtime behavior or public surface. | AC27-114D: accepted defaults, ranges, effective precedence, runtime exports and public API remain unchanged unless a separately reviewed successor ADR/interface change and RED/GREEN tests explicitly authorize a correction. Existing Slice 90 runtime/configuration and binding fixtures pass for any code change, along with the required repository gate. |
+| R27-114D | The audit does not silently change runtime behavior or public surface. | AC27-114D: accepted defaults, ranges, effective precedence, runtime exports and public API remain unchanged unless a separately reviewed successor ADR/interface change and RED/GREEN tests explicitly authorize a correction. A behavior change requires its affected Slice 90 runtime/configuration and binding fixtures and the full source gate. Documentation, comments, and the focused regression test use changed-path checks; a full regression is reserved for a comprehensive change. |
 
 These IDs are release-local; `dev/acceptance.md` remains locked. A finding
 that the shipped behavior contradicts an accepted contract is a defect to
@@ -70,7 +84,7 @@ owner boundaries and document **why** each
 non-obvious default or internal limit is retained where evidence exists. If
 evidence is insufficient, say so and do not invent an accepted range.
 
-1. At entry, capture the post-Slice-110 SHA and reconcile changed code,
+1. At entry, capture the exact candidate SHA and reconcile changed code,
    interfaces, ADRs and allocated work with this draft. Freeze the inventory
    rules and baseline public/configuration surfaces before edits.
 2. Build and review the source-linked inventory. Classify each mismatch as
@@ -79,9 +93,12 @@ evidence is insufficient, say so and do not invent an accepted range.
 3. For any code or behavioral correction, add a focused failing test first,
    retain the RED witness, implement GREEN, then run owner tests and checks in
    the blast radius. Pure prose corrections need scoped markdown validators.
-4. Review the final diff independently, verify affected public interfaces and
-   the full source gate if source changed, and write a candidate-bound status
-   with every inventory row disposed. Handoff measurement questions to 115.
+4. Send the code diff to a `gpt-6-sol` high-effort review subagent and the
+   focused checks to an independent Terra verification subagent. Resolve
+   findings, verify affected public interfaces and changed-path checks, and
+   write a candidate-bound status with every inventory row disposed. Handoff
+   measurement questions to 115. Run the broader gate only for a change whose
+   blast radius warrants it, as directed by the HITL.
 
 No profiling campaign, broad tuning sweep, new configuration framework, or
 automatic source rewriter is required by this audit.

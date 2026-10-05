@@ -424,7 +424,8 @@ assert runtime.sqlite_mode == "performance"
 
 The closed modes are `"performance"` and `"diagnostics"`. With no explicit
 call, the first Engine open selects performance. Repeating the effective mode
-is idempotent; conflicting or late calls raise `RuntimeConfigurationError` and
+is idempotent even after Engine open. A conflicting choice or a first request
+after SQLite was initialized elsewhere raises `RuntimeConfigurationError`;
 changing mode requires a process restart. This startup control is not a
 database permission or a governed application command.
 

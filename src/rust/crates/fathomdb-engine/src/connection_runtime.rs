@@ -225,7 +225,7 @@ pub(crate) fn register_sqlite_vec_extension() {
 /// engine's subscriber registry.
 ///
 /// Why FFI rather than `rusqlite::Connection::profile`: the safe API
-/// (rusqlite 0.31) accepts only a `fn(&str, Duration)` with no
+/// accepts only a `fn(&str, Duration)` with no
 /// environment, so it cannot carry a per-engine subscriber-registry
 /// pointer. We use `sqlite3_profile` directly with a leaked-into-`Box`
 /// context whose pointer is tied to the engine's lifetime via
@@ -299,35 +299,17 @@ pub(crate) fn uninstall_profile_callback(connection: &Connection) {
 /// connection. Passing `NULL` for the buffer pointer lets SQLite
 /// allocate the lookaside backing memory itself.
 ///
-/// rusqlite 0.31's `set_db_config` only handles the boolean
-/// `DbConfig::*` variants; `SQLITE_DBCONFIG_LOOKASIDE` is not surfaced
-/// (it is commented out in `rusqlite/src/config.rs`), so we call the
-/// raw FFI directly.
+/// `rusqlite` 0.40's `set_db_config` handles boolean `DbConfig` variants;
+/// `SQLITE_DBCONFIG_LOOKASIDE` needs a buffer and two integer arguments, so
+/// this path calls the raw FFI directly.
 ///
 /// Returns the rc of `sqlite3_db_config` so callers can debug-assert
 /// `SQLITE_OK` and surface configuration failure under
 /// `debug_assertions` test builds without expanding the public surface.
-/// 0.7.0 perf-experiments hook: apply caller-supplied reader PRAGMAs
-/// from the `FATHOMDB_PERF_READER_PRAGMAS` env var. Format:
-/// comma-separated `name=value` pairs (e.g.
-/// `cache_size=-262144,mmap_size=268435456,temp_store=MEMORY`).
-///
-/// **Gated on `FATHOMDB_PERF_EXPERIMENTS=1`.** No-op if the gate env
-/// var is unset, so production paths are never affected. Failures to
-/// apply individual PRAGMAs are logged to stderr (via `eprintln!`) but
-/// do not error the connection open — experiments are best-effort,
-/// not contract.
-///
-/// Scope: 0.7.0 perf-experiment campaign per
-/// `dev/plans/0.7.0-perf-experiments.md`. Once Wave 5 picks the
-/// landing combination, the chosen PRAGMAs are hardcoded as the new
-/// reader-open default and this hook is removed.
-/// 0.7.0 perf-experiments hook: apply writer-side PRAGMAs from
-/// `FATHOMDB_PERF_WRITER_PRAGMAS` (same format as reader hook).
-/// **Runs BEFORE migrations** so PRAGMAs like `page_size` that must
-/// precede any table creation take effect on a fresh DB.
-///
-/// Gated on `FATHOMDB_PERF_EXPERIMENTS=1`. No-op otherwise.
+/// Apply optional writer PRAGMAs before migrations. This experimental hook
+/// runs when `FATHOMDB_PERF_EXPERIMENTS` is present and reads comma-separated
+/// `name=value` entries from `FATHOMDB_PERF_WRITER_PRAGMAS`. Invalid entries
+/// and PRAGMA failures are reported to stderr without failing Engine open.
 pub(crate) fn apply_perf_experiment_writer_pragmas(connection: &Connection) {
     if std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_none() {
         return;
@@ -365,6 +347,10 @@ pub(crate) fn apply_perf_experiment_writer_pragmas(connection: &Connection) {
     }
 }
 
+/// Apply optional reader PRAGMAs when `FATHOMDB_PERF_EXPERIMENTS` is present.
+/// Reads comma-separated `name=value` entries from
+/// `FATHOMDB_PERF_READER_PRAGMAS`; invalid entries and PRAGMA failures are
+/// reported to stderr without failing Engine open.
 pub(crate) fn apply_perf_experiment_reader_pragmas(connection: &Connection) {
     if std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_none() {
         return;

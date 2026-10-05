@@ -28,30 +28,28 @@ Node 25.9.0 in-tree and installed 10/10 each, forced CPU 3/3 in each form, and
 a rebuilt Tegra Python wheel 10/10 (five normal, five fragmented). These are
 branch receipts; integration must bind fresh results to the merged code.
 
-The branch did not compile x86_64. Its off-target proxy test exercised the
-stock allocator path, but a real x86_64 build remains a CI obligation. The
-branch's `agent-verify` stopped at the Slice 90 checkpoint lint failure also
-seen at its baseline; separate typecheck and security legs passed. All-tier
-`agent-test` reported 177/183 suites, with six failures attributed in the
-receipt to missing local release ref, Python 3.13 `cgi`, shallow-clone
-transport, Python loader path, worktree editable-install restrictions, and a
-Python timing failure under suite load. This is not a full gate pass. The
-fallback's synchronous path is reported about 1.9–2.4 times slower per steady
-embed, and very heap-heavy Node processes can still fail at `cuInit` before
-allocator selection.
+The latest branch receipt reports that `agent-verify` stopped at the Slice 90
+checkpoint lint failure also seen at its baseline; separate typecheck and
+security legs passed. All-tier `agent-test` reported 178/184 suites. The six
+failures were attributed there to missing local release state, Python 3.13
+`cgi`, shallow-clone transport, Python loader path, and worktree Python
+installation restrictions. This is not a full gate pass. Fix round 3 measured
+the fallback's synchronous path about 1.8–2.8 times slower per steady embed.
+A late import into a very large Node heap can still fail at `cuInit` before
+allocator selection. The updated branch has now compiled and run on x86_64
+as recorded below; hosted CI compilation remains part of integration.
 
 ## Work before integration and closure
 
-1. **Finish the Tegra agent's review follow-up.** The fix-2 reviewer reported
-   no compile, behavior or governance defect and considered it safe to push,
-   but identified six low-severity items. The Tegra agent owns the pending
-   remeasurement and corrections: remove the explicit-pool confound from the
-   teardown probe; scope the pool-survival claim to the measured Jetson;
-   document that the aarch64 Linux rule also reaches unmeasured CUDA hosts;
-   remove or replace a tautological test; skip the regression before probing
-   unmeasured Jetsons; and reconcile slowdown ranges. Do not duplicate that
-   work while it is underway. If the teardown result changes, reassess the
-   once-per-device cached decision and repeat the affected runtime tests.
+1. **Independently review the completed Tegra follow-up.** The six low-severity
+   fix-2 findings were addressed on the candidate branch: the teardown probe
+   no longer holds an explicit pool; claims are scoped to the measured Orin
+   and name unmeasured aarch64 Linux CUDA hosts; the tautological test was
+   removed; the regression skip is limited to absent, stub or unmeasured
+   devices; and the measured slowdown is consistently about 1.8–2.8 times.
+   The remeasurement found that early `cuInit` does not reserve the default
+   pool's eventual 20.47 GiB range, supporting the need for both changes.
+   Review the source and retained evidence before promoting those findings.
 2. **Review and qualify the final candidate.** After the Tegra agent's final
    push, independently review the exact vendored delta, patch
    reproducibility, governance exception, tests and evidence. Run real x86_64
@@ -118,14 +116,56 @@ is silent and non-failing at import, and is skipped when every CUDA-built
 component's policy is `cpu`. The typed error, `cuda_probe_failed` kind and
 no-CPU-fallback refusal contract are unchanged. A review round moved the
 call out of the ELF constructor (loader-lock hazard) into module
-registration; the counts above must be re-established on that final code
-before closure, alongside the integration items above. Residual
+registration; fix round 3 re-established the import-first, late-import,
+`node --import`, installed-package, and worker results on that source. Residual
 limitations to carry: a late import into a large heap still fails; the
-synchronous path is about 1.8–2.4 times slower per steady embed; only the
+synchronous path is about 1.8–2.8 times slower per steady embed; only the
 AGX Orin 64 GB was measured. Both changes carry a ledger obligation to be
 revisited at the next micro release, and loudly at the next minor release.
 
-The item 1 follow-up list above and the limits paragraph describe the
-branch at the `77d742153` intake; the branch has since gained the early
-`cuInit` commits and further review fixes. Recheck the branch tip at
-integration time.
+The opening branch-result counts describe the `77d742153` intake. The
+candidate has since gained early `cuInit` and further review fixes; its
+fix-round-3 receipt reports installed and in-tree Node 25 checks at 10/10
+each, import-first heap runs across Node 24, 25 and 26, and a rebuilt Tegra
+Python wheel at 10/10. Recheck the branch tip at integration time.
+
+## AMD64 regression round on the updated branch
+
+**2026-10-05, candidate `8b76f6115`.** Both origin refs were refreshed:
+`release/0.8.27` remained `80246a567` and
+`llm/slice110-tegra-allocator-fix` remained `8b76f6115`. The candidate
+includes the aarch64-Linux cudarc fallback, the early `cuInit` call moved
+from an ELF constructor to N-API module registration, and the review fixes
+listed in its intervening commits. Their target gates exclude x86_64 Linux;
+this round exercised the x86_64 CUDA path on a real GPU. This is
+candidate evidence, not a merge or Slice 110 closure.
+
+- On x86_64 Linux, the vendored cudarc test script passed 11/11. Workspace
+  `cargo clippy --workspace --all-targets -- -D warnings -A missing-docs`
+  and `cargo check --workspace --all-targets` passed. The N-API crate also
+  passed `cargo check --locked -p fathomdb-napi --features
+  embed-cuda,rerank-cuda --all-targets`, and the TypeScript typecheck passed.
+- The official `build-napi-cuda.sh` built the release N-API binary with
+  `embed-cuda,rerank-cuda`, CUDA 12.6.68, GCC 13.3.0, and Node 25.9.0.
+  The binary SHA-256 was
+  `c9da045b736886411a9fa1a2d2ba0ba1005c173f547842447cc34e8005bd08f2`.
+  Separate main and Linux x64 platform tarballs were packed and installed
+  into an isolated local consumer; their SHA-256 values were
+  `296a4b4157418e3a66fd194e8be45c882d7035d4d06cf9463f7e9d8d1a1092c6`
+  and
+  `cad97c828bf953ffb4673fc7bd611fc018f800c68635695bede424ef03e4145e`.
+- In three fresh installed-package processes, forced CUDA embedding and
+  reranking passed 3/3 on an NVIDIA GeForce RTX 3090, UUID
+  `GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b`. Each open selected CUDA,
+  the explicitly requested allocation witness recorded a 134,217,728-byte
+  GPU delta, embedding returned 384 values, and reranking returned two
+  finite-score results. Forced CPU embedding and reranking passed 1/1 with
+  both device resolutions reporting CPU. The witness requires
+  `FATHOMDB_GPU_ALLOCATION_WITNESS=1`; without that opt-in, its `null` report
+  field is expected and is not a CUDA failure.
+- The full `agent-verify` attempt stopped at preflight because this
+  worktree lacks `.venv/bin/python`. No full-gate result is claimed. The
+  checkout must be prepared for a final source gate without an editable
+  install that repoints a shared Python binding. The amd64 round does not
+  replace the pending Orin installed-package repetition or merged-candidate
+  release gate.

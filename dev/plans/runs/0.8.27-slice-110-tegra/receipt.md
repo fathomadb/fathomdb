@@ -687,8 +687,9 @@ The embedder's new `cuInit` record compiles into it but is never read there.
 
 ### Full `agent-verify` (early-cuInit round)
 
-This was run on commit `97bc934e9`, with the same two host adjustments as
-review fix 2: `TERM` unset, and the untracked omitted evidence hidden through
+This was run on commit `97bc934e9`. Commit `b483a21a8`, made while
+`agent-test` was running, changes only the new check's skip off aarch64. The
+run used the same two host adjustments as review fix 2: `TERM` unset, and the untracked omitted evidence hidden through
 an environment-scoped `core.excludesFile`. The checkout's config was not
 changed.
 

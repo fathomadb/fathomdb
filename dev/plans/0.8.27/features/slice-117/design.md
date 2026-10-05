@@ -154,7 +154,7 @@ nothing. This is the current state plus a supported script.
 - For: no distribution or identity change; no D-80.7-3 supersession beyond
   documentation.
 - Against: does not meet the todo
-  (`TC-e5496fb8-cad8-49a1-a2fe-8570eb9728b4`) of GPU support from a registry
+  (`TC-ffef2129-e5a6-4f8f-8cae-bdfe64792197`) of GPU support from a registry
   install.
 
 ### Option D — make `fathomdb-linux-arm64-gnu` itself CUDA-capable (rejected)

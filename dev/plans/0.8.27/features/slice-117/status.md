@@ -29,7 +29,7 @@ nothing has been built, qualified or published.
 
 ## Tracking
 
-- Todos ledger: `TC-e5496fb8-cad8-49a1-a2fe-8570eb9728b4` (seq 270).
+- Todos ledger: `TC-ffef2129-e5a6-4f8f-8cae-bdfe64792197` (seq 271, after Slice 110's seq-270 revisit todo).
 - Release state: Slice 117 `PLANNED`, `depends_on: [110]`, in
   `dev/plans/release-state-0.8.27.json`.
 - On completion, Slice 117 updates the platform-support statement in

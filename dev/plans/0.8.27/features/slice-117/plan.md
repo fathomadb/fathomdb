@@ -14,7 +14,7 @@ on Slice 110 and on owner decisions listed below, and every publication step
 remains behind the release's unruled `release-0.8.27-publication` decision.
 The [design note](design.md) owns options, evidence and risks; the
 [status](status.md) records lifecycle. The todos ledger tracks the work as
-`TC-e5496fb8-cad8-49a1-a2fe-8570eb9728b4`.
+`TC-ffef2129-e5a6-4f8f-8cae-bdfe64792197`.
 
 ## Entry evidence
 

@@ -15,9 +15,10 @@
 # default embedder under FATHOMDB_EMBED_DEVICE=cuda:0, embed. Every run must
 # pass.
 #
-# Prerequisites, each a SKIP with its reason when missing (a FAIL under
-# FATHOMDB_REQUIRE_LIVE=1):
-#   - Linux aarch64 and `node` on PATH;
+# Off Linux aarch64 it always prints SKIP: a platform exclusion. On Linux
+# aarch64, each prerequisite below is a SKIP with its reason when missing (a
+# FAIL under FATHOMDB_REQUIRE_LIVE=1):
+#   - `node` on PATH;
 #   - FATHOMDB_TEGRA_NODE_PACKAGE: a package root holding dist/index.js whose
 #     native addon was built with embed-cuda (in-tree src/ts after a CUDA
 #     `napi build`, or an installed node_modules/fathomdb). The ordinary
@@ -48,7 +49,10 @@ skip() {
 host_os="$(uname -s)"
 host_arch="$(uname -m)"
 if [ "$host_os" != "Linux" ] || [ "$host_arch" != "aarch64" ]; then
-  skip "Linux aarch64 only; the early CUDA initialisation is compiled only there"
+  # A platform exclusion, like a Rust target's file-level cfg: never a missing
+  # live prerequisite, so FATHOMDB_REQUIRE_LIVE does not turn it into a FAIL.
+  printf 'SKIP  tegra-node-early-cuinit: Linux aarch64 only; the early CUDA initialisation is compiled only there\n'
+  exit 0
 fi
 command -v node >/dev/null 2>&1 || skip "node is not on PATH"
 package="${FATHOMDB_TEGRA_NODE_PACKAGE:-}"

@@ -19,9 +19,10 @@
 //! the measured target: an integrated GPU with the AGX Orin 64 GB's device
 //! memory (61.36 GiB; its pool needs 20960 MiB). On a Jetson with less memory
 //! the pool, about a third of device memory, may fit between the blockers.
-//! Elsewhere (no CUDA driver, no device, a discrete `cuda:0`, or another
-//! memory size) it prints a SKIP notice naming the reason and returns, or
-//! panics under `FATHOMDB_REQUIRE_LIVE=1`. A blocker address that is already
+//! Elsewhere (no CUDA driver, no device, a discrete `cuda:0`, another memory
+//! size, or any driver failure before `cuda:0` is identified, such as a stub
+//! `libcuda`) it prints a SKIP notice naming the reason and returns, or panics
+//! under `FATHOMDB_REQUIRE_LIVE=1`. A blocker address that is already
 //! occupied fails the test only on the measured target.
 //!
 //! Run it on a Jetson with:
@@ -97,6 +98,10 @@ fn map_address_space_blockers() -> Vec<String> {
 
 /// Why this host is outside the measured target, or `None` when `cuda:0` is an
 /// integrated GPU with the measured AGX Orin 64 GB device memory.
+///
+/// Until `cuda:0` is identified as that target, every driver failure is a
+/// reason to skip rather than a test failure: a stub `libcuda`, an unmeasured
+/// Jetson or a host without a usable device cannot be judged by this test.
 fn non_target_reason() -> Option<String> {
     // SAFETY: only probes for the driver library; loads nothing on failure.
     if !unsafe { sys::is_culib_present() } {
@@ -107,21 +112,33 @@ fn non_target_reason() -> Option<String> {
         Err(DriverError(sys::CUresult::CUDA_ERROR_NO_DEVICE)) => {
             return Some("no CUDA device".to_owned());
         }
-        Err(error) => panic!("cuInit failed with the blockers in place: {error:?}"),
+        Err(error) => {
+            return Some(format!(
+                "cuInit failed with the blockers in place before cuda:0 was identified: {error:?}"
+            ));
+        }
     }
-    let count = result::device::get_count().expect("cuDeviceGetCount");
+    let count = match result::device::get_count() {
+        Ok(count) => count,
+        Err(error) => return Some(format!("cuDeviceGetCount failed: {error:?}")),
+    };
     if count < 1 {
         return Some("no CUDA device".to_owned());
     }
-    let device = result::device::get(0).expect("cuDeviceGet(0)");
+    let device = match result::device::get(0) {
+        Ok(device) => device,
+        Err(error) => return Some(format!("cuDeviceGet(0) failed: {error:?}")),
+    };
     // SAFETY: `device` was just returned by the initialized driver.
-    let integrated = unsafe {
+    let integrated = match unsafe {
         result::device::get_attribute(
             device,
             sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_INTEGRATED,
         )
-    }
-    .expect("CU_DEVICE_ATTRIBUTE_INTEGRATED");
+    } {
+        Ok(integrated) => integrated,
+        Err(error) => return Some(format!("CU_DEVICE_ATTRIBUTE_INTEGRATED failed: {error:?}")),
+    };
     if integrated == 0 {
         return Some(
             "cuda:0 is a discrete GPU; the fragmented-layout pool failure is only \
@@ -130,7 +147,10 @@ fn non_target_reason() -> Option<String> {
         );
     }
     // SAFETY: as above.
-    let memory = unsafe { result::device::total_mem(device) }.expect("cuDeviceTotalMem");
+    let memory = match unsafe { result::device::total_mem(device) } {
+        Ok(memory) => memory,
+        Err(error) => return Some(format!("cuDeviceTotalMem failed: {error:?}")),
+    };
     (!MEASURED_DEVICE_MEMORY.contains(&memory)).then(|| {
         format!(
             "cuda:0 is an integrated GPU with {memory} B of device memory; the \

@@ -145,9 +145,40 @@ if lock.exists():
 PY
 }
 
+seed_cudarc_fixture() {
+  local fixture="$1"
+  if [ "$fixture" = "$REPO_ROOT" ] || [ -e "$fixture/.omit-cudarc-patch" ]; then
+    return
+  fi
+  mkdir -p "$fixture/third_party/cudarc-0.19.7"
+  if [ ! -e "$fixture/third_party/cudarc-0.19.7/Cargo.toml" ]; then
+    cp -a "$REPO_ROOT/third_party/cudarc-0.19.7/." \
+      "$fixture/third_party/cudarc-0.19.7/"
+  fi
+  python3 - "$fixture" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+manifest = root / "Cargo.toml"
+if manifest.exists():
+    text = manifest.read_text(encoding="utf-8")
+    patch = 'cudarc = { path = "third_party/cudarc-0.19.7" }\n'
+    if 'cudarc = ' not in text and "[patch.crates-io]\n" in text:
+        text = text.replace("[patch.crates-io]\n", "[patch.crates-io]\n" + patch, 1)
+        manifest.write_text(text, encoding="utf-8")
+lock = root / "Cargo.lock"
+if lock.exists():
+    text = lock.read_text(encoding="utf-8")
+    if 'name = "cudarc"' not in text:
+        lock.write_text(text + '\n[[package]]\nname = "cudarc"\nversion = "0.19.7"\n', encoding="utf-8")
+PY
+}
+
 run_fixture() {
   local fixture="$1"
   seed_sqlite_fixture "$fixture"
+  seed_cudarc_fixture "$fixture"
   set +e
   OUT="$(bash "$CHECKER" --root "$fixture" 2>&1)"
   RC=$?
@@ -166,6 +197,7 @@ make_and_run_fixture() {
 run_fixture_with_reanchored_snapshot() {
   local fixture="$1"
   seed_sqlite_fixture "$fixture"
+  seed_cudarc_fixture "$fixture"
   local fixture_checker="$fixture/check-pinned-override-rot.py"
   python3 - "$REPO_ROOT/scripts/check-pinned-override-rot.py" "$fixture" "$fixture_checker" <<'PY'
 import hashlib
@@ -498,6 +530,61 @@ PY
 run_fixture "$sqlite_path"
 expect_failure 'SQLite patch is not the approved local path source' \
   'SQLite patch path drift is rejected'
+
+# The vendored cudarc carries the Tegra allocator fallback. Its exact tree,
+# local path, licenses, patch note, and local lock entry are all governed.
+cudarc_missing="$(make_candle_fixture cudarc-missing approved)"
+touch "$cudarc_missing/.omit-cudarc-patch"
+run_fixture "$cudarc_missing"
+expect_failure 'missing approved cudarc patch cudarc' \
+  'missing local cudarc allocator patch is rejected'
+
+cudarc_tree="$(make_candle_fixture cudarc-tree approved)"
+run_fixture "$cudarc_tree"
+if [ "$RC" -ne 0 ]; then
+  fail "exact local cudarc vendor tree must pass, got rc=$RC output=$OUT"
+fi
+printf '\n' >>"$cudarc_tree/third_party/cudarc-0.19.7/src/driver/safe/core.rs"
+run_fixture "$cudarc_tree"
+expect_failure 'cudarc vendor tree SHA-256 drift' \
+  'modified vendored cudarc source is rejected'
+
+cudarc_path="$(make_candle_fixture cudarc-path approved)"
+run_fixture "$cudarc_path"
+python3 - "$cudarc_path/Cargo.toml" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text().replace(
+    'cudarc = { path = "third_party/cudarc-0.19.7" }',
+    'cudarc = { path = "third_party/unreviewed-cudarc" }',
+))
+PY
+run_fixture "$cudarc_path"
+expect_failure 'cudarc patch is not the approved local path source' \
+  'cudarc patch path drift is rejected'
+
+cudarc_lock="$(make_candle_fixture cudarc-lock approved)"
+run_fixture "$cudarc_lock"
+python3 - "$cudarc_lock/Cargo.lock" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text().replace(
+    'name = "cudarc"\nversion = "0.19.7"\n',
+    'name = "cudarc"\nversion = "0.19.7"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\n',
+))
+PY
+run_fixture "$cudarc_lock"
+expect_failure 'cudarc patch has no matching local Cargo.lock package' \
+  'registry cudarc 0.19.7 in Cargo.lock is rejected'
+
+cudarc_license="$(make_candle_fixture cudarc-license approved)"
+run_fixture "$cudarc_license"
+rm "$cudarc_license/third_party/cudarc-0.19.7/LICENSE-APACHE"
+run_fixture "$cudarc_license"
+expect_failure 'cudarc vendor license is missing' \
+  'vendored cudarc without its upstream licenses is rejected'
 
 make_and_run_candle_fixture missing missing
 if [ "$RC" -ne 1 ]; then

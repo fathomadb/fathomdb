@@ -2921,3 +2921,99 @@ mod tests {
         handle.join().unwrap();
     }
 }
+
+// FATHOMDB PATCH BEGIN: allocator fallback tests (see FATHOMDB-PATCH.md).
+#[cfg(test)]
+mod fathomdb_alloc_fallback {
+    use super::*;
+
+    /// A primary context forced onto the synchronous allocator, as selected
+    /// when the device's default memory pool is unavailable. `None` when no
+    /// CUDA driver or device is present.
+    fn sync_context() -> Option<Arc<CudaContext>> {
+        if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
+            std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
+            return None;
+        }
+        let mut ctx = CudaContext::new(0).unwrap();
+        Arc::get_mut(&mut ctx).expect("fresh context").has_async_alloc = false;
+        Some(ctx)
+    }
+
+    #[test]
+    fn async_alloc_requires_pool_support_and_an_obtainable_default_pool() {
+        use sys::CUresult::{
+            CUDA_ERROR_INVALID_CONTEXT, CUDA_ERROR_NOT_SUPPORTED, CUDA_ERROR_OUT_OF_MEMORY,
+        };
+        let pool = Ok(std::ptr::null_mut());
+
+        assert!(use_async_alloc(1, &pool));
+        assert!(use_async_alloc(2, &pool));
+        // The Tegra failure: pools are reported, the default pool is not.
+        assert!(!use_async_alloc(1, &Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY))));
+        assert!(!use_async_alloc(1, &Err(DriverError(CUDA_ERROR_NOT_SUPPORTED))));
+        assert!(!use_async_alloc(1, &Err(DriverError(CUDA_ERROR_INVALID_CONTEXT))));
+        assert!(!use_async_alloc(0, &pool));
+        assert!(!use_async_alloc(-1, &pool));
+    }
+
+    #[test]
+    fn sync_zero_byte_request_is_a_null_pointer_without_a_driver_call() {
+        // No CUDA library is loaded by this test; a driver call would panic
+        // on hosts without one and fail with CUDA_ERROR_INVALID_VALUE on hosts
+        // with one.
+        assert_eq!(unsafe { malloc_sync_or_null(0) }, Ok(0));
+    }
+
+    #[test]
+    fn new_context_selection_matches_default_pool_availability() {
+        if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
+            std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
+            return;
+        }
+        let ctx = CudaContext::new(0).unwrap();
+        let pools = ctx
+            .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED)
+            .unwrap();
+        let pool = unsafe { result::device::get_default_mem_pool(ctx.cu_device) };
+        assert_eq!(ctx.has_async_alloc(), use_async_alloc(pools, &pool));
+    }
+
+    #[test]
+    fn sync_zero_length_allocations_are_null_and_free_cleanly() {
+        let Some(ctx) = sync_context() else { return };
+        let stream = ctx.default_stream();
+
+        let null = stream.null::<f32>().unwrap();
+        assert_eq!(null.cu_device_ptr, 0);
+        assert!(null.is_empty());
+        let unset = unsafe { stream.alloc::<f32>(0) }.unwrap();
+        assert_eq!(unset.cu_device_ptr, 0);
+        let zeros = stream.alloc_zeros::<f32>(0).unwrap();
+        assert_eq!(zeros.cu_device_ptr, 0);
+        assert!(stream.clone_dtoh(&zeros).unwrap().is_empty());
+        let uploaded = stream.clone_htod(&Vec::<f32>::new()).unwrap();
+        assert_eq!(uploaded.cu_device_ptr, 0);
+
+        drop((null, unset, zeros, uploaded));
+        stream.synchronize().unwrap();
+        ctx.check_err().unwrap();
+    }
+
+    #[test]
+    fn sync_context_round_trips_data() {
+        let Some(ctx) = sync_context() else { return };
+        let stream = ctx.default_stream();
+
+        let device = stream.clone_htod(&[1.0f32, 2.0, 3.0, 4.0]).unwrap();
+        assert_ne!(device.cu_device_ptr, 0);
+        assert_eq!(stream.clone_dtoh(&device).unwrap(), std::vec![1.0f32, 2.0, 3.0, 4.0]);
+        let zeros = stream.alloc_zeros::<u8>(4).unwrap();
+        assert_eq!(stream.clone_dtoh(&zeros).unwrap(), std::vec![0u8; 4]);
+
+        drop((device, zeros));
+        stream.synchronize().unwrap();
+        ctx.check_err().unwrap();
+    }
+}
+// FATHOMDB PATCH END

@@ -112,8 +112,10 @@ inside `napi_register_module_v1` after the exports are registered: on the
 loading thread, once `dlopen` has returned, once per env. A
 `std::sync::Once` keeps the `cuInit` to one per process.
 `FATHOMDB_CUDA_EARLY_INIT=off` turns it off. Each probe now records its own
-`cuInit` outcome, and a refusal's hint reads its own probe's entry, so the
-reranker's memoized refusal keeps its cause.
+`cuInit` outcome, and a refusal's hint reads its own probe kind's entry, so
+another caller's `cuInit` cannot change it. (Fix round 4 corrected an
+earlier claim here: a later reranker probe, which every open runs, does
+overwrite the entry, so the reranker's memoized refusal can lose its hint.)
 
 The addon `3ecc99e6…` was built from `377ab9569` with the same recipe. `nm`
 shows `cuda_early_init::EARLY_INIT` and napi-rs's

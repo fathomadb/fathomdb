@@ -100,3 +100,83 @@ FAIL  run 2/3 (exit 1): {"outcome":"fail","step":"open","node":"v25.9.0","heapOb
 FAIL  run 3/3 (exit 1): {"outcome":"fail","step":"open","node":"v25.9.0","heapObjects":1000000,"heapUsedMiB":177,"error":{"name":"EmbedDevicePolicyError","code":"FDB_EMBED_DEVICE_POLICY","kind":"cuda_probe_failed","message":"cuda:0 requested but unavailable: CudaProbeFailed"},"keepAlive":1000000}
 FAIL  tegra-node-early-cuinit: 3 of 3 runs failed
 exit=1
+
+# Fix round 4: placement test checks only the module-load slot
+
+## red: 8b76f6115's test (process-wide last outcome) with the schema-33 open test, --test-threads=1, libtest shuffle seeds 1-6 (RUSTC_BOOTSTRAP=1 -Z unstable-options --shuffle-seed N), embed-cuda,rerank-cuda
+## seed 1
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... FAILED
+assertion `left == right` failed
+  left: Some(Initialized)
+ right: None
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.38s
+## seed 2
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... ok
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.25s
+## seed 3
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... ok
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.25s
+## seed 4
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... FAILED
+assertion `left == right` failed
+  left: Some(Initialized)
+ right: None
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.25s
+## seed 5
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... FAILED
+assertion `left == right` failed
+  left: Some(Initialized)
+ right: None
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.26s
+## seed 6
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... FAILED
+assertion `left == right` failed
+  left: Some(Initialized)
+ right: None
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.31s
+
+## green: ae31955b5 (ModuleLoad slot), same seeds, then the whole lib under three more seeds
+## seed 1
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.39s
+## seed 2
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... ok
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.26s
+## seed 3
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... ok
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.26s
+## seed 4
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.26s
+## seed 5
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.25s
+## seed 6
+test test_support::tests::napi_open_maps_schema_33_refusal_to_the_typed_envelope ... ok
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.25s
+## full lib, seed 11
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+## full lib, seed 12
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s
+## full lib, seed 13
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+
+## the fixed test still catches a constructor: temporary #[napi::module_init] calling initialize_cuda_driver (not committed)
+test cuda_early_init::tests::loading_the_addon_library_does_not_initialise_cuda ... FAILED
+assertion `left == right` failed
+  left: Some(Initialized)
+ right: None
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+error: test failed, to rerun pass `-p fathomdb-napi --lib`

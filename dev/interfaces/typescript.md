@@ -820,9 +820,13 @@ component's own CUDA probe saw `cuInit` return `CUDA_ERROR_OUT_OF_MEMORY`, the
 `EmbedDevicePolicyError` / `RerankerDevicePolicyError` message keeps its
 `cuda:N requested ... but unavailable: CudaProbeFailed` prefix and appends the
 cause and remedy. The remedy is to import fathomdb first or to start Node
-with `--import fathomdb`. Each probe's `cuInit` outcome is recorded
-separately, so the reranker's refusal, which is memoized for the process,
-keeps its hint even if another `cuInit` succeeds later. The code, `kind`,
+with `--import fathomdb`. The `cuInit` outcome is kept per caller kind
+(module registration, embedder probe, reranker probe), not per refusal: a
+`cuInit` by another kind never changes a refusal's hint, but a later probe of
+the same kind replaces it. Every `Engine.open` in a build with the
+cross-encoder, and `rerank()` with a depth above zero, re-run the reranker
+probe, so the reranker's refusal, which is memoized for the process, can lose
+its hint after a later reranker probe succeeds. The code, `kind`,
 `ordinal` and the no-CPU-fallback rule are unchanged. As with other messages,
 the text is for people; match on `code` and `kind`. Other targets do not
 compile this. User guide: `docs/embedder.md` § "Node.js on Jetson: load

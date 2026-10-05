@@ -158,9 +158,9 @@ pub(crate) enum RefusingComponent {
 
 /// The message for a device-policy refusal of `kind` by `component`. On
 /// aarch64 Linux CUDA builds it names an out-of-memory `cuInit` made by that
-/// component's own probe as the cause, so a memoized refusal keeps its cause
-/// after another caller's `cuInit` succeeds; elsewhere it is `message`
-/// unchanged.
+/// component's probe as the cause, read from the most recent outcome of that
+/// probe kind (another caller's `cuInit` cannot change it, a later probe of
+/// the same kind can); elsewhere it is `message` unchanged.
 pub(crate) fn device_policy_refusal_message(
     component: RefusingComponent,
     kind: &str,

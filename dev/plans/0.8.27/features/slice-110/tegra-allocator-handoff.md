@@ -61,8 +61,9 @@ sections after this one are the pre-fix handoff, kept as history.
   It is skipped when every component built with CUDA has an exact `cpu`
   policy, or when `FATHOMDB_CUDA_EARLY_INIT=off`. A forced-CUDA refusal whose
   own probe saw an out-of-memory `cuInit` names the cause and the remedy
-  (import first, or `node --import fathomdb`); the reranker's memoized
-  refusal keeps it. The embedder items it uses are `#[doc(hidden)]` and
+  (import first, or `node --import fathomdb`). The outcome is kept per
+  probe kind, so the reranker's memoized refusal can lose the hint after a
+  later successful reranker probe (every open re-runs it). The embedder items it uses are `#[doc(hidden)]` and
   unstable (`dev/interfaces/rust.md`); they and the probes' records compile
   into every aarch64 Linux CUDA build, while the hook and the hint are
   Node-only. `scripts/tests/test_tegra_node_early_cuinit.sh` failed 3 / 3

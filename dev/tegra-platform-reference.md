@@ -633,9 +633,11 @@ more in all of them. Forcing a GC does not give the window back. A failed
   10 / 10 over two rounds. Forced CUDA then refuses with
   `FDB_EMBED_DEVICE_POLICY` / `cuda_probe_failed`, and the Node message names
   the out-of-memory `cuInit` and both remedies; the kind and the
-  no-CPU-fallback contract are unchanged. The hint uses the `cuInit` outcome
-  the refusing component's own probe saw, so the reranker's memoized refusal
-  keeps it. `node --import fathomdb` (or `NODE_OPTIONS=--import=fathomdb`)
+  no-CPU-fallback contract are unchanged. The hint uses the most recent
+  `cuInit` outcome of the refusing component's probe kind, so another
+  caller's `cuInit` cannot change it. The reranker probe re-runs at every open
+  and at `rerank()` with depth above zero, so the reranker's memoized refusal
+  can lose its hint after a later successful reranker probe. `node --import fathomdb` (or `NODE_OPTIONS=--import=fathomdb`)
   loads the addon before the application and passed 13 / 13 with the same
   late heap.
 - **Not a full guarantee.** Early init secures `cuInit` and the driver's

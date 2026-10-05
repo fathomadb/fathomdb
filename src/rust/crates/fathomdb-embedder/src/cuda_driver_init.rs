@@ -8,9 +8,10 @@
 //! forced-CUDA refusal needs to know whether `cuInit` was the call that failed.
 //! The typed probe reasons cannot carry that detail without changing their
 //! public shape, so each caller's most recent `cuInit` outcome is kept here.
-//! A refusal reads the outcome its own probe saw, which stays correct when
-//! the refusal is memoized (the reranker's is) and another caller's `cuInit`
-//! later succeeds.
+//! A refusal reads the most recent outcome of its own caller kind, so another
+//! caller's later `cuInit` cannot change it. A later probe of the same kind
+//! does replace it: the reranker's refusal is memoized, but its probe runs
+//! again at every engine open, so that refusal can lose its cause.
 //!
 //! Binding support, not an SDK surface: the public items are
 //! `#[doc(hidden)]` and unstable (`dev/interfaces/rust.md`). The driver calls
@@ -213,8 +214,8 @@ mod tests {
 
     #[test]
     fn a_probe_keeps_the_cu_init_it_saw_when_another_caller_succeeds_later() {
-        // The reranker's forced-CUDA refusal is memoized for the process, so
-        // its cause must be the cuInit its own probe saw, not whatever ran last.
+        // A refusal's cause is the cuInit its own caller kind saw last, not
+        // whatever any caller ran last.
         let mut record = InitRecord::new();
         record.record(CudaInitCaller::RerankerProbe, CudaDriverInit::Failed(OUT_OF_MEMORY));
         record.record(CudaInitCaller::EmbedderProbe, CudaDriverInit::Initialized);

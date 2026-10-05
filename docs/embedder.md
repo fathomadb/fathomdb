@@ -206,10 +206,10 @@ NODE_OPTIONS=--import=fathomdb node app.js
   longer when the GPU has been idle.
 - CUDA starts once per process. Loading fathomdb first inside a
   `worker_threads` worker works the same way.
-- When every device that the addon was built to run on CUDA is set to `cpu`
-  (`FATHOMDB_EMBED_DEVICE`, and `FATHOMDB_RERANK_DEVICE` if it has the
-  cross-encoder) at the time fathomdb is loaded, the addon does not start
-  CUDA at all.
+- When every component that the addon was built to run on CUDA is set to
+  `cpu` at the time fathomdb is loaded, the addon does not start CUDA at all.
+  That means `FATHOMDB_EMBED_DEVICE` if its embedder was built with CUDA, and
+  `FATHOMDB_RERANK_DEVICE` if its cross-encoder was built with CUDA.
 - `FATHOMDB_CUDA_EARLY_INIT=off` turns early start-up off. Use it only if
   you must not reserve the address space before opening an engine. A large
   heap can then stop CUDA from starting again.

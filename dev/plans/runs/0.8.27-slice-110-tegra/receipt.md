@@ -781,10 +781,15 @@ that follow it.
   the code's rule (skip when every component built with CUDA has an exact
   `cpu` policy). The embedder records each caller's `cuInit` outcome
   (`ModuleLoad`, `EmbedderProbe`, `RerankerProbe`), and the refusal mapper
-  reads the refusing component's own entry. The reranker's refusal is
-  memoized in `fathomdb-engine/src/rerank.rs` and its probe does not run
-  again, so its entry stays the failure that caused the refusal even if a
-  later `cuInit` elsewhere succeeds.
+  reads the refusing component's own entry, so a `cuInit` by another caller
+  kind cannot change the hint. Corrected in fix round 4: the entry belongs to
+  the caller kind, not to the refusal. The reranker's refusal is memoized in
+  `fathomdb-engine/src/rerank.rs`, but its probe does run again: every
+  `Engine.open` in a `default-reranker` build and every `rerank()` with a
+  depth above zero resolve the reranker device policy
+  (`fathomdb-engine/src/open.rs`, `rerank.rs`). A later successful reranker
+  probe therefore overwrites the entry, and the memoized refusal then loses
+  its hint.
 - **Test header.** `test_tegra_node_early_cuinit.sh` no longer promises a
   SKIP when the model is not cached; a run that cannot load it fails.
 
@@ -866,6 +871,39 @@ Then:
   the `classic_tegra` platform probe).
 
 No failure involves a file changed in this round.
+
+### Fix round 4 (small)
+
+The second review returned PASS with three low findings, all fixed without
+rewriting history:
+
+- **Placement test order.** `loading_the_addon_library_does_not_initialise_cuda`
+  read the process-wide last `cuInit` outcome, which the schema-33 open test
+  in the same binary sets through the reranker probe. With
+  `--test-threads=1` and libtest shuffle seeds 1–6, it failed whenever that
+  test ran first (4 of 6 orders). It now asserts on the `ModuleLoad` slot
+  (`ae31955b5`) and passed in all 6 orders and in the whole lib under three
+  more seeds. With a temporary `#[napi::module_init]` constructor it still
+  fails (`Some(Initialized)`, want `None`)
+  ([red-green.txt](early-cuinit-verification/red-green.txt)).
+- **Memoized reranker refusal.** The wording in fix round 3 above, the
+  TypeScript interface, the platform reference, the handoff and the code
+  comments now say the `cuInit` entry belongs to the caller kind. Every open
+  and every `rerank()` with depth above zero re-run the reranker probe, so
+  the memoized refusal can lose its hint after a later successful probe.
+- **User guide.** `docs/embedder.md` counts `FATHOMDB_RERANK_DEVICE` only
+  when the cross-encoder was built with CUDA, as the code does.
+- **Non-Tegra hosts** (reviewer note, `8715b02ed`). `tegra_fragmented_va_cuda`
+  now skips before mapping any blocker unless `/etc/nv_tegra_release` exists
+  or `/proc/device-tree/compatible` has an `nvidia,tegra*` entry. The
+  on-target assertions are unchanged; it passed 5 / 5 here. The skip branch
+  is not exercised on this Jetson.
+
+Checks: napi lib 29 / 29 with default features and 30 / 30 with
+`embed-cuda,rerank-cuda`; embedder record tests 2 / 2; clippy `-D warnings`
+clean for napi and the embedder with default and CUDA features; the
+Markdown linters pass on the changed files. No product code changed, so no
+GPU series was rerun.
 
 ### Open limitations
 

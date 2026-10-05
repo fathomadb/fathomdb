@@ -196,6 +196,16 @@ form is `--extra-index-url` + detection-gating + an exact pin.
 
 ### 3.7 npm: permanently out of scope
 
+> **Superseded for 0.8.27 Slice 117 (repository owner, 2026-10-05).** Release
+> state ruling `slice-117-supersede-d-80-7-3-and-d-80-6-2` supersedes D-80.7-3
+> and D-80.6-2 for Slice 117's scope: a CUDA-capable Node addon for Jetson may
+> be built and distributed. The structural facts in this section still hold.
+> The delivery shape is open under `slice-117-delivery-shape`. Read the
+> [Slice 117 design](plans/0.8.27/features/slice-117/design.md) and the
+> proposed
+> [distribution ADR](adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md).
+> The rest of this section is the original 0.8.23 ruling.
+
 **D-80.7-3.** Not "out of scope for this slice" — out of scope permanently,
 because npm *cannot express the distinction at all* (§ 2). The ecosystem's own
 answer is to not distinguish: the one arm64+CUDA npm package found
@@ -579,7 +589,7 @@ validate and abort, never degrade.**
 
 | Gap | Detail |
 |---|---|
-| **`dev/platform-capabilities.json` has no Tegra entry** | The manifest is gated by `scripts/check-platform-capabilities.sh`, but its schema assumes **every platform is an npm loader triple** (`npm_package`, `package_dir`, `rust_target`). Tegra is a **Python-only artifact family with no npm package by ruling** (§ 3.7) and **no distinct Rust target** (§ 2), so it does not fit the existing row shape. Adding a row naively would either break the gate or require inventing an npm package name that D-80.7-3 forbids. **Unresolved — the manifest needs an artifact-family concept before Tegra can be represented in it.** |
+| **`dev/platform-capabilities.json` has no Tegra entry** | The manifest is gated by `scripts/check-platform-capabilities.sh`, but its schema assumes **every platform is an npm loader triple** (`npm_package`, `package_dir`, `rust_target`). Tegra is a **Python-only artifact family today** and has **no distinct Rust target** (§ 2), so it does not fit the existing row shape. Adding a row naively would break the gate, which keys rows by npm loader triple. A Slice 117 Tegra Node package would share the `linux-arm64-gnu` triple with the generic package (§ 3.7 supersession note). **Unresolved — the manifest needs an artifact-family concept before Tegra can be represented in it.** |
 | **`embed-cuda` clippy is not clean** | `cargo clippy -p fathomdb-embedder --features embed-cuda --all-targets -- -D warnings` fails with **7** errors. Verified pre-existing: the same command at `2dbe7c63` fails with **9**. 80.5 improved it 9 → 7. Remaining items are `tc5-benchmark`-only, dead in an `embed-cuda`-without-`tc5-benchmark` build. **Must not be described as green.** |
 | **`ir_c_recall_run.rs:327` E0308** | `cargo check -p fathomdb-engine --test ir_c_recall_run --features embed-cuda` fails. Pre-existing, in an untouched crate. |
 | **`datetime.UTC` on Python 3.10** | § 4.4. Works under the repo 3.13 venv; any hosted job on 3.10 dies on import. |

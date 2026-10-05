@@ -156,6 +156,7 @@ Slice-0 gate before Slices 15 and 25 open.
 | 57 | architecture | Select the lowest passing default embed-dispatch worker count under the D27 comparison and unchanged release performance gates | accepted five under HITL rule `seq-299` and 2026-10-02 targeted throughput ruling; strict D27 retry PASS, third-run 0.4125 commits/s shortfall accepted, earlier latency FAIL retained | ADR-0.8.27-embed-dispatch-default-capacity.md |
 | 58 | interface | Deliver Python engine diagnostics through a bounded, nonblocking logger adapter; remove the inert Python heartbeat interval and add no binding-generated operation IDs | accepted by repository-owner 2026-10-03 direction conditioned on reviewed active architecture and design updates | ADR-0.8.27-python-subscriber-delivery.md |
 | 59 | interface | Diagnose owed physical erasures in doctor and complete proven WAL obligations through one offline recover connection, preserving telemetry obligations without the original sink | accepted by repository-owner 2026-10-03 Slice 103 direction | ADR-0.8.27-offline-physical-erasure-completion.md |
+| 60 | release | Distribute a separately named, dual-runtime CUDA Node addon for classic Jetson Orin as an exact-version tarball through the existing Tegra Pages route, not the npm registry, in 0.8.27; loader selects it only on detected Tegra with an exact version match | proposed (draft; HITL decision `slice-117-delivery-shape` pending; follows 2026-10-05 supersession of D-80.7-3/D-80.6-2) | ADR-0.8.27-jetson-tegra-node-addon-distribution.md |
 
 ## Categories
 

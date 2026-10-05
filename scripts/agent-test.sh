@@ -716,6 +716,10 @@ else
 fi
 run_tier_maybe_suite heavy test-ts "$ts_suite_skip_reason" "${ts_suite_command[@]}"
 run_tier_maybe_suite heavy test-napi-build-hermetic-executable "$napi_execute_skip_reason" "${napi_execute_command[@]}"
+# Jetson only: forced CUDA in a heap-heavy Node process that imported fathomdb
+# first. It needs FATHOMDB_TEGRA_NODE_PACKAGE (a CUDA-built package) and the
+# measured AGX Orin 64 GB, and prints SKIP with the reason elsewhere.
+run_tier_suite heavy test-tegra-node-early-cuinit bash scripts/tests/test_tegra_node_early_cuinit.sh
 
 # The release-surface test executes from tsc's `dist/tests` layout. Keep its
 # repository-root calculation pinned independently so its opt-in CI arm cannot

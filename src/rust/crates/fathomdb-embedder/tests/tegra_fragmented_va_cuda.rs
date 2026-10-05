@@ -19,10 +19,10 @@
 //! the measured target: an integrated GPU with the AGX Orin 64 GB's device
 //! memory (61.36 GiB; its pool needs 20960 MiB). On a Jetson with less memory
 //! the pool, about a third of device memory, may fit between the blockers.
-//! Elsewhere (no CUDA driver, the toolkit's stub `libcuda`, no device, a
-//! discrete `cuda:0`, or another memory size) it prints a SKIP notice naming
-//! the reason and returns, or panics under `FATHOMDB_REQUIRE_LIVE=1`. Any other
-//! driver failure fails the test. A blocker address that is already
+//! Elsewhere (not a Tegra host, no CUDA driver, the toolkit's stub `libcuda`,
+//! no device, a discrete `cuda:0`, or another memory size) it prints a SKIP
+//! notice naming the reason and returns, or panics under
+//! `FATHOMDB_REQUIRE_LIVE=1`. Any other driver failure fails the test. A blocker address that is already
 //! occupied fails the test only on the measured target.
 //!
 //! Run it on a Jetson with:
@@ -66,6 +66,22 @@ extern "C" {
         fd: c_int,
         offset: c_long,
     ) -> *mut c_void;
+}
+
+/// Why this host is not a Jetson, or `None` when it is. Checked before any
+/// blocker is mapped: on a non-Tegra aarch64 host the blockers could make
+/// `cuInit` itself fail, which must not become a test failure there.
+fn non_tegra_reason() -> Option<String> {
+    if std::path::Path::new("/etc/nv_tegra_release").exists() {
+        return None;
+    }
+    let compatible = std::fs::read("/proc/device-tree/compatible").unwrap_or_default();
+    let tegra = compatible.split(|&byte| byte == 0).any(|entry| entry.starts_with(b"nvidia,tegra"));
+    (!tegra).then(|| {
+        "not a Tegra host (no /etc/nv_tegra_release and no nvidia,tegra* entry in \
+         /proc/device-tree/compatible)"
+            .to_owned()
+    })
 }
 
 /// Maps every blocker it can and returns a description of each one it could
@@ -152,6 +168,10 @@ fn non_target_reason() -> Option<String> {
 
 #[test]
 fn forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable() {
+    if let Some(reason) = non_tegra_reason() {
+        live::require_live_or_skip(&format!("SKIP tegra_fragmented_va_cuda: {reason}"));
+        return;
+    }
     // Must precede every CUDA call in this process (the driver lays out its
     // GPU virtual-address reservations during `cuInit`).
     let refused_blockers = map_address_space_blockers();

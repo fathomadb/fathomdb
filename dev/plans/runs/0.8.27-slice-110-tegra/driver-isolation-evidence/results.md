@@ -11,6 +11,7 @@ Each GPU series ran under `flock` on a shared GPU lock (another agent was measur
 |---|---|
 | `minimal_repro.c` | ~60-line Driver API reproducer: three 4 KiB `PROT_NONE` pages at 38/68/98 GiB, then `cuMemAllocAsync`. `control` arg skips the pages. |
 | `minimal_repro_runtime.c` | Same via the Runtime API (`cudaMallocAsync`). |
+| `cuinit_repro.c` | `cuInit` reproducer for the report draft's second finding: 4 KiB pages every 3.99 GiB make `cuInit` fail (`4.0` and `control` pass); may be attached with `minimal_repro.c`. |
 | `pool_va_repro.c` | Full instrumented reproducer used for every series (options documented in its header). |
 | `run-series.sh`, `sweep.sh`, `run-configs.sh` | Series drivers (one fresh process per run). |
 | `cfg-*.txt` | Exact argument lists for the configuration-driven series. |

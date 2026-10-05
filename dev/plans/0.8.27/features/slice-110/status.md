@@ -12,8 +12,9 @@ The release-note gate fix at `06e34759f55dbede47b9b7ccb2c000dd5edac9b4`
 changes no product code. Slice 110 remains **in progress** because required
 Tegra forced-CUDA runtime evidence is not yet qualified. Hosted Linux arm64
 GNU and both macOS package rows have passed. A freshly rebooted Jetson repeat
-still fails forced CUDA intermittently, so Slice 114 cannot start and Slice
-120 remains downstream.
+still fails forced CUDA intermittently. The HITL authorized Slice 114 to
+proceed as if Slice 110 were complete; that exception does not qualify the
+Tegra row or unblock Slices 115 and 120.
 
 ## Acceptance
 
@@ -141,5 +142,6 @@ asynchronous memset, then review any contract-preserving repair against the
 actual model path; forced CUDA must continue to refuse rather than fall back
 to CPU when unavailable. Hosted Linux arm64 GNU
 and both macOS rows are complete. Only after the Tegra row passes may release
-state mark Slice 110 complete and advance its `next_slice` to Slice 114.
+state mark Slice 110 complete and advance its `next_slice` to Slice 115,
+because Slice 114 completed under the 2026-10-04 HITL sequencing exception.
 No tag, publication or deployment was performed.

@@ -374,7 +374,7 @@ user actually commissioned.
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 110** (`NAPI`) — napi-rs binding decomposition
 
-**Remaining ladder:** 110 → 114 → 115 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 110 → 115 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1068,21 +1068,21 @@ and verification boundaries within 110.
 
 ### Slice 114 — engine configuration, constants, and documentation audit
 
-**PLANNED; uncommissioned.** After the native binding decompositions, perform a
+**COMPLETE on the release branch under a HITL sequencing exception.** The
 component-by-component audit of Rust engine configuration, setting consumers,
-constants, and variables. Identify unused constants and variables; classify
-each as retained with a documented reason, removed, or assigned to a separately
-reviewed follow-up. Do not use the audit as authority for opportunistic behavior
-changes.
+constants, and variables classified unused values as retained with a reason or
+assigned to a named follow-up. It made no opportunistic behavior change.
 
 The [Slice 114 planning review](0.8.27/features/slice-114/plan.md) reconciles
 the September 28 draft with the completed Slice 90 runtime, subsequent engine
 and binding changes, and the current Slice 110 blocker. It defines the
 source-linked inventory and AC27-114A–D. Census production module-level
 constants, configuration inputs and operational limits; classify SQL and
-schema constants without treating them as prospective knobs. Execution starts
-only after Slice 110 closes and a
-fresh source delta is reconciled.
+schema constants without treating them as prospective knobs. The HITL
+authorized execution on 2026-10-04 as if Slice 110 were complete; the audit
+reconciled the exact `eefc2e3d8` source delta. Slice 110's Tegra qualification
+remains open and controls the next unblocked release work. The
+[Slice 114 status](0.8.27/features/slice-114/status.md) binds the result.
 
 For every user- or operator-relevant setting, record its owner, spelling,
 default, unit, effective precedence, mutability, consumer, and observable

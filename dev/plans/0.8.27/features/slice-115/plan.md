@@ -7,7 +7,8 @@ planning_baseline: 1a6cd4938
 
 # Slice 115 — engine performance characterization
 
-This is a planning draft. Slice 114 must close before execution. The final
+This is a planning draft. Slice 114 closed under the HITL's 2026-10-04
+sequencing exception; Slice 110's Tegra row remains open. The final
 protocol and candidate are frozen at entry, before observing results.
 
 ## Changes since the September 28 draft
@@ -16,7 +17,7 @@ protocol and candidate are frozen at entry, before observing results.
 | --- | --- |
 | Slice 90 qualified the `2/5` engine runtime with named release gates, a six-repetition D27 mixed workload and retained raw receipts; an environment-valid failed campaign and a small owner-accepted throughput shortfall are also recorded. | Reuse the established harness and disclose both PASS and adverse observations. Do not treat characterization as the first D27 proof or silently replace its decision rule. |
 | Slice 90 decomposed engine owners and added dispatch/queue/resource observations. Slice 103 altered SQLite/WAL behavior and dependencies. | Profile the current exact candidate and name the measured owner; compare prior receipts only where workload, host, build, features and metric semantics actually match. |
-| Slice 110 preserved the native `spawn_blocking` handoff while changing NAPI ownership and subscriber delivery; its Jetson GPU row remains open. | Engine CPU measurements may be designed now; execution waits for Slice 114 and Slice 110 closure. Installed-binding or GPU measurements are separate labeled rows, never evidence for an engine-only run. |
+| Slice 110 preserved the native `spawn_blocking` handoff while changing NAPI ownership and subscriber delivery; its Jetson GPU row remains open. | Engine CPU measurements may be designed now; execution waits for Slice 110 closure. Installed-binding or GPU measurements are separate labeled rows, never evidence for an engine-only run. |
 | Existing performance gates, `scripts/d27-runtime-runner.py`, `scripts/run-ac011-write-throughput.sh`, `scripts/perf-experiments/`, and the append-only `dev/perf-history/` already have distinct contracts. | Prefer those runners and fixtures. Do not change gate thresholds, write historical baseline files, or create a general benchmark framework for this slice. |
 | Slice 135 owns the published 0.8.26 comparison after Slice 132. | Produce a reproducible current-candidate method and data bundle for 135; do not claim a full cross-release verdict here. |
 

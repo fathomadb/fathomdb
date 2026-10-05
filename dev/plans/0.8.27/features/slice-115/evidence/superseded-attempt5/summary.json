@@ -1,0 +1,121 @@
+{
+  "cells": {
+    "canonical_write": {
+      "invalid_attempts": 0,
+      "maximum_ns": 553106,
+      "p50_ns": 501268,
+      "p90_ns": 553106,
+      "p99_ns": 553106,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "close": {
+      "invalid_attempts": 0,
+      "maximum_ns": 5059679,
+      "p50_ns": 4456539,
+      "p90_ns": 5059679,
+      "p99_ns": 5059679,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "erasure": {
+      "invalid_attempts": 0,
+      "maximum_ns": 13294592,
+      "p50_ns": 12755724,
+      "p90_ns": 13294592,
+      "p99_ns": 13294592,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "graph_evidence": {
+      "invalid_attempts": 0,
+      "maximum_ns": 291461,
+      "p50_ns": 275410,
+      "p90_ns": 291461,
+      "p99_ns": 291461,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "graph_expand": {
+      "invalid_attempts": 0,
+      "maximum_ns": 939477,
+      "p50_ns": 857762,
+      "p90_ns": 939477,
+      "p99_ns": 939477,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "hybrid": {
+      "invalid_attempts": 0,
+      "maximum_ns": 1069302,
+      "p50_ns": 664076,
+      "p90_ns": 1069302,
+      "p99_ns": 1069302,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "model_cpu": {
+      "invalid_attempts": 0,
+      "maximum_ns": 210102893,
+      "p50_ns": 182347232,
+      "p90_ns": 210102893,
+      "p99_ns": 210102893,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "open_fresh": {
+      "invalid_attempts": 0,
+      "maximum_ns": 26994381,
+      "p50_ns": 22196537,
+      "p90_ns": 26994381,
+      "p99_ns": 26994381,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "open_populated": {
+      "invalid_attempts": 0,
+      "maximum_ns": 15144541,
+      "p50_ns": 13812172,
+      "p90_ns": 15144541,
+      "p99_ns": 15144541,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "projection": {
+      "invalid_attempts": 0,
+      "maximum_ns": 6557602,
+      "p50_ns": 5875061,
+      "p90_ns": 6557602,
+      "p99_ns": 6557602,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "text": {
+      "invalid_attempts": 0,
+      "maximum_ns": 600195,
+      "p50_ns": 270622,
+      "p90_ns": 600195,
+      "p99_ns": 600195,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    },
+    "vector_stage": {
+      "invalid_attempts": 0,
+      "maximum_ns": 1109598,
+      "p50_ns": 453407,
+      "p90_ns": 1109598,
+      "p99_ns": 1109598,
+      "semantic_success_fraction": 1.0,
+      "valid_samples": 7
+    }
+  },
+  "deep_profiles": [
+    "open_fresh",
+    "open_populated",
+    "graph_evidence"
+  ],
+  "profile_method": "gdb-interrupt-stack",
+  "protocol_sha256": "0c4aa0059b5454f9b78a79b71abee9384deb6ae92a4537d39f861e6601e90778",
+  "runner_sha256": "2ac03b46e77b7ef00fbda464b64f8a5bce5d0135f4bd0df1675d81388d731df5",
+  "source_sha": "4ca09d443d7bcc24072e39fb3c683905a9134f27"
+}

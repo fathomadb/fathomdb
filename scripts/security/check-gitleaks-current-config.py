@@ -41,6 +41,19 @@ EXPECTED_ALLOWLISTS = [
         "regexes": [r'^tokenizer\.json": "[0-9a-f]{64}"$'],
     },
     {
+        "description": "Slice 115 model tokenizer digest is artifact-integrity metadata",
+        "condition": "AND",
+        "regexTarget": "match",
+        "paths": [
+            r"^dev/plans/0\.8\.27/features/slice-115/(?:protocol\.json|evidence/(?:final/"
+            r"(?:attempt|model-assets|protocol)\.json|invalid/attempt\.json|"
+            r"superseded-attempt[56]/(?:attempt|model-assets|protocol)\.json))$"
+        ],
+        "regexes": [
+            r'^tokenizer\.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"$'
+        ],
+    },
+    {
         "description": "REASON-01 tokenizer digests are artifact-integrity metadata",
         "condition": "AND",
         "regexTarget": "secret",

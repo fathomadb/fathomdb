@@ -1,0 +1,4 @@
+
+thread 'slice115_measurement' (2571800) panicked at /home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-115/scripts/slice115_workload.rs:448:40:
+called `Result::unwrap()` on an `Err` value: GraphExpansion(GraphExpansionErrorV1 { schema_version: 1, reason: GraphSeedUnavailable, field_path: "/seed/logicalIds/0" })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

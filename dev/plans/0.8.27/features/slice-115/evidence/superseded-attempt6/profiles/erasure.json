@@ -1,0 +1,15 @@
+{
+  "path": "erasure",
+  "method": "gdb-interrupt-stack",
+  "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+  "binary_sha256": "4cddccf3a60b6d2d688450802e5bffdcad9d03b3fbb9a99cc6443df17b07556a",
+  "requested_samples": 48,
+  "total_samples": 48,
+  "operation_samples": 10,
+  "sha256": "bd626bb4c8581a20aadd5cbaea344bb5c20bba101869253caed6a2ef316c6f7c",
+  "sampling_interval_seconds": 0.08,
+  "profile_loop_seconds": 15,
+  "control_operations": 338,
+  "profiled_operations": 323,
+  "control_vs_profile_throughput_ratio": 0.9556213017751479
+}

@@ -1,0 +1,53 @@
+{
+  "format": "gzip",
+  "entries": [
+    {
+      "path": "canonical_write.txt.gz",
+      "uncompressed_sha256": "3c6a69a4913b5e210859b194834191589766ce44087a584eb979ae39377eabe2",
+      "compressed_sha256": "61c3601c0df14005f40a7bfed88a836bd2d192343f02bef2cd024212e02cfc90",
+      "uncompressed_bytes": 259030
+    },
+    {
+      "path": "close.txt.gz",
+      "uncompressed_sha256": "c6dea5e27057f7ff60d33e3eb265d2bd0e5a923358ab8518d044f716272f90e7",
+      "compressed_sha256": "a92b1cd16e68541f217ec8e5f2b57be428fad51000dc4ad70945b03b86bf9138",
+      "uncompressed_bytes": 779574
+    },
+    {
+      "path": "erasure.txt.gz",
+      "uncompressed_sha256": "cee0f93cf839160cca9a4aa9da30900823e3a858603890e96b8f2af7ce21966a",
+      "compressed_sha256": "eb9383c0381a2d80edd4924a6b791b10cfbd5f2695577fa50f8225c115f9e9d5",
+      "uncompressed_bytes": 1315501
+    },
+    {
+      "path": "graph_evidence.txt.gz",
+      "uncompressed_sha256": "d2875bbc5a5c92aa9c6e872c835fb48d3def762472c68ea567c701cdcac434a9",
+      "compressed_sha256": "428be717cce6564f802435df4753c4509adf8e2480b2dd291ebebf011dbc7b07",
+      "uncompressed_bytes": 315510
+    },
+    {
+      "path": "graph_expand.txt.gz",
+      "uncompressed_sha256": "d5262d9838adb9320a933341dffef8eb28e339757b6744f2d512b379e5857351",
+      "compressed_sha256": "84b005836f49168ee5cd53cbef5444540a985d05eb45ba885c7b2a94593b67f0",
+      "uncompressed_bytes": 194474
+    },
+    {
+      "path": "open_fresh.txt.gz",
+      "uncompressed_sha256": "17c771c94e4d951419f09705d9b90b810d945885cddc38ac8ae329f511e2f67e",
+      "compressed_sha256": "a801af033245812e747be41949e0a896dc237198351cf7392df10e8a95a2c3b4",
+      "uncompressed_bytes": 1857220
+    },
+    {
+      "path": "open_populated.txt.gz",
+      "uncompressed_sha256": "81585192a4a1edfd58b76230d2e12b07d5b828f3ebaad2fea0351867103f0abc",
+      "compressed_sha256": "c1d9714281e7da6ceac843e3f2d4e0dc452aeef5a9e944dfd0a72233e18f0c19",
+      "uncompressed_bytes": 1814011
+    },
+    {
+      "path": "text.txt.gz",
+      "uncompressed_sha256": "5760ce282c901d3d7328b007674e3398528d53def299198c0d9b6658613f635f",
+      "compressed_sha256": "941d42ce6807922344d3527c2eae853fabe014e46ec679c4d83efc5b220d2c43",
+      "uncompressed_bytes": 195540
+    }
+  ]
+}

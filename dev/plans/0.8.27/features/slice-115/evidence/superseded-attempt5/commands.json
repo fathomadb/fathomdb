@@ -1,0 +1,10 @@
+{
+  "build": "cargo test --release --no-run --message-format=json",
+  "run": [
+    "/tmp/slice115-attempt5/slice115_workload",
+    "--ignored",
+    "--exact",
+    "slice115_measurement",
+    "--nocapture"
+  ]
+}

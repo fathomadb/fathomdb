@@ -28,8 +28,11 @@ The only changed file is `src/driver/safe/core.rs`. Every change is marked
    than downgrading a healthy device. That includes a sticky error left by
    earlier asynchronous work. On that error path `new` releases the primary
    context it retained, and `new_non_primary` and `new_cig` destroy the
-   context they created. `from_raw_context` leaves ownership with the caller.
-   There is no environment switch.
+   context they created. `from_raw_context` returns that error before its
+   wrapper exists, so ownership stays with the caller. A later
+   `bind_to_thread` failure in any constructor still drops the new wrapper,
+   which releases or destroys the context. That is upstream's behaviour, which
+   the patch does not change. There is no environment switch.
 2. **One decision per device per process.** Upstream stores the decision per
    context wrapper. `CudaContext::new` may wrap the same primary context many
    times. Buffers also move between wrappers through `CudaSlice::leak` and
@@ -44,10 +47,19 @@ The only changed file is `src/driver/safe/core.rs`. Every change is marked
    recorded, so the next constructor probes again. `has_async_alloc` keeps the
    per-wrapper copy that `CudaStream::null`, `CudaStream::alloc` and
    `CudaSlice::drop` read, and all copies for one device are now equal.
-   The decision lasts for the process lifetime. A pool that has been obtained
-   belongs to the device. A device that was refused could succeed later only if
-   the address space has since freed a 20960 MiB hole; it then stays on the
-   slower but correct synchronous path.
+   The decision lasts for the process lifetime. A cached "stream-ordered"
+   decision stays valid because the default pool outlives the contexts that
+   use it. This was measured on the Jetson in 40 fresh processes: primary
+   context released to refcount 0, or non-primary context destroyed, in both
+   an unobstructed layout and one where the pool had to `mmap` a new 20.47 GiB
+   range into a hole. The driver unmapped nothing in the window. After every
+   remaining hole was blocked, re-retaining or re-creating the context
+   returned the same pool handle, and `cuMemAllocAsync` succeeded. The probe
+   and its results are in the FathomDB repository under
+   `dev/plans/runs/0.8.27-slice-110-tegra/pool-teardown-evidence/`. A cached
+   "synchronous" decision is conservative: if the address space later frees a
+   20960 MiB hole, the device stays on the slower but correct synchronous
+   path.
 
    The leaked handle does not carry allocator provenance. `leak` returns a
    bare `CUdeviceptr`, and recording provenance would mean changing that public

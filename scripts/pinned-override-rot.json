@@ -50,6 +50,6 @@
     "version": "0.19.7",
     "upstream_crate_sha256": "1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc",
     "rationale": "Candle 0.10.2 resolves cudarc 0.19.7, which selects stream-ordered allocation from the device's memory-pool attribute alone. On Jetson (Tegra) the driver's default pool needs one large contiguous virtual-address range and is unavailable in fragmented processes such as Node, so every CUDA allocation fails with CUDA_ERROR_OUT_OF_MEMORY while synchronous allocation works. This exact local crate preserves the published 0.19.7 package; its delta is recorded in FATHOMDB-PATCH.md and the adjacent .patch file. Only 0.19.7 is patched; ug-cuda's cudarc 0.17.8 stays on crates.io.",
-    "vendor_tree_sha256": "438e264de813b5ba8b4f5b4d4376cdfc285556bdd8540716057c46dbce09fc4b"
+    "vendor_tree_sha256": "66db97afd624e15b2bbadb8fcde25e79489545f91da31f48d5ac3676f064b9eb"
   }
 }

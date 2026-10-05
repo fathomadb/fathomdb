@@ -1,0 +1,52 @@
+mode=primary
+pre-cuInit blocker at 0x980000000 -> mapped
+pre-cuInit blocker at 0x1100000000 -> mapped
+pre-cuInit blocker at 0x1880000000 -> mapped
+cuInit                             -> 0 (CUDA_SUCCESS)
+cuDeviceGet                        -> 0 (CUDA_SUCCESS)
+W0 after cuInit: 4 ranges, mapped=61.36 GiB, largest_piece=15.34 GiB, largest_hole=14.66 GiB
+  [0x200000000, 0x5d5afe000) 15.34 GiB
+  [0x980000000, 0xd55aff000) 15.34 GiB
+  [0x1100000000, 0x14d5aff000) 15.34 GiB
+  [0x1880000000, 0x1c55aff000) 15.34 GiB
+cuDevicePrimaryCtxRetain           -> 0 (CUDA_SUCCESS)
+cuCtxSetCurrent                    -> 0 (CUDA_SUCCESS)
+cuDeviceGetDefaultMemPool          -> 2 (CUDA_ERROR_OUT_OF_MEMORY)
+cuMemAllocAsync(4)                 -> 2 (CUDA_ERROR_OUT_OF_MEMORY)
+cuMemPoolCreate(maxSize 1 GiB)     -> 0 (CUDA_SUCCESS)
+cuMemAllocFromPoolAsync(4)         -> 0 (CUDA_SUCCESS)
+W1 after pool + async alloc: 4 ranges, mapped=61.36 GiB, largest_piece=15.34 GiB, largest_hole=14.66 GiB
+  [0x200000000, 0x5d5afe000) 15.34 GiB
+  [0x980000000, 0xd55aff000) 15.34 GiB
+  [0x1100000000, 0x14d5aff000) 15.34 GiB
+  [0x1880000000, 0x1c55aff000) 15.34 GiB
+cuDevicePrimaryCtxRelease          -> 0 (CUDA_SUCCESS)
+cuDevicePrimaryCtxGetState         -> 0 (CUDA_SUCCESS)
+primary context active after release: 0
+W2 after teardown: 4 ranges, mapped=61.36 GiB, largest_piece=15.34 GiB, largest_hole=14.66 GiB
+  [0x200000000, 0x5d5afe000) 15.34 GiB
+  [0x980000000, 0xd55aff000) 15.34 GiB
+  [0x1100000000, 0x14d5aff000) 15.34 GiB
+  [0x1880000000, 0x1c55aff000) 15.34 GiB
+window ranges added by context+pool (W1-W0): 0, 0.00 GiB
+window ranges unmapped by teardown (W1-W2): 0, 0.00 GiB
+blockers in freed ranges: placed=0 refused=0; standard blockers placed=0/3
+hole-filling blockers placed=16
+W3 after blockers: 16 ranges, mapped=61.36 GiB, largest_piece=15.34 GiB, largest_hole=4.00 GiB
+  [0x200000000, 0x5d5aff000) 15.34 GiB
+  [0x980000000, 0xd55b00000) 15.34 GiB
+  [0x1100000000, 0x14d5b00000) 15.34 GiB
+  [0x1880000000, 0x1c55b00000) 15.34 GiB
+cuDevicePrimaryCtxRetain (again)   -> 0 (CUDA_SUCCESS)
+cuCtxSetCurrent                    -> 0 (CUDA_SUCCESS)
+cuDeviceGetDefaultMemPool          -> 2 (CUDA_ERROR_OUT_OF_MEMORY)
+same default pool handle: no
+cuMemAllocAsync(4)                 -> 2 (CUDA_ERROR_OUT_OF_MEMORY)
+cuMemAlloc(4)                      -> 0 (CUDA_SUCCESS)
+cuMemAllocFromPoolAsync(4) again   -> 0 (CUDA_SUCCESS)
+W4 after re-retain: 16 ranges, mapped=61.36 GiB, largest_piece=15.34 GiB, largest_hole=4.00 GiB
+  [0x200000000, 0x5d5aff000) 15.34 GiB
+  [0x980000000, 0xd55b00000) 15.34 GiB
+  [0x1100000000, 0x14d5b00000) 15.34 GiB
+  [0x1880000000, 0x1c55b00000) 15.34 GiB
+RESULT pre_blockers=3 mode=primary pool_before=CUDA_ERROR_OUT_OF_MEMORY async_before=CUDA_ERROR_OUT_OF_MEMORY added_GiB=0.00 freed_GiB=0.00 freed_blockers=0 std_blockers=0 hole_after_blockers_GiB=4.00 pool_after=CUDA_ERROR_OUT_OF_MEMORY same_pool=0 async_after=CUDA_ERROR_OUT_OF_MEMORY sync_after=CUDA_SUCCESS explicit_before=CUDA_SUCCESS explicit_after=CUDA_SUCCESS

@@ -1,8 +1,8 @@
 diff --git a/src/driver/safe/core.rs b/src/driver/safe/core.rs
-index 2f938ec03..dccaab96e 100644
+index 2f938ec03..b3c1a9e4a 100644
 --- a/src/driver/safe/core.rs
 +++ b/src/driver/safe/core.rs
-@@ -42,6 +42,126 @@ pub struct CudaContext {
+@@ -42,6 +42,130 @@ pub struct CudaContext {
      pub(crate) error_state: AtomicU32,
  }
  
@@ -48,9 +48,13 @@ index 2f938ec03..dccaab96e 100644
 +/// pointers), and it is freed by whichever wrapper owns it last. If two
 +/// wrappers chose differently, a `cuMemAlloc` buffer could reach
 +/// `cuMemFreeAsync`. Keying the decision by device makes every wrapper of a
-+/// device agree. Default-pool availability is a device property that is fixed
-+/// once the process has initialized the driver, so the first decision is also
-+/// the one every later probe would make.
++/// device agree. A cached `true` stays valid: on the measured Jetson the
++/// default pool, once obtained, kept its address range and handle when its
++/// primary context was released to refcount 0 or its non-primary context was
++/// destroyed, and stayed usable on re-retain with every hole in the window
++/// blocked (see `FATHOMDB-PATCH.md`). A cached `false` is conservative: if
++/// the address space later frees up, the device stays on the slower but
++/// correct synchronous path.
 +struct AllocModeByDevice(std::sync::Mutex<Vec<(sys::CUdevice, bool)>>);
 +
 +impl AllocModeByDevice {
@@ -129,7 +133,7 @@ index 2f938ec03..dccaab96e 100644
  unsafe impl Send for CudaContext {}
  unsafe impl Sync for CudaContext {}
  
-@@ -75,13 +195,11 @@ impl CudaContext {
+@@ -75,13 +199,11 @@ impl CudaContext {
          result::init()?;
          let cu_device = result::device::get(ordinal as i32)?;
          let cu_ctx = unsafe { result::primary_ctx::retain(cu_device) }?;
@@ -148,7 +152,7 @@ index 2f938ec03..dccaab96e 100644
          let ctx = Arc::new(CudaContext {
              cu_device,
              cu_ctx,
-@@ -147,13 +265,11 @@ impl CudaContext {
+@@ -147,13 +269,11 @@ impl CudaContext {
          )))]
          let cu_ctx = unsafe { result::ctx::create_v3(flags, cu_device) }?;
  
@@ -167,7 +171,7 @@ index 2f938ec03..dccaab96e 100644
          let ctx = Arc::new(CudaContext {
              cu_device,
              cu_ctx,
-@@ -198,13 +314,11 @@ impl CudaContext {
+@@ -198,13 +318,11 @@ impl CudaContext {
              cigParams: cig_params as *mut sys::CUctxCigParam,
          };
          let cu_ctx = unsafe { result::ctx::create_v4(&mut ctx_create_params, flags, cu_device) }?;
@@ -186,13 +190,15 @@ index 2f938ec03..dccaab96e 100644
          let ctx = Arc::new(CudaContext {
              cu_device,
              cu_ctx,
-@@ -229,19 +343,18 @@ impl CudaContext {
+@@ -229,19 +347,20 @@ impl CudaContext {
      /// - `cu_ctx` must be a valid CUDA context that was created (not yet destroyed).
      /// - `cu_device` must be the device the context was created for.
      /// - The caller must not destroy or release the context after calling this function;
 -    ///   ownership is transferred to the returned `Arc<CudaContext>`.
-+    ///   ownership is transferred to the returned `Arc<CudaContext>`. If this returns an
-+    ///   error, ownership stays with the caller (FathomDB patch).
++    ///   ownership is transferred to the returned `Arc<CudaContext>`. If the allocator
++    ///   decision fails, the error is returned before the wrapper exists and ownership stays
++    ///   with the caller (FathomDB patch). If binding the context to the calling thread fails
++    ///   afterwards, the wrapper already owns it and destroys it when dropped, as upstream does.
 +    ///
 +    /// The allocator is the one already chosen for `cu_device` in this process, if any
 +    /// (FathomDB patch; see [CudaContext::has_async_alloc]).
@@ -213,7 +219,7 @@ index 2f938ec03..dccaab96e 100644
          let ctx = Arc::new(CudaContext {
              cu_device,
              cu_ctx,
-@@ -266,9 +379,11 @@ impl CudaContext {
+@@ -266,9 +385,11 @@ impl CudaContext {
  
      /// Returns whether this context supports asynchronous memory allocation.
      ///
@@ -228,7 +234,7 @@ index 2f938ec03..dccaab96e 100644
      /// Memory allocations performed through the default [CudaStream] will use `cuMemAllocAsync`
      /// over `cuMemAlloc` if this method returns `true`.
      pub fn has_async_alloc(&self) -> bool {
-@@ -812,7 +927,10 @@ impl<T> Drop for CudaSlice<T> {
+@@ -812,7 +933,10 @@ impl<T> Drop for CudaSlice<T> {
              });
          } else {
              ctx.record_err(self.stream.synchronize());
@@ -240,7 +246,7 @@ index 2f938ec03..dccaab96e 100644
          }
      }
  }
-@@ -1512,7 +1630,7 @@ impl CudaStream {
+@@ -1512,7 +1636,7 @@ impl CudaStream {
          let cu_device_ptr = if self.ctx.has_async_alloc {
              unsafe { result::malloc_async(self.cu_stream, 0) }?
          } else {
@@ -249,7 +255,7 @@ index 2f938ec03..dccaab96e 100644
          };
          Ok(CudaSlice {
              cu_device_ptr,
-@@ -1535,7 +1653,7 @@ impl CudaStream {
+@@ -1535,7 +1659,7 @@ impl CudaStream {
          let cu_device_ptr = if self.ctx.has_async_alloc {
              result::malloc_async(self.cu_stream, len * std::mem::size_of::<T>())?
          } else {
@@ -258,7 +264,7 @@ index 2f938ec03..dccaab96e 100644
          };
          let (read, write) = if self.ctx.is_event_tracking() {
              (
-@@ -2493,6 +2611,12 @@ impl CudaStream {
+@@ -2493,6 +2617,12 @@ impl CudaStream {
      /// - `cu_device_ptr` must space for `len * std::mem::size_of<T>()` bytes
      /// - The memory may not be valid for type `T`, so some sort of memset operation
      ///   should be called on the memory.
@@ -271,7 +277,7 @@ index 2f938ec03..dccaab96e 100644
      pub unsafe fn upgrade_device_ptr<T>(
          self: &Arc<Self>,
          cu_device_ptr: sys::CUdeviceptr,
-@@ -2921,3 +3045,203 @@ mod tests {
+@@ -2921,3 +3051,203 @@ mod tests {
          handle.join().unwrap();
      }
  }

@@ -84,9 +84,13 @@ fn async_alloc_decision(
 /// pointers), and it is freed by whichever wrapper owns it last. If two
 /// wrappers chose differently, a `cuMemAlloc` buffer could reach
 /// `cuMemFreeAsync`. Keying the decision by device makes every wrapper of a
-/// device agree. Default-pool availability is a device property that is fixed
-/// once the process has initialized the driver, so the first decision is also
-/// the one every later probe would make.
+/// device agree. A cached `true` stays valid: on the measured Jetson the
+/// default pool, once obtained, kept its address range and handle when its
+/// primary context was released to refcount 0 or its non-primary context was
+/// destroyed, and stayed usable on re-retain with every hole in the window
+/// blocked (see `FATHOMDB-PATCH.md`). A cached `false` is conservative: if
+/// the address space later frees up, the device stays on the slower but
+/// correct synchronous path.
 struct AllocModeByDevice(std::sync::Mutex<Vec<(sys::CUdevice, bool)>>);
 
 impl AllocModeByDevice {
@@ -343,8 +347,10 @@ impl CudaContext {
     /// - `cu_ctx` must be a valid CUDA context that was created (not yet destroyed).
     /// - `cu_device` must be the device the context was created for.
     /// - The caller must not destroy or release the context after calling this function;
-    ///   ownership is transferred to the returned `Arc<CudaContext>`. If this returns an
-    ///   error, ownership stays with the caller (FathomDB patch).
+    ///   ownership is transferred to the returned `Arc<CudaContext>`. If the allocator
+    ///   decision fails, the error is returned before the wrapper exists and ownership stays
+    ///   with the caller (FathomDB patch). If binding the context to the calling thread fails
+    ///   afterwards, the wrapper already owns it and destroys it when dropped, as upstream does.
     ///
     /// The allocator is the one already chosen for `cu_device` in this process, if any
     /// (FathomDB patch; see [CudaContext::has_async_alloc]).

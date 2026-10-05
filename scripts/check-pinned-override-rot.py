@@ -81,7 +81,7 @@ CUDARC_PATH = "third_party/cudarc-0.19.7"
 CUDARC_VERSION = "0.19.7"
 # Cargo.lock checksum of the published crate the vendor copy was taken from.
 CUDARC_UPSTREAM_CRATE_SHA256 = "1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc"
-CUDARC_VENDOR_TREE_SHA256 = "438e264de813b5ba8b4f5b4d4376cdfc285556bdd8540716057c46dbce09fc4b"
+CUDARC_VENDOR_TREE_SHA256 = "66db97afd624e15b2bbadb8fcde25e79489545f91da31f48d5ac3676f064b9eb"
 CUDARC_LICENSE_FILES = ("LICENSE-MIT", "LICENSE-APACHE")
 VENDOR_PATCH_NOTE = "FATHOMDB-PATCH.md"
 
@@ -324,7 +324,7 @@ def validate_metadata(metadata: dict[str, Any], advisories: list[dict[str, Any]]
     validate_candle_exception(metadata)
     validate_sqlite_exception(metadata)
     validate_cudarc_exception(metadata)
-    scope =metadata.get("scope")
+    scope = metadata.get("scope")
     if not isinstance(scope, dict):
         raise Unverified("metadata has no scope object")
     for key in ("npm", "cargo", "governed_commit_pins"):

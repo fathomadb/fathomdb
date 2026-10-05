@@ -83,3 +83,45 @@ pub fn initialize_cuda_driver() -> CudaDriverInit {
 pub fn last_cuda_driver_init() -> Option<CudaDriverInit> {
     *LAST_INIT.lock().unwrap_or_else(PoisonError::into_inner)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const OUT_OF_MEMORY: u32 = 2;
+
+    #[test]
+    fn a_probe_keeps_the_cu_init_it_saw_when_another_caller_succeeds_later() {
+        // The reranker's forced-CUDA refusal is memoized for the process, so
+        // its cause must be the cuInit its own probe saw, not whatever ran last.
+        let mut record = InitRecord::new();
+        record.record(CudaInitCaller::RerankerProbe, CudaDriverInit::Failed(OUT_OF_MEMORY));
+        record.record(CudaInitCaller::EmbedderProbe, CudaDriverInit::Initialized);
+        assert_eq!(
+            record.seen_by(CudaInitCaller::RerankerProbe),
+            Some(CudaDriverInit::Failed(OUT_OF_MEMORY))
+        );
+        assert_eq!(
+            record.seen_by(CudaInitCaller::EmbedderProbe),
+            Some(CudaDriverInit::Initialized)
+        );
+        assert_eq!(record.seen_by(CudaInitCaller::ModuleLoad), None);
+        assert_eq!(record.last(), Some(CudaDriverInit::Initialized));
+    }
+
+    #[test]
+    fn each_caller_keeps_only_its_most_recent_outcome() {
+        let mut record = InitRecord::new();
+        record.record(CudaInitCaller::EmbedderProbe, CudaDriverInit::Failed(OUT_OF_MEMORY));
+        record.record(CudaInitCaller::EmbedderProbe, CudaDriverInit::Initialized);
+        assert_eq!(
+            record.seen_by(CudaInitCaller::EmbedderProbe),
+            Some(CudaDriverInit::Initialized)
+        );
+        record.record(CudaInitCaller::ModuleLoad, CudaDriverInit::DriverLibraryAbsent);
+        assert_eq!(record.last(), Some(CudaDriverInit::DriverLibraryAbsent));
+        assert_eq!(CudaDriverInit::DriverLibraryAbsent.cu_result(), None);
+        assert_eq!(CudaDriverInit::Initialized.cu_result(), Some(0));
+        assert_eq!(CudaDriverInit::Failed(OUT_OF_MEMORY).cu_result(), Some(OUT_OF_MEMORY));
+    }
+}

@@ -246,4 +246,40 @@ mod tests {
         assert_eq!(refusal_message("cuda_probe_failed", base.to_owned(), Some(0)), base);
         assert_eq!(refusal_message("cuda_probe_failed", base.to_owned(), None), base);
     }
+
+    #[test]
+    fn registration_initialises_at_most_once_across_envs() {
+        // Node runs module registration once per env: the main thread and
+        // every worker_threads worker that loads the addon.
+        let once = std::sync::Once::new();
+        let mut calls = 0;
+        for _env in 0..3 {
+            register_once(&once, || calls += 1);
+        }
+        assert_eq!(calls, 1);
+    }
+
+    #[test]
+    fn only_the_exact_value_off_opts_out_of_early_init() {
+        assert!(early_cuda_init_opted_out(Some("off")));
+        for raw in [None, Some("on"), Some(""), Some("OFF"), Some(" off"), Some("0"), Some("false")]
+        {
+            assert!(!early_cuda_init_opted_out(raw), "{raw:?}");
+        }
+    }
+
+    // Loading the library must not touch CUDA: the driver is initialised from
+    // module registration, which Node runs after dlopen returns and which a
+    // Rust test binary never runs. A shared-library constructor would already
+    // have called cuInit before this test started. (Only an environment that
+    // fixes every policy to cpu, or opts out, would hide such a constructor.)
+    #[cfg(all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    ))]
+    #[test]
+    fn loading_the_addon_library_does_not_initialise_cuda() {
+        assert_eq!(fathomdb_embedder::last_cuda_driver_init(), None);
+    }
 }

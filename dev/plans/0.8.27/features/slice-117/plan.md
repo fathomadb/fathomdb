@@ -30,7 +30,19 @@ Recorded in `dev/plans/release-state-0.8.27.json` `decisions.ruled`:
   and D-80.6-2 are superseded.
 - `slice-110-early-cuinit-with-allocator-fallback`: Slice 110 ships early
   `cuInit` at addon load with the aarch64-Linux synchronous allocation
-  fallback. Memory-pool speed recovery is undecided and outside Slice 110.
+  fallback.
+- `slice-117-channel-tegra-pages`: the channel is the existing first-party
+  Tegra Pages route (design Option B). The addon is not published to the npm
+  registry in 0.8.27, and a later registry publication needs its own ruling.
+  npm ignores semver build metadata, so `X.Y.Z+tegra` cannot coexist with
+  `X.Y.Z` under one package name. A separately named registry package could
+  avoid that, but the owner chose the Pages route, which reuses the tested
+  Tegra workflow, candidate guard, linkage check and post-publication proof.
+- `tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`: the 0.8.27
+  allocator approach is the synchronous fallback with early `cuInit`; no
+  memory pool ships in 0.8.27. 0.8.28 evaluates an explicit or lazily created
+  pool
+  ([study plan](../../../0.8.28/prework/tegra-cuda-memory-pool-study.md)).
 
 ## Entry criteria
 
@@ -43,8 +55,9 @@ Implementation (execution step 3 onward) starts only when all of these hold:
    (`dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`).
 2. Slice 110 has closed on `release/0.8.27` with the allocation fallback and
    early `cuInit` integrated and qualified.
-3. The owner has ruled `slice-117-delivery-shape` and accepted, revised or
-   replaced the proposed distribution ADR.
+3. The owner has ruled the remaining `slice-117-delivery-shape` items and
+   accepted, revised or replaced the proposed distribution ADR. The channel
+   is already ruled.
 
 AC27-117F additionally requires publication authorization.
 
@@ -61,21 +74,21 @@ AC27-117F additionally requires publication authorization.
 
 ## Open HITL decision
 
-`slice-117-delivery-shape` (unruled) covers the channel, package name, loader
-policy, Pages retention, the aarch64 import-time `cuInit` contract, the
-driverless evidence bar, licence coverage, platform-capabilities
-representation, install form and ladder dependencies. The full list is in
-[design](design.md) § 10. The design recommends the existing Tegra Pages route
-for 0.8.27, with an npm registry package kept as a later, separately ruled
-step. The acceptance below assumes that recommendation. If the owner selects
-the npm registry, AC27-117E and AC27-117F are re-planned before
-implementation.
+The channel is ruled (`slice-117-channel-tegra-pages`): the Tegra Pages
+route. The npm registry options are not chosen for 0.8.27. The acceptance
+below is planned on that channel.
+
+`slice-117-delivery-shape` (unruled) now covers the package name and whether
+to reserve it on the npm registry, loader policy, Pages retention, the
+aarch64 import-time `cuInit` contract, the driverless evidence bar, licence
+coverage, platform-capabilities representation, install form and ladder
+dependencies. The full list is in [design](design.md) § 10.
 
 ## Requirements and acceptance
 
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |
-| R27-117A | Tegra Node distribution is governed before it is built. | AC27-117A: the supersession of D-80.7-3/D-80.6-2 is a recorded ruling with in-place notes in the 0.8.23 design and the platform reference (**done at planning**). `slice-117-delivery-shape` is ruled. The distribution ADR is accepted and states the aarch64 driver-probe contract relative to ADR-0.8.25 and R80-11. No build, workflow or loader change lands first. |
+| R27-117A | Tegra Node distribution is governed before it is built. | AC27-117A: the supersession of D-80.7-3/D-80.6-2 is a recorded ruling with in-place notes in the 0.8.23 design and the platform reference (**done at planning**). The channel is ruled (**done at planning**, `slice-117-channel-tegra-pages`). The remaining `slice-117-delivery-shape` items are ruled. The distribution ADR is accepted and states the aarch64 driver-probe contract relative to ADR-0.8.25 and R80-11. No build, workflow or loader change lands first. |
 | R27-117B | The artifact is built reproducibly from the release contract on the Jetson. | AC27-117B: `build-napi-cuda-tegra.sh` asserts every Tegra pin in `cuda-artifact-contract.sh` and has an `--assert-only` arm. It builds with `embed-cuda,rerank-cuda`, passes the `tegra` glibc floor and `check-tegra-wheel-linkage.sh` on the `.node`, contains no publication command, and records digests. RED contract tests (assertion arm, publication rejection, x86_64-axis non-interference) precede it. |
 | R27-117C | The installed artifact behaves per the dual-runtime contract on the Jetson. | AC27-117C: inside `jetson-tegra-cuda-evidence.yml`, a fresh external consumer of the locally packed packages passes `cpu`, `auto` and `cuda:0` for embedding and reranking. Forced CUDA yields a witness accepted by `verify-tegra-gpu-witness.py --nvidia-smi`, and Slice 110's heap-growth regression passes. Driverless loadability meets the bar ruled under `slice-117-delivery-shape`. Inherited Slice 110 receipts are not a pass. |
 | R27-117D | Generic Linux AArch64 users are unaffected, and the loader is safe. | AC27-117D: the generic package's features, floor and hosted build are unchanged. A contract test proves `npm-inject-optional-deps.sh` never injects the Tegra package. `LoaderSeams` unit tests cover Tegra with and without the package, version mismatch, a non-Tegra host with the package, and a Thor-like signal. The loader change is in the main package before the main 0.8.27 npm publication. |
@@ -91,8 +104,8 @@ candidate.
 
 1. Hold until entry criteria 1 and 2 are met: the x86_64 test of the Slice 110
    fixes, then Slice 110 closure on `release/0.8.27`.
-2. Present `slice-117-delivery-shape` and the proposed ADR for ruling. Record
-   the result in release state and the ADR.
+2. Present the remaining `slice-117-delivery-shape` items and the proposed
+   ADR for ruling. Record the result in release state and the ADR.
 3. RED/GREEN the build wrapper's assertion arm, the publication rejection and
    the `.node` linkage check. Then do the loader change and its `LoaderSeams`
    tests, which must land before the main npm publication.
@@ -109,14 +122,16 @@ candidate.
 
 - Do not change the generic `fathomdb-linux-arm64-gnu` package's features,
   floor or build location.
-- Do not add npm publication to the Tegra route or to `release.yml` unless the
-  owner selects the npm registry channel.
+- Do not add npm registry publication to the Tegra route or to
+  `release.yml`. The 0.8.27 channel is ruled as Tegra Pages; a registry
+  publication would need its own ruling.
 - Do not change device-policy semantics, error kinds or the no-CPU-fallback
   contract for forced CUDA.
 - Do not edit Slice 110's documents or evidence; consume its closed result.
 - Do not add a postinstall fetch or source build (R80-10).
 - Async-allocation recovery, a Tegra wheel reranker, other Jetson modules and
-  JetPack 7/CUDA 13 are out of scope.
+  JetPack 7/CUDA 13 are out of scope. Memory-pool recovery of
+  stream-ordered allocation is evaluated in 0.8.28, not here.
 
 ## Ladder placement
 

@@ -56,8 +56,11 @@ published `fathomdb-linux-arm64-gnu` npm package is CPU-only. On 2026-10-05
 the owner added it to the ladder, superseded the 0.8.23 Tegra npm exclusions
 for its scope, and ruled that Slice 110 ships early `cuInit` with the
 aarch64-Linux allocation fallback. Implementation is held until Linux x86_64
-has been tested with the Slice 110 fixes. Its delivery shape is open, and
-publication remains separately authorized.
+has been tested with the Slice 110 fixes. Its channel is ruled as the
+existing Tegra Pages route, not the npm registry, for 0.8.27. The rest of its
+delivery shape is open, and publication remains separately authorized. The
+0.8.27 allocator approach is the synchronous fallback with early `cuInit`;
+0.8.28 evaluates an explicit or lazily created memory pool.
 
 Slice 132 is planned after Slice 130 and before performance qualification. It
 will make the Rust SDK equal in canonical capability to Python and TypeScript,
@@ -81,10 +84,12 @@ There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->THR
   qualification pass.
 - `slice-132-external-provider-disposition`: decide whether the published
   provider/plugin contract remains a supported extension boundary.
-- `slice-117-delivery-shape`: choose the Jetson Node channel, package name,
-  loader policy, Pages retention and aarch64 import-time `cuInit` contract.
-  The [Slice 117 design](../0.8.27/features/slice-117/design.md) recommends the
-  existing Tegra Pages route for 0.8.27.
+- `slice-117-delivery-shape`: settle the Jetson Node package name and npm
+  name reservation, loader policy, Pages retention, aarch64 import-time
+  `cuInit` contract and the other items in the
+  [Slice 117 design](../0.8.27/features/slice-117/design.md) § 10. The channel
+  is ruled (`slice-117-channel-tegra-pages`): the existing Tegra Pages route;
+  the npm registry options are not chosen for 0.8.27.
 
 `D27-runtime-topology` is ruled as Option B by HITL decision `seq-293`. That
 ruling selected the architectural direction. `seq-295` accepted the reviewed
@@ -301,7 +306,8 @@ grant/revert evidence.
   through the existing Jetson Tegra CUDA evidence workflow, with installed and
   post-publication Jetson smokes. D-80.7-3 and D-80.6-2 are superseded for its
   scope. Implementation waits for an x86_64 test of the Slice 110 fixes, Slice
-  110 closure and the `slice-117-delivery-shape` ruling. Slice 120 does not
+  110 closure and the remaining `slice-117-delivery-shape` rulings (the
+  channel is ruled as Tegra Pages). Slice 120 does not
   depend on it.
 - [Slice 132](../0.8.27/features/slice-132/plan.md) follows Slice 130 and
   requires a HITL-approved successor to the current Rust parity-in-intent

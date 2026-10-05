@@ -200,7 +200,9 @@ form is `--extra-index-url` + detection-gating + an exact pin.
 > state ruling `slice-117-supersede-d-80-7-3-and-d-80-6-2` supersedes D-80.7-3
 > and D-80.6-2 for Slice 117's scope: a CUDA-capable Node addon for Jetson may
 > be built and distributed. The structural facts in this section still hold.
-> The delivery shape is open under `slice-117-delivery-shape`. Read the
+> The channel is ruled (`slice-117-channel-tegra-pages`): the existing Tegra
+> Pages route, not the npm registry, for 0.8.27. The rest of the delivery
+> shape is open under `slice-117-delivery-shape`. Read the
 > [Slice 117 design](plans/0.8.27/features/slice-117/design.md) and the
 > proposed
 > [distribution ADR](adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md).

@@ -13,7 +13,9 @@ status: proposed
 record authorizes implementation or publication. It records the
 recommendation of the Slice 117 design
 (`dev/plans/0.8.27/features/slice-117/design.md`) for the open release-state
-decision `slice-117-delivery-shape`.
+decision `slice-117-delivery-shape`. One part is already ruled: the channel
+(decision 2, `slice-117-channel-tegra-pages`, 2026-10-05). The record as a
+whole stays proposed until the remaining items are ruled and it is accepted.
 
 ## Context
 
@@ -30,7 +32,12 @@ addon from source. The repository owner ruled on 2026-10-05
   artifact scope is the Python wheel only);
 - `slice-110-early-cuinit-with-allocator-fallback`: Slice 110 ships early
   `cuInit` at Node addon load with the aarch64-Linux synchronous allocation
-  fallback.
+  fallback;
+- `slice-117-channel-tegra-pages`: the addon is delivered through the
+  existing first-party Tegra Pages route, not the npm registry, in 0.8.27
+  (decision 2 below);
+- `tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`: no explicit or
+  lazily created memory pool ships in 0.8.27; 0.8.28 evaluates one.
 
 The structural constraint is unchanged: npm selects platform packages by
 `(platform, arch, libc)` only, so it cannot distinguish a Jetson from any
@@ -53,11 +60,17 @@ with its post-publication smoke.
    `embed-cuda,rerank-cuda` `.node`. The main package never lists it in
    `optionalDependencies`, so npm never selects it automatically. This is the
    shape D-80.7-3 named as the only safe one.
-2. **Channel.** In 0.8.27 the package's exact-version tarball is distributed
-   only through the existing Tegra Pages route, beside the `+tegra` wheel:
-   built and smoked on the self-hosted Jetson, then published by the hosted
-   Pages job. It is not published to the npm registry in 0.8.27. A later npm
+2. **Channel (ruled 2026-10-05, `slice-117-channel-tegra-pages`).** In
+   0.8.27 the package's exact-version tarball is distributed only through the
+   existing first-party Tegra Pages route, beside the `+tegra` wheel: built
+   and smoked on the self-hosted Jetson, then published by the hosted Pages
+   job. It is not published to the npm registry in 0.8.27. A later npm
    registry publication of the same package identity requires its own ruling.
+   Rationale: npm ignores semver build metadata, so `X.Y.Z+tegra` cannot
+   coexist with `X.Y.Z` under one package name, which is how the wheel is
+   distinguished on its index. A separately named registry package could
+   sidestep that. The owner chose the Pages route, which reuses the tested
+   Tegra workflow, candidate guard, linkage check and post-publication proof.
 3. **Loader.** The loader considers the Tegra package only on the
    `linux-arm64-gnu` triple, only when it is installed, and only on a host
    that passes the classic-Tegra detection the release workflow uses. It
@@ -94,11 +107,12 @@ with its post-publication smoke.
 
 ## Alternatives considered
 
-- **npm registry package now (draft Option A).** This gives a standard
-  registry install, provenance and durable versions. It is deferred, not
-  rejected: it adds a permanent identity, npm publication from or after a
-  self-hosted build, and trusted-publisher setup for a new name, none of which
-  the existing Tegra route has.
+- **npm registry package now (draft Option A), or Pages first with npm
+  later.** A registry package gives a standard registry install, provenance
+  and durable versions. Not chosen for 0.8.27 by the channel ruling: it adds
+  a permanent identity, npm publication from or after a self-hosted build, and
+  trusted-publisher setup for a new name, none of which the existing Tegra
+  route has. A later release may rule on it separately.
 - **CUDA-capable generic `fathomdb-linux-arm64-gnu`.** Rejected. It raises the
   generic glibc floor to 2.35, ships `sm_87` kernels to SBSA CUDA hosts, and
   runs early `cuInit` in every AArch64 Node process.

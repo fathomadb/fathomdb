@@ -33,15 +33,20 @@ It is part of ruled decision `slice-117-jetson-node-cuda-direction`.
   `dev/design/0.8.23-aarch64-tegra.md` and `dev/tegra-platform-reference.md`
   § 3.7.
 - `slice-110-early-cuinit-with-allocator-fallback`: Slice 110 ships both
-  changes. Memory-pool speed recovery stays undecided and outside Slice 110.
+  changes.
+- `slice-117-channel-tegra-pages`: the channel is the existing Tegra Pages
+  route. The npm registry options are not chosen for 0.8.27.
+- `tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`: no memory pool
+  ships in 0.8.27; 0.8.28 evaluates an explicit or lazily created pool.
 
 ## Blockers
 
 - The x86_64 hold above.
 - Slice 110 must close with the aarch64-Linux allocation fallback and early
   `cuInit` integrated on `release/0.8.27`.
-- Unruled `slice-117-delivery-shape` ([design](design.md) § 10), and
-  acceptance of the proposed distribution ADR.
+- The remaining items of unruled `slice-117-delivery-shape`
+  ([design](design.md) § 10; the channel is ruled), and acceptance of the
+  proposed distribution ADR.
 - Publication, and therefore AC27-117F, remains behind the release's unruled
   `release-0.8.27-publication` decision.
 
@@ -49,7 +54,7 @@ It is part of ruled decision `slice-117-jetson-node-cuda-direction`.
 
 | Acceptance | Result |
 | --- | --- |
-| AC27-117A | Partial: the supersession ruling and in-place notes are recorded. The delivery-shape ruling and ADR acceptance are pending. |
+| AC27-117A | Partial: the supersession ruling, its in-place notes and the channel ruling are recorded. The remaining delivery-shape items and ADR acceptance are pending. |
 | AC27-117B–G | Not started. |
 
 ## Tracking
@@ -57,7 +62,7 @@ It is part of ruled decision `slice-117-jetson-node-cuda-direction`.
 - Todos ledger: `TC-ffef2129-e5a6-4f8f-8cae-bdfe64792197` (seq 271, after Slice
   110's seq-270 revisit todo).
 - Release state: Slice 117 `PLANNED`, `depends_on: [110]`, in
-  `dev/plans/release-state-0.8.27.json`, with the three ruled records above
+  `dev/plans/release-state-0.8.27.json`, with the five ruled records above
   and unruled `slice-117-delivery-shape`.
 - Decision index: row 60 (proposed).
 - On completion, Slice 117 updates the platform-support statement in

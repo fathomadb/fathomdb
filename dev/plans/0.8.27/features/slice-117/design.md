@@ -22,6 +22,12 @@ wherever it already answers a question, and changes the recommendation from
 an npm registry package to the Tegra Pages route (§ 4). The owner's rulings of
 the same day are recorded in § 2.
 
+**Channel ruled, 2026-10-05.** The owner ruled the channel: the Tegra Pages
+route (Option B) for 0.8.27, not the npm registry
+(`slice-117-channel-tegra-pages`). § 4 keeps the option analysis as the record
+of why. The npm registry options are not chosen for 0.8.27. The other
+delivery-shape items in § 10 remain open.
+
 ## 1. Problem
 
 The published npm platform package `fathomdb-linux-arm64-gnu` is CPU-only:
@@ -60,9 +66,11 @@ Recorded in `dev/plans/release-state-0.8.27.json` `decisions.ruled`:
 | --- | --- |
 | `slice-117-jetson-node-cuda-direction` | Slice 117 is on the 0.8.27 ladder after Slice 110, and its planning and governance work is authorized. **Implementation is held** until Linux x86_64 has been tested with the Slice 110 fixes on `llm/slice110-tegra-allocator-fix`. Publication remains behind `release-0.8.27-publication`. |
 | `slice-117-supersede-d-80-7-3-and-d-80-6-2` | D-80.7-3 and D-80.6-2 no longer bar a Jetson Node addon. Other 0.8.23 Tegra rulings are unchanged. In-place notes mark the supersession in `dev/design/0.8.23-aarch64-tegra.md` and `dev/tegra-platform-reference.md` § 3.7. |
-| `slice-110-early-cuinit-with-allocator-fallback` | The Slice 117 artifact carries Slice 110's early `cuInit` at addon load and the aarch64-Linux synchronous allocation fallback, as integrated and qualified by Slice 110. Memory-pool speed recovery is undecided and outside both slices. Evidence: `dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`. |
+| `slice-110-early-cuinit-with-allocator-fallback` | The Slice 117 artifact carries Slice 110's early `cuInit` at addon load and the aarch64-Linux synchronous allocation fallback, as integrated and qualified by Slice 110. Evidence: `dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`. |
+| `slice-117-channel-tegra-pages` | The channel is the existing first-party Tegra Pages route (§ 4, Option B). The addon is not published to the npm registry in 0.8.27; a later registry publication needs its own ruling. Rationale: npm ignores semver build metadata, so `X.Y.Z+tegra` cannot coexist with `X.Y.Z` under one package name (§ 4, same-name variant). A separately named registry package could avoid that, but the Pages route was chosen; it is also this design's recommendation and reuses the tested Tegra workflow, candidate guard, linkage check and post-publication proof. |
+| `tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28` | The 0.8.27 allocator approach is the synchronous fallback with early `cuInit`. No explicit or lazily created memory pool ships in 0.8.27, so the Slice 117 artifact carries none. 0.8.28 evaluates the pool options (`dev/plans/0.8.28/prework/tegra-cuda-memory-pool-study.md`). |
 
-The remaining choice is recorded as unruled `slice-117-delivery-shape` (§ 10).
+The remaining choices are recorded as unruled `slice-117-delivery-shape` (§ 10).
 
 ### Records this slice builds on or must respect
 
@@ -223,9 +231,10 @@ carry the identity. Whether npm keeps a URL-installed package in place of the
 exact-version optional dependency on later installs is unverified. The
 loader would also need a separate identity marker. Not pursued.
 
-### Option B — Tegra Pages route, extended to a Node tarball (recommended)
+### Option B — Tegra Pages route, extended to a Node tarball (ruled for 0.8.27)
 
-**Proposal.** Extend the existing route rather than add one.
+**Ruled** (`slice-117-channel-tegra-pages`): extend the existing route rather
+than add one. The mechanics below remain proposals for implementation review.
 
 - The same dispatch of `jetson-tegra-cuda-evidence.yml` builds and smokes both
   the `+tegra` wheel and the Tegra Node package tarball for the candidate SHA,
@@ -258,10 +267,11 @@ loader would also need a separate identity marker. Not pursued.
   that must be re-reviewed before a later Tegra release
   (`docs/install/python.md`).
 
-### Option A — npm registry package (deferred)
+### Option A — npm registry package (not chosen for 0.8.27)
 
-**Proposal (not recommended for 0.8.27).** Publish the same package to the
-npm registry and install it by name.
+**Not chosen for 0.8.27** (`slice-117-channel-tegra-pages`). Publish the same
+package to the npm registry and install it by name. A later registry
+publication would need its own ruling.
 
 - For: standard registry install and lockfile behavior, npm provenance from a
   hosted publish job, and durable immutable versions.
@@ -287,12 +297,20 @@ The Tegra build has a 2.35 glibc floor against the generic 2.28
 mutually incompatible, so SBSA CUDA hosts would receive `sm_87` kernels. It
 would also run early `cuInit` in every generic AArch64 Node process.
 
-### Recommendation
+### Recommendation and ruling
 
-**Option B for 0.8.27, with Option A kept open as a later, separately ruled
-step on the same package identity.** That is a combination in sequence, not
-in parallel. A later npm publication would ship the same bytes under the
-same name, so the loader would not change.
+**Ruled: Option B for 0.8.27** (`slice-117-channel-tegra-pages`, 2026-10-05).
+The npm registry options, Option A alone and B now with A later, are not
+chosen for 0.8.27. If a later release rules a registry publication of the same
+package identity, it would ship the same bytes under the same name, so the
+loader would not change.
+
+The owner's stated reason was that npm cannot carry the `+tegra` distinction
+in versions. Precisely: npm ignores semver build metadata, so `X.Y.Z+tegra`
+cannot coexist with `X.Y.Z` under one package name. A separately named
+registry package could sidestep that, so the ruling does not rest on the
+registry being unable to host a Tegra build. It rests on choosing the route
+that already has tested controls, for the reasons below.
 
 What changed from the first draft: that draft recommended Option A, with B as
 fallback. Its main reasons were registry tooling and npm provenance, and it
@@ -376,11 +394,14 @@ wheel, in the same change that adds the Node build.
   `node --import fathomdb`); the synchronous path is about 1.8–2.4 times
   slower per steady embed; only the AGX Orin 64 GB is measured. Slice 117
   re-verifies these in the installed artifact rather than inheriting Slice
-  110 receipts, and rechecks the branch text at integration.
+  110 receipts, and rechecks the branch text at integration. No explicit or
+  lazily created memory pool ships in 0.8.27
+  (`tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`); 0.8.28
+  evaluates one.
 - **Without a usable GPU:** `cuInit` returns an error, `auto` records a typed
   CPU resolution, and forced `cuda:N` fails with `EmbedDevicePolicyError` /
   `RerankerDevicePolicyError` and never runs on CPU.
-- **Contract to state (open, § 10 item 5):** ADR-0.8.25 forbids a driver
+- **Contract to state (open, § 10 item 4):** ADR-0.8.25 forbids a driver
   probe at module import for x86_64 artifacts. ADR-0.8.23 states that `cpu`
   never initializes CUDA (R80-11). A process that selects `cpu` through open
   options rather than the environment still runs `cuInit` at load. The
@@ -416,7 +437,7 @@ SHA and artifact SHA-256 values.
 5. **Driverless loadability:** at minimum the wheel route's structural
    standard (linkage check, plus a clean import without CUDA search paths).
    Whether a measured driverless aarch64 run is also required is open (G3,
-   § 10 item 6).
+   § 10 item 5).
 6. **After publication:** `publish-tegra-pages.sh` runs the Node smoke on the
    Jetson from npm plus the Pages URL, repeating row 2's forced-CUDA, witness
    and heap-growth checks. `AGENTS.md` and `dev/design/release.md`
@@ -433,7 +454,7 @@ SHA and artifact SHA-256 values.
 | Mixed-host lockfiles | A direct dependency with `os`/`cpu` fields may fail installation on non-arm64 developer hosts that share the lockfile (npm `EBADPLATFORM`; verify). | Decide whether docs prescribe an optional save. |
 | Runner availability | One self-hosted Jetson, a non-cancelling group, and the same host also serves another repository's runner (`dev/design/0.8.23-aarch64-tegra.md` § 7, 80.6). The Node rows lengthen each run. | Keep the existing group. Record host load in receipts. The route does not gate the main release. |
 | Main-package coupling | The loader change must be in the published main package (§ 4). | Land the loader change and its tests before the main 0.8.27 npm publication. |
-| Provenance (B) | No npm provenance. | Publish SHA-256 values in the docs and the retained evidence. Revisit under Option A. |
+| Provenance (B) | No npm provenance. | Publish SHA-256 values in the docs and the retained evidence. Revisit only if a later release rules a registry channel. |
 | Licence | The `.node` statically links CUDA runtime code, as the x86_64 npm package and the Tegra wheel already do. 0.8.25's design required a CUDA redistribution/licence/SBOM review before release (`dev/design/0.8.25-driverless-cuda-runtime.md`, plan step 5). This session did not locate its recorded outcome. | Extend that review's conclusion to the Tegra `.node`. Do not start a separate review unless none was recorded. |
 | Measured hardware | Only the AGX Orin 64 GB on L4T R36.5.2 is measured. The aarch64-Linux cfg also reaches unmeasured CUDA hosts. | Declare only the measured row as qualified. |
 | Artifact size | Unmeasured. The 0.8.27 Tegra wheel was 9,063,350 bytes (`dev/plans/0.8.27/features/slice-103/status.md`). | Record sizes in the build witness. |
@@ -453,36 +474,37 @@ route.
 
 Ruled on 2026-10-05 and removed from this list: superseding D-80.7-3 and
 D-80.6-2; including Slice 117 in the 0.8.27 ladder; early `cuInit` and the
-allocation fallback in Slice 110. Questions adopted from the existing Tegra
-path (build location, runner trust, release coupling, candidate guard,
-exact-version guidance, compatibility declaration; § 3) are proposals the
-owner may still override.
+allocation fallback in Slice 110; the channel (Tegra Pages, Option B; the
+npm registry options are not chosen for 0.8.27). Questions adopted from the
+existing Tegra path (build location, runner trust, release coupling, candidate
+guard, exact-version guidance, compatibility declaration; § 3) are proposals
+the owner may still override.
 
 The items below make up unruled `slice-117-delivery-shape`:
 
-1. **Channel:** Option B (recommended), Option A, or B now with A later.
-2. **Package name** (unscoped), and under B whether to reserve it on npm.
-3. **Loader policy:** which detection tier the loader uses (the workflow uses
+1. **Package name** (unscoped), and whether to reserve it on the npm registry
+   (§ 8, name not held on npm).
+2. **Loader policy:** which detection tier the loader uses (the workflow uses
    device-tree or `nv_tegra_release`, plus `nvgpu` from `nvidia-smi`, which is
    too slow for every load). How Thor is excluded. Whether a version mismatch
    warns and falls back or fails. Whether the loader warns on a confirmed
    classic Tegra host that runs the generic CPU package (the Node analogue of
    D-80.7-1).
-4. **Pages retention (new):** one retained-artifact list for both deployers,
+3. **Pages retention (new):** one retained-artifact list for both deployers,
    how many versions to keep, and whether to publish wheel and tarball in one
    dispatch.
-5. **aarch64 driver-probe contract:** the R80-11 / ADR-0.8.25 wording for
+4. **aarch64 driver-probe contract:** the R80-11 / ADR-0.8.25 wording for
    import-time `cuInit` (§ 6). This concerns the contract wording only;
    inclusion is ruled.
-6. **Driverless evidence bar (new):** a measured driverless aarch64 run, or
+5. **Driverless evidence bar (new):** a measured driverless aarch64 run, or
    the wheel route's structural standard (G3).
-7. **Licence/SBOM:** confirm that 0.8.25's review covers the Tegra `.node`.
-8. **Platform capabilities (new):** how `dev/platform-capabilities.json`
+6. **Licence/SBOM:** confirm that 0.8.25's review covers the Tegra `.node`.
+7. **Platform capabilities (new):** how `dev/platform-capabilities.json`
    represents a second package on the `linux-arm64-gnu` triple (G5; todos
    seq 228).
-9. **Install form (new):** whether docs prescribe an optional save for
+8. **Install form (new):** whether docs prescribe an optional save for
    mixed-host teams.
-10. **Ladder:** whether Slice 140 or 150 should depend on Slice 117. At this
-    revision's baseline they do not.
-11. **ADR:** accept, revise or reject
+9. **Ladder:** whether Slice 140 or 150 should depend on Slice 117. At this
+   revision's baseline they do not.
+10. **ADR:** accept, revise or reject
     `dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` (proposed).

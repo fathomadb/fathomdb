@@ -44,8 +44,10 @@ AArch64 (Jetson/Tegra) Node addon through the release process, because the
 published `fathomdb-linux-arm64-gnu` npm package is CPU-only. On 2026-10-05
 the owner added it to the ladder and superseded the 0.8.23 Tegra npm
 exclusions for its scope. Implementation is held until Linux x86_64 has been
-tested with the Slice 110 fixes. Its delivery shape remains a HITL decision,
-owned by its [`draft plan`](0.8.27/features/slice-117/plan.md).
+tested with the Slice 110 fixes. The owner ruled its channel: the existing
+Tegra Pages route, not the npm registry, for 0.8.27. The rest of its delivery
+shape remains a HITL decision, owned by its
+[`draft plan`](0.8.27/features/slice-117/plan.md).
 
 The shared structural vocabulary is:
 
@@ -1137,7 +1139,8 @@ validating an incomplete Slice 90.
 
 ### Slice 117 — Jetson CUDA Node addon delivery
 
-**PLANNED; draft; implementation held; delivery-shape decision open.** The
+**PLANNED; draft; implementation held; channel ruled; remaining
+delivery-shape items open.** The
 published Linux AArch64 npm platform package is built on a hosted runner
 with the default embedder only, so Jetson users get GPU support under Node
 only from a locally built addon. Python already has a governed `+tegra` wheel
@@ -1150,13 +1153,18 @@ The owner ruled on 2026-10-05 (`slice-117-jetson-node-cuda-direction`,
 D-80.7-3 and D-80.6-2 for it. Implementation waits until Linux x86_64 has been
 tested with the Slice 110 fixes and Slice 110 has closed. The
 [Slice 117 plan](0.8.27/features/slice-117/plan.md) defines AC27-117A–G. Its
-[design note](0.8.27/features/slice-117/design.md) recommends extending that
-existing Tegra Pages route to a separately named Node package tarball for
-0.8.27, with an npm registry package kept as a later, separately ruled step.
-Unruled `slice-117-delivery-shape` and the proposed
-`ADR-0.8.27-jetson-tegra-node-addon-distribution` carry that choice. The
+[design note](0.8.27/features/slice-117/design.md) extends that existing
+Tegra Pages route to a separately named Node package tarball. The owner ruled
+that channel for 0.8.27 (`slice-117-channel-tegra-pages`); the npm registry
+options are not chosen for 0.8.27, and a later registry publication would need
+its own ruling. Unruled `slice-117-delivery-shape` now covers the package name
+and npm name reservation, loader policy, Pages retention, the aarch64
+import-time `cuInit` contract and the other items in design § 10, with the
+proposed `ADR-0.8.27-jetson-tegra-node-addon-distribution`. The
 artifact is built on the Jetson with `embed-cuda,rerank-cuda` and carries
-Slice 110's allocation fallback and early `cuInit`. Qualification repeats
+Slice 110's allocation fallback and early `cuInit`, and no memory pool
+(`tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`; 0.8.28 evaluates
+pool options). Qualification repeats
 installed forced-CUDA, allocation-witness and heap-growth checks on the Jetson
 before and after publication. On completion it updates `README.md` and the
 public install pages. Publication stays behind the release publication

@@ -66,33 +66,66 @@ allocator selection.
    ledger at seq 270 versus origin/main at seq 242. Use `ledgerwatch` and
    `ledgerwrite` to inspect the full current tails and reconcile the single
    appended row before changing any ledger or generated release-state view.
+   Ledger order agreed on 2026-10-05: the Slice 110 revisit todo is seq 270
+   on this release lineage (base seq 269), and the Slice 117 todo on
+   `llm/slice117-jetson-node-cuda-plan` is seq 271 after a byte-identical
+   copy of that seq-270 row, so the two branches merge cleanly in either
+   order. If `release/0.8.27` gains another ledger row first, both must be
+   re-appended through `ledgerwrite` rather than hand-edited.
    Recheck the branch and release tips at integration time; the SHAs above are
    this intake snapshot.
 
 Only after these items have candidate-bound evidence should Slice 110 status
 and the release ladder advance. No publication follows from this intake.
 
-## Separate early-initialization investigation
+## Early `cuInit` is in 0.8.27 Slice 110
 
-The repository owner's 2026-10-05 direction supersedes the branch handoff's
-statement that early `cuInit` will follow **in Slice 110**. The Tegra agent may
-investigate it and other approaches, but they are unlikely to land in 0.8.27.
-They are not prerequisites for integrating the reviewed allocator fallback or
-closing Slice 110. Any 0.8.27 inclusion needs its own explicit scope decision,
-review and candidate-bound verification. The very-heavy-heap `cuInit` refusal
-remains a stated limitation of the allocator fix meanwhile; forced CUDA must
-not silently fall back to CPU.
+**Correction, 2026-10-05.** The earlier text of this section recorded early
+`cuInit` as deferred out of 0.8.27. The repository owner has since ruled the
+opposite after reviewing the evidence: Slice 110 ships **early `cuInit` at
+Node addon load together with the aarch64-Linux synchronous allocation
+fallback**, and both are part of the 0.8.27 integration. Integrate, review
+and qualify them as one Slice 110 candidate. What remains undecided is only
+whether to go further to recover stream-ordered allocation speed (an
+explicit memory pool, or early `cuInit` with a lazily created pool); that is
+outside Slice 110.
 
-The proposed experiment is a silent, non-failing `cuInit` at Node addon load,
-compiled only for aarch64 Linux with a CUDA feature and skipped when both
-device policies are CPU. It would keep the typed error and refusal contract,
-but make address-space fragmentation errors clearer. Before claiming a user
-remedy, the agent must verify that `node --import fathomdb` works with the
-published package layout. Proposed Jetson guidance would then cover early
-import, the roughly 61 GiB additional virtual-size observation, late-import
-limits and synchronous-path cost. The proposed RED/GREEN check imports, grows
-the heap to one million objects and forces CUDA. Its investigation matrix
-includes Node 24/25/26, late import with and without `--import`, installed
-packages, CPU-only and no-GPU cases, import-time cost, and every
-`agent-verify` leg. Record results for a later release decision; do not turn
-this experiment into a Slice 110 acceptance gate by implication.
+The two changes address different failures, and both are needed:
+
+- The synchronous fallback handles the driver's default memory pool being
+  unavailable (it needs one contiguous 20960 MiB range in the
+  [8 GiB, 128 GiB) address window).
+- Early `cuInit` handles `cuInit` itself returning
+  `CUDA_ERROR_OUT_OF_MEMORY` once a grown V8 heap leaves no 4 GiB hole in
+  that window. The fallback cannot help that case; without early `cuInit`,
+  heap-heavy Node processes cannot use CUDA at all.
+
+Evidence the ruling rests on, measured on the Jetson AGX Orin 64 GB
+(L4T R36, CUDA 12.6) and recorded on `llm/slice110-tegra-allocator-fix`:
+
+- Plain C, no Node: with `cuInit` first, 100–2000 later scattered mappings
+  passed 160 / 160; with 500 or more pages mapped before `cuInit`, it failed
+  60 / 60.
+- Node experiment: import, then grow the heap to 200k–4M objects — 200 / 200
+  passed with early `cuInit`, against 26 of 40 failing without it.
+- Implemented change: heap-growth runs on Node 24, 25 and 26 passed 50 / 50;
+  the red/green check went from 3 / 3 refused to 5 / 5 passing; a late
+  import into a large heap is still refused (5 / 5) with a message naming the
+  cause, and `node --import fathomdb` rescued it 8 / 8.
+
+The implementation is compiled only for aarch64 Linux with a CUDA feature,
+is silent and non-failing at import, and is skipped when every CUDA-built
+component's policy is `cpu`. The typed error, `cuda_probe_failed` kind and
+no-CPU-fallback refusal contract are unchanged. A review round moved the
+call out of the ELF constructor (loader-lock hazard) into module
+registration; the counts above must be re-established on that final code
+before closure, alongside the integration items above. Residual
+limitations to carry: a late import into a large heap still fails; the
+synchronous path is about 1.8–2.4 times slower per steady embed; only the
+AGX Orin 64 GB was measured. Both changes carry a ledger obligation to be
+revisited at the next micro release, and loudly at the next minor release.
+
+The item 1 follow-up list above and the limits paragraph describe the
+branch at the `77d742153` intake; the branch has since gained the early
+`cuInit` commits and further review fixes. Recheck the branch tip at
+integration time.

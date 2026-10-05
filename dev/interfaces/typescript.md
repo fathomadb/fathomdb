@@ -792,6 +792,22 @@ TypeScript process. That creates independent model instances, not a GPU
 reservation, memory quota, scheduler, or evidence that retrieval/FTS/fusion/
 graph work used the GPU.
 
+### Early CUDA initialisation on aarch64 Linux (0.8.27 Slice 110)
+
+A native addon built for aarch64 Linux with `embed-cuda` or `rerank-cuda`
+calls `cuInit(0)` once, when the `.node` file is loaded. It does so unless
+both `FATHOMDB_EMBED_DEVICE` and `FATHOMDB_RERANK_DEVICE` are exactly `cpu`.
+This adds no export and no option, and loading never throws because of it.
+When forced CUDA later refuses with kind `cuda_probe_failed` and the most
+recent `cuInit` returned `CUDA_ERROR_OUT_OF_MEMORY`, the
+`EmbedDevicePolicyError` / `RerankerDevicePolicyError` message keeps its
+`cuda:N requested ... but unavailable: CudaProbeFailed` prefix and appends the
+cause and remedy. The remedy is to import fathomdb first or to start Node
+with `--import fathomdb`. The code, `kind`, `ordinal` and the no-CPU-fallback
+rule are unchanged. As with other messages, the text is for people; match on
+`code` and `kind`. Other targets do not compile this. User guide:
+`docs/embedder.md` § "Node.js on Jetson: load fathomdb first".
+
 TypeScript exposes one concrete class per canonical row in
 `design/errors.md` — **41** of them as of 0.8.25, 1:1 with the Python set
 below `EngineError`.

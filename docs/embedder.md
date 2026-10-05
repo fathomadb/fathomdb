@@ -166,6 +166,74 @@ per-request allocation or performance guarantee. The vector index, bit-KNN,
 exact-f32 database rerank, FTS, RRF fusion, graph, and storage remain CPU-only
 regardless of where embedding or CE runs.
 
+### Node.js on Jetson: load fathomdb first
+
+This applies to a Node.js addon built with CUDA (`embed-cuda` or
+`rerank-cuda`) on an NVIDIA Jetson running Linux AArch64. The published Linux
+AArch64 npm package is CPU-only and does not need it, and Python is
+unaffected.
+
+On a Jetson, the CUDA driver must reserve one large range of the process's
+virtual address space when it starts. On the Jetson AGX Orin 64 GB that range
+is about 61 GiB. Node.js scatters its JavaScript heap across the same region
+as the heap grows. Once an application holds roughly 70 MiB or more of
+JavaScript data, CUDA may be unable to start at all. The FathomDB addon
+therefore starts CUDA as soon as it is loaded, and later heap growth no longer
+matters.
+
+**What to do:** load fathomdb before your application builds large in-memory
+data. Either make it the first import of your entry module:
+
+```ts
+import { Engine } from "fathomdb"; // first import of the entry module
+```
+
+or start Node.js with it preloaded, which runs before any application code:
+
+```bash
+node --import fathomdb app.js
+# or
+NODE_OPTIONS=--import=fathomdb node app.js
+```
+
+**What to expect:**
+
+- The process's virtual size (`VSZ`, `VmSize`) grows by about 61 GiB right
+  after the import. This is reserved address space, not RAM. Resident memory
+  grows by about 1–3 MiB. The import takes about 11 ms longer, or about
+  120 ms longer when the GPU has been idle.
+- When `FATHOMDB_EMBED_DEVICE` and `FATHOMDB_RERANK_DEVICE` are both `cpu`
+  in the environment the process starts with, the addon does not start CUDA
+  at all.
+- With no visible GPU, the import still succeeds silently, and `auto` uses
+  the CPU.
+
+**Symptom of a late import.** If the heap grew before fathomdb was loaded, a
+forced `cuda:N` open fails with `EmbedDevicePolicyError`
+(`FDB_EMBED_DEVICE_POLICY`, kind `cuda_probe_failed`), or
+`RerankerDevicePolicyError` for the cross-encoder. The message continues with
+`cuInit returned CUDA_ERROR_OUT_OF_MEMORY` and names both remedies. Under
+`auto` the engine uses the CPU instead, and
+`openReport().embedderDeviceResolution.reason` is `cuda_probe_failed`.
+
+**Why a late import can still fail.** Loading fathomdb only helps if the
+address space still has room. In measurements on the AGX Orin 64 GB, a heap
+of about 74 MiB before the first CUDA use made CUDA fail to start in about
+half of the processes, and a heap of about 160 MiB or more in all of them.
+Freeing data or forcing garbage collection did not help. Load fathomdb
+earlier instead of retrying.
+
+**Steady embeddings can be slower.** CUDA's default memory pool on the
+Jetson needs a further contiguous range of about 20 GiB. When the process
+layout cannot provide it, FathomDB falls back to synchronous GPU allocation.
+Steady-state embeddings are then about 1.8–2.4 times slower: about 25 ms
+against 10–15 ms per embedding on the AGX Orin 64 GB. Most Node.js processes
+in the measurements took this path. Results are correct either way.
+
+These measurements come from one Jetson AGX Orin 64 GB (L4T R36, CUDA 12.6).
+Other Jetson models are unmeasured. So are non-Tegra AArch64 Linux CUDA hosts
+such as Grace Hopper, GB10 and SBSA servers, which also build this behaviour.
+
 ### Measured speedup
 
 Re-embedding a 2,000-document corpus, single-stream, on one RTX 3090 vs CPU

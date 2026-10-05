@@ -1,5 +1,5 @@
-//! CUDA driver initialisation when the Node addon is loaded (aarch64 Linux
-//! CUDA builds only).
+//! CUDA driver initialisation when the Node addon is registered (aarch64
+//! Linux CUDA builds only).
 //!
 //! On Jetson (measured on the AGX Orin 64 GB, L4T R36, CUDA 12.6) `cuInit`
 //! reserves about 61 GiB of address space in one range inside
@@ -7,15 +7,24 @@
 //! least 4 GiB is left there. V8 scatters heap pages through that window as
 //! the JavaScript heap grows, so a process that waits for `Engine.open` to
 //! initialise CUDA can find it impossible. Initialising when the addon is
-//! loaded claims the range before an application that imports fathomdb first
-//! builds its data; the driver then works inside it.
+//! loaded secures `cuInit` and the driver's initial reservation before an
+//! application that imports fathomdb first builds its data. It does not
+//! secure everything: the default memory pool can still need a new range of
+//! address space later, and in most measured Node runs it was unavailable,
+//! which is why the synchronous allocator fallback is usually taken.
 //!
-//! The hook is a shared-library constructor (`napi::module_init`), so it runs
-//! once per process, when the `.node` file is first loaded, on whichever thread
-//! loads it. `worker_threads` that require the addon later reuse the loaded
-//! library and do not run it again; `cuInit` is process-wide anyway. It never
-//! throws, prints or fails the load: the outcome is only recorded, and a later
-//! forced-CUDA refusal reads it to name an out-of-memory `cuInit` as the cause.
+//! The hook runs from module registration (`#[module_exports]`, called by
+//! napi-rs 2 inside `napi_register_module_v1`). Node calls that synchronously
+//! on the loading thread right after `dlopen` returns, so it runs before any
+//! code that uses the module but outside the dynamic loader's lock; libcuda's
+//! helper threads can therefore load libraries while `cuInit` waits for them.
+//! A shared-library constructor would run inside glibc's `_dl_init`, under
+//! that lock, and also at the start of every test binary linking this crate.
+//! Registration happens once per Node env (the main thread and every
+//! `worker_threads` worker that loads the addon); a `Once` keeps the call to
+//! the first. It never throws, prints or fails the load: the outcome is only
+//! recorded, and a later forced-CUDA refusal reads it to name an
+//! out-of-memory `cuInit` as the cause.
 //!
 //! Off aarch64 Linux, or without `embed-cuda`/`rerank-cuda`, none of this is
 //! compiled except the identity [`device_policy_refusal_message`].
@@ -39,6 +48,15 @@ use fathomdb_embedder::{EmbedDevicePolicy, RerankerDevicePolicy};
     )
 ))]
 const CUDA_ERROR_OUT_OF_MEMORY: u32 = 2;
+
+/// The environment variable that turns the registration-time `cuInit` off
+/// while keeping CUDA: open then initialises the driver as before.
+#[cfg(all(
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+const ENV_CUDA_EARLY_INIT: &str = "FATHOMDB_CUDA_EARLY_INIT";
 
 /// Whether loading the addon should initialise the CUDA driver.
 ///
@@ -67,8 +85,37 @@ fn early_cuda_init_wanted(
     (embed_cuda_compiled && !embed_cpu) || (rerank_cuda_compiled && !rerank_cpu)
 }
 
-/// The cause and remedy to add to a `cuda_probe_failed` refusal when the most
-/// recent `cuInit` (`last_cu_init`, a raw `CUresult`) ran out of memory.
+/// Whether `FATHOMDB_CUDA_EARLY_INIT` opts out. Only the exact value `off`
+/// does; registration cannot report a malformed value, so anything else
+/// keeps the default.
+#[cfg(any(
+    test,
+    all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )
+))]
+fn early_cuda_init_opted_out(raw: Option<&str>) -> bool {
+    raw == Some("off")
+}
+
+/// Runs `init` on the first call for `once` only.
+#[cfg(any(
+    test,
+    all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )
+))]
+fn register_once(once: &std::sync::Once, init: impl FnOnce()) {
+    once.call_once(init);
+}
+
+/// The cause and remedy to add to a `cuda_probe_failed` refusal when the
+/// refusing probe's `cuInit` (`last_cu_init`, a raw `CUresult`) ran out of
+/// memory.
 #[cfg(any(
     test,
     all(
@@ -102,18 +149,36 @@ fn refusal_message(kind: &str, message: String, last_cu_init: Option<u32>) -> St
     }
 }
 
-/// The message for a device-policy refusal of `kind`. On aarch64 Linux CUDA
-/// builds it names an out-of-memory `cuInit` as the cause; elsewhere it is
-/// `message` unchanged.
-pub(crate) fn device_policy_refusal_message(kind: &str, message: String) -> String {
+/// The component whose device policy refused.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum RefusingComponent {
+    Embedder,
+    Reranker,
+}
+
+/// The message for a device-policy refusal of `kind` by `component`. On
+/// aarch64 Linux CUDA builds it names an out-of-memory `cuInit` made by that
+/// component's own probe as the cause, so a memoized refusal keeps its cause
+/// after another caller's `cuInit` succeeds; elsewhere it is `message`
+/// unchanged.
+pub(crate) fn device_policy_refusal_message(
+    component: RefusingComponent,
+    kind: &str,
+    message: String,
+) -> String {
     #[cfg(all(
         target_os = "linux",
         target_arch = "aarch64",
         any(feature = "embed-cuda", feature = "rerank-cuda")
     ))]
     {
+        use fathomdb_embedder::CudaInitCaller;
+        let caller = match component {
+            RefusingComponent::Embedder => CudaInitCaller::EmbedderProbe,
+            RefusingComponent::Reranker => CudaInitCaller::RerankerProbe,
+        };
         let last_cu_init =
-            fathomdb_embedder::last_cuda_driver_init().and_then(|init| init.cu_result());
+            fathomdb_embedder::cuda_driver_init_seen_by(caller).and_then(|init| init.cu_result());
         refusal_message(kind, message, last_cu_init)
     }
     #[cfg(not(all(
@@ -122,7 +187,7 @@ pub(crate) fn device_policy_refusal_message(kind: &str, message: String) -> Stri
         any(feature = "embed-cuda", feature = "rerank-cuda")
     )))]
     {
-        let _ = kind;
+        let _ = (component, kind);
         message
     }
 }
@@ -132,20 +197,33 @@ pub(crate) fn device_policy_refusal_message(kind: &str, message: String) -> Stri
     target_arch = "aarch64",
     any(feature = "embed-cuda", feature = "rerank-cuda")
 ))]
-#[napi::module_init]
-fn initialize_cuda_driver_at_load() {
-    let embed_policy = std::env::var("FATHOMDB_EMBED_DEVICE").ok();
-    let rerank_policy = std::env::var(fathomdb_embedder::ENV_RERANK_DEVICE).ok();
-    if early_cuda_init_wanted(
-        cfg!(feature = "embed-cuda"),
-        cfg!(feature = "rerank-cuda"),
-        embed_policy.as_deref(),
-        rerank_policy.as_deref(),
-    ) {
-        // A panic must not abort the host's dlopen; the outcome is recorded
-        // by the embedder either way.
-        let _ = std::panic::catch_unwind(fathomdb_embedder::initialize_cuda_driver);
-    }
+static EARLY_INIT: std::sync::Once = std::sync::Once::new();
+
+#[cfg(all(
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+#[napi_derive::module_exports]
+fn initialize_cuda_driver_at_registration(_exports: napi::JsObject) -> napi::Result<()> {
+    register_once(&EARLY_INIT, || {
+        if early_cuda_init_opted_out(std::env::var(ENV_CUDA_EARLY_INIT).ok().as_deref()) {
+            return;
+        }
+        let embed_policy = std::env::var("FATHOMDB_EMBED_DEVICE").ok();
+        let rerank_policy = std::env::var(fathomdb_embedder::ENV_RERANK_DEVICE).ok();
+        if early_cuda_init_wanted(
+            cfg!(feature = "embed-cuda"),
+            cfg!(feature = "rerank-cuda"),
+            embed_policy.as_deref(),
+            rerank_policy.as_deref(),
+        ) {
+            // A panic must not fail module registration; the embedder records
+            // the outcome either way.
+            let _ = std::panic::catch_unwind(fathomdb_embedder::initialize_cuda_driver);
+        }
+    });
+    Ok(())
 }
 
 #[cfg(test)]

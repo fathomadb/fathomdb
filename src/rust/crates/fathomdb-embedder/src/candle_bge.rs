@@ -200,12 +200,17 @@ impl CudaProvider for CandleCudaProvider {
             };
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
             if !dynamic_driver_present {
-                crate::cuda_driver_init::record_driver_library_absent();
+                crate::cuda_driver_init::record_driver_library_absent(
+                    crate::cuda_driver_init::CudaInitCaller::EmbedderProbe,
+                );
             }
             classify_cuda_driver_presence(dynamic_driver_present)?;
             let init = result::init();
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-            crate::cuda_driver_init::record_init_result(&init);
+            crate::cuda_driver_init::record_init_result(
+                crate::cuda_driver_init::CudaInitCaller::EmbedderProbe,
+                &init,
+            );
             init.map_err(classify_cuda_driver_error)?;
             let count = result::device::get_count().map_err(classify_cuda_driver_error)?;
             let count = usize::try_from(count).map_err(|_| CudaProbeError::ProbeFailed {

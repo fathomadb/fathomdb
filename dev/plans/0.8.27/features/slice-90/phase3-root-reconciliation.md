@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: e395a9b0e75928bcdea6528c71bba65c091050de
+lib_rs_blob: 4417d3ad27122c38a1668ca746968af344418905
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -17,8 +17,10 @@ performance receipt.
 
 Slice 103 added operator-only owed-erasure recovery re-exports in the root
 composition, changing its blob from `b2f01b3f95bab83a263bd1f2a1df742e07a72a69`
-to the value above. The 43 root storage fields and approved root method
-inventory remain unchanged.
+to `e395a9b0e75928bcdea6528c71bba65c091050de`. Later Windows-only tests
+and a Slice 114 stale-comment removal changed the whole-file blob to the value
+above. The 43 root storage fields and approved root method inventory remain
+unchanged.
 
 ## Remaining root declarations
 

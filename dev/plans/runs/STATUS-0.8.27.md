@@ -50,6 +50,12 @@ Slice 110 remains in progress. The HITL authorized Slices 114 and 115 to
 proceed; both are complete on the release branch. The Tegra row still controls
 Slice 110 closure, and Slice 120 has not started.
 
+Slice 117 is planned after Slice 110. It will ship a CUDA-capable Linux
+AArch64 (Jetson/Tegra) Node addon through the release pipeline, because the
+published `fathomdb-linux-arm64-gnu` npm package is CPU-only. Its draft plan
+requires an owner ruling superseding the 0.8.23 Tegra npm exclusion before
+implementation, and publication remains separately authorized.
+
 Slice 132 is planned after Slice 130 and before performance qualification. It
 will make the Rust SDK equal in canonical capability to Python and TypeScript,
 while retaining language-native API form and the separately governed CLI and
@@ -62,7 +68,7 @@ implementation.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Continue Slice 110 (NAPI)** — napi-rs binding decomposition. **Remaining ladder:** 110 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Continue Slice 110 (NAPI)** — napi-rs binding decomposition. **Remaining ladder:** 110 → 117 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -281,6 +287,11 @@ grant/revert evidence.
   profiles pass independent code review and Terra verification. A focused
   clean-checkout Python suite passed; the inherited Slice 90 inventory hash
   mismatch remains the one known full-gate blocker.
+- [Slice 117](../0.8.27/features/slice-117/plan.md) depends on Slice 110
+  and is a draft. It plans an opt-in CUDA-capable Jetson Node addon built on
+  the self-hosted Jetson runner, with installed and post-publication Jetson
+  smokes. It needs HITL rulings, starting with superseding D-80.7-3, before
+  commissioning. Slice 120 does not depend on it.
 - [Slice 132](../0.8.27/features/slice-132/plan.md) follows Slice 130 and
   requires a HITL-approved successor to the current Rust parity-in-intent
   contract. It inventories canonical operations, types, and capabilities across

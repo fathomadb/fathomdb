@@ -12,9 +12,16 @@ The release-note gate fix at `06e34759f55dbede47b9b7ccb2c000dd5edac9b4`
 changes no product code. Slice 110 remains **in progress** because required
 Tegra forced-CUDA runtime evidence is not yet qualified. Hosted Linux arm64
 GNU and both macOS package rows have passed. A freshly rebooted Jetson repeat
-still fails forced CUDA intermittently. The HITL authorized Slice 114 to
-proceed as if Slice 110 were complete; that exception does not qualify the
-Tegra row or unblock Slices 115 and 120.
+still fails forced CUDA intermittently on the release code. The HITL
+authorized Slices 114 and 115 to proceed before Slice 110 closes; those
+exceptions do not qualify the Tegra row or unblock Slice 120.
+
+The separate Tegra allocator branch has since advanced to `77d742153` and
+reports a successful fallback on the Jetson. It is not merged or qualified on
+this release branch. The [integration intake](tegra-integration-pending.md)
+records branch checks, review follow-up and remaining merge, CI, ledger and
+release-gate work. Slices 114 and 115 are now complete under their separate
+sequencing exceptions; Slice 110 remains the live blocker.
 
 ## Acceptance
 

@@ -16,6 +16,31 @@ The only changed file is `src/driver/safe/core.rs`. Every change is marked
 `fathomdb-alloc-fallback.patch` in this directory; applying it with
 `patch -p1` to the published 0.19.7 package reproduces this tree.
 
+**Scope: aarch64 Linux only.** Items 1 to 3 apply only when the crate is
+built for `cfg(all(target_os = "linux", target_arch = "aarch64"))`, the
+platform of the measured Jetson failure. On every other target the crate
+behaves as published 0.19.7:
+
+- each context chooses stream-ordered allocation from
+  `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED` alone;
+- the default pool is never queried, and there is no process-wide decision
+  table;
+- constructors return only upstream's errors, with upstream's (absent)
+  cleanup;
+- zero-byte synchronous requests still reach `cuMemAlloc`, and every
+  synchronous pointer is still passed to `cuMemFree`.
+
+The zero-length handling is gated as well. Off target the synchronous path
+runs only on devices without memory pools, and there it would turn
+upstream's `CUDA_ERROR_INVALID_VALUE` into success. That is a behaviour
+change, and nothing has measured it there. Off target the only remaining
+differences are structural: helper functions and doc comments.
+`select_async_alloc` has an upstream-equivalent variant, and the
+`SYNC_FALLBACK` constant is `false`. The off-target branch has not been
+compiled for a real non-aarch64 target on the Jetson used for this work. It
+was compiled, clippy-checked and unit-tested there from a copy with the cfg
+predicate flipped. A real x86_64 build is left to CI.
+
 1. **Allocator selection.** Upstream decides once per context to use
    stream-ordered allocation (`cuMemAllocAsync`) whenever
    `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED` is positive. The patch also
@@ -78,12 +103,18 @@ The only changed file is `src/driver/safe/core.rs`. Every change is marked
    without a driver call, and `CudaSlice::drop` does not pass a null pointer
    to `cuMemFree`. Without this, `CudaStream::null()` and zero-element tensors
    would fail whenever the fallback is active.
-4. **Tests.** The `fathomdb_alloc_fallback` test module has two groups. Pure
-   tests cover the pool-error classification, the once-per-device table
-   (repeat, failed and concurrent decisions) and the zero-byte request. Tests
-   on a CUDA host cover two wrappers of device 0 sharing the decision, a
-   sync-allocating context's null zero-length buffers, and a data round trip.
-   Run it with `scripts/tests/test_vendored_cudarc.sh`.
+4. **Tests.** The `fathomdb_alloc_fallback` test module has two groups.
+   - Pure tests run on every target. They cover both rules: off target, the
+     upstream selection whatever the pool query would return, and upstream
+     zero-length handling. On target, the pool-error classification and the
+     null zero-length rule. They also cover the once-per-device table
+     (repeat, failed and concurrent decisions).
+   - Tests on a CUDA host check that the selection matches the build's rule.
+     On aarch64 Linux only, they also check that two wrappers of device 0 share
+     the decision, the zero-byte request, and a sync-allocating context's null
+     zero-length buffers; a data round trip runs everywhere.
+
+   Run the module with `scripts/tests/test_vendored_cudarc.sh`.
 
 ## Why
 
@@ -100,8 +131,12 @@ are in the FathomDB repository under
 
 The cost is speed on the fallback path: with synchronous allocation a steady
 embedding took about 25 ms against about 10 ms with stream-ordered
-allocation on the same Orin. Processes whose default pool is available keep
-the upstream behaviour.
+allocation on the same Orin. On aarch64 Linux, processes whose default pool
+is available keep the upstream allocator. Other targets are unaffected.
+
+FathomDB must revisit this workaround at its next micro release and loudly at
+its next minor release. The obligation is recorded in
+`dev/todos-and-considerations-ledger.jsonl`.
 
 The change is intended to be proposed upstream. Drop this vendor copy once
 the Candle cudarc resolves to a release containing an equivalent fallback.

@@ -67,10 +67,13 @@ fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       versio
 # libsqlite3-sys: published 0.38.1 with the SQLite 3.53.3 Windows WAL path
 # backport (third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md).
 #
-# cudarc: published 0.19.7, the version Candle resolves, vendored so the
-# CUDA allocator can fall back to synchronous allocation when the device's
-# default memory pool is unavailable (third_party/cudarc-0.19.7/FATHOMDB-PATCH.md).
-# Only 0.19.7 is patched; ug-cuda's cudarc 0.17.8 stays on crates.io.
+# cudarc: published 0.19.7, the version Candle resolves, vendored so that on
+# aarch64 Linux (Jetson) the CUDA allocator can fall back to synchronous
+# allocation when the device's default memory pool is unavailable. Builds for
+# every other target compile upstream's allocator logic unchanged
+# (third_party/cudarc-0.19.7/FATHOMDB-PATCH.md). Only 0.19.7 is patched;
+# ug-cuda's cudarc 0.17.8 stays on crates.io. Revisit at the next micro release
+# (see dev/todos-and-considerations-ledger.jsonl).
 #
 # Fathom-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16
 # fallback. Pin core, nn, transformers, and candle-kernels together: the

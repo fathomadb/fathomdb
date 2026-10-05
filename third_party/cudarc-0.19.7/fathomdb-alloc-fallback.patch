@@ -1,0 +1,292 @@
+diff --git a/src/driver/safe/core.rs b/src/driver/safe/core.rs
+index 2f938ec03..963da4b3e 100644
+--- a/src/driver/safe/core.rs
++++ b/src/driver/safe/core.rs
+@@ -42,6 +42,66 @@ pub struct CudaContext {
+     pub(crate) error_state: AtomicU32,
+ }
+ 
++// FATHOMDB PATCH BEGIN: allocator fallback (see FATHOMDB-PATCH.md).
++/// Whether a context should use stream-ordered allocation.
++///
++/// Stream-ordered allocation (`cuMemAllocAsync`) draws from the device's
++/// default memory pool. A driver can report memory-pool support yet be unable
++/// to create that pool: on Jetson (Tegra) the pool needs one contiguous range
++/// of about a third of device memory in the process address space, and in a
++/// fragmented process `cuDeviceGetDefaultMemPool` and every `cuMemAllocAsync`
++/// return `CUDA_ERROR_OUT_OF_MEMORY` while `cuMemAlloc` succeeds. Such a
++/// context allocates synchronously instead.
++fn use_async_alloc(
++    memory_pools_supported: i32,
++    default_pool: &Result<sys::CUmemoryPool, DriverError>,
++) -> bool {
++    memory_pools_supported > 0 && default_pool.is_ok()
++}
++
++/// Queries the inputs of [use_async_alloc] for a newly created context.
++///
++/// This runs once per context. Every allocation and its matching free branch
++/// on the stored result, so a buffer is always freed by the API that
++/// allocated it.
++///
++/// # Safety
++/// `cu_ctx` must be a live context created for `cu_device`; it is made current
++/// on the calling thread.
++unsafe fn select_async_alloc(
++    cu_device: sys::CUdevice,
++    cu_ctx: sys::CUcontext,
++) -> Result<bool, DriverError> {
++    let memory_pools_supported = result::device::get_attribute(
++        cu_device,
++        sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
++    )?;
++    if memory_pools_supported <= 0 {
++        return Ok(false);
++    }
++    result::ctx::set_current(cu_ctx)?;
++    let default_pool = result::device::get_default_mem_pool(cu_device);
++    Ok(use_async_alloc(memory_pools_supported, &default_pool))
++}
++
++/// Synchronous allocation that returns a null pointer for zero bytes.
++///
++/// `cuMemAlloc` rejects a zero-byte request with `CUDA_ERROR_INVALID_VALUE`,
++/// whereas `cuMemAllocAsync` succeeds with a null pointer. Matching that keeps
++/// zero-length buffers working whichever path a context selected. A null
++/// pointer is never passed to `cuMemFree`.
++///
++/// # Safety
++/// As for [result::malloc_sync].
++unsafe fn malloc_sync_or_null(num_bytes: usize) -> Result<sys::CUdeviceptr, DriverError> {
++    if num_bytes == 0 {
++        Ok(0)
++    } else {
++        result::malloc_sync(num_bytes)
++    }
++}
++// FATHOMDB PATCH END
++
+ unsafe impl Send for CudaContext {}
+ unsafe impl Sync for CudaContext {}
+ 
+@@ -75,13 +135,8 @@ impl CudaContext {
+         result::init()?;
+         let cu_device = result::device::get(ordinal as i32)?;
+         let cu_ctx = unsafe { result::primary_ctx::retain(cu_device) }?;
+-        let has_async_alloc = unsafe {
+-            let memory_pools_supported = result::device::get_attribute(
+-                cu_device,
+-                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
+-            )?;
+-            memory_pools_supported > 0
+-        };
++        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
++        let has_async_alloc = unsafe { select_async_alloc(cu_device, cu_ctx) }?;
+         let ctx = Arc::new(CudaContext {
+             cu_device,
+             cu_ctx,
+@@ -147,13 +202,8 @@ impl CudaContext {
+         )))]
+         let cu_ctx = unsafe { result::ctx::create_v3(flags, cu_device) }?;
+ 
+-        let has_async_alloc = unsafe {
+-            let memory_pools_supported = result::device::get_attribute(
+-                cu_device,
+-                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
+-            )?;
+-            memory_pools_supported > 0
+-        };
++        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
++        let has_async_alloc = unsafe { select_async_alloc(cu_device, cu_ctx) }?;
+         let ctx = Arc::new(CudaContext {
+             cu_device,
+             cu_ctx,
+@@ -198,13 +248,8 @@ impl CudaContext {
+             cigParams: cig_params as *mut sys::CUctxCigParam,
+         };
+         let cu_ctx = unsafe { result::ctx::create_v4(&mut ctx_create_params, flags, cu_device) }?;
+-        let has_async_alloc = unsafe {
+-            let memory_pools_supported = result::device::get_attribute(
+-                cu_device,
+-                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
+-            )?;
+-            memory_pools_supported > 0
+-        };
++        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
++        let has_async_alloc = unsafe { select_async_alloc(cu_device, cu_ctx) }?;
+         let ctx = Arc::new(CudaContext {
+             cu_device,
+             cu_ctx,
+@@ -235,13 +280,8 @@ impl CudaContext {
+         cu_device: sys::CUdevice,
+         cu_ctx: sys::CUcontext,
+     ) -> Result<Arc<Self>, DriverError> {
+-        let has_async_alloc = {
+-            let memory_pools_supported = result::device::get_attribute(
+-                cu_device,
+-                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
+-            )?;
+-            memory_pools_supported > 0
+-        };
++        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
++        let has_async_alloc = select_async_alloc(cu_device, cu_ctx)?;
+         let ctx = Arc::new(CudaContext {
+             cu_device,
+             cu_ctx,
+@@ -266,9 +306,9 @@ impl CudaContext {
+ 
+     /// Returns whether this context supports asynchronous memory allocation.
+     ///
+-    /// By default, the value of this parameter is filled by querying the
+-    /// `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED` attribute and checking if the number of pools
+-    /// is greater than 0.
++    /// The value is decided once, when the context is created: it is `true` only if the
++    /// `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED` attribute is greater than 0 and the device's
++    /// default memory pool can be obtained (FathomDB patch; see `FATHOMDB-PATCH.md`).
+     /// Memory allocations performed through the default [CudaStream] will use `cuMemAllocAsync`
+     /// over `cuMemAlloc` if this method returns `true`.
+     pub fn has_async_alloc(&self) -> bool {
+@@ -812,7 +852,10 @@ impl<T> Drop for CudaSlice<T> {
+             });
+         } else {
+             ctx.record_err(self.stream.synchronize());
+-            ctx.record_err(unsafe { result::free_sync(self.cu_device_ptr) });
++            // FATHOMDB PATCH: zero-length buffers hold a null pointer (see `malloc_sync_or_null`).
++            if self.cu_device_ptr != 0 {
++                ctx.record_err(unsafe { result::free_sync(self.cu_device_ptr) });
++            }
+         }
+     }
+ }
+@@ -1512,7 +1555,7 @@ impl CudaStream {
+         let cu_device_ptr = if self.ctx.has_async_alloc {
+             unsafe { result::malloc_async(self.cu_stream, 0) }?
+         } else {
+-            unsafe { result::malloc_sync(0) }?
++            unsafe { malloc_sync_or_null(0) }? // FATHOMDB PATCH
+         };
+         Ok(CudaSlice {
+             cu_device_ptr,
+@@ -1535,7 +1578,7 @@ impl CudaStream {
+         let cu_device_ptr = if self.ctx.has_async_alloc {
+             result::malloc_async(self.cu_stream, len * std::mem::size_of::<T>())?
+         } else {
+-            result::malloc_sync(len * std::mem::size_of::<T>())?
++            malloc_sync_or_null(len * std::mem::size_of::<T>())? // FATHOMDB PATCH
+         };
+         let (read, write) = if self.ctx.is_event_tracking() {
+             (
+@@ -2921,3 +2964,113 @@ mod tests {
+         handle.join().unwrap();
+     }
+ }
++
++// FATHOMDB PATCH BEGIN: allocator fallback tests (see FATHOMDB-PATCH.md).
++#[cfg(test)]
++mod fathomdb_alloc_fallback {
++    use super::*;
++
++    /// A primary context forced onto the synchronous allocator, as selected
++    /// when the device's default memory pool is unavailable. `None` when no
++    /// CUDA driver or device is present.
++    fn sync_context() -> Option<Arc<CudaContext>> {
++        if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
++            std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
++            return None;
++        }
++        let mut ctx = CudaContext::new(0).unwrap();
++        Arc::get_mut(&mut ctx)
++            .expect("fresh context")
++            .has_async_alloc = false;
++        Some(ctx)
++    }
++
++    #[test]
++    fn async_alloc_requires_pool_support_and_an_obtainable_default_pool() {
++        use sys::CUresult::{
++            CUDA_ERROR_INVALID_CONTEXT, CUDA_ERROR_NOT_SUPPORTED, CUDA_ERROR_OUT_OF_MEMORY,
++        };
++        let pool = Ok(std::ptr::null_mut());
++
++        assert!(use_async_alloc(1, &pool));
++        assert!(use_async_alloc(2, &pool));
++        // The Tegra failure: pools are reported, the default pool is not.
++        assert!(!use_async_alloc(
++            1,
++            &Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY))
++        ));
++        assert!(!use_async_alloc(
++            1,
++            &Err(DriverError(CUDA_ERROR_NOT_SUPPORTED))
++        ));
++        assert!(!use_async_alloc(
++            1,
++            &Err(DriverError(CUDA_ERROR_INVALID_CONTEXT))
++        ));
++        assert!(!use_async_alloc(0, &pool));
++        assert!(!use_async_alloc(-1, &pool));
++    }
++
++    #[test]
++    fn sync_zero_byte_request_is_a_null_pointer_without_a_driver_call() {
++        // No CUDA library is loaded by this test; a driver call would panic
++        // on hosts without one and fail with CUDA_ERROR_INVALID_VALUE on hosts
++        // with one.
++        assert_eq!(unsafe { malloc_sync_or_null(0) }, Ok(0));
++    }
++
++    #[test]
++    fn new_context_selection_matches_default_pool_availability() {
++        if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
++            std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
++            return;
++        }
++        let ctx = CudaContext::new(0).unwrap();
++        let pools = ctx
++            .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED)
++            .unwrap();
++        let pool = unsafe { result::device::get_default_mem_pool(ctx.cu_device) };
++        assert_eq!(ctx.has_async_alloc(), use_async_alloc(pools, &pool));
++    }
++
++    #[test]
++    fn sync_zero_length_allocations_are_null_and_free_cleanly() {
++        let Some(ctx) = sync_context() else { return };
++        let stream = ctx.default_stream();
++
++        let null = stream.null::<f32>().unwrap();
++        assert_eq!(null.cu_device_ptr, 0);
++        assert!(null.is_empty());
++        let unset = unsafe { stream.alloc::<f32>(0) }.unwrap();
++        assert_eq!(unset.cu_device_ptr, 0);
++        let zeros = stream.alloc_zeros::<f32>(0).unwrap();
++        assert_eq!(zeros.cu_device_ptr, 0);
++        assert!(stream.clone_dtoh(&zeros).unwrap().is_empty());
++        let uploaded = stream.clone_htod(&Vec::<f32>::new()).unwrap();
++        assert_eq!(uploaded.cu_device_ptr, 0);
++
++        drop((null, unset, zeros, uploaded));
++        stream.synchronize().unwrap();
++        ctx.check_err().unwrap();
++    }
++
++    #[test]
++    fn sync_context_round_trips_data() {
++        let Some(ctx) = sync_context() else { return };
++        let stream = ctx.default_stream();
++
++        let device = stream.clone_htod(&[1.0f32, 2.0, 3.0, 4.0]).unwrap();
++        assert_ne!(device.cu_device_ptr, 0);
++        assert_eq!(
++            stream.clone_dtoh(&device).unwrap(),
++            std::vec![1.0f32, 2.0, 3.0, 4.0]
++        );
++        let zeros = stream.alloc_zeros::<u8>(4).unwrap();
++        assert_eq!(stream.clone_dtoh(&zeros).unwrap(), std::vec![0u8; 4]);
++
++        drop((device, zeros));
++        stream.synchronize().unwrap();
++        ctx.check_err().unwrap();
++    }
++}
++// FATHOMDB PATCH END

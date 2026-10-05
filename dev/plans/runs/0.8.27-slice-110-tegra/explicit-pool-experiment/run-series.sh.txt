@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Slice 110 explicit-pool experiment runner (derived from sync-repair runner): N fresh Node processes, one at a
+# time, of consumer.mjs under one allocator mode. Callers wrap a whole series
+# in `flock <scratch>/gpu.lock`.
+# Usage: run-series.sh <node-version> <mode: stock|sync|fallback|pool> <count> <outdir>
+# Pass-through env: CUDARC_SLICE110_POOL_MAXSIZE, CUDARC_SLICE110_POOL_RELEASE_THRESHOLD, HEAP_OBJECTS
+set -u
+nodever=$1; mode=$2; count=$3; outdir=$4
+REPAIR=<scratch>/explicit-pool
+mkdir -p "$outdir/maps" "$REPAIR/dbs"
+source ~/.nvm/nvm.sh >/dev/null && nvm use "$nodever" >/dev/null || exit 2
+echo "node=$(node --version) mode=$mode count=$count maxsize=${CUDARC_SLICE110_POOL_MAXSIZE:-default} threshold=${CUDARC_SLICE110_POOL_RELEASE_THRESHOLD:-default} heap_objects=${HEAP_OBJECTS:-0} native_sha=$(sha256sum <worktree>/src/ts/fathomdb.linux-arm64-gnu.node | cut -c1-16) start=$(date -u +%FT%TZ)" > "$outdir/series-header.txt"
+for i in $(seq -w 1 "$count"); do
+  busy=$(ps -eo args | grep -E 'Runner.Worker|cargo|rustc|nvcc|pytest' | grep -vc grep)
+  log="$outdir/run-$mode-$i.log"
+  {
+    echo "BEGIN run=$i mode=$mode node=$(node --version) utc=$(date -u +%FT%TZ) busy_procs=$busy"
+    grep -E '^(MemAvailable|CmaFree)' /proc/meminfo
+    t0=$(date +%s%N)
+    env FATHOMDB_EMBED_DEVICE=cuda:0 FATHOMDB_RERANK_DEVICE=cuda:0 \
+        FATHOMDB_GPU_ALLOCATION_WITNESS=1 CUDARC_SLICE110_ALLOC_MODE="$mode" HEAP_OBJECTS="${HEAP_OBJECTS:-0}" MAPS_DIR="$outdir/maps" \
+        node "$REPAIR/consumer.mjs" 2>&1
+    rc=$?
+    echo "END run=$i exit=$rc wall_ms=$(( ($(date +%s%N) - t0) / 1000000 ))"
+  } > "$log"
+  printf '%s %s ' "$mode-$i" "$(grep -c 'cudarc-slice110 alloc-select' "$log")"
+  grep -o '"outcome":"[a-z]*"\|"failedStep":"[a-zA-Z]*"\|path=[a-z]*\|pool_source=[a-z-]*' "$log" | sort | uniq -c | tr -s ' \n' ' '
+  echo
+done

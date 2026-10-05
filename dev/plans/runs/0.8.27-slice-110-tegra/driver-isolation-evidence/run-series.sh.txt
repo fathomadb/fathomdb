@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# run-series.sh NAME COUNT ARGS...
+# Runs COUNT fresh processes of ./pool_va_repro (literal @I@ in ARGS is replaced
+# by the run index 1..COUNT). One log per run in logs/NAME/, RESULT lines
+# appended to logs/NAME/results.txt, /proc/self/maps snapshots in logs/NAME/maps/.
+# The caller wraps the whole series in `flock <gpu.lock>`.
+set -u
+here=$(cd "$(dirname "$0")" && pwd)
+name=$1; count=$2; shift 2
+dir="$here/logs/$name"; mkdir -p "$dir/maps"
+: > "$dir/results.txt"
+{ echo "series=$name count=$count args=$*"; date -u +%FT%TZ; } > "$dir/series-header.txt"
+for i in $(seq 1 "$count"); do
+  args=(); for a in "$@"; do args+=("${a//@I@/$i}"); done
+  "$here/pool_va_repro" --maps-dir "$dir/maps" --tag "$name#$i" "${args[@]}" > "$dir/run-$i.log" 2>&1
+  echo "exit=$?" >> "$dir/run-$i.log"
+  grep '^RESULT' "$dir/run-$i.log" >> "$dir/results.txt" || echo "RESULT tag=$name#$i outcome=NORESULT" >> "$dir/results.txt"
+done
+grep -o 'outcome=[A-Za-z]*' "$dir/results.txt" | sort | uniq -c | sed "s|^|$name |"

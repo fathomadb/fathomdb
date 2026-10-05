@@ -53,6 +53,7 @@ Implementation (execution step 3 onward) starts only when all of these hold:
    the result is recorded. The Slice 110 branch did not compile x86_64; its
    off-target proxy test is not a substitute
    (`dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`).
+   *Met 2026-10-05 on candidate `8b76f6115`; see [status](status.md#hold).*
 2. Slice 110 has closed on `release/0.8.27` with the allocation fallback and
    early `cuInit` integrated and qualified.
 3. The owner has ruled the remaining `slice-117-delivery-shape` items and

@@ -23,6 +23,15 @@ has been built, qualified or published.
 lifts only when an x86_64 build-and-test result for those fixes is recorded.
 It is part of ruled decision `slice-117-jetson-node-cuda-direction`.
 
+**Hold condition met, 2026-10-05.** The x86_64 round on Slice 110 candidate
+`8b76f6115` is recorded in
+`dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md` (section
+"AMD64 regression round on the updated branch"): vendored cudarc tests,
+workspace clippy and check, the CUDA N-API release build, and installed-package
+forced-CUDA embed and rerank on an RTX 3090 passed; the full `agent-verify`
+was not run there. Implementation still waits for plan entry criteria 2 and 3
+(Slice 110 closed on `release/0.8.27`; remaining delivery-shape items ruled).
+
 ## Rulings recorded
 
 - `slice-117-jetson-node-cuda-direction`: Slice 117 is on the ladder, its

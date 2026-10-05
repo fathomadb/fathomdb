@@ -33,13 +33,21 @@ deliberately suppressed; auditing every ordinary local binding would add no
 configuration or dead-code evidence. A value becomes a user setting only
 through a reviewed public contract change.
 
+There is already a concrete documentation/behavior question to resolve:
+`docs/reference/config.md` says a post-open SQLite mode request raises, while
+`configure_runtime_locked` returns the effective mode for a same-mode repeat
+after Engine open. The accepted SQLite runtime ADR says repeating the effective
+choice succeeds; the current repeat test exercises only the pre-open case.
+At entry, add a post-open witness, settle the exact contract, and correct the
+public guide and Rust API comment if the current behavior is confirmed.
+
 ## Requirements and acceptance
 
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |
 | R27-114A | The production configuration, constant and limit inventory has no unexplained owner or consumer. | AC27-114A: a source-linked census covers every production engine module-level `const`/`static`, `EngineConfig`, process-wide SQLite mode, engine-consumed environment variables, public setters, and operational capacity/timeout/retention/search/reader/WAL limits across default and relevant feature builds. Every declaration has an owner, location, reference or unused status, and setting/internal/schema/SQL/test-only classification; each setting and operational limit names its consumer. Source search and compiler warning checks reconcile omissions. |
 | R27-114B | Public settings match the effective runtime and all supported language contracts. | AC27-114B: for each public setting the inventory records exact spelling per language, default, unit, accepted range or grammar, omission/zero meaning, precedence, open-time or live mutability, consuming effect and observable invalid/fallback outcome. It is checked against the accepted ADR, Rust/Python/TypeScript interfaces, `dev/design/engine.md`, `dev/design/scheduler.md`, `dev/design/embedder.md` and `docs/reference/config.md`. |
-| R27-114C | Dead or misleading production values receive a justified disposition. | AC27-114C: each unused or deliberately suppressed production constant, static or local binding found by the census and warning audit is retained with a concrete invariant, removed with a focused behavior witness, or assigned to a named follow-up. Contradictory comments and docs are corrected in this slice; no stale claim is left as a placeholder. |
+| R27-114C | Dead or misleading production values receive a justified disposition. | AC27-114C: each unused or deliberately suppressed production constant, static or local binding found by the census and warning audit is retained with a concrete invariant, removed with a focused behavior witness, or assigned to a named follow-up. Contradictory comments and docs are corrected in this slice, including the observed post-open same-mode discrepancy after a focused runtime witness; no stale claim is left as a placeholder. |
 | R27-114D | The audit does not silently change runtime behavior or public surface. | AC27-114D: accepted defaults, ranges, effective precedence, runtime exports and public API remain unchanged unless a separately reviewed successor ADR/interface change and RED/GREEN tests explicitly authorize a correction. Existing Slice 90 runtime/configuration and binding fixtures pass for any code change, along with the required repository gate. |
 
 These IDs are release-local; `dev/acceptance.md` remains locked. A finding

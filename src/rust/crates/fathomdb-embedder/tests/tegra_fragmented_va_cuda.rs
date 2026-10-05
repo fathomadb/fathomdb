@@ -15,11 +15,14 @@
 //!
 //! The test asserts that the layout really makes the default pool unavailable
 //! and that the context fell back to synchronous allocation, so it can never
-//! pass without exercising the fallback. That outcome is only established for
-//! integrated (Tegra) GPUs; on aarch64 Linux hosts without a CUDA driver, without
-//! a device, or whose `cuda:0` is a discrete GPU, it prints a SKIP notice naming
-//! the reason and returns (or panics under `FATHOMDB_REQUIRE_LIVE=1`, which
-//! promises a provisioned Tegra GPU).
+//! pass without exercising the fallback. That outcome is established only for
+//! the measured target: an integrated GPU with the AGX Orin 64 GB's device
+//! memory (61.36 GiB; its pool needs 20960 MiB). On a Jetson with less memory
+//! the pool, about a third of device memory, may fit between the blockers.
+//! Elsewhere (no CUDA driver, no device, a discrete `cuda:0`, or another
+//! memory size) it prints a SKIP notice naming the reason and returns, or
+//! panics under `FATHOMDB_REQUIRE_LIVE=1`. A blocker address that is already
+//! occupied fails the test only on the measured target.
 //!
 //! Run it on a Jetson with:
 //!
@@ -42,6 +45,9 @@ mod live;
 const GIB: usize = 1 << 30;
 const PAGE: usize = 4096;
 const BLOCKER_ADDRESSES: [usize; 3] = [38 * GIB, 68 * GIB, 98 * GIB];
+// Device memory of the measured Jetson AGX Orin 64 GB is 65879896064 B
+// (61.36 GiB); the range admits small carve-out differences between releases.
+const MEASURED_DEVICE_MEMORY: std::ops::Range<usize> = 60 * GIB..64 * GIB;
 
 const PROT_NONE: c_int = 0;
 const MAP_PRIVATE: c_int = 0x02;
@@ -61,7 +67,10 @@ extern "C" {
     ) -> *mut c_void;
 }
 
-fn map_address_space_blockers() {
+/// Maps every blocker it can and returns a description of each one it could
+/// not, so the caller decides whether a refusal matters on this host.
+fn map_address_space_blockers() -> Vec<String> {
+    let mut refused = Vec::new();
     for address in BLOCKER_ADDRESSES {
         // SAFETY: an anonymous PROT_NONE mapping at an address the kernel
         // verifies is unmapped; nothing reads or writes it, and it is
@@ -76,17 +85,18 @@ fn map_address_space_blockers() {
                 0,
             )
         };
-        assert_eq!(
-            mapped as usize,
-            address,
-            "could not map the 4 KiB blocker at {address:#x}: {}",
-            std::io::Error::last_os_error()
-        );
+        if mapped as usize != address {
+            refused.push(format!(
+                "could not map the 4 KiB blocker at {address:#x}: {}",
+                std::io::Error::last_os_error()
+            ));
+        }
     }
+    refused
 }
 
 /// Why this host is outside the measured target, or `None` when `cuda:0` is an
-/// integrated (Tegra) GPU.
+/// integrated GPU with the measured AGX Orin 64 GB device memory.
 fn non_target_reason() -> Option<String> {
     // SAFETY: only probes for the driver library; loads nothing on failure.
     if !unsafe { sys::is_culib_present() } {
@@ -112,10 +122,21 @@ fn non_target_reason() -> Option<String> {
         )
     }
     .expect("CU_DEVICE_ATTRIBUTE_INTEGRATED");
-    (integrated == 0).then(|| {
-        "cuda:0 is a discrete GPU; the fragmented-layout pool failure is only \
-         established on integrated (Tegra) GPUs"
-            .to_owned()
+    if integrated == 0 {
+        return Some(
+            "cuda:0 is a discrete GPU; the fragmented-layout pool failure is only \
+             established on the Jetson AGX Orin 64 GB"
+                .to_owned(),
+        );
+    }
+    // SAFETY: as above.
+    let memory = unsafe { result::device::total_mem(device) }.expect("cuDeviceTotalMem");
+    (!MEASURED_DEVICE_MEMORY.contains(&memory)).then(|| {
+        format!(
+            "cuda:0 is an integrated GPU with {memory} B of device memory; the \
+             three-page layout was measured only on the Jetson AGX Orin 64 GB \
+             (65879896064 B), and with a smaller default pool it may fit"
+        )
     })
 }
 
@@ -123,12 +144,16 @@ fn non_target_reason() -> Option<String> {
 fn forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable() {
     // Must precede every CUDA call in this process (the driver lays out its
     // GPU virtual-address reservations during `cuInit`).
-    map_address_space_blockers();
+    let refused_blockers = map_address_space_blockers();
 
     if let Some(reason) = non_target_reason() {
         live::require_live_or_skip(&format!("SKIP tegra_fragmented_va_cuda: {reason}"));
         return;
     }
+    assert!(
+        refused_blockers.is_empty(),
+        "the measured layout could not be built: {refused_blockers:?}"
+    );
 
     std::env::set_var("FATHOMDB_EMBED_DEVICE", "cuda:0");
     let resolution = match resolve_default_embedder_device_from_env() {

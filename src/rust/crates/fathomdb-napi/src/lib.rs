@@ -28,6 +28,8 @@
 mod shared;
 use shared::*;
 
+mod cuda_early_init;
+
 mod errors;
 mod subscriber;
 pub use errors::*;

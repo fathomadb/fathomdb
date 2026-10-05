@@ -40,11 +40,12 @@ contract. `fathomdb` is the one Rust application SDK; its
 contract change begins before it.
 
 Slice 117 follows Slice 110. It plans delivery of a CUDA-capable Linux
-AArch64 (Jetson/Tegra) Node addon through the release pipeline, because the
-published `fathomdb-linux-arm64-gnu` npm package is CPU-only. It requires an
-owner ruling that supersedes the 0.8.23 decision placing Tegra npm
-permanently out of scope; its [`draft plan`](0.8.27/features/slice-117/plan.md)
-owns that gate, and no build or publication change begins before it.
+AArch64 (Jetson/Tegra) Node addon through the release process, because the
+published `fathomdb-linux-arm64-gnu` npm package is CPU-only. On 2026-10-05
+the owner added it to the ladder and superseded the 0.8.23 Tegra npm
+exclusions for its scope. Implementation is held until Linux x86_64 has been
+tested with the Slice 110 fixes. Its delivery shape remains a HITL decision,
+owned by its [`draft plan`](0.8.27/features/slice-117/plan.md).
 
 The shared structural vocabulary is:
 
@@ -1136,23 +1137,30 @@ validating an incomplete Slice 90.
 
 ### Slice 117 — Jetson CUDA Node addon delivery
 
-**PLANNED; draft; HITL decisions required before commissioning.** The
+**PLANNED; draft; implementation held; delivery-shape decision open.** The
 published Linux AArch64 npm platform package is built on a hosted runner
 with the default embedder only, so Jetson users get GPU support under Node
-only from a locally built addon. Python already has a host-native `+tegra`
-wheel route on the self-hosted Jetson runner.
+only from a locally built addon. Python already has a governed `+tegra` wheel
+route: the manual Jetson Tegra CUDA evidence workflow, a host-native build, a
+credential-free Jetson, a hosted Pages publication, and an exact-SHA operator
+script with a post-publication smoke.
 
-The [Slice 117 plan](0.8.27/features/slice-117/plan.md) defines
-AC27-117A–G, and its [design note](0.8.27/features/slice-117/design.md)
-compares an opt-in separately named npm package, a first-party Pages
-tarball, and a build-from-source route. The artifact is built host-natively
-on the Jetson with `embed-cuda,rerank-cuda` and is expected to carry Slice
-110's aarch64-Linux allocator fallback and early `cuInit`, subject to Slice
-110 closing. Qualification includes an installed forced-CUDA, allocation-witness
-and heap-growth check on the Jetson and a post-publication registry smoke
-there. On completion it updates `README.md` and the public install pages.
-Publication stays behind the release publication decision. Slice 120 does not
-depend on it.
+The owner ruled on 2026-10-05 (`slice-117-jetson-node-cuda-direction`,
+`slice-117-supersede-d-80-7-3-and-d-80-6-2`) to add this slice and supersede
+D-80.7-3 and D-80.6-2 for it. Implementation waits until Linux x86_64 has been
+tested with the Slice 110 fixes and Slice 110 has closed. The
+[Slice 117 plan](0.8.27/features/slice-117/plan.md) defines AC27-117A–G. Its
+[design note](0.8.27/features/slice-117/design.md) recommends extending that
+existing Tegra Pages route to a separately named Node package tarball for
+0.8.27, with an npm registry package kept as a later, separately ruled step.
+Unruled `slice-117-delivery-shape` and the proposed
+`ADR-0.8.27-jetson-tegra-node-addon-distribution` carry that choice. The
+artifact is built on the Jetson with `embed-cuda,rerank-cuda` and carries
+Slice 110's allocation fallback and early `cuInit`. Qualification repeats
+installed forced-CUDA, allocation-witness and heap-growth checks on the Jetson
+before and after publication. On completion it updates `README.md` and the
+public install pages. Publication stays behind the release publication
+decision. Slice 120 does not depend on it.
 
 ### Slice 120 — TypeScript SDK decomposition
 

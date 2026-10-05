@@ -83,8 +83,9 @@ Use an isolated build on the Jetson after checking it is not running other CI
 work. Its local toolkit needs `/usr/local/cuda-12.6/bin` on `PATH` in addition
 to `CUDA_PATH=/usr/local/cuda-12.6` and `CUDA_COMPUTE_CAP=87`; the tested
 feature set is `embed-cuda,rerank-cuda`, Node 25.9.0/npm 11.12.1, CUDA 12.6.68.
-Disk was ample on the Jetson but about 10 GB free on windchill3 when this note
-was written, so avoid a second large local target directory.
+Disk was ample on the Jetson but only single-digit GiB remained free on
+windchill3 after the branch's pre-push checks. Recheck capacity before builds
+and avoid a second large local target directory.
 
 If a repair is justified, write a failing test first, preserve the accepted
 forced-CUDA refusal contract, and prove the real model and allocation-witness

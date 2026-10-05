@@ -351,6 +351,8 @@ mod tests {
     // Rust test binary never runs. A shared-library constructor would already
     // have called cuInit before this test started. (Only an environment that
     // fixes every policy to cpu, or opts out, would hide such a constructor.)
+    // Only the module-load slot is checked: other tests in this binary run the
+    // embedder and reranker probes, which call cuInit as other callers.
     #[cfg(all(
         target_os = "linux",
         target_arch = "aarch64",
@@ -358,6 +360,11 @@ mod tests {
     ))]
     #[test]
     fn loading_the_addon_library_does_not_initialise_cuda() {
-        assert_eq!(fathomdb_embedder::last_cuda_driver_init(), None);
+        assert_eq!(
+            fathomdb_embedder::cuda_driver_init_seen_by(
+                fathomdb_embedder::CudaInitCaller::ModuleLoad
+            ),
+            None
+        );
     }
 }

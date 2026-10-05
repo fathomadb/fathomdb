@@ -1078,9 +1078,10 @@ changes.
 The [Slice 114 planning review](0.8.27/features/slice-114/plan.md) reconciles
 the September 28 draft with the completed Slice 90 runtime, subsequent engine
 and binding changes, and the current Slice 110 blocker. It defines the
-source-linked inventory and AC27-114A–D. Classify production configuration
-inputs and operational limits; count SQL/schema/test literals as exclusions,
-not prospective knobs. Execution starts only after Slice 110 closes and a
+source-linked inventory and AC27-114A–D. Census production module-level
+constants, configuration inputs and operational limits; classify SQL and
+schema constants without treating them as prospective knobs. Execution starts
+only after Slice 110 closes and a
 fresh source delta is reconciled.
 
 For every user- or operator-relevant setting, record its owner, spelling,
@@ -1105,8 +1106,9 @@ workload shape, warm-up, repetitions, collected metrics, profiler method, and
 known measurement limits.
 
 The [Slice 115 planning review](0.8.27/features/slice-115/plan.md) defines
-AC27-115A–D, one representative cell per path, a frozen-before-run protocol,
-raw receipts, and lightweight attribution. It reuses the accepted Slice 90
+AC27-115A–D, one representative cell per path plus a real default-embedder
+cell, a frozen-before-run protocol, raw receipts, and lightweight attribution
+for every path. It reuses the accepted Slice 90
 D27 qualification and existing performance gates without changing their
 thresholds; Slice 135 retains ownership of the full 0.8.26 comparison.
 

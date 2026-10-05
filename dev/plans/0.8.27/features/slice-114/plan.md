@@ -22,21 +22,24 @@ the current baseline is `release/0.8.27` at `1a6cd4938`.
 | Slice 120 owns TypeScript SDK decomposition, Slice 132 owns Rust SDK parity, and Slice 140 owns engine test seam extraction. | Record findings for those owners. Do not restructure SDKs, expand public capability, or move test seams here. |
 | Slice 115 follows this audit and profiles the engine; Slice 135 owns the full published 0.8.26 comparison. | Pass an exact setting/constant disposition and any measurement questions to Slice 115 without making speculative tuning changes. |
 
-The September 28 scope is **approved with narrowing**: inspect every
-production engine configuration input and operational limit, and every
-compiler-reported or deliberately suppressed unused production binding.
-Classify ordinary SQL strings, schema/version markers, test fixtures and local
-implementation literals as non-setting exclusions in the inventory rather
-than giving each an artificial range. A value becomes a user setting only
+The September 28 scope is **approved with explicit classification**: inspect
+every production engine configuration input, operational limit and module-level
+`const`/`static`, plus every compiler-reported or deliberately suppressed
+unused production binding. Include SQL strings and schema/version constants in
+the census, then classify them as non-settings rather than giving them an
+artificial default or range. Identify test-only declarations as exclusions by
+source location. Local variables need individual disposition when unused or
+deliberately suppressed; auditing every ordinary local binding would add no
+configuration or dead-code evidence. A value becomes a user setting only
 through a reviewed public contract change.
 
 ## Requirements and acceptance
 
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |
-| R27-114A | The production configuration and limit inventory has no unexplained owner or consumer. | AC27-114A: a source-linked inventory covers `EngineConfig`, process-wide SQLite mode, engine-consumed environment variables, public setters, and operational capacity/timeout/retention/search/reader/WAL limits across default and relevant feature builds. Every row names owner, source, consumers and public/internal/test-only classification; a source search and compiler warning check reconcile omissions. |
+| R27-114A | The production configuration, constant and limit inventory has no unexplained owner or consumer. | AC27-114A: a source-linked census covers every production engine module-level `const`/`static`, `EngineConfig`, process-wide SQLite mode, engine-consumed environment variables, public setters, and operational capacity/timeout/retention/search/reader/WAL limits across default and relevant feature builds. Every declaration has an owner, location, reference or unused status, and setting/internal/schema/SQL/test-only classification; each setting and operational limit names its consumer. Source search and compiler warning checks reconcile omissions. |
 | R27-114B | Public settings match the effective runtime and all supported language contracts. | AC27-114B: for each public setting the inventory records exact spelling per language, default, unit, accepted range or grammar, omission/zero meaning, precedence, open-time or live mutability, consuming effect and observable invalid/fallback outcome. It is checked against the accepted ADR, Rust/Python/TypeScript interfaces, `dev/design/engine.md`, `dev/design/scheduler.md`, `dev/design/embedder.md` and `docs/reference/config.md`. |
-| R27-114C | Dead or misleading production values receive a justified disposition. | AC27-114C: each unused or suppressed production constant/binding found by source and warning audit is retained with a concrete invariant, removed with a focused behavior witness, or assigned to a named follow-up. Contradictory comments and docs are corrected in this slice; no stale claim is left as a placeholder. |
+| R27-114C | Dead or misleading production values receive a justified disposition. | AC27-114C: each unused or deliberately suppressed production constant, static or local binding found by the census and warning audit is retained with a concrete invariant, removed with a focused behavior witness, or assigned to a named follow-up. Contradictory comments and docs are corrected in this slice; no stale claim is left as a placeholder. |
 | R27-114D | The audit does not silently change runtime behavior or public surface. | AC27-114D: accepted defaults, ranges, effective precedence, runtime exports and public API remain unchanged unless a separately reviewed successor ADR/interface change and RED/GREEN tests explicitly authorize a correction. Existing Slice 90 runtime/configuration and binding fixtures pass for any code change, along with the required repository gate. |
 
 These IDs are release-local; `dev/acceptance.md` remains locked. A finding
@@ -52,9 +55,10 @@ observable outcome. This structure distinguishes a documented knob from an
 internal safety constant, and makes stale documentation detectable without
 turning every literal into a product option. Start from `EngineConfig` and
 `runtime_configuration.rs`, then trace process mode, env reads, setters and
-operational limits through the current owner modules. Search source and
-public docs in both directions; compile relevant features to surface dead
-bindings. Preserve the accepted owner boundaries and document **why** each
+operational limits through the current owner modules. Census module-level
+constants and statics, then search source and public docs in both directions;
+compile relevant features to surface dead bindings. Preserve the accepted
+owner boundaries and document **why** each
 non-obvious default or internal limit is retained where evidence exists. If
 evidence is insufficient, say so and do not invent an accepted range.
 

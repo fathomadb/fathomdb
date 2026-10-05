@@ -3058,8 +3058,9 @@ mod fathomdb_alloc_fallback {
     use super::*;
 
     /// A primary context forced onto the synchronous allocator, as selected
-    /// when the device's default memory pool is unavailable. `None` when no
-    /// CUDA driver or device is present.
+    /// when the device's default memory pool is unavailable (or, off target,
+    /// when pools are unsupported). `None` when no CUDA driver or device is
+    /// present.
     fn sync_context() -> Option<Arc<CudaContext>> {
         if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
             std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
@@ -3076,14 +3077,76 @@ mod fathomdb_alloc_fallback {
         panic!("the default pool must not be queried when pools are unsupported")
     }
 
+    const ON_TARGET: bool = true;
+    const OFF_TARGET: bool = false;
+
+    #[test]
+    fn the_fallback_applies_only_to_aarch64_linux_builds() {
+        assert_eq!(
+            SYNC_FALLBACK,
+            cfg!(all(target_os = "linux", target_arch = "aarch64"))
+        );
+    }
+
+    #[test]
+    fn off_target_selection_is_the_upstream_rule_whatever_the_pool_would_say() {
+        use sys::CUresult::{
+            CUDA_ERROR_ILLEGAL_ADDRESS, CUDA_ERROR_NOT_SUPPORTED, CUDA_ERROR_OUT_OF_MEMORY,
+        };
+        // Upstream 0.19.7: stream-ordered allocation iff the pool attribute
+        // is positive, and the default pool is never queried.
+        for supported in [-1, 0, 1, 2] {
+            assert_eq!(
+                async_alloc_decision(OFF_TARGET, supported, pool_query_must_not_run),
+                Ok(supported > 0)
+            );
+        }
+        for code in [
+            CUDA_ERROR_OUT_OF_MEMORY,
+            CUDA_ERROR_NOT_SUPPORTED,
+            CUDA_ERROR_ILLEGAL_ADDRESS,
+        ] {
+            let mut queried = false;
+            let decision = async_alloc_decision(OFF_TARGET, 1, || {
+                queried = true;
+                Err(DriverError(code))
+            });
+            assert_eq!(decision, Ok(true), "{code:?}");
+            assert!(!queried, "off target the default pool must not be queried");
+        }
+    }
+
+    #[test]
+    fn off_target_zero_length_sync_handling_is_upstream() {
+        // Upstream passes a zero-byte request to cuMemAlloc and frees every
+        // synchronous pointer, null included.
+        assert!(!sync_zero_bytes_is_null(OFF_TARGET, 0));
+        assert!(sync_free_needed(OFF_TARGET, 0));
+        assert!(sync_free_needed(OFF_TARGET, 0x1000));
+    }
+
+    #[test]
+    fn on_target_zero_length_sync_buffers_are_null_and_never_freed() {
+        assert!(sync_zero_bytes_is_null(ON_TARGET, 0));
+        assert!(!sync_zero_bytes_is_null(ON_TARGET, 4));
+        assert!(!sync_free_needed(ON_TARGET, 0));
+        assert!(sync_free_needed(ON_TARGET, 0x1000));
+    }
+
     #[test]
     fn async_alloc_requires_pool_support_and_an_obtainable_default_pool() {
         let pool = || Ok(std::ptr::null_mut());
 
-        assert_eq!(async_alloc_decision(1, pool), Ok(true));
-        assert_eq!(async_alloc_decision(2, pool), Ok(true));
-        assert_eq!(async_alloc_decision(0, pool_query_must_not_run), Ok(false));
-        assert_eq!(async_alloc_decision(-1, pool_query_must_not_run), Ok(false));
+        assert_eq!(async_alloc_decision(ON_TARGET, 1, pool), Ok(true));
+        assert_eq!(async_alloc_decision(ON_TARGET, 2, pool), Ok(true));
+        assert_eq!(
+            async_alloc_decision(ON_TARGET, 0, pool_query_must_not_run),
+            Ok(false)
+        );
+        assert_eq!(
+            async_alloc_decision(ON_TARGET, -1, pool_query_must_not_run),
+            Ok(false)
+        );
     }
 
     #[test]
@@ -3092,12 +3155,12 @@ mod fathomdb_alloc_fallback {
         // The measured Tegra failure: pools are reported, the default pool
         // cannot be created.
         assert_eq!(
-            async_alloc_decision(1, || Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY))),
+            async_alloc_decision(ON_TARGET, 1, || Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY))),
             Ok(false)
         );
         // The device states it has no usable default pool.
         assert_eq!(
-            async_alloc_decision(1, || Err(DriverError(CUDA_ERROR_NOT_SUPPORTED))),
+            async_alloc_decision(ON_TARGET, 1, || Err(DriverError(CUDA_ERROR_NOT_SUPPORTED))),
             Ok(false)
         );
     }
@@ -3117,7 +3180,7 @@ mod fathomdb_alloc_fallback {
             CUDA_ERROR_UNKNOWN,
         ] {
             assert_eq!(
-                async_alloc_decision(1, || Err(DriverError(code))),
+                async_alloc_decision(ON_TARGET, 1, || Err(DriverError(code))),
                 Err(DriverError(code)),
                 "{code:?} must not select an allocator"
             );
@@ -3170,6 +3233,7 @@ mod fathomdb_alloc_fallback {
         );
     }
 
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     #[test]
     fn wrappers_of_one_device_share_the_allocator() {
         if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
@@ -3185,6 +3249,7 @@ mod fathomdb_alloc_fallback {
         );
     }
 
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     #[test]
     fn sync_zero_byte_request_is_a_null_pointer_without_a_driver_call() {
         // No CUDA library is loaded by this test; a driver call would panic
@@ -3206,10 +3271,11 @@ mod fathomdb_alloc_fallback {
         let pool = unsafe { result::device::get_default_mem_pool(ctx.cu_device) };
         assert_eq!(
             Ok(ctx.has_async_alloc()),
-            async_alloc_decision(pools, || pool)
+            async_alloc_decision(SYNC_FALLBACK, pools, || pool)
         );
     }
 
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     #[test]
     fn sync_zero_length_allocations_are_null_and_free_cleanly() {
         let Some(ctx) = sync_context() else { return };

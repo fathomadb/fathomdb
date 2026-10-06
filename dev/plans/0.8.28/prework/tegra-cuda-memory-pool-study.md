@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 prework — Tegra CUDA memory-pool study plan
-status: PROPOSED (revision 3, 2026-10-06; independent-review findings applied)
+status: PROPOSED (revision 4, 2026-10-06; owner rulings 12-17 applied)
 target_release: 0.8.28
 observed_on: 2026-10-05
 revised_on: 2026-10-06
@@ -114,6 +114,47 @@ changes they cause.
   removed from the study (see "Design note: load-time pool creation").
 - **Ruling 11: tracking id resolved** (see "Authority and scope"); no ledger
   action.
+
+## Owner rulings (2026-10-06, after Phase 1b)
+
+The owner ruled on the six decisions in the Phase 1b results
+(`dev/plans/runs/0.8.28-pool-study/results.md` § 10.11). Protocol and plan are
+amended to match.
+
+- **Ruling 12: early `cuInit` is part of P.** P-first-use is a candidate
+  only together with early `cuInit` at module load (Node now; Python once
+  its import hook exists). The pool lands inside the early-`cuInit` driver
+  reservation (results § 10.7), and a late `cuInit` fails at large heaps
+  before any pool is attempted.
+- **Ruling 13: C9 pass rule.** The current pool never equals the private
+  pool, and it equals the default pool whenever both reads succeed. An
+  `OOM`-to-success transition of the current-pool read is the default
+  pool's own lazy behaviour and is recorded, not failed. New cell C9b: a
+  co-resident library's default-pool success (its 20960 MiB contiguous
+  need) with P-first-use against S, at heaps 0, 1M and 4M, about 10
+  processes each.
+- **Ruling 14: trim is conditional.** Trimming the private pool on close or
+  on idle is an **experimental arm** (`FATHOMDB_POOL_TRIM`), never the
+  default, until experiments show it is safe. Its tests: trim while the
+  embedder and reranker singletons still hold slices; an embed running
+  concurrently with trim (from the worker thread and from Node workers);
+  reopen after trim; repeated open/close/trim cycles; the latency cost of
+  trim plus re-grow; no crash, no use-after-free and an identical embed
+  hash. Adoption is a later ruling.
+- **Ruling 15: a dedicated error kind for pool exhaustion,** shaped like the
+  existing error taxonomy (Rust error types, the napi typed envelope and
+  its kind strings, Python exceptions, `dev/interfaces/`), implemented
+  experiment-gated. The interface-doc wording is drafted in the study
+  evidence only; a public change needs an interface-doc and ADR update at
+  adoption.
+- **Ruling 16: the witness is off in pass/fail rows.** Witness results get
+  their own row.
+- **Ruling 17: no-swap series tolerate a swap rise of up to 1 MiB.** Every
+  numeric literal in the policy, the vendored patch, the napi hook, the
+  tests and the harness is audited and classified as a measured platform
+  fact (never product logic), a product default (one named, documented,
+  overridable place) or a test tolerance (one harness config,
+  overridable); the inventory is a Phase 2 deliverable.
 
 ## What is already known
 
@@ -317,6 +358,13 @@ measured so far (A-first-use, Node 24, empty heap; R5 is unfinished), and
 the contiguous need at 3 GiB is 1 GiB, a quarter of the 4 GiB hole `cuInit`
 itself needs.
 
+Phase 1b showed why lazy creation works: the private pool's pages land
+inside the driver reservation that early `cuInit` makes at module load,
+before the heap grows (results § 10.7), and with early `cuInit` off, `cuInit`
+itself fails at 4M and 8M objects (0 / 20). Early `cuInit` at load is
+therefore part of the P design (ruling 12): the load-time cost the design
+keeps is `cuInit` (about 12 ms), not a pool or a retained context.
+
 The forms are revisited only if (a) R5 shows lazy creation of P-first-use
 failing at 3 GiB (and at 2 GiB) in heap cells where a pool created at load
 would have succeeded, which would make load-time creation the only route to
@@ -349,7 +397,7 @@ rather than inferring it.
 | C6 | **Multi-device.** The decision table and pool are per device. | Pure unit tests with two simulated devices; no multi-GPU Tegra exists. | Unit tests. | Decisions and pools never cross devices. The real multi-device case is declared unmeasured. |
 | C7 | **After primary-context teardown, and co-resident resets.** | Repeat the pool-teardown probe with the arm's pool; add `cuDevicePrimaryCtxReset` and `cudaDeviceReset` from a co-resident library. | 20 C runs per case; 20 product processes with a co-resident reset. | Allocation keeps working on the decided path, or the failure is detected and refused with a typed error; never a wrong-API free. |
 | C8 | **Python and Node parity.** The Tegra wheel gains an experiment-gated early `cuInit` hook in Phase 2 (rulings 1 and 10); the Node addon has one. | Run C1–C5 and C9 through both bindings, installed from packed artifacts. | 20 processes per binding per arm. | Same decisions, same outputs (embedding hash and rerank scores identical to S), same error kinds. |
-| C9 | **Coexistence (ruling 7).** P-first-use leaves the device's current pool alone. | Vendored cudarc device test; Node open/close cycles recording the (`CUresult`, handle) pairs of `cuDeviceGetMemPool` and `cuDeviceGetDefaultMemPool` before and after; a co-resident CUDA user in the same process (Python through `ctypes`) allocating with `cuMemAllocAsync`. A-first-use and B as contrast. A maps diff around the first `cuDeviceGetMemPool` settles whether reading it can create the default pool. | Test suite; Node 10 processes × 50 cycles; Python 20 processes. | For P-first-use, the pairs are equal before and after in every cycle and the current-pool handle equals the default-pool handle whenever both succeed; the co-resident user's allocations raise the default pool's `USED_MEM_CURRENT` and not the private pool's. |
+| C9 | **Coexistence (ruling 7).** P-first-use leaves the device's current pool alone. | Vendored cudarc device test; Node open/close cycles recording the (`CUresult`, handle) pairs of `cuDeviceGetMemPool` and `cuDeviceGetDefaultMemPool` before and after; a co-resident CUDA user in the same process (Python through `ctypes`) allocating with `cuMemAllocAsync`. A-first-use and B as contrast. A maps diff around the first `cuDeviceGetMemPool` settles whether reading it can create the default pool. | Test suite; Node 10 processes × 50 cycles; Python 20 processes. | For P-first-use (ruling 13), the current-pool handle never equals the private pool's and equals the default-pool handle whenever both reads succeed; the co-resident user's allocations raise the default pool's `USED_MEM_CURRENT` and not the private pool's. |
 
 ## Robustness — what must be shown
 
@@ -385,7 +433,7 @@ row is a separate decision-rule clause. Method details: protocol § 7.
 | # | Property | Method | Sample | Pass |
 | --- | --- | --- | --- | --- |
 | CB1 | **Cap.** The pool's host-memory cost is bounded. | Pool attributes and `VmRSS` + `VmSwap` in every `perf`, `ingest` and R5 `full` process; the baseline is the median of S's synchronous-path processes at the same point in the same block. Unit half: the C5 probe fills a private pool to its cap. | Every such process. | At 3 GiB: `reserved_high` ≤ 1024 MiB, and `VmRSS` + `VmSwap` − baseline ≤ `reserved_high` + 32 MiB, in every process. |
-| CB2 | **Trim after close.** Memory goes back when FathomDB is done with it. | `full` mode, `engine.close()`, 10 s idle, exit `teardown` line. Unit half: free, synchronize and `cuMemPoolTrimTo(0)` in the C5 probe. | 20 processes per threshold × layout. | Threshold 0: `reserved_cur` = 0 after close and idle in every process. |
+| CB2 | **Trim after close.** Memory goes back when FathomDB is done with it. | `full` mode, `engine.close()`, 10 s idle, exit `teardown` line. Unit half: free, synchronize and `cuMemPoolTrimTo(0)` in the C5 probe. | 20 processes per threshold × layout. | Threshold 0: `reserved_cur` = 0 after close and idle in every process. If the default policy fails, the experimental trim arm (ruling 14) is measured separately and adopted only by a later ruling. |
 | CB3 | **Typed error at the cap.** | An oversized batch (128 long passages) under forced CUDA at 3 GiB. Unit half: typed `CUDA_ERROR_OUT_OF_MEMORY`, `cuCtxSynchronize` succeeds afterwards, and the pool recovers, in the C5 probe. | 20 processes per arm. | A typed FathomDB error (kind recorded); the next embed succeeds; `embedderDevice` stays `cuda`. |
 | CB4 | **No CPU move.** | The same runs as CB3. | As CB3. | The embed after the error reports `embedderDevice` `cuda` and the embedding hash from before the error. |
 
@@ -439,7 +487,8 @@ stream-ordered speed becomes the default on aarch64 Linux, with the
 synchronous fallback as the safety net. The primary design is the private
 pool (ruling 7). The rule below decides whether it can be that default.
 
-- **Make P-first-use the default** if C1–C9 pass, R1–R8 pass on the
+- **Make P-first-use the default, together with early `cuInit` at module
+  load (ruling 12),** if C1–C9 pass, R1–R8 pass on the
   AGX Orin 64 GB, the performance gates pass, R5 shows lazy private-pool
   creation at 3 GiB in every heap cell including the boundary cells, and
   each circuit-breaker clause passes on its own:

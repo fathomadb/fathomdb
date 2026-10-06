@@ -694,7 +694,13 @@ equivalence about 8.5 min (three attempts); heap pilot 3.6 min; R5 2 h
 0 min; late-`cuInit` cell 1.5 min. **About 2 h 22 min.** Builds (P addon
 twice, 2 min and 1 min) ran outside the lock.
 
-### 10.11 What needs a ruling or a review decision
+### 10.11 What needed a ruling (ruled 2026-10-06 as rulings 12–17)
+
+Ruled on 2026-10-06 (protocol revision 4, "Owner rulings (2026-10-06,
+after Phase 1b)"): items 1, 2, 4, 5 and 6 agreed (6 with a 1 MiB swap
+tolerance); item 3 conditional (trim is an experimental arm only). The
+items are kept as asked.
+
 
 1. **Early `cuInit` is load-bearing for P** (§ 10.7). The decision rule
    should state it: P-first-use is a candidate only together with early

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 prework — Tegra CUDA memory-pool experiment protocol
-status: PROPOSED (revision 3, 2026-10-06; independent-review findings applied)
+status: PROPOSED (revision 4, 2026-10-06; owner rulings 12-17 applied)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
@@ -116,6 +116,47 @@ Revision 3 applies every finding:
   failure to build one is a typed error, never a fallback.
 - **C9 observables, the context-free `cuMemPoolCreate` hypothesis, and the
   low-severity corrections** in § 2.2, § 2.3, § 4.2, § 6.2, § 7 and § 10.
+
+## Owner rulings (2026-10-06, after Phase 1b)
+
+The owner ruled on the six decisions in the Phase 1b results
+(`dev/plans/runs/0.8.28-pool-study/results.md` § 10.11). Protocol and plan
+are amended to match.
+
+- **Ruling 12: early `cuInit` is part of P.** P-first-use is a candidate
+  only together with early `cuInit` at module load (Node now; Python once
+  its import hook exists). The pool lands inside the early-`cuInit` driver
+  reservation (results § 10.7), and a late `cuInit` fails at large heaps
+  before any pool is attempted.
+- **Ruling 13: C9 pass rule.** The current pool never equals the private
+  pool, and it equals the default pool whenever both reads succeed. An
+  `OOM`-to-success transition of the current-pool read is the default
+  pool's own lazy behaviour and is recorded, not failed. New cell C9b: a
+  co-resident library's default-pool success (its 20960 MiB contiguous
+  need) with P-first-use against S, at heaps 0, 1M and 4M, about 10
+  processes each.
+- **Ruling 14: trim is conditional.** Trimming the private pool on close or
+  on idle is an **experimental arm** (`FATHOMDB_POOL_TRIM`), never the
+  default, until experiments show it is safe. Its tests: trim while the
+  embedder and reranker singletons still hold slices; an embed running
+  concurrently with trim (from the worker thread and from Node workers);
+  reopen after trim; repeated open/close/trim cycles; the latency cost of
+  trim plus re-grow; no crash, no use-after-free and an identical embed
+  hash. Adoption is a later ruling.
+- **Ruling 15: a dedicated error kind for pool exhaustion,** shaped like the
+  existing error taxonomy (Rust error types, the napi typed envelope and
+  its kind strings, Python exceptions, `dev/interfaces/`), implemented
+  experiment-gated. The interface-doc wording is drafted in the study
+  evidence only; a public change needs an interface-doc and ADR update at
+  adoption.
+- **Ruling 16: the witness is off in pass/fail rows.** Witness results get
+  their own row.
+- **Ruling 17: no-swap series tolerate a swap rise of up to 1 MiB.** Every
+  numeric literal in the policy, the vendored patch, the napi hook, the
+  tests and the harness is audited and classified as a measured platform
+  fact (never product logic), a product default (one named, documented,
+  overridable place) or a test tolerance (one harness config,
+  overridable); the inventory is a Phase 2 deliverable.
 
 ## 0. Conventions
 
@@ -401,9 +442,10 @@ compiled only with `tegra-pool-experiment` on aarch64 Linux with
   `installed=0`. With `FATHOMDB_POOL_COEXIST_CHECK=1` (the C9 series only)
   the install and teardown lines for P also record the pair
   (`CUresult`, handle) of `cuDeviceGetMemPool`, and, when it succeeds, of
-  `cuDeviceGetDefaultMemPool`. C9 passes when the pairs are equal before and
-  after, and the current-pool handle equals the default-pool handle whenever
-  both calls succeed. *Hypothesis:* reading the current pool can lazily
+  `cuDeviceGetDefaultMemPool`. C9 passes (ruling 13) when the current-pool
+  handle never equals the private pool's and equals the default-pool handle
+  whenever both calls succeed; a change from an error to success between
+  the reads is recorded as the default pool's lazy behaviour. *Hypothesis:* reading the current pool can lazily
   create the default pool (a new large mapping); the C5 probe diffs
   `/proc/self/maps` around the first `cuDeviceGetMemPool` to settle it. If no
   mapping appears, the environment gate is dropped and every P run records
@@ -926,7 +968,8 @@ speed becomes the default on aarch64 Linux; the decision table names the arm
 that can be that default, or none. The plan's rule (revision 3) reads: make
 **P-first-use** the default if C1–C9 and R1–R8 pass on this host, the
 performance gates pass, R5 shows lazy private-pool creation at 3 GiB in
-every heap cell including the boundary cells, and each circuit-breaker
+every heap cell including the boundary cells, **with early `cuInit` at
+module load** (ruling 12), and each circuit-breaker
 clause passes on its own: CB1 (cap), CB2 (trim after close), CB3 (typed cap
 error) and CB4 (no CPU move). The comparison arms (A-first-use, B) do not ship; their
 results say what the installed shape would have cost or gained and inform

@@ -302,7 +302,11 @@ def cmd_gap(d):
     print("## Contiguous need (pool_gap, 3 runs per point)\n")
     print("| Series | Largest passing maxSize GiB | First failing maxSize GiB | Gap / largest passing maxSize | new mapping at largest pass (MiB) |")
     print("| --- | --- | --- | --- | --- |")
-    for s in sorted(pts, key=lambda k: (k.split("-g")[0], float(re.search(r"g(\d+)", k).group(1)) if re.search(r"-g(\d+)G", k) else 0)):
+    def gap_key(k: str) -> tuple[str, float]:
+        gm = re.search(r"-g(\d+)G", k)
+        return (k.split("-g")[0], float(gm.group(1)) if gm else 0.0)
+
+    for s in sorted(pts, key=gap_key):
         p = pts[s]
         passing = [m for m, f in p.items() if f == 0]
         failing = [m for m, f in p.items() if f > 0]

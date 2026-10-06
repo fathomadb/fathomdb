@@ -14,10 +14,11 @@ failure).
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 
-def parse_event(line: str) -> dict:
-    fields = {}
+def parse_event(line: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
     for token in line.split()[1:]:
         if "=" in token:
             key, value = token.split("=", 1)
@@ -28,6 +29,7 @@ def parse_event(line: str) -> dict:
 def main() -> None:
     prefix, rc, wall, flags = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
     out_lines = [ln for ln in Path(prefix + ".out").read_text(errors="replace").splitlines() if ln.startswith("{")]
+    run: dict[str, Any]
     try:
         run = json.loads(out_lines[-1]) if out_lines else {"outcome": "noresult"}
     except json.JSONDecodeError:

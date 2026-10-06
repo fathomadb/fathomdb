@@ -408,6 +408,13 @@ Phases 0–1 was 9–13 h; most of the difference is the unrun R5 matrix
 
 ## 9. What Phases 2+ need from the owner
 
+**Ruled 2026-10-06** (protocol revision 2, "Owner rulings (2026-10-06)"):
+swap is monitored and stops only the no-swap timing series (item 1); the
+working size is 3 GiB, 2 GiB the minimum, 8 GiB the exhaustion cap (item 2);
+the A-load forms are dropped (item 3); the tracking id is resolved (item 5).
+The private pool (P-first-use) became the primary design. The questions are
+kept below as asked.
+
 1. **The swap stop condition (blocks R5).** 256 KiB of zram swap, owned by
    no process, appeared during an R5 run with 51 GiB available. Should the
    rule become "swap use must not increase during a series" (baseline taken

@@ -11,7 +11,8 @@ licenses are the upstream `LICENSE-MIT` and `LICENSE-APACHE`.
 
 ## Delta from upstream
 
-The only changed file is `src/driver/safe/core.rs`. Every change is marked
+The changed files are `src/driver/safe/core.rs`, `src/driver/safe/mod.rs`
+and the new `src/driver/safe/mem_pool.rs`. Every change is marked
 `FATHOMDB PATCH`. The complete diff against the published crate is
 `fathomdb-alloc-fallback.patch` in this directory; applying it with
 `patch -p1` to the published 0.19.7 package reproduces this tree.
@@ -133,7 +134,37 @@ not cover them.
    which rule a build applies is shown by the tests above running on that
    build's target.
 
-   Run the module with `scripts/tests/test_vendored_cudarc.sh`.
+   Run the modules with `scripts/tests/test_vendored_cudarc.sh`.
+5. **Explicit memory pool (0.8.28 pool-study branch only).** This item exists
+   on the `llm/0.8.28-tegra-pool-study` experiment branch, which is never
+   merged to a release branch; it prototypes the opt-in primitive the 0.8.28
+   study plan proposes for upstream
+   (`dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md`,
+   section 2.3).
+   - `mem_pool.rs` adds `CudaMemPool` (`create(ordinal, &MemPoolProps)`,
+     `install`, `attribute`, `trim_to`, `raw`) and `MemPoolProps
+     { max_size, release_threshold }`: pinned device memory, no handle types,
+     `maxSize` set only where the bindings have it (`cuda-12020` and later).
+     `Drop` destroys the pool; destroying an installed pool reverts the device
+     to its default pool, so a user keeps an installed pool alive.
+   - The allocator decision gains a third state. `CudaContext::alloc_mode()`
+     returns `AllocMode::{Default, Explicit, Sync}`; `has_async_alloc()` is
+     `alloc_mode() != Sync`. On aarch64 Linux, if a pool was installed on the
+     device through `CudaMemPool::install` in this process, the decision first
+     checks that it is still the device's current pool and that a 4-byte
+     `cuMemAllocAsync` / `cuMemFreeAsync` / `cuCtxSynchronize` on the null
+     stream succeeds; then it is `Explicit` and the default pool is never
+     queried. Otherwise the rule of item 1 applies unchanged. The record of
+     installed pools is a process-wide table read under its lock, so a
+     process that never installs a pool makes exactly the driver calls of
+     item 1. Off aarch64 Linux the rule is upstream's: `Default` for a
+     pool-capable device, else `Sync`.
+   - The process-wide table of item 2 stores the three-state decision.
+   - No environment variable, cfg or output is added; the crate does not know
+     about the study. Pure tests cover the rule and the installed-pool table;
+     device tests (aarch64 Linux) check that an installed pool is decided
+     `Explicit`, serves allocations, and that dropping it reverts the device's
+     current pool.
 
 ## Why
 

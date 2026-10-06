@@ -1,8 +1,16 @@
 diff --git a/src/driver/safe/core.rs b/src/driver/safe/core.rs
-index 2f938ec03..9dc48afb3 100644
+index 2f938ec..d6fd410 100644
 --- a/src/driver/safe/core.rs
 +++ b/src/driver/safe/core.rs
-@@ -42,6 +42,187 @@ pub struct CudaContext {
+@@ -33,6 +33,7 @@ pub struct CudaContext {
+     pub(crate) cu_ctx: sys::CUcontext,
+     pub(crate) ordinal: usize,
+     pub(crate) has_async_alloc: bool,
++    pub(crate) alloc_mode: AllocMode,
+     /// Whether this wraps a primary context (true) or a non-primary context (false).
+     /// Primary contexts are released via `cuDevicePrimaryCtxRelease`, while non-primary
+     /// contexts are destroyed via `cuCtxDestroy_v2`.
+@@ -42,6 +43,275 @@ pub struct CudaContext {
      pub(crate) error_state: AtomicU32,
  }
  
@@ -50,6 +58,55 @@ index 2f938ec03..9dc48afb3 100644
 +    }
 +}
 +
++/// The allocator a device uses, decided once per device per process.
++#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
++pub enum AllocMode {
++    /// Stream-ordered allocation (`cuMemAllocAsync`) from the device's
++    /// default memory pool. Off aarch64 Linux this is every pool-capable
++    /// device (upstream's rule), whichever pool is current.
++    Default,
++    /// Stream-ordered allocation from an explicit pool installed with
++    /// [crate::driver::CudaMemPool::install] before the decision was made.
++    Explicit,
++    /// Synchronous allocation (`cuMemAlloc` / `cuMemFree`).
++    Sync,
++}
++
++impl AllocMode {
++    /// Whether allocations use `cuMemAllocAsync` / `cuMemFreeAsync`.
++    pub fn is_stream_ordered(self) -> bool {
++        self != AllocMode::Sync
++    }
++}
++
++/// The three-state allocator decision. With `sync_fallback` and pool support,
++/// a usable installed explicit pool (`explicit_pool` returns true: it is the
++/// device's current pool and served a probe allocation) is selected first, so
++/// the default pool is never queried; otherwise [async_alloc_decision]
++/// decides between the default pool and synchronous allocation. Without
++/// `sync_fallback` it is upstream's rule and `explicit_pool` is never called.
++#[cfg_attr(
++    not(all(target_os = "linux", target_arch = "aarch64")),
++    allow(dead_code)
++)]
++fn alloc_mode_decision(
++    sync_fallback: bool,
++    memory_pools_supported: i32,
++    explicit_pool: impl FnOnce() -> bool,
++    default_pool: impl FnOnce() -> Result<sys::CUmemoryPool, DriverError>,
++) -> Result<AllocMode, DriverError> {
++    if sync_fallback && memory_pools_supported > 0 && explicit_pool() {
++        return Ok(AllocMode::Explicit);
++    }
++    Ok(
++        if async_alloc_decision(sync_fallback, memory_pools_supported, default_pool)? {
++            AllocMode::Default
++        } else {
++            AllocMode::Sync
++        },
++    )
++}
++
 +/// The allocator decision for each device, made once per process.
 +///
 +/// A buffer may outlive or move between [CudaContext] wrappers of one device
@@ -69,13 +126,13 @@ index 2f938ec03..9dc48afb3 100644
 +    not(all(target_os = "linux", target_arch = "aarch64")),
 +    allow(dead_code)
 +)]
-+struct AllocModeByDevice(std::sync::Mutex<Vec<(sys::CUdevice, bool)>>);
++struct AllocModeByDevice<T: Copy>(std::sync::Mutex<Vec<(sys::CUdevice, T)>>);
 +
 +#[cfg_attr(
 +    not(all(target_os = "linux", target_arch = "aarch64")),
 +    allow(dead_code)
 +)]
-+impl AllocModeByDevice {
++impl<T: Copy> AllocModeByDevice<T> {
 +    const fn new() -> Self {
 +        Self(std::sync::Mutex::new(Vec::new()))
 +    }
@@ -87,8 +144,8 @@ index 2f938ec03..9dc48afb3 100644
 +    fn get_or_decide(
 +        &self,
 +        cu_device: sys::CUdevice,
-+        decide: impl FnOnce() -> Result<bool, DriverError>,
-+    ) -> Result<bool, DriverError> {
++        decide: impl FnOnce() -> Result<T, DriverError>,
++    ) -> Result<T, DriverError> {
 +        // Entries are pushed only after a successful `decide`, so a poisoned
 +        // lock still guards a consistent list.
 +        let mut decided = self.0.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -102,11 +159,58 @@ index 2f938ec03..9dc48afb3 100644
 +}
 +
 +#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-+static PROCESS_ALLOC_MODE: AllocModeByDevice = AllocModeByDevice::new();
++static PROCESS_ALLOC_MODE: AllocModeByDevice<AllocMode> = AllocModeByDevice::new();
++
++/// Whether `cu_device`'s explicit pool installed through
++/// [crate::driver::CudaMemPool::install] is still its current pool and serves
++/// a 4-byte stream-ordered allocation on the null stream. False, without any
++/// driver call, when no pool was installed in this process.
++///
++/// # Safety
++/// A context of `cu_device` must be current on the calling thread.
++#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
++unsafe fn installed_pool_is_usable(cu_device: sys::CUdevice) -> bool {
++    let Some(installed) = super::mem_pool::INSTALLED_POOLS.get(cu_device) else {
++        return false;
++    };
++    if result::device::get_mem_pool(cu_device) != Ok(installed) {
++        return false;
++    }
++    let Ok(probe) = result::malloc_async(std::ptr::null_mut(), 4) else {
++        return false;
++    };
++    result::free_async(probe, std::ptr::null_mut()).is_ok() && result::ctx::synchronize().is_ok()
++}
++
++/// The three-state decision for `cu_device` on aarch64 Linux, without the
++/// process-wide table.
++///
++/// # Safety
++/// `cu_ctx` must be a live context created for `cu_device`; it is made current
++/// on the calling thread.
++#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
++unsafe fn decide_alloc_mode(
++    cu_device: sys::CUdevice,
++    cu_ctx: sys::CUcontext,
++) -> Result<AllocMode, DriverError> {
++    let memory_pools_supported = result::device::get_attribute(
++        cu_device,
++        sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
++    )?;
++    if memory_pools_supported > 0 {
++        result::ctx::set_current(cu_ctx)?;
++    }
++    alloc_mode_decision(
++        SYNC_FALLBACK,
++        memory_pools_supported,
++        || installed_pool_is_usable(cu_device),
++        || result::device::get_default_mem_pool(cu_device),
++    )
++}
 +
 +/// The allocator decision for the device of a newly created or wrapped
 +/// context: on aarch64 Linux, the process-wide decision
-+/// ([async_alloc_decision] with the fallback). If it fails, `release_context`
++/// ([alloc_mode_decision] with the fallback). If it fails, `release_context`
 +/// runs so the constructor does not leak the context it created.
 +///
 +/// Every allocation and its matching free branch on the stored result, so a
@@ -120,20 +224,9 @@ index 2f938ec03..9dc48afb3 100644
 +    cu_device: sys::CUdevice,
 +    cu_ctx: sys::CUcontext,
 +    release_context: impl FnOnce(),
-+) -> Result<bool, DriverError> {
++) -> Result<AllocMode, DriverError> {
 +    PROCESS_ALLOC_MODE
-+        .get_or_decide(cu_device, || {
-+            let memory_pools_supported = result::device::get_attribute(
-+                cu_device,
-+                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
-+            )?;
-+            if memory_pools_supported > 0 {
-+                result::ctx::set_current(cu_ctx)?;
-+            }
-+            async_alloc_decision(SYNC_FALLBACK, memory_pools_supported, || {
-+                result::device::get_default_mem_pool(cu_device)
-+            })
-+        })
++        .get_or_decide(cu_device, || decide_alloc_mode(cu_device, cu_ctx))
 +        .inspect_err(|_| release_context())
 +}
 +
@@ -147,14 +240,17 @@ index 2f938ec03..9dc48afb3 100644
 +    cu_device: sys::CUdevice,
 +    _cu_ctx: sys::CUcontext,
 +    _release_context: impl FnOnce(),
-+) -> Result<bool, DriverError> {
++) -> Result<AllocMode, DriverError> {
 +    let memory_pools_supported = result::device::get_attribute(
 +        cu_device,
 +        sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
 +    )?;
-+    async_alloc_decision(SYNC_FALLBACK, memory_pools_supported, || {
-+        unreachable!("upstream's rule never queries the default pool")
-+    })
++    alloc_mode_decision(
++        SYNC_FALLBACK,
++        memory_pools_supported,
++        || unreachable!("upstream's rule never probes an installed pool"),
++        || unreachable!("upstream's rule never queries the default pool"),
++    )
 +}
 +
 +/// Whether a synchronous request of `num_bytes` returns a null pointer without
@@ -190,18 +286,19 @@ index 2f938ec03..9dc48afb3 100644
  unsafe impl Send for CudaContext {}
  unsafe impl Sync for CudaContext {}
  
-@@ -75,13 +256,12 @@ impl CudaContext {
+@@ -75,18 +345,18 @@ impl CudaContext {
          result::init()?;
          let cu_device = result::device::get(ordinal as i32)?;
          let cu_ctx = unsafe { result::primary_ctx::retain(cu_device) }?;
-+        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
-         let has_async_alloc = unsafe {
+-        let has_async_alloc = unsafe {
 -            let memory_pools_supported = result::device::get_attribute(
 -                cu_device,
 -                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
 -            )?;
 -            memory_pools_supported > 0
 -        };
++        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
++        let alloc_mode = unsafe {
 +            select_async_alloc(cu_device, cu_ctx, || {
 +                let _ = result::primary_ctx::release(cu_device);
 +            })
@@ -209,18 +306,26 @@ index 2f938ec03..9dc48afb3 100644
          let ctx = Arc::new(CudaContext {
              cu_device,
              cu_ctx,
-@@ -147,13 +327,12 @@ impl CudaContext {
+             ordinal,
+-            has_async_alloc,
++            has_async_alloc: alloc_mode.is_stream_ordered(),
++            alloc_mode,
+             is_primary: true,
+             num_streams: AtomicUsize::new(0),
+             event_tracking: AtomicBool::new(true),
+@@ -147,18 +417,18 @@ impl CudaContext {
          )))]
          let cu_ctx = unsafe { result::ctx::create_v3(flags, cu_device) }?;
  
-+        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
-         let has_async_alloc = unsafe {
+-        let has_async_alloc = unsafe {
 -            let memory_pools_supported = result::device::get_attribute(
 -                cu_device,
 -                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
 -            )?;
 -            memory_pools_supported > 0
 -        };
++        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
++        let alloc_mode = unsafe {
 +            select_async_alloc(cu_device, cu_ctx, || {
 +                let _ = sys::cuCtxDestroy_v2(cu_ctx);
 +            })
@@ -228,18 +333,26 @@ index 2f938ec03..9dc48afb3 100644
          let ctx = Arc::new(CudaContext {
              cu_device,
              cu_ctx,
-@@ -198,13 +377,12 @@ impl CudaContext {
+             ordinal,
+-            has_async_alloc,
++            has_async_alloc: alloc_mode.is_stream_ordered(),
++            alloc_mode,
+             is_primary: false,
+             num_streams: AtomicUsize::new(0),
+             event_tracking: AtomicBool::new(true),
+@@ -198,18 +468,18 @@ impl CudaContext {
              cigParams: cig_params as *mut sys::CUctxCigParam,
          };
          let cu_ctx = unsafe { result::ctx::create_v4(&mut ctx_create_params, flags, cu_device) }?;
-+        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
-         let has_async_alloc = unsafe {
+-        let has_async_alloc = unsafe {
 -            let memory_pools_supported = result::device::get_attribute(
 -                cu_device,
 -                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
 -            )?;
 -            memory_pools_supported > 0
 -        };
++        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
++        let alloc_mode = unsafe {
 +            select_async_alloc(cu_device, cu_ctx, || {
 +                let _ = sys::cuCtxDestroy_v2(cu_ctx);
 +            })
@@ -247,7 +360,14 @@ index 2f938ec03..9dc48afb3 100644
          let ctx = Arc::new(CudaContext {
              cu_device,
              cu_ctx,
-@@ -229,19 +407,20 @@ impl CudaContext {
+             ordinal,
+-            has_async_alloc,
++            has_async_alloc: alloc_mode.is_stream_ordered(),
++            alloc_mode,
+             is_primary: false,
+             num_streams: AtomicUsize::new(0),
+             event_tracking: AtomicBool::new(true),
+@@ -229,24 +499,26 @@ impl CudaContext {
      /// - `cu_ctx` must be a valid CUDA context that was created (not yet destroyed).
      /// - `cu_device` must be the device the context was created for.
      /// - The caller must not destroy or release the context after calling this function;
@@ -272,11 +392,18 @@ index 2f938ec03..9dc48afb3 100644
 -            memory_pools_supported > 0
 -        };
 +        // FATHOMDB PATCH: pool support alone does not guarantee a usable default pool.
-+        let has_async_alloc = select_async_alloc(cu_device, cu_ctx, || {})?;
++        let alloc_mode = select_async_alloc(cu_device, cu_ctx, || {})?;
          let ctx = Arc::new(CudaContext {
              cu_device,
              cu_ctx,
-@@ -266,9 +445,11 @@ impl CudaContext {
+             ordinal,
+-            has_async_alloc,
++            has_async_alloc: alloc_mode.is_stream_ordered(),
++            alloc_mode,
+             is_primary: false,
+             num_streams: AtomicUsize::new(0),
+             event_tracking: AtomicBool::new(true),
+@@ -266,15 +538,27 @@ impl CudaContext {
  
      /// Returns whether this context supports asynchronous memory allocation.
      ///
@@ -291,7 +418,23 @@ index 2f938ec03..9dc48afb3 100644
      /// Memory allocations performed through the default [CudaStream] will use `cuMemAllocAsync`
      /// over `cuMemAlloc` if this method returns `true`.
      pub fn has_async_alloc(&self) -> bool {
-@@ -812,7 +993,10 @@ impl<T> Drop for CudaSlice<T> {
+         self.has_async_alloc
+     }
+ 
++    /// Which allocator this context uses (FathomDB patch; see `FATHOMDB-PATCH.md`): on
++    /// aarch64 Linux the device's process-wide decision, [AllocMode::Explicit] when an
++    /// explicit pool installed with [crate::driver::CudaMemPool::install] before the
++    /// decision served a probe allocation. Off aarch64 Linux, [AllocMode::Default] for a
++    /// pool-capable device and [AllocMode::Sync] otherwise. Agrees with
++    /// [CudaContext::has_async_alloc].
++    pub fn alloc_mode(&self) -> AllocMode {
++        self.alloc_mode
++    }
++
+     /// The number of devices available.
+     pub fn device_count() -> Result<i32, DriverError> {
+         result::init()?;
+@@ -812,7 +1096,10 @@ impl<T> Drop for CudaSlice<T> {
              });
          } else {
              ctx.record_err(self.stream.synchronize());
@@ -303,7 +446,7 @@ index 2f938ec03..9dc48afb3 100644
          }
      }
  }
-@@ -1512,7 +1696,7 @@ impl CudaStream {
+@@ -1512,7 +1799,7 @@ impl CudaStream {
          let cu_device_ptr = if self.ctx.has_async_alloc {
              unsafe { result::malloc_async(self.cu_stream, 0) }?
          } else {
@@ -312,7 +455,7 @@ index 2f938ec03..9dc48afb3 100644
          };
          Ok(CudaSlice {
              cu_device_ptr,
-@@ -1535,7 +1719,7 @@ impl CudaStream {
+@@ -1535,7 +1822,7 @@ impl CudaStream {
          let cu_device_ptr = if self.ctx.has_async_alloc {
              result::malloc_async(self.cu_stream, len * std::mem::size_of::<T>())?
          } else {
@@ -321,7 +464,7 @@ index 2f938ec03..9dc48afb3 100644
          };
          let (read, write) = if self.ctx.is_event_tracking() {
              (
-@@ -2493,6 +2677,12 @@ impl CudaStream {
+@@ -2493,6 +2780,12 @@ impl CudaStream {
      /// - `cu_device_ptr` must space for `len * std::mem::size_of<T>()` bytes
      /// - The memory may not be valid for type `T`, so some sort of memset operation
      ///   should be called on the memory.
@@ -334,7 +477,7 @@ index 2f938ec03..9dc48afb3 100644
      pub unsafe fn upgrade_device_ptr<T>(
          self: &Arc<Self>,
          cu_device_ptr: sys::CUdeviceptr,
-@@ -2921,3 +3111,261 @@ mod tests {
+@@ -2921,3 +3214,418 @@ mod tests {
          handle.join().unwrap();
      }
  }
@@ -512,6 +655,161 @@ index 2f938ec03..9dc48afb3 100644
 +        );
 +    }
 +
++    fn explicit_must_not_be_probed() -> bool {
++        panic!("the installed pool must not be probed here")
++    }
++
++    #[test]
++    fn a_usable_installed_pool_is_selected_before_the_default_pool_is_queried() {
++        assert_eq!(
++            alloc_mode_decision(ON_TARGET, 1, || true, pool_query_must_not_run),
++            Ok(AllocMode::Explicit)
++        );
++    }
++
++    #[test]
++    fn an_unusable_or_absent_installed_pool_falls_back_to_the_default_pool_rule() {
++        use sys::CUresult::{CUDA_ERROR_ILLEGAL_ADDRESS, CUDA_ERROR_OUT_OF_MEMORY};
++        assert_eq!(
++            alloc_mode_decision(ON_TARGET, 1, || false, || Ok(std::ptr::null_mut())),
++            Ok(AllocMode::Default)
++        );
++        assert_eq!(
++            alloc_mode_decision(ON_TARGET, 1, || false, || {
++                Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY))
++            }),
++            Ok(AllocMode::Sync)
++        );
++        assert_eq!(
++            alloc_mode_decision(ON_TARGET, 1, || false, || {
++                Err(DriverError(CUDA_ERROR_ILLEGAL_ADDRESS))
++            }),
++            Err(DriverError(CUDA_ERROR_ILLEGAL_ADDRESS))
++        );
++    }
++
++    #[test]
++    fn without_pool_support_neither_pool_is_probed() {
++        for supported in [-1, 0] {
++            assert_eq!(
++                alloc_mode_decision(
++                    ON_TARGET,
++                    supported,
++                    explicit_must_not_be_probed,
++                    pool_query_must_not_run
++                ),
++                Ok(AllocMode::Sync)
++            );
++        }
++    }
++
++    #[test]
++    fn off_target_the_three_state_rule_is_the_upstream_rule() {
++        for supported in [-1, 0, 1, 2] {
++            assert_eq!(
++                alloc_mode_decision(
++                    OFF_TARGET,
++                    supported,
++                    explicit_must_not_be_probed,
++                    pool_query_must_not_run
++                ),
++                Ok(if supported > 0 {
++                    AllocMode::Default
++                } else {
++                    AllocMode::Sync
++                })
++            );
++        }
++    }
++
++    #[test]
++    fn only_the_synchronous_mode_disables_stream_ordered_allocation() {
++        assert!(AllocMode::Default.is_stream_ordered());
++        assert!(AllocMode::Explicit.is_stream_ordered());
++        assert!(!AllocMode::Sync.is_stream_ordered());
++    }
++
++    #[test]
++    fn the_per_device_table_keeps_the_first_three_state_decision() {
++        let modes = AllocModeByDevice::new();
++        assert_eq!(
++            modes.get_or_decide(0, || Ok(AllocMode::Explicit)),
++            Ok(AllocMode::Explicit)
++        );
++        assert_eq!(
++            modes.get_or_decide(0, || Ok(AllocMode::Sync)),
++            Ok(AllocMode::Explicit)
++        );
++        assert_eq!(
++            modes.get_or_decide(1, || Ok(AllocMode::Default)),
++            Ok(AllocMode::Default)
++        );
++    }
++
++    /// A device with an installed explicit pool decides `Explicit`, and its
++    /// stream-ordered allocations draw from that pool. Uses the decision
++    /// directly: the process-wide table may already hold device 0's decision
++    /// from another test.
++    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
++    #[test]
++    fn an_installed_pool_is_decided_explicit_and_serves_allocations() {
++        use crate::driver::safe::mem_pool::{CudaMemPool, MemPoolProps, INSTALLED_POOLS};
++        if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
++            std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
++            return;
++        }
++        let ctx = CudaContext::new(0).unwrap();
++        let before = unsafe { result::device::get_mem_pool(ctx.cu_device) }.unwrap();
++        let pool = CudaMemPool::create(
++            0,
++            &MemPoolProps {
++                max_size: 1 << 30,
++                release_threshold: 0,
++            },
++        )
++        .unwrap();
++        pool.install().unwrap();
++        assert_eq!(INSTALLED_POOLS.get(ctx.cu_device), Some(pool.raw()));
++        assert_eq!(
++            unsafe { decide_alloc_mode(ctx.cu_device, ctx.cu_ctx) },
++            Ok(AllocMode::Explicit)
++        );
++        ctx.bind_to_thread().unwrap();
++        let ptr = unsafe { result::malloc_async(std::ptr::null_mut(), 1 << 20) }.unwrap();
++        let used = pool
++            .attribute(sys::CUmemPool_attribute::CU_MEMPOOL_ATTR_USED_MEM_CURRENT)
++            .unwrap();
++        assert!(used >= 1 << 20, "explicit pool used_cur={used}");
++        unsafe { result::free_async(ptr, std::ptr::null_mut()) }.unwrap();
++        result::ctx::synchronize().unwrap();
++        let raw = pool.raw();
++        // Destroying the installed pool reverts the device to its default
++        // pool and forgets the installation.
++        drop(pool);
++        assert_eq!(INSTALLED_POOLS.get(ctx.cu_device), None);
++        let after = unsafe { result::device::get_mem_pool(ctx.cu_device) };
++        assert_ne!(after, Ok(raw));
++        assert_eq!(after, Ok(before));
++    }
++
++    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
++    #[test]
++    fn a_new_context_reports_the_process_decision_as_its_alloc_mode() {
++        if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
++            std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
++            return;
++        }
++        let ctx = CudaContext::new(0).unwrap();
++        assert_eq!(
++            ctx.alloc_mode().is_stream_ordered(),
++            ctx.has_async_alloc()
++        );
++        assert_eq!(
++            PROCESS_ALLOC_MODE.get_or_decide(ctx.cu_device, || panic!("already decided")),
++            Ok(ctx.alloc_mode())
++        );
++    }
++
 +    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 +    #[test]
 +    fn wrappers_of_one_device_share_the_allocator() {
@@ -523,7 +821,9 @@ index 2f938ec03..9dc48afb3 100644
 +        let second = CudaContext::new(0).unwrap();
 +        assert_eq!(first.has_async_alloc(), second.has_async_alloc());
 +        assert_eq!(
-+            PROCESS_ALLOC_MODE.get_or_decide(first.cu_device, || panic!("already decided")),
++            PROCESS_ALLOC_MODE
++                .get_or_decide(first.cu_device, || panic!("already decided"))
++                .map(AllocMode::is_stream_ordered),
 +            Ok(first.has_async_alloc())
 +        );
 +    }
@@ -596,3 +896,297 @@ index 2f938ec03..9dc48afb3 100644
 +    }
 +}
 +// FATHOMDB PATCH END
+diff --git a/src/driver/safe/mem_pool.rs b/src/driver/safe/mem_pool.rs
+new file mode 100644
+index 0000000..2e31305
+--- /dev/null
++++ b/src/driver/safe/mem_pool.rs
+@@ -0,0 +1,263 @@
++// FATHOMDB PATCH BEGIN: explicit memory pool primitive (see FATHOMDB-PATCH.md).
++//! An explicit, opt-in device memory pool ([CudaMemPool]).
++
++use crate::driver::{
++    result::{self, DriverError},
++    sys,
++};
++
++use std::vec::Vec;
++
++/// Properties of an explicit device memory pool.
++#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
++pub struct MemPoolProps {
++    /// The pool's `maxSize` in bytes; 0 asks for the driver's default. Applied
++    /// only when the bindings have the field (`cuda-12020` and later);
++    /// earlier bindings ignore it.
++    pub max_size: usize,
++    /// `CU_MEMPOOL_ATTR_RELEASE_THRESHOLD`: bytes of freed memory the pool may
++    /// keep at a synchronization point (`u64::MAX` keeps everything).
++    pub release_threshold: u64,
++}
++
++/// The driver's pool properties for `props`: pinned device memory on device
++/// `ordinal`, no export handle types.
++pub(crate) fn pool_props(ordinal: i32, props: &MemPoolProps) -> sys::CUmemPoolProps {
++    // SAFETY: CUmemPoolProps is a plain C struct; all-zero is its documented
++    // "unset" value (reserved bytes must be zero).
++    let mut raw: sys::CUmemPoolProps = unsafe { std::mem::zeroed() };
++    raw.allocType = sys::CUmemAllocationType::CU_MEM_ALLOCATION_TYPE_PINNED;
++    raw.handleTypes = sys::CUmemAllocationHandleType::CU_MEM_HANDLE_TYPE_NONE;
++    raw.location = sys::CUmemLocation {
++        type_: sys::CUmemLocationType::CU_MEM_LOCATION_TYPE_DEVICE,
++        id: ordinal,
++    };
++    set_max_size(&mut raw, props.max_size);
++    raw
++}
++
++#[cfg(any(
++    feature = "cuda-12020",
++    feature = "cuda-12030",
++    feature = "cuda-12040",
++    feature = "cuda-12050",
++    feature = "cuda-12060",
++    feature = "cuda-12080",
++    feature = "cuda-12090",
++    feature = "cuda-13000",
++    feature = "cuda-13010",
++    feature = "cuda-13020"
++))]
++fn set_max_size(raw: &mut sys::CUmemPoolProps, max_size: usize) {
++    raw.maxSize = max_size;
++}
++
++#[cfg(not(any(
++    feature = "cuda-12020",
++    feature = "cuda-12030",
++    feature = "cuda-12040",
++    feature = "cuda-12050",
++    feature = "cuda-12060",
++    feature = "cuda-12080",
++    feature = "cuda-12090",
++    feature = "cuda-13000",
++    feature = "cuda-13010",
++    feature = "cuda-13020"
++)))]
++fn set_max_size(_raw: &mut sys::CUmemPoolProps, _max_size: usize) {}
++
++/// Which explicit pool, if any, was installed on each device through
++/// [CudaMemPool::install] in this process. The allocator decision reads it, so
++/// a process that never installs a pool makes no extra driver call.
++pub(crate) struct InstalledPools(std::sync::Mutex<Vec<(sys::CUdevice, usize)>>);
++
++impl InstalledPools {
++    pub(crate) const fn new() -> Self {
++        Self(std::sync::Mutex::new(Vec::new()))
++    }
++
++    fn lock(&self) -> std::sync::MutexGuard<'_, Vec<(sys::CUdevice, usize)>> {
++        self.0.lock().unwrap_or_else(|poison| poison.into_inner())
++    }
++
++    pub(crate) fn record(&self, cu_device: sys::CUdevice, pool: sys::CUmemoryPool) {
++        let mut pools = self.lock();
++        pools.retain(|(device, _)| *device != cu_device);
++        pools.push((cu_device, pool as usize));
++    }
++
++    pub(crate) fn get(&self, cu_device: sys::CUdevice) -> Option<sys::CUmemoryPool> {
++        self.lock()
++            .iter()
++            .find(|(device, _)| *device == cu_device)
++            .map(|&(_, pool)| pool as sys::CUmemoryPool)
++    }
++
++    /// Forgets `pool` if it is the one recorded for `cu_device`.
++    pub(crate) fn forget(&self, cu_device: sys::CUdevice, pool: sys::CUmemoryPool) {
++        self.lock()
++            .retain(|&(device, recorded)| !(device == cu_device && recorded == pool as usize));
++    }
++}
++
++pub(crate) static INSTALLED_POOLS: InstalledPools = InstalledPools::new();
++
++/// An explicit memory pool for one device (`cuMemPoolCreate`).
++///
++/// Creating a pool changes nothing until [CudaMemPool::install] makes it the
++/// device's current pool (`cuDeviceSetMemPool`). From then on every
++/// stream-ordered allocation on that device (`cuMemAllocAsync`, which
++/// [crate::driver::CudaStream::alloc] uses when
++/// [crate::driver::CudaContext::has_async_alloc] is true) draws from it, and a
++/// context created afterwards selects it as its allocator when the pool can
++/// serve a small probe allocation ([crate::driver::CudaContext::alloc_mode]).
++///
++/// Install the pool before creating the first [crate::driver::CudaContext] for
++/// the device: the allocator decision is made once per device per process.
++///
++/// # Drop
++/// Dropping the pool destroys it (`cuMemPoolDestroy`). Destroying a pool that
++/// is the device's current pool reverts the device to its default pool, which
++/// may be unavailable; a process that installed a pool and keeps allocating
++/// on that device must keep the pool alive (for example in a `static`).
++#[derive(Debug)]
++pub struct CudaMemPool {
++    cu_device: sys::CUdevice,
++    pool: sys::CUmemoryPool,
++}
++
++unsafe impl Send for CudaMemPool {}
++unsafe impl Sync for CudaMemPool {}
++
++impl CudaMemPool {
++    /// Creates a pool of pinned device memory on device `ordinal` with
++    /// `props`. Initializes the driver if needed; needs no current context.
++    ///
++    /// # Errors
++    /// The driver error of `cuInit`, `cuDeviceGet`, `cuMemPoolCreate` (for
++    /// example `CUDA_ERROR_OUT_OF_MEMORY` when the process has no room for the
++    /// pool's address range) or of setting the release threshold; on the
++    /// last, the pool is destroyed before returning.
++    pub fn create(ordinal: usize, props: &MemPoolProps) -> Result<Self, DriverError> {
++        result::init()?;
++        let cu_device = result::device::get(ordinal as i32)?;
++        let raw = pool_props(ordinal as i32, props);
++        let pool = unsafe { result::mem_pool::create(&raw) }?;
++        let created = Self { cu_device, pool };
++        let mut threshold = props.release_threshold;
++        unsafe {
++            result::mem_pool::set_attribute(
++                pool,
++                sys::CUmemPool_attribute::CU_MEMPOOL_ATTR_RELEASE_THRESHOLD,
++                (&mut threshold as *mut u64).cast(),
++            )
++        }?;
++        Ok(created)
++    }
++
++    /// Makes this pool the device's current pool (`cuDeviceSetMemPool`).
++    ///
++    /// # Errors
++    /// The driver error of `cuDeviceSetMemPool`; the device's current pool is
++    /// then unchanged.
++    pub fn install(&self) -> Result<(), DriverError> {
++        unsafe { result::device::set_mem_pool(self.cu_device, self.pool) }?;
++        INSTALLED_POOLS.record(self.cu_device, self.pool);
++        Ok(())
++    }
++
++    /// Reads a 64-bit pool attribute (thresholds and the reserved/used
++    /// counters).
++    ///
++    /// # Errors
++    /// The driver error of `cuMemPoolGetAttribute`.
++    pub fn attribute(&self, attr: sys::CUmemPool_attribute) -> Result<u64, DriverError> {
++        let mut value: u64 = 0;
++        unsafe { result::mem_pool::get_attribute(self.pool, attr, (&mut value as *mut u64).cast()) }?;
++        Ok(value)
++    }
++
++    /// Releases unused memory until the pool holds at most `keep` bytes
++    /// (`cuMemPoolTrimTo`).
++    ///
++    /// # Errors
++    /// The driver error of `cuMemPoolTrimTo`.
++    pub fn trim_to(&self, keep: usize) -> Result<(), DriverError> {
++        unsafe { result::mem_pool::trim_to(self.pool, keep) }
++    }
++
++    /// The raw pool handle. It stays owned by this value.
++    pub fn raw(&self) -> sys::CUmemoryPool {
++        self.pool
++    }
++}
++
++impl Drop for CudaMemPool {
++    fn drop(&mut self) {
++        INSTALLED_POOLS.forget(self.cu_device, self.pool);
++        let _ = unsafe { result::mem_pool::destroy(self.pool) };
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    fn fake(n: usize) -> sys::CUmemoryPool {
++        n as sys::CUmemoryPool
++    }
++
++    #[test]
++    fn pool_props_are_pinned_device_memory_on_the_ordinal() {
++        let raw = pool_props(
++            3,
++            &MemPoolProps {
++                max_size: 3 << 30,
++                release_threshold: 0,
++            },
++        );
++        assert_eq!(
++            raw.allocType,
++            sys::CUmemAllocationType::CU_MEM_ALLOCATION_TYPE_PINNED
++        );
++        assert_eq!(
++            raw.handleTypes,
++            sys::CUmemAllocationHandleType::CU_MEM_HANDLE_TYPE_NONE
++        );
++        assert_eq!(
++            raw.location.type_,
++            sys::CUmemLocationType::CU_MEM_LOCATION_TYPE_DEVICE
++        );
++        assert_eq!(raw.location.id, 3);
++        assert!(raw.win32SecurityAttributes.is_null());
++        #[cfg(feature = "cuda-12060")]
++        assert_eq!(raw.maxSize, 3 << 30);
++    }
++
++    #[test]
++    fn installed_pools_are_recorded_per_device_and_replaced_on_reinstall() {
++        let pools = InstalledPools::new();
++        assert_eq!(pools.get(0), None);
++        pools.record(0, fake(0x10));
++        pools.record(1, fake(0x20));
++        assert_eq!(pools.get(0), Some(fake(0x10)));
++        assert_eq!(pools.get(1), Some(fake(0x20)));
++        pools.record(0, fake(0x30));
++        assert_eq!(pools.get(0), Some(fake(0x30)));
++        assert_eq!(pools.get(1), Some(fake(0x20)));
++    }
++
++    #[test]
++    fn forgetting_a_pool_that_is_no_longer_recorded_keeps_the_current_one() {
++        let pools = InstalledPools::new();
++        pools.record(0, fake(0x10));
++        pools.record(0, fake(0x30));
++        pools.forget(0, fake(0x10));
++        assert_eq!(pools.get(0), Some(fake(0x30)));
++        pools.forget(1, fake(0x30));
++        assert_eq!(pools.get(0), Some(fake(0x30)));
++        pools.forget(0, fake(0x30));
++        assert_eq!(pools.get(0), None);
++    }
++}
++// FATHOMDB PATCH END
+diff --git a/src/driver/safe/mod.rs b/src/driver/safe/mod.rs
+index ff352f9..f26756a 100644
+--- a/src/driver/safe/mod.rs
++++ b/src/driver/safe/mod.rs
+@@ -4,17 +4,19 @@ pub(crate) mod core;
+ pub(crate) mod external_memory;
+ pub(crate) mod graph;
+ pub(crate) mod launch;
++pub(crate) mod mem_pool;
+ pub(crate) mod profile;
+ pub(crate) mod unified_memory;
+ 
+ pub use self::core::{
+-    CudaContext, CudaEvent, CudaFunction, CudaModule, CudaSlice, CudaStream, CudaView, CudaViewMut,
++    AllocMode, CudaContext, CudaEvent, CudaFunction, CudaModule, CudaSlice, CudaStream, CudaView, CudaViewMut,
+     DevicePtr, DevicePtrMut, DeviceRepr, DeviceSlice, HostSlice, PinnedHostSlice, SyncOnDrop,
+     ValidAsZeroBits,
+ };
+ pub use self::external_memory::{ExternalMemory, MappedBuffer};
+ pub use self::graph::CudaGraph;
+ pub use self::launch::{LaunchArgs, LaunchConfig, PushKernelArg};
++pub use self::mem_pool::{CudaMemPool, MemPoolProps};
+ pub use self::profile::{profiler_start, profiler_stop, Profiler};
+ pub use self::unified_memory::{UnifiedSlice, UnifiedView, UnifiedViewMut};
+ pub use crate::driver::result::DriverError;

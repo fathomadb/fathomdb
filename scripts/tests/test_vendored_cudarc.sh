@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs the FathomDB-owned unit tests inside the vendored cudarc 0.19.7
-# (third_party/cudarc-0.19.7, module `fathomdb_alloc_fallback`): allocator
-# selection and zero-length synchronous allocation. The vendor copy is not a
+# (third_party/cudarc-0.19.7, modules `fathomdb_alloc_fallback` and
+# `mem_pool`): allocator selection, zero-length synchronous allocation and the
+# explicit memory pool primitive. The vendor copy is not a
 # workspace member, so it is tested from a scratch copy seeded with the
 # workspace lockfile. The pure tests run everywhere; the GPU tests print SKIP
 # on hosts without a CUDA driver and device.
@@ -23,5 +24,4 @@ cargo test \
   --lib \
   --no-default-features \
   --features std,driver,cuda-12060,dynamic-loading \
-  fathomdb_alloc_fallback \
-  -- --test-threads=1 --nocapture
+  -- --test-threads=1 --nocapture fathomdb_alloc_fallback safe::mem_pool

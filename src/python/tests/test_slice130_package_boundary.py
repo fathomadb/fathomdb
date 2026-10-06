@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import inspect
 import json
 from pathlib import Path
@@ -9,7 +11,6 @@ from pathlib import Path
 import fathomdb
 from fathomdb import admin, errors, graph, read
 from fathomdb import engine as engine_module
-
 
 BASELINE = (
     Path(__file__).resolve().parents[3]
@@ -47,3 +48,26 @@ def test_candidate_sources_are_from_this_checkout() -> None:
     checkout = Path(__file__).resolve().parents[3]
     assert Path(fathomdb.__file__).resolve().is_relative_to(checkout)
     assert Path(inspect.getfile(fathomdb.Engine)).resolve().is_relative_to(checkout)
+
+
+def test_all_python_declarations_match_pre_move_baseline() -> None:
+    checkout = Path(__file__).resolve().parents[3]
+    package = checkout / "src/python/fathomdb"
+    spec = importlib.util.spec_from_file_location(
+        "slice130_surface_comparator", checkout / "dev/tools/surface_comparator.py"
+    )
+    assert spec is not None and spec.loader is not None
+    comparator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(comparator)
+
+    sources = {
+        path.relative_to(package).as_posix(): path.read_text() for path in package.rglob("*.py")
+    }
+    baseline = json.loads(BASELINE.read_text())
+    declarations = comparator.parse_python_wrappers(sources)
+    assert len(declarations) == 1131
+    assert declarations == baseline["python_wrapper_declarations"]
+    assert (
+        hashlib.sha256((package / "_fathomdb.pyi").read_bytes()).hexdigest()
+        == baseline["native_stub_sha256"]
+    )

@@ -43,7 +43,15 @@ are updated to match.
 4. **Soak:** 15–30 minute R6 runs only, until the arms are shown correct,
    robust and fast; the 8 h and 24 h soaks are withdrawn and re-planned
    later.
-5. **16 GiB exhaustion cell: not run.** C3 stays at `maxSize` ≤ 8 GiB.
+5. **8 GiB for main testing.** C3 stays at `maxSize` ≤ 8 GiB; the 16 GiB
+   exhaustion cell is not run unless the owner rules again.
+6. **Host-memory bound (question, not yet ruled).** Whether the product needs
+   a "circuit breaker" so a pool cannot hog the shared host memory (`maxSize`
+   cap, release threshold, trimming). `pool_capacity.c` (§ 4.5) therefore also
+   samples `MemAvailable` before the pool exists, at the first error, after
+   freeing and synchronizing, and after `cuMemPoolTrimTo(0)`, beside the
+   pool's reserved memory at the same points; the Phase 1 results report how
+   `maxSize` and the threshold bound real host-memory use.
 
 ## 0. Conventions
 
@@ -103,8 +111,8 @@ Every probe that allocates real memory is bounded:
   reach `maxSize`. They run only for `maxSize` ≤ 8 GiB, only when
   `MemAvailable` ≥ 2 × `maxSize` + 16 GiB, one at a time, under
   `timeout 300`. The 16 GiB `maxSize` exhaustion cell of C3 is not run
-  (owner ruling 5); 16 GiB is characterised by pool creation only, and the
-  cell is marked *not exhausted*.
+  (owner ruling 5: 8 GiB for main testing); 16 GiB is characterised by pool
+  creation only, and the cell is marked *not exhausted*.
 - **Concurrent processes (R7)** are launched by one runner that samples
   `MemAvailable` every second and sends `SIGTERM` to every child if it falls
   below 8 GiB, recording the trial as *aborted-for-safety* (a result, not a

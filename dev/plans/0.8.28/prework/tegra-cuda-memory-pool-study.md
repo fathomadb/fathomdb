@@ -60,8 +60,16 @@ updated to match.
 4. **Soak: 15 to 30 minute runs only** until the arms are tidy and shown
    correct, robust and fast. The 8 h and 24 h soaks are withdrawn and will be
    re-planned later.
-5. **16 GiB exhaustion cell: not run.** Exhaustion probes stay at or below
-   8 GiB `maxSize` while the trade-off is explained to the owner.
+5. **8 GiB for main testing.** Exhaustion probes stay at or below 8 GiB
+   `maxSize`; the 16 GiB exhaustion cell is not run unless the owner rules
+   again.
+6. **Host-memory bound (question, not yet ruled).** The owner asked whether
+   the product needs a "circuit breaker" so a pool cannot hog the host's
+   shared memory (a `maxSize` cap, the release threshold, trimming). Phase 1
+   records what the capacity and exhaustion data say about how `maxSize`
+   and the release threshold bound real host-memory use (pool reserved
+   memory against `MemAvailable` deltas), so the question can be answered
+   from measurements.
 
 ## What is already known
 

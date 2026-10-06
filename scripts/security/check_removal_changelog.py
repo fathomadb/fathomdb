@@ -211,7 +211,9 @@ def _scan_line(kind: str, line: str) -> tuple[str, str] | None:
 
 
 def _typescript_root_reexports(
-    new_files: dict[str, list[str]], read_head: HeadReader | None
+    new_files: dict[str, list[str]],
+    read_head: HeadReader | None,
+    removals: set[Removal],
 ) -> set[tuple[str, str, str]]:
     """Recognize explicit package-root exports backed by a sibling declaration.
 
@@ -223,7 +225,21 @@ def _typescript_root_reexports(
     if root is None:
         return set()
     additions: set[tuple[str, str, str]] = set()
+    removed_kinds = {
+        (
+            removal.name,
+            "type"
+            if removal.symbol_kind in {"interface", "type"}
+            else removal.symbol_kind,
+        )
+        for removal in removals
+        if removal.path == root_path and removal.kind == "ts"
+    }
     root_text = re.sub(r"/\*.*?\*/|//[^\n]*", "", "\n".join(root), flags=re.DOTALL)
+    # A package-root export map needs no template literal. Refuse cancellation
+    # if one is present, since export-looking lines inside it are plain text.
+    if "`" in root_text:
+        return set()
     for match in TS_NAMED_REEXPORT.finditer(root_text):
         statement_type_only, members, ref = match.groups()
         # The package root for this check uses private sibling modules.
@@ -255,6 +271,9 @@ def _typescript_root_reexports(
                 continue
             type_only = bool(statement_type_only or member.startswith("type "))
             if type_only and kind not in {"interface", "type"}:
+                continue
+            surface_kind = "type" if kind in {"interface", "type"} else kind
+            if (alias or source, surface_kind) not in removed_kinds:
                 continue
             additions.add((root_path, "ts", alias or source))
     return additions
@@ -871,7 +890,7 @@ def parse_diff(
     flush_hunk()
 
     removals |= _rust_removals(old_exports, new_exports, read_head)
-    additions |= _typescript_root_reexports(new_ts_files, read_head)
+    additions |= _typescript_root_reexports(new_ts_files, read_head, removals)
     return removals, additions
 
 

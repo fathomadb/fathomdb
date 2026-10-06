@@ -96,6 +96,43 @@ if ! python3 "$LINT" \
 fi
 echo "OK alias-preserved"
 
+# TypeScript package-root moves preserve a public name only when a named
+# re-export resolves to an exported declaration in the target module.
+cat >"$WORK/ts-reexport.patch" <<'PATCH'
+diff --git a/src/ts/src/index.ts b/src/ts/src/index.ts
+--- a/src/ts/src/index.ts
++++ b/src/ts/src/index.ts
+@@ -1 +1,3 @@
+-export interface Foo {}
++export type {
++  Foo,
++} from "./foo.js";
+diff --git a/src/ts/src/foo.ts b/src/ts/src/foo.ts
+--- /dev/null
++++ b/src/ts/src/foo.ts
+@@ -0,0 +1 @@
++export interface Foo {}
+PATCH
+if ! python3 "$LINT" --diff-file "$WORK/ts-reexport.patch" \
+    --changelog "$FIX/reexport-edges/CHANGELOG.md" --repo-root "$REPO_ROOT" \
+    >/dev/null; then
+    fail "TypeScript named re-export fixture: Foo remains in package root"
+fi
+echo "OK TypeScript named re-export"
+
+sed 's/^+export interface Foo {}/+export interface Bar {}/' \
+    "$WORK/ts-reexport.patch" >"$WORK/ts-unresolved.patch"
+set +e
+python3 "$LINT" --diff-file "$WORK/ts-unresolved.patch" \
+    --changelog "$FIX/reexport-edges/CHANGELOG.md" --repo-root "$REPO_ROOT" \
+    >/dev/null 2>"$WORK/ts-unresolved.err"
+rc=$?
+set -e
+if [ "$rc" -ne 1 ] || ! grep -q 'Foo' "$WORK/ts-unresolved.err"; then
+    fail "TypeScript unresolved re-export fixture: Foo must remain a removal"
+fi
+echo "OK TypeScript unresolved re-export"
+
 # C-2: a bare removed `pub use` (no replacement) must itself be recorded as a
 # removal — probe regression for `-pub use errors::EngineError;` -> `[]`.
 set +e

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 prework — Tegra CUDA memory-pool study plan
-status: PROPOSED (revision 2, 2026-10-06; pending independent review)
+status: PROPOSED (revision 3, 2026-10-06; independent-review findings applied)
 target_release: 0.8.28
 observed_on: 2026-10-05
 revised_on: 2026-10-06
@@ -81,7 +81,9 @@ updated to match.
    threshold 0 it returns to the system at each synchronization, and with
    threshold `max` it is held until `cuMemPoolTrimTo`. Process VmRSS tracks
    pool reserved memory to within about 12 MiB; `MemAvailable` under-reads
-   it.
+   it. Revision 3 turns the question into four falsifiable rows, CB1–CB4
+   ("Host-memory bound (circuit breaker) — what must be shown"), each a
+   separate clause of the decision rule.
 
 ## Owner rulings (2026-10-06)
 
@@ -262,7 +264,16 @@ How each pool arm reaches the allocator:
   `CudaSlice` variant is needed. Such a context never queries the default
   pool and never reads the 0.8.27 decision table. Candle builds its context
   inside `Device::new_cuda`, so the pinned Candle fork gains a constructor
-  from an existing `Arc<CudaContext>` (protocol § 2.2).
+  from an existing `Arc<CudaContext>` (protocol § 2.2). Zero-length requests
+  are not given a synthesized null pointer in anything proposed upstream
+  (chelsea0x3b/cudarc#194); if C5 shows `cuMemAllocFromPoolAsync(0)` is an
+  error, any special case stays in FathomDB's residual patch.
+- **Fail closed.** Once any private-pool context exists in a process, a later
+  failure to build one is a typed error; it never falls back to a production
+  context, because a process mixing private-pool and production contexts is
+  not allowed. Before the first private-pool context, a failed creation or
+  probe falls back to the production rule. cuBLAS and cuRAND workspaces stay
+  outside the private pool (C4 bounds them).
 - **A-first-use and B** keep the Phases 0–1 rule: the shipped decision gains
   a third state (`explicit`) when a pool installed in this process is still
   the device's current pool and a 4-byte stream-ordered probe succeeds. The
@@ -274,8 +285,11 @@ How each pool arm reaches the allocator:
   That makes R5 for P-first-use the key robustness question.
 
 **Coexistence (C9).** P-first-use must leave the device as it found it:
-`cuDeviceGetMemPool` is unchanged across engine open and close, and another
-CUDA user in the same process still gets the default pool (when it exists).
+the (`CUresult`, handle) pair of `cuDeviceGetMemPool` is unchanged across
+engine open and close and equals `cuDeviceGetDefaultMemPool`'s handle
+whenever both succeed, and another CUDA user in the same process still
+allocates from the default pool: its `USED_MEM_CURRENT` rises while the
+private pool's does not.
 The installed arms fail this by construction; C9 measures them only as a
 contrast.
 
@@ -327,15 +341,15 @@ rather than inferring it.
 
 | # | Property | Method | Sample | Pass |
 | --- | --- | --- | --- | --- |
-| C1 | **Allocator provenance across wrappers and contexts.** Four allocator states now exist: default pool, private pool (per context), installed explicit pool (comparison arms) and synchronous. | Vendored unit tests extended to all three states; device tests that create wrappers through `new`, `new_non_primary`, `new_cig` and `from_raw_context`, move buffers with `leak` / `upgrade_device_ptr`, and free them on another wrapper, including racing constructors. | Unit tests on every target; device tests 50 fresh processes per arm and size. | In a P-first-use process every FathomDB context is a private-pool context; in the other arms every wrapper reports the same decision; every free uses the allocating API; no driver error, leak or crash. Known limit: upstream's own `from_raw_context` and non-primary-context GPU tests crash with `SIGSEGV` on the published 0.19.7 crate (`receipt.md`, "Red and green"), so those constructor paths may be testable only through pure tests on a stub; the results record which paths ran on the device. |
+| C1 | **Allocator provenance across wrappers and contexts.** Four allocator states now exist: default pool, private pool (per context), installed explicit pool (comparison arms) and synchronous. | Vendored unit tests extended to all four states; a pure test of the policy's fail-closed rule (once a private-pool context exists, a later build failure is a typed error, never a fallback); device tests that create wrappers through `new`, `new_non_primary`, `new_cig` and `from_raw_context`, move buffers with `leak` / `upgrade_device_ptr`, and free them on another wrapper, including racing constructors. | Unit tests on every target; device tests 50 fresh processes per arm and size. | In a P-first-use process every FathomDB context is a private-pool context; in the other arms every wrapper reports the same decision; every free uses the allocating API; no driver error, leak or crash. Known limit: upstream's own `from_raw_context` and non-primary-context GPU tests crash with `SIGSEGV` on the published 0.19.7 crate (`receipt.md`, "Red and green"), so those constructor paths may be testable only through pure tests on a stub; the results record which paths ran on the device. |
 | C2 | **Pool lifetime.** P-first-use: the pool outlives every slice allocated from it (slice → stream → context → pool). Installed arms: the pool is never destroyed while installed; destroying it would revert to the unavailable default pool. | Code audit plus a C probe that destroys an installed pool in the failing layout and checks the device's current pool and the next `cuMemAllocAsync`. Product test: engine open/close/reopen cycles in one process. | C probe 20 runs; 50 processes × 100 cycles per arm. | No product path calls `cuMemPoolDestroy` on an installed pool; the C probe confirms the revert; all cycles allocate on the decided path. |
 | C3 | **Exhaustion behaviour.** Capacity is ceil32(`maxSize`/3) (Phase 1, established), and exhaustion fails hard. | Characterize capacity against `maxSize` (at least 6 sizes from 192 MiB to 16 GiB). Evaluate candidate policies: (i) size with measured headroom and keep a typed refusal; (ii) overflow into a second explicit pool, which keeps every pointer freeable with `cuMemFreeAsync`; (iii) per-allocation synchronous overflow, which needs per-pointer provenance and breaks the once-per-device invariant. | 10 processes per size; exhaustion driven deterministically by a test allocator. | Capacity model predicts the exhaustion point within 5 % at every size. The chosen policy never silently moves forced CUDA to CPU, keeps the typed error contract, and frees every pointer with the allocating API. Policy (iii) is accepted only with a provenance design that passes C1. |
 | C4 | **cuBLAS / cuRAND workspaces.** Whether their workspaces come from the installed pool, the default pool or `cudaMalloc`. | Compare pool used/reserved counters with `cuMemGetInfo` deltas around rerank (cuBLAS-heavy) and any cuRAND use; run reranking at the smallest passing `maxSize` and in the fragmented layout. | 20 processes per arm. | The pool's share of the rerank's memory is measured from the pool counters; the residual (workspaces outside the pool) is bounded, not attributed, because `cuMemGetInfo` is a shared system-wide counter on this iGPU and cuBLAS resolves driver entry points internally; rerank passes at the chosen size in the fragmented layout. |
-| C5 | **Zero-length buffers.** `cuMemAllocAsync(0)` returns null; `cuMemAlloc(0)` is invalid; `cuMemAllocFromPoolAsync(0)` is unmeasured. | Measure `cuMemAllocFromPoolAsync(0)` before the P path is written; then the existing zero-element tensor and `CudaStream::null()` tests on each arm. | Every arm and both bindings. | All pass; no null pointer reaches a free call. |
+| C5 | **Zero-length buffers.** `cuMemAllocAsync(0)` returns null; `cuMemAlloc(0)` is invalid; `cuMemAllocFromPoolAsync(0)` is unmeasured. | Measure `cuMemAllocFromPoolAsync(0)` before the P path is written; then the existing zero-element tensor and `CudaStream::null()` tests on each arm. | Every arm and both bindings. | All pass; no null pointer reaches a free call; the upstream-shaped P path synthesizes no null pointer. |
 | C6 | **Multi-device.** The decision table and pool are per device. | Pure unit tests with two simulated devices; no multi-GPU Tegra exists. | Unit tests. | Decisions and pools never cross devices. The real multi-device case is declared unmeasured. |
 | C7 | **After primary-context teardown, and co-resident resets.** | Repeat the pool-teardown probe with the arm's pool; add `cuDevicePrimaryCtxReset` and `cudaDeviceReset` from a co-resident library. | 20 C runs per case; 20 product processes with a co-resident reset. | Allocation keeps working on the decided path, or the failure is detected and refused with a typed error; never a wrong-API free. |
 | C8 | **Python and Node parity.** The Tegra wheel gains an experiment-gated early `cuInit` hook in Phase 2 (rulings 1 and 10); the Node addon has one. | Run C1–C5 and C9 through both bindings, installed from packed artifacts. | 20 processes per binding per arm. | Same decisions, same outputs (embedding hash and rerank scores identical to S), same error kinds. |
-| C9 | **Coexistence (ruling 7).** P-first-use leaves the device's current pool alone. | Vendored cudarc device test; Node open/close cycles recording `cuDeviceGetMemPool` before and after; a co-resident CUDA user in the same process (Python through `ctypes`) allocating with `cuMemAllocAsync`. A-first-use and B as contrast. | Test suite; Node 10 processes × 50 cycles; Python 20 processes. | For P-first-use, `cuDeviceGetMemPool` is equal before and after in every cycle, and the co-resident user's allocations come from the pool it would have used without FathomDB. |
+| C9 | **Coexistence (ruling 7).** P-first-use leaves the device's current pool alone. | Vendored cudarc device test; Node open/close cycles recording the (`CUresult`, handle) pairs of `cuDeviceGetMemPool` and `cuDeviceGetDefaultMemPool` before and after; a co-resident CUDA user in the same process (Python through `ctypes`) allocating with `cuMemAllocAsync`. A-first-use and B as contrast. A maps diff around the first `cuDeviceGetMemPool` settles whether reading it can create the default pool. | Test suite; Node 10 processes × 50 cycles; Python 20 processes. | For P-first-use, the pairs are equal before and after in every cycle and the current-pool handle equals the default-pool handle whenever both succeed; the co-resident user's allocations raise the default pool's `USED_MEM_CURRENT` and not the private pool's. |
 
 ## Robustness — what must be shown
 
@@ -357,11 +371,23 @@ fraction.
 | R2 | **Real Node heaps at several sizes.** | Import first, then grow to 0, 100k, 400k, 1M and 4M objects; Node 24, 25 and 26. | 30 processes per cell (450 per arm). | Zero failures; record the fraction of processes on each path. |
 | R3 | **Heap growth during use.** | Open and embed, grow the heap, embed and rerank again, repeat. | 30 processes × 3 Node versions. | Zero failures; no path change after the first decision. |
 | R4 | **Late import.** | Grow the heap first, then import, with and without `node --import fathomdb`. | 30 processes per heap size. | Same or better than S. A `cuInit` refusal remains typed and names the remedy. |
-| R5 | **Lazy private-pool creation after heap growth (the key question; P-first-use, A-first-use and B create the pool at the same moment).** An explicit pool needs `maxSize`/3 contiguous (Phase 1), so lazy creation is exposed to fragmentation. | Behind early `cuInit`, grow the heap to each R2 size, then create the pool at 3 GiB; capture `/proc/self/maps` around creation (`strace` on a 3-run subset per cell). 2 GiB only in a heap cell where 3 GiB fails. Node 24, 25 and 26. | 30 processes per arm × Node × heap cell (1350); the bound is about 10 % per cell and 1 % over the pooled row. The 35 pre-revision runs are reported separately. | The `maxSize`/3 rule predicts success in all runs; P-first-use passes at 3 GiB in every cell. |
+| R5 | **Lazy private-pool creation after heap growth (the key question; P-first-use, A-first-use and B create the pool at the same moment).** An explicit pool needs `maxSize`/3 contiguous (Phase 1), so lazy creation is exposed to fragmentation. | A 10-run import-only heap pilot first finds the heap size at which the median largest unmapped hole in [8, 128) GiB falls below 1 GiB (extending past 4M objects by doubling, up to V8's limit or 8 GiB RSS). Then, behind early `cuInit`, grow the heap to each R2 size and the two boundary sizes (that size and the one before it), and create the pool at 3 GiB; capture `/proc/self/maps` around creation (`strace` on a 3-run subset per cell). 2 GiB only in a cell where 3 GiB fails. P-first-use on Node 24, 25 and 26; A-first-use and B on Node 25 only, interleaved with P in randomised blocks. | 30 processes per cell: P-first-use 630, A-first-use and B 420 (1050). With 30 runs a 5 % failure rate is detected 78 % of the time and a 2 % rate only 45 %; the bound is about 10 % per cell and 1 % over the pooled row. The 35 pre-revision runs are reported separately. | The `maxSize`/3 rule predicts success in all runs; P-first-use passes at 3 GiB in every cell, the boundary cells included. If the pilot cannot bring the median hole below 1 GiB, the boundary is declared unreached and the largest heap is the boundary cell. |
 | R6 | **Long-running soak.** | Continuous embed, rerank and ingest with periodic heap churn. | 15–30 min per arm, at least two processes (owner ruling 4; longer soaks re-planned later). | No allocator error; pool reserved memory and RSS stay within 10 % of their high over the first 5 minutes; steady latency drift under 10 % (no-swap condition, ruling 8). |
 | R7 | **Concurrent processes on unified memory.** | 2, 4 and 8 processes on one Orin, each with its own pool, under embed and ingest load; release threshold 0 and `max`. The allocation witness is **off**: it reads a shared system-wide `cuMemGetInfo` counter and needs a sole GPU consumer, so it would fail as a harness artefact. A launcher aborts the trial if `MemAvailable` falls below 8 GiB. | 10 trials per count and threshold. | No process fails or is OOM-killed; the sum of reserved pool memory and system free memory are recorded; the chosen threshold leaves other processes, including CPU-only ones, their memory. |
 | R8 | **Release-threshold effects on shared DRAM.** | Measure memory returned to the system after idle under each threshold. | 20 processes per threshold. | Threshold choice is justified by measured latency against held memory. |
 | R9 | **Unmeasured Jetson models.** | Repeat R1, R2 and the performance core on other boards. | Minimum 100 runs per board for R2. | Required hardware: at least one 8 GB board (Orin Nano or Orin NX) and an AGX Orin 32 GB. Non-Tegra aarch64 Linux CUDA hosts (GH200, GB10, SBSA) are in the cfg; without access, they stay declared unmeasured, or the cfg is narrowed to measured Tegra. |
+
+## Host-memory bound (circuit breaker) — what must be shown
+
+Owner question 6 asked whether a pool can hog the host's shared memory. Each
+row is a separate decision-rule clause. Method details: protocol § 7.
+
+| # | Property | Method | Sample | Pass |
+| --- | --- | --- | --- | --- |
+| CB1 | **Cap.** The pool's host-memory cost is bounded. | Pool attributes and `VmRSS` + `VmSwap` in every `perf`, `ingest` and R5 `full` process; the baseline is the median of S's synchronous-path processes at the same point in the same block. Unit half: the C5 probe fills a private pool to its cap. | Every such process. | At 3 GiB: `reserved_high` ≤ 1024 MiB, and `VmRSS` + `VmSwap` − baseline ≤ `reserved_high` + 32 MiB, in every process. |
+| CB2 | **Trim after close.** Memory goes back when FathomDB is done with it. | `full` mode, `engine.close()`, 10 s idle, exit `teardown` line. Unit half: free, synchronize and `cuMemPoolTrimTo(0)` in the C5 probe. | 20 processes per threshold × layout. | Threshold 0: `reserved_cur` = 0 after close and idle in every process. |
+| CB3 | **Typed error at the cap.** | An oversized batch (128 long passages) under forced CUDA at 3 GiB. Unit half: typed `CUDA_ERROR_OUT_OF_MEMORY`, `cuCtxSynchronize` succeeds afterwards, and the pool recovers, in the C5 probe. | 20 processes per arm. | A typed FathomDB error (kind recorded); the next embed succeeds; `embedderDevice` stays `cuda`. |
+| CB4 | **No CPU move.** | The same runs as CB3. | As CB3. | The embed after the error reports `embedderDevice` `cuda` and the embedding hash from before the error. |
 
 ## Performance — what must be shown
 
@@ -414,8 +440,13 @@ synchronous fallback as the safety net. The primary design is the private
 pool (ruling 7). The rule below decides whether it can be that default.
 
 - **Make P-first-use the default** if C1–C9 pass, R1–R8 pass on the
-  AGX Orin 64 GB, the performance gates pass, and R5 shows lazy private-pool
-  creation at 3 GiB in every heap cell.
+  AGX Orin 64 GB, the performance gates pass, R5 shows lazy private-pool
+  creation at 3 GiB in every heap cell including the boundary cells, and
+  each circuit-breaker clause passes on its own:
+  - **CB1 cap** passes;
+  - **CB2 trim after close** passes;
+  - **CB3 typed cap error** passes;
+  - **CB4 no CPU move** passes.
 - If P-first-use fails only R5 at 3 GiB, the 2 GiB cells and the owner
   decide; a failure at 2 GiB as well is the revisit trigger (a) of "Design
   note: load-time pool creation".
@@ -599,7 +630,10 @@ private `cuMemAllocFromPoolAsync` variant for anything proposed upstream; the
 private variant would stay FathomDB-side if C7 or R7 require it.
 
 **Pool-shape assessment (2026-10-06, protocol § 10 item 6).** The reading
-above is reversed. NVIDIA's guidance for the stream-ordered allocator says
+above is reversed. #594's maintainer comment also says "I definitely want to
+support memory pools", and the thread carries a counter-proposal (an
+`Arc<dyn Any>` owner field on `CudaSlice`) whose bearing on a per-context
+pool is an open unknown. NVIDIA's guidance for the stream-ordered allocator says
 libraries should not change a device's pool, because doing so affects the
 whole application, and should create their own pool and allocate from it.
 Issue #536 asks for that private shape, #544 already provides its driver calls,

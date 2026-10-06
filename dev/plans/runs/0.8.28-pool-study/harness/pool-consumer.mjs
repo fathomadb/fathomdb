@@ -7,7 +7,11 @@
 // (early|late), HEAP_OBJECTS (live objects before open), HEAP_GROW_AFTER_OPEN,
 // CONSUMER_MODE (import|open|full|perf|ingest|cycles), WARMUP_ITERS (5),
 // TIMED_ITERS (50), BATCH_SIZES (1,8,32,128), INGEST_DOCS (10000), CYCLES (50),
-// MAPS_DIR, EXPECT_DEVICE (cuda|cpu; default cuda). The runner sets the device
+// MAPS_DIR, EXPECT_DEVICE (cuda|cpu; default cuda), IDLE_AFTER_CLOSE_S (CB2:
+// seconds to idle after the last close, so the exit teardown line shows what
+// the pool kept), OVERSIZE_BATCH (CB3/CB4: in full mode, one embedBatchCls of
+// that many long passages after the first embed, then a check that embedding
+// still runs on CUDA with the same hash). The runner sets the device
 // policy, the witness and the FATHOMDB_POOL_* variables, and merges allocMode,
 // poolEvents and host into this JSON after the process exits.
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -31,7 +35,8 @@ const out = {
   heapObjects: null,
   heapUsedMiB: null,
   heapGrowAfterOpen: num("HEAP_GROW_AFTER_OPEN", 0) || null,
-  mem: {},
+  mem: { points: {} },
+  oversize: null,
   timingsMs: {
     import: null, open: null, embedFirst: null, embedSteady: [], embedBatch: {},
     rerankFirst: null, rerankSteady: [], ingestTotal: null, cyclesOpen: [], cyclesClose: [],
@@ -53,7 +58,11 @@ const errInfo = (err) => ({
 const status = () => {
   const s = readFileSync("/proc/self/status", "utf8");
   const kib = (key) => Number((s.match(new RegExp(`^${key}:\\s+(\\d+)`, "m")) ?? [0, 0])[1]);
-  return { rssMiB: kib("VmRSS") / 1024, vszMiB: kib("VmSize") / 1024 };
+  return { rssMiB: kib("VmRSS") / 1024, swapMiB: kib("VmSwap") / 1024, vszMiB: kib("VmSize") / 1024 };
+};
+// VmRSS, VmSwap and VmSize at each named measurement point (protocol 4.2).
+const point = (name) => {
+  out.mem.points[name] = status();
 };
 const snapMaps = (stage) => {
   if (env.MAPS_DIR) writeFileSync(`${env.MAPS_DIR}/maps-${process.pid}-${stage}.txt`, readFileSync("/proc/self/maps"));
@@ -102,12 +111,14 @@ const checkRanked = (ranked) => {
 
 try {
   out.mem.startVszMiB = status().vszMiB;
+  point("start");
   if (out.order !== "late") await doImport();
   step = "heap";
   grow(num("HEAP_OBJECTS", 0));
   if (out.order === "late") await doImport();
   out.heapObjects = keepAlive.length;
   out.heapUsedMiB = Math.round(process.memoryUsage().heapUsed / 2 ** 20);
+  point("beforeOpen");
   snapMaps("before-open");
   if (out.consumerMode === "import") {
     out.outcome = "pass";
@@ -135,6 +146,7 @@ try {
     const afterOpen = status();
     out.mem.afterOpenRssMiB = afterOpen.rssMiB;
     out.mem.afterOpenVszMiB = afterOpen.vszMiB;
+    point("afterOpen");
     snapMaps("after-open");
 
     step = "openReport";
@@ -160,6 +172,33 @@ try {
       for (let i = 0; i < warm + timed; i++) {
         const [ms] = await timeIt(() => engine.embed(`steady state embedding number ${i} about tegra allocators`));
         if (i >= warm) out.timingsMs.embedSteady.push(ms);
+      }
+      point("afterEmbed");
+      if (num("OVERSIZE_BATCH", 0) > 0) {
+        step = "oversize";
+        const n = num("OVERSIZE_BATCH", 0);
+        const long = Array.from({ length: 400 }, (_, k) => `token${k}`).join(" ");
+        const texts = Array.from({ length: n }, (_, k) => `${k} ${long}`);
+        const o = { batch: n, ok: null, ms: null, error: null, embedAfterOk: null, deviceAfter: null, hashAfter: null, sameHash: null };
+        const t = performance.now();
+        try {
+          await embedBatchCls(texts);
+          o.ok = true;
+        } catch (err) {
+          o.ok = false;
+          o.error = errInfo(err);
+        }
+        o.ms = performance.now() - t;
+        point("afterOversize");
+        step = "embedAfterOversize";
+        const again = await engine.embed("fathomdb sync allocator repair experiment");
+        checkVec(again);
+        o.embedAfterOk = true;
+        o.hashAfter = sha(again);
+        o.sameHash = o.hashAfter === out.embedSha;
+        o.deviceAfter = engine.openReport().embedderDeviceResolution?.effectiveDevice?.kind ?? null;
+        await embedBatchCls(["a short batch after the oversized one"]);
+        out.oversize = o;
       }
       if (out.heapGrowAfterOpen) {
         step = "heapGrowAfterOpen";
@@ -192,6 +231,7 @@ try {
         checkRanked(r);
         if (i >= rWarm) out.timingsMs.rerankSteady.push(ms);
       }
+      point("afterRerank");
       if (out.consumerMode === "ingest") {
         step = "ingest";
         const docs = num("INGEST_DOCS", 10000);
@@ -205,11 +245,13 @@ try {
         }
         out.timingsMs.ingestTotal = performance.now() - t;
         out.ingest = { docs, docsPerSecond: docs / (out.timingsMs.ingestTotal / 1000) };
+        point("afterIngest");
       }
     }
     step = "close";
     await engine.close();
     engine = null;
+    point("afterClose");
     out.outcome = "pass";
   }
 } catch (err) {
@@ -225,6 +267,12 @@ try {
     }
   }
 }
+const idle = num("IDLE_AFTER_CLOSE_S", 0);
+if (idle > 0) {
+  await new Promise((resolve) => setTimeout(resolve, idle * 1000));
+  point("afterIdle");
+}
+point("end");
 const end = status();
 out.mem.endRssMiB = end.rssMiB;
 out.mem.endVszMiB = end.vszMiB;

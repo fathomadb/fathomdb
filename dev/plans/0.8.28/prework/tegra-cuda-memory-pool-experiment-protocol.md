@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 prework — Tegra CUDA memory-pool experiment protocol
-status: PROPOSED (revision 2, 2026-10-06; pending independent review)
+status: PROPOSED (revision 3, 2026-10-06; independent-review findings applied)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
@@ -17,8 +17,9 @@ anything upstream or to NVIDIA on the strength of this document; § 10 only
 prepares material for the owner.
 
 Every number quoted below comes from the Slice 110 evidence on this branch
-under `dev/plans/runs/0.8.27-slice-110-tegra/` and was measured on one Jetson
-AGX Orin 64 GB (L4T R36.5.2, driver 540.5.0, CUDA 12.6.68). Statements marked
+under `dev/plans/runs/0.8.27-slice-110-tegra/` or from this study's Phases 0–1
+results (`dev/plans/runs/0.8.28-pool-study/results.md`), and was measured on
+one Jetson AGX Orin 64 GB (L4T R36.5.2, driver 540.5.0, CUDA 12.6.68). Statements marked
 *inference* or *hypothesis* are not measured and are tested by this protocol.
 
 ## Owner rulings (2026-10-05)
@@ -92,6 +93,30 @@ match. Phases 0–1 results: `dev/plans/runs/0.8.28-pool-study/results.md`.
   `e978ee516`) and reaches `release/0.8.27` when that branch merges. No
   ledger action.
 
+### Revision 3 (2026-10-06): independent-review findings
+
+Revision 2 was reviewed independently on 2026-10-06 (PASS-WITH-FIXES).
+Revision 3 applies every finding:
+
+- **Host-memory bound (circuit breaker, ruling 6).** Four falsifiable rows,
+  CB1–CB4 (§ 7), each a separate clause of the decision table (§ 8.1 item 12)
+  and of the decision rule (§ 8.2): the cap, trimming after close, the typed
+  error at the cap, and no CPU move after it.
+- **Zero-length requests (§ 2.2).** The P path never synthesizes a null
+  pointer upstream; any special case stays in FathomDB's residual patch.
+- **R5 reach (§ 7, § 6.2).** A heap pilot first finds the heap size at which
+  the largest unmapped hole falls below 1 GiB; R5 adds boundary cells there,
+  states its detection power, runs the comparison arms on Node 25 only, and
+  interleaves variant blocks.
+- **Swap (§ 1.1).** `VmSwap` is recorded at every measurement point, memory
+  is reported as `VmRSS` + `VmSwap`, and R6's latency drift under swap is
+  flagged, not stopped. The harness takes the swap baseline at series start
+  and stops only rows flagged no-swap.
+- **Fail closed (§ 2.2).** Once a private-pool context exists, a later
+  failure to build one is a typed error, never a fallback.
+- **C9 observables, the context-free `cuMemPoolCreate` hypothesis, and the
+  low-severity corrections** in § 2.2, § 2.3, § 4.2, § 6.2, § 7 and § 10.
+
 ## 0. Conventions
 
 - `<worktree>`: the study checkout. `<scratch>`: the session scratch
@@ -137,14 +162,21 @@ values and refuses otherwise:
    used bytes) are recorded before and after every process and at the start
    and end of every series, and every summary reports the per-process and
    per-series deltas. Swap already in use at a series start is its baseline.
+   Each process also records its own `VmSwap` beside `VmRSS` at every
+   measurement point (§ 4.2), and process memory is reported as
+   `VmRSS` + `VmSwap`, so memory swapped out of a process is not read as
+   memory returned.
    **No-swap series** stop (and are discarded) if swap use rises above the
    series-start baseline during the series:
-   - every timing comparison: the Phase 0 equivalence control, P1–P7, the
-     latency half of R8 and the latency-drift criterion of R6. Reason: a
-     swap-out or swap-in inside a measured interval adds page-fault latency
-     to that interval and nothing else, so a variant that happens to trigger
-     reclaim is measured as slow (the R5 run that triggered the 2026-10-06
-     swap event took 3.4 s against about 2.1 s for its neighbours);
+   - every timing comparison: the Phase 0 equivalence control, P1–P7 and
+     the latency half of R8. Reason: a swap-out or swap-in inside a measured
+     interval adds page-fault latency to that interval, so a variant that
+     happens to trigger reclaim would be measured as slow. (The R5 run during
+     which the 2026-10-06 swap event appeared took 3.4 s against about 2.1 s
+     for its neighbours; that is one co-occurrence, a correlation, not a
+     measured cause.) R6's latency-drift criterion is not stopped: a soak
+     that sees swap growth records it, and its drift result is flagged
+     *swap-affected* in table 9;
    - none other. Pass/fail, capacity and address-space series (the revisit
      check, C1–C9, C3, the gap sweep, R1–R5, R7) record swap and continue: a
      swap-out cannot turn a driver refusal into a success or the reverse, and
@@ -263,25 +295,52 @@ no global table, environment variable or cfg for it:
   the 0.8.27 process-wide decision table.
 - Zero-length requests: what `cuMemAllocFromPoolAsync` does with 0 bytes is
   measured in C5 before the path is written. If it returns a null pointer,
-  as `cuMemAllocAsync(0)` does, nothing is added. Otherwise the
-  null-without-a-call rule of the 0.8.27 patch's synchronous path applies.
+  as `cuMemAllocAsync(0)` does, nothing is added. If it returns an error,
+  the upstream-shaped P path **returns that error** and does not synthesize
+  a null pointer: the maintainer declined exactly that in
+  chelsea0x3b/cudarc#194 ("I'm hesitant to use a null pointer"). Any
+  zero-length special case FathomDB then needs stays in FathomDB's residual
+  vendored patch, marked as such, and is listed in § 10 item 6 as not
+  proposed.
 - Moving buffers: a pointer from a P context that is upgraded
   (`upgrade_device_ptr`) into a synchronous context of the same device would
   reach `cuMemFree`. Upstream's safety section already makes the matching
-  allocator the caller's duty. FathomDB builds only P contexts in a P process
-  (C1 checks this).
-- **Candle.** Candle builds its context inside `Device::new_cuda`
-  (`CudaDevice::new_with_stream` calls `CudaContext::new(ordinal)`), so the
-  FathomDB Candle fork (`candle-fathomdb`, pinned in the root `Cargo.toml`)
-  gains a constructor from an existing `Arc<CudaContext>`. FathomDB's
+  allocator the caller's duty; the vendored doc of `upgrade_device_ptr` is
+  rewritten to say that a stream-ordered pointer (from any pool, the private
+  one included) may be upgraded only into a stream-ordered context.
+  FathomDB builds only P contexts in a P process (C1 checks this).
+- **Fail closed (C1).** The first FathomDB device of the process fixes the
+  process's mode: *private* if a private-pool context was built, otherwise
+  *production*. Before any P context exists, a failed pool creation, probe
+  or first P context build falls back to the production rule (the process is
+  then pure S). Once any P context exists, a later failure to build one
+  returns a typed error and never falls back to `CudaContext::new` or a
+  synchronous decision, because a process mixing P and S contexts is not
+  allowed. This rule is a pure function in the policy with its own unit
+  test.
+- **cuBLAS and cuRAND.** Candle's `CudaBlas` and `CudaRng` allocate their
+  workspaces through the CUDA runtime or library calls, not through
+  cudarc's `CudaStream::alloc`, so they stay outside the private pool. C4
+  bounds that residual.
+- **Candle.** Candle builds its context inside `Device::new_cuda`. The
+  pinned fork (`coreyt/candle-fathomdb` at the rev in the root
+  `Cargo.toml`) has exactly two `CudaContext::new` sites, in
+  `candle-core/src/cuda_backend/device.rs` (`CudaDevice::new_with_stream`
+  and `BackendDevice::new`). It gains `CudaDevice::from_context(Arc<CudaContext>)`
+  and `Device::new_cuda_from_context`, which share the rest of the
+  constructor. For the study the change is applied as a local path override
+  on the study branch only, and the exact diff is kept under
+  `<evidence>/patches/` so a fork commit can follow. FathomDB's
   `new_cuda_device` builds the context with the pool and passes it in. The
   alternative, a setter on a live context, is rejected: it would make the
   allocator depend on when the setter ran relative to the first allocation,
   which is exactly the failure the per-device table exists to prevent.
-- The policy creates the pool with `CudaMemPool::create` (no context
-  needed). It probes it with one 4-byte `cuMemAllocFromPoolAsync` /
-  `cuMemFreeAsync` / `cuCtxSynchronize` on a retained primary context, keeps
-  it in a `static OnceLock` and never installs it. If creation or the probe
+- The policy retains the primary context, creates the pool with
+  `CudaMemPool::create`, probes it with one 4-byte `cuMemAllocFromPoolAsync`
+  / `cuMemFreeAsync` / `cuCtxSynchronize` on that context, keeps it in a
+  `static OnceLock` and never installs it. *Hypothesis:* `cuMemPoolCreate`
+  needs no current context; C5 tests it, and until it is shown the policy
+  keeps the retain. If creation or the probe
   fails, every site builds its device as S does (production rule).
 
 **A-first-use and B (comparison arms; experiment-only, not proposed
@@ -339,11 +398,16 @@ compiled only with `tegra-pool-experiment` on aarch64 Linux with
   registration hook) is removed with the A-load variants.
 - Reporting is unchanged: `fdb-pool-exp event=<install|decide|teardown|stats>`
   lines, now with `alloc_mode=<default|explicit|private|sync>` and, for P,
-  `installed=0`. The teardown and decide lines for P also record
-  `cuDeviceGetMemPool` before and after: it must be equal (C9). For P that
-  call returns the current pool, which is whatever another user installed or
-  the default pool. Reading it can lazily create the default pool, so it runs
-  only when `FATHOMDB_POOL_COEXIST_CHECK=1`, in the C9 series.
+  `installed=0`. With `FATHOMDB_POOL_COEXIST_CHECK=1` (the C9 series only)
+  the install and teardown lines for P also record the pair
+  (`CUresult`, handle) of `cuDeviceGetMemPool`, and, when it succeeds, of
+  `cuDeviceGetDefaultMemPool`. C9 passes when the pairs are equal before and
+  after, and the current-pool handle equals the default-pool handle whenever
+  both calls succeed. *Hypothesis:* reading the current pool can lazily
+  create the default pool (a new large mapping); the C5 probe diffs
+  `/proc/self/maps` around the first `cuDeviceGetMemPool` to settle it. If no
+  mapping appears, the environment gate is dropped and every P run records
+  the pairs.
 
 **Keeping it out of production.** The feature `tegra-pool-experiment` is not
 in any feature set of `scripts/release/cuda-artifact-contract.sh`
@@ -452,7 +516,13 @@ is the Slice 110 sequence (open, report, embed ×11, rerank ×2, close);
 `perf` adds the warm-up and timed blocks for single embed, each batch size
 (`embedBatchCls`), and rerank; `ingest` writes `INGEST_DOCS` documents in
 batches of 100 through `engine.write` with the default embedder on; `cycles`
-opens and closes the engine `CYCLES` times, embedding once per cycle.
+opens and closes the engine `CYCLES` times, embedding once per cycle. With
+`IDLE_AFTER_CLOSE_S=<n>` (CB2), every mode that opens an engine closes it,
+waits `n` seconds and exits, so the exit `teardown` line carries the pool's
+reserved memory after close and idle. With `OVERSIZE_BATCH=<n>` (CB3, CB4),
+`full` mode embeds one batch of `n` long passages after the first embed,
+records the error (or success), checks that a following single embed still
+reports `embedderDevice` `cuda`, and continues.
 
 JSON fields recorded per process (all modes write every field, `null` when
 not applicable):
@@ -462,14 +532,15 @@ outcome, failedStep, error{name,code,kind,message}
 node, variant, maxSize, releaseThreshold, order, preloaded, consumerMode
 pid, heapObjects, heapUsedMiB, heapGrowAfterOpen
 mem{startVszMiB, importRssDeltaMiB, importVszDeltaMiB, afterOpenRssMiB,
-    afterOpenVszMiB, endRssMiB, endVszMiB}
+    afterOpenVszMiB, endRssMiB, endVszMiB,
+    points{<point>: {rssMiB, swapMiB, vszMiB}}}  # every measurement point; VmSwap beside VmRSS
 timingsMs{import, open, embedFirst, embedSteady[], embedBatch{1:[],8:[],32:[],128:[]},
           rerankFirst, rerankSteady[], ingestTotal, cyclesOpen[], cyclesClose[]}
 embedderDevice, embedderReason, rerankerDevice
 witness{deltaBytes, floorBytes, outcome}       # only when the witness is on
 embedSha, rerankScores[]
 ingest{docs, docsPerSecond}
-allocMode                                      # parsed by the runner from stderr: default|explicit|sync|none
+allocMode                                      # parsed by the runner from stderr: default|explicit|private|sync|none
 poolEvents[]                                   # parsed fdb-pool-exp lines, as objects
 host{memAvailableKiB, swapFreeKiB, loadAvg1, thermalMilliC[], gpuIdleBefore}
 ```
@@ -584,7 +655,7 @@ except where the plan needs its number for a comparison.
 | --- | --- | --- |
 | 0 | Builds; harness smoke; production-equivalence control; `--random-seed` layout check; warm-cache check (§ 6.6) | the experiment build is not the product |
 | 1 (done, except R5) | C3 capacity and the gap sweep (§ 4.5, § 4.6); P1 import cost of A-load-hold and A-load-release (both failed; ruling 10) | done: capacity = ceil32(`maxSize`/3), need = `maxSize`/3 |
-| 1b (revision 2) | Build P-first-use test-first (the cudarc per-context pool, the Candle constructor, the policy), with C5 (zero-length from a pool) and C9 (coexistence) as its first tests; repeat the Phase 0 equivalence control on the new build; then R5 for P-first-use, A-first-use and B | lazy private-pool creation fails in a heap cell; P breaks coexistence |
+| 1b (revisions 2–3) | (1) Harness: the swap baseline at series start and per-row no-swap flag (§ 1.1), `VmSwap` at every point, the CB consumer options (§ 4.2). (2) The C5 probe (`pool_c5.c`): `cuMemAllocFromPoolAsync(0)`, `cuMemPoolCreate` without a current context, the maps diff around the first `cuDeviceGetMemPool`, and the private-pool cap rows (typed OOM, `cuCtxSynchronize` afterwards, recovery, trim) that are the unit-testable halves of CB1–CB3. (3) Pure tests first: the cudarc decision for a pool context (`AllocMode::Private`, no default-pool or table query), the policy's fail-closed rule (M3), the variant parser without the A-load names. (4) The P-first-use cudarc and Candle changes and the policy; the C9 device test. (5) The Phase 0 equivalence control on the new build. (6) The heap pilot (§ 7). (7) R5 per the revised matrix (§ 7) | lazy private-pool creation fails in a heap cell; P breaks coexistence; a zero-length or cap error is not typed |
 | 2 | C1, C2, C5, C6, C7, C8, C9; the Python import-time `cuInit` hook (ruling 1) | any correctness failure |
 | 3 | R1, R2, R3, R4, R7, R8, then R6 soak on the surviving candidate(s) | robustness failure; memory-sharing failure |
 | 4 | P2–P7 on the survivors against the default-pool reference (target) and S's synchronous path (floor) | performance gate failure |
@@ -650,17 +721,24 @@ except where the plan needs its number for a comparison.
   failure rate (the rule of three): 30 runs → 10 %, 100 → 3 %, 300 → 1 %.
   Each table states the bound its N gives. A per-cell N of 30 bounds that
   cell at 10 %; the plan's 1 % bound applies only to the pooled row.
+- **Detection power per cell.** With 30 runs in a cell, a true failure rate
+  of 5 % produces at least one failure with probability 1 − 0.95³⁰ = 78 %,
+  and a true rate of 2 % only 1 − 0.98³⁰ = 45 %. A clean 30-run cell
+  therefore does not show that a rare failure is absent; R5 places extra
+  P-first-use runs at the boundary cells (§ 7), where the rate is expected
+  to be highest.
 - **The discriminating endpoint for the pool variants is the stream-ordered
   fraction, not the pass rate.** S passes behind an early import (100 / 100
   in `receipt.md`) by falling back to the slow path; a pool variant is
-  better only if its `allocMode` is `default` or `explicit` in more processes
-  at equal pass rate. R2–R5 therefore report, per cell: pass rate, and the
+  better only if its `allocMode` is `default`, `private` or `explicit` in
+  more processes at equal pass rate. R2–R5 therefore report, per cell: pass rate, and the
   fraction of passing processes on each `allocMode`, both with intervals.
 
 ### 6.3 Memory
 
-- Process memory: `VmRSS` and `VmSize` from `/proc/self/status` at the
-  consumer's measurement points (§ 4.2). Import deltas use the same method
+- Process memory: `VmRSS`, `VmSwap` and `VmSize` from `/proc/self/status`
+  at the consumer's measurement points (§ 4.2), reported as
+  `VmRSS` + `VmSwap`. Import deltas use the same method
   as `early-cuinit-verification/consumer.mjs`.
 - Pool memory: `CU_MEMPOOL_ATTR_RESERVED_MEM_{CURRENT,HIGH}` and
   `USED_MEM_{CURRENT,HIGH}` from the `fdb-pool-exp` lines (install, each
@@ -743,9 +821,14 @@ a captured Node layout's mapping starts).
 | Gap sweep | C probe | — | forced quarters + one gap | 6 gaps × ≤48 sizes | ≤ 3 per point, early stop | 1 |
 | P1 import cost (done) | S, A-load-hold, A-load-release | Node 25, import-only, installed | unobstructed | 3 GiB × 0 | 20 each, interleaved | 1 |
 | Phase 0 equivalence, new build | S (prod), S (exp, P build) | Node 25 | unobstructed | — | 10 + 10, interleaved | 1b |
-| R5 lazy creation | **P-first-use**, A-first-use, B | Node 24/25/26, installed, `full` mode, witness on, unpaired | heap-0/100k/400k/1M/4M | 3 GiB × 0; 2 GiB × 0 only in a heap cell where 3 GiB fails | 30 per cell: 3 × 3 × 5 × 30 = 1350 | 1b |
+| C5 / CB unit probe | `pool_c5.c` (private pool, never installed) | C | control, 3pages | 3 GiB × {0, max}; cap rows at 192 MiB and 3 GiB | 10 per cell | 1b |
+| Heap pilot | P build, `import` mode, `MAPS_DIR` | Node 25, installed | heap-0/100k/400k/1M/4M, then 8M, 16M, 32M, … doubling until the median largest unmapped hole in [8, 128) GiB is below 1 GiB, V8's heap limit is reached, or the process RSS would pass 8 GiB | — | 10 per heap size | 1b |
+| R5 lazy creation | **P-first-use**; A-first-use and B as comparison | P-first-use: Node 24/25/26; A-first-use and B: Node 25 only. Installed, `full` mode, witness on, unpaired. On Node 25 the three variants run in interleaved randomised blocks (one process per variant and heap cell per block, `interleave.sh`) | heap-0/100k/400k/1M/4M, plus the two **boundary cells** from the pilot: the first heap size whose median largest hole is below 1 GiB, and the size before it | 3 GiB × 0; 2 GiB × 0 only in a cell where 3 GiB fails | 30 per cell. P-first-use: 3 Node × 7 heaps × 30 = 630; A-first-use and B: 2 × 7 × 30 = 420; total 1050 (the runs saved by the Node-25-only comparison arms go to the P boundary cells) | 1b |
 | C9 coexistence | P-first-use (A-first-use and B as contrast) | vendored cudarc device test; Node `cycles` mode with `FATHOMDB_POOL_COEXIST_CHECK=1`; Python with a `ctypes` co-resident user | unobstructed; 3pages (C, Python) | 3 GiB × 0 | test suite; Node 10 processes × 50 cycles; Python 20 processes | 1b (test), 2 |
-| C1 provenance | all | Node 25; vendored unit tests on every target | unobstructed, heap-400k | 3 × 0 | 50 per variant | 2 |
+| C1 provenance | all | Node 25; vendored unit tests on every target; the policy's fail-closed pure test | unobstructed, heap-400k | 3 GiB × 0 | 50 per variant | 2 |
+| CB1 cap | P-first-use (A-first-use and B recorded) | every P2–P5 `perf` and `ingest` process, and every R5 `full` process | as the row | 3 GiB × 0 | as the row | 1b (R5), 4 |
+| CB2 trim after close | P-first-use | Node 25, `full` mode with `IDLE_AFTER_CLOSE_S=10` | unobstructed, heap-400k | 3 GiB × {0, max} | 20 per threshold × layout | 2 |
+| CB3 cap error, CB4 no CPU move | P-first-use (A-first-use and B as contrast) | Node 25, `full` mode with forced CUDA and `OVERSIZE_BATCH=128` long passages | unobstructed | 3 GiB × 0 | 20 per variant | 2 |
 | C2 lifetime | all pool variants | C probe (`pool_lifecycle.c` D) + Node `cycles` mode | 3pages (C); unobstructed (Node) | 3 GiB × 0 | C: 20; Node: 10 processes × 50 cycles per variant | 2 |
 | C5 zero-length | all | vendored tests + embedder zero-element tests, both bindings | — | 3 GiB | test suites | 2 |
 | C6 multi-device | all | pure unit tests | — | — | tests | 2 |
@@ -758,7 +841,7 @@ a captured Node layout's mapping starts).
 | R7 concurrency | survivors | Node 25, `perf` mode, witness off | unobstructed | chosen size × {0, max} | 10 trials × k ∈ {2, 4, 8} × 2 thr | 3 |
 | R8 threshold | survivors | Node 25, `perf` then 60 s idle, then `teardown` stats | unobstructed | chosen × {0, max} | 20 per thr | 3 |
 | R6 soak | surviving candidates, 15–30 min each (owner ruling 4) | Node 25, 2 processes sequentially or k = 2 concurrently with witness off | unobstructed | chosen | 15–30 min | 3 |
-| P1–P4, P6 | survivors, S-sync (floor), default-pool reference (S runs with `allocMode=default`; target) | Node 24/25/26, `perf`, randomised blocks | unobstructed | chosen | 20 per variant × version | 4 |
+| P1–P4, P6 | survivors, S-sync (floor), default-pool reference (target: S runs with `allocMode=default`, plus B's runs with `allocMode=default`, which use the same pool) | Node 24/25/26, `perf`, randomised blocks | unobstructed | chosen | 20 per variant × version. Expected default-path n: Slice 110's availability (1 / 10 to 5 / 10) gives about 4–10 of each 20 S runs, so 12–30 over three versions before B's runs are added. If the pooled reference has fewer than 15 processes, one more 20-run S block per version is added; the reference's n is stated beside every ratio | 4 |
 | P5 ingest | survivors, S | Node 25, `ingest` 10 000 docs | unobstructed | chosen | 5 per variant | 4 |
 | P7 Python | P-first-use, A-first-use, B, S | wheel, `perf` and ingest | unobstructed | chosen | 20 per variant | 4 |
 | R9 | — | other boards | — | — | not available on this host; declared unmeasured | — |
@@ -775,6 +858,28 @@ The 35 A-first-use R5 processes measured in Phase 1 (Node 24, heap 0, 3 and
 16 GiB, all created) used the pre-revision build. They are reported
 separately and not pooled with revision-2 R5 cells.
 
+**Circuit-breaker rows (ruling 6; CB1–CB4).** Each is a separate clause of
+the decision table and the decision rule:
+
+- **CB1 cap.** At 3 GiB, in every process of the row, the pool's
+  `reserved_high` ≤ 1024 MiB (the C3 capacity), and the process's
+  `VmRSS` + `VmSwap` minus the baseline ≤ `reserved_high` + 32 MiB. The
+  baseline is the median `VmRSS` + `VmSwap` of S's synchronous-path
+  processes at the same measurement point in the same interleaved block, so
+  model files, tokenizer and other host memory common to both cancel and
+  the difference is what the pool adds.
+- **CB2 trim.** After `engine.close()` and 10 s idle, the exit `teardown`
+  line reports `reserved_cur` = 0 at threshold 0 and `reserved_cur` ≤ the
+  threshold at `max` (recorded; the bound is vacuous there, so the
+  threshold-0 cells decide the clause).
+- **CB3 cap error.** An oversized batch under forced CUDA at 3 GiB returns a
+  typed FathomDB error (its `kind` recorded), the next embed in the same
+  process succeeds (so the context was not left with a sticky error;
+  `pool_c5.c` checks `cuCtxSynchronize` directly), and `embedderDevice`
+  stays `cuda`.
+- **CB4 no CPU move.** In the same run, the embed after the error reports
+  `embedderDevice` `cuda` and the same embedding hash as before the error.
+
 ## 8. Analysis and reporting
 
 ### 8.1 Tables
@@ -787,8 +892,10 @@ separately and not pooled with revision-2 R5 cells.
    and residuals; the verdict on the 1/3 rule.
 4. Contiguous need: need(G) and the safe `maxSize` per gap; the control
    ceiling.
-5. R5: per variant × Node × heap × size, pool-creation success (Wilson),
-   path fractions, and the maps-derived largest gap per run; the predictive
+5. R5: the heap pilot (median and range of the largest unmapped hole per
+   heap size, and the boundary found); per variant × Node × heap × size,
+   pool-creation success (Wilson), path fractions, the maps-derived largest
+   gap per run, and the detection power per cell (§ 6.2); the predictive
    rule and its misses.
 6. P1: import ms and RSS/VmSize deltas per variant with intervals; the
    import-cost gate verdict per A-load sub-variant (done in Phase 1; both
@@ -806,15 +913,22 @@ separately and not pooled with revision-2 R5 cells.
 11. Output identity: embedding hash and rerank score sets by variant.
 12. **Decision table:** one row per plan decision-rule clause, the criteria it
     depends on, and PASS / FAIL / UNMEASURED with the table that supports it.
+    CB1, CB2, CB3 and CB4 are four separate rows.
+13. Circuit breaker: CB1 per process (`reserved_high`, the
+    `VmRSS` + `VmSwap` difference against its baseline), CB2 per process
+    (`reserved_cur` after close and idle), CB3/CB4 per process (error kind,
+    following embed, device, hash).
 
 ### 8.2 Mapping onto the decision rule
 
 The owner's goal (ruling 3) is that a working pool recovering stream-ordered
 speed becomes the default on aarch64 Linux; the decision table names the arm
-that can be that default, or none. The plan's rule (revision 2) reads: make
+that can be that default, or none. The plan's rule (revision 3) reads: make
 **P-first-use** the default if C1–C9 and R1–R8 pass on this host, the
-performance gates pass, and R5 shows lazy private-pool creation at 3 GiB in
-every heap cell. The comparison arms (A-first-use, B) do not ship; their
+performance gates pass, R5 shows lazy private-pool creation at 3 GiB in
+every heap cell including the boundary cells, and each circuit-breaker
+clause passes on its own: CB1 (cap), CB2 (trim after close), CB3 (typed cap
+error) and CB4 (no CPU move). The comparison arms (A-first-use, B) do not ship; their
 results say what the installed shape would have cost or gained and inform
 the upstream comment. If P-first-use fails only R5 at 3 GiB, the 2 GiB cells
 and the owner decide. Otherwise keep the 0.8.27 synchronous fallback. The decision
@@ -916,10 +1030,10 @@ made from facts the maintainer can run:
    | NVIDIA, "Using the NVIDIA CUDA Stream-Ordered Memory Allocator, Part 2" (developer.nvidia.com blog) | "In general, libraries should not change a device's pool, as doing so affects the entire top-level application." A library that needs other properties may "create its own pool and then allocate from that pool using `cudaMallocFromPoolAsync`." Setting the current pool is described as an *application's* choice. On the release threshold, for unknown co-resident processes it advises setting it to zero unless profiling shows allocation is a bottleneck. | Directly favours the private shape for a library such as cudarc or FathomDB. Supports threshold 0 as the default (R8 decides). |
    | chelsea0x3b/cudarc#536 (open, 2026-02-28) | Asks for `cuMemPoolCreate` / `cuMemAllocFromPoolAsync` wrappers and proposes "a safe-level `CudaMemPool` type with Drop" and `CudaStream::alloc_from_pool()`. Its open questions include whether pool-allocated `CudaSlice`s should track their pool. No maintainer reply. | The request is for the private shape. The maintainer has not yet chosen between shapes. |
    | chelsea0x3b/cudarc#544 (merged 2026-03-23) | Result-level `mem_pool::{create, destroy, trim_to, get_attribute, set_attribute, alloc_async}` and `device::{get_default_mem_pool, get_mem_pool, set_mem_pool}`; the maintainer: "Nice pr, ty for opening". Safe wrappers were left for a later PR. | Both shapes' driver calls are already accepted upstream, including `alloc_async` (`cuMemAllocFromPoolAsync`). Neither shape needs new sys or result code. |
-   | chelsea0x3b/cudarc#594 (open, "needs redesign", maintainer review 2026-09-22) | A pool-owned `CudaSlice` whose `Drop` does not free. Maintainer: "I'm not sure if this design is the correct way forward. CudaSlice is almost turning into an enum at this point … We should probaly discuss this a bit more." | The maintainer resists new `CudaSlice` variants and ownership modes. A private pool whose slices are freed with the ordinary `cuMemFreeAsync` adds none. An `alloc_from_pool` returning a pool-tagged slice would. |
+   | chelsea0x3b/cudarc#594 (open, "needs redesign", maintainer review 2026-09-22) | A pool-owned `CudaSlice` whose `Drop` does not free. Maintainer: "I'm not sure if this design is the correct way forward. CudaSlice is almost turning into an enum at this point … We should probaly discuss this a bit more." The same comment continues: "I definitely want to support memory pools". The thread also carries a counter-proposal: an `Arc<dyn Any>` owner field on `CudaSlice` (as reported by the 2026-10-06 independent review; not re-read here). | The maintainer resists new `CudaSlice` variants and ownership modes but wants pools. A private pool whose slices are freed with the ordinary `cuMemFreeAsync` adds none. An `alloc_from_pool` returning a pool-tagged slice would. Unknown: whether the owner-field counter-proposal, if adopted upstream, would be preferred to a per-context pool for keeping the pool alive. |
    | chelsea0x3b/cudarc#174 (merged; the runtime async/sync choice) | Maintainer: "I like the runtime detection better than adding an additional compiler flag TBH." The capability is cached in the device/context structure, so detection runs once. | Favours a choice made once and stored on the context, at runtime, without features: a per-context pool fixed at construction fits. |
    | chelsea0x3b/cudarc#106 (closed in favour of #174) | Maintainer (2023-03-29): "Would prefer opt-in to the non-standard behavior, rather than opting out of it." | Pool allocation must be opt-in: a new constructor, not a changed default. |
-   | chelsea0x3b/cudarc#194 (zero-length allocation; closed) | Reporter: `cuMemAlloc(0)` returns `CUDA_ERROR_INVALID_VALUE` on a GTX 970 under Candle. The plan's earlier survey records the maintainer's "I'm hesitant to use a null pointer" and "We don't have any device specific code in cudarc"; those two quotes were not re-read on 2026-10-06. | No device-specific (`target_arch`) code; the zero-length behaviour of `cuMemAllocFromPoolAsync` must be measured (C5) before any null-pointer rule is proposed. |
+   | chelsea0x3b/cudarc#194 (zero-length allocation; closed) | Reporter: `cuMemAlloc(0)` returns `CUDA_ERROR_INVALID_VALUE` on a GTX 970 under Candle. Maintainer: "I'm hesitant to use a null pointer" and "We don't have any device specific code in cudarc" (quotes verified by the 2026-10-06 independent review). | No device-specific (`target_arch`) code, and no synthesized null pointer in anything proposed: if C5 shows `cuMemAllocFromPoolAsync(0)` is an error, the upstream shape returns it. |
 
    **Assessment.** The private shape is the more upstream-compatible one,
    *provided* it is expressed as a per-context opt-in rather than a new slice
@@ -939,6 +1053,11 @@ made from facts the maintainer can run:
    Unknowns: the maintainer has not commented on #536, and whether upstream
    would accept a context constructor or prefer a stream-level setting is
    open. The draft comment (item 4) asks.
+
+   **Not proposed (FathomDB residual patch).** The installed-pool decision
+   table of the comparison arms; the aarch64 cfg and the 0.8.27 fallback's
+   process-wide table (question 1 of the plan); and any zero-length special
+   case of the P path that C5 makes necessary (§ 2.2).
 
 The question whether the 0.8.27 default-pool fallback itself is expressible
 with upstream's current API is answered by inspection in Phase 5: list the
@@ -982,7 +1101,7 @@ Node CUDA addon and the wheel each compile Candle's CUDA kernels; budget
 | --- | --- | --- |
 | 0 | 3–5 h | two addon builds, one wheel, harness smoke, 40 runs, revisit check |
 | 1 | done: about 1 h 55 min (results § 7) | C3 560 probes; gap sweep; P1 80 runs; R5 stopped at 35 processes |
-| 1b | build plus about 2.5 h | P-first-use build and tests; equivalence 20 runs; R5 1350 runs × about 5–7 s with the quiet check (measured 4.7 s per process at heap 0; larger heaps take longer) |
+| 1b | build plus about 2.5–3 h | P-first-use build and tests; C5 probe (~0.2 h); equivalence 20 runs; heap pilot (≥ 80 import runs, ~0.3 h); R5 1050 runs × about 5–9 s with the quiet check (measured 4.7 s per process at heap 0; larger heaps take longer) |
 | 2 | 4–6 h | C1 500 runs (~1 h); C2 C probes + 40 cycle processes (~1 h); C7 and C8 (~1.5 h); test suites |
 | 3 | 10–14 h + soak | R1 600 C runs (~1 h); R2 ≤ 1350 runs (~3.5 h); R3 270 (~1 h); R4 360 (~1 h); R7 60 trials (~1 h); R8 (~0.5 h); R6 15–30 min per candidate (owner ruling 4) |
 | 4 | 3–4 h | P1–P4/P6 ≤ 240 `perf` runs (~1.5 h); P5 ≤ 15 ingests (~1 h); P7 60 Python runs |

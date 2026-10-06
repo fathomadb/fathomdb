@@ -10,6 +10,9 @@
 #   for that cell only.
 set -u
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Fixes the series swap baseline once for every block (lib-host.sh exports it).
+# shellcheck source=lib-host.sh
+source "$here/lib-host.sh"
 cells=$1; blocks=$2; seed=$3; outdir=$4
 mkdir -p "$outdir"
 grep -v '^#' "$cells" | grep . >"$outdir/cells.tsv"

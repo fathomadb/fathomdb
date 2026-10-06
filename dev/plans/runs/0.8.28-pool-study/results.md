@@ -293,7 +293,9 @@ Slice 110.
 - **A-load-release: ruled out** as built, by P1 (+126 ms import; its RSS,
   +19 MiB, would pass). It stays only as a comparison arm if a cheaper
   load-time form is found.
-- **A-first-use and B: kept**, but not cleared. R5, the key rule-out for
+- **A-first-use and B: kept**, but not cleared. *Superseded by ruling 7
+  (2026-10-06):* they remain only as comparison arms, and P-first-use (not
+  measured in Phases 0–1) is the primary candidate. R5, the key rule-out for
   lazy creation, was stopped after 35 processes (§ 3.3). C3 and the gap sweep
   give the model R5 was meant to test: capacity and contiguous need are both
   `maxSize`/3, exactly.
@@ -323,7 +325,7 @@ Slice 110.
 | R5: lazy creation succeeds at the chosen size in every heap cell (B, A-first-use) | R5 | UNMEASURED (2 of 60 cells, both heap 0, A-first-use only: 35 / 35 created) | § 3.3 |
 | A-load-release passes the import-cost gate | P1 | FAIL (+126.0 ms [110.5, 128.4]) | table 6 |
 | A-load-hold passes the import-cost gate | P1 | FAIL (+92.0 ms, +109.0 MiB) | table 6 |
-| Which arm can be the aarch64 default (owner ruling 3) | all phases | UNMEASURED; after Phase 1 only A-first-use and B remain candidates | § 4 |
+| Which arm can be the aarch64 default (owner ruling 3) | all phases | UNMEASURED; after Phase 1 the A-load forms are out. By ruling 7 (2026-10-06) P-first-use is the only shipping candidate; A-first-use and B are comparison arms | § 4 |
 | C1, C2, C4–C8; R1–R4, R6–R8; P2–P7 | Phases 2–4 | UNMEASURED | — |
 
 ## 6. Deviations from the protocol, and why

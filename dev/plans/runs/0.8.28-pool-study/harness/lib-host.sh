@@ -14,6 +14,24 @@ GPU_LOAD_SYSFS=/sys/devices/platform/bus@0/17000000.gpu/load
 
 meminfo_kib() { awk -v k="$1:" '$1 == k { print $2 }' /proc/meminfo; }
 
+swap_used_kib() { echo $(( $(meminfo_kib SwapTotal) - $(meminfo_kib SwapFree) )); }
+
+# zram totals over every device, bytes: orig_data_size, compr_data_size,
+# mem_used_total (/sys/block/zram*/mm_stat fields 1-3).
+zram_json() {
+  cat /sys/block/zram*/mm_stat 2>/dev/null |
+    awk '{ o += $1; c += $2; u += $3 } END { printf "{\"origBytes\":%d,\"comprBytes\":%d,\"usedBytes\":%d}", o, c, u }'
+}
+
+# Swap (section 1.1 item 3, owner ruling 8): swap is recorded, not required to
+# be zero. The baseline is the swap in use when the series starts (the first
+# runner or driver to source this file; exported so nested runners keep it).
+# Only a series run with NO_SWAP=1 (the timing comparisons) refuses or stops
+# when swap use rises above that baseline.
+export SWAP_BASE_KIB="${SWAP_BASE_KIB:-$(swap_used_kib)}"
+NO_SWAP="${NO_SWAP:-0}"
+swap_grew() { [ "$(swap_used_kib)" -gt "$SWAP_BASE_KIB" ]; }
+
 # Processes that refuse a run (section 1.1 item 1). Names are matched exactly
 # on the command name; pytest and FathomDB consumers are matched on argv.
 busy_procs() {
@@ -49,9 +67,10 @@ gpu_load() { cat "$GPU_LOAD_SYSFS" 2>/dev/null || echo -1; }
 # One JSON object describing the host now. $1: GPU idle verdict (true/false/null).
 host_json() {
   local idle=${1:-null}
-  printf '{"utc":"%s","memAvailableKiB":%s,"swapFreeKiB":%s,"swapTotalKiB":%s,"cachedKiB":%s,"cmaFreeKiB":%s,"loadAvg1":%s,"thermalMilliC":%s,"gpuLoad":%s,"gpuIdleBefore":%s,"busy":"%s"}' \
+  printf '{"utc":"%s","memAvailableKiB":%s,"swapFreeKiB":%s,"swapTotalKiB":%s,"swapUsedKiB":%s,"swapBaseKiB":%s,"noSwap":%s,"zram":%s,"cachedKiB":%s,"cmaFreeKiB":%s,"loadAvg1":%s,"thermalMilliC":%s,"gpuLoad":%s,"gpuIdleBefore":%s,"busy":"%s"}' \
     "$(date -u +%FT%T.%3NZ)" "$(meminfo_kib MemAvailable)" "$(meminfo_kib SwapFree)" \
-    "$(meminfo_kib SwapTotal)" "$(meminfo_kib Cached)" "$(meminfo_kib CmaFree)" \
+    "$(meminfo_kib SwapTotal)" "$(swap_used_kib)" "$SWAP_BASE_KIB" "$NO_SWAP" "$(zram_json)" \
+    "$(meminfo_kib Cached)" "$(meminfo_kib CmaFree)" \
     "$(cut -d' ' -f1 /proc/loadavg)" "$(thermal_json)" "$(gpu_load)" "$idle" "$(busy_procs)"
 }
 
@@ -60,7 +79,7 @@ host_json() {
 # is the sysfs load counter tegrastats reports as GR3D_FREQ, sampled once a
 # second for 3 seconds.
 host_quiet_now() {
-  local why="" busy load avail sf st
+  local why="" busy load avail
   busy=$(busy_procs)
   [ -n "$busy" ] && why+="busy[$busy] "
   busy=$(gpu_fd_holders)
@@ -69,8 +88,9 @@ host_quiet_now() {
   awk -v l="$load" 'BEGIN { exit !(l < 2.0) }' || why+="load1=$load "
   avail=$(meminfo_kib MemAvailable)
   [ "$avail" -ge $((40 * 1024 * 1024)) ] || why+="memavail_kib=$avail "
-  sf=$(meminfo_kib SwapFree); st=$(meminfo_kib SwapTotal)
-  [ "$sf" = "$st" ] || why+="swap_used_kib=$((st - sf)) "
+  if [ "$NO_SWAP" = 1 ] && swap_grew; then
+    why+="swap_used_kib=$(swap_used_kib)>base=$SWAP_BASE_KIB "
+  fi
   if [ -z "$why" ]; then
     local i g
     for i in 1 2 3; do
@@ -100,12 +120,13 @@ host_quiet_wait() {
   return 0
 }
 
-# Abort floor during a series (section 1.2 / 1.3): MemAvailable below 8 GiB,
-# or any swap in use, stops the study.
+# Abort floor during a series (section 1.2 / 1.3): MemAvailable below 8 GiB
+# stops every series; swap use above the series-start baseline stops a
+# NO_SWAP=1 series only (every other series records it in host_json).
 host_floor_ok() {
-  local avail sf st
-  avail=$(meminfo_kib MemAvailable); sf=$(meminfo_kib SwapFree); st=$(meminfo_kib SwapTotal)
-  [ "$avail" -ge $((8 * 1024 * 1024)) ] && [ "$sf" = "$st" ]
+  [ "$(meminfo_kib MemAvailable)" -ge $((8 * 1024 * 1024)) ] || return 1
+  if [ "$NO_SWAP" = 1 ] && swap_grew; then return 1; fi
+  return 0
 }
 
 # series-header.txt (section 0). $1: outdir; remaining args: free-form
@@ -120,6 +141,9 @@ series_header() {
     echo "python=$(python3 --version 2>&1)"
     echo "nvpmodel=$(nvpmodel -q 2>/dev/null | tr '\n' ' ')"
     echo "jetson_clocks=$(jetson_clocks --show 2>&1 | head -1)"
+    echo "swap_base_kib=$SWAP_BASE_KIB"
+    echo "no_swap=$NO_SWAP"
+    echo "zram_start=$(zram_json)"
     for kv in "$@"; do echo "$kv"; done
     env | grep -E '^(FATHOMDB_|CUDA_|NODE_OPTIONS=)' | sort
   } >"$outdir/series-header.txt"

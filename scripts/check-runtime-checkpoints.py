@@ -7,7 +7,9 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import math
 import re
+import statistics
 import subprocess
 import sys
 from pathlib import Path
@@ -25,6 +27,13 @@ CHECKPOINT_KEYS = {
 }
 RECEIPT_KEYS = {"path", "status", "candidate_sha", "sha256"}
 RECEIPT_NAMES = {"performance", "code_review", "verification"}
+D27_CANDIDATE_KEYS = {
+    "aggregate_metrics", "binary_sha256", "corpus_sha256",
+    "decision_rule_evaluation", "environment_end", "environment_start",
+    "historical_unavailable", "per_repetition_metrics", "phase",
+    "protocol_sha256", "raw_output_sha256", "runner_inventory",
+    "runner_sha256", "source_sha", "status",
+}
 SLICE90_EVIDENCE = Path("dev/plans/0.8.27/features/slice-90")
 SLICE90_RECEIPTS = {
     "performance": SLICE90_EVIDENCE / "runtime-performance-qualification.md",
@@ -52,6 +61,10 @@ AC073_RECEIPT = SLICE90_EVIDENCE / "ac073-stress-receipt.json"
 AC073_EXECUTION = SLICE90_EVIDENCE / "ac073-execution.json"
 AC073_EU7 = SLICE90_EVIDENCE / "ac073-eu7.json"
 AC073_LOG = SLICE90_EVIDENCE / "ac073-run.log"
+LEGACY_SLICE90_BUNDLES = Path(
+    "/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90"
+)
+DURABLE_SLICE90_BUNDLES = Path("data/0.8.26/qualification-evidence/slice-90")
 AC073_COMMAND = (
     "env CARGO_TARGET_DIR={bundle}/target AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
     "EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 "
@@ -66,9 +79,34 @@ class Validation:
         self.root = root.resolve()
         self.errors: list[str] = []
         self.checked = 0
+        self.skipped_qualification = False
 
     def fail(self, location: str, message: str) -> None:
         self.errors.append(f"FAIL check-runtime-checkpoints: {location}: {message}")
+
+    def durable_bundle_directory(self) -> Path:
+        common = subprocess.run(
+            ["git", "-C", str(self.root), "rev-parse", "--git-common-dir"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        ).stdout.strip()
+        return (self.root / common).resolve().parent / DURABLE_SLICE90_BUNDLES
+
+    def historical_bundle_missing(self, recorded: Path) -> bool:
+        try:
+            recorded.relative_to(LEGACY_SLICE90_BUNDLES)
+        except ValueError:
+            return False
+        return not self.durable_bundle_directory().is_dir()
+
+    def bundle_directory(self, recorded: Path) -> Path:
+        try:
+            relative = recorded.relative_to(LEGACY_SLICE90_BUNDLES)
+        except ValueError:
+            return recorded
+        durable = self.durable_bundle_directory()
+        return durable / relative if durable.is_dir() else recorded
 
     def commit_exists(self, sha: str) -> bool:
         result = subprocess.run(
@@ -149,6 +187,7 @@ class Validation:
             return None
         if not directory.is_absolute():
             directory = self.root / directory
+        directory = self.bundle_directory(directory)
         if not directory.is_dir():
             self.fail(
                 location, f"D27 artifact bundle directory does not exist: {raw_dir}"
@@ -193,6 +232,69 @@ class Validation:
             return None
         return receipt, artifacts
 
+    def d27_snapshot_metrics_complete(self, receipt: dict, protocol_path: Path) -> bool:
+        try:
+            protocol = json.loads(protocol_path.read_text())
+            metrics = protocol["metrics"]
+            directions = {"projection_heavy", "foreground_heavy"}
+            aggregates = receipt["aggregate_metrics"]
+            repetitions = receipt["per_repetition_metrics"]
+            if set(aggregates) != directions or set(repetitions) != directions:
+                return False
+            for direction in directions:
+                runs = repetitions[direction]
+                if not isinstance(runs, list) or len(runs) != protocol["execution"]["repetitions"]:
+                    return False
+                if any(
+                    not isinstance(run, dict)
+                    or run.get("environment_valid") is not True
+                    or run.get("starvation_pass") is not True
+                    for run in runs
+                ):
+                    return False
+                aggregate = aggregates[direction]
+                if set(aggregate) != {"throughput", "latency_ms"}:
+                    return False
+                for group, names in (
+                    ("throughput", metrics["throughput_rates_per_second"]),
+                    ("latency_ms", metrics["latency_classes"]),
+                ):
+                    if set(aggregate[group]) != set(names):
+                        return False
+                    for name in names:
+                        percentiles = (
+                            [str(value) for value in metrics["latency_percentiles"]]
+                            if group == "latency_ms" else [None]
+                        )
+                        if group == "latency_ms" and set(aggregate[group][name]) != set(percentiles):
+                            return False
+                        for percentile in percentiles:
+                            values = [
+                                run[group][name][percentile] if percentile is not None
+                                else run[group][name]
+                                for run in runs
+                            ]
+                            if any(
+                                type(value) not in (int, float)
+                                or not math.isfinite(value) or value < 0
+                                for value in values
+                            ):
+                                return False
+                            median = statistics.median(values)
+                            expected = {
+                                "median": median,
+                                "mad": statistics.median(abs(value - median) for value in values),
+                            }
+                            actual = (
+                                aggregate[group][name][percentile] if percentile is not None
+                                else aggregate[group][name]
+                            )
+                            if actual != expected:
+                                return False
+            return True
+        except (OSError, KeyError, TypeError, ValueError, AttributeError):
+            return False
+
     def validate_d27_bundles(
         self,
         location: str,
@@ -208,6 +310,7 @@ class Validation:
             if line.startswith("|")
         ]
         bundles = {}
+        bundle_rows = {}
         for phase in ("entry", "candidate"):
             matches = [row for row in rows if len(row) == 3 and row[0] == phase]
             if len(matches) != 1 or HASH_RE.fullmatch(matches[0][2]) is None:
@@ -216,7 +319,53 @@ class Validation:
                     f"D27 artifact bundle requires one {phase} row with receipt SHA-256",
                 )
                 return
-            bundle = self.d27_bundle(location, matches[0][1], matches[0][2])
+            bundle_rows[phase] = matches[0]
+        if (
+            bundle_rows["candidate"][2] != hashlib.sha256(candidate_receipt_bytes).hexdigest()
+            or candidate_receipt.get("source_sha") != candidate_sha
+            or candidate_receipt.get("status") != "PASS"
+        ):
+            self.fail(location, "D27 candidate receipt differs from checkpoint binding")
+            return
+        if (
+            set(candidate_receipt) != D27_CANDIDATE_KEYS
+            or candidate_receipt.get("phase") != "candidate"
+            or candidate_receipt.get("historical_unavailable") != []
+            or any(
+                not isinstance(candidate_receipt.get(name), dict)
+                for name in (
+                    "aggregate_metrics", "per_repetition_metrics", "runner_inventory",
+                    "environment_start", "environment_end",
+                )
+            )
+            or any(
+                not isinstance(candidate_receipt.get(name), str)
+                or HASH_RE.fullmatch(candidate_receipt[name]) is None
+                for name in (
+                    "binary_sha256", "corpus_sha256", "protocol_sha256",
+                    "raw_output_sha256", "runner_sha256",
+                )
+            )
+        ):
+            self.fail(location, "D27 candidate receipt shape mismatch")
+            return
+        if candidate_receipt.get("decision_rule_evaluation") != {
+            "status": "PASS", "rule": "D27 frozen median/MAD"
+        }:
+            self.fail(location, "D27 candidate receipt decision mismatch")
+            return
+        if all(
+            self.historical_bundle_missing(Path(bundle_rows[phase][1]))
+            for phase in ("entry", "candidate")
+        ):
+            if not self.d27_snapshot_metrics_complete(candidate_receipt, protocol_path):
+                self.fail(location, "D27 candidate receipt metrics incomplete")
+                return
+            self.skipped_qualification = True
+            return
+        for phase in ("entry", "candidate"):
+            row = bundle_rows[phase]
+            bundle = self.d27_bundle(location, row[1], row[2])
             if bundle is None:
                 return
             bundles[phase] = bundle
@@ -450,16 +599,17 @@ class Validation:
             raw_bundle = manifest["bundle_dir"]
             if not isinstance(raw_bundle, str) or not raw_bundle:
                 raise ValueError("bundle directory missing")
-            bundle = Path(raw_bundle)
-            if not bundle.is_absolute() or ".." in bundle.parts or bundle.resolve() != bundle:
+            recorded_bundle = Path(raw_bundle)
+            if (
+                not recorded_bundle.is_absolute()
+                or ".." in recorded_bundle.parts
+                or raw_bundle != str(recorded_bundle)
+            ):
                 raise ValueError("bundle directory must be canonical and absolute")
-            if manifest["command"] != AC073_COMMAND.format(bundle=bundle):
+            if manifest["command"] != AC073_COMMAND.format(bundle=recorded_bundle):
                 raise ValueError("candidate command binding mismatch")
-            output = bundle / "eu7.json"
-            if re.findall(r"^EU7_WROTE (.+)$", log, flags=re.MULTILINE) != [str(output)]:
+            if re.findall(r"^EU7_WROTE (.+)$", log, flags=re.MULTILINE) != [str(recorded_bundle / "eu7.json")]:
                 raise ValueError("EU7 output path differs from fixed command")
-            if not output.is_file() or output.is_symlink() or output.read_bytes() != eu7_bytes:
-                raise ValueError("EU7 bundle output differs from retained receipt")
             relative = manifest["binary_relative_path"]
             if (
                 not isinstance(relative, str)
@@ -467,22 +617,31 @@ class Validation:
                 is None
             ):
                 raise ValueError("test executable path mismatch")
-            binary = bundle / relative
-            if not binary.is_file() or binary.is_symlink():
-                raise ValueError("sealed test executable missing")
             digest = manifest["binary_sha256"]
             if not isinstance(digest, str) or HASH_RE.fullmatch(digest) is None:
                 raise ValueError("test executable SHA-256 invalid")
-            if hashlib.sha256(binary.read_bytes()).hexdigest() != digest:
-                raise ValueError("sealed test executable SHA-256 mismatch")
             executed = manifest["executed_binary_path"]
             if (
                 not isinstance(executed, str)
-                or executed != str(binary)
+                or executed != str(recorded_bundle / relative)
             ):
                 raise ValueError("executed test executable path differs from sealed binary")
             if log.count(f"Running tests/eu7_real_corpus_ac.rs ({executed})") != 1:
                 raise ValueError("raw log does not identify sealed test executable")
+            if self.historical_bundle_missing(recorded_bundle):
+                self.skipped_qualification = True
+                return True
+            bundle = self.bundle_directory(recorded_bundle)
+            if bundle.resolve() != bundle:
+                raise ValueError("bundle directory must be canonical and absolute")
+            output = bundle / "eu7.json"
+            if not output.is_file() or output.is_symlink() or output.read_bytes() != eu7_bytes:
+                raise ValueError("EU7 bundle output differs from retained receipt")
+            binary = bundle / relative
+            if not binary.is_file() or binary.is_symlink():
+                raise ValueError("sealed test executable missing")
+            if hashlib.sha256(binary.read_bytes()).hexdigest() != digest:
+                raise ValueError("sealed test executable SHA-256 mismatch")
         except (OSError, UnicodeError, ValueError, KeyError, TypeError) as error:
             self.fail(location, f"AC-073 execution invalid: {error}")
             return False
@@ -918,9 +1077,15 @@ class Validation:
         if self.errors:
             print("\n".join(self.errors), file=sys.stderr)
             return 1
-        print(
-            f"ok    check-runtime-checkpoints: {self.checked} structured checkpoint(s) valid"
-        )
+        if self.skipped_qualification:
+            print(
+                f"ok    check-runtime-checkpoints: {self.checked} checkpoint receipt(s) valid"
+            )
+            print("skipped: qualification evidence not on this host")
+        else:
+            print(
+                f"ok    check-runtime-checkpoints: {self.checked} structured checkpoint(s) valid"
+            )
         return 0
 
 

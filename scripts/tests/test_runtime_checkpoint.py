@@ -303,6 +303,122 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         result = self.run_gate()
         self.assertEqual(result.returncode, 0, result.stdout)
 
+    def historical_bundle_paths(self, checkpoint: dict[str, object], *, retain: bool) -> Path:
+        receipt_path, _, log_path = self.write_ac073_stress_receipt(checkpoint)
+        old_root = Path("/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90")
+        durable_root = self.root / "data/0.8.26/qualification-evidence/slice-90"
+        if retain:
+            durable_root.mkdir(parents=True)
+
+        old_ac073 = str(self.root / "evidence/ac073-bundle")
+        recorded_ac073 = str(old_root / "ac073-bundle")
+        manifest_path = self.root / EVIDENCE_DIR / "ac073-execution.json"
+        manifest = json.loads(manifest_path.read_text())
+        for key in ("command", "bundle_dir", "executed_binary_path"):
+            manifest[key] = manifest[key].replace(old_ac073, recorded_ac073)
+        log_path.write_text(log_path.read_text().replace(old_ac073, recorded_ac073))
+        manifest["raw_log_sha256"] = hashlib.sha256(log_path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest))
+        receipt = json.loads(receipt_path.read_text())
+        receipt["raw_log_sha256"] = manifest["raw_log_sha256"]
+        receipt["execution_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        receipt_path.write_text(json.dumps(receipt))
+        if retain:
+            shutil.move(old_ac073, durable_root / "ac073-bundle")
+        else:
+            shutil.rmtree(old_ac073)
+
+        performance_path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        performance = performance_path.read_text()
+        for phase in ("entry", "candidate"):
+            performance = performance.replace(
+                f"| {phase} | evidence/{phase} |",
+                f"| {phase} | {old_root / phase} |",
+            )
+            if retain:
+                shutil.move(str(self.root / "evidence" / phase), durable_root / phase)
+            else:
+                shutil.rmtree(self.root / "evidence" / phase)
+        performance_path.write_text(performance)
+        self.rebind_ac073(checkpoint, receipt_path)
+        return durable_root
+
+    def test_historical_bundles_validate_from_durable_data_without_old_directory(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        durable_root = self.historical_bundle_paths(checkpoint, retain=True)
+
+        result = self.run_gate()
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+        (durable_root / "ac073-bundle/target/release/deps/eu7_real_corpus_ac-test").write_bytes(b"tampered")
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("sealed test executable SHA-256 mismatch", result.stdout)
+
+    def test_historical_bundles_absent_reports_skipped_after_receipt_validation(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        self.historical_bundle_paths(checkpoint, retain=False)
+        result = self.run_gate()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("skipped: qualification evidence not on this host", result.stdout)
+        self.assertIn("checkpoint receipt(s) valid", result.stdout)
+        self.assertNotIn("structured checkpoint(s) valid", result.stdout)
+
+    def test_absent_bundles_do_not_accept_forged_d27_decision(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        self.historical_bundle_paths(checkpoint, retain=False)
+        path = self.root / EVIDENCE_DIR / "d27-candidate-receipt.json"
+        receipt = json.loads(path.read_text())
+        receipt["decision_rule_evaluation"] = {"forged": "PASS"}
+        path.write_text(json.dumps(receipt))
+        performance_path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        performance = performance_path.read_text()
+        candidate_row = (
+            "| candidate | /home/coreyt/projects/fathomdb-worktrees/"
+            "qualification-evidence/slice-90/candidate |"
+        )
+        performance = "\n".join(
+            f"{candidate_row} {hashlib.sha256(path.read_bytes()).hexdigest()} |"
+            if line.startswith(candidate_row) else line
+            for line in performance.splitlines()
+        ) + "\n"
+        performance_path.write_text(performance)
+        self._rebind_performance(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("D27 candidate receipt decision mismatch", result.stdout)
+
+    def test_absent_bundles_do_not_accept_empty_d27_aggregates(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        self.historical_bundle_paths(checkpoint, retain=False)
+        path = self.root / EVIDENCE_DIR / "d27-candidate-receipt.json"
+        receipt = json.loads(path.read_text())
+        receipt["aggregate_metrics"] = {}
+        path.write_text(json.dumps(receipt))
+        performance_path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        candidate_row = (
+            "| candidate | /home/coreyt/projects/fathomdb-worktrees/"
+            "qualification-evidence/slice-90/candidate |"
+        )
+        performance_path.write_text("\n".join(
+            f"{candidate_row} {hashlib.sha256(path.read_bytes()).hexdigest()} |"
+            if line.startswith(candidate_row) else line
+            for line in performance_path.read_text().splitlines()
+        ) + "\n")
+        self._rebind_performance(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("D27 candidate receipt metrics incomplete", result.stdout)
+
+    def test_incomplete_durable_bundle_fails_instead_of_skipping(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        durable_root = self.historical_bundle_paths(checkpoint, retain=True)
+        (durable_root / "entry/receipt.json").unlink()
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("D27 artifact bundle receipt is unreadable", result.stdout)
+        self.assertNotIn("skipped: qualification evidence not on this host", result.stdout)
+
     def test_ac073_generic_pass_mutant_cannot_bypass_stress_receipt(self) -> None:
         self.pass_checkpoint()
         result = self.run_gate()

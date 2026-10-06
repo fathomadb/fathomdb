@@ -23,6 +23,11 @@ full-workspace green result or close Slice 110.
 
 ## Post-Slice 110 Tegra check (2026-10-06)
 
+Slice 115 reviewed the merged Slice 110 changes and determined that no
+additional Slice 115 acceptance or measurement work is required. Slice 115
+remains closed; the lock-test correction below preserves verification of its
+historical receipt.
+
 The merged Tegra repair at `a25d063cd` changes the vendored CUDA allocator,
 CUDA probes, and NAPI module-load initialization. It does not change engine
 source. The Slice 115 runner is a standalone Rust engine workload with

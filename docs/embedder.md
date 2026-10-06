@@ -216,13 +216,17 @@ NODE_OPTIONS=--import=fathomdb node app.js
 - With no visible GPU, the import still succeeds silently, and `auto` uses
   the CPU.
 
-**Symptom of a late import.** If the heap grew before fathomdb was loaded, a
-forced `cuda:N` open fails with `EmbedDevicePolicyError`
+**Symptom of a late import.** If `cuInit` fails after the heap grew before
+fathomdb was loaded, a forced `cuda:N` open fails with `EmbedDevicePolicyError`
 (`FDB_EMBED_DEVICE_POLICY`, kind `cuda_probe_failed`), or
-`RerankerDevicePolicyError` for the cross-encoder. The message continues with
-`cuInit returned CUDA_ERROR_OUT_OF_MEMORY` and names both remedies. Under
+`RerankerDevicePolicyError` for the cross-encoder. The message may continue
+with `cuInit returned CUDA_ERROR_OUT_OF_MEMORY` and name both remedies when
+the latest probe of that component still records that failure. Concurrent
+probes of the same component can replace this best-effort hint; the error
+code, kind and forced-CUDA refusal remain stable. Under
 `auto` the engine uses the CPU instead, and
-`openReport().embedderDeviceResolution.reason` is `cuda_probe_failed`.
+`openReport().embedderDeviceResolution.reason` is `cuda_probe_failed` for
+the failed embedder probe.
 
 **Why a late import can still fail.** Loading fathomdb only helps if the
 address space still has room. In measurements on the AGX Orin 64 GB, a heap

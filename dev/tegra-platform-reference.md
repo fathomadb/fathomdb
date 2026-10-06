@@ -630,13 +630,17 @@ more in all of them. Forcing a GC does not give the window back. A failed
   the hook does `cuInit` only.
 - **Limit: late import.** If the heap grows before the addon is loaded,
   `cuInit` can already be impossible: 1M live objects (about 175 MiB) failed
-  10 / 10 over two rounds. Forced CUDA then refuses with
-  `FDB_EMBED_DEVICE_POLICY` / `cuda_probe_failed`, and the Node message names
+  10 / 10 over two rounds. When `cuInit` fails in that layout, forced CUDA
+  refuses with
+  `FDB_EMBED_DEVICE_POLICY` or `FDB_RERANKER_DEVICE_POLICY`, as applicable,
+  with kind `cuda_probe_failed`. The Node message may name
   the out-of-memory `cuInit` and both remedies; the kind and the
-  no-CPU-fallback contract are unchanged. The hint uses the most recent
-  `cuInit` outcome of the refusing component's probe kind, so another
-  caller's `cuInit` cannot change it. The reranker probe re-runs at every open
-  and at `rerank()` with depth above zero, so the reranker's memoized refusal
+  no-CPU-fallback contract are unchanged. The best-effort hint uses the most
+  recent `cuInit` outcome of the refusing component's probe kind. A probe of
+  another kind cannot change it, but a concurrent probe of the same kind can
+  replace the record before the message is formatted. The reranker probe
+  re-runs at every open and at `rerank()` with depth above zero, so its
+  memoized refusal
   can lose its hint after a later successful reranker probe. `node --import fathomdb` (or `NODE_OPTIONS=--import=fathomdb`)
   loads the addon before the application and passed 13 / 13 with the same
   late heap.

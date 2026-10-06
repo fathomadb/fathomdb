@@ -9,8 +9,10 @@ target_release: 0.8.27
 The reviewed product-code commit is
 `87670f61d48e6552edcb2a64f7ddb2dacf2863e1` on `release/0.8.27`.
 The release-note gate fix at `06e34759f55dbede47b9b7ccb2c000dd5edac9b4`
-changes no product code. Slice 110 remains **in progress** until the merged
-release code is tested on x86_64 and the Tegra row is rechecked on it. Hosted
+changes no product code. Slice 110 remains **in progress** while the merged
+release code at `a25d063cd` finishes the full repository x86_64 gate and the Tegra
+allocation-witness row is resolved. Installed x86_64 Node and Python CUDA
+artifacts pass the merged-source runtime checks below. Hosted
 Linux arm64 GNU and both macOS package rows have passed. The intermittent
 Jetson forced-CUDA refusal was root-caused and fixed on
 `llm/slice110-tegra-allocator-fix` (see AC27-110E): an aarch64-Linux
@@ -45,6 +47,46 @@ sequencing exceptions.
 | AC27-110F | **OPEN with code/repository gates passing:** gpt-6-sol high code review passed at the product commit; Terra independently verified local source, artifact and Linux CPU package evidence and the later Tegra investigation. Strict local `agent-verify` passed 182/182 suites, zero skipped or excluded, and security 0 violations/0 blockers/0 downgrades at `06e34759`. Hosted platform job receipts are retained. The CI workflow's separate heavy verifier failed its missing-tool preflight before testing, and its self-hosted Windows row remained queued; neither is represented as a green CI conclusion. Tegra GPU runtime and final native handoff still control exit. |
 
 ## Candidate-bound artifacts and checks
+
+### Merged-source amd64 qualification (2026-10-05)
+
+The merge commit `a25d063cd` is the tested source. On the local x86_64 host
+(CUDA 12.6.68, Node 25.9.0, two RTX 3090s), the official CUDA NAPI build
+produced a binary with SHA-256
+`b1be1554c9c0c96445d78878eb5f264c8cc5e8226909250a505e064566fd0f42`.
+The thin main and Linux x64 platform packages were packed and installed
+offline in a separate consumer; the installed binary matched the build.
+Five fresh forced-CUDA processes passed open, 384-dimensional embedding,
+reranking and close on the selected RTX 3090, each with a 134,217,728-byte
+allocation-witness delta above the 67,108,864-byte floor. The main tarball
+SHA-256 was `296a4b4157418e3a66fd194e8be45c882d7035d4d06cf9463f7e9d8d1a1092c6`;
+the platform tarball was
+`daf6912fe267ae9317fcef675053ef3d2dffa7a7c542c5c427800fce9720f1ef`.
+
+The same source built a host-only CUDA Python wheel, SHA-256
+`c33cd61d4dea483736060f799c39c90ea5f372f7c4288d65dca158b60c617dc6`,
+installed into an isolated non-editable environment. Five fresh forced-CUDA
+processes passed embedding and reranking on the same RTX 3090, each with the
+134,217,728-byte allocation-witness delta. The installed Node and Python
+packages also passed forced-CPU execution and forced-CUDA refusal with no
+visible GPU; neither silently fell back to CPU. The merged x86_64 vendored
+cudarc allocator suite passed 11/11, including its live GPU round-trip check.
+The merged-source `scripts/test-feature-complete.sh` gate passed on this CUDA
+host: 21 runs, 361 planned tests, 353 passed, zero failed, eight
+allowlisted ignores and zero gate failures. These checks establish
+installed-package amd64 behavior and the extra feature combinations. A first
+full `agent-verify` attempt passed 182/184 registered suites, including the
+Rust workspace suite, but its two Python artifact suites rejected
+documentation edits made during the run. A clean rerun of those two suites
+is pending; no single full-gate green is claimed.
+
+On the AGX Orin, the merged-source CUDA Node addon rebuilt and its installed
+package passed five fresh forced-CUDA open/embed/rerank/close processes without
+the optional allocation witness. In an earlier witness-enabled repeat, the
+first process passed and the second had a negative measured GPU-memory delta
+and failed the witness floor. That does not show a CUDA execution failure,
+but it leaves the merged-source witness qualification open. The native addon
+SHA-256 was `f66a394c699e1dc7a7894b6e66a995223eff2e2b728007ca0e1de3e1ee9da635`.
 
 - Linux x64 GNU: official Node v25.9.0 archive SHA-256
   `1d8db7d6e291d167e8c467ae4094be175e1a0b3969c7ae1f8955b9f7824f7b2e`
@@ -155,12 +197,11 @@ not change the open platform acceptance rows.
 
 ## Remaining action
 
-Test the merged `release/0.8.27` commit on x86_64: vendored cudarc tests,
-workspace clippy and check, the CUDA N-API build with installed-package
-forced-CUDA and CPU checks, and the full source gate on a prepared checkout
-(`agent-verify` with its own `.venv`, and `scripts/test-feature-complete.sh`
-on the CUDA host). Repeat the installed Node forced-CUDA and allocation-witness
-checks on the Orin against the merged code. Forced CUDA must continue to refuse
+Rerun the two Python artifact suites from a clean checkout on the x86_64
+CUDA host. The feature-complete gate, vendored cudarc tests, installed CUDA Node
+and Python runs, forced-CPU runs and no-GPU refusals already pass. Resolve the
+AGX Orin allocation-witness measurement and repeat it against the merged
+installed package. Forced CUDA must continue to refuse
 rather than fall back to CPU when unavailable; a late import into a very large
 Node heap still fails at `cuInit`, and the synchronous path is about 1.8–2.8
 times slower per steady embed. Hosted Linux arm64 GNU and both macOS rows are

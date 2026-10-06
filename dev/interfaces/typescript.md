@@ -815,15 +815,17 @@ shares one guard. Its environment is the process environment at that moment.
 - It checks for the driver library before calling it, never prints, and
   never panics out of or fails registration. It adds no export.
 
-When forced CUDA later refuses with kind `cuda_probe_failed` and the refusing
-component's own CUDA probe saw `cuInit` return `CUDA_ERROR_OUT_OF_MEMORY`, the
+When forced CUDA later refuses with kind `cuda_probe_failed`, the
 `EmbedDevicePolicyError` / `RerankerDevicePolicyError` message keeps its
-`cuda:N requested ... but unavailable: CudaProbeFailed` prefix and appends the
-cause and remedy. The remedy is to import fathomdb first or to start Node
-with `--import fathomdb`. The `cuInit` outcome is kept per caller kind
-(module registration, embedder probe, reranker probe), not per refusal: a
-`cuInit` by another kind never changes a refusal's hint, but a later probe of
-the same kind replaces it. Every `Engine.open` in a build with the
+`cuda:N requested ... but unavailable: CudaProbeFailed` prefix. It may append
+the possible `cuInit` out-of-memory cause and the remedy to import fathomdb
+first or start Node with `--import fathomdb`. The record has module-load,
+embedder-probe and reranker-probe slots. The hint reads the latest `cuInit`
+outcome from the embedder-probe or reranker-probe slot matching the refusing
+component, not an outcome bound to that refusal. A
+probe of another kind cannot change the hint, but a concurrent or later probe
+of the same kind can replace the record before the message is formatted.
+Every `Engine.open` in a build with the
 cross-encoder, and `rerank()` with a depth above zero, re-run the reranker
 probe, so the reranker's refusal, which is memoized for the process, can lose
 its hint after a later reranker probe succeeds. The code, `kind`,

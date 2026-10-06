@@ -201,6 +201,33 @@ if [ "$rc" -ne 1 ] || ! grep -q 'Foo' "$WORK/ts-template-spoof.err"; then
 fi
 echo "OK TypeScript template literal"
 
+cat >"$WORK/ts-string-spoof.patch" <<'PATCH'
+diff --git a/src/ts/src/index.ts b/src/ts/src/index.ts
+--- a/src/ts/src/index.ts
++++ b/src/ts/src/index.ts
+@@ -1 +1,4 @@
+-export class Foo {}
++const s = 'x\
++export { Foo } from "./foo.js";\
++';
++void s;
+diff --git a/src/ts/src/foo.ts b/src/ts/src/foo.ts
+--- /dev/null
++++ b/src/ts/src/foo.ts
+@@ -0,0 +1 @@
++export class Foo {}
+PATCH
+set +e
+python3 "$LINT" --diff-file "$WORK/ts-string-spoof.patch" \
+    --changelog "$FIX/reexport-edges/CHANGELOG.md" --repo-root "$REPO_ROOT" \
+    >/dev/null 2>"$WORK/ts-string-spoof.err"
+rc=$?
+set -e
+if [ "$rc" -ne 1 ] || ! grep -q 'Foo' "$WORK/ts-string-spoof.err"; then
+    fail "TypeScript continued string fixture: text cannot restore runtime Foo"
+fi
+echo "OK TypeScript continued string"
+
 # C-2: a bare removed `pub use` (no replacement) must itself be recorded as a
 # removal — probe regression for `-pub use errors::EngineError;` -> `[]`.
 set +e

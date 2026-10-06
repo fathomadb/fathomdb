@@ -80,6 +80,18 @@ fn fixture_path(name: &str) -> (TempDir, std::path::PathBuf) {
     (dir, path)
 }
 
+#[test]
+fn close_releases_embedder_while_engine_handle_is_retained() {
+    let (_dir, path) = fixture_path("close_releases_embedder");
+    let embedder = Arc::new(SleepingEmbedder::success(Duration::ZERO));
+    let weak = Arc::downgrade(&embedder);
+    let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
+
+    opened.engine.close().expect("close");
+    assert!(weak.upgrade().is_none(), "closed engine still owns the embedder");
+    opened.engine.close().expect("repeated close");
+}
+
 fn current_test_binary() -> std::path::PathBuf {
     std::env::current_exe().expect("test binary path")
 }

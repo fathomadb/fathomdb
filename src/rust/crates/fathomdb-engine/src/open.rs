@@ -991,7 +991,7 @@ impl Engine {
                         subscribers,
                         profiling_enabled,
                         slow_threshold_ms,
-                        runtime_embedder,
+                        runtime_embedder: runtime_embedder.as_ref().map(Arc::downgrade),
                         embed_dispatch,
                         runtime_embedder_identity: embedder_identity,
                         projection_runtime: parts.projection_runtime,

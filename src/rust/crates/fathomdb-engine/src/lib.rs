@@ -401,7 +401,7 @@ use std::sync::mpsc::SyncSender;
 use std::sync::mpsc::{self, Receiver};
 #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
 use std::sync::Barrier;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -465,7 +465,9 @@ pub struct Engine {
     subscribers: Arc<lifecycle::SubscriberRegistry>,
     profiling_enabled: Arc<AtomicBool>,
     slow_threshold_ms: Arc<AtomicU64>,
-    runtime_embedder: Option<Arc<dyn Embedder>>,
+    // The dispatcher owns the model until its workers join; keeping only a
+    // weak reference lets close release it while this Engine handle stays live.
+    runtime_embedder: Option<Weak<dyn Embedder>>,
     embed_dispatch: Arc<EmbedDispatcher>,
     runtime_embedder_identity: EmbedderIdentity,
     projection_runtime: ProjectionRuntime,

@@ -74,6 +74,16 @@ SQLITE_PATH = "third_party/libsqlite3-sys-0.38.1"
 SQLITE_VERSION = "0.38.1"
 SQLITE_AMALGAMATION_SHA256 = "7e4799907bdc92cff8858db2c52f5a03e136d5989ead6e513c0ef64057baeb9e"
 SQLITE_VENDOR_TREE_SHA256 = "a1dfc60a4703fe523d44497303049e17393dec1b273be2739a2933a87dcbf887"
+CUDARC_MANIFEST = "Cargo.toml"
+CUDARC_MECHANISM = "patch.crates-io"
+CUDARC_PACKAGE = "cudarc"
+CUDARC_PATH = "third_party/cudarc-0.19.7"
+CUDARC_VERSION = "0.19.7"
+# Cargo.lock checksum of the published crate the vendor copy was taken from.
+CUDARC_UPSTREAM_CRATE_SHA256 = "1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc"
+CUDARC_VENDOR_TREE_SHA256 = "92284bf56a4c77a3aa465bb361cdde3e0cdb837a6c09447c7291009989bdf5fc"
+CUDARC_LICENSE_FILES = ("LICENSE-MIT", "LICENSE-APACHE")
+VENDOR_PATCH_NOTE = "FATHOMDB-PATCH.md"
 
 
 def read_json(path: Path, label: str) -> dict[str, Any]:
@@ -212,6 +222,26 @@ def validate_sqlite_exception(metadata: dict[str, Any]) -> None:
     nonempty_string(exception.get("rationale"), "cargo_sqlite_exception.rationale")
 
 
+def validate_cudarc_exception(metadata: dict[str, Any]) -> None:
+    """Authenticate the exact local cudarc allocator patch and its provenance."""
+    exception = metadata.get("cargo_cudarc_exception")
+    if not isinstance(exception, dict):
+        raise Unverified("metadata has no cargo_cudarc_exception object")
+    expected = {
+        "manifest": CUDARC_MANIFEST,
+        "mechanism": CUDARC_MECHANISM,
+        "package": CUDARC_PACKAGE,
+        "path": CUDARC_PATH,
+        "version": CUDARC_VERSION,
+        "upstream_crate_sha256": CUDARC_UPSTREAM_CRATE_SHA256,
+        "vendor_tree_sha256": CUDARC_VENDOR_TREE_SHA256,
+    }
+    for key, value in expected.items():
+        if exception.get(key) != value:
+            raise Unverified(f"cargo_cudarc_exception.{key} must equal the checker-owned cudarc exception")
+    nonempty_string(exception.get("rationale"), "cargo_cudarc_exception.rationale")
+
+
 def advisory_snapshot_path(root: Path, metadata: dict[str, Any]) -> Path:
     snapshot = metadata.get("advisory_snapshot")
     if not isinstance(snapshot, dict):
@@ -293,6 +323,7 @@ def validate_metadata(metadata: dict[str, Any], advisories: list[dict[str, Any]]
     records = records_by_package(metadata)
     validate_candle_exception(metadata)
     validate_sqlite_exception(metadata)
+    validate_cudarc_exception(metadata)
     scope = metadata.get("scope")
     if not isinstance(scope, dict):
         raise Unverified("metadata has no scope object")
@@ -439,12 +470,14 @@ def cargo_lock_sources(lockfile_path: Path) -> dict[tuple[str, str], set[str]]:
 
 
 def validate_cargo_pins(root: Path) -> list[str]:
-    """Allow only the reviewed root Candle cohort and local SQLite backport."""
+    """Allow only the reviewed root Candle cohort and local SQLite/cudarc patches."""
     pins = cargo_governed_pins(root)
     failures = cargo_config_failures(root)
     expected = {(CANDLE_MANIFEST, CANDLE_MECHANISM, package) for package in CANDLE_PACKAGES}
     sqlite_key = (SQLITE_MANIFEST, SQLITE_MECHANISM, SQLITE_PACKAGE)
     expected.add(sqlite_key)
+    cudarc_key = (CUDARC_MANIFEST, CUDARC_MECHANISM, CUDARC_PACKAGE)
+    expected.add(cudarc_key)
     found: set[tuple[str, str, str]] = set()
     for pin in pins:
         label = cargo_pin_label(pin)
@@ -460,6 +493,10 @@ def validate_cargo_pins(root: Path) -> list[str]:
             if pin["path"] != SQLITE_PATH or pin["git"] is not None or pin["rev"] is not None:
                 failures.append("SQLite patch is not the approved local path source")
             continue
+        if key == cudarc_key:
+            if pin["path"] != CUDARC_PATH or pin["git"] is not None or pin["rev"] is not None:
+                failures.append("cudarc patch is not the approved local path source")
+            continue
         git = pin["git"]
         rev = pin["rev"]
         if git != CANDLE_GIT:
@@ -469,6 +506,8 @@ def validate_cargo_pins(root: Path) -> list[str]:
     for manifest, mechanism, package in sorted(expected - found):
         if package == SQLITE_PACKAGE:
             failures.append(f"missing approved SQLite patch {package}")
+        elif package == CUDARC_PACKAGE:
+            failures.append(f"missing approved cudarc patch {package}")
         else:
             failures.append(f"missing approved Candle patch {package}")
     lock_sources = cargo_lock_sources(root / "Cargo.lock") if found else {}
@@ -502,20 +541,53 @@ def validate_cargo_pins(root: Path) -> list[str]:
                 raise Unverified(f"cannot read SQLite amalgamation {amalgamation}: {exc}") from exc
             if digest != SQLITE_AMALGAMATION_SHA256:
                 failures.append("SQLite vendored amalgamation SHA-256 drift")
-            tree = hashlib.sha256()
-            paths = sorted(
-                path for path in source_dir.rglob("*")
-                if path.is_file() and path.name != "FATHOMDB-PATCH.md"
-            )
-            for path in paths:
-                if not path.resolve().is_relative_to(source_dir):
-                    failures.append("SQLite vendor tree contains an external symlink")
-                    continue
-                tree.update(path.relative_to(source_dir).as_posix().encode() + b"\0")
-                tree.update(hashlib.sha256(path.read_bytes()).digest())
-            if tree.hexdigest() != SQLITE_VENDOR_TREE_SHA256:
+            if vendor_tree_digest(source_dir, "SQLite", failures) != SQLITE_VENDOR_TREE_SHA256:
                 failures.append("SQLite vendor tree SHA-256 drift")
+    if cudarc_key in found:
+        cudarc_sources = lock_sources.get((CUDARC_PACKAGE, CUDARC_VERSION), set())
+        if cudarc_sources != {"<local>"}:
+            failures.append("cudarc patch has no matching local Cargo.lock package")
+        source_dir = (root / CUDARC_PATH).resolve()
+        if not source_dir.is_relative_to(root.resolve()):
+            failures.append("cudarc patch escapes the repository root")
+        else:
+            manifest_path = source_dir / "Cargo.toml"
+            try:
+                parsed = _import_tomllib("inspect cudarc vendor manifest").loads(
+                    manifest_path.read_text(encoding="utf-8")
+                )
+            except (OSError, ValueError) as exc:
+                raise Unverified(f"cannot read cudarc vendor manifest {manifest_path}: {exc}") from exc
+            package = parsed.get("package", {})
+            if package.get("name") != CUDARC_PACKAGE or package.get("version") != CUDARC_VERSION:
+                failures.append("cudarc vendor manifest package/version drift")
+            if not all((source_dir / name).is_file() for name in CUDARC_LICENSE_FILES):
+                failures.append("cudarc vendor license is missing")
+            if not (source_dir / VENDOR_PATCH_NOTE).is_file():
+                failures.append("cudarc vendor patch note is missing")
+            if vendor_tree_digest(source_dir, "cudarc", failures) != CUDARC_VENDOR_TREE_SHA256:
+                failures.append("cudarc vendor tree SHA-256 drift")
     return failures
+
+
+def vendor_tree_digest(source_dir: Path, label: str, failures: list[str]) -> str:
+    """Digest every vendored file except the FathomDB patch note.
+
+    Each file contributes its sorted relative path, a NUL, and its SHA-256
+    bytes, so both content and layout drift change the result.
+    """
+    tree = hashlib.sha256()
+    paths = sorted(
+        path for path in source_dir.rglob("*")
+        if path.is_file() and path.name != VENDOR_PATCH_NOTE
+    )
+    for path in paths:
+        if not path.resolve().is_relative_to(source_dir):
+            failures.append(f"{label} vendor tree contains an external symlink")
+            continue
+        tree.update(path.relative_to(source_dir).as_posix().encode() + b"\0")
+        tree.update(hashlib.sha256(path.read_bytes()).digest())
+    return tree.hexdigest()
 
 
 def check(root: Path, manifest_path: Path, lockfile_path: Path, metadata_path: Path) -> list[str]:
@@ -586,7 +658,7 @@ def main() -> int:
             print(f"FAIL  pinned-override-rot: {failure}", file=sys.stderr)
         return 1
     print(
-        "ok pinned-override-rot: governed npm overrides and approved Candle/SQLite patches have exact provenance"
+        "ok pinned-override-rot: governed npm overrides and approved Candle/SQLite/cudarc patches have exact provenance"
     )
     return 0
 

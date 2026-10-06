@@ -1,0 +1,10 @@
+# explicit cuMemPoolCreate maxSize above the 20960 MiB default-pool VA size, failing n=3 layout
+n3-maxsize-20959M --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 20959M
+n3-maxsize-20960M --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 20960M
+n3-maxsize-20961M --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 20961M
+n3-maxsize-22G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 22G
+n3-maxsize-30G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 30G
+n3-maxsize-40G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 40G
+n3-maxsize-61G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 61G
+n3-maxsize-62G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 62G
+n3-maxsize-64G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 64G

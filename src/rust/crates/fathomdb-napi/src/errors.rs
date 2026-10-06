@@ -379,7 +379,12 @@ pub(crate) fn embed_device_policy_error_to_napi(
     if let Some(ordinal) = error.ordinal() {
         payload.insert("ordinal".to_string(), json!(ordinal));
     }
-    typed_error(CODE_EMBED_DEVICE_POLICY, error.to_string(), JsonValue::Object(payload))
+    let message = crate::cuda_early_init::device_policy_refusal_message(
+        crate::cuda_early_init::RefusingComponent::Embedder,
+        error.kind(),
+        error.to_string(),
+    );
+    typed_error(CODE_EMBED_DEVICE_POLICY, message, JsonValue::Object(payload))
 }
 
 pub(crate) fn reranker_device_policy_error_to_napi(
@@ -390,7 +395,12 @@ pub(crate) fn reranker_device_policy_error_to_napi(
     if let Some(ordinal) = error.ordinal() {
         payload.insert("ordinal".to_string(), json!(ordinal));
     }
-    typed_error(CODE_RERANKER_DEVICE_POLICY, error.to_string(), JsonValue::Object(payload))
+    let message = crate::cuda_early_init::device_policy_refusal_message(
+        crate::cuda_early_init::RefusingComponent::Reranker,
+        error.kind(),
+        error.to_string(),
+    );
+    typed_error(CODE_RERANKER_DEVICE_POLICY, message, JsonValue::Object(payload))
 }
 
 pub(crate) fn engine_open_error_to_napi(err: EngineOpenError) -> Error {

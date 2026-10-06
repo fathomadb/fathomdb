@@ -1,0 +1,12 @@
+# Tegra wheel (early-cuInit fix round 3, built on 89ff8ffcc) smoke: fix-verification/python_smoke.py, fresh process per run,
+# odd runs normal layout, even runs fragmented (blockers at 38/68/98 GiB). Wheel sha256 d861de3416d1ee80566a13bcfde359135b0d037d1c0f1bb571a31281f7f1431c.
+{"layout": "normal", "outcome": "pass", "open_ms": 1484.4, "device": "cuda", "witness_delta": 143581184}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1574.4, "device": "cuda", "witness_delta": 146436096}
+{"layout": "normal", "outcome": "pass", "open_ms": 1584.0, "device": "cuda", "witness_delta": 100147200}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1583.8, "device": "cuda", "witness_delta": 146178048}
+{"layout": "normal", "outcome": "pass", "open_ms": 1566.8, "device": "cuda", "witness_delta": 145141760}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1596.2, "device": "cuda", "witness_delta": 146558976}
+{"layout": "normal", "outcome": "pass", "open_ms": 1592.2, "device": "cuda", "witness_delta": 149291008}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1867.5, "device": "cuda", "witness_delta": 142438400}
+{"layout": "normal", "outcome": "pass", "open_ms": 1600.3, "device": "cuda", "witness_delta": 143622144}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1586.3, "device": "cuda", "witness_delta": 146563072}

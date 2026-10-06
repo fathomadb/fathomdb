@@ -24,6 +24,12 @@ excluded_on = 'not(all(target_arch = "aarch64", target_os = "linux"))'
 reason = "#![cfg(all(target_arch = \"aarch64\", target_os = \"linux\", ...))]: the Jetson Candle CPU check compiles to nothing elsewhere and runs on aarch64 Linux hosts."
 
 [[entry]]
+id = "fathomdb-embedder::tegra_fragmented_va_cuda"
+class = "platform-excluded"
+excluded_on = 'not(all(target_arch = "aarch64", target_os = "linux"))'
+reason = "#![cfg(all(target_os = \"linux\", target_arch = \"aarch64\", feature = \"embed-cuda\"))]: the Jetson default-memory-pool regression maps address-space blockers before cuInit and asserts the default pool is unavailable and the synchronous allocator was selected. It compiles to nothing off aarch64 Linux. On aarch64 Linux it asserts only on the measured target, an integrated cuda:0 with the Jetson AGX Orin 64 GB's 60-64 GiB of device memory. On a host that is not Tegra (no /etc/nv_tegra_release and no nvidia,tegra* device-tree entry) it prints SKIP before mapping any blocker. With no CUDA driver, the toolkit's stub libcuda (CUDA_ERROR_STUB_LIBRARY), no device (CUDA_ERROR_NO_DEVICE), a discrete cuda:0 or another memory size it prints SKIP (a panic under FATHOMDB_REQUIRE_LIVE=1); any other driver failure, cuInit's CUDA_ERROR_OUT_OF_MEMORY included, fails it, and an occupied blocker address fails it only on the measured target."
+
+[[entry]]
 id = "fathomdb-engine::durability_soak"
 class = "platform-excluded"
 excluded_on = "not(unix)"

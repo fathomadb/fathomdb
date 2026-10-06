@@ -1,0 +1,46 @@
+s1-control                         pass n=  20 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 58.64.. 58.64
+s2-random18-8G-128G-none           pass n=  22 maxpiece[min..max]= 30.64.. 45.98  maxfreegap[min..max]=  5.83.. 15.39
+s2-random18-8G-128G-none           FAIL n= 178 maxpiece[min..max]=  7.67.. 23.01  maxfreegap[min..max]=  5.36.. 14.92
+s2-random18-8G-128G-rw             pass n=  22 maxpiece[min..max]= 30.64.. 45.98  maxfreegap[min..max]=  5.83.. 15.39
+s2-random18-8G-128G-rw             FAIL n= 178 maxpiece[min..max]=  7.67.. 23.01  maxfreegap[min..max]=  5.36.. 14.92
+s2-rerun-seeds1-50-none            pass n=   4 maxpiece[min..max]= 30.64.. 30.64  maxfreegap[min..max]=  6.85.. 12.66
+s2-rerun-seeds1-50-none            FAIL n=  46 maxpiece[min..max]=  7.67.. 23.01  maxfreegap[min..max]=  5.36.. 14.92
+s2b-random1-8G-128G-none           pass n= 100 maxpiece[min..max]= 30.68.. 61.32  maxfreegap[min..max]= 29.48.. 58.21
+s2b-random12-8G-128G-none          pass n=  33 maxpiece[min..max]= 30.64.. 45.98  maxfreegap[min..max]=  7.44.. 24.60
+s2b-random12-8G-128G-none          FAIL n=  67 maxpiece[min..max]= 15.30.. 23.01  maxfreegap[min..max]=  5.66.. 15.31
+s2b-random2-8G-128G-none           pass n= 100 maxpiece[min..max]= 30.68.. 61.32  maxfreegap[min..max]= 22.04.. 56.62
+s2b-random3-8G-128G-none           pass n= 100 maxpiece[min..max]= 30.64.. 61.32  maxfreegap[min..max]= 16.00.. 48.60
+s2b-random4-8G-128G-none           pass n= 100 maxpiece[min..max]= 30.64.. 61.32  maxfreegap[min..max]= 14.51.. 44.29
+s2b-random6-8G-128G-none           pass n=  97 maxpiece[min..max]= 15.34.. 61.32  maxfreegap[min..max]= 11.09.. 30.34
+s2b-random6-8G-128G-none           FAIL n=   3 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 13.30.. 16.52
+s2b-random9-8G-128G-none           pass n=  66 maxpiece[min..max]= 30.64.. 45.98  maxfreegap[min..max]=  9.25.. 29.79
+s2b-random9-8G-128G-none           FAIL n=  34 maxpiece[min..max]= 15.30.. 23.01  maxfreegap[min..max]= 10.87.. 19.29
+s2c-random18-0G-256G-none          pass n=  66 maxpiece[min..max]= 15.34.. 61.32  maxfreegap[min..max]= 10.37.. 35.61
+s2c-random18-0G-256G-none          FAIL n=  34 maxpiece[min..max]= 15.34.. 23.01  maxfreegap[min..max]=  6.23.. 17.35
+s3-random18-0G-8G-none             pass n= 100 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 58.64.. 58.64
+s3-random18-128G-256G-none         pass n= 100 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 58.64.. 58.64
+s3-random18-256G-512G-none         pass n= 100 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 58.64.. 58.64
+s4a-single-4K-sweep                pass n= 384 maxpiece[min..max]= 30.68.. 61.32  maxfreegap[min..max]= 29.32.. 58.64
+s4b-equal-spaced-n1-4K             pass n=   5 maxpiece[min..max]= 30.68.. 30.68  maxfreegap[min..max]= 29.32.. 29.32
+s4b-equal-spaced-n2-4K             pass n=   5 maxpiece[min..max]= 30.68.. 30.68  maxfreegap[min..max]= 40.00.. 40.00
+s4b-equal-spaced-n3-4K             FAIL n=   5 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 14.66.. 14.66
+s4b-equal-spaced-n4-4K             pass n=   5 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 24.00.. 24.00
+s4b-equal-spaced-n5-4K             FAIL n=   5 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 20.00.. 20.00
+s4b-equal-spaced-n6-4K             FAIL n=   5 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 17.14.. 17.14
+s4b-equal-spaced-n7-4K             FAIL n=   5 maxpiece[min..max]=  7.67..  7.67  maxfreegap[min..max]=  7.33..  7.33
+s4c-freegap-threshold              pass n=  30 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 20.47.. 24.00
+s4c-freegap-threshold              FAIL n=  24 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 16.00.. 20.47
+s4d-inunit-threshold               pass n=  21 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 20.00.. 20.00
+s4d-inunit-threshold               FAIL n=  12 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 20.00.. 20.00
+s4e-inunit-fine                    pass n=   9 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 20.00.. 20.00
+s4e-inunit-fine                    FAIL n=   9 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 20.00.. 20.00
+s5-thread-and-maxsize              pass n=   6 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 58.64.. 58.64
+s5-thread-and-maxsize              FAIL n=  27 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 14.66.. 14.66
+s5b-maxsize-large                  FAIL n=  18 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 14.66.. 14.66
+s5c-setmempool-workaround          pass n=   3 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 58.64.. 58.64
+s5c-setmempool-workaround          FAIL n=  42 maxpiece[min..max]= 11.67.. 23.01  maxfreegap[min..max]=  7.00.. 14.66
+s5d-maxsize-limit                  pass n=   5 maxpiece[min..max]= 61.32.. 61.32  maxfreegap[min..max]= 58.64.. 58.64
+s5d-maxsize-limit                  FAIL n=   5 maxpiece[min..max]= 15.34.. 15.34  maxfreegap[min..max]= 14.66.. 14.66
+
+violations of rule 'pass iff max_piece >= 30.6 GiB or max_free_gap >= 20960 MiB' (excluding --pre-reserve series):
+  total violations: 0 of 2149 runs

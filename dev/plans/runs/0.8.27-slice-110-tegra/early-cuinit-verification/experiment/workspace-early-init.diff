@@ -1,0 +1,93 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 290c5e94f..327dd7987 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -620,8 +620,6 @@ dependencies = [
+ [[package]]
+ name = "cudarc"
+ version = "0.19.7"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc"
+ dependencies = [
+  "float8",
+  "half",
+@@ -975,6 +973,7 @@ dependencies = [
+ name = "fathomdb-napi"
+ version = "0.8.26"
+ dependencies = [
++ "cudarc 0.19.7",
+  "fathomdb-embedder",
+  "fathomdb-embedder-api",
+  "fathomdb-engine",
+diff --git a/Cargo.toml b/Cargo.toml
+index b7cb0a1cc..bcf562531 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -69,6 +69,7 @@ fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       versio
+ # can map on a host without libcudart.
+ [patch.crates-io]
+ libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }
++cudarc = { path = "<scratch>/early-init/cudarc-0.19.7" }
+ candle-core-fathomdb = { git = "<candle-fork-url>", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+ candle-kernels = { git = "<candle-fork-url>", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+ candle-nn-fathomdb = { git = "<candle-fork-url>", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+diff --git a/src/rust/crates/fathomdb-napi/Cargo.toml b/src/rust/crates/fathomdb-napi/Cargo.toml
+index e24750a13..7f8adb646 100644
+--- a/src/rust/crates/fathomdb-napi/Cargo.toml
++++ b/src/rust/crates/fathomdb-napi/Cargo.toml
+@@ -21,7 +21,7 @@ default-embedder = ["fathomdb-engine/default-embedder"]
+ # Linux CUDA release artifacts select this opt-in feature. It owns the N-API
+ # forwarding edge; the CUDA-capable artifact defaults its runtime policy to
+ # `auto`, while explicit `cpu` remains available without rebuilding.
+-embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]
++embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda", "dep:cudarc"]
+ default-reranker = ["fathomdb-engine/default-reranker"]
+ rerank-cuda = ["default-reranker", "fathomdb-engine/rerank-cuda"]
+ 
+@@ -35,6 +35,8 @@ napi-derive = "2"
+ serde = { version = "1", features = ["derive"] }
+ serde_json = "1"
+ tokio = { version = "1", features = ["rt-multi-thread"] }
++# EARLY-INIT EXPERIMENT ONLY
++cudarc = { version = "0.19.4", optional = true, default-features = false, features = ["std", "driver", "dynamic-loading", "cuda-version-from-build-system"] }
+ 
+ [build-dependencies]
+ napi-build = "2"
+diff --git a/src/rust/crates/fathomdb-napi/src/lib.rs b/src/rust/crates/fathomdb-napi/src/lib.rs
+index 9fade6ca7..d27d16654 100644
+--- a/src/rust/crates/fathomdb-napi/src/lib.rs
++++ b/src/rust/crates/fathomdb-napi/src/lib.rs
+@@ -53,3 +53,33 @@ pub use write::*;
+ mod test_support;
+ #[cfg(any(test, feature = "test-hooks"))]
+ pub use test_support::*;
++
++// EARLY-INIT EXPERIMENT ONLY BEGIN
++#[cfg(feature = "embed-cuda")]
++static EXP_EARLY_INIT_LOG: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
++
++#[cfg(feature = "embed-cuda")]
++#[napi::module_init]
++fn exp_early_init() {
++    let line = std::panic::catch_unwind(cudarc::driver::slice110_early_init)
++        .unwrap_or_else(|_| Some("early-init panicked".to_string()));
++    if let Some(l) = &line {
++        eprintln!("{l}");
++    }
++    let _ = EXP_EARLY_INIT_LOG.set(line);
++}
++
++#[cfg(feature = "embed-cuda")]
++#[napi_derive::napi(js_name = "expEarlyInitLog")]
++pub fn exp_early_init_log() -> Option<String> {
++    EXP_EARLY_INIT_LOG.get().cloned().flatten()
++}
++
++#[cfg(feature = "embed-cuda")]
++#[napi_derive::napi(js_name = "expCudaProbe")]
++pub fn exp_cuda_probe(sizes_mib: Vec<u32>, query_default_pool: bool) -> String {
++    let sizes: Vec<u64> = sizes_mib.iter().map(|m| u64::from(*m) << 20).collect();
++    std::panic::catch_unwind(|| cudarc::driver::slice110_health_probe(&sizes, query_default_pool))
++        .unwrap_or_else(|_| "probe panicked".to_string())
++}
++// EARLY-INIT EXPERIMENT ONLY END

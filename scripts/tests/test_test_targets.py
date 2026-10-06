@@ -1393,10 +1393,14 @@ def test_repository_wiring(tt: ModuleType) -> None:
     for known in (
         ("fathomdb-cli", ("default-embedder",)),
         ("fathomdb-cli", ("default-reranker",)),
-        ("fathomdb-embedder", ("embed-cuda",)),
         ("fathomdb-embedder", ("rerank-cuda",)),
     ):
         assert known in extras, (known, extras)
+    # A test target (tegra_fragmented_va_cuda) requires embed-cuda, so that set
+    # is target-derived; an identical extra set would be redundant.
+    entries = tt.derive_matrix(crates)
+    assert ("fathomdb-embedder", ("embed-cuda",)) in entries, entries
+    assert ("fathomdb-embedder", ("embed-cuda",)) not in extras, extras
     # The calibration's assertions run in a gate-run test; only the writer of
     # the committed record is excluded.
     calibration = (

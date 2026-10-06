@@ -9,7 +9,7 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "This checker admits only the root Candle 0.10.2 Git cohort and the exact local libsqlite3-sys 0.38.1 SQLite Windows WAL path backport. It authenticates the local crate version, license, Cargo.lock package source, and amended SQLite amalgamation digest. Any other [patch], [replace], or direct Git dependency hard-fails as unsupported. Root .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The local patch affects workspace builds; it does not propagate through a published Rust crate.",
+    "cargo": "This checker admits only the root Candle 0.10.2 Git cohort, the exact local libsqlite3-sys 0.38.1 SQLite Windows WAL path backport, and the exact local cudarc 0.19.7 Tegra (aarch64 Linux only) allocator fallback. It authenticates each local crate's version, licenses, Cargo.lock package source, and vendored tree digest (plus the amended SQLite amalgamation digest). Any other [patch], [replace], or direct Git dependency hard-fails as unsupported. Root .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The local patches affect workspace builds; they do not propagate through a published Rust crate.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],
@@ -41,5 +41,15 @@
     "amalgamation_sha256": "7e4799907bdc92cff8858db2c52f5a03e136d5989ead6e513c0ef64057baeb9e",
     "rationale": "SQLite 3.53.2 misclassifies Win32 long DOS-device local-drive paths as UNC and can strand WAL read locks. This exact local crate preserves the published 0.38.1 package and bundled SQLite 3.53.2, backporting the upstream 3.53.3 winIsUNCPath correction and adding a Windows-only compile-option marker. The marker lets published Rust-crate consumers of unpatched SQLite refuse unsafe local verbatim paths before database creation because root patches do not propagate.",
     "vendor_tree_sha256": "a1dfc60a4703fe523d44497303049e17393dec1b273be2739a2933a87dcbf887"
+  },
+  "cargo_cudarc_exception": {
+    "manifest": "Cargo.toml",
+    "mechanism": "patch.crates-io",
+    "package": "cudarc",
+    "path": "third_party/cudarc-0.19.7",
+    "version": "0.19.7",
+    "upstream_crate_sha256": "1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc",
+    "rationale": "Candle 0.10.2 resolves cudarc 0.19.7, which selects stream-ordered allocation from the device's memory-pool attribute alone. On Jetson (Tegra) the driver's default pool needs one large contiguous virtual-address range and is unavailable in fragmented processes such as Node, so every CUDA allocation fails with CUDA_ERROR_OUT_OF_MEMORY while synchronous allocation works. The fallback is compiled only for aarch64 Linux; other targets keep upstream's allocator logic. This exact local crate preserves the published 0.19.7 package; its delta is recorded in FATHOMDB-PATCH.md and the adjacent .patch file. Only 0.19.7 is patched; ug-cuda's cudarc 0.17.8 stays on crates.io.",
+    "vendor_tree_sha256": "92284bf56a4c77a3aa465bb361cdde3e0cdb837a6c09447c7291009989bdf5fc"
   }
 }

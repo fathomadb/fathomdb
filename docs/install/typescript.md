@@ -85,6 +85,10 @@ Expected output: `ok`. See [Quickstart](../getting-started/quickstart.md).
   `npm run build` completed before `node` resolves the package.
 - **`FathomDbError`** — every native error is rethrown as a typed
   subclass of `FathomDbError`. See [errors reference](../reference/errors.md).
+- **Jetson, forced CUDA refused with `cuInit returned
+  CUDA_ERROR_OUT_OF_MEMORY`** — the JavaScript heap grew before fathomdb was
+  loaded. Import fathomdb first, or start Node with `--import fathomdb`. See
+  [Node.js on Jetson](../embedder.md#nodejs-on-jetson-load-fathomdb-first).
 
 ## See also
 

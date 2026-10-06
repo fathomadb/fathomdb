@@ -1,0 +1,12 @@
+# Slice 110 early cuInit, Jetson AGX Orin 64 GB. Built with the receipt's recipe
+# (napi build --platform --release --features embed-cuda,rerank-cuda; CUDA 12.6,
+# CUDA_COMPUTE_CAP=87, Node 25.9.0, npm 11.12.1, Rust 1.95.0).
+fb40b9aec0f6cb4a8bc260b0e3fe63e1657b891ab6cbd23b4094006e74eb8bde  fathomdb.linux-arm64-gnu.node (early cuInit; built in-tree and installed, byte-identical)
+37deae961cf6ab6a45a36b055e451d5c34f183f262e0eaa950290c9c2392c0e4  fathomdb-linux-arm64-gnu-0.8.26.tgz (platform package, early cuInit)
+9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257  fathomdb-0.8.26.tgz (thin main package; same bytes as review fix 2)
+057eed2b344862592cfdd7fe7eec885dc66bd466a59c2b15d090bd30d05c4db0  fathomdb.linux-arm64-gnu.node (review fix 2, no hook: the red build and the import-cost baseline)
+# Fix round 3: cuInit moved from the constructor to module registration (built on 377ab9569, same recipe).
+3ecc99e67497cf3dad15e5b09eb5c50002e96537c6f59b37d01a5c5036648889  fathomdb.linux-arm64-gnu.node (fix round 3; built in-tree and installed, byte-identical)
+5e8d6e85dc5f7dfa160d7d04f8180d89a3659e55844c4e0c03ca2c8299805d66  fathomdb-linux-arm64-gnu-0.8.26.tgz (platform package, fix round 3)
+9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257  fathomdb-0.8.26.tgz (thin main package, fix round 3; unchanged)
+d861de3416d1ee80566a13bcfde359135b0d037d1c0f1bb571a31281f7f1431c  fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl (Tegra Python wheel, fix round 3, built on 89ff8ffcc)

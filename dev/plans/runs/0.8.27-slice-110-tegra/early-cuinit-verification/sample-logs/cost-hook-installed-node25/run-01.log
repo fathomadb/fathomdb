@@ -1,0 +1,4 @@
+BEGIN run=01 node=v25.9.0
+{"outcome":"pass","failedStep":null,"error":null,"node":"v25.9.0","order":"early","preloaded":false,"timingsMs":{"import":141.786132},"mem":{"startVszMiB":1116,"importRssDeltaMiB":11,"importVszDeltaMiB":63788,"endVszMiB":64904},"heapObjects":0,"heapUsedMiB":5,"keepAlive":0}
+STDERR lines=0
+END run=01 exit=0 wall_ms=208

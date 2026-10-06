@@ -320,6 +320,11 @@ run_tier_suite fast test-check-sdk-surface-parity python3 scripts/tests/test_che
 # js-yaml@4.2.0 regression and malformed-input fail-closed arms.
 run_tier_suite fast test-check-pinned-override-rot bash scripts/tests/test_check_pinned_override_rot.sh
 
+# 0.8.27 Slice 110: the vendored cudarc's allocator fallback (synchronous
+# allocation when the default memory pool is unavailable, null zero-length
+# buffers). Pure arms run everywhere; GPU arms SKIP without a CUDA device.
+run_tier_suite fast test-vendored-cudarc bash scripts/tests/test_vendored_cudarc.sh
+
 # 0.8.23 Slice 80.1 (AC80-1/AC80-2/R80-2): glibc-floor gate for the native
 # .node/.abi3.so artifacts. objdump/readelf are stubbed in fixtures so the
 # suite runs identically regardless of host architecture; fails closed when
@@ -711,6 +716,10 @@ else
 fi
 run_tier_maybe_suite heavy test-ts "$ts_suite_skip_reason" "${ts_suite_command[@]}"
 run_tier_maybe_suite heavy test-napi-build-hermetic-executable "$napi_execute_skip_reason" "${napi_execute_command[@]}"
+# Jetson only: forced CUDA in a heap-heavy Node process that imported fathomdb
+# first. It needs FATHOMDB_TEGRA_NODE_PACKAGE (a CUDA-built package) and the
+# measured AGX Orin 64 GB, and prints SKIP with the reason elsewhere.
+run_tier_suite heavy test-tegra-node-early-cuinit bash scripts/tests/test_tegra_node_early_cuinit.sh
 
 # The release-surface test executes from tsc's `dist/tests` layout. Keep its
 # repository-root calculation pinned independently so its opt-in CI arm cannot

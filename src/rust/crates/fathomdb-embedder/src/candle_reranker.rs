@@ -60,8 +60,20 @@ impl CudaProvider for RerankerCudaProvider {
             use candle_core::cuda::cudarc::driver::{result, sys};
 
             let driver_present = unsafe { sys::is_culib_present() };
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            if !driver_present {
+                crate::cuda_driver_init::record_driver_library_absent(
+                    crate::cuda_driver_init::CudaInitCaller::RerankerProbe,
+                );
+            }
             driver_present.then_some(()).ok_or(CudaProbeError::NoVisibleDevice)?;
-            result::init().map_err(classify_cuda_driver_error)?;
+            let init = result::init();
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            crate::cuda_driver_init::record_init_result(
+                crate::cuda_driver_init::CudaInitCaller::RerankerProbe,
+                &init,
+            );
+            init.map_err(classify_cuda_driver_error)?;
             let count = result::device::get_count().map_err(classify_cuda_driver_error)?;
             let count = usize::try_from(count).map_err(|_| CudaProbeError::ProbeFailed {
                 message: "CUDA driver returned a negative device count".to_owned(),
@@ -226,6 +238,9 @@ fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
 
 #[cfg(feature = "rerank-cuda")]
 fn cuda_uuid_string(bytes: [std::os::raw::c_char; 16]) -> String {
+    // `c_char` is `i8` on x86_64 and `u8` on AArch64 Linux, so the cast is a
+    // no-op only on the Jetson, where clippy would otherwise reject it.
+    #[allow(clippy::unnecessary_cast)]
     let bytes = bytes.map(|byte| byte as u8);
     format!(
         "GPU-{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",

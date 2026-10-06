@@ -61,14 +61,32 @@ fathomdb-engine       = { path = "src/rust/crates/fathomdb-engine",       versio
 fathomdb-query        = { path = "src/rust/crates/fathomdb-query",        version = "0.8.26" }
 fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       version = "0.8.26" }
 
+# Every entry here is governed by scripts/check-pinned-override-rot.py, which
+# authenticates its exact source; see scripts/pinned-override-rot.json.
+#
+# libsqlite3-sys: published 0.38.1 with the SQLite 3.53.3 Windows WAL path
+# backport (third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md).
+#
+# cudarc: published 0.19.7, the version Candle resolves, vendored so that on
+# aarch64 Linux (Jetson) the CUDA allocator can fall back to synchronous
+# allocation when the device's default memory pool is unavailable. Builds for
+# every other target compile upstream's allocator logic unchanged
+# (third_party/cudarc-0.19.7/FATHOMDB-PATCH.md). Only 0.19.7 is patched;
+# ug-cuda's cudarc 0.17.8 stays on crates.io. Revisit at the next micro release
+# (see dev/todos-and-considerations-ledger.jsonl).
+#
 # Fathom-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16
 # fallback. Pin core, nn, transformers, and candle-kernels together: the
 # kernel crate owns the CUDART link boundary and must resolve from this exact
 # reviewed revision rather than crates.io. CUDA driver discovery remains
 # dynamic, while the kernel runtime is statically linked so a CPU-mode binding
 # can map on a host without libcudart.
+#
+# Root patches apply to workspace builds only; they do not propagate to
+# downstream users of the published Rust crates.
 [patch.crates-io]
 libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }
+cudarc = { path = "third_party/cudarc-0.19.7" }
 candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
 candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
 candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }

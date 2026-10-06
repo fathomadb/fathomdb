@@ -1,0 +1,54 @@
+
+## C-health-a1-fallback-h1000k-grow8x500k
+   10 x full_path_ok
+    8 x cur_pool=CUDA_ERROR_OUT_OF_MEMORY | 1024MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 4096MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+    2 x cur_pool=CUDA_SUCCESS | 1024MiB sync=SUCCESS async=SUCCESS | 4096MiB sync=SUCCESS async=SUCCESS
+   heap MiB after growth 798..826; largest hole GiB 0.47..0.89; max reservation VMA GiB 15.29..25.45
+
+## C-health-a2-fallback-big-h1000k-grow4x500k
+    5 x full_path_ok
+    4 x cur_pool=CUDA_ERROR_OUT_OF_MEMORY | 1024MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 4096MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 12288MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+    1 x cur_pool=CUDA_SUCCESS | 1024MiB sync=SUCCESS async=SUCCESS | 4096MiB sync=SUCCESS async=SUCCESS | 12288MiB sync=SUCCESS async=SUCCESS
+   heap MiB after growth 473..500; largest hole GiB 0.61..1.03; max reservation VMA GiB 15.29..22.96
+
+## C-health-a2-fallback-h1000k-grow8x500k
+   10 x full_path_ok
+   10 x cur_pool=CUDA_ERROR_OUT_OF_MEMORY | 1024MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 4096MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+   heap MiB after growth 754..826; largest hole GiB 0.46..0.7; max reservation VMA GiB 15.29..22.96
+
+## C-health-a2-fallback-h1000k-probedefault
+    5 x full_path_ok
+    5 x cur_pool=CUDA_ERROR_OUT_OF_MEMORY default_pool_query=CUDA_ERROR_OUT_OF_MEMORY | 1024MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 4096MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+   heap MiB after growth 161..161; largest hole GiB 1.57..2.22; max reservation VMA GiB 15.3..22.97
+
+## C-health-a3-fallback-h1000k-grow8x500k
+   10 x full_path_ok
+    7 x cur_pool=CUDA_ERROR_OUT_OF_MEMORY | 1024MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 4096MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+    3 x cur_pool=CUDA_SUCCESS | 1024MiB sync=SUCCESS async=SUCCESS | 4096MiB sync=SUCCESS async=SUCCESS
+   heap MiB after growth 797..825; largest hole GiB 0.43..0.61; max reservation VMA GiB 15.29..23.01
+
+## C-health-a4-pool-h1000k-grow8x500k
+   10 x full_path_ok
+   10 x cur_pool=CUDA_SUCCESS | 1024MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 4096MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+   heap MiB after growth 742..825; largest hole GiB 0.48..0.73; max reservation VMA GiB 14.25..29.59
+
+## C-health-a4-pool-max12G-h1000k-grow4x500k
+    5 x full_path_ok
+    5 x cur_pool=CUDA_SUCCESS | 1024MiB sync=SUCCESS async=SUCCESS | 4096MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 12288MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+   heap MiB after growth 488..500; largest hole GiB 0.64..0.86; max reservation VMA GiB 15.34..30.68
+
+## C-health-a4-pool-max30G-h1000k-grow4x500k
+    5 x full_path_ok
+    5 x cur_pool=CUDA_SUCCESS | 1024MiB sync=SUCCESS async=SUCCESS | 4096MiB sync=SUCCESS async=SUCCESS | 12288MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+   heap MiB after growth 476..500; largest hole GiB 0.68..0.91; max reservation VMA GiB 15.34..15.34
+
+## C-strace-a2-fallback-h1000k-grow4x500k
+    3 x full_path_ok
+    2 x cur_pool=CUDA_ERROR_OUT_OF_MEMORY | 1024MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 4096MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+    1 x cur_pool=CUDA_SUCCESS | 1024MiB sync=SUCCESS async=SUCCESS | 4096MiB sync=SUCCESS async=SUCCESS
+   heap MiB after growth 473..495; largest hole GiB 0.81..0.98; max reservation VMA GiB 15.29..22.96
+
+## C-strace-a4-pool-h1000k-grow4x500k
+    3 x full_path_ok
+    3 x cur_pool=CUDA_SUCCESS | 1024MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY | 4096MiB sync=SUCCESS async=ERROR_OUT_OF_MEMORY
+   heap MiB after growth 473..473; largest hole GiB 0.8..1.41; max reservation VMA GiB 15.34..15.34

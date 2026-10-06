@@ -1,0 +1,69 @@
+| run | outcome | default pool | cuMemAlloc_v2_4 | stream_alloc_u8_4 | cuMemAllocAsync_4_raw | cuEventCreate_disable_timing | cuMemAllocFromPoolAsync_default_4 | cuMemPoolCreate | cuMemAllocFromPoolAsync_newpool_4 | cuMemAddressReserve_2MiB | cuMemAddressReserve_1024MiB | cuMemAddressReserve_32768MiB | memset_zeros | stream_synchronize | alloc_zeros_u8_4 | tensor_zeros_f32_1 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 01 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 02 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 03 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 04 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 05 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 06 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 07 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 08 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 09 | pass | ok | ok | ok | ok | ok | ok | OOM | - | ok | ok | OOM | ok | ok | ok | ok |
+| 10 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 11 | pass | ok | ok | ok | ok | ok | ok | OOM | - | ok | ok | OOM | ok | ok | ok | ok |
+| 12 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 13 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 14 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 15 | pass | ok | ok | ok | ok | ok | ok | OOM | - | ok | ok | OOM | ok | ok | ok | ok |
+| 16 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 17 | pass | ok | ok | ok | ok | ok | ok | ok | ok | ok | ok | OOM | ok | ok | ok | ok |
+| 18 | pass | ok | ok | ok | ok | ok | ok | OOM | - | ok | ok | OOM | ok | ok | ok | ok |
+| 19 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 20 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 21 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 22 | pass | ok | ok | ok | ok | ok | ok | OOM | - | ok | ok | OOM | ok | ok | ok | ok |
+| 23 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+| 24 | FAIL | OOM | ok | OOM | OOM | ok | - | OOM | - | ok | ok | OOM | skip | - | OOM | OOM |
+
+Counts (outcome, result):
+  pool: FAIL/OOM=18, pass/ok=6
+  S2_cuMemAlloc_v2_4: FAIL/ok=18, pass/ok=6
+  S3_stream_alloc_u8_4: FAIL/OOM=18, pass/ok=6
+  S3r_cuMemAllocAsync_4_raw: FAIL/OOM=18, pass/ok=6
+  S3r_cuEventCreate_disable_timing: FAIL/ok=18, pass/ok=6
+  S3r_cuMemAllocFromPoolAsync_default_4: FAIL/-=18, pass/ok=6
+  S3r_cuMemPoolCreate: FAIL/OOM=18, pass/OOM=5, pass/ok=1
+  S3r_cuMemAllocFromPoolAsync_newpool_4: FAIL/-=18, pass/-=5, pass/ok=1
+  S3v_cuMemAddressReserve_2MiB: FAIL/ok=18, pass/ok=6
+  S3v_cuMemAddressReserve_1024MiB: FAIL/ok=18, pass/ok=6
+  S3v_cuMemAddressReserve_32768MiB: FAIL/OOM=18, pass/OOM=6
+  S4_memset_zeros: FAIL/skip=18, pass/ok=6
+  S4_stream_synchronize: FAIL/-=18, pass/ok=6
+  S5a_alloc_zeros_u8_4: FAIL/OOM=18, pass/ok=6
+  S5b_tensor_zeros_f32_1: FAIL/OOM=18, pass/ok=6
+
+Per-process properties:
+01 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53271207936 S2ptr=0x205777400 S3ptr=- S5aptr=- va1G=0x206200000 va32G=0x0 gap_lt_2^36_GiB=6 gap_lt_2^39_GiB=264 gap_lt_2^40_GiB=776 big_maps=0x202854000+15G 0x9f36c0000+15G 0xe92f80000+7G 0x14453c0000+7G 0x1700500000+7G 0x1a85fc0000+7G
+02 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53271236608 S2ptr=0x570e37400 S3ptr=- S5aptr=- va1G=0x571a00000 va32G=0x0 gap_lt_2^36_GiB=7 gap_lt_2^39_GiB=280 gap_lt_2^40_GiB=792 big_maps=0x200000000+7G 0x56df14000+15G 0xa50fc0000+7G 0xe1fdc0000+7G 0x10c8dc0000+23G
+03 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53271846912 S2ptr=0x2209f7400 S3ptr=- S5aptr=- va1G=0x221400000 va32G=0x0 gap_lt_2^36_GiB=5 gap_lt_2^39_GiB=260 gap_lt_2^40_GiB=772 big_maps=0x21dad4000+15G 0x7c5500000+23G 0xea3940000+7G 0x151e380000+15G
+04 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53274144768 S2ptr=0x17aaa37400 S3ptr=- S5aptr=- va1G=0x17ab600000 va32G=0x0 gap_lt_2^36_GiB=12 gap_lt_2^39_GiB=258 gap_lt_2^40_GiB=770 big_maps=0x53e000000+7G 0x820e80000+7G 0xaacfc0000+7G 0xe6ea80000+7G 0x136c380000+7G 0x1559580000+7G 0x17a7b14000+15G
+05 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53270028288 S2ptr=0x58d1b7400 S3ptr=- S5aptr=- va1G=0x58dc00000 va32G=0x0 gap_lt_2^36_GiB=7 gap_lt_2^39_GiB=273 gap_lt_2^40_GiB=785 big_maps=0x200000000+7G 0x58a294000+15G 0xb02a00000+7G 0xe53b40000+15G 0x12eb180000+7G 0x150f340000+7G
+06 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53269200896 S2ptr=0x532cb7400 S3ptr=- S5aptr=- va1G=0x533800000 va32G=0x0 gap_lt_2^36_GiB=7 gap_lt_2^39_GiB=259 gap_lt_2^40_GiB=771 big_maps=0x200000000+7G 0x52fd94000+22G 0x1113759000+7G 0x14e07c0000+7G 0x17be140000+7G 0x19fb640000+7G
+07 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53271232512 S2ptr=0x4f5a37400 S3ptr=- S5aptr=- va1G=0x4f6600000 va32G=0x0 gap_lt_2^36_GiB=7 gap_lt_2^39_GiB=261 gap_lt_2^40_GiB=773 big_maps=0x200000000+4G 0x328800000+4G 0x4f2b14000+15G 0xaafc00000+15G 0xf2c240000+7G 0x1576100000+7G 0x1875040000+7G
+08 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53266714624 S2ptr=0x7c3dd0400 S3ptr=- S5aptr=- va1G=0x7c4800000 va32G=0x0 gap_lt_2^36_GiB=7 gap_lt_2^39_GiB=262 gap_lt_2^40_GiB=774 big_maps=0x200000000+7G 0x7c0ead000+15G 0xd37f40000+7G 0x1138b40000+15G 0x1698c00000+7G 0x1b75580000+7G
+09 pass is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53256237056 S2ptr=0x16b6577400 S3ptr=0x16b6f57000 S5aptr=0x16b6f57000 va1G=0x1bd5000000 va32G=0x0 gap_lt_2^36_GiB=22 gap_lt_2^39_GiB=256 gap_lt_2^40_GiB=768 big_maps=0x5b30e1000+15G 0x9eaa80000+15G 0x16b3654000+30G
+10 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53271519232 S2ptr=0x13e1a37400 S3ptr=- S5aptr=- va1G=0x13e2600000 va32G=0x0 gap_lt_2^36_GiB=7 gap_lt_2^39_GiB=259 gap_lt_2^40_GiB=771 big_maps=0x200000000+7G 0x6cec00000+7G 0xc3893d000+7G 0x1115200000+7G 0x13deb14000+15G 0x1837b40000+7G 0x1b84b00000+7G
+11 pass is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53272522752 S2ptr=0x4bbb98400 S3ptr=0x4bc578000 S5aptr=0x4bc578000 va1G=0x9da600000 va32G=0x0 gap_lt_2^36_GiB=6 gap_lt_2^39_GiB=256 gap_lt_2^40_GiB=768 big_maps=0x4b8c75000+30G 0xf9ec00000+15G 0x17f69c0000+15G
+12 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53272883200 S2ptr=0x701b77400 S3ptr=- S5aptr=- va1G=0x702600000 va32G=0x0 gap_lt_2^36_GiB=6 gap_lt_2^39_GiB=263 gap_lt_2^40_GiB=775 big_maps=0x200000000+7G 0x6fec54000+22G 0xf81f00000+7G 0x1236400000+7G 0x1bc0780000+15G
+13 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53270347776 S2ptr=0x2201b7400 S3ptr=- S5aptr=- va1G=0x220c00000 va32G=0x0 gap_lt_2^36_GiB=6 gap_lt_2^39_GiB=262 gap_lt_2^40_GiB=774 big_maps=0x21d294000+15G 0x990721000+7G 0xf70b00000+7G 0x13451c0000+15G 0x17634c0000+7G 0x1b36fc0000+7G
+14 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53263257600 S2ptr=0x3ba8f7400 S3ptr=- S5aptr=- va1G=0x3bb400000 va32G=0x0 gap_lt_2^36_GiB=14 gap_lt_2^39_GiB=269 gap_lt_2^40_GiB=781 big_maps=0x3b79d4000+15G 0xd3d2c0000+15G 0x1246a40000+15G 0x1a0e600000+15G
+15 pass is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53263167488 S2ptr=0x435750400 S3ptr=0x436130000 S5aptr=0x436130000 va1G=0x954200000 va32G=0x0 gap_lt_2^36_GiB=10 gap_lt_2^39_GiB=268 gap_lt_2^40_GiB=780 big_maps=0x43282d000+53G 0x1779f40000+7G
+16 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53259030528 S2ptr=0x3a31f7400 S3ptr=- S5aptr=- va1G=0x3a3c00000 va32G=0x0 gap_lt_2^36_GiB=7 gap_lt_2^39_GiB=267 gap_lt_2^40_GiB=779 big_maps=0x3a02d4000+22G 0xc50800000+15G 0x13b8a40000+7G 0x189d400000+7G 0x1d3c100000+7G
+17 pass is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53266403328 S2ptr=0x680b77400 S3ptr=0x681557000 S5aptr=0x681557000 va1G=0xb9f600000 va32G=0x0 gap_lt_2^36_GiB=4 gap_lt_2^39_GiB=263 gap_lt_2^40_GiB=775 big_maps=0x212a40000+15G 0x67dc54000+30G 0xe57f40000+15G
+18 pass is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53251297280 S2ptr=0x1745ef7400 S3ptr=0x17468d7000 S5aptr=0x17468d7000 va1G=0x1c64a00000 va32G=0x0 gap_lt_2^36_GiB=6 gap_lt_2^39_GiB=279 gap_lt_2^40_GiB=791 big_maps=0x2ca4c0000+7G 0x5fb740000+23G 0x1742fd4000+30G
+19 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53249191936 S2ptr=0x205777400 S3ptr=- S5aptr=- va1G=0x206200000 va32G=0x0 gap_lt_2^36_GiB=6 gap_lt_2^39_GiB=263 gap_lt_2^40_GiB=775 big_maps=0x202854000+15G 0x794200000+15G 0xd1d840000+7G 0xf2c780000+15G 0x168bd00000+7G
+20 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53251489792 S2ptr=0xc47d77400 S3ptr=- S5aptr=- va1G=0xc48800000 va32G=0x0 gap_lt_2^36_GiB=7 gap_lt_2^39_GiB=261 gap_lt_2^40_GiB=773 big_maps=0x200000000+7G 0x514a00000+7G 0xc44e54000+15G 0x132ad40000+15G 0x19b38bd000+15G
+21 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53251706880 S2ptr=0x378377400 S3ptr=- S5aptr=- va1G=0x378e00000 va32G=0x0 gap_lt_2^36_GiB=6 gap_lt_2^39_GiB=262 gap_lt_2^40_GiB=774 big_maps=0x375454000+15G 0xd5ec00000+15G 0x12a2b00000+7G 0x1695240000+7G 0x1accd00000+15G
+22 pass is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53248217088 S2ptr=0xe53837400 S3ptr=0xe54217000 S5aptr=0xe54217000 va1G=0x1372400000 va32G=0x0 gap_lt_2^36_GiB=12 gap_lt_2^39_GiB=259 gap_lt_2^40_GiB=771 big_maps=0x674e00000+15G 0xe50914000+30G 0x197b8fd000+15G
+23 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53261996032 S2ptr=0x583d37400 S3ptr=- S5aptr=- va1G=0x584800000 va32G=0x0 gap_lt_2^36_GiB=9 gap_lt_2^39_GiB=257 gap_lt_2^40_GiB=769 big_maps=0x2ab980000+7G 0x580e14000+15G 0xa01b00000+7G 0xce8100000+7G 0xff44c0000+7G 0x13bafc0000+7G 0x16e0280000+7G
+24 FAIL is_main=false thread_name=Some("tokio-rt-worker") threads=22 VmSize_GiB=64 free=53269381120 S2ptr=0x7d2f77400 S3ptr=- S5aptr=- va1G=0x7d3a00000 va32G=0x0 gap_lt_2^36_GiB=14 gap_lt_2^39_GiB=265 gap_lt_2^40_GiB=777 big_maps=0x7d0054000+15G 0xffb1c0000+15G 0x152b8c0000+15G 0x1a72dd9000+15G

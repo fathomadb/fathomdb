@@ -1,0 +1,2 @@
+node=v25.9.0 count=10 flags= start=2026-10-05T16:19:04Z
+CONSUMER_MODE=import

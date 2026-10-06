@@ -88,10 +88,15 @@ only when the default pool was unavailable.
 - Pool footprint at 3 GiB `maxSize`: used high 143.7 MiB, reserved high
   160.0 MiB in every run. Release threshold `max` against 0 at 3 GiB: steady
   embed 9.7 ms (n = 5) against 12.1 ms (n = 24).
-- **Usable capacity measured at about `maxSize`/3.** A 192 MiB pool reached
+- **Usable capacity inferred at about `maxSize`/3.** A 192 MiB pool reached
   63.5 MiB used and failed at open (2 / 2 runs that used it); a 384 MiB pool
   reached 128.0 MiB and failed at the first rerank (3 / 3). Two sizes only;
-  the mechanism is unknown.
+  the mechanism is unknown. Both failures were single large allocations
+  (model weights at open, cross-encoder weights at the first rerank), so an
+  alternative reading is that the remaining reservable space could not hold
+  one large block, not that the pool caps at a third. The study measures
+  capacity directly with fixed-size chunks and a single-allocation bisection
+  (protocol § 6.5) rather than from where the product fails.
 - **Exhaustion fails hard today.** Forced CUDA refused with the typed
   witness or `CudaProbeFailed` errors. Nothing fell back.
 - **Large `maxSize` is exposed to fragmentation.** With a 400k-object Node
@@ -105,10 +110,15 @@ only when the default pool was unavailable.
   created. **Inferred, not established:** an explicit pool needs about
   `maxSize`/3 of contiguous address space, carved from existing driver
   reservations rather than a new mapping. The study must verify this.
-- **Creating the pool at load is costly.** Import with `cuInit` only: median
-  31.3 ms, +13 MiB RSS. Import that also retains a context and creates a 3 GiB
-  pool: 92.4 ms, +121.5 MiB RSS (10 runs each). The platform reference
-  records no reliability gain from doing that at load in those runs.
+- **Creating the pool at load is costly, and the cost is mostly the retained
+  context.** Import with `cuInit` only: median 31.3 ms, +13 MiB RSS. Import
+  that also retains a primary context and keeps it: 74.8 ms, +112 MiB. Import
+  that also creates a 3 GiB pool on that retained context: 92.4 ms,
+  +121.5 MiB RSS (10 runs each, `E-cost-side-effects.txt` arms 1, 2 and 4).
+  Releasing the context after creating the pool was not measured in the
+  product; in plain C an explicit pool survived primary-context release and
+  re-retain in 40 / 40 runs. The platform reference records no reliability
+  gain from doing any of that at load in those runs.
 
 ### Lifetime
 
@@ -128,31 +138,63 @@ only when the default pool was unavailable.
 | Arm | Definition |
 | --- | --- |
 | **S — baseline** | 0.8.27 behaviour: early `cuInit` at Node load; default pool if available, else synchronous `cuMemAlloc`. |
-| **A — explicit pool** | One process-wide pool per device, created with a non-zero `maxSize`, installed with `cuDeviceSetMemPool`, never destroyed, used whether or not the default pool is available. Sub-arms by creation time: A-load (during early init at registration) and A-first-use (at the first CUDA context). |
-| **B — early `cuInit` + lazy pool** | Early `cuInit` at load as shipped. At the first CUDA context, use the default pool if available; otherwise create the explicit pool then; otherwise synchronous. This is the experiment's `pool` mode. |
+| **A — explicit pool** | One process-wide pool per device, created with a non-zero `maxSize`, installed with `cuDeviceSetMemPool`, never destroyed, used whether or not the default pool is available. Sub-arms by creation time: **A-load-hold** (at registration, on a primary context the hook retains and keeps), **A-load-release** (at registration, then the hook releases that context) and **A-first-use** (immediately before the first CUDA context). The A-load forms exist only in the Node addon, which has the registration hook. |
+| **B — early `cuInit` + lazy pool** | Early `cuInit` at load as shipped. Before the first CUDA context, use the default pool if available; otherwise create the explicit pool then; otherwise synchronous. This is the experiment's `pool` mode. |
+
+Two facts constrain the implementation of every pool arm:
+
+- The shipped decision rule selects stream-ordered allocation only when
+  `cuDeviceGetDefaultMemPool` succeeds. With an explicit pool installed that
+  query still fails, so the rule must gain a third state: the device's
+  current pool, when it is not the default, is probed with one 4-byte
+  stream-ordered allocation. The decision becomes `default` / `explicit` /
+  `synchronous`, still once per device per process.
+- That decision is cached at the first context construction, so the pool
+  must be installed **before** any cudarc `CudaContext` exists in the
+  process. Candle constructs one inside `Device::new_cuda`
+  (`candle_bge.rs`, `candle_reranker.rs`), so the policy runs ahead of every
+  such call using result-level driver calls, never a safe context.
+- A-first-use and B create the pool at the same moment with the same call;
+  they differ only in preferring the default pool when it is available. Any
+  fragmentation exposure of lazy creation (R5) applies to both; only the
+  A-load forms avoid it.
 
 A design question the study should also settle (proposal, not measured):
 `cuDeviceSetMemPool` changes device-wide state that any co-resident library
 using `cuMemAllocAsync` or `cudaMallocAsync` would then draw from, bounded by
 FathomDB's `maxSize`. An alternative is to keep the pool private and allocate
-with `cuMemAllocFromPoolAsync`, leaving the device's current pool alone. The
-study should include that variant for A and B wherever it changes a result.
+with `cuMemAllocFromPoolAsync`, leaving the device's current pool alone. That
+variant changes cudarc's allocation and free paths, not only a device-level
+install, and is not the shape the upstream survey favours; it is **deferred**
+and built only if C7 or R7 shows the device-wide install harming a
+co-resident consumer.
 
 Each arm keeps the synchronous path as the last resort when pool creation or
 its probe fails. Sizes to cover: `maxSize` 1, 3, 8 and 16 GiB, plus the
 largest size that passes the robustness gates; release threshold 0 and `max`.
+The Tegra Python wheel has no registration hook, so Python runs S,
+A-first-use and B only; adding an import-time hook is an owner decision.
+
+The executable protocol is
+`dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md`;
+where its method is more specific than a row below, the protocol governs.
 
 ## Correctness — what must be shown
 
 Pass means zero failures in every row. With zero failures in N runs, the
-95 % upper bound on the failure rate is about 3/N.
+95 % upper bound on the failure rate is about 3/N; each row's sample size
+therefore bounds, and does not prove, its claim (50 runs: 6 %; 20 runs:
+15 %). Since the Slice 110 experiment build, which path a process took has
+been inferred from bimodal steady-embed latency; the study build reports the
+decision directly (protocol § 2.3, § 6.4), and every row below reads it
+rather than inferring it.
 
 | # | Property | Method | Sample | Pass |
 | --- | --- | --- | --- | --- |
-| C1 | **Allocator provenance across wrappers and contexts.** The once-per-device decision now has three states (default pool, explicit pool, synchronous). | Vendored unit tests extended to all three states; device tests that create wrappers through `new`, `new_non_primary`, `new_cig` and `from_raw_context`, move buffers with `leak` / `upgrade_device_ptr`, and free them on another wrapper, including racing constructors. | Unit tests on every target; device tests 50 fresh processes per arm and size. | Every wrapper reports the same decision; every free uses the allocating API; no driver error, leak or crash. |
+| C1 | **Allocator provenance across wrappers and contexts.** The once-per-device decision now has three states (default pool, explicit pool, synchronous). | Vendored unit tests extended to all three states; device tests that create wrappers through `new`, `new_non_primary`, `new_cig` and `from_raw_context`, move buffers with `leak` / `upgrade_device_ptr`, and free them on another wrapper, including racing constructors. | Unit tests on every target; device tests 50 fresh processes per arm and size. | Every wrapper reports the same decision; every free uses the allocating API; no driver error, leak or crash. Known limit: upstream's own `from_raw_context` and non-primary-context GPU tests crash with `SIGSEGV` on the published 0.19.7 crate (`receipt.md`, "Red and green"), so those constructor paths may be testable only through pure tests on a stub; the results record which paths ran on the device. |
 | C2 | **Pool lifetime.** The pool is never destroyed while installed; destroying it would revert to the unavailable default pool. | Code audit plus a C probe that destroys an installed pool in the failing layout and checks the device's current pool and the next `cuMemAllocAsync`. Product test: engine open/close/reopen cycles in one process. | C probe 20 runs; 50 processes × 100 cycles per arm. | No product path calls `cuMemPoolDestroy` on an installed pool; the C probe confirms the revert; all cycles allocate on the decided path. |
 | C3 | **Exhaustion behaviour.** Capacity was about `maxSize`/3, and exhaustion fails hard. | Characterize capacity against `maxSize` (at least 6 sizes from 192 MiB to 16 GiB). Evaluate candidate policies: (i) size with measured headroom and keep a typed refusal; (ii) overflow into a second explicit pool, which keeps every pointer freeable with `cuMemFreeAsync`; (iii) per-allocation synchronous overflow, which needs per-pointer provenance and breaks the once-per-device invariant. | 10 processes per size; exhaustion driven deterministically by a test allocator. | Capacity model predicts the exhaustion point within 5 % at every size. The chosen policy never silently moves forced CUDA to CPU, keeps the typed error contract, and frees every pointer with the allocating API. Policy (iii) is accepted only with a provenance design that passes C1. |
-| C4 | **cuBLAS / cuRAND workspaces.** Whether their workspaces come from the installed pool, the default pool or `cudaMalloc`. | Compare pool used/reserved counters with `cuMemGetInfo` deltas around rerank (cuBLAS-heavy) and any cuRAND use; run reranking at the smallest passing `maxSize` and in the fragmented layout. | 20 processes per arm. | The source of every workspace is identified, and rerank passes at the chosen size in the fragmented layout. |
+| C4 | **cuBLAS / cuRAND workspaces.** Whether their workspaces come from the installed pool, the default pool or `cudaMalloc`. | Compare pool used/reserved counters with `cuMemGetInfo` deltas around rerank (cuBLAS-heavy) and any cuRAND use; run reranking at the smallest passing `maxSize` and in the fragmented layout. | 20 processes per arm. | The pool's share of the rerank's memory is measured from the pool counters; the residual (workspaces outside the pool) is bounded, not attributed, because `cuMemGetInfo` is a shared system-wide counter on this iGPU and cuBLAS resolves driver entry points internally; rerank passes at the chosen size in the fragmented layout. |
 | C5 | **Zero-length buffers.** `cuMemAllocAsync(0)` returns null; `cuMemAlloc(0)` is invalid. | Existing zero-element tensor and `CudaStream::null()` tests on each arm. | Every arm and both bindings. | All pass; no null pointer reaches a free call. |
 | C6 | **Multi-device.** The decision table and pool are per device. | Pure unit tests with two simulated devices; no multi-GPU Tegra exists. | Unit tests. | Decisions and pools never cross devices. The real multi-device case is declared unmeasured. |
 | C7 | **After primary-context teardown, and co-resident resets.** | Repeat the pool-teardown probe with the arm's pool; add `cuDevicePrimaryCtxReset` and `cudaDeviceReset` from a co-resident library. | 20 C runs per case; 20 product processes with a co-resident reset. | Allocation keeps working on the decided path, or the failure is detected and refused with a typed error; never a wrong-API free. |
@@ -160,9 +202,17 @@ Pass means zero failures in every row. With zero failures in N runs, the
 
 ## Robustness — what must be shown
 
-Robustness rows report pass rates with 95 % confidence intervals. "Robust"
-means zero failures in at least 300 runs per row (failure rate below about
-1 % at 95 % confidence), unless a row states otherwise.
+Robustness rows report pass rates with Wilson 95 % confidence intervals.
+"Robust" means zero failures in at least 300 runs **pooled over a row**
+(failure rate below about 1 % at 95 % confidence); a 30-run cell inside a
+row bounds that cell at about 10 %, and the results state the bound each N
+gives. Pass rate alone cannot discriminate the pool arms from S: behind an
+early import S passes by falling back to the slow synchronous path (100 / 100
+in Slice 110). The **discriminating endpoint** for R1–R5 is therefore the
+fraction of passing processes on each allocator path (`default`, `explicit`,
+`synchronous`), reported with intervals beside the pass rate; an arm is
+better than S only at an equal pass rate with a higher stream-ordered
+fraction.
 
 | # | Property | Method | Sample | Pass |
 | --- | --- | --- | --- | --- |
@@ -170,9 +220,9 @@ means zero failures in at least 300 runs per row (failure rate below about
 | R2 | **Real Node heaps at several sizes.** | Import first, then grow to 0, 100k, 400k, 1M and 4M objects; Node 24, 25 and 26. | 30 processes per cell (450 per arm). | Zero failures; record the fraction of processes on each path. |
 | R3 | **Heap growth during use.** | Open and embed, grow the heap, embed and rerank again, repeat. | 30 processes × 3 Node versions. | Zero failures; no path change after the first decision. |
 | R4 | **Late import.** | Grow the heap first, then import, with and without `node --import fathomdb`. | 30 processes per heap size. | Same or better than S. A `cuInit` refusal remains typed and names the remedy. |
-| R5 | **Lazy creation after heap growth (the key question for B).** The default pool can `mmap` a new range after `cuInit`, so lazy creation is exposed to fragmentation; explicit pools are inferred to need about `maxSize`/3 contiguous. | Behind early `cuInit`, grow the heap to each R2 size, then create the pool at each `maxSize`; capture `/proc/self/maps` and `strace` around creation. | 30 processes per heap × size cell. | The inferred `maxSize`/3 rule is confirmed or replaced by a measured rule that predicts success in all runs; B passes at the chosen size in every cell. |
+| R5 | **Lazy creation after heap growth (the key question for B and A-first-use, which create the pool at the same moment).** The default pool can `mmap` a new range after `cuInit`, so lazy creation is exposed to fragmentation; explicit pools are inferred to need about `maxSize`/3 contiguous, from one C layout. | Behind early `cuInit`, grow the heap to each R2 size, then create the pool at each `maxSize`; capture `/proc/self/maps` around creation (`strace` on a 3-run subset per cell). The contiguous need is measured separately as need(`maxSize`) against a controlled gap (protocol § 4.6, § 6.5). | 30 processes per heap × size cell; the bound is about 10 % per cell and 1 % over the pooled row. | The inferred `maxSize`/3 rule is confirmed or replaced by a measured rule that predicts success in all runs; B and A-first-use pass at the chosen size in every cell. |
 | R6 | **Long-running soak.** | Continuous embed, rerank and ingest with periodic heap churn. | 24 h per arm, at least two processes. | No allocator error; pool reserved memory and RSS stay within 10 % of their first-hour high; steady latency drift under 10 %. |
-| R7 | **Concurrent processes on unified memory.** | 2, 4 and 8 processes on one Orin, each with its own pool, under embed and ingest load; release threshold 0 and `max`. | 10 trials per count and threshold. | No process fails or is OOM-killed; the sum of reserved pool memory and system free memory are recorded; the chosen threshold leaves other processes, including CPU-only ones, their memory. |
+| R7 | **Concurrent processes on unified memory.** | 2, 4 and 8 processes on one Orin, each with its own pool, under embed and ingest load; release threshold 0 and `max`. The allocation witness is **off**: it reads a shared system-wide `cuMemGetInfo` counter and needs a sole GPU consumer, so it would fail as a harness artefact. A launcher aborts the trial if `MemAvailable` falls below 8 GiB. | 10 trials per count and threshold. | No process fails or is OOM-killed; the sum of reserved pool memory and system free memory are recorded; the chosen threshold leaves other processes, including CPU-only ones, their memory. |
 | R8 | **Release-threshold effects on shared DRAM.** | Measure memory returned to the system after idle under each threshold. | 20 processes per threshold. | Threshold choice is justified by measured latency against held memory. |
 | R9 | **Unmeasured Jetson models.** | Repeat R1, R2 and the performance core on other boards. | Minimum 100 runs per board for R2. | Required hardware: at least one 8 GB board (Orin Nano or Orin NX) and an AGX Orin 32 GB. Non-Tegra aarch64 Linux CUDA hosts (GH200, GB10, SBSA) are in the cfg; without access, they stay declared unmeasured, or the cfg is narrowed to measured Tegra. |
 
@@ -180,8 +230,18 @@ means zero failures in at least 300 runs per row (failure rate below about
 
 Each arm runs on the same host with the GPU lock held, one process at a time
 except in R7. Each cell: at least 20 fresh processes per Node version, and in
-each process 5 warm-up and 50 timed iterations. Report the median, IQR and a
-bootstrap 95 % confidence interval for the ratio against the reference arm.
+each process 5 warm-up and 50 timed iterations. The unit of analysis is the
+process (one median per process; iterations within a process are
+correlated). Report the median and IQR of the per-process medians and a
+percentile-bootstrap 95 % confidence interval, resampling processes, for the
+ratio against the reference arm. Arms are interleaved in randomised blocks,
+not run as one block per arm, so thermal drift, GPU rail-gating and
+page-cache state affect every arm alike. S is a mixture: in Slice 110's
+unobstructed small-consumer runs the default pool was available in 1 / 10,
+6 / 30 and 5 / 10 processes, the rest synchronous. "S" as a reference
+therefore means S's synchronous-path processes; the default-pool reference
+is S's default-pool processes; every table is also reported by allocator
+path.
 
 | # | Measure | Reference |
 | --- | --- | --- |
@@ -207,8 +267,11 @@ Pass, per arm:
 - **Ship B** if C1–C8 pass, R1–R8 pass on the AGX Orin 64 GB, the
   performance gates pass, and R5 shows lazy creation succeeds at the chosen
   `maxSize` in every heap cell.
-- **Ship A-first-use instead** if B fails only R5 and A-first-use passes
-  everything. **A-load** ships only if it also passes the import-cost gate.
+- **Ship A-load-release instead** if B and A-first-use fail only R5 (they
+  create the pool at the same moment, so a lazy-creation failure hits both)
+  and A-load-release passes everything, including the import-cost gate.
+  **A-load-hold** is not a shipping candidate on the existing cost
+  measurement (+61 ms, +110 MiB at import) unless that measurement changes.
 - In either case the synchronous path stays as the last resort, gated as
   today to aarch64 Linux, and boards outside R9's measured set are declared
   unmeasured.
@@ -326,7 +389,10 @@ not the maintainer's.
   ([chelsea0x3b/cudarc#544](https://github.com/chelsea0x3b/cudarc/issues/544),
   merged 2026-03), plus a public `has_async_alloc()` getter
   ([chelsea0x3b/cudarc#553](https://github.com/chelsea0x3b/cudarc/issues/553)).
-  There is no safe `CudaMemPool`.
+  There is no safe `CudaMemPool`. The vendored 0.19.7 already contains the
+  result-level functions (`third_party/cudarc-0.19.7/src/driver/result.rs`,
+  `pub mod mem_pool` and the `device` pool functions), so a safe primitive
+  can be built on them without touching the sys layer.
 - [chelsea0x3b/cudarc#536](https://github.com/chelsea0x3b/cudarc/issues/536)
   (safe pool support) is open with no maintainer reply.
   [chelsea0x3b/cudarc#558](https://github.com/chelsea0x3b/cudarc/issues/558), a
@@ -394,18 +460,26 @@ private variant would stay FathomDB-side if C7 or R7 require it.
 
 Whether the 0.8.27 default-pool fallback itself can be expressed with
 upstream's existing API (`has_async_alloc()`, result-level pool queries) or
-still needs a residual patch is part of question 1 above. The study includes
-engaging upstream through #536 with the C reproducer and the C1, C3 and R1
-results before writing a pull request, and records the maintainer's response
-as an input to the decision rule.
+still needs a residual patch is part of question 1 above. The study
+**prepares** an evidence package for a comment on #536 (the C reproducer, a
+test in cudarc's `mod tests` style, a benchmark, and a draft comment;
+protocol § 10) before any pull request is written. Nobody posts it without
+the owner; if the owner posts, the maintainer's response is recorded as an
+input to the decision rule.
 
 ## Execution notes
 
-- Study code is experiment-only: an environment-selected allocator mode in a
-  scratch worktree, as in Slice 110's experiment patch. It does not land on a
-  release branch.
+- Study code is experiment-only: a FathomDB-side policy module behind a cargo
+  feature that no release feature set enables, selecting the variant from an
+  environment variable, plus a small opt-in pool primitive and the
+  three-state decision in the vendored cudarc (protocol § 2.3). The
+  experiment build with the variant set to `S` is checked against the
+  production build before anything else is measured (protocol § 5, Phase 0).
+  It does not land on a release branch.
 - Every series runs one fresh process at a time under the shared GPU lock,
   records the host, L4T, driver, Node and artifact hashes, and commits only
   pruned, path-redacted evidence, following Slice 110's retention practice.
-- Results go to a sibling results document and a release-state ruling; this
-  plan is updated only to correct its method.
+  Memory-safety floors and stop conditions are in protocol § 1.
+- Results go to a sibling results document
+  (`dev/plans/runs/0.8.28-pool-study/results.md`) and a release-state
+  ruling; this plan is updated only to correct its method.

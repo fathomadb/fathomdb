@@ -1288,6 +1288,15 @@ Write little or no new product test code. Re-run:
 - warranted CUDA routes; and
 - Memex's unchanged exact test against the candidate artifact.
 
+Review the retained Slice 90 artifact size and inventory. Distinguish the
+77.92 MiB host-local set needed for checkpoint revalidation from the other
+Slice 90 qualification and audit records before proposing any retention or
+cleanup change. Survey checkpoint artifacts larger than 100 GB in two scopes:
+(1) the 0.8.27 release, including its host-local evidence, and (2) the rest of
+the repository and its associated data directories. Record each qualifying
+path, size, owning checkpoint, receipt binding, and retention decision; record
+an explicit zero result for either scope if none qualify.
+
 As a Slice 150-owned gate on the exact final candidate, run strict security through
 `dev/release/ac-037-live-netns-hitl-runbook.md`, capture the required live
 AC-037 pass/catch/summary lines plus grant and revert evidence, and bind that

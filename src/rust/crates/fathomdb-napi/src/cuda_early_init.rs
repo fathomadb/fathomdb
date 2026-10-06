@@ -220,7 +220,14 @@ fn initialize_cuda_driver_at_registration(_exports: napi::JsObject) -> napi::Res
         ) {
             // A panic must not fail module registration; the embedder records
             // the outcome either way.
-            let _ = std::panic::catch_unwind(fathomdb_embedder::initialize_cuda_driver);
+            let init = std::panic::catch_unwind(fathomdb_embedder::initialize_cuda_driver);
+            // 0.8.28 pool study only: the A-load variants install their pool
+            // here, after a successful cuInit.
+            #[cfg(feature = "tegra-pool-experiment")]
+            if matches!(init, Ok(fathomdb_embedder::CudaDriverInit::Initialized)) {
+                let _ = std::panic::catch_unwind(fathomdb_embedder::install_cuda_pool_at_load);
+            }
+            let _ = init;
         }
     });
     Ok(())

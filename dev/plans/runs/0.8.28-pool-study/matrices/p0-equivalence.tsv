@@ -1,0 +1,3 @@
+# Phase 0 production equivalence: label variant node consumer env
+prod-S S 25.9.0 $PS/consumer-prod CONSUMER_MODE=full
+exp-S S 25.9.0 $PS/consumer-exp CONSUMER_MODE=full

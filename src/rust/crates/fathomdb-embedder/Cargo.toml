@@ -135,6 +135,12 @@ loader-test-hooks = ["default-embedder"]
 # ordinary default embedder: it accepts only a preflight-selected device and a
 # verified local asset directory, never `FATHOMDB_EMBED_DEVICE` or the loader.
 tc5-benchmark = ["default-embedder"]
+# 0.8.28 Tegra CUDA memory-pool STUDY ONLY (dev/plans/0.8.28/prework/
+# tegra-cuda-memory-pool-experiment-protocol.md): an environment-selected pool
+# policy ahead of every Candle CUDA device. Effective only on aarch64 Linux
+# with `embed-cuda` or `rerank-cuda`. No release feature set may enable it
+# (scripts/release/cuda-artifact-contract.sh); the study branch never merges.
+tegra-pool-experiment = []
 
 [dev-dependencies]
 httpmock = "=0.8.3"

@@ -839,7 +839,13 @@ made from facts the maintainer can run:
    private pool (`cuMemAllocFromPoolAsync`, a pool-owned allocation path) or
    the set-current-pool shape (`cuDeviceSetMemPool`, existing allocation
    paths unchanged) is the more upstream-compatible one, with the quotes it
-   rests on. The private-pool variant is built only if this favours it.
+   rests on. The private-pool variant is built only if this favours it. The
+   assessment also weighs NVIDIA's own guidance, reported by a research agent
+   on 2026-10-05 and to be verified against the source: part 2 of NVIDIA's
+   blog series on the stream-ordered allocator advises that libraries not
+   call `cudaDeviceSetMemPool` but create their own pool and allocate with
+   `cudaMallocFromPoolAsync`, which favours the private shape for a library
+   such as cudarc or FathomDB.
 
 The question whether the 0.8.27 default-pool fallback itself is expressible
 with upstream's current API is answered by inspection in Phase 5: list the

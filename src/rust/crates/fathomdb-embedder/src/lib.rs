@@ -69,6 +69,54 @@ pub use cuda_driver_init::{
 // host with no GPU (AC80-18, AC80-20). This is not a public SDK surface; the
 // consumer is the release evidence lane.
 mod gpu_witness;
+
+// 0.8.28 pool study only (feature `tegra-pool-experiment`); see the module.
+#[cfg(any(
+    test,
+    all(
+        feature = "tegra-pool-experiment",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )
+))]
+mod cuda_pool_policy;
+
+/// Installs the study's explicit pool at Node addon registration for the
+/// A-load variants (pool study only; hidden and unstable).
+#[cfg(all(
+    feature = "tegra-pool-experiment",
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+#[doc(hidden)]
+pub fn install_cuda_pool_at_load() {
+    cuda_pool_policy::install_pool_at_load();
+}
+
+/// Every Candle CUDA device of the crate is built here, so the pool study's
+/// policy (feature `tegra-pool-experiment`) runs before the first one; without
+/// that feature this is `Device::new_cuda`.
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+pub(crate) fn new_cuda_device(
+    site: &'static str,
+    ordinal: usize,
+) -> candle_core::Result<candle_core::Device> {
+    #[cfg(all(feature = "tegra-pool-experiment", target_os = "linux", target_arch = "aarch64"))]
+    {
+        cuda_pool_policy::new_cuda_device(site, ordinal)
+    }
+    #[cfg(not(all(
+        feature = "tegra-pool-experiment",
+        target_os = "linux",
+        target_arch = "aarch64"
+    )))]
+    {
+        let _ = site;
+        candle_core::Device::new_cuda(ordinal)
+    }
+}
 pub use gpu_witness::{
     evaluate_allocation_witness, normalize_cuda_uuid, observe_control_allocation,
     AllocationWitnessInputs, ControlAllocationObservation, GpuAllocationWitness,

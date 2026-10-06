@@ -118,7 +118,8 @@ impl CudaProvider for RerankerCudaProvider {
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         #[cfg(feature = "rerank-cuda")]
         {
-            let device = Device::new_cuda(ordinal).map_err(classify_candle_cuda_error)?;
+            let device = crate::new_cuda_device("reranker-probe", ordinal)
+                .map_err(classify_candle_cuda_error)?;
             Tensor::zeros(1, DType::F32, &device).map_err(classify_candle_cuda_error)?;
             let visible = self
                 .enumerate_visible_cuda_devices()?
@@ -163,7 +164,8 @@ fn device_from_resolution(
     match &resolution.effective_device {
         EffectiveRerankerDevice::Cpu => Ok(Device::Cpu),
         EffectiveRerankerDevice::Cuda(info) => {
-            Device::new_cuda(info.ordinal).map_err(RerankerLoadError::ModelDeserialize)
+            crate::new_cuda_device("reranker-load", info.ordinal)
+                .map_err(RerankerLoadError::ModelDeserialize)
         }
     }
 }

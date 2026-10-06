@@ -257,7 +257,8 @@ impl CudaProvider for CandleCudaProvider {
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         #[cfg(feature = "embed-cuda")]
         {
-            let device = Device::new_cuda(ordinal).map_err(classify_candle_cuda_error)?;
+            let device = crate::new_cuda_device("embedder-probe", ordinal)
+                .map_err(classify_candle_cuda_error)?;
             Tensor::zeros(1, DType::F32, &device).map_err(classify_candle_cuda_error)?;
             let visible = self
                 .enumerate_visible_cuda_devices()?
@@ -379,7 +380,8 @@ pub(crate) fn attest_retained_cuda_device(
         device: format!("cuda:{ordinal}"),
         reason,
     };
-    let device = Device::new_cuda(ordinal).map_err(|error| unavailable(error.to_string()))?;
+    let device = crate::new_cuda_device("embedder-witness", ordinal)
+        .map_err(|error| unavailable(error.to_string()))?;
     let actual_ordinal = match device.location() {
         candle_core::DeviceLocation::Cuda { gpu_id } => gpu_id,
         _ => {
@@ -429,9 +431,10 @@ pub fn diagnose_default_embedder_gpu_from_env() -> DoctorGpuDiagnosticResult {
 fn device_from_resolution(resolution: &DeviceResolution) -> Result<Device, EmbedderLoadError> {
     match &resolution.effective_device {
         EffectiveEmbedDevice::Cpu => Ok(Device::Cpu),
-        EffectiveEmbedDevice::Cuda(info) => Device::new_cuda(info.ordinal).map_err(|error| {
-            EmbedderLoadError::DeviceInitialization { message: error.to_string() }
-        }),
+        EffectiveEmbedDevice::Cuda(info) => crate::new_cuda_device("embedder-load", info.ordinal)
+            .map_err(|error| EmbedderLoadError::DeviceInitialization {
+                message: error.to_string(),
+            }),
     }
 }
 

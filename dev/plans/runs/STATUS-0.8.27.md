@@ -48,19 +48,18 @@ hashes, review, feature-complete and platform evidence, and measured Tegra
 limits. Slices 114 and 115 completed earlier under HITL sequencing exceptions;
 Slices 120 and 130 have since completed. No publication is authorized here.
 
-Slice 132 is planned after Slice 130 and before performance qualification. It
-will make the Rust SDK equal in canonical capability to Python and TypeScript,
-while retaining language-native API form and the separately governed CLI and
-published provider/plugin boundaries. `fathomdb` remains the one Rust SDK;
-custom-provider reachability leaves its default surface unless concrete external
-need receives a HITL exception. Its scope requires a successor decision before
-implementation.
+Slice 132 is planned after Slice 130 and before performance qualification. The
+2026-10-06 direction calls for a dedicated Rust SDK with the same public
+surface as Python and TypeScript. Its plan and draft design propose a separate
+`fathomdb-sdk` crate with a closed export map over the existing engine. A
+successor ADR and interface updates must precede implementation; the existing
+`fathomdb` and provider/plugin crate posture remains a separate decision.
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 132 (RUST-SDK-PARITY)** — Rust SDK canonical-surface parity. **Remaining ladder:** 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 132 (RUST-SDK-PARITY)** — dedicated Rust SDK surface parity. **Remaining ladder:** 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -283,8 +282,9 @@ grant/revert evidence.
   mismatch blocked Slice 115's earlier full-gate attempt. The later clean
   Slice 110 gate passed 184 / 184 suites.
 - [Slice 132](../0.8.27/features/slice-132/plan.md) follows Slice 130 and
-  requires a HITL-approved successor to the current Rust parity-in-intent
-  contract. It inventories canonical operations, types, and capabilities across
-  all three SDKs before changing any surface. `fathomdb` is the one Rust SDK;
-  external provider/plugin compatibility remains a separately ruled boundary.
-  Slice 135 depends on its closure.
+  has a [draft design](../0.8.27/features/slice-132/design.md) for a dedicated
+  Rust SDK with Python/TypeScript surface parity. It inventories operations,
+  namespaces, types, errors, and configuration across all three SDKs before
+  changing any public contract. A successor ADR is required; existing crate
+  and provider/plugin compatibility remains a separate decision. Slice 135
+  depends on its closure.

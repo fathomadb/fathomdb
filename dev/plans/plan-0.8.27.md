@@ -31,13 +31,13 @@ and determine whether the reported 0.8.26 Windows erasure failure persists on
 the 0.8.27 candidate. Its
 [`execution plan`](0.8.27/features/slice-103/plan.md) owns that addition.
 
-Slice 132 follows the Python SDK decomposition. It defines and closes the
-Rust SDK's canonical-surface parity with Python and TypeScript, after a HITL
-decision distinguishes equivalent product operations from language idioms,
-CLI-only operator capabilities, and the separately published provider/plugin
-contract. `fathomdb` is the one Rust application SDK; its
-[`planning gate`](0.8.27/features/slice-132/plan.md) owns that decision and no
-contract change begins before it.
+Slice 132 follows the Python SDK decomposition. It plans a dedicated Rust SDK
+with the same public operation, namespace, type, error, and configuration
+surface as Python and TypeScript. The proposed `fathomdb-sdk` package wraps
+the existing engine through an explicit public export map. Its
+[`plan`](0.8.27/features/slice-132/plan.md) and
+[`draft design`](0.8.27/features/slice-132/design.md) own the work; a successor
+ADR and interface updates must precede public implementation.
 
 The shared structural vocabulary is:
 
@@ -372,7 +372,7 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 132** (`RUST-SDK-PARITY`) — Rust SDK canonical-surface parity
+**IMMEDIATE NEXT: Slice 132** (`RUST-SDK-PARITY`) — dedicated Rust SDK surface parity
 
 **Remaining ladder:** 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
@@ -1151,27 +1151,24 @@ exception identities, stub/type-checker agreement, and public examples or
 doctests. Keep deep database semantics in Rust and use thin Python parity
 checks. No test may depend on a particular helper file.
 
-### Slice 132 — Rust SDK canonical-surface parity
+### Slice 132 — dedicated Rust SDK surface parity
 
-**PLANNED; HITL scope decision required before commissioning.** The Rust facade
-is currently a separately governed consumer contract: the public position and
-Rust interface deliberately require parity-in-intent rather than membership
-identity with Python/TypeScript. It also lacks facade re-exports for
-`SearchHit`, `IdSpace`, and `IdSpaceKind`; Python and TypeScript have standalone
-passage rerank and CLS batch-embedding operations that Rust does not expose as
-matching facade entries. The current whole-Engine re-export also leaves
-Rust-only caller-supplied provider reachability, which the owner directs Slice
-132 to remove from the default SDK unless a concrete need is demonstrated.
+**PLANNED; draft design awaiting contract successor.** The 2026-10-06 user
+direction calls for a Rust SDK beyond the existing `fathomdb` facade, with the
+same public surface as Python and TypeScript. The proposed separate
+`fathomdb-sdk` crate supplies a closed application boundary over the existing
+engine and mirrors the root, `Engine`, `read`, `graph`, and `admin` placements.
+It includes standalone rerank and CLS embedding, public DTOs, errors, and
+configuration. See the [Slice 132 plan](0.8.27/features/slice-132/plan.md) and
+[draft design](0.8.27/features/slice-132/design.md).
 
-Execute the [Slice 132 plan](0.8.27/features/slice-132/plan.md) only after HITL
-accepts a successor contract. Build one canonical operation, result/error-type,
-and capability inventory from live source and installed artifacts. Make every
-accepted product capability available through each SDK, with language-native
-method, naming, ownership, and async choices where those do not alter behavior.
-Do not pull CLI-only recovery/operator functions into an SDK or preserve or
-retire the published plugin protocol without an explicit successor. The scope
-decision must disposition every Rust-only capability and every Python/TypeScript
-operation missing from Rust; absent a decision, Slice 132 remains planned.
+The accepted `BIND-RUST` ADR and current Rust interface still govern the
+shipped facade. Before implementation, ratify a successor ADR and update all
+three SDK interfaces and the parity position. Inventory source and installed
+artifacts, including the existing `fathomdb`/engine/plugin contracts. Resolve
+every Python/TypeScript discrepancy and record the existing-crate disposition.
+The new SDK excludes CLI recovery, raw SQL, and custom-provider injection.
+Slice 135 waits for Slice 132's reviewed closeout.
 
 ### Slice 135 — 0.8.26 performance preservation and improvement qualification
 

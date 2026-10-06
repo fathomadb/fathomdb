@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 prework — Tegra CUDA memory-pool study plan
-status: PROPOSED (revision 4, 2026-10-06; owner rulings 12-17 applied)
+status: PROPOSED (revision 5, 2026-10-06; owner rulings 12-24 applied)
 target_release: 0.8.28
 observed_on: 2026-10-05
 revised_on: 2026-10-06
@@ -155,6 +155,58 @@ amended to match.
   fact (never product logic), a product default (one named, documented,
   overridable place) or a test tolerance (one harness config,
   overridable); the inventory is a Phase 2 deliverable.
+
+## Owner rulings (2026-10-06, after Phase 2) and revision 5
+
+The owner ruled on the Phase 2 decisions in the results
+(`dev/plans/runs/0.8.28-pool-study/results.md` § 11.14). Protocol and plan
+are amended to match.
+
+- **Ruling 18: C2 close retention is real.** `Engine::close()` stopped the
+  workers, but the live `Engine` and the projection runtime each kept a
+  reference to the model. The owner's fix (`c816b8653`, "release embedder
+  after close drains workers") is cherry-picked onto the study branch for
+  the study only. P cannot become the default until that fix ships. C2 is
+  rerun on a build that includes it (P, A, B and S; 50 cycles; no garbage
+  collection). GC-based workarounds stay out of pass rows.
+- **Ruling 19: C7 is not yet ruled.** First, investigate the cause of the
+  exit crashes after a co-resident primary-context reset: native
+  backtraces of S and P, and the first error after the reset. If the
+  frames point at the study's own pool teardown, a study-gated guard is
+  allowed. No other product change is made for C7.
+- **Ruling 20: CB2 is amended** to "no wholly free chunk stays reserved
+  after close and idle". Threshold 0 meets this. The trim arm is dropped
+  from the candidate design; its evidence stays as a negative result.
+- **Ruling 21: CB1.**
+  - The primary check is the pool's own `reserved_high` ≤ its `maxSize`.
+  - A system-level measure is a sanity check only, and only when the
+    device reports `CU_DEVICE_ATTRIBUTE_INTEGRATED` = 1 at runtime.
+    Otherwise it is skipped with a reason and never fails.
+  - It must tolerate page-cache and other-process noise.
+  - Its thresholds are named constants (`harness/cb1check.py`), and its
+    skip and classification logic has pure tests.
+- **Ruling 22: rerun the timing comparisons** affected by the fixed-order
+  interleave defect in Phases 3–4, with the fixed harness: the
+  equivalence control, P1 and the others.
+- **Ruling 23: error kind.**
+  - Python gets a dedicated `CudaPoolExhaustedError`, a subclass of
+    `EmbedderError`, as in TypeScript.
+  - The cross-encoder's forward is classified too: under forced CUDA,
+    `RerankerDevicePolicyError::CudaPoolExhausted`, kind
+    `cuda_pool_exhausted`.
+  - Experiment-gated.
+- **Ruling 24: platform detection at runtime.**
+  - The policy reads `CU_DEVICE_ATTRIBUTE_INTEGRATED`, pool support and
+    total device memory. The `cfg` gate only limits compilation.
+  - The pool is sized from device memory with a floor and a ceiling;
+    3 GiB on the 64 GB Orin is accepted.
+  - The sizing for other devices is an analysis, not a decision
+    (results § 12.4).
+  - Only the runtime detection and the sizing function are implemented,
+    behind the experiment feature, with pure tests for each case.
+
+Phase 4 timing runs on the build that includes the close fix, so the
+comparisons describe the code that would ship.
 
 ## What is already known
 
@@ -432,8 +484,8 @@ row is a separate decision-rule clause. Method details: protocol § 7.
 
 | # | Property | Method | Sample | Pass |
 | --- | --- | --- | --- | --- |
-| CB1 | **Cap.** The pool's host-memory cost is bounded. | Pool attributes and `VmRSS` + `VmSwap` in every `perf`, `ingest` and R5 `full` process; the baseline is the median of S's synchronous-path processes at the same point in the same block. Unit half: the C5 probe fills a private pool to its cap. | Every such process. | At 3 GiB: `reserved_high` ≤ 1024 MiB, and `VmRSS` + `VmSwap` − baseline ≤ `reserved_high` + 32 MiB, in every process. |
-| CB2 | **Trim after close.** Memory goes back when FathomDB is done with it. | `full` mode, `engine.close()`, 10 s idle, exit `teardown` line. Unit half: free, synchronize and `cuMemPoolTrimTo(0)` in the C5 probe. | 20 processes per threshold × layout. | Threshold 0: `reserved_cur` = 0 after close and idle in every process. If the default policy fails, the experimental trim arm (ruling 14) is measured separately and adopted only by a later ruling. |
+| CB1 | **Cap.** The pool's host-memory cost is bounded. | Pool attributes and `VmRSS` + `VmSwap` in every `perf`, `ingest` and R5 `full` process; the baseline is the median of S's synchronous-path processes at the same point in the same block. Unit half: the C5 probe fills a private pool to its cap. | Every such process. | Revision 5 (ruling 21): `reserved_high` ≤ `maxSize` in every process; the `MemAvailable` comparison is a sanity check on integrated devices only, skipped elsewhere, never a failure (`harness/cb1check.py`). |
+| CB2 | **Trim after close.** Memory goes back when FathomDB is done with it. | `full` mode, `engine.close()`, 10 s idle, exit `teardown` line. Unit half: free, synchronize and `cuMemPoolTrimTo(0)` in the C5 probe. | 20 processes per threshold × layout. | Threshold 0 (revision 5, ruling 20): no wholly free chunk stays reserved after close and idle. The trim arm is dropped; Phase 2 kept it as a negative result. |
 | CB3 | **Typed error at the cap.** | An oversized batch (128 long passages) under forced CUDA at 3 GiB. Unit half: typed `CUDA_ERROR_OUT_OF_MEMORY`, `cuCtxSynchronize` succeeds afterwards, and the pool recovers, in the C5 probe. | 20 processes per arm. | A typed FathomDB error (kind recorded); the next embed succeeds; `embedderDevice` stays `cuda`. |
 | CB4 | **No CPU move.** | The same runs as CB3. | As CB3. | The embed after the error reports `embedderDevice` `cuda` and the embedding hash from before the error. |
 
@@ -488,7 +540,7 @@ synchronous fallback as the safety net. The primary design is the private
 pool (ruling 7). The rule below decides whether it can be that default.
 
 - **Make P-first-use the default, together with early `cuInit` at module
-  load (ruling 12),** if C1–C9 pass, R1–R8 pass on the
+  load (ruling 12) and the owner's close fix (ruling 18),** if C1–C9 pass, R1–R8 pass on the
   AGX Orin 64 GB, the performance gates pass, R5 shows lazy private-pool
   creation at 3 GiB in every heap cell including the boundary cells, and
   each circuit-breaker clause passes on its own:

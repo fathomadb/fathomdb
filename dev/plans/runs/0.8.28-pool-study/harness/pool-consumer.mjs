@@ -5,7 +5,8 @@
 // Env: FATHOMDB_MODULE (module specifier; default "fathomdb"),
 // FATHOMDB_DB_SCRATCH (directory for the per-run database), IMPORT_ORDER
 // (early|late), HEAP_OBJECTS (live objects before open), HEAP_GROW_AFTER_OPEN,
-// CONSUMER_MODE (import|open|full|perf|ingest|cycles), WARMUP_ITERS (5),
+// CONSUMER_MODE (import|open|full|perf|ingest|cycles|soak), SOAK_SECONDS and
+// SOAK_MEM_FLOOR_MIB (soak mode), WARMUP_ITERS (5),
 // TIMED_ITERS (50), BATCH_SIZES (1,8,32,128), INGEST_DOCS (10000), CYCLES (50),
 // MAPS_DIR, EXPECT_DEVICE (cuda|cpu; default cuda), IDLE_AFTER_CLOSE_S (CB2:
 // seconds to idle after the last close, so the exit teardown line shows what
@@ -75,10 +76,15 @@ const errInfo = (err) => ({
   kind: err?.kind ?? null,
   message: String(err?.message ?? err),
 });
+// System-wide MemAvailable (MiB), for the CB1 sanity check and the soak floor.
+const memAvailMiB = () => {
+  const m = readFileSync("/proc/meminfo", "utf8").match(/^MemAvailable:\s+(\d+)/m);
+  return m ? Number(m[1]) / 1024 : null;
+};
 const status = () => {
   const s = readFileSync("/proc/self/status", "utf8");
   const kib = (key) => Number((s.match(new RegExp(`^${key}:\\s+(\\d+)`, "m")) ?? [0, 0])[1]);
-  return { rssMiB: kib("VmRSS") / 1024, swapMiB: kib("VmSwap") / 1024, vszMiB: kib("VmSize") / 1024 };
+  return { rssMiB: kib("VmRSS") / 1024, swapMiB: kib("VmSwap") / 1024, vszMiB: kib("VmSize") / 1024, memAvailMiB: memAvailMiB() };
 };
 // VmRSS, VmSwap and VmSize at each named measurement point (protocol 4.2).
 const point = (name) => {
@@ -217,6 +223,78 @@ if (isMainThread) try {
     engine = null;
     out.outcome = mismatches === 0 && workerMismatches === 0 ? "pass" : "fail";
     if (out.outcome === "fail") out.failedStep = "trimstress-identity";
+  } else if (out.consumerMode === "soak") {
+    // R6 (protocol 4.7, ruling 4): loop for SOAK_SECONDS; every 60 s grow and
+    // drop 200k JS objects, collect garbage (--expose-gc) and record one
+    // sample. Stops itself, failing, if MemAvailable falls below
+    // SOAK_MEM_FLOOR_MIB (the study's 8 GiB floor), so no watcher has to.
+    const { rerank, embedBatchCls } = mod;
+    const seconds = num("SOAK_SECONDS", 1200);
+    const floorMiB = num("SOAK_MEM_FLOOR_MIB", 8192);
+    step = "soak-open";
+    engine = await openEngine();
+    const text = "fathomdb sync allocator repair experiment";
+    const want = sha(await engine.embed(text));
+    out.embedSha = want;
+    out.soak = { samples: [], iterations: 0, mismatches: 0, docs: 0, aborted: null };
+    const t0 = performance.now();
+    let next = t0 + 60_000;
+    let embedMs = [];
+    let rerankMs = [];
+    let batchMs = [];
+    let i = 0;
+    const med = (xs) => (xs.length ? [...xs].sort((a, b) => a - b)[xs.length >> 1] : null);
+    while (performance.now() - t0 < seconds * 1000) {
+      step = "soak-embed";
+      let [ms, v] = await timeIt(() => engine.embed(text));
+      embedMs.push(ms);
+      if (sha(v) !== want) out.soak.mismatches++;
+      const batch = Array.from({ length: 32 }, (_, k) => "soak " + i + " item " + k + " about pools");
+      [ms] = await timeIt(() => embedBatchCls(batch));
+      batchMs.push(ms);
+      step = "soak-rerank";
+      [ms] = await timeIt(() => rerank("Which device shares DRAM?", passages, 2));
+      rerankMs.push(ms);
+      step = "soak-write";
+      await engine.write(
+        Array.from({ length: 50 }, (_, k) => ({ kind: "doc", body: "soak " + i + " document " + k + " about memory pools", sourceId: "pool-study" })),
+      );
+      out.soak.docs += 50;
+      i++;
+      if (performance.now() >= next) {
+        step = "soak-gc";
+        grow(200_000);
+        keepAlive.length = 0;
+        if (globalThis.gc) globalThis.gc();
+        const st = status();
+        out.soak.samples.push({
+          minute: Math.round((performance.now() - t0) / 60_000),
+          rssMiB: st.rssMiB,
+          swapMiB: st.swapMiB,
+          vszMiB: st.vszMiB,
+          memAvailMiB: st.memAvailMiB,
+          heapUsedMiB: process.memoryUsage().heapUsed / 2 ** 20,
+          embedMs: med(embedMs),
+          batch32Ms: med(batchMs),
+          rerankMs: med(rerankMs),
+          iterations: embedMs.length,
+        });
+        embedMs = [];
+        rerankMs = [];
+        batchMs = [];
+        next += 60_000;
+        if (st.memAvailMiB !== null && st.memAvailMiB < floorMiB) {
+          out.soak.aborted = "MemAvailable " + Math.round(st.memAvailMiB) + " MiB below " + floorMiB + " MiB";
+          break;
+        }
+      }
+    }
+    out.soak.iterations = i;
+    step = "soak-close";
+    await engine.close();
+    engine = null;
+    out.outcome = out.soak.mismatches === 0 && out.soak.aborted === null ? "pass" : "fail";
+    if (out.outcome === "fail") out.failedStep = out.soak.aborted ? "soak-floor" : "soak-identity";
   } else if (out.consumerMode === "cycles") {
     for (let c = 0; c < num("CYCLES", 50); c++) {
       step = `cycle-${c}-open`;

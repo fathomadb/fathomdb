@@ -3,7 +3,8 @@ JSON line on stdout.
 
 Env: FATHOMDB_DB_SCRATCH (directory for the per-run database), HEAP_OBJECTS
 (live Python objects created after import, before open), CONSUMER_MODE
-(full | oversize | coresident | reset), OVERSIZE_BATCH (oversize mode), MAPS_DIR. The
+(full | perf | oversize | coresident | reset), WARMUP_ITERS, TIMED_ITERS and
+BATCH_SIZES (perf mode), OVERSIZE_BATCH (oversize mode), MAPS_DIR. The
 runner sets the device policy and the FATHOMDB_POOL_* variables; the
 experiment wheel's import performs early cuInit (study ruling 1).
 
@@ -40,7 +41,13 @@ def status() -> dict[str, float]:
             key, _, rest = line.partition(":")
             if key in ("VmRSS", "VmSwap", "VmSize"):
                 values[key] = int(rest.split()[0]) / 1024
-    return {"rssMiB": values.get("VmRSS", 0.0), "swapMiB": values.get("VmSwap", 0.0), "vszMiB": values.get("VmSize", 0.0)}
+    point = {"rssMiB": values.get("VmRSS", 0.0), "swapMiB": values.get("VmSwap", 0.0), "vszMiB": values.get("VmSize", 0.0)}
+    # System-wide MemAvailable, for the CB1 sanity check (harness/cb1check.py).
+    with open("/proc/meminfo", encoding="utf-8") as handle:
+        for line in handle:
+            if line.startswith("MemAvailable:"):
+                point["memAvailMiB"] = int(line.split()[1]) / 1024
+    return point
 
 
 def sha(vec: list[float]) -> str:
@@ -153,6 +160,27 @@ def main() -> int:
         out["rerankScores"] = [r["ce_score"] for r in fathomdb.rerank("How does CUDA stream-ordered allocation work?", passages, 2)]
         step = "embedBatchCls"
         out["clsSha"] = sha(fathomdb.embed_batch_cls([text])[0])
+        if out["consumerMode"] == "perf":
+            # P7: the Node consumer's perf measures, per-process lists of ms.
+            step = "perf"
+            warm = int(os.environ.get("WARMUP_ITERS", "5"))
+            timed = int(os.environ.get("TIMED_ITERS", "50"))
+
+            def timed_ms(call: Any) -> list[float]:
+                kept = []
+                for i in range(warm + timed):
+                    t0 = time.perf_counter()
+                    call(i)
+                    if i >= warm:
+                        kept.append((time.perf_counter() - t0) * 1000)
+                return kept
+
+            out["timingsMs"]["embedSteady"] = timed_ms(lambda i: engine.embed(f"steady state embedding number {i} about tegra allocators"))
+            out["timingsMs"]["embedBatch"] = {}
+            for size in [int(x) for x in os.environ.get("BATCH_SIZES", "1,8,32,128").split(",")]:
+                texts = [f"batch {size} item {k} about unified memory" for k in range(size)]
+                out["timingsMs"]["embedBatch"][str(size)] = timed_ms(lambda _i, texts=texts: fathomdb.embed_batch_cls(texts))
+            out["timingsMs"]["rerankSteady"] = timed_ms(lambda _i: fathomdb.rerank("Which device shares DRAM?", passages, 2))
         out["mem"]["points"]["afterWork"] = status()
         if out["consumerMode"] == "oversize":
             step = "oversize"

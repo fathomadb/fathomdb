@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 prework — Tegra CUDA memory-pool experiment protocol
-status: PROPOSED (revision 4, 2026-10-06; owner rulings 12-17 applied)
+status: PROPOSED (revision 5, 2026-10-06; owner rulings 12-24 applied)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
@@ -157,6 +157,58 @@ are amended to match.
   fact (never product logic), a product default (one named, documented,
   overridable place) or a test tolerance (one harness config,
   overridable); the inventory is a Phase 2 deliverable.
+
+## Owner rulings (2026-10-06, after Phase 2) and revision 5
+
+The owner ruled on the Phase 2 decisions in the results
+(`dev/plans/runs/0.8.28-pool-study/results.md` § 11.14). Protocol and plan
+are amended to match.
+
+- **Ruling 18: C2 close retention is real.** `Engine::close()` stopped the
+  workers, but the live `Engine` and the projection runtime each kept a
+  reference to the model. The owner's fix (`c816b8653`, "release embedder
+  after close drains workers") is cherry-picked onto the study branch for
+  the study only. P cannot become the default until that fix ships. C2 is
+  rerun on a build that includes it (P, A, B and S; 50 cycles; no garbage
+  collection). GC-based workarounds stay out of pass rows.
+- **Ruling 19: C7 is not yet ruled.** First, investigate the cause of the
+  exit crashes after a co-resident primary-context reset: native
+  backtraces of S and P, and the first error after the reset. If the
+  frames point at the study's own pool teardown, a study-gated guard is
+  allowed. No other product change is made for C7.
+- **Ruling 20: CB2 is amended** to "no wholly free chunk stays reserved
+  after close and idle". Threshold 0 meets this. The trim arm is dropped
+  from the candidate design; its evidence stays as a negative result.
+- **Ruling 21: CB1.**
+  - The primary check is the pool's own `reserved_high` ≤ its `maxSize`.
+  - A system-level measure is a sanity check only, and only when the
+    device reports `CU_DEVICE_ATTRIBUTE_INTEGRATED` = 1 at runtime.
+    Otherwise it is skipped with a reason and never fails.
+  - It must tolerate page-cache and other-process noise.
+  - Its thresholds are named constants (`harness/cb1check.py`), and its
+    skip and classification logic has pure tests.
+- **Ruling 22: rerun the timing comparisons** affected by the fixed-order
+  interleave defect in Phases 3–4, with the fixed harness: the
+  equivalence control, P1 and the others.
+- **Ruling 23: error kind.**
+  - Python gets a dedicated `CudaPoolExhaustedError`, a subclass of
+    `EmbedderError`, as in TypeScript.
+  - The cross-encoder's forward is classified too: under forced CUDA,
+    `RerankerDevicePolicyError::CudaPoolExhausted`, kind
+    `cuda_pool_exhausted`.
+  - Experiment-gated.
+- **Ruling 24: platform detection at runtime.**
+  - The policy reads `CU_DEVICE_ATTRIBUTE_INTEGRATED`, pool support and
+    total device memory. The `cfg` gate only limits compilation.
+  - The pool is sized from device memory with a floor and a ceiling;
+    3 GiB on the 64 GB Orin is accepted.
+  - The sizing for other devices is an analysis, not a decision
+    (results § 12.4).
+  - Only the runtime detection and the sizing function are implemented,
+    behind the experiment feature, with pure tests for each case.
+
+Phase 4 timing runs on the build that includes the close fix, so the
+comparisons describe the code that would ship.
 
 ## 0. Conventions
 
@@ -903,17 +955,24 @@ separately and not pooled with revision-2 R5 cells.
 **Circuit-breaker rows (ruling 6; CB1–CB4).** Each is a separate clause of
 the decision table and the decision rule:
 
-- **CB1 cap.** At 3 GiB, in every process of the row, the pool's
-  `reserved_high` ≤ 1024 MiB (the C3 capacity), and the process's
-  `VmRSS` + `VmSwap` minus the baseline ≤ `reserved_high` + 32 MiB. The
-  baseline is the median `VmRSS` + `VmSwap` of S's synchronous-path
-  processes at the same measurement point in the same interleaved block, so
-  model files, tokenizer and other host memory common to both cancel and
-  the difference is what the pool adds.
-- **CB2 trim.** After `engine.close()` and 10 s idle, the exit `teardown`
-  line reports `reserved_cur` = 0 at threshold 0 and `reserved_cur` ≤ the
-  threshold at `max` (recorded; the bound is vacuous there, so the
-  threshold-0 cells decide the clause).
+- **CB1 cap (revision 5, ruling 21).**
+  - **Primary check:** in every process of the row, the pool's
+    `reserved_high` ≤ its `maxSize`. The C3 capacity, 1024 MiB at 3 GiB, is
+    reported beside it on the measured device class.
+  - **Sanity check:** only when the `install` event reports
+    `integrated=1`. It compares the process's `MemAvailable` drop
+    (before open → after rerank) with S's synchronous-path processes in the
+    same series, using the named thresholds and noise band of
+    `harness/cb1check.py`.
+  - The sanity check reports consistent, inconsistent, inconclusive or
+    skipped (with a reason). It never fails the row.
+  - Phase 2 showed that per-process `VmRSS` does not see the pool's pinned
+    memory, so it is recorded but is not the check.
+- **CB2 trim (revision 5, ruling 20).** After `engine.close()` and 10 s
+  idle, no wholly free chunk stays reserved at threshold 0. The exit
+  `teardown` line shows `reserved_cur` within the 32 MiB chunks that still
+  hold live slices (the module singletons'). Threshold `max` is recorded.
+  The trim arm is not part of the candidate.
 - **CB3 cap error.** An oversized batch under forced CUDA at 3 GiB returns a
   typed FathomDB error (its `kind` recorded), the next embed in the same
   process succeeds (so the context was not left with a sticky error;
@@ -969,7 +1028,7 @@ that can be that default, or none. The plan's rule (revision 3) reads: make
 **P-first-use** the default if C1–C9 and R1–R8 pass on this host, the
 performance gates pass, R5 shows lazy private-pool creation at 3 GiB in
 every heap cell including the boundary cells, **with early `cuInit` at
-module load** (ruling 12), and each circuit-breaker
+module load** (ruling 12) **and the owner's close fix shipped** (ruling 18), and each circuit-breaker
 clause passes on its own: CB1 (cap), CB2 (trim after close), CB3 (typed cap
 error) and CB4 (no CPU move). The comparison arms (A-first-use, B) do not ship; their
 results say what the installed shape would have cost or gained and inform

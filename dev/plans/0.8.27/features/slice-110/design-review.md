@@ -38,3 +38,23 @@ against the code and accepted subscriber ADR. It found one wording issue:
 the queue caps record count, not diagnostic payload bytes. That wording was
 corrected. The reviewer found no other architecture or design mismatch in
 the additions. This review does not qualify the remaining platform rows.
+
+## Merged Tegra design documentation review
+
+After the Tegra allocator and early-`cuInit` fix merged, a `gpt-6-sol` high
+read-only design review checked the TypeScript interface, public embedder
+guide and Tegra platform reference against the as-built probe record. The
+design keeps the early Node registration call because a later fragmented V8
+heap can leave no address-space range for `cuInit`. The aarch64 Linux allocator
+fallback addresses the separate default-pool range failure; it does not
+guarantee stream-ordered allocation. Those causes and limits remain distinct
+in the platform reference.
+
+The review found that the out-of-memory message hint reads a process-wide
+slot per probe kind. A concurrent probe of the same kind can replace the
+record before a refusal is formatted, so the hint is best effort and can be
+absent or suggest an unrelated `cuInit` failure. The documentation now
+describes that limitation, makes late-import failure conditional, and names the
+reranker error code. The stable error code, kind and no-CPU-fallback rule
+remain the contract. The reviewer found no further material mismatch after
+those corrections.

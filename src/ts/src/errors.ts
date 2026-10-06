@@ -101,6 +101,34 @@ export class EmbedDevicePolicyError extends EmbedderError {
   }
 }
 
+/** Payload of {@link CudaPoolExhaustedError}. */
+export interface CudaPoolExhaustedErrorPayload {
+  kind: string;
+  ordinal: number;
+  maxSizeBytes: number;
+}
+
+/**
+ * A FathomDB-owned CUDA memory pool reached its `maxSize` cap during an
+ * embedding call (`kind` `cuda_pool_exhausted`). The device and its context
+ * stay usable: the request failed, nothing moved to CPU, and a smaller request
+ * can succeed. Raised only by builds with the 0.8.28 pool-study experiment
+ * feature; unstable and subject to an interface ruling before adoption.
+ */
+export class CudaPoolExhaustedError extends EmbedderError {
+  readonly code = "FDB_CUDA_POOL_EXHAUSTED";
+  readonly kind: string;
+  readonly ordinal: number;
+  readonly maxSizeBytes: number;
+
+  constructor(message: string, payload: CudaPoolExhaustedErrorPayload) {
+    super(message);
+    this.kind = payload.kind;
+    this.ordinal = payload.ordinal;
+    this.maxSizeBytes = payload.maxSizeBytes;
+  }
+}
+
 export class RerankerDevicePolicyError extends EmbedderError {
   readonly code = "FDB_RERANKER_DEVICE_POLICY";
   readonly kind: string;
@@ -400,6 +428,7 @@ type ErrorCode =
   | "FDB_EMBEDDER"
   | "FDB_EMBED_DEVICE_POLICY"
   | "FDB_RERANKER_DEVICE_POLICY"
+  | "FDB_CUDA_POOL_EXHAUSTED"
   | "FDB_EMBEDDER_NOT_CONFIGURED"
   | "FDB_EMBEDDER_REQUIRED"
   | "FDB_KIND_NOT_VECTOR_INDEXED"
@@ -502,6 +531,12 @@ function build(envelope: Envelope): Error {
       return new EmbedDevicePolicyError(envelope.message, {
         kind: String(p.kind ?? ""),
         ordinal: typeof p.ordinal === "number" ? p.ordinal : undefined,
+      });
+    case "FDB_CUDA_POOL_EXHAUSTED":
+      return new CudaPoolExhaustedError(envelope.message, {
+        kind: String(p.kind ?? ""),
+        ordinal: typeof p.ordinal === "number" ? p.ordinal : -1,
+        maxSizeBytes: typeof p.maxSizeBytes === "number" ? p.maxSizeBytes : -1,
       });
     case "FDB_RERANKER_DEVICE_POLICY":
       return new RerankerDevicePolicyError(envelope.message, {

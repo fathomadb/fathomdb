@@ -196,7 +196,23 @@ pub(super) fn embed_batch_cls_impl(py: Python<'_>, texts: Vec<String>) -> PyResu
             }))
         })
         .map_err(|_| PanicException::new_err("embed_batch_cls panic (see logs)"))?;
-    result.map_err(|e| EmbedderError::new_err(format!("embed_batch_cls: {e:?}")))
+    result.map_err(|e| match e {
+        // 0.8.28 pool study only (ruling 15): see `engine_error_to_py`.
+        #[cfg(feature = "tegra-pool-experiment")]
+        fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+            ordinal,
+            max_size_bytes,
+            message,
+        } => {
+            let exc = EmbedderError::new_err(format!("embed_batch_cls: {message}"));
+            let value = exc.value(py);
+            let _ = value.setattr("kind", "cuda_pool_exhausted");
+            let _ = value.setattr("ordinal", ordinal);
+            let _ = value.setattr("max_size_bytes", max_size_bytes);
+            exc
+        }
+        e => EmbedderError::new_err(format!("embed_batch_cls: {e:?}")),
+    })
 }
 
 #[cfg(not(feature = "default-embedder"))]

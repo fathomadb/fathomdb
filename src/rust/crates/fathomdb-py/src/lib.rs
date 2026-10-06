@@ -152,6 +152,19 @@ use test_support::*;
 // campaign — see dev/design/free-threaded-python-value-lift-and-experiments.md.
 #[pymodule(gil_used = true)]
 fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
+    // 0.8.28 pool study only (ruling 1): early `cuInit` at import, as the
+    // Node addon does at registration, so the driver's address reservation
+    // exists before the application's heap grows. `FATHOMDB_CUDA_EARLY_INIT=off`
+    // opts out. A panic must not fail the import; open records the outcome.
+    #[cfg(all(
+        feature = "tegra-pool-experiment",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    ))]
+    if std::env::var("FATHOMDB_CUDA_EARLY_INIT").ok().as_deref() != Some("off") {
+        let _ = std::panic::catch_unwind(fathomdb_embedder::initialize_cuda_driver);
+    }
     m.add_class::<PyEngine>()?;
     #[cfg(feature = "test-hooks")]
     m.add_class::<PyWalSnapshotPause>()?;

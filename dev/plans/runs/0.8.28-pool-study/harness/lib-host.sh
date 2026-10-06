@@ -10,6 +10,8 @@
 : "${WORKTREE:?set WORKTREE}"
 : "${SCRATCH:?set SCRATCH}"
 GPU_LOCK="${GPU_LOCK:-$SCRATCH/gpu.lock}"
+# shellcheck source=study-config.sh
+source "$(dirname "${BASH_SOURCE[0]}")/study-config.sh"
 GPU_LOAD_SYSFS=/sys/devices/platform/bus@0/17000000.gpu/load
 
 meminfo_kib() { awk -v k="$1:" '$1 == k { print $2 }' /proc/meminfo; }
@@ -30,7 +32,7 @@ zram_json() {
 # when swap use rises above that baseline.
 export SWAP_BASE_KIB="${SWAP_BASE_KIB:-$(swap_used_kib)}"
 NO_SWAP="${NO_SWAP:-0}"
-swap_grew() { [ "$(swap_used_kib)" -gt "$SWAP_BASE_KIB" ]; }
+swap_grew() { [ "$(swap_used_kib)" -gt $((SWAP_BASE_KIB + STUDY_SWAP_TOLERANCE_KIB)) ]; }
 
 # Processes that refuse a run (section 1.1 item 1). Names are matched exactly
 # on the command name; pytest and FathomDB consumers are matched on argv.
@@ -85,18 +87,18 @@ host_quiet_now() {
   busy=$(gpu_fd_holders)
   [ -n "$busy" ] && why+="gpu_fds[$busy] "
   load=$(cut -d' ' -f1 /proc/loadavg)
-  awk -v l="$load" 'BEGIN { exit !(l < 2.0) }' || why+="load1=$load "
+  awk -v l="$load" -v m="$STUDY_QUIET_LOAD1_MAX" 'BEGIN { exit !(l < m) }' || why+="load1=$load "
   avail=$(meminfo_kib MemAvailable)
-  [ "$avail" -ge $((40 * 1024 * 1024)) ] || why+="memavail_kib=$avail "
+  [ "$avail" -ge "$STUDY_QUIET_MEM_KIB" ] || why+="memavail_kib=$avail "
   if [ "$NO_SWAP" = 1 ] && swap_grew; then
     why+="swap_used_kib=$(swap_used_kib)>base=$SWAP_BASE_KIB "
   fi
   if [ -z "$why" ]; then
     local i g
-    for i in 1 2 3; do
+    for i in $(seq 1 "$STUDY_GPU_IDLE_SAMPLES"); do
       g=$(gpu_load)
       [ "$g" = 0 ] || { why+="gpu_load=$g "; break; }
-      [ "$i" -lt 3 ] && sleep 1
+      [ "$i" -lt "$STUDY_GPU_IDLE_SAMPLES" ] && sleep 1
     done
   fi
   [ -z "$why" ] && return 0
@@ -105,9 +107,9 @@ host_quiet_now() {
 }
 
 # Waits (polling every 15 s) until the host is quiet, for at most $1 seconds
-# (default 3600). Writes waits to stderr. Returns 1 on refusal.
+# (default STUDY_QUIET_WAIT_S). Writes waits to stderr. Returns 1 on refusal.
 host_quiet_wait() {
-  local max=${1:-3600} start why
+  local max=${1:-$STUDY_QUIET_WAIT_S} start why
   start=$(date +%s)
   while ! why=$(host_quiet_now); do
     if [ $(( $(date +%s) - start )) -ge "$max" ]; then
@@ -124,7 +126,7 @@ host_quiet_wait() {
 # stops every series; swap use above the series-start baseline stops a
 # NO_SWAP=1 series only (every other series records it in host_json).
 host_floor_ok() {
-  [ "$(meminfo_kib MemAvailable)" -ge $((8 * 1024 * 1024)) ] || return 1
+  [ "$(meminfo_kib MemAvailable)" -ge "$STUDY_MEM_FLOOR_KIB" ] || return 1
   if [ "$NO_SWAP" = 1 ] && swap_grew; then return 1; fi
   return 0
 }
@@ -143,6 +145,7 @@ series_header() {
     echo "jetson_clocks=$(jetson_clocks --show 2>&1 | head -1)"
     echo "swap_base_kib=$SWAP_BASE_KIB"
     echo "no_swap=$NO_SWAP"
+    echo "swap_tolerance_kib=$STUDY_SWAP_TOLERANCE_KIB"
     echo "zram_start=$(zram_json)"
     for kv in "$@"; do echo "$kv"; done
     env | grep -E '^(FATHOMDB_|CUDA_|NODE_OPTIONS=)' | sort

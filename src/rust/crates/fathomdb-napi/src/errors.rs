@@ -15,6 +15,23 @@ pub(crate) const CODE_VECTOR: &str = "FDB_VECTOR";
 pub(crate) const CODE_EMBEDDER: &str = "FDB_EMBEDDER";
 pub(crate) const CODE_EMBED_DEVICE_POLICY: &str = "FDB_EMBED_DEVICE_POLICY";
 pub(crate) const CODE_RERANKER_DEVICE_POLICY: &str = "FDB_RERANKER_DEVICE_POLICY";
+/// 0.8.28 pool study only (ruling 15): a private CUDA pool hit its cap.
+#[cfg(feature = "tegra-pool-experiment")]
+pub(crate) const CODE_CUDA_POOL_EXHAUSTED: &str = "FDB_CUDA_POOL_EXHAUSTED";
+
+/// The pool-exhaustion envelope: payload `{kind, ordinal, maxSizeBytes}`.
+#[cfg(feature = "tegra-pool-experiment")]
+pub(crate) fn cuda_pool_exhausted_error(
+    message: String,
+    ordinal: usize,
+    max_size_bytes: u64,
+) -> napi::Error {
+    typed_error(
+        CODE_CUDA_POOL_EXHAUSTED,
+        message,
+        json!({ "kind": "cuda_pool_exhausted", "ordinal": ordinal, "maxSizeBytes": max_size_bytes }),
+    )
+}
 pub(crate) const CODE_EMBEDDER_NOT_CONFIGURED: &str = "FDB_EMBEDDER_NOT_CONFIGURED";
 pub(crate) const CODE_EMBEDDER_REQUIRED: &str = "FDB_EMBEDDER_REQUIRED";
 pub(crate) const CODE_KIND_NOT_VECTOR_INDEXED: &str = "FDB_KIND_NOT_VECTOR_INDEXED";
@@ -154,6 +171,10 @@ pub(crate) fn engine_error_to_napi(err: RustEngineError) -> Error {
         ),
         RustEngineError::Vector => typed_error(CODE_VECTOR, "vector error", JsonValue::Null),
         RustEngineError::Embedder => typed_error(CODE_EMBEDDER, "embedder error", JsonValue::Null),
+        #[cfg(feature = "tegra-pool-experiment")]
+        error @ RustEngineError::CudaPoolExhausted { ordinal, max_size_bytes } => {
+            cuda_pool_exhausted_error(error.to_string(), ordinal, max_size_bytes)
+        }
         RustEngineError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_napi(error),
         RustEngineError::EmbedderNotConfigured => {
             typed_error(CODE_EMBEDDER_NOT_CONFIGURED, "embedder is not configured", JsonValue::Null)

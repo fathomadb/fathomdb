@@ -135,8 +135,20 @@ pub(crate) async fn embed_batch_cls_impl(texts: Vec<String>) -> Result<Vec<Vec<f
                 )
             })?;
             let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
-            embedder.embed_batch(&refs).map_err(|err| {
-                typed_error(CODE_EMBEDDER, format!("embed_batch_cls: {err:?}"), JsonValue::Null)
+            embedder.embed_batch(&refs).map_err(|err| match err {
+                #[cfg(feature = "tegra-pool-experiment")]
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+                    ordinal,
+                    max_size_bytes,
+                    message,
+                } => crate::errors::cuda_pool_exhausted_error(
+                    format!("embed_batch_cls: {message}"),
+                    ordinal,
+                    max_size_bytes,
+                ),
+                err => {
+                    typed_error(CODE_EMBEDDER, format!("embed_batch_cls: {err:?}"), JsonValue::Null)
+                }
             })
         }))
     })

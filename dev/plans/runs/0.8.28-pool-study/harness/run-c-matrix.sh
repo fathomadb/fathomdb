@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 0.8.28 pool study: run a C probe over a configuration file, one fresh
 # process per run, each after the section 1.1 host-quiet check, each under
-# `timeout 120`. The caller holds the GPU lock for the whole call:
+# `timeout $STUDY_C_TIMEOUT_S`. The caller holds the GPU lock for the whole call:
 #   flock "$SCRATCH/gpu.lock" run-c-matrix.sh <binary> <cfg> <reps> <outdir>
 # cfg: one configuration per line, "<label> <probe args...>"; blank lines and
 # lines starting with # are ignored. Each configuration runs <reps> times
@@ -25,12 +25,12 @@ while read -r label args; do
   n=$reps
   if [[ "$args" == reps=* ]]; then n=${args%% *}; n=${n#reps=}; args=${args#* }; fi
   for r in $(seq 1 "$n"); do
-    host_quiet_wait 7200 2>>"$outdir/waits.txt" || { echo "REFUSED $label#$r" | tee -a "$outdir/results.txt"; exit 4; }
+    host_quiet_wait "$STUDY_QUIET_WAIT_S" 2>>"$outdir/waits.txt" || { echo "REFUSED $label#$r" | tee -a "$outdir/results.txt"; exit 4; }
     host_json true >"$outdir/run-$label-$r.host.json"
     log="$outdir/run-$label-$r.log"
     t0=$(date +%s%N)
     # shellcheck disable=SC2086
-    timeout 120 "$bin" --tag "$label#$r" $args >"$log" 2>&1
+    timeout "$STUDY_C_TIMEOUT_S" "$bin" --tag "$label#$r" $args >"$log" 2>&1
     rc=$?
     echo "EXIT rc=$rc wall_ms=$(( ($(date +%s%N) - t0) / 1000000 ))" >>"$log"
     grep '^RESULT' "$log" >>"$outdir/results.txt" || echo "RESULT tag=$label#$r outcome=NORESULT rc=$rc" >>"$outdir/results.txt"

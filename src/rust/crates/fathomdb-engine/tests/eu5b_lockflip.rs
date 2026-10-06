@@ -150,6 +150,9 @@ fn default_embedder_not_wired_error_variant_removed() {
         match err {
             EmbedderError::Failed { .. } => "failed",
             EmbedderError::Timeout => "timeout",
+            // 0.8.28 pool study only (ruling 15): the experiment-gated kind.
+            #[cfg(feature = "tegra-pool-experiment")]
+            EmbedderError::CudaPoolExhausted { .. } => "cuda_pool_exhausted",
         }
     }
     // Touch the witness so the compiler keeps it. No runtime assertion.

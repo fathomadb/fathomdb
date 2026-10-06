@@ -658,7 +658,7 @@ impl Embedder for CandleBgeEmbedder {
             Ok(v)
         };
 
-        embed_impl().map_err(|e| EmbedderError::Failed { message: format!("forward: {e}") })
+        embed_impl().map_err(|e| crate::forward_error(e, "forward"))
     }
 
     fn embed_batch(&self, inputs: &[&str]) -> Result<Vec<Vector>, EmbedderError> {
@@ -711,7 +711,7 @@ impl Embedder for CandleBgeEmbedder {
             normed.to_vec2::<f32>() // Vec<Vec<f32>>, one row per input
         };
 
-        embed_impl().map_err(|e| EmbedderError::Failed { message: format!("batch forward: {e}") })
+        embed_impl().map_err(|e| crate::forward_error(e, "batch forward"))
     }
 }
 
@@ -738,7 +738,7 @@ impl CandleBgeEmbedder {
             let cls = l2_normalize(&cls_pool(&hidden)?)?.squeeze(0)?.to_vec1()?;
             Ok((mean, cls))
         };
-        dual().map_err(|e| EmbedderError::Failed { message: format!("forward: {e}") })
+        dual().map_err(|e| crate::forward_error(e, "forward"))
     }
 }
 

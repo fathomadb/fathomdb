@@ -189,6 +189,35 @@ impl MeanRecomputeTrigger {
     }
 }
 
+/// The embedder's report of a failed forward pass. With the pool study's
+/// feature on aarch64 Linux CUDA builds, a private pool's
+/// `CUDA_ERROR_OUT_OF_MEMORY` becomes `EmbedderError::CudaPoolExhausted`
+/// (study ruling 15); otherwise it is `Failed` with `what` and the error.
+#[cfg(feature = "default-embedder")]
+pub(crate) fn forward_error(
+    error: candle_core::Error,
+    what: &str,
+) -> fathomdb_embedder_api::EmbedderError {
+    #[cfg(all(
+        feature = "tegra-pool-experiment",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    ))]
+    {
+        cuda_pool_policy::forward_error(error, what)
+    }
+    #[cfg(not(all(
+        feature = "tegra-pool-experiment",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )))]
+    {
+        fathomdb_embedder_api::EmbedderError::Failed { message: format!("{what}: {error}") }
+    }
+}
+
 #[cfg(feature = "default-embedder")]
 mod candle_bge;
 #[cfg(feature = "default-embedder")]

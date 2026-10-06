@@ -15,9 +15,9 @@ mkdir -p "$outdir"
 series_header "$outdir" "probes=minimal_repro,pool_teardown" "count=$count"
 run() { # name, then the command
   local name=$1; shift
-  host_quiet_wait 3600 2>>"$outdir/waits.txt" || exit 4
+  host_quiet_wait "$STUDY_QUIET_WAIT_S" 2>>"$outdir/waits.txt" || exit 4
   host_json true >"$outdir/$name.host.json"
-  timeout 120 "$@" >"$outdir/$name.log" 2>&1
+  timeout "$STUDY_C_TIMEOUT_S" "$@" >"$outdir/$name.log" 2>&1
   echo "EXIT rc=$?" >>"$outdir/$name.log"
 }
 for i in $(seq -w 1 "$count"); do

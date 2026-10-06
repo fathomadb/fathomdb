@@ -107,6 +107,10 @@ pub(crate) fn map_runtime_embedder_error(err: RuntimeEmbedderError) -> EngineErr
         RuntimeEmbedderError::Failed { .. } | RuntimeEmbedderError::Timeout => {
             EngineError::Embedder
         }
+        #[cfg(feature = "tegra-pool-experiment")]
+        RuntimeEmbedderError::CudaPoolExhausted { ordinal, max_size_bytes, .. } => {
+            EngineError::CudaPoolExhausted { ordinal, max_size_bytes }
+        }
     }
 }
 
@@ -165,6 +169,10 @@ impl Engine {
             DispatchError::NotConfigured => EngineError::EmbedderNotConfigured,
             DispatchError::Saturated | DispatchError::QueuedExpired => EngineError::Overloaded,
             DispatchError::Closing | DispatchError::Cancelled => EngineError::Closing,
+            #[cfg(feature = "tegra-pool-experiment")]
+            DispatchError::Provider(provider @ RuntimeEmbedderError::CudaPoolExhausted { .. }) => {
+                map_runtime_embedder_error(provider)
+            }
             DispatchError::StartedTimeout
             | DispatchError::Provider(_)
             | DispatchError::InvalidOutput => EngineError::Embedder,

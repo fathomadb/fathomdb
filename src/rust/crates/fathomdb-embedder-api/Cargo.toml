@@ -16,3 +16,8 @@ rust-version.workspace = true
 
 [lib]
 path = "src/lib.rs"
+
+[features]
+# 0.8.28 Tegra pool study only; never in a release feature set. Adds the
+# experiment-gated EmbedderError::CudaPoolExhausted variant (study ruling 15).
+tegra-pool-experiment = []

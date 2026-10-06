@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 0.8.28 pool study Node series runner (protocol section 4.4). Runs <count>
 # fresh `node pool-consumer.mjs` processes one at a time, each after the
-# section 1.1 host-quiet check, each under `timeout 600`, after one recorded
+# section 1.1 host-quiet check, each under `timeout $STUDY_RUN_TIMEOUT_S`, after one recorded
 # throwaway warm-cache run (run-000, excluded from analysis; WARM_RUN=0 skips
 # it). The caller holds the GPU lock for the series:
 #   flock "$SCRATCH/gpu.lock" run-series.sh <variant> <node-version> <count> <outdir> [node flag...]
@@ -37,7 +37,7 @@ last=$count
 if [ -n "${RUN_FROM:-}" ]; then first=$RUN_FROM; last=$((RUN_FROM + count - 1)); fi
 for n in $(seq "$first" "$last"); do
   i=$(printf '%03d' "$n")
-  host_quiet_wait 7200 2>>"$outdir/waits.txt" || { echo "REFUSED run $i" | tee -a "$outdir/summary.txt"; exit 4; }
+  host_quiet_wait "$STUDY_QUIET_WAIT_S" 2>>"$outdir/waits.txt" || { echo "REFUSED run $i" | tee -a "$outdir/summary.txt"; exit 4; }
   host_json true >"$outdir/run-$i.host.json"
   flags=("$@")
   if [ "$n" -gt 0 ]; then
@@ -51,7 +51,7 @@ for n in $(seq "$first" "$last"); do
   t0=$(date +%s%N)
   consumer_maps=""; [ "${MAPS:-0}" = 1 ] && consumer_maps=$run_maps
   env ${consumer_maps:+MAPS_DIR=$consumer_maps} ${maps_root:+FATHOMDB_POOL_MAPS_DIR=$run_maps} \
-    timeout 600 node "${flags[@]}" "$here/pool-consumer.mjs" >"$outdir/run-$i.out" 2>"$outdir/run-$i.err"
+    timeout "$STUDY_RUN_TIMEOUT_S" node "${flags[@]}" "$here/pool-consumer.mjs" >"$outdir/run-$i.out" 2>"$outdir/run-$i.err"
   rc=$?
   wall=$(( ($(date +%s%N) - t0) / 1000000 ))
   host_json null >"$outdir/run-$i.host-after.json"

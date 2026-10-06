@@ -78,6 +78,20 @@ pub(super) fn engine_error_to_py(err: RustEngineError) -> PyErr {
         RustEngineError::ProjectionGeneration(error) => projection_generation_error_to_py(&error),
         RustEngineError::Vector => VectorError::new_err("vector error"),
         RustEngineError::Embedder => EmbedderError::new_err("embedder error"),
+        // 0.8.28 pool study only (ruling 15): the experiment raises the
+        // existing EmbedderError with the kind fields set; a dedicated
+        // CudaPoolExhaustedError class is part of adoption.
+        #[cfg(feature = "tegra-pool-experiment")]
+        error @ RustEngineError::CudaPoolExhausted { ordinal, max_size_bytes } => {
+            let exc = EmbedderError::new_err(error.to_string());
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("kind", "cuda_pool_exhausted");
+                let _ = value.setattr("ordinal", ordinal);
+                let _ = value.setattr("max_size_bytes", max_size_bytes);
+            });
+            exc
+        }
         RustEngineError::RerankerDevicePolicy(error) => {
             let exc = RerankerDevicePolicyError::new_err(error.to_string());
             Python::attach(|py| {

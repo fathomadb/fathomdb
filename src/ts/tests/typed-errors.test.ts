@@ -13,6 +13,7 @@ import { Engine } from "../src/index.js";
 import {
   CorruptionError,
   DatabaseLockedError,
+  CudaPoolExhaustedError,
   EmbedDevicePolicyError,
   RerankerDevicePolicyError,
   EmbedderDimensionMismatchError,
@@ -136,6 +137,32 @@ test("EmbedDevicePolicyError rehydrates the native policy envelope", () => {
       assert.ok(error instanceof EmbedderError);
       assert.equal(error.kind, "cuda_not_compiled");
       assert.equal(error.ordinal, 2);
+      return true;
+    },
+  );
+});
+
+// 0.8.28 pool study (ruling 15; experiment-gated in the native binding):
+// a private CUDA memory pool that hit its maxSize cap.
+test("CudaPoolExhaustedError rehydrates the pool-exhaustion envelope", () => {
+  assert.throws(
+    () =>
+      rethrowTyped(
+        new Error(
+          JSON.stringify({
+            code: "FDB_CUDA_POOL_EXHAUSTED",
+            message: "CUDA memory pool on device 0 is exhausted (maxSize 3221225472 bytes)",
+            payload: { kind: "cuda_pool_exhausted", ordinal: 0, maxSizeBytes: 3221225472 },
+          }),
+        ),
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof CudaPoolExhaustedError);
+      assert.ok(error instanceof EmbedderError);
+      assert.equal(error.code, "FDB_CUDA_POOL_EXHAUSTED");
+      assert.equal(error.kind, "cuda_pool_exhausted");
+      assert.equal(error.ordinal, 0);
+      assert.equal(error.maxSizeBytes, 3221225472);
       return true;
     },
   );

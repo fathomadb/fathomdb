@@ -26,7 +26,10 @@ default-reranker = ["fathomdb-engine/default-reranker"]
 rerank-cuda = ["default-reranker", "fathomdb-engine/rerank-cuda"]
 # 0.8.28 Tegra pool study only; never in a release feature set
 # (scripts/release/cuda-artifact-contract.sh).
-tegra-pool-experiment = ["fathomdb-embedder/tegra-pool-experiment"]
+tegra-pool-experiment = [
+  "fathomdb-embedder/tegra-pool-experiment",
+  "fathomdb-engine/tegra-pool-experiment",
+]
 
 [dependencies]
 fathomdb-embedder.workspace = true

@@ -140,7 +140,7 @@ tc5-benchmark = ["default-embedder"]
 # policy ahead of every Candle CUDA device. Effective only on aarch64 Linux
 # with `embed-cuda` or `rerank-cuda`. No release feature set may enable it
 # (scripts/release/cuda-artifact-contract.sh); the study branch never merges.
-tegra-pool-experiment = []
+tegra-pool-experiment = ["fathomdb-embedder-api/tegra-pool-experiment"]
 
 [dev-dependencies]
 httpmock = "=0.8.3"

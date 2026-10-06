@@ -145,6 +145,10 @@ impl Display for EngineOpenError {
                 RuntimeEmbedderError::Failed { message } => {
                     write!(f, "embedder failure during open: {message}")
                 }
+                #[cfg(feature = "tegra-pool-experiment")]
+                RuntimeEmbedderError::CudaPoolExhausted { message, .. } => {
+                    write!(f, "embedder failure during open: {message}")
+                }
             },
             Self::EmbedDevicePolicy(error) => error.fmt(f),
             Self::RerankerDevicePolicy(error) => error.fmt(f),
@@ -161,6 +165,13 @@ pub enum EngineError {
     Projection,
     Vector,
     Embedder,
+    /// A FathomDB-owned CUDA memory pool reached its cap (kind
+    /// `cuda_pool_exhausted`); 0.8.28 pool study only, unstable.
+    #[cfg(feature = "tegra-pool-experiment")]
+    CudaPoolExhausted {
+        ordinal: usize,
+        max_size_bytes: u64,
+    },
     EmbedderNotConfigured,
     /// A forced cross-encoder CUDA policy could not be honored while loading or
     /// running the reranker. CPU fallback is forbidden for this request.
@@ -368,6 +379,11 @@ impl Display for EngineError {
             Self::Projection => write!(f, "projection error"),
             Self::Vector => write!(f, "vector error"),
             Self::Embedder => write!(f, "embedder error"),
+            #[cfg(feature = "tegra-pool-experiment")]
+            Self::CudaPoolExhausted { ordinal, max_size_bytes } => write!(
+                f,
+                "CUDA memory pool on device {ordinal} is exhausted (maxSize {max_size_bytes} bytes)"
+            ),
             Self::EmbedderNotConfigured => write!(f, "embedder is not configured"),
             Self::RerankerDevicePolicy(error) => error.fmt(f),
             Self::EmbedderRequired(required) => write!(
@@ -447,6 +463,8 @@ impl EngineError {
             Self::Projection => "ProjectionError",
             Self::Vector => "VectorError",
             Self::Embedder => "EmbedderError",
+            #[cfg(feature = "tegra-pool-experiment")]
+            Self::CudaPoolExhausted { .. } => "CudaPoolExhaustedError",
             Self::EmbedderNotConfigured => "EmbedderNotConfiguredError",
             Self::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
             Self::EmbedderRequired(_) => "EmbedderRequiredError",

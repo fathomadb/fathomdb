@@ -41,8 +41,20 @@ impl EmbedderIdentity {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EmbedderError {
-    Failed { message: String },
+    Failed {
+        message: String,
+    },
     Timeout,
+    /// A FathomDB-owned CUDA memory pool reached its `maxSize` cap (kind
+    /// `cuda_pool_exhausted`). The device stays usable; nothing moved to CPU.
+    /// 0.8.28 pool study only (feature `tegra-pool-experiment`); adopting it
+    /// is a breaking change to this crate and needs an ADR.
+    #[cfg(feature = "tegra-pool-experiment")]
+    CudaPoolExhausted {
+        ordinal: usize,
+        max_size_bytes: u64,
+        message: String,
+    },
 }
 
 pub trait Embedder: Send + Sync {

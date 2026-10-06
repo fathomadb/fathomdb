@@ -37,6 +37,9 @@ serde_json = "1"
 
 [features]
 default = []
+# 0.8.28 Tegra pool study only; keeps the CLI's exhaustive EngineError match
+# whole when the engine's experiment feature is on.
+tegra-pool-experiment = ["fathomdb/tegra-pool-experiment"]
 # EU-5b — enable the `fathomdb doctor warm-cache` subcommand to actually
 # invoke the default-embedder loader. Without the feature, the subcommand
 # still parses but reports that the binary was built without

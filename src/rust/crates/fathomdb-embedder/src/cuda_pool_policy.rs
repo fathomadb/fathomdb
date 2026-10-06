@@ -55,7 +55,26 @@ pub(crate) fn parse_variant(raw: Option<&str>) -> Result<PoolVariant, String> {
     }
 }
 
+/// Default pool `maxSize` (owner ruling 9): 3 GiB. On the measured AGX Orin
+/// a pool can hold ceil32(`maxSize`/3) = 1 GiB, 3.8 times the workload's
+/// 272 MiB high-water mark (study results § 3.1, § 3.5). On a discrete GPU
+/// the same value bounds device memory instead of host memory. Override:
+/// `FATHOMDB_POOL_MAXSIZE`.
 pub(crate) const DEFAULT_MAX_SIZE: usize = 3 << 30;
+
+/// Default release threshold: 0, so freed memory returns to the system at
+/// each synchronization (NVIDIA's advice for unknown co-resident processes;
+/// study results § 3.1). Override: `FATHOMDB_POOL_RELEASE_THRESHOLD`.
+pub(crate) const DEFAULT_RELEASE_THRESHOLD: u64 = 0;
+
+/// Idle time before the experimental trim arm (owner ruling 14) returns the
+/// pool's spare memory: long enough that a burst of embeds is not trimmed
+/// between calls, short enough that an idle process gives memory back within
+/// seconds. Unmeasured choice; override: `FATHOMDB_POOL_TRIM_IDLE_MS`.
+pub(crate) const DEFAULT_TRIM_IDLE_MS: u64 = 5_000;
+
+/// Bytes of the one allocation that probes a new pool before it is used.
+pub(crate) const PROBE_BYTES: usize = 4;
 
 pub(crate) fn parse_max_size(raw: Option<&str>) -> Result<usize, String> {
     let Some(raw) = raw else { return Ok(DEFAULT_MAX_SIZE) };
@@ -78,12 +97,52 @@ pub(crate) fn parse_max_size(raw: Option<&str>) -> Result<usize, String> {
 
 pub(crate) fn parse_threshold(raw: Option<&str>) -> Result<u64, String> {
     match raw {
-        None | Some("0") => Ok(0),
+        None => Ok(DEFAULT_RELEASE_THRESHOLD),
+        Some("0") => Ok(0),
         Some("max") => Ok(u64::MAX),
         Some(other) => {
             Err(format!("FATHOMDB_POOL_RELEASE_THRESHOLD: must be 0 or max, got {other:?}"))
         }
     }
+}
+
+/// The experimental trim arm (owner ruling 14; never the default).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TrimArm {
+    Off,
+    /// Trim the private pool to zero spare bytes once its in-use amount has
+    /// not changed for `idle_ms` (0: at every tick, a stress setting).
+    Idle {
+        idle_ms: u64,
+    },
+}
+
+/// `FATHOMDB_POOL_TRIM` (`off` | `idle`) and `FATHOMDB_POOL_TRIM_IDLE_MS`.
+pub(crate) fn parse_trim(arm: Option<&str>, idle_ms: Option<&str>) -> Result<TrimArm, String> {
+    let idle = match idle_ms {
+        None => None,
+        Some(raw) if !raw.is_empty() && raw.bytes().all(|b| b.is_ascii_digit()) => Some(
+            raw.parse::<u64>()
+                .map_err(|_| format!("FATHOMDB_POOL_TRIM_IDLE_MS: out of range: {raw:?}"))?,
+        ),
+        Some(raw) => {
+            return Err(format!("FATHOMDB_POOL_TRIM_IDLE_MS: not a millisecond count: {raw:?}"))
+        }
+    };
+    match (arm, idle) {
+        (None | Some("off"), None) => Ok(TrimArm::Off),
+        (None | Some("off"), Some(_)) => {
+            Err("FATHOMDB_POOL_TRIM_IDLE_MS is set but FATHOMDB_POOL_TRIM is not idle".to_owned())
+        }
+        (Some("idle"), idle) => Ok(TrimArm::Idle { idle_ms: idle.unwrap_or(DEFAULT_TRIM_IDLE_MS) }),
+        (Some(other), _) => Err(format!("FATHOMDB_POOL_TRIM: must be off or idle, got {other:?}")),
+    }
+}
+
+/// Whether the idle arm trims now: the in-use amount has been unchanged for
+/// at least `idle_ms` and the pool reserves more than it uses.
+pub(crate) const fn should_trim(idle_ms: u64, unchanged_ms: u64, reserved: u64, used: u64) -> bool {
+    unchanged_ms >= idle_ms && reserved > used
 }
 
 /// What the policy does immediately before the first Candle CUDA device of
@@ -159,6 +218,17 @@ pub(crate) const fn mode_after(mode: ProcessMode, built: Build) -> ProcessMode {
     }
 }
 
+/// Error kind of a private pool that reached its cap (owner ruling 15),
+/// beside `cuda_probe_failed`, `cuda_incompatible` and `cuda_not_compiled`.
+pub(crate) const POOL_EXHAUSTED_KIND: &str = "cuda_pool_exhausted";
+
+/// Whether a forward error is pool exhaustion: the driver reported
+/// `CUDA_ERROR_OUT_OF_MEMORY` in a process whose devices allocate from the
+/// private pool (a production-mode process keeps today's report).
+pub(crate) const fn is_pool_exhaustion(mode: ProcessMode, driver_out_of_memory: bool) -> bool {
+    matches!(mode, ProcessMode::Private) && driver_out_of_memory
+}
+
 /// One `fdb-pool-exp` stderr line. Fields not applicable to an event are `-`.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct PoolEvent {
@@ -220,7 +290,7 @@ pub(crate) fn format_event(e: &PoolEvent) -> String {
     target_arch = "aarch64",
     any(feature = "embed-cuda", feature = "rerank-cuda")
 ))]
-pub(crate) use driver::new_cuda_device;
+pub(crate) use driver::{forward_error, new_cuda_device};
 
 #[cfg(all(
     feature = "tegra-pool-experiment",
@@ -231,13 +301,15 @@ pub(crate) use driver::new_cuda_device;
 mod driver {
     use super::{
         format_event, mode_after, next_build, on_private_failure, parse_max_size, parse_threshold,
-        parse_variant, plan, Build, OnPrivateFailure, PoolAction, PoolEvent, PoolVariant,
-        ProcessMode,
+        parse_trim, parse_variant, plan, should_trim, Build, OnPrivateFailure, PoolAction,
+        PoolEvent, PoolVariant, ProcessMode, TrimArm, PROBE_BYTES,
     };
+    use super::{is_pool_exhaustion, POOL_EXHAUSTED_KIND};
     use candle_core::cuda::cudarc::driver::{
         result, sys, AllocMode, CudaContext, CudaMemPool, DriverError, MemPoolProps,
     };
     use candle_core::Device;
+    use fathomdb_embedder_api::EmbedderError;
     use std::sync::{Arc, Mutex, Once, OnceLock, PoisonError};
     use std::time::Instant;
 
@@ -248,6 +320,7 @@ mod driver {
         stats_every_s: Option<u64>,
         maps_dir: Option<String>,
         coexist_check: bool,
+        trim: TrimArm,
     }
 
     fn config() -> &'static Config {
@@ -279,6 +352,10 @@ mod driver {
                     stats_every_s,
                     maps_dir: env("FATHOMDB_POOL_MAPS_DIR"),
                     coexist_check,
+                    trim: parse_trim(
+                        env("FATHOMDB_POOL_TRIM").as_deref(),
+                        env("FATHOMDB_POOL_TRIM_IDLE_MS").as_deref(),
+                    )?,
                 })
             })();
             parsed.unwrap_or_else(|message| {
@@ -297,6 +374,58 @@ mod driver {
     static DECIDED: Mutex<Option<AllocMode>> = Mutex::new(None);
     static FIRST_USE: Once = Once::new();
     static EXIT_HOOK: Once = Once::new();
+    static TRIM_THREAD: Once = Once::new();
+    /// Trims done by the idle arm, and their total time in microseconds.
+    static TRIMS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    static TRIM_US: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+    /// The idle trim arm (ruling 14): a thread that watches the private
+    /// pool's in-use amount and trims its spare memory once that amount has
+    /// been unchanged for the idle time. `cuMemPoolTrimTo` never releases
+    /// memory backing outstanding allocations, so live slices stay valid;
+    /// whether that holds under concurrent work is what the arm's tests
+    /// measure.
+    fn start_trim_thread(ordinal: usize) {
+        let TrimArm::Idle { idle_ms } = config().trim else { return };
+        TRIM_THREAD.call_once(|| {
+            std::thread::spawn(move || {
+                use std::sync::atomic::Ordering::Relaxed;
+                use sys::CUmemPool_attribute::*;
+                let Some((_, pool)) = PRIVATE.get() else { return };
+                let Ok(device) = result::device::get(ordinal as i32) else { return };
+                // SAFETY: device comes from cuDeviceGet; the reference is kept
+                // for the life of the process, like the pool.
+                let Ok(ctx) = (unsafe { result::primary_ctx::retain(device) }) else { return };
+                // SAFETY: ctx was just retained.
+                let _ = unsafe { result::ctx::set_current(ctx) };
+                let tick = std::time::Duration::from_millis((idle_ms / 4).clamp(1, 250));
+                let mut last_used = u64::MAX;
+                let mut since = Instant::now();
+                loop {
+                    std::thread::sleep(tick);
+                    let (Ok(used), Ok(reserved)) = (
+                        pool.attribute(CU_MEMPOOL_ATTR_USED_MEM_CURRENT),
+                        pool.attribute(CU_MEMPOOL_ATTR_RESERVED_MEM_CURRENT),
+                    ) else {
+                        continue;
+                    };
+                    if used != last_used {
+                        last_used = used;
+                        since = Instant::now();
+                    }
+                    let unchanged_ms = since.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
+                    if should_trim(idle_ms, unchanged_ms, reserved, used) {
+                        let started = Instant::now();
+                        if pool.trim_to(0).is_ok() {
+                            TRIMS.fetch_add(1, Relaxed);
+                            let us = started.elapsed().as_micros().try_into().unwrap_or(u64::MAX);
+                            TRIM_US.fetch_add(us, Relaxed);
+                        }
+                    }
+                }
+            });
+        });
+    }
 
     fn rc(r: &Result<(), DriverError>) -> String {
         match r {
@@ -388,7 +517,16 @@ mod driver {
         let mut e = with_pool_attrs(base("teardown", "exit"));
         e.alloc_mode = DECIDED.lock().unwrap_or_else(PoisonError::into_inner).map(mode_name);
         if PRIVATE.get().is_some() {
-            e.extra = join_extra(Some("installed=0".to_owned()), coexist_fields(0));
+            use std::sync::atomic::Ordering::Relaxed;
+            let trim = match config().trim {
+                TrimArm::Off => "trim=off".to_owned(),
+                TrimArm::Idle { idle_ms } => format!(
+                    "trim=idle trim_idle_ms={idle_ms} trims={} trim_us={}",
+                    TRIMS.load(Relaxed),
+                    TRIM_US.load(Relaxed)
+                ),
+            };
+            e.extra = join_extra(Some(format!("installed=0 {trim}")), coexist_fields(0));
         }
         emit(&e);
     }
@@ -460,13 +598,18 @@ mod driver {
                             // SAFETY: the primary context is current; the
                             // probe pointer is freed on the same stream.
                             let probe = unsafe {
-                                result::mem_pool::alloc_async(pool.raw(), 4, std::ptr::null_mut())
-                                    .and_then(|ptr| result::free_async(ptr, std::ptr::null_mut()))
+                                result::mem_pool::alloc_async(
+                                    pool.raw(),
+                                    PROBE_BYTES,
+                                    std::ptr::null_mut(),
+                                )
+                                .and_then(|ptr| result::free_async(ptr, std::ptr::null_mut()))
                             }
                             .and_then(|()| result::ctx::synchronize());
                             e.probe = Some(rc(&probe));
                             if probe.is_ok() {
                                 let _ = PRIVATE.set((ordinal, Arc::new(pool)));
+                                start_trim_thread(ordinal);
                             }
                         } else {
                             let set = pool.install();
@@ -474,9 +617,10 @@ mod driver {
                             if set.is_ok() {
                                 // SAFETY: as above.
                                 let probe = unsafe {
-                                    result::malloc_async(std::ptr::null_mut(), 4).and_then(|ptr| {
-                                        result::free_async(ptr, std::ptr::null_mut())
-                                    })
+                                    result::malloc_async(std::ptr::null_mut(), PROBE_BYTES)
+                                        .and_then(|ptr| {
+                                            result::free_async(ptr, std::ptr::null_mut())
+                                        })
                                 }
                                 .and_then(|()| result::ctx::synchronize());
                                 e.probe = Some(rc(&probe));
@@ -498,6 +642,42 @@ mod driver {
         let _ = outcome;
         e.elapsed_us = started.elapsed().as_micros();
         emit(&with_pool_attrs(e));
+    }
+
+    /// Whether a Candle error carries cudarc's `CUDA_ERROR_OUT_OF_MEMORY`,
+    /// looking through Candle's context, path and backtrace wrappers.
+    fn driver_out_of_memory(error: &candle_core::Error) -> bool {
+        use candle_core::{cuda::CudaError, Error};
+        match error {
+            Error::Cuda(source) => matches!(
+                source.downcast_ref::<CudaError>(),
+                Some(CudaError::Cuda(DriverError(sys::CUresult::CUDA_ERROR_OUT_OF_MEMORY)))
+            ),
+            Error::Context { inner, .. }
+            | Error::WithPath { inner, .. }
+            | Error::WithBacktrace { inner, .. } => driver_out_of_memory(inner),
+            _ => false,
+        }
+    }
+
+    /// The embedder's error for a failed forward pass (ruling 15): pool
+    /// exhaustion in a private-pool process, otherwise `Failed` as before.
+    /// Pool exhaustion also emits one `exhausted` event line.
+    pub(crate) fn forward_error(error: candle_core::Error, what: &str) -> EmbedderError {
+        let message = format!("{what}: {error}");
+        let mode = *MODE.lock().unwrap_or_else(PoisonError::into_inner);
+        if !is_pool_exhaustion(mode, driver_out_of_memory(&error)) {
+            return EmbedderError::Failed { message };
+        }
+        let ordinal = PRIVATE.get().map_or(0, |(ordinal, _)| *ordinal);
+        let mut e = with_pool_attrs(base("exhausted", "forward"));
+        e.extra = Some(format!("kind={POOL_EXHAUSTED_KIND}"));
+        emit(&e);
+        EmbedderError::CudaPoolExhausted {
+            ordinal,
+            max_size_bytes: config().max_size as u64,
+            message,
+        }
     }
 
     /// A device on a fresh cudarc context that allocates from the private
@@ -662,6 +842,65 @@ mod tests {
         // A fixed mode never changes.
         assert_eq!(mode_after(PrivateMode, Production), PrivateMode);
         assert_eq!(mode_after(ProductionMode, Private), ProductionMode);
+    }
+
+    #[test]
+    fn product_defaults_are_named_and_documented_values() {
+        assert_eq!(DEFAULT_MAX_SIZE, 3 << 30);
+        assert_eq!(DEFAULT_RELEASE_THRESHOLD, 0);
+        assert_eq!(DEFAULT_TRIM_IDLE_MS, 5_000);
+        assert_eq!(PROBE_BYTES, 4);
+        assert_eq!(parse_threshold(None), Ok(DEFAULT_RELEASE_THRESHOLD));
+    }
+
+    #[test]
+    fn trim_is_off_unless_the_idle_arm_is_asked_for() {
+        assert_eq!(parse_trim(None, None), Ok(TrimArm::Off));
+        assert_eq!(parse_trim(Some("off"), None), Ok(TrimArm::Off));
+        assert_eq!(
+            parse_trim(Some("idle"), None),
+            Ok(TrimArm::Idle { idle_ms: DEFAULT_TRIM_IDLE_MS })
+        );
+        assert_eq!(parse_trim(Some("idle"), Some("0")), Ok(TrimArm::Idle { idle_ms: 0 }));
+        assert_eq!(parse_trim(Some("idle"), Some("250")), Ok(TrimArm::Idle { idle_ms: 250 }));
+        for (arm, ms) in [
+            (Some(""), None),
+            (Some("on"), None),
+            (Some("IDLE"), None),
+            (Some("idle"), Some("-1")),
+            (Some("idle"), Some("1s")),
+        ] {
+            assert!(parse_trim(arm, ms).is_err(), "{arm:?} {ms:?}");
+        }
+        assert!(
+            parse_trim(Some("off"), Some("250")).is_err(),
+            "an idle time without the idle arm is a typo"
+        );
+    }
+
+    /// The idle arm trims only memory the pool holds beyond what is in use,
+    /// and only once the in-use amount has not changed for the idle time.
+    #[test]
+    fn the_idle_arm_trims_spare_memory_after_the_idle_time_only() {
+        let idle = 1_000;
+        assert!(!should_trim(idle, 999, 64 << 20, 0), "not idle long enough");
+        assert!(should_trim(idle, 1_000, 64 << 20, 0));
+        assert!(should_trim(idle, 5_000, 64 << 20, 16 << 20));
+        assert!(!should_trim(idle, 5_000, 16 << 20, 16 << 20), "nothing spare to trim");
+        assert!(!should_trim(idle, 5_000, 0, 0));
+        assert!(should_trim(0, 0, 1, 0), "idle 0 trims at every tick (stress)");
+    }
+
+    /// Ruling 15: an out-of-memory driver error is pool exhaustion only in a
+    /// process whose devices allocate from the private pool; elsewhere it is
+    /// reported as before.
+    #[test]
+    fn only_a_private_pool_out_of_memory_is_pool_exhaustion() {
+        assert!(is_pool_exhaustion(ProcessMode::Private, true));
+        assert!(!is_pool_exhaustion(ProcessMode::Private, false));
+        assert!(!is_pool_exhaustion(ProcessMode::Production, true));
+        assert!(!is_pool_exhaustion(ProcessMode::Undecided, true));
+        assert_eq!(POOL_EXHAUSTED_KIND, "cuda_pool_exhausted");
     }
 
     #[test]

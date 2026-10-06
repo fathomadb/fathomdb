@@ -30,6 +30,9 @@ dunce = "=1.0.5"
 
 [features]
 default = []
+# 0.8.28 Tegra pool study only; never in a release feature set. Carries the
+# experiment-gated pool-exhaustion error kind (study ruling 15).
+tegra-pool-experiment = ["fathomdb-embedder/tegra-pool-experiment"]
 # Private TC-5 reader-worker route. This is intentionally not forwarded by the
 # facade or any language binding.
 tc5-benchmark = []

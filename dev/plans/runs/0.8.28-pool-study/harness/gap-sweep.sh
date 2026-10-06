@@ -20,10 +20,10 @@ run_point() { # label reps probe args... ; echoes the number of failed runs
   local label=$1 reps=$2 probe=$3; shift 3
   local fails=0 r log
   for r in $(seq 1 "$reps"); do
-    host_quiet_wait 7200 2>>"$outdir/waits.txt" || exit 4
+    host_quiet_wait "$STUDY_QUIET_WAIT_S" 2>>"$outdir/waits.txt" || exit 4
     host_json true >"$outdir/run-$label-$r.host.json"
     log="$outdir/run-$label-$r.log"
-    timeout 120 "$bin/$probe" "$@" --tag "$label#$r" >"$log" 2>&1
+    timeout "$STUDY_C_TIMEOUT_S" "$bin/$probe" "$@" --tag "$label#$r" >"$log" 2>&1
     echo "EXIT rc=$?" >>"$log"
     if grep -q '^RESULT' "$log"; then grep '^RESULT' "$log" >>"$outdir/results.txt"
     else echo "RESULT tag=$label#$r outcome=NORESULT" >>"$outdir/results.txt"; fi

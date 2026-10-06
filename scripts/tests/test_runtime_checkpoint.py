@@ -358,6 +358,9 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
     def test_historical_bundles_absent_reports_skipped_after_receipt_validation(self) -> None:
         checkpoint = self.pass_checkpoint()
         self.historical_bundle_paths(checkpoint, retain=False)
+        readme_only = self.root / "data/0.8.26/qualification-evidence/slice-90"
+        readme_only.mkdir(parents=True)
+        (readme_only / "README.md").write_text("# Evidence index\n")
         result = self.run_gate()
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("skipped: qualification evidence not on this host", result.stdout)

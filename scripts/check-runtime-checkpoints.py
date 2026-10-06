@@ -93,12 +93,21 @@ class Validation:
         ).stdout.strip()
         return (self.root / common).resolve().parent / DURABLE_SLICE90_BUNDLES
 
+    def durable_evidence_present(self) -> bool:
+        durable = self.durable_bundle_directory()
+        if not durable.is_dir():
+            return False
+        try:
+            return any(path.name != "README.md" for path in durable.iterdir())
+        except OSError:
+            return True
+
     def historical_bundle_missing(self, recorded: Path) -> bool:
         try:
             recorded.relative_to(LEGACY_SLICE90_BUNDLES)
         except ValueError:
             return False
-        return not self.durable_bundle_directory().is_dir()
+        return not self.durable_evidence_present()
 
     def bundle_directory(self, recorded: Path) -> Path:
         try:
@@ -106,7 +115,7 @@ class Validation:
         except ValueError:
             return recorded
         durable = self.durable_bundle_directory()
-        return durable / relative if durable.is_dir() else recorded
+        return durable / relative if self.durable_evidence_present() else recorded
 
     def commit_exists(self, sha: str) -> bool:
         result = subprocess.run(

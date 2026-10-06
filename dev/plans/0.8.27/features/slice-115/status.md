@@ -9,16 +9,38 @@ measurement_sha: 012e132920147396ac195f14af74444dd698f48e
 # Slice 115 status
 
 Slice 115 is complete on the local release branch under the HITL's instruction
-to proceed while Slice 110 remains open. The measurement-only workload ran
+to proceed while Slice 110 was open; Slice 110 subsequently completed. The
+measurement-only workload ran
 against engine source `4ca09d443d7bcc24072e39fb3c683905a9134f27` and
 is committed at `012e132920147396ac195f14af74444dd698f48e`. No engine or
 public API behavior was edited. The [final receipt](evidence/final) validates
 its exact source, dependency lock, protocol, runner, corpus, model and binary
 bindings. The raw run has twelve paths, one warm-up and seven valid semantic
 samples per path. [Independent code review](code-review.md) and Terra
-verification pass. The broader repository gate has an inherited Slice 90
-inventory failure, so this status does not claim a full-workspace green result
-or close Slice 110.
+verification pass. At the original closeout, the broader repository gate had
+an inherited Slice 90 inventory failure, so Slice 115 did not claim a
+full-workspace green result or close Slice 110.
+
+## Post-Slice 110 Tegra check (2026-10-06)
+
+The merged Tegra repair at `a25d063cd` changes the vendored CUDA allocator,
+CUDA probes, and NAPI module-load initialization. It does not change engine
+source. The Slice 115 runner is a standalone Rust engine workload with
+`test-hooks,default-embedder` and a forced CPU model probe; this feature graph
+does not include `cudarc` or the NAPI module. Its frozen source, binary and raw
+receipt therefore remain valid for the measured candidate. The optional GPU
+cell was never run, so the Tegra fix does not revise a Slice 115 GPU result.
+
+Slice 110 changed `Cargo.lock` only to replace the CUDA-only `cudarc` registry
+source with the vendored path. The frozen Slice 115 protocol still correctly
+pins the measured lock (`03a88a539f59...`), and the runner correctly refuses a
+new run from the changed checkout. Its focused lock test now retrieves the
+measured commit's lock instead of incorrectly comparing the historical pin
+with the current checkout. All 15 focused Slice 115 tests pass after that
+test correction. A copied final receipt recomputes the identical summary
+(SHA-256 `d238ba528f5af8e217e249f0d0f4a5f8addb84febf56b553c7beb85a92a8d210`).
+No latency rerun or acceptance rework is required; Slice 135 still owns a
+current-candidate cross-release comparison.
 
 ## Acceptance assessment
 
@@ -125,5 +147,5 @@ cache, feature, seed and metric semantics.
   passed its SHA, module digest and nonce check at documentation-only head
   `157dbe8a71460d58d1e8d35c2c1d19d4fb32a2b6`; 19 targeted projection
   tests passed. These resolve the pre-commit Python environment failure but
-  do not erase the inherited Slice 90 inventory failure or turn the earlier
-  full run green.
+  do not turn the earlier full run green. The Slice 90 inventory mismatch was
+  corrected after Slice 115 closed.

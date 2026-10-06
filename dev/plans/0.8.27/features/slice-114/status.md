@@ -8,10 +8,25 @@ product_and_audit_sha: 25115902db8b9b5648c5ceca1823d3cc66fec8e8
 # Slice 114 configuration audit status
 
 Slice 114 is complete on `release/0.8.27` under the HITL's 2026-10-04
-direction to proceed as if Slice 110 were complete. Slice 110's intermittent
-Jetson forced-CUDA acceptance row remains open and is **not** qualified by
-this disposition. The source/audit commit is `25115902db8b9b5648c5ceca1823d3cc66fec8e8`, based on
+direction to proceed as if Slice 110 were complete. At this slice's close,
+Slice 110's intermittent Jetson forced-CUDA acceptance row was open and was
+**not** qualified by this disposition. The source/audit commit is `25115902db8b9b5648c5ceca1823d3cc66fec8e8`, based on
 `eefc2e3d8`.
+
+## Post-close review of Slice 110 Tegra changes (2026-10-06)
+
+The Slice 110 Tegra allocator and early-`cuInit` changes merged at
+`a25d063cd`; Slice 110 subsequently closed at `33102cfc2`. Comparing the
+Slice 114 closeout `acc04b8b1` with that release HEAD shows no change under
+`src/rust/crates/fathomdb-engine/` or to the engine configuration reference.
+The new `FATHOMDB_CUDA_EARLY_INIT=off` control is a Linux AArch64 Node-addon
+registration option, documented in the TypeScript interface and Jetson guide;
+it is not an engine-consumed setting. The vendored cudarc synchronous
+allocation fallback changes internal CUDA allocation on AArch64 Linux but
+does not change an `EngineConfig` field, default, range, SQLite mode, or
+engine operational limit. The focused `runtime_configuration` test remains
+green (8/8), and `check-release-state-views.sh` passes. **Slice 114 stays
+closed; no configuration-audit rework is needed.**
 
 ## Outcome against requirements
 

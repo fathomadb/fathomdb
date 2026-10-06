@@ -308,3 +308,8 @@ export function validateWriteFfiTree(batch: unknown[]): void {
     }
   }
 }
+
+/** Escape one JSON Pointer segment shared by evidence and graph validation. */
+export function evidencePointerSegment(value: string): string {
+  return value.replaceAll("~", "~0").replaceAll("/", "~1");
+}

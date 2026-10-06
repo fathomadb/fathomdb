@@ -70,6 +70,34 @@ pub enum RerankerDevicePolicyError {
     InvalidPolicy(RerankerDevicePolicyParseError),
     /// A forced CUDA policy could not select its required device.
     Resolution(RerankerDeviceResolutionError),
+    /// 0.8.28 pool study only: a forced-CUDA cross-encoder forward needed
+    /// more memory than the private CUDA memory pool may hold (`maxSize`
+    /// `max_size_bytes` on device `ordinal`).
+    #[cfg(feature = "tegra-pool-experiment")]
+    CudaPoolExhausted {
+        /// The CUDA device ordinal.
+        ordinal: usize,
+        /// The pool's `maxSize`.
+        max_size_bytes: u64,
+    },
+}
+
+/// The error a failed cross-encoder forward returns: none without a forced
+/// CUDA policy (the engine then scores pair by pair), pool exhaustion when the
+/// forward exhausted the private pool, otherwise the forced-CUDA refusal.
+#[cfg(all(feature = "tegra-pool-experiment", feature = "default-reranker"))]
+#[must_use]
+pub(crate) fn classify_rerank_runtime_error(
+    forced: Option<RerankerDevicePolicyError>,
+    exhaustion: Option<(usize, u64)>,
+) -> Option<RerankerDevicePolicyError> {
+    let forced = forced?;
+    Some(match exhaustion {
+        Some((ordinal, max_size_bytes)) => {
+            RerankerDevicePolicyError::CudaPoolExhausted { ordinal, max_size_bytes }
+        }
+        None => forced,
+    })
 }
 
 impl RerankerDevicePolicyError {
@@ -85,6 +113,8 @@ impl RerankerDevicePolicyError {
                 reason,
                 ..
             }) => reason.as_str(),
+            #[cfg(feature = "tegra-pool-experiment")]
+            Self::CudaPoolExhausted { .. } => "cuda_pool_exhausted",
         }
     }
 
@@ -98,6 +128,8 @@ impl RerankerDevicePolicyError {
                 ordinal,
                 ..
             }) => Some(*ordinal),
+            #[cfg(feature = "tegra-pool-experiment")]
+            Self::CudaPoolExhausted { ordinal, .. } => Some(*ordinal),
         }
     }
 }
@@ -107,6 +139,11 @@ impl fmt::Display for RerankerDevicePolicyError {
         match self {
             Self::InvalidPolicy(error) => error.fmt(formatter),
             Self::Resolution(error) => error.fmt(formatter),
+            #[cfg(feature = "tegra-pool-experiment")]
+            Self::CudaPoolExhausted { ordinal, max_size_bytes } => write!(
+                formatter,
+                "CUDA memory pool on device {ordinal} is exhausted (maxSize {max_size_bytes} bytes)"
+            ),
         }
     }
 }
@@ -342,5 +379,49 @@ fn probe(
         Err(CudaProbeError::ProbeFailed { .. }) => {
             Err(RerankerDeviceResolutionReason::CudaProbeFailed)
         }
+    }
+}
+
+#[cfg(all(test, feature = "tegra-pool-experiment", feature = "default-reranker"))]
+mod pool_exhaustion_tests {
+    use super::*;
+
+    fn forced(ordinal: usize) -> RerankerDevicePolicyError {
+        RerankerDevicePolicyError::Resolution(
+            RerankerDeviceResolutionError::ForcedCudaUnavailable {
+                ordinal,
+                reason: RerankerDeviceResolutionReason::CudaProbeFailed,
+            },
+        )
+    }
+
+    /// 0.8.28 pool study (ruling 15 as amended 2026-10-06): a reranker forward
+    /// that exhausts the private pool under forced CUDA reports pool
+    /// exhaustion instead of the generic probe refusal.
+    #[test]
+    fn forced_cuda_pool_exhaustion_is_reported_as_its_own_kind() {
+        let error = classify_rerank_runtime_error(Some(forced(0)), Some((0, 3 << 30)))
+            .expect("a forced-CUDA failure is an error");
+        assert_eq!(error.kind(), "cuda_pool_exhausted");
+        assert_eq!(error.ordinal(), Some(0));
+        assert_eq!(
+            error,
+            RerankerDevicePolicyError::CudaPoolExhausted { ordinal: 0, max_size_bytes: 3 << 30 }
+        );
+        assert!(error.to_string().contains("exhausted"), "{error}");
+    }
+
+    /// Other forced-CUDA failures keep the existing refusal.
+    #[test]
+    fn other_forced_cuda_failures_keep_the_probe_refusal() {
+        assert_eq!(classify_rerank_runtime_error(Some(forced(1)), None), Some(forced(1)));
+    }
+
+    /// Under `auto` (no forced refusal) the engine keeps its per-pair
+    /// fallback, so pool exhaustion is not an error there.
+    #[test]
+    fn without_forced_cuda_nothing_is_an_error() {
+        assert_eq!(classify_rerank_runtime_error(None, Some((0, 3 << 30))), None);
+        assert_eq!(classify_rerank_runtime_error(None, None), None);
     }
 }

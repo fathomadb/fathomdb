@@ -18,6 +18,10 @@ create_exception!(_fathomdb, EmbedDevicePolicyError, EmbedderError);
 create_exception!(_fathomdb, RerankerDevicePolicyError, EmbedderError);
 create_exception!(_fathomdb, EmbedderNotConfiguredError, EmbedderError);
 create_exception!(_fathomdb, EmbedderRequiredError, EmbedderError);
+// 0.8.28 pool study only (ruling 15): the private CUDA memory pool is
+// exhausted. Mirrors TypeScript's `CudaPoolExhaustedError extends EmbedderError`.
+#[cfg(feature = "tegra-pool-experiment")]
+create_exception!(_fathomdb, CudaPoolExhaustedError, EmbedderError);
 create_exception!(_fathomdb, SchedulerError, EngineError);
 create_exception!(_fathomdb, OpStoreError, EngineError);
 create_exception!(_fathomdb, WriteValidationError, EngineError);
@@ -78,20 +82,20 @@ pub(super) fn engine_error_to_py(err: RustEngineError) -> PyErr {
         RustEngineError::ProjectionGeneration(error) => projection_generation_error_to_py(&error),
         RustEngineError::Vector => VectorError::new_err("vector error"),
         RustEngineError::Embedder => EmbedderError::new_err("embedder error"),
-        // 0.8.28 pool study only (ruling 15): the experiment raises the
-        // existing EmbedderError with the kind fields set; a dedicated
-        // CudaPoolExhaustedError class is part of adoption.
+        // 0.8.28 pool study only (ruling 15).
         #[cfg(feature = "tegra-pool-experiment")]
         error @ RustEngineError::CudaPoolExhausted { ordinal, max_size_bytes } => {
-            let exc = EmbedderError::new_err(error.to_string());
-            Python::attach(|py| {
-                let value = exc.value(py);
-                let _ = value.setattr("kind", "cuda_pool_exhausted");
-                let _ = value.setattr("ordinal", ordinal);
-                let _ = value.setattr("max_size_bytes", max_size_bytes);
-            });
-            exc
+            cuda_pool_exhausted_to_py(error.to_string(), ordinal, max_size_bytes)
         }
+        // 0.8.28 pool study only (ruling 15): a cross-encoder forward that
+        // exhausted the private pool.
+        #[cfg(feature = "tegra-pool-experiment")]
+        RustEngineError::RerankerDevicePolicy(
+            error @ fathomdb_embedder::RerankerDevicePolicyError::CudaPoolExhausted {
+                ordinal,
+                max_size_bytes,
+            },
+        ) => cuda_pool_exhausted_to_py(error.to_string(), ordinal, max_size_bytes),
         RustEngineError::RerankerDevicePolicy(error) => {
             let exc = RerankerDevicePolicyError::new_err(error.to_string());
             Python::attach(|py| {
@@ -503,4 +507,22 @@ pub(super) fn runtime_configuration_error_to_py(error: RustRuntimeConfigurationE
         }
         exc
     })
+}
+
+/// The private CUDA memory pool is exhausted (0.8.28 pool study, ruling 15):
+/// `CudaPoolExhaustedError` with `kind`, `ordinal` and `max_size_bytes`.
+#[cfg(feature = "tegra-pool-experiment")]
+pub(super) fn cuda_pool_exhausted_to_py(
+    message: String,
+    ordinal: usize,
+    max_size_bytes: u64,
+) -> PyErr {
+    let exc = CudaPoolExhaustedError::new_err(message);
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("kind", "cuda_pool_exhausted");
+        let _ = value.setattr("ordinal", ordinal);
+        let _ = value.setattr("max_size_bytes", max_size_bytes);
+    });
+    exc
 }

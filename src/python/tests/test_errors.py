@@ -181,3 +181,18 @@ def test_invalid_argument_error_survives_as_a_distinct_leaf() -> None:
     assert not issubclass(InvalidArgumentError, WriteValidationError)
     assert not issubclass(WriteValidationError, InvalidArgumentError)
     assert str(InvalidArgumentError("depth must be 1-3, got 9")).startswith("depth must be 1-3")
+
+
+def test_cuda_pool_exhausted_error_is_a_typed_embedder_error() -> None:
+    """0.8.28 pool study (ruling 15): experiment wheels raise a dedicated
+    `CudaPoolExhaustedError` under `EmbedderError`, as TypeScript does."""
+    import fathomdb.errors as errors
+
+    cls = getattr(errors, "CudaPoolExhaustedError", None)
+    if cls is None:
+        pytest.skip("not an experiment build (feature tegra-pool-experiment)")
+    assert issubclass(cls, EmbedderError)
+    assert "CudaPoolExhaustedError" in errors.__all__
+    assert cls.code == "FDB_CUDA_POOL_EXHAUSTED"
+    err = cls("pool exhausted", kind="cuda_pool_exhausted", ordinal=0, max_size_bytes=3 << 30)
+    assert (err.kind, err.ordinal, err.max_size_bytes) == ("cuda_pool_exhausted", 0, 3 << 30)

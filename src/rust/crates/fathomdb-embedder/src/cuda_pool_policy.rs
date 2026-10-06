@@ -62,6 +62,96 @@ pub(crate) fn parse_variant(raw: Option<&str>) -> Result<PoolVariant, String> {
 /// `FATHOMDB_POOL_MAXSIZE`.
 pub(crate) const DEFAULT_MAX_SIZE: usize = 3 << 30;
 
+/// The derived pool size is device memory divided by this (1/20), between
+/// the floor and the ceiling. On the measured 64 GB AGX Orin (61.36 GiB)
+/// 1/20 is just above the 3 GiB ceiling, so the ruled 3 GiB is kept there.
+pub(crate) const POOL_SIZE_DEVICE_DIVISOR: u64 = 20;
+/// Smallest derived pool: 2 GiB, the smallest `maxSize` whose measured
+/// capacity (704 MiB on the AGX Orin) is at least twice the workload's
+/// 272 MiB high-water mark (study results § 3.1, § 3.5).
+pub(crate) const POOL_SIZE_FLOOR: u64 = 2 << 30;
+/// Largest derived pool: the ruled 3 GiB (owner ruling 9). A larger device
+/// does not need a larger pool for the same workload.
+pub(crate) const POOL_SIZE_CEILING: u64 = DEFAULT_MAX_SIZE as u64;
+/// No pool when the floor would exceed this share of device memory (1/4):
+/// on an 8 GB device the floor would pin a quarter of shared RAM if the
+/// measured capacity ratio did not hold there.
+pub(crate) const POOL_FLOOR_MAX_SHARE_DIVISOR: u64 = 4;
+
+/// What the policy reads from the device at runtime (ruling 17).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DeviceFacts {
+    /// `CU_DEVICE_ATTRIBUTE_INTEGRATED` is 1 (memory shared with the CPU).
+    pub(crate) integrated: bool,
+    /// `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED` is 1.
+    pub(crate) pools_supported: bool,
+    /// `cuDeviceTotalMem`.
+    pub(crate) total_mem: u64,
+}
+
+/// Why a device gets no pool; the process keeps the shipped path (`S`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum GateReason {
+    /// A discrete GPU: `maxSize` would bound device memory, and its default
+    /// pool is not the problem the study addresses.
+    Discrete,
+    /// The device does not support memory pools.
+    NoPools,
+    /// The floor exceeds the largest share of device memory.
+    TooSmall,
+}
+
+impl GateReason {
+    pub(crate) const fn name(self) -> &'static str {
+        match self {
+            Self::Discrete => "discrete",
+            Self::NoPools => "no_pools",
+            Self::TooSmall => "too_small",
+        }
+    }
+}
+
+/// Where a pool size came from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SizeSource {
+    Derived,
+    Env,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PoolSizing {
+    Private { max_size: usize, source: SizeSource },
+    Off { reason: GateReason },
+}
+
+/// Whether this device gets a pool, and its `maxSize` (ruling 17): only an
+/// integrated device with pool support; an explicit size wins there;
+/// otherwise 1/20 of device memory between the floor and the ceiling, and no
+/// pool when the floor would exceed a quarter of device memory.
+pub(crate) const fn pool_sizing(facts: DeviceFacts, explicit: Option<usize>) -> PoolSizing {
+    if !facts.integrated {
+        return PoolSizing::Off { reason: GateReason::Discrete };
+    }
+    if !facts.pools_supported {
+        return PoolSizing::Off { reason: GateReason::NoPools };
+    }
+    if let Some(max_size) = explicit {
+        return PoolSizing::Private { max_size, source: SizeSource::Env };
+    }
+    if POOL_SIZE_FLOOR > facts.total_mem / POOL_FLOOR_MAX_SHARE_DIVISOR {
+        return PoolSizing::Off { reason: GateReason::TooSmall };
+    }
+    let share = facts.total_mem / POOL_SIZE_DEVICE_DIVISOR;
+    let size = if share < POOL_SIZE_FLOOR {
+        POOL_SIZE_FLOOR
+    } else if share > POOL_SIZE_CEILING {
+        POOL_SIZE_CEILING
+    } else {
+        share
+    };
+    PoolSizing::Private { max_size: size as usize, source: SizeSource::Derived }
+}
+
 /// Default release threshold: 0, so freed memory returns to the system at
 /// each synchronization (NVIDIA's advice for unknown co-resident processes;
 /// study results § 3.1). Override: `FATHOMDB_POOL_RELEASE_THRESHOLD`.
@@ -311,7 +401,7 @@ pub(crate) fn format_event(e: &PoolEvent) -> String {
     target_arch = "aarch64",
     any(feature = "embed-cuda", feature = "rerank-cuda")
 ))]
-pub(crate) use driver::{forward_error, new_cuda_device};
+pub(crate) use driver::{forward_error, new_cuda_device, pool_exhaustion};
 
 #[cfg(all(
     feature = "tegra-pool-experiment",
@@ -322,8 +412,9 @@ pub(crate) use driver::{forward_error, new_cuda_device};
 mod driver {
     use super::{
         format_event, mode_after, next_build, on_private_failure, parse_max_size, parse_threshold,
-        parse_trim, parse_variant, plan, should_trim, Build, OnPrivateFailure, PoolAction,
-        PoolEvent, PoolVariant, ProcessMode, TrimArm, PROBE_BYTES,
+        parse_trim, parse_variant, plan, pool_sizing, should_trim, Build, DeviceFacts,
+        OnPrivateFailure, PoolAction, PoolEvent, PoolSizing, PoolVariant, ProcessMode, SizeSource,
+        TrimArm, DEFAULT_MAX_SIZE, PROBE_BYTES,
     };
     use super::{is_pool_exhaustion, trim_tick_ms, POOL_EXHAUSTED_KIND};
     use candle_core::cuda::cudarc::driver::{
@@ -336,7 +427,8 @@ mod driver {
 
     struct Config {
         variant: PoolVariant,
-        max_size: usize,
+        /// `FATHOMDB_POOL_MAXSIZE`, when set.
+        explicit_max_size: Option<usize>,
         threshold: u64,
         stats_every_s: Option<u64>,
         maps_dir: Option<String>,
@@ -368,7 +460,9 @@ mod driver {
                 };
                 Ok::<_, String>(Config {
                     variant: parse_variant(env("FATHOMDB_POOL_VARIANT").as_deref())?,
-                    max_size: parse_max_size(env("FATHOMDB_POOL_MAXSIZE").as_deref())?,
+                    explicit_max_size: env("FATHOMDB_POOL_MAXSIZE")
+                        .map(|raw| parse_max_size(Some(&raw)))
+                        .transpose()?,
                     threshold: parse_threshold(env("FATHOMDB_POOL_RELEASE_THRESHOLD").as_deref())?,
                     stats_every_s,
                     maps_dir: env("FATHOMDB_POOL_MAPS_DIR"),
@@ -390,6 +484,7 @@ mod driver {
     static POOL: OnceLock<CudaMemPool> = OnceLock::new();
     /// The private pool of P-first-use, with the ordinal it was created for.
     static PRIVATE: OnceLock<(usize, Arc<CudaMemPool>)> = OnceLock::new();
+    static MAX_SIZE: OnceLock<usize> = OnceLock::new();
     static MODE: Mutex<ProcessMode> = Mutex::new(ProcessMode::Undecided);
     /// The first `alloc_mode` read after a Candle CUDA device was built.
     static DECIDED: Mutex<Option<AllocMode>> = Mutex::new(None);
@@ -471,7 +566,7 @@ mod driver {
             pid: std::process::id(),
             variant: c.variant.name(),
             site,
-            max_size: c.max_size,
+            max_size: max_size(),
             threshold: c.threshold,
             ..PoolEvent::default()
         }
@@ -578,8 +673,36 @@ mod driver {
         });
     }
 
+    /// The pool size decided at the first device (ruling 17), or the
+    /// explicit / default size before that decision.
+    fn max_size() -> usize {
+        MAX_SIZE.get().copied().unwrap_or(match config().explicit_max_size {
+            Some(size) => size,
+            None => DEFAULT_MAX_SIZE,
+        })
+    }
+
     fn props() -> MemPoolProps {
-        MemPoolProps { max_size: config().max_size, release_threshold: config().threshold }
+        MemPoolProps { max_size: max_size(), release_threshold: config().threshold }
+    }
+
+    /// The device facts the sizing reads (ruling 17), or the driver error.
+    fn device_facts(device: sys::CUdevice) -> Result<DeviceFacts, DriverError> {
+        use sys::CUdevice_attribute::*;
+        // SAFETY: device comes from cuDeviceGet.
+        let integrated =
+            unsafe { result::device::get_attribute(device, CU_DEVICE_ATTRIBUTE_INTEGRATED) }?;
+        // SAFETY: as above.
+        let pools = unsafe {
+            result::device::get_attribute(device, CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED)
+        }?;
+        // SAFETY: as above.
+        let total_mem = unsafe { result::device::total_mem(device) }?;
+        Ok(DeviceFacts {
+            integrated: integrated == 1,
+            pools_supported: pools == 1,
+            total_mem: total_mem as u64,
+        })
     }
 
     /// Creates the study's pool on device `ordinal` per `action`, with a
@@ -604,16 +727,46 @@ mod driver {
             })?;
             // SAFETY: ctx was just retained.
             let _ = unsafe { result::ctx::set_current(ctx) };
-            let mut create = true;
-            if action == PoolAction::CreateInstalledIfDefaultOutOfMemory {
+            let facts = device_facts(device).map_err(|err| {
+                e.extra = Some(format!("device_facts={:?}", err.0));
+            })?;
+            let sizing = pool_sizing(facts, config().explicit_max_size);
+            let gate = match sizing {
+                PoolSizing::Private { max_size, source } => {
+                    let _ = MAX_SIZE.set(max_size);
+                    format!(
+                        "gate=on size_source={}",
+                        match source {
+                            SizeSource::Derived => "derived",
+                            SizeSource::Env => "env",
+                        }
+                    )
+                }
+                PoolSizing::Off { reason } => format!("gate=off reason={}", reason.name()),
+            };
+            e.max_size = max_size();
+            let device_fields = format!(
+                "integrated={} pools_supported={} total_mem={} {gate}",
+                u8::from(facts.integrated),
+                u8::from(facts.pools_supported),
+                facts.total_mem
+            );
+            let mut create = matches!(sizing, PoolSizing::Private { .. });
+            if !create {
+                e.extra = Some(device_fields.clone());
+            }
+            if create && action == PoolAction::CreateInstalledIfDefaultOutOfMemory {
                 // SAFETY: device is valid and its primary context is current.
                 let default = unsafe { result::device::get_default_mem_pool(device) }.map(|_| ());
                 create =
                     matches!(default, Err(DriverError(sys::CUresult::CUDA_ERROR_OUT_OF_MEMORY)));
                 e.default_pool = Some(rc(&default));
             }
-            if action == PoolAction::CreatePrivate {
+            if create && action == PoolAction::CreatePrivate {
                 e.extra = join_extra(Some("installed=0".to_owned()), coexist_fields(ordinal));
+            }
+            if create {
+                e.extra = join_extra(Some(device_fields), e.extra.take());
             }
             if create {
                 save_maps("pre-pool");
@@ -692,19 +845,29 @@ mod driver {
     /// Pool exhaustion also emits one `exhausted` event line.
     pub(crate) fn forward_error(error: candle_core::Error, what: &str) -> EmbedderError {
         let message = format!("{what}: {error}");
+        match pool_exhaustion(&error, "forward") {
+            Some((ordinal, max_size_bytes)) => {
+                EmbedderError::CudaPoolExhausted { ordinal, max_size_bytes, message }
+            }
+            None => EmbedderError::Failed { message },
+        }
+    }
+
+    /// The private pool's device and `maxSize` when `error` is pool
+    /// exhaustion (ruling 15); emits one `exhausted` event per occurrence.
+    pub(crate) fn pool_exhaustion(
+        error: &candle_core::Error,
+        site: &'static str,
+    ) -> Option<(usize, u64)> {
         let mode = *MODE.lock().unwrap_or_else(PoisonError::into_inner);
-        if !is_pool_exhaustion(mode, driver_out_of_memory(&error)) {
-            return EmbedderError::Failed { message };
+        if !is_pool_exhaustion(mode, driver_out_of_memory(error)) {
+            return None;
         }
         let ordinal = PRIVATE.get().map_or(0, |(ordinal, _)| *ordinal);
-        let mut e = with_pool_attrs(base("exhausted", "forward"));
+        let mut e = with_pool_attrs(base("exhausted", site));
         e.extra = Some(format!("kind={POOL_EXHAUSTED_KIND}"));
         emit(&e);
-        EmbedderError::CudaPoolExhausted {
-            ordinal,
-            max_size_bytes: config().max_size as u64,
-            message,
-        }
+        Some((ordinal, max_size() as u64))
     }
 
     /// A device on a fresh cudarc context that allocates from the private
@@ -878,6 +1041,95 @@ mod tests {
         assert_eq!(DEFAULT_TRIM_IDLE_MS, 5_000);
         assert_eq!(PROBE_BYTES, 4);
         assert_eq!(parse_threshold(None), Ok(DEFAULT_RELEASE_THRESHOLD));
+    }
+
+    const GIB: u64 = 1 << 30;
+
+    fn integrated(total: u64) -> DeviceFacts {
+        DeviceFacts { integrated: true, pools_supported: true, total_mem: total }
+    }
+
+    /// Ruling 17 (2026-10-06): the platform is decided at runtime from the
+    /// device; the pool is sized from device memory with a floor and a
+    /// ceiling. Device memory as `cuDeviceTotalMem` reports it (the 64 GB
+    /// AGX Orin reports 61.36 GiB).
+    #[test]
+    fn an_integrated_device_gets_a_pool_sized_from_its_memory() {
+        // AGX Orin 64 GB: 1/20 of 61.36 GiB is above the ceiling: 3 GiB.
+        assert_eq!(
+            pool_sizing(integrated(65_879_896_064), None),
+            PoolSizing::Private { max_size: 3 << 30, source: SizeSource::Derived }
+        );
+        // Thor 128 GB: capped at the ceiling.
+        assert_eq!(
+            pool_sizing(integrated(122 * GIB), None),
+            PoolSizing::Private { max_size: 3 << 30, source: SizeSource::Derived }
+        );
+        // Orin 32 GB and 16 GB: the floor binds.
+        for total in [30 * GIB, 15 * GIB] {
+            assert_eq!(
+                pool_sizing(integrated(total), None),
+                PoolSizing::Private { max_size: 2 << 30, source: SizeSource::Derived },
+                "{total}"
+            );
+        }
+        // Between floor and ceiling the share applies (1/20 of 50 GiB).
+        assert_eq!(
+            pool_sizing(integrated(50 * GIB), None),
+            PoolSizing::Private { max_size: (50 << 30) / 20, source: SizeSource::Derived }
+        );
+    }
+
+    /// A device whose memory cannot hold the floor within the largest share
+    /// gets no pool: Orin Nano 8 GB reports about 7.4 GiB.
+    #[test]
+    fn a_small_integrated_device_gets_no_pool() {
+        assert_eq!(
+            pool_sizing(integrated(7 * GIB + GIB / 2), None),
+            PoolSizing::Off { reason: GateReason::TooSmall }
+        );
+    }
+
+    /// Discrete GPUs keep the shipped default-pool path; so does any device
+    /// without memory-pool support.
+    #[test]
+    fn discrete_or_poolless_devices_get_no_pool() {
+        let discrete =
+            DeviceFacts { integrated: false, pools_supported: true, total_mem: 80 * GIB };
+        assert_eq!(pool_sizing(discrete, None), PoolSizing::Off { reason: GateReason::Discrete });
+        assert_eq!(
+            pool_sizing(discrete, Some(3 << 30)),
+            PoolSizing::Off { reason: GateReason::Discrete },
+            "an explicit size does not turn the pool on for a discrete GPU"
+        );
+        let poolless = DeviceFacts { pools_supported: false, ..integrated(61 * GIB) };
+        assert_eq!(pool_sizing(poolless, None), PoolSizing::Off { reason: GateReason::NoPools });
+    }
+
+    /// `FATHOMDB_POOL_MAXSIZE` wins on an integrated device, small ones
+    /// included.
+    #[test]
+    fn an_explicit_size_overrides_the_derived_one() {
+        assert_eq!(
+            pool_sizing(integrated(61 * GIB), Some(1 << 30)),
+            PoolSizing::Private { max_size: 1 << 30, source: SizeSource::Env }
+        );
+        assert_eq!(
+            pool_sizing(integrated(7 * GIB), Some(1 << 30)),
+            PoolSizing::Private { max_size: 1 << 30, source: SizeSource::Env }
+        );
+    }
+
+    #[test]
+    fn sizing_constants_are_named_and_consistent() {
+        assert_eq!(POOL_SIZE_CEILING, DEFAULT_MAX_SIZE as u64);
+        assert_eq!(POOL_SIZE_FLOOR, 2 << 30);
+        assert_eq!(POOL_SIZE_DEVICE_DIVISOR, 20);
+        assert_eq!(POOL_FLOOR_MAX_SHARE_DIVISOR, 4);
+        const { assert!(POOL_SIZE_FLOOR < POOL_SIZE_CEILING) };
+        assert_eq!(GateReason::TooSmall.name(), "too_small");
+        assert_eq!(GateReason::Discrete.name(), "discrete");
+        assert_eq!(GateReason::NoPools.name(), "no_pools");
     }
 
     #[test]

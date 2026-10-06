@@ -352,6 +352,24 @@ mod tests {
         assert_eq!(envelope["payload"]["kind"], "cuda_not_compiled");
     }
 
+    /// 0.8.28 pool study (ruling 15 as amended): a reranker forward that
+    /// exhausts the private pool surfaces with the pool-exhaustion envelope,
+    /// as the embedder's does.
+    #[cfg(feature = "tegra-pool-experiment")]
+    #[test]
+    fn reranker_pool_exhaustion_uses_the_pool_exhausted_envelope() {
+        let error = engine_error_to_napi(RustEngineError::RerankerDevicePolicy(
+            fathomdb_embedder::RerankerDevicePolicyError::CudaPoolExhausted {
+                ordinal: 0,
+                max_size_bytes: 3 << 30,
+            },
+        ));
+        let envelope: JsonValue = serde_json::from_str(&error.reason).expect("typed envelope");
+        assert_eq!(envelope["code"], "FDB_CUDA_POOL_EXHAUSTED");
+        assert_eq!(envelope["payload"]["kind"], "cuda_pool_exhausted");
+        assert_eq!(envelope["payload"]["maxSizeBytes"], 3_u64 << 30);
+    }
+
     #[test]
     fn reranker_device_policy_query_error_uses_the_same_typed_napi_envelope() {
         let error = engine_error_to_napi(RustEngineError::RerankerDevicePolicy(

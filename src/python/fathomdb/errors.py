@@ -18,6 +18,7 @@ instance attributes.
 
 from __future__ import annotations
 
+import fathomdb._fathomdb as _native
 from fathomdb._fathomdb import (
     ClosingError as _ClosingError,
 )
@@ -275,3 +276,12 @@ __all__ = [
     "VectorError",
     "WriteValidationError",
 ]
+
+# 0.8.28 pool study only: experiment wheels (feature tegra-pool-experiment)
+# raise a dedicated pool-exhaustion class under EmbedderError, as TypeScript's
+# `CudaPoolExhaustedError`. Release wheels do not define it.
+if hasattr(_native, "CudaPoolExhaustedError"):
+    CudaPoolExhaustedError = _native.CudaPoolExhaustedError
+    setattr(CudaPoolExhaustedError, "code", "FDB_CUDA_POOL_EXHAUSTED")
+    _install_typed_init(CudaPoolExhaustedError, ("kind", "ordinal", "max_size_bytes"))
+    __all__.append("CudaPoolExhaustedError")

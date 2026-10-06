@@ -411,6 +411,16 @@ pub(crate) fn embed_device_policy_error_to_napi(
 pub(crate) fn reranker_device_policy_error_to_napi(
     error: fathomdb_embedder::RerankerDevicePolicyError,
 ) -> Error {
+    // 0.8.28 pool study only (ruling 15): a cross-encoder forward that
+    // exhausted the private pool uses the pool-exhaustion envelope.
+    #[cfg(feature = "tegra-pool-experiment")]
+    if let fathomdb_embedder::RerankerDevicePolicyError::CudaPoolExhausted {
+        ordinal,
+        max_size_bytes,
+    } = error
+    {
+        return cuda_pool_exhausted_error(error.to_string(), ordinal, max_size_bytes);
+    }
     let mut payload = serde_json::Map::new();
     payload.insert("kind".to_string(), json!(error.kind()));
     if let Some(ordinal) = error.ordinal() {

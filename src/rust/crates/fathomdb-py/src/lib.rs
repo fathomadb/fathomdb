@@ -271,6 +271,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("RerankerDevicePolicyError", py.get_type::<RerankerDevicePolicyError>())?;
     m.add("EmbedderNotConfiguredError", py.get_type::<EmbedderNotConfiguredError>())?;
     m.add("EmbedderRequiredError", py.get_type::<EmbedderRequiredError>())?;
+    #[cfg(feature = "tegra-pool-experiment")]
+    m.add("CudaPoolExhaustedError", py.get_type::<CudaPoolExhaustedError>())?;
     m.add("SchedulerError", py.get_type::<SchedulerError>())?;
     m.add("OpStoreError", py.get_type::<OpStoreError>())?;
     m.add("WriteValidationError", py.get_type::<WriteValidationError>())?;

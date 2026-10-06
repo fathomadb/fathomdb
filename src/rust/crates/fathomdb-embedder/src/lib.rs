@@ -84,20 +84,27 @@ mod cuda_pool_policy;
 
 /// Every Candle CUDA device of the crate is built here, so the pool study's
 /// policy (feature `tegra-pool-experiment`) runs before the first one; without
-/// that feature this is `Device::new_cuda`.
-#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+/// that feature this is `Device::new_cuda`, which a build without CUDA
+/// answers with an error.
+#[cfg(any(feature = "default-embedder", feature = "default-reranker"))]
 pub(crate) fn new_cuda_device(
     site: &'static str,
     ordinal: usize,
 ) -> candle_core::Result<candle_core::Device> {
-    #[cfg(all(feature = "tegra-pool-experiment", target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(all(
+        feature = "tegra-pool-experiment",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    ))]
     {
         cuda_pool_policy::new_cuda_device(site, ordinal)
     }
     #[cfg(not(all(
         feature = "tegra-pool-experiment",
         target_os = "linux",
-        target_arch = "aarch64"
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
     )))]
     {
         let _ = site;
@@ -192,6 +199,22 @@ impl MeanRecomputeTrigger {
 /// The embedder's report of a failed forward pass. With the pool study's
 /// feature on aarch64 Linux CUDA builds, a private pool's
 /// `CUDA_ERROR_OUT_OF_MEMORY` becomes `EmbedderError::CudaPoolExhausted`
+/// The private pool's device and `maxSize` when a cross-encoder forward
+/// error is pool exhaustion (0.8.28 pool study, ruling 15); `None` in every
+/// other build or process.
+#[cfg(all(feature = "default-reranker", feature = "tegra-pool-experiment"))]
+pub(crate) fn pool_exhaustion(error: &candle_core::Error) -> Option<(usize, u64)> {
+    #[cfg(all(target_os = "linux", target_arch = "aarch64", feature = "rerank-cuda"))]
+    {
+        cuda_pool_policy::pool_exhaustion(error, "rerank-forward")
+    }
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64", feature = "rerank-cuda")))]
+    {
+        let _ = error;
+        None
+    }
+}
+
 /// (study ruling 15); otherwise it is `Failed` with `what` and the error.
 #[cfg(feature = "default-embedder")]
 pub(crate) fn forward_error(

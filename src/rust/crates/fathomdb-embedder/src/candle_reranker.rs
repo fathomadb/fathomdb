@@ -434,6 +434,26 @@ impl CandleTinyBertReranker {
         forced_cuda_runtime_error(&self.resolution)
     }
 
+    /// The typed error to return for a failed forward: `None` without a
+    /// forced CUDA policy (the caller scores pair by pair); otherwise the
+    /// forced-CUDA refusal, or, in the 0.8.28 pool-study build, pool
+    /// exhaustion when the forward exhausted the private CUDA memory pool.
+    #[must_use]
+    pub fn runtime_error(&self, error: &candle_core::Error) -> Option<RerankerDevicePolicyError> {
+        #[cfg(feature = "tegra-pool-experiment")]
+        {
+            crate::reranker_device_policy::classify_rerank_runtime_error(
+                self.forced_cuda_runtime_error(),
+                crate::pool_exhaustion(error),
+            )
+        }
+        #[cfg(not(feature = "tegra-pool-experiment"))]
+        {
+            let _ = error;
+            self.forced_cuda_runtime_error()
+        }
+    }
+
     /// Score a `(query, passage)` pair → the raw cross-encoder relevance logit.
     ///
     /// Tokenizes the pair (`[CLS] query [SEP] passage [SEP]` with the model's

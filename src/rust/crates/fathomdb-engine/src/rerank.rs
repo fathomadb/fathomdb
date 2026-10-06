@@ -331,10 +331,10 @@ impl CandleCrossEncoder {
     ) -> Result<Vec<f64>, RerankerDevicePolicyError> {
         match self.inner.score_batch(query, passages) {
             Ok(logits) => Ok(logits.into_iter().map(f64::from).collect()),
-            Err(_) if self.inner.forced_cuda_runtime_error().is_some() => {
-                Err(self.inner.forced_cuda_runtime_error().expect("checked above"))
-            }
-            Err(_) => Ok(passages.iter().map(|p| self.score(query, p)).collect()),
+            Err(error) => match self.inner.runtime_error(&error) {
+                Some(refusal) => Err(refusal),
+                None => Ok(passages.iter().map(|p| self.score(query, p)).collect()),
+            },
         }
     }
 }

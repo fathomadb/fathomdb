@@ -8,7 +8,8 @@ runner sets the device policy and the FATHOMDB_POOL_* variables; the
 experiment wheel's import performs early cuInit (study ruling 1).
 
 reset mode (C7): after the first embed, rerank and CLS batch, the primary
-context is reset through ctypes, then all three run again and are compared.
+context is reset through ctypes, then all three run again, each on its own,
+and their errors (or results) and the driver's context state are recorded.
 
 coresident mode (C9 co-resident user): after FathomDB has embedded, a second
 CUDA user in the same process queries the default pool and allocates 16 MiB
@@ -96,6 +97,18 @@ def primary_ctx_reset() -> dict[str, Any]:
     return {"resetRc": cuda.cuDevicePrimaryCtxReset(dev)}
 
 
+def driver_state() -> dict[str, Any]:
+    """What the driver reports right after the failed calls: the current
+    context and a synchronize on it (C7)."""
+    cuda = ctypes.CDLL("libcuda.so.1")
+    ctx = ctypes.c_void_p()
+    return {
+        "getCurrentRc": cuda.cuCtxGetCurrent(ctypes.byref(ctx)),
+        "hasCurrent": bool(ctx.value),
+        "synchronizeRc": cuda.cuCtxSynchronize(),
+    }
+
+
 def main() -> int:
     out: dict[str, Any] = {
         "outcome": "fail",
@@ -168,18 +181,29 @@ def main() -> int:
             out["coresident"] = coresident_user()
         if out["consumerMode"] == "reset":
             # C7 co-resident reset: another library resets the primary
-            # context while FathomDB holds model weights on the device.
+            # context while FathomDB holds model weights on the device. Each
+            # call afterwards is tried on its own so every first error is kept.
             step = "reset"
             out["reset"] = primary_ctx_reset()
-            step = "embedAfterReset"
-            after = sha(engine.embed(text))
-            out["reset"]["hashAfter"] = after
-            out["reset"]["sameHash"] = after == out["embedSha"]
-            step = "rerankAfterReset"
-            scores = [r["ce_score"] for r in fathomdb.rerank("How does CUDA stream-ordered allocation work?", passages, 2)]
-            out["reset"]["sameScores"] = scores == out["rerankScores"]
-            step = "clsAfterReset"
-            out["reset"]["sameCls"] = sha(fathomdb.embed_batch_cls([text])[0]) == out["clsSha"]
+            after: dict[str, Any] = {}
+
+            def attempt(name: str, call: Any) -> None:
+                try:
+                    after[name] = {"ok": True, "value": call()}
+                except Exception as err:  # noqa: BLE001 - the error is the measurement
+                    after[name] = {"ok": False, "name": type(err).__name__, "kind": getattr(err, "kind", None), "message": str(err)[:300]}
+
+            attempt("embedBatchCls", lambda: sha(fathomdb.embed_batch_cls([text])[0]) == out["clsSha"])
+            attempt("embed", lambda: sha(engine.embed(text)) == out["embedSha"])
+            attempt(
+                "rerank",
+                lambda: [r["ce_score"] for r in fathomdb.rerank("How does CUDA stream-ordered allocation work?", passages, 2)]
+                == out["rerankScores"],
+            )
+            out["reset"]["after"] = after
+            out["reset"]["driverAfter"] = driver_state()
+            if not all(v["ok"] and v["value"] for v in after.values()):
+                raise RuntimeError("calls after the reset failed or changed: " + json.dumps(after)[:300])
         step = "close"
         engine.close()
         engine = None

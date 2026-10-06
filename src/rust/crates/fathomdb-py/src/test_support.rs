@@ -286,6 +286,53 @@ mod tests {
         assert!(validate_ffi_string(valid_high_unicode).is_ok());
     }
 
+    /// 0.8.28 pool study (ruling 15 as amended 2026-10-06): pool
+    /// exhaustion raises a dedicated class under `EmbedderError`, as
+    /// TypeScript's `CudaPoolExhaustedError extends EmbedderError`, carrying
+    /// the kind, ordinal and cap.
+    #[cfg(feature = "tegra-pool-experiment")]
+    #[test]
+    fn pool_exhaustion_uses_a_dedicated_embedder_error_subclass() {
+        Python::initialize();
+        Python::attach(|py| {
+            let error = engine_error_to_py(fathomdb_engine::EngineError::CudaPoolExhausted {
+                ordinal: 1,
+                max_size_bytes: 3 << 30,
+            });
+            assert!(error.is_instance_of::<CudaPoolExhaustedError>(py));
+            assert!(error.is_instance_of::<EmbedderError>(py));
+            let value = error.value(py);
+            assert_eq!(
+                value.getattr("kind").unwrap().extract::<String>().unwrap(),
+                "cuda_pool_exhausted"
+            );
+            assert_eq!(value.getattr("ordinal").unwrap().extract::<usize>().unwrap(), 1);
+            assert_eq!(value.getattr("max_size_bytes").unwrap().extract::<u64>().unwrap(), 3 << 30);
+
+            let batch = embed_batch_error_to_py(
+                py,
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+                    ordinal: 0,
+                    max_size_bytes: 1 << 30,
+                    message: "batch forward: out of memory".to_owned(),
+                },
+            );
+            assert!(batch.is_instance_of::<CudaPoolExhaustedError>(py));
+
+            let rerank = engine_error_to_py(fathomdb_engine::EngineError::RerankerDevicePolicy(
+                fathomdb_embedder::RerankerDevicePolicyError::CudaPoolExhausted {
+                    ordinal: 0,
+                    max_size_bytes: 3 << 30,
+                },
+            ));
+            assert!(rerank.is_instance_of::<CudaPoolExhaustedError>(py));
+            assert_eq!(
+                rerank.value(py).getattr("kind").unwrap().extract::<String>().unwrap(),
+                "cuda_pool_exhausted"
+            );
+        });
+    }
+
     #[test]
     fn embed_device_policy_open_error_uses_a_typed_python_exception() {
         Python::initialize();

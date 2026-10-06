@@ -372,9 +372,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 120** (`TYPESCRIPT`) — TypeScript SDK decomposition
+**IMMEDIATE NEXT: Slice 130** (`PYTHON`) — Python SDK decomposition
 
-**Remaining ladder:** 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 

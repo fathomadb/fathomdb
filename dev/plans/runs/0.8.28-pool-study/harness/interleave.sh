@@ -29,7 +29,10 @@ run_cell() { # label variant node consumer env-list run-from count
 read -r l v n c e <"$outdir/cells.tsv"
 run_cell "$l" "$v" "$n" "$c" "$e" 0
 for b in $(seq 1 "$blocks"); do
-  order=$(shuf --random-source=<(yes "$seed-$b") "$outdir/cells.tsv")
+  # A shuf random source of repeated "seed-b" text gave every block the
+  # same order (the seed prefix is all shuf reads), so each block is
+  # shuffled here with Python's seeded generator instead.
+  order=$(python3 -c 'import random, sys; rows = open(sys.argv[1]).read().splitlines(); random.Random(sys.argv[2]).shuffle(rows); print("\n".join(rows))' "$outdir/cells.tsv" "$seed-$b")
   echo "block=$b order=$(cut -d' ' -f1 <<<"$order" | tr '\n' ' ')" >>"$outdir/blocks.txt"
   while read -r l v n c e; do
     run_cell "$l" "$v" "$n" "$c" "$e" "$b" || exit $?

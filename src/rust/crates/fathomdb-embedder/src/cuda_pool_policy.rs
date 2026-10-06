@@ -139,6 +139,27 @@ pub(crate) fn parse_trim(arm: Option<&str>, idle_ms: Option<&str>) -> Result<Tri
     }
 }
 
+/// Pool samples per idle period taken by the trim thread, so a trim lands
+/// within a quarter of the idle time after it is due.
+pub(crate) const TRIM_TICKS_PER_IDLE: u64 = 4;
+/// Shortest trim-thread sleep: idle 0 (the stress setting) trims at every
+/// tick without busy-spinning.
+pub(crate) const TRIM_TICK_MIN_MS: u64 = 1;
+/// Longest trim-thread sleep, so a long idle time is overshot by at most this.
+pub(crate) const TRIM_TICK_MAX_MS: u64 = 250;
+
+/// How long the trim thread sleeps between pool samples.
+pub(crate) const fn trim_tick_ms(idle_ms: u64) -> u64 {
+    let tick = idle_ms / TRIM_TICKS_PER_IDLE;
+    if tick < TRIM_TICK_MIN_MS {
+        TRIM_TICK_MIN_MS
+    } else if tick > TRIM_TICK_MAX_MS {
+        TRIM_TICK_MAX_MS
+    } else {
+        tick
+    }
+}
+
 /// Whether the idle arm trims now: the in-use amount has been unchanged for
 /// at least `idle_ms` and the pool reserves more than it uses.
 pub(crate) const fn should_trim(idle_ms: u64, unchanged_ms: u64, reserved: u64, used: u64) -> bool {
@@ -304,7 +325,7 @@ mod driver {
         parse_trim, parse_variant, plan, should_trim, Build, OnPrivateFailure, PoolAction,
         PoolEvent, PoolVariant, ProcessMode, TrimArm, PROBE_BYTES,
     };
-    use super::{is_pool_exhaustion, POOL_EXHAUSTED_KIND};
+    use super::{is_pool_exhaustion, trim_tick_ms, POOL_EXHAUSTED_KIND};
     use candle_core::cuda::cudarc::driver::{
         result, sys, AllocMode, CudaContext, CudaMemPool, DriverError, MemPoolProps,
     };
@@ -398,7 +419,7 @@ mod driver {
                 let Ok(ctx) = (unsafe { result::primary_ctx::retain(device) }) else { return };
                 // SAFETY: ctx was just retained.
                 let _ = unsafe { result::ctx::set_current(ctx) };
-                let tick = std::time::Duration::from_millis((idle_ms / 4).clamp(1, 250));
+                let tick = std::time::Duration::from_millis(trim_tick_ms(idle_ms));
                 let mut last_used = u64::MAX;
                 let mut since = Instant::now();
                 loop {
@@ -526,7 +547,13 @@ mod driver {
                     TRIM_US.load(Relaxed)
                 ),
             };
-            e.extra = join_extra(Some(format!("installed=0 {trim}")), coexist_fields(0));
+            let ordinal = PRIVATE.get().map_or(0, |(ordinal, _)| *ordinal);
+            e.extra = join_extra(Some(format!("installed=0 {trim}")), coexist_fields(ordinal));
+        } else {
+            // C9b: what a co-resident library would get from the default
+            // pool at the end of a process of any other variant. These
+            // variants keep no ordinal; the study host has one device.
+            e.extra = coexist_fields(0);
         }
         emit(&e);
     }
@@ -889,6 +916,17 @@ mod tests {
         assert!(!should_trim(idle, 5_000, 16 << 20, 16 << 20), "nothing spare to trim");
         assert!(!should_trim(idle, 5_000, 0, 0));
         assert!(should_trim(0, 0, 1, 0), "idle 0 trims at every tick (stress)");
+    }
+
+    /// The trim thread samples the pool several times per idle period, so a
+    /// trim lands within a fraction of the idle time, but never busy-spins
+    /// and never sleeps so long that a long idle time is overshot by much.
+    #[test]
+    fn the_trim_thread_samples_a_few_times_per_idle_period_within_bounds() {
+        assert_eq!(trim_tick_ms(0), TRIM_TICK_MIN_MS, "idle 0 (stress) still sleeps");
+        assert_eq!(trim_tick_ms(200), 200 / TRIM_TICKS_PER_IDLE);
+        assert_eq!(trim_tick_ms(DEFAULT_TRIM_IDLE_MS), TRIM_TICK_MAX_MS);
+        assert_eq!(trim_tick_ms(u64::MAX), TRIM_TICK_MAX_MS);
     }
 
     /// Ruling 15: an out-of-memory driver error is pool exhaustion only in a

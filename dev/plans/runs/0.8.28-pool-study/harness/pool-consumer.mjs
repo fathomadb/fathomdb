@@ -11,14 +11,34 @@
 // seconds to idle after the last close, so the exit teardown line shows what
 // the pool kept), OVERSIZE_BATCH (CB3/CB4: in full mode, one embedBatchCls of
 // that many long passages after the first embed, then a check that embedding
-// still runs on CUDA with the same hash). The runner sets the device
+// still runs on CUDA with the same hash), GC_AFTER_CLOSE (cycles mode: collect
+// garbage after each close; needs --expose-gc), TRIM_WAIT_MS and CYCLES (trimcycle
+// mode: idle long enough for the trim arm, then embed/rerank/batch again and
+// check hashes; reopen each cycle), STRESS_ITERS, STRESS_CONCURRENCY and
+// STRESS_WORKERS (trimstress mode: concurrent embeds on the libuv pool and in
+// Node worker threads while the trim arm trims every tick). The runner sets the device
 // policy, the witness and the FATHOMDB_POOL_* variables, and merges allocMode,
 // poolEvents and host into this JSON after the process exits.
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
+import { Worker, isMainThread, parentPort, workerData } from "node:worker_threads";
 
 const env = process.env;
+
+// trimstress worker: its own import and engine; embeds and reports hashes.
+if (!isMainThread) {
+  const { modulePath, dbDir, iters, texts } = workerData;
+  const m = await import(modulePath);
+  const e = await m.Engine.open(`${dbDir}/w.fdb`, { useDefaultEmbedder: true });
+  const hashes = [];
+  for (let i = 0; i < iters; i++) {
+    const v = await e.embed(texts[i % texts.length]);
+    hashes.push(createHash("sha256").update(Buffer.from(new Float64Array(v).buffer)).digest("hex").slice(0, 16));
+  }
+  await e.close();
+  parentPort.postMessage(hashes);
+}
 const num = (name, dflt) => Number(env[name] ?? dflt);
 const out = {
   outcome: "fail",
@@ -109,7 +129,7 @@ const checkRanked = (ranked) => {
   }
 };
 
-try {
+if (isMainThread) try {
   out.mem.startVszMiB = status().vszMiB;
   point("start");
   if (out.order !== "late") await doImport();
@@ -122,6 +142,81 @@ try {
   snapMaps("before-open");
   if (out.consumerMode === "import") {
     out.outcome = "pass";
+  } else if (out.consumerMode === "trimcycle") {
+    const { rerank, embedBatchCls } = mod;
+    const text = "fathomdb sync allocator repair experiment";
+    out.trim = { cycles: [], hashes: new Set(), clsHashes: new Set(), scores: new Set() };
+    for (let c = 0; c < num("CYCLES", 5); c++) {
+      step = `trimcycle-${c}-open`;
+      engine = await openEngine();
+      const cyc = {};
+      step = `trimcycle-${c}-warm`;
+      out.trim.hashes.add(sha(await engine.embed(text)));
+      out.trim.scores.add(JSON.stringify((await rerank("Which device shares DRAM?", passages, 2)).map((r) => r.ceScore)));
+      out.trim.clsHashes.add(sha((await embedBatchCls([text]))[0]));
+      point(`trimcycle${c}Warm`);
+      step = `trimcycle-${c}-idle`;
+      await new Promise((resolve) => setTimeout(resolve, num("TRIM_WAIT_MS", 1000)));
+      point(`trimcycle${c}Idle`);
+      step = `trimcycle-${c}-regrow`;
+      let [ms, v] = await timeIt(() => engine.embed(text));
+      cyc.embedMs = ms;
+      out.trim.hashes.add(sha(v));
+      [ms, v] = await timeIt(() => rerank("Which device shares DRAM?", passages, 2));
+      cyc.rerankMs = ms;
+      out.trim.scores.add(JSON.stringify(v.map((r) => r.ceScore)));
+      [ms, v] = await timeIt(() => embedBatchCls([text]));
+      cyc.clsMs = ms;
+      out.trim.clsHashes.add(sha(v[0]));
+      [ms] = await timeIt(() => engine.embed(text));
+      cyc.embedSteadyMs = ms;
+      step = `trimcycle-${c}-close`;
+      await engine.close();
+      engine = null;
+      out.trim.cycles.push(cyc);
+    }
+    out.trim.hashes = [...out.trim.hashes];
+    out.trim.clsHashes = [...out.trim.clsHashes];
+    out.trim.scores = [...out.trim.scores];
+    out.outcome = out.trim.hashes.length === 1 && out.trim.clsHashes.length === 1 && out.trim.scores.length === 1 ? "pass" : "fail";
+    if (out.outcome === "fail") out.failedStep = "trimcycle-identity";
+  } else if (out.consumerMode === "trimstress") {
+    const texts = Array.from({ length: 8 }, (_, k) => `stress text ${k} about stream-ordered pools`);
+    step = "trimstress-open";
+    engine = await openEngine();
+    const expect = [];
+    for (const t of texts) expect.push(sha(await engine.embed(t)));
+    const iters = num("STRESS_ITERS", 200);
+    const conc = num("STRESS_CONCURRENCY", 4);
+    const nWorkers = num("STRESS_WORKERS", 2);
+    step = "trimstress-run";
+    const workers = Array.from({ length: nWorkers }, (_, k) => {
+      const dbDir = mkdtempSync(`${env.FATHOMDB_DB_SCRATCH}/db-w${k}-`);
+      return new Promise((resolve, reject) => {
+        const w = new Worker(new URL(import.meta.url), {
+          workerData: { modulePath: env.FATHOMDB_MODULE ?? "fathomdb", dbDir, iters: Math.floor(iters / 2), texts },
+        });
+        w.once("message", resolve);
+        w.once("error", reject);
+      });
+    });
+    let mismatches = 0;
+    const lanes = Array.from({ length: conc }, async (_, lane) => {
+      for (let i = lane; i < iters; i += conc) {
+        const h = sha(await engine.embed(texts[i % texts.length]));
+        if (h !== expect[i % texts.length]) mismatches++;
+      }
+    });
+    await Promise.all(lanes);
+    const workerHashes = await Promise.all(workers);
+    let workerMismatches = 0;
+    for (const hs of workerHashes) hs.forEach((h, i) => { if (h !== expect[i % texts.length]) workerMismatches++; });
+    out.stress = { iters, conc, nWorkers, mismatches, workerMismatches, workerEmbeds: workerHashes.reduce((a, h) => a + h.length, 0) };
+    step = "trimstress-close";
+    await engine.close();
+    engine = null;
+    out.outcome = mismatches === 0 && workerMismatches === 0 ? "pass" : "fail";
+    if (out.outcome === "fail") out.failedStep = "trimstress-identity";
   } else if (out.consumerMode === "cycles") {
     for (let c = 0; c < num("CYCLES", 50); c++) {
       step = `cycle-${c}-open`;
@@ -134,6 +229,13 @@ try {
       const [closeMs] = await timeIt(() => engine.close());
       engine = null;
       out.timingsMs.cyclesClose.push(closeMs);
+      // C2 diagnosis: a closed engine keeps its embedder until the wrapper
+      // is garbage-collected; GC_AFTER_CLOSE=1 (with --expose-gc) collects it.
+      if (env.GC_AFTER_CLOSE === "1" && globalThis.gc) {
+        globalThis.gc();
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      (out.cyclesRssMiB ??= []).push(Math.round(status().rssMiB));
     }
     out.outcome = "pass";
   } else {
@@ -267,6 +369,7 @@ try {
     }
   }
 }
+if (isMainThread) {
 const idle = num("IDLE_AFTER_CLOSE_S", 0);
 if (idle > 0) {
   await new Promise((resolve) => setTimeout(resolve, idle * 1000));
@@ -278,3 +381,4 @@ out.mem.endRssMiB = end.rssMiB;
 out.mem.endVszMiB = end.vszMiB;
 out.keepAlive = keepAlive.length;
 console.log(JSON.stringify(out));
+}

@@ -1,17 +1,17 @@
 ---
-title: FathomDB 0.8.28 Tegra CUDA memory-pool study — results, Phases 0, 1 and 1b
-status: PARTIAL (Phases 0, 1 and 1b; Phases 2-5 not started)
+title: FathomDB 0.8.28 Tegra CUDA memory-pool study — results, Phases 0, 1, 1b and 2
+status: PARTIAL (Phases 0, 1, 1b and 2; Phases 3-5 not started)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
 
-# Tegra CUDA memory-pool study: results of Phases 0, 1 and 1b
+# Tegra CUDA memory-pool study: results of Phases 0, 1, 1b and 2
 
 This records Phases 0 and 1 of
 `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md`
 (the protocol) on one Jetson AGX Orin 64 GB, and Phase 1b of protocol
-revision 3 (§ 10). It does not rule. Phases 2–5
-(correctness, robustness, soaks, performance, analysis and upstream package)
+revision 3 (§ 10) and Phase 2 of revision 4 (§ 11). It does not rule.
+Phases 3–5 (robustness, soaks, performance, analysis and upstream package)
 were not started. Everything not measured here is marked UNMEASURED.
 Statements marked *inferred* are readings of the data, not measurements.
 
@@ -701,7 +701,6 @@ after Phase 1b)"): items 1, 2, 4, 5 and 6 agreed (6 with a 1 MiB swap
 tolerance); item 3 conditional (trim is an experimental arm only). The
 items are kept as asked.
 
-
 1. **Early `cuInit` is load-bearing for P** (§ 10.7). The decision rule
    should state it: P-first-use is a candidate only together with early
    `cuInit`. That covers Node, and Python once Phase 2 adds its import hook.
@@ -723,3 +722,547 @@ items are kept as asked.
    Candle path override (expected; the branch is never merged). A fork
    commit carrying `patches/candle-from-context.patch` would remove the
    override.
+
+## 11. Phase 2 (protocol revision 4)
+
+Phase 2 ran the correctness rows under owner rulings 12–17, on the commits
+listed below and on the same host as Phases 0–1b:
+
+- C1, C2, C5, C7, C8, C9 and C9b;
+- CB1–CB4 on the product path;
+- the experimental trim arm, the pool-exhaustion error kind, and the Python
+  import hook.
+
+All series ran Node 25.9.0 or Python 3.12 with the witness unset (ruling 16):
+
+- **Node addon:** `consumer-p3`, a P build with the trim arm and the error kind.
+- **Python wheel:** `venv-p`, the experiment wheel with the import-time hook.
+
+Summaries are in `summaries/phase2.txt` and `summaries/phase2-*.txt`;
+samples are under `samples/phase2-*/`.
+The analysis is `harness/analyze.py phase2 <scratch>/logs/phase2`.
+
+### 11.1 Code and tests
+
+- `3acc4704a`: rulings 12–17 in the protocol and plan (revision 4).
+- `74a6b4d62`: the trim arm, the pool-exhaustion kind, the Python import hook,
+  named constants, and `harness/study-config.sh`. Pure Rust tests and the
+  TypeScript test went red then green.
+- The commit that adds this section also brings:
+  - the named trim-tick constants, with a test (red, then green);
+  - the private pool's ordinal in the exit event;
+  - non-P exit events that carry the coexist fields (C9b);
+  - the harness modes `trimcycle`, `trimstress`, `reset` and `coresident`;
+  - `pool_reset.c`;
+  - the interleave fix (§ 11.10);
+  - the Phase 2 matrices.
+
+Gates:
+
+- `cargo clippy -D warnings` is clean for the workspace and for the
+  experiment feature set.
+- `cargo fmt --check` is clean.
+- The policy has 11 pure tests, all passing.
+- The experiment feature is in no release feature set:
+  `scripts/release/cuda-artifact-contract.sh` is unchanged.
+
+### 11.2 Correctness rows (table 8)
+
+Pass rates are Wilson 95 % intervals. "Hash" is the 16-hex prefix of the
+SHA-256 of the f64 embedding. Every passing process in every Phase 2 cell,
+Node and Python, gave:
+
+- embed hash `d9dafb8c410005f3`;
+- rerank scores `[1e-05, 0.997981]`;
+- CLS hash `a0cdfdfecb115b33` (Python and Node `trimcycle`).
+
+| Row | Cells | n | Result | Verdict |
+| --- | --- | --- | --- | --- |
+| C1 provenance | Node 25, heap 400k, interleaved; S, P-first-use, A-first-use, B | 50 each | 200/200 pass [98.1, 100] %. One `decide` per process in every process. P private 50/50; A explicit 50/50; B explicit 41, default 9; S sync 40, default 10. No mismatch. | PASS |
+| C2 lifetime (Node `cycles`, 50 open/close cycles) | P 10, A 3, B 3 | 16 | **0/16**. Every process fails at the 8th open, cycle index 8, with `model deserialize: CUDA_ERROR_OUT_OF_MEMORY`. See § 11.3. | **FAIL as specified**; passes with GC after close |
+| C2 with GC after each close (`--expose-gc`, `GC_AFTER_CLOSE=1`) | P 5, A 3, B 3; S 3 (contrast) | 14 | 14/14 pass, 50/50 cycles each (P+A+B 11/11 [74.1, 100] %); VmRSS flat | PASS with GC; see § 11.3 |
+| C5 zero-length, product suites | `candle_bge` integration tests (`loader-test-hooks`) + reranker `score_batch_empty`, forced CUDA, `FATHOMDB_POOL_VARIANT=P-first-use` (`decide` = private in both) | suite | 9/9 + 1/1 pass, including the empty string and the empty batch | PASS |
+| C6 multi-device | pure unit tests | — | The fail-closed tests pass. No multi-device host exists, so this is UNMEASURED on hardware. | code path only |
+| C7 reset, C probe (`pool_reset.c`) | private pool, 16 MiB live, `cuDevicePrimaryCtxReset` | 20 | 20/20 every call `CUDA_SUCCESS` [83.9, 100] %. After the reset: the pool handle still allocates; the pre-reset pointer frees; `used` = 16 MiB and `reserved` = 32 MiB; destroy succeeds. | PASS (pool survives a reset) |
+| C7 reset, product (Python `reset` mode: embed, rerank and CLS; `cuDevicePrimaryCtxReset` through `ctypes`; then the three again) | S 20, P 20, A 10, B 10 | 60 | **0/60 for every variant, the shipped S included.** The first call after the reset raises `EmbedderError` (no kind) and the process then crashes at exit, SIGSEGV, exit 139. Crashes: S 13/20, P 19/20, A 10/10, B 10/10. | FAIL, but not caused by P: a co-resident reset already breaks the shipped path (§ 11.4) |
+| C8 parity, Python vs Node | Python S, P, A, B (20 each) vs Node C1 (50 each) | 80 + 200 | 80/80 Python pass [95.4, 100] %. Every process in both bindings has the same embed hash, rerank scores and CLS hash. Python allocation modes: P private 20, A explicit 20, S **default 20**, B **default 20**. Python's address space leaves the default pool obtainable; Node S takes the synchronous path in 40 of 50. | PASS |
+| C9, Python co-resident user | P 20, S 10 | 30 | The co-resident user's default pool succeeds, the current pool is the default pool, and a 16 MiB `cuMemAllocAsync` succeeds: 30/30. | PASS |
+| C9 amended rule (ruling 13), Node install and exit events | every P process with coexist fields (C2 `cycles` 10, C9b 30) | 80 reads | The current pool **never** equals the private pool (0 of 80 reads). Where both reads succeed it equals the default pool every time (44/44). The other 36 reads were `OOM` current-pool reads, recorded and not failed. A and B install their pool as current by design, so the rule does not apply to them. | PASS |
+| C9b, default-pool success at exit | P vs S × heaps 0 / 1M / 4M, interleaved | 10 each | P 8, 8, 7 of 10; S 7, 6, 7 of 10. Pooled P 23/30 [59.1, 88.2] % vs S 20/30 [48.8, 80.8] %. | no harm detected (power: § 11.5) |
+
+### 11.3 C2: a closed engine keeps its model until garbage collection
+
+The C2 row fails at the same point in every process. In P, A and B the 8th
+`Engine.open` in a process (cycle index 8) fails with
+`model deserialize: CUDA_ERROR_OUT_OF_MEMORY`, and the private pool's
+`used_high` is 1072255488 B, its 1 GiB capacity. This is not a pool defect.
+
+Diagnosis:
+
+- `Engine::close` (`fathomdb-engine/src/runtime_lifecycle.rs`) stops the
+  scheduler, readers and writer. It does not drop `runtime_embedder`.
+- The model weights (about 133 MiB for bge-small in f32) are freed only when
+  the `Engine` itself drops. In Node that happens when the JS wrapper is
+  garbage-collected.
+- A loop of `open` / `embed` / `close` with a small JS heap never collects
+  it.
+
+Measured (Node 25, `cycles` mode, per-cycle VmRSS):
+
+| Arm | n | Result | VmRSS after each close |
+| --- | --- | --- | --- |
+| S (the shipped 0.8.27 path), 12 cycles, no GC | 3 | 3/3 pass | grows by about 159 MiB per cycle: 545 → 2291 MiB after 12 cycles |
+| P, 50 cycles, `gc()` after each close | 5 | 5/5 pass, 50/50 cycles | flat: 552–709 MiB |
+| S, 50 cycles, `gc()` after each close | 3 | 3/3 pass | flat: 545–669 MiB |
+| A, B, 50 cycles, `gc()` after each close | 3 + 3 | 6/6 pass | flat: 554–724 MiB |
+
+So:
+
+- **On the shipped path** every un-collected closed engine holds its model
+  on the device. That is about 159 MiB of shared DRAM per engine.
+- **Under any capped pool** (P, A, B) the same retention becomes a hard
+  failure after seven closed but un-collected engines. Capacity is about
+  1 GiB at 3 GiB `maxSize`.
+
+The protocol's C2 criterion (50 cycles pass) fails for every pool variant as
+the product stands. The fix belongs to the engine, not the pool: drop the
+embedder, or release its device memory, in `Engine::close`. That is a
+product change outside this study (§ 11.14, decision 1).
+
+### 11.4 C7: a co-resident context reset breaks every variant
+
+The C probe shows that a private pool, and memory allocated from it, survive
+`cuDevicePrimaryCtxReset`. The product does not survive it, under any
+variant. After a reset:
+
+- Candle's context-level state is gone: its loaded kernels, its stream and
+  cuBLAS handles.
+- So the first embed fails, and teardown later crashes.
+
+The shipped path (S) fails the same way, 20/20, with 13 of those crashing
+at exit. P crashes at exit more often (19/20 against 13/20, Fisher's exact
+two-sided p ≈ 0.04), and so do A and B (10/10 each). A likely cause is the
+pool's own teardown after the reset: the exit event reads pool attributes,
+and the pool is destroyed when the process ends. That is not established.
+
+What it means:
+
+- Before the reset P is as good as S, and after it P is no worse; neither
+  survives.
+- **C7 as a pass criterion cannot be met by any variant.** It needs a
+  ruling: either record it as "a co-resident reset is unsupported", or make
+  surviving a reset a product requirement.
+
+### 11.5 C9b and the amended C9 rule
+
+The private pool is never the current pool. In every P install and exit
+event that carries the coexist fields, `current_pool` differs from
+`private_pool`, 80 of 80. Where both the current-pool and default-pool
+reads succeed, they name the same handle, 44 of 44.
+
+The co-resident library's success with the default pool at exit is about
+the same with and without P. P succeeded in 23 of 30 processes and S in 20
+of 30. The failures are the default pool's own `CUDA_ERROR_OUT_OF_MEMORY`,
+from its 20960 MiB contiguous need, and S shows them too: S takes the
+synchronous path in 80 % of C1 processes for exactly this reason.
+
+**Power.** At 10 processes per cell, only a large harm would show. Pooled
+over heaps, 30 against 30, the two-sided 95 % difference in proportions is
+about ±23 points. That rules out "P makes the default pool unavailable"; it
+does not rule out a harm of 10–20 points. Python C9: 30 of 30 succeeded,
+for P and S alike.
+
+### 11.6 CB1–CB4 (table 9)
+
+| Row | Cells | n | Result | Verdict |
+| --- | --- | --- | --- | --- |
+| CB1 cap | P at threshold 0 and `max`, heaps 0 and 400k, interleaved with S | 20 + 20 (h0); 20 + 10 (h400k) | `reserved_high` 160 MiB in every process (≤ 1024 MiB). VmRSS + VmSwap at `afterRerank` minus the S synchronous-path median (588 MiB at heap 0, n = 13; 683 MiB at 400k, n = 17) is at most +31 MiB in every cell; the rule allows `reserved_high` + 32 MiB = 192 MiB. | PASS as written; **the observable is weak** (below) |
+| CB2 trim after close (threshold 0) | P, 10 s idle after close | 20 (h0) + 20 (h400k) | `reserved_cur` = 64 MiB in **every** process (median = max), `used_cur` 17 MiB, spare 47 MiB | **FAIL as written** (`reserved_cur` = 0 required) |
+| CB2 at threshold `max` | same | 20 (h0) + 10 (h400k) | `reserved_cur` 160 MiB (= `reserved_high`), spare 143 MiB | recorded |
+| CB2 with the trim arm (`FATHOMDB_POOL_TRIM=idle`, default 5000 ms) vs off | P threshold 0, heap 0, interleaved | 20 + 20 | `reserved_cur` 64 MiB in both arms in every process; the trims released nothing (§ 11.7) | FAIL as written; trim does not help |
+| CB3 typed cap error | P Node 20, P Python 20; A 10, B 10 (contrast) | 60 | P Node 20/20: `CudaPoolExhaustedError`, code `FDB_CUDA_POOL_EXHAUSTED`, kind `cuda_pool_exhausted`. P Python 20/20: `EmbedderError`, kind `cuda_pool_exhausted`, ordinal 0, `max_size_bytes` 3221225472. One `exhausted` event per process. A and B: `EmbedderError` with no kind, 19/20 (by design: the kind is for the private pool only). In one B process the oversized batch succeeded on the default pool. | PASS (P) |
+| CB4 no CPU move | same | 60 | The next embed ran on CUDA with the same hash in 60/60 [94.0, 100] % | PASS |
+
+**CB1's observable is weak on Tegra.** The pool's pinned memory does not
+show up fully in the process's VmRSS:
+
+- P runs within +31 MiB of S while its pool reserves 160 MiB.
+- In `trimcycle`, idle trims that return 47+ MiB move VmRSS by 0.0 MiB
+  (median).
+
+CB1 therefore passes, but would pass even if the pool took more than it
+should. A system-level observable would decide it: `MemAvailable` deltas
+in a quiet host, `tegrastats`, or nvmap accounting (nvmap needs root).
+§ 11.14, decision 4.
+
+**CB2.** At threshold 0, freed memory goes back only at a synchronization.
+After `engine.close()` nothing synchronizes, so 47 MiB of spare memory stays
+reserved. The other 17 MiB is held by the module-level reranker and CLS
+singletons, which live until process exit. `reserved_cur` = 0 is therefore
+not reachable while those singletons exist, with or without trim; the best
+reachable value is `reserved_cur` = `used_cur`.
+
+### 11.7 The trim arm (ruling 14; experimental, not the default)
+
+**Safety.** No failure in any trim-arm process:
+
+| Test (ruling 14) | Evidence | Result |
+| --- | --- | --- |
+| Trim while the embedder and reranker singletons hold slices | `trimcycle`: 20 processes × 5 cycles. Each cycle runs embed, rerank and CLS, idles 1 s (> 200 ms trim idle), then runs all three again. The singletons live throughout. | 20/20 pass; median 84 trim calls per process; one embed hash, one CLS hash and one score set across all 100 cycles |
+| Embed concurrent with trim, worker thread and Node workers | `trimstress`: trim idle 0, so a trim at every 1 ms tick; 200 main-thread embeds at concurrency 4 on the libuv pool; 2 `worker_threads` workers, each with its own engine and 100 embeds | 10/10 pass, exit 0; 2000 + 2000 embeds, **0 hash mismatches**; median 23 206 trim calls per process |
+| Reopen after trim; repeated open / close / trim cycles | `trimcycle` reopens every cycle | 100/100 reopen and match |
+| CB2 with trim (`FATHOMDB_POOL_TRIM=idle`, default 5000 ms) vs off, threshold 0, 10 s idle after close | 20 + 20, interleaved | both arms: `reserved_cur` 64 MiB, `used_cur` 16 MiB in every process; the idle arm made 20–21 trim calls per process |
+| No crash, no use-after-free | exit status 0 in all 50 trim-arm processes, hashes identical | No crash. A use-after-free was not instrumented: `compute-sanitizer` was not run. |
+
+**Effect: none measurable at threshold 0.** A diagnosis run sampled the
+pool once a second through `trimcycle` with a 3 s idle: 2 processes per
+arm, idle 200 ms against off. The sampled `reserved_cur` / `used_cur` were
+the same in both arms at every sample: 288 / 270, 416 / 396, then
+544 / 523 MiB. The trims never lowered `reserved_cur`.
+
+The reason is that threshold 0 already returns every fully free chunk to
+the system at each synchronization. What stays reserved is free space
+inside the 32 MiB chunks that still hold live slices: the singletons' and
+the open engine's. `cuMemPoolTrimTo` cannot release those chunks.
+(`trimstress`, where nothing stays live after close, ends with
+`reserved_cur` = 0.)
+
+Consequences:
+
+- **The latency comparison measured no re-grow.** The after-idle embed
+  ratio of 0.993 [0.984, 1.001] (rerank 0.979 [0.950, 1.023], CLS 0.998
+  [0.992, 1.007]) shows that the arm's thread and trim calls cost nothing
+  detectable. It does not price a trim followed by a re-grow, because the
+  pool never shrank.
+- **The arm keeps calling trim** at every tick while reserved exceeds used,
+  even when a trim releases nothing. That is the 20–84 calls per process.
+  If the arm were kept, it should stop after a trim that does not lower
+  `reserved_cur`.
+- **An untested case where trim could matter** is threshold `max`, which
+  keeps whole free chunks cached. That combination was not run.
+
+The diagnosis also shows the C2 retention directly: `used_cur` grows by
+about 127 MiB per reopen, because each closed engine's model is still
+held (§ 11.3).
+
+Note that `trim_us` sums whole microseconds per call and is a lower bound.
+
+### 11.8 Pool-exhaustion error kind (ruling 15)
+
+**Survey (before implementing).** The existing taxonomy:
+
+- `kind` values are lower_snake. They are `cuda_probe_failed`,
+  `cuda_incompatible` and `cuda_not_compiled` for CUDA.
+- Codes are `FDB_UPPER_SNAKE`.
+- The napi envelope is `{code, message, payload}`. TS payload fields are
+  camelCase and Python attributes are snake_case.
+- `dev/design/errors.md` keeps the 41-row matrix. Each binding's interface
+  doc lists its classes under "## Errors"; the TS worked CUDA example is at
+  `dev/interfaces/typescript.md` § "Node.js on Jetson".
+
+Before this change, a CUDA out-of-memory from the forward pass reached the
+engine as the unit `EngineError::Embedder` and JavaScript as `EmbedderError`
+with a null `kind`. That is the smoke finding of § 10.3.
+
+**Design (implemented behind `tegra-pool-experiment` only).**
+
+| Layer | Shape |
+| --- | --- |
+| Classification | `is_pool_exhaustion(mode, driver_oom)`: true only for `CUDA_ERROR_OUT_OF_MEMORY` in a process whose devices allocate from the private pool. Elsewhere the error is reported as before. `forward_error` finds the driver error through Candle's `Context` / `WithPath` / `WithBacktrace` wrappers and emits an `exhausted` event. |
+| `fathomdb-embedder-api` | `EmbedderError::CudaPoolExhausted { ordinal, max_size_bytes, message }` |
+| `fathomdb-engine` | `EngineError::CudaPoolExhausted { ordinal, max_size_bytes }`; stable code `CudaPoolExhaustedError`. Display: "CUDA memory pool on device {ordinal} is exhausted (maxSize {max_size_bytes} bytes)". |
+| napi | code `FDB_CUDA_POOL_EXHAUSTED`, payload `{kind: "cuda_pool_exhausted", ordinal, maxSizeBytes}` |
+| TypeScript | `CudaPoolExhaustedError extends EmbedderError`, so existing `instanceof EmbedderError` handlers still catch it. Adds the `code`, `kind`, `ordinal` and `maxSizeBytes` fields. |
+| Python | the existing `EmbedderError`, with the attributes `kind`, `ordinal` and `max_size_bytes`. A dedicated subclass is left to adoption. |
+| CLI | stable code `CudaPoolExhaustedError` |
+
+It is a subclass, not a sibling. The device is not lost and the engine
+stays usable, so CB4 holds: the next embed runs on CUDA with the same hash.
+No CPU fallback is taken, which matches the existing no-CPU-fallback rule
+for forced CUDA.
+
+**Draft interface-doc wording (study evidence only; not in
+`dev/interfaces/`).** Adoption needs this text in
+`dev/interfaces/{typescript,python,rust}.md` "## Errors", a row in
+`dev/design/errors.md`, and an ADR.
+
+> `CudaPoolExhaustedError` (code `FDB_CUDA_POOL_EXHAUSTED`, kind
+> `cuda_pool_exhausted`) extends `EmbedderError`. It is raised when an embed
+> or `embedBatchCls` call needs more device memory than FathomDB's
+> private CUDA memory pool may hold. [Adoption: add "rerank" here once
+> the reranker's forward is classified; see the gap below.] The pool's cap is `maxSizeBytes`
+> (`FATHOMDB_POOL_MAXSIZE`, default 3 GiB) on device `ordinal`. The call
+> fails and nothing is moved to the CPU. The engine stays open and later
+> calls of the usual size succeed on the same device. Remedies: smaller
+> batches, or a larger `FATHOMDB_POOL_MAXSIZE`. It is raised only on builds
+> and devices that use the private pool. Elsewhere a CUDA out-of-memory stays
+> an `EmbedderError` with no kind. Python raises `EmbedderError` with
+> `kind == "cuda_pool_exhausted"`, `ordinal` and `max_size_bytes`. Rust
+> returns `EngineError::CudaPoolExhausted { ordinal, max_size_bytes }`. As
+> with other errors, match on `code` and `kind`, not on the message.
+
+Open points for adoption:
+
+- whether Python gets a subclass;
+- **Gap: the reranker is not classified.** Only the embedder's three
+  forward sites (`candle_bge.rs`: embed, batch forward, CLS) go through
+  `forward_error`. The cross-encoder's forward (`candle_reranker.rs`) uses
+  the same private pool, but its out-of-memory still surfaces as before,
+  with no kind. Adoption must route it through the same classification, or
+  the draft wording must narrow "rerank" out. CB3 was measured on
+  `embedBatchCls` only.
+
+### 11.9 Numeric-literal inventory ("no magic numbers")
+
+Scope:
+
+- `cuda_pool_policy.rs` (PP);
+- the vendored cudarc patch (CORE = `safe/core.rs`, MP = `safe/mem_pool.rs`);
+- the napi and embedder `cuInit` hooks (EI = `fathomdb-napi/src/cuda_early_init.rs`,
+  DI = `fathomdb-embedder/src/cuda_driver_init.rs`);
+- the tests;
+- the harness (H/).
+
+Classes:
+
+- **a**: a measured platform fact;
+- **b**: a product default;
+- **c**: a test or harness tolerance;
+- **d**: incidental (unit shifts, ABI enum values, sentinels).
+
+**(a) Measured platform facts.** None drives product logic. The policy and
+the cudarc fallback decide from behaviour: `MEMORY_POOLS_SUPPORTED`, then a
+default-pool query, then falling back only on `OUT_OF_MEMORY` or
+`NOT_SUPPORTED`.
+
+| Fact | Where | Used for | Off this device |
+| --- | --- | --- | --- |
+| capacity = ceil32(`maxSize`/3); contiguous need `maxSize`/3 | CORE:64-65, PP doc of `DEFAULT_MAX_SIZE`, H/analyze.py | comments, analysis | never measured elsewhere |
+| [8, 128) GiB window, 4 GiB `cuInit` hole, 61.36 GiB reservation | EI:4-6, DI:3-6, H/pool_gap.c, H/analyze.py | docs, harness hole maths | probably scales with RAM; harness analysis wrong elsewhere |
+| fixed blocker addresses (0x980000000, ...) | H/pool_c5.c, H/pool_capacity.c, H/revisit-check.sh | probes | Orin layout only |
+| GPU-load sysfs path `17000000.gpu/load` | H/lib-host.sh | quiet check | missing path: the host is never quiet and every run is refused after `STUDY_QUIET_WAIT_S` |
+| 18.0 ms stream/sync latency split | H/analyze.py | allocator-path classification | device and model specific |
+| 272 MiB workload high-water | PP doc | rationale for 3 GiB | model specific |
+| 60..64 GiB device memory + `CU_DEVICE_ATTRIBUTE_INTEGRATED` | `fathomdb-embedder/tests/tegra_fragmented_va_cuda.rs` | test gate | the only device-identity-gated test; it reads the attribute at runtime and skips elsewhere with a reason |
+
+**(b) Product defaults** (all in PP, experiment feature only):
+
+| Constant | Value | Documented | Override | Risk elsewhere |
+| --- | --- | --- | --- | --- |
+| `DEFAULT_MAX_SIZE` | 3 GiB | yes (rationale: 1 GiB capacity on this device = 3.8 × high-water) | `FATHOMDB_POOL_MAXSIZE` | see below; the largest risk |
+| `DEFAULT_RELEASE_THRESHOLD` | 0 | yes | `FATHOMDB_POOL_RELEASE_THRESHOLD` (`0` / `max`) | low |
+| `DEFAULT_TRIM_IDLE_MS` | 5000 | yes, as an unmeasured choice | `FATHOMDB_POOL_TRIM_IDLE_MS` | low (the arm is opt-in) |
+| `PROBE_BYTES` | 4 | yes | no (not needed) | none; but CORE:230 `installed_pool_is_usable` repeats a bare `4` |
+| `TRIM_TICKS_PER_IDLE`, `TRIM_TICK_MIN_MS`, `TRIM_TICK_MAX_MS` | 4, 1, 250 ms | yes; were the bare literal `(idle_ms / 4).clamp(1, 250)`, named during this audit with a test | no | low |
+| exit-event ordinal | was `0` for the P teardown | — | — | fixed during this audit to use the private pool's ordinal; non-P teardown still reads device 0, which is a diagnostic only |
+
+**(c) Test and harness tolerances.**
+
+- Held in `harness/study-config.sh` and env-overridable:
+  - quiet: 40 GiB free, load 2.0, 3 GPU-idle samples, 7200 s wait;
+  - 8 GiB memory floor;
+  - 1 MiB swap tolerance;
+  - 600 s / 120 s timeouts;
+  - 8 GiB pool cap.
+- Not yet wired (follow-ups found by the audit):
+  - The C probes repeat the 8 GiB cap and the memory floors as literals:
+    `pool_c5.c`, `pool_capacity.c`, `pool_reset.c`, `pool_gap.c --hold`.
+    `pool_gap` has no maxSize cap, but it is driven only by `gap-sweep.sh`,
+    which was not re-run.
+  - `STUDY_IDLE_AFTER_CLOSE_S` is an orphan. The CB matrices pass
+    `IDLE_AFTER_CLOSE_S=10` explicitly.
+  - The gap-sweep ranges and the sysfs path stay in their scripts.
+  - The consumer workload defaults (`WARMUP`, `TIMED`, `CYCLES`, `STRESS_*`,
+    batch sizes) and the statistics constants are not in the config:
+    bootstrap 10 000 resamples with seed 1, z 1.96, the +5 ms and +32 MiB
+    gates. They are env- or argument-overridable per script.
+- The cudarc unit tests use a 192 MiB pool with 8 MiB chunks. They rely on
+  the cap, not on the /3 ratio, so they are generic.
+
+**(d) Incidental.** No action:
+
+- unit shifts and the `G` / `M` suffixes;
+- `u64::MAX` for `max`;
+- `max_size: 0` = the driver default;
+- `trim_to(0)`;
+- hand-copied CUresult values. EI:50 compares against `2`
+  (`CUDA_ERROR_OUT_OF_MEMORY`) instead of `sys::CUresult`. EI is the
+  production hook as of 0.8.27 and is untouched by the study; a follow-up
+  for the main line;
+- `CU_MEMPOOL_ATTR_USED_MEM_CURRENT = 7` in `pool_smoke.py`;
+- `MAP_FIXED_NOREPLACE`;
+- fill bytes and fake handles;
+- device 0 in probes.
+
+**What would break or become unsafe on other configurations.**
+
+- **Jetson Orin NX / Nano (8–16 GB).**
+  - If /3 holds, a 3 GiB maxSize pins at most 1 GiB, 6–12 % of shared RAM.
+  - If it does not hold, up to 3 GiB, 37 % of 8 GB.
+  - The reservation and hole sizes in the docs would be wrong.
+  - The harness cannot run there: the 40 GiB quiet floor and the
+    2·maxSize + 16 GiB C-probe precheck are unreachable, and the fixed
+    addresses and 64 GiB sweeps assume this layout.
+- **Jetson Thor (CUDA 13).** Unverified: the /3 ratio, how the default pool
+  fails, the window, and the sysfs path. A missing path means permanent
+  "not quiet".
+- **Non-Tegra aarch64 (GH200, GB10).** This is the main product exposure.
+  These hosts pass the `cfg(target_os = "linux", target_arch = "aarch64")`
+  gate, so they get the cudarc fallback and the registration-time `cuInit`.
+  With the experiment feature they also get the pool policy. On GH200 a
+  3 GiB cap bounds HBM: a large batch that the default pool would serve
+  fails as `cuda_pool_exhausted`, a new failure mode. Nothing in the
+  embedder refuses SBSA at runtime; only the CLI reports
+  `Arm64SbsaUnsupported`. 64 KiB-page kernels also break the harness's
+  `4096` alignment.
+- **x86_64 discrete.** Nothing here is compiled. If it were ported, 3 GiB
+  is 75 % of a 4 GB card and an arbitrary throttle on an 80 GB card.
+- **The cudarc sync fallback itself** uses no platform constant. It is
+  safe on any device.
+
+**Gating recommendation.**
+
+1. Keep `cfg(target_os = "linux", target_arch = "aarch64")` only to limit
+   what is compiled.
+2. At the first device, decide at runtime from `CU_DEVICE_ATTRIBUTE_INTEGRATED`,
+   `MEMORY_POOLS_SUPPORTED` and `cuDeviceTotalMem`:
+   - apply the private pool only on an integrated device;
+   - elsewhere behave as `S` (the shipped behaviour) and log why.
+3. Do not treat `DEFAULT_MAX_SIZE` as a constant beyond the AGX Orin 64 GB.
+   Either derive it from the workload high-water mark with a stated
+   headroom factor, capped at a stated fraction of total memory, or require
+   `FATHOMDB_POOL_MAXSIZE` on unmeasured devices.
+4. Add the device name, total memory and integrated flag to the
+   `fdb-pool-exp` install event, so results from different devices cannot
+   be mixed.
+
+### 11.10 Harness defect: blocks were not randomised
+
+`interleave.sh` shuffled each block with `shuf --random-source=<(yes
+"$seed-$b")`. `shuf` reads only the first bytes of its random source, and
+those are the seed, which is the same for every block. **Every interleaved
+series in Phases 0–2 ran one fixed order in every block**: the Phase 0 and
+1b equivalence series, P1, R5 (Node 25 chunks), C9b and C1.
+
+Interleaving still protected those series against slow drift, because
+every block ran every cell. Position effects, such as always following a
+given cell, were not randomised. For the correctness rows this does not
+matter. The timing results most exposed are:
+
+- the Phase 0 and 1b equivalence ratios (§ 2.2, § 10.4);
+- P1 (§ 3.4).
+
+They should be read with that caveat.
+
+The fix (Python's seeded `random.Random("<seed>-<block>")`) was applied
+during Phase 2. `cb12-h0`, `cb12-h400k`, `trimcycle` and the Phase 2b top-ups
+ran randomised orders (verified in each `blocks.txt`).
+
+### 11.11 Decision-table rows (Phase 2)
+
+| Clause or criterion | Status | Evidence |
+| --- | --- | --- |
+| C1 provenance | PASS (200/200; one decide per process) | § 11.2 |
+| C2 lifetime (50 cycles) | FAIL as specified for P, A and B (0/16, at the 8th open); PASS with GC after close (11/11) | § 11.3 |
+| C5 zero-length, product suites under P | PASS (9/9 `candle_bge` + 1/1 reranker empty batch under P, forced CUDA) | § 11.2 |
+| C6 multi-device | code path only (pure tests) | § 11.2 |
+| C7 co-resident reset | C probe PASS (20/20); product FAIL for every variant including S (0/60) | § 11.4 |
+| C8 parity | PASS (80/80 Python; hashes and scores identical to Node) | § 11.2 |
+| C9 (ruling 13) | PASS (0/80 current = private; 44/44 current = default when both read) | § 11.5 |
+| C9b | no harm detected (P 23/30 vs S 20/30); powered only for large harms | § 11.5 |
+| CB1 cap | PASS as written; observable weak (pinned pool memory is not in VmRSS) | § 11.6 |
+| CB2 trim after close, threshold 0 | FAIL as written (64 MiB reserved, 17 MiB in use by singletons) | § 11.6 |
+| CB2 with the trim arm | FAIL as written; trim releases nothing at threshold 0 (64 MiB in both arms) | § 11.6, § 11.7 |
+| CB3 typed cap error | PASS (P: kind `cuda_pool_exhausted`, 40/40; Node `CudaPoolExhaustedError`) | § 11.6, § 11.8 |
+| CB4 no CPU move | PASS (60/60) | § 11.6 |
+| Trim arm safety (ruling 14) | no failure in 50 processes (4000 stress embeds, 100 trimmed cycles, 20 CB2); UAF not instrumented | § 11.7 |
+| Trim effect and re-grow latency | no effect at threshold 0 (the trims never lowered `reserved_cur`), so no re-grow was priced; the arm's own overhead is not detectable (0.993 [0.984, 1.001]) | § 11.7 |
+| Python import hook (ruling 1 / 12) | Implemented and present in the experiment wheel that every Python row used; Python C8 and C9 pass. Not shown separately: no Python heap-growth (R5-style) cell was run, so the hook's effect is not yet measured. | § 11.1 |
+
+### 11.12 Deviations (Phase 2)
+
+1. **C2 cell sizes.** A and B ran 3 processes, not 10. They failed at the
+   same cycle as P, deterministically; the GC re-runs were 3 each. The C
+   half of C2 (`pool_lifecycle.c` section D, 20 runs) was not run. It
+   probes destroy-while-current, which P never does, since its pool is
+   never current.
+2. **C7 C half.** `pool_reset.c` (new) replaced `pool_teardown.c --reset`
+   for the private pool. S, A and B's C-level reset cases were not re-run.
+   The product reset row covers all four variants.
+3. **CB2 at heap 400k** came from two series:
+   - `cb12-h400k`: 10 blocks, threshold 0 and S, with the old fixed order;
+   - `cb12-h400k-b`: 10 blocks of threshold 0, `max` and S, randomised.
+
+   Threshold `max` at 400k has 10 processes, not 20.
+4. **CB1 baseline.** The pooled median of S's synchronous-path processes in
+   the same interleaved series, not a per-block median. Only 13 of 20 S
+   processes at heap 0 took the synchronous path.
+5. **Witness.** Off in every Phase 2 row (ruling 16). No witness row was
+   run in Phase 2. The R5 witness failure (§ 10.6) stands as the witness
+   evidence.
+6. **The interleave defect** (§ 11.10) was found and fixed mid-phase.
+   `c9b` and `c1` ran fixed orders.
+7. **Code after measurement.** The trim-tick constants were named and the
+   P exit event's ordinal changed after the Phase 2 addon was built. Both
+   preserve behaviour on this single-device host: the tick formula is
+   identical. The C5 product suites ran on the current code.
+8. **CB3 contrast cells** A and B ran 10 processes each, as the matrix
+   says, not 20 per variant.
+
+### 11.13 GPU time (Phase 2)
+
+Lock-held time:
+
+| Part | Time |
+| --- | --- |
+| Product smoke | about 2 min |
+| First driver, 16:08:54–17:21:48 UTC (including the C2 diagnosis runs that queued on the lock in between) | 72.9 min |
+| Top-ups (C7 product, C8 A and B, C2 with GC, CB at 400k, CB2 trim), 17:22:01–17:52:51 | 30.8 min |
+| C5 product suites and the trim diagnosis | about 2.5 min |
+| **Total** | **about 1 h 48 min** |
+
+Builds and test compiles ran outside the lock.
+
+### 11.14 What needs a ruling
+
+1. **C2: close does not free the model.** `Engine::close` keeps the
+   embedder, and so its device memory, until the `Engine` drops. In Node
+   that is garbage collection. On the shipped path this costs about
+   159 MiB per closed, un-collected engine. Under any capped pool it fails
+   at the 8th open. Options:
+   - (a) a product fix: drop or release the embedder in `close`. It is
+     needed for P, and arguably a 0.8.27 memory bug in its own right;
+   - (b) treat P as blocked until (a) lands;
+   - (c) accept, and document that cycles need GC.
+
+   Recommendation: (a), test-first, as its own slice, outside this study.
+2. **C7: a co-resident primary-context reset is fatal for every variant,
+   the shipped one included.** Rule it "unsupported, recorded" rather than
+   a pass criterion, or make surviving a reset a product requirement,
+   which would be a separate investigation of Candle's context state. P
+   adds more crashes at exit after a reset (19/20 against 13/20).
+3. **CB2 as written cannot pass while the module-level singletons hold
+   slices.** 16–17 MiB is held until exit, spread over two 32 MiB chunks,
+   so 64 MiB stays reserved with or without trim. Options:
+   - amend CB2 to "no wholly free chunk stays reserved after close +
+     idle", which threshold 0 already meets;
+   - make the trim arm the default. The evidence in § 11.7 says this
+     would not help: at threshold 0 the trims release nothing;
+   - accept the 47 MiB spare at threshold 0, and drop the trim arm, or
+     test it only at threshold `max`.
+4. **CB1's observable.** VmRSS does not see the pool's pinned memory on
+   Tegra. Choose a system-level observable for Phase 4 (`MemAvailable`
+   delta, `tegrastats` or nvmap), or accept CB1 as satisfied by
+   `reserved_high` ≤ 1024 MiB alone.
+5. **Timing results from Phases 0–1b** ran fixed block orders (§ 11.10).
+   Re-run the equivalence and P1 comparisons in Phase 3 with the fixed
+   harness, or accept them with the caveat.
+6. **Error kind (ruling 15) open points.** These are for adoption:
+   - the reranker's forward is not classified yet;
+   - Python's dedicated subclass.
+
+   The draft wording is in § 11.8.
+7. **Runtime gating (constants audit).** Gate the pool policy on
+   `CU_DEVICE_ATTRIBUTE_INTEGRATED` and total memory at the first device,
+   and derive or require `maxSize` off the measured device. Keep
+   `cfg(aarch64 linux)` only to limit what is compiled (§ 11.9).

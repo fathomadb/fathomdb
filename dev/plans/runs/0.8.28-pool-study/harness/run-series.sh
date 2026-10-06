@@ -16,6 +16,8 @@
 # runs <count> processes numbered from <n> with no warm-up run (used by the
 # interleaved-block driver). ARTIFACT names the .node under test (its
 # sha256 goes into the header).
+# CONSUMER_LANG=py runs "$PYTHON pool_smoke.py" instead of Node (the Node
+# version argument is then unused).
 # Writes run-NNN.{out,err,host.json,json} and summary.txt.
 set -u
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,8 +52,13 @@ for n in $(seq "$first" "$last"); do
   if [ "${MAPS:-0}" = 1 ] || [ -n "$maps_root" ]; then run_maps="$outdir/maps/run-$i"; mkdir -p "$run_maps"; fi
   t0=$(date +%s%N)
   consumer_maps=""; [ "${MAPS:-0}" = 1 ] && consumer_maps=$run_maps
+  if [ "${CONSUMER_LANG:-node}" = py ]; then
+    cmd=("${PYTHON:?set PYTHON for CONSUMER_LANG=py}" "$here/pool_smoke.py")
+  else
+    cmd=(node "${flags[@]}" "$here/pool-consumer.mjs")
+  fi
   env ${consumer_maps:+MAPS_DIR=$consumer_maps} ${maps_root:+FATHOMDB_POOL_MAPS_DIR=$run_maps} \
-    timeout "$STUDY_RUN_TIMEOUT_S" node "${flags[@]}" "$here/pool-consumer.mjs" >"$outdir/run-$i.out" 2>"$outdir/run-$i.err"
+    timeout "$STUDY_RUN_TIMEOUT_S" "${cmd[@]}" >"$outdir/run-$i.out" 2>"$outdir/run-$i.err"
   rc=$?
   wall=$(( ($(date +%s%N) - t0) / 1000000 ))
   host_json null >"$outdir/run-$i.host-after.json"

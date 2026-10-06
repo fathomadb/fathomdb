@@ -9,6 +9,7 @@ Usage: analyze.py <command> <paths...>
   pilot ROOT        Heap pilot: largest hole before open per heap cell.
   r5b ROOT          R5 revision 3 (chunked, interleaved cells pooled by label).
   poolloc ROOT...   Where the pool's first pages land relative to the driver reservation.
+  phase2 ROOT       Phase 2 rows (C1/C2/C8/C9/C9b, CB1-CB4, trim arm).
   r5 DIR            R5 lazy creation: DIR/<cell>/run-*.json (+ maps).
   p1 DIR            P1 import cost: DIR/<variant>/run-*.json.
   hw DIR...         Workload high-water marks from teardown events.
@@ -578,6 +579,150 @@ def cmd_poolloc(*roots):
                 hole += 1
         n = len(cells[cell])
         print(f"| {cell} | {n} | {inside} | {hole} | {outside} | {none} | {med(tot):.2f} | {med(big):.2f} | {med(holes):.2f} |")
+
+
+def _cells(root):
+    cells = defaultdict(list)
+    for dirpath, _dirs, files in os.walk(root):
+        if "series-header.txt" in files and any(f.startswith("run-") for f in files):
+            for r in runs(dirpath):
+                r["_dir"] = dirpath
+                cells[os.path.relpath(dirpath, root)].append(r)
+    return cells
+
+
+def _ev(r, name):
+    return [e for e in r.get("poolEvents", []) if e.get("event") == name]
+
+
+def _pair(raw):
+    rc, _, handle = (raw or "-:-").partition(":")
+    return rc, handle
+
+
+def cmd_phase2(root):
+    """Phase 2 (protocol revision 4): one table per row family."""
+    cells = _cells(root)
+    print("## Phase 2 outcomes per cell\n")
+    print("| Cell | n | Pass (Wilson 95 %) | allocMode | decide mismatches | embed hashes | rerank score sets |")
+    print("| --- | --- | --- | --- | --- | --- | --- |")
+    for cell in sorted(cells):
+        rs = cells[cell]
+        n = len(rs)
+        p = sum(r.get("outcome") == "pass" for r in rs)
+        modes = defaultdict(int)
+        for r in rs:
+            modes[r.get("allocMode")] += 1
+        mism = sum(1 for r in rs for e in _ev(r, "decide") if e.get("mismatch") == "1")
+        hashes = {r.get("embedSha") for r in rs if r.get("embedSha")}
+        scores = {json.dumps(r.get("rerankScores")) for r in rs if r.get("rerankScores")}
+        print(f"| {cell} | {n} | {fmt_wilson(p, n)} | {dict(modes)} | {mism} | {', '.join(sorted(hashes)) or '-'} | {len(scores)} |")
+    fails = [(c, r["_file"], r.get("failedStep"), (r.get("error") or {}).get("message", "")[:160])
+             for c, rs in cells.items() for r in rs if r.get("outcome") != "pass"]
+    if fails:
+        print("\nFailures:")
+        for f in fails[:30]:
+            print("  ", *f)
+
+    print("\n## C9 (amended rule) and C9b: current pool vs private and default\n")
+    print("| Cell | n | teardown pairs read | current == private | current == default when both succeed | current OOM | co-resident default pool success |")
+    print("| --- | --- | --- | --- | --- | --- | --- |")
+    for cell in sorted(c for c in cells if "c9" in c or "c2-cycles" in c):
+        rs = cells[cell]
+        read = eq_priv = eq_def = both = oom = dsucc = 0
+        for r in rs:
+            for e in _ev(r, "teardown") + _ev(r, "install"):
+                if "current_pool" not in e:
+                    continue
+                read += 1
+                crc, ch = _pair(e["current_pool"])
+                drc, dh = _pair(e.get("default_pool_pair"))
+                eq_priv += ch == e.get("private_pool") and ch != "0x0"
+                if crc == "CUDA_SUCCESS" and drc == "CUDA_SUCCESS":
+                    both += 1
+                    eq_def += ch == dh
+                oom += crc == "CUDA_ERROR_OUT_OF_MEMORY"
+                dsucc += drc == "CUDA_SUCCESS" and e.get("event") == "teardown"
+            co = r.get("coresident")
+            if co:
+                dsucc += co.get("defaultPoolRc") == 0 and co.get("allocRc") == 0
+        print(f"| {cell} | {len(rs)} | {read} | {eq_priv} | {eq_def}/{both} | {oom} | {dsucc}/{len(rs)} |")
+
+    print("\n## CB rows\n")
+    base = defaultdict(list)
+    for cell, rs in cells.items():
+        if "cb-S" in cell:
+            for r in rs:
+                if r.get("allocMode") == "sync":
+                    pt = (r.get("mem") or {}).get("points", {}).get("afterRerank")
+                    if pt:
+                        base["h400k" if "h400k" in cell else "h0"].append(pt["rssMiB"] + pt.get("swapMiB", 0))
+    print("CB1 baseline (S sync, VmRSS+VmSwap at afterRerank, MiB): " +
+          ", ".join(f"{k}: median {med(v):.0f} (n={len(v)})" for k, v in sorted(base.items())))
+    print("\n| Cell | n | reserved_high max MiB | VmRSS + VmSwap − baseline, max MiB | CB1 excess (that − reserved_high), max MiB; pass ≤ 32 | CB2 reserved_cur after close+idle MiB (median, max) | used_cur after close MiB (median) | spare (reserved − used) MiB max |")
+    print("| --- | --- | --- | --- | --- | --- | --- | --- |")
+    for cell in sorted(c for c in cells if "cb-P" in c):
+        rs = cells[cell]
+        key = "h400k" if "h400k" in cell else "h0"
+        b = med(base[key]) if base[key] else float("nan")
+        rh, ex, rc, uc, sp, ov = [], [], [], [], [], []
+        for r in rs:
+            td = _ev(r, "teardown")
+            pt = (r.get("mem") or {}).get("points", {}).get("afterRerank")
+            if not td or td[-1].get("reserved_high", "-") == "-":
+                continue
+            t = td[-1]
+            rh.append(int(t["reserved_high"]) / MiB)
+            rc.append(int(t["reserved_cur"]) / MiB)
+            uc.append(int(t["used_cur"]) / MiB)
+            sp.append((int(t["reserved_cur"]) - int(t["used_cur"])) / MiB)
+            if pt:
+                ov.append(pt["rssMiB"] + pt.get("swapMiB", 0) - b)
+                ex.append(ov[-1] - int(t["reserved_high"]) / MiB)
+        print(f"| {cell} | {len(rs)} | {max(rh) if rh else float('nan'):.0f} | {max(ov) if ov else float('nan'):.0f} | {max(ex) if ex else float('nan'):.0f} | "
+              f"{med(rc) if rc else float('nan'):.0f}, {max(rc) if rc else float('nan'):.0f} | {med(uc) if uc else float('nan'):.0f} | {max(sp) if sp else float('nan'):.0f} |")
+    print("\n| CB3/CB4 cell | n | oversize failed | error class / code / kind | next embed on cuda with same hash | exhausted events |")
+    print("| --- | --- | --- | --- | --- | --- |")
+    for cell in sorted(c for c in cells if "cb34" in c):
+        rs = cells[cell]
+        over = [r.get("oversize") or {} for r in rs]
+        failed = sum(o.get("ok") is False for o in over)
+        kinds = defaultdict(int)
+        for o in over:
+            e = o.get("error") or {}
+            kinds[f"{e.get('name')}/{e.get('code')}/{e.get('kind')}"] += 1
+        same = sum(bool(o.get("sameHash")) and o.get("deviceAfter") == "cuda" for o in over)
+        exh = sum(len(_ev(r, "exhausted")) for r in rs)
+        print(f"| {cell} | {len(rs)} | {failed} | {dict(kinds)} | {same}/{len(rs)} | {exh} |")
+
+    print("\n## Trim arm\n")
+    for cell in sorted(c for c in cells if "trim" in c):
+        rs = cells[cell]
+        trims = [int(_ev(r, "teardown")[-1].get("trims", 0)) for r in rs if _ev(r, "teardown") and _ev(r, "teardown")[-1].get("trims")]
+        line = f"{cell}: n={len(rs)} pass={sum(r.get('outcome') == 'pass' for r in rs)} trims/process median={med(trims) if trims else 0}"
+        cyc = [c for r in rs for c in ((r.get("trim") or {}).get("cycles") or [])]
+        if cyc:
+            line += (f"; regrow embed ms median {med([c['embedMs'] for c in cyc]):.2f} vs steady {med([c['embedSteadyMs'] for c in cyc]):.2f}; "
+                     f"rerank {med([c['rerankMs'] for c in cyc]):.2f}; cls {med([c['clsMs'] for c in cyc]):.2f} (cycles={len(cyc)})")
+            hs = {h for r in rs for h in (r.get("trim") or {}).get("hashes", [])}
+            line += f"; distinct embed hashes {len(hs)}"
+        st = [r.get("stress") for r in rs if r.get("stress")]
+        if st:
+            line += (f"; stress embeds main={sum(s['iters'] for s in st)} workers={sum(s['workerEmbeds'] for s in st)} "
+                     f"mismatches={sum(s['mismatches'] + s['workerMismatches'] for s in st)}")
+        print(line)
+    if any("trimcycle" in c for c in cells):
+        for key in ("embedMs", "rerankMs", "clsMs", "embedSteadyMs"):
+            # Unit is the process: the median of its cycles.
+            per = {arm: [med([c[key] for c in (r.get("trim") or {}).get("cycles", [])])
+                         for cell in cells if arm in cell for r in cells[cell]
+                         if (r.get("trim") or {}).get("cycles")]
+                   for arm in ("trim-idle", "trim-off")}
+            a, b = per["trim-idle"], per["trim-off"]
+            if a and b:
+                lo, hi = boot_ratio(a, b)
+                print(f"After-idle {key}, trim idle 200 ms vs off: medians {med(a):.2f} vs {med(b):.2f} ms, "
+                      f"ratio {med(a) / med(b):.3f} [{lo:.3f}, {hi:.3f}] (processes {len(a)}/{len(b)})")
 
 
 # ------------------------------------------------------------------------- P1

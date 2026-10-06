@@ -1,0 +1,135 @@
+# Phase 2 (protocol revision 4): analyze.py phase2 over every Phase 2 cell
+## Phase 2 outcomes per cell
+
+| Cell | n | Pass (Wilson 95 %) | allocMode | decide mismatches | embed hashes | rerank score sets |
+| --- | --- | --- | --- | --- | --- | --- |
+| c1/c1-A-first-use | 50 | 50/50 [92.9, 100.0] % | {'explicit': 50} | 0 | d9dafb8c410005f3 | 1 |
+| c1/c1-B | 50 | 50/50 [92.9, 100.0] % | {'explicit': 41, 'default': 9} | 0 | d9dafb8c410005f3 | 1 |
+| c1/c1-P-first-use | 50 | 50/50 [92.9, 100.0] % | {'private': 50} | 0 | d9dafb8c410005f3 | 1 |
+| c1/c1-S | 50 | 50/50 [92.9, 100.0] % | {'default': 10, 'sync': 40} | 0 | d9dafb8c410005f3 | 1 |
+| c2-cycles-A | 3 | 0/3 [0.0, 56.2] % | {'explicit': 3} | 0 | - | 0 |
+| c2-cycles-B | 3 | 0/3 [0.0, 56.2] % | {'explicit': 3} | 0 | - | 0 |
+| c2-cycles-P | 10 | 0/10 [-0.0, 27.8] % | {'private': 10} | 0 | - | 0 |
+| c2diag-cycles12-S | 3 | 3/3 [43.8, 100.0] % | {'sync': 3} | 0 | - | 0 |
+| c2diag-cycles50-gc-A | 3 | 3/3 [43.8, 100.0] % | {'explicit': 3} | 0 | - | 0 |
+| c2diag-cycles50-gc-B | 3 | 3/3 [43.8, 100.0] % | {'explicit': 3} | 0 | - | 0 |
+| c2diag-cycles50-gc-P | 5 | 5/5 [56.6, 100.0] % | {'private': 5} | 0 | - | 0 |
+| c2diag-cycles50-gc-S | 3 | 3/3 [43.8, 100.0] % | {'sync': 3} | 0 | - | 0 |
+| c7-py-reset-A | 10 | 0/10 [-0.0, 27.8] % | {'explicit': 10} | 0 | d9dafb8c410005f3 | 1 |
+| c7-py-reset-B | 10 | 0/10 [-0.0, 27.8] % | {'default': 10} | 0 | d9dafb8c410005f3 | 1 |
+| c7-py-reset-P | 20 | 0/20 [-0.0, 16.1] % | {'private': 20} | 0 | d9dafb8c410005f3 | 1 |
+| c7-py-reset-S | 20 | 0/20 [-0.0, 16.1] % | {'default': 20} | 0 | d9dafb8c410005f3 | 1 |
+| c8-py-A | 20 | 20/20 [83.9, 100.0] % | {'explicit': 20} | 0 | d9dafb8c410005f3 | 1 |
+| c8-py-B | 20 | 20/20 [83.9, 100.0] % | {'default': 20} | 0 | d9dafb8c410005f3 | 1 |
+| c8-py-P | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | d9dafb8c410005f3 | 1 |
+| c8-py-S | 20 | 20/20 [83.9, 100.0] % | {'default': 20} | 0 | d9dafb8c410005f3 | 1 |
+| c9-py-P | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | d9dafb8c410005f3 | 1 |
+| c9-py-S | 10 | 10/10 [72.2, 100.0] % | {'default': 10} | 0 | d9dafb8c410005f3 | 1 |
+| c9b/c9b-P-first-use-h0 | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | 0 | d9dafb8c410005f3 | 1 |
+| c9b/c9b-P-first-use-h1000000 | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | 0 | d9dafb8c410005f3 | 1 |
+| c9b/c9b-P-first-use-h4000000 | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | 0 | d9dafb8c410005f3 | 1 |
+| c9b/c9b-S-h0 | 10 | 10/10 [72.2, 100.0] % | {'sync': 7, 'default': 3} | 0 | d9dafb8c410005f3 | 1 |
+| c9b/c9b-S-h1000000 | 10 | 10/10 [72.2, 100.0] % | {'sync': 9, 'default': 1} | 0 | d9dafb8c410005f3 | 1 |
+| c9b/c9b-S-h4000000 | 10 | 10/10 [72.2, 100.0] % | {'sync': 10} | 0 | d9dafb8c410005f3 | 1 |
+| cb12-h0/cb-P-first-use-thr0-h0 | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | d9dafb8c410005f3 | 1 |
+| cb12-h0/cb-P-first-use-thrmax-h0 | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | d9dafb8c410005f3 | 1 |
+| cb12-h0/cb-S-thr0-h0 | 20 | 20/20 [83.9, 100.0] % | {'sync': 13, 'default': 7} | 0 | d9dafb8c410005f3 | 1 |
+| cb12-h400k-b/cb-P-first-use-thr0-h400k-b | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | 0 | d9dafb8c410005f3 | 1 |
+| cb12-h400k-b/cb-P-first-use-thrmax-h400k | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | 0 | d9dafb8c410005f3 | 1 |
+| cb12-h400k-b/cb-S-thr0-h400k-b | 10 | 10/10 [72.2, 100.0] % | {'sync': 8, 'default': 2} | 0 | d9dafb8c410005f3 | 1 |
+| cb12-h400k/cb-P-first-use-thr0-h400k | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | 0 | d9dafb8c410005f3 | 1 |
+| cb12-h400k/cb-S-thr0-h400k | 10 | 10/10 [72.2, 100.0] % | {'sync': 9, 'default': 1} | 0 | d9dafb8c410005f3 | 1 |
+| cb2-trim/cb-P-first-use-thr0-trimidle-h0 | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | d9dafb8c410005f3 | 1 |
+| cb2-trim/cb-P-first-use-thr0-trimoff-h0 | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | d9dafb8c410005f3 | 1 |
+| cb34-node-A | 10 | 10/10 [72.2, 100.0] % | {'explicit': 10} | 0 | d9dafb8c410005f3 | 1 |
+| cb34-node-B | 10 | 10/10 [72.2, 100.0] % | {'explicit': 9, 'default': 1} | 0 | d9dafb8c410005f3 | 1 |
+| cb34-node-P | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | d9dafb8c410005f3 | 1 |
+| cb34-py-P | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | d9dafb8c410005f3 | 1 |
+| trim-stress | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | 0 | - | 0 |
+| trimcycle/trim-idle200 | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | - | 0 |
+| trimcycle/trim-off | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | 0 | - | 0 |
+| trimdiag-idle200 | 2 | 2/2 [34.2, 100.0] % | {'private': 2} | 0 | - | 0 |
+| trimdiag-off | 2 | 2/2 [34.2, 100.0] % | {'private': 2} | 0 | - | 0 |
+
+Failures:
+   c7-py-reset-B run-001.json embedAfterReset embedder error
+   c7-py-reset-B run-002.json embedAfterReset embedder error
+   c7-py-reset-B run-003.json embedAfterReset embedder error
+   c7-py-reset-B run-004.json embedAfterReset embedder error
+   c7-py-reset-B run-005.json embedAfterReset embedder error
+   c7-py-reset-B run-006.json embedAfterReset embedder error
+   c7-py-reset-B run-007.json embedAfterReset embedder error
+   c7-py-reset-B run-008.json embedAfterReset embedder error
+   c7-py-reset-B run-009.json embedAfterReset embedder error
+   c7-py-reset-B run-010.json embedAfterReset embedder error
+   c2-cycles-A run-001.json cycle-8-open embedder error during open: Failed { message: "default embedder construct: model deserialize: DriverError(CUDA_ERROR_OUT_OF_MEMORY, \"out of memory\")" }
+   c2-cycles-A run-002.json cycle-8-open embedder error during open: Failed { message: "default embedder construct: model deserialize: DriverError(CUDA_ERROR_OUT_OF_MEMORY, \"out of memory\")" }
+   c2-cycles-A run-003.json cycle-8-open embedder error during open: Failed { message: "default embedder construct: model deserialize: DriverError(CUDA_ERROR_OUT_OF_MEMORY, \"out of memory\")" }
+   c7-py-reset-S run-001.json embedAfterReset embedder error
+   c7-py-reset-S run-002.json embedAfterReset embedder error
+   c7-py-reset-S run-003.json embedAfterReset embedder error
+   c7-py-reset-S run-004.json embedAfterReset embedder error
+   c7-py-reset-S run-005.json embedAfterReset embedder error
+   c7-py-reset-S run-006.json embedAfterReset embedder error
+   c7-py-reset-S run-007.json embedAfterReset embedder error
+   c7-py-reset-S run-008.json embedAfterReset embedder error
+   c7-py-reset-S run-009.json embedAfterReset embedder error
+   c7-py-reset-S run-010.json embedAfterReset embedder error
+   c7-py-reset-S run-011.json embedAfterReset embedder error
+   c7-py-reset-S run-012.json embedAfterReset embedder error
+   c7-py-reset-S run-013.json embedAfterReset embedder error
+   c7-py-reset-S run-014.json embedAfterReset embedder error
+   c7-py-reset-S run-015.json embedAfterReset embedder error
+   c7-py-reset-S run-016.json embedAfterReset embedder error
+   c7-py-reset-S run-017.json embedAfterReset embedder error
+
+## C9 (amended rule) and C9b: current pool vs private and default
+
+| Cell | n | teardown pairs read | current == private | current == default when both succeed | current OOM | co-resident default pool success |
+| --- | --- | --- | --- | --- | --- | --- |
+| c2-cycles-A | 3 | 3 | 0 | 0/3 | 0 | 3/3 |
+| c2-cycles-B | 3 | 3 | 0 | 0/1 | 0 | 1/3 |
+| c2-cycles-P | 10 | 20 | 0 | 11/11 | 9 | 7/10 |
+| c9-py-P | 20 | 0 | 0 | 0/0 | 0 | 20/20 |
+| c9-py-S | 10 | 0 | 0 | 0/0 | 0 | 10/10 |
+| c9b/c9b-P-first-use-h0 | 10 | 20 | 0 | 13/13 | 7 | 8/10 |
+| c9b/c9b-P-first-use-h1000000 | 10 | 20 | 0 | 11/11 | 9 | 8/10 |
+| c9b/c9b-P-first-use-h4000000 | 10 | 20 | 0 | 9/9 | 11 | 7/10 |
+| c9b/c9b-S-h0 | 10 | 10 | 0 | 7/7 | 3 | 7/10 |
+| c9b/c9b-S-h1000000 | 10 | 10 | 0 | 6/6 | 4 | 6/10 |
+| c9b/c9b-S-h4000000 | 10 | 10 | 0 | 7/7 | 3 | 7/10 |
+
+## CB rows
+
+CB1 baseline (S sync, VmRSS+VmSwap at afterRerank, MiB): h0: median 588 (n=13), h400k: median 683 (n=17)
+
+| Cell | n | reserved_high max MiB | VmRSS + VmSwap − baseline, max MiB | CB1 excess (that − reserved_high), max MiB; pass ≤ 32 | CB2 reserved_cur after close+idle MiB (median, max) | used_cur after close MiB (median) | spare (reserved − used) MiB max |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| cb12-h0/cb-P-first-use-thr0-h0 | 20 | 160 | 31 | -129 | 64, 64 | 17 | 47 |
+| cb12-h0/cb-P-first-use-thrmax-h0 | 20 | 160 | 30 | -130 | 160, 160 | 17 | 143 |
+| cb12-h400k-b/cb-P-first-use-thr0-h400k-b | 10 | 160 | 31 | -129 | 64, 64 | 17 | 47 |
+| cb12-h400k-b/cb-P-first-use-thrmax-h400k | 10 | 160 | 30 | -130 | 160, 160 | 17 | 143 |
+| cb12-h400k/cb-P-first-use-thr0-h400k | 10 | 160 | 31 | -129 | 64, 64 | 17 | 47 |
+| cb2-trim/cb-P-first-use-thr0-trimidle-h0 | 20 | 160 | 25 | -135 | 64, 64 | 17 | 47 |
+| cb2-trim/cb-P-first-use-thr0-trimoff-h0 | 20 | 160 | 29 | -131 | 64, 64 | 17 | 47 |
+
+| CB3/CB4 cell | n | oversize failed | error class / code / kind | next embed on cuda with same hash | exhausted events |
+| --- | --- | --- | --- | --- | --- |
+| cb34-node-A | 10 | 10 | {'EmbedderError/None/None': 10} | 10/10 | 0 |
+| cb34-node-B | 10 | 9 | {'EmbedderError/None/None': 9, 'None/None/None': 1} | 10/10 | 0 |
+| cb34-node-P | 20 | 20 | {'CudaPoolExhaustedError/FDB_CUDA_POOL_EXHAUSTED/cuda_pool_exhausted': 20} | 20/20 | 20 |
+| cb34-py-P | 20 | 20 | {'EmbedderError/None/cuda_pool_exhausted': 20} | 20/20 | 20 |
+
+## Trim arm
+
+cb2-trim/cb-P-first-use-thr0-trimidle-h0: n=20 pass=20 trims/process median=20.0
+cb2-trim/cb-P-first-use-thr0-trimoff-h0: n=20 pass=20 trims/process median=0
+trim-stress: n=10 pass=10 trims/process median=23205.5; stress embeds main=2000 workers=2000 mismatches=0
+trimcycle/trim-idle200: n=20 pass=20 trims/process median=84.0; regrow embed ms median 15.70 vs steady 16.93; rerank 8.45; cls 21.79 (cycles=100); distinct embed hashes 1
+trimcycle/trim-off: n=20 pass=20 trims/process median=0; regrow embed ms median 15.76 vs steady 16.79; rerank 8.49; cls 21.75 (cycles=100); distinct embed hashes 1
+trimdiag-idle200: n=2 pass=2 trims/process median=168.5; regrow embed ms median 135.59 vs steady 22.49; rerank 7.36; cls 21.35 (cycles=6); distinct embed hashes 1
+trimdiag-off: n=2 pass=2 trims/process median=0; regrow embed ms median 131.87 vs steady 22.59; rerank 7.19; cls 21.48 (cycles=6); distinct embed hashes 1
+After-idle embedMs, trim idle 200 ms vs off: medians 15.63 vs 15.73 ms, ratio 0.993 [0.984, 1.001] (processes 20/20)
+After-idle rerankMs, trim idle 200 ms vs off: medians 8.36 vs 8.54 ms, ratio 0.979 [0.950, 1.023] (processes 20/20)
+After-idle clsMs, trim idle 200 ms vs off: medians 21.76 vs 21.79 ms, ratio 0.998 [0.992, 1.007] (processes 20/20)
+After-idle embedSteadyMs, trim idle 200 ms vs off: medians 17.01 vs 16.75 ms, ratio 1.015 [0.990, 1.040] (processes 20/20)

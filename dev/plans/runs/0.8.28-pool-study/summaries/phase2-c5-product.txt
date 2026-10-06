@@ -1,0 +1,20 @@
+# C5 product suites under FATHOMDB_POOL_VARIANT=P-first-use, forced CUDA (release build, features embed-cuda,rerank-cuda,tegra-pool-experiment[,loader-test-hooks])
+utc_start=2026-10-06T17:53:57Z
+test embed_batch_empty_input_is_empty ... fdb-pool-exp event=install pid=3031752 variant=P-first-use site=embedder-probe default_pool=- create=CUDA_SUCCESS set=- probe=CUDA_SUCCESS release=CUDA_SUCCESS alloc_mode=- max_size=3221225472 threshold=0 reserved_cur=0 reserved_high=33554432 used_cur=0 used_high=4 elapsed_us=112843 installed=0
+fdb-pool-exp event=decide pid=3031752 variant=P-first-use site=embedder-probe default_pool=- create=- set=- probe=- release=- alloc_mode=private max_size=3221225472 threshold=0 reserved_cur=0 reserved_high=33554432 used_cur=0 used_high=4 elapsed_us=0
+test embed_batch_matches_per_item_embed ... ok
+test embed_does_not_panic_on_empty_string ... ok
+test embed_is_deterministic_for_same_input ... ok
+test embed_returns_dimension_correct_vector ... ok
+test embed_returns_unit_norm_vector ... ok
+test embed_truncates_documents_over_512_tokens ... ok
+test embed_two_similar_inputs_high_cosine ... ok
+test identity_returns_chosen_model_at_chosen_revision ... ok
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.30s
+candle_bge exit=0
+utc_end=2026-10-06T17:54:00Z
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test candle_reranker::tests::score_batch_empty ... fdb-pool-exp event=install pid=3031440 variant=P-first-use site=reranker-probe default_pool=- create=CUDA_SUCCESS set=- probe=CUDA_SUCCESS release=CUDA_SUCCESS alloc_mode=- max_size=3221225472 threshold=0 reserved_cur=0 reserved_high=33554432 used_cur=0 used_high=4 elapsed_us=131160 installed=0
+fdb-pool-exp event=decide pid=3031440 variant=P-first-use site=reranker-probe default_pool=- create=- set=- probe=- release=- alloc_mode=private max_size=3221225472 threshold=0 reserved_cur=0 reserved_high=33554432 used_cur=0 used_high=4 elapsed_us=0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.44s
+lib exit=0

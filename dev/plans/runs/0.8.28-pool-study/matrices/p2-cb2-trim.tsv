@@ -1,0 +1,3 @@
+# Phase 2 CB2 with the experimental trim arm (ruling 14): P threshold 0 at heap 0, trim idle (default 5000 ms, inside the 10 s idle) vs off
+cb-P-first-use-thr0-trimidle-h0 P-first-use 25.9.0 $PS/consumer-p3 CONSUMER_MODE=full,IDLE_AFTER_CLOSE_S=10,FATHOMDB_POOL_MAXSIZE=3G,FATHOMDB_POOL_RELEASE_THRESHOLD=0,FATHOMDB_POOL_TRIM=idle
+cb-P-first-use-thr0-trimoff-h0 P-first-use 25.9.0 $PS/consumer-p3 CONSUMER_MODE=full,IDLE_AFTER_CLOSE_S=10,FATHOMDB_POOL_MAXSIZE=3G,FATHOMDB_POOL_RELEASE_THRESHOLD=0,FATHOMDB_POOL_TRIM=off

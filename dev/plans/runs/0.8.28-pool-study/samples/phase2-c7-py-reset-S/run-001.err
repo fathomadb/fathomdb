@@ -1,0 +1,3 @@
+$PS/venv-p/lib/python3.12/site-packages/fathomdb/_coinstall.py:323: FathomDbPlatformWarning: Generic FathomDB build detected on confirmed classic Tegra hardware. Install the exact interim 0.8.24 Tegra build from the first-party index:
+fdb-pool-exp event=decide pid=2973823 variant=S site=embedder-probe default_pool=- create=- set=- probe=- release=- alloc_mode=default max_size=3221225472 threshold=0 reserved_cur=- reserved_high=- used_cur=- used_high=- elapsed_us=0
+timeout: the monitored command dumped core

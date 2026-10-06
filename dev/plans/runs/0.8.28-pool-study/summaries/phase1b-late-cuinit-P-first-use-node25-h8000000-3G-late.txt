@@ -1,0 +1,10 @@
+run-001 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=19.6 wall=1861
+run-002 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=20.6 wall=1839
+run-003 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=20.5 wall=1920
+run-004 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=20.9 wall=1937
+run-005 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=19.8 wall=1909
+run-006 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=19.2 wall=1891
+run-007 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=20.6 wall=1872
+run-008 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=20.5 wall=1916
+run-009 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=20.0 wall=2482
+run-010 rc=1 outcome=fail step=open alloc=none create=- probe=- default_pool=- steady_med=None import_ms=20.0 wall=1911

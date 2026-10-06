@@ -8,6 +8,7 @@ Usage: analyze.py <command> <paths...>
   gap DIR           Contiguous need (points.txt / results.txt of gap-sweep.sh).
   pilot ROOT        Heap pilot: largest hole before open per heap cell.
   r5b ROOT          R5 revision 3 (chunked, interleaved cells pooled by label).
+  poolloc ROOT...   Where the pool's first pages land relative to the driver reservation.
   r5 DIR            R5 lazy creation: DIR/<cell>/run-*.json (+ maps).
   p1 DIR            P1 import cost: DIR/<variant>/run-*.json.
   hw DIR...         Workload high-water marks from teardown events.
@@ -510,6 +511,73 @@ def cmd_r5b(root):
     print(f"\nOne-sided rule 'a largest unmapped hole >= ceil32(maxSize/3) suffices': {len(misses)} misses")
     for m in misses[:20]:
         print("  " + m)
+
+
+def read_maps(path):
+    out = []
+    for line in open(path):
+        f = line.split()
+        lo, hi = (int(x, 16) for x in f[0].split("-"))
+        out.append((lo, hi, f[1], f[5] if len(f) > 5 else ""))
+    return out
+
+
+def reservations(maps, min_bytes=GiB):
+    """Large anonymous PROT_NONE ranges overlapping [8, 128) GiB, merged when
+    adjacent (a range the driver later splits by mapping pages into it shows
+    as several entries)."""
+    merged = []
+    for lo, hi, perms, name in maps:
+        if perms.startswith("---") and not name and hi > LO and lo < HI:
+            if merged and merged[-1][1] == lo:
+                merged[-1][1] = hi
+            else:
+                merged.append([lo, hi])
+    return [(lo, hi) for lo, hi in merged if hi - lo >= min_bytes]
+
+
+def cmd_poolloc(*roots):
+    """Where the pool's first pages land (pool study revision 3, coordinator
+    question): the mappings that appear between the policy's pre-pool and
+    post-pool snapshots (the probe allocation), classified as inside a
+    pre-existing large PROT_NONE reservation in [8, 128) GiB, in an unmapped
+    hole in the window, or outside the window. Also the window totals: large
+    reservations and the largest unmapped hole."""
+    cells = defaultdict(list)
+    for root in roots:
+        for dirpath, _dirs, files in os.walk(root):
+            if os.path.basename(dirpath).startswith("run-") and os.path.basename(os.path.dirname(dirpath)) == "maps":
+                cell = re.sub(r"-b$", "", os.path.basename(os.path.dirname(os.path.dirname(dirpath))))
+                pre = glob.glob(os.path.join(dirpath, "maps-*-pre-pool.txt"))
+                post = glob.glob(os.path.join(dirpath, "maps-*-post-pool.txt"))
+                if pre and post:
+                    cells[cell].append((pre[0], post[0]))
+    print("| Cell | n | new pages inside a pre-existing reservation | in an unmapped window hole | outside [8, 128) GiB | "
+          "none mapped | reservations >= 1 GiB, total GiB (median) | largest reservation GiB (median) | largest unmapped hole GiB (median) |")
+    print("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+    for cell in sorted(cells):
+        inside = hole = outside = none = 0
+        tot, big, holes = [], [], []
+        for pre, post in cells[cell]:
+            a, b = read_maps(pre), read_maps(post)
+            res = reservations(a)
+            tot.append(sum(hi - lo for lo, hi in res) / GiB)
+            big.append(max((hi - lo for lo, hi in res), default=0) / GiB)
+            holes.append(largest_hole(pre) / GiB)
+            before = {(lo, hi, perms, name) for lo, hi, perms, name in a}
+            fresh = [m for m in b if m not in before and m[2] != "---p" and "dmabuf" in m[3]]
+            if not fresh:
+                none += 1
+                continue
+            lo, hi = fresh[0][0], fresh[0][1]
+            if not (hi > LO and lo < HI):
+                outside += 1
+            elif any(r_lo <= lo and hi <= r_hi for r_lo, r_hi in res):
+                inside += 1
+            else:
+                hole += 1
+        n = len(cells[cell])
+        print(f"| {cell} | {n} | {inside} | {hole} | {outside} | {none} | {med(tot):.2f} | {med(big):.2f} | {med(holes):.2f} |")
 
 
 # ------------------------------------------------------------------------- P1

@@ -1,15 +1,16 @@
 ---
-title: FathomDB 0.8.28 Tegra CUDA memory-pool study — results, Phases 0 and 1
-status: PARTIAL (Phases 0-1 only; Phases 2-5 not started)
+title: FathomDB 0.8.28 Tegra CUDA memory-pool study — results, Phases 0, 1 and 1b
+status: PARTIAL (Phases 0, 1 and 1b; Phases 2-5 not started)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
 
-# Tegra CUDA memory-pool study: results of Phases 0 and 1
+# Tegra CUDA memory-pool study: results of Phases 0, 1 and 1b
 
 This records Phases 0 and 1 of
 `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md`
-(the protocol) on one Jetson AGX Orin 64 GB. It does not rule. Phases 2–5
+(the protocol) on one Jetson AGX Orin 64 GB, and Phase 1b of protocol
+revision 3 (§ 10). It does not rule. Phases 2–5
 (correctness, robustness, soaks, performance, analysis and upstream package)
 were not started. Everything not measured here is marked UNMEASURED.
 Statements marked *inferred* are readings of the data, not measurements.
@@ -437,3 +438,282 @@ kept below as asked.
    Whether the product needs more than `maxSize` plus threshold 0 is for the
    research agent's survey and the owner.
 5. Still open from protocol § 11: the tracking-ledger id (question 6).
+
+## 10. Phase 1b (protocol revision 3)
+
+Phase 1b built the primary design, P-first-use, test-first and ran the
+revision-3 R5 matrix. Commits: `d6460b16f` (revision 3), `dbd08e313` (code),
+`70b0410c4` (C5, equivalence, pilot), and the commit that adds this section.
+
+### 10.1 Build and tests
+
+- **cudarc (vendored).** `CudaContext::new_with_mem_pool(ordinal,
+  Arc<CudaMemPool>)` allocates with `cuMemAllocFromPoolAsync` from the
+  context's own pool (`AllocMode::Private`). It runs no device decision and
+  never touches the process-wide table. No `CudaSlice` variant was added.
+  Tests were written first: 8 compile errors (red), then 28 / 28 green on
+  the Orin. The new tests are a pure test (a pool context is private without
+  a device decision) and two device tests: allocations, zero-length
+  included, come from the pool, return at a synchronization, and leave the
+  current pool unchanged; a full pool returns a typed
+  `CUDA_ERROR_OUT_OF_MEMORY` and recovers.
+- **Candle.** The pinned fork's candle-core gains
+  `CudaDevice::from_context` and `Device::new_cuda_from_context`: 2 files,
+  +45 / −16 (`patches/candle-from-context.patch`). On the study branch it is
+  a path override in `third_party/`. The fork's own unit test for it
+  (`from_context_tests`) was not run: the vendored copy is outside the
+  workspace, and building the fork separately would have competed with R5
+  for the host. The product path exercises the constructor in every
+  P-first-use process (`allocMode=private`, with the pool counters moving).
+  `scripts/check-pinned-override-rot.py` fails on this branch by design (4
+  findings, all about the Candle path override), because the branch is never
+  merged.
+- **Policy.** Variants `S | P-first-use | A-first-use | B`; the A-load names
+  are rejected. The fail-closed rule is pure functions with a test (red,
+  then 6 / 6 green): the first device fixes the process mode, and once a
+  private device exists, a failed private build is refused. The load-time
+  hook is removed. clippy `-D warnings` and fmt are clean with and without
+  the feature.
+
+### 10.2 C5 and the unit halves of CB1–CB3 (`pool_c5.c`, table 7)
+
+60 runs: control and 3pages layouts × 3 GiB (threshold 0 and `max`) and
+192 MiB (threshold 0), 10 per cell. Summary: `summaries/phase1b-c5-results.txt`.
+
+| Observation | Result |
+| --- | --- |
+| `cuMemAllocFromPoolAsync(0)` | `CUDA_SUCCESS` with a null pointer, 60 / 60; freeing it succeeds, 60 / 60 |
+| `cuMemPoolCreate` with no current context (M5 hypothesis) | `CUDA_SUCCESS`, 60 / 60 |
+| Exhaustion | typed `CUDA_ERROR_OUT_OF_MEMORY` at exactly ceil32(`maxSize`/3) (1024 MiB at 3 GiB, 64 MiB at 192 MiB), 60 / 60 |
+| `cuCtxSynchronize` after the error | `CUDA_SUCCESS`, 60 / 60 |
+| VmRSS at the cap minus before the pool | `reserved_high` + 8.8 to 10.2 MiB (CB1 unit half: ≤ + 32 MiB) |
+| After freeing and synchronizing | threshold 0: reserved 0, VmRSS back to + 9–10 MiB; `max`: reserved stays 1024 MiB until `cuMemPoolTrimTo(0)`, then 0 |
+| Recovery | a 64 MiB allocation succeeds after the frees, 60 / 60 |
+| Current pool before and after | unchanged, 60 / 60 |
+| Another user's `cuMemAllocAsync(16 MiB)` | control: from the current (default) pool, whose used memory rose by 16 MiB while the private pool's did not (30 / 30); 3pages: `CUDA_ERROR_OUT_OF_MEMORY`, as it would be without FathomDB (30 / 30), private pool unaffected |
+| `cuDeviceGetMemPool` when the current pool is the default | same `CUresult` as `cuDeviceGetDefaultMemPool` (success in control, `CUDA_ERROR_OUT_OF_MEMORY` in 3pages); first read maps 132–144 KiB, never a 20 GiB range |
+
+Consequences:
+
+- **H2 settled.** No zero-length special case is needed in the P path; the
+  upstream shape passes 0 bytes to the driver unchanged.
+- **M5.** The context-free create is supported in C (60 / 60). The policy
+  still retains the primary context, because its probe needs one.
+- **M4.** In 3pages, reading the current pool returns the same
+  `CUDA_ERROR_OUT_OF_MEMORY` as the default-pool query. *Inferred:* the read
+  runs the driver's lazy default-pool creation, so the environment gate on
+  the Node C9 check stays. The maps diff cannot settle this alone: in the
+  control layout the default pool fits inside the `cuInit` reservation and
+  maps nothing new.
+
+### 10.3 Product smoke (Node 25, 1 process each)
+
+All passed: S `sync`, P-first-use `private`, A-first-use `explicit`, B
+`explicit` (default pool OOM). Two findings for Phase 2 (n = 1 each, not
+results):
+
+- **C9 criterion (deviation).** In a P-first-use process with
+  `FATHOMDB_POOL_COEXIST_CHECK=1`, the current-pool read before the private
+  pool was created returned `CUDA_ERROR_OUT_OF_MEMORY`. At exit it returned
+  the default pool's handle (equal to `cuDeviceGetDefaultMemPool`'s; the
+  private pool was never current). The default pool had become obtainable
+  between the two reads. P-first-use did not change it, but the revision-3
+  rule "pairs equal before and after" would report a failure. Phase 2
+  should read C9 as: the current-pool handle never equals the private pool,
+  and equals the default pool whenever both reads succeed. An
+  OOM-to-success transition is recorded as the default pool's own lazy
+  behaviour. This needs the reviewer's or the owner's agreement.
+- **CB2 smoke.** After `engine.close()` and 10 s idle at threshold 0, the
+  exit line showed `reserved_cur` 64 MiB and `used_cur` 17.5 MiB, not 0.
+  *Inferred:* the module-level CLS-embedder and reranker singletons outlive
+  `engine.close()`, and no synchronization follows the last free. If Phase 2
+  confirms it, CB2 fails as written. The remedy (trim on close, or a
+  synchronize after release) is a design question.
+- **CB3/CB4 smoke.** `OVERSIZE_BATCH=128` at 3 GiB: `embedBatchCls` failed
+  after 0.6 s with an `EmbedderError` whose message carries
+  `DriverError(CUDA_ERROR_OUT_OF_MEMORY)` (`kind` and `code` are null). The
+  next `engine.embed` ran on CUDA with the pre-error hash, and a short batch
+  succeeded. The pool's `reserved_high` was 1024 MiB, and VmRSS rose by
+  946 MiB during the batch. Whether a null `kind` counts as "typed" for CB3
+  is open: the error class is typed, the kind is not.
+
+### 10.4 Phase 0 equivalence on the P build (`NO_SWAP=1`)
+
+| Attempt | Outcome |
+| --- | --- |
+| 1 | stopped after 5 runs: swap use rose from 768 to 1024 KiB (no-swap rule); discarded |
+| 2 (10 + 10) | 20 / 20 passed, identical hash `d9dafb8c410005f3`, path agreement 10 / 10, sync ratio 0.990 [0.911, 1.026], stream ratio 1.150 [1.064, 1.524] on n = 3 / 1 |
+| 3 (20 + 20) | 40 / 40 passed, same hash, agreement 20 / 20, sync ratio 0.995 [0.972, 1.028], stream ratio 0.947 [0.874, 1.406] on n = 3 / 2 |
+
+Verdict: **PASS** on the sync path (n = 24 / 27 pooled). The stream path is
+UNDERPOWERED: the production build took it in 3 of 30 processes. The two
+estimates (1.150 and 0.947) bracket 1, and neither interval excludes it. The
+S path makes the same driver calls as production; the only change on it is
+Candle's constructor refactor.
+
+### 10.5 Heap pilot (H3a; table 5a)
+
+Node 25, installed P build, `import` mode, 10 runs per size, largest
+unmapped hole in [8, 128) GiB before open (`summaries/phase1b-heap-pilot.txt`):
+
+| Heap objects | heapUsed MiB | VmRSS MiB | Largest hole GiB, median (min–max) |
+| --- | --- | --- | --- |
+| 0 | 5 | 55 | 8.24 (7.05–15.02) |
+| 100k | 21 | 89 | 6.81 (4.48–8.98) |
+| 400k | 73 | 150 | 3.86 (2.50–6.10) |
+| 1M | 161 | 253 | 1.98 (1.39–3.29) |
+| 4M | 638 | 817 | **0.59** (0.53–0.81) |
+| 8M | 1315 | 1490 | 0.43 (0.32–0.61) |
+
+The boundary (the first size with a median below 1 GiB) is **4M**, and the
+size before it is 1M. Both were already R5 cells, so the boundary cells add
+nothing new. The saved runs went to an **8M** cell (all variants) and to 60
+rather than 30 P-first-use runs at 4M and 8M on every Node version
+(deviation).
+
+### 10.6 R5 lazy creation after heap growth (revision 3; table 5b)
+
+Installed P build (`.node` sha256 `ac58381e…`), `full` mode, witness on, 3 GiB,
+threshold 0, unpaired, run 13:30–15:31 UTC. On Node 25 the three variants
+ran in interleaved randomised blocks: 3 chunks × 10 blocks, seeds
+20261001–3, one process per variant and heap cell per block, with two
+P-first-use copies at 4M and 8M. P-first-use on Node 24 and 26 ran per cell.
+Warm runs are excluded. Full table: `summaries/phase1b-r5.txt`.
+
+| Variant | Cells | Pass (Wilson 95 %) | Pool created and probed | Stream-ordered among passes | Zero-failure bound |
+| --- | --- | --- | --- | --- | --- |
+| **P-first-use** | Node 24/25/26 × 0/100k/400k/1M (30 each) and 4M/8M (60 each) | **719 / 720** [99.2, 100] % | **720 / 720** [99.5, 100] % | 719 / 719 `private` | 0.42 % |
+| A-first-use | Node 25 × 6 heaps × 30 | 180 / 180 [97.9, 100] % | 180 / 180 | 180 / 180 `explicit` | 1.67 % |
+| B | Node 25 × 6 heaps × 30 | 180 / 180 [97.9, 100] % | 139 / 139 (41 had a default pool) | 139 `explicit`, 41 `default` | 1.67 % |
+
+- **Every pool was created, in every cell, including the boundary cells.**
+  At 4M and 8M the largest unmapped hole before creation was below the
+  1 GiB contiguous need in 455 of the 463 boundary-cell processes that
+  created a pool (cell medians 0.37–0.71 GiB, minimum 0.28 GiB). The pool
+  was still created in all of them. The one-sided rule (a hole of
+  at least ceil32(`maxSize`/3) suffices) had 0 misses. Its converse does
+  not hold, for the reason in § 10.7.
+- **The one failure** (P-first-use, Node 26, 4M, run 021) is the GPU
+  allocation witness, not the allocator. The pool was created and probed,
+  the decision was `private`, and the model loaded: `used_high` 127 MiB at
+  exit. The open failed with `insufficient_delta`: the system-wide
+  `cuMemGetInfo` delta was −126 MB. During that run the host's page cache
+  shrank by 1.16 GiB, and `MemAvailable` rose by 498 MiB. *Inferred:*
+  concurrent page-cache reclaim inflated "free" memory, which is the known
+  limitation of the shared counter (protocol § 6.3). It did not repeat in
+  1079 other processes. Under the protocol a failure counts, so the cell
+  reads 59 / 60.
+- **CB1 (pool part):** `reserved_high` at exit was 160 MiB in every R5
+  process of every variant, below the 1024 MiB cap. The VmRSS + VmSwap
+  comparison against S belongs to Phase 4.
+- Power per cell: a 30-run cell detects a 5 % failure rate 79 % of the
+  time (2 %: 45 %); a 60-run cell 95 % (70 %).
+
+### 10.7 Where the pool lands: the early-`cuInit` reservation (table 5c)
+
+Coordinator question: why does P-first-use pass at 4M and 8M when the pilot
+put the largest hole below 1 GiB there? The policy's `pre-pool` and
+`post-pool` maps snapshots answer it (`analyze.py poolloc`,
+`summaries/phase1b-r5-pool-location.txt`; the counts include the warm runs).
+
+- In **1054 of 1054** P-first-use, A-first-use and B processes that created
+  a pool, the only mappings the creation and probe added were two 64 KiB
+  `/dmabuf:` pages. They sit inside a pre-existing large anonymous
+  `PROT_NONE` range in [8, 128) GiB, never in an unmapped hole and never
+  outside the window. For example, a P-first-use 8M process split
+  `14e2494000-18b573e000 ---p` around `1525387000-15253a7000 /dmabuf:`.
+- Those large `PROT_NONE` ranges total **61.32 GiB in every cell**, from
+  heap 0 to 8M. That is the driver's `cuInit` reservation (61.36 GiB; Slice
+  110), split into units, the largest a median 15–23 GiB. Early `cuInit`
+  makes it at module registration, before the consumer grows its heap, so
+  V8's later pages fall outside it.
+- **So the private pool's address range lies inside the early-`cuInit`
+  driver reservation.** *Inferred* (the pool's own virtual range is not
+  visible in maps; its first pages are): the 1 GiB contiguous need is met
+  from free space inside the reservation, which no heap growth can
+  fragment.
+- **The pilot's "largest hole" metric does not cover the space the pool
+  uses.** It measures unmapped gaps only, and the reservation is mapped
+  (`PROT_NONE`), so the metric goes to 0.3 GiB while the reservation keeps
+  15–23 GiB units. The metric predicts `cuInit` (which needs an unmapped
+  4 GiB hole) and the default pool's new 20 GiB mapping. For a pool created
+  after early `cuInit` it is a lower bound that does not bind.
+- **Early `cuInit` is therefore a load-bearing part of the P design**, not
+  only of the 0.8.27 fix. The A-first-use and B pools land the same way.
+
+**Falsifying cell (late `cuInit`).** P-first-use, Node 25, 4M and 8M,
+`FATHOMDB_CUDA_EARLY_INIT=off`, 10 processes each under the same lock and
+rules: **0 / 20 passed**. Every process failed at open with
+`EmbedDevicePolicyError`: `cuInit returned CUDA_ERROR_OUT_OF_MEMORY` (the
+driver could not reserve its range). No pool was attempted, because the
+policy runs only after a successful device probe. With `cuInit` deferred
+past heap growth there is no reservation and no CUDA at all. The cell
+falsifies "P works without early `cuInit`". It cannot show whether a pool
+alone would fit after a late `cuInit`, because `cuInit` fails first.
+Summaries: `summaries/phase1b-late-cuinit-*.txt`; sample under
+`samples/phase1b-late-cuinit-h4M/`.
+
+### 10.8 Decision-table rows added by Phase 1b
+
+| Clause or criterion | Depends on | Status | Evidence |
+| --- | --- | --- | --- |
+| P build reproduces the product (precondition) | Phase 0 equivalence | PASS on the sync path (24 / 27, ratios 0.990 and 0.995); stream path UNDERPOWERED (n = 6 / 3) | § 10.4 |
+| C5 zero-length from a private pool | `pool_c5.c`, cudarc device test | PASS (60 / 60 null and freeable; device test green); product suites in Phase 2 | § 10.2 |
+| R5: lazy private-pool creation at 3 GiB in every heap cell, boundary cells included | R5 | PASS for creation (720 / 720); pass rate 719 / 720, the failure attributed to the witness (inferred) | § 10.6 |
+| Early `cuInit` required by P | pool location, late-`cuInit` cell | ESTABLISHED: pool inside the reservation 1054 / 1054; late `cuInit` 0 / 20 | § 10.7 |
+| CB1 cap | C5 unit half; R5 `reserved_high`; Phase 4 | unit half PASS (+8.8 to +10.2 MiB at the cap); R5 `reserved_high` 160 MiB ≤ 1024 MiB; product VmRSS + VmSwap comparison UNMEASURED | § 10.2, § 10.6 |
+| CB2 trim after close | C5 unit half; Phase 2 | unit half PASS; product UNMEASURED; smoke (n = 1) showed 64 MiB still reserved | § 10.2, § 10.3 |
+| CB3 typed cap error / CB4 no CPU move | C5, cudarc test; Phase 2 | unit halves PASS; product UNMEASURED; smoke (n = 1) passed CB4 but its error `kind` is null | § 10.2, § 10.3 |
+| C9 coexistence | C5, cudarc test; Phase 2 | C-level PASS (current pool unchanged 60 / 60; another user's allocation drew from the default pool); Node series UNMEASURED; criterion needs amending (§ 10.3) | § 10.2, § 10.3 |
+
+### 10.9 Deviations (Phase 1b)
+
+1. The pilot boundary (4M) and the size before it (1M) were already R5
+   cells. The saved runs went to an 8M cell for all variants and to 60
+   P-first-use runs at 4M and 8M on every Node version: 1080 processes,
+   against the 1050 planned.
+2. The first equivalence attempt was stopped by a 256 KiB swap rise (the
+   revision-3 no-swap rule) and discarded. It was rerun twice (10 + 10, then
+   20 + 20), so the stream path, which production takes in only 10 % of
+   processes, had more than one reference process.
+3. The Candle `from_context` unit test in the vendored copy was not run;
+   the product path covers the constructor (§ 10.1).
+4. Two Python test-data generators in the packaged candle-core
+   (`tests/pth.py`, `tests/npy.py`) are not committed: they fail the
+   repository's ruff hook and are not built.
+5. `pool_c5.c` reads `cuDeviceGetMemPool` before creating the private pool
+   in the same process, so in the control layout the default pool may
+   already exist when the "other user" allocates. This mirrors a process in
+   which another library ran first.
+
+### 10.10 GPU time (Phase 1b)
+
+Lock-held time: C5 smoke and series about 4 min; vendored cudarc test runs
+(compile inside the lock) about 3 min; product smoke about 2 min;
+equivalence about 8.5 min (three attempts); heap pilot 3.6 min; R5 2 h
+0 min; late-`cuInit` cell 1.5 min. **About 2 h 22 min.** Builds (P addon
+twice, 2 min and 1 min) ran outside the lock.
+
+### 10.11 What needs a ruling or a review decision
+
+1. **Early `cuInit` is load-bearing for P** (§ 10.7). The decision rule
+   should state it: P-first-use is a candidate only together with early
+   `cuInit`. That covers Node, and Python once Phase 2 adds its import hook.
+   A late import, or an application that opts out of early `cuInit`, gets
+   no CUDA at all at large heaps, pool or not.
+2. **The C9 criterion** should be amended as in § 10.3: compare against
+   the private pool and the default pool, not before against after.
+3. **CB2 as written may fail** (smoke): with threshold 0, memory stays
+   reserved after `engine.close()` while module-level singletons keep
+   buffers, and nothing synchronizes after the last free. Phase 2 measures
+   it; a trim-on-close or a synchronize in the policy is a design choice.
+4. **CB3 "typed":** the cap error reaches JavaScript as `EmbedderError`
+   with a null `kind`. Decide whether the class suffices or a kind is
+   required.
+5. **The witness under page-cache reclaim** (§ 10.6) can fail a healthy
+   process. R5-style pass/fail rows may want the witness off, or its
+   failures classified separately.
+6. The pinned-override-rot gate fails on the study branch because of the
+   Candle path override (expected; the branch is never merged). A fork
+   commit carrying `patches/candle-from-context.patch` would remove the
+   override.

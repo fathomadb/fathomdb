@@ -19,6 +19,14 @@ target_release: 0.8.27
 The draft is **approved with these adjustments**. No new public capability, schema,
 wire shape, package subpath, or native declaration is in scope.
 
+The exact pre-move TypeScript capture has 207 public declaration entries and
+64 package/runtime entries. Compared with the older Slice 30 baseline (208
+declarations, 64 package/runtime entries), the only declaration differences
+are Slice 90's `readonly` `EngineConfig` fields and Slice 110's removal of
+`AttachSubscriberOptions`, one fewer `Engine.attachSubscriber` option, and the
+concrete `SubscriberEvent` union. The package/runtime row is equal. These are
+accepted historical changes; the Slice 30 baseline remains immutable.
+
 ## Needs, requirements and acceptance
 
 | ID | Need and requirement | Acceptance |

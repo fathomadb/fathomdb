@@ -133,6 +133,36 @@ if [ "$rc" -ne 1 ] || ! grep -q 'Foo' "$WORK/ts-unresolved.err"; then
 fi
 echo "OK TypeScript unresolved re-export"
 
+# A type-only re-export cannot replace a removed runtime class even when the
+# exported name still resolves to a declaration in the new module.
+sed 's/^-export interface Foo {}/-export class Foo {}/' \
+    "$WORK/ts-reexport.patch" >"$WORK/ts-runtime-removed.patch"
+set +e
+python3 "$LINT" --diff-file "$WORK/ts-runtime-removed.patch" \
+    --changelog "$FIX/reexport-edges/CHANGELOG.md" --repo-root "$REPO_ROOT" \
+    >/dev/null 2>"$WORK/ts-runtime-removed.err"
+rc=$?
+set -e
+if [ "$rc" -ne 1 ] || ! grep -q 'Foo' "$WORK/ts-runtime-removed.err"; then
+    fail "TypeScript type-only re-export fixture: removed runtime Foo must be reported"
+fi
+echo "OK TypeScript runtime removal"
+
+sed -e 's/^-export interface Foo {}/-export class Foo {}/' \
+    -e 's/^+export type {/+export {/' \
+    -e 's/^+export interface Foo {}/+export type Foo = string;/' \
+    "$WORK/ts-reexport.patch" >"$WORK/ts-type-alias-removed.patch"
+set +e
+python3 "$LINT" --diff-file "$WORK/ts-type-alias-removed.patch" \
+    --changelog "$FIX/reexport-edges/CHANGELOG.md" --repo-root "$REPO_ROOT" \
+    >/dev/null 2>"$WORK/ts-type-alias-removed.err"
+rc=$?
+set -e
+if [ "$rc" -ne 1 ] || ! grep -q 'Foo' "$WORK/ts-type-alias-removed.err"; then
+    fail "TypeScript type alias fixture: removed runtime Foo must be reported"
+fi
+echo "OK TypeScript type alias removal"
+
 # C-2: a bare removed `pub use` (no replacement) must itself be recorded as a
 # removal — probe regression for `-pub use errors::EngineError;` -> `[]`.
 set +e

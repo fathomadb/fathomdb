@@ -163,6 +163,44 @@ if [ "$rc" -ne 1 ] || ! grep -q 'Foo' "$WORK/ts-type-alias-removed.err"; then
 fi
 echo "OK TypeScript type alias removal"
 
+# Interface-to-type changes retain the type-only surface (Slice 110 changed
+# SubscriberEvent this way); the runtime-removal cases above remain distinct.
+sed 's/^+export interface Foo {}/+export type Foo = string;/' \
+    "$WORK/ts-reexport.patch" >"$WORK/ts-type-preserved.patch"
+if ! python3 "$LINT" --diff-file "$WORK/ts-type-preserved.patch" \
+    --changelog "$FIX/reexport-edges/CHANGELOG.md" --repo-root "$REPO_ROOT" \
+    >/dev/null; then
+    fail "TypeScript type surface fixture: interface-to-type re-export remains public"
+fi
+echo "OK TypeScript type surface"
+
+cat >"$WORK/ts-template-spoof.patch" <<'PATCH'
+diff --git a/src/ts/src/index.ts b/src/ts/src/index.ts
+--- a/src/ts/src/index.ts
++++ b/src/ts/src/index.ts
+@@ -1 +1,4 @@
+-export class Foo {}
++const s = `
++export { Foo } from "./foo.js";
++`;
++void s;
+diff --git a/src/ts/src/foo.ts b/src/ts/src/foo.ts
+--- /dev/null
++++ b/src/ts/src/foo.ts
+@@ -0,0 +1 @@
++export class Foo {}
+PATCH
+set +e
+python3 "$LINT" --diff-file "$WORK/ts-template-spoof.patch" \
+    --changelog "$FIX/reexport-edges/CHANGELOG.md" --repo-root "$REPO_ROOT" \
+    >/dev/null 2>"$WORK/ts-template-spoof.err"
+rc=$?
+set -e
+if [ "$rc" -ne 1 ] || ! grep -q 'Foo' "$WORK/ts-template-spoof.err"; then
+    fail "TypeScript template literal fixture: text cannot restore runtime Foo"
+fi
+echo "OK TypeScript template literal"
+
 # C-2: a bare removed `pub use` (no replacement) must itself be recorded as a
 # removal — probe regression for `-pub use errors::EngineError;` -> `[]`.
 set +e

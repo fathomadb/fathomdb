@@ -40,6 +40,10 @@ TS_NAMED_REEXPORT = re.compile(
     r'^export\s+(type\s+)?\{([^{}]*)\}\s+from\s+["\'](\./[^"\']+\.js)["\']\s*;',
     re.MULTILINE,
 )
+TS_ROOT_EXPORT_STATEMENT = re.compile(
+    r"""\s*export\s+(?:type\s+)?(?:\*\s+from\s+["'][^\r\n"'\\]+["']|\{[^{}]*\}\s+from\s+["'][^\r\n"'\\]+["'])\s*;""",
+    re.DOTALL,
+)
 TS_REEXPORT_NAME = re.compile(
     r"^(?:type\s+)?([A-Za-z_$][A-Za-z0-9_$]*)(?:\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*))?$"
 )
@@ -236,10 +240,16 @@ def _typescript_root_reexports(
         if removal.path == root_path and removal.kind == "ts"
     }
     root_text = re.sub(r"/\*.*?\*/|//[^\n]*", "", "\n".join(root), flags=re.DOTALL)
-    # A package-root export map needs no template literal. Refuse cancellation
-    # if one is present, since export-looking lines inside it are plain text.
-    if "`" in root_text:
-        return set()
+    # This root is an export map. Any other statement makes lexical matches
+    # inside a string or template ambiguous, so fail closed on the whole file.
+    position = 0
+    while position < len(root_text):
+        statement = TS_ROOT_EXPORT_STATEMENT.match(root_text, position)
+        if statement is None:
+            if root_text[position:].strip():
+                return set()
+            break
+        position = statement.end()
     for match in TS_NAMED_REEXPORT.finditer(root_text):
         statement_type_only, members, ref = match.groups()
         # The package root for this check uses private sibling modules.

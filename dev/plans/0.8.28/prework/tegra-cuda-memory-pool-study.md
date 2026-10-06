@@ -35,6 +35,34 @@ change. Shipping any option needs its own 0.8.28 ruling.
   below comes from those files and was measured only on one Jetson AGX Orin
   64 GB (L4T R36.5.2, driver 540.5.0, CUDA 12.6).
 
+## Owner rulings (2026-10-05)
+
+The owner ruled on the protocol's open questions (protocol § 11) on
+2026-10-05. They amend this plan as follows; the affected text below is
+updated to match.
+
+1. **Python import hook: yes.** The Tegra Python wheel gains an import-time
+   `cuInit` and pool hook, behind the study's experiment feature, so Python
+   runs the same variant set as Node (S, A-load-hold, A-load-release,
+   A-first-use, B). It is built and measured from Phase 2 on; Phases 0 and 1
+   do not wait for it.
+2. **Private-pool variant: deferred**, and built only if it is the shape the
+   cudarc maintainer would prefer. The upstream-preparation track assesses,
+   from cudarc issues and maintainer comments (#536, #594, #544, #106, #174,
+   #194), whether a private pool (`cuMemAllocFromPoolAsync`) or a
+   set-current-pool shape (`cuDeviceSetMemPool`) is the more
+   upstream-compatible one, and records that assessment.
+3. **Goal: a working pool that recovers stream-ordered speed is the default
+   on aarch64 Linux,** with the synchronous fallback kept as the safety net.
+   The performance gate is framed as recovering default-pool (fast-path)
+   speed, with S's synchronous path as the floor to beat. The decision table
+   identifies which arm, if any, can be the default.
+4. **Soak: 15 to 30 minute runs only** until the arms are tidy and shown
+   correct, robust and fast. The 8 h and 24 h soaks are withdrawn and will be
+   re-planned later.
+5. **16 GiB exhaustion cell: not run.** Exhaustion probes stay at or below
+   8 GiB `maxSize` while the trade-off is explained to the owner.
+
 ## What is already known
 
 ### The two failures
@@ -138,7 +166,7 @@ only when the default pool was unavailable.
 | Arm | Definition |
 | --- | --- |
 | **S — baseline** | 0.8.27 behaviour: early `cuInit` at Node load; default pool if available, else synchronous `cuMemAlloc`. |
-| **A — explicit pool** | One process-wide pool per device, created with a non-zero `maxSize`, installed with `cuDeviceSetMemPool`, never destroyed, used whether or not the default pool is available. Sub-arms by creation time: **A-load-hold** (at registration, on a primary context the hook retains and keeps), **A-load-release** (at registration, then the hook releases that context) and **A-first-use** (immediately before the first CUDA context). The A-load forms exist only in the Node addon, which has the registration hook. |
+| **A — explicit pool** | One process-wide pool per device, created with a non-zero `maxSize`, installed with `cuDeviceSetMemPool`, never destroyed, used whether or not the default pool is available. Sub-arms by creation time: **A-load-hold** (at registration, on a primary context the hook retains and keeps), **A-load-release** (at registration, then the hook releases that context) and **A-first-use** (immediately before the first CUDA context). The A-load forms need a load-time hook: the Node addon has one, and the Python wheel gains one in Phase 2 (owner ruling 1). |
 | **B — early `cuInit` + lazy pool** | Early `cuInit` at load as shipped. Before the first CUDA context, use the default pool if available; otherwise create the explicit pool then; otherwise synchronous. This is the experiment's `pool` mode. |
 
 Two facts constrain the implementation of every pool arm:
@@ -166,14 +194,17 @@ FathomDB's `maxSize`. An alternative is to keep the pool private and allocate
 with `cuMemAllocFromPoolAsync`, leaving the device's current pool alone. That
 variant changes cudarc's allocation and free paths, not only a device-level
 install, and is not the shape the upstream survey favours; it is **deferred**
+(owner ruling 2: built only if it is the shape the cudarc maintainer would
+prefer, which the upstream-preparation track assesses)
 and built only if C7 or R7 shows the device-wide install harming a
 co-resident consumer.
 
 Each arm keeps the synchronous path as the last resort when pool creation or
 its probe fails. Sizes to cover: `maxSize` 1, 3, 8 and 16 GiB, plus the
 largest size that passes the robustness gates; release threshold 0 and `max`.
-The Tegra Python wheel has no registration hook, so Python runs S,
-A-first-use and B only; adding an import-time hook is an owner decision.
+The Tegra Python wheel has no registration hook today. By the owner's ruling
+(ruling 1) the study adds an experiment-gated import-time hook to it, so from
+Phase 2 on Python runs the same variant set as Node.
 
 The executable protocol is
 `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md`;
@@ -221,7 +252,7 @@ fraction.
 | R3 | **Heap growth during use.** | Open and embed, grow the heap, embed and rerank again, repeat. | 30 processes × 3 Node versions. | Zero failures; no path change after the first decision. |
 | R4 | **Late import.** | Grow the heap first, then import, with and without `node --import fathomdb`. | 30 processes per heap size. | Same or better than S. A `cuInit` refusal remains typed and names the remedy. |
 | R5 | **Lazy creation after heap growth (the key question for B and A-first-use, which create the pool at the same moment).** The default pool can `mmap` a new range after `cuInit`, so lazy creation is exposed to fragmentation; explicit pools are inferred to need about `maxSize`/3 contiguous, from one C layout. | Behind early `cuInit`, grow the heap to each R2 size, then create the pool at each `maxSize`; capture `/proc/self/maps` around creation (`strace` on a 3-run subset per cell). The contiguous need is measured separately as need(`maxSize`) against a controlled gap (protocol § 4.6, § 6.5). | 30 processes per heap × size cell; the bound is about 10 % per cell and 1 % over the pooled row. | The inferred `maxSize`/3 rule is confirmed or replaced by a measured rule that predicts success in all runs; B and A-first-use pass at the chosen size in every cell. |
-| R6 | **Long-running soak.** | Continuous embed, rerank and ingest with periodic heap churn. | 24 h per arm, at least two processes. | No allocator error; pool reserved memory and RSS stay within 10 % of their first-hour high; steady latency drift under 10 %. |
+| R6 | **Long-running soak.** | Continuous embed, rerank and ingest with periodic heap churn. | 15–30 min per arm, at least two processes (owner ruling 4; longer soaks re-planned later). | No allocator error; pool reserved memory and RSS stay within 10 % of their first-hour high; steady latency drift under 10 %. |
 | R7 | **Concurrent processes on unified memory.** | 2, 4 and 8 processes on one Orin, each with its own pool, under embed and ingest load; release threshold 0 and `max`. The allocation witness is **off**: it reads a shared system-wide `cuMemGetInfo` counter and needs a sole GPU consumer, so it would fail as a harness artefact. A launcher aborts the trial if `MemAvailable` falls below 8 GiB. | 10 trials per count and threshold. | No process fails or is OOM-killed; the sum of reserved pool memory and system free memory are recorded; the chosen threshold leaves other processes, including CPU-only ones, their memory. |
 | R8 | **Release-threshold effects on shared DRAM.** | Measure memory returned to the system after idle under each threshold. | 20 processes per threshold. | Threshold choice is justified by measured latency against held memory. |
 | R9 | **Unmeasured Jetson models.** | Repeat R1, R2 and the performance core on other boards. | Minimum 100 runs per board for R2. | Required hardware: at least one 8 GB board (Orin Nano or Orin NX) and an AGX Orin 32 GB. Non-Tegra aarch64 Linux CUDA hosts (GH200, GB10, SBSA) are in the cfg; without access, they stay declared unmeasured, or the cfg is narrowed to measured Tegra. |
@@ -253,16 +284,22 @@ path.
 | P6 | Memory overhead: pool reserved high, `cuMemGetInfo` delta, RSS | S |
 | P7 | Python wheel steady embed and ingest | Same |
 
-Pass, per arm:
+Pass, per arm (owner ruling 3: the target is recovering default-pool,
+fast-path speed; S's synchronous path is the floor to beat):
 
 - steady embed and steady rerank within 1.15× of the default pool, with the
-  95 % CI of the speed-up over S above 1.5×;
+  95 % CI of the speed-up over S's synchronous path above 1.5×;
 - first embed and ingest throughput no worse than S;
 - import time no more than 5 ms above S, and RSS overhead no more than
   32 MiB above S. On the existing measurement (+61 ms, +110 MiB), A-load
   fails this unless its cost changes.
 
 ## Decision rule for 0.8.28
+
+The owner's goal (ruling 3) is that a working pool which recovers
+stream-ordered speed becomes the default on aarch64 Linux, with the
+synchronous fallback as the safety net. The rule below picks the arm that can
+be that default; the decision table names it, or names none.
 
 - **Ship B** if C1–C8 pass, R1–R8 pass on the AGX Orin 64 GB, the
   performance gates pass, and R5 shows lazy creation succeeds at the chosen

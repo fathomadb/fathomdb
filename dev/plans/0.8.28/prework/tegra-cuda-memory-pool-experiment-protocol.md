@@ -21,6 +21,30 @@ under `dev/plans/runs/0.8.27-slice-110-tegra/` and was measured on one Jetson
 AGX Orin 64 GB (L4T R36.5.2, driver 540.5.0, CUDA 12.6.68). Statements marked
 *inference* or *hypothesis* are not measured and are tested by this protocol.
 
+## Owner rulings (2026-10-05)
+
+The owner ruled on the § 11 questions on 2026-10-05; the plan records the
+same rulings. They amend this protocol as follows, and the affected sections
+are updated to match.
+
+1. **Python import hook: yes.** The Tegra wheel gains an import-time `cuInit`
+   and pool hook behind `tegra-pool-experiment`, so Python runs every variant
+   of § 2.1 (A-load-hold and A-load-release included). It is designed and
+   built in Phase 2; Phases 0 and 1 do not depend on it.
+2. **Private pool (P): deferred,** built only if it is the shape the cudarc
+   maintainer would prefer. § 10 gains an assessment, from cudarc issues and
+   maintainer comments (#536, #594, #544, #106, #174, #194), of whether a
+   private pool or the set-current-pool shape is more upstream-compatible.
+3. **Goal:** a working pool that recovers stream-ordered speed becomes the
+   default on aarch64 Linux, with the synchronous fallback as the safety net.
+   The performance gate is read as recovering default-pool (fast-path) speed,
+   with S's synchronous path as the floor to beat; the decision table
+   (§ 8.1 item 12) names which arm, if any, can be the default.
+4. **Soak:** 15–30 minute R6 runs only, until the arms are shown correct,
+   robust and fast; the 8 h and 24 h soaks are withdrawn and re-planned
+   later.
+5. **16 GiB exhaustion cell: not run.** C3 stays at `maxSize` ≤ 8 GiB.
+
 ## 0. Conventions
 
 - `<worktree>`: the study checkout. `<scratch>`: the session scratch
@@ -78,11 +102,9 @@ Every probe that allocates real memory is bounded:
 - **Pool exhaustion probes (C3)** allocate until the pool refuses, so they can
   reach `maxSize`. They run only for `maxSize` ≤ 8 GiB, only when
   `MemAvailable` ≥ 2 × `maxSize` + 16 GiB, one at a time, under
-  `timeout 300`. The 16 GiB `maxSize` cell of C3 is run only if the measured
-  capacity model (§ 6.5) from the sizes ≤ 8 GiB predicts exhaustion below
-  8 GiB of real allocation; otherwise 16 GiB is characterised by pool
-  creation and a 2 GiB allocation only, and the cell is marked *bounded, not
-  exhausted*.
+  `timeout 300`. The 16 GiB `maxSize` exhaustion cell of C3 is not run
+  (owner ruling 5); 16 GiB is characterised by pool creation only, and the
+  cell is marked *not exhausted*.
 - **Concurrent processes (R7)** are launched by one runner that samples
   `MemAvailable` every second and sends `SIGTERM` to every child if it falls
   below 8 GiB, recording the trial as *aborted-for-safety* (a result, not a
@@ -155,16 +177,19 @@ Notes on the definitions:
   Any fragmentation effect on lazy creation (R5) therefore applies to both
   equally; only the A-load variants are immune to it.
 - Python has no registration-time hook (the wheel's bindings are unchanged by
-  Slice 110; `receipt.md`, "Tegra Python wheel"). Python runs S, A-first-use
-  and B only. Adding an import-time hook to the wheel is an owner decision
+  Slice 110; `receipt.md`, "Tegra Python wheel"). By owner ruling 1 the
+  wheel gains an experiment-gated import-time hook in Phase 2, after which
+  Python runs every variant; until then (Phases 0–1) it runs S, A-first-use
+  and B only. The hook's design is a Phase 2 item
   (§ 11), not part of this study.
 - **Deferred variant P (private pool).** Allocating with
   `cuMemAllocFromPoolAsync` while leaving the device's current pool alone
   needs a change in cudarc's `CudaStream::alloc` / `CudaSlice::drop` paths,
   not just a device-level install, and is not the shape the plan's upstream
   survey favours. It is built and run only if C7 or R7 shows that installing
-  the pool device-wide harms a co-resident consumer; the protocol then adds a
-  variant row with the same harnesses.
+  the pool device-wide harms a co-resident consumer **and** the § 10 item 6
+  assessment finds it the shape the cudarc maintainer would prefer (owner
+  ruling 2); the protocol then adds a variant row with the same harnesses.
 
 ### 2.2 The allocator decision in the experiment build
 
@@ -550,9 +575,9 @@ except where the plan needs its number for a comparison.
   because S is a mixture (in Slice 110's unobstructed small-consumer runs the
   default pool was available in 1 / 10, 6 / 30 and 5 / 10 processes;
   `explicit-pool-experiment/analysis.txt`, "default-pool availability"). The
-  plan's performance gate is evaluated against S's synchronous-path runs
-  (the path S takes in most Node processes) and, separately, against the
-  default-pool reference.
+  plan's performance gate (owner ruling 3) is evaluated as recovery of the
+  default-pool reference's speed, with S's synchronous-path runs (the path S
+  takes in most Node processes) as the floor every arm must beat.
 
 ### 6.2 Proportions
 
@@ -663,7 +688,7 @@ a captured Node layout's mapping starts).
 | R4 late import | survivors + S | Node 25; with and without `node --import` | late-400k, late-1M | chosen | 30 per cell | 3 |
 | R7 concurrency | survivors | Node 25, `perf` mode, witness off | unobstructed | chosen size × {0, max} | 10 trials × k ∈ {2, 4, 8} × 2 thr | 3 |
 | R8 threshold | survivors | Node 25, `perf` then 60 s idle, then `teardown` stats | unobstructed | chosen × {0, max} | 20 per thr | 3 |
-| R6 soak | final candidate (8 h each for ≤ 2 survivors first) | Node 25, 2 processes sequentially or k = 2 concurrently with witness off | unobstructed | chosen | 24 h | 3 |
+| R6 soak | surviving candidates, 15–30 min each (owner ruling 4) | Node 25, 2 processes sequentially or k = 2 concurrently with witness off | unobstructed | chosen | 15–30 min | 3 |
 | P1–P4, P6 | survivors, S, default-pool reference (S runs with `allocMode=default`) | Node 24/25/26, `perf`, randomised blocks | unobstructed | chosen | 20 per variant × version | 4 |
 | P5 ingest | survivors, S | Node 25, `ingest` 10 000 docs | unobstructed | chosen | 5 per variant | 4 |
 | P7 Python | A-first-use, B, S | wheel, `perf` and ingest | unobstructed | chosen | 20 per variant | 4 |
@@ -708,7 +733,10 @@ fixed after R8.
 
 ### 8.2 Mapping onto the decision rule
 
-The plan's rule (as corrected in this review) reads: ship B if C1–C8, R1–R8
+The owner's goal (ruling 3) is that a working pool recovering stream-ordered
+speed becomes the default on aarch64 Linux; the decision table names the arm
+that can be that default, or none. The plan's rule (as corrected in this
+review) reads: ship B if C1–C8, R1–R8
 on this host and the performance gates pass and R5 shows lazy creation at the
 chosen size in every heap cell; ship **A-load-release** instead if B and
 A-first-use fail only R5 and A-load-release passes everything including the
@@ -798,6 +826,13 @@ made from facts the maintainer can run:
    at the start of the study (Phase 0) and record whether the failure still
    reproduces; if it does not, the study stops and reports that instead.
 
+6. **Pool-shape assessment (owner ruling 2):** from cudarc issues and
+   maintainer comments (#536, #594, #544, #106, #174, #194), whether a
+   private pool (`cuMemAllocFromPoolAsync`, a pool-owned allocation path) or
+   the set-current-pool shape (`cuDeviceSetMemPool`, existing allocation
+   paths unchanged) is the more upstream-compatible one, with the quotes it
+   rests on. The private-pool variant is built only if this favours it.
+
 The question whether the 0.8.27 default-pool fallback itself is expressible
 with upstream's current API is answered by inspection in Phase 5: list the
 calls the fallback needs (`cuDeviceGetDefaultMemPool`, a per-device decision
@@ -805,6 +840,9 @@ before the first allocation, the zero-length rule) against `has_async_alloc()`
 and the result-level pool functions, and record what residual patch remains.
 
 ## 11. Open questions for the owner
+
+Questions 1–5 were ruled on 2026-10-05 (see "Owner rulings" at the top);
+they are kept here as asked. Question 6 is open.
 
 1. Should the Tegra Python wheel gain an import-time `cuInit` (and, for the
    A-load variants, pool creation) so that Python can run the same variant
@@ -838,11 +876,11 @@ Node CUDA addon and the wheel each compile Candle's CUDA kernels; budget
 | 0 | 3–5 h | two addon builds, one wheel, harness smoke, 40 runs, revisit check |
 | 1 | 6–8 h | C3 560 probes (~1 h); gap sweep (~1 h); R5 1800 runs × ~8 s (~4 h); P1 60 runs |
 | 2 | 4–6 h | C1 500 runs (~1 h); C2 C probes + 40 cycle processes (~1 h); C7 and C8 (~1.5 h); test suites |
-| 3 | 10–14 h + soak | R1 600 C runs (~1 h); R2 ≤ 1350 runs (~3.5 h); R3 270 (~1 h); R4 360 (~1 h); R7 60 trials (~1 h); R8 (~0.5 h); R6 8 h × ≤ 2 then 24 h |
+| 3 | 10–14 h + soak | R1 600 C runs (~1 h); R2 ≤ 1350 runs (~3.5 h); R3 270 (~1 h); R4 360 (~1 h); R7 60 trials (~1 h); R8 (~0.5 h); R6 15–30 min per candidate (owner ruling 4) |
 | 4 | 3–4 h | P1–P4/P6 ≤ 240 `perf` runs (~1.5 h); P5 ≤ 15 ingests (~1 h); P7 60 Python runs |
 | 5 | engineer time | analysis, results document, upstream package |
 
-Total: about 30–40 h of GPU-exclusive time plus 24–40 h of soak, so roughly
+Total: about 30–40 h of GPU-exclusive time plus about an hour of soak, so roughly
 one to two calendar weeks with the host shared, if no phase rules a variant
 out early. A Phase 1 rule-out (for example, lazy creation failing in a heap
 cell for both A-first-use and B) removes most of Phases 3–4 for those

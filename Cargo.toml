@@ -87,7 +87,16 @@ fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       versio
 [patch.crates-io]
 libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }
 cudarc = { path = "third_party/cudarc-0.19.7" }
-candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+# 0.8.28 pool study branch only (never merged): candle-core at the pinned rev
+# plus CudaDevice::from_context, packaged with `cargo package` so it builds
+# outside the fork's workspace. The diff is in
+# dev/plans/runs/0.8.28-pool-study/patches/candle-from-context.patch. The
+# second table points the fork's own path dependencies (candle-nn,
+# candle-transformers) at the same copy.
+candle-core-fathomdb = { path = "third_party/candle-core-fathomdb-0.10.2" }
 candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
 candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
 candle-transformers-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+
+[patch."https://github.com/coreyt/candle-fathomdb.git"]
+candle-core-fathomdb = { path = "third_party/candle-core-fathomdb-0.10.2" }

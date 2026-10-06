@@ -186,6 +186,11 @@ impl CudaMemPool {
         unsafe { result::mem_pool::trim_to(self.pool, keep) }
     }
 
+    /// The device this pool belongs to.
+    pub(crate) fn cu_device(&self) -> sys::CUdevice {
+        self.cu_device
+    }
+
     /// The raw pool handle. It stays owned by this value.
     pub fn raw(&self) -> sys::CUmemoryPool {
         self.pool

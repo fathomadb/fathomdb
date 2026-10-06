@@ -82,19 +82,6 @@ mod gpu_witness;
 ))]
 mod cuda_pool_policy;
 
-/// Installs the study's explicit pool at Node addon registration for the
-/// A-load variants (pool study only; hidden and unstable).
-#[cfg(all(
-    feature = "tegra-pool-experiment",
-    target_os = "linux",
-    target_arch = "aarch64",
-    any(feature = "embed-cuda", feature = "rerank-cuda")
-))]
-#[doc(hidden)]
-pub fn install_cuda_pool_at_load() {
-    cuda_pool_policy::install_pool_at_load();
-}
-
 /// Every Candle CUDA device of the crate is built here, so the pool study's
 /// policy (feature `tegra-pool-experiment`) runs before the first one; without
 /// that feature this is `Device::new_cuda`.

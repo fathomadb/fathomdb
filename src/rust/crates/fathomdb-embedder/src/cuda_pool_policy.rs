@@ -5,22 +5,23 @@
 //! Compiled into a product build only with the cargo feature
 //! `tegra-pool-experiment` on aarch64 Linux with `embed-cuda` or
 //! `rerank-cuda`; no release feature set enables it. The pure parts (variant
-//! parsing, the per-variant plan, the event line) also compile for unit tests
-//! on every host.
+//! parsing, the per-variant plan, the fail-closed rule, the event line) also
+//! compile for unit tests on every host.
 //!
-//! The variant comes from `FATHOMDB_POOL_VARIANT` (`S`, `A-load-hold`,
-//! `A-load-release`, `A-first-use`, `B`; unset is `S`), the pool size from
+//! The variant comes from `FATHOMDB_POOL_VARIANT` (`S`, `P-first-use`,
+//! `A-first-use`, `B`; unset is `S`), the pool size from
 //! `FATHOMDB_POOL_MAXSIZE` (bytes, or `<n>G` / `<n>M`; default `3G`) and the
 //! release threshold from `FATHOMDB_POOL_RELEASE_THRESHOLD` (`0` or `max`;
 //! default `0`). A malformed value aborts the process, so a typo is never
 //! measured as a variant. Every decision event is one stderr line starting
 //! with `fdb-pool-exp`.
 //!
-//! The pool is installed before the first cudarc `CudaContext` of the process
-//! exists, because cudarc decides each device's allocator once per process at
-//! the first context. The policy therefore only uses result-level driver calls
-//! and cudarc's `CudaMemPool` primitive, never a safe context. With `S` it
-//! makes no driver call at all.
+//! `P-first-use` creates a private pool before the first device and builds
+//! every device on a cudarc context that allocates from it; the device's
+//! current pool is never changed. `A-first-use` and `B` (comparison arms)
+//! install the pool as the device's current pool before the first cudarc
+//! `CudaContext` exists, because cudarc decides each device's allocator once
+//! per process at the first context. With `S` the policy makes no driver call.
 
 use std::fmt::Write as _;
 
@@ -28,8 +29,7 @@ use std::fmt::Write as _;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PoolVariant {
     S,
-    ALoadHold,
-    ALoadRelease,
+    PFirstUse,
     AFirstUse,
     B,
 }
@@ -38,8 +38,7 @@ impl PoolVariant {
     pub(crate) const fn name(self) -> &'static str {
         match self {
             Self::S => "S",
-            Self::ALoadHold => "A-load-hold",
-            Self::ALoadRelease => "A-load-release",
+            Self::PFirstUse => "P-first-use",
             Self::AFirstUse => "A-first-use",
             Self::B => "B",
         }
@@ -49,8 +48,7 @@ impl PoolVariant {
 pub(crate) fn parse_variant(raw: Option<&str>) -> Result<PoolVariant, String> {
     match raw {
         None | Some("S") => Ok(PoolVariant::S),
-        Some("A-load-hold") => Ok(PoolVariant::ALoadHold),
-        Some("A-load-release") => Ok(PoolVariant::ALoadRelease),
+        Some("P-first-use") => Ok(PoolVariant::PFirstUse),
         Some("A-first-use") => Ok(PoolVariant::AFirstUse),
         Some("B") => Ok(PoolVariant::B),
         Some(other) => Err(format!("FATHOMDB_POOL_VARIANT: unknown value {other:?}")),
@@ -88,36 +86,76 @@ pub(crate) fn parse_threshold(raw: Option<&str>) -> Result<u64, String> {
     }
 }
 
-/// What the policy does at one of its two hooks.
+/// What the policy does immediately before the first Candle CUDA device of
+/// the process.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PoolAction {
     Nothing,
-    /// Create and install the explicit pool; release the primary context the
-    /// policy retained for it afterwards when `release_context`.
-    Create {
-        release_context: bool,
-    },
+    /// Create and probe a private pool; never install it (P-first-use).
+    CreatePrivate,
+    /// Create, install and probe the explicit pool (A-first-use).
+    CreateInstalled,
     /// Query the default pool; create and install the explicit pool only if
-    /// that query fails with `CUDA_ERROR_OUT_OF_MEMORY` (variant B).
-    CreateIfDefaultOutOfMemory,
+    /// that query fails with `CUDA_ERROR_OUT_OF_MEMORY` (B).
+    CreateInstalledIfDefaultOutOfMemory,
 }
 
-/// The hook that runs: at addon registration (after a successful `cuInit`) or
-/// immediately before the first Candle CUDA device of the process.
+pub(crate) const fn plan(variant: PoolVariant) -> PoolAction {
+    match variant {
+        PoolVariant::S => PoolAction::Nothing,
+        PoolVariant::PFirstUse => PoolAction::CreatePrivate,
+        PoolVariant::AFirstUse => PoolAction::CreateInstalled,
+        PoolVariant::B => PoolAction::CreateInstalledIfDefaultOutOfMemory,
+    }
+}
+
+/// Which kind of device the process has built so far. The first device
+/// fixes it; a process never mixes private-pool and production devices.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Hook {
-    Load,
-    FirstUse,
+pub(crate) enum ProcessMode {
+    Undecided,
+    Production,
+    Private,
 }
 
-pub(crate) const fn plan(variant: PoolVariant, hook: Hook) -> PoolAction {
-    match (variant, hook) {
-        (PoolVariant::ALoadHold, Hook::Load) => PoolAction::Create { release_context: false },
-        (PoolVariant::ALoadRelease, Hook::Load) | (PoolVariant::AFirstUse, Hook::FirstUse) => {
-            PoolAction::Create { release_context: true }
-        }
-        (PoolVariant::B, Hook::FirstUse) => PoolAction::CreateIfDefaultOutOfMemory,
-        _ => PoolAction::Nothing,
+/// What the next device is built on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Build {
+    /// `Device::new_cuda` (the production allocator rule).
+    Production,
+    /// A cudarc context on the private pool.
+    Private,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum OnPrivateFailure {
+    FallBackToProduction,
+    Refuse,
+}
+
+pub(crate) const fn next_build(mode: ProcessMode, private_pool_ready: bool) -> Build {
+    match mode {
+        ProcessMode::Private => Build::Private,
+        ProcessMode::Production => Build::Production,
+        ProcessMode::Undecided if private_pool_ready => Build::Private,
+        ProcessMode::Undecided => Build::Production,
+    }
+}
+
+/// Before any private-pool device exists the process may still become a
+/// production process; after one exists a failure is refused.
+pub(crate) const fn on_private_failure(mode: ProcessMode) -> OnPrivateFailure {
+    match mode {
+        ProcessMode::Undecided => OnPrivateFailure::FallBackToProduction,
+        ProcessMode::Production | ProcessMode::Private => OnPrivateFailure::Refuse,
+    }
+}
+
+pub(crate) const fn mode_after(mode: ProcessMode, built: Build) -> ProcessMode {
+    match (mode, built) {
+        (ProcessMode::Undecided, Build::Private) => ProcessMode::Private,
+        (ProcessMode::Undecided, Build::Production) => ProcessMode::Production,
+        (fixed, _) => fixed,
     }
 }
 
@@ -182,7 +220,7 @@ pub(crate) fn format_event(e: &PoolEvent) -> String {
     target_arch = "aarch64",
     any(feature = "embed-cuda", feature = "rerank-cuda")
 ))]
-pub(crate) use driver::{install_pool_at_load, new_cuda_device};
+pub(crate) use driver::new_cuda_device;
 
 #[cfg(all(
     feature = "tegra-pool-experiment",
@@ -192,14 +230,15 @@ pub(crate) use driver::{install_pool_at_load, new_cuda_device};
 ))]
 mod driver {
     use super::{
-        format_event, parse_max_size, parse_threshold, parse_variant, plan, Hook, PoolAction,
-        PoolEvent, PoolVariant,
+        format_event, mode_after, next_build, on_private_failure, parse_max_size, parse_threshold,
+        parse_variant, plan, Build, OnPrivateFailure, PoolAction, PoolEvent, PoolVariant,
+        ProcessMode,
     };
     use candle_core::cuda::cudarc::driver::{
-        result, sys, AllocMode, CudaMemPool, DriverError, MemPoolProps,
+        result, sys, AllocMode, CudaContext, CudaMemPool, DriverError, MemPoolProps,
     };
     use candle_core::Device;
-    use std::sync::{Mutex, Once, OnceLock, PoisonError};
+    use std::sync::{Arc, Mutex, Once, OnceLock, PoisonError};
     use std::time::Instant;
 
     struct Config {
@@ -208,6 +247,7 @@ mod driver {
         threshold: u64,
         stats_every_s: Option<u64>,
         maps_dir: Option<String>,
+        coexist_check: bool,
     }
 
     fn config() -> &'static Config {
@@ -223,12 +263,22 @@ mod driver {
                         })?)
                     }
                 };
+                let coexist_check = match env("FATHOMDB_POOL_COEXIST_CHECK").as_deref() {
+                    None | Some("0") => false,
+                    Some("1") => true,
+                    Some(other) => {
+                        return Err(format!(
+                            "FATHOMDB_POOL_COEXIST_CHECK: must be 0 or 1, got {other:?}"
+                        ))
+                    }
+                };
                 Ok::<_, String>(Config {
                     variant: parse_variant(env("FATHOMDB_POOL_VARIANT").as_deref())?,
                     max_size: parse_max_size(env("FATHOMDB_POOL_MAXSIZE").as_deref())?,
                     threshold: parse_threshold(env("FATHOMDB_POOL_RELEASE_THRESHOLD").as_deref())?,
                     stats_every_s,
                     maps_dir: env("FATHOMDB_POOL_MAPS_DIR"),
+                    coexist_check,
                 })
             })();
             parsed.unwrap_or_else(|message| {
@@ -238,12 +288,14 @@ mod driver {
         })
     }
 
-    /// The explicit pool, once created and installed; never dropped.
+    /// The installed explicit pool of A-first-use and B; never dropped.
     static POOL: OnceLock<CudaMemPool> = OnceLock::new();
+    /// The private pool of P-first-use, with the ordinal it was created for.
+    static PRIVATE: OnceLock<(usize, Arc<CudaMemPool>)> = OnceLock::new();
+    static MODE: Mutex<ProcessMode> = Mutex::new(ProcessMode::Undecided);
     /// The first `alloc_mode` read after a Candle CUDA device was built.
     static DECIDED: Mutex<Option<AllocMode>> = Mutex::new(None);
     static FIRST_USE: Once = Once::new();
-    static LOAD: Once = Once::new();
     static EXIT_HOOK: Once = Once::new();
 
     fn rc(r: &Result<(), DriverError>) -> String {
@@ -257,6 +309,7 @@ mod driver {
         match mode {
             AllocMode::Default => "default",
             AllocMode::Explicit => "explicit",
+            AllocMode::Private => "private",
             AllocMode::Sync => "sync",
         }
     }
@@ -274,11 +327,12 @@ mod driver {
         }
     }
 
-    /// Fills the pool counters from the explicit pool only: querying the
+    /// Fills the pool counters from the study's own pool only: querying the
     /// device's current pool could lazily create the default pool, which S
     /// must never do.
     fn with_pool_attrs(mut e: PoolEvent) -> PoolEvent {
-        if let Some(pool) = POOL.get() {
+        let pool = POOL.get().or_else(|| PRIVATE.get().map(|(_, pool)| pool.as_ref()));
+        if let Some(pool) = pool {
             use sys::CUmemPool_attribute::*;
             e.reserved_cur = pool.attribute(CU_MEMPOOL_ATTR_RESERVED_MEM_CURRENT).ok();
             e.reserved_high = pool.attribute(CU_MEMPOOL_ATTR_RESERVED_MEM_HIGH).ok();
@@ -286,6 +340,32 @@ mod driver {
             e.used_high = pool.attribute(CU_MEMPOOL_ATTR_USED_MEM_HIGH).ok();
         }
         e
+    }
+
+    /// C9 observables (only with `FATHOMDB_POOL_COEXIST_CHECK=1`: reading the
+    /// current pool runs the driver's lazy default-pool creation): the
+    /// (`CUresult`, handle) pairs of the device's current and default pools.
+    fn coexist_fields(ordinal: usize) -> Option<String> {
+        if !config().coexist_check {
+            return None;
+        }
+        let pair = |r: Result<sys::CUmemoryPool, DriverError>| match r {
+            Ok(pool) => format!("CUDA_SUCCESS:{:#x}", pool as usize),
+            Err(DriverError(code)) => format!("{code:?}:0x0"),
+        };
+        let device = result::device::get(ordinal as i32).ok()?;
+        // SAFETY: device comes from cuDeviceGet.
+        let current = pair(unsafe { result::device::get_mem_pool(device) });
+        // SAFETY: as above.
+        let default = pair(unsafe { result::device::get_default_mem_pool(device) });
+        Some(format!("current_pool={current} default_pool_pair={default}"))
+    }
+
+    fn join_extra(a: Option<String>, b: Option<String>) -> Option<String> {
+        match (a, b) {
+            (Some(a), Some(b)) => Some(format!("{a} {b}")),
+            (a, b) => a.or(b),
+        }
     }
 
     fn emit(e: &PoolEvent) {
@@ -304,6 +384,9 @@ mod driver {
     extern "C" fn on_exit() {
         let mut e = with_pool_attrs(base("teardown", "exit"));
         e.alloc_mode = DECIDED.lock().unwrap_or_else(PoisonError::into_inner).map(mode_name);
+        if PRIVATE.get().is_some() {
+            e.extra = join_extra(Some("installed=0".to_owned()), coexist_fields(0));
+        }
         emit(&e);
     }
 
@@ -327,8 +410,14 @@ mod driver {
         });
     }
 
-    /// Creates, installs and probes the explicit pool on device `ordinal`
-    /// with result-level calls, per `action`. Emits one `install` line.
+    fn props() -> MemPoolProps {
+        MemPoolProps { max_size: config().max_size, release_threshold: config().threshold }
+    }
+
+    /// Creates the study's pool on device `ordinal` per `action`, with a
+    /// retained primary context current (kept for the probe; whether
+    /// `cuMemPoolCreate` needs it is the protocol's M5 hypothesis), and
+    /// releases that context afterwards. Emits one `install` line.
     fn run_action(action: PoolAction, site: &'static str, ordinal: usize) {
         if action == PoolAction::Nothing {
             return;
@@ -341,59 +430,66 @@ mod driver {
                 e.extra = Some(format!("device_get={:?}", err.0));
             })?;
             // SAFETY: device comes from cuDeviceGet; the context is released
-            // below or deliberately kept (A-load-hold).
+            // below.
             let ctx = unsafe { result::primary_ctx::retain(device) }.map_err(|err| {
                 e.extra = Some(format!("retain={:?}", err.0));
             })?;
             // SAFETY: ctx was just retained.
             let _ = unsafe { result::ctx::set_current(ctx) };
-            let release_context = match action {
-                PoolAction::Create { release_context } => release_context,
-                _ => true,
-            };
             let mut create = true;
-            if action == PoolAction::CreateIfDefaultOutOfMemory {
+            if action == PoolAction::CreateInstalledIfDefaultOutOfMemory {
                 // SAFETY: device is valid and its primary context is current.
                 let default = unsafe { result::device::get_default_mem_pool(device) }.map(|_| ());
                 create =
                     matches!(default, Err(DriverError(sys::CUresult::CUDA_ERROR_OUT_OF_MEMORY)));
                 e.default_pool = Some(rc(&default));
             }
+            if action == PoolAction::CreatePrivate {
+                e.extra = join_extra(Some("installed=0".to_owned()), coexist_fields(ordinal));
+            }
             if create {
                 save_maps("pre-pool");
-                let props = MemPoolProps {
-                    max_size: config().max_size,
-                    release_threshold: config().threshold,
-                };
-                match CudaMemPool::create(ordinal, &props) {
+                match CudaMemPool::create(ordinal, &props()) {
                     Err(err) => e.create = Some(rc(&Err(err))),
                     Ok(pool) => {
                         e.create = Some(rc(&Ok(())));
-                        let set = pool.install();
-                        e.set = Some(rc(&set));
-                        if set.is_ok() {
+                        if action == PoolAction::CreatePrivate {
                             // SAFETY: the primary context is current; the
                             // probe pointer is freed on the same stream.
                             let probe = unsafe {
-                                result::malloc_async(std::ptr::null_mut(), 4)
+                                result::mem_pool::alloc_async(pool.raw(), 4, std::ptr::null_mut())
                                     .and_then(|ptr| result::free_async(ptr, std::ptr::null_mut()))
                             }
                             .and_then(|()| result::ctx::synchronize());
                             e.probe = Some(rc(&probe));
                             if probe.is_ok() {
-                                let _ = POOL.set(pool);
+                                let _ = PRIVATE.set((ordinal, Arc::new(pool)));
                             }
-                            // Otherwise the pool drops here: destroyed, and
-                            // the device reverts to its default pool.
+                        } else {
+                            let set = pool.install();
+                            e.set = Some(rc(&set));
+                            if set.is_ok() {
+                                // SAFETY: as above.
+                                let probe = unsafe {
+                                    result::malloc_async(std::ptr::null_mut(), 4).and_then(|ptr| {
+                                        result::free_async(ptr, std::ptr::null_mut())
+                                    })
+                                }
+                                .and_then(|()| result::ctx::synchronize());
+                                e.probe = Some(rc(&probe));
+                                if probe.is_ok() {
+                                    let _ = POOL.set(pool);
+                                }
+                                // Otherwise the pool drops here: destroyed,
+                                // and the device reverts to its default pool.
+                            }
                         }
                     }
                 }
                 save_maps("post-pool");
             }
-            if release_context {
-                // SAFETY: releases the reference retained above.
-                e.release = Some(rc(&unsafe { result::primary_ctx::release(device) }));
-            }
+            // SAFETY: releases the reference retained above.
+            e.release = Some(rc(&unsafe { result::primary_ctx::release(device) }));
             Ok(())
         })();
         let _ = outcome;
@@ -401,22 +497,61 @@ mod driver {
         emit(&with_pool_attrs(e));
     }
 
-    /// Called from the Node registration hook after a successful `cuInit`.
-    /// Acts only for the A-load variants.
-    pub(crate) fn install_pool_at_load() {
-        LOAD.call_once(|| run_action(plan(config().variant, Hook::Load), "registration", 0));
+    /// A device on a fresh cudarc context that allocates from the private
+    /// pool, or the driver error.
+    fn private_device(ordinal: usize) -> Result<Device, String> {
+        let (pool_ordinal, pool) =
+            PRIVATE.get().ok_or_else(|| "private pool unavailable".to_owned())?;
+        if *pool_ordinal != ordinal {
+            return Err(format!("private pool is for device {pool_ordinal}, not {ordinal}"));
+        }
+        let ctx = CudaContext::new_with_mem_pool(ordinal, pool.clone())
+            .map_err(|DriverError(code)| format!("{code:?}"))?;
+        Device::new_cuda_from_context(ctx).map_err(|err| err.to_string())
     }
 
     /// Builds a Candle CUDA device, running the first-use hook before the
     /// first one of the process and recording the allocator cudarc decided.
     /// Emits one `decide` line the first time, and another only if a later
     /// device reports a different decision (a C1 failure).
+    ///
+    /// # Errors
+    /// The Candle error of building the device; with P-first-use, a refusal
+    /// when a private-pool device cannot be built after one already exists
+    /// (the process never mixes private-pool and production devices).
     pub(crate) fn new_cuda_device(
         site: &'static str,
         ordinal: usize,
     ) -> candle_core::Result<Device> {
-        FIRST_USE.call_once(|| run_action(plan(config().variant, Hook::FirstUse), site, ordinal));
-        let device = Device::new_cuda(ordinal)?;
+        FIRST_USE.call_once(|| run_action(plan(config().variant), site, ordinal));
+        let device = {
+            let mut mode = MODE.lock().unwrap_or_else(PoisonError::into_inner);
+            let build = next_build(*mode, PRIVATE.get().is_some());
+            let (device, built) = match build {
+                Build::Production => (Device::new_cuda(ordinal)?, Build::Production),
+                Build::Private => match private_device(ordinal) {
+                    Ok(device) => (device, Build::Private),
+                    Err(message) => {
+                        let mut e = base("private-failure", site);
+                        e.extra = Some(format!("error={}", message.replace(' ', "_")));
+                        emit(&e);
+                        match on_private_failure(*mode) {
+                            OnPrivateFailure::FallBackToProduction => {
+                                (Device::new_cuda(ordinal)?, Build::Production)
+                            }
+                            OnPrivateFailure::Refuse => {
+                                return Err(candle_core::Error::Msg(format!(
+                                    "fdb-pool-exp: private-pool device refused after a private \
+                                     device exists: {message}"
+                                )));
+                            }
+                        }
+                    }
+                },
+            };
+            *mode = mode_after(*mode, built);
+            device
+        };
         if let Ok(cuda) = device.as_cuda_device() {
             let mode = cuda.cuda_stream().context().alloc_mode();
             let mut decided = DECIDED.lock().unwrap_or_else(PoisonError::into_inner);
@@ -445,16 +580,22 @@ mod tests {
     #[test]
     fn variants_parse_exactly_and_unset_is_s() {
         assert_eq!(parse_variant(None), Ok(PoolVariant::S));
-        for v in [
-            PoolVariant::S,
-            PoolVariant::ALoadHold,
-            PoolVariant::ALoadRelease,
-            PoolVariant::AFirstUse,
-            PoolVariant::B,
-        ] {
+        for v in [PoolVariant::S, PoolVariant::PFirstUse, PoolVariant::AFirstUse, PoolVariant::B] {
             assert_eq!(parse_variant(Some(v.name())), Ok(v));
         }
-        for bad in ["", "s", "A", "a-first-use", "B ", "A-load", "pool"] {
+        for bad in [
+            "",
+            "s",
+            "A",
+            "P",
+            "a-first-use",
+            "p-first-use",
+            "B ",
+            "A-load",
+            "A-load-hold",
+            "A-load-release",
+            "pool",
+        ] {
             assert!(parse_variant(Some(bad)).is_err(), "{bad:?}");
         }
     }
@@ -483,19 +624,41 @@ mod tests {
     }
 
     #[test]
-    fn each_variant_acts_at_exactly_its_own_hook() {
-        use PoolAction::{Create, CreateIfDefaultOutOfMemory, Nothing};
-        let cases = [
-            (PoolVariant::S, Nothing, Nothing),
-            (PoolVariant::ALoadHold, Create { release_context: false }, Nothing),
-            (PoolVariant::ALoadRelease, Create { release_context: true }, Nothing),
-            (PoolVariant::AFirstUse, Nothing, Create { release_context: true }),
-            (PoolVariant::B, Nothing, CreateIfDefaultOutOfMemory),
-        ];
-        for (variant, at_load, at_first_use) in cases {
-            assert_eq!(plan(variant, Hook::Load), at_load, "{variant:?} at load");
-            assert_eq!(plan(variant, Hook::FirstUse), at_first_use, "{variant:?} at first use");
-        }
+    fn each_variant_has_one_first_use_action() {
+        assert_eq!(plan(PoolVariant::S), PoolAction::Nothing);
+        assert_eq!(plan(PoolVariant::PFirstUse), PoolAction::CreatePrivate);
+        assert_eq!(plan(PoolVariant::AFirstUse), PoolAction::CreateInstalled);
+        assert_eq!(plan(PoolVariant::B), PoolAction::CreateInstalledIfDefaultOutOfMemory);
+    }
+
+    /// Fail closed (protocol 2.2): the first device fixes the process's mode,
+    /// and once a private-pool device exists a later failure to build one is
+    /// refused, never answered with a production device.
+    #[test]
+    fn the_first_device_fixes_the_mode_and_private_failures_after_it_are_refused() {
+        use Build::{Private, Production};
+        use ProcessMode::{Private as PrivateMode, Production as ProductionMode, Undecided};
+
+        // Pool ready: the first device is private and fixes the mode.
+        assert_eq!(next_build(Undecided, true), Private);
+        assert_eq!(mode_after(Undecided, Private), PrivateMode);
+        assert_eq!(next_build(PrivateMode, true), Private);
+        assert_eq!(on_private_failure(PrivateMode), OnPrivateFailure::Refuse);
+
+        // No pool: every device is a production device, even if a pool
+        // appears later.
+        assert_eq!(next_build(Undecided, false), Production);
+        assert_eq!(mode_after(Undecided, Production), ProductionMode);
+        assert_eq!(next_build(ProductionMode, true), Production);
+
+        // The first private build fails before any private device exists:
+        // the process falls back and stays production.
+        assert_eq!(on_private_failure(Undecided), OnPrivateFailure::FallBackToProduction);
+        assert_eq!(mode_after(Undecided, Production), ProductionMode);
+
+        // A fixed mode never changes.
+        assert_eq!(mode_after(PrivateMode, Production), PrivateMode);
+        assert_eq!(mode_after(ProductionMode, Private), ProductionMode);
     }
 
     #[test]

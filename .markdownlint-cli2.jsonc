@@ -26,6 +26,7 @@
     "third_party/libsqlite3-sys-0.38.1/Upgrade.md",
     // Same for the reviewed cudarc vendor copy.
     "third_party/cudarc-0.19.7/README.md",
+    "third_party/candle-core-fathomdb-0.10.2/**",
     ".cache/**",
     ".wake/**",
 

@@ -165,6 +165,25 @@ not cover them.
      device tests (aarch64 Linux) check that an installed pool is decided
      `Explicit`, serves allocations, and that dropping it reverts the device's
      current pool.
+6. **Private-pool context (0.8.28 pool-study branch only; the shape the study
+   proposes upstream).** `CudaContext::new_with_mem_pool(ordinal,
+   Arc<CudaMemPool>)` builds a context on the device's primary context that
+   allocates from its own pool with `cuMemAllocFromPoolAsync` and never reads
+   or changes the device's current pool. Its `alloc_mode()` is
+   `AllocMode::Private` and `has_async_alloc()` is true, so `CudaSlice::drop`
+   frees with `cuMemFreeAsync` as for any pool; no `CudaSlice` variant is
+   added. The pool is held by the context (`mem_pool()`), which every slice
+   keeps alive through its stream. The constructor runs neither the device
+   decision nor the process-wide table of item 2; a pool of another device
+   is rejected with `CUDA_ERROR_INVALID_VALUE`. Zero-length requests go to
+   the driver unchanged: `cuMemAllocFromPoolAsync(0)` returns a null pointer
+   on the measured Orin (pool-study C5, 60 / 60). The `upgrade_device_ptr`
+   safety note says a private-pool pointer may move only into a
+   stream-ordered context. Pure test: a pool context is `Private` without a
+   device decision. Device tests: allocations (including zero-length) come
+   from the pool, memory returns at synchronization with threshold 0, the
+   current pool is unchanged, and a full pool returns a typed
+   `CUDA_ERROR_OUT_OF_MEMORY` and recovers.
 
 ## Why
 

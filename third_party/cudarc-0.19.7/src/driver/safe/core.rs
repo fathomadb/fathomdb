@@ -34,6 +34,10 @@ pub struct CudaContext {
     pub(crate) ordinal: usize,
     pub(crate) has_async_alloc: bool,
     pub(crate) alloc_mode: AllocMode,
+    /// The pool this context allocates from, fixed at construction by
+    /// [CudaContext::new_with_mem_pool]; `None` for every other constructor
+    /// (FathomDB patch).
+    pub(crate) mem_pool: Option<Arc<super::mem_pool::CudaMemPool>>,
     /// Whether this wraps a primary context (true) or a non-primary context (false).
     /// Primary contexts are released via `cuDevicePrimaryCtxRelease`, while non-primary
     /// contexts are destroyed via `cuCtxDestroy_v2`.
@@ -97,6 +101,10 @@ pub enum AllocMode {
     /// Stream-ordered allocation from an explicit pool installed with
     /// [crate::driver::CudaMemPool::install] before the decision was made.
     Explicit,
+    /// Stream-ordered allocation (`cuMemAllocFromPoolAsync`) from the
+    /// context's own pool, given to [CudaContext::new_with_mem_pool]. The
+    /// device's current pool is not used or changed.
+    Private,
     /// Synchronous allocation (`cuMemAlloc` / `cuMemFree`).
     Sync,
 }
@@ -134,6 +142,20 @@ fn alloc_mode_decision(
             AllocMode::Sync
         },
     )
+}
+
+/// The allocator of a new context: [AllocMode::Private] for a context built
+/// with its own pool, without running `decide` (the device's decision is
+/// neither read nor recorded); otherwise whatever `decide` returns.
+fn context_alloc_mode(
+    has_pool: bool,
+    decide: impl FnOnce() -> Result<AllocMode, DriverError>,
+) -> Result<AllocMode, DriverError> {
+    if has_pool {
+        Ok(AllocMode::Private)
+    } else {
+        decide()
+    }
 }
 
 /// The allocator decision for each device, made once per process.
@@ -357,6 +379,49 @@ impl CudaContext {
             ordinal,
             has_async_alloc: alloc_mode.is_stream_ordered(),
             alloc_mode,
+            mem_pool: None,
+            is_primary: true,
+            num_streams: AtomicUsize::new(0),
+            event_tracking: AtomicBool::new(true),
+            error_state: AtomicU32::new(0),
+        });
+        ctx.bind_to_thread()?;
+        Ok(ctx)
+    }
+
+    /// Creates a context on the primary context of device `ordinal` that
+    /// allocates from `pool` (`cuMemAllocFromPoolAsync`) and frees with
+    /// `cuMemFreeAsync`, as every stream-ordered context does. The device's
+    /// current pool is neither read nor changed, so other users of the device
+    /// keep theirs. The context keeps `pool` alive, and every [CudaSlice] it
+    /// allocates keeps the context alive through its stream.
+    ///
+    /// A pointer from such a context may be moved
+    /// ([CudaSlice::leak] / [CudaStream::upgrade_device_ptr]) only into
+    /// another stream-ordered context ([CudaContext::has_async_alloc]).
+    ///
+    /// # Errors
+    /// `CUDA_ERROR_INVALID_VALUE` if `pool` belongs to another device, and the
+    /// driver errors of `cuInit`, `cuDeviceGet` and retaining the primary
+    /// context.
+    pub fn new_with_mem_pool(
+        ordinal: usize,
+        pool: Arc<super::mem_pool::CudaMemPool>,
+    ) -> Result<Arc<Self>, DriverError> {
+        result::init()?;
+        let cu_device = result::device::get(ordinal as i32)?;
+        if pool.cu_device() != cu_device {
+            return Err(DriverError(sys::CUresult::CUDA_ERROR_INVALID_VALUE));
+        }
+        let cu_ctx = unsafe { result::primary_ctx::retain(cu_device) }?;
+        let alloc_mode = context_alloc_mode(true, || unreachable!("pool contexts are private"))?;
+        let ctx = Arc::new(CudaContext {
+            cu_device,
+            cu_ctx,
+            ordinal,
+            has_async_alloc: true,
+            alloc_mode,
+            mem_pool: Some(pool),
             is_primary: true,
             num_streams: AtomicUsize::new(0),
             event_tracking: AtomicBool::new(true),
@@ -429,6 +494,7 @@ impl CudaContext {
             ordinal,
             has_async_alloc: alloc_mode.is_stream_ordered(),
             alloc_mode,
+            mem_pool: None,
             is_primary: false,
             num_streams: AtomicUsize::new(0),
             event_tracking: AtomicBool::new(true),
@@ -480,6 +546,7 @@ impl CudaContext {
             ordinal,
             has_async_alloc: alloc_mode.is_stream_ordered(),
             alloc_mode,
+            mem_pool: None,
             is_primary: false,
             num_streams: AtomicUsize::new(0),
             event_tracking: AtomicBool::new(true),
@@ -519,6 +586,7 @@ impl CudaContext {
             ordinal,
             has_async_alloc: alloc_mode.is_stream_ordered(),
             alloc_mode,
+            mem_pool: None,
             is_primary: false,
             num_streams: AtomicUsize::new(0),
             event_tracking: AtomicBool::new(true),
@@ -557,6 +625,12 @@ impl CudaContext {
     /// [CudaContext::has_async_alloc].
     pub fn alloc_mode(&self) -> AllocMode {
         self.alloc_mode
+    }
+
+    /// The pool this context allocates from, if it was built with
+    /// [CudaContext::new_with_mem_pool] (FathomDB patch).
+    pub fn mem_pool(&self) -> Option<&Arc<super::mem_pool::CudaMemPool>> {
+        self.mem_pool.as_ref()
     }
 
     /// The number of devices available.
@@ -1796,7 +1870,9 @@ impl CudaStream {
     /// Allocates an empty [CudaSlice] with 0 length.
     pub fn null<T>(self: &Arc<Self>) -> Result<CudaSlice<T>, result::DriverError> {
         self.ctx.bind_to_thread()?;
-        let cu_device_ptr = if self.ctx.has_async_alloc {
+        let cu_device_ptr = if let Some(pool) = &self.ctx.mem_pool {
+            unsafe { result::mem_pool::alloc_async(pool.raw(), 0, self.cu_stream) }?
+        } else if self.ctx.has_async_alloc {
             unsafe { result::malloc_async(self.cu_stream, 0) }?
         } else {
             unsafe { malloc_sync_or_null(0) }? // FATHOMDB PATCH
@@ -1819,7 +1895,13 @@ impl CudaStream {
         len: usize,
     ) -> Result<CudaSlice<T>, DriverError> {
         self.ctx.bind_to_thread()?;
-        let cu_device_ptr = if self.ctx.has_async_alloc {
+        let cu_device_ptr = if let Some(pool) = &self.ctx.mem_pool {
+            result::mem_pool::alloc_async(
+                pool.raw(),
+                len * std::mem::size_of::<T>(),
+                self.cu_stream,
+            )?
+        } else if self.ctx.has_async_alloc {
             result::malloc_async(self.cu_stream, len * std::mem::size_of::<T>())?
         } else {
             malloc_sync_or_null(len * std::mem::size_of::<T>())? // FATHOMDB PATCH
@@ -2782,10 +2864,14 @@ impl CudaStream {
     ///   should be called on the memory.
     /// - The slice frees the pointer with `cuMemFreeAsync` if
     ///   [CudaContext::has_async_alloc] is `true` for this stream's context and with
-    ///   `cuMemFree` otherwise, so the pointer must come from the matching allocator.
-    ///   On aarch64 Linux a pointer from [`CudaSlice::leak()`] on any context of the
-    ///   same device satisfies this, because every context of a device shares one
-    ///   decision (FathomDB patch).
+    ///   `cuMemFree` otherwise, so the pointer must come from the matching allocator:
+    ///   a stream-ordered pointer (from the default pool, an installed pool or a
+    ///   context's own pool, [CudaContext::new_with_mem_pool]) only into a
+    ///   stream-ordered context, a `cuMemAlloc` pointer only into a synchronous one.
+    ///   On aarch64 Linux, contexts of one device built without their own pool
+    ///   share one decision, so a pointer leaked from one of them satisfies this on
+    ///   any other; a pointer from a private-pool context does not satisfy it on a
+    ///   synchronous context (FathomDB patch).
     pub unsafe fn upgrade_device_ptr<T>(
         self: &Arc<Self>,
         cu_device_ptr: sys::CUdeviceptr,
@@ -3479,6 +3565,108 @@ mod fathomdb_alloc_fallback {
         );
     }
 
+    /// Serializes the device tests that install a pool or read the device's
+    /// current pool, so one cannot observe the other's installation.
+    static DEVICE_POOL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn device_pool_lock() -> std::sync::MutexGuard<'static, ()> {
+        DEVICE_POOL_LOCK
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+    }
+
+    #[test]
+    fn a_context_with_its_own_pool_is_private_and_runs_no_device_decision() {
+        assert_eq!(
+            context_alloc_mode(true, || panic!("a pool context must not run the device decision")),
+            Ok(AllocMode::Private)
+        );
+        assert!(AllocMode::Private.is_stream_ordered());
+        assert_eq!(
+            context_alloc_mode(false, || Ok(AllocMode::Sync)),
+            Ok(AllocMode::Sync)
+        );
+        let unknown = DriverError(sys::CUresult::CUDA_ERROR_UNKNOWN);
+        assert_eq!(context_alloc_mode(false, || Err(unknown)), Err(unknown));
+    }
+
+    /// A private pool for device 0 with release threshold 0, or `None` without
+    /// a CUDA device.
+    fn private_pool(max_size: usize) -> Option<Arc<crate::driver::CudaMemPool>> {
+        if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
+            std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
+            return None;
+        }
+        let props = crate::driver::MemPoolProps {
+            max_size,
+            release_threshold: 0,
+        };
+        Some(Arc::new(crate::driver::CudaMemPool::create(0, &props).unwrap()))
+    }
+
+    /// C9 at the cudarc level: a context built on a private pool allocates
+    /// from it (zero-length requests included), returns the memory at a
+    /// synchronization, and never changes the device's current pool.
+    #[test]
+    fn a_private_pool_context_allocates_from_its_pool_and_leaves_the_current_pool_alone() {
+        use sys::CUmemPool_attribute::*;
+        let _guard = device_pool_lock();
+        let Some(pool) = private_pool(192 << 20) else {
+            return;
+        };
+        let reader = CudaContext::new(0).unwrap();
+        reader.bind_to_thread().unwrap();
+        let current_before = unsafe { result::device::get_mem_pool(reader.cu_device) };
+        let ctx = CudaContext::new_with_mem_pool(0, pool.clone()).unwrap();
+        assert_eq!(ctx.alloc_mode(), AllocMode::Private);
+        assert!(ctx.has_async_alloc());
+        assert!(Arc::ptr_eq(ctx.mem_pool().unwrap(), &pool));
+        let stream = ctx.default_stream();
+        let slice = stream.alloc_zeros::<u8>(1 << 20).unwrap();
+        let empty = stream.null::<f32>().unwrap();
+        assert_eq!(empty.cu_device_ptr, 0);
+        stream.synchronize().unwrap();
+        let used = pool.attribute(CU_MEMPOOL_ATTR_USED_MEM_CURRENT).unwrap();
+        assert!(used >= 1 << 20, "private pool used_cur={used}");
+        drop(slice);
+        drop(empty);
+        stream.synchronize().unwrap();
+        assert_eq!(pool.attribute(CU_MEMPOOL_ATTR_USED_MEM_CURRENT), Ok(0));
+        assert_eq!(pool.attribute(CU_MEMPOOL_ATTR_RESERVED_MEM_CURRENT), Ok(0));
+        reader.bind_to_thread().unwrap();
+        assert_eq!(
+            unsafe { result::device::get_mem_pool(reader.cu_device) },
+            current_before
+        );
+    }
+
+    /// CB3 at the cudarc level: a private pool at its cap returns a typed
+    /// out-of-memory error, leaves the context usable, and recovers once
+    /// memory is freed.
+    #[test]
+    fn a_private_pool_at_its_cap_returns_a_typed_out_of_memory_and_recovers() {
+        let Some(pool) = private_pool(192 << 20) else {
+            return;
+        };
+        let ctx = CudaContext::new_with_mem_pool(0, pool).unwrap();
+        let stream = ctx.default_stream();
+        let mut held = std::vec::Vec::new();
+        let err = loop {
+            match unsafe { stream.alloc::<u8>(8 << 20) } {
+                Ok(slice) => held.push(slice),
+                Err(err) => break err,
+            }
+            assert!(held.len() < 64, "a 192 MiB pool never filled");
+        };
+        assert_eq!(err, DriverError(sys::CUresult::CUDA_ERROR_OUT_OF_MEMORY));
+        ctx.synchronize().unwrap();
+        held.clear();
+        stream.synchronize().unwrap();
+        let again = unsafe { stream.alloc::<u8>(8 << 20) }.unwrap();
+        drop(again);
+        stream.synchronize().unwrap();
+    }
+
     /// A device with an installed explicit pool decides `Explicit`, and its
     /// stream-ordered allocations draw from that pool. Uses the decision
     /// directly: the process-wide table may already hold device 0's decision
@@ -3487,6 +3675,7 @@ mod fathomdb_alloc_fallback {
     #[test]
     fn an_installed_pool_is_decided_explicit_and_serves_allocations() {
         use crate::driver::safe::mem_pool::{CudaMemPool, MemPoolProps, INSTALLED_POOLS};
+        let _guard = device_pool_lock();
         if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
             std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
             return;

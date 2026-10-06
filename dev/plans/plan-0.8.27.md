@@ -372,9 +372,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 130** (`PYTHON`) — Python SDK decomposition
+**IMMEDIATE NEXT: Slice 132** (`RUST-SDK-PARITY`) — Rust SDK canonical-surface parity
 
-**Remaining ladder:** 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1113,7 +1113,8 @@ thresholds; Slice 135 retains ownership of the full 0.8.26 comparison.
 The [status and receipt](0.8.27/features/slice-115/status.md) record twelve
 current-source engine cells, independent reviews, and the inherited Slice 90
 inventory mismatch that prevents a full-workspace green claim for Slice 115's
-own pre-review run. Slice 110's Tegra row has since closed; Slice 120 is next.
+own pre-review run. Slice 110's Tegra row and Slices 120 and 130 have since
+closed.
 
 This slice characterizes the release candidate; it does not tune by anecdote or
 silently alter feature/function. It must preserve raw or reproducible receipts

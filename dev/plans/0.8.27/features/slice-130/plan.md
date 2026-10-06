@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 130 - Python SDK decomposition plan
-status: DESIGN_APPROVED_IMPLEMENTATION_PENDING
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.27
 ---
 

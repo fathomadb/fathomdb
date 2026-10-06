@@ -372,9 +372,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 110** (`NAPI`) — napi-rs binding decomposition
+**IMMEDIATE NEXT: Slice 120** (`TYPESCRIPT`) — TypeScript SDK decomposition
 
-**Remaining ladder:** 110 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1055,16 +1055,14 @@ with the code. No Pages publication or release tag is authorized here.
 
 ### Slice 110 — napi-rs binding decomposition
 
-**PLANNED; uncommissioned.** Execute the prospective
-[`Slice 110 design`](0.8.27/features/slice-110/design.md) after Slice 103 closes.
-Use shared vocabulary only where responsibilities match; preserve NAPI's
-language-specific conversion, registration and async boundaries. The design
-requires exact native/runtime/declaration inventories, resolved executor and
-subscriber contracts, async/lifetime/FFI proof, and an installed thin-main plus
-platform-binary package pair. Production declaration generation and runtime
-exports are separate oracles. Zero open Slice 110 obligations unblocks Slice
-120. No Slice 111 is allocated: bounded sub-batches provide sufficient review
-and verification boundaries within 110.
+**COMPLETE on `release/0.8.27` at merged source `a25d063cd`.** The reviewed
+[`Slice 110 design`](0.8.27/features/slice-110/design.md) preserves NAPI's
+language-specific conversion, registration and async boundaries. The
+[closeout](0.8.27/features/slice-110/status.md) binds the exact native,
+runtime and declaration inventories, the accepted TypeScript subscriber,
+installed thin-main/platform package pairs, the merged Orin witness, and the
+clean 184 / 184 amd64 repository gate. Slice 120 consumes those final native
+contracts. No Slice 111 was allocated.
 
 ### Slice 114 — engine configuration, constants, and documentation audit
 
@@ -1073,15 +1071,15 @@ component-by-component audit of Rust engine configuration, setting consumers,
 constants, and variables classified unused values as retained with a reason or
 assigned to a named follow-up. It made no opportunistic behavior change.
 
-The [Slice 114 planning review](0.8.27/features/slice-114/plan.md) reconciles
+The [Slice 114 planning review](0.8.27/features/slice-114/plan.md) reconciled
 the September 28 draft with the completed Slice 90 runtime, subsequent engine
-and binding changes, and the current Slice 110 blocker. It defines the
+and binding changes, and the then-open Slice 110 blocker. It defines the
 source-linked inventory and AC27-114A–D. Census production module-level
 constants, configuration inputs and operational limits; classify SQL and
 schema constants without treating them as prospective knobs. The HITL
 authorized execution on 2026-10-04 as if Slice 110 were complete; the audit
 reconciled the exact `eefc2e3d8` source delta. Slice 110's Tegra qualification
-remains open and controls the next unblocked release work. The
+was open at the time and has since closed. The
 [Slice 114 status](0.8.27/features/slice-114/status.md) binds the result.
 
 For every user- or operator-relevant setting, record its owner, spelling,
@@ -1114,8 +1112,8 @@ D27 qualification and existing performance gates without changing their
 thresholds; Slice 135 retains ownership of the full 0.8.26 comparison.
 The [status and receipt](0.8.27/features/slice-115/status.md) record twelve
 current-source engine cells, independent reviews, and the inherited Slice 90
-inventory mismatch that prevents a full-workspace green claim. Slice 110's
-Tegra row remains open; its closure still gates Slice 120.
+inventory mismatch that prevents a full-workspace green claim for Slice 115's
+own pre-review run. Slice 110's Tegra row has since closed; Slice 120 is next.
 
 This slice characterizes the release candidate; it does not tune by anecdote or
 silently alter feature/function. It must preserve raw or reproducible receipts

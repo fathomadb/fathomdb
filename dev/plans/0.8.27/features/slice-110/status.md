@@ -1,18 +1,20 @@
 ---
 title: FathomDB 0.8.27 Slice 110 qualification status
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.27
 ---
 
 # Slice 110 qualification status
 
-The reviewed product-code commit is
+The reviewed NAPI product-code commit is
 `87670f61d48e6552edcb2a64f7ddb2dacf2863e1` on `release/0.8.27`.
 The release-note gate fix at `06e34759f55dbede47b9b7ccb2c000dd5edac9b4`
-changes no product code. Slice 110 remains **in progress** while the merged
-release code at `a25d063cd` finishes the full repository x86_64 gate. The Tegra
-allocation-witness row is resolved on the merged installed package. Installed x86_64 Node and Python CUDA
-artifacts pass the merged-source runtime checks below. Hosted
+changes no product code. The Tegra allocator and early-`cuInit` changes merged
+at `a25d063cd`. Slice 110 is **complete**: the clean amd64 repository gate
+passed 184 / 184 suites at `825f31cc5`, and the merged installed Jetson
+package passed its allocation witness 20 / 20 on a quiet host. Installed
+x86_64 Node and Python CUDA artifacts passed the merged-source runtime checks
+below. Hosted
 Linux arm64 GNU and both macOS package rows have passed. The intermittent
 Jetson forced-CUDA refusal was root-caused and fixed on
 `llm/slice110-tegra-allocator-fix` (see AC27-110E): an aarch64-Linux
@@ -21,9 +23,9 @@ synchronous allocation fallback in the vendored cudarc 0.19.7 plus early
 (`slice-110-early-cuinit-with-allocator-fallback`). Every review round on that
 branch passed or closed its findings, and an x86_64 round on candidate
 `8b76f6115` passed (see the [integration intake](tegra-integration-pending.md)).
-That branch is now merged into `release/0.8.27`. The HITL authorized Slices 114
-and 115 to proceed before Slice 110 closes; both are complete under those
-sequencing exceptions.
+That branch is merged into `release/0.8.27`. The HITL authorized Slices 114
+and 115 to proceed before Slice 110 closed; both are complete under those
+sequencing exceptions. Slice 120 is next.
 
 > **Revisit obligation (user-directed).** The aarch64-Linux-only cudarc
 > allocator workaround, and the early `cuInit` added in this slice,
@@ -43,8 +45,8 @@ sequencing exceptions.
 | AC27-110B | PASS for the tested routes: production native runtime has the frozen 17 exports and 44 Engine prototype names; the generated declaration differs only in the accepted subscriber callback signature and removal of `AttachSubscriberOptions`. Test-hook generation adds exactly its expected hooks; a later production build removes them from declarations and runtime. The fresh Linux and Windows installed pairs preserve the package loader and consumer type surface. |
 | AC27-110C | PASS locally: the accepted [subscriber ADR](../../../../adr/ADR-0.8.27-typescript-subscriber-delivery.md) is implemented. RED witnesses preceded the callback delivery, replacement race, queue overflow and Windows wrapper fixes. The native suite passes 7/7; NAPI Rust unit tests pass 22/22. A production-artifact writer callback ran on the JS thread before its 8 MB write settled; concurrent close and repeated close settled. Existing FFI panic, conversion and lifecycle suites passed in the full gate. |
 | AC27-110D | PASS locally: existing native/SDK validation and FFI tests cover numeric bounds, invalid strings, panic/error conversion and no-mutation refusals. The no-default-embedder artifact rejected `useDefaultEmbedder: true` without creating a database, then opened and closed normally without that option. |
-| AC27-110E | **Tegra GPU runtime fixed on reviewed source; merged installed package passes the witness on a quiet host (20 / 20).** Exact-source Linux x64 GNU, Windows x64 MSVC, Linux x64 CUDA/reranker, hosted Linux arm64 GNU, and macOS x64/arm64 installed Node package pairs passed. On the Jetson AGX Orin the intermittent forced-CUDA refusal was traced to the driver's default memory pool, which needs one contiguous 20960 MiB range of process address space inside [8 GiB, 128 GiB); Node heaps fragment it, so stream-ordered allocation failed with `CUDA_ERROR_OUT_OF_MEMORY` while synchronous allocation worked. A vendored cudarc 0.19.7 (`third_party/cudarc-0.19.7`) now falls back to synchronous allocation when that pool cannot be obtained and handles zero-length synchronous buffers. A fragmented-layout regression test failed 6 / 6 before the fix and passed 11 / 11 after. After the first review's fixes it asserts that the default pool is unavailable and that the context allocates synchronously, and it passed 12 / 12. The allocator decision is now made once per device per process, and unrelated pool-query errors are propagated rather than downgrading the device. After the second review the test asserts only on the measured AGX Orin 64 GB (12 / 12). A cached decision was shown to stay valid on the measured Orin: the default pool survived context teardown with an explicit pool kept alive (40 / 40), never created (40 / 40) or destroyed first (20 / 20), and a post-`cuInit` control detected a missing pool (10 / 10); other Jetsons, non-Tegra aarch64 hosts and a co-resident `cuDevicePrimaryCtxReset`/`cudaDeviceReset` are unmeasured. At the user's direction, the fallback now compiles only for aarch64 Linux; every other target compiles upstream's allocator logic unchanged. Fresh forced-CUDA open/embed/rerank/witness processes then passed 100 / 100 (Node 25: 30 in-tree + 30 installed; Node 24 and 26: 10 + 10 each); forced CPU passed 6 / 6. After each review round, a rebuilt artifact passed 10 / 10 in-tree and 10 / 10 installed on Node 25, with forced CPU 3 / 3 in each form. The final Tegra Python wheel passed 10 / 10. `cuInit` itself fails once a large JavaScript heap leaves no 4 GiB hole, so the Node addon built for aarch64 Linux with CUDA now calls `cuInit` while Node registers the module (once per process; skipped when every component built with CUDA has an exact `cpu` policy, or with `FATHOMDB_CUDA_EARLY_INIT=off`), and a later forced-CUDA refusal may name an out-of-memory `cuInit` and remedy when the latest same-kind probe record still holds that outcome. A heap-growth check failed 3 / 3 before and passed after; behind an early import, 50 / 50 heap-heavy processes passed on Node 25, 24 and 26, `node --import fathomdb` rescued a late import 8 / 8, and a late import without it was refused 5 / 5 with the new message. Fix round 3 moved the call from a shared-library constructor to module registration, made the embedder items `#[doc(hidden)]` and unstable, and records the latest `cuInit` outcome per probe kind for a best-effort refusal hint; on the rebuilt addon 50 / 50 heap-heavy processes passed again, 5 / 5 first loads inside a worker passed, `--import` rescued 5 / 5, a late import was refused 5 / 5 with the hint, and the rebuilt Tegra Python wheel passed 10 / 10. The hook adds about 12 ms per import and about 61.5 GiB of reserved virtual address space. Open limitations: a late import into a large heap still fails; the synchronous path is about 1.8–2.8 times slower per steady embed, and early `cuInit` does not avoid it; only the AGX Orin 64 GB was measured. The [Tegra receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md#allocator-root-cause-and-fix) holds the hashes and counts. |
-| AC27-110F | **OPEN with code/repository gates passing:** gpt-6-sol high code review passed at the product commit; Terra independently verified local source, artifact and Linux CPU package evidence and the later Tegra investigation. Strict local `agent-verify` passed 182/182 suites, zero skipped or excluded, and security 0 violations/0 blockers/0 downgrades at `06e34759`. Hosted platform job receipts are retained. The CI workflow's separate heavy verifier failed its missing-tool preflight before testing, and its self-hosted Windows row remained queued; neither is represented as a green CI conclusion. Tegra GPU runtime and final native handoff still control exit. |
+| AC27-110E | **PASS:** the Tegra GPU runtime fix is reviewed, and the merged installed package passes the witness on a quiet host (20 / 20). Exact-source Linux x64 GNU, Windows x64 MSVC, Linux x64 CUDA/reranker, hosted Linux arm64 GNU, and macOS x64/arm64 installed Node package pairs passed. On the Jetson AGX Orin the intermittent forced-CUDA refusal was traced to the driver's default memory pool, which needs one contiguous 20960 MiB range of process address space inside [8 GiB, 128 GiB); Node heaps fragment it, so stream-ordered allocation failed with `CUDA_ERROR_OUT_OF_MEMORY` while synchronous allocation worked. A vendored cudarc 0.19.7 (`third_party/cudarc-0.19.7`) now falls back to synchronous allocation when that pool cannot be obtained and handles zero-length synchronous buffers. A fragmented-layout regression test failed 6 / 6 before the fix and passed 11 / 11 after. After the first review's fixes it asserts that the default pool is unavailable and that the context allocates synchronously, and it passed 12 / 12. The allocator decision is now made once per device per process, and unrelated pool-query errors are propagated rather than downgrading the device. After the second review the test asserts only on the measured AGX Orin 64 GB (12 / 12). A cached decision was shown to stay valid on the measured Orin: the default pool survived context teardown with an explicit pool kept alive (40 / 40), never created (40 / 40) or destroyed first (20 / 20), and a post-`cuInit` control detected a missing pool (10 / 10); other Jetsons, non-Tegra aarch64 hosts and a co-resident `cuDevicePrimaryCtxReset`/`cudaDeviceReset` are unmeasured. At the user's direction, the fallback now compiles only for aarch64 Linux; every other target compiles upstream's allocator logic unchanged. Fresh forced-CUDA open/embed/rerank/witness processes then passed 100 / 100 (Node 25: 30 in-tree + 30 installed; Node 24 and 26: 10 + 10 each); forced CPU passed 6 / 6. After each review round, a rebuilt artifact passed 10 / 10 in-tree and 10 / 10 installed on Node 25, with forced CPU 3 / 3 in each form. The final Tegra Python wheel passed 10 / 10. `cuInit` itself fails once a large JavaScript heap leaves no 4 GiB hole, so the Node addon built for aarch64 Linux with CUDA now calls `cuInit` while Node registers the module (once per process; skipped when every component built with CUDA has an exact `cpu` policy, or with `FATHOMDB_CUDA_EARLY_INIT=off`), and a later forced-CUDA refusal may name an out-of-memory `cuInit` and remedy when the latest same-kind probe record still holds that outcome. A heap-growth check failed 3 / 3 before and passed after; behind an early import, 50 / 50 heap-heavy processes passed on Node 25, 24 and 26, `node --import fathomdb` rescued a late import 8 / 8, and a late import without it was refused 5 / 5 with the new message. Fix round 3 moved the call from a shared-library constructor to module registration, made the embedder items `#[doc(hidden)]` and unstable, and records the latest `cuInit` outcome per probe kind for a best-effort refusal hint; on the rebuilt addon 50 / 50 heap-heavy processes passed again, 5 / 5 first loads inside a worker passed, `--import` rescued 5 / 5, a late import was refused 5 / 5 with the hint, and the rebuilt Tegra Python wheel passed 10 / 10. The hook adds about 12 ms per import and about 61.5 GiB of reserved virtual address space. Open limitations: a late import into a large heap still fails; the synchronous path is about 1.8–2.8 times slower per steady embed, and early `cuInit` does not avoid it; only the AGX Orin 64 GB was measured. The [Tegra receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md#allocator-root-cause-and-fix) holds the hashes and counts. |
+| AC27-110F | **PASS:** the gpt-6-sol high code review and independent Terra verification cover the NAPI source, installed artifacts and final Tegra fix; the source inventory has no unexplained Slice 110 item. The clean amd64 `agent-verify` gate passed 184 / 184 suites at `825f31cc5`, with zero skips or exclusions and security 0 violations/0 blockers/0 downgrades. Merged-source installed packages and hosted platform receipts cover the required routes, including the 20 / 20 installed Jetson witness repeat on the same addon digest. The earlier CI heavy-verifier missing-tool preflight and queued self-hosted Windows job remain historical limits, not green CI claims. Slice 120 receives the final native declarations and package receipts. |
 
 ## Candidate-bound artifacts and checks
 
@@ -81,8 +83,13 @@ documentation edits made during the run. On clean commit `33f7601a`, the
 Python suite then passed 1,579 tests with 27 skips, and the nonce-bound native
 candidate receipt verified against that exact commit and extension SHA-256
 `db2f1613947b6e8ab422518e2d02cf25bab5b6cbe9bc1e8946aa7e171167b003`.
-The two originally failed suites have clean rerun evidence; no single
-full-gate green is claimed.
+The two originally failed suites have clean rerun evidence. The full strict
+`CARGO_PROFILE_TEST_OPT_LEVEL=3 AC013_VECTOR_DIM=384 ./scripts/agent-verify.sh`
+then passed 184 / 184 registered suites on the clean `825f31cc5` amd64
+checkout, with zero skipped or excluded suites. Its security leg reported
+zero violations, blockers and downgrades. The later `68f4af943` commit added
+only merged-Jetson evidence and status wording; it did not change the tested
+product or gate source.
 
 On the AGX Orin, the merged-source CUDA Node addon rebuilt and its installed
 package passed five fresh forced-CUDA open/embed/rerank/close processes without
@@ -204,28 +211,23 @@ The retained [entry inventory](entry-inventory.md),
 [source-owner map](entry-source-owner.tsv), [design review](design-review.md),
 and [execution plan](plan.md) bind the planned contract. The final native
 signature delta is the one in the subscriber ADR; `close()` still returns
-`Promise<void>`. Slice 120 should use these final declarations and the
-installed package receipts after the remaining platform rows pass.
+`Promise<void>`. Slice 120 should use these final declarations and installed
+package receipts.
 
 The active data-plane architecture, binding and lifecycle designs now explain
 the as-built NAPI ownership split, separate Promise and subscriber paths, and
 the reasons for the queue, wakeup, close and heartbeat decisions. The
 post-implementation design review and its wording correction are recorded in
-[design-review.md](design-review.md). This documentation reconciliation does
-not change the open platform acceptance rows.
+[design-review.md](design-review.md). All required platform rows are closed.
 
-## Remaining action
+## Closeout and handoff
 
 The merged-source x86_64 code, installed packages and feature-complete gate
-have passed; the full `agent-verify` attempt has combined coverage across its
-182 passing suites and clean reruns of its two Python artifact suites. A
-single uninterrupted full-gate green has not been recorded. The AGX Orin
+have passed, as has the clean 184 / 184 repository gate. The AGX Orin
 allocation-witness measurement is resolved on the merged installed package
-(20 / 20 on a quiet host). Forced CUDA must continue to refuse
-rather than fall back to CPU when unavailable; a late import into a very large
-Node heap still fails at `cuInit`, and the synchronous path is about 1.8–2.8
-times slower per steady embed. Hosted Linux arm64 GNU and both macOS rows are
-complete. Only after those checks may release state mark Slice 110 complete and
-advance `next_slice`; Slices 114 and 115 are already complete, so it advances
-to Slice 120 unless the planned Slice 117 ladder entry has merged first. No
-tag, publication or deployment was performed.
+(20 / 20 on a quiet host). The accepted operational limits remain: forced
+CUDA refuses rather than silently using CPU when unavailable; a late import
+into a very large Node heap can still fail at `cuInit`; and the synchronous
+allocation path is about 1.8–2.8 times slower per steady embed on the measured
+Orin. The final native signatures and installed package receipts hand off to
+Slice 120. No tag, publication or deployment was performed.

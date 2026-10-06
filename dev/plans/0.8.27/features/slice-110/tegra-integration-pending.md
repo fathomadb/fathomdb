@@ -1,21 +1,29 @@
 ---
 title: Slice 110 Tegra allocator integration intake
-status: OPEN
+status: COMPLETE
 target_release: 0.8.27
 date: 2026-10-05
 ---
 
 # Slice 110 Tegra allocator integration intake
 
+**Closed 2026-10-06.** The allocator and early-`cuInit` changes merged at
+`a25d063cd`. On the merged installed addon, the quiet-host allocation witness
+passed 20 / 20; its [receipt](../../../runs/0.8.27-slice-110-tegra/merged-witness/results.md)
+explains the earlier shared-counter interference. The clean amd64
+`agent-verify` gate passed 184 / 184 at `825f31cc5`. This document retains
+the historical branch-intake plan; the [Slice 110 status](status.md) and live
+release state carry the closeout.
+
 On 2026-10-05, the clean
 `/home/coreyt/projects/fathomdb-worktrees/slice-110-tegra-allocator-fix`
 worktree was fast-forwarded to
-`llm/slice110-tegra-allocator-fix` at `77d742153`. This is a branch intake,
-not a release merge or Slice 110 qualification. At intake, the release branch
-had ten commits absent from the Tegra branch, and the Tegra branch had eighteen
-commits absent from release. Release state still has Slice 110 `IN_PROGRESS`
-and `next_slice: 110`; Slices 114 and 115 completed under separate HITL
-sequencing exceptions. Preserve that state when integrating branch documents.
+`llm/slice110-tegra-allocator-fix` at `77d742153`. This was a branch intake,
+before the release merge or Slice 110 qualification. At intake, the release
+branch had ten commits absent from the Tegra branch, and the Tegra branch had
+eighteen commits absent from release. Release state then had Slice 110
+`IN_PROGRESS` and `next_slice: 110`; Slices 114 and 115 completed under
+separate HITL sequencing exceptions. That state was preserved during integration.
 
 ## Branch result and limits
 
@@ -39,7 +47,7 @@ A late import into a very large Node heap can still fail at `cuInit` before
 allocator selection. The updated branch has now compiled and run on x86_64
 as recorded below; hosted CI compilation remains part of integration.
 
-## Work before integration and closure
+## Historical integration checklist
 
 1. **Independently review the completed Tegra follow-up.** The six low-severity
    fix-2 findings were addressed on the candidate branch: the teardown probe
@@ -73,8 +81,8 @@ as recorded below; hosted CI compilation remains part of integration.
    Recheck the branch and release tips at integration time; the SHAs above are
    this intake snapshot.
 
-Only after these items have candidate-bound evidence should Slice 110 status
-and the release ladder advance. No publication follows from this intake.
+The candidate-bound evidence for these items is recorded in the closeout
+linked above. No publication followed from this intake.
 
 ## Early `cuInit` is in 0.8.27 Slice 110
 

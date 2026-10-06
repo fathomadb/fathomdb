@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 110 (NAPI), IN_PROGRESS.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) · 114 (`25115902db8b9b5648c5ceca1823d3cc66fec8e8`) · 115 (`012e132920147396ac195f14af74444dd698f48e`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 120 (TYPESCRIPT), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) · 110 (`a25d063cd3e1642ad08dcc6aed3691b94445fe20`) · 114 (`25115902db8b9b5648c5ceca1823d3cc66fec8e8`) · 115 (`012e132920147396ac195f14af74444dd698f48e`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -36,19 +36,17 @@ remains outside the qualified support claim. See the
 [Slice 103 status](../0.8.27/features/slice-103/status.md) for artifact hashes,
 evidence, and limits. No publication is authorized here.
 
-Slice 110 product code is merged at `87670f61d`. Independent code review,
-local Linux, Windows, and selected-GPU CUDA installed Node packages, Terra
-verification, and the strict 182/182 repository gate pass. Hosted Linux
-arm64 GNU and both macOS installed Node package rows also pass. The
-[Slice 110 status](../0.8.27/features/slice-110/status.md) records exact
-artifacts and the remaining Tegra forced-CUDA runtime failure. The freshly
-rebooted Orin passed its CPU and CUDA package checks, but forced CUDA remained
-intermittent at the first tensor allocation even after Memex CI finished.
-A driver probe showed about 53.8 GB free at failure and no named competing
-CUDA process; the stream allocation/zero path remains under investigation.
-Slice 110 remains in progress. The HITL authorized Slices 114 and 115 to
-proceed; both are complete on the release branch. The Tegra row still controls
-Slice 110 closure, and Slice 120 has not started.
+Slice 110 is complete on `release/0.8.27`. Its final product source includes
+the reviewed NAPI work and Tegra fix merged at `a25d063cd`. Installed Linux
+x64 CUDA Node and Python packages passed forced-GPU, CPU and no-GPU checks;
+Windows x64 MSVC, hosted Linux arm64 GNU and both macOS Node package rows
+passed. The merged installed Orin addon passed 20 / 20 witness-enabled
+forced-CUDA processes on a quiet host. The clean amd64 `agent-verify` gate
+passed 184 / 184 suites with strict security 0/0/0. The
+[Slice 110 status](../0.8.27/features/slice-110/status.md) records artifact
+hashes, review, feature-complete and platform evidence, and measured Tegra
+limits. Slices 114 and 115 completed earlier under HITL sequencing exceptions;
+Slice 120 is next. No publication is authorized here.
 
 Slice 132 is planned after Slice 130 and before performance qualification. It
 will make the Rust SDK equal in canonical capability to Python and TypeScript,
@@ -62,7 +60,7 @@ implementation.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Continue Slice 110 (NAPI)** — napi-rs binding decomposition. **Remaining ladder:** 110 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 120 (TYPESCRIPT)** — TypeScript SDK decomposition. **Remaining ladder:** 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -108,6 +106,7 @@ binding and stage-3 ancestry. See the
 | 90 | Engine open, configuration, runtime, operator, and facade closure | Complete on `release/0.8.27` at reviewed source candidate `1398c821d`. The stage-2 runtime checkpoint, final Sol code review, final independent Terra verification, 180/180 full gate, strict GPU gate, frozen D27 comparison, named performance gates, installed bindings, Windows MSVC routes, and official public/hidden comparisons pass. The AC-073 stress PASS and superseded AC-075 combined-selector failure remain distinct. See [Slice 90 status](../0.8.27/features/slice-90/status.md) and [final verification](../0.8.27/features/slice-90/final-review-verification.md). |
 | 100 | PyO3 binding decomposition and subscriber correction | Complete at production candidate `731130c22` and reviewed documentation/ADR closeout `89c0a7c70`. The source/runtime inventory, installed wheels, focused subscriber tests, independent Sol code and design reviews, Terra verification, affected platform routes, and strict full gate pass. The full gate reports 178/180 suites with two environment skips and zero security findings. See [Slice 100 status](../0.8.27/features/slice-100/status.md) and [verification](../0.8.27/features/slice-100/review-verification.md). |
 | 103 | Tegra build continuity, Windows WAL, and owed erasure recovery | Complete at integrated code `c2e80ff76`. The exact-code installed Windows and Jetson wheels, independent review, 182/182 strict suites, and the broader release check pass. See [Slice 103 status](../0.8.27/features/slice-103/status.md). |
+| 110 | NAPI binding decomposition and subscriber correction | Complete at merged source `a25d063cd`. Reviewed native ownership and TypeScript subscriber, installed Node platform pairs, amd64 CUDA Node/Python, merged Orin witness 20/20, feature-complete 353 passes, and clean strict gate 184/184 pass. See [Slice 110 status](../0.8.27/features/slice-110/status.md). |
 | 114 | Engine configuration and constants audit | Complete at `25115902d` under the HITL sequencing exception; settings and runtime behavior unchanged. See [Slice 114 status](../0.8.27/features/slice-114/status.md). |
 | 115 | Engine performance characterization | Complete at `012e13292` under the HITL sequencing exception. Twelve real-engine cells have seven valid samples each, with binary-bound profiles, reviewed receipt, independent code review and Terra verification. The inherited Slice 90 inventory mismatch prevents a full-workspace green claim. See [Slice 115 status](../0.8.27/features/slice-115/status.md). |
 
@@ -263,13 +262,11 @@ grant/revert evidence.
 - [Slice 103](../0.8.27/features/slice-103/status.md) is complete on the
   release branch. Its exact-code Tegra and Windows wheels and erasure recovery
   proof are recorded; it does not authorize publication.
-- [Slice 110](../0.8.27/features/slice-110/status.md) is in progress. Native
-  ownership, the subscriber contract, local Linux, Windows and CUDA/reranker
-  installed packages, hosted Linux arm64 GNU and both macOS package rows, and
-  the strict repository gate pass. The rebooted Orin still intermittently
-  refuses forced CUDA at Candle's first tensor allocation. The Tegra runtime
-  row is open; Slice 120 remains downstream of Slice 110 despite the completed
-  Slice 115 exception.
+- [Slice 110](../0.8.27/features/slice-110/status.md) is complete. Native
+  ownership and the subscriber contract pass independent review; installed
+  Linux, Windows, macOS and CUDA package routes pass. The merged Orin addon
+  passed 20 / 20 witness-enabled installed forced-CUDA processes on a quiet
+  host. The clean amd64 full gate passed 184 / 184 suites. Slice 120 is next.
 - [Slice 114](../0.8.27/features/slice-114/status.md) completed its engine
   configuration audit under the HITL's 2026-10-04 sequencing exception. The
   152-declaration census, public-setting trace, post-open SQLite witness,
@@ -279,8 +276,9 @@ grant/revert evidence.
   engine characterization under the HITL's sequencing exception. The frozen
   protocol, twelve path cells, real default-model probe, raw receipt and
   profiles pass independent code review and Terra verification. A focused
-  clean-checkout Python suite passed; the inherited Slice 90 inventory hash
-  mismatch remains the one known full-gate blocker.
+  clean-checkout Python suite passed; an inherited Slice 90 inventory hash
+  mismatch blocked Slice 115's earlier full-gate attempt. The later clean
+  Slice 110 gate passed 184 / 184 suites.
 - [Slice 132](../0.8.27/features/slice-132/plan.md) follows Slice 130 and
   requires a HITL-approved successor to the current Rust parity-in-intent
   contract. It inventories canonical operations, types, and capabilities across

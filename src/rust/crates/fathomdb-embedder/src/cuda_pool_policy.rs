@@ -358,7 +358,10 @@ mod driver {
         let current = pair(unsafe { result::device::get_mem_pool(device) });
         // SAFETY: as above.
         let default = pair(unsafe { result::device::get_default_mem_pool(device) });
-        Some(format!("current_pool={current} default_pool_pair={default}"))
+        let private = PRIVATE.get().map_or(0, |(_, pool)| pool.raw() as usize);
+        Some(format!(
+            "current_pool={current} default_pool_pair={default} private_pool={private:#x}"
+        ))
     }
 
     fn join_extra(a: Option<String>, b: Option<String>) -> Option<String> {

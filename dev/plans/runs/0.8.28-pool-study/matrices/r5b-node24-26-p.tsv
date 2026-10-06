@@ -1,0 +1,13 @@
+# R5 (revision 3), P-first-use on Node 24 and 26: variant node heap maxsize threshold count
+P-first-use 24.15.0 0 3G 0 30
+P-first-use 24.15.0 100000 3G 0 30
+P-first-use 24.15.0 400000 3G 0 30
+P-first-use 24.15.0 1000000 3G 0 30
+P-first-use 24.15.0 4000000 3G 0 60
+P-first-use 24.15.0 8000000 3G 0 60
+P-first-use 26.10.0 0 3G 0 30
+P-first-use 26.10.0 100000 3G 0 30
+P-first-use 26.10.0 400000 3G 0 30
+P-first-use 26.10.0 1000000 3G 0 30
+P-first-use 26.10.0 4000000 3G 0 60
+P-first-use 26.10.0 8000000 3G 0 60

@@ -6,6 +6,8 @@ Usage: analyze.py <command> <paths...>
   seeds DIR         Phase 0 V8 --random-seed layout check (maps per run).
   c3 DIR...         C3 capacity (results.txt RESULT lines of pool_capacity).
   gap DIR           Contiguous need (points.txt / results.txt of gap-sweep.sh).
+  pilot ROOT        Heap pilot: largest hole before open per heap cell.
+  r5b ROOT          R5 revision 3 (chunked, interleaved cells pooled by label).
   r5 DIR            R5 lazy creation: DIR/<cell>/run-*.json (+ maps).
   p1 DIR            P1 import cost: DIR/<variant>/run-*.json.
   hw DIR...         Workload high-water marks from teardown events.
@@ -349,6 +351,31 @@ def new_bytes(pre, post):
     return total
 
 
+def cmd_pilot(root):
+    """Heap pilot (protocol revision 3, section 7): largest unmapped hole in
+    [8, 128) GiB before open, per heap size, from import-only runs with MAPS=1."""
+    print("## Heap pilot (import only, maps before open)\n")
+    print("| Cell | n | Pass | heapUsed MiB (median) | VmRSS MiB (median) | Largest hole GiB median | min | max |")
+    print("| --- | --- | --- | --- | --- | --- | --- | --- |")
+    cells = sorted(glob.glob(os.path.join(root, "*")), key=lambda c: (len(c), c))
+    for cell in cells:
+        rs = runs(cell)
+        if not rs:
+            continue
+        holes = []
+        for r in rs:
+            run = r["_file"][:-5]
+            snaps = glob.glob(os.path.join(cell, "maps", run, "maps-*-before-open.txt"))
+            if snaps:
+                holes.append(largest_hole(snaps[0]) / GiB)
+        heap = [r.get("heapUsedMiB") or 0 for r in rs]
+        rss = [((r.get("mem") or {}).get("points") or {}).get("beforeOpen", {}).get("rssMiB", 0) for r in rs]
+        passed = sum(r.get("outcome") == "pass" for r in rs)
+        print(f"| {os.path.basename(cell)} | {len(rs)} | {passed} | {med(heap):.0f} | {med(rss):.0f} | "
+              f"{med(holes) if holes else float('nan'):.2f} | {min(holes) if holes else float('nan'):.2f} | "
+              f"{max(holes) if holes else float('nan'):.2f} |")
+
+
 def cmd_r5(root):
     print("## R5 lazy creation after heap growth\n")
     print("| Cell | n | Pass | Pool created (install create+probe) | explicit | default | sync | default pool OOM (B) | min largest hole pre-pool GiB | new mapping at creation MiB (median) |")
@@ -404,6 +431,83 @@ def cmd_r5(root):
     for v, (p, n, s) in sorted(pooled.items()):
         print(f"  {v}: pass {fmt_wilson(p, n)}; stream-ordered {fmt_wilson(s, p)}; zero-failure bound 3/N = {300 / n:.2f} %")
     print(f"\nRule 'created iff largest unmapped hole pre-pool >= ceil32(maxSize/3)': {len(misses)} misses")
+    for m in misses[:20]:
+        print("  " + m)
+
+
+def cmd_r5b(root):
+    """R5 revision 3: cells may be spread over chunk directories (interleaved
+    blocks) and a cell label may carry a -b suffix (a second copy of the same
+    cell); both are pooled by the label without the suffix."""
+    cells = defaultdict(list)
+    for dirpath, _dirs, files in os.walk(root):
+        if "series-header.txt" in files and any(f.startswith("run-") for f in files):
+            label = re.sub(r"-b$", "", os.path.basename(dirpath))
+            for r in runs(dirpath):
+                r["_dir"] = dirpath
+                cells[label].append(r)
+    print("## R5 lazy creation after heap growth (revision 3)\n")
+    print("| Cell | n | Pass (Wilson 95 %) | Pool created and probed | private | explicit | default | sync | "
+          "B default-pool OOM | min / median largest hole pre-pool GiB | runs with hole < need, created | "
+          "detect 5 % / 2 % | CB1 reserved_high max MiB |")
+    print("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+    pooled = defaultdict(lambda: [0, 0, 0, 0, 0])
+    misses = []
+    order = {"P-first-use": 0, "A-first-use": 1, "B": 2}
+
+    def key(c):
+        m = re.match(r"(.+)-node(\d+)-h(\d+)-", c)
+        return (order.get(m.group(1), 9), int(m.group(2)), int(m.group(3))) if m else (9, 0, 0)
+
+    for cell in sorted(cells, key=key):
+        rs = cells[cell]
+        n = len(rs)
+        passed = sum(r.get("outcome") == "pass" for r in rs)
+        created = attempted = b_oom = inside = 0
+        holes, res_high = [], []
+        for r in rs:
+            ins = next((e for e in r.get("poolEvents", []) if e.get("event") == "install"), None)
+            if ins and ins.get("create", "-") != "-":
+                attempted += 1
+                created += ins.get("create") == "CUDA_SUCCESS" and ins.get("probe") == "CUDA_SUCCESS"
+            if ins and ins.get("default_pool") == "CUDA_ERROR_OUT_OF_MEMORY":
+                b_oom += 1
+            for e in r.get("poolEvents", []):
+                if e.get("event") == "teardown" and e.get("reserved_high", "-") != "-":
+                    res_high.append(int(e["reserved_high"]))
+            md = os.path.join(r["_dir"], "maps", r["_file"].replace(".json", ""))
+            pre = glob.glob(os.path.join(md, "maps-*-pre-pool.txt"))
+            if pre:
+                h = largest_hole(pre[0])
+                holes.append(h)
+                ok = bool(ins and ins.get("create") == "CUDA_SUCCESS")
+                m = re.search(r"-(\d+)G", cell)
+                need = math.ceil(int(m.group(1)) * 1024 / 3 / 32) * 32 * MiB if m else 0
+                if h < need and ok:
+                    inside += 1
+                if h >= need and not ok:
+                    misses.append(f"{cell}/{r['_file']}: not created with largest hole {h / GiB:.2f} GiB >= need {need / GiB:.2f} GiB")
+        modes = defaultdict(int)
+        for r in rs:
+            if r.get("outcome") == "pass":
+                modes[r.get("allocMode")] += 1
+        variant = cell.split("-node")[0]
+        pooled[variant][0] += passed
+        pooled[variant][1] += n
+        pooled[variant][2] += modes.get("explicit", 0) + modes.get("default", 0) + modes.get("private", 0)
+        pooled[variant][3] += created
+        pooled[variant][4] += attempted
+        det5, det2 = 1 - 0.95 ** n, 1 - 0.98 ** n
+        hs = sorted(holes)
+        print(f"| {cell} | {n} | {fmt_wilson(passed, n)} | {fmt_wilson(created, attempted) if attempted else '-'} | "
+              f"{modes.get('private', 0)} | {modes.get('explicit', 0)} | {modes.get('default', 0)} | {modes.get('sync', 0)} | "
+              f"{b_oom} | {hs[0] / GiB if hs else float('nan'):.2f} / {med(hs) / GiB if hs else float('nan'):.2f} | "
+              f"{inside} | {det5 * 100:.0f} % / {det2 * 100:.0f} % | {max(res_high) / MiB if res_high else float('nan'):.0f} |")
+    print("\nPooled per variant: pass, pool created, and stream-ordered fraction of passing processes")
+    for v, (p, n, s, c, a) in sorted(pooled.items()):
+        print(f"  {v}: pass {fmt_wilson(p, n)}; created {fmt_wilson(c, a) if a else '-'}; "
+              f"stream-ordered {fmt_wilson(s, p)}; zero-failure bound 3/N = {300 / n:.2f} %")
+    print(f"\nOne-sided rule 'a largest unmapped hole >= ceil32(maxSize/3) suffices': {len(misses)} misses")
     for m in misses[:20]:
         print("  " + m)
 

@@ -1,0 +1,304 @@
+00400000-063f0000 r-xp 00000000 103:01 2364486                           <home>/.nvm/versions/node/v24.15.0/bin/node
+0640c000-06410000 r--p 05ffc000 103:01 2364486                           <home>/.nvm/versions/node/v24.15.0/bin/node
+06410000-06452000 rw-p 06000000 103:01 2364486                           <home>/.nvm/versions/node/v24.15.0/bin/node
+06452000-06485000 rw-p 00000000 00:00 0 
+07805000-07aa6000 rw-p 00000000 00:00 0                                  [heap]
+200000000-3ead7f000 ---p 00000000 00:00 0 
+45b200000-45b240000 rw-p 00000000 00:00 0 
+45b240000-645fbf000 ---p 00000000 00:00 0 
+7c2500000-7c2540000 rw-p 00000000 00:00 0 
+7c2540000-7c27a0000 ---p 00000000 00:00 0 
+7c27a0000-7c29a0000 rw-s 00000000 00:09 1441574                          /dmabuf:
+7c29a0000-7c2ba0000 rw-s 00000000 00:09 1441575                          /dmabuf:
+7c2ba0000-7c2bb0000 rw-s 00000000 00:09 1441576                          /dmabuf:
+7c2bb0000-7c2bc0000 rw-s 00000000 00:09 1441577                          /dmabuf:
+7c2bc0000-7c2dc0000 rw-s 00000000 00:09 1441582                          /dmabuf:
+7c2dc0000-7c2fc0000 rw-s 00000000 00:09 1441587                          /dmabuf:
+7c2fc0000-7c31c0000 rw-s 00000000 00:09 1441592                          /dmabuf:
+7c31c0000-7c33c0000 rw-s 00000000 00:09 1441597                          /dmabuf:
+7c33c0000-7c35c0000 rw-s 00000000 00:09 1441602                          /dmabuf:
+7c35c0000-7c37c0000 rw-s 00000000 00:09 1441607                          /dmabuf:
+7c37c0000-7c39c0000 rw-s 00000000 00:09 1441612                          /dmabuf:
+7c39c0000-7c39d0000 rw-s 00000000 00:09 1441615                          /dmabuf:
+7c39d0000-7c3bd0000 ---p 00000000 00:00 0 
+7c3bd0000-7c3be0000 rw-s 00000000 00:09 1441617                          /dmabuf:
+7c3be0000-7c3ce0000 rw-s 00000000 00:09 1441618                          /dmabuf:
+7c3ce0000-7c3de0000 rw-s 00000000 00:09 1441619                          /dmabuf:
+7c3de0000-7c3ee0000 rw-s 00000000 00:09 1441620                          /dmabuf:
+7c3ee0000-7c3fe0000 rw-s 00000000 00:09 1441621                          /dmabuf:
+7c3fe0000-7c41e0000 ---p 00000000 00:00 0 
+7c41e0000-7c41f0000 rw-s 00000000 00:09 1441623                          /dmabuf:
+7c41f0000-7c4200000 rw-s 00000000 00:09 1441624                          /dmabuf:
+7c4200000-7c4221000 ---p 00000000 00:00 0 
+7c4221000-7c4421000 rw-s 00000000 00:09 1441628                          /dmabuf:
+7c4421000-7c4431000 ---p 00000000 00:00 0 
+7c4431000-7c4631000 rw-s 00000000 00:09 1441630                          /dmabuf:
+7c4631000-7c4651000 ---p 00000000 00:00 0 
+7c4651000-7c4851000 rw-s 00000000 00:09 1441633                          /dmabuf:
+7c4851000-7c4861000 rw-s 00000000 00:09 1441634                          /dmabuf:
+7c4861000-7c4d94000 rw-s 00000000 00:09 1441635                          /dmabuf:
+7c4d94000-b9803e000 ---p 00000000 00:00 0 
+d6e640000-d6e680000 rw-p 00000000 00:00 0 
+d6e680000-f593ff000 ---p 00000000 00:00 0 
+f96c80000-f96cc0000 rw-p 00000000 00:00 0 
+10b31c0000-10b3200000 rw-p 00000000 00:00 0 
+10b3200000-129df7f000 ---p 00000000 00:00 0 
+1330e00000-1330e3d000 rw-p 00000000 00:00 0 
+1330e3d000-151bbbc000 ---p 00000000 00:00 0 
+1531500000-1531540000 rw-p 00000000 00:00 0 
+155c980000-155c9c0000 rw-p 00000000 00:00 0 
+1568980000-15689c0000 rw-p 00000000 00:00 0 
+1642340000-1642352000 rw-p 00000000 00:00 0 
+16be0c0000-16be100000 rw-p 00000000 00:00 0 
+16be100000-18a8e7f000 ---p 00000000 00:00 0 
+190a340000-190a35b000 r--p 00000000 00:00 0 
+1943280000-19432c0000 rw-p 00000000 00:00 0 
+19b24c0000-19b2500000 rw-p 00000000 00:00 0 
+1c0bdc0000-1c0be00000 rw-p 00000000 00:00 0 
+1cddd80000-1cdddc0000 rw-p 00000000 00:00 0 
+1df2c40000-1df2c80000 rw-p 00000000 00:00 0 
+1dfb500000-1dfb540000 rw-p 00000000 00:00 0 
+1e3cfc0000-1e3d000000 rw-p 00000000 00:00 0 
+1e621c0000-1e62200000 rw-p 00000000 00:00 0 
+1ec9840000-1ec9880000 rw-p 00000000 00:00 0 
+1ed1e80000-1ed1ea2000 rw-p 00000000 00:00 0 
+210f8c0000-210f900000 rw-p 00000000 00:00 0 
+219cec0000-219cf00000 rw-p 00000000 00:00 0 
+21f37c0000-21f3800000 rw-p 00000000 00:00 0 
+2515800000-2515840000 rw-p 00000000 00:00 0 
+28d3980000-28d39c0000 rw-p 00000000 00:00 0 
+2b3b6c0000-2b3b700000 rw-p 00000000 00:00 0 
+2b9acc0000-2b9ad00000 rw-p 00000000 00:00 0 
+2bd0180000-2bd01c0000 rw-p 00000000 00:00 0 
+2bfc880000-2bfc8c1000 rw-p 00000000 00:00 0 
+2e2f340000-2e2f380000 rw-p 00000000 00:00 0 
+2eed680000-2eed6c0000 rw-p 00000000 00:00 0 
+2fc1640000-2fc1680000 rw-p 00000000 00:00 0 
+30e6380000-30e63c0000 r--p 00000000 00:00 0 
+3818900000-3818940000 rw-p 00000000 00:00 0 
+382c780000-382c7c0000 rw-p 00000000 00:00 0 
+390ea00000-390ea40000 rw-p 00000000 00:00 0 
+3b2fc00000-3b2fc40000 rw-p 00000000 00:00 0 
+3da3a00000-3da3a40000 rw-p 00000000 00:00 0 
+3e718c0000-3e71900000 rw-p 00000000 00:00 0 
+ffff34000000-ffff34021000 rw-p 00000000 00:00 0 
+ffff34021000-ffff38000000 ---p 00000000 00:00 0 
+ffff3c000000-ffff3c021000 rw-p 00000000 00:00 0 
+ffff3c021000-ffff40000000 ---p 00000000 00:00 0 
+ffff40000000-ffff408c3000 rw-p 00000000 00:00 0 
+ffff408c3000-ffff44000000 ---p 00000000 00:00 0 
+ffff44000000-ffff44021000 rw-p 00000000 00:00 0 
+ffff44021000-ffff48000000 ---p 00000000 00:00 0 
+ffff48000000-ffff48021000 rw-p 00000000 00:00 0 
+ffff48021000-ffff4c000000 ---p 00000000 00:00 0 
+ffff4c000000-ffff4c021000 rw-p 00000000 00:00 0 
+ffff4c021000-ffff50000000 ---p 00000000 00:00 0 
+ffff50000000-ffff50021000 rw-p 00000000 00:00 0 
+ffff50021000-ffff54000000 ---p 00000000 00:00 0 
+ffff54000000-ffff54021000 rw-p 00000000 00:00 0 
+ffff54021000-ffff58000000 ---p 00000000 00:00 0 
+ffff58000000-ffff58021000 rw-p 00000000 00:00 0 
+ffff58021000-ffff5c000000 ---p 00000000 00:00 0 
+ffff5c000000-ffff5c021000 rw-p 00000000 00:00 0 
+ffff5c021000-ffff60000000 ---p 00000000 00:00 0 
+ffff60000000-ffff60021000 rw-p 00000000 00:00 0 
+ffff60021000-ffff64000000 ---p 00000000 00:00 0 
+ffff64000000-ffff64021000 rw-p 00000000 00:00 0 
+ffff64021000-ffff68000000 ---p 00000000 00:00 0 
+ffff68000000-ffff68021000 rw-p 00000000 00:00 0 
+ffff68021000-ffff6c000000 ---p 00000000 00:00 0 
+ffff6c000000-ffff6c021000 rw-p 00000000 00:00 0 
+ffff6c021000-ffff70000000 ---p 00000000 00:00 0 
+ffff70fe0000-ffff70ff0000 ---p 00000000 00:00 0 
+ffff70ff0000-ffff717f0000 rw-p 00000000 00:00 0 
+ffff717f0000-ffff71800000 ---p 00000000 00:00 0 
+ffff71800000-ffff72000000 rw-p 00000000 00:00 0 
+ffff72000000-ffff78000000 ---p 00000000 00:00 0 
+ffff78000000-ffff78021000 rw-p 00000000 00:00 0 
+ffff78021000-ffff7c000000 ---p 00000000 00:00 0 
+ffff7c5ba000-ffff7c710000 rw-p 00000000 00:00 0 
+ffff7c710000-ffff7c720000 ---p 00000000 00:00 0 
+ffff7c720000-ffff7c920000 rw-p 00000000 00:00 0 
+ffff7c920000-ffff7c930000 ---p 00000000 00:00 0 
+ffff7c930000-ffff7cb30000 rw-p 00000000 00:00 0 
+ffff7cb30000-ffff7cb40000 ---p 00000000 00:00 0 
+ffff7cb40000-ffff7cd40000 rw-p 00000000 00:00 0 
+ffff7cd40000-ffff7cd50000 ---p 00000000 00:00 0 
+ffff7cd50000-ffff7cf50000 rw-p 00000000 00:00 0 
+ffff7cf50000-ffff7cf60000 ---p 00000000 00:00 0 
+ffff7cf60000-ffff7d160000 rw-p 00000000 00:00 0 
+ffff7d160000-ffff7d170000 ---p 00000000 00:00 0 
+ffff7d170000-ffff7d370000 rw-p 00000000 00:00 0 
+ffff7d370000-ffff7d380000 ---p 00000000 00:00 0 
+ffff7d380000-ffff7d580000 rw-p 00000000 00:00 0 
+ffff7d580000-ffff7d590000 ---p 00000000 00:00 0 
+ffff7d590000-ffff7d790000 rw-p 00000000 00:00 0 
+ffff7d790000-ffff7fdd8000 r-xp 00000000 103:01 31720279                  /usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1
+ffff7fdd8000-ffff7fde7000 ---p 02648000 103:01 31720279                  /usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1
+ffff7fde7000-ffff7feec000 r--p 02647000 103:01 31720279                  /usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1
+ffff7feec000-ffff7ff8f000 rw-p 0274c000 103:01 31720279                  /usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1
+ffff7ff8f000-ffff7fff3000 rw-p 00000000 00:00 0 
+ffff80000000-ffff8003d000 rw-p 00000000 00:00 0 
+ffff8003d000-ffff84000000 ---p 00000000 00:00 0 
+ffff84000000-ffff84021000 rw-p 00000000 00:00 0 
+ffff84021000-ffff88000000 ---p 00000000 00:00 0 
+ffff88000000-ffff88021000 rw-p 00000000 00:00 0 
+ffff88021000-ffff8c000000 ---p 00000000 00:00 0 
+ffff8c140000-ffff8c1c0000 rw-p 00000000 00:00 0 
+ffff8c1ef000-ffff8c1ff000 ---p 00000000 00:00 0 
+ffff8c1ff000-ffff8c3ff000 rw-p 00000000 00:00 0 
+ffff8c3ff000-ffff8c40f000 ---p 00000000 00:00 0 
+ffff8c40f000-ffff8c60f000 rw-p 00000000 00:00 0 
+ffff8c60f000-ffff8c61f000 ---p 00000000 00:00 0 
+ffff8c61f000-ffff8c81f000 rw-p 00000000 00:00 0 
+ffff8c81f000-ffff8c82f000 ---p 00000000 00:00 0 
+ffff8c82f000-ffff8ca2f000 rw-p 00000000 00:00 0 
+ffff8ca2f000-ffff8ca3f000 ---p 00000000 00:00 0 
+ffff8ca3f000-ffff8cd00000 rw-p 00000000 00:00 0 
+ffff8cd00000-ffff8cd11000 r-xp 00000000 103:01 31720280                  /usr/lib/aarch64-linux-gnu/nvidia/libnvcucompat.so
+ffff8cd11000-ffff8cd20000 ---p 00011000 103:01 31720280                  /usr/lib/aarch64-linux-gnu/nvidia/libnvcucompat.so
+ffff8cd20000-ffff8cd24000 r--p 00010000 103:01 31720280                  /usr/lib/aarch64-linux-gnu/nvidia/libnvcucompat.so
+ffff8cd24000-ffff8cd25000 rw-p 00014000 103:01 31720280                  /usr/lib/aarch64-linux-gnu/nvidia/libnvcucompat.so
+ffff8cd30000-ffff8cd41000 r-xp 00000000 103:01 31740645                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_host1x.so
+ffff8cd41000-ffff8cd51000 ---p 00011000 103:01 31740645                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_host1x.so
+ffff8cd51000-ffff8cd52000 r--p 00011000 103:01 31740645                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_host1x.so
+ffff8cd52000-ffff8cd53000 rw-p 00012000 103:01 31740645                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_host1x.so
+ffff8cd60000-ffff8cd63000 r-xp 00000000 103:01 31740643                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_chip.so
+ffff8cd63000-ffff8cd72000 ---p 00003000 103:01 31740643                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_chip.so
+ffff8cd72000-ffff8cd73000 r--p 00002000 103:01 31740643                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_chip.so
+ffff8cd73000-ffff8cd74000 rw-p 00003000 103:01 31740643                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_chip.so
+ffff8cd80000-ffff8cd9a000 r-xp 00000000 103:01 31740650                  /usr/lib/aarch64-linux-gnu/nvidia/libnvsciipc.so
+ffff8cd9a000-ffff8cdaa000 ---p 0001a000 103:01 31740650                  /usr/lib/aarch64-linux-gnu/nvidia/libnvsciipc.so
+ffff8cdaa000-ffff8cdab000 r--p 0001a000 103:01 31740650                  /usr/lib/aarch64-linux-gnu/nvidia/libnvsciipc.so
+ffff8cdab000-ffff8cdac000 rw-p 0001b000 103:01 31740650                  /usr/lib/aarch64-linux-gnu/nvidia/libnvsciipc.so
+ffff8cdac000-ffff8cdb3000 rw-p 00000000 00:00 0 
+ffff8cdc0000-ffff8e716000 r-xp 00000000 103:01 33181190                  <scratch>/pool-study/consumer-exp/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
+ffff8e716000-ffff8e726000 ---p 01956000 103:01 33181190                  <scratch>/pool-study/consumer-exp/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
+ffff8e726000-ffff8e7bb000 r--p 01956000 103:01 33181190                  <scratch>/pool-study/consumer-exp/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
+ffff8e7bb000-ffff8e7c6000 rw-p 019eb000 103:01 33181190                  <scratch>/pool-study/consumer-exp/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
+ffff8e7c6000-ffff8e7c9000 rw-p 00000000 00:00 0 
+ffff8e7d0000-ffff8e800000 ---p 00000000 00:00 0 
+ffff8e800000-ffff9e7c0000 rwxp 00000000 00:00 0 
+ffff9e7c0000-ffffa67d0000 ---p 00000000 00:00 0 
+ffffa67d0000-ffffa67e0000 r--p 00000000 00:00 0 
+ffffa67e0000-ffffa6810000 rw-p 00000000 00:00 0 
+ffffa6810000-ffffb67d0000 ---p 00000000 00:00 0 
+ffffb67d0000-ffffb67e0000 ---p 00000000 00:00 0 
+ffffb67e0000-ffffb6fe0000 rw-p 00000000 00:00 0 
+ffffb6fe0000-ffffb6ff0000 ---p 00000000 00:00 0 
+ffffb6ff0000-ffffb77f0000 rw-p 00000000 00:00 0 
+ffffb77f0000-ffffb7800000 ---p 00000000 00:00 0 
+ffffb7800000-ffffb8000000 rw-p 00000000 00:00 0 
+ffffb8000000-ffffb8021000 rw-p 00000000 00:00 0 
+ffffb8021000-ffffbc000000 ---p 00000000 00:00 0 
+ffffbc010000-ffffbc016000 r-xp 00000000 103:01 31740649                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_sync.so
+ffffbc016000-ffffbc025000 ---p 00006000 103:01 31740649                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_sync.so
+ffffbc025000-ffffbc026000 r--p 00005000 103:01 31740649                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_sync.so
+ffffbc026000-ffffbc027000 rw-p 00006000 103:01 31740649                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_sync.so
+ffffbc030000-ffffbc032000 r-xp 00000000 103:01 31740652                  /usr/lib/aarch64-linux-gnu/nvidia/libnvtegrahv.so
+ffffbc032000-ffffbc041000 ---p 00002000 103:01 31740652                  /usr/lib/aarch64-linux-gnu/nvidia/libnvtegrahv.so
+ffffbc041000-ffffbc042000 r--p 00001000 103:01 31740652                  /usr/lib/aarch64-linux-gnu/nvidia/libnvtegrahv.so
+ffffbc042000-ffffbc043000 rw-p 00002000 103:01 31740652                  /usr/lib/aarch64-linux-gnu/nvidia/libnvtegrahv.so
+ffffbc050000-ffffbc053000 r-xp 00000000 103:01 31740651                  /usr/lib/aarch64-linux-gnu/nvidia/libnvsocsys.so
+ffffbc053000-ffffbc062000 ---p 00003000 103:01 31740651                  /usr/lib/aarch64-linux-gnu/nvidia/libnvsocsys.so
+ffffbc062000-ffffbc063000 r--p 00002000 103:01 31740651                  /usr/lib/aarch64-linux-gnu/nvidia/libnvsocsys.so
+ffffbc063000-ffffbc064000 rw-p 00003000 103:01 31740651                  /usr/lib/aarch64-linux-gnu/nvidia/libnvsocsys.so
+ffffbc070000-ffffbc080000 r-xp 00000000 103:01 31740637                  /usr/lib/aarch64-linux-gnu/nvidia/libnvos.so
+ffffbc080000-ffffbc08f000 ---p 00010000 103:01 31740637                  /usr/lib/aarch64-linux-gnu/nvidia/libnvos.so
+ffffbc08f000-ffffbc090000 r--p 0000f000 103:01 31740637                  /usr/lib/aarch64-linux-gnu/nvidia/libnvos.so
+ffffbc090000-ffffbc091000 rw-p 00010000 103:01 31740637                  /usr/lib/aarch64-linux-gnu/nvidia/libnvos.so
+ffffbc091000-ffffbc092000 rw-p 00000000 00:00 0 
+ffffbc0a0000-ffffbc0a8000 r-xp 00000000 103:01 31740646                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_mem.so
+ffffbc0a8000-ffffbc0b7000 ---p 00008000 103:01 31740646                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_mem.so
+ffffbc0b7000-ffffbc0b8000 r--p 00007000 103:01 31740646                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_mem.so
+ffffbc0b8000-ffffbc0b9000 rw-p 00008000 103:01 31740646                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_mem.so
+ffffbc0c0000-ffffbc11d000 r-xp 00000000 103:01 31740644                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_gpu.so
+ffffbc11d000-ffffbc12d000 ---p 0005d000 103:01 31740644                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_gpu.so
+ffffbc12d000-ffffbc131000 r--p 0005d000 103:01 31740644                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_gpu.so
+ffffbc131000-ffffbc132000 rw-p 00061000 103:01 31740644                  /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_gpu.so
+ffffbc140000-ffffbc141000 r-xp 00000000 103:01 31614816                  /usr/lib/aarch64-linux-gnu/librt.so.1
+ffffbc141000-ffffbc150000 ---p 00001000 103:01 31614816                  /usr/lib/aarch64-linux-gnu/librt.so.1
+ffffbc150000-ffffbc151000 r--p 00000000 103:01 31614816                  /usr/lib/aarch64-linux-gnu/librt.so.1
+ffffbc151000-ffffbc152000 rw-p 00001000 103:01 31614816                  /usr/lib/aarch64-linux-gnu/librt.so.1
+ffffbc162000-ffffbc163000 rw-s 00000000 00:09 1441614                    /dmabuf:
+ffffbc163000-ffffbc165000 rw-s 00000000 00:09 1441613                    /dmabuf:
+ffffbc165000-ffffbc166000 rw-s 00000000 00:09 1441611                    /dmabuf:
+ffffbc166000-ffffbc168000 rw-s 00000000 00:09 1441610                    /dmabuf:
+ffffbc168000-ffffbc169000 rw-s 00000000 00:09 1441609                    /dmabuf:
+ffffbc169000-ffffbc16b000 rw-s 00000000 00:09 1441608                    /dmabuf:
+ffffbc16b000-ffffbc16c000 rw-s 00000000 00:09 1441606                    /dmabuf:
+ffffbc16c000-ffffbc16e000 rw-s 00000000 00:09 1441605                    /dmabuf:
+ffffbc16e000-ffffbc16f000 rw-s 00000000 00:09 1441604                    /dmabuf:
+ffffbc16f000-ffffbc171000 rw-s 00000000 00:09 1441603                    /dmabuf:
+ffffbc171000-ffffbc172000 rw-s 00000000 00:09 1441601                    /dmabuf:
+ffffbc172000-ffffbc174000 rw-s 00000000 00:09 1441600                    /dmabuf:
+ffffbc174000-ffffbc175000 rw-s 00000000 00:09 1441599                    /dmabuf:
+ffffbc175000-ffffbc177000 rw-s 00000000 00:09 1441598                    /dmabuf:
+ffffbc177000-ffffbc178000 rw-s 00000000 00:09 1441596                    /dmabuf:
+ffffbc178000-ffffbc17a000 rw-s 00000000 00:09 1441595                    /dmabuf:
+ffffbc17a000-ffffbc17b000 rw-s 00000000 00:09 1441594                    /dmabuf:
+ffffbc17b000-ffffbc17d000 rw-s 00000000 00:09 1441593                    /dmabuf:
+ffffbc17d000-ffffbc18d000 ---p 00000000 00:00 0 
+ffffbc18d000-ffffbc1f0000 rw-p 00000000 00:00 0 
+ffffbc1f0000-ffffbc1f4000 rw-p 00000000 00:00 0 
+ffffbc1f4000-ffffbc270000 ---p 00000000 00:00 0 
+ffffbc270000-ffffbc280000 ---p 00000000 00:00 0 
+ffffbc280000-ffffbca80000 rw-p 00000000 00:00 0 
+ffffbca80000-ffffbca90000 ---p 00000000 00:00 0 
+ffffbca90000-ffffbd3a0000 rw-p 00000000 00:00 0 
+ffffbd3a0000-ffffbd52e000 r-xp 00000000 103:01 31608401                  /usr/lib/aarch64-linux-gnu/libc.so.6
+ffffbd52e000-ffffbd53d000 ---p 0018e000 103:01 31608401                  /usr/lib/aarch64-linux-gnu/libc.so.6
+ffffbd53d000-ffffbd541000 r--p 0018d000 103:01 31608401                  /usr/lib/aarch64-linux-gnu/libc.so.6
+ffffbd541000-ffffbd543000 rw-p 00191000 103:01 31608401                  /usr/lib/aarch64-linux-gnu/libc.so.6
+ffffbd543000-ffffbd54f000 rw-p 00000000 00:00 0 
+ffffbd54f000-ffffbd550000 rw-s 00000000 00:09 1441591                    /dmabuf:
+ffffbd550000-ffffbd551000 r-xp 00000000 103:01 31614814                  /usr/lib/aarch64-linux-gnu/libpthread.so.0
+ffffbd551000-ffffbd560000 ---p 00001000 103:01 31614814                  /usr/lib/aarch64-linux-gnu/libpthread.so.0
+ffffbd560000-ffffbd561000 r--p 00000000 103:01 31614814                  /usr/lib/aarch64-linux-gnu/libpthread.so.0
+ffffbd561000-ffffbd562000 rw-p 00001000 103:01 31614814                  /usr/lib/aarch64-linux-gnu/libpthread.so.0
+ffffbd562000-ffffbd564000 rw-s 00000000 00:09 1441590                    /dmabuf:
+ffffbd564000-ffffbd565000 rw-s 00000000 00:09 1441589                    /dmabuf:
+ffffbd565000-ffffbd567000 rw-s 00000000 00:09 1441588                    /dmabuf:
+ffffbd567000-ffffbd568000 rw-s 00000000 00:09 1441586                    /dmabuf:
+ffffbd568000-ffffbd56a000 rw-s 00000000 00:09 1441585                    /dmabuf:
+ffffbd56a000-ffffbd56b000 rw-s 00000000 00:09 1441584                    /dmabuf:
+ffffbd56b000-ffffbd56d000 rw-s 00000000 00:09 1441583                    /dmabuf:
+ffffbd56d000-ffffbd56e000 rw-s 00000000 00:09 1441581                    /dmabuf:
+ffffbd56e000-ffffbd570000 rw-s 00000000 00:09 1441580                    /dmabuf:
+ffffbd570000-ffffbd584000 r-xp 00000000 103:01 31609501                  /usr/lib/aarch64-linux-gnu/libgcc_s.so.1
+ffffbd584000-ffffbd593000 ---p 00014000 103:01 31609501                  /usr/lib/aarch64-linux-gnu/libgcc_s.so.1
+ffffbd593000-ffffbd594000 r--p 00013000 103:01 31609501                  /usr/lib/aarch64-linux-gnu/libgcc_s.so.1
+ffffbd594000-ffffbd595000 rw-p 00014000 103:01 31609501                  /usr/lib/aarch64-linux-gnu/libgcc_s.so.1
+ffffbd595000-ffffbd596000 rw-s 00000000 00:09 1441579                    /dmabuf:
+ffffbd596000-ffffbd598000 rw-s 00000000 00:09 1441578                    /dmabuf:
+ffffbd598000-ffffbd599000 rw-s 00000000 00:09 1441573                    /dmabuf:
+ffffbd599000-ffffbd59d000 rw-s 10000000 00:0d 7960                       anon_inode:[io_uring]
+ffffbd59d000-ffffbd5a0000 rw-s 00000000 00:0d 7960                       anon_inode:[io_uring]
+ffffbd5a0000-ffffbd626000 r-xp 00000000 103:01 31614155                  /usr/lib/aarch64-linux-gnu/libm.so.6
+ffffbd626000-ffffbd635000 ---p 00086000 103:01 31614155                  /usr/lib/aarch64-linux-gnu/libm.so.6
+ffffbd635000-ffffbd636000 r--p 00085000 103:01 31614155                  /usr/lib/aarch64-linux-gnu/libm.so.6
+ffffbd636000-ffffbd637000 rw-p 00086000 103:01 31614155                  /usr/lib/aarch64-linux-gnu/libm.so.6
+ffffbd637000-ffffbd639000 rw-s 00000000 00:09 1441572                    /dmabuf:
+ffffbd639000-ffffbd63d000 rw-s 10000000 00:0d 7960                       anon_inode:[io_uring]
+ffffbd63d000-ffffbd640000 rw-s 00000000 00:0d 7960                       anon_inode:[io_uring]
+ffffbd640000-ffffbd84b000 r-xp 00000000 103:01 31609487                  /usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.30
+ffffbd84b000-ffffbd85b000 ---p 0020b000 103:01 31609487                  /usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.30
+ffffbd85b000-ffffbd866000 r--p 0020b000 103:01 31609487                  /usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.30
+ffffbd866000-ffffbd869000 rw-p 00216000 103:01 31609487                  /usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.30
+ffffbd869000-ffffbd86c000 rw-p 00000000 00:00 0 
+ffffbd86c000-ffffbd870000 rw-s 10000000 00:0d 7960                       anon_inode:[io_uring]
+ffffbd870000-ffffbd871000 r-xp 00000000 103:01 31609182                  /usr/lib/aarch64-linux-gnu/libdl.so.2
+ffffbd871000-ffffbd880000 ---p 00001000 103:01 31609182                  /usr/lib/aarch64-linux-gnu/libdl.so.2
+ffffbd880000-ffffbd881000 r--p 00000000 103:01 31609182                  /usr/lib/aarch64-linux-gnu/libdl.so.2
+ffffbd881000-ffffbd882000 rw-p 00001000 103:01 31609182                  /usr/lib/aarch64-linux-gnu/libdl.so.2
+ffffbd882000-ffffbd8a2000 rw-p 00000000 00:00 0 
+ffffbd8a2000-ffffbd8cd000 r-xp 00000000 103:01 31607964                  /usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1
+ffffbd8cd000-ffffbd8ce000 rw-s 00000000 00:09 1441571                    /dmabuf:
+ffffbd8ce000-ffffbd8cf000 rw-s 00000000 00:05 253                        /dev/nvgpu/igpu0/ctrl
+ffffbd8cf000-ffffbd8d2000 rw-s 00000000 00:0d 7960                       anon_inode:[io_uring]
+ffffbd8d2000-ffffbd8d9000 rw-p 00000000 00:00 0 
+ffffbd8d9000-ffffbd8db000 r--p 00000000 00:00 0                          [vvar]
+ffffbd8db000-ffffbd8dc000 r-xp 00000000 00:00 0                          [vdso]
+ffffbd8dc000-ffffbd8de000 r--p 0002a000 103:01 31607964                  /usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1
+ffffbd8de000-ffffbd8e0000 rw-p 0002c000 103:01 31607964                  /usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1
+ffffeb9be000-ffffeb9e0000 rw-p 00000000 00:00 0                          [stack]

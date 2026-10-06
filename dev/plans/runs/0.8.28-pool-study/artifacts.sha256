@@ -1,0 +1,12 @@
+# sha256 of every artifact used in Phases 0-1 (paths: <scratch>/pool-study/...)
+cee6305034ed7017e67008d4462402fdb2aeafbc2954b0678371851dca6b5afb  plat-exp/fathomdb.linux-arm64-gnu.node
+99ace6e2edfac4416e54c1873b963961f44591139a607d8e75a568b1954dc894  plat-prod/fathomdb.linux-arm64-gnu.node
+42f25b51fa414b2cbb87578f21d7840b0d5e80358773a633b584990862811d07  staging-exp/fathomdb-0.8.26.tgz
+ce7680a1694a58f158914cbcaa76e1b0065883a2a1b230451248044889db9a39  staging-exp/fathomdb-linux-arm64-gnu-0.8.26.tgz
+42f25b51fa414b2cbb87578f21d7840b0d5e80358773a633b584990862811d07  staging-prod/fathomdb-0.8.26.tgz
+14894d740ed0b65ac2c0e88438f249acb6c50840463032d45ff2edff70fd0599  staging-prod/fathomdb-linux-arm64-gnu-0.8.26.tgz
+41332c93e626cd072226aacf9af969d5a3b6cb9367838e63d1de609961ef8abf  bin/minimal_repro
+f3a07361d5796eba22601ee7bd55d36f097b06a321d7b41aead9183a38b2b525  bin/pool_capacity
+287b4e678bfd7ed11d1d5ee0bce8860c9e8000e935e18a21776c5890c7b5639c  bin/pool_gap
+425770483ebe6038067a7c0fb472872ceaf7c009b30f7fbf80ae56e511e1b194  bin/pool_teardown
+52c0564b97c032a962c8fd9217901cd56fbea57739c4dec42695bf7fe3ed8f21  bin/pool_va_repro

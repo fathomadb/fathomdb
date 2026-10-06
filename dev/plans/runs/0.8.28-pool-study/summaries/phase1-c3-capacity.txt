@@ -1,0 +1,196 @@
+## C3 capacity (pool_capacity, 5 runs per cell; medians)
+
+| Layout | maxSize MiB | Threshold | Chunk MiB | n | Allocated MiB | First error | used_high MiB | reserved_high MiB | single max MiB | recovered MiB | runs identical |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 3pages | 192 | 0 | 1 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| 3pages | 192 | 0 | 16 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| 3pages | 192 | 0 | 64 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| 3pages | 192 | 0 | 256 | 5 | 0 | CUDA_ERROR_OUT_OF_MEMORY | 0.0 | 0.0 | 64 | 0 | yes |
+| 3pages | 192 | max | 1 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| 3pages | 192 | max | 16 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| 3pages | 192 | max | 64 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| 3pages | 192 | max | 256 | 5 | 0 | CUDA_ERROR_OUT_OF_MEMORY | 0.0 | 0.0 | 64 | 0 | yes |
+| 3pages | 384 | 0 | 1 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| 3pages | 384 | 0 | 16 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| 3pages | 384 | 0 | 64 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| 3pages | 384 | 0 | 256 | 5 | 0 | CUDA_ERROR_OUT_OF_MEMORY | 0.0 | 0.0 | 128 | 0 | yes |
+| 3pages | 384 | max | 1 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| 3pages | 384 | max | 16 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| 3pages | 384 | max | 64 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| 3pages | 384 | max | 256 | 5 | 0 | CUDA_ERROR_OUT_OF_MEMORY | 0.0 | 0.0 | 128 | 0 | yes |
+| 3pages | 1024 | 0 | 1 | 5 | 352 | CUDA_ERROR_OUT_OF_MEMORY | 352.0 | 352.0 | 352 | 352 | yes |
+| 3pages | 1024 | 0 | 16 | 5 | 352 | CUDA_ERROR_OUT_OF_MEMORY | 352.0 | 352.0 | 352 | 352 | yes |
+| 3pages | 1024 | 0 | 64 | 5 | 320 | CUDA_ERROR_OUT_OF_MEMORY | 320.0 | 320.0 | 352 | 320 | yes |
+| 3pages | 1024 | 0 | 256 | 5 | 256 | CUDA_ERROR_OUT_OF_MEMORY | 256.0 | 256.0 | 352 | 256 | yes |
+| 3pages | 1024 | max | 1 | 5 | 352 | CUDA_ERROR_OUT_OF_MEMORY | 352.0 | 352.0 | 352 | 352 | yes |
+| 3pages | 1024 | max | 16 | 5 | 352 | CUDA_ERROR_OUT_OF_MEMORY | 352.0 | 352.0 | 352 | 352 | yes |
+| 3pages | 1024 | max | 64 | 5 | 320 | CUDA_ERROR_OUT_OF_MEMORY | 320.0 | 320.0 | 352 | 320 | yes |
+| 3pages | 1024 | max | 256 | 5 | 256 | CUDA_ERROR_OUT_OF_MEMORY | 256.0 | 256.0 | 352 | 256 | yes |
+| 3pages | 2048 | 0 | 1 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| 3pages | 2048 | 0 | 16 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| 3pages | 2048 | 0 | 64 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| 3pages | 2048 | 0 | 256 | 5 | 512 | CUDA_ERROR_OUT_OF_MEMORY | 512.0 | 512.0 | 704 | 512 | yes |
+| 3pages | 2048 | max | 1 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| 3pages | 2048 | max | 16 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| 3pages | 2048 | max | 64 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| 3pages | 2048 | max | 256 | 5 | 512 | CUDA_ERROR_OUT_OF_MEMORY | 512.0 | 512.0 | 704 | 512 | yes |
+| 3pages | 3072 | 0 | 1 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| 3pages | 3072 | 0 | 16 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| 3pages | 3072 | 0 | 64 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| 3pages | 3072 | 0 | 256 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| 3pages | 3072 | max | 1 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| 3pages | 3072 | max | 16 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| 3pages | 3072 | max | 64 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| 3pages | 3072 | max | 256 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| 3pages | 4096 | 0 | 1 | 5 | 1376 | CUDA_ERROR_OUT_OF_MEMORY | 1376.0 | 1376.0 | 1376 | 1376 | yes |
+| 3pages | 4096 | 0 | 16 | 5 | 1376 | CUDA_ERROR_OUT_OF_MEMORY | 1376.0 | 1376.0 | 1376 | 1376 | yes |
+| 3pages | 4096 | 0 | 64 | 5 | 1344 | CUDA_ERROR_OUT_OF_MEMORY | 1344.0 | 1344.0 | 1376 | 1344 | yes |
+| 3pages | 4096 | 0 | 256 | 5 | 1280 | CUDA_ERROR_OUT_OF_MEMORY | 1280.0 | 1280.0 | 1376 | 1280 | yes |
+| 3pages | 4096 | max | 1 | 5 | 1376 | CUDA_ERROR_OUT_OF_MEMORY | 1376.0 | 1376.0 | 1376 | 1376 | yes |
+| 3pages | 4096 | max | 16 | 5 | 1376 | CUDA_ERROR_OUT_OF_MEMORY | 1376.0 | 1376.0 | 1376 | 1376 | yes |
+| 3pages | 4096 | max | 64 | 5 | 1344 | CUDA_ERROR_OUT_OF_MEMORY | 1344.0 | 1344.0 | 1376 | 1344 | yes |
+| 3pages | 4096 | max | 256 | 5 | 1280 | CUDA_ERROR_OUT_OF_MEMORY | 1280.0 | 1280.0 | 1376 | 1280 | yes |
+| 3pages | 8192 | 0 | 1 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| 3pages | 8192 | 0 | 16 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| 3pages | 8192 | 0 | 64 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| 3pages | 8192 | 0 | 256 | 5 | 2560 | CUDA_ERROR_OUT_OF_MEMORY | 2560.0 | 2560.0 | 2752 | 2560 | yes |
+| 3pages | 8192 | max | 1 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| 3pages | 8192 | max | 16 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| 3pages | 8192 | max | 64 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| 3pages | 8192 | max | 256 | 5 | 2560 | CUDA_ERROR_OUT_OF_MEMORY | 2560.0 | 2560.0 | 2752 | 2560 | yes |
+| control | 192 | 0 | 1 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| control | 192 | 0 | 16 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| control | 192 | 0 | 64 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| control | 192 | 0 | 256 | 5 | 0 | CUDA_ERROR_OUT_OF_MEMORY | 0.0 | 0.0 | 64 | 0 | yes |
+| control | 192 | max | 1 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| control | 192 | max | 16 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| control | 192 | max | 64 | 5 | 64 | CUDA_ERROR_OUT_OF_MEMORY | 64.0 | 64.0 | 64 | 64 | yes |
+| control | 192 | max | 256 | 5 | 0 | CUDA_ERROR_OUT_OF_MEMORY | 0.0 | 0.0 | 64 | 0 | yes |
+| control | 384 | 0 | 1 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| control | 384 | 0 | 16 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| control | 384 | 0 | 64 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| control | 384 | 0 | 256 | 5 | 0 | CUDA_ERROR_OUT_OF_MEMORY | 0.0 | 0.0 | 128 | 0 | yes |
+| control | 384 | max | 1 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| control | 384 | max | 16 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| control | 384 | max | 64 | 5 | 128 | CUDA_ERROR_OUT_OF_MEMORY | 128.0 | 128.0 | 128 | 128 | yes |
+| control | 384 | max | 256 | 5 | 0 | CUDA_ERROR_OUT_OF_MEMORY | 0.0 | 0.0 | 128 | 0 | yes |
+| control | 1024 | 0 | 1 | 5 | 352 | CUDA_ERROR_OUT_OF_MEMORY | 352.0 | 352.0 | 352 | 352 | yes |
+| control | 1024 | 0 | 16 | 5 | 352 | CUDA_ERROR_OUT_OF_MEMORY | 352.0 | 352.0 | 352 | 352 | yes |
+| control | 1024 | 0 | 64 | 5 | 320 | CUDA_ERROR_OUT_OF_MEMORY | 320.0 | 320.0 | 352 | 320 | yes |
+| control | 1024 | 0 | 256 | 5 | 256 | CUDA_ERROR_OUT_OF_MEMORY | 256.0 | 256.0 | 352 | 256 | yes |
+| control | 1024 | max | 1 | 5 | 352 | CUDA_ERROR_OUT_OF_MEMORY | 352.0 | 352.0 | 352 | 352 | yes |
+| control | 1024 | max | 16 | 5 | 352 | CUDA_ERROR_OUT_OF_MEMORY | 352.0 | 352.0 | 352 | 352 | yes |
+| control | 1024 | max | 64 | 5 | 320 | CUDA_ERROR_OUT_OF_MEMORY | 320.0 | 320.0 | 352 | 320 | yes |
+| control | 1024 | max | 256 | 5 | 256 | CUDA_ERROR_OUT_OF_MEMORY | 256.0 | 256.0 | 352 | 256 | yes |
+| control | 2048 | 0 | 1 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| control | 2048 | 0 | 16 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| control | 2048 | 0 | 64 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| control | 2048 | 0 | 256 | 5 | 512 | CUDA_ERROR_OUT_OF_MEMORY | 512.0 | 512.0 | 704 | 512 | yes |
+| control | 2048 | max | 1 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| control | 2048 | max | 16 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| control | 2048 | max | 64 | 5 | 704 | CUDA_ERROR_OUT_OF_MEMORY | 704.0 | 704.0 | 704 | 704 | yes |
+| control | 2048 | max | 256 | 5 | 512 | CUDA_ERROR_OUT_OF_MEMORY | 512.0 | 512.0 | 704 | 512 | yes |
+| control | 3072 | 0 | 1 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| control | 3072 | 0 | 16 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| control | 3072 | 0 | 64 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| control | 3072 | 0 | 256 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| control | 3072 | max | 1 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| control | 3072 | max | 16 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| control | 3072 | max | 64 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| control | 3072 | max | 256 | 5 | 1024 | CUDA_ERROR_OUT_OF_MEMORY | 1024.0 | 1024.0 | 1024 | 1024 | yes |
+| control | 4096 | 0 | 1 | 5 | 1376 | CUDA_ERROR_OUT_OF_MEMORY | 1376.0 | 1376.0 | 1376 | 1376 | yes |
+| control | 4096 | 0 | 16 | 5 | 1376 | CUDA_ERROR_OUT_OF_MEMORY | 1376.0 | 1376.0 | 1376 | 1376 | yes |
+| control | 4096 | 0 | 64 | 5 | 1344 | CUDA_ERROR_OUT_OF_MEMORY | 1344.0 | 1344.0 | 1376 | 1344 | yes |
+| control | 4096 | 0 | 256 | 5 | 1280 | CUDA_ERROR_OUT_OF_MEMORY | 1280.0 | 1280.0 | 1376 | 1280 | yes |
+| control | 4096 | max | 1 | 5 | 1376 | CUDA_ERROR_OUT_OF_MEMORY | 1376.0 | 1376.0 | 1376 | 1376 | yes |
+| control | 4096 | max | 16 | 5 | 1376 | CUDA_ERROR_OUT_OF_MEMORY | 1376.0 | 1376.0 | 1376 | 1376 | yes |
+| control | 4096 | max | 64 | 5 | 1344 | CUDA_ERROR_OUT_OF_MEMORY | 1344.0 | 1344.0 | 1376 | 1344 | yes |
+| control | 4096 | max | 256 | 5 | 1280 | CUDA_ERROR_OUT_OF_MEMORY | 1280.0 | 1280.0 | 1376 | 1280 | yes |
+| control | 8192 | 0 | 1 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| control | 8192 | 0 | 16 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| control | 8192 | 0 | 64 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| control | 8192 | 0 | 256 | 5 | 2560 | CUDA_ERROR_OUT_OF_MEMORY | 2560.0 | 2560.0 | 2752 | 2560 | yes |
+| control | 8192 | max | 1 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| control | 8192 | max | 16 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| control | 8192 | max | 64 | 5 | 2752 | CUDA_ERROR_OUT_OF_MEMORY | 2752.0 | 2752.0 | 2752 | 2752 | yes |
+| control | 8192 | max | 256 | 5 | 2560 | CUDA_ERROR_OUT_OF_MEMORY | 2560.0 | 2560.0 | 2752 | 2560 | yes |
+
+Fit on chunk-1 cells (all layouts/thresholds): capacity_MiB = 0.33544 * maxSize_MiB + 3.42
+  maxSize 192: measured [64] predicted 67.8 worst residual 5.64 %
+  maxSize 384: measured [128] predicted 132.2 worst residual 3.20 %
+  maxSize 1024: measured [352] predicted 346.9 worst residual 1.47 %
+  maxSize 2048: measured [704] predicted 690.4 worst residual 1.97 %
+  maxSize 3072: measured [1024] predicted 1033.9 worst residual 0.96 %
+  maxSize 4096: measured [1376] predicted 1377.4 worst residual 0.10 %
+  maxSize 8192: measured [2752] predicted 2751.3 worst residual 0.02 %
+Worst relative residual: 5.64 % (C3 pass needs <= 5 % at every size)
+Rule ceil32(maxSize/3) check:
+  maxSize 192: ceil32(maxSize/3) = 64, measured chunk-1 capacity [64]
+  maxSize 384: ceil32(maxSize/3) = 128, measured chunk-1 capacity [128]
+  maxSize 1024: ceil32(maxSize/3) = 352, measured chunk-1 capacity [352]
+  maxSize 2048: ceil32(maxSize/3) = 704, measured chunk-1 capacity [704]
+  maxSize 3072: ceil32(maxSize/3) = 1024, measured chunk-1 capacity [1024]
+  maxSize 4096: ceil32(maxSize/3) = 1376, measured chunk-1 capacity [1376]
+  maxSize 8192: ceil32(maxSize/3) = 2752, measured chunk-1 capacity [2752]
+
+Chunk dependence (per layout/threshold/size: allocated MiB by chunk; single max):
+  ('3pages', 192, '0'): {1: 64, 16: 64, 64: 64, 256: 0} single=[64]
+  ('3pages', 192, 'max'): {1: 64, 16: 64, 64: 64, 256: 0} single=[64]
+  ('3pages', 384, '0'): {1: 128, 16: 128, 64: 128, 256: 0} single=[128]
+  ('3pages', 384, 'max'): {1: 128, 16: 128, 64: 128, 256: 0} single=[128]
+  ('3pages', 1024, '0'): {1: 352, 16: 352, 64: 320, 256: 256} single=[352]
+  ('3pages', 1024, 'max'): {1: 352, 16: 352, 64: 320, 256: 256} single=[352]
+  ('3pages', 2048, '0'): {1: 704, 16: 704, 64: 704, 256: 512} single=[704]
+  ('3pages', 2048, 'max'): {1: 704, 16: 704, 64: 704, 256: 512} single=[704]
+  ('3pages', 3072, '0'): {1: 1024, 16: 1024, 64: 1024, 256: 1024} single=[1024]
+  ('3pages', 3072, 'max'): {1: 1024, 16: 1024, 64: 1024, 256: 1024} single=[1024]
+  ('3pages', 4096, '0'): {1: 1376, 16: 1376, 64: 1344, 256: 1280} single=[1376]
+  ('3pages', 4096, 'max'): {1: 1376, 16: 1376, 64: 1344, 256: 1280} single=[1376]
+  ('3pages', 8192, '0'): {1: 2752, 16: 2752, 64: 2752, 256: 2560} single=[2752]
+  ('3pages', 8192, 'max'): {1: 2752, 16: 2752, 64: 2752, 256: 2560} single=[2752]
+  ('control', 192, '0'): {1: 64, 16: 64, 64: 64, 256: 0} single=[64]
+  ('control', 192, 'max'): {1: 64, 16: 64, 64: 64, 256: 0} single=[64]
+  ('control', 384, '0'): {1: 128, 16: 128, 64: 128, 256: 0} single=[128]
+  ('control', 384, 'max'): {1: 128, 16: 128, 64: 128, 256: 0} single=[128]
+  ('control', 1024, '0'): {1: 352, 16: 352, 64: 320, 256: 256} single=[352]
+  ('control', 1024, 'max'): {1: 352, 16: 352, 64: 320, 256: 256} single=[352]
+  ('control', 2048, '0'): {1: 704, 16: 704, 64: 704, 256: 512} single=[704]
+  ('control', 2048, 'max'): {1: 704, 16: 704, 64: 704, 256: 512} single=[704]
+  ('control', 3072, '0'): {1: 1024, 16: 1024, 64: 1024, 256: 1024} single=[1024]
+  ('control', 3072, 'max'): {1: 1024, 16: 1024, 64: 1024, 256: 1024} single=[1024]
+  ('control', 4096, '0'): {1: 1376, 16: 1376, 64: 1344, 256: 1280} single=[1376]
+  ('control', 4096, 'max'): {1: 1376, 16: 1376, 64: 1344, 256: 1280} single=[1376]
+  ('control', 8192, '0'): {1: 2752, 16: 2752, 64: 2752, 256: 2560} single=[2752]
+  ('control', 8192, 'max'): {1: 2752, 16: 2752, 64: 2752, 256: 2560} single=[2752]
+
+Host memory (medians over cells with chunk 1): MemAvailable and VmRSS deltas vs pool reserved
+| Layout | maxSize MiB | Threshold | reserved at cap MiB | dMemAvail at cap MiB | dRSS at cap MiB | reserved after free MiB | dMemAvail after free MiB | dRSS after free MiB | reserved after trim MiB | dMemAvail after trim MiB | dRSS after trim MiB |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 3pages | 192 | 0 | 64 | 9 | 73 | 0 | 9 | 9 | 0 | 9 | 9 |
+| 3pages | 192 | max | 64 | 13 | 73 | 64 | 13 | 73 | 0 | 13 | 9 |
+| 3pages | 384 | 0 | 128 | 9 | 137 | 0 | 9 | 9 | 0 | 72 | 9 |
+| 3pages | 384 | max | 128 | 13 | 137 | 128 | 13 | 137 | 0 | 100 | 9 |
+| 3pages | 1024 | 0 | 352 | 15 | 361 | 0 | 79 | 9 | 0 | 99 | 9 |
+| 3pages | 1024 | max | 352 | 128 | 361 | 352 | 192 | 361 | 0 | 103 | 10 |
+| 3pages | 2048 | 0 | 704 | 570 | 714 | 0 | 100 | 10 | 0 | 104 | 10 |
+| 3pages | 2048 | max | 704 | 556 | 714 | 704 | 621 | 714 | 0 | 102 | 10 |
+| 3pages | 3072 | 0 | 1024 | 878 | 1034 | 0 | 104 | 10 | 0 | 102 | 10 |
+| 3pages | 3072 | max | 1024 | 866 | 1034 | 1024 | 930 | 1034 | 0 | 100 | 10 |
+| 3pages | 4096 | 0 | 1376 | 1220 | 1386 | 0 | 104 | 10 | 0 | 101 | 10 |
+| 3pages | 4096 | max | 1376 | 1205 | 1386 | 1376 | 1269 | 1386 | 0 | 100 | 10 |
+| 3pages | 8192 | 0 | 2752 | 2382 | 2764 | 0 | 105 | 12 | 0 | 106 | 12 |
+| 3pages | 8192 | max | 2752 | 2371 | 2764 | 2752 | 2427 | 2764 | 0 | 107 | 12 |
+| control | 192 | 0 | 64 | 9 | 73 | 0 | 9 | 9 | 0 | 9 | 9 |
+| control | 192 | max | 64 | 10 | 73 | 64 | 10 | 73 | 0 | 10 | 9 |
+| control | 384 | 0 | 128 | 9 | 137 | 0 | 10 | 9 | 0 | 10 | 9 |
+| control | 384 | max | 128 | 9 | 137 | 128 | 9 | 137 | 0 | 9 | 9 |
+| control | 1024 | 0 | 352 | 11 | 361 | 0 | 11 | 9 | 0 | 11 | 10 |
+| control | 1024 | max | 352 | 10 | 361 | 352 | 11 | 361 | 0 | 11 | 9 |
+| control | 2048 | 0 | 704 | 12 | 714 | 0 | 13 | 10 | 0 | 13 | 10 |
+| control | 2048 | max | 704 | 12 | 714 | 704 | 12 | 714 | 0 | 105 | 10 |
+| control | 3072 | 0 | 1024 | 14 | 1034 | 0 | 14 | 10 | 0 | 246 | 10 |
+| control | 3072 | max | 1024 | 516 | 1034 | 1024 | 580 | 1034 | 0 | 103 | 10 |
+| control | 4096 | 0 | 1376 | 15 | 1386 | 0 | 15 | 10 | 0 | 97 | 10 |
+| control | 4096 | max | 1376 | 857 | 1386 | 1376 | 921 | 1386 | 0 | 105 | 10 |
+| control | 8192 | 0 | 2752 | 23 | 2764 | 0 | 23 | 12 | 0 | 110 | 12 |
+| control | 8192 | max | 2752 | 2226 | 2764 | 2752 | 2290 | 2764 | 0 | 105 | 12 |

@@ -1,0 +1,2 @@
+fdb-pool-exp event=decide pid=2040809 variant=S site=embedder-probe default_pool=- create=- set=- probe=- release=- alloc_mode=sync max_size=3221225472 threshold=0 reserved_cur=- reserved_high=- used_cur=- used_high=- elapsed_us=0
+fdb-pool-exp event=teardown pid=2040809 variant=S site=exit default_pool=- create=- set=- probe=- release=- alloc_mode=sync max_size=3221225472 threshold=0 reserved_cur=- reserved_high=- used_cur=- used_high=- elapsed_us=0

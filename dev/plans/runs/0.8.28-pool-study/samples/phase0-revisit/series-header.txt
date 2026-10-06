@@ -1,0 +1,13 @@
+utc_start=2026-10-06T00:59:38Z
+l4t=# R36 (release), REVISION: 5.2, GCID: 46426093, BOARD: generic, EABI: aarch64, DATE: Thu Jul 16 18:56:22 UTC 2026
+kernel=5.15.199-tegra
+node=v24.15.0
+python=Python 3.10.12
+nvpmodel=NV Power Mode: MAXN 0 
+jetson_clocks=SOC family:tegra234  Machine:NVIDIA Jetson AGX Orin Developer Kit
+probes=minimal_repro,pool_teardown
+count=20
+FATHOMDB_DB_SCRATCH=<scratch>/pool-study/dbs
+FATHOMDB_EMBED_DEVICE=cuda:0
+FATHOMDB_GPU_ALLOCATION_WITNESS=1
+FATHOMDB_RERANK_DEVICE=cuda:0

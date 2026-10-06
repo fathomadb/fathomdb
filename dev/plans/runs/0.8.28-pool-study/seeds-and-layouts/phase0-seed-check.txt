@@ -1,0 +1,16 @@
+## Phase 0 V8 --random-seed layout check (import-only, heap-400k)
+
+| Seed | Runs | Window mappings (each run) | Identical starts | Common starts |
+| --- | --- | --- | --- | --- |
+| 1 | 2 | 93, 93 | no | 91 |
+| 2 | 2 | 100, 99 | no | 98 |
+| 3 | 2 | 97, 102 | no | 81 |
+| 4 | 2 | 88, 88 | yes | 88 |
+| 5 | 2 | 90, 98 | no | 86 |
+| 6 | 2 | 96, 102 | no | 92 |
+| 7 | 2 | 81, 82 | no | 69 |
+| 8 | 2 | 96, 96 | no | 91 |
+| 9 | 2 | 88, 92 | no | 74 |
+| 10 | 2 | 80, 81 | no | 80 |
+
+Identical pairs: 1/10 (paired layouts adopted if >= 9/10)

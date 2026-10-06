@@ -168,8 +168,8 @@ pub(crate) fn projection_dispatcher_loop(
         .register(WalAttributionRole::ProjectionDispatcher, dispatcher_idx);
     shared.wal_attribution.register(WalAttributionRole::ProjectionDispatcher, dispatcher_idx);
     // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — read ONCE:
-    // `ProjectionRuntimeShared::embedder` is fixed for the session's lifetime.
-    let dense_arm_live = shared.embedder.is_some();
+    // `ProjectionRuntimeShared::has_embedder` is fixed for the session's lifetime.
+    let dense_arm_live = shared.has_embedder;
     let mut startup = complete_projection_runtime_startup(
         &shared,
         startup,
@@ -603,7 +603,7 @@ fn embed_projection_batch(
     jobs: &[ProjectionJob],
 ) -> Vec<ProjectionOutcome> {
     let per_job = || jobs.iter().map(|job| run_projection_job(shared, job)).collect();
-    if shared.embedder.is_none() || jobs.len() < 2 || !projection_batch_enabled() {
+    if !shared.has_embedder || jobs.len() < 2 || !projection_batch_enabled() {
         return per_job();
     }
     let bodies: Vec<String> = jobs.iter().map(|job| job.body.clone()).collect();
@@ -743,7 +743,7 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
     // (see the note there), so the governed path never promotes. The 0/48-vs-8/48
     // measurement above stands as the reason not to shorten the ladder, but it is
     // no longer load-bearing for correctness of the governed write path.
-    if shared.embedder.is_none() && job.kind != EDGE_FACT_KIND {
+    if !shared.has_embedder && job.kind != EDGE_FACT_KIND {
         return ProjectionOutcome::Deferred;
     }
     let delays = shared.retry_delays_ms.lock().map(|delays| delays.clone()).unwrap_or_default();

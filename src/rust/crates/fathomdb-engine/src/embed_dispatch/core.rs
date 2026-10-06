@@ -299,7 +299,7 @@ struct QueueState {
 }
 
 struct Shared {
-    provider: Arc<dyn Embedder>,
+    provider: Mutex<Option<Arc<dyn Embedder>>>,
     dimension: usize,
     queue_capacity: usize,
     timeout_ms: AtomicU64,
@@ -355,7 +355,7 @@ impl EmbedDispatcher {
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "embed queue overflow"))?;
         let dimension = provider.identity().dimension as usize;
         let shared = Arc::new(Shared {
-            provider,
+            provider: Mutex::new(Some(provider)),
             dimension,
             queue_capacity,
             timeout_ms: AtomicU64::new(timeout.as_millis() as u64),
@@ -539,6 +539,7 @@ impl EmbedDispatcher {
         for handle in handles.drain(..) {
             let _ = handle.join();
         }
+        shared.provider.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).take();
         true
     }
 
@@ -577,15 +578,22 @@ fn valid(vector: &Vector, dimension: usize) -> bool {
 }
 
 fn invoke(shared: &Shared, body: RequestBody) -> Result<EmbedOutput, DispatchError> {
+    let provider = shared
+        .provider
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .as_ref()
+        .cloned()
+        .ok_or(DispatchError::Closing)?;
     let expected_rows = match &body {
         RequestBody::One(_) => None,
         RequestBody::Batch(texts) => Some(texts.len()),
     };
     let outcome = catch_unwind(AssertUnwindSafe(|| match body {
-        RequestBody::One(text) => shared.provider.embed(&text).map(EmbedOutput::One),
+        RequestBody::One(text) => provider.embed(&text).map(EmbedOutput::One),
         RequestBody::Batch(texts) => {
             let inputs: Vec<&str> = texts.iter().map(String::as_str).collect();
-            shared.provider.embed_batch(&inputs).map(EmbedOutput::Batch)
+            provider.embed_batch(&inputs).map(EmbedOutput::Batch)
         }
     }));
     match outcome {

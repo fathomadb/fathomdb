@@ -1175,12 +1175,17 @@ operation missing from Rust; absent a decision, Slice 132 remains planned.
 
 ### Slice 135 — 0.8.26 performance preservation and improvement qualification
 
-**PLANNED; uncommissioned.** Compare the completed 0.8.27 candidate against
-0.8.26 using a fixed, representative workload and the Slice 115 collection
-method. Verify that performance matches or improves on 0.8.26 without reducing
-any supported feature or function. Hold workload, dataset, feature set,
-configuration, hardware, software environment, warm-up, and repetition policy
-constant unless the comparison explicitly documents and justifies a difference.
+**PLANNED; preparation in progress.** The repository owner authorized Slice 135
+preparation in parallel with Slice 132 on 2026-10-06. The
+[Slice 135 qualification plan](0.8.27/features/slice-135/plan.md) covers
+protocol, workload, baseline, correctness, robustness, runtime-path and test
+coverage work. Final 0.8.27 comparison and closeout require the completed
+Slice 132 candidate. Compare that candidate against 0.8.26 using a fixed,
+representative workload and the Slice 115 collection method. Verify that
+performance matches or improves on 0.8.26 without reducing any supported
+feature or function. Hold workload, dataset, feature set, configuration,
+hardware, software environment, warm-up, and repetition policy constant
+unless the comparison explicitly documents and justifies a difference.
 
 Pre-register the metrics, tolerances, and decision rule before the comparison.
 Publish reproducible receipts and an explicit feature/function parity inventory.

@@ -36,6 +36,13 @@ TS_PUBLIC = re.compile(
     r"^\s*export\s+(?:default\s+)?(?:async\s+)?"
     r"(function|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)"
 )
+TS_NAMED_REEXPORT = re.compile(
+    r'^export\s+(type\s+)?\{([^{}]*)\}\s+from\s+["\'](\./[^"\']+\.js)["\']\s*;',
+    re.MULTILINE,
+)
+TS_REEXPORT_NAME = re.compile(
+    r"^(?:type\s+)?([A-Za-z_$][A-Za-z0-9_$]*)(?:\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*))?$"
+)
 RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 # Rust removals come only from reconstructing each side of a changed file
 # (old = context + removed lines, new = context + added lines) and parsing
@@ -179,7 +186,11 @@ def _classify(path: str) -> str | None:
         # `benches/`, `build.rs`, `src/main.rs`, and `src/bin/` neither
         # report removals nor cancel them.
         match = _RUST_LIBRARY_SOURCE.match(path)
-        if match is None or match.group(1) == "main.rs" or match.group(1).startswith("bin/"):
+        if (
+            match is None
+            or match.group(1) == "main.rs"
+            or match.group(1).startswith("bin/")
+        ):
             return None
         return "rust"
     if path.startswith("src/python/") and path.endswith(".py"):
@@ -197,6 +208,56 @@ def _scan_line(kind: str, line: str) -> tuple[str, str] | None:
     else:
         return None
     return (m.group(1), m.group(2)) if m else None
+
+
+def _typescript_root_reexports(
+    new_files: dict[str, list[str]], read_head: HeadReader | None
+) -> set[tuple[str, str, str]]:
+    """Recognize explicit package-root exports backed by a sibling declaration.
+
+    A missing target, a glob, or a type-only export of a runtime value cannot
+    cancel a removal. TypeScript compilation remains the full module oracle.
+    """
+    root_path = "src/ts/src/index.ts"
+    root = new_files.get(root_path)
+    if root is None:
+        return set()
+    additions: set[tuple[str, str, str]] = set()
+    root_text = re.sub(r"/\*.*?\*/|//[^\n]*", "", "\n".join(root), flags=re.DOTALL)
+    for match in TS_NAMED_REEXPORT.finditer(root_text):
+        statement_type_only, members, ref = match.groups()
+        # The package root for this check uses private sibling modules.
+        # Other paths stay fail-closed until explicitly supported.
+        if "/" in ref[2:] or ".." in ref or not ref.endswith(".js"):
+            continue
+        target_path = f"src/ts/src/{ref[2:-3]}.ts"
+        target = new_files.get(target_path)
+        if target is None and read_head is not None:
+            target = read_head(target_path)
+        if target is None:
+            continue
+        declared = {
+            name: kind
+            for line in target
+            if (scanned := _scan_line("ts", line)) is not None
+            for kind, name in (scanned,)
+        }
+        for member in members.split(","):
+            member = member.strip()
+            if not member:
+                continue
+            item = TS_REEXPORT_NAME.fullmatch(member)
+            if item is None:
+                continue
+            source, alias = item.groups()
+            kind = declared.get(source)
+            if kind is None:
+                continue
+            type_only = bool(statement_type_only or member.startswith("type "))
+            if type_only and kind not in {"interface", "type"}:
+                continue
+            additions.add((root_path, "ts", alias or source))
+    return additions
 
 
 def _split_use_tree(value: str) -> list[str]:
@@ -258,7 +319,9 @@ def _rust_use_leaves(statement: str) -> set[tuple[str, str]]:
         alias_parts = re.split(r"\s+as\s+", tree, maxsplit=1)
         if len(alias_parts) == 2:
             alias = alias_parts[1].strip()
-            source_path = "::".join(part for part in (prefix, alias_parts[0].strip()) if part)
+            source_path = "::".join(
+                part for part in (prefix, alias_parts[0].strip()) if part
+            )
             if source_path.endswith("::self"):
                 source_path = source_path.removesuffix("::self")
             source = source_path.rsplit("::", 1)[-1].strip()
@@ -303,7 +366,9 @@ class _RustExports:
 _RUST_SIMPLE_GLOB = re.compile(
     r"^\s*pub\s+use\s+(?:(?:self|crate)\s*::\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*::\s*\*\s*;\s*$"
 )
-_RUST_MOD_DECL = re.compile(r"^(pub\s*(\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\b")
+_RUST_MOD_DECL = re.compile(
+    r"^(pub\s*(\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\b"
+)
 _RUST_VIS_PREFIX = re.compile(r"^(?:pub\s*(?:\([^)]*\))?\s*|unsafe\s+|default\s+)*")
 _RUST_MOD_HEADER = re.compile(r"^mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*$")
 
@@ -332,7 +397,9 @@ def _impl_self_type(header: str) -> str | None:
         elif depth == 0:
             rest = rest[match.end() :]
             break
-    rest = re.sub(r"^(?:\s*(?:&\s*(?:'[A-Za-z_]+\s*)?|mut\b|dyn\b|!))*", "", rest.strip())
+    rest = re.sub(
+        r"^(?:\s*(?:&\s*(?:'[A-Za-z_]+\s*)?|mut\b|dyn\b|!))*", "", rest.strip()
+    )
     rest = rest.split("<", 1)[0].strip()
     name = rest.rsplit("::", 1)[-1].strip()
     return name if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) else None
@@ -455,7 +522,12 @@ def _parse_rust_side(lines: list[str]) -> _RustExports:
                     target.add((frames[-1][1] if frames else "", mod_decl.group(3)))
             match = RUST_PUBLIC.match(rest)
             frame = frames[-1] if frames else ("mod", "")
-            if match and not gated and not rest.startswith("pub(") and frame[0] != "opaque":
+            if (
+                match
+                and not gated
+                and not rest.startswith("pub(")
+                and frame[0] != "opaque"
+            ):
                 kind, name = match.group(1), match.group(2)
                 out.uncond_items.setdefault((frame[0], frame[1], name), set()).add(kind)
             last = 0
@@ -473,7 +545,9 @@ def _parse_rust_side(lines: list[str]) -> _RustExports:
                     if carry is not None and depth == carry:
                         gates.append(depth)
                         carry = None
-                    frames.append(_block_frame(header, frames[-1] if frames else ("mod", "")))
+                    frames.append(
+                        _block_frame(header, frames[-1] if frames else ("mod", ""))
+                    )
                     header = ""
                     depth += 1
                 elif token == "}":
@@ -594,7 +668,9 @@ def _rust_removals(
         for name in old.uncond_uses - new.uncond_uses:
             # A use below the file's top level has an unknown module path.
             owner = "" if name in old.top_uses else None
-            if ("mod", "", name) in new.uncond_items or root_cancels(path, owner, "use", name):
+            if ("mod", "", name) in new.uncond_items or root_cancels(
+                path, owner, "use", name
+            ):
                 continue
             removals.add(Removal(path, "rust", "use", name))
     return removals
@@ -636,9 +712,15 @@ def _root_path_only(
         return [stem + ".rs", stem + "/mod.rs"]
 
     # (files that may declare the segment, enclosing inline path, name)
-    decls = [(module_files(parts[:index]), "", segment) for index, segment in enumerate(parts)]
+    decls = [
+        (module_files(parts[:index]), "", segment)
+        for index, segment in enumerate(parts)
+    ]
     own_file = [crate + "src/" + rel]
-    decls += [(own_file, "::".join(inline[:index]), segment) for index, segment in enumerate(inline)]
+    decls += [
+        (own_file, "::".join(inline[:index]), segment)
+        for index, segment in enumerate(inline)
+    ]
     for files, parent, segment in decls:
         seen = [side for file in files for side in sides(file)]
         if any((parent, segment) in side.pub_mods for side in seen):
@@ -647,7 +729,9 @@ def _root_path_only(
             return False
     exposed = {segment for _, _, segment in decls}
     root_sides = sides(crate + "src/lib.rs")
-    return not any(exposed & (side.top_uses | side.top_use_sources) for side in root_sides)
+    return not any(
+        exposed & (side.top_uses | side.top_use_sources) for side in root_sides
+    )
 
 
 def _rust_root_names(
@@ -713,11 +797,16 @@ def parse_diff(
     # `load_diff`'s whole-file context).
     old_exports: dict[str, _RustExports] = {}
     new_exports: dict[str, _RustExports] = {}
+    new_ts_files: dict[str, list[str]] = {}
     hunk_old: list[str] = []
     hunk_new: list[str] = []
 
     def flush_hunk() -> None:
-        if current_kind == "rust" and current_path is not None and (hunk_old or hunk_new):
+        if (
+            current_kind == "rust"
+            and current_path is not None
+            and (hunk_old or hunk_new)
+        ):
             for side, lines in ((old_exports, hunk_old), (new_exports, hunk_new)):
                 exports = _parse_rust_side(lines)
                 acc = side.setdefault(current_path, _RustExports())
@@ -729,6 +818,8 @@ def parse_diff(
                 acc.private_mods |= exports.private_mods
                 for key, kinds in exports.uncond_items.items():
                     acc.uncond_items.setdefault(key, set()).update(kinds)
+        if current_kind == "ts" and current_path is not None and hunk_new:
+            new_ts_files.setdefault(current_path, []).extend(hunk_new)
         hunk_old.clear()
         hunk_new.clear()
 
@@ -763,6 +854,11 @@ def parse_diff(
                 hunk_old.append(raw[1:])
                 hunk_new.append(raw[1:])
             continue
+        if current_kind == "ts":
+            if raw.startswith("+"):
+                hunk_new.append(raw[1:])
+            elif raw.startswith(" ") or raw == "":
+                hunk_new.append(raw[1:])
 
         match = _scan_line(current_kind, raw[1:])
         if match is None:
@@ -775,10 +871,13 @@ def parse_diff(
     flush_hunk()
 
     removals |= _rust_removals(old_exports, new_exports, read_head)
+    additions |= _typescript_root_reexports(new_ts_files, read_head)
     return removals, additions
 
 
-def real_removals(removals: set[Removal], additions: set[tuple[str, str, str]]) -> list[Removal]:
+def real_removals(
+    removals: set[Removal], additions: set[tuple[str, str, str]]
+) -> list[Removal]:
     """A Python/TypeScript removal cancels if the same symbol name re-appears
     in the same file; Rust removals arrive already move-cancelled."""
     out = []
@@ -890,9 +989,17 @@ def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--base", default="v0.6.1", help="base git ref")
     p.add_argument("--head", default="HEAD", help="head git ref")
-    p.add_argument("--diff-file", default=None, help="read diff from a file instead of git")
-    p.add_argument("--changelog", default=None, help="CHANGELOG.md path (default: <repo>/CHANGELOG.md)")
-    p.add_argument("--repo-root", default=None, help="repository root (default: git rev-parse)")
+    p.add_argument(
+        "--diff-file", default=None, help="read diff from a file instead of git"
+    )
+    p.add_argument(
+        "--changelog",
+        default=None,
+        help="CHANGELOG.md path (default: <repo>/CHANGELOG.md)",
+    )
+    p.add_argument(
+        "--repo-root", default=None, help="repository root (default: git rev-parse)"
+    )
     args = p.parse_args(argv)
 
     if args.repo_root is None:
@@ -904,7 +1011,11 @@ def main(argv: list[str]) -> int:
             sys.stderr.write("not inside a git repo; pass --repo-root\n")
             return 2
 
-    changelog_path = Path(args.changelog) if args.changelog else Path(args.repo_root) / "CHANGELOG.md"
+    changelog_path = (
+        Path(args.changelog)
+        if args.changelog
+        else Path(args.repo_root) / "CHANGELOG.md"
+    )
     if not changelog_path.exists():
         sys.stderr.write(f"CHANGELOG.md missing at {changelog_path}\n")
         return 2
@@ -916,7 +1027,9 @@ def main(argv: list[str]) -> int:
     undocumented = changelog_documents(changelog_path, truly_removed)
 
     if undocumented:
-        sys.stderr.write("AC-050c: removed public symbols missing from CHANGELOG Removed section:\n")
+        sys.stderr.write(
+            "AC-050c: removed public symbols missing from CHANGELOG Removed section:\n"
+        )
         for r in undocumented:
             sys.stderr.write(f"  {r.path}: {r.symbol_kind} {r.display()}\n")
         return 1

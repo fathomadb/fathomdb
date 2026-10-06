@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 120 - TypeScript SDK decomposition plan
-status: APPROVED_FOR_DESIGN_REVIEW
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.27
 ---
 

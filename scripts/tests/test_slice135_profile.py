@@ -26,6 +26,12 @@ class ProfileTests(unittest.TestCase):
         self.assertTrue(profile.operation_frame(
             "text", "#0 sqlite3_step\n#1 fathomdb_engine::search_api::Engine::search_text_only",
         ))
+        self.assertTrue(profile.operation_frame(
+            "mixed_sequence", "#0 sqlite3_step\n#1 fathomdb_engine::{impl#18}::erase_source",
+        ))
+        self.assertFalse(profile.operation_frame(
+            "mixed_sequence", "#0 futex_wait\n#1 fathomdb_engine::reader_worker_loop",
+        ))
 
     def test_completed_operations_requires_matching_profile_path(self):
         self.assertEqual(profile.completed_operations(

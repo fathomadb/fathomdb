@@ -51,7 +51,7 @@ version is not already on the registry.
 
 With --dry-run, leaf crates (`fathomdb-embedder-api`, `fathomdb-schema`,
 and `fathomdb-query`) run `cargo publish --dry-run`. Dependent crates
-(`fathomdb-embedder`, `fathomdb-engine`, `fathomdb`, and `fathomdb-cli`)
+(`fathomdb-embedder`, `fathomdb-engine`, `fathomdb`, `fathomdb-sdk`, and `fathomdb-cli`)
 are skipped without invoking cargo because their sibling dependencies cannot
 resolve until preceding real tiers reach the registry.
 
@@ -187,7 +187,7 @@ LOCAL_VERSION="$(resolve_local_version)"
 # job cover everything else (compile, leaf packaging, leaf publish path).
 is_dependent_crate() {
   case "$1" in
-    fathomdb-engine|fathomdb-embedder|fathomdb|fathomdb-cli) return 0 ;;
+    fathomdb-engine|fathomdb-embedder|fathomdb|fathomdb-sdk|fathomdb-cli) return 0 ;;
     *) return 1 ;;
   esac
 }

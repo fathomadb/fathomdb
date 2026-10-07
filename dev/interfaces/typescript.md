@@ -12,6 +12,9 @@ status: locked
 This file owns TypeScript-visible symbol spelling and export shape. Cross-
 binding parity remains owned by `design/bindings.md`.
 
+The Rust peer of this SDK is `fathomdb-sdk`; its operation mapping and
+translation rules are in [`rust-sdk.md`](rust-sdk.md).
+
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
 `Engine.open` bootstraps a missing or zero-length path at schema 34. A

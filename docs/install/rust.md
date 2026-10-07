@@ -1,7 +1,9 @@
 # Install — Rust
 
-Two consumption paths for Rust users:
+Two consumption paths for Rust users, plus the 0.8.27 application SDK:
 
+- **`fathomdb-sdk`** (0.8.27, not yet published) — the
+  [Rust SDK](../reference/rust-sdk.md) with the Python/TypeScript surface.
 - **`fathomdb` facade crate** — re-exports the runtime verbs from
   `fathomdb-engine` for downstream Rust libraries and applications.
 - **`fathomdb-cli` operator CLI** — `fathomdb doctor` and

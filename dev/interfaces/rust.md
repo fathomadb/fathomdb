@@ -12,6 +12,10 @@ status: locked
 This file owns Rust-visible symbol spelling and result shape. Cross-binding
 parity rules remain owned by `design/bindings.md`.
 
+This document covers the lower-level `fathomdb` facade. Rust application code
+uses the dedicated `fathomdb-sdk` crate, whose Python/TypeScript-parity
+contract is [`rust-sdk.md`](rust-sdk.md) (0.8.27 Slice 132).
+
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
 All public `Engine::open*` routes bootstrap a missing or zero-length path at

@@ -1150,6 +1150,19 @@ jobs:
       - name: Wait for crates.io index propagation (poll, not sleep)
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
         run: bash scripts/release/wait-for-crate-version.sh fathomdb
+      - name: cargo publish fathomdb-sdk
+        # The Rust application SDK depends on fathomdb-engine (T5), like the facade.
+        run: |
+          if [ "${DRY_RUN}" = "true" ]; then
+            bash scripts/release/cargo-publish-if-new.sh --dry-run fathomdb-sdk
+          else
+            bash scripts/release/cargo-publish-if-new.sh fathomdb-sdk
+          fi
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates_io_auth.outputs.token }}
+      - name: Wait for fathomdb-sdk crates.io index propagation (poll, not sleep)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
+        run: bash scripts/release/wait-for-crate-version.sh fathomdb-sdk
 
   publish-rust-t7-cli:
     runs-on: ubuntu-latest

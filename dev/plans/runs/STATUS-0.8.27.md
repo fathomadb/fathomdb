@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 132 (RUST-SDK-PARITY), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) · 110 (`a25d063cd3e1642ad08dcc6aed3691b94445fe20`) · 114 (`25115902db8b9b5648c5ceca1823d3cc66fec8e8`) · 115 (`012e132920147396ac195f14af74444dd698f48e`) · 120 (`e05bfd5330beb737b7704300e2752d2b977bb5b8`) · 130 (`58b0bd192f6bc7cc87ea6e8099bfe1c52e68893f`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 135 (PERFORMANCE-BASELINE), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) · 110 (`a25d063cd3e1642ad08dcc6aed3691b94445fe20`) · 114 (`25115902db8b9b5648c5ceca1823d3cc66fec8e8`) · 115 (`012e132920147396ac195f14af74444dd698f48e`) · 120 (`e05bfd5330beb737b7704300e2752d2b977bb5b8`) · 130 (`58b0bd192f6bc7cc87ea6e8099bfe1c52e68893f`) · 132 (`2996417f0cb78b2dbf5262de53798ae6a263469a`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -48,19 +48,16 @@ hashes, review, feature-complete and platform evidence, and measured Tegra
 limits. Slices 114 and 115 completed earlier under HITL sequencing exceptions;
 Slices 120 and 130 have since completed. No publication is authorized here.
 
-Slice 132 is planned after Slice 130 and before performance qualification. It
-will make the Rust SDK equal in canonical capability to Python and TypeScript,
-while retaining language-native API form and the separately governed CLI and
-published provider/plugin boundaries. `fathomdb` remains the one Rust SDK;
-custom-provider reachability leaves its default surface unless concrete external
-need receives a HITL exception. Its scope requires a successor decision before
-implementation.
+Slice 132 completed after Slice 130. It added `fathomdb-sdk`, a dedicated Rust
+SDK with the Python/TypeScript surface, under
+`ADR-0.8.27-rust-sdk-parity.md`. The `fathomdb` facade is unchanged, and the
+provider/plugin crate posture remains a separate unruled decision.
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 132 (RUST-SDK-PARITY)** — Rust SDK canonical-surface parity. **Remaining ladder:** 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 135 (PERFORMANCE-BASELINE)** — 0.8.26 performance preservation and improvement qualification. **Remaining ladder:** 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -111,6 +108,7 @@ binding and stage-3 ancestry. See the
 | 115 | Engine performance characterization | Complete at `012e13292` under the HITL sequencing exception. Twelve real-engine cells have seven valid samples each, with binary-bound profiles, reviewed receipt, independent code review and Terra verification. The inherited Slice 90 inventory mismatch prevents a full-workspace green claim. See [Slice 115 status](../0.8.27/features/slice-115/status.md). |
 | 120 | TypeScript SDK decomposition | Complete at `e05bfd533`; root export map, private concern modules, exact public-surface and installed consumer checks, independent review, and 184/184 strict gate pass. See [Slice 120 status](../0.8.27/features/slice-120/status.md). |
 | 130 | Python SDK decomposition | Complete at `58b0bd192`; thin facade, seven private concern modules, exact 119/1,131 public-surface equality, independent Sol review and Terra verification. Strict gate's two shared-venv provenance failures passed checkout-owned focused reruns; no uninterrupted full-gate green is claimed. See [Slice 130 status](../0.8.27/features/slice-130/status.md). |
+| 132 | Dedicated Rust SDK parity | Complete at `2996417f0`. `fathomdb-sdk` covers 44/44 governed operations through `Engine`, `read`, `graph`, and `admin`, with `rerank` and `embed_batch_cls`. It has the shared option defaults and an `ErrorKind` per error class. The checker refuses core leaks. Opus design review, Fable design review, Opus code review, and Sonnet verification ran. The strict gate passed lint, typecheck, security, and Rust; its two Python suites failed only on a shared-venv receipt. The first crates.io publish needs a HITL token bootstrap. See [Slice 132 status](../0.8.27/features/slice-132/status.md). |
 
 ## Verification boundary
 
@@ -282,9 +280,8 @@ grant/revert evidence.
   clean-checkout Python suite passed; an inherited Slice 90 inventory hash
   mismatch blocked Slice 115's earlier full-gate attempt. The later clean
   Slice 110 gate passed 184 / 184 suites.
-- [Slice 132](../0.8.27/features/slice-132/plan.md) follows Slice 130 and
-  requires a HITL-approved successor to the current Rust parity-in-intent
-  contract. It inventories canonical operations, types, and capabilities across
-  all three SDKs before changing any surface. `fathomdb` is the one Rust SDK;
-  external provider/plugin compatibility remains a separately ruled boundary.
-  Slice 135 depends on its closure.
+- [Slice 132](../0.8.27/features/slice-132/status.md) is complete at
+  `2996417f0`. `fathomdb-sdk` reproduces the Python/TypeScript surface in Rust,
+  and the parity checker covers it (44/44). Before the `v0.8.27` tag, its
+  first crates.io publish needs a one-time HITL token bootstrap (ledger
+  seq 273). Slice 135 is next.

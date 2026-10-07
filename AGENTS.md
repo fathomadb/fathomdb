@@ -27,7 +27,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 
 ## 2. Repo shape
 
-- **Rust workspace** under `src/rust/crates/` — 10 crates: `fathomdb`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-napi`, `fathomdb-py`, and `fathomdb-tc5-benchmark`.
+- **Rust workspace** under `src/rust/crates/` — 11 crates: `fathomdb`, `fathomdb-sdk`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-napi`, `fathomdb-py`, and `fathomdb-tc5-benchmark`.
 - **Python bindings** under `src/python/` (package: `fathomdb`).
 - **TypeScript bindings** under `src/ts/`.
 - **Public docs** under `docs/` (MkDocs-built).

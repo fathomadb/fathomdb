@@ -287,11 +287,11 @@ else
 fi
 
 # 11) [WF-FIX-2] Dependent crate + --dry-run → skip without invoking cargo.
-#     fathomdb-engine, -embedder, fathomdb, fathomdb-cli are dependent crates;
+#     fathomdb-engine, -embedder, fathomdb, fathomdb-sdk, fathomdb-cli are dependent crates;
 #     `cargo publish --dry-run --no-verify` would still fail on the package
 #     step's workspace-dep resolve. Helper must short-circuit to exit 0 with
 #     a clear "skipped" diagnostic and NOT invoke cargo at all.
-for dep_crate in fathomdb-engine fathomdb-embedder fathomdb fathomdb-cli; do
+for dep_crate in fathomdb-engine fathomdb-embedder fathomdb fathomdb-sdk fathomdb-cli; do
   reset_shim_log
   if out="$(CARGO_PUBLISH_IF_NEW_LOCAL_VERSION=0.6.1 \
               run_helper --dry-run "$dep_crate" 2>&1)"; then

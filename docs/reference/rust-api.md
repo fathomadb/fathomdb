@@ -8,7 +8,8 @@ owns the contract and feature-gating details.
 
 ## Surface model
 
-Rust is not namespace-identical to the Python and TypeScript SDKs. Application
+This facade is not namespace-identical to the Python and TypeScript SDKs;
+for that surface in Rust, use [`fathomdb-sdk`](rust-sdk.md) (0.8.27). Application
 operations are inherent `Engine` methods and public carriers are facade
 re-exports. The default feature set contains no recovery-named or raw-SQL
 method. The `operator` feature enables the diagnostic and recovery seam used by

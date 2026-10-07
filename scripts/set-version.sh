@@ -218,6 +218,7 @@ axis_w = {
     "fathomdb-py",
     "fathomdb-query",
     "fathomdb-schema",
+    "fathomdb-sdk",
     "fathomdb-tc5-benchmark",
 }
 text = path.read_text()
@@ -485,7 +486,7 @@ check_files() {
   for lock_crate in \
     fathomdb fathomdb-cli fathomdb-embedder fathomdb-engine \
     fathomdb-napi fathomdb-py fathomdb-query fathomdb-schema \
-    fathomdb-tc5-benchmark; do
+    fathomdb-sdk fathomdb-tc5-benchmark; do
     lock_ver="$(read_cargo_lock_package_version "$lock_crate")"
     if [ "$lock_ver" != "$ws" ]; then
       lock_line="$(_cargo_lock_package_version_line "$lock_crate")"

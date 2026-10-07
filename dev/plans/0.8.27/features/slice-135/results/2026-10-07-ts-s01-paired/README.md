@@ -66,3 +66,6 @@ Whole-worker peak RSS, which includes setup and model loading, ranged from
 per-query attribution. The raw GNU Time CPU, I/O and memory records remain in
 each block. The protocol's accepted release gates and broader S02 system
 latency, robustness, Pareto and logic matrices remain separate and open.
+The [full-gate verification](verification.md) ran all registered suites and
+remains red on two previously observed failures; no release-green claim is
+made from this diagnostic.

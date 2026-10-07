@@ -19,6 +19,11 @@ those operations. A [TypeScript native-suite and installed-package smoke](result
 now proves a narrow installed consumer path against a real database. It does
 not close TypeScript S01/S02 or the broader accepted-operation contracts.
 The installed Rust rows and full S02 qualification remain gaps.
+An [installed TypeScript S02 functional pair](results/2026-10-07-ts-s02-feasibility/README.md)
+now proves one real-database whole-sequence path on each version, including
+direct canonical-table checks after erasure and reopen. One pair with a
+validation-inclusive timer does not qualify S02 latency, contention or the
+full operation contracts.
 An [installed Python S02 whole-sequence feasibility receipt](results/2026-10-07-python-s02-feasibility/README.md)
 now exercises the specifically marked Python calls below across one fresh
 write/project/retrieve/graph-evidence/erase/reopen sequence on each version.
@@ -35,9 +40,9 @@ broader filter, validity, lifecycle or error conditions on these operations.
 
 | Canonical operation | Phase 1 exercise route | Rust SDK | Python wheel | TypeScript package |
 | --- | --- | --- | --- | --- |
-| `engine.open` | S02 startup/reopen | Gap | S02 feasibility; broader contract gap | Functional smoke |
+| `engine.open` | S02 startup/reopen | Gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
 | `admin.configure` | S02 startup | Gap | Gap | Functional smoke |
-| `engine.write` | S02 write | Gap | S02 feasibility; broader contract gap | Functional smoke |
+| `engine.write` | S02 write | Gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
 | `engine.actuate` | S03 actuation | Gap | Functional smoke | Gap |
 | `engine.register_source_dependency` | S03 dependency | Gap | Functional smoke | Gap |
 | `engine.dependencies_for_source` | S03 dependency | Gap | Gap | Gap |
@@ -45,33 +50,33 @@ broader filter, validity, lifecycle or error conditions on these operations.
 | `engine.read_dependency_closure` | S03 dependency | Gap | Gap | Gap |
 | `engine.transition` | S03 lifecycle | Gap | Gap | Gap |
 | `engine.purge` | S03 lifecycle | Gap | Gap | Gap |
-| `engine.erase_source` | S02 erasure | Gap | S02 feasibility with canonical counts; broader contract gap | Gap |
-| `engine.search` | S01/S02 hybrid | Gap | S02 vector/hybrid feasibility; broader contract gap | S01 paired basic; broader contract gap |
-| `engine.freeze_read_context` | S02 frozen | Gap | S02 feasibility; broader contract gap | Functional smoke |
+| `engine.erase_source` | S02 erasure | Gap | S02 feasibility with canonical counts; broader contract gap | S02 feasibility with canonical counts; broader contract gap |
+| `engine.search` | S01/S02 hybrid | Gap | S02 vector/hybrid feasibility; broader contract gap | S01 paired basic and S02 feasibility; broader contract gap |
+| `engine.freeze_read_context` | S02 frozen | Gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
 | `engine.search_frozen` | S02 frozen | Gap | Functional smoke | Gap |
 | `engine.search_expand_frozen` | S03 graph | Gap | Functional smoke | Gap |
-| `engine.search_text_only` | S01/S02 text | Gap | S01 paired and S02 feasibility; broader contract gap | S01 paired basic; broader contract gap |
+| `engine.search_text_only` | S01/S02 text | Gap | S01 paired and S02 feasibility; broader contract gap | S01 paired basic and S02 feasibility; broader contract gap |
 | `engine.search_projected_text` | S03 projection | Gap | Gap | Gap |
-| `engine.search_with_evidence` | S02 evidence | Gap | S02 limit-one feasibility; broader contract gap | Expected-error smoke only |
-| `engine.resolve_evidence` | S02 evidence | Gap | S02 feasibility; broader contract gap | Gap |
-| `engine.resolve_graph_evidence` | S02 graph evidence | Gap | S02 feasibility; broader contract gap | Gap |
+| `engine.search_with_evidence` | S02 evidence | Gap | S02 limit-one feasibility; broader contract gap | S02 limit-one feasibility; broader contract gap |
+| `engine.resolve_evidence` | S02 evidence | Gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
+| `engine.resolve_graph_evidence` | S02 graph evidence | Gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
 | `engine.trace_dependency` | S03 dependency | Gap | Gap | Gap |
-| `engine.close` | S02 close | Gap | S02 feasibility; broader contract gap | Functional smoke |
-| `read.get` | S02 read | Gap | S02 positive and erased/reopen checks; broader contract gap | Functional smoke |
+| `engine.close` | S02 close | Gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
+| `read.get` | S02 read | Gap | S02 positive and erased/reopen checks; broader contract gap | S02 positive and erased/reopen checks; broader contract gap |
 | `read.get_many` | S03 read | Gap | Gap | Gap |
 | `read.collection` | S03 read | Gap | Gap | Gap |
 | `read.mutations` | S03 read | Gap | Gap | Gap |
 | `read.list` | S03 read | Gap | Gap | Gap |
 | `engine.ingest_with_extractor` | S03 provider | Gap | Gap | Gap |
 | `engine.consolidate_with_provider` | S03 provider | Gap | Gap | Gap |
-| `graph.expand` | S02 graph | Gap | S02 evidence feasibility; broader contract gap | Gap |
-| `graph.neighbors` | S02 graph | Gap | Gap | Functional smoke |
+| `graph.expand` | S02 graph | Gap | S02 evidence feasibility; broader contract gap | S02 evidence feasibility; broader contract gap |
+| `graph.neighbors` | S02 graph | Gap | Gap | S02 erased/reopen check; broader contract gap |
 | `graph.search_expand` | S03 graph | Gap | Gap | Gap |
 | `rerank` | S01 model only | Gap | Gap | Gap |
 | `engine.embed` | S01 model | Gap | Gap | Gap |
 | `read.crossed_boundary_since` | S03 read | Gap | Gap | Gap |
-| `engine.configure_projections` | S02 projection | Gap | S02 feasibility; broader contract gap | Gap |
-| `read.projections` | S02 projection | Gap | S02 ready/reopen checks; broader contract gap | Gap |
+| `engine.configure_projections` | S02 projection | Gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
+| `read.projections` | S02 projection | Gap | S02 ready/reopen checks; broader contract gap | S02 ready/reopen checks; broader contract gap |
 | `read.projection_status` | S02 projection | Gap | Gap | Gap |
 | `read.embedding_readiness` | S02 projection | Gap | Gap | Gap |
 | `read.projection_generation_status` | S03 projection | Gap | Gap | Gap |

@@ -66,7 +66,11 @@ now passes the same fresh-database write/project/retrieve/graph-evidence/
 erase/reopen sequence through both wheels, including direct canonical-row
 counts after erasure and reopen. Its one attempt per version and whole timer
 that includes validation do not qualify the sampled S02 latency cell. The
-baseline noise pilot, frozen boundary and alternating blocks remain ahead.
+parallel [installed TypeScript S02 feasibility pair](results/2026-10-07-ts-s02-feasibility/README.md)
+exercises the same real-database shape and independent canonical erasure
+counts on the repaired candidate. Its one pair and validation-inclusive
+whole-sequence timer likewise do not qualify S02 latency or contention. A
+baseline noise pilot, frozen S02 boundary and alternating blocks remain ahead.
 
 ## Source-grounded starting point
 

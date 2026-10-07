@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "status": "UNFROZEN_TS_S02_FUNCTIONAL_FEASIBILITY",
+  "finished_utc": "2026-10-07T17:31:09.584Z",
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "runner_sha256": "996e21916327747fdff52cc05a0fa42c4e2071fcee28f977a960acb18e96cf44",
+  "s01_helper_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+  "artifact": {
+    "module_path": "/tmp/slice135-ts-artifacts/baseline/consumer/node_modules/fathomdb/dist/index.js",
+    "module_sha256": "9d86c756e481ee09581ff8c687fd74de8cefbf2ad825a582015cb7b703ea4dc7",
+    "package_path": "/tmp/slice135-ts-artifacts/baseline/consumer/node_modules/fathomdb/package.json",
+    "package_sha256": "4570f02423e72e879f699a797b27d283d68d6e986880b7dcd3f3d784e59ab6b6",
+    "package_version": "0.8.26",
+    "native_path": "/tmp/slice135-ts-artifacts/baseline/consumer/node_modules/fathomdb-linux-x64-gnu/fathomdb.linux-x64-gnu.node",
+    "native_sha256": "4a3aef2833060cde858faad689e4c734de31dc70e9dab13a00a6594f694c60ca",
+    "node_executable": "/home/coreyt/.local/actions-runner/fathomdb-gpu/_work/_tool/node/25.9.0/x64/bin/node",
+    "node_version": "v25.9.0"
+  },
+  "corpus_sha256": "e01c7b7772a925ab9c3a80ffb1d20ae1f9338c4fb0501fa16fcc844b871338dd",
+  "graph_records_sha256": "4e1ba86fc32c6b18fcd5b2d0c41e68add3d1d081677731b43d07e945a47d85bf",
+  "whole_sequence_including_checks_ns": 5112421811,
+  "stage_ns": {
+    "open": 216215326,
+    "write": 3290190,
+    "configure_projection": 2102023,
+    "drain": 740871037,
+    "text": 785736,
+    "vector": 13401843,
+    "hybrid": 12375664,
+    "hybrid_lexical_control": 730781,
+    "evidence_search": 20737229,
+    "evidence_resolve": 952901,
+    "graph_expand": 2715162,
+    "graph_target_resolve": 735571,
+    "graph_edge_resolve": 475889,
+    "erase": 6939768,
+    "erase_again": 2112333,
+    "close": 3311549,
+    "reopen": 4066814461,
+    "reopened_close": 9722187
+  },
+  "observed": {
+    "embedder": "fathomdb-bge-small-en-v1.5",
+    "readiness": "ready",
+    "unsupported_kinds": [],
+    "anchor_before": true,
+    "text": {
+      "ids": [
+        "A"
+      ],
+      "branches": [
+        "text"
+      ]
+    },
+    "vector": {
+      "ids": [
+        "A",
+        "B",
+        "s02-root",
+        "s02-claim",
+        "F0004",
+        "F0017",
+        "F0008",
+        "F0005",
+        "F0003",
+        "F0007"
+      ],
+      "branches": [
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector"
+      ]
+    },
+    "hybrid": {
+      "ids": [
+        "A",
+        "B",
+        "s02-claim",
+        "F0017",
+        "F0005",
+        "F0018",
+        "F0026",
+        "F0008",
+        "F0009",
+        "F0024"
+      ],
+      "branches": [
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector"
+      ]
+    },
+    "hybrid_lexical_ids": [
+      "A"
+    ],
+    "evidence": {
+      "logical_id": "s02-claim",
+      "source_body": "{\"summary\": \"s02 canonical source evidence bytes\"}"
+    },
+    "graph": {
+      "target_id": "s02-claim",
+      "target_revision": "s02-claim-r1",
+      "edge_revision": "s02-edge-r1",
+      "edge_from": "s02-root",
+      "edge_to": "s02-claim",
+      "source_body": "{\"summary\": \"s02 canonical source evidence bytes\"}"
+    },
+    "erasure": {
+      "source_ref": "slice135-s02-graph",
+      "nodes_excised": 3,
+      "edges_excised": 1
+    },
+    "second_erasure": {
+      "nodes_excised": 0,
+      "edges_excised": 0
+    },
+    "after_erasure": {
+      "source_absent": true,
+      "root_absent": true,
+      "claim_absent": true,
+      "anchor_retained": true,
+      "evidence_query_empty": true,
+      "graph_empty": true,
+      "canonical_counts": {
+        "graph_nodes": 0,
+        "graph_edges": 0,
+        "corpus_nodes": 32
+      }
+    },
+    "after_reopen": {
+      "source_absent": true,
+      "root_absent": true,
+      "claim_absent": true,
+      "anchor_retained": true,
+      "evidence_query_empty": true,
+      "graph_empty": true,
+      "canonical_counts": {
+        "graph_nodes": 0,
+        "graph_edges": 0,
+        "corpus_nodes": 32
+      },
+      "readiness": "ready"
+    }
+  },
+  "semantic_ok": true
+}

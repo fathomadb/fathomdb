@@ -42,7 +42,12 @@ The three failures were:
 - [`test-python-native-receipt`](python-native-receipt.log): the existing
   checkout's native receipt nonce mismatched the shared virtual environment.
 
-The complete gate is **not green**. A clean-worktree Python rerun with a
-checkout-owned native receipt and TypeScript dependency setup remain for the
-Phase 1 checkpoint. The S01 runner's focused checks and installed-wheel
-probe do not substitute for those gates.
+The complete gate is **not green**. The S01 runner's focused checks and
+installed-wheel probe do not substitute for those gates. TypeScript dependency
+setup and rerunning the affected release gates remain for the Phase 1
+checkpoint.
+
+The subsequent [clean-worktree Python rerun](../2026-10-07-python-suite-clean/README.md)
+verified a fresh native receipt and narrowed the Python suite to one frozen
+declaration-pin failure; the full gate above was not rerun after that change
+of test environment.

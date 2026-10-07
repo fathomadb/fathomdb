@@ -443,3 +443,7 @@ The focused graph regression and adjacent graph suites passed (10 tests). The
 current source has not passed a new full gate; earlier candidate timing and
 installed-artifact results are historical for their exact SHAs and need a
 current-source refresh before the checkpoint.
+An [E01–E12 paired engine feasibility run](results/2026-10-07-e01-e12-feasibility/README.md)
+now confirms that all twelve inherited engine paths execute on the exact
+0.8.26 baseline and current candidate. Its seven samples per cell and weaker
+query assertions do not qualify the broader protocol or a latency verdict.

@@ -1,0 +1,10 @@
+[
+  "cargo",
+  "test",
+  "--offline",
+  "--release",
+  "--no-run",
+  "--message-format=json",
+  "--manifest-path",
+  "/tmp/slice135-e12-feasibility/baseline/build/Cargo.toml"
+]

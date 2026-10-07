@@ -93,6 +93,12 @@ locked to its own source SHA, Cargo lock, model and seven-sample count. It
 cannot be run unchanged as a 0.8.26 versus final-0.8.27 comparison. Reuse
 the cell semantics and receipt validation pattern; build a separate Slice 135
 adapter with red tests for wrong source, state, sample count and output.
+The [paired E01–E12 feasibility receipt](results/2026-10-07-e01-e12-feasibility/README.md)
+confirms that the inherited workload executes all twelve paths on both exact
+sources. It exposes the adapter work still required: environment snapshots,
+exact query IDs/order, pinned model bytes at run time, a true protocol binding,
+and pilot-derived sample counts. Its seven observations per cell are not a
+qualified latency comparison.
 
 Historical 0.8.26 gauntlet receipts are context, not matched system timing:
 the [result report](../../../../performance-benchmarking/gauntlet-v1.2/RESULTS-0.8.26.md)

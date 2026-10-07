@@ -1,0 +1,163 @@
+{
+  "baseline": {
+    "canonical_write": {
+      "count": 7,
+      "max_ns": 554582,
+      "median_ns": 491893,
+      "min_ns": 482114
+    },
+    "close": {
+      "count": 7,
+      "max_ns": 4368335,
+      "median_ns": 4026457,
+      "min_ns": 3738009
+    },
+    "erasure": {
+      "count": 7,
+      "max_ns": 12816727,
+      "median_ns": 12315356,
+      "min_ns": 11881814
+    },
+    "graph_evidence": {
+      "count": 7,
+      "max_ns": 324616,
+      "median_ns": 288527,
+      "min_ns": 279129
+    },
+    "graph_expand": {
+      "count": 7,
+      "max_ns": 1058197,
+      "median_ns": 912511,
+      "min_ns": 769780
+    },
+    "hybrid": {
+      "count": 7,
+      "max_ns": 1115816,
+      "median_ns": 442609,
+      "min_ns": 425146
+    },
+    "model_cpu": {
+      "count": 7,
+      "max_ns": 210835411,
+      "median_ns": 184150901,
+      "min_ns": 182741459
+    },
+    "open_fresh": {
+      "count": 7,
+      "max_ns": 23686082,
+      "median_ns": 20797223,
+      "min_ns": 20257759
+    },
+    "open_populated": {
+      "count": 7,
+      "max_ns": 12179710,
+      "median_ns": 11649183,
+      "min_ns": 11161819
+    },
+    "projection": {
+      "count": 7,
+      "max_ns": 6258780,
+      "median_ns": 5944664,
+      "min_ns": 5871084
+    },
+    "text": {
+      "count": 7,
+      "max_ns": 567116,
+      "median_ns": 261245,
+      "min_ns": 203676
+    },
+    "vector_stage": {
+      "count": 7,
+      "max_ns": 1224192,
+      "median_ns": 484740,
+      "min_ns": 334094
+    }
+  },
+  "baseline_source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "candidate": {
+    "canonical_write": {
+      "count": 7,
+      "max_ns": 513173,
+      "median_ns": 497714,
+      "min_ns": 486693
+    },
+    "close": {
+      "count": 7,
+      "max_ns": 4522304,
+      "median_ns": 4130632,
+      "min_ns": 3878023
+    },
+    "erasure": {
+      "count": 7,
+      "max_ns": 12399931,
+      "median_ns": 11876378,
+      "min_ns": 11497119
+    },
+    "graph_evidence": {
+      "count": 7,
+      "max_ns": 314526,
+      "median_ns": 287896,
+      "min_ns": 276925
+    },
+    "graph_expand": {
+      "count": 7,
+      "max_ns": 956754,
+      "median_ns": 868787,
+      "min_ns": 795238
+    },
+    "hybrid": {
+      "count": 7,
+      "max_ns": 1214142,
+      "median_ns": 477606,
+      "min_ns": 379219
+    },
+    "model_cpu": {
+      "count": 7,
+      "max_ns": 208864246,
+      "median_ns": 183014952,
+      "min_ns": 178260459
+    },
+    "open_fresh": {
+      "count": 7,
+      "max_ns": 24239991,
+      "median_ns": 21474407,
+      "min_ns": 21001701
+    },
+    "open_populated": {
+      "count": 7,
+      "max_ns": 14347914,
+      "median_ns": 13177395,
+      "min_ns": 12395332
+    },
+    "projection": {
+      "count": 7,
+      "max_ns": 7110923,
+      "median_ns": 6144530,
+      "min_ns": 5859781
+    },
+    "text": {
+      "count": 7,
+      "max_ns": 471735,
+      "median_ns": 236598,
+      "min_ns": 211251
+    },
+    "vector_stage": {
+      "count": 7,
+      "max_ns": 1001750,
+      "median_ns": 484538,
+      "min_ns": 376654
+    }
+  },
+  "candidate_source_sha": "b981b021bdfbeb080b2b4f803e99c118c436b13c",
+  "limits": [
+    "seven samples per cell; no latency percentile or regression verdict",
+    "legacy query cells check count, not exact IDs/order",
+    "raw profile_ref values have no corresponding sampled profile",
+    "no start/end environment snapshots",
+    "protocol_sha256 raw field binds workload source, not a frozen Slice 135 protocol",
+    "model assets verified before run but not captured at run boundary"
+  ],
+  "negative_control_rejected": true,
+  "shared_corpus_sha256": "c4bbde04fc7415ea321d24a29338a5d56beabca2d04677797de6b14503d3cde0",
+  "status": "FEASIBILITY_ONLY"
+}

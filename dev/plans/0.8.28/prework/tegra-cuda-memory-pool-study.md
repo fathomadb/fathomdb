@@ -25,7 +25,7 @@ pointing here. Where the two differ, this copy governs.
   - A revision-6 spot check ran on the corrected close fix.
   - Results are in `dev/plans/runs/0.8.28-pool-study/results.md`: §§ 2–11
     for Phases 0–2, § 12 for Phases 3 and 4, § 13 for the spot check.
-  - Owner rulings 12–35 are recorded below, revision 6.
+  - Owner rulings 12–38 are recorded below, revision 6.
 - **Not started.** Phase 5: analysis and the upstream package. The
   upstream shape is prepared in
   `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md`; nothing is
@@ -41,12 +41,14 @@ pointing here. Where the two differ, this copy governs.
     the default pool, and 1.9–4.9× faster than the synchronous path. Rerank
     passes as re-based by ruling 28.
   - **C2 on the corrected fix:** 20/20, 0.36 MiB per cycle.
-- **What still blocks adoption:**
-  1. The owner's C7 ruling. After a co-resident context reset, every
-     variant, the shipped one included, crashes in `Engine::close` in
-     cudarc's `CudaSlice` drop (ruling 27).
-  2. Early `cuInit` at module load, accepted for this round, is still to be
-     discussed with the owner (ruling 35).
+- **Adoption is placed in 0.8.28 as D28-08** (ruling 38). The C7 and
+  early-`cuInit` questions are ruled (rulings 36 and 37). Adoption work:
+  1. C7 instrumentation, not a fix (ruling 36): context-id detection,
+     typed `cuda_context_lost`, one diagnostic snapshot, `doctor gpu`
+     context state, and the reset probe as a characterization test. The
+     survival fix is 0.8.29 work.
+  2. The early-`cuInit` contract (ruling 37): check and fall back, never
+     refuse; Python gains early `cuInit` with the same opt-out.
   3. Typed `cuda_pool_exhausted` in all three SDKs on every path,
      including module-level `rerank` and `embed`, and the Python subclass
      (ruling 33).
@@ -59,7 +61,9 @@ pointing here. Where the two differ, this copy governs.
      - the pool-mode setting;
      - removal of the dead trim arm, the comparison arms and the study
        diagnostics (design note "Settings and constants");
-     - the corrected close fix shipping with 0.8.27 (ruling 26).
+     - the corrected close fix shipping with 0.8.27 (ruling 26);
+     - the upstream cudarc PR and vendored-patch drift tracking
+       (ruling 38).
 
 ## Authority and scope
 
@@ -358,6 +362,47 @@ ten items against the numbers 26–34. They are recorded here as rulings
   So only the pool counter is exact.
 - **Ruling 35: early `cuInit` at module load is accepted** for this round
   of work. It is marked for further discussion with the owner.
+
+## Owner rulings 36–38 (2026-10-07, after the spot check)
+
+- **Ruling 36: C7 is option C.** A co-resident library resetting the CUDA
+  primary context stays unsupported and documented in 0.8.28. The survival
+  fix is placed in 0.8.29 and is to be designed from data, so 0.8.28 adds:
+  1. context-id detection: record `cuCtxGetId` at first context creation
+     and compare it on any CUDA error, to tell a replaced or destroyed
+     context from other failures;
+  2. a typed `cuda_context_lost` error in Rust, Python and TypeScript with
+     both context ids, the driver error and the failed operation;
+  3. one structured diagnostic snapshot on the first detected loss
+     (`cuDevicePrimaryCtxGetState`, CUDA libraries loaded per
+     `/proc/self/maps`, pool counters, live FathomDB CUDA objects), and
+     context state in `fathomdb doctor gpu`;
+  4. this study's reset probe checked in as an expected-crash
+     characterization test that the 0.8.29 fix flips.
+
+  0.8.28 does not change the crash behaviour. Todos: `TC-99845d75`,
+  `TC-f4e12b96` (0.8.28) and `TC-281155a1` (0.8.29) in the release ledger.
+- **Ruling 37: early `cuInit` at module load is the Tegra contract, as check
+  and fall back, never refuse.** FathomDB records whether its module-load
+  `cuInit` ran, was opted out or failed. At first GPU use it creates the
+  private pool only if early `cuInit` ran; otherwise, or if pool creation
+  fails, it uses the 0.8.27 synchronous path. The chosen path and the reason
+  are reported by `doctor gpu` and the allocation-mode diagnostic. Python
+  gains early `cuInit` with the same opt-out. An ADR records the rule and
+  settles the Slice 117 import-time `cuInit` item the same way. Supersedes
+  ruling 35's "for this round".
+- **Ruling 38: adoption is 0.8.28 scope (D28-08), and an upstream cudarc PR
+  is a goal.** The pool primitive is written upstream-first in upstream style
+  as small commits, and the vendored change is its backport. Every
+  `FATHOMDB-PATCH.md` item carries an upstream status (local-only, proposed,
+  merged, released through Candle) and a removal path; the aarch64
+  synchronous fallback stays local. The pinned-override gate checks the
+  vendored tree against 0.19.7 plus exactly the listed items. cudarc and
+  Candle are rechecked at each release. Local `[patch]` overrides do not
+  reach crates.io consumers of `fathomdb`, which is why upstream acceptance
+  matters. Submission needs owner sign-off; 0.8.28 does not wait for
+  upstream. Todo `TC-b8e5fe4d`. Recorded on `release/0.8.27` in
+  `dev/plans/0.8.28-draft-scope.md` § D28-08.
 
 ## What is already known
 

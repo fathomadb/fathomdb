@@ -1,0 +1,70 @@
+{
+  "artifact_sha256": {
+    "build/Cargo.lock": "153dfe483854fc8af3dfb6a6d42909b61e2f75ab7bd512a2dcf949eacf3ad6ae",
+    "corpus.txt": "3490cb46178d1016388d9ee56ae6a9035a9f0e8658512e5f62801c000f3147b4",
+    "operation-manifest.json": "94aac2d0f4e204d270388cf3dc1b587bded609c52c189bbf86de841e510c975c",
+    "slice135_pilot_workload": "b8372144c25dedb9f77660d392ed4ea3d840a1e769305f14038fdbe58529c1bd"
+  },
+  "cells": {
+    "close_fresh": {
+      "boundary": "close-call-to-return",
+      "expected_checks": {
+        "canonical_rows": [
+          0
+        ],
+        "reopen_ok": true,
+        "second_close_ok": true
+      },
+      "kind": "lifecycle"
+    },
+    "mixed_sequence": {
+      "boundary": "fresh-open-through-reopened-materialized-check",
+      "expected_checks": {
+        "fresh_rows": [
+          0
+        ],
+        "post_erase_rows": [
+          0
+        ],
+        "post_reopen_hits": 0,
+        "pre_erase_body_match": true,
+        "pre_erase_hits": 1,
+        "reopened_rows": [
+          0
+        ],
+        "written_rows": [
+          1
+        ]
+      },
+      "kind": "lifecycle"
+    },
+    "text": {
+      "boundary": "engine-call-to-materialized-output",
+      "expected_checks": {
+        "all_bodies_match": true,
+        "record_count": 10
+      },
+      "kind": "query"
+    }
+  },
+  "features": {
+    "embedder": "none",
+    "paging_policy": "child_swap_invalid_host_swap_warning_v1",
+    "profile_build": true,
+    "query": "text_only",
+    "resource_method": "gnu-time",
+    "timing_mode": "attribution"
+  },
+  "min_disk_free_bytes": 1073741824,
+  "resource_report_name": "resource.txt",
+  "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+  "schema_version": 1,
+  "settings": {
+    "concurrency": 1,
+    "query": "needle",
+    "samples_per_cell": 2,
+    "seed_records": 32,
+    "warmup_per_cell": 1
+  },
+  "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7"
+}

@@ -1,0 +1,19 @@
+
+running 14 tests
+test _lock_acquire_probe_entry ... ignored, test-binary-as-sibling entry-point for the AC-035c lock-released harness
+test ac_035a_embedder_identity_corruption_refuses_open ... ok
+test ac_035a_header_corruption_refuses_open ... ok
+test ac_035a_schema_corruption_refuses_open ... ok
+test ac_035a_wal_replay_corruption_refuses_open ... ok
+test ac_035b_code_is_bit_stable_across_runs ... ok
+test ac_035b_embedder_identity_shape ... ok
+test ac_035b_header_shape ... ok
+test ac_035b_schema_shape ... ok
+test ac_035b_wal_replay_shape ... ok
+test ac_035c_lock_released_after_corruption_header ... ok
+test ac_035c_lock_released_after_corruption_schema ... ok
+test probe_wal_sidecar_bounded_read ... ok
+test slice40_projection_generation_corruption_shape ... ok
+
+test result: ok. 13 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.05s
+

@@ -1,0 +1,12 @@
+
+running 7 tests
+test child_fd_leak_open_close ... ignored
+test child_open_and_close ... ignored
+test child_open_close_print_after_close ... ignored
+test ac_022c_process_exits_within_five_seconds_after_close_returns ... ok
+test ac_022b_close_does_not_leak_file_descriptors ... ok
+test ac_022a_close_releases_lock_for_sibling_process ... ok
+test ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl ... ok
+
+test result: ok. 4 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 5.13s
+

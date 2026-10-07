@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+for slice135_pair in 1 2 3 4 5; do
+  if (( slice135_pair % 2 == 1 )); then
+    slice135_order=(baseline candidate)
+  else
+    slice135_order=(candidate baseline)
+  fi
+  for slice135_side in "${slice135_order[@]}"; do
+    slice135_output="/tmp/slice135-paired-p${slice135_pair}-${slice135_side}"
+    if [[ "$slice135_side" == baseline ]]; then
+      python3 scripts/slice135_pilot.py \
+        --checkout /home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline \
+        --source-sha f99e002f0d2e4002f3694c9f8d4986b56089edaa \
+        --output "$slice135_output" --samples 100 \
+        --reuse-binary-from /tmp/slice135-mixed-baseline-build-final2 \
+        --binary-sha256 3eccc98816fa39d93ef7c3a560c091133d34e62de65038b9463214c0bd8c20db \
+        > "${slice135_output}.log" 2>&1
+    else
+      python3 scripts/slice135_pilot.py \
+        --checkout /home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135 \
+        --source-sha 50eaa5035b9a79ce2723251853846e6cc96ea7f7 \
+        --output "$slice135_output" --samples 100 \
+        --reuse-binary-from /tmp/slice135-candidate-build-final2 \
+        --binary-sha256 1c5857ce8623279b9ec017b2d398ef3a3795f4bb41fd211a280f3f8b7d1c2cf6 \
+        > "${slice135_output}.log" 2>&1
+    fi
+    printf 'completed pair %s %s\n' "$slice135_pair" "$slice135_side"
+    if [[ "$slice135_pair" != 5 || "$slice135_side" != candidate ]]; then
+      sleep 20
+    fi
+  done
+done

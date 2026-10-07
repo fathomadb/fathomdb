@@ -1,0 +1,8 @@
+user_s=9.54
+system_s=1.86
+peak_rss_kib=21336
+fs_inputs=32
+fs_outputs=742848
+major_faults=0
+swap_events=0
+

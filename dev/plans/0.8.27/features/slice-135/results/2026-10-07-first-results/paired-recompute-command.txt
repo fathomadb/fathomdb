@@ -1,0 +1,77 @@
+import hashlib
+import json
+import math
+from pathlib import Path
+import random
+import statistics
+
+root = Path(__file__).resolve().parent
+protocol_path = root.parents[1] / 'first-results-protocol.json'
+protocol = json.loads(protocol_path.read_text())
+cells = protocol['conditions']['cells']
+records = {}
+for pair in range(1, 6):
+    for side in ('baseline', 'candidate'):
+        path = root / 'paired' / f'pair-{pair:02d}' / side
+        attempt = json.loads((path / 'attempt.json').read_text())
+        raw_bytes = (path / 'raw.json').read_bytes()
+        raw = json.loads(raw_bytes)
+        summary = json.loads((path / 'summary.json').read_text())
+        local_protocol = json.loads((path / 'pilot-protocol.json').read_text())
+        assert attempt['status'] == 'VALID_BLOCK_RECEIPT'
+        assert hashlib.sha256(raw_bytes).hexdigest() == summary['raw_sha256']
+        assert raw['source_sha'] == protocol[f'{side}_source_sha']
+        assert raw['runner_sha256'] == protocol['runner_sha256']
+        assert raw['artifact_sha256']['corpus.txt'] == protocol['corpus_sha256']
+        assert raw['artifact_sha256']['operation-manifest.json'] == protocol['operation_manifest_sha256']
+        assert raw['resources']['swap_events'] == 0
+        assert raw['environment']['invalidators'] == []
+        out = {
+            'source_sha': raw['source_sha'],
+            'binary_sha256': raw['artifact_sha256']['slice135_pilot_workload'],
+            'runner_sha256': raw['runner_sha256'],
+            'raw_sha256': summary['raw_sha256'],
+            'start_utc': raw['environment']['start']['time_utc'],
+            'end_utc': raw['environment']['end']['time_utc'],
+            'warnings': raw['environment']['warnings'],
+            'resources': raw['resources'],
+            'cells': {},
+        }
+        for cell in cells:
+            attempts = raw['cells'][cell]['attempts']
+            expected = local_protocol['cells'][cell]['expected_checks']
+            assert len(attempts) == 100
+            assert all(a['valid'] and a['semantic_ok'] and a['observed_checks'] == expected for a in attempts)
+            numbers = sorted(a['latency_ns'] for a in attempts)
+            assert all(type(n) is int and n > 0 for n in numbers)
+            stats = {'p50_ns': numbers[49], 'p95_ns': numbers[94], 'max_ns': numbers[-1],
+                     'valid_samples': len(numbers)}
+            assert all(summary['cells'][cell][key] == value for key, value in stats.items()
+                       if key != 'max_ns')
+            assert summary['cells'][cell]['maximum_ns'] == stats['max_ns']
+            out['cells'][cell] = stats
+        records[(pair, side)] = out
+
+result = {'protocol_sha256': hashlib.sha256(protocol_path.read_bytes()).hexdigest(),
+          'pairs': [], 'comparison': {}}
+for pair in range(1, 6):
+    result['pairs'].append({'pair': pair, 'order': protocol['pairs'][pair-1],
+                            'baseline': records[(pair, 'baseline')],
+                            'candidate': records[(pair, 'candidate')]})
+for cell in cells:
+    result['comparison'][cell] = {}
+    for stat in ('p50_ns', 'p95_ns'):
+        pair_deltas = [100 * (records[(i, 'candidate')]['cells'][cell][stat] /
+                              records[(i, 'baseline')]['cells'][cell][stat] - 1)
+                       for i in range(1, 6)]
+        rng = random.Random(135)
+        boot = sorted(statistics.median(rng.choices(pair_deltas, k=5)) for _ in range(10000))
+        result['comparison'][cell][stat] = {
+            'pair_deltas_percent': pair_deltas,
+            'median_pair_delta_percent': statistics.median(pair_deltas),
+            'bootstrap_95_percent_interval': [boot[math.ceil(.025 * len(boot)) - 1],
+                                              boot[math.ceil(.975 * len(boot)) - 1]],
+            'baseline_block_stats_ns': [records[(i, 'baseline')]['cells'][cell][stat] for i in range(1, 6)],
+            'candidate_block_stats_ns': [records[(i, 'candidate')]['cells'][cell][stat] for i in range(1, 6)],
+        }
+print(json.dumps(result, indent=2, sort_keys=True))

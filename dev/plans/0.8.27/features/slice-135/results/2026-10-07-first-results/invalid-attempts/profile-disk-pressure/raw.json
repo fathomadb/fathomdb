@@ -1,0 +1,200 @@
+{
+  "artifact_sha256": {
+    "build/Cargo.lock": "153dfe483854fc8af3dfb6a6d42909b61e2f75ab7bd512a2dcf949eacf3ad6ae",
+    "corpus.txt": "3490cb46178d1016388d9ee56ae6a9035a9f0e8658512e5f62801c000f3147b4",
+    "operation-manifest.json": "94aac2d0f4e204d270388cf3dc1b587bded609c52c189bbf86de841e510c975c",
+    "slice135_pilot_workload": "4bc19a4ea1934f9120d5cd16586187ef8d2bf92957264fcab46d914624e0505e"
+  },
+  "cells": {
+    "close_fresh": {
+      "attempts": [
+        {
+          "latency_ns": 5275903,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5618741,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        }
+      ],
+      "boundary": "close-call-to-return"
+    },
+    "mixed_sequence": {
+      "attempts": [
+        {
+          "latency_ns": 38563192,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2390369,
+            "erasure": 3638106,
+            "governed_write": 493583,
+            "open": 19880498,
+            "projection_drain": 160283,
+            "reclose": 2884552,
+            "reopen": 8146719,
+            "text_after_erase": 404114,
+            "text_before_erase": 451724
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39805250,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2908057,
+            "erasure": 3396510,
+            "governed_write": 521886,
+            "open": 20348092,
+            "projection_drain": 166885,
+            "reclose": 2580939,
+            "reopen": 8846311,
+            "text_after_erase": 505776,
+            "text_before_erase": 424814
+          },
+          "valid": true
+        }
+      ],
+      "boundary": "fresh-open-through-reopened-materialized-check"
+    },
+    "text": {
+      "attempts": [
+        {
+          "latency_ns": 760137,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 665968,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        }
+      ],
+      "boundary": "engine-call-to-materialized-output"
+    }
+  },
+  "environment": {
+    "end": {
+      "competing_jobs": [],
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "disk_free_bytes": 1049030656,
+      "governor": "performance",
+      "host": "windchill3",
+      "kernel": "7.0.0-38-generic",
+      "profiler": "none",
+      "resource_tool": "time (GNU Time) UNKNOWN",
+      "storage": "66305",
+      "swap_pages": 6125178,
+      "time_utc": "2026-10-07T03:51:23Z",
+      "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+    },
+    "invalidators": [
+      "disk pressure"
+    ],
+    "start": {
+      "competing_jobs": [],
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "disk_free_bytes": 1049042944,
+      "governor": "performance",
+      "host": "windchill3",
+      "kernel": "7.0.0-38-generic",
+      "profiler": "none",
+      "resource_tool": "time (GNU Time) UNKNOWN",
+      "storage": "66305",
+      "swap_pages": 6125178,
+      "time_utc": "2026-10-07T03:51:22Z",
+      "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+    },
+    "warnings": []
+  },
+  "features": {
+    "embedder": "none",
+    "paging_policy": "child_swap_invalid_host_swap_warning_v1",
+    "profile_build": true,
+    "query": "text_only",
+    "resource_method": "gnu-time",
+    "timing_mode": "attribution"
+  },
+  "protocol_sha256": "4b115c45f6e246b521ccf5aef2c64fea6c1cb3d3bbfde70275c06782f618c4ee",
+  "resource_file_sha256": "3e76adcc10972bfe08bd706c711e5b62a69c59c3bbe0ea3da953dd1cb1979c0f",
+  "resources": {
+    "fs_inputs": 0,
+    "fs_outputs": 25488,
+    "major_faults": 0,
+    "method": "gnu-time",
+    "peak_rss_kib": 20756,
+    "scope": "measured-workload-child-process",
+    "swap_events": 0,
+    "system_cpu_s": 0.08,
+    "unsupported": [],
+    "user_cpu_s": 0.31
+  },
+  "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+  "schema_version": 1,
+  "settings": {
+    "concurrency": 1,
+    "query": "needle",
+    "samples_per_cell": 2,
+    "seed_records": 32,
+    "warmup_per_cell": 1
+  },
+  "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+  "source_tree_sha256": "e690c113374c8d5676f6acc00f65050216738bb6789f5029c61d793f8dc47ece"
+}

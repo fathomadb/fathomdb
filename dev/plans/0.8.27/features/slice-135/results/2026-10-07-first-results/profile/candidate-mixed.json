@@ -1,0 +1,19 @@
+{
+  "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+  "path": "mixed_sequence",
+  "method": "gdb-interrupt-stack",
+  "purpose": "hot-path attribution only; not a latency receipt",
+  "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+  "binary_sha256": "b8372144c25dedb9f77660d392ed4ea3d840a1e769305f14038fdbe58529c1bd",
+  "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+  "protocol_sha256": "041e64843b4e74a4769f0fa3e1c5211593de8be659818c15d57a0634065e9443",
+  "profiler_sha256": "21b8b23ac4c0c42b802a7adc1fb9ea77326ea1b0fb1ffe782b6eabb55ff85ba0",
+  "requested_samples": 16,
+  "total_samples": 16,
+  "operation_samples": 14,
+  "transcript_sha256": "1be83bd17043915164799e20cff721b3be542daa22cb1091bd6352656ba96d07",
+  "profile_loop_seconds": 15,
+  "control_operations": 374,
+  "profiled_operations": 344,
+  "control_vs_profile_throughput_ratio": 0.9197860962566845
+}

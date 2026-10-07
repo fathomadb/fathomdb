@@ -1,0 +1,44 @@
+{
+  "pareto_stages_80": [
+    "open",
+    "reopen",
+    "erasure"
+  ],
+  "ranked_stages": [
+    "open",
+    "reopen",
+    "erasure",
+    "close",
+    "reclose",
+    "governed_write",
+    "text_before_erase",
+    "text_after_erase",
+    "projection_drain"
+  ],
+  "scope": "mixed-sequence stage-attributed proxy only",
+  "stage_attributed_fraction": 0.9976257925466734,
+  "stage_cost_ns": {
+    "close": 272515591,
+    "erasure": 373826123,
+    "governed_write": 53889325,
+    "open": 2043794082,
+    "projection_drain": 17395623,
+    "reclose": 262827979,
+    "reopen": 835305624,
+    "text_after_erase": 41236827,
+    "text_before_erase": 45639272
+  },
+  "stage_invocations": {
+    "close": 100,
+    "erasure": 100,
+    "governed_write": 100,
+    "open": 100,
+    "projection_drain": 100,
+    "reclose": 100,
+    "reopen": 100,
+    "text_after_erase": 100,
+    "text_before_erase": 100
+  },
+  "total_sequence_ns": 3955822389,
+  "unattributed_ns": 9391943
+}

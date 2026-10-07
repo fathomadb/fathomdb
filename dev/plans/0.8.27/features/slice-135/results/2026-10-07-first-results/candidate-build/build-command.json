@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--offline",
+    "--release",
+    "--no-run",
+    "--message-format=json",
+    "--manifest-path",
+    "/tmp/slice135-candidate-build-final2/build/Cargo.toml",
+    "--target-dir",
+    "/tmp/slice135-candidate-build-final2/target"
+  ],
+  "profile_build": false,
+  "profile_overrides": {}
+}

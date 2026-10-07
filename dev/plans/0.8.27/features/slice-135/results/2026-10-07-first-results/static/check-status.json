@@ -1,0 +1,15 @@
+{
+  "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+  "agent_lint_exit": 0,
+  "agent_typecheck_exit": 0,
+  "agent_verify_exit": 1,
+  "agent_verify_registered": 184,
+  "agent_verify_ran": 182,
+  "agent_verify_passed": 180,
+  "agent_verify_failed": [
+    "test-steward-orient",
+    "test-python"
+  ],
+  "rust_test_suite_exit": 0,
+  "pythonpath_two_test_recheck_exit": 0
+}

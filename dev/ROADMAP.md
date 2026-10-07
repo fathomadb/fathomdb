@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 scope: post-0.8.26
-updated: 2026-09-21
+updated: 2026-10-07
 ---
 
 # FathomDB roadmap after 0.8.26
@@ -43,6 +43,7 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 | **0.8.27** | **Prework complete; implementation not yet commissioned** | Correction-safe source erasure after supersession, followed by behavior-preserving semantic decomposition of five selected monolithic engine, binding, and SDK facades. |
 | **0.8.28** | **Proposed release scope** | Manually selected advanced retrieval plus deferred snapshot/cursor continuity, graph/state continuation, and persisted evidence replay. |
 | **0.8.29** | **Review checkpoint** | Candidate-selection experiments. |
+| **0.8.30** | Backlog | Explicit release of the process-lifetime module-level CUDA models. |
 | **0.8.31** | **Review checkpoint** | Associative retrieval and automatic profile-routing experiments. |
 | **0.8.33** | **Review checkpoint** | Expanded integrity, repair-planning, and release-matrix experiments. |
 | **0.9.0** | Planning only | Define post-0.8.x product identity and the next major release. No implementation is scheduled by the program schedule. |
@@ -111,6 +112,29 @@ part of this scope.
 | **D28-05** | Full opt-in cross-operation frozen-snapshot leases. | Compact frozen reads cannot meet a concrete multi-operation consistency need. |
 | **D28-06** | Fully request/snapshot/projection/ordering-bound cursors. | A duplicate, omission, or authorization failure is demonstrated under minimal continuation. |
 | **D28-07** | Persisted source-complete evidence replay. | A caller needs resolution beyond compact-reference lifetime without weaker authorization. |
+
+## 0.8.30 backlog
+
+Placed by HITL decision on 2026-10-07. This is backlog with a release slot,
+not implementation authority; no plan, release-state file, or board exists.
+
+**B30-01 — release the module-level CUDA models.** Todo
+`TC-8d3c1cde-97d7-46d5-af50-9cc479da6de7`. The embedder-close fix releases the
+engine-owned embedder at `close()`. The module-level batch-CLS embedder and
+reranker live in process-lifetime statics instead. They hold about 17 MiB
+(reranker) to 143 MiB (with batch CLS) until exit. The amount is bounded and
+does not grow, but on integrated GPUs it is host memory. It also keeps a
+private CUDA pool from returning to zero reserved.
+
+- Shape: an explicit, opt-in release call in Rust, Python, and TypeScript, not
+  automatic idle release. It needs clearable cells, typed errors, and an
+  interface-doc or ADR update. Tests cover reload after release, concurrent
+  use, and use after release.
+- Prerequisite: fix the cudarc `CudaSlice` drop crash after a co-resident CUDA
+  context reset first. A runtime release drops CUDA objects on the path where
+  that crash occurs. Statics are never dropped at exit today.
+- Revisit triggers: that fix, deployments with many processes, 8 or 16 GB
+  integrated devices, or reports of memory held while idle.
 
 ## Experimental review checkpoints
 

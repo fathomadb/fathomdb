@@ -1199,6 +1199,33 @@ force. This comparison supplements Slice 90's D27 runtime qualification.
 Keep the accepted D27 defaults and topology fixed unless a formally reviewed
 successor changes them; the existing D27 gate continues to govern release.
 
+### Slice 137 — Rust crate consolidation and embedder lockdown (proposed)
+
+**PROPOSED; not on the ladder; awaiting HITL rulings.** With `fathomdb-sdk`
+shipped by Slice 132, the existing `fathomdb` facade's remaining external role
+is the wholesale engine re-export, and its only in-repo dependent is
+`fathomdb-cli`. External embedder injection also stays reachable through the
+published `fathomdb-engine` (`EmbedderChoice::Caller`) and
+`fathomdb-embedder-api`. The
+[proposed approach](0.8.27/features/slice-137/proposed-approach.md) has two
+parts:
+
+- retire the facade. Option A, recommended, renames the SDK to `fathomdb`.
+  Option B keeps `fathomdb-sdk` and deprecates `fathomdb`. Either way the CLI
+  moves onto the engine.
+- gate caller-supplied embedders to test builds and withdraw the public plugin
+  contract.
+
+Approval needs four rulings:
+
+- the unruled `slice-132-external-provider-disposition` decision;
+- crate naming;
+- the fate of the opt-in ONNX embedder;
+- sequencing. The proposal is after Slice 135 and before Slice 140, or
+  deferral to 0.8.28.
+
+Nothing here is authorized until those rulings are recorded.
+
 ### Slice 140 — documentation and structural convergence
 
 Converge architecture, design, interfaces, examples, and source citations on

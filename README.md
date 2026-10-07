@@ -40,7 +40,7 @@ policy when no GPU is usable; "CPU-only" artifacts never use a GPU.
 | --- | --- | --- | --- |
 | PyPI | `fathomdb` wheel | Linux x86_64/glibc | CUDA-capable (embedding and reranking) |
 | PyPI | `fathomdb` wheel | Linux AArch64/glibc, macOS x64/arm64, Windows x64 | CPU-only |
-| Tegra index | `fathomdb==0.8.24+tegra` wheel | Classic Jetson Orin (JetPack 6, CUDA 12.6) | CUDA-capable (embedding); exact 0.8.24 only, not on PyPI |
+| Tegra index | `fathomdb==0.8.26+tegra` wheel | Classic Jetson Orin (JetPack 6, CUDA 12.6) | CUDA-capable (embedding); exact 0.8.26 only, not on PyPI |
 | npm | `fathomdb` + `fathomdb-linux-x64-gnu` | Linux x86_64/glibc | CUDA-capable (embedding and reranking) |
 | npm | `fathomdb` + `fathomdb-linux-arm64-gnu` | Linux AArch64/glibc, including Jetson | CPU-only |
 | npm | `fathomdb` + `fathomdb-darwin-x64`, `fathomdb-darwin-arm64`, `fathomdb-native-win32-x64-msvc` | macOS x64/arm64, Windows x64 | CPU-only |

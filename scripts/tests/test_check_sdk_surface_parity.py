@@ -301,6 +301,52 @@ class RustSdkObserverTests(unittest.TestCase):
         files["ops.rs"] = "pub fn helper() {}\n"
         self.assert_observe_refused(files, "pub mod ops")
 
+    def test_core_reexport_variants_fail(self) -> None:
+        leaks = {
+            "crate alias": "pub use fathomdb_engine as core_engine;\n",
+            "self alias": "pub use fathomdb_engine::{self as fe};\n",
+            "absolute path": "pub use ::fathomdb_engine::Engine as X;\n",
+            "type alias": "pub type CoreEng = fathomdb_engine::Engine;\n",
+            "extern crate": "pub extern crate fathomdb_engine;\n",
+            "function": "pub use fathomdb_engine::recover_truncate_wal;\n",
+        }
+        for label, line in leaks.items():
+            with self.subTest(label):
+                files = dict(RUST_CRATE)
+                files["lib.rs"] += line
+                self.assert_observe_refused(files, "fathomdb_engine")
+
+    def test_core_engine_in_public_signature_or_impl_fails(self) -> None:
+        cases = {
+            "method on helper": (
+                "engine.rs",
+                "use fathomdb_engine::Engine as CoreEngine;\n"
+                "pub struct Slot;\nimpl Slot {\n    pub fn leak(e: &Engine) -> &CoreEngine { todo!() }\n}\n",
+            ),
+            "impl target": (
+                "engine.rs",
+                "use fathomdb_engine::Engine as CoreEngine;\n"
+                "impl<'a> From<&'a Engine> for &'a CoreEngine {\n    fn from(e: &'a Engine) -> Self { todo!() }\n}\n",
+            ),
+        }
+        for label, (name, extra) in cases.items():
+            with self.subTest(label):
+                files = dict(RUST_CRATE)
+                files[name] += extra
+                self.assert_observe_refused(files, "core engine")
+
+    def test_public_tuple_engine_field_fails(self) -> None:
+        files = dict(RUST_CRATE)
+        files["engine.rs"] = files["engine.rs"].replace(
+            "pub struct Engine { inner: u8 }", "pub struct Engine(pub u8);"
+        )
+        self.assert_observe_refused(files, "public field.*Engine")
+
+    def test_escaped_char_literals_do_not_break_brace_matching(self) -> None:
+        files = dict(RUST_CRATE)
+        files["read.rs"] += "pub(crate) fn chars() -> [char; 3] { ['\\u{7b}', '\\x7b', '{'] }\n"
+        self.assertEqual(self.observe(files), RUST_LIVE)
+
     def test_async_engine_method_is_observed(self) -> None:
         files = dict(RUST_CRATE)
         files["engine.rs"] = files["engine.rs"].replace(

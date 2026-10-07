@@ -203,9 +203,13 @@ The [installed Python S02-L baseline-only pilot](results/2026-10-07-python-s02-l
 qualified five environment-checked blocks and 100 fresh-process cycles. Its
 independent audit and semantic negative control precede the
 [frozen S02-L paired subset](s02-python-lifecycle-comparison-protocol.json),
-which binds the integrated candidate wheel and runner bytes. This subset does
-not freeze the broader Phase 1 protocol or establish a candidate latency
-verdict until the paired campaign and independent audit finish.
+which binds the integrated candidate wheel and runner bytes. The
+[paired campaign](results/2026-10-07-python-s02-lifecycle-paired-current/README.md)
+has 100 valid cycles per version and an independent audit: close p50 increased
+141.2% while median candidate PSS release at close was 45,719 KiB versus
+-33 KiB on baseline. This is a measured lifecycle-boundary regression with an
+intended memory benefit; whole-system impact and release disposition remain
+open. This subset does not freeze the broader Phase 1 protocol.
 
 All paired cells use fresh databases from a byte-identical seed, a verified
 release artifact or exact source build, the same eligible operation, model,

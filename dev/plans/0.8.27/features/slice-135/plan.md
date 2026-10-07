@@ -518,8 +518,12 @@ SDK exercise remain open.
   [S02-L baseline pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
   has 100 independently audited fresh-process open/close cycles; its
   [paired subset protocol](s02-python-lifecycle-comparison-protocol.json)
-  froze before integrated-candidate timing. Run that paired lifecycle campaign
-  and contention, then
+  froze before the
+  [integrated-candidate paired campaign](results/2026-10-07-python-s02-lifecycle-paired-current/README.md).
+  Independent recomputation found close p50 +141.2% and median PSS release
+  45,719 KiB at close, versus -33 KiB on baseline. Disposition this
+  lifecycle tradeoff against system-level latency and ownership/robustness;
+  run contention, then
   execute S03 and
   qualify C01 or record why it cannot run. Keep engine, installed SDK and
   competitor boundaries distinct.

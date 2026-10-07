@@ -1,0 +1,6 @@
+{
+  "mutation": "01-02-candidate sample-001 reopen_ok changed to false; raw, attempts, summary and run-order hashes updated in a copy",
+  "expected": "independent paired audit rejects the lifecycle result on semantics",
+  "observed_error": "lifecycle or vector assertion failed",
+  "detected": true
+}

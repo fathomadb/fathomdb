@@ -148,6 +148,18 @@ def test_nearest_rank_has_declared_indices() -> None:
     assert MODULE.nearest_rank(list(range(1, 101)), 0.95) == 95
 
 
+def test_block_checker_reports_p99_when_thousand_warm_samples_exist() -> None:
+    summary = MODULE.check_raw(
+        _raw(samples=1000),
+        size=32,
+        samples=1000,
+        source_sha=SOURCE,
+        wheel_sha256=WHEEL,
+        corpus_sha256=CORPUS,
+    )
+    assert summary["cells"]["text"]["warm_p99_ns"] == 1000
+
+
 def test_venv_executable_keeps_its_symlink_path(tmp_path: Path) -> None:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()

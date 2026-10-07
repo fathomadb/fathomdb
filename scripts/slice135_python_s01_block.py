@@ -129,14 +129,19 @@ def check_raw(
         cold_ns = _check_attempt(kind, cell["session_cold"], eligible_ids)
         _check_attempt(kind, cell["warmup"], eligible_ids)
         warm_ns = [_check_attempt(kind, attempt, eligible_ids) for attempt in warm]
-        summary["cells"][kind] = {
+        cell_summary = {
             "session_cold_ns": cold_ns,
             "warm_count": len(warm_ns),
             "warm_p50_ns": nearest_rank(warm_ns, 0.50),
             "warm_p95_ns": nearest_rank(warm_ns, 0.95),
             "warm_max_ns": max(warm_ns),
-            "p99": "unsupported_below_1000_samples",
         }
+        if len(warm_ns) >= 1000:
+            cell_summary["warm_p99_ns"] = nearest_rank(warm_ns, 0.99)
+            cell_summary["p99"] = "measured"
+        else:
+            cell_summary["p99"] = "unsupported_below_1000_samples"
+        summary["cells"][kind] = cell_summary
         summary["checked_attempts"] += samples + 2
     return summary
 

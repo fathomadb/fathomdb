@@ -71,6 +71,11 @@ exercises the same real-database shape and independent canonical erasure
 counts on the repaired candidate. Its one pair and validation-inclusive
 whole-sequence timer likewise do not qualify S02 latency or contention. A
 baseline noise pilot, frozen S02 boundary and alternating blocks remain ahead.
+The [external Rust SDK S02 functional consumer](results/2026-10-07-rust-sdk-s02-feasibility/README.md)
+exercises the candidate-only Rust boundary through a separate Cargo package
+and retained real database. It is source-bound, not a published-crate install;
+0.8.26 has no Rust SDK peer. Its one run does not qualify S02 latency or the
+remaining Rust operation contracts.
 
 ## Source-grounded starting point
 

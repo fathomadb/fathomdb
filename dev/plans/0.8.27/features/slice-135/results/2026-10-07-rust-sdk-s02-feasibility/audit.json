@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "candidate_source_sha": "febc62b5e792937d5312c0d7b8b97db963917784",
+  "source_bound_external_consumer": true,
+  "published_crate_install": false,
+  "consumer_binary_sha256": "493512a1ac189c483507048ff7eb0362c7d5532c2425b9e878f7b2752be44621",
+  "database_sha256": "bb5fdbe6e809fac7c57ff7acb6c8e34860798d1588fb46588acc3c4b8d6d4278",
+  "canonical_counts": {
+    "graph_nodes": 0,
+    "graph_edges": 0,
+    "corpus_nodes": 32
+  },
+  "semantic_checks_passed": true,
+  "negative_control_rejected": "canonical persistence changed: {'graph_nodes': 0, 'graph_edges': 1, 'corpus_nodes': 32}"
+}

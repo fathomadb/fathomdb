@@ -432,3 +432,7 @@ version and no qualified S02 latency or contention result. A second
 [node FTS row-error defect](results/2026-10-07-node-fts-repair/README.md) was
 repaired on the candidate. All earlier candidate timing receipts need a
 refresh against the repaired engine bytes before the Phase 1 checkpoint.
+A [candidate-only external Rust SDK S02 consumer](results/2026-10-07-rust-sdk-s02-feasibility/README.md)
+now has a real-database source-bound functional receipt, including vector,
+evidence, graph, erasure and reopen assertions. It does not replace a
+published-crate installation or close the full operation map.

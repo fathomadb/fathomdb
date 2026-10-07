@@ -1,0 +1,15 @@
+[package]
+name = "slice135-rust-sdk-consumer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fathomdb-sdk = { path = "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-sdk", features = ["default-embedder"] }
+sha2 = "0.10.9"
+
+[patch.crates-io]
+fathomdb-embedder = { path = "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-embedder" }
+fathomdb-embedder-api = { path = "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-embedder-api" }
+fathomdb-engine = { path = "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine" }
+fathomdb-query = { path = "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-query" }
+fathomdb-schema = { path = "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-schema" }

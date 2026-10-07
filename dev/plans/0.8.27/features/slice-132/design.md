@@ -76,12 +76,14 @@ These are the only allowed differences from the Python and TypeScript SDKs:
    - filter strings and attribute values, `Filter` term strings;
    - `sink_path`, `query_id`, `label_source`;
    - embed and CLS texts, the rerank query and passage bodies;
-   - `cmd` elements;
    - projection-spec strings;
    - every string field of a `PreparedWrite` except `source_id`, which
      AC-068a requires to keep an embedded NUL.
 
-   Lone surrogates cannot occur in a Rust `&str`.
+   Lone surrogates cannot occur in a Rust `&str`. Like Python, the SDK does
+   not guard `ingest_with_extractor` and `consolidate_with_provider`
+   arguments. Typed V1 request structs, which Python checks only as serialized
+   JSON, are validated by the core's identity grammar.
 8. **Members specific to one SDK are not reproduced:**
    - Python's `Engine.path`.
    - Python's per-knob `Engine.open` keyword arguments.
@@ -151,10 +153,19 @@ TypeScript.
 
 Each struct derives `Clone`, `Debug`, `PartialEq`, and `Default`.
 
-Validation runs in the order Python and TypeScript use. A ranked-search
-`limit` outside `1..=100` and a non-finite `alpha` are refused with
-`InvalidArgument` before the core is called. Every other check is left to the
-core.
+Validation follows Python's order:
+
+1. On frozen paths, the core's frozen-context check runs first, as in both
+   bindings.
+2. Option checks: a ranked-search `limit` outside `1..=100` or a non-finite
+   `alpha` is refused with `InvalidArgument`. The core would also refuse the
+   limit; checking it early keeps the order of errors.
+3. The string guard.
+4. The core call.
+
+Every other check, including empty-string arguments (which Python rejects
+host-side for `admin.configure` `name` and `graph.neighbors` `logical_id`,
+but TypeScript does not), is left to the core.
 
 `SearchOptions.filter` is a `SearchFilterArg`, because Python and TypeScript
 both accept either filter form. It is
@@ -194,7 +205,7 @@ impls for both. `Unified` is lowered through the public
 | `graph.search_expand` | `graph::search_expand(engine, query: &str, depth: u32, filter: Option<SearchFilter>, options: SearchExpandOptions) -> Result<SearchExpandResult>`. Non-empty `filter.attributes` is `InvalidArgument`, because neither SDK forwards attributes on this path. | `search_expand_with_limit` |
 | `admin.configure` | `admin::configure(engine, name: &str, body: &str) -> Result<WriteReceipt>` | `write(&[PreparedWrite::AdminSchema { name, kind: "latest_state", schema_json: body, retention_json: "{}" }])` |
 | — | `admin::configure_runtime(sqlite_mode: RuntimeSqliteMode) -> Result<RuntimeConfiguration>` | `fathomdb_engine::configure_runtime` |
-| `rerank` | `rerank(query: &str, passages: &[RerankPassage], rerank_depth: usize, options: RerankOptions) -> Result<Vec<RerankResult>>`. Takes `RerankPassage { id: u64, body: String, score: f64 }` and returns `RerankResult { id: u64, score: f64, ce_score: Option<f64> }`. A non-finite `alpha` is `InvalidArgument`, matching TypeScript. A core `Err(String)` is `WriteValidation`, as in Python and napi. | `fathomdb_engine::rerank_passages` |
+| `rerank` | `rerank(query: &str, passages: &[RerankPassage], rerank_depth: usize, options: RerankOptions) -> Result<Vec<RerankResult>>`. Takes `RerankPassage { id: u64, body: String, score: f64 }` and returns `RerankResult { id: u64, score: f64, ce_score: Option<f64> }`. A non-finite `alpha` is `InvalidArgument`, matching TypeScript. A non-finite passage `score` or a core `Err(String)` is `WriteValidation`, following Python and napi. This is a deliberate exception to rule 6, because the TypeScript wrapper's `RangeError` is a host-side check. | `fathomdb_engine::rerank_passages` |
 | — | `embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>>`. With `default-embedder`: empty input returns `[]`; the embedder is a process singleton cached only on success; a load failure is `EmbedderNotConfigured`, and an embed failure is `Embedder`. Without the feature, every call, including one with empty input, returns `EmbedderNotConfigured`. | `CandleBgeEmbedder::new()?.with_pooling(Pooling::Cls)` then `Embedder::embed_batch` |
 
 The namespace functions take `&Engine` first, as the Python and TypeScript
@@ -207,17 +218,23 @@ sources:
 
 1. **The facade list.** All of the `fathomdb` facade's non-operator,
    non-recovery re-exports (`fathomdb/src/lib.rs` unconditional block),
-   except `Engine`, `OpenedEngine`, and the `configure_runtime` function.
+   except `Engine`, `OpenedEngine`, `Subscription`, and the functions
+   `configure_runtime` and `encode_resolved_graph_evidence_v1`, none of
+   which either SDK exposes.
    `ExciseReport` is re-exported as `EraseReport`, the name Python and
    TypeScript use.
 2. **Names the facade omits but an SDK signature or public field needs:**
    - `SearchHit`, `IdSpace`, `IdSpaceKind`, `Filter`, `FilterTerm`
    - `OpStoreRow`, `ConsolidateAxis`, `ConsolidateReceipt`
-   - the `lifecycle::{Subscriber, Event, ProfileRecord, SlowStatement,
-     StressFailureContext}` items a subscriber implementation needs
+   - the `lifecycle` items a subscriber implementation needs: `Subscriber`,
+     `Event` (re-exported as `SubscriberEvent`, the TypeScript name),
+     `Phase`, `EventSource`, `EventCategory`, `ProfileRecord`,
+     `ProjectionStatus`, `SlowStatement`, and `StressFailureContext`
 3. **Types from the schema and embedder crates:**
    - `MigrationStepReport` (schema)
-   - `EmbedderIdentity` (embedder-api)
+   - `EmbedderIdentity`, and `EmbedderError` re-exported as
+     `RuntimeEmbedderError` (the `EngineOpenError::Embedder` payload)
+     (embedder-api)
    - `EmbedderEvent`, `DeviceResolution`, `RerankerDeviceResolution`,
      `EmbedDevicePolicyError`, and `RerankerDevicePolicyError` (embedder)
    - the CUDA device and witness types inside `OpenReport` that Python and
@@ -226,8 +243,26 @@ sources:
 Python/TypeScript inventory concepts that are enum variants or plain fields
 in Rust are not separate types. Examples are the source-locator variants and
 the TypeScript-only `*Options` interfaces, which the option structs above
-replace. `dev/interfaces/rust-sdk.md` records each such mapping. The consumer
-test imports every re-exported name, so a dropped re-export fails to compile.
+replace. The table below records each mapping. The consumer test imports
+every re-exported name, so a dropped re-export fails to compile.
+
+| Python / TypeScript name | Rust SDK form |
+| --- | --- |
+| `EngineOpenOptions` (TS), `Engine.open` keyword arguments (Py) | `OpenOptions` |
+| `SearchOptions` (TS view + `limit`), search keyword arguments (Py) | `SearchOptions`, `TextSearchOptions`, `ProjectedTextSearchOptions` |
+| `FrozenSearchOptions`, `SearchExpandOptions` (TS) | Same-named structs. `search_limit` replaces Python's `limit`. |
+| `ReadCollectionOptions` (TS) | Positional `after_id: Option<i64>, limit: usize` |
+| `RerankPassage`, `RerankOptions`, `RerankResult` (TS); passage/result dicts (Py) | Same-named structs |
+| `ExpandedNode` | `(NodeRecord, u32)` in `SearchExpandResult.expanded` |
+| `WholeBodySourceLocator`, `Utf8BytesSourceLocator` | Variants of `SourceLocator` |
+| `SubscriberCallback` (TS), logger adapter (Py) | `Arc<dyn Subscriber>` |
+| `LifecycleState` (TS string union), state strings (Py) | `LifecycleState` enum |
+
+An optional view takes one of three forms, each pinned by the surface test:
+
+- `Option<&ReadView>`, positional, in `read` functions;
+- `view: ReadView` with a default, in search options;
+- `view: Option<ReadView>`, in `ListOptions` and `NeighborsOptions`.
 
 ## Errors
 
@@ -251,8 +286,12 @@ engine, such as a rerank `Err(String)` or a CLS embedder failure.
 
 - one for each of the 41 non-base error classes Python and TypeScript share,
   with the `Error` suffix removed: 39 true leaves plus the parents `Vector` and
-  `Embedder`, from `Storage` to `ProjectionDestructive`;
+  `Embedder`;
 - `Engine` for the base-class fallback.
+
+`ErrorKind::ALL` lists all 42 variants in the order the Python binding
+declares the classes: base first, then `RuntimeConfiguration`, `Storage`, and
+so on through `ProjectionDestructive`.
 
 `ErrorKind::parent()` returns:
 
@@ -326,7 +365,18 @@ behavior.
   - `open_report`, `config`, and `attach_subscriber`;
   - `admin::configure_runtime` and `embed_batch_cls`.
 
-  The SDK keeps each public function on a line beginning `pub fn name`.
+  The scan matches `pub [const|async|unsafe] fn name`. It also refuses
+  type-level routes to the core that a function scan cannot see:
+  - an `impl <Trait> for Engine` other than `Drop` or `Debug`, which rules out
+    `Deref`, `AsRef`, `From`, and `Borrow`;
+  - a public field on the SDK `Engine`;
+  - a glob `pub use fathomdb_engine::*`, or a re-export naming the core
+    `Engine`, `OpenedEngine`, or `EmbedderChoice`;
+  - a `pub mod` in `lib.rs` other than `read`, `graph`, `admin`, or an empty
+    doc module.
+
+  Until Slice 150's rustdoc probe, re-exported data types are pinned only by
+  the consumer test.
   `scripts/tests/test_check_sdk_surface_parity.py` adds `rust` endpoints to
   its `COMPANION` fixture. It also gains a real-crate case expecting
   `rust 44/44`, plus missing, extra, and renamed Rust mutation cases. That

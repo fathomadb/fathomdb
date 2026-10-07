@@ -43,3 +43,19 @@ the source at `d2800a158`. It edited nothing. The verdict was
 | Nits: the variant count, the base name, the exhaustiveness claim, the `close` order, the `search_limit` spelling, the limit-check order, and the documentation cross-references. | P3 | All folded in. |
 | Use `compile_fail` doctests rather than trybuild golden files. | P3 | Adopted. |
 | Drop the separate verification pass. | P3 | Not adopted. The user requires an independent Sonnet verification. |
+
+## Second review (Fable, one-shot)
+
+The user requested a one-shot Fable 5.1 review of the revised design. It
+verified the design at `83f461c2c` and returned **APPROVE-WITH-FIXES**.
+
+| Finding | Severity | Resolution |
+| --- | --- | --- |
+| The rule that refuses trait impls on `Engine` was pinned by tests but not in the design. | P1 | Documented. The checker refuses every trait impl other than `Drop` and `Debug`. |
+| The `SubscriberEvent` name and the order of `ErrorKind::ALL` were pinned by tests but not documented. | P1 | Documented. The implementation already matched the tests. |
+| Type-level leaks were invisible to the function scan. | P2 | The checker now refuses glob or core-`Engine` re-exports, public `Engine` fields, and extra `pub mod`s. RED tests landed first. The remaining gap for re-exported types is recorded until Slice 150. |
+| The rerank non-finite-score behavior hid a TypeScript divergence. | P2 | Documented as an explicit exception: `WriteValidation`, following Python and napi. |
+| The facade list would import `encode_resolved_graph_evidence_v1` and `Subscription`. | P2 | Both excluded. Neither SDK exposes them. |
+| The lifecycle re-exports were not closed over their field types. | P2 | Added `Phase`, `EventSource`, `EventCategory`, and `ProjectionStatus`. |
+| The interface doc referred to a mapping table that did not exist. | P2 | Added the table, along with the forms an optional view can take. |
+| Validation order, the redundant limit pre-check, empty-string divergences, scan regex hygiene, the unnameable open-error payload. | P3 | The SDK follows Python's order, so the limit pre-check stays. Empty strings are left to the core. The regex now covers `const`, `async`, and `unsafe`. `RuntimeEmbedderError` is re-exported. |

@@ -289,6 +289,9 @@ impl Drop for EmbedReply {
     }
 }
 
+/// A provider taken from a drained dispatcher; dropping it may run caller code.
+pub(crate) type ReleasedProvider = Option<Arc<dyn Embedder>>;
+
 struct QueueState {
     waiting: VecDeque<Request>,
     active: Vec<Arc<ReplyState>>,
@@ -497,13 +500,16 @@ impl EmbedDispatcher {
         self.drain_budget_ms.store(budget_ms, Ordering::Relaxed);
     }
 
+    /// Returns `None` while a provider worker remains. On success the caller
+    /// receives the released provider so it can drop it after leaving every
+    /// engine lock: a caller-supplied `Drop` may re-enter `Engine::close`.
     #[allow(dead_code)] // Standalone core tests include this module without engine lifecycle.
-    pub(crate) fn join_after_quiescence(&self) -> bool {
+    pub(crate) fn join_after_quiescence(&self) -> Option<ReleasedProvider> {
         #[cfg(test)]
         let budget = Duration::from_millis(self.drain_budget_ms.load(Ordering::Relaxed));
         #[cfg(not(test))]
         let budget = Duration::from_secs(30);
-        self.join_until(Instant::now() + budget)
+        self.drain_until(Instant::now() + budget)
     }
 
     #[allow(dead_code)] // Standalone core tests include this module without calling the engine test seam.
@@ -513,9 +519,14 @@ impl EmbedDispatcher {
         }
     }
 
+    #[allow(dead_code)] // Only the close-deadline test seam calls this outside `Engine::close`.
     pub(crate) fn join_until(&self, deadline: Instant) -> bool {
+        self.drain_until(deadline).is_some()
+    }
+
+    fn drain_until(&self, deadline: Instant) -> Option<ReleasedProvider> {
         let Some(shared) = &self.shared else {
-            return true;
+            return Some(None);
         };
         let deadline = {
             let mut first =
@@ -526,7 +537,7 @@ impl EmbedDispatcher {
         while state.live_workers != 0 {
             let now = Instant::now();
             if now >= deadline {
-                return false;
+                return None;
             }
             state = shared
                 .changed
@@ -535,12 +546,13 @@ impl EmbedDispatcher {
                 .0;
         }
         drop(state);
-        let mut handles = self.handles.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        for handle in handles.drain(..) {
+        for handle in self.handles.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).drain(..)
+        {
             let _ = handle.join();
         }
-        shared.provider.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).take();
-        true
+        let released =
+            shared.provider.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).take();
+        Some(released)
     }
 
     pub(crate) fn snapshot(&self) -> DispatchSnapshot {

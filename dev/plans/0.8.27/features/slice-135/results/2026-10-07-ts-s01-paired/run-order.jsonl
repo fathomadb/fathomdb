@@ -1,0 +1,40 @@
+{"block": "32-01-baseline", "epoch_ns": 1791388496508906481, "event": "start", "index": 0, "monotonic_ns": 493911595531870, "utc": "2026-10-07T15:54:56.508911+00:00"}
+{"block": "32-01-baseline", "epoch_ns": 1791388521040357291, "event": "finish", "index": 0, "monotonic_ns": 493936126982961, "returncode": 0, "utc": "2026-10-07T15:55:21.040360+00:00"}
+{"block": "32-01-candidate", "epoch_ns": 1791388541040637625, "event": "start", "index": 1, "monotonic_ns": 493956127263836, "utc": "2026-10-07T15:55:41.040641+00:00"}
+{"block": "32-01-candidate", "epoch_ns": 1791388566303414941, "event": "finish", "index": 1, "monotonic_ns": 493981390040722, "returncode": 0, "utc": "2026-10-07T15:56:06.303417+00:00"}
+{"block": "32-02-candidate", "epoch_ns": 1791388586303686311, "event": "start", "index": 2, "monotonic_ns": 494001390312443, "utc": "2026-10-07T15:56:26.303689+00:00"}
+{"block": "32-02-candidate", "epoch_ns": 1791388610965175659, "event": "finish", "index": 2, "monotonic_ns": 494026051801499, "returncode": 0, "utc": "2026-10-07T15:56:50.965178+00:00"}
+{"block": "32-02-baseline", "epoch_ns": 1791388630965453723, "event": "start", "index": 3, "monotonic_ns": 494046052079764, "utc": "2026-10-07T15:57:10.965456+00:00"}
+{"block": "32-02-baseline", "epoch_ns": 1791388656190761248, "event": "finish", "index": 3, "monotonic_ns": 494071277387119, "returncode": 0, "utc": "2026-10-07T15:57:36.190764+00:00"}
+{"block": "32-03-baseline", "epoch_ns": 1791388676191025648, "event": "start", "index": 4, "monotonic_ns": 494091277651690, "utc": "2026-10-07T15:57:56.191028+00:00"}
+{"block": "32-03-baseline", "epoch_ns": 1791388700665207335, "event": "finish", "index": 4, "monotonic_ns": 494115751833065, "returncode": 0, "utc": "2026-10-07T15:58:20.665210+00:00"}
+{"block": "32-03-candidate", "epoch_ns": 1791388720665500976, "event": "start", "index": 5, "monotonic_ns": 494135752127027, "utc": "2026-10-07T15:58:40.665504+00:00"}
+{"block": "32-03-candidate", "epoch_ns": 1791388745610036319, "event": "finish", "index": 5, "monotonic_ns": 494160696661990, "returncode": 0, "utc": "2026-10-07T15:59:05.610038+00:00"}
+{"block": "32-04-candidate", "epoch_ns": 1791388765610307070, "event": "start", "index": 6, "monotonic_ns": 494180696932861, "utc": "2026-10-07T15:59:25.610309+00:00"}
+{"block": "32-04-candidate", "epoch_ns": 1791388790283157739, "event": "finish", "index": 6, "monotonic_ns": 494205369783600, "returncode": 0, "utc": "2026-10-07T15:59:50.283160+00:00"}
+{"block": "32-04-baseline", "epoch_ns": 1791388810283448729, "event": "start", "index": 7, "monotonic_ns": 494225370074410, "utc": "2026-10-07T16:00:10.283451+00:00"}
+{"block": "32-04-baseline", "epoch_ns": 1791388834571992559, "event": "finish", "index": 7, "monotonic_ns": 494249658618581, "returncode": 0, "utc": "2026-10-07T16:00:34.571995+00:00"}
+{"block": "32-05-baseline", "epoch_ns": 1791388854572248431, "event": "start", "index": 8, "monotonic_ns": 494269658874312, "utc": "2026-10-07T16:00:54.572250+00:00"}
+{"block": "32-05-baseline", "epoch_ns": 1791388879083287067, "event": "finish", "index": 8, "monotonic_ns": 494294169912757, "returncode": 0, "utc": "2026-10-07T16:01:19.083290+00:00"}
+{"block": "32-05-candidate", "epoch_ns": 1791388899083494819, "event": "start", "index": 9, "monotonic_ns": 494314170120750, "utc": "2026-10-07T16:01:39.083497+00:00"}
+{"block": "32-05-candidate", "epoch_ns": 1791388923845694573, "event": "finish", "index": 9, "monotonic_ns": 494338932320604, "returncode": 0, "utc": "2026-10-07T16:02:03.845698+00:00"}
+{"block": "256-01-baseline", "epoch_ns": 1791388943845967493, "event": "start", "index": 10, "monotonic_ns": 494358932593515, "utc": "2026-10-07T16:02:23.845970+00:00"}
+{"block": "256-01-baseline", "epoch_ns": 1791388974721017631, "event": "finish", "index": 10, "monotonic_ns": 494389807643311, "returncode": 0, "utc": "2026-10-07T16:02:54.721020+00:00"}
+{"block": "256-01-candidate", "epoch_ns": 1791388994721274289, "event": "start", "index": 11, "monotonic_ns": 494409807900110, "utc": "2026-10-07T16:03:14.721276+00:00"}
+{"block": "256-01-candidate", "epoch_ns": 1791389023956458162, "event": "finish", "index": 11, "monotonic_ns": 494439043083852, "returncode": 0, "utc": "2026-10-07T16:03:43.956460+00:00"}
+{"block": "256-02-candidate", "epoch_ns": 1791389043956725117, "event": "start", "index": 12, "monotonic_ns": 494459043351599, "utc": "2026-10-07T16:04:03.956728+00:00"}
+{"block": "256-02-candidate", "epoch_ns": 1791389073139329610, "event": "finish", "index": 12, "monotonic_ns": 494488225955461, "returncode": 0, "utc": "2026-10-07T16:04:33.139332+00:00"}
+{"block": "256-02-baseline", "epoch_ns": 1791389093139620120, "event": "start", "index": 13, "monotonic_ns": 494508226246161, "utc": "2026-10-07T16:04:53.139623+00:00"}
+{"block": "256-02-baseline", "epoch_ns": 1791389124405949918, "event": "finish", "index": 13, "monotonic_ns": 494539492575599, "returncode": 0, "utc": "2026-10-07T16:05:24.405952+00:00"}
+{"block": "256-03-baseline", "epoch_ns": 1791389144406218483, "event": "start", "index": 14, "monotonic_ns": 494559492844544, "utc": "2026-10-07T16:05:44.406221+00:00"}
+{"block": "256-03-baseline", "epoch_ns": 1791389175715855364, "event": "finish", "index": 14, "monotonic_ns": 494590802481295, "returncode": 0, "utc": "2026-10-07T16:06:15.715858+00:00"}
+{"block": "256-03-candidate", "epoch_ns": 1791389195716106182, "event": "start", "index": 15, "monotonic_ns": 494610802732334, "utc": "2026-10-07T16:06:35.716109+00:00"}
+{"block": "256-03-candidate", "epoch_ns": 1791389225130610435, "event": "finish", "index": 15, "monotonic_ns": 494640217236647, "returncode": 0, "utc": "2026-10-07T16:07:05.130613+00:00"}
+{"block": "256-04-candidate", "epoch_ns": 1791389245130840715, "event": "start", "index": 16, "monotonic_ns": 494660217466967, "utc": "2026-10-07T16:07:25.130843+00:00"}
+{"block": "256-04-candidate", "epoch_ns": 1791389274211878298, "event": "finish", "index": 16, "monotonic_ns": 494689298504038, "returncode": 0, "utc": "2026-10-07T16:07:54.211881+00:00"}
+{"block": "256-04-baseline", "epoch_ns": 1791389294212117138, "event": "start", "index": 17, "monotonic_ns": 494709298743009, "utc": "2026-10-07T16:08:14.212119+00:00"}
+{"block": "256-04-baseline", "epoch_ns": 1791389324971333223, "event": "finish", "index": 17, "monotonic_ns": 494740057959174, "returncode": 0, "utc": "2026-10-07T16:08:44.971336+00:00"}
+{"block": "256-05-baseline", "epoch_ns": 1791389344971602981, "event": "start", "index": 18, "monotonic_ns": 494760058229002, "utc": "2026-10-07T16:09:04.971605+00:00"}
+{"block": "256-05-baseline", "epoch_ns": 1791389376114317363, "event": "finish", "index": 18, "monotonic_ns": 494791200943294, "returncode": 0, "utc": "2026-10-07T16:09:36.114320+00:00"}
+{"block": "256-05-candidate", "epoch_ns": 1791389396114600169, "event": "start", "index": 19, "monotonic_ns": 494811201226391, "utc": "2026-10-07T16:09:56.114603+00:00"}
+{"block": "256-05-candidate", "epoch_ns": 1791389425652866670, "event": "finish", "index": 19, "monotonic_ns": 494840739492450, "returncode": 0, "utc": "2026-10-07T16:10:25.652869+00:00"}

@@ -1,0 +1,24 @@
+{
+  "comparison_protocol_sha256": "bbff7de33f874c4647488705759217ba451b6424ee603beee021ad24e9661bd2",
+  "corpus_sha256": "e01c7b7772a925ab9c3a80ffb1d20ae1f9338c4fb0501fa16fcc844b871338dd",
+  "corpus_size": 32,
+  "main_archive_sha256": "d118b8d299e647ce3804afe1989fe8dc9fcc459a060f094897d51439f9b9c2dd",
+  "minimum_disk_free_bytes": 1073741824,
+  "model": "fathomdb-bge-small-en-v1.5 default embedder",
+  "module_sha256": "cc0ea0b2ae641aa5162a223985d9afb5ba1233b073899e66a2847f92f36bf432",
+  "native_sha256": "cb6402660e90f1dcc7d21fbecda7d44c50305ec62c355d6b71a5fd4aa4606a9a",
+  "node_version": "v25.9.0",
+  "platform_archive_sha256": "c4e1a0d93e8fc11c19ffef68c5ff417ebc27a879890bdce7c4df5c2bc01f50b9",
+  "queries": {
+    "hybrid": "harbor ferry",
+    "text": "brightblue",
+    "vector": "boat schedule across water"
+  },
+  "role": "candidate",
+  "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+  "schema_version": 1,
+  "source_sha": "b2ac8081e79a6e626d01f5f97331be331f1cc16d",
+  "status": "FROZEN_TS_S01_PAIRED",
+  "timing_boundary": "installed TypeScript async call through materialized SearchResult",
+  "warm_samples_per_cell": 1000
+}

@@ -1,0 +1,35 @@
+{
+  "cells": {
+    "hybrid": {
+      "p99": "measured",
+      "session_cold_ns": 11174538,
+      "warm_count": 1000,
+      "warm_max_ns": 13200370,
+      "warm_p50_ns": 9915718,
+      "warm_p95_ns": 10821760,
+      "warm_p99_ns": 11499482
+    },
+    "text": {
+      "p99": "measured",
+      "session_cold_ns": 760057,
+      "warm_count": 1000,
+      "warm_max_ns": 577121,
+      "warm_p50_ns": 125487,
+      "warm_p95_ns": 157207,
+      "warm_p99_ns": 206650
+    },
+    "vector": {
+      "p99": "measured",
+      "session_cold_ns": 13180721,
+      "warm_count": 1000,
+      "warm_max_ns": 15620834,
+      "warm_p50_ns": 11225584,
+      "warm_p95_ns": 11900670,
+      "warm_p99_ns": 12349820
+    }
+  },
+  "checked_attempts": 3006,
+  "raw_sha256": "f74cb10f607db1caa3ba7364079093db320ac37ea81ae4b8459ccba813296418",
+  "resource_sha256": "f6947ee53631d13a705cfe06e4229f449293a33954e6c3f1c2cec1e638b0a48d",
+  "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d"
+}

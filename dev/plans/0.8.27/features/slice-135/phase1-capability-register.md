@@ -22,7 +22,11 @@ The installed Rust rows and S02 remain gaps.
 An [installed TypeScript S01 noise pilot](results/2026-10-07-ts-s01-noise-pilot/README.md)
 adds an exploratory candidate text/vector-bearing/hybrid result check and
 ten audited baseline-only blocks. The candidate's ten-sample probe does not
-qualify S01 latency or its wider search contract.
+qualify S01 latency or its wider search contract. The later
+[paired installed TypeScript S01 result](results/2026-10-07-ts-s01-paired/README.md)
+provides source-bound text, vector-bearing and hybrid calls through both
+installed packages, with basic ID and branch checks. It does not cover the
+broader filter, validity, lifecycle or error conditions on these operations.
 
 | Canonical operation | Phase 1 exercise route | Rust SDK | Python wheel | TypeScript package |
 | --- | --- | --- | --- | --- |
@@ -37,11 +41,11 @@ qualify S01 latency or its wider search contract.
 | `engine.transition` | S03 lifecycle | Gap | Gap | Gap |
 | `engine.purge` | S03 lifecycle | Gap | Gap | Gap |
 | `engine.erase_source` | S02 erasure | Gap | Gap | Gap |
-| `engine.search` | S01/S02 hybrid | Gap | Functional smoke | Smoke; exploratory S01 shapes |
+| `engine.search` | S01/S02 hybrid | Gap | Functional smoke | S01 paired basic; broader contract gap |
 | `engine.freeze_read_context` | S02 frozen | Gap | Functional smoke | Functional smoke |
 | `engine.search_frozen` | S02 frozen | Gap | Functional smoke | Gap |
 | `engine.search_expand_frozen` | S03 graph | Gap | Functional smoke | Gap |
-| `engine.search_text_only` | S01/S02 text | Gap | S01 paired basic; broader contract gap | Exploratory S01 text; broader gap |
+| `engine.search_text_only` | S01/S02 text | Gap | S01 paired basic; broader contract gap | S01 paired basic; broader contract gap |
 | `engine.search_projected_text` | S03 projection | Gap | Gap | Gap |
 | `engine.search_with_evidence` | S02 evidence | Gap | Functional smoke | Expected-error smoke only |
 | `engine.resolve_evidence` | S02 evidence | Gap | Functional smoke | Gap |

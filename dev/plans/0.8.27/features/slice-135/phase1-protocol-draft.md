@@ -54,6 +54,13 @@ performance. The resulting
 pins 1,000 warm calls per cell and five alternating pairs per size before
 candidate paired timing. The full Phase 1 protocol remains open.
 
+The [paired installed-TypeScript S01 result](results/2026-10-07-ts-s01-paired/README.md)
+now has 20 valid alternating blocks and 60,120 independently checked
+materialized call attempts. It is a narrow installed-SDK diagnostic, with
+host paging warnings in 12 blocks and only one warning-free pair per size.
+Its descriptive deltas do not close the whole-system latency or full Phase 1
+checkpoint.
+
 ## Source-grounded starting point
 
 Slice 115's [runner](../../../../../scripts/slice115_runner.py),

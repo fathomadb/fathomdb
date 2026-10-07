@@ -411,4 +411,6 @@ installed Rust/TypeScript S01/S02, or the four-area checkpoint.
 The [installed-TypeScript S01 baseline noise pilot](results/2026-10-07-ts-s01-noise-pilot/README.md)
 has ten independently audited blocks and matching short candidate/baseline
 feasibility probes. The [TypeScript paired subset protocol](s01-ts-comparison-protocol.json)
-is frozen; valid paired candidate timing remains to be established.
+is frozen, and a [paired TypeScript S01 diagnostic](results/2026-10-07-ts-s01-paired/README.md)
+now retains 20 independently audited blocks. The full installed-SDK
+functional exercise and four-area checkpoint remain open.

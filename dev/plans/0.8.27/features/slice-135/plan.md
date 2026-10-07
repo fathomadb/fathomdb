@@ -220,6 +220,57 @@ where state or parser complexity justifies them. Record survivors, timeouts
 and untested boundaries rather than translating a clean static pass into
 "no logic defects."
 
+### Execution bridge to the first inspectable results
+
+The first-results milestone is a bounded, source-bound demonstration in **all
+four** areas, not the complete Phase 1 checkpoint. Keep its raw evidence and
+limitations, then expand the same qualified methods to every required cell
+and fault case above. Do not start Phase 2 at the first-results milestone.
+
+1. **Make the pilot executable.** Port a small representative Slice 115 query
+   cell and lifecycle cell into a Slice 135 workload adapter. Qualify the
+   exact 0.8.26 source build or installed artifacts, seed, model, configuration
+   and timing boundary. Map matching post-Slice-132 Rust engine and
+   Python/TypeScript SDK capabilities without claiming a paired 0.8.26 Rust
+   SDK cell. Keep adapter tests that reject wrong identity, state, output,
+   sample count and environment; the receipt validator alone produces no
+   measurement. Record build provenance and artifact hashes.
+2. **Pilot, then freeze.** Run baseline-only repeated blocks with raw samples,
+   run order, semantic checks and environment snapshots. Estimate run-to-run
+   noise and feasible sample counts. Freeze the workload manifest and weights,
+   corpus/model digests, cells, warm-up, valid sample counts, uncertainty and
+   multiple-cell reporting rules, invalidators and report format in the
+   [Phase 1 protocol](phase1-protocol-draft.md) before examining paired
+   candidate timing. Requalify if the host or artifact changes materially.
+3. **Bind the final candidate and common workload.** Record the exact merged
+   post-Slice-132 source and artifact hashes, supported feature/SDK mapping,
+   resolved settings, operation mix, material conditions and seed/query
+   digests. Use one workload manifest for the cost ranking, latency cells and
+   coverage runs. Label engine-only, installed-SDK and candidate-only cells.
+   Collect unprofiled timing first; run coverage and sampled stacks separately
+   so their overhead cannot alter the latency comparison.
+4. **Produce one inspectable result per area.** Each result must name its exact
+   candidate, workload or fault fixture, command/runner, raw output,
+   independent summary or state oracle, invalid attempts and limits:
+
+   | Area | Minimum first result | Expansion before the Phase 1 checkpoint |
+   | --- | --- | --- |
+   | Pareto path | A fixed mixed workload's operation counts, total elapsed-cost ranking, one sampled hot-path attribution and test-versus-workload line/branch coverage for that path; show one plausible injected defect is caught. | All declared workload conditions, 80%-cost set, CPU/queue ranking, missed branches and rare severe paths. |
+   | System latency | At least one valid paired 0.8.26/final-0.8.27 query cell and one whole mixed-sequence cell, with raw unprofiled samples, resource observations, semantic checks and independently recomputed supported percentiles/deltas. | E01–E12 and applicable S01–S03 cells, cold/warm and scale/concurrency conditions, tail statistics only where sampled sufficiently, plus C01 or its documented qualification failure. |
+   | System robustness | One bounded concurrency case, one crash/restart boundary and one injected failure, each against a real database with before/after and reopened-state assertions, timeout and resource record. | Every declared fault/schedule row, including one-shot and persistent failures and interrupted erasure, with recovery dispositions. |
+   | Logic and exception handling | Recorded lint/typecheck output, a measured hot-path branch-coverage slice, a named error/panic/cleanup boundary audit and one bounded property, state-machine or mutation probe with its outcome. | Coverage for the declared feature/platform matrix, audit of ranked and cross-language boundary paths, and dispositions for all findings and survivors. |
+
+   The robustness fixtures and static/error audit can begin during the pilot;
+   paired latency and the final cost ranking require the frozen workload and
+   candidate. Preserve failing or invalid attempts rather than replacing them
+   with a clean rerun.
+5. **Publish and extend.** Put the four first-results sections in a dated
+   measurement note with links to immutable raw receipts, profiles, coverage
+   exports, fault logs and check outputs. Recompute summaries from raw files
+   and mark each cell as valid, invalid, omitted or candidate-only. Record
+   confirmed defects for test-first repair; rerun affected cells after a fix.
+   Continue through the full four-area checkpoint below.
+
 **Phase 1 checkpoint:** publish an exact-candidate measurement note with four
 valid result sections, raw receipt links, independently recomputed summaries,
 invalid/omitted cells, coverage gaps, confirmed defects and ranked follow-ups.

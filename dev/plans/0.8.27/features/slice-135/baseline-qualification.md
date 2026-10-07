@@ -29,6 +29,6 @@ capability and timing boundary match. Do not treat the current 0.8.27 source
 tree's pre-release `0.8.26` package version strings as candidate identity;
 record exact source and built-artifact hashes.
 
-Next: qualify built or published artifacts and the baseline-only noise pilot
-under the frozen protocol. No sample count, percentile or performance
-comparison is established by this snapshot.
+Next: qualify built or published artifacts, then run the baseline-only noise
+pilot before freezing the comparison protocol. No sample count, percentile or
+performance comparison is established by this snapshot.

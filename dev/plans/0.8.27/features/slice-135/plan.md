@@ -11,7 +11,9 @@ planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 exist for all four Phase 1 areas. The [E01–E12 paired engine subset](e12-comparison-protocol.json)
 and the Python and TypeScript S01 subsets have frozen protocols and audited
 paired runs. The [44-operation capability register](phase1-capability-register.md)
-records executed Rust, Python and TypeScript cases and explicit gaps. These
+records executed Rust, Python and TypeScript cases and explicit gaps, including
+an [integrated-candidate installed Python functional
+receipt](results/2026-10-07-python-integrated-candidate/README.md). These
 receipts do not yet constitute the full Phase 1 checkpoint: installed S01
 timing predates later search repairs, the [audited Python S02 paired timing
 subset](results/2026-10-07-python-s02-paired-current/README.md) has host paging
@@ -496,6 +498,9 @@ SDK exercise remain open.
   baseline source are identified. Four search/graph error-suppression defects
   and a Python frozen-error-field defect were repaired test-first. Earlier
   installed S01 measurements remain historical for their exact source SHAs.
+  The [integrated Python wheel](results/2026-10-07-python-integrated-candidate/README.md)
+  includes both off-ladder landings. A cached-bytecode packaging defect was
+  reproduced, rejected by the installed checker and repaired test-first.
 - **Pareto and coverage:** the first-results cost proxy ranked four of eleven
   measured operations at 84.12% of elapsed cost. A selected workload/test
   line-and-branch overlay and a defect-catching negative control exist.
@@ -507,8 +512,10 @@ SDK exercise remain open.
   A [controlled baseline-only Python S02 pilot](results/2026-10-07-python-s02-controlled-noise-pilot/README.md)
   now isolates the product timer and measures five environment-checked
   blocks. Its [Python subset protocol](s02-python-comparison-protocol.json)
-  is frozen before paired candidate timing. Run those alternating blocks and
-  contention, then execute S03 and
+  froze before the [paired Python S02 run](results/2026-10-07-python-s02-paired-current/README.md),
+  which is historical after release integration. Rebuild and rerun affected
+  timing cells on the integrated candidate, add S02-L and contention, then
+  execute S03 and
   qualify C01 or record why it cannot run. Keep engine, installed SDK and
   competitor boundaries distinct.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
@@ -525,8 +532,10 @@ SDK exercise remain open.
   and two provider/model cases unavailable; Python 40 executed, one
   committed-closure positive-path gap and three unavailable; TypeScript 39
   executed, two positive-path gaps and three unavailable. Candidate S02
-  functional refreshes pass, but their single whole-sequence timers do not
-  qualify S02 latency or contention. Close supported gaps and contract
+  functional refreshes pass. The integrated Python wheel repeated 40 selected
+  positive/negative/reopen routes and one S02 sequence with independent
+  audits; its validation-inclusive timer does not qualify S02 latency or
+  contention. Close supported gaps and contract
   conditions or state residual risk explicitly.
 - **Evidence and gates:** independently audit the exact-candidate raw
   campaigns and publish one four-area checkpoint note with invalid and

@@ -1,0 +1,16 @@
+🍹 Building a mixed python/rust project
+🐍 Found CPython 3.12 at /usr/bin/python3.12
+🔗 Found pyo3 bindings with abi3-py3.10 support
+   Compiling pyo3-ffi v0.29.0
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+   Compiling pyo3 v0.29.0
+   Compiling fathomdb-py v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-py)
+    Finished `release` profile [optimized] target(s) in 10.33s
+📦 Built wheel for abi3 Python ≥ 3.10 to /tmp/slice135-integrated-wheel-84cf/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl
+Processing /tmp/slice135-integrated-wheel-84cf/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl
+Installing collected packages: fathomdb
+Successfully installed fathomdb-0.8.26
+frozen evidence wheel profile: ok
+fcefba14a469337b215053a2e2338572aa3cc77c275d3d03914f08ad1025d556  /tmp/slice135-integrated-wheel-84cf/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/slice135-integrated-venv-84cf/lib/python3.12/site-packages/fathomdb/__init__.py
+native=/tmp/slice135-integrated-venv-84cf/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so

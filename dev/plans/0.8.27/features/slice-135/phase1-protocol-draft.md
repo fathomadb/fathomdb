@@ -99,6 +99,13 @@ accepted all 100 samples per version. The candidate's pooled p50/p95 were
 with zero measured-child swaps, so no warning-free sensitivity pair exists.
 TypeScript/Rust S02 timing, contention and the broader Phase 1 protocol
 remain ahead.
+The later [integrated-candidate Python functional receipt](results/2026-10-07-python-integrated-candidate/README.md)
+uses a clean installed wheel containing both off-ladder landings. Its
+independent audit accepted 40 executed operations, one committed-closure
+gap, three unavailable provider/model conditions and 47 reopened real-DB
+snapshots. The S02 sequence also passed materialized-state and tampered-state
+checks. These are functional results; the single validation-inclusive S02
+duration is not a new paired latency estimate.
 The [external Rust SDK S02 functional consumer](results/2026-10-07-rust-sdk-s02-feasibility/README.md)
 exercises the candidate-only Rust boundary through a separate Cargo package
 and retained real database. It is source-bound, not a published-crate install;

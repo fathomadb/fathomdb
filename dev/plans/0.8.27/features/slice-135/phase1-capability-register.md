@@ -8,11 +8,13 @@ target_release: 0.8.27
 
 The executable [canonical operation map](../../../../../src/conformance/governed-operation-parity.json) is the scope authority for governed operations. Its SHA-256 at the initial inventory snapshot is `da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17`. That snapshot was branch `llm/0.8.27-slice-135` at `ea91ec0e8878d49c44706234ff2ea9c454b55cb5`, before the confirmed edge-FTS-error repair. This living register is not the frozen measurement protocol; only rows explicitly marked with a receipt have executed installed-artifact evidence.
 
-The [installed Python repair and exercise](results/2026-10-07-python-frozen-error-fix/README.md)
+The [integrated-candidate installed Python exercise](results/2026-10-07-python-integrated-candidate/README.md)
 accounts for all 44 governed operations: **40 selected cases executed, zero
 failed, one committed-closure gap, three provider/model cases unavailable**.
-The earlier run exposed a typed frozen-error defect, which was repaired and
-rerun. The [installed TypeScript exercise](results/2026-10-07-ts-capability-exercise/README.md)
+Its 47 reopened real-database snapshots and operation partition were
+independently audited. The earlier run exposed a typed frozen-error defect,
+which was repaired and rerun. The
+[installed TypeScript exercise](results/2026-10-07-ts-capability-exercise/README.md)
 has **39 executed, zero failed, two explicit positive-path gaps and three
 unavailable**. Its gaps are committed dependency closure and successful
 dependency trace. The [external Rust Cargo exercise](results/2026-10-07-rust-sdk-capability/README.md)
@@ -27,7 +29,7 @@ The [paired Python S01](results/2026-10-07-python-s01-paired/README.md) and
 [paired TypeScript S01](results/2026-10-07-ts-s01-paired/README.md) receipts
 cover installed text, vector-bearing and hybrid workload shapes, but predate
 the repaired search source and need final-candidate refresh for checkpoint
-latency. Current [Python S02](results/2026-10-07-python-s02-current-refresh/README.md)
+latency. Integrated [Python S02](results/2026-10-07-python-integrated-candidate/README.md)
 and [TypeScript S02](results/2026-10-07-ts-s02-current-refresh/README.md)
 functional refreshes
 passed with independent state checks. Their single validation-inclusive

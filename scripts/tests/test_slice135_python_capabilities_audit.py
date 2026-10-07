@@ -16,7 +16,9 @@ def snapshot() -> dict:
     """Build a one-row canonical state with an independently derived digest."""
     row = [1, "doc", "body", "source", "logical", None, None, None, "active"]
     rows = {"canonical_nodes": [row]}
-    digest = hashlib.sha256(repr({"canonical_nodes": [tuple(row)]}).encode()).hexdigest()
+    digest = hashlib.sha256(
+        repr({"canonical_nodes": [tuple(row)]}).encode()
+    ).hexdigest()
     return {
         "persisted_rows": rows,
         "table_counts": {"canonical_nodes": 1},
@@ -54,7 +56,14 @@ def test_operation_accounting_rejects_false_count_and_missing_case() -> None:
             "reopen": {"case": "positive", "checks": [observed]},
         }
     }
-    counts = {"supported": 1, "executed": 1, "failed": 0, "gap": 0, "unavailable": 0, "unexecuted": 0}
+    counts = {
+        "supported": 1,
+        "executed": 1,
+        "failed": 0,
+        "gap": 0,
+        "unavailable": 0,
+        "unexecuted": 0,
+    }
     audit.audit_operations(["engine.open"], operations, cases, counts)
     bad_counts = counts | {"executed": 0}
     with pytest.raises(ValueError, match="operation counts"):

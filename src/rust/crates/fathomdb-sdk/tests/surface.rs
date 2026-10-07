@@ -5,6 +5,9 @@
 //! compile. Signatures follow `dev/interfaces/rust-sdk.md`. This consumer
 //! depends on `fathomdb_sdk` alone; it never names `fathomdb_engine`.
 
+// Spelling each signature out in full is the purpose of this file.
+#![allow(clippy::type_complexity)]
+
 use std::sync::Arc;
 
 use fathomdb_sdk::{

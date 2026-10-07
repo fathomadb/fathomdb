@@ -6,14 +6,39 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
 
 SCHEMA = "fathomdb.governed-operation-parity/v1"
-BINDINGS = ("python", "typescript")
+BINDINGS = ("python", "typescript", "rust")
 LOCATORS = {"package", "engine_static", "engine_instance", "admin", "read", "graph"}
 RECOVERY_DENYLIST = ["recover", "restore", "repair", "fix", "rebuild"]
+
+# `fathomdb-sdk` members that are not governed operations, matching the members
+# the Python and TypeScript oracles exclude (dev/interfaces/rust-sdk.md).
+RUST_NON_COMMAND = {
+    "engine_instance:attach_subscriber",
+    "engine_instance:config",
+    "engine_instance:counters",
+    "engine_instance:dense_disabled",
+    "engine_instance:dense_disabled_reason",
+    "engine_instance:drain",
+    "engine_instance:enable_telemetry",
+    "engine_instance:last_telemetry_query_id",
+    "engine_instance:open_report",
+    "engine_instance:record_feedback",
+    "engine_instance:set_profiling",
+    "engine_instance:set_slow_threshold_ms",
+    "engine_instance:vector_equivalence_refusal_count",
+    "admin:configure_runtime",
+    "package:embed_batch_cls",
+}
+# Trait impls the SDK `Engine` may carry; anything else (e.g. `Deref`) could
+# expose the core engine without a governed operation.
+RUST_ENGINE_TRAITS = {"Debug", "Drop"}
+RUST_NAMESPACE_FILES = {"read.rs": "read", "graph.rs": "graph", "admin.rs": "admin"}
 
 
 class ParityError(ValueError):
@@ -164,6 +189,141 @@ def validate_observed(
     return {expected[located] for located in observed_set}
 
 
+def _blank_literals(source: str) -> str:
+    """Replace comments, string and char literals with spaces, keeping offsets."""
+    out = list(source)
+    i = 0
+    n = len(source)
+    while i < n:
+        if source.startswith("//", i):
+            end = source.find("\n", i)
+            end = n if end < 0 else end
+        elif source.startswith("/*", i):
+            end = source.find("*/", i)
+            end = n if end < 0 else end + 2
+        elif source[i] == '"' or source.startswith('r"', i) or source.startswith('r#"', i):
+            if source[i] == "r":
+                hashes = len(source[i + 1 :]) - len(source[i + 1 :].lstrip("#"))
+                close = '"' + "#" * hashes
+                end = source.find(close, i + 2 + hashes)
+                end = n if end < 0 else end + len(close)
+            else:
+                end = i + 1
+                while end < n and source[end] != '"':
+                    end += 2 if source[end] == "\\" else 1
+                end = min(end + 1, n)
+        elif re.match(r"'(\\.|[^\\'])'", source[i : i + 4]):
+            end = i + len(re.match(r"'(\\.|[^\\'])'", source[i : i + 4]).group(0))
+        else:
+            i += 1
+            continue
+        for j in range(i, end):
+            if out[j] != "\n":
+                out[j] = " "
+        i = end
+    return "".join(out)
+
+
+def _block_end(text: str, open_brace: int) -> int:
+    depth = 0
+    for index in range(open_brace, len(text)):
+        if text[index] == "{":
+            depth += 1
+        elif text[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+    raise ParityError("unbalanced braces in Rust SDK source")
+
+
+def _strip_cfg_test(text: str) -> str:
+    for match in reversed(list(re.finditer(r"#\[cfg\(test\)\]\s*(pub\s+)?mod\s+\w+\s*\{", text))):
+        end = _block_end(text, match.end() - 1)
+        text = text[: match.start()] + " " * (end - match.start()) + text[end:]
+    return text
+
+
+_PUB_FN = re.compile(
+    r"(?<![\w)])pub\s+(?:(?:const|async|unsafe|extern\s+\"[^\"]*\")\s+)*fn\s+(\w+)"
+)
+_CORE_ONLY_NAMES = {"Engine", "OpenedEngine", "EmbedderChoice"}
+
+
+def _refuse_core_leaks(path: Path, text: str) -> None:
+    """Refuse type-level routes to the core that a `pub fn` scan cannot see."""
+    for use in re.finditer(r"(?<![\w)])pub\s+use\s+([^;]+);", text):
+        target = " ".join(use.group(1).split())
+        if not target.startswith("fathomdb_engine"):
+            continue
+        if re.search(r"(::|\{|,)\s*\*", target):
+            raise ParityError(f"glob re-export {target} in {path.name}; re-export named items only")
+        names = set(re.findall(r"(?:::|\{|,)\s*(\w+)(?=\s*(?:as\b|,|\}|$))", target))
+        leaked = sorted(names & _CORE_ONLY_NAMES)
+        if leaked:
+            raise ParityError(f"re-export of core {', '.join(leaked)} from {target} in {path.name}")
+    for struct in re.finditer(r"\bpub\s+struct\s+Engine\s*\{", text):
+        body = text[struct.end() : _block_end(text, struct.end() - 1) - 1]
+        if re.search(r"(?<![\w)])pub\b", body):
+            raise ParityError(f"public field on SDK Engine in {path.name}")
+    if path.name == "lib.rs":
+        for module in re.finditer(r"(?<![\w)])pub\s+mod\s+(\w+)\s*([;{])", text):
+            name, opener = module.group(1), module.group(2)
+            if opener == ";" and f"{name}.rs" not in RUST_NAMESPACE_FILES:
+                raise ParityError(f"pub mod {name} in lib.rs is not a governed namespace")
+            if opener == "{":
+                body = text[module.end() : _block_end(text, module.end() - 1) - 1]
+                if body.strip():
+                    raise ParityError(f"pub mod {name} in lib.rs must be empty")
+
+
+def observe_rust_sdk(crate: Path) -> set[str]:
+    """Observe `fathomdb-sdk` governed members from its source tree.
+
+    Engine members are every `pub fn` in any `impl Engine` block; namespace
+    members are top-level `pub fn` in `read.rs`, `graph.rs` and `admin.rs`;
+    every other top-level `pub fn` counts as a package root member (fail
+    closed). `pub(crate)` items, `#[cfg(test)]` modules and methods of other
+    types are not surface. Unapproved trait impls for `Engine`, public
+    `Engine` fields, glob or core-`Engine` re-exports of `fathomdb_engine`, and
+    `pub mod`s other than the namespaces (or an empty doc module) are refused.
+    Re-exported data types are pinned by the crate's consumer test instead.
+    """
+    src = crate / "src"
+    files = sorted(src.rglob("*.rs"))
+    if not files:
+        raise ParityError(f"no Rust sources under {src}")
+    observed: set[str] = set()
+    for path in files:
+        text = _strip_cfg_test(_blank_literals(path.read_text(encoding="utf-8")))
+        _refuse_core_leaks(path, text)
+        impl_spans: list[tuple[int, int]] = []
+        for match in re.finditer(r"\bimpl\b(?:\s*<[^{]*?>)?\s+([^{;]+?)\s*\{", text):
+            header = " ".join(match.group(1).split())
+            end = _block_end(text, match.end() - 1)
+            impl_spans.append((match.start(), end))
+            trait, _, target = header.partition(" for ")
+            target = target or trait
+            if re.search(r"(^|::)Engine$", target.strip()):
+                if _:
+                    trait_name = re.sub(r"<.*", "", trait.strip()).split("::")[-1]
+                    if trait_name not in RUST_ENGINE_TRAITS:
+                        raise ParityError(
+                            f"trait impl {trait.strip()} for Engine in {path.name} is not an approved SDK surface"
+                        )
+                    continue
+                body = text[match.end() : end - 1]
+                for fn in _PUB_FN.finditer(body):
+                    signature = body[fn.end() : body.find("{", fn.end())]
+                    locator = "engine_instance" if "self" in signature else "engine_static"
+                    observed.add(f"{locator}:{fn.group(1)}")
+        locator = RUST_NAMESPACE_FILES.get(path.name, "package")
+        for fn in _PUB_FN.finditer(text):
+            if any(start <= fn.start() < end for start, end in impl_spans):
+                continue
+            observed.add(f"{locator}:{fn.group(1)}")
+    return observed - RUST_NON_COMMAND
+
+
 def _load(path: Path) -> dict[str, Any]:
     try:
         with path.open(encoding="utf-8") as handle:
@@ -185,6 +345,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--binding", choices=BINDINGS)
     parser.add_argument("--observed-json")
+    parser.add_argument(
+        "--rust-crate", type=Path, help="observe the rust binding from a fathomdb-sdk crate"
+    )
     args = parser.parse_args(argv)
     try:
         signed = _load(args.signed)
@@ -199,12 +362,17 @@ def main(argv: list[str] | None = None) -> int:
                 f"{len(live_canonical_ids(companion))} live canonical operations"
             )
             return 0
-        if args.observed_json is None:
-            raise ParityError("--binding requires --observed-json")
-        try:
-            observed = json.loads(args.observed_json)
-        except json.JSONDecodeError as error:
-            raise ParityError(f"observed JSON is invalid: {error}") from error
+        if args.rust_crate is not None:
+            if args.binding != "rust" or args.observed_json is not None:
+                raise ParityError("--rust-crate requires --binding rust and no --observed-json")
+            observed = observe_rust_sdk(args.rust_crate)
+        elif args.observed_json is None:
+            raise ParityError("--binding requires --observed-json or --rust-crate")
+        else:
+            try:
+                observed = json.loads(args.observed_json)
+            except json.JSONDecodeError as error:
+                raise ParityError(f"observed JSON is invalid: {error}") from error
         canonical = validate_observed(companion, args.binding, observed)
         expected = live_canonical_ids(companion)
         if canonical != expected:

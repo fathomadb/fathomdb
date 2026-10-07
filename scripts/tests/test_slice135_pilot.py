@@ -45,10 +45,26 @@ class PilotTests(unittest.TestCase):
             "governor": "performance", "toolchain": "rustc", "profiler": "none",
             "swap_pages": 0, "competing_jobs": [], "disk_free_bytes": 1000,
         }
-        self.assertEqual(pilot.environment_invalidators(state, state, 100), [])
+        resources = {"method": "gnu-time", "unsupported": [], "user_cpu_s": 0.1,
+                     "system_cpu_s": 0.1, "peak_rss_kib": 1000,
+                     "fs_inputs": 0, "fs_outputs": 0,
+                     "major_faults": 0, "swap_events": 0}
+        self.assertEqual(pilot.environment_invalidators(state, state, 100, resources), [])
         changed = dict(state, swap_pages=1, competing_jobs=[{"pid": 3}])
-        self.assertIn("swap activity", pilot.environment_invalidators(state, changed, 100))
-        self.assertIn("competing jobs", pilot.environment_invalidators(state, changed, 100))
+        invalid = pilot.environment_invalidators(state, changed, 100, resources)
+        self.assertNotIn("swap activity", invalid)
+        self.assertIn("competing jobs", invalid)
+        self.assertTrue(any("host swap drift" in warning for warning in
+                            pilot.environment_warnings(state, changed, resources)))
+        self.assertIn("child resource report missing",
+                      pilot.environment_invalidators(state, state, 100, None))
+        swapped = dict(resources, swap_events=1)
+        self.assertIn("child swap events",
+                      pilot.environment_invalidators(state, state, 100, swapped))
+        faults = dict(resources, major_faults=2)
+        self.assertEqual(pilot.environment_invalidators(state, state, 100, faults), [])
+        self.assertTrue(any("major faults" in warning for warning in
+                            pilot.environment_warnings(state, state, faults)))
 
     def test_reused_binary_requires_exact_source_runner_lock_and_hash(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -137,13 +153,16 @@ class PilotTests(unittest.TestCase):
             self.assertIsNone(pilot.read_resource_report(path)["peak_rss_kib"])
             path.write_text(
                 "user_s=0.12\nsystem_s=0.03\npeak_rss_kib=1234\n"
-                "fs_inputs=4\nfs_outputs=8\n"
+                "fs_inputs=4\nfs_outputs=8\nmajor_faults=2\nswap_events=0\n"
             )
             report = pilot.read_resource_report(path)
             self.assertEqual(report["scope"], "measured-workload-child-process")
             self.assertEqual(report["user_cpu_s"], 0.12)
             self.assertEqual(report["peak_rss_kib"], 1234)
             self.assertEqual(report["fs_outputs"], 8)
+            self.assertEqual(report["major_faults"], 2)
+            self.assertEqual(report["swap_events"], 0)
+            self.assertEqual(report["unsupported"], [])
 
     def test_symbolized_profile_build_cannot_be_primary_latency(self):
         with self.assertRaisesRegex(ValueError, "profile build"):

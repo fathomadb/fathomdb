@@ -44,6 +44,7 @@ fn edge(from: &str, to: &str) -> PreparedWrite {
         t_invalid: None,
         confidence: None,
         extractor_model_id: None,
+        temporal_fallback: None,
     }
 }
 

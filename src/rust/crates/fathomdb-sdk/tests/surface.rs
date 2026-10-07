@@ -31,7 +31,8 @@ use fathomdb_sdk::{
 
 #[test]
 fn engine_root_and_lifecycle_signatures() {
-    let _: fn(&std::path::Path, OpenOptions) -> Result<Engine> = Engine::open::<&std::path::Path>;
+    let _: fn(std::path::PathBuf, OpenOptions) -> Result<Engine> =
+        Engine::open::<std::path::PathBuf>;
     let _: fn(&Engine) -> &OpenReport = Engine::open_report;
     let _: fn(&Engine) -> &EngineConfig = Engine::config;
     let _: fn(&Engine) -> Result<()> = Engine::close;

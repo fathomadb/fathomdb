@@ -2076,7 +2076,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     })
                 })
             {
-                rows.flatten().collect()
+                rows.collect::<rusqlite::Result<Vec<_>>>()?
             } else {
                 Vec::new()
             }

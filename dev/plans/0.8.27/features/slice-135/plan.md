@@ -22,6 +22,11 @@ feature inventory, installed-artifact tests and 0.8.27 comparison must use
 the candidate after Slice 132 closes. No pre-Slice-132 receipt can qualify
 the final release.
 
+The initial [44-operation capability exercise register](phase1-capability-register.md)
+tracks every accepted governed operation against installed-SDK Phase 1 evidence
+or an explicit gap. Its proposed routes must be replaced by actual receipts
+before the full Phase 1 checkpoint.
+
 **Order of work:** first produce substantial, inspectable results for what
 matters/Pareto path, system latency, system robustness, and logic and exception
 handling. Record the Phase 1 checkpoint below. Only then start the dedicated
@@ -342,10 +347,12 @@ window and reject incomplete results. Report spend and completeness.
    source, test or executable-script changes. Only complete, exact-SHA Phase 1
    and Phase 2 receipts can close the slice and feed Slice 140/150.
 
-Current status: completed Slice 132 is merged into this worktree. The
-[0.8.26 baseline source is identified](baseline-qualification.md), and the
-provisional [Phase 1 receipt validator](../../../../../scripts/slice135_receipt.py)
+Current status: Slice 132 is merged, the [0.8.26 baseline source is
+identified](baseline-qualification.md), and the provisional
+[Phase 1 receipt validator](../../../../../scripts/slice135_receipt.py)
 rejects mismatched identities, environment and semantic state with independent
-summary recomputation. The workload adapter, baseline-only noise pilot,
-protocol freeze and all four final-candidate Phase 1 results remain. Phase 2
-work awaits the recorded Phase 1 checkpoint.
+summary recomputation. The bounded engine-only
+[noise pilot](results/2026-10-07-mixed-noise-pilot/) and
+[four first results](results/2026-10-07-first-results/) are retained. The full
+protocol freeze, installed-SDK capability exercise, expanded four-area runs
+and Phase 1 checkpoint remain. Phase 2 awaits that checkpoint.

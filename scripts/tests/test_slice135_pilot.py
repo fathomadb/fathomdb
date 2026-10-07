@@ -131,6 +131,20 @@ class PilotTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "stage"):
             pilot.aggregate_attribution(raw, manifest)
 
+    def test_child_resource_report_distinguishes_values_from_unsupported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "resource.txt"
+            self.assertIsNone(pilot.read_resource_report(path)["peak_rss_kib"])
+            path.write_text(
+                "user_s=0.12\nsystem_s=0.03\npeak_rss_kib=1234\n"
+                "fs_inputs=4\nfs_outputs=8\n"
+            )
+            report = pilot.read_resource_report(path)
+            self.assertEqual(report["scope"], "measured-workload-child-process")
+            self.assertEqual(report["user_cpu_s"], 0.12)
+            self.assertEqual(report["peak_rss_kib"], 1234)
+            self.assertEqual(report["fs_outputs"], 8)
+
 
 if __name__ == "__main__":
     unittest.main()

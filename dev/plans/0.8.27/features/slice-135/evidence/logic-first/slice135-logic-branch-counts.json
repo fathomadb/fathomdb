@@ -1,0 +1,23 @@
+{
+  "export_type": "llvm.coverage.json.export",
+  "export_version": "3.1.0",
+  "whole_export_branch_totals": {
+    "count": 0,
+    "covered": 0,
+    "notcovered": 0,
+    "percent": 0
+  },
+  "search_rs_filename": "/home/coreyt/.codex/worktrees/slice135-logic-first/fathomdb/src/rust/crates/fathomdb-engine/src/search.rs",
+  "search_rs_branch_summary": {
+    "count": 0,
+    "covered": 0,
+    "notcovered": 0,
+    "percent": 0
+  },
+  "search_rs_branch_entries": 0,
+  "search_rs_line_summary": {
+    "count": 1500,
+    "covered": 257,
+    "percent": 17.133333333333333
+  }
+}

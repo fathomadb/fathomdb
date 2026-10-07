@@ -1,0 +1,13 @@
+f9462054145316fa39d1820af9fb5d2ab04407cca54c566d707dcd4f61cdf359 dev/plans/0.8.27/features/slice-135/evidence/logic-first/.gitattributes
+e8440c1b723e7e1f1747c4172feb04480119aef9c28922fd952b0eb491672b60 dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-branch-counts.json
+ed1c375366c084d416b4ac400577147daeaa15277c2048b192674981285975e1 dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-build.stderr
+4ad4eef2667896f30d2d9a534be5cb59e58aac4a1d96b1e204cde562dacc9086 dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-coverage-report.txt
+756eb5dc26f58745a7bea0f5b55f4ca33f2f66c965db48a4dc22ea014d435a44 dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-probe.stderr
+4bbc0522d7e8faa3ed99fd5a803acfc5a986224f77423ef133d524d99865b4ed dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-probe.stdout
+36da3927d94c9a2cd2057d164f05387917ec449462bfc009b728e1abb42909c3 dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-probe2.stderr
+7aa36a74e9b0c52d7894c19f0a6569176c105f7686d4f0f7143095b75d627d31 dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-probe2.stdout
+2d48e3b071624ed7132ff66792d974029a52d9510d7a81e03b5d49d70c468169 dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-probe3.stderr
+7aa36a74e9b0c52d7894c19f0a6569176c105f7686d4f0f7143095b75d627d31 dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-probe3.stdout
+b7e8474927ce60e981b95e5a26e8db617c71fb2bdfc62230e6aee6cdad33456d dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-run3.profraw.gz
+aade981b6005a39e9858a2173af4db7ed1b5d15bce98151f96dcc51fe97c15c7 dev/plans/0.8.27/features/slice-135/evidence/logic-first/slice135-logic-search.lcov
+4f7bba20d60405aae92cfae3e721f85f9db6f9cf5035560851446206957a4296 dev/plans/0.8.27/features/slice-135/logic-error-probe.rs

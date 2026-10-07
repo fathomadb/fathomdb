@@ -1,0 +1,4 @@
+
+thread 'malformed_edge_fts_kind_must_not_silently_remove_a_committed_hit' (8) panicked at src/rust/crates/fathomdb-engine/tests/slice135_logic_probe.rs:51:33:
+called `Result::unwrap()` on an `Err` value: EmbedderRequired(EmbedderRequired { code: "FDB_EMBEDDER_REQUIRED", operation: GraphEdgeBodyProjection, state: Blocked, remediations: ["configure_default_embedder", "configure_caller_embedder", "submit_non_embedding_input"], documentation_url: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED" })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

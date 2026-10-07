@@ -1,0 +1,35 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.46s
+     Running tests/slice135_edge_fts_error.rs (target/debug/deps/slice135_edge_fts_error-30c43159ea567bb8)
+
+running 1 test
+test malformed_edge_fts_kind_must_not_silently_remove_a_committed_hit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/slice135_edge_fts_missing_table.rs (target/debug/deps/slice135_edge_fts_missing_table-25e6cb63a5531fd8)
+
+running 1 test
+test missing_current_schema_edge_index_must_report_storage_error ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/slice15e_prekn_filterable.rs (target/debug/deps/slice15e_prekn_filterable-9d3e3cafae1344af)
+
+running 13 tests
+test filterable_predicate_compiles_into_prekn_match_clause ... ok
+test idempotent_refilterable_registration_is_vec0_noop ... ok
+test filtered_knn_over_attr_column_does_not_hard_error ... ok
+test empty_string_attribute_value_vs_absent_vector_arm ... ok
+test source_change_refreshes_existing_vec0_attribute_metadata ... ok
+test undeclared_filter_attribute_is_typed_rejection_on_both_arms ... ok
+test existing_row_backfilled_from_canonical_attributes_not_blanket_sentinel ... ok
+test hybrid_fts_arm_applies_attribute_filter ... ok
+test reshape_is_nondestructive_preserves_bits_rowids_and_sentinel ... ok
+test reactivation_refreshes_vec0_metadata_after_a_source_change ... ok
+test undeclared_after_concurrent_drop_is_typed_invalidfilter_not_storage_race ... ok
+test empty_string_attribute_value_vs_absent_both_arms_fused ... ok
+test attribute_filter_excludes_edge_hits_on_both_arms ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+

@@ -447,3 +447,8 @@ An [E01–E12 paired engine feasibility run](results/2026-10-07-e01-e12-feasibil
 now confirms that all twelve inherited engine paths execute on the exact
 0.8.26 baseline and current candidate. Its seven samples per cell and weaker
 query assertions do not qualify the broader protocol or a latency verdict.
+A fourth confirmed error-suppression defect was repaired at `55f8120f5`:
+[missing edge FTS index evidence](results/2026-10-07-edge-fts-missing-index-repair/README.md)
+shows that a current-schema search previously returned an empty success after
+its edge-index table disappeared. This changes candidate engine bytes again;
+the E01–E12 feasibility receipt remains evidence for its own source SHA only.

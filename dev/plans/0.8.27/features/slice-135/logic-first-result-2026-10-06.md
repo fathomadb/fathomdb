@@ -20,6 +20,11 @@ result. The graph traversal row-error lead was also confirmed and repaired at
 [receipt](results/2026-10-07-graph-arm-row-repair/README.md) records the
 RED/GREEN result. The remaining `rows.flatten()` sites remain unclassified
 leads. The site counts and line numbers below describe the original audit.
+The adjacent edge FTS statement fallback was subsequently confirmed to hide
+an absent current-schema edge index and repaired at `55f8120f5`; its
+[RED/GREEN receipt](results/2026-10-07-edge-fts-missing-index-repair/README.md)
+records the real-database failure and focused verification. It is a distinct
+`if let Ok` error-suppression path, outside the original `rows.flatten()` count.
 
 This is one inspectable **diagnostic** result on the exact post-Slice-132
 candidate, not the completed Phase 1 logic/exception checkpoint. The package

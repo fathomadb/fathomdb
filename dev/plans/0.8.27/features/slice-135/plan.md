@@ -534,8 +534,11 @@ SDK exercise remain open.
   competitor boundaries distinct.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
-  results. Finish the declared fault/schedule matrix with persistent and
-  one-shot faults, state and resource oracles, and interrupted erasure.
+  results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)
+  now proves that pending telemetry redaction survives a fresh engine open,
+  refuses a sinkless retry and completes after the original sink is restored.
+  Finish the declared fault/schedule matrix with persistent and one-shot
+  faults, further interrupted-erasure positions, state and resource oracles.
 - **Logic and exceptions:** focused static checks and regression tests caught
   confirmed defects; a four-site `rows.flatten()` source audit classified
   further leads. Complete ranked-path and binding-boundary panic/error

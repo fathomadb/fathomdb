@@ -286,6 +286,11 @@ dispatch, close cancellation and pending-projection recovery after reopen.
 Expected injected provider panics are explicit Rust caller-boundary assertions;
 FFI containment and the remaining fault positions still require separate
 evidence.
+The [interrupted-erasure reopen diagnostic](results/2026-10-07-erasure-reopen-current/README.md)
+checks a durable pending telemetry redaction across close and fresh engine
+open. Retry without the original sink refuses completion; restoring it clears
+the obligation and preserves a control record. This closes one named schedule,
+not the remaining erasure or persistent-fault rows.
 
 | Fault or schedule | State oracle after real-database reopen |
 | --- | --- |

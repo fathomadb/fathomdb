@@ -875,6 +875,106 @@ fn rotated_telemetry_sink_is_not_treated_as_redacted() {
     opened.engine.close().unwrap();
 }
 
+#[test]
+fn pending_telemetry_redaction_survives_engine_reopen() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "pending_reopen");
+    let sink = dir.path().join("telemetry.jsonl");
+    let rotated = dir.path().join("telemetry.jsonl.1");
+
+    let opened = Engine::open(&path).expect("open");
+    opened.engine.enable_telemetry(sink.to_str().unwrap()).expect("enable telemetry");
+    write_node(&opened.engine, "erasable zeta payload", "S1", Some("victim-1"));
+    write_node(&opened.engine, "retained omega payload", "S2", Some("control-1"));
+    opened.engine.drain(10_000).expect("drain");
+    opened.engine.search("zeta").expect("search victim");
+    opened.engine.search("omega").expect("search control");
+    let before = std::fs::read_to_string(&sink).expect("read telemetry before rotation");
+    assert!(before.contains("l:victim-1") && before.contains("l:control-1"));
+
+    std::fs::rename(&sink, &rotated).expect("rotate sink");
+    let first = opened.engine.excise_source("S1").expect_err("rotated sink must refuse erasure");
+    assert!(
+        matches!(first, EngineError::ErasureIncomplete { ref stage, .. } if stage == "telemetry_redaction")
+    );
+    let pending_after_failure = raw_collection_row_count(&path, "erasure_pending_redaction");
+    assert_eq!(pending_after_failure, 1);
+    let victim_rows_after_failure = Connection::open(&path)
+        .unwrap()
+        .query_row("SELECT COUNT(*) FROM canonical_nodes WHERE source_id = 'S1'", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .unwrap();
+    assert_eq!(
+        victim_rows_after_failure, 0,
+        "the canonical deletion must have committed before the redaction failure"
+    );
+    let victim_in_rotated_sink_before_restore =
+        std::fs::read_to_string(&rotated).unwrap().contains("l:victim-1");
+    assert!(victim_in_rotated_sink_before_restore);
+    opened.engine.close().expect("close after incomplete erasure");
+    drop(opened);
+
+    let reopened = Engine::open(&path).expect("reopen with no telemetry sink attached");
+    let retry_without_sink = reopened
+        .engine
+        .excise_source("S1")
+        .expect_err("reopen must not forget the outstanding redaction");
+    assert!(matches!(
+        retry_without_sink,
+        EngineError::ErasureIncomplete { ref stage, .. } if stage == "telemetry_redaction"
+    ));
+    let pending_after_reopen = raw_collection_row_count(&path, "erasure_pending_redaction");
+    assert_eq!(pending_after_reopen, 1);
+    assert!(std::fs::read_to_string(&rotated).unwrap().contains("l:victim-1"));
+
+    std::fs::rename(&rotated, &sink).expect("restore original sink path");
+    reopened.engine.enable_telemetry(sink.to_str().unwrap()).expect("reattach original sink");
+    reopened.engine.excise_source("S1").expect("retry must discharge the durable redaction");
+    let pending_after_retry = raw_collection_row_count(&path, "erasure_pending_redaction");
+    assert_eq!(pending_after_retry, 0);
+    let after = std::fs::read_to_string(&sink).expect("read redacted sink");
+    let victim_in_restored_sink_after_retry = after.contains("l:victim-1");
+    let control_in_restored_sink_after_retry = after.contains("l:control-1");
+    assert!(!victim_in_restored_sink_after_retry, "erased id survived in original sink: {after}");
+    assert!(control_in_restored_sink_after_retry, "retry damaged the control record: {after}");
+    reopened.engine.close().expect("close after completed retry");
+
+    let raw = Connection::open(&path).expect("independent final database connection");
+    let victim_rows_after_retry: i64 = raw
+        .query_row("SELECT COUNT(*) FROM canonical_nodes WHERE source_id = 'S1'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let control_rows_after_retry: i64 = raw
+        .query_row("SELECT COUNT(*) FROM canonical_nodes WHERE source_id = 'S2'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let integrity: String = raw.query_row("PRAGMA integrity_check", [], |row| row.get(0)).unwrap();
+    assert_eq!((victim_rows_after_retry, control_rows_after_retry), (0, 1));
+    assert_eq!(integrity, "ok");
+    println!(
+        "SLICE135_ERASURE_REOPEN {}",
+        serde_json::json!({
+            "case": "pending_telemetry_redaction_survives_engine_reopen",
+            "fault_point": "telemetry sink rotated after search and before excise",
+            "first_error": "ErasureIncomplete:telemetry_redaction",
+            "retry_without_sink_error": "ErasureIncomplete:telemetry_redaction",
+            "pending_after_failure": pending_after_failure,
+            "pending_after_reopen": pending_after_reopen,
+            "pending_after_retry": pending_after_retry,
+            "victim_rows_after_failure": victim_rows_after_failure,
+            "victim_rows_after_retry": victim_rows_after_retry,
+            "control_rows_after_retry": control_rows_after_retry,
+            "victim_in_rotated_sink_before_restore": victim_in_rotated_sink_before_restore,
+            "victim_in_restored_sink_after_retry": victim_in_restored_sink_after_retry,
+            "control_in_restored_sink_after_retry": control_in_restored_sink_after_retry,
+            "integrity_check": integrity
+        })
+    );
+}
+
 /// Guard: the bounded WAL retry must not wedge a verb for an unbounded time.
 #[test]
 fn erasure_wal_retry_is_bounded() {

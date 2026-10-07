@@ -97,8 +97,8 @@ fn engine_instrumentation_signatures() {
     let _: fn(&Engine) -> Option<String> = Engine::last_telemetry_query_id;
     let _: fn(&Engine, &str, &[u64], &[u64], &str) -> Result<()> = Engine::record_feedback;
     let _: fn(&Engine) -> CounterSnapshot = Engine::counters;
-    let _: fn(&Engine, bool) = Engine::set_profiling;
-    let _: fn(&Engine, u64) = Engine::set_slow_threshold_ms;
+    let _: fn(&Engine, bool) -> Result<()> = Engine::set_profiling;
+    let _: fn(&Engine, u64) -> Result<()> = Engine::set_slow_threshold_ms;
     let _: fn(&Engine, Arc<dyn Subscriber>) -> Result<()> = Engine::attach_subscriber;
 }
 

@@ -136,8 +136,8 @@ Shared non-command members are reproduced with core semantics:
 - `enable_telemetry(sink_path)`, `last_telemetry_query_id`
 - `record_feedback(query_id, relevant_ids, irrelevant_ids, label_source)`
 - `counters`
-- `set_profiling(enabled)`
-- `set_slow_threshold_ms(value)`
+- `set_profiling(enabled) -> Result<()>`
+- `set_slow_threshold_ms(value) -> Result<()>`
 - `attach_subscriber(subscriber: Arc<dyn Subscriber>) -> Result<()>`
   - It replaces any earlier attachment.
   - After `close` it fails with `Closing`.

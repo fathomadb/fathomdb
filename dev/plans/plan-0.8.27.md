@@ -1175,8 +1175,9 @@ operation missing from Rust; absent a decision, Slice 132 remains planned.
 
 ### Slice 135 — 0.8.26 performance preservation and improvement qualification
 
-**PLANNED; preparation in progress.** The repository owner authorized Slice 135
-preparation in parallel with Slice 132 on 2026-10-06. The
+**PLAN APPROVED; preparation in progress.** The repository owner approved the
+Slice 135 plan and authorized preparation in parallel with Slice 132 on
+2026-10-06. The
 [Slice 135 measurement plan](0.8.27/features/slice-135/plan.md) covers five
 aspects: what matters/Pareto path, system latency, system robustness, logic
 and exception handling, and correct results. The first four must yield

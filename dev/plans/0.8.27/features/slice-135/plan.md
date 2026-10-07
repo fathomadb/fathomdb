@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 135 — system qualification plan
-status: DRAFT_FOR_REVIEW
+status: APPROVED_FOR_EXECUTION
 target_release: 0.8.27
 planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 ---
@@ -8,11 +8,12 @@ planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 # Slice 135 — measure the whole system against 0.8.26
 
 The [release plan](../../../plan-0.8.27.md) owns the release contract. The
-repository owner authorized Slice 135 preparation in parallel with Slice 132
-on 2026-10-06. Protocol design, baseline qualification, harness work and
-review may proceed now. The final three-SDK feature inventory,
-installed-artifact tests and 0.8.27 comparison must use the candidate after
-Slice 132 closes. No pre-Slice-132 receipt can qualify the final release.
+repository owner approved this Slice 135 plan on 2026-10-06 and authorized
+preparation in parallel with Slice 132. Protocol design, baseline
+qualification, harness work and review may proceed now. The final three-SDK
+feature inventory, installed-artifact tests and 0.8.27 comparison must use
+the candidate after Slice 132 closes. No pre-Slice-132 receipt can qualify
+the final release.
 
 **Order of work:** first produce substantial, inspectable results for what
 matters/Pareto path, system latency, system robustness, and logic and exception
@@ -31,9 +32,10 @@ a failing test and verification before Slice 135 closes. This slice measures
 and diagnoses; it ranks optimization opportunities for later work rather than
 running a general optimization cycle.
 
-This is a draft for review, not a frozen measurement protocol or a performance
-verdict. Freeze the executable protocol and decision rule before running the
-final paired campaign. Preserve all failed and invalid attempts.
+This approved plan defines scope and execution order; it is not a frozen
+measurement protocol or a performance verdict. Freeze the executable protocol
+and reporting rule before running the final paired campaign. Preserve all
+failed and invalid attempts.
 
 ## Existing evidence and gaps
 

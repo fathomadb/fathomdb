@@ -1,0 +1,19 @@
+{
+  "archived_only": true,
+  "cases": 41,
+  "counts": {
+    "executed": 39,
+    "failed": 0,
+    "gap": 2,
+    "supported": 44,
+    "unavailable": 3
+  },
+  "native_sha256": "2d26e58cda598d702c3dc333beaeec355e268c093c342fbf1efd26e4ccd5186d",
+  "negative_controls_rejected": [
+    "missing_operation",
+    "false_count",
+    "archive_digest",
+    "wrong_positive_route"
+  ],
+  "status": "PASS"
+}

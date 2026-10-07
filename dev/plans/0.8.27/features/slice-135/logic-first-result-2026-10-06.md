@@ -25,6 +25,10 @@ an absent current-schema edge index and repaired at `55f8120f5`; its
 [RED/GREEN receipt](results/2026-10-07-edge-fts-missing-index-repair/README.md)
 records the real-database failure and focused verification. It is a distinct
 `if let Ok` error-suppression path, outside the original `rows.flatten()` count.
+A separate [missing-canonical-table negative probe](results/2026-10-07-node-canonical-missing-negative/README.md)
+passed at `ef1f67c6f`: a retained FTS row did not turn missing canonical
+authority into a successful search. This observable result does not establish
+that either legacy fallback branch executed.
 
 This is one inspectable **diagnostic** result on the exact post-Slice-132
 candidate, not the completed Phase 1 logic/exception checkpoint. The package

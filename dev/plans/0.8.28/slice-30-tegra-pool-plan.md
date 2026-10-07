@@ -331,7 +331,7 @@ review gate (D28-08).
 | S30-T7 | C7 instrumentation: context id, `cuda_context_lost`, snapshot, `doctor gpu` context state, characterization test. | G10 C7 tests | `harness/pool_reset.c` |
 | S30-T8 | Race and path tests from § 5.2 item 5; `doctor gpu` and allocation-mode fields; `tracing` events; scaffolding removal (§ 4). | Race tests; CLI output tests; a test that the removed env vars and `fdb-pool-exp` are absent | design draft § 4 |
 | S30-T9 | Phase 5 (§ 6.1). | — | study plan "Upstream cudarc compatibility" |
-| S30-T10 | Qualification (§ 3) on packed artifacts; results file; codex § 9 review; land. | — | protocol; adapted harness (§ 7) |
+| S30-T10 | Bring the nine study harness shell scripts onto the branch lint-clean (§ 7). Adapt the harness to the product in a new qualification directory. Qualification (§ 3) on packed artifacts; results file; codex § 9 review; land. | Shell lint (`scripts/agent-lint-shell.sh`) passes on the tracked scripts | protocol; study harness (§ 7) |
 | S30-T11 | Host clean-up (§ 8). **HITL.** | — | — |
 
 Order: T2 and T3, then T4, then T5, T6 and T7 in parallel worktrees, then

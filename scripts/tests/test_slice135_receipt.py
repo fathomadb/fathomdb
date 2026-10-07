@@ -29,6 +29,9 @@ class ReceiptTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         (self.root / "candidate.bin").write_bytes(b"candidate")
         (self.root / "corpus.txt").write_bytes(b"fixed corpus")
+        self.resource_bytes = (b"user_s=0.12\nsystem_s=0.03\npeak_rss_kib=1234\n"
+                               b"fs_inputs=4\nfs_outputs=8\nmajor_faults=0\nswap_events=0\n")
+        (self.root / "resource.txt").write_bytes(self.resource_bytes)
         self.source = "a" * 40
         self.runner_hash = "b" * 64
         self.protocol = {
@@ -41,6 +44,7 @@ class ReceiptTests(unittest.TestCase):
             },
             "features": {"graph": True, "rerank": False},
             "settings": {"top_k": 10, "concurrency": 1},
+            "resource_report_name": "resource.txt",
             "min_disk_free_bytes": 100,
             "cells": {
                 "query": {
@@ -69,8 +73,15 @@ class ReceiptTests(unittest.TestCase):
             "artifact_sha256": copy.deepcopy(self.protocol["artifact_sha256"]),
             "features": copy.deepcopy(self.protocol["features"]),
             "settings": copy.deepcopy(self.protocol["settings"]),
+            "resource_file_sha256": digest(self.resource_bytes),
+            "resources": {
+                "scope": "measured-workload-child-process", "method": "gnu-time",
+                "user_cpu_s": 0.12, "system_cpu_s": 0.03,
+                "peak_rss_kib": 1234, "fs_inputs": 4, "fs_outputs": 8,
+                "major_faults": 0, "swap_events": 0, "unsupported": [],
+            },
             "environment": {"start": state, "end": copy.deepcopy(state),
-                            "invalidators": []},
+                            "invalidators": [], "warnings": []},
             "cells": {
                 name: {
                     "boundary": cell["boundary"],
@@ -201,6 +212,24 @@ class ReceiptTests(unittest.TestCase):
         self.raw["environment"]["end"]["governor"] = "performance"
         self.raw["environment"]["start"]["disk_free_bytes"] = 1
         with self.assertRaisesRegex(ValueError, "environment"):
+            self.validate()
+
+    def test_host_swap_drift_is_warning_when_child_swap_is_zero(self):
+        self.raw["environment"]["end"]["swap_pages"] = 3
+        self.raw["environment"]["warnings"] = [
+            "host swap drift: 3 pages; child swap events: 0",
+        ]
+        self.assertEqual(self.validate()["cells"]["query"]["valid_samples"], 100)
+
+    def test_child_swap_or_missing_resource_report_is_rejected(self):
+        swapped = self.resource_bytes.replace(b"swap_events=0", b"swap_events=1")
+        (self.root / "resource.txt").write_bytes(swapped)
+        self.raw["resource_file_sha256"] = digest(swapped)
+        self.raw["resources"]["swap_events"] = 1
+        with self.assertRaisesRegex(ValueError, "child swap"):
+            self.validate()
+        (self.root / "resource.txt").unlink()
+        with self.assertRaisesRegex(ValueError, "resource"):
             self.validate()
 
     def test_cli_recomputes_without_overwriting_raw_attempts(self):

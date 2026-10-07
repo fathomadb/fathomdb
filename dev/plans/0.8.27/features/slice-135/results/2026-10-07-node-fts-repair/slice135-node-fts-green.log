@@ -1,0 +1,45 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized] target(s) in 0.39s
+     Running tests/slice135_edge_fts_error.rs (target/debug/deps/slice135_edge_fts_error-88a87f90ff729c50)
+
+running 1 test
+test malformed_edge_fts_kind_must_not_silently_remove_a_committed_hit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/slice135_node_fts_error.rs (target/debug/deps/slice135_node_fts_error-3a91a0fae7aac7a4)
+
+running 1 test
+test malformed_node_fts_kind_must_not_silently_remove_a_committed_hit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/slice15b_search_validity.rs (target/debug/deps/slice15b_search_validity-b06c8ab41545025f)
+
+running 8 tests
+test search_refuses_a_view_that_relaxes_the_existence_axis ... ok
+test text_only_search_also_hides_out_of_window_nodes ... ok
+test future_window_node_is_not_returned_by_default_search ... ok
+test covering_window_node_is_returned_by_default_search ... ok
+test read_view_on_search_selects_by_instant_and_can_relax_validity ... ok
+test filtered_and_explained_search_hide_out_of_window_nodes ... ok
+test default_search_is_unchanged_on_a_corpus_with_no_authored_windows ... ok
+test expired_window_node_is_not_returned_by_default_search ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/slice23_text_limit_prefix_stability.rs (target/debug/deps/slice23_text_limit_prefix_stability-0b65d528a4ce3d13)
+
+running 2 tests
+test direct_text_view_limits_are_prefix_stable_at_a_fixed_validity_time ... ok
+test direct_text_limits_are_prefix_stable_with_duplicate_edge_body ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/tc33_fix2_edge_validity_on_search.rs (target/debug/deps/tc33_fix2_edge_validity_on_search-f836ec79d7b70044)
+
+running 1 test
+test tc33_fix2_expired_edge_is_excluded_from_search_valid_edges_survive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.07s
+

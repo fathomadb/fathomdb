@@ -323,6 +323,10 @@ assertions so the next release can rerun the same functional gate.
 **Phase 1 checkpoint:** publish an exact-candidate measurement note with four
 valid result sections, raw receipt links, independently recomputed summaries,
 invalid/omitted cells, coverage gaps, confirmed defects and ranked follow-ups.
+The [node FTS row-error repair](results/2026-10-07-node-fts-repair/README.md)
+changes candidate engine bytes after the paired S01 and S02 receipts. Rebuild
+and rerun the installed candidate and affected engine cells at the repaired
+SHA before treating those comparisons as checkpoint evidence.
 Actual final-candidate observations in all four areas are required; a harness,
 protocol or baseline alone does not meet the checkpoint. Fix any defect or
 harness flaw that makes the results untrustworthy and rerun affected cells.

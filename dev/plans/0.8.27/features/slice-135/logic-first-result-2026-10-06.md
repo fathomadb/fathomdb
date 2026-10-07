@@ -12,6 +12,10 @@ was repaired in `9186eb3d0` with a permanent real-database regression test.
 The [repair receipt](results/2026-10-07-edge-fts-repair/README.md) records
 verification. The open-defect language below describes the original probe at
 its measured source SHA, not the later candidate.
+The separate modern node FTS row-error lead was subsequently confirmed and
+repaired at `ae6127ee3` with a real-database regression test; its
+[receipt](results/2026-10-07-node-fts-repair/README.md) records the RED/GREEN
+result. The other `rows.flatten()` sites remain unclassified leads.
 
 This is one inspectable **diagnostic** result on the exact post-Slice-132
 candidate, not the completed Phase 1 logic/exception checkpoint. The package

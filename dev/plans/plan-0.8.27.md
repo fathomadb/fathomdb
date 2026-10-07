@@ -1177,24 +1177,27 @@ operation missing from Rust; absent a decision, Slice 132 remains planned.
 
 **PLANNED; preparation in progress.** The repository owner authorized Slice 135
 preparation in parallel with Slice 132 on 2026-10-06. The
-[Slice 135 qualification plan](0.8.27/features/slice-135/plan.md) covers
-protocol, workload, baseline, correctness, robustness, runtime-path and test
-coverage work. Final 0.8.27 comparison and closeout require the completed
-Slice 132 candidate. Compare that candidate against 0.8.26 using a fixed,
-representative workload and the Slice 115 collection method. Verify that
-performance matches or improves on 0.8.26 without reducing any supported
-feature or function. Hold workload, dataset, feature set, configuration,
-hardware, software environment, warm-up, and repetition policy constant
-unless the comparison explicitly documents and justifies a difference.
+[Slice 135 measurement plan](0.8.27/features/slice-135/plan.md) covers five
+aspects: what matters/Pareto path, system latency, system robustness, logic
+and exception handling, and correct results. The first four must yield
+substantial final-candidate results and a recorded Phase 1 checkpoint before
+dedicated correct-results work starts. Final 0.8.27 comparison and closeout
+require the completed Slice 132 candidate. Compare that candidate against
+published 0.8.26 using fixed representative workloads, extending the Slice
+115 collection method to installed-SDK and mixed-system boundaries. Preserve
+accepted features and functions. Hold workload, dataset, configuration,
+hardware, software environment, warm-up and repetition policy constant
+unless a difference is documented and justified.
 
-Pre-register the metrics, tolerances, and decision rule before the comparison.
-Publish reproducible receipts and an explicit feature/function parity inventory.
-Any regression, inconclusive result, or attempted feature trade-off blocks
-closeout until a separately reviewed resolution preserves the release contract.
-This final comparison supplements, and never substitutes for, Slice 90's D27
-runtime qualification. Keep the accepted D27 defaults and topology fixed unless
-a formally reviewed successor changes them; a regression attributable to D27
-still blocks release and requires reviewed remediation.
+Pre-register the metrics and reporting rule before comparison. Publish raw,
+reproducible receipts, uncertainty and an explicit feature/function inventory.
+The five Slice 135 measurement families are diagnostic: a slower or
+inconclusive comparison alone is reported and analyzed, not a new numerical
+release gate. Confirmed product defects receive test-first fixes and
+verification before Slice 135 closeout; accepted release gates remain in
+force. This comparison supplements Slice 90's D27 runtime qualification.
+Keep the accepted D27 defaults and topology fixed unless a formally reviewed
+successor changes them; the existing D27 gate continues to govern release.
 
 ### Slice 140 — documentation and structural convergence
 

@@ -1,10 +1,10 @@
 # Slice 135 baseline-only noise pilot — 2026-10-07 UTC
 
-**Status:** five valid baseline blocks retained; comparison protocol **not
-frozen**. This is a baseline variance observation, not a 0.8.26 versus 0.8.27
-performance result. The upward text-query trend needs a quiet-host repeat or
-better idle/thermal control before setting final comparison counts and
-uncertainty.
+**Status:** ten valid baseline blocks retained in two series; comparison
+protocol **not frozen**. This is baseline variance evidence, not a 0.8.26
+versus 0.8.27 performance result. The first text-query trend did not repeat,
+but p95 still varies substantially. The mixed-sequence cell and paired
+uncertainty rule remain to be qualified before candidate timing.
 
 ## Identity and method
 
@@ -61,6 +61,35 @@ and text p95 ranged 519342–598552 ns (15.2%). Close p50 ranged
 (5.97%). Slow valid close maxima of 13.86 ms in block 02 and 14.29 ms in
 block 05 remain in the raw samples. No p99 is reported from 100 observations.
 
+## Quiet-host repeat
+
+After an idle interval, five further serial blocks used the same verified
+binary and 100 observations per cell, with approximately 20 seconds between
+blocks. The runner reports no named competing job, swap activity, governor
+change or disk invalidator. All five
+[quiet blocks](quiet-block-01/) through [quiet block 05](quiet-block-05/)
+validated with zero invalid attempts and matching semantic checks. The same
+independent raw-hash, count and nearest-rank recomputation matched these five
+summaries.
+
+| Block | Text p50 / p95 (ns) | Close p50 / p95 (ns) | Raw SHA-256 prefix |
+| --- | ---: | ---: | --- |
+| [Q01](quiet-block-01/) | 187755 / 620302 | 5173678 / 5597570 | `2e307017` |
+| [Q02](quiet-block-02/) | 173088 / 533037 | 5139815 / 5604793 | `f7275834` |
+| [Q03](quiet-block-03/) | 186874 / 639419 | 5041669 / 5503762 | `433e4723` |
+| [Q04](quiet-block-04/) | 177185 / 521025 | 5078328 / 5598621 | `7e17ad2d` |
+| [Q05](quiet-block-05/) | 179139 / 541734 | 5222060 / 5756960 | `db2b73e9` |
+
+The quiet series has no monotonic text trend. Its text p50 range is 8.19% of
+the series median; text p95 range is 21.85%. Close p50 and p95 ranges are
+3.51% and 4.52%. The larger text-tail variation persisted despite spacing
+blocks. It calls for paired alternating version blocks and uncertainty
+intervals in the comparison, not an unqualified single-block speed ratio.
+The observed spread does not establish a regression threshold or a p99
+estimate. Temperature/effective-frequency and unnamed background activity
+were not continuously observed, so the spacing is a control, not proof of an
+idle thermal state.
+
 ## Invalid attempts and limits
 
 The [adapter invalid-attempt register](adapter-invalid-attempts/) retains an
@@ -69,12 +98,12 @@ early baseline qualification refusal caused by incorrectly requiring a
 reuse refusal. Neither produced a valid timing block. Both issues were
 resolved or correctly rejected before the five blocks above.
 
-The text p95 increases in the final two blocks despite the recorded boundary
-conditions remaining stable. The runner does not sample temperature, effective
-CPU frequency or every possible background process throughout a block. These
-five blocks therefore do **not** justify a final uncertainty rule or a paired
-performance claim. Repeat the baseline-only pilot on a quiet host with
-recorded idle stabilization, then freeze sample counts, workload cells and
-the uncertainty method before candidate timing. The later paired campaign
-must include a whole-system mixed sequence and installed-SDK cells; this
-two-cell engine pilot does not substitute for them.
+The first series' text p95 increased in its final two blocks despite stable
+recorded boundary conditions; the quiet repeat did not show that trend. The
+runner does not sample temperature, effective CPU frequency or every possible
+background process throughout a block. These ten blocks support a
+noise-aware comparison design, but do **not** alone freeze its uncertainty
+rule or make a paired performance claim. Pilot the mixed-sequence cell, then
+pre-register sample counts, alternating block order and the uncertainty rule
+before candidate timing. The later Phase 1 campaign must also include
+installed-SDK cells; this two-cell engine pilot does not substitute for them.

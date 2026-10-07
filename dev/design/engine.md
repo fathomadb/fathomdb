@@ -202,7 +202,8 @@ total close time is not bounded. Its order is:
    contexts;
 6. release the sidecar admission lock after every SQLite owner has exited; and
 7. drain embed-only workers against one absolute 30-second deadline that begins
-   after database quiescence.
+   after database quiescence, then release the engine-owned embedder reference
+   when those workers have exited.
 
 Step 6 is load-bearing: readers drain before the primary writer connection so
 SQLite's last-handle checkpointer runs on that connection, and the admission

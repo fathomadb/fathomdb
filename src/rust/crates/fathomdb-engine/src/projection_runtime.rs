@@ -147,7 +147,7 @@ pub(crate) struct ProjectionRuntimeShared {
     pub(crate) path: PathBuf,
     pub(crate) worker_count: usize,
     pub(crate) admission_capacity: usize,
-    pub(crate) embedder: Option<Arc<dyn Embedder>>,
+    pub(crate) has_embedder: bool,
     pub(crate) embedder_identity: EmbedderIdentity,
     /// Host-owned lifecycle diagnostics for worker failures, which occur on
     /// background connections rather than through an `Engine` method call.
@@ -441,7 +441,7 @@ impl ProjectionRuntime {
             path,
             worker_count: config.scheduler_runtime_threads,
             admission_capacity: config.projection_admission_capacity,
-            embedder,
+            has_embedder: embedder.is_some(),
             embed_dispatch,
             embedder_identity,
             subscribers,

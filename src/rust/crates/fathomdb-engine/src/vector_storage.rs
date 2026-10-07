@@ -647,8 +647,11 @@ impl Engine {
         text: &str,
     ) -> Result<WriteReceipt, EngineError> {
         self.ensure_open()?;
-        let embedder =
-            self.runtime_embedder.as_ref().cloned().ok_or(EngineError::EmbedderNotConfigured)?;
+        let embedder = self
+            .runtime_embedder
+            .as_ref()
+            .and_then(Weak::upgrade)
+            .ok_or(EngineError::EmbedderNotConfigured)?;
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;

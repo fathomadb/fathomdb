@@ -84,8 +84,13 @@ control. Its block-median spread was 38.457 ms (0.71%); the one host-only
 paging-warning block remains in the primary result. The
 [frozen Python S02 subset](s02-python-comparison-protocol.json) now fixes five
 alternating pairs of 20 measured sequences per block, 100 per version for
-p50/p95, and explicitly omits p99. Paired candidate timing, contention and
-the broader Phase 1 protocol still remain ahead.
+p50/p95, and explicitly omits p99. The subsequent
+[audited Python S02 paired run](results/2026-10-07-python-s02-paired-current/README.md)
+accepted all 100 samples per version. The candidate's pooled p50/p95 were
++0.158%/+0.076% versus 0.8.26; all ten blocks had host swap-counter movement
+with zero measured-child swaps, so no warning-free sensitivity pair exists.
+TypeScript/Rust S02 timing, contention and the broader Phase 1 protocol
+remain ahead.
 The [external Rust SDK S02 functional consumer](results/2026-10-07-rust-sdk-s02-feasibility/README.md)
 exercises the candidate-only Rust boundary through a separate Cargo package
 and retained real database. It is source-bound, not a published-crate install;

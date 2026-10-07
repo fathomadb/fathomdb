@@ -13,8 +13,10 @@ and the Python and TypeScript S01 subsets have frozen protocols and audited
 paired runs. The [44-operation capability register](phase1-capability-register.md)
 records executed Rust, Python and TypeScript cases and explicit gaps. These
 receipts do not yet constitute the full Phase 1 checkpoint: installed S01
-timing predates later search repairs, S02 timing and contention are
-unqualified, S03/C01 and the full robustness and coverage matrices remain,
+timing predates later search repairs, the [audited Python S02 paired timing
+subset](results/2026-10-07-python-s02-paired-current/README.md) has host paging
+warnings and does not cover TypeScript/Rust or contention, S03/C01 and the
+full robustness and coverage matrices remain,
 and the [broader Phase 1 protocol](phase1-protocol-draft.md) is still a draft.
 Dedicated correct-results work remains Phase 2.
 

@@ -161,8 +161,9 @@ Jetson, and dispatched no Pages publication. The path has these parts.
 - **G1 — Pages keeps one Tegra artifact, and the two deployers disagree.**
   Every Pages deployment replaces the whole site. `docs-pages.yml` runs on
   each qualifying push to `main` and rebuilds the site with exactly one
-  retained wheel, pinned as `0.8.24+tegra` by URL and SHA-256 on `main`,
-  `release/0.8.26` and `release/0.8.27`. The Jetson workflow deploys only the
+  retained wheel, pinned by URL and SHA-256: `0.8.24+tegra` on `main` and
+  `release/0.8.26`, and the published `0.8.26+tegra` on `release/0.8.27`
+  since 2026-10-07. The Jetson workflow deploys only the
   wheel it just built. Whichever ran last decides what the index serves. A
   pinned pip install fails once its file is gone. A Node install that records
   a tarball URL in a lockfile fails the same way, more visibly. Slice 117

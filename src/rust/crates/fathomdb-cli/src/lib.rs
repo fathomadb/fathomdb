@@ -164,7 +164,7 @@ pub struct RecoverArgs {
 pub enum DoctorCommand {
     /// Inspect the isolated embedder CUDA provider without opening an engine.
     #[command(
-        long_about = "Inspect the isolated embedder CUDA provider without opening an engine.\n\nFor a confirmed classic Jetson/Tegra CUDA host, install the exact interim 0.8.24 build from the first-party index:\n\npython3 -m venv .venv\n. .venv/bin/activate\npython -m pip install --isolated --no-cache-dir --only-binary=:all: --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ 'fathomdb==0.8.24+tegra'\n\nThis Pages route is detection-gated interim hosting. Unsupported targets have no supported Tegra CUDA route."
+        long_about = "Inspect the isolated embedder CUDA provider without opening an engine.\n\nFor a confirmed classic Jetson/Tegra CUDA host, install the exact interim 0.8.26 build from the first-party index:\n\npython3 -m venv .venv\n. .venv/bin/activate\npython -m pip install --isolated --no-cache-dir --only-binary=:all: --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ 'fathomdb==0.8.26+tegra'\n\nThis Pages route is detection-gated interim hosting. Unsupported targets have no supported Tegra CUDA route."
     )]
     Gpu(GpuDoctorArgs),
     /// Classify Tegra, ARM64 SBSA, and generic AArch64 platforms without opening an engine.

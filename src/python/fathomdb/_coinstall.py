@@ -204,12 +204,12 @@ def warn_if_generic_build_on_classic_tegra(
         return
     warnings.warn(
         "Generic FathomDB build detected on confirmed classic Tegra hardware. "
-        "Install the exact interim 0.8.24 Tegra build from the first-party index:\n"
+        "Install the exact interim 0.8.26 Tegra build from the first-party index:\n"
         "python3 -m venv .venv\n"
         ". .venv/bin/activate\n"
         "python -m pip install --isolated --no-cache-dir --only-binary=:all: "
         "--index-url https://fathomadb.github.io/fathomdb/tegra/simple/ "
-        "'fathomdb==0.8.24+tegra'\n"
+        "'fathomdb==0.8.26+tegra'\n"
         "This Pages route is detection-gated interim hosting; unsupported targets have no supported Tegra CUDA route.",
         FathomDbPlatformWarning,
         stacklevel=2,

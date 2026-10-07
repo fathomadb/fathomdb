@@ -1,0 +1,3 @@
+# Phase 4 P1 rerun (ruling 22): import cost, S vs P on the revision-5 build
+p4-p1-S S 25.9.0 $PS/consumer-p4 CONSUMER_MODE=import
+p4-p1-P P-first-use 25.9.0 $PS/consumer-p4 CONSUMER_MODE=import

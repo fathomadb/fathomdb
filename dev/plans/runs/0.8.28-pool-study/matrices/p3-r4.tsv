@@ -1,0 +1,9 @@
+# R4 late import (IMPORT_ORDER=late), with and without node --import fathomdb (via NODE_OPTIONS)
+r4-S-late400000 S 25.9.0 $PS/consumer-p4 CONSUMER_MODE=full,IMPORT_ORDER=late,HEAP_OBJECTS=400000,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+r4-S-late400000-import S 25.9.0 $PS/consumer-p4 CONSUMER_MODE=full,IMPORT_ORDER=late,HEAP_OBJECTS=400000,NODE_OPTIONS=--import=file://$PS/consumer-p4/node_modules/fathomdb/dist/index.js,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+r4-P-late400000 P-first-use 25.9.0 $PS/consumer-p4 CONSUMER_MODE=full,IMPORT_ORDER=late,HEAP_OBJECTS=400000,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+r4-P-late400000-import P-first-use 25.9.0 $PS/consumer-p4 CONSUMER_MODE=full,IMPORT_ORDER=late,HEAP_OBJECTS=400000,NODE_OPTIONS=--import=file://$PS/consumer-p4/node_modules/fathomdb/dist/index.js,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+r4-S-late1000000 S 25.9.0 $PS/consumer-p4 CONSUMER_MODE=full,IMPORT_ORDER=late,HEAP_OBJECTS=1000000,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+r4-S-late1000000-import S 25.9.0 $PS/consumer-p4 CONSUMER_MODE=full,IMPORT_ORDER=late,HEAP_OBJECTS=1000000,NODE_OPTIONS=--import=file://$PS/consumer-p4/node_modules/fathomdb/dist/index.js,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+r4-P-late1000000 P-first-use 25.9.0 $PS/consumer-p4 CONSUMER_MODE=full,IMPORT_ORDER=late,HEAP_OBJECTS=1000000,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+r4-P-late1000000-import P-first-use 25.9.0 $PS/consumer-p4 CONSUMER_MODE=full,IMPORT_ORDER=late,HEAP_OBJECTS=1000000,NODE_OPTIONS=--import=file://$PS/consumer-p4/node_modules/fathomdb/dist/index.js,FATHOMDB_POOL_RELEASE_THRESHOLD=0

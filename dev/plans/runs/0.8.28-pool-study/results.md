@@ -1,18 +1,18 @@
 ---
-title: FathomDB 0.8.28 Tegra CUDA memory-pool study — results, Phases 0, 1, 1b and 2
-status: PARTIAL (Phases 0, 1, 1b and 2; Phases 3-5 not started)
+title: FathomDB 0.8.28 Tegra CUDA memory-pool study — results, Phases 0-4
+status: PARTIAL (Phases 0, 1, 1b, 2, 3 and 4; Phase 5 not started)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
 
-# Tegra CUDA memory-pool study: results of Phases 0, 1, 1b and 2
+# Tegra CUDA memory-pool study: results of Phases 0–4
 
 This records Phases 0 and 1 of
 `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md`
-(the protocol) on one Jetson AGX Orin 64 GB, and Phase 1b of protocol
-revision 3 (§ 10) and Phase 2 of revision 4 (§ 11). It does not rule.
-Phases 3–5 (robustness, soaks, performance, analysis and upstream package)
-were not started. Everything not measured here is marked UNMEASURED.
+(the protocol) on one Jetson AGX Orin 64 GB, Phase 1b of protocol
+revision 3 (§ 10), Phase 2 of revision 4 (§ 11), and Phases 3 and 4 of
+revision 5 (§ 12). It does not rule. Phase 5 (analysis and upstream
+package) was not started. Everything not measured here is marked UNMEASURED.
 Statements marked *inferred* are readings of the data, not measurements.
 
 Raw logs stay on the host under `<scratch>/pool-study/logs/<phase>/<series>/`
@@ -1266,3 +1266,722 @@ Builds and test compiles ran outside the lock.
    `CU_DEVICE_ATTRIBUTE_INTEGRATED` and total memory at the first device,
    and derive or require `maxSize` off the measured device. Keep
    `cfg(aarch64 linux)` only to limit what is compiled (§ 11.9).
+
+## 12. Revision 5: rulings 18–25, Phase 3 and Phase 4
+
+Revision 5 applies the owner's rulings on the Phase 2 decisions (protocol
+"Owner rulings (2026-10-06, after Phase 2) and revision 5"). It then runs
+Phase 3 (robustness) and Phase 4 (performance). Ruling 25, given during
+Phase 4, ranks allocation correctness and release above latency, so
+§ 12.7 reports them first.
+
+Every Phase 3 and Phase 4 series ran on the revision-5 build:
+
+- **Node addon:** `consumer-p4` (sha `ee544bbb…`).
+- **Python wheel:** `wheel-p3` in `venv-p` (sha `ba87181d…`).
+
+Both builds contain:
+
+- the owner's close fix;
+- runtime gating and sizing;
+- the Python and reranker exhaustion kinds.
+
+Pool sizing was derived from the device, with no `FATHOMDB_POOL_MAXSIZE`:
+3 GiB on this host (`install` event `integrated=1 pools_supported=1
+total_mem=65879896064 gate=on size_source=derived`). The witness was off,
+and the interleave was the fixed one (§ 11.10). Summaries:
+`summaries/phase3*.txt`, `summaries/phase4*.txt`,
+`summaries/rev5-*.txt`.
+
+### 12.1 Code (revision 5)
+
+| Commit | Content | Tests |
+| --- | --- | --- |
+| `7b9b18146` | Runtime gating and sizing (ruling 24); the Python `CudaPoolExhaustedError` and the reranker's forced-CUDA classification (ruling 23); the C7 investigation mode. Also a fix: `new_cuda_device` was gated on the CUDA features, so a CPU-only `default-embedder` build of `fathomdb-embedder` did not compile on the study branch. | Pure sizing and gate tests: Orin 64/32/16/8 GB, Thor, discrete, pool-less, override. Reranker classification. napi and Python binding tests. Each went red, then green. |
+| `f0b6b4c7e` | Cherry-pick of the owner's close fix `c816b8653` (ruling 18). It applied without conflicts. Study only; not pushed to any release branch. | `fathomdb-engine` `tests/projection_runtime.rs`: 13 passed, 1 ignored, including `close_releases_embedder_while_engine_handle_is_retained` |
+| `10dbcd7ce` | Protocol and plan revision 5, plus harness: `cb1check.py` with pure tests (ruling 21), `concurrent-runner.sh` (R7), soak mode (R6), Python perf mode (P7), and `MemAvailable` at every measurement point. | 8 pure `cb1check` tests |
+
+Gates:
+
+- `cargo clippy -D warnings` is clean for:
+  - the workspace;
+  - `fathomdb-embedder`, `fathomdb-engine` and `fathomdb-napi` with
+    `embed-cuda`, `rerank-cuda` and `tegra-pool-experiment`;
+  - `fathomdb-py` with `tegra-pool-experiment`, `default-embedder` and
+    `default-reranker`.
+- `cargo fmt --check` is clean.
+- The policy has 16 pure tests.
+- The experiment feature is in no release feature set.
+
+**Runtime gate and sizing (`cuda_pool_policy.rs`).** At the first device,
+the policy reads three facts: `CU_DEVICE_ATTRIBUTE_INTEGRATED`,
+`CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED` and `cuDeviceTotalMem`.
+
+1. A discrete device, or one without pool support, gets no pool. The
+   process keeps the shipped path, and the `install` event says `gate=off`
+   with the reason.
+2. On an integrated device:
+   - `FATHOMDB_POOL_MAXSIZE`, when set, wins.
+   - Otherwise `maxSize` = device memory / 20, clamped to
+     [2 GiB, 3 GiB].
+   - No pool when the 2 GiB floor exceeds a quarter of device memory.
+
+The constants are named and documented: `POOL_SIZE_DEVICE_DIVISOR`,
+`POOL_SIZE_FLOOR`, `POOL_SIZE_CEILING` and `POOL_FLOOR_MAX_SHARE_DIVISOR`.
+The `cfg(target_os = "linux", target_arch = "aarch64")` gate now only
+limits compilation.
+
+**Error kind.**
+
+- **Python.** `CudaPoolExhaustedError` is created with `create_exception!`
+  under `EmbedderError`, the same pattern as `EmbedDevicePolicyError` and
+  `RerankerDevicePolicyError`, and TypeScript's
+  `CudaPoolExhaustedError extends EmbedderError`. It carries `kind`,
+  `ordinal`, `max_size_bytes` and `code` (`FDB_CUDA_POOL_EXHAUSTED`).
+  `fathomdb.errors` exports it only in experiment wheels.
+- **Reranker.** Under forced CUDA, a cross-encoder forward that exhausts
+  the private pool now returns `RerankerDevicePolicyError::CudaPoolExhausted`
+  (kind `cuda_pool_exhausted`) instead of the generic `CudaProbeFailed`
+  refusal. napi maps it to `FDB_CUDA_POOL_EXHAUSTED`, and Python to
+  `CudaPoolExhaustedError`.
+- **Auto policy.** The batch-to-per-pair fallback is unchanged.
+- **Remaining gap for adoption.** The module-level `rerank()` function
+  turns every error into a string, and the bindings surface it as
+  `WriteValidationError`. This is pre-existing and also seen in C7, so its
+  pool exhaustion is not typed.
+
+The smoke on the revision-5 build passed:
+
+- **Node:** `CudaPoolExhaustedError` / `FDB_CUDA_POOL_EXHAUSTED`.
+- **Python:** `CudaPoolExhaustedError`, ordinal 0, `maxSizeBytes`
+  3221225472, MRO `CudaPoolExhaustedError → EmbedderError → EngineError`.
+- **Sizing:** derived 3 GiB; `FATHOMDB_POOL_MAXSIZE=1G` gives
+  `size_source=env`.
+
+### 12.2 C2 rerun on the build with the close fix (ruling 18)
+
+Node 25, `cycles` mode: 50 `open` / `embed` / `close` cycles per process,
+**no garbage collection**, `FATHOMDB_POOL_COEXIST_CHECK=1`. The four
+variants ran interleaved in randomised blocks, 10 blocks.
+
+| Variant | n | Pass (Wilson 95 %) | allocMode | VmRSS growth per cycle, cycles 2–50 (median, max) | Max VmRSS |
+| --- | --- | --- | --- | --- | --- |
+| S | 10 | 10/10 [72.2, 100] % | sync 7, default 3 | 0.33, 0.40 MiB | 445 MiB |
+| P-first-use | 10 | 10/10 [72.2, 100] % | private 10 | 0.36, 0.42 MiB | 453 MiB |
+| A-first-use | 10 | 10/10 [72.2, 100] % | explicit 10 | 0.40, 0.46 MiB | 453 MiB |
+| B | 10 | 10/10 [72.2, 100] % | explicit 7, default 3 | 0.38, 0.46 MiB | 454 MiB |
+
+**C2 passes for every variant: 40/40 [91.2, 100] %.** The per-engine
+retention is gone:
+
+- S grew about 159 MiB per closed engine before the fix (§ 11.3) and
+  0.33 MiB per cycle after it.
+- Every pool variant failed at the 8th open before the fix, and none fails
+  now.
+
+The remaining ~0.35 MiB per cycle is the same in every variant, S
+included, so it is not pool memory. It comes to about 17 MiB over 50
+cycles; its source was not investigated.
+
+**Decision rule.** P is still not the default until the fix ships
+(ruling 18).
+
+### 12.3 C7 investigation (ruling 19)
+
+**Method.** Python `reset` mode under `gdb -batch`: 5 S and 5 P processes
+on the revision-4 wheel. Each process runs embed, rerank and CLS, then
+calls `cuDevicePrimaryCtxReset(0)` through `ctypes`. Afterwards it tries
+each call separately and records its first error and the driver's state.
+Evidence: `summaries/rev5-c7-investigation.txt`.
+
+**First error after the reset.** It was the same in 10 of 10 processes:
+
+| Call | Error |
+| --- | --- |
+| `embed_batch_cls` | `DriverError(CUDA_ERROR_CONTEXT_IS_DESTROYED)`. Candle's cudarc context still names the destroyed primary context. |
+| `engine.embed` | `EmbedderError: embedder error`, the engine's collapsed form |
+| `rerank` | The re-probe refuses with `CudaProbeFailed`, surfaced as `WriteValidationError` (the string path of § 12.1) |
+| driver state | `cuCtxGetCurrent` and `cuCtxSynchronize` both succeed: the reset context is usable, but FathomDB's handles point at the destroyed one |
+
+**Exit crash.** SIGSEGV in 10 of 10 processes under gdb, S and P alike,
+with the same stack:
+
+```text
+libcuda.so (no symbols)
+cudarc::driver::safe::core::CudaStream::wait            <- cuStreamWaitEvent
+<cudarc::driver::safe::core::CudaSlice<T> as Drop>::drop
+drop_in_place<candle_transformers::models::bert::BertModel>
+drop_in_place<fathomdb_embedder::candle_bge::CandleBgeEmbedder>
+drop_in_place<fathomdb_engine::projection_runtime::ProjectionRuntimeShared>
+drop_in_place<fathomdb_engine::projection_runtime::ProjectionRuntime>
+drop_in_place<fathomdb_py::engine::PyEngine>             <- Python dealloc
+```
+
+**Component.** The crash is in cudarc's `CudaSlice` drop. Before freeing,
+it waits on the slice's read and write events (`cuStreamWaitEvent`). The
+stream and event handles were destroyed with the context, and libcuda
+dereferences them and faults instead of returning an error.
+
+- It is common to every variant, the shipped path included.
+- It is not the study's pool teardown, attribute reads or exit handler. No
+  crashing process reached the study's exit event, so its `teardown` line
+  never printed.
+- The same stack shows the C2 retention the owner fixed: the projection
+  runtime held the embedder.
+
+**P's excess crashes are not a separate mechanism.** Without gdb the rates
+were S 13/20 and P 19/20 (§ 11.4). Under gdb both crash 5/5, with
+identical frames. A guard on pool destroy or attribute reads would change
+nothing, because the process crashes before the study's code runs. So no
+study-gated guard was added (ruling 19).
+
+**Possible fix (not made).** The drop paths in cudarc's `CudaSlice` and
+`CudaEvent` could skip the wait and free when the context is no longer
+valid, for example by checking `cuCtxGetApiVersion` on the slice's context
+or by treating `CUDA_ERROR_CONTEXT_IS_DESTROYED` as fatal for the
+context. That would be a cudarc-level, all-variant product change. It
+would also leak the device memory, which the reset already freed. It is
+for the owner to rule on.
+
+A rerun on the revision-5 build is in § 12.7.4. It checks whether the close
+fix moves the crash: the model is now dropped inside `close()`, not at
+Python dealloc.
+
+### 12.4 Pool sizing policy: analysis, not a decision (ruling 24)
+
+**What the size does.** At release threshold 0, `maxSize` is a **cap, not
+a reservation**:
+
+- The pool holds only what is in use, plus the free part of the 32 MiB
+  chunks that still hold live slices: 64 MiB idle in Phase 2 CB2.
+- On this device the cap is reached at ceil32(`maxSize`/3) of allocations
+  (C3).
+- Creating the pool needs one contiguous `maxSize`/3 of address space
+  inside the early-`cuInit` reservation (§ 3.2, § 10.7).
+
+So a size can fail three ways:
+
+- **Too small.** A large batch fails with `cuda_pool_exhausted`. CB3: 128 ×
+  400-token passages exhaust 1 GiB of capacity, and no CPU fallback is
+  taken.
+- **Too large.** It does not pin memory at threshold 0. It loosens the
+  circuit breaker, because a runaway workload consumes more shared RAM
+  before it fails. It also raises the contiguous need: R5 showed 3 GiB
+  (1 GiB need) creatable at every heap up to 8M objects.
+- **Ratio wrong on another device.** If the /3 capacity ratio does not hold
+  there, the cap binds at up to `maxSize`, not `maxSize`/3.
+
+The workload high-water mark is 160 MiB in `full` mode (R5, Phase 2) and
+272 MiB at batch 128 with rerank (§ 3.5).
+
+**Options for each class**, given the workload high-water mark and that
+capacity is about `maxSize`/3 here:
+
+- **fixed:** 3 GiB everywhere;
+- **fraction:** 1/20 of device memory, clamped to [2, 3] GiB, as
+  implemented;
+- **workload:** capacity ≥ 2–4 × the 272 MiB high-water mark, so `maxSize`
+  1.6–3.3 GiB at /3;
+- **off:** the shipped path (S).
+
+| Device class | Device memory | fixed 3 GiB | fraction (implemented) | workload-derived | off (S) | Failure modes | Recommendation |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| AGX Orin 64 GB (measured) | 61.36 GiB | 3 GiB; capacity 1 GiB = 3.8 × high-water | 3 GiB (ceiling) | 1.6–3.3 GiB | slow sync path in about 80 % of Node processes (C1) | none measured at 3 GiB; batch-128 long passages exhaust it (CB3, typed) | **3 GiB** (accepted ruling) |
+| AGX Orin 32 GB | ~30 GiB | 3 GiB = 10 % of RAM as a cap | 2 GiB (floor) | 1.6–3.3 GiB | as above, if the default pool fails there too (UNMEASURED) | /3 and the reservation size unverified; if /3 fails, 2 GiB is a 7 % cap | fraction (2 GiB) **after** one C3 capacity run and an R5 cell on the device |
+| Orin NX 16 GB | ~15 GiB | 20 % of RAM as a cap | 2 GiB (13 %) | 1.6 GiB | as above | as above; a cap that binds hurts other processes more on 16 GB | fraction, with the same on-device check; consider 1.6 GiB (the workload floor at 2 × high-water) |
+| Orin Nano / NX 8 GB | ~7.4 GiB | 40 % of RAM: unsafe if /3 fails | **off** (the floor exceeds 1/4 of memory) | 1.6 GiB = 22 % of RAM | the shipped path | the pool's benefit (fast path) against a 22–40 % cap; the reservation for 8 GB is UNMEASURED | **off** (implemented). Revisit only with on-device data. |
+| Thor 128 GB (CUDA 13, Blackwell iGPU) | ~122 GiB | 3 GiB | 3 GiB (ceiling) | 1.6–3.3 GiB | — | whether the default pool fails at all, the /3 ratio, the reservation and CUDA 13 pool behaviour are all UNMEASURED | ceiling 3 GiB, gated by an on-device R5 and C3 run before enabling; until then, **opt-in** (`FATHOMDB_POOL_VARIANT`) |
+| Discrete GPU (x86_64 or aarch64 dGPU) | VRAM | the cap bounds VRAM, not host RAM: 75 % of a 4 GB card, an arbitrary throttle on 80 GB | **off** (implemented) | — | upstream default pool (stream-ordered and fast) | the study's problem (no contiguous 20960 MiB host VA for the default pool) does not arise. Whether /3 is a Tegra artefact is UNKNOWN: no amd64 host was available for a C3 probe. | **off** |
+| Non-Tegra aarch64: GH200 | HBM + coherent LPDDR | as discrete | off if the device reports `integrated=0` (expected for Hopper; UNVERIFIED) | — | upstream path | whether its default pool fails; the `integrated` value | **off**; verify the attribute |
+| Non-Tegra aarch64: GB10 (unified LPDDR5x) | ~128 GB shared | — | if it reports `integrated=1`, the policy would apply 3 GiB **unmeasured** | — | — | everything UNMEASURED | add a Tegra-identity condition (e.g. `/etc/nv_tegra_release`, as `tegra_fragmented_va_cuda.rs` uses) or require opt-in until measured |
+
+**Recommendation.** Keep the implemented fraction rule (1/20 within
+[2, 3] GiB, off below 8 GiB) as the shape. Ship it enabled only for the
+measured class: integrated, Tegra, about 64 GB. Every other class should
+stay off or opt-in until a C3 capacity run and an R5 heap run exist on
+that device. Every class marked UNMEASURED needs hardware this study does
+not have (R9).
+
+### 12.5 CB1 (ruling 21)
+
+`harness/cb1check.py` implements the check, with pure tests:
+
+- **Primary:** `reserved_high` ≤ `maxSize`.
+- **Sanity:** only when the `install` event says `integrated=1`. It
+  compares the process's `MemAvailable` drop (before open → after rerank)
+  with S's synchronous-path processes in the same series:
+  - The noise band is 3 × MAD of the baseline, at least 16 MiB.
+  - Above 256 MiB the result is inconclusive.
+  - The process is consistent when its excess over the baseline median and
+    `reserved_high` is ≤ 32 MiB + the band.
+- **Skips, with a reason (never a failure):**
+  - a discrete device;
+  - no integrated flag;
+  - no `MemAvailable` reading;
+  - a baseline under 5 processes.
+
+On this host:
+
+- `/proc/meminfo` `MemAvailable` is readable.
+- nvmap's debugfs is not: `/sys/kernel/debug` is root-only.
+- `tegrastats` is readable but system-wide, and adds nothing to
+  `MemAvailable`.
+- No per-process GPU-memory source exists without root. `VmRSS` does not
+  see the pool's pinned memory (§ 11.6), so the sanity check uses
+  `MemAvailable` deltas.
+
+Results are in § 12.6 (R2) and § 12.7.1 (Phase 4).
+
+### 12.6 Phase 3: robustness (table 10)
+
+**Arms.** The arms are P-first-use (the candidate) and S (the shipped
+path). A-first-use and B are comparison arms that do not ship (§ 8.2).
+They had no R-row of their own here, and they appear only in C2 (§ 12.2)
+and Phase 4.
+
+**Setup.** Node 25.9.0 unless a row says otherwise; full mode; witness
+off; derived size 3 GiB; threshold 0 unless stated. Interleaved series
+used randomised block orders (checked in each `blocks.txt`).
+
+| Row | Cells | n | Result | Verdict |
+| --- | --- | --- | --- | --- |
+| R1 synthetic layouts (`pool_capacity`: `cuMemPoolCreate`, fill to the first error, 64 MiB chunks) | 3pages, free-gap, n-sweep (n = 3, 5, 6, 7 evenly spaced pages), random-18 (seeds 1–100); 2 and 3 GiB | 180 per size | Pool created and filled to its measured capacity in **360/360** [98.9, 100] %: 704 MiB at 2 GiB and 1024 MiB at 3 GiB in every run. First error `CUDA_ERROR_OUT_OF_MEMORY` (the cap) in every run. | PASS (bounded at 98.9 %) |
+| R2 real heaps, Node 25 | P vs S × heaps 0, 400k, 1M, 4M, 8M | 30 per cell | P **150/150** [97.5, 100] %, private 150/150. S 150/150, with sync 118 and default 32. One embed hash. | PASS |
+| R2 real heaps, Node 24 and 26 | P vs S × heaps 0, 1M, 4M | 10 per cell | P 60/60 [94.0, 100] %, private 60/60. S 60/60, sync 48 and default 12. | PASS |
+| R3 heap growth in use (open at heap 0, then 1M live objects, then embed) | P vs S × Node 24, 25, 26 | 20 per cell | P 60/60 [94.0, 100] %, private 60/60. S 60/60. | PASS |
+| R4 late import without `--import` | P vs S × late-400k, late-1M | 15 per cell | late-1M: **P 0/15, S 0/15**. late-400k: P 5/15, S 8/15 (Fisher two-sided p ≈ 0.46). Every failure is at open: `cuInit` `CUDA_ERROR_OUT_OF_MEMORY` (the driver's range), the documented 0.8.27 limit. | as expected: no pool difference; P needs early `cuInit` (ruling 12) |
+| R4 late import with `node --import fathomdb` | same | 15 per cell | P 30/30 [88.6, 100] %, private 30/30. S 30/30. | PASS |
+| R7 concurrency, P (threshold 0 and `max`) | k = 2, 4, 8 processes in `perf` mode started within 100 ms, 10 trials each | 140 + 140 | **280/280** [98.6, 100] %, private 280/280. Lowest `MemAvailable` 45.7 GiB, no swap rise. Steady embed (median of process medians) 10.8 / 16.7 / 17.6 ms at k = 2 / 4 / 8 (threshold `max`: 9.9 / 16.7 / 17.6). | PASS |
+| R7 concurrency, S | k = 2, 4, 8, 5 trials each | 70 | 70/70 pass. Steady embed by path: sync **71.5 / 196.6 / 224.7 ms**; default (k = 4, 8) 12.4 / 10.1 ms. | recorded |
+| R8 threshold (perf, close, 60 s idle) | P threshold 0 vs `max` | 10 + 10 | After the idle, `reserved_cur`: 192 MiB at threshold 0, 288 MiB at `max` (= `reserved_high`). Steady embed 12.92 vs 13.02 ms, ratio 1.008 [0.791, 1.194]; batch-128 84.3 vs 83.8 ms. | threshold 0 holds 96 MiB less, at no latency cost detectable at this n. Phase 4 has the powered latency comparison. |
+| R6 soak, 20 min | P and S, one process each, `--expose-gc` | 1 + 1 | 0 hash mismatches, no allocator error, no floor abort in either. P: 12 506 iterations, pool `reserved_cur` flat, VmRSS at minute 20 5.4 % over its first-5-minute high, latency drift under 1 %. S: 5 615 iterations, VmRSS 12.6 % over its first-5-minute high. Detail below. | P PASS (n = 1, below the protocol's 2); S over the 10 % RSS bound, without a pool |
+| CB1 (ruling 21) over R2 Node 25 | every private process | 150 | Primary `reserved_high` ≤ `maxSize`: **150/150**. Sanity check: 150/150 consistent, against 118 S-sync processes. | PASS (sanity check weak; below) |
+
+**Every Phase 3 failure was `cuInit`.** All 47 failures are the late-import
+`cuInit` refusal: the R4 rows without `--import`, P and S alike. No row
+failed for a pool reason.
+
+**R7.** Under concurrency the shipped synchronous path degrades sharply:
+at 8 concurrent processes a steady embed takes about 225 ms, against
+17.6 ms for P. P scales like the default pool.
+
+The default-pool processes in S's mixed trials ran 10–12 ms. They are not
+comparable with P's all-pool trials, because their sync neighbours keep
+the GPU less busy.
+
+**CB1 sanity check.** It is consistent in every process, but weak. Each
+process's `MemAvailable` drop from before open to after rerank had these
+medians:
+
+| Path | n | Median drop | IQR |
+| --- | --- | --- | --- |
+| sync | 118 | 205 MiB | 201–210 |
+| default | 32 | 218 MiB | 212–225 |
+| private | 150 | 224 MiB | 218–231 |
+
+So P costs about +19 MiB of `MemAvailable` over S-sync. Its pool reports
+`reserved_high` 160 MiB, so `MemAvailable` sees less than the pool
+reserves. Phase 1 found the same for `pool_capacity` on Tegra. The check
+bounds the excess from above only.
+
+**R6, per-minute samples** (`summaries/phase3-r6-soak.txt`):
+
+| | P (private) | S (sync) |
+| --- | --- | --- |
+| iterations in 20 min (embed + batch-32 + rerank + write 50 docs) | 12 506 | 5 615 |
+| steady embed, first 5 min max → last 5 min median | 22.2 → 22.0 ms | 46.0 → 43.8 ms |
+| batch-32 | 50.0 → 47.6 ms | 138.3 → 136.8 ms |
+| rerank | 8.6 → 8.5 ms | 13.2 → 12.4 ms |
+| VmRSS, minute 1 → 20 | 809 → 901 MiB (steps at minutes 4 and 9, then flat for 11 min) | 787 → 938 MiB (steps through minute 16) |
+| pool `reserved_cur` (stats event each minute) | 288 MiB flat, 20/20 samples | — |
+
+No latency drifts in either arm. P's minute 18 completed 324 iterations
+against about 630 in its neighbours, with unchanged per-call latency; the
+cause is unknown, because the soak samples the host only before and after
+the run. Both arms' VmRSS rises in steps, S's
+more than P's, while P's pool stays flat. The growth is therefore not
+pool memory; it is consistent with SQLite and allocator growth under 280k
+to 625k written documents. The soak is one process per arm (ruling 4: 15–30
+minutes), so it shows the absence of a fast leak, not a rate.
+
+### 12.7 Phase 4: allocation correctness and release, then performance
+
+Ruling 25 (owner, during Phase 4) ranks allocation correctness and release
+above latency, so this section reports them first. Summary:
+`summaries/phase4.txt`.
+
+**Series.** All on the revision-5 build, which includes the close fix
+(ruling 18). The witness was off and the no-swap condition held.
+
+| Series | Cells | Blocks | Runs |
+| --- | --- | --- | --- |
+| perf (`perf` mode: 5 warm-up + 50 timed calls each of steady embed, `embedBatchCls` at 1, 8, 32 and 128 texts, and rerank) | S, P threshold 0, P threshold `max`, B × Node 24, 25, 26 | 20, randomised | 240 |
+| extra S block (protocol § 7) | S × Node 24, 25, 26 | 20, randomised, run **after** the perf series | 60 |
+| Python P7 (`perf` mode, `wheel-p3`) | S, P, B, Node-free | 20, randomised | 60 |
+| ingest P5 (10 000 documents, 100 per write) | S, P | 5, randomised | 10 |
+| equivalence rerun (ruling 22) | production 0.8.26 S, revision-5 S | 20, randomised | 40 |
+| P1 rerun (ruling 22) | P, S | 20, randomised | 40 |
+
+#### 12.7.1 Allocation correctness and release (ruling 25)
+
+Every private-pool process on the revision-5 build, Phases 3 and 4. The
+state is the pool's own counters at the exit `teardown` event, after
+`engine.close()`:
+
+| Series | Mode | Private-pool processes passing | Pool after close: `reserved_cur` / `used_cur` / `reserved_high` (MiB) |
+| --- | --- | --- | --- |
+| R2 (Node 24, 25, 26), R3, R4 (the processes past `cuInit`) | `full` | 305/305 | 64 / 16.7 / 160, every process |
+| R7 concurrency, threshold 0 / `max` | `perf` | 280/280 | 192 / 143.4 / 288 (140) and 288 / 143.4 / 288 (140) |
+| R8, 60 s idle after close | `perf` | 20/20 | as R7 |
+| R6 soak, 20 min | soak | 1/1 | 192 / 143.4 / 288 |
+| Phase 4 Node perf, threshold 0 / `max` | `perf` | 120/120 | as R7 (60 + 60) |
+| Phase 4 Python perf | `perf` | 20/20 | 192 / 143.4 / 320 |
+| Phase 4 ingest | `ingest` | 5/5 | 64 / 16.7 / 160 |
+| **All** | | **751/751 [99.5, 100] %** | |
+
+1. **Every requested allocation that fits succeeds.**
+   - 751/751 private-pool processes passed, with no allocator error. That
+     includes 8 concurrent processes (R7) and 12 506 soak iterations.
+   - R1's synthetic pools filled to their measured capacity in 360/360.
+   - The only failures on the revision-5 build were:
+     - the late-import `cuInit` refusals (R4, P and S alike), which happen
+       before any pool exists;
+     - the deliberately oversized CB3 batch (Phase 2), which is meant to
+       fail.
+2. **Pool memory returns to its baseline after close.**
+   - **The baseline is the module-level singletons.** These hold their
+     models for the life of the process: the reranker behind `rerank()`
+     (16.7 MiB in use) and, in `perf` mode, the CLS embedder behind
+     `embedBatchCls` (143.4 MiB in total with the reranker). `used_cur` at
+     exit equals exactly that set in every process.
+   - **The engine's own embedder is released by `close()`.** While open,
+     `used_high` reaches 272 MiB. If close had kept the engine's model,
+     `used_cur` would stay about 127 MiB higher. (*Inferred* from the
+     counters; no per-allocation trace was taken.)
+   - **Threshold 0.** `reserved_cur` exceeds `used_cur` by 47–49 MiB, less
+     than two 32 MiB chunks. That fits ruling 20 (no wholly free chunk
+     stays reserved), but per-chunk occupancy was not instrumented.
+   - **Threshold `max`.** The pool keeps its high-water mark after close:
+     288 MiB, of which 145 MiB is free. This is one reason to prefer
+     threshold 0 (§ 12.7.2).
+   - **Over time.** C2 (§ 12.2) closed and reopened 50 times per process
+     with no growth beyond S's. In the soak, `reserved_cur` stayed at
+     288 MiB for 20 minutes.
+3. **Caps are respected.**
+   - `reserved_high` ≤ `maxSize` (CB1 primary) in every process checked:
+     Node perf 120/120, Python perf 20/20 and R2 150/150.
+   - The highest `reserved_high` anywhere was 320 MiB (Python perf),
+     against a 3072 MiB `maxSize` (1024 MiB capacity on this device, C3).
+4. **Exhaustion is typed.**
+   - In Phase 2 CB3, the cap error reached Node as `CudaPoolExhaustedError`
+     / `FDB_CUDA_POOL_EXHAUSTED` in 20/20 processes.
+   - In Python, Phase 2 CB3 surfaced it as `EmbedderError` with kind
+     `cuda_pool_exhausted` in 20/20. The revision-5 build adds the dedicated
+     `CudaPoolExhaustedError` (§ 12.1), shown once in the smoke.
+   - The next embed stayed on CUDA in 60/60 (CB4).
+   - **Gap:** the module-level `rerank()` string path (§ 12.1) is untyped.
+5. **No host-memory hogging.**
+   - At 8 concurrent pool processes, `MemAvailable` never fell below
+     45.7 GiB, and swap did not grow (R7).
+   - The CB1 sanity check was consistent in 150/150 `full`-mode processes
+     (R2).
+   - In `perf` mode it is **inconclusive** for 120/120: S's own
+     `MemAvailable` drops are bimodal (126–622 MiB), which gives a 442 MiB
+     noise band against the 256 MiB limit.
+   - With the extra S block in the baseline, all 120 are consistent (band
+     99 MiB). That block ran outside the interleave, so it is not counted.
+   - `MemAvailable` drop medians in the interleaved `perf` processes:
+
+     | Path | n | Median drop |
+     | --- | --- | --- |
+     | sync | 50 | 408 MiB |
+     | default pool | 21 | 440 MiB |
+     | B explicit | 49 | 426 MiB |
+     | P, threshold 0 | 60 | 440 MiB |
+     | P, threshold `max` | 60 | 459 MiB |
+
+     P is within the S spread.
+   - The Python processes recorded no `MemAvailable` at both points, so the
+     sanity check skipped them with that reason.
+
+#### 12.7.2 Performance gate (plan "Performance": ruling 3)
+
+**References.**
+
+- **S-sync (the floor):** S's synchronous-path processes, n = 99.
+- **Node default-pool reference (the target):** S's and B's processes that
+  took the default pool.
+  - Pooled n = 32. That is 21 from the interleaved series (S 10, B 11) plus
+    11 from the extra S block.
+  - By Node version: 15 (Node 24), 12 (Node 25) and 5 (Node 26).
+- **How often S got the default pool:** 10/60 in the interleaved series and
+  11/60 in the extra block; Node 26 only 3/40.
+- **Ratios** are medians of per-process medians, with a 95 % bootstrap
+  interval (the process is the unit). The reference's n follows every ratio.
+
+**Node, all versions pooled:**
+
+| Measure | P / default-pool reference | P / S-sync (speed-up) | P threshold `max` / threshold 0 | P / B explicit |
+| --- | --- | --- | --- | --- |
+| steady embed | 0.986 [0.907, 1.114] (n = 60/32) | 0.517 [0.479, 0.568] (1.93×) | 1.044 [0.938, 1.134] | 0.930 [0.865, 1.085] |
+| batch 1 | 0.999 [0.987, 1.011] (n = 60/32) | 0.356 [0.354, 0.359] (2.8×) | 0.998 [0.989, 1.006] | 1.002 [0.995, 1.014] |
+| batch 8 | 0.998 [0.972, 1.074] (n = 60/32) | 0.338 [0.332, 0.361] (3.0×) | 0.993 [0.912, 1.053] | 1.019 [0.930, 1.132] |
+| batch 32 | 0.993 [0.976, 1.007] (n = 60/32) | 0.239 [0.238, 0.240] (4.2×) | 0.998 [0.976, 1.006] | 1.007 [0.993, 1.075] |
+| batch 128 | 0.994 [0.944, 1.006] (n = 60/32) | 0.204 [0.204, 0.206] (4.9×) | 1.003 [0.995, 1.008] | 0.998 [0.993, 1.005] |
+| steady rerank | 0.981 [0.959, 1.003] (n = 60/32) | 0.658 [0.649, 0.665] (1.52×) | 1.016 [1.002, 1.035] | 1.014 [0.968, 1.046] |
+
+Medians: steady embed is 12.77 ms for P, 12.95 ms for the default pool and
+24.69 ms for S-sync. Steady rerank is 3.74, 3.81 and 5.68 ms.
+
+**Node, by version.** P / default-pool reference, steady embed:
+
+| Node | Ratio | n | |
+| --- | --- | --- | --- |
+| 24 | 0.986 [0.896, 1.296] | 20/15 | |
+| 25 | 0.989 [0.797, 1.122] | 20/12 | **underpowered** |
+| 26 | 1.095 [0.873, 1.359] | 20/5 | **underpowered** |
+
+The same per-version labels apply to every measure (`summaries/phase4.txt`).
+With only the interleaved reference (n = 21, Node versions pooled), steady
+embed is 0.990 [0.909, 1.174].
+
+**Python: the second default-pool reference.** This is not pooled with
+Node.
+
+- Python S took the default pool in **20/20** processes
+  ([83.9, 100] %). *Inferred:* a Python process has no V8 heap
+  reservations fragmenting its address space, so the default pool's
+  contiguous range is still available.
+- The Python bindings' overhead differs from Node's: for example, batch 32
+  takes 16.1 ms in Python against 30.6 ms in Node.
+
+P / Python S default pool (n = 20/20):
+
+| Measure | Ratio |
+| --- | --- |
+| steady embed | 0.921 [0.786, 1.006] |
+| batches 1–128 | 0.993–1.001, every interval within [0.983, 1.004] |
+| steady rerank | 1.011 [0.991, 1.033] |
+
+So in Python P costs nothing measurable against the default pool, and buys
+nothing either: Python S already gets the default pool.
+
+**Gate criteria** (plan, "Performance"):
+
+| Criterion | Result | Verdict |
+| --- | --- | --- |
+| Steady embed within 1.15× of the default pool | 0.986 [0.907, 1.114] (n = 60/32) | PASS (bounded at 1.114); per version underpowered for Node 25 and 26 |
+| Steady rerank within 1.15× of the default pool | 0.981 [0.959, 1.003] (n = 60/32) | PASS |
+| 95 % CI of the speed-up over S-sync above 1.5× | embed 1.93× [1.76, 2.09] | PASS |
+| (same criterion, rerank) | rerank 1.52× [1.504, 1.541] (n = 60/99); on the interleaved S alone (n = 50) [1.499, 1.538] | **marginal**: PASS at 1.504 with the extra block, short by 0.001 without it. The default pool itself reaches only 1.49× over S-sync on rerank (3.81 vs 5.68 ms), so the 1.5× floor is at the limit of the target for this measure. |
+| First embed no worse than S | P / S-sync 0.903 [0.865, 0.931]; P / default pool 0.959 [0.916, 1.006] | PASS |
+| Ingest throughput no worse than S | P / S 1.012 [0.917, 1.451]: 9954 vs 9836 documents/s, n = 5/5 (S: sync 3, default 2) | PASS on the point estimate; bounded at 0.917 (n = 5) |
+| Import time ≤ 5 ms above S | +0.6 ms [−3.3, 5.8] (n = 20/20; 148.9 vs 148.4 ms) | PASS (bounded at 5.8 ms) |
+| RSS overhead ≤ 32 MiB above S | 10.4 vs 10.3 MiB import RSS delta | PASS |
+
+**P meets the performance gate on the pooled Node data.**
+
+- It runs at the default pool's speed: every measure is within 2 % at the
+  point estimate, and the embed interval stays under 1.15.
+- It is 1.9–4.9× faster than the synchronous path on embeds.
+- Its first embed is faster than S's.
+
+The weak points:
+
+- the rerank speed-up floor is marginal;
+- the per-version reference is underpowered for Node 25 and 26 (Node 26
+  rarely gets the default pool at all);
+- ingest has n = 5.
+
+**Threshold.** `max` gains nothing over threshold 0:
+
+- embed 1.044 [0.938, 1.134];
+- batches 0.993–1.003;
+- rerank 1.016 [1.002, 1.035], slightly slower.
+
+Threshold `max` also keeps 96 MiB more after close (§ 12.7.1, R8). **Recommend
+threshold 0.**
+
+**P against B (installed explicit pool):** equal within every interval.
+
+#### 12.7.3 Equivalence and P1 reruns (ruling 22)
+
+- **Equivalence** (fixed interleave), 20 + 20 processes:
+  - one embedding hash (`d9dafb8c410005f3`) and one rerank score set
+    across production 0.8.26 S and revision-5 S;
+  - sync-path steady embed, revision-5 / production: 0.998
+    [0.989, 1.009] (n = 15/17);
+  - stream path: 0.975 [0.693, 1.066] (n = 5/3, underpowered).
+
+  The revision-5 build does not change S.
+- **P1:** P − S import is +0.6 ms [−3.3, 5.8]. Import RSS delta: 10.4 vs
+  10.3 MiB. P adds nothing at import, as in Phase 1, now with randomised
+  blocks.
+
+#### 12.7.4 C7 on the revision-5 build
+
+Python `reset` mode, 10 S + 10 P without gdb and 3 + 3 under gdb.
+Evidence: `summaries/rev5-c7-close-build.txt` and
+`samples/rev5-c7-gdb-close-S-run-1.txt`.
+
+- **Exit status.** 10/10 S and 10/10 P end in SIGSEGV (exit 139),
+  against S 13/20 and P 19/20 on the revision-4 build (§ 11.4).
+- **No JSON record.** The crash now comes before the harness prints its
+  record. The harness now writes the reset record to stderr before
+  `close()`.
+- **First errors after the reset** are unchanged in 6/6:
+  - `embed_batch_cls`: `CUDA_ERROR_CONTEXT_IS_DESTROYED`;
+  - `engine.embed`: "embedder error";
+  - `rerank`: `CudaProbeFailed` as `WriteValidationError`;
+  - the driver context is usable.
+- **The crash moved into `close()`.** All 6 gdb runs, S and P alike, have
+  this stack:
+
+  ```text
+  libcuda.so
+  cudarc::driver::safe::core::CudaStream::wait
+  <cudarc::driver::safe::core::CudaSlice<T> as Drop>::drop
+  drop_in_place<candle_transformers::models::bert::BertModel>
+  drop_in_place<fathomdb_embedder::candle_bge::CandleBgeEmbedder>
+  fathomdb_engine::embed_dispatch::core::EmbedDispatcher::join_after_quiescence
+  fathomdb_engine::runtime_lifecycle::<impl Engine>::close
+  fathomdb_py::engine::PyEngine::__pymethod_close__
+  ```
+
+- **What the close fix changed.** The fix drops the model inside
+  `close()`, where it used to be dropped at Python dealloc. So the same
+  cudarc drop fault (§ 12.3) now fires earlier and deterministically.
+- **No study guard.** It is still not the study's pool code, and no
+  `teardown` event printed. So no study guard applies (ruling 19).
+- **Effect on S.** After a co-resident reset, the close fix turns S's
+  "13/20 crash at exit" into "crash in `close()` every time".
+- **Who decides.** The fault is pre-existing, in every variant, and
+  belongs to the owner's C7 ruling and the cudarc drop path. It is not a
+  pool result.
+
+#### 12.7.5 The cherry-picked close fix is not the one to adopt
+
+`f0b6b4c7e` (the study's cherry-pick of `c816b8653`) has a P1 defect found
+by an external review:
+
+- `join_until` in the engine's `core.rs` drops the provider `Arc` while
+  holding three locks: the provider mutex, the handles guard and
+  `Engine::close`'s `close_lock`.
+- A caller-supplied embedder whose `Drop` re-enters `Engine::close`
+  therefore deadlocks.
+- FathomDB's built-in Candle embedders do not re-enter, so every study
+  result here stands.
+
+**`f0b6b4c7e` must be replaced by the corrected fix before any adoption.**
+C2 and a Phase 4 spot check should be re-run on the corrected fix.
+
+### 12.8 Decision-table rows (revision 5)
+
+| Clause or criterion | Status | Evidence |
+| --- | --- | --- |
+| Allocation correctness (ruling 25) | PASS: 751/751 [99.5, 100] % private-pool processes; no allocator error | § 12.7.1 |
+| Release after close (ruling 25) | PASS: the engine's model is released; the module singletons stay (16.7 / 143.4 MiB); threshold 0 spare < 2 chunks | § 12.7.1 |
+| C2 lifetime (50 cycles, no GC; close fix) | PASS (40/40 [91.2, 100] %; S growth gone) | § 12.2 |
+| C7 co-resident reset | FAIL for every variant, S included; the crash is now in `close()` (6/6 gdb); not the pool | § 12.3, § 12.7.4 |
+| CB1 cap (ruling 21) | primary PASS (290/290 checked); sanity check consistent 150/150 (`full`), inconclusive 120/120 (`perf`, noise) | § 12.5, § 12.6, § 12.7.1 |
+| CB2 (ruling 20) | PASS at threshold 0 (inferred per chunk) | § 12.7.1 |
+| CB3 typed cap error | PASS (Phase 2; Python subclass added, smoke n = 1); rerank string gap | § 11.6, § 12.1 |
+| R1 synthetic layouts | PASS (bounded at 98.9 %) | § 12.6 |
+| R2, R3 real heaps | PASS | § 12.6 |
+| R4 late import | needs `--import` (ruling 12); P = S without it | § 12.6 |
+| R6 soak | P PASS (n = 1, protocol asks 2) | § 12.6 |
+| R7 concurrency | PASS (280/280) | § 12.6 |
+| R8 threshold | threshold 0 recommended | § 12.6, § 12.7.2 |
+| Performance gate (Node) | PASS pooled; rerank 1.5× floor marginal; Node 25/26 reference underpowered | § 12.7.2 |
+| Performance (Python) | P = default pool (n = 20/20); Python S is never synchronous here | § 12.7.2 |
+| Equivalence, P1 reruns | PASS | § 12.7.3 |
+| Owner's close fix shipped (ruling 18) | NOT YET; the study's cherry-pick has a P1 deadlock and must be replaced | § 12.7.5 |
+
+**Against the decision rule** (protocol § 8.2): on this host P-first-use
+passes the allocation, release, cap and performance rows. It cannot become
+the default yet:
+
+- the owner's close fix has not shipped (ruling 18), and the cherry-picked
+  form must be replaced;
+- C7 is unruled (ruling 19);
+- R4 requires early `cuInit` at module load (ruling 12).
+
+### 12.9 Deviations (revision 5)
+
+1. **R6** ran one process per arm, not two.
+2. **The extra S block ran after the perf series**, not interleaved with
+   it. The protocol adds it as a separate block. Ratios are given with it
+   and, for steady embed, without it. The CB1 sanity baseline excludes it.
+3. **The extra block's trigger.** The pooled interleaved reference
+   (n = 21) was already above the protocol's trigger of 15. The block was
+   run anyway, because the per-version references (8, 8 and 5) were not.
+4. **C7 on the revision-5 build.** The 20 non-gdb runs left no JSON
+   record. The harness change that writes the reset record before
+   `close()` was made after them, and the 6 gdb runs used it.
+5. **Python** recorded no `MemAvailable` pair, so the CB1 sanity check
+   skipped those 20 processes.
+6. **R4** cells without `--import` are expected failures (`cuInit`). They
+   are not pool failures.
+
+### 12.10 GPU time (revision 5)
+
+Lock-held time, UTC:
+
+| Part | Time |
+| --- | --- |
+| C7 investigation, gdb (revision-4 wheel) | about 1.5 min |
+| Revision-5 smoke and the soak smoke | about 6 min |
+| C2 on the close fix, 22:33:34–22:49:21 | 15.8 min |
+| Phase 3, 22:52:31–01:45:46 | 173.3 min |
+| Phase 4, 01:45:59–03:25:11 | 99.2 min |
+| Extra S block, 03:25:16–04:01:10 | 35.9 min |
+| C7 gdb on the revision-5 build | about 0.5 min |
+| **Total** | **about 5 h 32 min** |
+
+Builds ran outside the lock.
+
+### 12.11 What needs a ruling
+
+1. **Close fix.** Adopt the owner's *corrected* fix in place of
+   `c816b8653` / `f0b6b4c7e` (the P1 deadlock). Then re-run C2 and a
+   Phase 4 spot check on it.
+2. **C7.** The crash after a co-resident reset now fires inside `close()`
+   for every variant, in 10/10 processes. Choose one:
+   - rule it "unsupported, recorded";
+   - fund a cudarc drop-path fix: skip the wait and the free when the
+     context is destroyed (§ 12.3).
+3. **Rerank speed-up floor.** The 1.5× floor over S-sync is at the edge
+   of what the default pool itself reaches on rerank (1.49×). Choose one:
+   - accept P's 1.52× [1.504, 1.541];
+   - re-base the rerank floor on the default pool's own speed-up.
+4. **Per-version power.** The Node 25 and 26 default-pool references are
+   n = 12 and 5. Node 26 rarely gets the default pool (3/40 S).
+   Choose one:
+   - accept the pooled reference, plus Python's (n = 20, default 20/20);
+   - fund more S blocks on Node 26. The default pool is rare there, so this
+     would need about 130 more S runs per 10 default-pool processes
+     (3/40 = 7.5 %).
+5. **Threshold.** Make threshold 0 the default. `max` costs 96 MiB more
+   after close and gains no speed.
+6. **Sizing beyond this device** (§ 12.4). Choose one:
+   - enable only for integrated Tegra devices of about 64 GB, with a
+     Tegra-identity condition so that GB10-class unified-memory devices do
+     not inherit 3 GiB unmeasured;
+   - make it opt-in elsewhere until a C3 run and an R5 run exist on that
+     device.
+7. **Module-level singletons.** `rerank()` and `embedBatchCls` keep
+   their models, and so 16.7–143.4 MiB of pool, for the life of the
+   process, past every `engine.close()`. This is the shipped behaviour on
+   every path, not a pool effect. Choose one:
+   - accept and document it;
+   - add a release API.
+8. **Typed exhaustion gaps for adoption:**
+   - the module-level `rerank()` string path;
+   - shipping the Python `CudaPoolExhaustedError` subclass beyond the
+     experiment.
+9. **CB1's sanity observable** is noisy in `perf` mode (`MemAvailable`
+   drops are bimodal). Choose one:
+   - accept the primary check alone off `full` mode;
+   - fund a root-readable nvmap source.
+10. **R4 late import** remains a precondition: early `cuInit` at module
+    load (ruling 12).

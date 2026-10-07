@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 prework — Tegra CUDA memory-pool experiment protocol
-status: PROPOSED (revision 5, 2026-10-06; owner rulings 12-24 applied)
+status: PROPOSED (revision 5, 2026-10-06; owner rulings 12-25 applied)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
@@ -206,6 +206,21 @@ are amended to match.
     (results § 12.4).
   - Only the runtime detection and the sizing function are implemented,
     behind the experiment feature, with pure tests for each case.
+- **Ruling 25 (2026-10-06, during Phase 4): allocation correctness and
+  release rank above latency.** The Phase 4 report leads with them:
+  - every requested allocation that fits succeeds;
+  - the pool's reserved memory returns to its baseline after release or
+    close;
+  - caps are respected;
+  - exhaustion is typed;
+  - no host-memory hogging.
+
+  Latency against the S-sync floor and the default-pool target follows.
+  Every P-to-default-pool ratio states the Node reference's n, and is
+  labelled underpowered when n < 15. Python S processes that take the
+  default pool form a second default-pool reference. It is reported
+  separately, never pooled with Node, because the binding overheads
+  differ.
 
 Phase 4 timing runs on the build that includes the close fix, so the
 comparisons describe the code that would ship.

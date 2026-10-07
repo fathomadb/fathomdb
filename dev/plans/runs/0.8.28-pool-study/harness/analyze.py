@@ -10,6 +10,8 @@ Usage: analyze.py <command> <paths...>
   r5b ROOT          R5 revision 3 (chunked, interleaved cells pooled by label).
   poolloc ROOT...   Where the pool's first pages land relative to the driver reservation.
   phase2 ROOT       Phase 2 rows (C1/C2/C8/C9/C9b, CB1-CB4, trim arm).
+  phase3 ROOT       Phase 3 rows (R1-R4, R6-R8, CB1 per ruling 21).
+  phase4 ROOT       Phase 4 performance gate, equivalence and P1 reruns, P5, P7.
   r5 DIR            R5 lazy creation: DIR/<cell>/run-*.json (+ maps).
   p1 DIR            P1 import cost: DIR/<variant>/run-*.json.
   hw DIR...         Workload high-water marks from teardown events.
@@ -775,6 +777,356 @@ def cmd_hw(*dirs):
         if hs:
             print(f"  {d.rstrip('/').split('/')[-1]}: n={len(hs)} used_high max {max(h[0] for h in hs) / MiB:.1f} MiB, "
                   f"reserved_high max {max(h[1] for h in hs) / MiB:.1f} MiB")
+
+
+# ------------------------------------------------------------- Phases 3 and 4
+def _proc_meds(r):
+    """Per-process medians of the perf measures."""
+    t = r.get("timingsMs") or {}
+    out = {}
+    if t.get("embedSteady"):
+        out["embed"] = med(t["embedSteady"])
+    for size, xs in (t.get("embedBatch") or {}).items():
+        if xs:
+            out[f"batch{size}"] = med(xs)
+    if t.get("rerankSteady"):
+        out["rerank"] = med(t["rerankSteady"])
+    return out
+
+
+def _teardown(r):
+    td = _ev(r, "teardown")
+    return td[-1] if td else {}
+
+
+def _install(r):
+    ins = _ev(r, "install")
+    return ins[0] if ins else {}
+
+
+def _cb1(cells):
+    """CB1 (ruling 21) over full/perf processes: primary bound and the
+    integrated-only MemAvailable sanity check against S's sync processes."""
+    import cb1check
+
+    def drop(r):
+        p = (r.get("mem") or {}).get("points") or {}
+        a, b = (p.get("beforeOpen") or {}).get("memAvailMiB"), (p.get("afterRerank") or {}).get("memAvailMiB")
+        return a - b if a is not None and b is not None else None
+
+    base = [drop(r) for rs in cells.values() for r in rs if r.get("allocMode") == "sync" and drop(r) is not None]
+    prim, san = defaultdict(int), defaultdict(int)
+    reasons = defaultdict(int)
+    for rs in cells.values():
+        for r in rs:
+            if r.get("allocMode") != "private":
+                continue
+            t, ins = _teardown(r), _install(r)
+            rh = int(t["reserved_high"]) if t.get("reserved_high", "-") not in ("-", None) else None
+            ms = int(ins.get("max_size") or t.get("max_size") or 0)
+            prim[cb1check.primary(rh, ms)] += 1
+            integ = {"1": True, "0": False}.get(ins.get("integrated"))
+            status, why = cb1check.sanity(integ, drop(r), base, (rh or 0) / MiB)
+            san[status] += 1
+            reasons[why.split(" MiB")[0] if status != "consistent" else "consistent"] += 1
+    band = f", median {med(base):.0f} MiB, noise band {cb1check.noise_band(base):.0f} MiB" if base else ""
+    print(f"CB1 primary (reserved_high <= maxSize): {dict(prim)}; sanity: {dict(san)} (baseline n={len(base)}{band})")
+    if any(k != "consistent" for k in san):
+        print("  sanity reasons:", dict(reasons))
+
+
+def _release(label, cells):
+    """Ruling 25: pass rate of every pool process and its pool state at the
+    exit teardown (after engine.close()), by threshold."""
+    n = ok = 0
+    states = defaultdict(int)
+    failures = defaultdict(int)
+    for rs in cells.values():
+        for r in rs:
+            if r.get("allocMode") != "private":
+                continue
+            n += 1
+            ok += r.get("outcome") == "pass"
+            if r.get("outcome") != "pass":
+                failures[(r.get("failedStep"), (r.get("error") or {}).get("message", "")[:80])] += 1
+            t = _teardown(r)
+
+            def mib(k, t=t):
+                v = t.get(k)
+                return "-" if v in (None, "-") else f"{int(v) / MiB:.1f}"
+
+            thr = {"0": "0", None: "-"}.get(t.get("threshold"), "max")
+            states[(thr, mib("reserved_cur"), mib("used_cur"), mib("reserved_high"), mib("max_size"))] += 1
+    lo, hi = wilson(ok, n) if n else (0, 0)
+    print(f"  {label}: private processes {ok}/{n} pass [{100 * lo:.1f}, {100 * hi:.1f}] %")
+    for k, v in sorted(failures.items()):
+        print(f"    failure x{v}: {k}")
+    for k, v in sorted(states.items()):
+        print(f"    x{v} teardown threshold={k[0]} reserved_cur={k[1]} used_cur={k[2]} reserved_high={k[3]} maxSize={k[4]} MiB")
+
+
+def cmd_phase3(root):
+    """Phase 3 rows: R1-R4, R6-R8 (protocol revision 5)."""
+    print("## Phase 3 pass rates (R2, R3, R4)\n")
+    print("| Cell | n | Pass (Wilson 95 %) | allocMode | failed steps | embed hashes |")
+    print("| --- | --- | --- | --- | --- | --- |")
+    for sub in ("r2-n25", "r2-n24-26", "r3", "r4"):
+        cells = _cells(os.path.join(root, sub))
+        for cell in sorted(cells):
+            rs = cells[cell]
+            p = sum(r.get("outcome") == "pass" for r in rs)
+            modes = defaultdict(int)
+            steps = defaultdict(int)
+            for r in rs:
+                modes[r.get("allocMode")] += 1
+                if r.get("outcome") != "pass":
+                    steps[r.get("failedStep")] += 1
+            hashes = {r.get("embedSha") for r in rs if r.get("embedSha")}
+            print(f"| {sub}/{cell} | {len(rs)} | {fmt_wilson(p, len(rs))} | {dict(modes)} | {dict(steps) or '-'} | {', '.join(sorted(hashes)) or '-'} |")
+        if sub == "r2-n25":
+            _cb1(cells)
+    errs = defaultdict(int)
+    for sub in ("r2-n25", "r2-n24-26", "r3", "r4"):
+        for rs in _cells(os.path.join(root, sub)).values():
+            for r in rs:
+                if r.get("outcome") != "pass":
+                    errs[((r.get("error") or {}).get("message") or "")[:140]] += 1
+    if errs:
+        print("\nFailure messages:")
+        for m, k in sorted(errs.items(), key=lambda x: -x[1])[:10]:
+            print(f"  {k} x {m}")
+
+    print("\n## R7 concurrency\n")
+    print("| Series | trials x k | processes pass | allocMode | min MemAvailable MiB | max swap rise KiB | embed steady ms, median of process medians |")
+    print("| --- | --- | --- | --- | --- | --- | --- |")
+    for d in sorted(glob.glob(os.path.join(root, "r7-*"))):
+        rs = runs(d)
+        p = sum(r.get("outcome") == "pass" for r in rs)
+        modes = defaultdict(int)
+        for r in rs:
+            modes[r.get("allocMode")] += 1
+        mins, swaps = [], []
+        for f in glob.glob(os.path.join(d, "mem-*.tsv")):
+            rows = [ln.split("\t") for ln in open(f) if ln.strip()]
+            if rows:
+                mins.append(min(int(x[1]) for x in rows) / 1024)
+                swaps.append(max(int(x[2]) for x in rows) - int(rows[0][2]))
+        em = [m["embed"] for r in rs if (m := _proc_meds(r)).get("embed")]
+        hdr = open(os.path.join(d, "series-header.txt")).read()
+        k = re.search(r"k=(\d+)", hdr).group(1)
+        t = re.search(r"trials=(\d+)", hdr).group(1)
+        print(f"| {os.path.basename(d)} | {t} x {k} | {fmt_wilson(p, len(rs))} | {dict(modes)} | "
+              f"{min(mins) if mins else float('nan'):.0f} | {max(swaps) if swaps else 0} | {med(em) if em else float('nan'):.2f} |")
+
+    print("\n## R8 threshold: perf, close, 60 s idle\n")
+    cells = _cells(os.path.join(root, "r8"))
+    em = {}
+    for cell in sorted(cells):
+        rs = cells[cell]
+        rc = [int(_teardown(r).get("reserved_cur", 0)) / MiB for r in rs if _teardown(r).get("reserved_cur", "-") != "-"]
+        rh = [int(_teardown(r).get("reserved_high", 0)) / MiB for r in rs if _teardown(r).get("reserved_high", "-") != "-"]
+        em[cell] = [m["embed"] for r in rs if (m := _proc_meds(r)).get("embed")]
+        b128 = [m["batch128"] for r in rs if (m := _proc_meds(r)).get("batch128")]
+        print(f"  {cell}: n={len(rs)} pass={sum(r.get('outcome') == 'pass' for r in rs)} reserved_cur after idle median {med(rc):.0f} max {max(rc):.0f} MiB; "
+              f"reserved_high max {max(rh):.0f} MiB; embed {med(em[cell]):.2f} ms; batch128 {med(b128):.1f} ms")
+    ks = sorted(em)
+    if len(ks) == 2:
+        lo, hi = boot_ratio(em[ks[1]], em[ks[0]])
+        print(f"  embed ratio {ks[1]} / {ks[0]}: {med(em[ks[1]]) / med(em[ks[0]]):.3f} [{lo:.3f}, {hi:.3f}]")
+
+    print("\n## R1 synthetic layouts (pool_capacity)\n")
+    res = parse_results([os.path.join(root, "r1")]) if os.path.exists(os.path.join(root, "r1", "results.txt")) else []
+    groups = defaultdict(list)
+    for r in res:
+        tag = r.get("tag", "")
+        g = re.sub(r"-s\d+", "", tag.split("#")[0])
+        groups[g].append(r)
+    for g in sorted(groups):
+        rs = groups[g]
+        created = [r for r in rs if r.get("allocated_mib", "-1") != "-1"]
+        alloc = [int(r["allocated_mib"]) for r in created]
+        print(f"  {g}: n={len(rs)} pool created and filled {fmt_wilson(len(created), len(rs))}; "
+              f"allocated MiB min {min(alloc) if alloc else '-'} max {max(alloc) if alloc else '-'}; first errors {dict(defaultdict(int, {e: sum(1 for r in rs if r.get('first_error') == e) for e in {r.get('first_error') for r in rs}}))}")
+
+    print("\n## R6 soak\n")
+    for d in sorted(glob.glob(os.path.join(root, "r6-*"))):
+        for r in runs(d):
+            s = r.get("soak") or {}
+            sm = s.get("samples") or []
+            print(f"  {os.path.basename(d)}: outcome {r.get('outcome')} allocMode {r.get('allocMode')} iterations {s.get('iterations')} "
+                  f"docs {s.get('docs')} mismatches {s.get('mismatches')} aborted {s.get('aborted')}")
+            if sm:
+                first = sm[:5]
+                last = sm[-5:]
+                for key in ("rssMiB", "embedMs", "batch32Ms", "rerankMs", "memAvailMiB"):
+                    print(f"    {key}: first-5-min max {max(x[key] for x in first):.1f}, last-5-min median {med([x[key] for x in last]):.1f}, overall max {max(x[key] for x in sm):.1f}")
+            st = [e for e in r.get("poolEvents", []) if e.get("event") == "stats"]
+            if st:
+                rc = [int(e["reserved_cur"]) / MiB for e in st if e.get("reserved_cur", "-") != "-"]
+                if rc:
+                    print(f"    pool reserved_cur per minute: first {rc[0]:.0f}, max {max(rc):.0f}, last {rc[-1]:.0f} MiB (n={len(rc)})")
+
+
+def cmd_phase4(root):
+    """Phase 4 performance: P against the S synchronous floor and the
+    default-pool reference, by allocMode; equivalence, P1, Python, ingest."""
+    cells = _cells(os.path.join(root, "perf"))
+    # The extra S block (protocol section 7) when the default-pool reference is short.
+    cells.update({f"extra/{c}": rs for c, rs in _cells(os.path.join(root, "perf-sextra")).items()})
+    groups = defaultdict(lambda: defaultdict(list))  # (node, group) -> measure -> per-process medians
+    counts = defaultdict(int)
+    for cell, rs in cells.items():
+        node = re.search(r"-n(\d\d)", cell).group(1)
+        for r in rs:
+            if r.get("outcome") != "pass":
+                continue
+            mode = r.get("allocMode")
+            if "P-thrmax" in cell:
+                g = "P-thrmax"
+            elif mode == "private":
+                g = "P-thr0"
+            elif mode == "sync":
+                g = "S-sync"
+            elif mode == "default":
+                g = "default-ref"
+            elif mode == "explicit":
+                g = "B-explicit"
+            else:
+                g = f"other-{mode}"
+            counts[(node, g)] += 1
+            for k, v in _proc_meds(r).items():
+                groups[(node, g)][k].append(v)
+                groups[("all", g)][k].append(v)
+    print("## Phase 4 perf: processes per group\n")
+    for k in sorted(counts):
+        print(f"  Node {k[0]} {k[1]}: {counts[k]}")
+    measures = ["embed", "batch1", "batch8", "batch32", "batch128", "rerank"]
+    print("\n## Medians of per-process medians (ms), all Node versions pooled\n")
+    gs = ["S-sync", "default-ref", "P-thr0", "P-thrmax", "B-explicit"]
+    print("| Measure | " + " | ".join(f"{g} (n)" for g in gs) + " |")
+    print("| --- |" + " --- |" * len(gs))
+    for m in measures:
+        row = []
+        for g in gs:
+            xs = groups[("all", g)].get(m, [])
+            row.append(f"{med(xs):.2f} ({len(xs)})" if xs else "-")
+        print(f"| {m} | " + " | ".join(row) + " |")
+    print("\n## Gate ratios (ruling 3): P / default-pool reference (target <= ~1) and P / S-sync (floor, must be < 1)\n")
+    print("| Node | Measure | P-thr0 / default-ref [95 %] | P-thr0 / S-sync [95 %] | P-thrmax / P-thr0 [95 %] | P-thr0 / B-explicit [95 %] |")
+    print("| --- | --- | --- | --- | --- | --- |")
+    for node in ("all", "24", "25", "26"):
+        for m in measures:
+            p = groups[(node, "P-thr0")].get(m, [])
+            ref = groups[(node, "default-ref")].get(m, [])
+            s = groups[(node, "S-sync")].get(m, [])
+            pm = groups[(node, "P-thrmax")].get(m, [])
+
+            def rr(a, b, reference=False):
+                if not a or not b:
+                    return "-"
+                lo, hi = boot_ratio(a, b)
+                # Owner instruction 2026-10-06: a default-pool reference under
+                # 15 processes is labelled underpowered beside its ratio.
+                flag = " UNDERPOWERED" if reference and len(b) < 15 else ""
+                return f"{med(a) / med(b):.3f} [{lo:.3f}, {hi:.3f}] (n={len(a)}/{len(b)}){flag}"
+
+            bx = groups[(node, "B-explicit")].get(m, [])
+            print(f"| {node} | {m} | {rr(p, ref, True)} | {rr(p, s)} | {rr(pm, p)} | {rr(p, bx)} |")
+    print("\n## Allocation correctness and release (ruling 25)\n")
+    _release("Node perf", cells)
+    for sub in ("py", "ingest"):
+        sc = _cells(os.path.join(root, sub))
+        if sc:
+            _release(sub, sc)
+    print()
+    # The sanity baseline is S's synchronous processes of the same interleaved
+    # series; the extra S block ran afterwards, outside the interleave.
+    _cb1({k: v for k, v in cells.items() if not k.startswith("extra/")})
+    print("With the extra S block in the baseline (not interleaved with P):", end=" ")
+    _cb1(cells)
+    if _cells(os.path.join(root, "py")):
+        print("Python:", end=" ")
+        _cb1(_cells(os.path.join(root, "py")))
+
+    eq = _cells(os.path.join(root, "equiv"))
+    if eq:
+        print("\n## Equivalence rerun (production 0.8.26 vs revision-5 build, S)\n")
+        for cell in sorted(eq):
+            rs = eq[cell]
+            by = defaultdict(list)
+            for r in rs:
+                by[r.get("allocMode") if r.get("allocMode") != "none" else inferred_path(steady_median(r))].append(steady_median(r))
+            hashes = {r.get("embedSha") for r in rs}
+            scores = {json.dumps(r.get("rerankScores")) for r in rs}
+            print(f"  {cell}: n={len(rs)} pass={sum(r.get('outcome') == 'pass' for r in rs)} hashes={hashes} score-sets={len(scores)} "
+                  + "; ".join(f"{k}: n={len(v)} median {med([x for x in v if x is not None]):.2f} ms" for k, v in by.items()))
+        prod = [r for c, rs in eq.items() if "prod" in c for r in rs]
+        exp = [r for c, rs in eq.items() if "expS" in c for r in rs]
+        for path in ("sync", "stream"):
+            a = [steady_median(r) for r in exp if (r.get("allocMode") == "sync") == (path == "sync") and steady_median(r)]
+            b = [steady_median(r) for r in prod if inferred_path(steady_median(r)) == path]
+            if a and b:
+                lo, hi = boot_ratio(a, b)
+                print(f"  steady embed, {path} path, revision-5 S / production: {med(a) / med(b):.3f} [{lo:.3f}, {hi:.3f}] (n={len(a)}/{len(b)})")
+    p1 = _cells(os.path.join(root, "p1"))
+    if p1:
+        print("\n## P1 rerun (import cost)\n")
+        imp = {c: [r["timingsMs"]["import"] for r in rs if r.get("timingsMs", {}).get("import")] for c, rs in p1.items()}
+        rss = {c: [r["mem"]["importRssDeltaMiB"] for r in rs if r.get("mem", {}).get("importRssDeltaMiB") is not None] for c, rs in p1.items()}
+        ks = sorted(imp)
+        for c in ks:
+            print(f"  {c}: n={len(imp[c])} import median {med(imp[c]):.1f} ms, RSS delta median {med(rss[c]):.1f} MiB")
+        if len(ks) == 2:
+            d = boot_diff(imp[ks[0]], imp[ks[1]])
+            print(f"  {ks[0]} - {ks[1]} import: {med(imp[ks[0]]) - med(imp[ks[1]]):.1f} ms [{d[0]:.1f}, {d[1]:.1f}]")
+    py = _cells(os.path.join(root, "py"))
+    if py:
+        print("\n## P7 Python perf (ms; by allocMode)\n")
+        pg = defaultdict(lambda: defaultdict(list))
+        for cell, rs in py.items():
+            for r in rs:
+                if r.get("outcome") == "pass":
+                    variant = cell.rsplit("-", 1)[-1]
+                    for k, v in _proc_meds(r).items():
+                        pg[f"{variant}-{r.get('allocMode')}"][k].append(v)
+        for g in sorted(pg):
+            print(f"  {g}: " + "; ".join(f"{m} {med(pg[g][m]):.2f} (n={len(pg[g][m])})" for m in measures if pg[g].get(m)))
+        py_modes = defaultdict(int)
+        for cell, rs in py.items():
+            if "-S" in cell:
+                for r in rs:
+                    py_modes[r.get("allocMode")] += 1
+        print(f"  Python S allocMode (the second default-pool reference; not pooled with Node): {dict(py_modes)}")
+        if pg.get("P-private") and pg.get("S-default"):
+            print("  P (private) / Python S default-pool reference:")
+            for m in measures:
+                a, b = pg["P-private"].get(m), pg["S-default"].get(m)
+                if a and b:
+                    lo, hi = boot_ratio(a, b)
+                    flag = " UNDERPOWERED" if len(b) < 15 else ""
+                    print(f"    {m}: private / default {med(a) / med(b):.3f} [{lo:.3f}, {hi:.3f}] (n={len(a)}/{len(b)}){flag}")
+    ing = _cells(os.path.join(root, "ingest"))
+    if ing:
+        print("\n## P5 ingest (10 000 documents)\n")
+        dps = {c: [r["ingest"]["docsPerSecond"] for r in rs if r.get("ingest")] for c, rs in ing.items()}
+        for c in sorted(dps):
+            print(f"  {c}: n={len(dps[c])} docs/s median {med(dps[c]):.0f} (min {min(dps[c]):.0f}, max {max(dps[c]):.0f}); allocModes {dict(defaultdict(int, {m: sum(1 for r in ing[c] if r.get('allocMode') == m) for m in {r.get('allocMode') for r in ing[c]}}))}")
+        ks = sorted(dps)
+        if len(ks) == 2:
+            lo, hi = boot_ratio(dps[ks[0]], dps[ks[1]])
+            print(f"  {ks[0]} / {ks[1]}: {med(dps[ks[0]]) / med(dps[ks[1]]):.3f} [{lo:.3f}, {hi:.3f}]")
+    for v in ("S", "P"):
+        rs = runs(os.path.join(root, f"c7-reset-{v}"))
+        if rs:
+            ex = defaultdict(int)
+            for r in rs:
+                ex[r.get("exitCode")] += 1
+            oc = defaultdict(int)
+            for r in rs:
+                oc[r.get("outcome")] += 1
+            # A crash inside close() leaves no JSON record ("noresult"); the
+            # gdb rerun (summaries/rev5-c7-close-build.txt) has the frames.
+            print(f"\nC7 reset on the revision-5 build, {v}: n={len(rs)} exit codes {dict(ex)}; outcomes {dict(oc)}")
 
 
 if __name__ == "__main__":

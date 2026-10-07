@@ -14,3 +14,6 @@ f3a07361d5796eba22601ee7bd55d36f097b06a321d7b41aead9183a38b2b525  bin/pool_capac
 51e01fa4109c0440fe3e3574e1aff01fd63ec22a1bea06508ebf1b4de3bc42da  consumer-p3/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
 b7a8d1aa8925ec718633fb7811496d08ff8c42cbccbce989ca31396877e1cb03  wheel-p2/fathomdb-0.8.26-cp310-abi3-manylinux_2_34_aarch64.whl
 1aae9eded09d942a7b06cf570cb0079f0e8e72ab7c4baa706f2040ad57d5b651  bin/pool_reset
+# Revision 5 (Phases 3-4; owner close fix cherry-picked)
+ee544bbbc37729cbfc824851ab9e0b536d75b2e1a8e392bbbc88a449a19c9c36  consumer-p4/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
+ba87181dc9184ddad3df9512e170269847f929485826728f5495afcefadc8f2c  wheel-p3/fathomdb-0.8.26-cp310-abi3-linux_aarch64.whl

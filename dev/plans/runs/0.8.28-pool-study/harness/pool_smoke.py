@@ -230,6 +230,9 @@ def main() -> int:
             )
             out["reset"]["after"] = after
             out["reset"]["driverAfter"] = driver_state()
+            # The record goes to stderr now: on a build whose close() drops the
+            # model, a crash in close() would otherwise lose it.
+            print("reset-record " + json.dumps(out["reset"]), file=sys.stderr, flush=True)
             if not all(v["ok"] and v["value"] for v in after.values()):
                 raise RuntimeError("calls after the reset failed or changed: " + json.dumps(after)[:300])
         step = "close"

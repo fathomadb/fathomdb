@@ -1,0 +1,13 @@
+# Phase 4 P2-P4/P6: perf mode (embed steady, batches 1/8/32/128, rerank), Node 24/25/26, randomised blocks; S and B supply the sync floor and the default-pool reference by allocMode
+p4-S-n24 S 24.15.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-P-thr0-n24 P-first-use 24.15.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-P-thrmax-n24 P-first-use 24.15.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=max
+p4-B-n24 B 24.15.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-S-n25 S 25.9.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-P-thr0-n25 P-first-use 25.9.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-P-thrmax-n25 P-first-use 25.9.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=max
+p4-B-n25 B 25.9.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-S-n26 S 26.10.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-P-thr0-n26 P-first-use 26.10.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-P-thrmax-n26 P-first-use 26.10.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=max
+p4-B-n26 B 26.10.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0

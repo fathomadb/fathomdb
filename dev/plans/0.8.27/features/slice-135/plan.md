@@ -319,6 +319,15 @@ assertions so the next release can rerun the same functional gate.
 **Phase 1 checkpoint:** publish an exact-candidate measurement note with four
 valid result sections, raw receipt links, independently recomputed summaries,
 invalid/omitted cells, coverage gaps, confirmed defects and ranked follow-ups.
+Include an [off-ladder landing audit](off-ladder-qualification-handoff.md):
+confirm the exact candidate includes the corrected embedder-close change
+`96796fe04` and the reported 0.8.26+Tegra Pages pin/install/docs change
+`c23e2d23f`; exercise their affected close/reopen and installed Tegra
+boundaries where available; and give Slice 150 an explicit integrated
+qualification owner. The release plan, board and state need matching
+off-ladder records before publication. Their shared-state writer should
+apply those records from the handoff; do not infer that a local commit hash
+or a prior slice's verification covers the final candidate.
 The [node FTS row-error repair](results/2026-10-07-node-fts-repair/README.md)
 and [graph traversal row-error repair](results/2026-10-07-graph-arm-row-repair/README.md)
 change candidate engine bytes after the paired S01 and S02 receipts. Rebuild
@@ -504,17 +513,21 @@ SDK exercise remain open.
   conditions or state residual risk explicitly.
 - **Evidence and gates:** independently audit the exact-candidate raw
   campaigns and publish one four-area checkpoint note with invalid and
-  omitted cells. The E01–E12 raw paired archive remains local and untracked:
-  automatic approval review rejected a proposed path-scoped Gitleaks policy
-  change, so persistent retention needs explicit authorization or another
-  policy-compliant resolution. The most recent full agent gate passed shell
-  lint after a fix, then stopped at the pinned-override guard because six
-  tracked result snapshots are named `Cargo.toml`. Resolve their archival
-  format without weakening the guard, then rerun the needed gate. Earlier
-  full-gate failures also have recorded steward-orient and Python environment
-  dispositions to recheck. Do not claim a full green gate meanwhile.
+  omitted cells. The most recent full agent gate passed shell lint after a
+  fix, then stopped at the pinned-override guard because six tracked result
+  snapshots are named `Cargo.toml`. Resolve their archival format without
+  weakening the guard, then rerun the needed gate. Earlier full-gate failures
+  also have recorded steward-orient and Python environment dispositions to
+  recheck. Do not claim a full green gate meanwhile.
 
 Freeze the broader executable protocol after the remaining baseline pilots
 and negative fixtures, run the missing exact-candidate cells, complete the
 four matrices, independently recompute the report and record the Phase 1
 checkpoint. Only then begin dedicated Phase 2 correct-results scoring.
+Leave Gitleaks and final raw-archive retention until the end of this Phase 1
+work. The E01–E12 paired archive remains local and untracked; preserve it for
+analysis meanwhile. Automatic approval review rejected the proposed
+path-scoped Gitleaks policy change, so final retention needs explicit
+authorization or another policy-compliant resolution. This retention issue
+does not delay the remaining measurements, fault cases, coverage analysis or
+checkpoint drafting.

@@ -1243,7 +1243,8 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                         row.get::<_, i64>(4)? as u64,
                     ))
                 })?;
-            rows.flatten()
+            rows.collect::<rusqlite::Result<Vec<_>>>()?
+                .into_iter()
                 .map(|(from_id, to_id, source_id, confidence, edge_cursor)| {
                     let neighbor = if from_id == lid { to_id } else { from_id };
                     (neighbor, source_id, confidence, edge_cursor)

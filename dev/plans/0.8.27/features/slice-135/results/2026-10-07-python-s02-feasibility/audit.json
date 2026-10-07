@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "baseline_raw_sha256": "53c6d8b7340136fff6a60aa12ee85b1945c9cddc877716cf364e3dc11ff2c9ad",
+  "candidate_raw_sha256": "71686b157a6e6c0335f05107b91ef9b97a279d4b5e0ceadcfdb196e529eb7545",
+  "observed_equal": true,
+  "semantic_checks_passed": true,
+  "negative_control_rejected": "after_reopen canonical state changed",
+  "whole_ms_baseline": 5331.35,
+  "whole_ms_candidate": 5295.178
+}

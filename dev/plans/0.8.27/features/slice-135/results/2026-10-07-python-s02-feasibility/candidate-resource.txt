@@ -1,0 +1,23 @@
+	Command being timed: "/tmp/slice135-python-venv-candidate-b2ac808/bin/python scripts/slice135_python_s02.py --wheel dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-qualification/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl --wheel-sha256 6713ade54d62cc1e067fcaf1982a539c1fb8bd3d45d3db18e41155badd0c12e8 --source-sha b2ac8081e79a6e626d01f5f97331be331f1cc16d --output /tmp/slice135-s02-functional-v2-2026-10-07/candidate.json"
+	User time (seconds): 29.24
+	System time (seconds): 9.89
+	Percent of CPU this job got: 707%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.53
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 316348
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 349627
+	Voluntary context switches: 261718
+	Involuntary context switches: 591020
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 11600
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

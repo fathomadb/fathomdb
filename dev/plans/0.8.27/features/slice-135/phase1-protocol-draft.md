@@ -61,6 +61,13 @@ host paging warnings in 12 blocks and only one warning-free pair per size.
 Its descriptive deltas do not close the whole-system latency or full Phase 1
 checkpoint.
 
+An [installed Python S02 feasibility pair](results/2026-10-07-python-s02-feasibility/README.md)
+now passes the same fresh-database write/project/retrieve/graph-evidence/
+erase/reopen sequence through both wheels, including direct canonical-row
+counts after erasure and reopen. Its one attempt per version and whole timer
+that includes validation do not qualify the sampled S02 latency cell. The
+baseline noise pilot, frozen boundary and alternating blocks remain ahead.
+
 ## Source-grounded starting point
 
 Slice 115's [runner](../../../../../scripts/slice115_runner.py),

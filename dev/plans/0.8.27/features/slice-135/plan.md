@@ -417,3 +417,7 @@ functional exercise and four-area checkpoint remain open.
 An interim [projection commit recovery result](results/2026-10-07-projection-recovery/README.md)
 adds real-database failure, panic, redispatch and stop/reopen observations;
 it does not close the full robustness matrix.
+An [installed Python S02 functional feasibility pair](results/2026-10-07-python-s02-feasibility/README.md)
+now exercises the whole write/project/retrieve/graph-evidence/erase/reopen
+sequence against both wheels with direct canonical-row checks. Its single
+attempts do not constitute a qualified S02 latency comparison.

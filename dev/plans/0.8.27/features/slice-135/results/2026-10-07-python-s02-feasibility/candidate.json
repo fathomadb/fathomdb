@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "status": "UNFROZEN_PYTHON_S02_FUNCTIONAL_FEASIBILITY",
+  "finished_utc": "2026-10-07T16:54:31.445366+00:00",
+  "source_sha": "b2ac8081e79a6e626d01f5f97331be331f1cc16d",
+  "runner_sha256": "75424eb9b939530e4ac039d0e1e4ac5d112ea0fa084cc406688f68c10fac550d",
+  "s01_helper_sha256": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+  "artifact": {
+    "wheel_sha256": "6713ade54d62cc1e067fcaf1982a539c1fb8bd3d45d3db18e41155badd0c12e8",
+    "module_path": "/tmp/slice135-python-venv-candidate-b2ac808/lib/python3.12/site-packages/fathomdb/__init__.py",
+    "native_path": "/tmp/slice135-python-venv-candidate-b2ac808/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+    "native_sha256": "4a3da4cda21841942de2fc010b81062f60da3c802401cbdb7184a0eee93a3f65",
+    "python_executable": "/usr/bin/python3.12"
+  },
+  "corpus_sha256": "77c89858630fd30f5b4ce68748f309047908213e6cbb834b3d812ad87f2be051",
+  "graph_records_sha256": "f62b7379f2d7fa61a6ac20a16d4e4bb4a21462a6ff5a6900aee65e6fd8ed8c4f",
+  "whole_sequence_including_checks_ns": 5295178048,
+  "stage_ns": {
+    "open": 201349619,
+    "write": 1920478,
+    "configure_projection": 1184978,
+    "drain": 675769037,
+    "text": 654316,
+    "vector": 11311686,
+    "hybrid": 9904088,
+    "hybrid_lexical_control": 559597,
+    "evidence_search": 22577557,
+    "evidence_resolve": 707246,
+    "graph_expand": 1722224,
+    "graph_target_resolve": 567702,
+    "graph_edge_resolve": 443047,
+    "erase": 6726605,
+    "erase_again": 2023302,
+    "close": 11148028,
+    "reopen": 4323618413,
+    "reopened_close": 16169633
+  },
+  "observed": {
+    "embedder": "fathomdb-bge-small-en-v1.5",
+    "unsupported_kinds": [],
+    "readiness": "ready",
+    "anchor_before": true,
+    "text": {
+      "ids": [
+        "A"
+      ],
+      "branches": [
+        "text"
+      ]
+    },
+    "vector": {
+      "ids": [
+        "A",
+        "B",
+        "s02-root",
+        "s02-claim",
+        "F0004",
+        "F0017",
+        "F0008",
+        "F0005",
+        "F0003",
+        "F0007"
+      ],
+      "branches": [
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector"
+      ]
+    },
+    "hybrid": {
+      "ids": [
+        "A",
+        "B",
+        "s02-claim",
+        "F0017",
+        "F0005",
+        "F0018",
+        "F0026",
+        "F0008",
+        "F0009",
+        "F0024"
+      ],
+      "branches": [
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector",
+        "vector"
+      ]
+    },
+    "hybrid_lexical_ids": [
+      "A"
+    ],
+    "evidence": {
+      "logical_id": "s02-claim",
+      "source_body": "{\"summary\": \"s02 canonical source evidence bytes\"}"
+    },
+    "graph": {
+      "target_id": "s02-claim",
+      "target_revision": "s02-claim-r1",
+      "edge_revision": "s02-edge-r1",
+      "edge_from": "s02-root",
+      "edge_to": "s02-claim",
+      "source_body": "{\"summary\": \"s02 canonical source evidence bytes\"}"
+    },
+    "erasure": {
+      "source_ref": "slice135-s02-graph",
+      "nodes_excised": 3,
+      "edges_excised": 1
+    },
+    "second_erasure": {
+      "nodes_excised": 0,
+      "edges_excised": 0
+    },
+    "after_erasure": {
+      "source_absent": true,
+      "root_absent": true,
+      "claim_absent": true,
+      "anchor_retained": true,
+      "evidence_query_empty": true,
+      "graph_empty": true,
+      "canonical_counts": {
+        "graph_nodes": 0,
+        "graph_edges": 0,
+        "corpus_nodes": 32
+      }
+    },
+    "after_reopen": {
+      "source_absent": true,
+      "root_absent": true,
+      "claim_absent": true,
+      "anchor_retained": true,
+      "evidence_query_empty": true,
+      "graph_empty": true,
+      "canonical_counts": {
+        "graph_nodes": 0,
+        "graph_edges": 0,
+        "corpus_nodes": 32
+      },
+      "readiness": "ready"
+    }
+  },
+  "semantic_ok": true
+}

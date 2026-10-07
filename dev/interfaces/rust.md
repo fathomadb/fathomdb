@@ -272,6 +272,10 @@ SQLite owner before beginning a shared 30-second embed-worker drain. It returns
 accounting remains live, and a later `close` succeeds after the provider exits.
 Concurrent or repeated calls and Drop do not renew the drain deadline. Active
 database work can extend total close time beyond 30 seconds.
+After a successful drain, `close` releases the engine's embedder reference even
+if the `Engine` object remains alive. A caller-held embedder reference remains
+caller-owned. A timed-out drain retains the provider until its worker exits and
+a later `close` completes.
 
 ### Direct text-only result-prefix contract (0.8.22 Slice 23)
 

@@ -289,6 +289,9 @@ impl Drop for EmbedReply {
     }
 }
 
+/// A provider taken from a drained dispatcher; dropping it may run caller code.
+pub(crate) type ReleasedProvider = Option<Arc<dyn Embedder>>;
+
 struct QueueState {
     waiting: VecDeque<Request>,
     active: Vec<Arc<ReplyState>>,
@@ -299,7 +302,7 @@ struct QueueState {
 }
 
 struct Shared {
-    provider: Arc<dyn Embedder>,
+    provider: Mutex<Option<Arc<dyn Embedder>>>,
     dimension: usize,
     queue_capacity: usize,
     timeout_ms: AtomicU64,
@@ -355,7 +358,7 @@ impl EmbedDispatcher {
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "embed queue overflow"))?;
         let dimension = provider.identity().dimension as usize;
         let shared = Arc::new(Shared {
-            provider,
+            provider: Mutex::new(Some(provider)),
             dimension,
             queue_capacity,
             timeout_ms: AtomicU64::new(timeout.as_millis() as u64),
@@ -497,13 +500,16 @@ impl EmbedDispatcher {
         self.drain_budget_ms.store(budget_ms, Ordering::Relaxed);
     }
 
+    /// Returns `None` while a provider worker remains. On success the caller
+    /// receives the released provider so it can drop it after leaving every
+    /// engine lock: a caller-supplied `Drop` may re-enter `Engine::close`.
     #[allow(dead_code)] // Standalone core tests include this module without engine lifecycle.
-    pub(crate) fn join_after_quiescence(&self) -> bool {
+    pub(crate) fn join_after_quiescence(&self) -> Option<ReleasedProvider> {
         #[cfg(test)]
         let budget = Duration::from_millis(self.drain_budget_ms.load(Ordering::Relaxed));
         #[cfg(not(test))]
         let budget = Duration::from_secs(30);
-        self.join_until(Instant::now() + budget)
+        self.drain_until(Instant::now() + budget)
     }
 
     #[allow(dead_code)] // Standalone core tests include this module without calling the engine test seam.
@@ -513,9 +519,14 @@ impl EmbedDispatcher {
         }
     }
 
+    #[allow(dead_code)] // Only the close-deadline test seam calls this outside `Engine::close`.
     pub(crate) fn join_until(&self, deadline: Instant) -> bool {
+        self.drain_until(deadline).is_some()
+    }
+
+    fn drain_until(&self, deadline: Instant) -> Option<ReleasedProvider> {
         let Some(shared) = &self.shared else {
-            return true;
+            return Some(None);
         };
         let deadline = {
             let mut first =
@@ -526,7 +537,7 @@ impl EmbedDispatcher {
         while state.live_workers != 0 {
             let now = Instant::now();
             if now >= deadline {
-                return false;
+                return None;
             }
             state = shared
                 .changed
@@ -535,11 +546,13 @@ impl EmbedDispatcher {
                 .0;
         }
         drop(state);
-        let mut handles = self.handles.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        for handle in handles.drain(..) {
+        for handle in self.handles.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).drain(..)
+        {
             let _ = handle.join();
         }
-        true
+        let released =
+            shared.provider.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).take();
+        Some(released)
     }
 
     pub(crate) fn snapshot(&self) -> DispatchSnapshot {
@@ -577,15 +590,22 @@ fn valid(vector: &Vector, dimension: usize) -> bool {
 }
 
 fn invoke(shared: &Shared, body: RequestBody) -> Result<EmbedOutput, DispatchError> {
+    let provider = shared
+        .provider
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .as_ref()
+        .cloned()
+        .ok_or(DispatchError::Closing)?;
     let expected_rows = match &body {
         RequestBody::One(_) => None,
         RequestBody::Batch(texts) => Some(texts.len()),
     };
     let outcome = catch_unwind(AssertUnwindSafe(|| match body {
-        RequestBody::One(text) => shared.provider.embed(&text).map(EmbedOutput::One),
+        RequestBody::One(text) => provider.embed(&text).map(EmbedOutput::One),
         RequestBody::Batch(texts) => {
             let inputs: Vec<&str> = texts.iter().map(String::as_str).collect();
-            shared.provider.embed_batch(&inputs).map(EmbedOutput::Batch)
+            provider.embed_batch(&inputs).map(EmbedOutput::Batch)
         }
     }));
     match outcome {

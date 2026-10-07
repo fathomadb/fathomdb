@@ -122,10 +122,7 @@ pub(crate) fn dispatch_embed_vector(
 
 impl Engine {
     pub(crate) fn usable_dense_runtime(&self) -> bool {
-        usable_dense_runtime(
-            self.runtime_embedder.as_deref(),
-            self.dense_disabled.load(Ordering::Acquire),
-        )
+        self.runtime_embedder.is_some() && !self.dense_disabled.load(Ordering::Acquire)
     }
 
     /// 0.7.2 PR-2b — NON-test observation seam. Drains and returns every

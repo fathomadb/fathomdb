@@ -124,3 +124,39 @@ fn incomplete_close_quiesces_database_and_later_close_reports_provider_exit() {
     assert!(matches!(repeated, Err(EngineError::Scheduler)), "repeated={repeated:?}");
     assert!(final_close.is_ok(), "final={final_close:?}");
 }
+
+#[test]
+fn timed_out_close_retains_provider_until_later_close_releases_it() {
+    let dir = TempDir::new().expect("temp db");
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let provider = Arc::new(HeldProvider { entered: entered_tx, release: Mutex::new(release_rx) });
+    let weak = Arc::downgrade(&provider);
+    let opened = Engine::open_with_choice_and_config(
+        dir.path().join("retain.sqlite"),
+        EmbedderChoice::Caller(provider),
+        EngineConfig { embedder_call_timeout_ms: Some(2_000), ..EngineConfig::default() },
+    )
+    .expect("open real database");
+    let accounting = opened.engine.embed_dispatch.accounting().expect("provider accounting");
+    let pending = opened.engine.embed_dispatch.submit_text("held".to_owned()).expect("admit");
+    entered_rx.recv_timeout(Duration::from_secs(2)).expect("provider entered");
+
+    assert!(!opened.engine.embed_dispatch.join_until(Instant::now() + Duration::from_millis(20)));
+    let timed_out = opened.engine.close();
+    let retained = weak.upgrade().is_some();
+
+    release_tx.send(()).expect("release held provider");
+    drop(pending);
+    let started = Instant::now();
+    while accounting.snapshot().live_workers != 0 {
+        assert!(started.elapsed() < Duration::from_secs(2), "provider worker did not exit");
+        std::thread::yield_now();
+    }
+    let final_close = opened.engine.close();
+
+    assert!(matches!(timed_out, Err(EngineError::Scheduler)), "timed_out={timed_out:?}");
+    assert!(retained, "timed-out close must not release an active provider");
+    assert!(final_close.is_ok(), "final={final_close:?}");
+    assert!(weak.upgrade().is_none(), "successful close must release the provider");
+}

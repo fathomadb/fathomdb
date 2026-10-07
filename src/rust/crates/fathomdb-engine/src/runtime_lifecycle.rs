@@ -15,7 +15,7 @@ impl Engine {
     pub fn close(&self) -> Result<(), EngineError> {
         self.closed.store(true, Ordering::SeqCst);
         self.embed_dispatch.close();
-        let _close_guard = self.close_lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let close_guard = self.close_lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         self.projection_runtime.stop();
         // Uninstall profile callbacks before dropping the connections so
         // SQLite cannot fire one last callback against a profile context
@@ -42,11 +42,12 @@ impl Engine {
         if let Ok(mut lock) = self.lock.lock() {
             lock.take();
         }
-        if self.embed_dispatch.join_after_quiescence() {
-            Ok(())
-        } else {
-            Err(EngineError::Scheduler)
-        }
+        let drained = self.embed_dispatch.join_after_quiescence();
+        drop(close_guard);
+        // The released provider may be the last reference to a caller embedder
+        // whose `Drop` re-enters `close`, so it is dropped only after the guard.
+        drop(drained.ok_or(EngineError::Scheduler)?);
+        Ok(())
     }
 
     /// Block until in-flight writes drain or `timeout_ms` elapses.

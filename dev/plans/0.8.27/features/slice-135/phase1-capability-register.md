@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 1 capability exercise register
-status: INTERIM_PYTHON_39_OF_44_EXECUTED
+status: INTERIM_PYTHON_40_OF_44_EXECUTED
 target_release: 0.8.27
 ---
 
@@ -8,7 +8,7 @@ target_release: 0.8.27
 
 The executable [canonical operation map](../../../../../src/conformance/governed-operation-parity.json) is the scope authority for governed operations. Its SHA-256 at the initial inventory snapshot is `da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17`. That snapshot was branch `llm/0.8.27-slice-135` at `ea91ec0e8878d49c44706234ff2ea9c454b55cb5`, before the confirmed edge-FTS-error repair. This living register is not the frozen measurement protocol; only rows explicitly marked with a receipt have executed installed-artifact evidence.
 
-The engine-only first-results receipts cover a narrower text/write/erase/reopen workload; those runs do not close an SDK row. The exact-candidate [installed Python capability exercise](results/2026-10-07-python-capability-exercise/README.md) now accounts for all 44 governed operations: 39 executed with selected real-database assertions, one failed error-field contract, one committed-closure gap and three unavailable provider/model cases. "Executed" does not mean every condition of an operation's contract was tested. The earlier [candidate wheel smoke](results/2026-10-07-python-wheel-qualification/README.md) and [0.8.26 wheel smoke](results/2026-10-07-python-wheel-baseline/README.md) remain narrow historical evidence. The routes below are proposed full Phase 1 cases from the [protocol draft](phase1-protocol-draft.md); each needs exact command, artifact/source identity, assertions and receipt link, or a named gap in the checkpoint. `S03` may use qualified benchmark data for shape, with basic state or result checks. Dedicated gold scoring remains Phase 2.
+The engine-only first-results receipts cover a narrower text/write/erase/reopen workload; those runs do not close an SDK row. The exact-candidate [installed Python capability exercise](results/2026-10-07-python-capability-exercise/README.md) accounted for all 44 governed operations and exposed one typed-error defect. The subsequent [installed-wheel repair](results/2026-10-07-python-frozen-error-fix/README.md) leaves **40 operations executed** with selected real-database assertions, one committed-closure gap and three unavailable provider/model cases; no operation currently fails its selected case. "Executed" does not mean every condition of an operation's contract was tested. The earlier [candidate wheel smoke](results/2026-10-07-python-wheel-qualification/README.md) and [0.8.26 wheel smoke](results/2026-10-07-python-wheel-baseline/README.md) remain narrow historical evidence. The routes below are proposed full Phase 1 cases from the [protocol draft](phase1-protocol-draft.md); each needs exact command, artifact/source identity, assertions and receipt link, or a named gap in the checkpoint. `S03` may use qualified benchmark data for shape, with basic state or result checks. Dedicated gold scoring remains Phase 2.
 
 The [paired installed Python S01 receipt](results/2026-10-07-python-s01-paired/README.md)
 adds positive, source-bound text and vector-bearing/hybrid retrieval calls
@@ -56,7 +56,7 @@ broader filter, validity, lifecycle or error conditions on these operations.
 | `engine.purge` | S03 lifecycle | Gap | Installed wheel: selected case executed | Gap |
 | `engine.erase_source` | S02 erasure | External S02 with canonical counts; broader gap | Installed wheel: selected case executed | S02 feasibility with canonical counts; broader contract gap |
 | `engine.search` | S01/S02 hybrid | External S02 vector/hybrid and invalid limit; broader gap | Installed wheel: selected case executed | S01 paired basic and S02 feasibility; broader contract gap |
-| `engine.freeze_read_context` | S02 frozen | External S02; broader gap | Installed wheel: frozen-error fields failed | S02 feasibility; broader contract gap |
+| `engine.freeze_read_context` | S02 frozen | External S02; broader gap | Installed wheel: repaired and executed | S02 feasibility; broader contract gap |
 | `engine.search_frozen` | S02 frozen | Gap | Installed wheel: selected case executed | Gap |
 | `engine.search_expand_frozen` | S03 graph | Gap | Installed wheel: selected case executed | Gap |
 | `engine.search_text_only` | S01/S02 text | External S02 text and invalid NUL; broader gap | Installed wheel: selected case executed | S01 paired basic and S02 feasibility; broader contract gap |

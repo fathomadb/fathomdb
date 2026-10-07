@@ -87,6 +87,11 @@ operations: 39 selected cases executed, one failed frozen-error field
 contract, one committed-closure gap and three unavailable provider/model
 cases. This is functional evidence; it does not qualify S02 latency or the
 complete Python contract matrix.
+The [binding repair and rebuilt-wheel receipt](results/2026-10-07-python-frozen-error-fix/README.md)
+then passed the four red field cases and 36 installed frozen-read tests. Its
+refreshed operation exercise has 40 executed, zero failed, one committed-
+closure gap and three unavailable cases. Engine/query/schema bytes used for
+the paired E01–E12 cells did not change.
 
 ## Source-grounded starting point
 

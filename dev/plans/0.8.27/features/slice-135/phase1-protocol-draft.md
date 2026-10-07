@@ -112,8 +112,10 @@ both use `schema_version: 1`, exact 40-digit Git `source_sha`, 64-digit
 `runner_sha256`, relative-path-to-SHA-256 `artifact_sha256` maps,
 `features` and resolved `settings` maps. The raw object additionally binds
 the exact protocol-file bytes with `protocol_sha256`; the command checks the
-runner's actual bytes and each artifact's actual bytes. Invoke it with
-`--raw`, `--protocol`, `--artifacts-root`, `--source-sha` and `--output`.
+measured runner or bundle passed with `--runner` and each artifact's actual
+bytes. Invoke it with `--raw`, `--protocol`, `--runner`, `--artifacts-root`,
+`--source-sha` and `--output`. The summary records the validator's own hash
+separately; it does not substitute for the measured runner hash.
 The source SHA is an explicit input and still needs separate source/build
 provenance verification. A package version string is not candidate identity:
 the current 0.8.27 source still uses a 0.8.26 pre-release version string.
@@ -123,7 +125,10 @@ nonempty `expected_checks` for basic semantic/state validity. The matching
 raw cell contains an ordered `attempts` array. A valid attempt has positive
 integer `latency_ns`, `semantic_ok: true` and matching `observed_checks`.
 An invalid attempt has `valid: false` and a nonempty `reason`; it remains
-in the raw file and counts in the summary's success fraction. Every cell
+in the raw file and counts in the summary's `valid_attempt_fraction`.
+An attempt that records `semantic_ok: false` or mismatched `observed_checks`
+is rejected even if labeled invalid. A genuine no-output failure can omit
+these fields while retaining its reason. Every cell
 needs at least 100 valid attempts for nearest-rank p50/p95. A query cell
 reports p99 only with at least 1,000 valid attempts; otherwise it records
 `unsupported_statistics: ["p99"]`. Lifecycle p99 is never reported.

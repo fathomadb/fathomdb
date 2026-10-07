@@ -134,6 +134,11 @@ def validate(raw: dict, protocol: dict, artifact_root: Path, *,
         for position, attempt in enumerate(attempts):
             if not isinstance(attempt, dict):
                 raise ValueError(f"{name}: attempt {position} malformed")
+            if "semantic_ok" in attempt and attempt["semantic_ok"] is not True:
+                raise ValueError(f"{name}: attempt {position} semantic failure")
+            if ("observed_checks" in attempt
+                    and attempt["observed_checks"] != expected_checks):
+                raise ValueError(f"{name}: attempt {position} observed checks mismatch")
             if attempt.get("valid") is False:
                 reason = attempt.get("reason")
                 if not isinstance(reason, str) or not reason.strip():
@@ -160,7 +165,7 @@ def validate(raw: dict, protocol: dict, artifact_root: Path, *,
             "p50_ns": _nearest_rank(values, 0.50),
             "p95_ns": _nearest_rank(values, 0.95),
             "maximum_ns": values[-1],
-            "semantic_success_fraction": len(values) / len(attempts),
+            "valid_attempt_fraction": len(values) / len(attempts),
         }
         if kind == "query":
             if len(values) >= 1000:
@@ -189,6 +194,7 @@ def main() -> None:
     parser.add_argument("--protocol", required=True, type=Path)
     parser.add_argument("--artifacts-root", required=True, type=Path)
     parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--runner", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     raw_bytes = args.raw.read_bytes()
@@ -199,14 +205,16 @@ def main() -> None:
         raw, protocol, args.artifacts_root,
         expected_source_sha=args.source_sha,
         protocol_sha256=_hash(protocol_bytes),
-        runner_sha256=_hash(Path(__file__).read_bytes()),
+        runner_sha256=_hash(args.runner.read_bytes()),
     )
-    protected = {args.raw.resolve(), args.protocol.resolve(), Path(__file__).resolve()}
+    protected = {args.raw.resolve(), args.protocol.resolve(), args.runner.resolve(),
+                 Path(__file__).resolve()}
     protected.update((args.artifacts_root / name).resolve()
                      for name in protocol["artifact_sha256"])
     if args.output.resolve() in protected:
         raise ValueError("output path would overwrite a raw or bound input artifact")
     result["raw_sha256"] = _hash(raw_bytes)
+    result["validator_sha256"] = _hash(Path(__file__).read_bytes())
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
 
 

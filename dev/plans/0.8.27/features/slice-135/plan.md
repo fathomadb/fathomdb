@@ -7,6 +7,13 @@ planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 
 # Slice 135 — measure the whole system against 0.8.26
 
+**Execution status:** the bounded [first inspectable results](results/2026-10-07-first-results/)
+for the four Phase 1 areas were committed on 2026-10-07. The full Phase 1
+checkpoint and dedicated correct-results phase remain ahead. The
+[first-results protocol](first-results-protocol.json) was frozen before paired
+candidate timing; the broader [Phase 1 protocol](phase1-protocol-draft.md)
+remains a draft.
+
 The [release plan](../../../plan-0.8.27.md) owns the release contract. The
 repository owner approved this Slice 135 plan on 2026-10-06 and authorized
 preparation in parallel with Slice 132. Protocol design, baseline

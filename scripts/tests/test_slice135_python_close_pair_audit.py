@@ -13,8 +13,14 @@ import slice135_python_close_pair_audit as audit  # noqa: E402
 
 
 def test_pair_summary_uses_all_samples_and_signed_changes() -> None:
-    baseline = {"raw_close_samples_ns": [4, 5, 6, 7], "raw_pss_release_samples_kib": [-3] * 4}
-    candidate = {"raw_close_samples_ns": [8, 10, 12, 14], "raw_pss_release_samples_kib": [40] * 4}
+    baseline = {
+        "raw_close_samples_ns": [4, 5, 6, 7],
+        "raw_pss_release_samples_kib": [-3] * 4,
+    }
+    candidate = {
+        "raw_close_samples_ns": [8, 10, 12, 14],
+        "raw_pss_release_samples_kib": [40] * 4,
+    }
     summary = audit.summarize_pair(baseline, candidate)
     assert summary["close_p50_delta_percent"] == 100.0
     assert summary["close_p95_delta_percent"] == 100.0

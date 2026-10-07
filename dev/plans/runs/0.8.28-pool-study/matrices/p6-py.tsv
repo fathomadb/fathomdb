@@ -1,0 +1,3 @@
+# Revision 6 spot check: Python perf (wheel-p5 in venv-p), P vs S (the default-pool reference)
+p6-py-S S 25.9.0 $PS/consumer-p5 CONSUMER_LANG=py,PYTHON=$PS/venv-p/bin/python,CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p6-py-P P-first-use 25.9.0 $PS/consumer-p5 CONSUMER_LANG=py,PYTHON=$PS/venv-p/bin/python,CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0

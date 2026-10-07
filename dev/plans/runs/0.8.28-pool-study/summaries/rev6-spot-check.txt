@@ -1,0 +1,45 @@
+# Revision-6 spot check (consumer-p5, wheel-p5; corrected close fix), produced by harness/analyze.py phase6 <scratch>/pool-study/logs/phase6 <scratch>/pool-study/logs/phase4
+## Allocation correctness and release (ruling 25)
+
+C2, 50 open/close cycles, no GC (VmRSS growth per cycle, cycles 2-50):
+  p6-c2-P-first-use: 10/10 pass [72.2, 100.0] %; allocMode {'private': 10}; growth median 0.36, max 0.44 MiB/cycle (n=10); max VmRSS 452 MiB
+  p6-c2-S: 10/10 pass [72.2, 100.0] %; allocMode {'sync': 8, 'default': 2}; growth median 0.33, max 0.44 MiB/cycle (n=10); max VmRSS 450 MiB
+  C2: private processes 10/10 pass [72.2, 100.0] %
+    x10 teardown threshold=0 reserved_cur=0.0 used_cur=0.0 reserved_high=128.0 maxSize=3072.0 MiB
+  Node perf: private processes 10/10 pass [72.2, 100.0] %
+    x10 teardown threshold=0 reserved_cur=192.0 used_cur=143.4 reserved_high=288.0 maxSize=3072.0 MiB
+  Python perf: private processes 10/10 pass [72.2, 100.0] %
+    x10 teardown threshold=0 reserved_cur=192.0 used_cur=143.4 reserved_high=320.0 maxSize=3072.0 MiB
+CB1 primary (reserved_high <= maxSize): {'pass': 10}; sanity: {'consistent': 10} (baseline n=7, median 298 MiB, noise band 145 MiB)
+Python: CB1 primary (reserved_high <= maxSize): {'pass': 10}; sanity: {'skipped': 10} (baseline n=0)
+  sanity reasons: {'MemAvailable not recorded at both points': 10}
+
+## Latency, Node 25 (interleaved P threshold 0 and S)
+
+  processes by allocMode: {'private': 10, 'sync': 7, 'default': 3}
+  embed: P 11.01 ms; S-sync 24.55 ms; P / S-sync 0.449 [0.435, 0.522] (n=10/7); P speed-up over S-sync 2.229x [1.917, 2.298]; P / Node default-pool 1.156 [0.731, 1.343] (n=10/3) UNDERPOWERED; default-pool speed-up over S-sync 2.576x [1.655, 2.709]
+  batch1: P 8.25 ms; S-sync 23.64 ms; P / S-sync 0.349 [0.344, 0.358] (n=10/7); P speed-up over S-sync 2.866x [2.796, 2.909]; P / Node default-pool 0.988 [0.969, 1.043] (n=10/3) UNDERPOWERED; default-pool speed-up over S-sync 2.833x [2.782, 2.948]
+  batch8: P 11.69 ms; S-sync 38.31 ms; P / S-sync 0.305 [0.284, 0.339] (n=10/7); P speed-up over S-sync 3.278x [2.948, 3.523]; P / Node default-pool 0.941 [0.854, 1.138] (n=10/3) UNDERPOWERED; default-pool speed-up over S-sync 3.084x [2.900, 3.489]
+  batch32: P 29.33 ms; S-sync 127.58 ms; P / S-sync 0.230 [0.207, 0.248] (n=10/7); P speed-up over S-sync 4.350x [4.030, 4.835]; P / Node default-pool 1.014 [0.933, 1.155] (n=10/3) UNDERPOWERED; default-pool speed-up over S-sync 4.411x [4.244, 4.814]
+  batch128: P 84.11 ms; S-sync 411.45 ms; P / S-sync 0.204 [0.200, 0.206] (n=10/7); P speed-up over S-sync 4.892x [4.849, 4.991]; P / Node default-pool 1.041 [0.994, 1.049] (n=10/3) UNDERPOWERED; default-pool speed-up over S-sync 5.092x [4.859, 5.126]
+  rerank: P 3.73 ms; S-sync 5.72 ms; P / S-sync 0.652 [0.622, 0.678] (n=10/7); P speed-up over S-sync 1.535x [1.474, 1.607]; P / Node default-pool 1.048 [0.961, 1.119] (n=10/3) UNDERPOWERED; default-pool speed-up over S-sync 1.608x [1.500, 1.724]
+
+## Python reference (P vs Python S; not pooled with Node)
+
+  processes by allocMode: {'default': 10, 'private': 10}
+  embed: P 13.68 ms / Python S default 13.18 ms = 1.037 [0.828, 1.251] (n=10/10) UNDERPOWERED
+  batch1: P 7.78 ms / Python S default 7.83 ms = 0.993 [0.987, 1.006] (n=10/10) UNDERPOWERED
+  batch8: P 8.47 ms / Python S default 8.64 ms = 0.980 [0.968, 1.015] (n=10/10) UNDERPOWERED
+  batch32: P 16.05 ms / Python S default 16.04 ms = 1.001 [0.996, 1.008] (n=10/10) UNDERPOWERED
+  batch128: P 56.09 ms / Python S default 56.00 ms = 1.002 [0.998, 1.004] (n=10/10) UNDERPOWERED
+  rerank: P 4.05 ms / Python S default 3.91 ms = 1.036 [0.996, 1.133] (n=10/10) UNDERPOWERED
+
+## Equivalence (hash and rerank scores against production 0.8.26 S)
+
+  C2: n=20 hashes [] (production ['d9dafb8c410005f3']); rerank score sets 0, equal to production: -
+  Node perf: n=20 hashes ['d9dafb8c410005f3'] (production ['d9dafb8c410005f3']); rerank score sets 1, equal to production: True
+  Python perf: n=20 hashes ['d9dafb8c410005f3'] (production ['d9dafb8c410005f3']); rerank score sets 1, equal to production: True
+
+C7 reset on the revision-6 build, S: n=5 exit codes {139: 5}; outcomes {'noresult': 5}; first errors {'embedBatchCls: EmbedderError | embed: EmbedderError | rerank: WriteValidationError': 5}
+
+C7 reset on the revision-6 build, P: n=5 exit codes {139: 5}; outcomes {'noresult': 5}; first errors {'embedBatchCls: EmbedderError | embed: EmbedderError | rerank: WriteValidationError': 5}

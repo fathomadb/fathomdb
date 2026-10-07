@@ -9,8 +9,9 @@
 //! compile for unit tests on every host.
 //!
 //! The variant comes from `FATHOMDB_POOL_VARIANT` (`S`, `P-first-use`,
-//! `A-first-use`, `B`; unset is `S`), the pool size from
-//! `FATHOMDB_POOL_MAXSIZE` (bytes, or `<n>G` / `<n>M`; default `3G`) and the
+//! `A-first-use`, `B`; unset is `S`). The pool size is derived from the
+//! device at the first device (`pool_sizing`); on an integrated device
+//! `FATHOMDB_POOL_MAXSIZE` (bytes, or `<n>G` / `<n>M`) overrides it. The
 //! release threshold from `FATHOMDB_POOL_RELEASE_THRESHOLD` (`0` or `max`;
 //! default `0`). A malformed value aborts the process, so a typo is never
 //! measured as a variant. Every decision event is one stderr line starting

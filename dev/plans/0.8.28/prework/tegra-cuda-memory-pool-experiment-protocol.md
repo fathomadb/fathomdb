@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 prework — Tegra CUDA memory-pool experiment protocol
-status: PROPOSED (revision 5, 2026-10-06; owner rulings 12-25 applied)
+status: PROPOSED (revision 6, 2026-10-07; owner rulings 12-35 applied)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
@@ -21,6 +21,54 @@ under `dev/plans/runs/0.8.27-slice-110-tegra/` or from this study's Phases 0–1
 results (`dev/plans/runs/0.8.28-pool-study/results.md`), and was measured on
 one Jetson AGX Orin 64 GB (L4T R36.5.2, driver 540.5.0, CUDA 12.6.68). Statements marked
 *inference* or *hypothesis* are not measured and are tested by this protocol.
+
+## Status (2026-10-07)
+
+**This branch's copies of the protocol and the plan are the record.** The study branch is
+`llm/0.8.28-tegra-pool-study`. An older copy of the study plan, dated
+2026-10-05, is being merged onto `release/0.8.27` with a status header
+pointing here. Where they differ, this branch governs.
+
+- **Done.**
+  - Phases 0–4 are complete.
+  - A revision-6 spot check ran on the corrected close fix.
+  - Results are in `dev/plans/runs/0.8.28-pool-study/results.md`: §§ 2–11
+    for Phases 0–2, § 12 for Phases 3 and 4, § 13 for the spot check.
+  - Owner rulings 12–35 are recorded below and in the plan, revision 6.
+- **Not started.** Phase 5: analysis and the upstream package. The
+  upstream shape is prepared in
+  `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md`; nothing is
+  posted without the owner.
+- **Finding on this host** (Jetson AGX Orin 64 GB). The private pool
+  (P-first-use) passes:
+  - **Allocation correctness:** 751/751 private-pool processes in Phases
+    3–4, 50/50 in the spot check.
+  - **Release after close:** the pool returns to 0 MiB after the last close
+    when no module singleton is in use.
+  - **Caps.**
+  - **The performance gate:** Phase 4 pooled embed 0.986 [0.907, 1.114] of
+    the default pool, and 1.9–4.9× faster than the synchronous path. Rerank
+    passes as re-based by ruling 28.
+  - **C2 on the corrected fix:** 20/20, 0.36 MiB per cycle.
+- **What still blocks adoption:**
+  1. The owner's C7 ruling. After a co-resident context reset, every
+     variant, the shipped one included, crashes in `Engine::close` in
+     cudarc's `CudaSlice` drop (ruling 27).
+  2. Early `cuInit` at module load, accepted for this round, is still to be
+     discussed with the owner (ruling 35).
+  3. Typed `cuda_pool_exhausted` in all three SDKs on every path,
+     including module-level `rerank` and `embed`, and the Python subclass
+     (ruling 33).
+  4. Sizing checks off the 64 GB Orin (ruling 31):
+     - on-device C3 and R5 for 32 and 16 GB;
+     - Thor opt-in;
+     - a Tegra-identity condition for GB10-class devices;
+     - GH200's integrated attribute.
+  5. At adoption:
+     - the pool-mode setting;
+     - removal of the dead trim arm, the comparison arms and the study
+       diagnostics (design note "Settings and constants");
+     - the corrected close fix shipping with 0.8.27 (ruling 26).
 
 ## Owner rulings (2026-10-05)
 
@@ -224,6 +272,94 @@ are amended to match.
 
 Phase 4 timing runs on the build that includes the close fix, so the
 comparisons describe the code that would ship.
+
+## Owner rulings (2026-10-07, after Phase 4) and revision 6
+
+The owner ruled on the Phase 4 decisions in the results
+(`dev/plans/runs/0.8.28-pool-study/results.md` § 12.11). The owner listed
+ten items against the numbers 26–34. They are recorded here as rulings
+26–35, one per item, so that each keeps its own number.
+
+- **Ruling 26: adopt the corrected close fix.**
+  - On `release/0.8.27` (merge `96796fe04`) the fix is two commits:
+    - `2ff744b06`, the test, which is red on `c816b8653`;
+    - `8247d91a4`, which drops the released embedder after the close lock.
+  - Both are cherry-picked onto the study branch after `f0b6b4c7e`. Pushed
+    history is not rewritten; the two commits complete the fix.
+  - `c816b8653` alone deadlocks when a caller-supplied embedder's `Drop`
+    re-enters `Engine::close`.
+  - C2 and a Phase 4 spot check are rerun on the corrected build.
+- **Ruling 27: C7 stays unruled.** On the corrected build, a small reset
+  probe records where the crash now lands: 3 S + 3 P under gdb, 5 + 5
+  without. No guard and no cudarc change.
+- **Ruling 28: the rerank floor is re-based on the default pool's own
+  speed-up.**
+  - P's rerank speed-up over S-sync must be within the same 1.15× of the
+    default pool's speed-up over S-sync. Equivalently, P / default-pool
+    rerank time ≤ 1.15, with its interval stated.
+  - Reason: the default pool itself reaches only 1.49× over S-sync on
+    rerank, so the old 1.5× floor tested the reference, not P.
+  - The results report both the old 1.5× reading and the re-based one.
+- **Ruling 29: references accepted.** The pooled Node default-pool
+  reference plus the Python reference are accepted. There is no Node 26
+  top-up.
+- **Ruling 30: release threshold 0 is the default.** The owner approved
+  this outright (2026-10-07 follow-up), not only accepted it.
+  - Threshold `max` gave no latency gain: embed 1.044 [0.938, 1.134], and
+    no difference in R8.
+  - It held more memory: 288 MiB against about 48 MiB of spare after
+    close, and 96 MiB more after idle.
+  - On integrated memory, pool-held memory is host RAM that other processes
+    cannot use, and ruling 25 ranks release above latency.
+  - Caveat: threshold 0 could cost re-mapping on workloads that churn large
+    allocations across synchronization points. None was seen up to batch
+    128 and 8 concurrent processes.
+- **Ruling 31: the sizing table is accepted** as proposed in results
+  § 12.4:
+
+  | Device class | Pool |
+  | --- | --- |
+  | 64 GB Orin | 3 GiB |
+  | 32 and 16 GB Orin | 2 GiB, after an on-device check |
+  | 8 GB Orin | off |
+  | Thor | opt-in until measured |
+  | discrete GPU | off |
+  | GH200 | verify the integrated attribute |
+  | GB10 | add a Tegra-identity condition |
+
+  Which parameters are named constants and which are runtime settings is
+  determined in the plan's design note "Settings and constants (ruling
+  31)". The owner accepted that split for FathomDB (2026-10-07
+  follow-up). The settings stay in FathomDB, never in cudarc: the cudarc
+  maintainer accepts no environment variables there. How to shape the
+  upstream cudarc patch is a standing note,
+  `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md`.
+- **Ruling 32: the module-level singletons are documented shipped
+  behaviour.**
+  - The corrected fix releases only the engine-owned embedder.
+  - Two singletons live until the process exits:
+    - the static `OnceLock` `CandleBgeEmbedder` in the napi and Python
+      `embedding.rs`;
+    - the reranker singleton.
+  - A release API is a later item.
+- **Ruling 33: typed exhaustion everywhere at adoption.**
+  - The module-level `rerank()` string path gets typed.
+  - The Python `CudaPoolExhaustedError` subclass ships beyond the
+    experiment.
+  - Requirement: the `cuda_pool_exhausted` kind is present and tested in
+    all three SDKs (Rust, Python, TypeScript) on every path, including
+    module-level `rerank` and `embed`.
+- **Ruling 34: CB1's primary check is the pool's own reserved counter.**
+  The system-level check is a sanity check on integrated GPUs only.
+  Reasoning:
+  - `MemAvailable` has a 442 MiB bimodal noise band from S's own behaviour
+    in `perf` mode.
+  - `VmRSS` does not see pinned pool memory.
+  - cgroup `memory.max` does not bound CUDA allocations on Tegra.
+
+  So only the pool counter is exact.
+- **Ruling 35: early `cuInit` at module load is accepted** for this round
+  of work. It is marked for further discussion with the owner.
 
 ## 0. Conventions
 
@@ -1185,7 +1321,9 @@ and the result-level pool functions, and record what residual patch remains.
 ## 11. Open questions for the owner
 
 Questions 1–5 were ruled on 2026-10-05 and question 6 on 2026-10-06 (see
-"Owner rulings" at the top); they are kept here as asked. None is open.
+"Owner rulings" at the top); they are kept here as asked. None is open. What still blocks adoption after Phase 4
+and the revision-6 spot check is listed under "Status (2026-10-07)" at the
+top.
 
 1. Should the Tegra Python wheel gain an import-time `cuInit` (and, for the
    A-load variants, pool creation) so that Python can run the same variant

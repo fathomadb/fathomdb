@@ -12,6 +12,8 @@ Usage: analyze.py <command> <paths...>
   phase2 ROOT       Phase 2 rows (C1/C2/C8/C9/C9b, CB1-CB4, trim arm).
   phase3 ROOT       Phase 3 rows (R1-R4, R6-R8, CB1 per ruling 21).
   phase4 ROOT       Phase 4 performance gate, equivalence and P1 reruns, P5, P7.
+  phase6 ROOT P4    Revision-6 spot check (corrected close fix): C2, Node 25 and
+                    Python perf, equivalence against P4/equiv, C7 reset.
   r5 DIR            R5 lazy creation: DIR/<cell>/run-*.json (+ maps).
   p1 DIR            P1 import cost: DIR/<variant>/run-*.json.
   hw DIR...         Workload high-water marks from teardown events.
@@ -1127,6 +1129,116 @@ def cmd_phase4(root):
             # A crash inside close() leaves no JSON record ("noresult"); the
             # gdb rerun (summaries/rev5-c7-close-build.txt) has the frames.
             print(f"\nC7 reset on the revision-5 build, {v}: n={len(rs)} exit codes {dict(ex)}; outcomes {dict(oc)}")
+
+
+def _growth(r):
+    x = r.get("cyclesRssMiB") or []
+    return (x[49] - x[1]) / 48 if len(x) >= 50 else None
+
+
+def cmd_phase6(root, phase4_root):
+    """Revision-6 spot check (owner rulings 26-35). Allocation correctness
+    and release first (ruling 25), then latency."""
+    c2 = _cells(os.path.join(root, "c2"))
+    perf = _cells(os.path.join(root, "perf"))
+    py = _cells(os.path.join(root, "py"))
+    print("## Allocation correctness and release (ruling 25)\n")
+    print("C2, 50 open/close cycles, no GC (VmRSS growth per cycle, cycles 2-50):")
+    for cell in sorted(c2):
+        rs = c2[cell]
+        ok = sum(r.get("outcome") == "pass" for r in rs)
+        lo, hi = wilson(ok, len(rs))
+        modes = defaultdict(int)
+        for r in rs:
+            modes[r.get("allocMode")] += 1
+        g = sorted(x for x in (_growth(r) for r in rs) if x is not None)
+        mx = max((max(r.get("cyclesRssMiB") or [0]) for r in rs), default=0)
+        print(f"  {cell}: {ok}/{len(rs)} pass [{100 * lo:.1f}, {100 * hi:.1f}] %; allocMode {dict(modes)}; "
+              f"growth median {med(g):.2f}, max {max(g):.2f} MiB/cycle (n={len(g)}); max VmRSS {mx:.0f} MiB")
+    for label, cells in (("C2", c2), ("Node perf", perf), ("Python perf", py)):
+        _release(label, cells)
+    _cb1(perf)
+    print("Python:", end=" ")
+    _cb1(py)
+
+    def grp(cells):
+        g = defaultdict(lambda: defaultdict(list))
+        for rs in cells.values():
+            for r in rs:
+                if r.get("outcome") == "pass":
+                    for k, v in _proc_meds(r).items():
+                        g[r.get("allocMode")][k].append(v)
+        return g
+
+    def rr(a, b, reference=False):
+        if not a or not b:
+            return "-"
+        lo, hi = boot_ratio(a, b)
+        flag = " UNDERPOWERED" if reference and len(b) < 15 else ""
+        return f"{med(a) / med(b):.3f} [{lo:.3f}, {hi:.3f}] (n={len(a)}/{len(b)}){flag}"
+
+    def speedup(a, b):
+        lo, hi = boot_ratio(a, b)
+        return f"{med(b) / med(a):.3f}x [{1 / hi:.3f}, {1 / lo:.3f}]"
+
+    ng, pg = grp(perf), grp(py)
+    print("\n## Latency, Node 25 (interleaved P threshold 0 and S)\n")
+    print("  processes by allocMode: " + str({k: len(v.get("embed", [])) for k, v in ng.items()}))
+    for m in ("embed", "batch1", "batch8", "batch32", "batch128", "rerank"):
+        p, s, d = ng["private"].get(m, []), ng["sync"].get(m, []), ng["default"].get(m, [])
+        line = f"  {m}: P {med(p):.2f} ms; S-sync {med(s):.2f} ms; P / S-sync {rr(p, s)}"
+        if p and s:
+            line += f"; P speed-up over S-sync {speedup(p, s)}"
+        if d:
+            line += f"; P / Node default-pool {rr(p, d, True)}"
+            if s:
+                line += f"; default-pool speed-up over S-sync {speedup(d, s)}"
+        print(line)
+    print("\n## Python reference (P vs Python S; not pooled with Node)\n")
+    print("  processes by allocMode: " + str({k: len(v.get("embed", [])) for k, v in pg.items()}))
+    pyS = defaultdict(list)
+    pyP = defaultdict(list)
+    for cell, rs in py.items():
+        for r in rs:
+            if r.get("outcome") != "pass":
+                continue
+            tgt = pyS if cell.endswith("-S") else pyP
+            if tgt is pyS and r.get("allocMode") != "default":
+                continue
+            for k, v in _proc_meds(r).items():
+                tgt[k].append(v)
+    for m in ("embed", "batch1", "batch8", "batch32", "batch128", "rerank"):
+        print(f"  {m}: P {med(pyP[m]):.2f} ms / Python S default {med(pyS[m]):.2f} ms = {rr(pyP[m], pyS[m], True)}")
+
+    print("\n## Equivalence (hash and rerank scores against production 0.8.26 S)\n")
+    prod = _cells(os.path.join(phase4_root, "equiv")).get("p4-eq-prod", [])
+    ref_hash = {r.get("embedSha") for r in prod}
+    ref_scores = {json.dumps(r.get("rerankScores")) for r in prod}
+    for label, cells in (("C2", c2), ("Node perf", perf), ("Python perf", py)):
+        rs = [r for v in cells.values() for r in v if r.get("outcome") == "pass"]
+        hs = {r.get("embedSha") for r in rs if r.get("embedSha")}
+        sc = {json.dumps(r.get("rerankScores")) for r in rs if r.get("rerankScores") is not None}
+        print(f"  {label}: n={len(rs)} hashes {sorted(hs)} (production {sorted(ref_hash)}); "
+              f"rerank score sets {len(sc)}, equal to production: {sc <= ref_scores if sc else '-'}")
+
+    for v in ("S", "P"):
+        d = os.path.join(root, f"c7-reset-{v}")
+        rs = runs(d)
+        if not rs:
+            continue
+        ex, oc, rec = defaultdict(int), defaultdict(int), defaultdict(int)
+        for r in rs:
+            ex[r.get("exitCode")] += 1
+            oc[r.get("outcome")] += 1
+        for f in sorted(os.listdir(d)):
+            if f.endswith(".err"):
+                with open(os.path.join(d, f), errors="replace") as fh:
+                    for line in fh:
+                        if line.startswith("reset-record "):
+                            after = json.loads(line[len("reset-record "):]).get("after", {})
+                            rec[" | ".join(f"{k}: {x.get('name')}" for k, x in after.items())] += 1
+        print(f"\nC7 reset on the revision-6 build, {v}: n={len(rs)} exit codes {dict(ex)}; outcomes {dict(oc)}; "
+              f"first errors {dict(rec)}")
 
 
 if __name__ == "__main__":

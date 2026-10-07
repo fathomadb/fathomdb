@@ -17,3 +17,6 @@ b7a8d1aa8925ec718633fb7811496d08ff8c42cbccbce989ca31396877e1cb03  wheel-p2/fatho
 # Revision 5 (Phases 3-4; owner close fix cherry-picked)
 ee544bbbc37729cbfc824851ab9e0b536d75b2e1a8e392bbbc88a449a19c9c36  consumer-p4/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
 ba87181dc9184ddad3df9512e170269847f929485826728f5495afcefadc8f2c  wheel-p3/fathomdb-0.8.26-cp310-abi3-linux_aarch64.whl
+# Revision 6 (spot check; corrected close fix 2ff744b06 + 8247d91a4)
+6774547a8c291694ac37f8cdf149d7f341a304977c05069cc5a8ac985eaa01d8  consumer-p5/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
+c117c77c4d276543c5e732bf5536399ed1ead2bd431540d75993e5cd3c6270e8  wheel-p5/fathomdb-0.8.26-cp310-abi3-linux_aarch64.whl

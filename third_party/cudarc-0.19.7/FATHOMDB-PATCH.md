@@ -140,7 +140,10 @@ not cover them.
    merged to a release branch; it prototypes the opt-in primitive the 0.8.28
    study plan proposes for upstream
    (`dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md`,
-   section 2.3).
+   section 2.3). How to shape that primitive for upstream, and
+   what stays in FathomDB, is in
+   `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md` (preparation
+   only; nothing is posted without the owner).
    - `mem_pool.rs` adds `CudaMemPool` (`create(ordinal, &MemPoolProps)`,
      `install`, `attribute`, `trim_to`, `raw`) and `MemPoolProps
      { max_size, release_threshold }`: pinned device memory, no handle types,

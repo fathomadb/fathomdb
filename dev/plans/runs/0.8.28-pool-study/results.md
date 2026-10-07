@@ -1,6 +1,6 @@
 ---
-title: FathomDB 0.8.28 Tegra CUDA memory-pool study — results, Phases 0-4
-status: PARTIAL (Phases 0, 1, 1b, 2, 3 and 4; Phase 5 not started)
+title: FathomDB 0.8.28 Tegra CUDA memory-pool study — results, Phases 0-4 and the revision-6 spot check
+status: PARTIAL (Phases 0, 1, 1b, 2, 3, 4 and the revision-6 spot check; Phase 5 not started)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
@@ -11,7 +11,8 @@ This records Phases 0 and 1 of
 `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md`
 (the protocol) on one Jetson AGX Orin 64 GB, Phase 1b of protocol
 revision 3 (§ 10), Phase 2 of revision 4 (§ 11), and Phases 3 and 4 of
-revision 5 (§ 12). It does not rule. Phase 5 (analysis and upstream
+revision 5 (§ 12), and the revision-6 spot check on the corrected close fix
+(§ 13). It does not rule. Phase 5 (analysis and upstream
 package) was not started. Everything not measured here is marked UNMEASURED.
 Statements marked *inferred* are readings of the data, not measurements.
 
@@ -1985,3 +1986,191 @@ Builds ran outside the lock.
    - fund a root-readable nvmap source.
 10. **R4 late import** remains a precondition: early `cuInit` at module
     load (ruling 12).
+
+## 13. Revision 6: rulings 26–35 and the spot check on the corrected close fix
+
+The owner ruled on § 12.11 on 2026-10-07. The protocol and the plan record
+those rulings as 26–35 ("Owner rulings (2026-10-07, after Phase 4) and
+revision 6"):
+
+- The owner listed ten items against the numbers 26–34. Item 10, early
+  `cuInit`, is recorded as ruling 35.
+- In a follow-up the owner **approved** threshold 0 (ruling 30) and
+  accepted the settings/constants split (ruling 31).
+
+This section records the code change and the spot check. Summaries:
+`summaries/rev6-spot-check.txt` and `summaries/rev6-c7.txt`.
+
+### 13.1 Code
+
+| Commit | Content | Tests |
+| --- | --- | --- |
+| `80b97aa02` | Cherry-pick of `2ff744b06` from `release/0.8.27`, "test(engine): cover embedder release outside close lock" (ruling 26). Applied without conflicts. | Red on the study branch: `close_drops_last_embedder_ref_outside_close_lock` panicked with "close deadlocked when the embedder's Drop re-entered Engine::close" (14 passed, 1 failed). |
+| `af7b74a16` | Cherry-pick of `8247d91a4`, "fix(engine): drop released embedder after close lock". Applied without conflicts. | `tests/projection_runtime.rs`: 15 passed, 2 ignored. `slice90` lib tests: 9 passed. |
+
+`f0b6b4c7e` stays in the history; the two commits complete it.
+
+Gates:
+
+- `cargo fmt --check` is clean.
+- `cargo clippy -D warnings` is clean for:
+  - the workspace, all targets;
+  - `fathomdb-engine` with `tegra-pool-experiment`, `default-embedder` and
+    `default-reranker`;
+  - `fathomdb-napi` with `embed-cuda`, `rerank-cuda` and
+    `tegra-pool-experiment`;
+  - `fathomdb-py` with `tegra-pool-experiment`, `default-embedder` and
+    `default-reranker`.
+- Clippy over three crates at once, with the embedder's experiment feature
+  passed as `fathomdb-embedder/...`, fails to compile:
+  `fathomdb-engine` then matches `EmbedderError` without the experiment
+  arm. That is feature unification in the command line, not the code.
+
+**Build.** `consumer-p5` (`.node` `6774547a…`) and `wheel-p5` (`c117c77c…`),
+in `artifacts.sha256`.
+
+**Also changed.**
+
+- One stale module doc line in `cuda_pool_policy.rs`, which still said the
+  pool size defaults to `3G`. It is a comment-only change, made after the
+  build.
+- `harness/analyze.py phase6`.
+
+### 13.2 Allocation correctness and release first (ruling 25)
+
+All on Node 25 and the revision-6 build. Interleaved in randomised blocks.
+Witness off; no-swap condition for the timing series.
+
+| Series | n | Result |
+| --- | --- | --- |
+| C2: 50 open/close cycles, no GC, `FATHOMDB_POOL_COEXIST_CHECK=1`, 10 blocks | P 10, S 10 | **20/20 pass**. P: private 10/10, VmRSS growth 0.36 MiB per cycle (median; max 0.44). S: sync 8, default 2; 0.33 MiB per cycle (max 0.44). Max VmRSS 452 / 450 MiB. |
+| Pool after close, C2 | P 10 | `reserved_cur` **0**, `used_cur` 0, `reserved_high` 128 MiB in every process. With no module-level singleton in use, the pool returns to nothing after the last close. |
+| Pool after close, perf | Node P 10, Python P 10 | 192 / 143.4 MiB reserved / used (the module singletons, ruling 32), as in Phase 4 |
+| Caps (CB1 primary) | Node P 10, Python P 10 | `reserved_high` ≤ `maxSize`, 20/20. The highest was 320 MiB (Python). |
+| CB1 sanity check (ruling 34) | Node P 10 | Consistent 10/10. The S-sync baseline has n = 7 and a 145 MiB band. |
+| CB1 sanity check | Python P 10 | Skipped: no `MemAvailable` pair |
+| Every allocation that fits succeeds | all 50 processes | 50/50 passed, with no allocator error |
+
+The C2 growth matches revision 5 (§ 12.2: P 0.36, S 0.33 MiB per cycle):
+the corrected fix keeps the release and adds no growth.
+
+### 13.3 Latency (spot check)
+
+**Node 25**, 10 blocks, interleaved: P threshold 0 (n = 10) and S
+(n = 10; sync 7, default pool 3).
+
+| Measure | P | S-sync | P / S-sync | P / Node default pool (n = 10/3, **underpowered**) |
+| --- | --- | --- | --- | --- |
+| steady embed | 11.01 ms | 24.55 ms | 0.449 [0.435, 0.522] | 1.156 [0.731, 1.343] |
+| batch 1 | 8.25 ms | 23.64 ms | 0.349 [0.344, 0.358] | 0.988 [0.969, 1.043] |
+| batch 8 | 11.69 ms | 38.31 ms | 0.305 [0.284, 0.339] | 0.941 [0.854, 1.138] |
+| batch 32 | 29.33 ms | 127.58 ms | 0.230 [0.207, 0.248] | 1.014 [0.933, 1.155] |
+| batch 128 | 84.11 ms | 411.45 ms | 0.204 [0.200, 0.206] | 1.041 [0.994, 1.049] |
+| steady rerank | 3.73 ms | 5.72 ms | 0.652 [0.622, 0.678] | 1.048 [0.961, 1.119] |
+
+**Python**, 10 blocks: P (n = 10) against Python S (n = 10, all on the
+default pool). This is the second default-pool reference (ruling 29), not
+pooled with Node; n = 10 is under 15, so it is labelled **underpowered**:
+
+| Measure | Ratio |
+| --- | --- |
+| steady embed | 1.037 [0.828, 1.251] |
+| batches 1–128 | 0.980–1.002 |
+| steady rerank | 1.036 [0.996, 1.133] |
+
+**Rerank gate, both readings (ruling 28).**
+
+| Reading | Spot check | Phase 4 (pooled; revision-5 build) | Verdict |
+| --- | --- | --- | --- |
+| Old: 95 % CI of P's speed-up over S-sync above 1.5× | 1.535× [1.474, 1.607] (n = 10/7) | 1.52× [1.504, 1.541] (n = 60/99) | spot check: **fails** (lower bound 1.474); Phase 4: marginal pass |
+| Re-based: P / default pool ≤ 1.15, CI stated | Node 1.048 [0.961, 1.119] (n = 10/3, underpowered); Python 1.036 [0.996, 1.133] (n = 10/10) | 0.981 [0.959, 1.003] (n = 60/32) | **PASS**: every interval's upper bound is under 1.15 |
+
+In this spot check the Node default pool's own rerank speed-up over S-sync
+is 1.608× [1.500, 1.724]; P's is within 1.15× of it.
+
+**Embed.** P is 2.23× faster than S-sync [1.92, 2.30]. Against the default
+pool the spot check is underpowered (Node n = 3: 1.156 [0.731, 1.343];
+Python: 1.037 [0.828, 1.251]). The point estimates straddle the 1.15 line,
+and the intervals do not settle it either way. The powered comparison is
+Phase 4's 0.986 [0.907, 1.114] (n = 60/32). The spot check was sized to
+confirm that the corrected fix changes nothing, not to re-decide the gate.
+
+**Equivalence.** One embedding hash, `d9dafb8c410005f3`, in every Node and
+Python perf process (20 + 20). That is production 0.8.26's hash. The
+rerank scores form one set, equal to production's.
+
+### 13.4 C7 on the corrected build (ruling 27)
+
+5 S + 5 P without gdb, and 3 + 3 under gdb.
+
+- **Exit status.** SIGSEGV (exit 139) in 5/5 S and 5/5 P.
+- **First errors after the reset** (reset record, 16/16), unchanged:
+  - `embed_batch_cls`: `CUDA_ERROR_CONTEXT_IS_DESTROYED`;
+  - `engine.embed`: `EmbedderError`;
+  - `rerank`: `CudaProbeFailed` as `WriteValidationError`.
+- **Where it crashes now** (all 6 gdb runs, S and P):
+
+  ```text
+  libcuda.so
+  cudarc::driver::safe::core::CudaStream::wait
+  <cudarc::driver::safe::core::CudaSlice<T> as Drop>::drop
+  drop_in_place<candle_transformers::models::bert::BertModel>
+  drop_in_place<fathomdb_embedder::candle_bge::CandleBgeEmbedder>
+  fathomdb_engine::runtime_lifecycle::<impl Engine>::close
+  fathomdb_py::engine::PyEngine::__pymethod_close__
+  ```
+
+  With `c816b8653` alone, the drop ran inside
+  `EmbedDispatcher::join_after_quiescence`, under the close lock
+  (§ 12.7.4). With `8247d91a4` it runs in `Engine::close` itself, after
+  the lock is released. That is what the fix intends.
+- **Still not the pool.** The fault is the same cudarc drop on destroyed
+  handles, in every variant. No guard and no cudarc change (ruling 27).
+  The separate upstream candidate is in
+  `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md` § 5.
+
+### 13.5 GPU time (revision 6)
+
+| Part | Time |
+| --- | --- |
+| Spot check, 11:44:51–12:07:07 UTC: C2, Node perf, Python perf, C7 without and with gdb | **22.3 min** |
+
+The engine tests, clippy and the builds ran outside the lock.
+
+### 13.6 Deviations (revision 6)
+
+1. **The owner's numbering.** Ten items were recorded as rulings 26–35,
+   not 26–34 (§ 13).
+2. **The Node default-pool reference** in the spot check is n = 3, as the
+   default-pool rate predicts (3/10). Per ruling 29 there is no top-up; the
+   powered reference is Phase 4's.
+3. **The doc-comment fix** in `cuda_pool_policy.rs` came after the
+   revision-6 build. It does not change behaviour.
+
+### 13.7 What still blocks adoption
+
+1. **C7:** the owner's ruling (ruling 27). Every variant crashes in
+   `close()` after a co-resident reset.
+2. **Early `cuInit` at module load:** accepted for this round, for further
+   discussion (ruling 35). R4 shows P, like S, needs it.
+3. **Typed exhaustion in all three SDKs** (ruling 33):
+   - type the module-level `rerank()` string path;
+   - ship the Python `CudaPoolExhaustedError` subclass;
+   - test `cuda_pool_exhausted` in Rust, Python and TypeScript, on every
+     path, including module-level `rerank` and `embed`.
+4. **Sizing off the 64 GB Orin** (ruling 31):
+   - an on-device C3 and R5 run for 32 and 16 GB Orin before they get
+     2 GiB;
+   - Thor opt-in until measured;
+   - a Tegra-identity condition so that GB10-class devices do not inherit
+     3 GiB;
+   - verify GH200's integrated attribute.
+5. **Settings at adoption** (plan design note, ruling 31):
+   - replace the study's variant selector with a pool mode
+     (`auto` / `on` / `off`);
+   - keep `FATHOMDB_POOL_MAXSIZE` and the release threshold (default 0,
+     ruling 30);
+   - remove the dead trim arm, the comparison arms and the study
+     diagnostics.
+6. **The corrected close fix** is on `release/0.8.27` (merge `96796fe04`).
+   It ships when that release publishes. The study uses a cherry-pick.

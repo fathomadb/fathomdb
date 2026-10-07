@@ -1,0 +1,3 @@
+# Revision 6 spot check: Node 25 perf, P threshold 0 vs S, interleaved
+p6-perf-S-n25 S 25.9.0 $PS/consumer-p5 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p6-perf-P-thr0-n25 P-first-use 25.9.0 $PS/consumer-p5 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0

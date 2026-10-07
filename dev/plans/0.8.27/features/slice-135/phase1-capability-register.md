@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 1 capability exercise register
-status: INTERIM_INSTALLED_PYTHON_S01_AND_TS_SMOKE
+status: INTERIM_PYTHON_39_OF_44_EXECUTED
 target_release: 0.8.27
 ---
 
@@ -8,7 +8,7 @@ target_release: 0.8.27
 
 The executable [canonical operation map](../../../../../src/conformance/governed-operation-parity.json) is the scope authority for governed operations. Its SHA-256 at the initial inventory snapshot is `da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17`. That snapshot was branch `llm/0.8.27-slice-135` at `ea91ec0e8878d49c44706234ff2ea9c454b55cb5`, before the confirmed edge-FTS-error repair. This living register is not the frozen measurement protocol; only rows explicitly marked with a receipt have executed installed-artifact evidence.
 
-The engine-only first-results receipts cover a narrower text/write/erase/reopen workload; those runs do not close an SDK row. A candidate [installed Python wheel functional smoke](results/2026-10-07-python-wheel-qualification/README.md) now exercises the specifically marked operations against a real database, with state assertions and reopen. The exact [0.8.26 installed wheel](results/2026-10-07-python-wheel-baseline/README.md) passed that same smoke, and the two graph matrices agree on semantic fields. **Functional smoke is not an S01/S02 timing result or complete contract qualification.** Every other row remains an explicit Phase 1 execution gap for installed SDK behavior. The routes below are proposed full Phase 1 cases from the [protocol draft](phase1-protocol-draft.md); each must be replaced with exact command, artifact/source identity, assertions and receipt link, or kept as a named gap in the checkpoint. `S03` may use qualified benchmark data for shape, with basic state or result checks. Dedicated gold scoring remains Phase 2.
+The engine-only first-results receipts cover a narrower text/write/erase/reopen workload; those runs do not close an SDK row. The exact-candidate [installed Python capability exercise](results/2026-10-07-python-capability-exercise/README.md) now accounts for all 44 governed operations: 39 executed with selected real-database assertions, one failed error-field contract, one committed-closure gap and three unavailable provider/model cases. "Executed" does not mean every condition of an operation's contract was tested. The earlier [candidate wheel smoke](results/2026-10-07-python-wheel-qualification/README.md) and [0.8.26 wheel smoke](results/2026-10-07-python-wheel-baseline/README.md) remain narrow historical evidence. The routes below are proposed full Phase 1 cases from the [protocol draft](phase1-protocol-draft.md); each needs exact command, artifact/source identity, assertions and receipt link, or a named gap in the checkpoint. `S03` may use qualified benchmark data for shape, with basic state or result checks. Dedicated gold scoring remains Phase 2.
 
 The [paired installed Python S01 receipt](results/2026-10-07-python-s01-paired/README.md)
 adds positive, source-bound text and vector-bearing/hybrid retrieval calls
@@ -44,50 +44,50 @@ broader filter, validity, lifecycle or error conditions on these operations.
 
 | Canonical operation | Phase 1 exercise route | Rust SDK | Python wheel | TypeScript package |
 | --- | --- | --- | --- | --- |
-| `engine.open` | S02 startup/reopen | External S02; broader gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
-| `admin.configure` | S02 startup | Gap | Gap | Functional smoke |
-| `engine.write` | S02 write | External S02; broader gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
-| `engine.actuate` | S03 actuation | Gap | Functional smoke | Gap |
-| `engine.register_source_dependency` | S03 dependency | Gap | Functional smoke | Gap |
-| `engine.dependencies_for_source` | S03 dependency | Gap | Gap | Gap |
-| `engine.dependency_for_derived` | S03 dependency | Gap | Functional smoke | Gap |
-| `engine.read_dependency_closure` | S03 dependency | Gap | Gap | Gap |
-| `engine.transition` | S03 lifecycle | Gap | Gap | Gap |
-| `engine.purge` | S03 lifecycle | Gap | Gap | Gap |
-| `engine.erase_source` | S02 erasure | External S02 with canonical counts; broader gap | S02 feasibility with canonical counts; broader contract gap | S02 feasibility with canonical counts; broader contract gap |
-| `engine.search` | S01/S02 hybrid | External S02 vector/hybrid and invalid limit; broader gap | S02 vector/hybrid feasibility; broader contract gap | S01 paired basic and S02 feasibility; broader contract gap |
-| `engine.freeze_read_context` | S02 frozen | External S02; broader gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
-| `engine.search_frozen` | S02 frozen | Gap | Functional smoke | Gap |
-| `engine.search_expand_frozen` | S03 graph | Gap | Functional smoke | Gap |
-| `engine.search_text_only` | S01/S02 text | External S02 text and invalid NUL; broader gap | S01 paired and S02 feasibility; broader contract gap | S01 paired basic and S02 feasibility; broader contract gap |
-| `engine.search_projected_text` | S03 projection | Gap | Gap | Gap |
-| `engine.search_with_evidence` | S02 evidence | External S02 limit-one; broader gap | S02 limit-one feasibility; broader contract gap | S02 limit-one feasibility; broader contract gap |
-| `engine.resolve_evidence` | S02 evidence | External S02; broader gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
-| `engine.resolve_graph_evidence` | S02 graph evidence | External S02; broader gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
-| `engine.trace_dependency` | S03 dependency | Gap | Gap | Gap |
-| `engine.close` | S02 close | External S02; broader gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
-| `read.get` | S02 read | External S02 positive and erased/reopen; broader gap | S02 positive and erased/reopen checks; broader contract gap | S02 positive and erased/reopen checks; broader contract gap |
-| `read.get_many` | S03 read | Gap | Gap | Gap |
-| `read.collection` | S03 read | Gap | Gap | Gap |
-| `read.mutations` | S03 read | Gap | Gap | Gap |
-| `read.list` | S03 read | Gap | Gap | Gap |
-| `engine.ingest_with_extractor` | S03 provider | Gap | Gap | Gap |
-| `engine.consolidate_with_provider` | S03 provider | Gap | Gap | Gap |
-| `graph.expand` | S02 graph | External S02 evidence; broader gap | S02 evidence feasibility; broader contract gap | S02 evidence feasibility; broader contract gap |
-| `graph.neighbors` | S02 graph | External S02 positive and erased/reopen; broader gap | Gap | S02 erased/reopen check; broader contract gap |
-| `graph.search_expand` | S03 graph | Gap | Gap | Gap |
-| `rerank` | S01 model only | Gap | Gap | Gap |
-| `engine.embed` | S01 model | Gap | Gap | Gap |
-| `read.crossed_boundary_since` | S03 read | Gap | Gap | Gap |
-| `engine.configure_projections` | S02 projection | External S02; broader gap | S02 feasibility; broader contract gap | S02 feasibility; broader contract gap |
-| `read.projections` | S02 projection | External S02 ready check; broader gap | S02 ready/reopen checks; broader contract gap | S02 ready/reopen checks; broader contract gap |
-| `read.projection_status` | S02 projection | Gap | Gap | Gap |
-| `read.embedding_readiness` | S02 projection | Gap | Gap | Gap |
-| `read.projection_generation_status` | S03 projection | Gap | Gap | Gap |
-| `read.mutation_projection_status` | S03 projection | Gap | Gap | Gap |
-| `read.canonical_page` | S03 pagination | Gap | Gap | Gap |
-| `read.operational_state` | S03 operational | Gap | Gap | Gap |
-| `read.operational_state_page` | S03 operational | Gap | Gap | Gap |
+| `engine.open` | S02 startup/reopen | External S02; broader gap | Installed wheel: selected case executed | S02 feasibility; broader contract gap |
+| `admin.configure` | S02 startup | Gap | Installed wheel: selected case executed | Functional smoke |
+| `engine.write` | S02 write | External S02; broader gap | Installed wheel: selected case executed | S02 feasibility; broader contract gap |
+| `engine.actuate` | S03 actuation | Gap | Installed wheel: selected case executed | Gap |
+| `engine.register_source_dependency` | S03 dependency | Gap | Installed wheel: selected case executed | Gap |
+| `engine.dependencies_for_source` | S03 dependency | Gap | Installed wheel: selected case executed | Gap |
+| `engine.dependency_for_derived` | S03 dependency | Gap | Installed wheel: selected case executed | Gap |
+| `engine.read_dependency_closure` | S03 dependency | Gap | Gap: committed closure result | Gap |
+| `engine.transition` | S03 lifecycle | Gap | Installed wheel: selected case executed | Gap |
+| `engine.purge` | S03 lifecycle | Gap | Installed wheel: selected case executed | Gap |
+| `engine.erase_source` | S02 erasure | External S02 with canonical counts; broader gap | Installed wheel: selected case executed | S02 feasibility with canonical counts; broader contract gap |
+| `engine.search` | S01/S02 hybrid | External S02 vector/hybrid and invalid limit; broader gap | Installed wheel: selected case executed | S01 paired basic and S02 feasibility; broader contract gap |
+| `engine.freeze_read_context` | S02 frozen | External S02; broader gap | Installed wheel: frozen-error fields failed | S02 feasibility; broader contract gap |
+| `engine.search_frozen` | S02 frozen | Gap | Installed wheel: selected case executed | Gap |
+| `engine.search_expand_frozen` | S03 graph | Gap | Installed wheel: selected case executed | Gap |
+| `engine.search_text_only` | S01/S02 text | External S02 text and invalid NUL; broader gap | Installed wheel: selected case executed | S01 paired basic and S02 feasibility; broader contract gap |
+| `engine.search_projected_text` | S03 projection | Gap | Installed wheel: selected case executed | Gap |
+| `engine.search_with_evidence` | S02 evidence | External S02 limit-one; broader gap | Installed wheel: selected case executed | S02 limit-one feasibility; broader contract gap |
+| `engine.resolve_evidence` | S02 evidence | External S02; broader gap | Installed wheel: selected case executed | S02 feasibility; broader contract gap |
+| `engine.resolve_graph_evidence` | S02 graph evidence | External S02; broader gap | Installed wheel: selected case executed | S02 feasibility; broader contract gap |
+| `engine.trace_dependency` | S03 dependency | Gap | Installed wheel: selected case executed | Gap |
+| `engine.close` | S02 close | External S02; broader gap | Installed wheel: selected case executed | S02 feasibility; broader contract gap |
+| `read.get` | S02 read | External S02 positive and erased/reopen; broader gap | Installed wheel: selected case executed | S02 positive and erased/reopen checks; broader contract gap |
+| `read.get_many` | S03 read | Gap | Installed wheel: selected case executed | Gap |
+| `read.collection` | S03 read | Gap | Installed wheel: selected case executed | Gap |
+| `read.mutations` | S03 read | Gap | Installed wheel: selected case executed | Gap |
+| `read.list` | S03 read | Gap | Installed wheel: selected case executed | Gap |
+| `engine.ingest_with_extractor` | S03 provider | Gap | Unavailable: provider/model qualification | Gap |
+| `engine.consolidate_with_provider` | S03 provider | Gap | Unavailable: provider/model qualification | Gap |
+| `graph.expand` | S02 graph | External S02 evidence; broader gap | Installed wheel: selected case executed | S02 evidence feasibility; broader contract gap |
+| `graph.neighbors` | S02 graph | External S02 positive and erased/reopen; broader gap | Installed wheel: selected case executed | S02 erased/reopen check; broader contract gap |
+| `graph.search_expand` | S03 graph | Gap | Installed wheel: selected case executed | Gap |
+| `rerank` | S01 model only | Gap | Unavailable: provider/model qualification | Gap |
+| `engine.embed` | S01 model | Gap | Installed wheel: selected case executed | Gap |
+| `read.crossed_boundary_since` | S03 read | Gap | Installed wheel: selected case executed | Gap |
+| `engine.configure_projections` | S02 projection | External S02; broader gap | Installed wheel: selected case executed | S02 feasibility; broader contract gap |
+| `read.projections` | S02 projection | External S02 ready check; broader gap | Installed wheel: selected case executed | S02 ready/reopen checks; broader contract gap |
+| `read.projection_status` | S02 projection | Gap | Installed wheel: selected case executed | Gap |
+| `read.embedding_readiness` | S02 projection | Gap | Installed wheel: selected case executed | Gap |
+| `read.projection_generation_status` | S03 projection | Gap | Installed wheel: selected case executed | Gap |
+| `read.mutation_projection_status` | S03 projection | Gap | Installed wheel: selected case executed | Gap |
+| `read.canonical_page` | S03 pagination | Gap | Installed wheel: selected case executed | Gap |
+| `read.operational_state` | S03 operational | Gap | Installed wheel: selected case executed | Gap |
+| `read.operational_state_page` | S03 operational | Gap | Installed wheel: selected case executed | Gap |
 
 ## Existing behavior test leads
 

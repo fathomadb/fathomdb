@@ -81,6 +81,12 @@ The candidate subsequently changed with the graph traversal row-error
 The prior functional receipts still describe their exact SHAs; final Phase 1
 timing and installed-SDK qualification must use rebuilt artifacts from the
 checkpoint candidate.
+The later [installed Python capability exercise](results/2026-10-07-python-capability-exercise/README.md)
+rebuilt a wheel from the repaired candidate and accounted for all 44 governed
+operations: 39 selected cases executed, one failed frozen-error field
+contract, one committed-closure gap and three unavailable provider/model
+cases. This is functional evidence; it does not qualify S02 latency or the
+complete Python contract matrix.
 
 ## Source-grounded starting point
 

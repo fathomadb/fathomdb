@@ -261,7 +261,7 @@ fn slice135_process_kill_before_and_after_acknowledged_write() {
 }
 
 #[test]
-fn slice135_injected_commit_failure_preserves_reopened_state() {
+fn slice135_injected_pretransaction_refusal_preserves_reopened_state() {
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join("fault.sqlite");
     let fd_before = fd_count();
@@ -282,7 +282,7 @@ fn slice135_injected_commit_failure_preserves_reopened_state() {
     let fd_after = fd_count();
     eprintln!(
         "SLICE135_ROBUSTNESS {}",
-        json!({"case":"injected_commit_failure", "setup":"real database seeded with base", "fault_point":"Engine::force_next_commit_failure_for_test before transaction commit", "timeout_ms":30000, "before":before, "error":format!("{error:?}"), "after_failure":after_failure, "after_recovery":after_recovery, "reopened":reopened_state, "expected_after_failure":["slice135robust body base",null,null], "expected_reopened":["slice135robust body base",null,"slice135robust body recovery"], "integrity_check":integrity, "fd_before":fd_before, "fd_after":fd_after, "wal_bytes_after_close":wal_bytes(&path)})
+        json!({"case":"injected_pretransaction_refusal", "setup":"real database seeded with base", "fault_point":"Engine::force_next_commit_failure_for_test after validation, before transaction BEGIN", "timeout_ms":30000, "before":before, "error":format!("{error:?}"), "after_failure":after_failure, "after_recovery":after_recovery, "reopened":reopened_state, "expected_after_failure":["slice135robust body base",null,null], "expected_reopened":["slice135robust body base",null,"slice135robust body recovery"], "integrity_check":integrity, "fd_before":fd_before, "fd_after":fd_after, "wal_bytes_after_close":wal_bytes(&path)})
     );
     assert_eq!(before, vec![Some("slice135robust body base".into()), None, None]);
     assert_eq!(error, EngineError::Storage);

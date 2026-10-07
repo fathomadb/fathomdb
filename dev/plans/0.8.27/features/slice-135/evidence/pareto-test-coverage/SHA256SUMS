@@ -1,0 +1,15 @@
+f9462054145316fa39d1820af9fb5d2ab04407cca54c566d707dcd4f61cdf359 dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/.gitattributes
+f9897b3232ec62f0a8cdeb4cbdb261a48a404db67d0aefdf93d2a02d94d80d4d dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-s15b.profraw.gz
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-s15b.stderr
+4882e1b945e829d0628dee238d4f01fec00cdb840957ecf89eb5acfb27e82fcb dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-s15b.stdout
+32b18dbf3714663cbbd41489f57f431aa10fa861ca0f84a63dbb927082c425f8 dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-s23.profraw.gz
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-s23.stderr
+2275a1c64d39b3ae0deaa3b30c08059f28e29c8929b20fa6467ed64941415f34 dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-s23.stdout
+b5c68bf6d03e8c395506b979f311a7e5fcda7cc79758e71ff1152ac641c32127 dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-tc33.profraw.gz
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-tc33.stderr
+9ec2d3fda97d91057027a37f57826ab0af4e3ff7e38f04c711d4435e30f65dc6 dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-tc33.stdout
+0855cd53f21ab244299f2a7af02b8ebc7b223be3fb8ea4e8632981b5e404054a dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-tests-build.stderr
+656a0703bdc05aad23bb5e7a441cd869101f5f3cf5b5b884d4bd9842062c8db2 dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-tests-coverage.json
+f36efad675af65e2730b52f085c08b092bc9e94674493675bd82d6646673794c dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-tests-search-report.txt
+af631a0424a3aec6a6f4fefd37d0a2e566fd0335644cd3df1084e1456a1ccbee dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-tests-search.lcov
+afef09ed4b2bf4bcf797df6c063b87d82c6648b453c2d0b9167b4b09a78e975b dev/plans/0.8.27/features/slice-135/evidence/pareto-test-coverage/slice135-pareto-tests-search.normalized.lcov

@@ -103,6 +103,8 @@ class ReceiptTests(unittest.TestCase):
         self.assertNotIn("p99_ns", summary["cells"]["query"])
         self.assertEqual(summary["cells"]["query"]["unsupported_statistics"], ["p99"])
         self.assertEqual(summary["cells"]["query"]["invalid_attempts"], 1)
+        self.assertAlmostEqual(summary["cells"]["query"]["valid_attempt_fraction"], 100 / 101)
+        self.assertNotIn("semantic_success_fraction", summary["cells"]["query"])
         self.assertEqual(len(self.raw["cells"]["query"]["attempts"]), 101)
         self.assertEqual(summary["cells"]["close"]["p95_ns"], 95)
         self.assertNotIn("p99_ns", summary["cells"]["close"])
@@ -163,6 +165,16 @@ class ReceiptTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "observed"):
             self.validate()
 
+    def test_invalid_label_cannot_hide_degraded_observed_output(self):
+        attempt = self.raw["cells"]["query"]["attempts"][0]
+        attempt.update(valid=False, reason="excluded", semantic_ok=False)
+        with self.assertRaisesRegex(ValueError, "semantic"):
+            self.validate()
+        attempt["semantic_ok"] = True
+        attempt["observed_checks"] = {"record_count": 9}
+        with self.assertRaisesRegex(ValueError, "observed"):
+            self.validate()
+
     def test_rejects_invalid_or_drifting_environment(self):
         self.raw["environment"]["invalidators"] = ["competing heavy job"]
         with self.assertRaisesRegex(ValueError, "environment"):
@@ -177,7 +189,9 @@ class ReceiptTests(unittest.TestCase):
             self.validate()
 
     def test_cli_recomputes_without_overwriting_raw_attempts(self):
-        self.protocol["runner_sha256"] = digest(SCRIPT.read_bytes())
+        runner_path = self.root / "runner.bundle"
+        runner_path.write_bytes(b"measured runner")
+        self.protocol["runner_sha256"] = digest(runner_path.read_bytes())
         protocol_bytes = json.dumps(self.protocol, sort_keys=True).encode()
         self.raw["runner_sha256"] = self.protocol["runner_sha256"]
         self.raw["protocol_sha256"] = digest(protocol_bytes)
@@ -193,7 +207,8 @@ class ReceiptTests(unittest.TestCase):
         command = [
             sys.executable, str(SCRIPT), "--raw", str(raw_path),
             "--protocol", str(protocol_path), "--artifacts-root", str(self.root),
-            "--source-sha", self.source, "--output", str(output_path),
+            "--source-sha", self.source, "--runner", str(runner_path),
+            "--output", str(output_path),
         ]
         subprocess.run(command, check=True, capture_output=True, text=True)
         summary = json.loads(output_path.read_text())
@@ -205,6 +220,33 @@ class ReceiptTests(unittest.TestCase):
         )
         self.assertNotEqual(forbidden.returncode, 0)
         self.assertEqual(raw_path.read_bytes(), raw_bytes)
+        forbidden_runner = subprocess.run(
+            [*command[:-1], str(runner_path)], capture_output=True, text=True,
+        )
+        self.assertNotEqual(forbidden_runner.returncode, 0)
+        self.assertEqual(runner_path.read_bytes(), b"measured runner")
+
+    def test_cli_rejects_changed_measured_runner_bytes(self):
+        runner_path = self.root / "runner.bundle"
+        runner_path.write_bytes(b"measured runner")
+        self.protocol["runner_sha256"] = digest(runner_path.read_bytes())
+        protocol_bytes = json.dumps(self.protocol, sort_keys=True).encode()
+        self.raw["runner_sha256"] = self.protocol["runner_sha256"]
+        self.raw["protocol_sha256"] = digest(protocol_bytes)
+        raw_path = self.root / "raw.json"
+        protocol_path = self.root / "protocol.json"
+        raw_path.write_text(json.dumps(self.raw))
+        protocol_path.write_bytes(protocol_bytes)
+        runner_path.write_bytes(b"changed measured runner")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--raw", str(raw_path),
+             "--protocol", str(protocol_path), "--artifacts-root", str(self.root),
+             "--source-sha", self.source, "--runner", str(runner_path),
+             "--output", str(self.root / "summary.json")],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("runner_sha256", result.stderr)
 
 
 if __name__ == "__main__":

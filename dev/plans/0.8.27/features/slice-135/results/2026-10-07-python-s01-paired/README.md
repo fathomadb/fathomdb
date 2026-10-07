@@ -96,4 +96,6 @@ This is an S01 Python subset result. It does not close the Rust and TypeScript
 installed boundaries, the accepted-operation functional register, S02's whole
 system sequence, the engine cells, or the other Phase 1 matrices. The raw
 semantic assertions are basic workload validity, not independent relevance
-or answer gold.
+or answer gold. The [full-gate disposition](verification.md) records two
+open repository test failures and the successful standard Slice 135 harness
+registration on this commit.

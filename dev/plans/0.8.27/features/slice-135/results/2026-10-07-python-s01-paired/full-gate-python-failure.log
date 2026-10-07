@@ -1,0 +1,179 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+...............................s........................................ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+............................................................sss.s....... [ 35%]
+........................................................................ [ 40%]
+................s....................................................... [ 44%]
+.............................................................s.......... [ 49%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 62%]
+.............................ss....................s............ssss.... [ 66%]
+...................................................F.................... [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 80%]
+...........................sss.ssss.s................................... [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+...................................s.................................... [ 98%]
+.....s..sss...sssFF............                                          [100%]
+=================================== FAILURES ===================================
+_____________ test_all_python_declarations_match_pre_move_baseline _____________
+
+    def test_all_python_declarations_match_pre_move_baseline() -> None:
+        checkout = Path(__file__).resolve().parents[3]
+        package = checkout / "src/python/fathomdb"
+        spec = importlib.util.spec_from_file_location(
+            "slice130_surface_comparator", checkout / "dev/tools/surface_comparator.py"
+        )
+        assert spec is not None and spec.loader is not None
+        comparator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(comparator)
+    
+        sources = {
+            path.relative_to(package).as_posix(): path.read_text() for path in package.rglob("*.py")
+        }
+        baseline = json.loads(BASELINE.read_text())
+        declarations = comparator.parse_python_wrappers(sources)
+>       assert len(declarations) == 1131
+E       AssertionError: assert 1132 == 1131
+E        +  where 1132 = len([{'path': 'fathomdb.ActuationBatchV1', 'kind': 'python-class', 'signature': 'class ActuationBatchV1(_ActuationBatchReq...eiptV1.affected_revision_ids', 'kind': 'python-attribute', 'signature': 'affected_revision_ids: tuple[str, ...]'}, ...])
+
+src/python/tests/test_slice130_package_boundary.py:68: AssertionError
+_______________________ test_unregistered_doc_kind_fails _______________________
+
+no_kind_db = PosixPath('/tmp/pytest-of-coreyt/pytest-1195/verify_nokind0/nokind.sqlite')
+
+    def test_unregistered_doc_kind_fails(no_kind_db):
+>       rep = inspect_embed_db(str(no_kind_db), expected_docs=len(_DOCS), kind="doc")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/python/tests/test_verify_embed_db.py:109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+db_path = '/tmp/pytest-of-coreyt/pytest-1195/verify_nokind0/nokind.sqlite'
+kind = 'doc', expected_docs = 3, expected_dim = 384
+expected_embedder = 'fathomdb-bge-small-en-v1.5', min_coverage = 1.0
+
+    def inspect_embed_db(
+        db_path: str,
+        *,
+        kind: str = "doc",
+        expected_docs: Optional[int] = None,
+        expected_dim: int = DEFAULT_DIM,
+        expected_embedder: Optional[str] = DEFAULT_EMBEDDER,
+        min_coverage: float = 1.0,
+    ) -> VerifyReport:
+        """Inspect a DB read-only in an isolated process and return its report.
+    
+        FathomDB and Python can load separate SQLite images. Keeping their WAL
+        connections in one process is unsafe because POSIX advisory locks are
+        process-scoped; a close in one image can invalidate the other's shared WAL
+        mapping. A child process preserves live-WAL visibility while giving the raw
+        inspector independent lock ownership.
+        """
+        payload = json.dumps(
+            {
+                "db_path": db_path,
+                "kind": kind,
+                "expected_docs": expected_docs,
+                "expected_dim": expected_dim,
+                "expected_embedder": expected_embedder,
+                "min_coverage": min_coverage,
+            }
+        )
+        source = """
+    import json
+    import sys
+    
+    from eval.verify_embed_db import _inspect_embed_db_local
+    
+    report = _inspect_embed_db_local(**json.loads(sys.argv[1]))
+    print(json.dumps(report.to_dict()))
+    """
+        result = subprocess.run(
+            [sys.executable, "-c", source, payload],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+>           raise RuntimeError(result.stderr.strip() or "embed DB inspection child failed")
+E           RuntimeError: Traceback (most recent call last):
+E             File "<string>", line 5, in <module>
+E           ModuleNotFoundError: No module named 'eval'
+
+src/python/eval/verify_embed_db.py:252: RuntimeError
+_____________________________ test_fts_only_fails ______________________________
+
+fts_only_db = PosixPath('/tmp/pytest-of-coreyt/pytest-1195/verify_fts0/fts.sqlite')
+
+    def test_fts_only_fails(fts_only_db):
+>       rep = inspect_embed_db(str(fts_only_db), expected_docs=len(_DOCS), kind="doc")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/python/tests/test_verify_embed_db.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+db_path = '/tmp/pytest-of-coreyt/pytest-1195/verify_fts0/fts.sqlite'
+kind = 'doc', expected_docs = 3, expected_dim = 384
+expected_embedder = 'fathomdb-bge-small-en-v1.5', min_coverage = 1.0
+
+    def inspect_embed_db(
+        db_path: str,
+        *,
+        kind: str = "doc",
+        expected_docs: Optional[int] = None,
+        expected_dim: int = DEFAULT_DIM,
+        expected_embedder: Optional[str] = DEFAULT_EMBEDDER,
+        min_coverage: float = 1.0,
+    ) -> VerifyReport:
+        """Inspect a DB read-only in an isolated process and return its report.
+    
+        FathomDB and Python can load separate SQLite images. Keeping their WAL
+        connections in one process is unsafe because POSIX advisory locks are
+        process-scoped; a close in one image can invalidate the other's shared WAL
+        mapping. A child process preserves live-WAL visibility while giving the raw
+        inspector independent lock ownership.
+        """
+        payload = json.dumps(
+            {
+                "db_path": db_path,
+                "kind": kind,
+                "expected_docs": expected_docs,
+                "expected_dim": expected_dim,
+                "expected_embedder": expected_embedder,
+                "min_coverage": min_coverage,
+            }
+        )
+        source = """
+    import json
+    import sys
+    
+    from eval.verify_embed_db import _inspect_embed_db_local
+    
+    report = _inspect_embed_db_local(**json.loads(sys.argv[1]))
+    print(json.dumps(report.to_dict()))
+    """
+        result = subprocess.run(
+            [sys.executable, "-c", source, payload],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+>           raise RuntimeError(result.stderr.strip() or "embed DB inspection child failed")
+E           RuntimeError: Traceback (most recent call last):
+E             File "<string>", line 5, in <module>
+E           ModuleNotFoundError: No module named 'eval'
+
+src/python/eval/verify_embed_db.py:252: RuntimeError
+=========================== short test summary info ============================
+FAILED src/python/tests/test_slice130_package_boundary.py::test_all_python_declarations_match_pre_move_baseline
+FAILED src/python/tests/test_verify_embed_db.py::test_unregistered_doc_kind_fails
+FAILED src/python/tests/test_verify_embed_db.py::test_fts_only_fails - Runtim...
+3 failed, 1582 passed, 30 skipped in 30.72s

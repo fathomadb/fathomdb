@@ -683,6 +683,12 @@ else
 fi
 run_tier_maybe_suite fast test-program-experiment-harness "$experiment_track_runner_skip_reason" "${experiment_track_runner_command[@]}"
 
+# Slice 135 measurement receipts and negative controls live outside src/python/.
+# Register the whole script suite so a normal fast/full run exercises them.
+run_tier_maybe_suite fast test-slice135-harness "$experiment_track_runner_skip_reason" \
+  env PYTHONDONTWRITEBYTECODE=1 "$python_bin" -m pytest -q -p no:cacheprovider \
+  scripts/tests/test_slice135_*.py
+
 # ledgerwatch (dev/agent-tools): pure-stdlib pytest suite, no fathomdb binding
 # needed, so it runs under whichever interpreter was resolved above without the
 # maturin-rebuild dance. Wired in by DOC-HYGIENE-2 T1b — the suite existed but

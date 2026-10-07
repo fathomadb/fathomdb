@@ -14,8 +14,9 @@ checkpoint and dedicated correct-results phase remain ahead. The
 candidate timing; the broader [Phase 1 protocol](phase1-protocol-draft.md)
 remains a draft. The installed Python S01
 [baseline-only noise pilot](results/2026-10-07-python-s01-noise-pilot/README.md)
-has ten audited blocks but no candidate comparison; use its measured spread
-to freeze the separate S01 rule before paired timing.
+has ten audited blocks but no candidate comparison. Its measured spread led to
+the separately [frozen installed-Python S01 subset](s01-python-comparison-protocol.json)
+before paired timing.
 
 The [release plan](../../../plan-0.8.27.md) owns the release contract. The
 repository owner approved this Slice 135 plan on 2026-10-06 and authorized

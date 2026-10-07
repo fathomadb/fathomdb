@@ -165,6 +165,45 @@ def _verify_source(checkout: Path, source_sha: str) -> dict:
     }
 
 
+def validate_comparison_protocol(
+    specification: dict,
+    *,
+    role: str,
+    size: int,
+    samples: int,
+    source_sha: str,
+    wheel_sha256: str,
+) -> None:
+    """Reject a paired block that differs from the frozen S01 subset."""
+    if (
+        specification.get("schema_version") != 1
+        or specification.get("status") != "FROZEN_S01_PYTHON_PAIRED"
+    ):
+        raise ValueError("paired comparison protocol is not frozen")
+    if role not in ("baseline", "candidate"):
+        raise ValueError("comparison role must be baseline or candidate")
+    artifact = specification.get(role)
+    if not isinstance(artifact, dict) or artifact != {
+        "source_sha": source_sha,
+        "wheel_sha256": wheel_sha256,
+    }:
+        raise ValueError(f"{role} artifact identity differs from protocol")
+    if size not in specification.get("rows", ()):
+        raise ValueError("corpus size differs from comparison protocol")
+    if specification.get("warm_samples_per_cell") != samples:
+        raise ValueError("sample count differs from comparison protocol")
+    if (
+        specification.get("corpus_sha256_by_size", {}).get(str(size))
+        != CORPUS_SHA256[size]
+    ):
+        raise ValueError("corpus hash differs from comparison protocol")
+    if specification.get("workload_runner_sha256") != sha256(WORKLOAD.read_bytes()):
+        raise ValueError("workload runner differs from comparison protocol")
+    block_hash = specification.get("block_runner_sha256")
+    if block_hash is not None and block_hash != sha256(Path(__file__).read_bytes()):
+        raise ValueError("block runner differs from comparison protocol")
+
+
 def run_block(
     *,
     checkout: Path,
@@ -175,8 +214,10 @@ def run_block(
     size: int,
     samples: int,
     output: Path,
+    comparison_protocol: Path | None = None,
+    role: str = "baseline",
 ) -> dict:
-    """Run one serial pilot block and retain all inputs, output and invalidators."""
+    """Run one source-bound S01 block and retain output and invalidators."""
     if size not in CORPUS_SHA256 or samples < 100:
         raise ValueError("S01 block requires 32/256 rows and at least 100 warm samples")
     if not PILOT.GNU_TIME.is_file():
@@ -187,6 +228,22 @@ def run_block(
         raise ValueError("wheel SHA-256 mismatch")
     if not venv_python.is_file():
         raise ValueError("installed virtual-environment Python is missing")
+    comparison_sha256 = None
+    if comparison_protocol is not None:
+        comparison = json.loads(comparison_protocol.read_text())
+        if not isinstance(comparison, dict):
+            raise ValueError("comparison protocol is not an object")
+        validate_comparison_protocol(
+            comparison,
+            role=role,
+            size=size,
+            samples=samples,
+            source_sha=source_sha,
+            wheel_sha256=wheel_sha256,
+        )
+        comparison_sha256 = sha256(comparison_protocol.read_bytes())
+    elif role != "baseline":
+        raise ValueError("candidate run requires a frozen comparison protocol")
     output.mkdir(parents=True, exist_ok=False)
     (output / "source.json").write_text(
         json.dumps(source, indent=2, sort_keys=True) + "\n"
@@ -196,7 +253,11 @@ def run_block(
     runner_hash = sha256(runner.read_bytes())
     protocol = {
         "schema_version": 1,
-        "status": "BASELINE_S01_PILOT_NOT_FROZEN_COMPARISON",
+        "status": "FROZEN_S01_PYTHON_PAIRED"
+        if comparison_sha256
+        else "BASELINE_S01_PILOT_NOT_FROZEN_COMPARISON",
+        "role": role,
+        "comparison_protocol_sha256": comparison_sha256,
         "source_sha": source_sha,
         "wheel_sha256": wheel_sha256,
         "runner_sha256": runner_hash,
@@ -315,8 +376,16 @@ def run_block(
         json.dumps(environment_report, indent=2, sort_keys=True) + "\n"
     )
     attempt = {
-        "status": "VALID_BASELINE_PILOT_BLOCK" if not invalid else "INVALID_BLOCK",
+        "status": (
+            "VALID_S01_PAIRED_BLOCK"
+            if comparison_sha256
+            else "VALID_BASELINE_PILOT_BLOCK"
+        )
+        if not invalid
+        else "INVALID_BLOCK",
         "invalidators": invalid,
+        "role": role,
+        "comparison_protocol_sha256": comparison_sha256,
         "source_sha": source_sha,
         "wheel_sha256": wheel_sha256,
         "runner_sha256": runner_hash,
@@ -340,6 +409,8 @@ def main() -> int:
     parser.add_argument("--venv-python", type=Path, required=True)
     parser.add_argument("--rows", type=int, choices=(32, 256), required=True)
     parser.add_argument("--samples", type=int, required=True)
+    parser.add_argument("--comparison-protocol", type=Path)
+    parser.add_argument("--role", choices=("baseline", "candidate"), default="baseline")
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     attempt = run_block(
@@ -351,9 +422,11 @@ def main() -> int:
         size=args.rows,
         samples=args.samples,
         output=args.output_dir.resolve(),
+        comparison_protocol=args.comparison_protocol,
+        role=args.role,
     )
     print(attempt["status"])
-    return 0 if attempt["status"] == "VALID_BASELINE_PILOT_BLOCK" else 1
+    return 0 if attempt["status"].startswith("VALID_") else 1
 
 
 if __name__ == "__main__":

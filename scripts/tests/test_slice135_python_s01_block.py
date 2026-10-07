@@ -154,3 +154,45 @@ def test_venv_executable_keeps_its_symlink_path(tmp_path: Path) -> None:
     venv_python = bin_dir / "python"
     venv_python.symlink_to(sys.executable)
     assert MODULE.venv_executable(venv_python) == venv_python.absolute()
+
+
+def test_frozen_pair_protocol_rejects_wrong_candidate_artifact() -> None:
+    specification = {
+        "schema_version": 1,
+        "status": "FROZEN_S01_PYTHON_PAIRED",
+        "baseline": {"source_sha": SOURCE, "wheel_sha256": WHEEL},
+        "candidate": {"source_sha": "d" * 40, "wheel_sha256": "e" * 64},
+        "rows": [32, 256],
+        "warm_samples_per_cell": 1000,
+        "corpus_sha256_by_size": {
+            "32": MODULE.CORPUS_SHA256[32],
+            "256": MODULE.CORPUS_SHA256[256],
+        },
+        "workload_runner_sha256": MODULE.sha256(MODULE.WORKLOAD.read_bytes()),
+    }
+    MODULE.validate_comparison_protocol(
+        specification,
+        role="candidate",
+        size=32,
+        samples=1000,
+        source_sha="d" * 40,
+        wheel_sha256="e" * 64,
+    )
+    with pytest.raises(ValueError, match="candidate artifact"):
+        MODULE.validate_comparison_protocol(
+            specification,
+            role="candidate",
+            size=32,
+            samples=1000,
+            source_sha="d" * 40,
+            wheel_sha256="f" * 64,
+        )
+    with pytest.raises(ValueError, match="sample count"):
+        MODULE.validate_comparison_protocol(
+            specification,
+            role="baseline",
+            size=256,
+            samples=100,
+            source_sha=SOURCE,
+            wheel_sha256=WHEEL,
+        )

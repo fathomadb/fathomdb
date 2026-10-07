@@ -29,7 +29,11 @@ retains five valid separate blocks per size, raw attempts, a failed launcher
 attempt and independent recomputation. The 100-sample pilot does not qualify
 p99 or a candidate speed comparison. Its 32-row text p95 varied by 28.75%
 across blocks; the S01 paired rule must use longer blocks and alternating
-version order. This is a qualification input, not the full protocol freeze.
+version order. The resulting
+[frozen installed-Python S01 subset](s01-python-comparison-protocol.json) pins
+1,000 warm samples per cell, five alternating version pairs per size and the
+descriptive paired-delta rule before candidate timing. Neither the pilot nor
+the S01 subset freezes the full Phase 1 protocol.
 
 ## Source-grounded starting point
 

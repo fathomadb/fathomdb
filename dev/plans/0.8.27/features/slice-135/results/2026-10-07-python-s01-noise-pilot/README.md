@@ -67,13 +67,13 @@ rows. The corresponding p95 spreads were 28.75%, 4.04% and 1.69% at 32 rows;
 not qualify p99. Session-first values remain individual diagnostics, without
 a cold-cache percentile.
 
-For the comparison, use at least 1,000 warm samples per query cell and five
-alternating version pairs at both sizes. This pilot supports that feasible
-sample budget but cannot guarantee the candidate has the same noise. Freeze
-the S01 paired rule and runner identity before looking at candidate timing;
-report every pair and its range rather than assuming a stable regression
-threshold. Keep the broader Phase 1 protocol and full functional exercise
-gate open.
+The [frozen S01 paired rule](../../s01-python-comparison-protocol.json) uses
+1,000 warm samples per query cell and five alternating version pairs at both
+sizes. This pilot supports that feasible sample budget but cannot guarantee
+the candidate has the same noise. The protocol pins the rule and runner
+identity before candidate timing and requires every pair and its range to be
+reported. The broader Phase 1 protocol and full functional exercise gate
+remain open.
 
 Example block command, with the same inputs except `--rows` and output path
 for each block:

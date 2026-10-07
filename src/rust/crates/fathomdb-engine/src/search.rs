@@ -1944,7 +1944,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         ce_score: None,
                     })
                 })?;
-            rows.flatten().collect()
+            rows.collect::<rusqlite::Result<Vec<_>>>()?
         } else {
             // No `superseded_at IS NULL` filter here (and none is possible): this
             // fallback fires only on pre-step-12 schemas whose `canonical_nodes`

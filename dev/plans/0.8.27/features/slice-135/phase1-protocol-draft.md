@@ -99,6 +99,15 @@ sources. It exposes the adapter work still required: environment snapshots,
 exact query IDs/order, pinned model bytes at run time, a true protocol binding,
 and pilot-derived sample counts. Its seven observations per cell are not a
 qualified latency comparison.
+The later [source-bound E01–E12 adapter and baseline noise pilot](results/2026-10-07-e12-adapter-pilot/README.md)
+now satisfy those adapter and evidence-binding requirements. Five separate
+baseline blocks passed with 100 valid text and close/reopen observations each;
+one full-path run per version passed 12 cells with 100 observations each. The
+candidate full-path run used superseded engine bytes and is functional
+feasibility only. The [frozen E01–E12 comparison subset](e12-comparison-protocol.json)
+sets 1,000 valid query samples, 100 lifecycle samples and five alternating
+version pairs before current-candidate paired timing. It does not freeze the
+broader installed-SDK, S02, S03 or C01 protocol.
 
 Historical 0.8.26 gauntlet receipts are context, not matched system timing:
 the [result report](../../../../performance-benchmarking/gauntlet-v1.2/RESULTS-0.8.26.md)

@@ -464,3 +464,10 @@ panic-containment and close/reopen cases on the repaired candidate. All ten
 passed with retained test-process resources and exact binary hashes. Only the
 named reopen cases prove recovered product state; persistent provider failure,
 sustained cancellation and interrupted erasure still need dedicated probes.
+The [E01–E12 source-bound adapter and baseline pilot](results/2026-10-07-e12-adapter-pilot/README.md)
+now bind exact source, binary, runner, corpus, model, environment and
+per-attempt output/state checks. Five baseline-only text and close blocks and
+single full-path functional runs on both versions passed independent audits.
+The [E01–E12 paired subset](e12-comparison-protocol.json) is frozen before
+current-candidate paired timing. The broader Phase 1 protocol and installed
+SDK exercise remain open.

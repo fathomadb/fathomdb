@@ -491,9 +491,12 @@ SDK exercise remain open.
 - **Latency:** the E01–E12 paired engine campaign has audited raw blocks and
   descriptive deltas; the paired Python and TypeScript S01 subsets also have
   audited receipts. Refresh affected S01 cells on the repaired candidate.
-  Qualify S02 with a baseline noise pilot, frozen boundaries, alternating
-  blocks and contention; then execute S03 and qualify C01 or record why it
-  cannot run. Keep engine, installed SDK and competitor boundaries distinct.
+  A [baseline-only Python S02 diagnostic](results/2026-10-07-python-s02-baseline-noise-pilot/README.md)
+  now isolates the product timer and estimates spread from five small blocks.
+  Qualify its full environment controls and sample rule, freeze S02
+  boundaries, then run alternating blocks and contention. Execute S03 and
+  qualify C01 or record why it cannot run. Keep engine, installed SDK and
+  competitor boundaries distinct.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. Finish the declared fault/schedule matrix with persistent and

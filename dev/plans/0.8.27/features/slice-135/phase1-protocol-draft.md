@@ -70,7 +70,13 @@ parallel [installed TypeScript S02 feasibility pair](results/2026-10-07-ts-s02-f
 exercises the same real-database shape and independent canonical erasure
 counts on the repaired candidate. Its one pair and validation-inclusive
 whole-sequence timer likewise do not qualify S02 latency or contention. A
-baseline noise pilot, frozen S02 boundary and alternating blocks remain ahead.
+[baseline-only installed Python S02 timing pilot](results/2026-10-07-python-s02-baseline-noise-pilot/README.md)
+subsequently separated the product timer from direct SQLite verification and
+retained five independently audited blocks, with three measured sequences
+each. Its block-median spread was 64.264 ms (1.20%), and reopened default-
+model startup dominated the sequence. Per-block host snapshots and adequate
+tail sampling were absent, so a fully qualified S02 noise pilot, frozen
+comparison boundary and alternating blocks remain ahead.
 The [external Rust SDK S02 functional consumer](results/2026-10-07-rust-sdk-s02-feasibility/README.md)
 exercises the candidate-only Rust boundary through a separate Cargo package
 and retained real database. It is source-bound, not a published-crate install;

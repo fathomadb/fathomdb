@@ -60,9 +60,8 @@ claim a release verdict.
 ## Coverage and static audit
 
 The focused probe was built with Rust coverage instrumentation; timing from
-this build is not a latency measurement. `llvm-cov report` for `search.rs`
-reported **257/1,500 lines (17.13%)** and 366/2,421 regions (15.12%) for
-this one test. The [LCOV export](evidence/logic-first/slice135-logic-search.lcov)
+this build is not a latency measurement. The stable instrumentation run's
+[LCOV export](evidence/logic-first/slice135-logic-search.lcov)
 independently records `LF:1500`, `LH:257`, `DA:2061,2`, `DA:2069,2`,
 `DA:2070,1`, and `DA:2079,2`. It records `BRF:0`, `BRH:0`: this run did not
 provide branch coverage. The matching LLVM JSON export, with no
@@ -70,12 +69,26 @@ provide branch coverage. The matching LLVM JSON export, with no
 zero branches across the executable; the
 [extracted branch totals](evidence/logic-first/slice135-logic-branch-counts.json)
 and [text report](evidence/logic-first/slice135-logic-coverage-report.txt)
-retain that tool evidence. A separate branch-coverage method or a carefully
-qualified path-decision trace remains necessary for the Phase 1 checkpoint.
+retain that tool evidence.
+
+A second build used Rust 1.95.0's **unstable** branch option via
+`RUSTC_BOOTSTRAP=1` and
+`RUSTFLAGS='-C instrument-coverage -Z coverage-options=branch'`. On the same
+RED probe, `llvm-cov report` measured **30/236 branches (12.71%)**,
+**257/1,500 lines (17.13%)**, and 366/2,421 regions (15.12%) in `search.rs`.
+The [branch LCOV](evidence/logic-first/slice135-logic-branch-search.lcov)
+records `BRF:236`, `BRH:30`; the
+[raw text report](evidence/logic-first/slice135-logic-branch-report.txt)
+agrees. This is measured branch coverage for one fault probe, not the test
+suite or Pareto-path overlay. The unstable flag is diagnostic only; no product
+build or release gate depends on it.
+
 The [compressed raw profile](evidence/logic-first/slice135-logic-run3.profraw.gz)
 is retained; its uncompressed SHA-256 is
 `4af660e7b7c7755151a429aed1d8029eb8f37eb4d91b650280b5cef1e1d936c5`.
-This is coverage of one fault probe, not the test-suite or Pareto-path overlay.
+The [branch-run profile](evidence/logic-first/slice135-logic-branch-run.profraw.gz)
+has uncompressed SHA-256
+`f83eacd43b2fdc1cf01db4e53b89ebc4737dcacc597b27493efc294d06f6bc90`.
 
 The source audit found seven `rows.flatten()` sites in `search.rs` at lines
 1246, 1544, 1947, 1986, 2010, 2079, and 2113. Only the edge FTS case above
@@ -120,6 +133,27 @@ LLVM_PROFILE_FILE='/tmp/slice135-logic-run3-%p-%m.profraw' \
 
 The built test executable SHA-256 was
 `d46e2c30adfa9a6b72eca0688bcc07028256a96f9fcad87e1e9cfb0197d0a80d`.
+For the separate branch-coverage diagnostic, the build and test commands were:
+
+```sh
+RUSTC_BOOTSTRAP=1 CARGO_TARGET_DIR=/tmp/slice135-logic-branchcov \
+  RUSTFLAGS='-C instrument-coverage -Z coverage-options=branch' \
+  LLVM_PROFILE_FILE='/tmp/slice135-logic-branch-build-%p-%m.profraw' \
+  cargo test --locked --offline -p fathomdb-engine --features operator \
+  --test slice135_logic_probe --no-run --message-format=json
+
+LLVM_PROFILE_FILE='/tmp/slice135-logic-branch-run-%p-%m.profraw' \
+  /tmp/slice135-logic-branchcov/debug/deps/slice135_logic_probe-aca8145a2e21cc44 \
+  --nocapture
+```
+
+The branch-build executable SHA-256 was
+`47ea0b7e20ad292fc84c68e37c79557f711c83850fc4c4131660807ed7adf006`.
+The [build stderr](evidence/logic-first/slice135-logic-branch-build.stderr),
+[RED stdout](evidence/logic-first/slice135-logic-branch-probe.stdout), and
+[RED stderr](evidence/logic-first/slice135-logic-branch-probe.stderr) retain
+the exact second run. It reproduced the same defect and exited 101.
+
 Tool versions: `rustc`/Cargo 1.95.0, matching LLVM 22.1.2-rust-1.95.0-stable,
 Python 3.12.3 and its SQLite 3.45.1 for the independent fixture feasibility
 check. The engine's SQLite runtime version was not captured. The

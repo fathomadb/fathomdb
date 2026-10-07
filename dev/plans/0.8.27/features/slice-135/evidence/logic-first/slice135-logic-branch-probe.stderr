@@ -1,0 +1,7 @@
+fts_kind_type_and_length=("blob", 1)
+integrity_findings=[DataPlaneIntegrityFindingV1 { schema_version: 1, code: SearchProjectionIdentityMismatch, severity: Error, artifact_revision_ids: [], dependency_id: None, projection_generation_id: None, operation_id: None, write_cursor: Some(3) }]
+search_after_fault=Ok(SearchResult { projection_cursor: 3, soft_fallback: None, results: [], explanation: None })
+
+thread 'malformed_edge_fts_kind_must_not_silently_remove_a_committed_hit' (8) panicked at src/rust/crates/fathomdb-engine/tests/slice135_logic_probe.rs:95:5:
+a malformed FTS row must not produce a successful incomplete search
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

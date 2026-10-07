@@ -516,3 +516,86 @@ fn graph_search_expand_checks_search_limit_first() {
     );
     engine.close().expect("close");
 }
+
+#[test]
+fn evidence_search_resolves_each_reference_under_the_same_context() {
+    let (_dir, engine) = open_engine();
+    // Evidence requires provenanced (canonical) rows in every SDK.
+    engine
+        .write(&[PreparedWrite::ProvenancedNode(fathomdb_sdk::ProvenancedNodeV1 {
+            kind: "document".into(),
+            body: "alpha evidence document".into(),
+            source_id: SourceId::new("src-evidence").expect("source id"),
+            logical_id: Some("doc:evidence".into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: fathomdb_sdk::WriteProvenanceV1::canonical(
+                fathomdb_sdk::ArtifactRevisionId::new("doc-evidence-r1").expect("revision"),
+                fathomdb_sdk::SourceVersionId::new("doc-evidence-v1").expect("version"),
+            ),
+        })])
+        .expect("provenanced write");
+    engine.drain(10_000).expect("drain");
+    let context = engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context"),
+        )
+        .expect("freeze");
+    // Rust callers set every field; these are the Python/TypeScript defaults.
+    let request = fathomdb_sdk::EvidenceSearchRequestV1 {
+        schema_version: 1,
+        query: "alpha".to_string(),
+        context: context.clone(),
+        rerank_depth: 0,
+        use_graph_arm: false,
+        alpha: 0.3,
+        pool_n: 0,
+        include_explanation: false,
+        limit: 10,
+    };
+    let result = engine.search_with_evidence(&request).expect("evidence search");
+    assert!(!result.search_result.results.is_empty());
+    assert_eq!(result.evidence.len(), result.search_result.results.len());
+    let resolved = engine
+        .resolve_evidence(&fathomdb_sdk::EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: result.evidence[0].evidence_ref.clone(),
+            context,
+        })
+        .expect("resolve");
+    assert_eq!(resolved.artifact_revision_id, result.evidence[0].artifact_revision_id);
+
+    let request = fathomdb_sdk::EvidenceSearchRequestV1 { limit: 0, ..request };
+    assert_eq!(kind_of(engine.search_with_evidence(&request)), ErrorKind::InvalidArgument);
+    engine.close().expect("close");
+}
+
+#[test]
+fn projected_text_search_reads_a_declared_property_projection() {
+    let (_dir, engine) = open_engine();
+    let spec = fathomdb_sdk::ProjectionSpec {
+        name: "title".to_string(),
+        roles: std::collections::BTreeSet::from([fathomdb_sdk::ProjectionRole::Searchable]),
+        fts: Some(fathomdb_sdk::ProjectionFts { tokenizer: None }),
+        vector: None,
+        source: None,
+    };
+    engine.configure_projections(&[spec], &[]).expect("configure projections");
+    engine
+        .write(&[
+            node(None, "doc", r#"{"title":"needle in a haystack"}"#, "src-p"),
+            node(None, "doc", r#"{"title":"plain straw"}"#, "src-p"),
+        ])
+        .expect("write");
+    engine.drain(10_000).expect("drain");
+    assert_eq!(read::projections(&engine).expect("projections").len(), 1);
+
+    let result = engine
+        .search_projected_text("needle", "title", ProjectedTextSearchOptions::default())
+        .expect("projected search");
+    assert_eq!(result.results.len(), 1);
+    assert!(result.results[0].body.contains("needle"));
+    engine.close().expect("close");
+}

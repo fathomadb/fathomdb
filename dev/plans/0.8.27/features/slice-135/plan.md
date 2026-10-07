@@ -514,7 +514,12 @@ SDK exercise remain open.
   blocks. Its [Python subset protocol](s02-python-comparison-protocol.json)
   froze before the [paired Python S02 run](results/2026-10-07-python-s02-paired-current/README.md),
   which is historical after release integration. Rebuild and rerun affected
-  timing cells on the integrated candidate, add S02-L and contention, then
+  timing cells on the integrated candidate. The
+  [S02-L baseline pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
+  has 100 independently audited fresh-process open/close cycles; its
+  [paired subset protocol](s02-python-lifecycle-comparison-protocol.json)
+  froze before integrated-candidate timing. Run that paired lifecycle campaign
+  and contention, then
   execute S03 and
   qualify C01 or record why it cannot run. Keep engine, installed SDK and
   competitor boundaries distinct.

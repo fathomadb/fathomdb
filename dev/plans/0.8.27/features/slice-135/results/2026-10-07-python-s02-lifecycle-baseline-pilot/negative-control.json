@@ -1,0 +1,6 @@
+{
+  "mutation": "sample-001 reopen_ok changed to false; raw and attempts hashes updated in a copy of block 01",
+  "expected": "independent semantic audit rejects the lifecycle result",
+  "observed_error": "lifecycle or vector assertion failed",
+  "detected": true
+}

@@ -199,6 +199,14 @@ temporary build footprint before any heavy comparator re-ingest.
 | S03 | Qualified LOCOMO, LongMemEval, MuSiQue or query-correctness cases selected for distinct filter, temporal, graph, evidence and memory load shapes. | Record subset selection, adaptation, answer-bearing fixtures used for basic validity, and denominators. Phase 1 measures workload cost and exercised paths, not the full gold-quality score. |
 | C01 | Matched native Mem0 warmed external client-to-materialized-top-10 LOCOMO cell. | Validate the pinned index before reuse; paid re-ingest has a $20 ceiling and requires checkpoint/resume/backoff. Report separately from 0.8.26 comparison. |
 
+The [installed Python S02-L baseline-only pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
+qualified five environment-checked blocks and 100 fresh-process cycles. Its
+independent audit and semantic negative control precede the
+[frozen S02-L paired subset](s02-python-lifecycle-comparison-protocol.json),
+which binds the integrated candidate wheel and runner bytes. This subset does
+not freeze the broader Phase 1 protocol or establish a candidate latency
+verdict until the paired campaign and independent audit finish.
+
 All paired cells use fresh databases from a byte-identical seed, a verified
 release artifact or exact source build, the same eligible operation, model,
 settings, cache state, host, storage and concurrency. Record intentional

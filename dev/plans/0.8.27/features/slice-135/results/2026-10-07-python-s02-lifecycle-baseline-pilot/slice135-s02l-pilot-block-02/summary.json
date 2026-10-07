@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "status": "VALID_S02_L_BLOCK",
+  "role": "baseline",
+  "invalidators": [],
+  "warnings": [
+    "host swap drift: 1 pages; child swap events: 0"
+  ],
+  "manifest_sha256": "94e06190bef69d02a1b61e8b1bb27424412d080c70fa282615b2a4834d24b37d",
+  "environment_sha256": "47cb5667dd59d50620d5711e98c6c498c24529a92487bfdfeab12d44f241336e",
+  "attempts_sha256": "7ec968fc9791878a0dfbe57819d9647df731de41379f415dc6aca9e699c8e591",
+  "valid_samples": 20,
+  "p50_close_ns": 5304582,
+  "p95_close_ns": 6205964,
+  "p50_pss_release_kib": -33,
+  "min_pss_release_kib": -33,
+  "max_pss_release_kib": -33
+}

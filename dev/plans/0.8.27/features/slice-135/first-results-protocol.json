@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_BEFORE_PAIRED_CANDIDATE_TIMING",
+  "purpose": "Slice 135 bounded first inspectable Phase 1 results; not the full checkpoint",
+  "baseline_source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "candidate_source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+  "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+  "baseline_binary_sha256": "3eccc98816fa39d93ef7c3a560c091133d34e62de65038b9463214c0bd8c20db",
+  "corpus_sha256": "3490cb46178d1016388d9ee56ae6a9035a9f0e8658512e5f62801c000f3147b4",
+  "operation_manifest_sha256": "ae1ccf2f738d4b4eea7f25ca45216835f736d50348bea498f648fa312823ef3c",
+  "model": "none; CPU real-engine text and lifecycle subset",
+  "conditions": {
+    "host": "windchill3",
+    "cpu_governor": "performance",
+    "seed_rows": 32,
+    "text_query": "needle",
+    "top_k": 10,
+    "concurrency": 1,
+    "timing_mode": "primary-unprofiled",
+    "warmup_per_cell_per_block": 1,
+    "samples_per_cell_per_block": 100,
+    "cells": ["text", "close_fresh", "mixed_sequence"],
+    "paired_claim_cells": ["text", "mixed_sequence"],
+    "resource_scope": "GNU Time child process plus host boundary snapshots"
+  },
+  "pairs": [
+    ["baseline", "candidate"],
+    ["candidate", "baseline"],
+    ["baseline", "candidate"],
+    ["candidate", "baseline"],
+    ["baseline", "candidate"]
+  ],
+  "idle_gap_seconds_between_blocks": 20,
+  "statistics": {
+    "nearest_rank_indices_for_100": {"p50": 49, "p95": 94},
+    "p99": "unsupported",
+    "pair_delta_percent": "100 * (candidate_statistic / baseline_statistic - 1)",
+    "point_estimate": "median of five pair deltas for each cell and percentile",
+    "uncertainty": "2.5th and 97.5th percentiles of 10000 paired-block bootstrap medians, resampling five pairs with replacement using Python Random(135); diagnostic interval, not a release acceptance threshold",
+    "report": "all five pair deltas, median, bootstrap interval, maximum, valid fractions, child CPU/RSS/IO, warnings and invalid attempts"
+  },
+  "validity": {
+    "source_and_artifact_hashes": "exact match required; source tree and resolved Cargo lock checked",
+    "semantic_checks": "all declared output and state checks true per attempt",
+    "minimum_valid_samples_per_cell": 100,
+    "child_swap_events": 0,
+    "resource_report": "required, hashed and independently parsed",
+    "host_swap_drift": "retain exact count as warning if child swap events are zero",
+    "other_environment_invalidators": "governor, source, settings, storage or toolchain drift; swap in child; named competing job at block boundary; disk pressure; malformed or missing resource report",
+    "invalid_block": "retain raw attempt and reason; repeat its assigned pair slot only after cause is addressed; never replace a valid slow sample"
+  },
+  "attribution": "run stage timers, sampled stacks and compiler coverage separately from primary timing; rank fixed-operation aggregate cost only on candidate",
+  "limits": "engine-only first-results subset; no installed SDK, vector, hybrid, graph, cross-host, p99 or full Phase 1 release verdict"
+}

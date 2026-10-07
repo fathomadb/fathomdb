@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_receipt.py", line 290, in <module>
+    main()
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_receipt.py", line 271, in main
+    result = validate(
+             ^^^^^^^^^
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_receipt.py", line 170, in validate
+    resources = _resources(raw, protocol, artifact_root)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_receipt.py", line 73, in _resources
+    raise ValueError("resource report malformed")
+ValueError: resource report malformed

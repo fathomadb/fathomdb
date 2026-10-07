@@ -1,0 +1,4388 @@
+{
+  "artifact_sha256": {
+    "build/Cargo.lock": "5f3a19d59c095886bb2e96572005bebf4e7375cc8f50e18fbb770b26b5f2370d",
+    "corpus.txt": "3490cb46178d1016388d9ee56ae6a9035a9f0e8658512e5f62801c000f3147b4",
+    "operation-manifest.json": "ae1ccf2f738d4b4eea7f25ca45216835f736d50348bea498f648fa312823ef3c",
+    "slice135_pilot_workload": "3eccc98816fa39d93ef7c3a560c091133d34e62de65038b9463214c0bd8c20db"
+  },
+  "cells": {
+    "close_fresh": {
+      "attempts": [
+        {
+          "latency_ns": 5577143,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5425667,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5500229,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4535315,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5454221,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5676452,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5266917,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5566353,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5373328,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5381955,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4528993,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5081076,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6013919,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5216512,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5181255,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5237292,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5136871,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5910504,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5147291,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5388056,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5395341,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5516299,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4938426,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5533261,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5528842,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5227392,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4723189,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5526829,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5698073,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5730404,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5944579,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5711127,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5581913,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5541937,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5132172,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5541496,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5508123,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5567926,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4814071,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5106283,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5151951,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5582073,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5631928,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5585249,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4962832,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5914862,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5225158,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5400680,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5534193,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5199220,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5235839,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6003450,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5479660,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5494377,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5849880,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5946051,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5558258,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5954567,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5255416,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5341709,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5501732,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5395901,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5564640,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4990384,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5552196,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5944388,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4953274,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5622039,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5874145,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5341549,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5335927,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5415659,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5150497,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6481153,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6151619,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5495961,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5021343,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6015142,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6264824,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6069345,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5740763,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5111113,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5214758,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5375393,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4811095,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5421960,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5593435,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4600107,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5027645,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5992730,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5585901,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5407423,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5612570,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5492714,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5673716,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5353781,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5945831,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6347420,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5586392,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5362368,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        }
+      ],
+      "boundary": "close-call-to-return"
+    },
+    "mixed_sequence": {
+      "attempts": [
+        {
+          "latency_ns": 39077988,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 37306209,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 50083004,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40020380,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 41544803,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39634932,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39473687,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40492703,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38801997,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40017735,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 37847022,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40563557,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39348199,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39176835,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39445243,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40332240,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39336648,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38179611,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39341347,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39349121,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39618140,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40296352,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40914170,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39572874,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38865256,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38310017,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39884283,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39459119,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38351826,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38818398,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38323763,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 37869143,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38421257,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39112825,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 41309368,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39294117,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 37050094,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40450643,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39354011,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39774906,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38887368,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39835570,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 41394358,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39781087,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38675087,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38245054,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39862091,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38867801,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38398283,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39140276,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38944777,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38759115,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39145687,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38635021,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40017385,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39272938,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38681900,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38930640,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40267637,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38682511,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38154192,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 36454338,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39422880,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 41148693,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 36827414,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38268628,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39257177,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38193205,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39088268,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39509074,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39953603,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40539832,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 41401211,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 41017806,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40060395,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39798090,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40183879,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40583494,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38731023,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40457887,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40913719,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 41361476,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39828327,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39284259,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39819961,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40395279,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40302343,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39754598,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39502681,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39547115,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 37691998,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38213494,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38995642,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40368529,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40302553,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39949446,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40057680,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 40191384,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 39089310,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 38199999,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "valid": true
+        }
+      ],
+      "boundary": "fresh-open-through-reopened-materialized-check"
+    },
+    "text": {
+      "attempts": [
+        {
+          "latency_ns": 726854,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 528219,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 561842,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 657723,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 530493,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 529681,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 561261,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 239893,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 305498,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 222421,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 278476,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 252768,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 232529,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 233812,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 237168,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 184489,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 198866,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 214265,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 175472,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 187615,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 168819,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 309805,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 171865,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 177976,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 171374,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172185,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 195289,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 221568,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 166825,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 166504,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 162808,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 189007,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172497,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 175863,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 187856,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 180682,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 195790,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 165904,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 165573,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 174300,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 164952,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 174831,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 171324,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 177856,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 162818,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 177485,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 166655,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 181102,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 197934,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 177966,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 165784,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 176423,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 164201,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172787,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 167707,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 179940,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 164070,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172777,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172766,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 223633,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 165262,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 159912,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 162107,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172045,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 170121,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 207322,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 168399,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 175853,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 181273,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 161506,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 176263,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172846,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 161254,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 173287,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 164020,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 208674,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 164882,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 164551,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 159031,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 171574,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 176043,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 222130,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 175632,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 188827,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 175281,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 174690,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 192513,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 177145,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172005,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 171344,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 186783,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 185801,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 169671,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 162076,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 160694,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 171214,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 160543,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 177406,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 165723,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 176705,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        }
+      ],
+      "boundary": "engine-call-to-materialized-output"
+    }
+  },
+  "environment": {
+    "end": {
+      "competing_jobs": [],
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "disk_free_bytes": 27814629376,
+      "governor": "performance",
+      "host": "windchill3",
+      "kernel": "7.0.0-38-generic",
+      "profiler": "none",
+      "resource_tool": "time (GNU Time) UNKNOWN",
+      "storage": "66305",
+      "swap_pages": 6124029,
+      "time_utc": "2026-10-07T03:09:03Z",
+      "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+    },
+    "invalidators": [
+      "swap activity"
+    ],
+    "start": {
+      "competing_jobs": [],
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "disk_free_bytes": 27816673280,
+      "governor": "performance",
+      "host": "windchill3",
+      "kernel": "7.0.0-38-generic",
+      "profiler": "none",
+      "resource_tool": "time (GNU Time) UNKNOWN",
+      "storage": "66305",
+      "swap_pages": 6124028,
+      "time_utc": "2026-10-07T03:08:55Z",
+      "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+    }
+  },
+  "features": {
+    "embedder": "none",
+    "profile_build": false,
+    "query": "text_only",
+    "resource_method": "gnu-time",
+    "timing_mode": "primary"
+  },
+  "protocol_sha256": "8501801081338684f0db64d940def95f497c704a6e16d18c61ac387e013d3945",
+  "resource_file_sha256": "db006f39a6b758abaccf1b95e1e75e3d86dcd2f374c8a6f8a8951db567864b7d",
+  "resources": {
+    "fs_inputs": 0,
+    "fs_outputs": 742848,
+    "method": "gnu-time",
+    "peak_rss_kib": 21176,
+    "scope": "measured-workload-child-process",
+    "system_cpu_s": 1.92,
+    "unsupported": [],
+    "user_cpu_s": 9.6
+  },
+  "runner_sha256": "803c23ee5b64f039bc3edb34a6b578baef1128d40d3763837ceaed820f260cb3",
+  "schema_version": 1,
+  "settings": {
+    "concurrency": 1,
+    "query": "needle",
+    "samples_per_cell": 100,
+    "seed_records": 32,
+    "warmup_per_cell": 1
+  },
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "source_tree_sha256": "d25750313a18352c8f81c34fef8c160b7d6b884c4156c143ea12afc11d7fc133"
+}

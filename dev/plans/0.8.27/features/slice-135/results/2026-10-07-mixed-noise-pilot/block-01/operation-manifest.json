@@ -1,0 +1,45 @@
+{
+  "cells": {
+    "close_fresh": {
+      "observations": 100,
+      "timed_operations_per_observation": {
+        "close": 1
+      }
+    },
+    "mixed_sequence": {
+      "boundary": "fresh-open-through-reopened-materialized-check",
+      "counts_per_observation": {
+        "close": 1,
+        "erasure": 1,
+        "governed_write": 1,
+        "open": 1,
+        "projection_drain": 1,
+        "reclose": 1,
+        "reopen": 1,
+        "text_after_erase": 1,
+        "text_before_erase": 1
+      },
+      "note": "Stage timing is a separate attribution run; primary mode measures only the whole sequence.",
+      "observations": 100,
+      "stages": [
+        "open",
+        "governed_write",
+        "projection_drain",
+        "text_before_erase",
+        "erasure",
+        "close",
+        "reopen",
+        "text_after_erase",
+        "reclose"
+      ]
+    },
+    "text": {
+      "observations": 100,
+      "timed_operations_per_observation": {
+        "text_search": 1
+      }
+    }
+  },
+  "schema_version": 1,
+  "scope": "real-engine pilot proxy; not installed SDK or full S02"
+}

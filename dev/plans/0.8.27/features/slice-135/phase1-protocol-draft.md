@@ -10,9 +10,16 @@ The [approved Slice 135 plan](plan.md) controls this draft. It covers Pareto
 paths, system latency, system robustness, and logic/exception handling. Use
 existing benchmark datasets as workload inputs where qualified. Dedicated
 gold-based quality scoring begins only after the four-result checkpoint. This
-protocol is **not frozen**: the workload adapter, mapping the completed Slice 132
-SDK surface to benchmark operations, baseline-only noise pilot, corpus/model
-hashes and independent review remain.
+full protocol is **not frozen**: the remaining workload cells, mapping the
+completed Slice 132 SDK surface to benchmark operations, corpus/model hashes
+for those cells and independent review remain.
+
+The bounded engine-only first-results subset is frozen separately in
+[first-results-protocol.json](first-results-protocol.json) after the
+[mixed-sequence baseline noise pilot](results/2026-10-07-mixed-noise-pilot/).
+Its five alternating pairs, three cells and supported statistics govern the
+first comparison. This broader Phase 1 protocol remains a draft until the
+installed-SDK and remaining workload cells are qualified.
 
 ## Source-grounded starting point
 
@@ -172,7 +179,7 @@ thresholds and shape are provisional until the baseline noise pilot and
 protocol review. The same script can validate separate 0.8.26 and 0.8.27
 receipts by binding each to its own source, protocol, runner and artifacts.
 
-Freeze this document as an executable, hashed protocol only after the
+Freeze the **full** Phase 1 protocol as an executable, hashed protocol only after the
 adapter's negative fixtures pass, the baseline-only pilot fixes counts and
 uncertainty, exact assets and installed SDK methods are known, and a review
 confirms feasible disk/time budgets. The first four actual final-candidate

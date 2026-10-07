@@ -10,8 +10,9 @@ The [approved Slice 135 plan](plan.md) controls this draft. It covers Pareto
 paths, system latency, system robustness, and logic/exception handling. Use
 existing benchmark datasets as workload inputs where qualified. Dedicated
 gold-based quality scoring begins only after the four-result checkpoint. This
-protocol is **not frozen**: the workload adapter, exact Slice 132 SDK surface,
-baseline-only noise pilot, corpus/model hashes and independent review remain.
+protocol is **not frozen**: the workload adapter, mapping the completed Slice 132
+SDK surface to benchmark operations, baseline-only noise pilot, corpus/model
+hashes and independent review remain.
 
 ## Source-grounded starting point
 
@@ -42,7 +43,7 @@ temporary build footprint before any heavy comparator re-ingest.
 | ID | Boundary and scenario | Samples and validity |
 | --- | --- | --- |
 | E01–E12 | Port the twelve Slice 115 engine paths to separately labeled 0.8.26 and final-candidate runs; preserve pre/post semantic checks and fresh mutation state. | Query cells need at least 1,000 valid observations for p99; lifecycle cells at least 100 for p50/p95. A path that cannot meet this count reports only supported statistics. |
-| S01 | Installed SDK call through materialized text/hybrid/vector result, with cold and warm read states and two corpus sizes. Resolve matching capabilities and exact language-native methods after Slice 132. | Pair the same semantic workload and model on both versions; keep Rust, Python and TypeScript boundaries labeled separately. |
+| S01 | Installed SDK call through materialized text/hybrid/vector result, with cold and warm read states and two corpus sizes. Map the completed Slice 132 Rust SDK and the Python/TypeScript methods to matching capabilities. | Pair the same semantic workload and model on both versions; keep Rust, Python and TypeScript boundaries labeled separately. |
 | S02 | Mixed sequence: open, governed write, projection-to-ready, text/vector/hybrid retrieval, graph/evidence retrieval, erasure, close/reopen. Include single caller and bounded contention. | Time whole sequence plus declared stages; verify state at each transition. A stage timer cannot substitute for the end-to-end timer. |
 | S03 | Qualified LOCOMO, LongMemEval, MuSiQue or query-correctness cases selected for distinct filter, temporal, graph, evidence and memory load shapes. | Record subset selection, adaptation, answer-bearing fixtures used for basic validity, and denominators. Phase 1 measures workload cost and exercised paths, not the full gold-quality score. |
 | C01 | Matched native Mem0 warmed external client-to-materialized-top-10 LOCOMO cell. | Validate the pinned index before reuse; paid re-ingest has a $20 ceiling and requires checkpoint/resume/backoff. Report separately from 0.8.26 comparison. |

@@ -284,7 +284,10 @@ window and reject incomplete results. Report spend and completeness.
    source, test or executable-script changes. Only complete, exact-SHA Phase 1
    and Phase 2 receipts can close the slice and feed Slice 140/150.
 
-Current status: completed Slice 132 is merged into this worktree at
-`3ab9b8c17`. Phase 1 protocol, harness, baseline qualification and
-final-candidate measurement work can proceed. Phase 2 work awaits the recorded
-Phase 1 checkpoint.
+Current status: completed Slice 132 is merged into this worktree. The
+[0.8.26 baseline source is identified](baseline-qualification.md), and the
+provisional [Phase 1 receipt validator](../../../../../scripts/slice135_receipt.py)
+rejects mismatched identities, environment and semantic state with independent
+summary recomputation. The workload adapter, baseline-only noise pilot,
+protocol freeze and all four final-candidate Phase 1 results remain. Phase 2
+work awaits the recorded Phase 1 checkpoint.

@@ -43,7 +43,7 @@ temporary build footprint before any heavy comparator re-ingest.
 | ID | Boundary and scenario | Samples and validity |
 | --- | --- | --- |
 | E01–E12 | Port the twelve Slice 115 engine paths to separately labeled 0.8.26 and final-candidate runs; preserve pre/post semantic checks and fresh mutation state. | Query cells need at least 1,000 valid observations for p99; lifecycle cells at least 100 for p50/p95. A path that cannot meet this count reports only supported statistics. |
-| S01 | Installed SDK call through materialized text/hybrid/vector result, with cold and warm read states and two corpus sizes. Map the completed Slice 132 Rust SDK and the Python/TypeScript methods to matching capabilities. | Pair the same semantic workload and model on both versions; keep Rust, Python and TypeScript boundaries labeled separately. |
+| S01 | Installed SDK call through materialized text/hybrid/vector result, with cold and warm read states and two corpus sizes. Map the completed Slice 132 Rust SDK and the Python/TypeScript methods to matching capabilities. | Pair Python and TypeScript where the same capability exists in both versions. Pair equivalent Rust engine cells: 0.8.26 has no Rust SDK crate, so the new Rust SDK is candidate-only and cannot support a version-paired installed-SDK comparison. Keep each boundary labeled. |
 | S02 | Mixed sequence: open, governed write, projection-to-ready, text/vector/hybrid retrieval, graph/evidence retrieval, erasure, close/reopen. Include single caller and bounded contention. | Time whole sequence plus declared stages; verify state at each transition. A stage timer cannot substitute for the end-to-end timer. |
 | S03 | Qualified LOCOMO, LongMemEval, MuSiQue or query-correctness cases selected for distinct filter, temporal, graph, evidence and memory load shapes. | Record subset selection, adaptation, answer-bearing fixtures used for basic validity, and denominators. Phase 1 measures workload cost and exercised paths, not the full gold-quality score. |
 | C01 | Matched native Mem0 warmed external client-to-materialized-top-10 LOCOMO cell. | Validate the pinned index before reuse; paid re-ingest has a $20 ceiling and requires checkpoint/resume/backoff. Report separately from 0.8.26 comparison. |
@@ -105,6 +105,48 @@ reject mismatched hashes, altered settings, insufficient samples, missing
 states and a deliberately wrong result. Disk pressure, competing heavy jobs,
 swap, governor/storage drift and profiler substitution are explicit
 invalidators. Do not silently discard slow valid samples.
+
+The provisional [Slice 135 receipt validator](../../../../../scripts/slice135_receipt.py)
+is the first bounded harness increment. Its protocol and raw JSON objects
+both use `schema_version: 1`, exact 40-digit Git `source_sha`, 64-digit
+`runner_sha256`, relative-path-to-SHA-256 `artifact_sha256` maps,
+`features` and resolved `settings` maps. The raw object additionally binds
+the exact protocol-file bytes with `protocol_sha256`; the command checks the
+measured runner or bundle passed with `--runner` and each artifact's actual
+bytes. Invoke it with `--raw`, `--protocol`, `--runner`, `--artifacts-root`,
+`--source-sha` and `--output`. The summary records the validator's own hash
+separately; it does not substitute for the measured runner hash.
+Feature, setting and observed-state comparisons preserve JSON value types.
+The source SHA is an explicit input and still needs separate source/build
+provenance verification. A package version string is not candidate identity:
+the current 0.8.27 source still uses a 0.8.26 pre-release version string.
+
+Each protocol cell declares `kind` (`query` or `lifecycle`), `boundary` and
+nonempty `expected_checks` for basic semantic/state validity. The matching
+raw cell contains an ordered `attempts` array. A valid attempt has positive
+integer `latency_ns`, `semantic_ok: true` and matching `observed_checks`.
+An invalid attempt has `valid: false` and a nonempty `reason`; it remains
+in the raw file and counts in the summary's `valid_attempt_fraction`.
+An attempt that records `semantic_ok: false` or mismatched `observed_checks`
+is rejected even if labeled invalid. A genuine no-output failure can omit
+these fields while retaining its reason. Every cell
+needs at least 100 valid attempts for nearest-rank p50/p95. A query cell
+reports p99 only with at least 1,000 valid attempts; otherwise it records
+`unsupported_statistics: ["p99"]`. Lifecycle p99 is never reported.
+The summary includes counts, maximum, bindings and the exact raw-file hash.
+No valid slow sample is trimmed.
+
+The raw `environment` has `start`, `end` and an empty `invalidators` list.
+Both snapshots require nonempty host, kernel, CPU, storage, governor,
+toolchain and profiler strings; zero competing jobs; integer swap pages;
+and disk space at or above the protocol's `min_disk_free_bytes`. Stable
+fields and swap count must agree between snapshots. The validator rejects
+drift or a declared invalidator. The producer must record truthful inventory
+and semantic observations; this validator does not collect them, prove that
+a feature was actually enabled, or produce a quality gold answer. Its
+thresholds and shape are provisional until the baseline noise pilot and
+protocol review. The same script can validate separate 0.8.26 and 0.8.27
+receipts by binding each to its own source, protocol, runner and artifacts.
 
 Freeze this document as an executable, hashed protocol only after the
 adapter's negative fixtures pass, the baseline-only pilot fixes counts and

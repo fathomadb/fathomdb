@@ -458,3 +458,9 @@ oracle to the earlier concurrency, process-kill and injected-refusal probes.
 The focused suite and its deliberately failing missing-row control behaved as
 expected; the raw logs, resource observation and independently recomputed
 summary are retained. The remaining fault and schedule rows are still open.
+A [current-source projection matrix extension](results/2026-10-07-projection-matrix-current/README.md)
+re-ran ten focused real-database capacity, provider-delay, worker-commit,
+panic-containment and close/reopen cases on the repaired candidate. All ten
+passed with retained test-process resources and exact binary hashes. Only the
+named reopen cases prove recovered product state; persistent provider failure,
+sustained cancellation and interrupted erasure still need dedicated probes.

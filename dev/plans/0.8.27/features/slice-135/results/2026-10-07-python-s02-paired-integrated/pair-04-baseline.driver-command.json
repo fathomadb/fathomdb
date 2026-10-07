@@ -1,0 +1,22 @@
+[
+  "/usr/bin/python3",
+  "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_python_s02_block.py",
+  "--checkout",
+  "/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline",
+  "--source-sha",
+  "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "--wheel",
+  "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-baseline/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl",
+  "--wheel-sha256",
+  "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282",
+  "--venv-python",
+  "/tmp/slice135-python-venv-baseline-f99e002/bin/python",
+  "--samples",
+  "20",
+  "--output-dir",
+  "/tmp/slice135-python-s02-paired-integrated-v1/pair-04-baseline",
+  "--comparison-protocol",
+  "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/s02-python-integrated-comparison-protocol.json",
+  "--role",
+  "baseline"
+]

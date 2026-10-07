@@ -513,7 +513,12 @@ SDK exercise remain open.
   now isolates the product timer and measures five environment-checked
   blocks. Its [Python subset protocol](s02-python-comparison-protocol.json)
   froze before the [paired Python S02 run](results/2026-10-07-python-s02-paired-current/README.md),
-  which is historical after release integration. Rebuild and rerun affected
+  which is historical after release integration. The
+  [integrated-candidate Python S02 run](results/2026-10-07-python-s02-paired-integrated/README.md)
+  then measured 100 valid sequences per version with independent raw and
+  execution-order audits: pooled p50 +0.495% and p95 +0.924%, with host
+  paging warnings in every pair. This is an observed slowdown, not an
+  equivalence or release verdict. Refresh the remaining affected installed
   timing cells on the integrated candidate. The
   [S02-L baseline pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
   has 100 independently audited fresh-process open/close cycles; its

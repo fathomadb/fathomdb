@@ -111,6 +111,15 @@ exercises the candidate-only Rust boundary through a separate Cargo package
 and retained real database. It is source-bound, not a published-crate install;
 0.8.26 has no Rust SDK peer. Its one run does not qualify S02 latency or the
 remaining Rust operation contracts.
+The later [integrated-candidate Python S02 paired run](results/2026-10-07-python-s02-paired-integrated/README.md)
+kept the earlier frozen workload, order and sample design while binding the
+post-Slice-132 wheel with both off-ladder landings. All 100 measured sequences
+per version passed independent semantic, resource and order audits. The
+observed whole-sequence p50/p95 were +0.495%/+0.924% versus baseline; every
+pair has a host swap-counter warning and one candidate child had a major
+fault. This is diagnostic and cannot establish equivalence or a release
+performance verdict. It supersedes the earlier Python S02 result for the
+integrated candidate, without freezing the broader Phase 1 protocol.
 The candidate subsequently changed with the graph traversal row-error
 [repair](results/2026-10-07-graph-arm-row-repair/README.md) at `3ce1a6352`.
 The prior functional receipts still describe their exact SHAs; final Phase 1

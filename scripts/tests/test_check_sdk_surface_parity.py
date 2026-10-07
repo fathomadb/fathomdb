@@ -273,6 +273,41 @@ class RustSdkObserverTests(unittest.TestCase):
             with self.assertRaisesRegex(checker.ParityError, "trait impl.*Deref.*Engine"):
                 checker.observe_rust_sdk(write_crate(Path(tmp), files))
 
+    def assert_observe_refused(self, files: dict[str, str], pattern: str) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(checker.ParityError, pattern):
+                checker.observe_rust_sdk(write_crate(Path(tmp), files))
+
+    def test_glob_reexport_of_core_fails(self) -> None:
+        files = dict(RUST_CRATE)
+        files["lib.rs"] += "pub use fathomdb_engine::*;\n"
+        self.assert_observe_refused(files, "re-export.*fathomdb_engine::\\*")
+
+    def test_core_engine_reexport_fails(self) -> None:
+        files = dict(RUST_CRATE)
+        files["lib.rs"] += "pub use fathomdb_engine::{ReadView, Engine as Core};\n"
+        self.assert_observe_refused(files, "re-export.*Engine")
+
+    def test_public_engine_field_fails(self) -> None:
+        files = dict(RUST_CRATE)
+        files["engine.rs"] = files["engine.rs"].replace(
+            "pub struct Engine { inner: u8 }", "pub struct Engine { pub inner: u8 }"
+        )
+        self.assert_observe_refused(files, "public field.*Engine")
+
+    def test_unexpected_public_module_fails(self) -> None:
+        files = dict(RUST_CRATE)
+        files["lib.rs"] += "pub mod ops;\n"
+        files["ops.rs"] = "pub fn helper() {}\n"
+        self.assert_observe_refused(files, "pub mod ops")
+
+    def test_async_engine_method_is_observed(self) -> None:
+        files = dict(RUST_CRATE)
+        files["engine.rs"] = files["engine.rs"].replace(
+            "fn private(&self) {}", "pub async fn search_later(&self) {}"
+        )
+        self.assert_rust_invalid(files, "ungoverned.*engine_instance:search_later")
+
     def test_repository_rust_sdk_matches_live_operations(self) -> None:
         with (ROOT / "src/conformance/governed-operation-parity.json").open(
             encoding="utf-8"

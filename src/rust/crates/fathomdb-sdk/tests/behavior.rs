@@ -222,7 +222,8 @@ fn projected_text_search_on_unknown_projection_is_an_engine_error() {
         "no_such_projection",
         ProjectedTextSearchOptions::default(),
     );
-    assert!(result.is_err());
+    // The core refuses it; the SDK adds no check of its own here.
+    assert!(matches!(result, Err(Error::Engine(_))), "{result:?}");
     engine.close().expect("close");
 }
 
@@ -252,7 +253,8 @@ fn frozen_search_uses_shared_defaults() {
     let expanded = engine
         .search_expand_frozen("alpha", &context, 1, SearchExpandOptions::default())
         .expect("expand frozen");
-    let _ = expanded;
+    assert!(!expanded.search_hits.is_empty());
+    assert!(expanded.expanded.iter().any(|(node, _)| node.logical_id == "note:2"));
     engine.close().expect("close");
 }
 
@@ -455,5 +457,62 @@ fn wrapped_core_errors_map_through_real_operations() {
     .expect_err("invalid root");
     let error: Error = EngineError::from(trace_error).into();
     assert_eq!(error.kind(), ErrorKind::DependencyTrace);
+    engine.close().expect("close");
+}
+
+#[test]
+fn embedded_nul_in_predicates_filters_and_cursors_is_write_validation() {
+    let (_dir, engine) = open_engine();
+    seed(&engine);
+    let text_predicate = Predicate::JsonPathEq {
+        path: "$.title".to_string(),
+        value: fathomdb_sdk::ScalarValue::Text("a\0b".to_string()),
+    };
+    let options =
+        ListOptions { predicates: vec![text_predicate.clone()], ..ListOptions::default() };
+    assert_eq!(kind_of(read::list(&engine, "note", options)), ErrorKind::WriteValidation);
+
+    let path_predicate = Predicate::JsonPathEq {
+        path: "$.ti\0tle".to_string(),
+        value: fathomdb_sdk::ScalarValue::Integer(1),
+    };
+    let options = ListOptions { predicates: vec![path_predicate], ..ListOptions::default() };
+    assert_eq!(kind_of(read::list(&engine, "note", options)), ErrorKind::WriteValidation);
+
+    let filter =
+        fathomdb_sdk::Filter { terms: vec![fathomdb_sdk::FilterTerm::Json(text_predicate)] };
+    let options = ListOptions { filter: Some(filter), ..ListOptions::default() };
+    assert_eq!(kind_of(read::list(&engine, "note", options)), ErrorKind::WriteValidation);
+
+    let context = engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context"),
+        )
+        .expect("freeze");
+    let page = fathomdb_sdk::PageRequestV1 {
+        schema_version: 1,
+        limit: 10,
+        cursor: Some(fathomdb_sdk::PageCursor("c\0".to_string())),
+    };
+    assert_eq!(
+        kind_of(read::canonical_page(&engine, "note", &context, &page)),
+        ErrorKind::WriteValidation
+    );
+    assert_eq!(
+        kind_of(read::operational_state_page(&engine, "settings", &context, &page)),
+        ErrorKind::WriteValidation
+    );
+    engine.close().expect("close");
+}
+
+/// Python and TypeScript check `search_limit` before the string guard.
+#[test]
+fn graph_search_expand_checks_search_limit_first() {
+    let (_dir, engine) = open_engine();
+    let options = SearchExpandOptions { search_limit: 0 };
+    assert_eq!(
+        kind_of(graph::search_expand(&engine, "a\0b", 1, None, options)),
+        ErrorKind::InvalidArgument
+    );
     engine.close().expect("close");
 }

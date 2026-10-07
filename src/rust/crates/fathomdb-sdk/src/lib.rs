@@ -121,37 +121,37 @@ pub use fathomdb_schema::MigrationStepReport;
 /// }
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0432
 /// use fathomdb_sdk::EmbedderChoice;
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0432
 /// use fathomdb_sdk::OpenedEngine;
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0599
 /// let _ = fathomdb_sdk::Engine::open_with_choice;
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0599
 /// fn leak(engine: &fathomdb_sdk::Engine) {
 ///     let _ = engine.read_get("note:1", &fathomdb_sdk::ReadView::default());
 /// }
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0599
 /// fn leak(engine: &fathomdb_sdk::Engine) {
 ///     let _ = engine.check_integrity();
 /// }
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0599
 /// fn leak(engine: &fathomdb_sdk::Engine) {
 ///     let _ = engine.execute_for_test("SELECT 1");
 /// }
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0599
 /// fn leak(engine: &fathomdb_sdk::Engine) {
 ///     let _ = engine.search_with_limit("alpha", 3);
 /// }

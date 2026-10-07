@@ -1,0 +1,1 @@
+//! FathomDB Rust application SDK.

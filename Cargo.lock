@@ -1018,6 +1018,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fathomdb-sdk"
+version = "0.8.26"
+dependencies = [
+ "fathomdb-embedder",
+ "fathomdb-embedder-api",
+ "fathomdb-engine",
+ "fathomdb-schema",
+ "tempfile",
+]
+
+[[package]]
 name = "fathomdb-tc5-benchmark"
 version = "0.8.26"
 dependencies = [

@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+import tomllib
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[6]
@@ -85,9 +86,20 @@ if __name__ == "__main__":
         raise ValueError("candidate source commit changed")
     manifest = (ROOT / "Cargo.toml").read_text()
     tree = (ROOT / "cargo-tree.txt").read_text()
-    if '[workspace]' not in manifest or 'features = ["default-embedder"]' not in manifest:
+    package = tomllib.loads(manifest)
+    sdk_dependency = package["dependencies"]["fathomdb-sdk"]
+    if (
+        "workspace" not in package
+        or "default-embedder" not in sdk_dependency["features"]
+        or (ROOT / sdk_dependency["path"]).resolve()
+        != REPO / "src/rust/crates/fathomdb-sdk"
+    ):
         raise ValueError("external Cargo manifest changed")
-    if f"fathomdb-sdk v0.8.26 ({REPO / 'src/rust/crates/fathomdb-sdk'})" not in tree:
+    if not any(
+        "fathomdb-sdk v0.8.26 (" in line
+        and line.rstrip().endswith("/src/rust/crates/fathomdb-sdk)")
+        for line in tree.splitlines()
+    ):
         raise ValueError("SDK did not resolve to the candidate source")
     state = read_state()
     check_state(state)
@@ -115,4 +127,6 @@ if __name__ == "__main__":
         "sqlite_state": state,
         "negative_control_rejected": negative_control,
     }
+    if result != json.loads((ROOT / "audit.json").read_text()):
+        raise ValueError("retained independent audit differs from recomputation")
     print(json.dumps(result, indent=2))

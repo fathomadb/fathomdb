@@ -35,6 +35,11 @@ evidence, graph evidence, erasure and reopen. The [retained database](consumer.s
 is checked separately by [audit.py](audit.py), including a deliberately retained
 edge negative control. [audit.json](audit.json) records hashes and independent
 counts; [SHA256SUMS](SHA256SUMS) seals the retained receipt files.
+After integration into the Slice 135 checkout, a replay test first found that
+the auditor compared Cargo's recorded absolute build path to the current
+checkout path. The auditor now verifies the relative manifest dependency,
+the retained tree's SDK path suffix, and equality with the retained audit.
+The replay test is included in the focused accounting suite below.
 
 The successful run used:
 

@@ -145,6 +145,12 @@ class PilotTests(unittest.TestCase):
             self.assertEqual(report["peak_rss_kib"], 1234)
             self.assertEqual(report["fs_outputs"], 8)
 
+    def test_symbolized_profile_build_cannot_be_primary_latency(self):
+        with self.assertRaisesRegex(ValueError, "profile build"):
+            pilot.validate_build_mode("primary", True)
+        self.assertIsNone(pilot.validate_build_mode("attribution", True))
+        self.assertIsNone(pilot.validate_build_mode("primary", False))
+
 
 if __name__ == "__main__":
     unittest.main()

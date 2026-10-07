@@ -13,6 +13,10 @@ rejected a retained-edge mutation. This is a functional S02 feasibility result,
 not a frozen or sampled S02 latency comparison and not the full Phase 1
 functional exercise gate.
 
+The [verification record](verification.md) retains the full workspace gate:
+184 of 186 suites passed, including the new S02 harness, with two previously
+observed unrelated suites still failing.
+
 ## Source and run identity
 
 | Boundary | Exact source | Wheel SHA-256 | Installed native SHA-256 |

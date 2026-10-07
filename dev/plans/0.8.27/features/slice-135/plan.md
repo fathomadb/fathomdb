@@ -408,3 +408,7 @@ now supplies a narrow 0.8.26 comparison with independently audited raw
 calls. A [TypeScript native-suite and installed-package smoke](results/2026-10-07-ts-native-qualification/README.md)
 also ran against the candidate. Neither closes the full operation map,
 installed Rust/TypeScript S01/S02, or the four-area checkpoint.
+The [installed-TypeScript S01 baseline noise pilot](results/2026-10-07-ts-s01-noise-pilot/README.md)
+has ten independently audited blocks and matching short candidate/baseline
+feasibility probes. The [TypeScript paired subset protocol](s01-ts-comparison-protocol.json)
+is frozen; valid paired candidate timing remains to be established.

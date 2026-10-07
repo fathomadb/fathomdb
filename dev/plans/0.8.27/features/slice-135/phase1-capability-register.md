@@ -19,6 +19,10 @@ those operations. A [TypeScript native-suite and installed-package smoke](result
 now proves a narrow installed consumer path against a real database. It does
 not close TypeScript S01/S02 or the broader accepted-operation contracts.
 The installed Rust rows and S02 remain gaps.
+An [installed TypeScript S01 noise pilot](results/2026-10-07-ts-s01-noise-pilot/README.md)
+adds an exploratory candidate text/vector-bearing/hybrid result check and
+ten audited baseline-only blocks. The candidate's ten-sample probe does not
+qualify S01 latency or its wider search contract.
 
 | Canonical operation | Phase 1 exercise route | Rust SDK | Python wheel | TypeScript package |
 | --- | --- | --- | --- | --- |
@@ -33,11 +37,11 @@ The installed Rust rows and S02 remain gaps.
 | `engine.transition` | S03 lifecycle | Gap | Gap | Gap |
 | `engine.purge` | S03 lifecycle | Gap | Gap | Gap |
 | `engine.erase_source` | S02 erasure | Gap | Gap | Gap |
-| `engine.search` | S01/S02 hybrid | Gap | Functional smoke | Functional smoke |
+| `engine.search` | S01/S02 hybrid | Gap | Functional smoke | Smoke; exploratory S01 shapes |
 | `engine.freeze_read_context` | S02 frozen | Gap | Functional smoke | Functional smoke |
 | `engine.search_frozen` | S02 frozen | Gap | Functional smoke | Gap |
 | `engine.search_expand_frozen` | S03 graph | Gap | Functional smoke | Gap |
-| `engine.search_text_only` | S01/S02 text | Gap | S01 paired basic; broader contract gap | Gap |
+| `engine.search_text_only` | S01/S02 text | Gap | S01 paired basic; broader contract gap | Exploratory S01 text; broader gap |
 | `engine.search_projected_text` | S03 projection | Gap | Gap | Gap |
 | `engine.search_with_evidence` | S02 evidence | Gap | Functional smoke | Expected-error smoke only |
 | `engine.resolve_evidence` | S02 evidence | Gap | Functional smoke | Gap |

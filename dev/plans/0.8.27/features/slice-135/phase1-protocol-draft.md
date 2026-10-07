@@ -42,6 +42,18 @@ recomputation. It remains a Python-only diagnostic; the Rust/TypeScript
 installed boundaries, S02 and E01–E12 still need qualification under the
 broader protocol.
 
+The [baseline-only installed-TypeScript S01 noise pilot](results/2026-10-07-ts-s01-noise-pilot/README.md)
+now has five 100-warm-call blocks per corpus size, retained npm archives,
+materialized-result assertions and independent recomputation of 3,060 call
+attempts. Its text p95 range was 34.059% of the five-block median at 32
+rows and 26.312% at 256 rows. Four blocks recorded host swap-counter drift
+with zero measured-child swap events. Ten-sample baseline/candidate
+feasibility probes showed matching IDs and branches, but are unqualified for
+performance. The resulting
+[frozen installed-TypeScript S01 subset](s01-ts-comparison-protocol.json)
+pins 1,000 warm calls per cell and five alternating pairs per size before
+candidate paired timing. The full Phase 1 protocol remains open.
+
 ## Source-grounded starting point
 
 Slice 115's [runner](../../../../../scripts/slice115_runner.py),

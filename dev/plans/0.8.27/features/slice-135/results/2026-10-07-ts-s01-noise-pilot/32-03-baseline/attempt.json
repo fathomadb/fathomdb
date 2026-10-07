@@ -1,0 +1,8 @@
+{
+  "invalidators": [],
+  "protocol_sha256": "b07ca23ec138b259ea65d09896a1dea2bcbd3caceefa0c1724bbe316b9510533",
+  "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "status": "VALID_BASELINE_TS_S01_PILOT_BLOCK",
+  "summary_sha256": "a7321c50154bd5d51288d6e38183bc1eb2431f5ad2ef5489152a3255a529d6cf"
+}

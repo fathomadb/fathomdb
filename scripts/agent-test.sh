@@ -688,6 +688,12 @@ run_tier_maybe_suite fast test-program-experiment-harness "$experiment_track_run
 run_tier_maybe_suite fast test-slice135-harness "$experiment_track_runner_skip_reason" \
   env PYTHONDONTWRITEBYTECODE=1 "$python_bin" -m pytest -q -p no:cacheprovider \
   scripts/tests/test_slice135_*.py
+slice135_node_skip_reason=""
+if ! command -v node >/dev/null 2>&1; then
+  slice135_node_skip_reason="Node.js not installed"
+fi
+run_tier_maybe_suite fast test-slice135-ts-s01-contracts "$slice135_node_skip_reason" \
+  node scripts/tests/test_slice135_ts_s01.mjs
 
 # ledgerwatch (dev/agent-tools): pure-stdlib pytest suite, no fathomdb binding
 # needed, so it runs under whichever interpreter was resolved above without the

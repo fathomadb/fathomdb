@@ -1,0 +1,583 @@
+{
+  "archives": {
+    "main_archive_sha256": "90363762405041b11e6dd654da9cb6347695399eb37b81c5c09fde91296ac336",
+    "module_sha256": "9d86c756e481ee09581ff8c687fd74de8cefbf2ad825a582015cb7b703ea4dc7",
+    "native_sha256": "4a3aef2833060cde858faad689e4c734de31dc70e9dab13a00a6594f694c60ca",
+    "platform_archive_sha256": "b59b1862b11b8ed3edcdc2e5ee86f9db142268bb5e14571054f6245718fc28f6"
+  },
+  "blocks": [
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 9644173,
+          "warm_count": 100,
+          "warm_max_ns": 26367607,
+          "warm_p50_ns": 8901638,
+          "warm_p95_ns": 9826338
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 847664,
+          "warm_count": 100,
+          "warm_max_ns": 557285,
+          "warm_p50_ns": 113324,
+          "warm_p95_ns": 427027
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 11784702,
+          "warm_count": 100,
+          "warm_max_ns": 12804011,
+          "warm_p50_ns": 9800418,
+          "warm_p95_ns": 10680433
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 11520,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 797048,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 16.98,
+        "unsupported": [],
+        "user_cpu_s": 52.12
+      },
+      "directory": "32-01-baseline",
+      "elapsed_block_s": 7.065,
+      "finished_utc": "2026-10-07T15:41:13.650Z",
+      "host_swap_pages_delta": 1,
+      "protocol_sha256": "b07ca23ec138b259ea65d09896a1dea2bcbd3caceefa0c1724bbe316b9510533",
+      "raw_sha256": "23d96fa895a90b8268cf24ecc5f1abb6624cfee6dc21dd629175ac6ec95e4e48",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:41:06.585Z",
+      "warnings": [
+        "host swap drift: 1 pages; child swap events: 0"
+      ]
+    },
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 9287818,
+          "warm_count": 100,
+          "warm_max_ns": 25639468,
+          "warm_p50_ns": 8824351,
+          "warm_p95_ns": 9791280
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 825431,
+          "warm_count": 100,
+          "warm_max_ns": 575208,
+          "warm_p50_ns": 126139,
+          "warm_p95_ns": 379779
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 11123831,
+          "warm_count": 100,
+          "warm_max_ns": 13128954,
+          "warm_p50_ns": 9917309,
+          "warm_p95_ns": 10871353
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 11520,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 796960,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 16.89,
+        "unsupported": [],
+        "user_cpu_s": 51.72
+      },
+      "directory": "32-02-baseline",
+      "elapsed_block_s": 7.054,
+      "finished_utc": "2026-10-07T15:41:55.732Z",
+      "host_swap_pages_delta": 0,
+      "protocol_sha256": "b07ca23ec138b259ea65d09896a1dea2bcbd3caceefa0c1724bbe316b9510533",
+      "raw_sha256": "66ebc3c712712b30e1a53ada5c23ba21b39fe4435195290316df02f4ccacd7b6",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:41:48.678Z",
+      "warnings": []
+    },
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 9951142,
+          "warm_count": 100,
+          "warm_max_ns": 30206666,
+          "warm_p50_ns": 8867794,
+          "warm_p95_ns": 9804776
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 844697,
+          "warm_count": 100,
+          "warm_max_ns": 647475,
+          "warm_p50_ns": 115348,
+          "warm_p95_ns": 531665
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 10921428,
+          "warm_count": 100,
+          "warm_max_ns": 16336230,
+          "warm_p50_ns": 10295453,
+          "warm_p95_ns": 11740327
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 11520,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 797116,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 17.63,
+        "unsupported": [],
+        "user_cpu_s": 51.76
+      },
+      "directory": "32-03-baseline",
+      "elapsed_block_s": 7.131,
+      "finished_utc": "2026-10-07T15:42:23.379Z",
+      "host_swap_pages_delta": 0,
+      "protocol_sha256": "b07ca23ec138b259ea65d09896a1dea2bcbd3caceefa0c1724bbe316b9510533",
+      "raw_sha256": "6a8d25c5577b59212391d7a27b762e5898ce12dd0abbee88f65c6138d27403af",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:42:16.248Z",
+      "warnings": []
+    },
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 9537209,
+          "warm_count": 100,
+          "warm_max_ns": 27098295,
+          "warm_p50_ns": 8849569,
+          "warm_p95_ns": 9517632
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 821814,
+          "warm_count": 100,
+          "warm_max_ns": 705655,
+          "warm_p50_ns": 126449,
+          "warm_p95_ns": 445953
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 10626640,
+          "warm_count": 100,
+          "warm_max_ns": 11676125,
+          "warm_p50_ns": 9863236,
+          "warm_p95_ns": 10779298
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 11520,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 797584,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 17.36,
+        "unsupported": [],
+        "user_cpu_s": 51.7
+      },
+      "directory": "32-04-baseline",
+      "elapsed_block_s": 7.092,
+      "finished_utc": "2026-10-07T15:42:50.991Z",
+      "host_swap_pages_delta": 0,
+      "protocol_sha256": "b07ca23ec138b259ea65d09896a1dea2bcbd3caceefa0c1724bbe316b9510533",
+      "raw_sha256": "ad13b888f02ed7bbdf3ce82a926bad05dbdec83a9eb9e17c16e3cae3832354ec",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:42:43.899Z",
+      "warnings": []
+    },
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 12414320,
+          "warm_count": 100,
+          "warm_max_ns": 27289586,
+          "warm_p50_ns": 9162320,
+          "warm_p95_ns": 10067702
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 799161,
+          "warm_count": 100,
+          "warm_max_ns": 671961,
+          "warm_p50_ns": 135276,
+          "warm_p95_ns": 497251
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 11473491,
+          "warm_count": 100,
+          "warm_max_ns": 13598069,
+          "warm_p50_ns": 10184934,
+          "warm_p95_ns": 11161351
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 11520,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 796952,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 17.41,
+        "unsupported": [],
+        "user_cpu_s": 52.09
+      },
+      "directory": "32-05-baseline",
+      "elapsed_block_s": 7.118,
+      "finished_utc": "2026-10-07T15:43:18.629Z",
+      "host_swap_pages_delta": 1,
+      "protocol_sha256": "b07ca23ec138b259ea65d09896a1dea2bcbd3caceefa0c1724bbe316b9510533",
+      "raw_sha256": "6b2352793fd4eff15f0f951e1971d34d2893e215a66d821e8baf31454b7a3312",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:43:11.511Z",
+      "warnings": [
+        "host swap drift: 1 pages; child swap events: 0"
+      ]
+    },
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 11391385,
+          "warm_count": 100,
+          "warm_max_ns": 17757486,
+          "warm_p50_ns": 10129158,
+          "warm_p95_ns": 10960881
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 884934,
+          "warm_count": 100,
+          "warm_max_ns": 517308,
+          "warm_p50_ns": 123273,
+          "warm_p95_ns": 367645
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 12662169,
+          "warm_count": 100,
+          "warm_max_ns": 18932228,
+          "warm_p50_ns": 11218659,
+          "warm_p95_ns": 11928972
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 14176,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 663112,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 31.87,
+        "unsupported": [],
+        "user_cpu_s": 93.32
+      },
+      "directory": "256-01-baseline",
+      "elapsed_block_s": 11.383,
+      "finished_utc": "2026-10-07T15:43:50.528Z",
+      "host_swap_pages_delta": 15,
+      "protocol_sha256": "b76ac7d6154a0e8b60bdc3fed86711fc7c2899e15ddcffe03eb843fda9e45aea",
+      "raw_sha256": "c1ff1316a9a00b494bc44a3c78688bb6920450cb9e0a44db2ab39801a391a543",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:43:39.145Z",
+      "warnings": [
+        "host swap drift: 15 pages; child swap events: 0"
+      ]
+    },
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 10949579,
+          "warm_count": 100,
+          "warm_max_ns": 12922060,
+          "warm_p50_ns": 10046832,
+          "warm_p95_ns": 10577185
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 897487,
+          "warm_count": 100,
+          "warm_max_ns": 505987,
+          "warm_p50_ns": 115929,
+          "warm_p95_ns": 371152
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 13162244,
+          "warm_count": 100,
+          "warm_max_ns": 21636481,
+          "warm_p50_ns": 11654373,
+          "warm_p95_ns": 12923924
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 14176,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 663104,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 31.46,
+        "unsupported": [],
+        "user_cpu_s": 93.55
+      },
+      "directory": "256-02-baseline",
+      "elapsed_block_s": 11.443,
+      "finished_utc": "2026-10-07T15:44:22.477Z",
+      "host_swap_pages_delta": 0,
+      "protocol_sha256": "b76ac7d6154a0e8b60bdc3fed86711fc7c2899e15ddcffe03eb843fda9e45aea",
+      "raw_sha256": "f5efefff78a0f2046cc3505bfbe71045770e8fe741fa01f689622c395ee2a69c",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:44:11.034Z",
+      "warnings": []
+    },
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 11845663,
+          "warm_count": 100,
+          "warm_max_ns": 17098097,
+          "warm_p50_ns": 10502163,
+          "warm_p95_ns": 11473109
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 780937,
+          "warm_count": 100,
+          "warm_max_ns": 657774,
+          "warm_p50_ns": 116780,
+          "warm_p95_ns": 465841
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 13045784,
+          "warm_count": 100,
+          "warm_max_ns": 19731758,
+          "warm_p50_ns": 11087510,
+          "warm_p95_ns": 13323418
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 14160,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 662820,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 31.69,
+        "unsupported": [],
+        "user_cpu_s": 93.27
+      },
+      "directory": "256-03-baseline",
+      "elapsed_block_s": 11.497,
+      "finished_utc": "2026-10-07T15:44:54.489Z",
+      "host_swap_pages_delta": 0,
+      "protocol_sha256": "b76ac7d6154a0e8b60bdc3fed86711fc7c2899e15ddcffe03eb843fda9e45aea",
+      "raw_sha256": "dce342e8e6bca08bc84b741480c0cd868b0406385182bedf19cd26c26b160b46",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:44:42.992Z",
+      "warnings": []
+    },
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 12040582,
+          "warm_count": 100,
+          "warm_max_ns": 14603559,
+          "warm_p50_ns": 10574559,
+          "warm_p95_ns": 12057023
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 915592,
+          "warm_count": 100,
+          "warm_max_ns": 522078,
+          "warm_p50_ns": 132420,
+          "warm_p95_ns": 373236
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 12777766,
+          "warm_count": 100,
+          "warm_max_ns": 18568077,
+          "warm_p50_ns": 11797161,
+          "warm_p95_ns": 12935324
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 14160,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 662588,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 32.15,
+        "unsupported": [],
+        "user_cpu_s": 93.6
+      },
+      "directory": "256-04-baseline",
+      "elapsed_block_s": 11.494,
+      "finished_utc": "2026-10-07T15:45:26.491Z",
+      "host_swap_pages_delta": 3,
+      "protocol_sha256": "b76ac7d6154a0e8b60bdc3fed86711fc7c2899e15ddcffe03eb843fda9e45aea",
+      "raw_sha256": "c3e54b32aa12b6e2272296e7d5419b1ba7161b1119c9a5fe53ef586a5be273fc",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:45:14.997Z",
+      "warnings": [
+        "host swap drift: 3 pages; child swap events: 0"
+      ]
+    },
+    {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 10895335,
+          "warm_count": 100,
+          "warm_max_ns": 13168735,
+          "warm_p50_ns": 10098699,
+          "warm_p95_ns": 10953626
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 817827,
+          "warm_count": 100,
+          "warm_max_ns": 846300,
+          "warm_p50_ns": 120057,
+          "warm_p95_ns": 373196
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 12935544,
+          "warm_count": 100,
+          "warm_max_ns": 19607091,
+          "warm_p50_ns": 11255407,
+          "warm_p95_ns": 12278611
+        }
+      },
+      "checked_attempts": 306,
+      "child_resources": {
+        "fs_inputs": 0,
+        "fs_outputs": 14160,
+        "major_faults": 0,
+        "method": "gnu-time",
+        "peak_rss_kib": 661892,
+        "scope": "measured-workload-child-process",
+        "swap_events": 0,
+        "system_cpu_s": 31.16,
+        "unsupported": [],
+        "user_cpu_s": 92.62
+      },
+      "directory": "256-05-baseline",
+      "elapsed_block_s": 11.267,
+      "finished_utc": "2026-10-07T15:45:58.278Z",
+      "host_swap_pages_delta": 0,
+      "protocol_sha256": "b76ac7d6154a0e8b60bdc3fed86711fc7c2899e15ddcffe03eb843fda9e45aea",
+      "raw_sha256": "fecd5a961ff9f46e1a26b5d245518bfeb407344e14b2e53b57548df9c2851623",
+      "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+      "semantic_failures": 0,
+      "started_utc": "2026-10-07T15:45:47.011Z",
+      "warnings": []
+    }
+  ],
+  "checked_attempts": 3060,
+  "child_swap_events": 0,
+  "host_swap_warning_blocks": 4,
+  "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+  "schema_version": 1,
+  "scope": "baseline-only installed TypeScript S01 noise pilot; no candidate comparison",
+  "source_identity": {
+    "cargo_lock_sha256": "ffebda90ad6bae977a63cdb7d4c8edbce88632c2d353d5251247410040a16022",
+    "npm_lock_sha256": "36ed30648b87f581f4abb608ff1774dbcd5a79e7b3c94524d2bcf55749eb5709",
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa"
+  },
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "spread": {
+    "256": {
+      "hybrid": {
+        "p95_max_ns": 12057023,
+        "p95_median_ns": 10960881,
+        "p95_min_ns": 10577185,
+        "p95_range_pct_of_median": 13.501
+      },
+      "text": {
+        "p95_max_ns": 465841,
+        "p95_median_ns": 373196,
+        "p95_min_ns": 367645,
+        "p95_range_pct_of_median": 26.312
+      },
+      "vector": {
+        "p95_max_ns": 13323418,
+        "p95_median_ns": 12923924,
+        "p95_min_ns": 11928972,
+        "p95_range_pct_of_median": 10.79
+      }
+    },
+    "32": {
+      "hybrid": {
+        "p95_max_ns": 10067702,
+        "p95_median_ns": 9804776,
+        "p95_min_ns": 9517632,
+        "p95_range_pct_of_median": 5.61
+      },
+      "text": {
+        "p95_max_ns": 531665,
+        "p95_median_ns": 445953,
+        "p95_min_ns": 379779,
+        "p95_range_pct_of_median": 34.059
+      },
+      "vector": {
+        "p95_max_ns": 11740327,
+        "p95_median_ns": 10871353,
+        "p95_min_ns": 10680433,
+        "p95_range_pct_of_median": 9.749
+      }
+    }
+  },
+  "valid_blocks": 10
+}

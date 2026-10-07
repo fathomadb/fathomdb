@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "VALID_BASELINE_S02_PILOT_BLOCK",
+  "invalidators": [],
+  "warnings": [
+    "host swap drift: 5 pages; child swap events: 0"
+  ],
+  "manifest_sha256": "028eab8b7adcace19e436517605ae7d3e59e84565c7af33261d0ae9af1d8e054",
+  "environment_sha256": "b83b6a8b99393816b075e80159505e314202c37143889b52dd97d158240cfdec",
+  "attempts_sha256": "0b1df936a6bb1795a738cd7fdfd5e22399d216a4b5bbd9683bc3aee1fa0ad3a7",
+  "valid_samples": 3,
+  "median_product_ns": 5407093121,
+  "min_product_ns": 5346738363,
+  "max_product_ns": 5431125119
+}

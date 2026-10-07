@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "status": "CONTROLLED_BASELINE_ONLY_NO_PAIR",
+  "pilot_manifest_sha256": "24c30b7eff170b315abf245126deb30f8abdfcfc556746b6cac9d28bcd9b1e31",
+  "raw_sha256": {
+    "block-01/warmup.json": "bcf2a876e5789e492737304b7320a818649caa908563c973bddd00b09256f61a",
+    "block-01/sample-001.json": "75c774d2e441a9258c49ec5fe34057bc28cf4114a962e3af8d9a90ceabde40f9",
+    "block-01/sample-002.json": "8b4fd0b7073a99b7d4ea0652e7d7a3bfc09692db3373a27d1999b71c20a10ed4",
+    "block-01/sample-003.json": "a29ec541f0b0adcfbd1c242f9cfe8e5a0b3825729ddbd32c9ec8fdbaddf9f671",
+    "block-02/warmup.json": "684c0eb4996d0839f39db142b2f1399578eb871cfa0b0869891cd5658b7fbb62",
+    "block-02/sample-001.json": "a52673e634993a874c24d4589f9a77186b264d4c8205f2cad4f99e05050dd966",
+    "block-02/sample-002.json": "254610e85dc25d91f56ad855c4750e19ef4f48335bcfef1e2863ffa22578af9b",
+    "block-02/sample-003.json": "a46787738852d945d83dbeae92035ba93a505065c425f4a7be37c48f67e0a685",
+    "block-03/warmup.json": "0d8ade2855c63e659e95ae85a7369364ce37c3b6cddf0d8d400b0a2872cf7703",
+    "block-03/sample-001.json": "902f1e88764d2ae015af2a241c603437c79441f59f90793ecd38b9eab3700898",
+    "block-03/sample-002.json": "f738a64975f5049e0027dc899226088dad8d0d06e4dd5b1c7737a8dae7ba2ad9",
+    "block-03/sample-003.json": "b6bcc5220f5c28c867bd0dd5d8ca42752020d301c1720271ee86b9b989aa3b40",
+    "block-04/warmup.json": "8d24c1e4955039405b91b85f3065f4e520dcac56229c333de46d08c4711634d1",
+    "block-04/sample-001.json": "90edcdf7e6b3d6f85c95a05017f79c8b42f8ce004631632c21e364ea274a1f5f",
+    "block-04/sample-002.json": "a3dcb8ff30ef043a3c180bd07346eb06a1f99543c94657a118c5a31461a25848",
+    "block-04/sample-003.json": "5da9071bb2eb4d96eb67f9c11c3277b372557a1c37ca281f09a44a51ffca2ecd",
+    "block-05/warmup.json": "831f742400cba0c5dae6229acc5d741836937426ded58de44ed535ccc363da58",
+    "block-05/sample-001.json": "adc6ad82fdf80386f20fef8ac50ac58ed155c95c494bfc9d4292614c2c1d0e84",
+    "block-05/sample-002.json": "27c2ee364f0431b1f2fdeace6d1481a28bffe04732c5ae9a2ff743b0d32cd25a",
+    "block-05/sample-003.json": "1f82801045ed90384154d9ea4715b1a1585e355083c6acff78252cef566064e9"
+  },
+  "blocks": [
+    {
+      "block": 1,
+      "median_product_ns": 5368635670,
+      "samples_ns": [
+        5402417747,
+        5368635670,
+        5359242540
+      ],
+      "host_swap_delta_pages": 0,
+      "warnings": []
+    },
+    {
+      "block": 2,
+      "median_product_ns": 5407093121,
+      "samples_ns": [
+        5346738363,
+        5431125119,
+        5407093121
+      ],
+      "host_swap_delta_pages": 5,
+      "warnings": [
+        "host swap drift: 5 pages; child swap events: 0"
+      ]
+    },
+    {
+      "block": 3,
+      "median_product_ns": 5401976674,
+      "samples_ns": [
+        5417747637,
+        5319930474,
+        5401976674
+      ],
+      "host_swap_delta_pages": 0,
+      "warnings": []
+    },
+    {
+      "block": 4,
+      "median_product_ns": 5392053762,
+      "samples_ns": [
+        5423789755,
+        5392053762,
+        5328146912
+      ],
+      "host_swap_delta_pages": 0,
+      "warnings": []
+    },
+    {
+      "block": 5,
+      "median_product_ns": 5384530084,
+      "samples_ns": [
+        5395524540,
+        5342825002,
+        5384530084
+      ],
+      "host_swap_delta_pages": 0,
+      "warnings": []
+    }
+  ],
+  "valid_samples": 15,
+  "median_spread_ns": 38457451,
+  "median_spread_fraction": 0.0071322454666578675,
+  "warning_free_median_spread_ns": 33341004,
+  "warning_free_blocks": 4,
+  "negative_control_rejected": "after_reopen source_absent failed",
+  "environment_negative_control_rejected": "host identity changed"
+}

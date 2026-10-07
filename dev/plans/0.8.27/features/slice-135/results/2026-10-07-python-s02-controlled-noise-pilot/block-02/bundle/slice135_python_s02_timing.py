@@ -317,7 +317,7 @@ def run_once(*, wheel: Path, wheel_sha256: str, source_sha: str) -> dict[str, An
         )
     return {
         "schema_version": 1,
-        "status": "S02_TIMED_PRODUCT_SEQUENCE",
+        "status": "BASELINE_ONLY_S02_TIMING_PILOT",
         "finished_utc": datetime.now(timezone.utc).isoformat(),
         "source_sha": source_sha,
         "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

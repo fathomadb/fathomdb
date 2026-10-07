@@ -50,9 +50,9 @@ The independent audit can be rerun from the Slice 135 checkout root:
 ```sh
 python3 dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s02-baseline-noise-pilot/audit.py \
   dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-baseline/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl \
-  scripts/slice135_python_s02_timing.py \
-  scripts/slice135_python_s01.py \
-  scripts/slice135_python_s02.py
+  dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s02-baseline-noise-pilot/timed-runner.snapshot.py \
+  dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s02-baseline-noise-pilot/s01-helper.snapshot.py \
+  dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s02-baseline-noise-pilot/s02-helper.snapshot.py
 ```
 
 ## Limits and next action

@@ -93,6 +93,44 @@ class PilotTests(unittest.TestCase):
                                        protocol["runner_sha256"], expected)
             self.assertEqual(copied.read_bytes(), binary)
 
+    def test_mixed_sequence_manifest_declares_fixed_counts_and_boundary(self):
+        manifest = pilot.operation_manifest(3)
+        mixed = manifest["cells"]["mixed_sequence"]
+        self.assertEqual(mixed["observations"], 3)
+        self.assertEqual(mixed["boundary"], "fresh-open-through-reopened-materialized-check")
+        self.assertEqual(mixed["stages"], [
+            "open", "governed_write", "projection_drain", "text_before_erase",
+            "erasure", "close", "reopen", "text_after_erase", "reclose",
+        ])
+        self.assertEqual(mixed["counts_per_observation"], {
+            stage: 1 for stage in mixed["stages"]
+        })
+        self.assertEqual(manifest["cells"]["text"]["observations"], 3)
+        self.assertEqual(manifest["cells"]["close_fresh"]["observations"], 3)
+
+    def test_attribution_rank_uses_only_separate_valid_stage_receipt(self):
+        manifest = pilot.operation_manifest(2)
+        stages = manifest["cells"]["mixed_sequence"]["stages"]
+        attempt = {
+            "valid": True, "latency_ns": 100,
+            "stages_ns": {stage: 5 for stage in stages},
+        }
+        attempt["stages_ns"]["projection_drain"] = 40
+        raw = {"features": {"timing_mode": "attribution"},
+               "cells": {"mixed_sequence": {"attempts": [attempt, attempt]}}}
+        ranking = pilot.aggregate_attribution(raw, manifest)
+        self.assertEqual(ranking["stage_cost_ns"]["projection_drain"], 80)
+        self.assertEqual(ranking["stage_invocations"]["projection_drain"], 2)
+        self.assertEqual(ranking["ranked_stages"][0], "projection_drain")
+        self.assertEqual(ranking["unattributed_ns"], 40)
+        raw["features"]["timing_mode"] = "primary"
+        with self.assertRaisesRegex(ValueError, "attribution"):
+            pilot.aggregate_attribution(raw, manifest)
+        raw["features"]["timing_mode"] = "attribution"
+        raw["cells"]["mixed_sequence"]["attempts"][0]["stages_ns"].pop("reclose")
+        with self.assertRaisesRegex(ValueError, "stage"):
+            pilot.aggregate_attribution(raw, manifest)
+
 
 if __name__ == "__main__":
     unittest.main()

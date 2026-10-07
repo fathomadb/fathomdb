@@ -57,6 +57,8 @@ def test_relocated_receipt_keeps_original_command_parent_and_labels() -> None:
     labels = ["pair-01-baseline", "pair-01-candidate"]
     assert audit.check_output_paths(paths, labels) == original
     with pytest.raises(ValueError, match="output"):
-        audit.check_output_paths([paths[0], Path("/tmp/other/pair-01-candidate")], labels)
+        audit.check_output_paths(
+            [paths[0], Path("/tmp/other/pair-01-candidate")], labels
+        )
     with pytest.raises(ValueError, match="output"):
         audit.check_output_paths([paths[0], original / "wrong"], labels)

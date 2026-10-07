@@ -69,6 +69,16 @@ def command_value(command: list[str], flag: str) -> str:
     return command[command.index(flag) + 1]
 
 
+def check_output_paths(paths: list[Path], labels: list[str]) -> Path:
+    """Verify exact original destinations after a receipt is relocated."""
+    if not paths or len(paths) != len(labels):
+        raise ValueError("output path count changed")
+    parents = {path.parent for path in paths}
+    if len(parents) != 1 or [path.name for path in paths] != labels:
+        raise ValueError("output paths differ from block labels or original parent")
+    return parents.pop()
+
+
 def audit_integrated(root: Path, protocol_path: Path, paired_audit_path: Path) -> dict:
     """Check campaign order and recompute the complete paired S02 receipt."""
     protocol = json.loads(protocol_path.read_text())
@@ -92,6 +102,7 @@ def audit_integrated(root: Path, protocol_path: Path, paired_audit_path: Path) -
         protocol["pair_order"],
         protocol["minimum_idle_seconds_between_blocks"],
     )
+    output_paths = []
     for entry in entries:
         label, role = entry["label"], entry["role"]
         if entry.get("summary_sha256") != sha(root / label / "summary.json"):
@@ -106,13 +117,13 @@ def audit_integrated(root: Path, protocol_path: Path, paired_audit_path: Path) -
         ):
             if command_value(command, flag) != expected:
                 raise ValueError(f"{label} {flag} changed")
-        if Path(command_value(command, "--output-dir")) != root / label:
-            raise ValueError(f"{label} output directory changed")
+        output_paths.append(Path(command_value(command, "--output-dir")))
         if (
             Path(command_value(command, "--comparison-protocol")).read_bytes()
             != protocol_path.read_bytes()
         ):
             raise ValueError(f"{label} protocol command changed")
+    check_output_paths(output_paths, [entry["label"] for entry in entries])
     recomputed = paired.recompute(
         root, protocol_path, WHEELS["baseline"], WHEELS["candidate"], protocol["pairs"]
     )

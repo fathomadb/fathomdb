@@ -425,3 +425,10 @@ An [installed Python S02 functional feasibility pair](results/2026-10-07-python-
 now exercises the whole write/project/retrieve/graph-evidence/erase/reopen
 sequence against both wheels with direct canonical-row checks. Its single
 attempts do not constitute a qualified S02 latency comparison.
+An [installed TypeScript S02 functional feasibility pair](results/2026-10-07-ts-s02-feasibility/README.md)
+now exercises the same sequence against both packages, with independently
+audited artifact bytes and canonical-row checks. It also has one attempt per
+version and no qualified S02 latency or contention result. A second
+[node FTS row-error defect](results/2026-10-07-node-fts-repair/README.md) was
+repaired on the candidate. All earlier candidate timing receipts need a
+refresh against the repaired engine bytes before the Phase 1 checkpoint.

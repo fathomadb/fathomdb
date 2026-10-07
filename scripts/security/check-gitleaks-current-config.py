@@ -150,6 +150,17 @@ EXPECTED_ALLOWLISTS = [
         "paths": [r"^dev/experiments/code-markers-eval/out/incode_markers\.jsonl$"],
         "regexes": [r"^(?:ADR-0\.6\.0-retrieval-latency-gates|ADR-0\.8\.1-byo-llm)$"],
     },
+    {
+        "description": "Slice 135 E01-E12 pinned tokenizer digest is artifact-integrity metadata",
+        "condition": "AND",
+        "regexTarget": "secret",
+        "paths": [
+            r"^(?:scripts/slice135_e12_adapter\.py|dev/plans/0\.8\.27/features/"
+            r"slice-135/results/2026-10-07-e12-adapter-pilot/(?:block-[1-5]|"
+            r"baseline-all|candidate-all)/(?:protocol|raw)\.json)$"
+        ],
+        "regexes": [r"^d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66$"],
+    },
 ]
 
 

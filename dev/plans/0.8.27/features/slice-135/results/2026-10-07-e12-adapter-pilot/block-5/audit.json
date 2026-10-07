@@ -1,0 +1,45 @@
+{
+  "audit_sha256": "a294311f6545a97483e039ab6c38b955b79f7dfe74b5e36ca81176149b1ad6ff",
+  "cells": {
+    "close": {
+      "invalid_attempts": 0,
+      "maximum_ns": 4703561,
+      "p50_ns": 4115689,
+      "p95_ns": 4496910,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "text": {
+      "invalid_attempts": 0,
+      "maximum_ns": 564328,
+      "p50_ns": 224976,
+      "p95_ns": 261666,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    }
+  },
+  "environment_warnings": [],
+  "protocol_sha256": "fd759bde2391b18540a8cbece79cc0b6d225d732da71a41e25f2aef8db74f053",
+  "raw_sha256": "0d9e94c5b7338cb0df2d3c167cb9a13fcdb48e191af1cc4f7825f3afde9dc7cf",
+  "resources": {
+    "elapsed_wall_s": 7.11,
+    "fs_inputs": 0,
+    "fs_outputs": 1121496,
+    "major_faults": 0,
+    "method": "gnu-time",
+    "peak_rss_kib": 32792,
+    "scope": "measured child",
+    "swap_events": 0,
+    "system_cpu_s": 2.25,
+    "user_cpu_s": 7.61
+  },
+  "run_stderr_sha256": "3193b176c4eacbaa89c5c585837caf5c1657db937bd5bde947ed36d2313c2640",
+  "schema_version": 1,
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa"
+}

@@ -1,0 +1,4963 @@
+{
+  "artifact_sha256": {
+    "binary": "2c819cb22285a88ad444b128e009cab50af0801351c0534652135970f6e9e7b1",
+    "config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+    "corpus": "c4bbde04fc7415ea321d24a29338a5d56beabca2d04677797de6b14503d3cde0",
+    "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
+    "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+  },
+  "binary_sha256": "2c819cb22285a88ad444b128e009cab50af0801351c0534652135970f6e9e7b1",
+  "cells": {
+    "close": [
+      {
+        "correctness_count": 32,
+        "latency_ns": 4067367,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3778380,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4321698,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3860886,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4177625,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3963571,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3770856,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3892306,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4456834,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4061496,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3932682,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4261795,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4426356,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3998647,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4205318,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4087075,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4265903,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4430093,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4074741,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4164401,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3954634,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3996783,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4052890,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4203465,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3850387,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3905611,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4338280,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4084279,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3691556,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3932331,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4610596,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4037561,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3939826,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4238271,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4139954,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3766728,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4215317,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3834998,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4050936,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3983148,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3757621,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4598221,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4254561,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4275641,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4801136,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3811182,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3843934,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3927953,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4212672,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4169531,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4353929,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4361564,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4235525,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4347497,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4075613,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3977176,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3910260,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3969552,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4249152,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4167637,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4118884,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4004709,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4094789,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3868090,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4241336,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4174239,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4349120,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3873280,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3943202,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3799901,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4270632,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4535453,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4431526,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3991273,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4104237,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3888098,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4313082,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4018786,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4352447,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4797660,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4557815,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4052359,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4252257,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4619613,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4613871,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3994429,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4291531,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3881676,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4322029,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3940146,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3946258,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4277866,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4244312,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4602099,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4391721,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4062678,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4503122,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4337488,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4259772,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3911292,
+        "observed_checks": {
+          "reopened": true,
+          "state": {
+            "canonical_rows": 32,
+            "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16",
+            "projection_rows": 32,
+            "source_ids": [
+              "slice115:corpus"
+            ]
+          }
+        },
+        "semantic_ok": true,
+        "valid": true
+      }
+    ],
+    "text": [
+      {
+        "correctness_count": 10,
+        "latency_ns": 562043,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 197484,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 226289,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 267826,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 282956,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 214396,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 255554,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 257788,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 196512,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 217612,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 201832,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 212302,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 243440,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 202994,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 246366,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 234203,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 190731,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 180531,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 204437,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 192625,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 197955,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 208184,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 237610,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 223603,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 228493,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 215508,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 191312,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 190490,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 179059,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 187475,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 220407,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 233011,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 280080,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 246146,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 193937,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 200139,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 180431,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 200129,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 217912,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 229465,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 242629,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 230416,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 198145,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 188587,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 186062,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 192645,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 226578,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 249503,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 237860,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 248120,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 196341,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 194849,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 180813,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 269730,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 219606,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 254782,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 217972,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 244803,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 194147,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 205689,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 197935,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 241007,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 241918,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 210749,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 210788,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 232880,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 189909,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 201661,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 197564,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 222541,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 238832,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 200479,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 209687,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 217702,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 191432,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 202273,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 193406,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 217030,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 238972,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 194588,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 208505,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 215898,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 192945,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 196582,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 196682,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 197393,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 234714,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 192263,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 200068,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 219175,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 193717,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 199938,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 193155,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 234845,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 225246,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 190851,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 173869,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 205309,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 209557,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 190240,
+        "observed_checks": {
+          "ordered_branches": [
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text",
+            "Text"
+          ],
+          "ordered_ids": [
+            "l:doc-0",
+            "l:doc-1",
+            "l:doc-2",
+            "l:doc-3",
+            "l:doc-4",
+            "l:doc-5",
+            "l:doc-6",
+            "l:doc-7",
+            "l:doc-8",
+            "l:doc-9"
+          ]
+        },
+        "semantic_ok": true,
+        "valid": true
+      }
+    ]
+  },
+  "corpus_sha256": "c4bbde04fc7415ea321d24a29338a5d56beabca2d04677797de6b14503d3cde0",
+  "environment": {
+    "end": {
+      "competing_jobs": [],
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "disk_free_bytes": 19869929472,
+      "governor": "performance",
+      "host": "windchill3",
+      "kernel": "7.0.0-38-generic",
+      "storage": 12813335840090923571,
+      "swap_pages": 6236994,
+      "time_utc": "2026-10-07T18:10:11Z",
+      "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+    },
+    "invalidators": [],
+    "start": {
+      "competing_jobs": [],
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "disk_free_bytes": 19870208000,
+      "governor": "performance",
+      "host": "windchill3",
+      "kernel": "7.0.0-38-generic",
+      "storage": 12813335840090923571,
+      "swap_pages": 6236994,
+      "time_utc": "2026-10-07T18:10:03Z",
+      "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+    }
+  },
+  "environment_valid": true,
+  "protocol_sha256": "fd759bde2391b18540a8cbece79cc0b6d225d732da71a41e25f2aef8db74f053",
+  "resources": {
+    "method": "gnu-time",
+    "scope": "measured child",
+    "swap_events": 0
+  },
+  "runner_sha256": "cad5c95fc9566902a6db80b03c78b6eaac04a5f7945b97c4038d061a35a5ffc7",
+  "schema_version": 1,
+  "settings": {
+    "cargo_lock_sha256": "ffebda90ad6bae977a63cdb7d4c8edbce88632c2d353d5251247410040a16022",
+    "cells": [
+      "text",
+      "close"
+    ],
+    "device": "cpu",
+    "samples": 100
+  },
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa"
+}

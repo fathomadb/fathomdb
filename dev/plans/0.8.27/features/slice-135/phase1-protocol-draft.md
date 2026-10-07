@@ -21,6 +21,12 @@ Its five alternating pairs, three cells and supported statistics govern the
 first comparison. This broader Phase 1 protocol remains a draft until the
 installed-SDK and remaining workload cells are qualified.
 
+An [installed 0.8.26 Python S01 functional probe](results/2026-10-07-python-s01-baseline-probe/README.md)
+now establishes a real-database 32/256-row text, vector-bearing and hybrid
+workload with basic validity assertions. Its raw timing is unqualified. It
+does not replace baseline-only repeated blocks, the S01 comparison rule or
+the full protocol freeze.
+
 ## Source-grounded starting point
 
 Slice 115's [runner](../../../../../scripts/slice115_runner.py),

@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_python_s01.py", line 260, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_python_s01.py", line 243, in main
+    result = run_pilot(
+             ^^^^^^^^^^
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_python_s01.py", line 155, in run_pilot
+    identity = _installed_wheel_identity(wheel, wheel_sha256)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_python_s01.py", line 83, in _installed_wheel_identity
+    raise ValueError("wheel SHA-256 mismatch")
+ValueError: wheel SHA-256 mismatch

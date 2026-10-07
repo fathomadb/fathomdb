@@ -1,0 +1,30 @@
+ImportError while loading conftest '/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/python/tests/conftest.py'.
+src/python/tests/conftest.py:270: in <module>
+    _TEST_HOOKS_DECISION = _ensure_test_hooks_binding()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/python/tests/conftest.py:208: in _ensure_test_hooks_binding
+    candidate_sha = clean_candidate_sha(_REPO_ROOT)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/python/tests/_test_hooks_gate.py:256: in clean_candidate_sha
+    raise RuntimeError(f"candidate artifact build requires a clean worktree:\n{status}")
+E   RuntimeError: candidate artifact build requires a clean worktree:
+E    M dev/plans/0.8.27/features/slice-135/phase1-capability-register.md
+E    M dev/plans/0.8.27/features/slice-135/phase1-protocol-draft.md
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s01-baseline-probe/README.md
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s01-baseline-probe/SHA256SUMS
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s01-baseline-probe/independent-check.json
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s01-baseline-probe/raw-256.json
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s01-baseline-probe/raw-32.json
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s01-baseline-probe/resource-256.txt
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s01-baseline-probe/resource-32.txt
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s01-baseline-probe/runner.py
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-s01-baseline-probe/wrong-wheel.log
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-baseline/README.md
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-baseline/SHA256SUMS
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-baseline/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-baseline/frozen-evidence-profile.py
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-baseline/install-provenance.txt
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-baseline/paired-functional.json
+E   ?? dev/plans/0.8.27/features/slice-135/results/2026-10-07-python-wheel-baseline/slice50-graph-evidence.json
+E   ?? scripts/slice135_python_s01.py
+E   ?? scripts/tests/test_slice135_python_s01.py

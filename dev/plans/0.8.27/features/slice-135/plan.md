@@ -389,4 +389,9 @@ with a [permanent regression test and verification record](results/2026-10-07-ed
 the full gate still has two recorded unrelated failing suites. Phase 2 awaits
 the checkpoint. A candidate [installed Python wheel functional smoke](results/2026-10-07-python-wheel-qualification/README.md)
 now covers a narrow graph/evidence/dependency flow. It does not satisfy the
-functional exercise gate or a timed S01/S02 cell.
+functional exercise gate or a timed S01/S02 cell. The exact
+[0.8.26 installed wheel](results/2026-10-07-python-wheel-baseline/README.md)
+passed the same smoke, and a [baseline-only installed Python S01 functional
+probe](results/2026-10-07-python-s01-baseline-probe/README.md) exercised 32-
+and 256-row text, vector-bearing and hybrid shapes. Its timing is unqualified;
+see the [verification limits](results/2026-10-07-python-s01-verification/README.md).

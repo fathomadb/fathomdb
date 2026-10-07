@@ -1,0 +1,52 @@
+{
+  "blocks": [
+    {
+      "counts": {
+        "hybrid": {
+          "session_cold": 1,
+          "warm": 100,
+          "warmup": 1
+        },
+        "text": {
+          "session_cold": 1,
+          "warm": 100,
+          "warmup": 1
+        },
+        "vector": {
+          "session_cold": 1,
+          "warm": 100,
+          "warmup": 1
+        }
+      },
+      "raw_sha256": "078a8ca978bcf92fe7a460c7ebb128fcadca0a76b5a4800abf1c5140ce38c47c",
+      "rows": 32,
+      "semantic_checks_recomputed": 306
+    },
+    {
+      "counts": {
+        "hybrid": {
+          "session_cold": 1,
+          "warm": 100,
+          "warmup": 1
+        },
+        "text": {
+          "session_cold": 1,
+          "warm": 100,
+          "warmup": 1
+        },
+        "vector": {
+          "session_cold": 1,
+          "warm": 100,
+          "warmup": 1
+        }
+      },
+      "raw_sha256": "22b9eede6cc33d6597830b9c5a88361719862db24513147268dd9f752eb4351f",
+      "rows": 256,
+      "semantic_checks_recomputed": 306
+    }
+  ],
+  "negative_control": "text warm attempt 0 changed from A to B",
+  "negative_control_rejected": true,
+  "schema_version": 1,
+  "scope": "installed 0.8.26 S01 functional feasibility; raw timings are unqualified"
+}

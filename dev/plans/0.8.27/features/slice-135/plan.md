@@ -403,3 +403,8 @@ passed the same smoke, and a [baseline-only installed Python S01 functional
 probe](results/2026-10-07-python-s01-baseline-probe/README.md) exercised 32-
 and 256-row text, vector-bearing and hybrid shapes. Its timing is unqualified;
 see the [verification limits](results/2026-10-07-python-s01-verification/README.md).
+The [paired installed Python S01 result](results/2026-10-07-python-s01-paired/README.md)
+now supplies a narrow 0.8.26 comparison with independently audited raw
+calls. A [TypeScript native-suite and installed-package smoke](results/2026-10-07-ts-native-qualification/README.md)
+also ran against the candidate. Neither closes the full operation map,
+installed Rust/TypeScript S01/S02, or the four-area checkpoint.

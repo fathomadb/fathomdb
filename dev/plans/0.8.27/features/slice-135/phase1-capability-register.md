@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 1 capability exercise register
-status: INTERIM_INSTALLED_PYTHON_S01
+status: INTERIM_INSTALLED_PYTHON_S01_AND_TS_SMOKE
 target_release: 0.8.27
 ---
 
@@ -15,14 +15,16 @@ adds positive, source-bound text and vector-bearing/hybrid retrieval calls
 through the installed wheel after a real-database write, projection drain and
 reopen. Its basic ID/branch assertions and query timing close the S01 Python
 workload shape, not all error, filter, lifecycle or provider conditions on
-those operations. The remaining installed Rust/TypeScript rows and S02 are
-still gaps.
+those operations. A [TypeScript native-suite and installed-package smoke](results/2026-10-07-ts-native-qualification/README.md)
+now proves a narrow installed consumer path against a real database. It does
+not close TypeScript S01/S02 or the broader accepted-operation contracts.
+The installed Rust rows and S02 remain gaps.
 
 | Canonical operation | Phase 1 exercise route | Rust SDK | Python wheel | TypeScript package |
 | --- | --- | --- | --- | --- |
-| `engine.open` | S02 startup/reopen | Gap | Functional smoke | Gap |
-| `admin.configure` | S02 startup | Gap | Gap | Gap |
-| `engine.write` | S02 write | Gap | Functional smoke | Gap |
+| `engine.open` | S02 startup/reopen | Gap | Functional smoke | Functional smoke |
+| `admin.configure` | S02 startup | Gap | Gap | Functional smoke |
+| `engine.write` | S02 write | Gap | Functional smoke | Functional smoke |
 | `engine.actuate` | S03 actuation | Gap | Functional smoke | Gap |
 | `engine.register_source_dependency` | S03 dependency | Gap | Functional smoke | Gap |
 | `engine.dependencies_for_source` | S03 dependency | Gap | Gap | Gap |
@@ -31,18 +33,18 @@ still gaps.
 | `engine.transition` | S03 lifecycle | Gap | Gap | Gap |
 | `engine.purge` | S03 lifecycle | Gap | Gap | Gap |
 | `engine.erase_source` | S02 erasure | Gap | Gap | Gap |
-| `engine.search` | S01/S02 hybrid | Gap | Functional smoke | Gap |
-| `engine.freeze_read_context` | S02 frozen | Gap | Functional smoke | Gap |
+| `engine.search` | S01/S02 hybrid | Gap | Functional smoke | Functional smoke |
+| `engine.freeze_read_context` | S02 frozen | Gap | Functional smoke | Functional smoke |
 | `engine.search_frozen` | S02 frozen | Gap | Functional smoke | Gap |
 | `engine.search_expand_frozen` | S03 graph | Gap | Functional smoke | Gap |
 | `engine.search_text_only` | S01/S02 text | Gap | S01 paired basic; broader contract gap | Gap |
 | `engine.search_projected_text` | S03 projection | Gap | Gap | Gap |
-| `engine.search_with_evidence` | S02 evidence | Gap | Functional smoke | Gap |
+| `engine.search_with_evidence` | S02 evidence | Gap | Functional smoke | Expected-error smoke only |
 | `engine.resolve_evidence` | S02 evidence | Gap | Functional smoke | Gap |
 | `engine.resolve_graph_evidence` | S02 graph evidence | Gap | Functional smoke | Gap |
 | `engine.trace_dependency` | S03 dependency | Gap | Gap | Gap |
-| `engine.close` | S02 close | Gap | Functional smoke | Gap |
-| `read.get` | S02 read | Gap | Gap | Gap |
+| `engine.close` | S02 close | Gap | Functional smoke | Functional smoke |
+| `read.get` | S02 read | Gap | Gap | Functional smoke |
 | `read.get_many` | S03 read | Gap | Gap | Gap |
 | `read.collection` | S03 read | Gap | Gap | Gap |
 | `read.mutations` | S03 read | Gap | Gap | Gap |
@@ -50,7 +52,7 @@ still gaps.
 | `engine.ingest_with_extractor` | S03 provider | Gap | Gap | Gap |
 | `engine.consolidate_with_provider` | S03 provider | Gap | Gap | Gap |
 | `graph.expand` | S02 graph | Gap | Functional smoke | Gap |
-| `graph.neighbors` | S02 graph | Gap | Gap | Gap |
+| `graph.neighbors` | S02 graph | Gap | Gap | Functional smoke |
 | `graph.search_expand` | S03 graph | Gap | Gap | Gap |
 | `rerank` | S01 model only | Gap | Gap | Gap |
 | `engine.embed` | S01 model | Gap | Gap | Gap |

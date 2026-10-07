@@ -1,0 +1,2910 @@
+TAP version 13
+# Subtest: consumer boundary: every read verb is a public callable (no internal reach)
+ok 1 - consumer boundary: every read verb is a public callable (no internal reach)
+  ---
+  duration_ms: 0.768833
+  type: 'test'
+  ...
+# Subtest: consumer boundary: engine.embed is a public method
+ok 2 - consumer boundary: engine.embed is a public method
+  ---
+  duration_ms: 93.240668
+  type: 'test'
+  ...
+# Subtest: consumer boundary: the needed verbs are all governed (allowlisted)
+ok 3 - consumer boundary: the needed verbs are all governed (allowlisted)
+  ---
+  duration_ms: 0.913156
+  type: 'test'
+  ...
+# Subtest: embedBatchCls is a public async facade over the native module export
+ok 4 - embedBatchCls is a public async facade over the native module export
+  ---
+  duration_ms: 4.19504
+  type: 'test'
+  ...
+# Subtest: embedBatchCls returns one L2-normalized BGE-small CLS vector per input
+ok 5 - embedBatchCls returns one L2-normalized BGE-small CLS vector per input # SKIP FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+  ---
+  duration_ms: 0.282093
+  type: 'test'
+  ...
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping test
+# Subtest: runtime embedder events match the typed-union shape
+ok 6 - runtime embedder events match the typed-union shape
+  ---
+  duration_ms: 1.654197
+  type: 'test'
+  ...
+# Subtest: eraseSource erases anonymous content end-to-end without the CLI
+ok 7 - eraseSource erases anonymous content end-to-end without the CLI
+  ---
+  duration_ms: 123.383479
+  type: 'test'
+  ...
+# Subtest: eraseSource addresses an embedded NUL sourceId exactly
+ok 8 - eraseSource addresses an embedded NUL sourceId exactly
+  ---
+  duration_ms: 106.048018
+  type: 'test'
+  ...
+# Subtest: eraseSource is idempotent (an absent source is a zero-count success)
+ok 9 - eraseSource is idempotent (an absent source is a zero-count success)
+  ---
+  duration_ms: 104.194694
+  type: 'test'
+  ...
+# Subtest: eraseSource succeeds after correction and keeps requested-bucket counts
+ok 10 - eraseSource succeeds after correction and keeps requested-bucket counts
+  ---
+  duration_ms: 138.861737
+  type: 'test'
+  ...
+# Subtest: eraseSource maps a postcommit incomplete result
+ok 11 - eraseSource maps a postcommit incomplete result
+  ---
+  duration_ms: 107.362002
+  type: 'test'
+  ...
+# Subtest: eraseSource rejects empty or reserved sourceId ""
+ok 12 - eraseSource rejects empty or reserved sourceId ""
+  ---
+  duration_ms: 82.495155
+  type: 'test'
+  ...
+# Subtest: eraseSource rejects empty or reserved sourceId "   "
+ok 13 - eraseSource rejects empty or reserved sourceId "   "
+  ---
+  duration_ms: 88.50742
+  type: 'test'
+  ...
+# Subtest: eraseSource rejects empty or reserved sourceId "_engine:coverage"
+ok 14 - eraseSource rejects empty or reserved sourceId "_engine:coverage"
+  ---
+  duration_ms: 94.477325
+  type: 'test'
+  ...
+# Subtest: eraseSource rejects empty or reserved sourceId "_legacy:pre-0.8.20"
+ok 15 - eraseSource rejects empty or reserved sourceId "_legacy:pre-0.8.20"
+  ---
+  duration_ms: 83.485287
+  type: 'test'
+  ...
+# Subtest: every leaf class extends FathomDbError
+ok 16 - every leaf class extends FathomDbError
+  ---
+  duration_ms: 1.423571
+  type: 'test'
+  ...
+# Subtest: EmbedderNotConfiguredError sits under EmbedderError under FathomDbError
+ok 17 - EmbedderNotConfiguredError sits under EmbedderError under FathomDbError
+  ---
+  duration_ms: 0.191613
+  type: 'test'
+  ...
+# Subtest: KindNotVectorIndexedError sits under VectorError under FathomDbError
+ok 18 - KindNotVectorIndexedError sits under VectorError under FathomDbError
+  ---
+  duration_ms: 0.147319
+  type: 'test'
+  ...
+# Subtest: CorruptionError carries typed recovery hint payload
+ok 19 - CorruptionError carries typed recovery hint payload
+  ---
+  duration_ms: 0.266013
+  type: 'test'
+  ...
+# Subtest: DatabaseLockedError carries typed holderPid
+ok 20 - DatabaseLockedError carries typed holderPid
+  ---
+  duration_ms: 0.201992
+  type: 'test'
+  ...
+# Subtest: EmbedderIdentityMismatchError carries typed identity attrs
+ok 21 - EmbedderIdentityMismatchError carries typed identity attrs
+  ---
+  duration_ms: 0.212492
+  type: 'test'
+  ...
+# Subtest: EmbedderDimensionMismatchError carries typed dimensions
+ok 22 - EmbedderDimensionMismatchError carries typed dimensions
+  ---
+  duration_ms: 0.142349
+  type: 'test'
+  ...
+# Subtest: search rejects empty query via WriteValidationError under FathomDbError root
+ok 23 - search rejects empty query via WriteValidationError under FathomDbError root
+  ---
+  duration_ms: 98.141492
+  type: 'test'
+  ...
+# Subtest: decision \#18: the write-validation boundary is exactly one error family
+ok 24 - decision \#18: the write-validation boundary is exactly one error family
+  ---
+  duration_ms: 84.218362
+  type: 'test'
+  ...
+# Subtest: decision \#18: InvalidArgumentError survives as a distinct leaf
+ok 25 - decision \#18: InvalidArgumentError survives as a distinct leaf
+  ---
+  duration_ms: 1.071275
+  type: 'test'
+  ...
+# Subtest: exp-obs carrier gating + byte stability
+ok 26 - exp-obs carrier gating + byte stability
+  ---
+  duration_ms: 112.321106
+  type: 'test'
+  ...
+# Subtest: exp-obs trace + per-hit fidelity
+ok 27 - exp-obs trace + per-hit fidelity
+  ---
+  duration_ms: 108.00636
+  type: 'test'
+  ...
+# Subtest: f9 importance/confidence survive the FFI
+ok 28 - f9 importance/confidence survive the FFI
+  ---
+  duration_ms: 107.836579
+  type: 'test'
+  ...
+# Subtest: graph_arm is assignable to SoftFallbackBranch
+ok 29 - graph_arm is assignable to SoftFallbackBranch
+  ---
+  duration_ms: 0.275361
+  type: 'test'
+  ...
+# Subtest: explain must be a boolean (cross-SDK parity guard)
+ok 30 - explain must be a boolean (cross-SDK parity guard)
+  ---
+  duration_ms: 82.161154
+  type: 'test'
+  ...
+# Subtest: F9: importance + confidence propagate through mapPerHitExplain
+ok 31 - F9: importance + confidence propagate through mapPerHitExplain
+  ---
+  duration_ms: 1.041259
+  type: 'test'
+  ...
+# Subtest: F9: null/undefined importance + confidence normalize to null
+ok 32 - F9: null/undefined importance + confidence normalize to null
+  ---
+  duration_ms: 0.191252
+  type: 'test'
+  ...
+# thread '<unnamed>' (3422126) panicked at src/rust/crates/fathomdb-napi/src/test_support.rs:104:13:
+# force_panic_for_test: AC-067 probe
+# note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+# thread '<unnamed>' (3422126) panicked at src/rust/crates/fathomdb-napi/src/test_support.rs:93:9:
+# force_panic_in_accessor_for_test: AC-067 sync probe
+# Subtest: AC-067 panic surfaces as FathomDbPanicError, process unchanged
+ok 33 - AC-067 panic surfaces as FathomDbPanicError, process unchanged
+  ---
+  duration_ms: 105.642311
+  type: 'test'
+  ...
+# Subtest: AC-067 panic on sync accessor surfaces as FathomDbPanicError
+ok 34 - AC-067 panic on sync accessor surfaces as FathomDbPanicError
+  ---
+  duration_ms: 0.577381
+  type: 'test'
+  ...
+# Subtest: AC-068a embedded NUL in op-store body rejected as WriteValidationError
+ok 35 - AC-068a embedded NUL in op-store body rejected as WriteValidationError
+  ---
+  duration_ms: 85.047269
+  type: 'test'
+  ...
+# Subtest: AC-068b unpaired UTF-16 surrogate in op-store body rejected as WriteValidationError
+ok 36 - AC-068b unpaired UTF-16 surrogate in op-store body rejected as WriteValidationError
+  ---
+  duration_ms: 85.289197
+  type: 'test'
+  ...
+# Subtest: AC-068a embedded NUL in node kind also rejected before write
+ok 37 - AC-068a embedded NUL in node kind also rejected before write
+  ---
+  duration_ms: 82.304514
+  type: 'test'
+  ...
+# Subtest: AC-068a embedded NUL in search filter sourceType rejected as WriteValidationError
+ok 38 - AC-068a embedded NUL in search filter sourceType rejected as WriteValidationError
+  ---
+  duration_ms: 92.62298
+  type: 'test'
+  ...
+# Subtest: AC-068b unpaired UTF-16 surrogate in search filter sourceType rejected as WriteValidationError
+ok 39 - AC-068b unpaired UTF-16 surrogate in search filter sourceType rejected as WriteValidationError
+  ---
+  duration_ms: 93.562106
+  type: 'test'
+  ...
+# Subtest: AC-068a embedded NUL in search filter kind rejected as WriteValidationError
+ok 40 - AC-068a embedded NUL in search filter kind rejected as WriteValidationError
+  ---
+  duration_ms: 87.259932
+  type: 'test'
+  ...
+# Subtest: AC-068b unpaired UTF-16 surrogate in search filter kind rejected as WriteValidationError
+ok 41 - AC-068b unpaired UTF-16 surrogate in search filter kind rejected as WriteValidationError
+  ---
+  duration_ms: 88.642776
+  type: 'test'
+  ...
+# Subtest: AC-068a embedded NUL in search filter status rejected as WriteValidationError
+ok 42 - AC-068a embedded NUL in search filter status rejected as WriteValidationError
+  ---
+  duration_ms: 85.364168
+  type: 'test'
+  ...
+# Subtest: AC-068b unpaired UTF-16 surrogate in search filter status rejected as WriteValidationError
+ok 43 - AC-068b unpaired UTF-16 surrogate in search filter status rejected as WriteValidationError
+  ---
+  duration_ms: 92.86643
+  type: 'test'
+  ...
+# Subtest: fix-28 NUL in ingestWithExtractor sourceDocId rejected
+ok 44 - fix-28 NUL in ingestWithExtractor sourceDocId rejected
+  ---
+  duration_ms: 87.308364
+  type: 'test'
+  ...
+# Subtest: fix-28 NUL in ingestWithExtractor body rejected
+ok 45 - fix-28 NUL in ingestWithExtractor body rejected
+  ---
+  duration_ms: 91.858124
+  type: 'test'
+  ...
+# Subtest: fix-28 NUL in ingestWithExtractor cmd arg rejected
+ok 46 - fix-28 NUL in ingestWithExtractor cmd arg rejected
+  ---
+  duration_ms: 90.61283
+  type: 'test'
+  ...
+# Subtest: SearchFilter round-trips through the unified Filter
+ok 47 - SearchFilter round-trips through the unified Filter
+  ---
+  duration_ms: 2.088769
+  type: 'test'
+  ...
+# Subtest: SearchFilter attributes reject lossy unified conversion
+ok 48 - SearchFilter attributes reject lossy unified conversion
+  ---
+  duration_ms: 0.511978
+  type: 'test'
+  ...
+# Subtest: filterToSearchFilter typed-rejects a json term
+ok 49 - filterToSearchFilter typed-rejects a json term
+  ---
+  duration_ms: 0.203805
+  type: 'test'
+  ...
+# Subtest: engine.search typed-rejects a json Filter
+ok 50 - engine.search typed-rejects a json Filter
+  ---
+  duration_ms: 103.652771
+  type: 'test'
+  ...
+# Subtest: read.list(filter) accepts the full term set
+ok 51 - read.list(filter) accepts the full term set
+  ---
+  duration_ms: 92.920994
+  type: 'test'
+  ...
+# Subtest: read.list(filter) kind term constant-folds vs the partition
+ok 52 - read.list(filter) kind term constant-folds vs the partition
+  ---
+  duration_ms: 102.124301
+  type: 'test'
+  ...
+# Subtest: read.list(filter) source_type term constant-folds (resolve_source_type)
+ok 53 - read.list(filter) source_type term constant-folds (resolve_source_type)
+  ---
+  duration_ms: 97.864628
+  type: 'test'
+  ...
+# Subtest: read.list rejects both predicates and filter
+ok 54 - read.list rejects both predicates and filter
+  ---
+  duration_ms: 98.934131
+  type: 'test'
+  ...
+# Subtest: consolidateWithProvider: live end-to-end supersede round-trip through the real napi binding
+ok 55 - consolidateWithProvider: live end-to-end supersede round-trip through the real napi binding
+  ---
+  duration_ms: 130.360357
+  type: 'test'
+  ...
+# Subtest: embed: returns a fixed-dim float vector
+ok 56 - embed: returns a fixed-dim float vector # SKIP FATHOMDB_SKIP_NETWORK_TESTS set
+  ---
+  duration_ms: 1.06346
+  type: 'test'
+  ...
+# Subtest: embed: is deterministic
+ok 57 - embed: is deterministic # SKIP FATHOMDB_SKIP_NETWORK_TESTS set
+  ---
+  duration_ms: 0.166174
+  type: 'test'
+  ...
+# Subtest: embed: is semantic (paraphrase closer than unrelated)
+ok 58 - embed: is semantic (paraphrase closer than unrelated) # SKIP FATHOMDB_SKIP_NETWORK_TESTS set
+  ---
+  duration_ms: 0.146306
+  type: 'test'
+  ...
+# Subtest: embed: without an embedder rejects EmbedderNotConfiguredError
+ok 59 - embed: without an embedder rejects EmbedderNotConfiguredError
+  ---
+  duration_ms: 89.704213
+  type: 'test'
+  ...
+# Subtest: embed: cross-binding golden anchor (Py ≡ TS)
+ok 60 - embed: cross-binding golden anchor (Py ≡ TS) # SKIP FATHOMDB_SKIP_NETWORK_TESTS set
+  ---
+  duration_ms: 0.343931
+  type: 'test'
+  ...
+# Subtest: useGraphArm default is false — results match explicit false
+ok 61 - useGraphArm default is false — results match explicit false
+  ---
+  duration_ms: 113.299465
+  type: 'test'
+  ...
+# Subtest: useGraphArm type validation — non-boolean raises TypeError
+ok 62 - useGraphArm type validation — non-boolean raises TypeError
+  ---
+  duration_ms: 90.756341
+  type: 'test'
+  ...
+# Subtest: useGraphArm=true runs without error with live edges
+ok 63 - useGraphArm=true runs without error with live edges
+  ---
+  duration_ms: 106.516884
+  type: 'test'
+  ...
+# Subtest: useGraphArm=true excludes nodes reachable only via expired edges
+ok 64 - useGraphArm=true excludes nodes reachable only via expired edges
+  ---
+  duration_ms: 98.365064
+  type: 'test'
+  ...
+# Subtest: graph.neighbors depth=1 outgoing returns B and D (direct children of A)
+ok 65 - graph.neighbors depth=1 outgoing returns B and D (direct children of A)
+  ---
+  duration_ms: 113.110769
+  type: 'test'
+  ...
+# Subtest: graph.neighbors depth=2 outgoing from A returns B, C, D
+ok 66 - graph.neighbors depth=2 outgoing from A returns B, C, D
+  ---
+  duration_ms: 87.625082
+  type: 'test'
+  ...
+# Subtest: graph.neighbors returns NodeRecord objects with all required fields
+ok 67 - graph.neighbors returns NodeRecord objects with all required fields
+  ---
+  duration_ms: 93.15202
+  type: 'test'
+  ...
+# Subtest: graph.neighbors depth=4 raises InvalidArgumentError
+ok 68 - graph.neighbors depth=4 raises InvalidArgumentError
+  ---
+  duration_ms: 112.098896
+  type: 'test'
+  ...
+# Subtest: graph.neighbors returns empty array for isolated node
+ok 69 - graph.neighbors returns empty array for isolated node
+  ---
+  duration_ms: 104.196949
+  type: 'test'
+  ...
+# Subtest: graph.neighbors unknown direction raises InvalidArgumentError
+ok 70 - graph.neighbors unknown direction raises InvalidArgumentError
+  ---
+  duration_ms: 84.435402
+  type: 'test'
+  ...
+# Subtest: graph.searchExpand returns SearchExpandResult with expected fields
+ok 71 - graph.searchExpand returns SearchExpandResult with expected fields
+  ---
+  duration_ms: 94.490651
+  type: 'test'
+  ...
+# Subtest: graph.searchExpand: neighbor appears in expanded
+ok 72 - graph.searchExpand: neighbor appears in expanded
+  ---
+  duration_ms: 92.029378
+  type: 'test'
+  ...
+# Subtest: graph.searchExpand: node in both search hits and traversal appears only in searchHits
+ok 73 - graph.searchExpand: node in both search hits and traversal appears only in searchHits
+  ---
+  duration_ms: 102.70563
+  type: 'test'
+  ...
+# Subtest: graph.searchExpand: each expanded item has node and hopCount
+ok 74 - graph.searchExpand: each expanded item has node and hopCount
+  ---
+  duration_ms: 86.67203
+  type: 'test'
+  ...
+# Subtest: functional read.list: unfiltered returns all active nodes of the kind
+ok 75 - functional read.list: unfiltered returns all active nodes of the kind
+  ---
+  duration_ms: 122.975006
+  type: 'test'
+  ...
+# Subtest: functional read.list: eq predicate filters correctly
+ok 76 - functional read.list: eq predicate filters correctly
+  ---
+  duration_ms: 93.056169
+  type: 'test'
+  ...
+# Subtest: functional read.list: gt predicate filters correctly
+ok 77 - functional read.list: gt predicate filters correctly
+  ---
+  duration_ms: 101.616791
+  type: 'test'
+  ...
+# Subtest: functional read.list: AND-composition (eq + gt)
+ok 78 - functional read.list: AND-composition (eq + gt)
+  ---
+  duration_ms: 100.034159
+  type: 'test'
+  ...
+# Subtest: functional read.list: limit is respected
+ok 79 - functional read.list: limit is respected
+  ---
+  duration_ms: 90.44334
+  type: 'test'
+  ...
+# Subtest: functional read.list: non-allowlisted path throws InvalidFilterError
+ok 80 - functional read.list: non-allowlisted path throws InvalidFilterError
+  ---
+  duration_ms: 93.862293
+  type: 'test'
+  ...
+# Subtest: functional read.list: empty predicates returns all
+ok 81 - functional read.list: empty predicates returns all
+  ---
+  duration_ms: 96.09305
+  type: 'test'
+  ...
+# Subtest: functional read.list: cross-binding equivalence anchor (Py ≡ TS)
+ok 82 - functional read.list: cross-binding equivalence anchor (Py ≡ TS)
+  ---
+  duration_ms: 96.787362
+  type: 'test'
+  ...
+# Subtest: reranker: rerankDepth=0 matches default search order
+ok 83 - reranker: rerankDepth=0 matches default search order
+  ---
+  duration_ms: 116.509033
+  type: 'test'
+  ...
+# Subtest: reranker: rerankDepth=0 scores identical to default
+ok 84 - reranker: rerankDepth=0 scores identical to default
+  ---
+  duration_ms: 102.887924
+  type: 'test'
+  ...
+# Subtest: reranker: negative rerankDepth raises RangeError
+ok 85 - reranker: negative rerankDepth raises RangeError
+  ---
+  duration_ms: 98.517423
+  type: 'test'
+  ...
+# Subtest: reranker: non-integer rerankDepth raises RangeError (not TypeError)
+ok 86 - reranker: non-integer rerankDepth raises RangeError (not TypeError)
+  ---
+  duration_ms: 93.677524
+  type: 'test'
+  ...
+# Subtest: reranker: rerankDepth=0 with filter preserves identity contract
+ok 87 - reranker: rerankDepth=0 with filter preserves identity contract
+  ---
+  duration_ms: 104.569002
+  type: 'test'
+  ...
+# Subtest: reranker: positive rerankDepth returns results (soft-fallback in default build)
+ok 88 - reranker: positive rerankDepth returns results (soft-fallback in default build)
+  ---
+  duration_ms: 85.61404
+  type: 'test'
+  ...
+# Subtest: reranker: search accepts alpha + poolN and each hit carries ceScore
+ok 89 - reranker: search accepts alpha + poolN and each hit carries ceScore
+  ---
+  duration_ms: 92.665711
+  type: 'test'
+  ...
+# Subtest: reranker: default search (no alpha) leaves order byte-identical, ceScore null
+ok 90 - reranker: default search (no alpha) leaves order byte-identical, ceScore null
+  ---
+  duration_ms: 99.056932
+  type: 'test'
+  ...
+# Subtest: reranker: huge rerankDepth raises RangeError (u32 overflow guard)
+ok 91 - reranker: huge rerankDepth raises RangeError (u32 overflow guard)
+  ---
+  duration_ms: 99.299922
+  type: 'test'
+  ...
+# Subtest: functional retrieve: read.get returns the active node by id
+ok 92 - functional retrieve: read.get returns the active node by id
+  ---
+  duration_ms: 128.73792
+  type: 'test'
+  ...
+# Subtest: functional retrieve: read.getMany preserves order with null
+ok 93 - functional retrieve: read.getMany preserves order with null
+  ---
+  duration_ms: 96.910444
+  type: 'test'
+  ...
+# Subtest: functional retrieve: read.collection/read.mutations honor cursor + limit
+ok 94 - functional retrieve: read.collection/read.mutations honor cursor + limit
+  ---
+  duration_ms: 112.403241
+  type: 'test'
+  ...
+# Subtest: functional retrieve: admin.configure path exercised
+ok 95 - functional retrieve: admin.configure path exercised
+  ---
+  duration_ms: 84.843944
+  type: 'test'
+  ...
+# Subtest: functional retrieve: cross-binding equivalence (Py ≡ TS)
+ok 96 - functional retrieve: cross-binding equivalence (Py ≡ TS)
+  ---
+  duration_ms: 112.531223
+  type: 'test'
+  ...
+# Subtest: functional search: structured hit shape across the FFI
+ok 97 - functional search: structured hit shape across the FFI
+  ---
+  duration_ms: 105.533195
+  type: 'test'
+  ...
+# Subtest: functional search: cross-binding equivalence with the Python harness
+ok 98 - functional search: cross-binding equivalence with the Python harness
+  ---
+  duration_ms: 108.292571
+  type: 'test'
+  ...
+# Subtest: functional search: RRF-fused order matches the Python binding
+ok 99 - functional search: RRF-fused order matches the Python binding
+  ---
+  duration_ms: 105.947277
+  type: 'test'
+  ...
+# Subtest: functional write: rowCursors are 1:1 with the batch (Py ≡ TS)
+ok 100 - functional write: rowCursors are 1:1 with the batch (Py ≡ TS)
+  ---
+  duration_ms: 98.746064
+  type: 'test'
+  ...
+# Subtest: functional write: a supersession write surfaces its row cursor
+ok 101 - functional write: a supersession write surfaces its row cursor
+  ---
+  duration_ms: 82.366351
+  type: 'test'
+  ...
+# Subtest: functional write: dangling-edge count (Py ≡ TS)
+ok 102 - functional write: dangling-edge count (Py ≡ TS)
+  ---
+  duration_ms: 92.340706
+  type: 'test'
+  ...
+# Subtest: functional search: a SearchFilter prunes results
+ok 103 - functional search: a SearchFilter prunes results
+  ---
+  duration_ms: 102.096879
+  type: 'test'
+  ...
+# Subtest: idspace: governed hit id is the logical space
+ok 104 - idspace: governed hit id is the logical space
+  ---
+  duration_ms: 105.040413
+  type: 'test'
+  ...
+# Subtest: idspace: doc-seeded hit id is the content space
+ok 105 - idspace: doc-seeded hit id is the content space
+  ---
+  duration_ms: 105.386247
+  type: 'test'
+  ...
+# Subtest: idspace: every hit id is non-null and space-total
+ok 106 - idspace: every hit id is non-null and space-total
+  ---
+  duration_ms: 99.8542
+  type: 'test'
+  ...
+# Subtest: module top-level exports include no recovery verbs
+ok 107 - module top-level exports include no recovery verbs
+  ---
+  duration_ms: 1.237699
+  type: 'test'
+  ...
+# Subtest: Engine class statics include no recovery methods
+ok 108 - Engine class statics include no recovery methods
+  ---
+  duration_ms: 0.184359
+  type: 'test'
+  ...
+# Subtest: Engine instance has no recovery methods
+ok 109 - Engine instance has no recovery methods
+  ---
+  duration_ms: 92.914642
+  type: 'test'
+  ...
+# Subtest: admin namespace exports no recovery verbs
+ok 110 - admin namespace exports no recovery verbs
+  ---
+  duration_ms: 1.339732
+  type: 'test'
+  ...
+# Subtest: npm_platform_split_contract: triple resolution for supported hosts
+ok 111 - npm_platform_split_contract: triple resolution for supported hosts
+  ---
+  duration_ms: 0.815222
+  type: 'test'
+  ...
+# Subtest: npm_platform_split_contract: platform package name preserves unscoped names except Windows
+ok 112 - npm_platform_split_contract: platform package name preserves unscoped names except Windows
+  ---
+  duration_ms: 0.135226
+  type: 'test'
+  ...
+# Subtest: npm_platform_split_contract: unmapped host throws unsupported platform
+ok 113 - npm_platform_split_contract: unmapped host throws unsupported platform
+  ---
+  duration_ms: 0.519783
+  type: 'test'
+  ...
+# Subtest: npm_platform_split_contract: mac install with skipped linux dep throws at require-time (no segfault)
+ok 114 - npm_platform_split_contract: mac install with skipped linux dep throws at require-time (no segfault)
+  ---
+  duration_ms: 0.419313
+  type: 'test'
+  ...
+# Subtest: npm_platform_split_contract: loads local dev binary when present
+ok 115 - npm_platform_split_contract: loads local dev binary when present
+  ---
+  duration_ms: 0.805622
+  type: 'test'
+  ...
+# Subtest: npm_platform_split_contract: loads published platform package when installed
+ok 116 - npm_platform_split_contract: loads published platform package when installed
+  ---
+  duration_ms: 0.175452
+  type: 'test'
+  ...
+# Subtest: openReport returns the spec-locked native fields
+ok 117 - openReport returns the spec-locked native fields
+  ---
+  duration_ms: 102.693026
+  type: 'test'
+  ...
+# Subtest: openReport is idempotent — repeat calls return identical data
+ok 118 - openReport is idempotent — repeat calls return identical data
+  ---
+  duration_ms: 88.753646
+  type: 'test'
+  ...
+# Subtest: openReport exposes absent device resolution without an embedder
+ok 119 - openReport exposes absent device resolution without an embedder
+  ---
+  duration_ms: 78.406587
+  type: 'test'
+  ...
+# Subtest: openReport maps a present auto-to-CPU device resolution
+ok 120 - openReport maps a present auto-to-CPU device resolution
+  ---
+  duration_ms: 1.360091
+  type: 'test'
+  ...
+# Subtest: openReport reports no GPU allocation witness on an ordinary open
+ok 121 - openReport reports no GPU allocation witness on an ordinary open
+  ---
+  duration_ms: 98.392656
+  type: 'test'
+  ...
+# Subtest: openReport maps a present GPU allocation witness without losing a number
+ok 122 - openReport maps a present GPU allocation witness without losing a number
+  ---
+  duration_ms: 0.364239
+  type: 'test'
+  ...
+# Subtest: Engine.open Promise signature unchanged — resolves to just Engine
+ok 123 - Engine.open Promise signature unchanged — resolves to just Engine
+  ---
+  duration_ms: 95.859508
+  type: 'test'
+  ...
+# Subtest: existence axis: state/reason round-trip; pending excluded from default reads
+ok 124 - existence axis: state/reason round-trip; pending excluded from default reads
+  ---
+  duration_ms: 125.039388
+  type: 'test'
+  ...
+# Subtest: existence axis: state="deleted" is not creatable (WriteValidationError)
+ok 125 - existence axis: state="deleted" is not creatable (WriteValidationError)
+  ---
+  duration_ms: 96.62217
+  type: 'test'
+  ...
+# Subtest: existence axis: state="purged" is not creatable (WriteValidationError)
+ok 126 - existence axis: state="purged" is not creatable (WriteValidationError)
+  ---
+  duration_ms: 85.9789
+  type: 'test'
+  ...
+# Subtest: existence axis: state="bogus" is not creatable (WriteValidationError)
+ok 127 - existence axis: state="bogus" is not creatable (WriteValidationError)
+  ---
+  duration_ms: 84.454959
+  type: 'test'
+  ...
+# Subtest: existence axis: state='active' is a no-op on an all-active corpus
+ok 128 - existence axis: state='active' is a no-op on an all-active corpus
+  ---
+  duration_ms: 78.886503
+  type: 'test'
+  ...
+# Subtest: legal transitions + reason clear-on-admit / set-on-exclude
+ok 129 - legal transitions + reason clear-on-admit / set-on-exclude
+  ---
+  duration_ms: 94.182047
+  type: 'test'
+  ...
+# Subtest: illegal transition is a typed error with fromState/toState/legal
+ok 130 - illegal transition is a typed error with fromState/toState/legal
+  ---
+  duration_ms: 102.751847
+  type: 'test'
+  ...
+# Subtest: non-logical id h:deadbeef is refused by lifecycle verbs
+ok 131 - non-logical id h:deadbeef is refused by lifecycle verbs
+  ---
+  duration_ms: 92.620456
+  type: 'test'
+  ...
+# Subtest: non-logical id p:7 is refused by lifecycle verbs
+ok 132 - non-logical id p:7 is refused by lifecycle verbs
+  ---
+  duration_ms: 91.495058
+  type: 'test'
+  ...
+# Subtest: purge requires deleted-first and is idempotent
+ok 133 - purge requires deleted-first and is idempotent
+  ---
+  duration_ms: 89.251928
+  type: 'test'
+  ...
+# Subtest: node write without sourceId rejects and commits no row
+ok 134 - node write without sourceId rejects and commits no row
+  ---
+  duration_ms: 102.270017
+  type: 'test'
+  ...
+# Subtest: edge write without sourceId rejects
+ok 135 - edge write without sourceId rejects
+  ---
+  duration_ms: 85.699542
+  type: 'test'
+  ...
+# Subtest: empty or reserved sourceId "" rejects
+ok 136 - empty or reserved sourceId "" rejects
+  ---
+  duration_ms: 91.572154
+  type: 'test'
+  ...
+# Subtest: empty or reserved sourceId "   " rejects
+ok 137 - empty or reserved sourceId "   " rejects
+  ---
+  duration_ms: 84.361373
+  type: 'test'
+  ...
+# Subtest: empty or reserved sourceId "_engine:coverage" rejects
+ok 138 - empty or reserved sourceId "_engine:coverage" rejects
+  ---
+  duration_ms: 81.862028
+  type: 'test'
+  ...
+# Subtest: empty or reserved sourceId "_legacy:pre-0.8.20" rejects
+ok 139 - empty or reserved sourceId "_legacy:pre-0.8.20" rejects
+  ---
+  duration_ms: 91.689406
+  type: 'test'
+  ...
+# Subtest: provenanced write succeeds (positive control)
+ok 140 - provenanced write succeeds (positive control)
+  ---
+  duration_ms: 88.027052
+  type: 'test'
+  ...
+# [skip] RELEASE_SURFACE_TESTS!=1; release-surface tests disabled
+# [skip] RELEASE_SURFACE_TESTS!=1; release-surface tests disabled
+# Subtest: release-equivalent .node does not expose test-hooks methods
+ok 141 - release-equivalent .node does not expose test-hooks methods
+  ---
+  duration_ms: 1.29072
+  type: 'test'
+  ...
+# Subtest: release-equivalent .node Engine.open accepts useDefaultEmbedder: true
+ok 142 - release-equivalent .node Engine.open accepts useDefaultEmbedder: true
+  ---
+  duration_ms: 0.23251
+  type: 'test'
+  ...
+# Subtest: op-store write violating schema raises SchemaValidationError and writes no row
+ok 143 - op-store write violating schema raises SchemaValidationError and writes no row
+  ---
+  duration_ms: 99.090236
+  type: 'test'
+  ...
+# Subtest: cursor advances on write
+ok 144 - cursor advances on write
+  ---
+  duration_ms: 100.589198
+  type: 'test'
+  ...
+# Subtest: TypeScript surface equals the live canonical operation set
+ok 145 - TypeScript surface equals the live canonical operation set
+  ---
+  duration_ms: 168.575036
+  type: 'test'
+  ...
+# Subtest: R-20-RV: the default view is unchanged on all five read verbs
+ok 146 - R-20-RV: the default view is unchanged on all five read verbs
+  ---
+  duration_ms: 120.505348
+  type: 'test'
+  ...
+# Subtest: R-20-RV: includeSuperseded returns history
+ok 147 - R-20-RV: includeSuperseded returns history
+  ---
+  duration_ms: 111.834346
+  type: 'test'
+  ...
+# Subtest: R-20-RV: the point lookup under includeSuperseded is deterministic
+ok 148 - R-20-RV: the point lookup under includeSuperseded is deterministic
+  ---
+  duration_ms: 115.734659
+  type: 'test'
+  ...
+# Subtest: R-20-RV: includeInactive returns non-active states
+ok 149 - R-20-RV: includeInactive returns non-active states
+  ---
+  duration_ms: 101.992231
+  type: 'test'
+  ...
+# Subtest: R-20-RV: the existence flags compose independently (read-mode matrix)
+ok 150 - R-20-RV: the existence flags compose independently (read-mode matrix)
+  ---
+  duration_ms: 117.947272
+  type: 'test'
+  ...
+# Subtest: R-20-RV: the read.list filter-form inherits the view
+ok 151 - R-20-RV: the read.list filter-form inherits the view
+  ---
+  duration_ms: 94.608794
+  type: 'test'
+  ...
+# Subtest: R-20-RV: graph.neighbors honours the view in every direction
+ok 152 - R-20-RV: graph.neighbors honours the view in every direction
+  ---
+  duration_ms: 109.04327
+  type: 'test'
+  ...
+# Subtest: R-20-RV: the graph.neighbors view reaches the BFS recursive join
+ok 153 - R-20-RV: the graph.neighbors view reaches the BFS recursive join
+  ---
+  duration_ms: 89.721846
+  type: 'test'
+  ...
+# Subtest: R-20-NV: validAsOf window visibility on every read verb
+ok 154 - R-20-NV: validAsOf window visibility on every read verb
+  ---
+  duration_ms: 137.873389
+  type: 'test'
+  ...
+# Subtest: R-20-NV: the validity flag composes with the existence flag
+ok 155 - R-20-NV: the validity flag composes with the existence flag
+  ---
+  duration_ms: 121.64407
+  type: 'test'
+  ...
+# Subtest: R-20-NV: crossedBoundarySince reports both boundaries
+ok 156 - R-20-NV: crossedBoundarySince reports both boundaries
+  ---
+  duration_ms: 135.420854
+  type: 'test'
+  ...
+# Subtest: R-20-NV: crossedBoundarySince honours the view's existence flags
+ok 157 - R-20-NV: crossedBoundarySince honours the view's existence flags
+  ---
+  duration_ms: 95.625746
+  type: 'test'
+  ...
+# Subtest: ExtractorError is a FathomDbError subclass
+ok 158 - ExtractorError is a FathomDbError subclass
+  ---
+  duration_ms: 0.960697
+  type: 'test'
+  ...
+# Subtest: Engine.ingestWithExtractor is a callable method
+ok 159 - Engine.ingestWithExtractor is a callable method
+  ---
+  duration_ms: 97.732699
+  type: 'test'
+  ...
+# Subtest: IngestWithExtractorReceipt shape is correct (structural type check)
+ok 160 - IngestWithExtractorReceipt shape is correct (structural type check)
+  ---
+  duration_ms: 0.3173
+  type: 'test'
+  ...
+# Subtest: ExtractDocument shape is correct (structural type check)
+ok 161 - ExtractDocument shape is correct (structural type check)
+  ---
+  duration_ms: 0.168589
+  type: 'test'
+  ...
+# Subtest: ConsolidatorError is a FathomDbError subclass
+ok 162 - ConsolidatorError is a FathomDbError subclass
+  ---
+  duration_ms: 0.886967
+  type: 'test'
+  ...
+# Subtest: Engine.consolidateWithProvider is a callable method
+ok 163 - Engine.consolidateWithProvider is a callable method
+  ---
+  duration_ms: 93.230679
+  type: 'test'
+  ...
+# Subtest: ConsolidateReceipt shape is correct (structural type check)
+ok 164 - ConsolidateReceipt shape is correct (structural type check)
+  ---
+  duration_ms: 0.318282
+  type: 'test'
+  ...
+# Subtest: ConsolidateAxis shape is correct (structural type check)
+ok 165 - ConsolidateAxis shape is correct (structural type check)
+  ---
+  duration_ms: 0.150454
+  type: 'test'
+  ...
+# Subtest: shared fixture canonical and both locator variants preserve compact receipt
+ok 166 - shared fixture canonical and both locator variants preserve compact receipt
+  ---
+  duration_ms: 114.330184
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unknownField with reason/path parity
+ok 167 - shared fixture rejects direct unknownField with reason/path parity
+  ---
+  duration_ms: 88.090262
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct escapedUnknownField with reason/path parity
+ok 168 - shared fixture rejects direct escapedUnknownField with reason/path parity
+  ---
+  duration_ms: 102.088523
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct multipleUnknownProvenanceFields with reason/path parity
+ok 169 - shared fixture rejects direct multipleUnknownProvenanceFields with reason/path parity
+  ---
+  duration_ms: 74.127578
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct multipleUnknownCanonicalRoleFields with reason/path parity
+ok 170 - shared fixture rejects direct multipleUnknownCanonicalRoleFields with reason/path parity
+  ---
+  duration_ms: 95.186005
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct multipleUnknownWholeBodyLocatorFields with reason/path parity
+ok 171 - shared fixture rejects direct multipleUnknownWholeBodyLocatorFields with reason/path parity
+  ---
+  duration_ms: 91.048854
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct multipleUnknownHashFields with reason/path parity
+ok 172 - shared fixture rejects direct multipleUnknownHashFields with reason/path parity
+  ---
+  duration_ms: 80.718627
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unsupportedVersion with reason/path parity
+ok 173 - shared fixture rejects direct unsupportedVersion with reason/path parity
+  ---
+  duration_ms: 79.692937
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct rolePrecedenceMissingFields with reason/path parity
+ok 174 - shared fixture rejects direct rolePrecedenceMissingFields with reason/path parity
+  ---
+  duration_ms: 82.867599
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct rolePrecedenceMalformedFields with reason/path parity
+ok 175 - shared fixture rejects direct rolePrecedenceMalformedFields with reason/path parity
+  ---
+  duration_ms: 88.012184
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct embeddedNulArtifactRevision with reason/path parity
+ok 176 - shared fixture rejects direct embeddedNulArtifactRevision with reason/path parity
+  ---
+  duration_ms: 71.928039
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct embeddedNulSourceVersion with reason/path parity
+ok 177 - shared fixture rejects direct embeddedNulSourceVersion with reason/path parity
+  ---
+  duration_ms: 79.150572
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct missingLocator with reason/path parity
+ok 178 - shared fixture rejects direct missingLocator with reason/path parity
+  ---
+  duration_ms: 64.441657
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct missingHash with reason/path parity
+ok 179 - shared fixture rejects direct missingHash with reason/path parity
+  ---
+  duration_ms: 59.202554
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct missingRole with reason/path parity
+ok 180 - shared fixture rejects direct missingRole with reason/path parity
+  ---
+  duration_ms: 54.119285
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsDerivedMember with reason/path parity
+ok 181 - shared fixture rejects direct canonicalRejectsDerivedMember with reason/path parity
+  ---
+  duration_ms: 53.834786
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsNulSourceRevisionBeforeEncoding with reason/path parity
+ok 182 - shared fixture rejects direct canonicalRejectsNulSourceRevisionBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 54.195548
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsSurrogateSourceRevisionBeforeEncoding with reason/path parity
+ok 183 - shared fixture rejects direct canonicalRejectsSurrogateSourceRevisionBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 49.806011
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsNulLocatorBeforeEncoding with reason/path parity
+ok 184 - shared fixture rejects direct canonicalRejectsNulLocatorBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 52.648765
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsSurrogateLocatorBeforeEncoding with reason/path parity
+ok 185 - shared fixture rejects direct canonicalRejectsSurrogateLocatorBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 50.892885
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsNulHashBeforeEncoding with reason/path parity
+ok 186 - shared fixture rejects direct canonicalRejectsNulHashBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 55.896043
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsSurrogateHashBeforeEncoding with reason/path parity
+ok 187 - shared fixture rejects direct canonicalRejectsSurrogateHashBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 50.955594
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct sourceRevisionMissing with reason/path parity
+ok 188 - shared fixture rejects direct sourceRevisionMissing with reason/path parity
+  ---
+  duration_ms: 50.864532
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct sourceMismatch with reason/path parity
+ok 189 - shared fixture rejects direct sourceMismatch with reason/path parity
+  ---
+  duration_ms: 50.831921
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct hashMismatch with reason/path parity
+ok 190 - shared fixture rejects direct hashMismatch with reason/path parity
+  ---
+  duration_ms: 52.309794
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct numericLocatorOffset with reason/path parity
+ok 191 - shared fixture rejects direct numericLocatorOffset with reason/path parity
+  ---
+  duration_ms: 50.957027
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct signedLocatorOffset with reason/path parity
+ok 192 - shared fixture rejects direct signedLocatorOffset with reason/path parity
+  ---
+  duration_ms: 48.146714
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct zeroPaddedLocatorOffset with reason/path parity
+ok 193 - shared fixture rejects direct zeroPaddedLocatorOffset with reason/path parity
+  ---
+  duration_ms: 46.098082
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct overflowLocatorOffset with reason/path parity
+ok 194 - shared fixture rejects direct overflowLocatorOffset with reason/path parity
+  ---
+  duration_ms: 47.098773
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unicodeBoundaryLocator with reason/path parity
+ok 195 - shared fixture rejects direct unicodeBoundaryLocator with reason/path parity
+  ---
+  duration_ms: 48.095908
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct wholeBodyRejectsRangeMember with reason/path parity
+ok 196 - shared fixture rejects direct wholeBodyRejectsRangeMember with reason/path parity
+  ---
+  duration_ms: 47.071271
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unknownLocatorKindPrecedesMalformedOffset with reason/path parity
+ok 197 - shared fixture rejects direct unknownLocatorKindPrecedesMalformedOffset with reason/path parity
+  ---
+  duration_ms: 45.940885
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct utf8LocatorMissingStart with reason/path parity
+ok 198 - shared fixture rejects direct utf8LocatorMissingStart with reason/path parity
+  ---
+  duration_ms: 45.97528
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct utf8LocatorMissingEnd with reason/path parity
+ok 199 - shared fixture rejects direct utf8LocatorMissingEnd with reason/path parity
+  ---
+  duration_ms: 47.203541
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct utf8LocatorRejectsExtraMember with reason/path parity
+ok 200 - shared fixture rejects direct utf8LocatorRejectsExtraMember with reason/path parity
+  ---
+  duration_ms: 46.753991
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct nullLocatorOffset with reason/path parity
+ok 201 - shared fixture rejects direct nullLocatorOffset with reason/path parity
+  ---
+  duration_ms: 46.555596
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct booleanLocatorOffset with reason/path parity
+ok 202 - shared fixture rejects direct booleanLocatorOffset with reason/path parity
+  ---
+  duration_ms: 46.723924
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct floatLocatorOffset with reason/path parity
+ok 203 - shared fixture rejects direct floatLocatorOffset with reason/path parity
+  ---
+  duration_ms: 44.373291
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unknownHashAlgorithmPrecedesMalformedDigest with reason/path parity
+ok 204 - shared fixture rejects direct unknownHashAlgorithmPrecedesMalformedDigest with reason/path parity
+  ---
+  duration_ms: 44.861134
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct uppercaseHashDigest with reason/path parity
+ok 205 - shared fixture rejects direct uppercaseHashDigest with reason/path parity
+  ---
+  duration_ms: 45.746227
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct wrongLengthHashDigest with reason/path parity
+ok 206 - shared fixture rejects direct wrongLengthHashDigest with reason/path parity
+  ---
+  duration_ms: 44.665173
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unknownField with reason/path parity
+ok 207 - shared fixture rejects wrapped unknownField with reason/path parity
+  ---
+  duration_ms: 45.22991
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped escapedUnknownField with reason/path parity
+ok 208 - shared fixture rejects wrapped escapedUnknownField with reason/path parity
+  ---
+  duration_ms: 45.685933
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped multipleUnknownProvenanceFields with reason/path parity
+ok 209 - shared fixture rejects wrapped multipleUnknownProvenanceFields with reason/path parity
+  ---
+  duration_ms: 47.770092
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped multipleUnknownCanonicalRoleFields with reason/path parity
+ok 210 - shared fixture rejects wrapped multipleUnknownCanonicalRoleFields with reason/path parity
+  ---
+  duration_ms: 45.973947
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped multipleUnknownWholeBodyLocatorFields with reason/path parity
+ok 211 - shared fixture rejects wrapped multipleUnknownWholeBodyLocatorFields with reason/path parity
+  ---
+  duration_ms: 46.449125
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped multipleUnknownHashFields with reason/path parity
+ok 212 - shared fixture rejects wrapped multipleUnknownHashFields with reason/path parity
+  ---
+  duration_ms: 45.317977
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unsupportedVersion with reason/path parity
+ok 213 - shared fixture rejects wrapped unsupportedVersion with reason/path parity
+  ---
+  duration_ms: 43.823592
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped rolePrecedenceMissingFields with reason/path parity
+ok 214 - shared fixture rejects wrapped rolePrecedenceMissingFields with reason/path parity
+  ---
+  duration_ms: 45.451019
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped rolePrecedenceMalformedFields with reason/path parity
+ok 215 - shared fixture rejects wrapped rolePrecedenceMalformedFields with reason/path parity
+  ---
+  duration_ms: 45.396275
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped embeddedNulArtifactRevision with reason/path parity
+ok 216 - shared fixture rejects wrapped embeddedNulArtifactRevision with reason/path parity
+  ---
+  duration_ms: 45.512384
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped embeddedNulSourceVersion with reason/path parity
+ok 217 - shared fixture rejects wrapped embeddedNulSourceVersion with reason/path parity
+  ---
+  duration_ms: 43.931767
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped missingLocator with reason/path parity
+ok 218 - shared fixture rejects wrapped missingLocator with reason/path parity
+  ---
+  duration_ms: 44.433184
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped missingHash with reason/path parity
+ok 219 - shared fixture rejects wrapped missingHash with reason/path parity
+  ---
+  duration_ms: 45.460186
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped missingRole with reason/path parity
+ok 220 - shared fixture rejects wrapped missingRole with reason/path parity
+  ---
+  duration_ms: 43.74311
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsDerivedMember with reason/path parity
+ok 221 - shared fixture rejects wrapped canonicalRejectsDerivedMember with reason/path parity
+  ---
+  duration_ms: 45.729285
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsNulSourceRevisionBeforeEncoding with reason/path parity
+ok 222 - shared fixture rejects wrapped canonicalRejectsNulSourceRevisionBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 45.447141
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsSurrogateSourceRevisionBeforeEncoding with reason/path parity
+ok 223 - shared fixture rejects wrapped canonicalRejectsSurrogateSourceRevisionBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 44.046353
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsNulLocatorBeforeEncoding with reason/path parity
+ok 224 - shared fixture rejects wrapped canonicalRejectsNulLocatorBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 44.821057
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsSurrogateLocatorBeforeEncoding with reason/path parity
+ok 225 - shared fixture rejects wrapped canonicalRejectsSurrogateLocatorBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 46.081561
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsNulHashBeforeEncoding with reason/path parity
+ok 226 - shared fixture rejects wrapped canonicalRejectsNulHashBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 47.495494
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsSurrogateHashBeforeEncoding with reason/path parity
+ok 227 - shared fixture rejects wrapped canonicalRejectsSurrogateHashBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 45.94927
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped sourceRevisionMissing with reason/path parity
+ok 228 - shared fixture rejects wrapped sourceRevisionMissing with reason/path parity
+  ---
+  duration_ms: 47.691954
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped sourceMismatch with reason/path parity
+ok 229 - shared fixture rejects wrapped sourceMismatch with reason/path parity
+  ---
+  duration_ms: 48.692716
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped hashMismatch with reason/path parity
+ok 230 - shared fixture rejects wrapped hashMismatch with reason/path parity
+  ---
+  duration_ms: 48.646509
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped numericLocatorOffset with reason/path parity
+ok 231 - shared fixture rejects wrapped numericLocatorOffset with reason/path parity
+  ---
+  duration_ms: 48.124953
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped signedLocatorOffset with reason/path parity
+ok 232 - shared fixture rejects wrapped signedLocatorOffset with reason/path parity
+  ---
+  duration_ms: 48.492318
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped zeroPaddedLocatorOffset with reason/path parity
+ok 233 - shared fixture rejects wrapped zeroPaddedLocatorOffset with reason/path parity
+  ---
+  duration_ms: 49.041776
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped overflowLocatorOffset with reason/path parity
+ok 234 - shared fixture rejects wrapped overflowLocatorOffset with reason/path parity
+  ---
+  duration_ms: 61.391922
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unicodeBoundaryLocator with reason/path parity
+ok 235 - shared fixture rejects wrapped unicodeBoundaryLocator with reason/path parity
+  ---
+  duration_ms: 54.290639
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped wholeBodyRejectsRangeMember with reason/path parity
+ok 236 - shared fixture rejects wrapped wholeBodyRejectsRangeMember with reason/path parity
+  ---
+  duration_ms: 48.80076
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unknownLocatorKindPrecedesMalformedOffset with reason/path parity
+ok 237 - shared fixture rejects wrapped unknownLocatorKindPrecedesMalformedOffset with reason/path parity
+  ---
+  duration_ms: 47.422796
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped utf8LocatorMissingStart with reason/path parity
+ok 238 - shared fixture rejects wrapped utf8LocatorMissingStart with reason/path parity
+  ---
+  duration_ms: 47.26063
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped utf8LocatorMissingEnd with reason/path parity
+ok 239 - shared fixture rejects wrapped utf8LocatorMissingEnd with reason/path parity
+  ---
+  duration_ms: 46.370206
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped utf8LocatorRejectsExtraMember with reason/path parity
+ok 240 - shared fixture rejects wrapped utf8LocatorRejectsExtraMember with reason/path parity
+  ---
+  duration_ms: 48.020927
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped nullLocatorOffset with reason/path parity
+ok 241 - shared fixture rejects wrapped nullLocatorOffset with reason/path parity
+  ---
+  duration_ms: 46.344497
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped booleanLocatorOffset with reason/path parity
+ok 242 - shared fixture rejects wrapped booleanLocatorOffset with reason/path parity
+  ---
+  duration_ms: 47.204353
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped floatLocatorOffset with reason/path parity
+ok 243 - shared fixture rejects wrapped floatLocatorOffset with reason/path parity
+  ---
+  duration_ms: 47.239329
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unknownHashAlgorithmPrecedesMalformedDigest with reason/path parity
+ok 244 - shared fixture rejects wrapped unknownHashAlgorithmPrecedesMalformedDigest with reason/path parity
+  ---
+  duration_ms: 48.152996
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped uppercaseHashDigest with reason/path parity
+ok 245 - shared fixture rejects wrapped uppercaseHashDigest with reason/path parity
+  ---
+  duration_ms: 45.918001
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped wrongLengthHashDigest with reason/path parity
+ok 246 - shared fixture rejects wrapped wrongLengthHashDigest with reason/path parity
+  ---
+  duration_ms: 45.500001
+  type: 'test'
+  ...
+# Subtest: direct node provenance encoding maps to provenance
+ok 247 - direct node provenance encoding maps to provenance
+  ---
+  duration_ms: 46.941877
+  type: 'test'
+  ...
+# Subtest: direct node provenance encoding maps to provenance
+ok 248 - direct node provenance encoding maps to provenance
+  ---
+  duration_ms: 47.898635
+  type: 'test'
+  ...
+# Subtest: direct edge provenance encoding maps to provenance
+ok 249 - direct edge provenance encoding maps to provenance
+  ---
+  duration_ms: 46.470435
+  type: 'test'
+  ...
+# Subtest: direct edge provenance encoding maps to provenance
+ok 250 - direct edge provenance encoding maps to provenance
+  ---
+  duration_ms: 46.436171
+  type: 'test'
+  ...
+# Subtest: wrapped node provenance encoding maps to provenance
+ok 251 - wrapped node provenance encoding maps to provenance
+  ---
+  duration_ms: 47.464745
+  type: 'test'
+  ...
+# Subtest: wrapped node provenance encoding maps to provenance
+ok 252 - wrapped node provenance encoding maps to provenance
+  ---
+  duration_ms: 46.841317
+  type: 'test'
+  ...
+# Subtest: wrapped edge provenance encoding maps to provenance
+ok 253 - wrapped edge provenance encoding maps to provenance
+  ---
+  duration_ms: 45.741607
+  type: 'test'
+  ...
+# Subtest: wrapped edge provenance encoding maps to provenance
+ok 254 - wrapped edge provenance encoding maps to provenance
+  ---
+  duration_ms: 45.539907
+  type: 'test'
+  ...
+# Subtest: direct versioned node body must be a string
+ok 255 - direct versioned node body must be a string
+  ---
+  duration_ms: 46.139139
+  type: 'test'
+  ...
+# Subtest: wrapped versioned node body must be a string
+ok 256 - wrapped versioned node body must be a string
+  ---
+  duration_ms: 46.763119
+  type: 'test'
+  ...
+# Subtest: direct versioned edge body must be a string
+ok 257 - direct versioned edge body must be a string
+  ---
+  duration_ms: 45.808454
+  type: 'test'
+  ...
+# Subtest: wrapped versioned edge body must be a string
+ok 258 - wrapped versioned edge body must be a string
+  ---
+  duration_ms: 45.823262
+  type: 'test'
+  ...
+# Subtest: canonical role is illegal for edges
+ok 259 - canonical role is illegal for edges
+  ---
+  duration_ms: 45.474262
+  type: 'test'
+  ...
+# Subtest: unknown role precedes missing or malformed shared IDs
+ok 260 - unknown role precedes missing or malformed shared IDs
+  ---
+  duration_ms: 45.748701
+  type: 'test'
+  ...
+# Subtest: unknown role precedes missing or malformed shared IDs
+ok 261 - unknown role precedes missing or malformed shared IDs
+  ---
+  duration_ms: 47.210485
+  type: 'test'
+  ...
+# Subtest: TC-34: an SDK-authored window round-trips through validAsOf
+ok 262 - TC-34: an SDK-authored window round-trips through validAsOf
+  ---
+  duration_ms: 156.099282
+  type: 'test'
+  ...
+# Subtest: TC-34: an SDK-authored window is half-open [validFrom, validUntil)
+ok 263 - TC-34: an SDK-authored window is half-open [validFrom, validUntil)
+  ---
+  duration_ms: 128.615408
+  type: 'test'
+  ...
+# Subtest: TC-34: one authored bound leaves the other side unbounded
+ok 264 - TC-34: one authored bound leaves the other side unbounded
+  ---
+  duration_ms: 136.615381
+  type: 'test'
+  ...
+# Subtest: TC-34: omitting both fields lands NULL/NULL and preserves default visibility
+ok 265 - TC-34: omitting both fields lands NULL/NULL and preserves default visibility
+  ---
+  duration_ms: 130.306255
+  type: 'test'
+  ...
+# Subtest: TC-34: validFrom/validUntil and valid_from/valid_until are equivalent
+ok 266 - TC-34: validFrom/validUntil and valid_from/valid_until are equivalent
+  ---
+  duration_ms: 137.881745
+  type: 'test'
+  ...
+# Subtest: TC-34: an unsatisfiable window is a typed refusal, not a silent write
+ok 267 - TC-34: an unsatisfiable window is a typed refusal, not a silent write
+  ---
+  duration_ms: 96.01383
+  type: 'test'
+  ...
+# Subtest: TC-34: a non-integer validFrom is a typed refusal, not a coercion
+ok 268 - TC-34: a non-integer validFrom is a typed refusal, not a coercion
+  ---
+  duration_ms: 94.300972
+  type: 'test'
+  ...
+# Subtest: TC-34: crossedBoundarySince works on SDK-authored windows
+ok 269 - TC-34: crossedBoundarySince works on SDK-authored windows
+  ---
+  duration_ms: 143.567383
+  type: 'test'
+  ...
+# Subtest: fix-2: a node whose validUntil is in the past does not leak through search
+ok 270 - fix-2: a node whose validUntil is in the past does not leak through search
+  ---
+  duration_ms: 158.273282
+  type: 'test'
+  ...
+# Subtest: fix-2: a node whose validFrom is in the future does not leak through search
+ok 271 - fix-2: a node whose validFrom is in the future does not leak through search
+  ---
+  duration_ms: 129.071541
+  type: 'test'
+  ...
+# Subtest: fix-2: a node whose window covers now IS still returned by search
+ok 272 - fix-2: a node whose window covers now IS still returned by search
+  ---
+  duration_ms: 119.819992
+  type: 'test'
+  ...
+# Subtest: fix-2: default search is unchanged on a corpus with no authored windows
+ok 273 - fix-2: default search is unchanged on a corpus with no authored windows
+  ---
+  duration_ms: 127.734032
+  type: 'test'
+  ...
+# Subtest: fix-2: search accepts a ReadView — validAsOf selects by instant
+ok 274 - fix-2: search accepts a ReadView — validAsOf selects by instant
+  ---
+  duration_ms: 142.396599
+  type: 'test'
+  ...
+# Subtest: fix-2: searchTextOnly takes the same predicate and the same escape hatch
+ok 275 - fix-2: searchTextOnly takes the same predicate and the same escape hatch
+  ---
+  duration_ms: 133.78452
+  type: 'test'
+  ...
+# Subtest: fix-2: search refuses a view that relaxes the existence axis
+ok 276 - fix-2: search refuses a view that relaxes the existence axis
+  ---
+  duration_ms: 129.838049
+  type: 'test'
+  ...
+# Subtest: R-20-SV — a LEGACY registry row reads back verbatim but no longer re-applies
+ok 277 - R-20-SV — a LEGACY registry row reads back verbatim but no longer re-applies
+  ---
+  duration_ms: 165.153358
+  type: 'test'
+  ...
+# Subtest: configure + read.projections round-trips a spec verbatim
+ok 278 - configure + read.projections round-trips a spec verbatim
+  ---
+  duration_ms: 103.725377
+  type: 'test'
+  ...
+# Subtest: idempotent re-registration is a no-op
+ok 279 - idempotent re-registration is a no-op
+  ---
+  duration_ms: 107.832241
+  type: 'test'
+  ...
+# Subtest: property filter + property-FTS return correct rows at rest
+ok 280 - property filter + property-FTS return correct rows at rest
+  ---
+  duration_ms: 108.69423
+  type: 'test'
+  ...
+# Subtest: explicit drop drops exactly one; omission does not drop
+ok 281 - explicit drop drops exactly one; omission does not drop
+  ---
+  duration_ms: 123.832267
+  type: 'test'
+  ...
+# Subtest: destructive change requires an explicit drop
+ok 282 - destructive change requires an explicit drop
+  ---
+  duration_ms: 93.801307
+  type: 'test'
+  ...
+# Subtest: fix-5 NUL in projection name rejected at binding, not persisted
+ok 283 - fix-5 NUL in projection name rejected at binding, not persisted
+  ---
+  duration_ms: 87.319585
+  type: 'test'
+  ...
+# Subtest: fix-5 NUL in ftsTokenizer rejected at binding, not persisted
+ok 284 - fix-5 NUL in ftsTokenizer rejected at binding, not persisted
+  ---
+  duration_ms: 86.405127
+  type: 'test'
+  ...
+# Subtest: fix-5 NUL in vectorEmbedder rejected at binding, not persisted
+ok 285 - fix-5 NUL in vectorEmbedder rejected at binding, not persisted
+  ---
+  duration_ms: 88.384227
+  type: 'test'
+  ...
+# Subtest: fix-5 NUL in drop entry rejected at binding
+ok 286 - fix-5 NUL in drop entry rejected at binding
+  ---
+  duration_ms: 88.375241
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in projection name rejected at binding, not persisted
+ok 287 - TC-47 surrogate in projection name rejected at binding, not persisted
+  ---
+  duration_ms: 77.542272
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in ftsTokenizer rejected at binding, not persisted
+ok 288 - TC-47 surrogate in ftsTokenizer rejected at binding, not persisted
+  ---
+  duration_ms: 63.909451
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in vectorEmbedder rejected at binding, not persisted
+ok 289 - TC-47 surrogate in vectorEmbedder rejected at binding, not persisted
+  ---
+  duration_ms: 58.270672
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in projection role rejected at binding, not persisted
+ok 290 - TC-47 surrogate in projection role rejected at binding, not persisted
+  ---
+  duration_ms: 58.684394
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in drop entry rejected at binding
+ok 291 - TC-47 surrogate in drop entry rejected at binding
+  ---
+  duration_ms: 61.407622
+  type: 'test'
+  ...
+# Subtest: fix-4 orphaned ftsTokenizer (fts:false) rejected at binding, not persisted
+ok 292 - fix-4 orphaned ftsTokenizer (fts:false) rejected at binding, not persisted
+  ---
+  duration_ms: 52.419422
+  type: 'test'
+  ...
+# Subtest: fix-4 orphaned vectorEmbedder (vector:false) rejected at binding, not persisted
+ok 293 - fix-4 orphaned vectorEmbedder (vector:false) rejected at binding, not persisted
+  ---
+  duration_ms: 49.997894
+  type: 'test'
+  ...
+# Subtest: fix-4 empty ftsTokenizer (fts:true) rejected at binding, not persisted
+ok 294 - fix-4 empty ftsTokenizer (fts:true) rejected at binding, not persisted
+  ---
+  duration_ms: 51.19155
+  type: 'test'
+  ...
+# Subtest: fix-4 empty vectorEmbedder (vector:true) rejected at binding, not persisted
+ok 295 - fix-4 empty vectorEmbedder (vector:true) rejected at binding, not persisted
+  ---
+  duration_ms: 54.632024
+  type: 'test'
+  ...
+# Subtest: fix-4 duplicate role rejected at binding, not persisted
+ok 296 - fix-4 duplicate role rejected at binding, not persisted
+  ---
+  duration_ms: 51.495304
+  type: 'test'
+  ...
+# Subtest: fix-4 CONTROL — a consistent spec round-trips verbatim via read.projections
+ok 297 - fix-4 CONTROL — a consistent spec round-trips verbatim via read.projections
+  ---
+  duration_ms: 49.192992
+  type: 'test'
+  ...
+# Subtest: R-20-SV — fts/vector without the searchable role is REJECTED (WriteValidationError)
+ok 298 - R-20-SV — fts/vector without the searchable role is REJECTED (WriteValidationError)
+  ---
+  duration_ms: 54.070833
+  type: 'test'
+  ...
+# Subtest: fix-4 read.projections output round-trips BACK into configureProjections (null≡None, Py≡TS)
+ok 299 - fix-4 read.projections output round-trips BACK into configureProjections (null≡None, Py≡TS)
+  ---
+  duration_ms: 55.255452
+  type: 'test'
+  ...
+# Subtest: rankable and vector sub-target are deferred, not built
+ok 300 - rankable and vector sub-target are deferred, not built
+  ---
+  duration_ms: 51.589372
+  type: 'test'
+  ...
+# Subtest: ranked retrieval limits are public and truthful
+ok 301 - ranked retrieval limits are public and truthful
+  ---
+  duration_ms: 205.487453
+  type: 'test'
+  ...
+# Subtest: ranked retrieval limit rejections are typed
+ok 302 - ranked retrieval limit rejections are typed
+  ---
+  duration_ms: 82.123542
+  type: 'test'
+  ...
+# Subtest: read.projections surfaces vectorDenseReadiness on a searchable→vector projection
+ok 303 - read.projections surfaces vectorDenseReadiness on a searchable→vector projection
+  ---
+  duration_ms: 109.18646
+  type: 'test'
+  ...
+# Subtest: readiness is scoped to the vector sub-object — a non-vector projection carries none
+ok 304 - readiness is scoped to the vector sub-object — a non-vector projection carries none
+  ---
+  duration_ms: 96.991989
+  type: 'test'
+  ...
+# Subtest: readiness never reports ready with pending embeds (offline, deterministic)
+ok 305 - readiness never reports ready with pending embeds (offline, deterministic)
+  ---
+  duration_ms: 100.598136
+  type: 'test'
+  ...
+# Subtest: a caller-supplied vectorDenseReadiness is INERT — the engine reports the derived truth
+ok 306 - a caller-supplied vectorDenseReadiness is INERT — the engine reports the derived truth
+  ---
+  duration_ms: 91.073992
+  type: 'test'
+  ...
+# Subtest: read.projections output round-trips BACK into configureProjections with readiness attached
+ok 307 - read.projections output round-trips BACK into configureProjections with readiness attached
+  ---
+  duration_ms: 102.555406
+  type: 'test'
+  ...
+# Subtest: vectorDenseReadiness with vector:false is REFUSED (cannot round-trip)
+ok 308 - vectorDenseReadiness with vector:false is REFUSED (cannot round-trip)
+  ---
+  duration_ms: 90.556123
+  type: 'test'
+  ...
+# Subtest: an unknown readiness spelling is REFUSED — "pending" is reserved for the admission axis
+ok 309 - an unknown readiness spelling is REFUSED — "pending" is reserved for the admission axis
+  ---
+  duration_ms: 84.960636
+  type: 'test'
+  ...
+# Subtest: consistent invalid stored source version maps to StorageError
+ok 310 - consistent invalid stored source version maps to StorageError
+  ---
+  duration_ms: 160.691614
+  type: 'test'
+  ...
+# Subtest: consistent invalid canonical source revision maps to StorageError
+ok 311 - consistent invalid canonical source revision maps to StorageError
+  ---
+  duration_ms: 145.053662
+  type: 'test'
+  ...
+# Subtest: graph.expand returns the positional evidence sidecar
+ok 312 - graph.expand returns the positional evidence sidecar
+  ---
+  duration_ms: 3.65026
+  type: 'test'
+  ...
+# Subtest: resolved graph evidence response is recursively closed
+ok 313 - resolved graph evidence response is recursively closed
+  ---
+  duration_ms: 100.937007
+  type: 'test'
+  ...
+# Subtest: real engine resolves exact target and terminal edge graph evidence
+ok 314 - real engine resolves exact target and terminal edge graph evidence
+  ---
+  duration_ms: 119.778944
+  type: 'test'
+  ...
+# Subtest: dependency round trip uses canonical decimal generation
+ok 315 - dependency round trip uses canonical decimal generation
+  ---
+  duration_ms: 102.048808
+  type: 'test'
+  ...
+# Subtest: shared fixture dependency error unsupported_schema_version /schemaVersion
+ok 316 - shared fixture dependency error unsupported_schema_version /schemaVersion
+  ---
+  duration_ms: 79.382972
+  type: 'test'
+  ...
+# Subtest: shared fixture dependency error unknown_field /aaa~0x~1y
+ok 317 - shared fixture dependency error unknown_field /aaa~0x~1y
+  ---
+  duration_ms: 85.890273
+  type: 'test'
+  ...
+# Subtest: shared fixture dependency error dependency_id_invalid /dependencyId
+ok 318 - shared fixture dependency error dependency_id_invalid /dependencyId
+  ---
+  duration_ms: 79.338918
+  type: 'test'
+  ...
+# Subtest: shared fixture dependency error dependency_reference_invalid /sourceRevisionId
+ok 319 - shared fixture dependency error dependency_reference_invalid /sourceRevisionId
+  ---
+  duration_ms: 87.441095
+  type: 'test'
+  ...
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+# Subtest: the isolated raw SQLite oracle preserves scalar types and parameters
+ok 320 - the isolated raw SQLite oracle preserves scalar types and parameters
+  ---
+  duration_ms: 140.262927
+  type: 'test'
+  ...
+# Subtest: declaring a vector projection backfills pre-existing rows and drain flushes to ready
+ok 321 - declaring a vector projection backfills pre-existing rows and drain flushes to ready
+  ---
+  duration_ms: 1.064853
+  type: 'test'
+  ...
+# Subtest: write-after-declare also reaches ready with vectors at rest
+ok 322 - write-after-declare also reaches ready with vectors at rest
+  ---
+  duration_ms: 0.271232
+  type: 'test'
+  ...
+# Subtest: re-applying a satisfied vector declaration is an idempotent no-op
+ok 323 - re-applying a satisfied vector declaration is an idempotent no-op
+  ---
+  duration_ms: 0.325836
+  type: 'test'
+  ...
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+# Subtest: a declaration without a live embedder defers and does not enrol the kind
+ok 324 - a declaration without a live embedder defers and does not enrol the kind
+  ---
+  duration_ms: 180.858396
+  type: 'test'
+  ...
+# Subtest: dropping the last vector projection un-enrols the kind and stops embedding
+ok 325 - dropping the last vector projection un-enrols the kind and stops embedding
+  ---
+  duration_ms: 0.542695
+  type: 'test'
+  ...
+# Subtest: a kind the vector writer cannot commit gets no dense arm
+ok 326 - a kind the vector writer cannot commit gets no dense arm
+  ---
+  duration_ms: 0.319944
+  type: 'test'
+  ...
+# Subtest: a boot graft backfills the rows a no-embedder session stranded
+ok 327 - a boot graft backfills the rows a no-embedder session stranded
+  ---
+  duration_ms: 0.511938
+  type: 'test'
+  ...
+# Subtest: a no-embedder session leaves an enrolled kind's write recoverable
+ok 328 - a no-embedder session leaves an enrolled kind's write recoverable
+  ---
+  duration_ms: 2.088197
+  type: 'test'
+  ...
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+# Subtest: a no-embedder pending edge stays recoverable behind a full node scan window
+ok 329 - a no-embedder pending edge stays recoverable behind a full node scan window
+  ---
+  duration_ms: 411.278792
+  type: 'test'
+  ...
+# Subtest: a boot graft whose repair fails registers nothing
+ok 330 - a boot graft whose repair fails registers nothing
+  ---
+  duration_ms: 0.535693
+  type: 'test'
+  ...
+# Subtest: read.projectionStatus exposes exact current status wires
+ok 331 - read.projectionStatus exposes exact current status wires
+  ---
+  duration_ms: 111.086843
+  type: 'test'
+  ...
+# Subtest: direct text limits are prefix-stable through TypeScript
+ok 332 - direct text limits are prefix-stable through TypeScript
+  ---
+  duration_ms: 112.316297
+  type: 'test'
+  ...
+# Subtest: direct text view limits are prefix-stable through TypeScript
+ok 333 - direct text view limits are prefix-stable through TypeScript
+  ---
+  duration_ms: 96.398286
+  type: 'test'
+  ...
+# Subtest: actuation commits and exact replay returns the terminal receipt
+ok 334 - actuation commits and exact replay returns the terminal receipt
+  ---
+  duration_ms: 103.228949
+  type: 'test'
+  ...
+# Subtest: actuation preserves embedded-NUL source identity
+ok 335 - actuation preserves embedded-NUL source identity
+  ---
+  duration_ms: 97.684377
+  type: 'test'
+  ...
+# Subtest: actuation rejects an unpaired surrogate at the canonical nested path
+ok 336 - actuation rejects an unpaired surrogate at the canonical nested path
+  ---
+  duration_ms: 93.278389
+  type: 'test'
+  ...
+# Subtest: actuation surrogate guard preserves schema precedence
+ok 337 - actuation surrogate guard preserves schema precedence
+  ---
+  duration_ms: 75.461328
+  type: 'test'
+  ...
+# Subtest: actuation surrogate guard preserves unknown-field precedence
+ok 338 - actuation surrogate guard preserves unknown-field precedence
+  ---
+  duration_ms: 94.995585
+  type: 'test'
+  ...
+# Subtest: actuation surrogate guard preserves top-level ID taxonomy
+ok 339 - actuation surrogate guard preserves top-level ID taxonomy
+  ---
+  duration_ms: 87.106081
+  type: 'test'
+  ...
+# Subtest: shared all-variant fixture has exact receipt and digest
+ok 340 - shared all-variant fixture has exact receipt and digest
+  ---
+  duration_ms: 86.14324
+  type: 'test'
+  ...
+# Subtest: actuation errors preserve reason and canonical field path
+ok 341 - actuation errors preserve reason and canonical field path
+  ---
+  duration_ms: 74.333366
+  type: 'test'
+  ...
+# Subtest: actuation rejects unknown nested record fields
+ok 342 - actuation rejects unknown nested record fields
+  ---
+  duration_ms: 64.102476
+  type: 'test'
+  ...
+# Subtest: actuation rejects an own top-level __proto__ field without writing
+ok 343 - actuation rejects an own top-level __proto__ field without writing
+  ---
+  duration_ms: 59.363749
+  type: 'test'
+  ...
+# Subtest: actuation rejects an own nested __proto__ field without writing
+ok 344 - actuation rejects an own nested __proto__ field without writing
+  ---
+  duration_ms: 59.950698
+  type: 'test'
+  ...
+# Subtest: actuation validates operation count before nested operation data
+ok 345 - actuation validates operation count before nested operation data
+  ---
+  duration_ms: 57.369408
+  type: 'test'
+  ...
+# Subtest: actuation validates policy ID before nested operation data
+ok 346 - actuation validates policy ID before nested operation data
+  ---
+  duration_ms: 55.103535
+  type: 'test'
+  ...
+# Subtest: nested provenance decode preserves its canonical pointer
+ok 347 - nested provenance decode preserves its canonical pointer
+  ---
+  duration_ms: 104.175989
+  type: 'test'
+  ...
+# Subtest: nested dependency decode preserves its canonical pointer
+ok 348 - nested dependency decode preserves its canonical pointer
+  ---
+  duration_ms: 92.439774
+  type: 'test'
+  ...
+# Subtest: closure lookup is closed and absent ids disclose nothing
+ok 349 - closure lookup is closed and absent ids disclose nothing
+  ---
+  duration_ms: 91.705976
+  type: 'test'
+  ...
+# Subtest: closure response decoder rejects unknown variants and malformed decimals
+ok 350 - closure response decoder rejects unknown variants and malformed decimals
+  ---
+  duration_ms: 103.634535
+  type: 'test'
+  ...
+# Subtest: closure response decoder accepts a non-null installed status
+ok 351 - closure response decoder accepts a non-null installed status
+  ---
+  duration_ms: 111.272815
+  type: 'test'
+  ...
+# Subtest: read.embeddingReadiness and immediate typed drain rejection keep edge bodies private
+ok 352 - read.embeddingReadiness and immediate typed drain rejection keep edge bodies private
+  ---
+  duration_ms: 102.742479
+  type: 'test'
+  ...
+# Subtest: Slice 35 shared edge fixture has exact receipt and digest
+ok 353 - Slice 35 shared edge fixture has exact receipt and digest
+  ---
+  duration_ms: 110.446322
+  type: 'test'
+  ...
+# Subtest: frozen search rejects JavaScript coercions after authentication
+ok 354 - frozen search rejects JavaScript coercions after authentication
+  ---
+  duration_ms: 102.249348
+  type: 'test'
+  ...
+# Subtest: frozen expansion rejects fractional depth and limit after authentication
+ok 355 - frozen expansion rejects fractional depth and limit after authentication
+  ---
+  duration_ms: 93.726446
+  type: 'test'
+  ...
+# Subtest: malformed frozen token precedes every JavaScript numeric conversion
+ok 356 - malformed frozen token precedes every JavaScript numeric conversion
+  ---
+  duration_ms: 112.77263
+  type: 'test'
+  ...
+# Subtest: frozen read context binds eligibility and rejects drift
+ok 357 - frozen read context binds eligibility and rejects drift
+  ---
+  duration_ms: 111.984359
+  type: 'test'
+  ...
+# Subtest: frozen search expansion returns the governed union
+ok 358 - frozen search expansion returns the governed union
+  ---
+  duration_ms: 95.647958
+  type: 'test'
+  ...
+# Subtest: frozen explanation maps and disabled control is unchanged
+ok 359 - frozen explanation maps and disabled control is unchanged
+  ---
+  duration_ms: 96.507092
+  type: 'test'
+  ...
+# Subtest: frozen authentication precedes query, shape, and range validation
+ok 360 - frozen authentication precedes query, shape, and range validation
+  ---
+  duration_ms: 77.200967
+  type: 'test'
+  ...
+# Subtest: valid frozen token rejects invalid query and ranking controls
+ok 361 - valid frozen token rejects invalid query and ranking controls
+  ---
+  duration_ms: 110.03787
+  type: 'test'
+  ...
+# Subtest: projection generation status is typed and stable
+ok 362 - projection generation status is typed and stable
+  ---
+  duration_ms: 144.762973
+  type: 'test'
+  ...
+# Subtest: actuation receipt carries the additive nullable generation
+ok 363 - actuation receipt carries the additive nullable generation
+  ---
+  duration_ms: 93.551114
+  type: 'test'
+  ...
+# Subtest: receipt-keyed mutation status round-trips through TypeScript
+ok 364 - receipt-keyed mutation status round-trips through TypeScript
+  ---
+  duration_ms: 3056.412543
+  type: 'test'
+  ...
+# Subtest: nested source type-collapsed equality and projected search use a real database
+ok 365 - nested source type-collapsed equality and projected search use a real database
+  ---
+  duration_ms: 120.234425
+  type: 'test'
+  ...
+# Subtest: canonical and operational pages share frozen authority
+ok 366 - canonical and operational pages share frozen authority
+  ---
+  duration_ms: 114.194898
+  type: 'test'
+  ...
+# Subtest: page request refusals retain PageError reason and field path
+ok 367 - page request refusals retain PageError reason and field path
+  ---
+  duration_ms: 93.454472
+  type: 'test'
+  ...
+# Subtest: unknown native page response versions fail closed
+ok 368 - unknown native page response versions fail closed
+  ---
+  duration_ms: 92.047582
+  type: 'test'
+  ...
+# Subtest: unknown native evidence response versions fail closed
+ok 369 - unknown native evidence response versions fail closed
+  ---
+  duration_ms: 1.659928
+  type: 'test'
+  ...
+# Subtest: unknown unions and invalid numerics in native evidence fail closed
+ok 370 - unknown unions and invalid numerics in native evidence fail closed
+  ---
+  duration_ms: 1.260142
+  type: 'test'
+  ...
+# Subtest: search and resolve exact source evidence
+ok 371 - search and resolve exact source evidence
+  ---
+  duration_ms: 117.680117
+  type: 'test'
+  ...
+# Subtest: evidence explanation maps and disabled control is unchanged
+ok 372 - evidence explanation maps and disabled control is unchanged
+  ---
+  duration_ms: 107.946276
+  type: 'test'
+  ...
+# Subtest: evidence request schema and unknown fields are typed
+ok 373 - evidence request schema and unknown fields are typed
+  ---
+  duration_ms: 89.044556
+  type: 'test'
+  ...
+# Subtest: slice55 absent native fields use legacy defaults
+ok 374 - slice55 absent native fields use legacy defaults
+  ---
+  duration_ms: 0.892577
+  type: 'test'
+  ...
+# Subtest: slice55 full search mapper accepts absent additive native fields
+ok 375 - slice55 full search mapper accepts absent additive native fields
+  ---
+  duration_ms: 0.40206
+  type: 'test'
+  ...
+# Subtest: slice55 direct candidate native structural value is validated
+ok 376 - slice55 direct candidate native structural value is validated
+  ---
+  duration_ms: 0.125427
+  type: 'test'
+  ...
+# Subtest: slice55 recursively rejects incoherent structural explanation
+ok 377 - slice55 recursively rejects incoherent structural explanation
+  ---
+  duration_ms: 0.373256
+  type: 'test'
+  ...
+# Subtest: slice55 recursively rejects duplicate structural degradation codes
+ok 378 - slice55 recursively rejects duplicate structural degradation codes
+  ---
+  duration_ms: 0.194608
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects query u32
+ok 379 - slice55 candidate native explanation rejects query u32
+  ---
+  duration_ms: 2.065495
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects query limit
+ok 380 - slice55 candidate native explanation rejects query limit
+  ---
+  duration_ms: 0.195179
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects query finite
+ok 381 - slice55 candidate native explanation rejects query finite
+  ---
+  duration_ms: 0.215227
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects correlation
+ok 382 - slice55 candidate native explanation rejects correlation
+  ---
+  duration_ms: 0.254731
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects count
+ok 383 - slice55 candidate native explanation rejects count
+  ---
+  duration_ms: 0.240525
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects position arm
+ok 384 - slice55 candidate native explanation rejects position arm
+  ---
+  duration_ms: 0.727455
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects position score
+ok 385 - slice55 candidate native explanation rejects position score
+  ---
+  duration_ms: 0.319744
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects unknown result arm
+ok 386 - slice55 candidate native explanation rejects unknown result arm
+  ---
+  duration_ms: 0.207752
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects duplicate positional id
+ok 387 - slice55 candidate native explanation rejects duplicate positional id
+  ---
+  duration_ms: 1.160704
+  type: 'test'
+  ...
+# Subtest: slice55 old object literals remain source compatible
+ok 388 - slice55 old object literals remain source compatible
+  ---
+  duration_ms: 0.934597
+  type: 'test'
+  ...
+# Subtest: slice55 request validation rejects schema before semantic fields
+ok 389 - slice55 request validation rejects schema before semantic fields
+  ---
+  duration_ms: 102.050301
+  type: 'test'
+  ...
+# Subtest: slice55 request validation rejects canonical integer bounds before native
+ok 390 - slice55 request validation rejects canonical integer bounds before native
+  ---
+  duration_ms: 85.977728
+  type: 'test'
+  ...
+# Subtest: slice55 unknown trace request fields use escaped RFC 6901 paths
+ok 391 - slice55 unknown trace request fields use escaped RFC 6901 paths
+  ---
+  duration_ms: 84.494064
+  type: 'test'
+  ...
+# Subtest: slice55 null trace context is typed at the declared request path
+ok 392 - slice55 null trace context is typed at the declared request path
+  ---
+  duration_ms: 67.05675
+  type: 'test'
+  ...
+# Subtest: slice55 malformed nested frozen context preserves FrozenReadError
+ok 393 - slice55 malformed nested frozen context preserves FrozenReadError
+  ---
+  duration_ms: 56.764796
+  type: 'test'
+  ...
+# Subtest: slice55 validates complete frozen shape: token
+ok 394 - slice55 validates complete frozen shape: token
+  ---
+  duration_ms: 57.707137
+  type: 'test'
+  ...
+# Subtest: slice55 validates complete frozen shape: effective instant
+ok 395 - slice55 validates complete frozen shape: effective instant
+  ---
+  duration_ms: 55.644127
+  type: 'test'
+  ...
+# Subtest: slice55 validates complete frozen shape: context container
+ok 396 - slice55 validates complete frozen shape: context container
+  ---
+  duration_ms: 53.026118
+  type: 'test'
+  ...
+# Subtest: slice55 validates complete frozen shape: view container
+ok 397 - slice55 validates complete frozen shape: view container
+  ---
+  duration_ms: 56.033312
+  type: 'test'
+  ...
+# Subtest: slice55 validates complete frozen shape: eligibility container
+ok 398 - slice55 validates complete frozen shape: eligibility container
+  ---
+  duration_ms: 50.481147
+  type: 'test'
+  ...
+# Subtest: slice55 validates complete frozen shape: view boolean
+ok 399 - slice55 validates complete frozen shape: view boolean
+  ---
+  duration_ms: 52.997924
+  type: 'test'
+  ...
+# Subtest: slice55 validates complete frozen shape: attribute pair
+ok 400 - slice55 validates complete frozen shape: attribute pair
+  ---
+  duration_ms: 53.935136
+  type: 'test'
+  ...
+# Subtest: slice55 TypeScript rejects unknown arms and nonfinite explanation scores
+ok 401 - slice55 TypeScript rejects unknown arms and nonfinite explanation scores
+  ---
+  duration_ms: 0.580647
+  type: 'test'
+  ...
+# Subtest: slice55 TypeScript recursively validates dependency trace responses
+ok 402 - slice55 TypeScript recursively validates dependency trace responses
+  ---
+  duration_ms: 0.591297
+  type: 'test'
+  ...
+# Subtest: slice55 TypeScript rejects noncanonical trace integers at exact paths
+ok 403 - slice55 TypeScript rejects noncanonical trace integers at exact paths
+  ---
+  duration_ms: 0.310718
+  type: 'test'
+  ...
+# Subtest: slice55 TypeScript rejects edge generation outside the read boundary
+ok 404 - slice55 TypeScript rejects edge generation outside the read boundary
+  ---
+  duration_ms: 0.503161
+  type: 'test'
+  ...
+# Subtest: graph.expand rejects nested NUL, lone surrogates, and invalid eligibility locally
+ok 405 - graph.expand rejects nested NUL, lone surrogates, and invalid eligibility locally
+  ---
+  duration_ms: 3.710094
+  type: 'test'
+  ...
+# Subtest: graph.expand transports Unicode request and native result bytes without escaping
+ok 406 - graph.expand transports Unicode request and native result bytes without escaping
+  ---
+  duration_ms: 2.994421
+  type: 'test'
+  ...
+# Subtest: graph.expand preserves Rust RFC 6901 tilde-only unknown-field paths
+ok 407 - graph.expand preserves Rust RFC 6901 tilde-only unknown-field paths
+  ---
+  duration_ms: 4.092967
+  type: 'test'
+  ...
+# Subtest: graph.expand is a governed consumer surface
+ok 408 - graph.expand is a governed consumer surface
+  ---
+  duration_ms: 1.594324
+  type: 'test'
+  ...
+# Subtest: graph.expand depth zero preserves seed order and canonical u64 strings
+ok 409 - graph.expand depth zero preserves seed order and canonical u64 strings
+  ---
+  duration_ms: 102.438395
+  type: 'test'
+  ...
+# Subtest: graph.expand applies direction, edge kind, and return-only target kind
+ok 410 - graph.expand applies direction, edge kind, and return-only target kind
+  ---
+  duration_ms: 86.024957
+  type: 'test'
+  ...
+# Subtest: graph.expand incoming: W succeeds and W+1 has no partial result
+ok 411 - graph.expand incoming: W succeeds and W+1 has no partial result
+  ---
+  duration_ms: 134.428097
+  type: 'test'
+  ...
+# Subtest: graph.expand outgoing: W succeeds and W+1 has no partial result
+ok 412 - graph.expand outgoing: W succeeds and W+1 has no partial result
+  ---
+  duration_ms: 114.967259
+  type: 'test'
+  ...
+# Subtest: graph.expand both: W succeeds and W+1 has no partial result
+ok 413 - graph.expand both: W succeeds and W+1 has no partial result
+  ---
+  duration_ms: 108.326154
+  type: 'test'
+  ...
+# Subtest: graph.expand recursively rejects unknown request fields before native execution
+ok 414 - graph.expand recursively rejects unknown request fields before native execution
+  ---
+  duration_ms: 49.926668
+  type: 'test'
+  ...
+# Subtest: graph.expand validates canonical u64, real booleans, and closed unions
+ok 415 - graph.expand validates canonical u64, real booleans, and closed unions
+  ---
+  duration_ms: 51.528868
+  type: 'test'
+  ...
+# Subtest: malformed native graph responses map to one exact typed family
+ok 416 - malformed native graph responses map to one exact typed family
+  ---
+  duration_ms: 1.624781
+  type: 'test'
+  ...
+# Subtest: native graph response is open but closed variants and noncanonical values fail
+ok 417 - native graph response is open but closed variants and noncanonical values fail
+  ---
+  duration_ms: 1.012554
+  type: 'test'
+  ...
+# Subtest: frozen authentication outranks invalid seed and graph bounds
+ok 418 - frozen authentication outranks invalid seed and graph bounds
+  ---
+  duration_ms: 54.604161
+  type: 'test'
+  ...
+# Subtest: legacy graph verbs remain source compatible
+ok 419 - legacy graph verbs remain source compatible
+  ---
+  duration_ms: 55.59819
+  type: 'test'
+  ...
+# Subtest: performance configuration precedes a real Engine open
+ok 420 - performance configuration precedes a real Engine open
+  ---
+  duration_ms: 154.629905
+  type: 'test'
+  ...
+# Subtest: diagnostics repeat and conflict carry typed data
+ok 421 - diagnostics repeat and conflict carry typed data
+  ---
+  duration_ms: 53.317027
+  type: 'test'
+  ...
+# Subtest: invalid mode is rejected before native mutation
+ok 422 - invalid mode is rejected before native mutation
+  ---
+  duration_ms: 56.611726
+  type: 'test'
+  ...
+# Subtest: configuration rejects invalid JavaScript values before creating a database
+ok 423 - configuration rejects invalid JavaScript values before creating a database
+  ---
+  duration_ms: 13.433053
+  type: 'test'
+  ...
+# Subtest: configuration forwards safe upper bounds and zero policy
+ok 424 - configuration forwards safe upper bounds and zero policy
+  ---
+  duration_ms: 173.856821
+  type: 'test'
+  ...
+# Subtest: configuration is per engine and the requested snapshot stays immutable
+ok 425 - configuration is per engine and the requested snapshot stays immutable
+  ---
+  duration_ms: 187.538343
+  type: 'test'
+  ...
+# Subtest: Engine.open reads a changing engineConfig accessor once and forwards that snapshot
+ok 426 - Engine.open reads a changing engineConfig accessor once and forwards that snapshot
+  ---
+  duration_ms: 110.592219
+  type: 'test'
+  ...
+# Subtest: native configured open changes the owned projection worker inventory
+ok 427 - native configured open changes the owned projection worker inventory
+  ---
+  duration_ms: 181.255296
+  type: 'test'
+  ...
+# Subtest: native configured open retains all five forwarded requested values
+ok 428 - native configured open retains all five forwarded requested values
+  ---
+  duration_ms: 49.996561
+  type: 'test'
+  ...
+# Subtest: native number boundary accepts safe integer caps and rejects invalid values
+ok 429 - native number boundary accepts safe integer caps and rejects invalid values
+  ---
+  duration_ms: 51.564785
+  type: 'test'
+  ...
+# Subtest: provenance zero disables pruning while a positive cap consumes rows
+ok 430 - provenance zero disables pruning while a positive cap consumes rows
+  ---
+  duration_ms: 139.445761
+  type: 'test'
+  ...
+# Subtest: installed qualification requires an exact clean committed source tree
+ok 431 - installed qualification requires an exact clean committed source tree
+  ---
+  duration_ms: 51.236385
+  type: 'test'
+  ...
+# Subtest: standalone rerank depth zero is a model-free identity path
+ok 432 - standalone rerank depth zero is a model-free identity path
+  ---
+  duration_ms: 5.811937
+  type: 'test'
+  ...
+# Subtest: standalone rerank is identity in the feature-off build
+ok 433 - standalone rerank is identity in the feature-off build
+  ---
+  duration_ms: 0.988989
+  type: 'test'
+  ...
+# Subtest: standalone rerank validates caller input before native work
+ok 434 - standalone rerank validates caller input before native work
+  ---
+  duration_ms: 1.069652
+  type: 'test'
+  ...
+# Subtest: standalone rerank rejects non-string query and body before native work
+ok 435 - standalone rerank rejects non-string query and body before native work
+  ---
+  duration_ms: 0.577792
+  type: 'test'
+  ...
+# Subtest: public surface is the governed allowlist (membership, not a count)
+ok 436 - public surface is the governed allowlist (membership, not a count)
+  ---
+  duration_ms: 101.253885
+  type: 'test'
+  ...
+# Subtest: runtime controls are pinned and live
+ok 437 - runtime controls are pinned and live
+  ---
+  duration_ms: 1.01086
+  type: 'test'
+  ...
+# Subtest: read.* namespace verbs are live (Slice 30, introspected not documented-only)
+ok 438 - read.* namespace verbs are live (Slice 30, introspected not documented-only)
+  ---
+  duration_ms: 75.146423
+  type: 'test'
+  ...
+# Subtest: searchTextOnly verb is live (0.8.18 Slice 5 \#5, CONCERN \#7, introspected)
+ok 439 - searchTextOnly verb is live (0.8.18 Slice 5 \#5, CONCERN \#7, introspected)
+  ---
+  duration_ms: 63.306341
+  type: 'test'
+  ...
+# Subtest: surface contract: TS reads the shared signed-token allowlist
+ok 440 - surface contract: TS reads the shared signed-token allowlist
+  ---
+  duration_ms: 60.633399
+  type: 'test'
+  ...
+# Subtest: allowlist excludes the recovery denylist
+ok 441 - allowlist excludes the recovery denylist
+  ---
+  duration_ms: 0.286491
+  type: 'test'
+  ...
+# Subtest: engine exposes instrumentation methods
+ok 442 - engine exposes instrumentation methods
+  ---
+  duration_ms: 60.900282
+  type: 'test'
+  ...
+# Subtest: admin.configure is exported beside Engine
+ok 443 - admin.configure is exported beside Engine
+  ---
+  duration_ms: 52.6671
+  type: 'test'
+  ...
+# Subtest: Engine.open accepts engineConfig with camelCase knobs
+ok 444 - Engine.open accepts engineConfig with camelCase knobs
+  ---
+  duration_ms: 52.61442
+  type: 'test'
+  ...
+# Subtest: write returns a typed receipt with cursor
+ok 445 - write returns a typed receipt with cursor
+  ---
+  duration_ms: 56.468285
+  type: 'test'
+  ...
+# Subtest: search returns soft-fallback null by default
+ok 446 - search returns soft-fallback null by default
+  ---
+  duration_ms: 52.216858
+  type: 'test'
+  ...
+# Subtest: SoftFallback branch is the typed two-member union
+ok 447 - SoftFallback branch is the typed two-member union
+  ---
+  duration_ms: 0.189337
+  type: 'test'
+  ...
+# Subtest: instrumentation stubs return canonical types
+ok 448 - instrumentation stubs return canonical types
+  ---
+  duration_ms: 55.89968
+  type: 'test'
+  ...
+# Subtest: text hit exposes a sourceId that eraseSource accepts
+ok 449 - text hit exposes a sourceId that eraseSource accepts
+  ---
+  duration_ms: 98.165647
+  type: 'test'
+  ...
+# Subtest: every hit carries its own sourceId, not a shared constant
+ok 450 - every hit carries its own sourceId, not a shared constant
+  ---
+  duration_ms: 83.833054
+  type: 'test'
+  ...
+# Subtest: edge hit exposes the edge's own sourceId
+ok 451 - edge hit exposes the edge's own sourceId
+  ---
+  duration_ms: 67.383188
+  type: 'test'
+  ...
+# Subtest: graph-arm hit sourceId semantics are unchanged by TC-31
+ok 452 - graph-arm hit sourceId semantics are unchanged by TC-31
+  ---
+  duration_ms: 72.281808
+  type: 'test'
+  ...
+# Subtest: an uncommittable kind is reported by kind, not silently dropped
+ok 453 - an uncommittable kind is reported by kind, not silently dropped
+  ---
+  duration_ms: 103.583389
+  type: 'test'
+  ...
+# Subtest: a corpus of only supported kinds reports an empty list, not absent
+ok 454 - a corpus of only supported kinds reports an empty list, not absent
+  ---
+  duration_ms: 78.267443
+  type: 'test'
+  ...
+# Subtest: the report is state, not diff, so an idempotent re-apply still carries it
+ok 455 - the report is state, not diff, so an idempotent re-apply still carries it
+  ---
+  duration_ms: 66.262339
+  type: 'test'
+  ...
+# Subtest: no vector declaration means no report
+ok 456 - no vector declaration means no report
+  ---
+  duration_ms: 62.895245
+  type: 'test'
+  ...
+# Subtest: the read → configure round-trip still holds
+ok 457 - the read → configure round-trip still holds
+  ---
+  duration_ms: 61.384318
+  type: 'test'
+  ...
+# Subtest: readiness semantics are unchanged by the report
+ok 458 - readiness semantics are unchanged by the report # SKIP FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test
+  ---
+  duration_ms: 0.393494
+  type: 'test'
+  ...
+# Subtest: telemetry: off by default (no captured id; feedback rejects)
+ok 459 - telemetry: off by default (no captured id; feedback rejects)
+  ---
+  duration_ms: 91.716286
+  type: 'test'
+  ...
+# Subtest: telemetry: captures event + correlated feedback deterministically
+ok 460 - telemetry: captures event + correlated feedback deterministically
+  ---
+  duration_ms: 80.008033
+  type: 'test'
+  ...
+# Subtest: DatabaseLockedError carries holderPid attr
+ok 461 - DatabaseLockedError carries holderPid attr
+  ---
+  duration_ms: 0.968331
+  type: 'test'
+  ...
+# Subtest: opening the same database twice surfaces DatabaseLockedError with holderPid
+ok 462 - opening the same database twice surfaces DatabaseLockedError with holderPid
+  ---
+  duration_ms: 81.226527
+  type: 'test'
+  ...
+# Subtest: CorruptionError carries typed kind/stage/recoveryHintCode/docAnchor
+ok 463 - CorruptionError carries typed kind/stage/recoveryHintCode/docAnchor
+  ---
+  duration_ms: 0.373366
+  type: 'test'
+  ...
+# Subtest: EmbedderDimensionMismatchError carries typed stored/supplied
+ok 464 - EmbedderDimensionMismatchError carries typed stored/supplied
+  ---
+  duration_ms: 0.23802
+  type: 'test'
+  ...
+# Subtest: EmbedderIdentityMismatchError carries typed identity attrs
+ok 465 - EmbedderIdentityMismatchError carries typed identity attrs
+  ---
+  duration_ms: 0.252066
+  type: 'test'
+  ...
+# Subtest: EmbedderNotConfiguredError is a distinct leaf under EmbedderError
+ok 466 - EmbedderNotConfiguredError is a distinct leaf under EmbedderError
+  ---
+  duration_ms: 0.244512
+  type: 'test'
+  ...
+# Subtest: EmbedderRequiredError initializes its typed configuration payload
+ok 467 - EmbedderRequiredError initializes its typed configuration payload
+  ---
+  duration_ms: 0.473956
+  type: 'test'
+  ...
+# Subtest: EmbedDevicePolicyError rehydrates the native policy envelope
+ok 468 - EmbedDevicePolicyError rehydrates the native policy envelope
+  ---
+  duration_ms: 0.474177
+  type: 'test'
+  ...
+# Subtest: RerankerDevicePolicyError rehydrates a forced runtime failure envelope
+ok 469 - RerankerDevicePolicyError rehydrates a forced runtime failure envelope
+  ---
+  duration_ms: 0.310006
+  type: 'test'
+  ...
+# Subtest: KindNotVectorIndexedError is a distinct leaf under VectorError
+ok 470 - KindNotVectorIndexedError is a distinct leaf under VectorError
+  ---
+  duration_ms: 0.295218
+  type: 'test'
+  ...
+# Subtest: decision \#18: an unsatisfiable window crosses the napi envelope as FDB_WRITE_VALIDATION
+ok 471 - decision \#18: an unsatisfiable window crosses the napi envelope as FDB_WRITE_VALIDATION
+  ---
+  duration_ms: 66.896127
+  type: 'test'
+  ...
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping test
+# Subtest: engineOpen with useDefaultEmbedder: true succeeds
+ok 472 - engineOpen with useDefaultEmbedder: true succeeds
+  ---
+  duration_ms: 1.206019
+  type: 'test'
+  ...
+# Subtest: engineOpen with useDefaultEmbedder: false makes no network call
+ok 473 - engineOpen with useDefaultEmbedder: false makes no network call
+  ---
+  duration_ms: 86.206211
+  type: 'test'
+  ...
+# Subtest: engineOpen with no useDefaultEmbedder option defaults to no-network
+ok 474 - engineOpen with no useDefaultEmbedder option defaults to no-network
+  ---
+  duration_ms: 68.261658
+  type: 'test'
+  ...
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping test
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping test
+# [skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping test
+# Subtest: openReport carries embedder mean-centering booleans
+ok 475 - openReport carries embedder mean-centering booleans
+  ---
+  duration_ms: 60.48076
+  type: 'test'
+  ...
+# Subtest: openReport.embedderMeanVecPinned is false on fresh workspace
+ok 476 - openReport.embedderMeanVecPinned is false on fresh workspace
+  ---
+  duration_ms: 0.384837
+  type: 'test'
+  ...
+# Subtest: openReport.embedderMeanVecPinned transitions after 256 writes
+ok 477 - openReport.embedderMeanVecPinned transitions after 256 writes
+  ---
+  duration_ms: 0.239773
+  type: 'test'
+  ...
+# Subtest: VectorEquivalenceMismatchError is a FathomDbError leaf carrying a reason
+ok 478 - VectorEquivalenceMismatchError is a FathomDbError leaf carrying a reason
+  ---
+  duration_ms: 1.143962
+  type: 'test'
+  ...
+# Subtest: openReport surfaces denseDisabled (default false) + accessors
+ok 479 - openReport surfaces denseDisabled (default false) + accessors
+  ---
+  duration_ms: 83.202983
+  type: 'test'
+  ...
+# Subtest: searchTextOnly serves the FTS-only path
+ok 480 - searchTextOnly serves the FTS-only path
+  ---
+  duration_ms: 71.704818
+  type: 'test'
+  ...
+1..480
+# tests 480
+# suites 0
+# pass 474
+# fail 0
+# cancelled 0
+# skipped 6
+# todo 0
+# duration_ms 5432.301166

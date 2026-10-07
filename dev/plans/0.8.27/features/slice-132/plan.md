@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 132 — dedicated Rust SDK parity
-status: PLANNED
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.27
 planning_baseline: 316ac4769
 ---

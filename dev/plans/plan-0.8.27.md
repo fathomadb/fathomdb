@@ -31,13 +31,15 @@ and determine whether the reported 0.8.26 Windows erasure failure persists on
 the 0.8.27 candidate. Its
 [`execution plan`](0.8.27/features/slice-103/plan.md) owns that addition.
 
-Slice 132 follows the Python SDK decomposition. It plans a dedicated Rust SDK
-with the same public operation, namespace, type, error, and configuration
-surface as Python and TypeScript. The proposed `fathomdb-sdk` package wraps
-the existing engine through an explicit public export map. Its
-[`plan`](0.8.27/features/slice-132/plan.md) and
-[`draft design`](0.8.27/features/slice-132/design.md) own the work; a successor
-ADR and interface updates must precede public implementation.
+Slice 132 followed the Python SDK decomposition and is complete. It added
+`fathomdb-sdk`, a dedicated Rust SDK with the same operation, namespace,
+option-default, and error-class surface as Python and TypeScript. The crate
+wraps the existing engine through a closed export map. Its
+[`plan`](0.8.27/features/slice-132/plan.md),
+[`design`](0.8.27/features/slice-132/design.md), and
+[`status`](0.8.27/features/slice-132/status.md) record the work, and
+`ADR-0.8.27-rust-sdk-parity.md` with `dev/interfaces/rust-sdk.md` own the
+contract.
 
 The shared structural vocabulary is:
 
@@ -372,9 +374,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 132** (`RUST-SDK-PARITY`) — dedicated Rust SDK surface parity
+**IMMEDIATE NEXT: Slice 135** (`PERFORMANCE-BASELINE`) — 0.8.26 performance preservation and improvement qualification
 
-**Remaining ladder:** 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1153,22 +1155,22 @@ checks. No test may depend on a particular helper file.
 
 ### Slice 132 — dedicated Rust SDK surface parity
 
-**PLANNED; draft design awaiting contract successor.** The 2026-10-06 user
-direction calls for a Rust SDK beyond the existing `fathomdb` facade, with the
-same public surface as Python and TypeScript. The proposed separate
-`fathomdb-sdk` crate supplies a closed application boundary over the existing
-engine and mirrors the root, `Engine`, `read`, `graph`, and `admin` placements.
-It includes standalone rerank and CLS embedding, public DTOs, errors, and
-configuration. See the [Slice 132 plan](0.8.27/features/slice-132/plan.md) and
-[draft design](0.8.27/features/slice-132/design.md).
+**COMPLETE_ON_RELEASE_BRANCH at `2996417f0`.** Slice 132 added the separate
+`fathomdb-sdk` crate as directed by the user on 2026-10-06. The crate:
 
-The accepted `BIND-RUST` ADR and current Rust interface still govern the
-shipped facade. Before implementation, ratify a successor ADR and update all
-three SDK interfaces and the parity position. Inventory source and installed
-artifacts, including the existing `fathomdb`/engine/plugin contracts. Resolve
-every Python/TypeScript discrepancy and record the existing-crate disposition.
-The new SDK excludes CLI recovery, raw SQL, and custom-provider injection.
-Slice 135 waits for Slice 132's reviewed closeout.
+- carries the 44 governed operations through `Engine`, `read`, `graph`, and
+  `admin`, plus `rerank` and `embed_batch_cls`;
+- uses option structs that default to the Python/TypeScript values, and an
+  `ErrorKind` per shared error class.
+
+`ADR-0.8.27-rust-sdk-parity.md` amends `BIND-RUST`. The `fathomdb` facade is
+unchanged. The operation-parity checker now observes the Rust crate (44/44)
+and refuses core-engine leaks. See the
+[Slice 132 status](0.8.27/features/slice-132/status.md). Still open:
+
+- the first crates.io publish needs a HITL token bootstrap before the
+  `v0.8.27` tag;
+- the external provider/plugin disposition is unruled.
 
 ### Slice 135 — 0.8.26 performance preservation and improvement qualification
 

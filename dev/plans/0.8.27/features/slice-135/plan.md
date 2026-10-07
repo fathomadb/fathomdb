@@ -18,9 +18,11 @@ Slice 132 closes. No pre-Slice-132 receipt can qualify the final release.
 matters/Pareto path, system latency, system robustness, and logic and exception
 handling. Record the Phase 1 checkpoint below. Only then start the dedicated
 correct-results work, including gold construction, retrieval evaluation and
-paired answer-quality runs. Basic semantic assertions remain in Phase 1 so a
-timing or fault receipt cannot pass with a wrong result; they are validity
-checks, not the broader correct-results campaign.
+paired answer-quality runs. Existing benchmark datasets, including LongMemEval,
+MuSiQue and LOCOMO where qualified, may supply Phase 1 workload shapes, query
+mix, high-use paths, latency samples and fault cases. Their reference answers
+may serve basic validity checks. Dedicated gold-based quality scoring remains
+in Phase 2.
 
 All five measurement families are **diagnostic in Slice 135**. No new numerical
 threshold or slower timing alone blocks Slice 135. Existing accepted release
@@ -68,7 +70,7 @@ existing gate threshold to make the comparison pass.
 
 | Aspect | What to measure | How to measure |
 | --- | --- | --- |
-| What matters / Pareto path | Operation frequency, aggregate elapsed time, CPU and waiting cost by operation and material condition; test coverage of the high-cost source paths; rare high-severity paths separately | Use a fixed mix drawn from query-correctness test workloads as the 0.8.27 proxy. Add opt-in local operation metrics across Rust, Python and TypeScript so future consenting consumer traces can replace it. Combine stage timing, sampled stacks and source coverage; rank by total cost, not call count alone. Do not assume an 80/20 split exists. |
+| What matters / Pareto path | Operation frequency, aggregate elapsed time, CPU and waiting cost by operation and material condition; test coverage of the high-cost source paths; rare high-severity paths separately | Use a fixed mix drawn from query-correctness tests and qualified benchmark datasets as the 0.8.27 proxy. Add opt-in local operation metrics across Rust, Python and TypeScript so future consenting consumer traces can replace it. Combine stage timing, sampled stacks and source coverage; rank by total cost, not call count alone. Do not assume an 80/20 split exists. |
 | System latency | Installed-SDK call-to-materialized-result p50/p95/p99, throughput, CPU, memory, I/O and queue delay; write-to-searchable, open/close, cold/warm and mixed-workload behavior | Pair published 0.8.26 and final 0.8.27 artifacts on the same host, data, model, settings, concurrency and cache condition. Alternate version blocks and profile separately. Use at least 1,000 valid query observations per p99 cell and 100 lifecycle observations per p50/p95 cell; omit unsupported tails. Run a separate matched native Mem0 cell. |
 | System robustness | Correct final state and bounded completion with concurrent readers/writers, crash/restart near commit, provider failure, SQLite busy/full disk, close/cancellation under load and interrupted erasure; resource leaks and recoverability | Use real databases, controlled fault points, timeouts and fresh/reopened state oracles. Vary fault position and concurrency, then repeat selected cases under randomized schedules. Record exceptions, partial work, queue state, disk artifacts and recovery behavior. A component speedup that breaks a system invariant is a defect. |
 | Logic and exception handling | Reachable/unreachable branches, always-running or always-failing paths, wrong condition order, off-by-one, overflow, cycles/nontermination, swallowed errors, panic/FFI escape, incomplete cleanup and error precedence | Run Clippy, Ruff, Pyright, TypeScript checks and repo guards. Collect Rust compiler-instrumented line/branch coverage and available binding coverage. Audit error/panic sites on measured and boundary paths. Use property/state-machine tests, targeted mutation probes and fault injection with explicit timeouts; disposition findings and survivors. |
@@ -84,6 +86,29 @@ enable/reset, disable, close and concurrent-snapshot behavior before coding.
 Keep the existing locked `CounterSnapshot` and SQL profile shape intact and
 measure the instrumentation's own overhead with enabled/disabled controls.
 
+### Tool selection for Phase 1
+
+Use a tool only when its output answers a named measurement question or checks
+a concrete defect hypothesis. A new tool's first run is diagnostic, with a
+small positive/negative fixture to show that its findings are meaningful.
+
+| Tool | Slice 135 use | Limit |
+| --- | --- | --- |
+| Rust compiler, Clippy, Ruff, Pyright and TypeScript checks | Keep the existing lint/type gates; use [`rustc -C instrument-coverage`](https://doc.rust-lang.org/beta/rustc/instrument-coverage.html) plus matching LLVM tools to measure source regions/branches for test and workload runs | Coverage builds answer which code ran; run performance and acceptance checks on as-delivered builds too. The existing test-target gate is not source coverage. |
+| Opt-in operation metrics and selective [`tracing::instrument`](https://docs.rs/tracing/latest/tracing/attr.instrument.html) | Prefer the planned bounded SDK metrics for call frequency and duration. Add spans only where a high-cost call still needs stage attribution; exclude data-bearing arguments and measure overhead | `#[instrument]` comes from `tracing`, not Tokio itself. Spans are not a CPU profiler or a complete operation-frequency distribution. No blanket annotation. |
+| [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), [cargo-flamegraph](https://github.com/flamegraph-rs/flamegraph) and existing GDB stack sampling | Use `perf` on a permitted host for selected hot paths; a flamegraph is a view of sampled stacks. On this host `perf_event_paranoid=4`, so retain Slice 115's GDB fallback | Profiled runs are separate from unprofiled latency. Installing a flamegraph wrapper does not remove kernel profiling restrictions. |
+| [Criterion.rs](https://github.com/criterion-rs/criterion.rs) | Optional microbenchmark only after Phase 1 identifies a small hot kernel and a specific optimization hypothesis | It cannot establish installed-SDK system latency or p99; do not build a broad microbenchmark suite now. |
+| [Semgrep](https://semgrep.dev/docs/writing-rules/rule-ideas) | Trial one or two local rules for FathomDB-specific cross-language boundary mistakes, with seeded violations and false-positive review | Pattern/taint findings are leads, not proofs of logic correctness. Do not make a generic rule-pack gate for this slice. |
+| [Kani](https://model-checking.github.io/kani/) | Optional bounded proof for one compact pure invariant, such as a codec or boundary calculation, if Phase 1 finds a high-risk gap | It does not prove the SQLite, FFI or concurrent product system. Avoid a whole-engine verification effort. |
+| [cargo-deny](https://embarkstudios.github.io/cargo-deny/checks/index.html) | Record as a dependency-health follow-up only if the existing dependency/SBOM work leaves a concrete gap | Its licenses, bans, advisories and source checks do not find runtime logic defects or explain latency. |
+
+Keep [cargo-mutants](https://github.com/sourcefrog/cargo-mutants) available for
+one file when hand-chosen mutants reveal weak assertions. Use
+[Miri](https://github.com/rust-lang/miri) for isolated unsafe Rust logic, not
+native SQLite/FFI execution; use [Loom](https://github.com/tokio-rs/loom)
+only if a small concurrent primitive can be separated from the real-database
+system. Neither replaces Phase 1's actual fault/concurrency matrix.
+
 ## Workload and measurement design
 
 1. **Freeze product and workload identity.** Use the published 0.8.26 artifact
@@ -95,10 +120,13 @@ measure the instrumentation's own overhead with enabled/disabled controls.
    write-to-ready, text/vector/hybrid search, graph, evidence and erasure
    cells. Add one representative mixed sequence and existing scale/latency
    release selectors, keeping engine-only and installed-SDK intervals labeled
-   separately. Include cold and warm behavior, at least two corpus sizes,
-   single-caller and bounded concurrent operation. A substantial model-embed
-   workload uses the required CUDA-capable host and records actual GPU use;
-   the small CPU compatibility probe remains separately labeled.
+   separately. Draw scenario shapes and query mixes from qualified LongMemEval,
+   MuSiQue, LOCOMO or other benchmark corpora when they exercise the first
+   four areas better than synthetic inputs; record the sampling and adaptation.
+   Include cold and warm behavior, at least two corpus sizes, single-caller
+   and bounded concurrent operation. A substantial model-embed workload uses
+   the required CUDA-capable host and records actual GPU use; the small CPU
+   compatibility probe remains separately labeled.
 3. **Pre-register before comparison.** Use baseline-only pilot repetitions to
    measure run-to-run noise, then freeze sample counts, confidence method,
    multiple-cell reporting rule and invalidators before revealing paired
@@ -130,9 +158,10 @@ backoff, execution-window fit and an invalid-partial-run guard.
 
 Define a *path* as a supported operation plus material conditions: corpus
 size, cache state, projection/provider mode, requested feature and outcome.
-The controlled mix of query-correctness test workloads supplies a reproducible
-0.8.27 proxy. Later local consumer observations may replace it. Record the
-source and representativeness of each distribution. Rank paths by
+The controlled mix of query-correctness tests and qualified benchmark datasets
+supplies a reproducible 0.8.27 proxy. Later local consumer observations may
+replace it. Record the source and representativeness of each distribution.
+Rank paths by
 `frequency × measured cost`, then separately rank rare paths by failure
 severity. Sampling stacks identify CPU owners; stage timers, SQLite profiles,
 I/O and queue observations distinguish CPU from waiting. The current SQL
@@ -169,8 +198,11 @@ open; pre-Slice-132 receipts cannot qualify the final candidate.
 3. **System robustness:** publish a real-database fault/concurrency matrix
    with each case's setup, fault point, expected state, observed state and
    recovery result. Cover the cases in the five-aspect table, including
-   concurrent operation and restart. Report failures and resources, not only
-   pass counts.
+   concurrent operation and restart. Adapt SQLite's first-failure and
+   persistent-failure patterns at selected FathomDB-owned side-effect
+   boundaries. Check reopened product state and cleanup, with SQLite
+   `PRAGMA integrity_check` as a supplementary structural check. Report
+   failures and resources, not only pass counts.
 4. **Logic and exception handling:** publish static-check outputs, measured
    line/branch coverage, an error/panic audit of high-cost and system-boundary
    paths, and bounded property/state-machine or mutation probes. Classify
@@ -192,9 +224,16 @@ invalid/omitted cells, coverage gaps, confirmed defects and ranked follow-ups.
 Actual final-candidate observations in all four areas are required; a harness,
 protocol or baseline alone does not meet the checkpoint. Fix any defect or
 harness flaw that makes the results untrustworthy and rerun affected cells.
-Record the checkpoint **before** creating gold fixtures or running the broader
-retrieval/answer-quality campaigns. Other confirmed product defects remain
+Record the checkpoint **before** creating new gold fixtures or running the
+broader retrieval/answer-quality campaigns. Reusing an existing benchmark
+dataset in Phase 1 does not require withholding its reference answers from
+basic validity checks. Other confirmed product defects remain
 tracked for test-first repair before Slice 135 closeout.
+
+The [SQLite testing fit assessment](sqlite-testing-fit.md) records which
+methods from the locally collected SQLite testing page suit this fast-changing
+release and which are recommended for later release lines. It does not create
+a global coverage quota or a new testing gate.
 
 ## Phase 2 — correct results
 

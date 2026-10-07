@@ -111,7 +111,7 @@ uses filesystem Tier 1 plus an ordered absolute `nvidia-smi` Tier 2 probe; an
 unavailable, timed-out, or nonzero Tier 2 result is `unknown` and exits `70`.
 
 For a confirmed classic Jetson/Tegra CUDA host, `fathomdb doctor gpu --help`
-prints the exact interim 0.8.24 command: `fathomdb==0.8.24+tegra` from
+prints the exact interim 0.8.26 command: `fathomdb==0.8.26+tegra` from
 `https://fathomadb.github.io/fathomdb/tegra/simple/`. It uses one index and an
 exact version; do not use a floating requirement or `--extra-index-url`.
 Unsupported targets have no supported Tegra CUDA route.

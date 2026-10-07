@@ -1,0 +1,123 @@
+warning: patch `candle-core-fathomdb v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc)` was not used in the crate graph
+warning: patch `candle-kernels v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc)` was not used in the crate graph
+warning: patch `candle-nn-fathomdb v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc)` was not used in the crate graph
+warning: patch `candle-transformers-fathomdb v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling stable_deref_trait v1.2.1
+   Compiling autocfg v1.5.0
+   Compiling shlex v1.3.0
+   Compiling find-msvc-tools v0.1.9
+   Compiling libc v0.2.186
+   Compiling smallvec v1.15.1
+   Compiling litemap v0.8.2
+   Compiling writeable v0.6.3
+   Compiling cfg-if v1.0.4
+   Compiling memchr v2.8.0
+   Compiling icu_normalizer_data v2.2.0
+   Compiling utf8_iter v1.0.4
+   Compiling icu_properties_data v2.2.0
+   Compiling serde_core v1.0.228
+   Compiling pkg-config v0.3.33
+   Compiling typenum v1.20.0
+   Compiling vcpkg v0.2.15
+   Compiling version_check v0.9.5
+   Compiling getrandom v0.3.4
+   Compiling zerocopy v0.8.48
+   Compiling serde v1.0.228
+   Compiling zmij v1.0.21
+   Compiling regex-syntax v0.8.10
+   Compiling parking_lot_core v0.9.12
+   Compiling cc v1.2.61
+   Compiling bitflags v2.11.1
+   Compiling foldhash v0.2.0
+   Compiling serde_json v1.0.149
+   Compiling anyhow v1.0.103
+   Compiling scopeguard v1.2.0
+   Compiling num-conv v0.2.1
+   Compiling percent-encoding v2.3.2
+   Compiling time-core v0.1.8
+   Compiling powerfmt v0.2.0
+   Compiling bit-vec v0.6.3
+   Compiling once_cell v1.21.4
+   Compiling hashbrown v0.17.0
+   Compiling form_urlencoded v1.2.2
+   Compiling num-traits v0.2.19
+   Compiling ahash v0.8.12
+   Compiling lock_api v0.4.14
+   Compiling time-macros v0.2.27
+   Compiling deranged v0.5.8
+   Compiling bit-set v0.5.3
+   Compiling const-oid v0.10.2
+   Compiling lazy_static v1.5.0
+   Compiling rustix v1.1.4
+   Compiling aho-corasick v1.1.4
+   Compiling nom v8.0.0
+   Compiling getrandom v0.4.2
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling fallible-iterator v0.3.0
+   Compiling itoa v1.0.18
+   Compiling bytecount v0.6.9
+   Compiling num-cmp v0.1.0
+   Compiling base64 v0.22.1
+   Compiling cpufeatures v0.3.0
+   Compiling uuid v1.23.1
+   Compiling linux-raw-sys v0.12.1
+   Compiling syn v2.0.117
+   Compiling hashlink v0.12.1
+   Compiling hybrid-array v0.4.13
+   Compiling fathomdb-embedder-api v0.6.1 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline/src/rust/crates/fathomdb-embedder-api)
+   Compiling fastrand v2.4.1
+   Compiling fathomdb-query v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline/src/rust/crates/fathomdb-query)
+   Compiling fathomdb-embedder v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline/src/rust/crates/fathomdb-embedder)
+   Compiling libsqlite3-sys v0.38.1
+   Compiling sqlite-vec v0.1.9
+   Compiling num-integer v0.1.46
+   Compiling num-complex v0.4.6
+   Compiling block-buffer v0.12.1
+   Compiling crypto-common v0.2.2
+   Compiling parking_lot v0.12.5
+   Compiling time v0.3.47
+   Compiling num-bigint v0.4.6
+   Compiling num-iter v0.1.45
+   Compiling regex-automata v0.4.14
+   Compiling digest v0.11.3
+   Compiling sha2 v0.11.0
+   Compiling tempfile v3.27.0
+   Compiling synstructure v0.13.2
+   Compiling num-rational v0.4.2
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.8.2
+   Compiling zerovec-derive v0.11.3
+   Compiling displaydoc v0.2.5
+   Compiling serde_derive v1.0.228
+   Compiling num v0.4.3
+   Compiling fraction v0.15.4
+   Compiling iso8601 v0.6.3
+   Compiling zerofrom v0.1.7
+   Compiling yoke v0.8.2
+   Compiling zerotrie v0.2.4
+   Compiling zerovec v0.11.6
+   Compiling tinystr v0.8.3
+   Compiling potential_utf v0.1.5
+   Compiling icu_collections v2.2.0
+   Compiling icu_locale_core v2.2.0
+   Compiling fancy-regex v0.13.0
+   Compiling regex v1.12.3
+   Compiling icu_provider v2.2.0
+   Compiling icu_normalizer v2.2.0
+   Compiling icu_properties v2.2.0
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling jsonschema v0.18.3
+   Compiling rusqlite v0.40.1
+   Compiling fathomdb-schema v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline/src/rust/crates/fathomdb-schema)
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline/src/rust/crates/fathomdb-engine)
+   Compiling slice135-pilot v0.1.0 (/tmp/slice135-pilot-final-build-smoke/build)
+    Finished `release` profile [optimized] target(s) in 48.69s

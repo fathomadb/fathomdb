@@ -92,6 +92,88 @@ fn close_releases_embedder_while_engine_handle_is_retained() {
     opened.engine.close().expect("repeated close");
 }
 
+#[test]
+fn close_leaves_caller_retained_embedder_owned_and_usable() {
+    let (_dir, path) = fixture_path("close_caller_retained_embedder");
+    let embedder = Arc::new(SleepingEmbedder::success(Duration::ZERO));
+    let opened = Engine::open_with_embedder_for_test(&path, embedder.clone()).expect("open");
+
+    opened.engine.close().expect("close");
+    assert_eq!(Arc::strong_count(&embedder), 1, "caller must be the sole owner after close");
+    assert_eq!(embedder.embed("after close").expect("caller embed").len(), 384);
+    opened.engine.close().expect("repeated close");
+    assert_eq!(Arc::strong_count(&embedder), 1);
+}
+
+struct ReentrantCloseEmbedder {
+    engine: std::sync::Mutex<Option<std::sync::Weak<fathomdb_engine::OpenedEngine>>>,
+    reentered: Arc<std::sync::Mutex<Option<Result<(), String>>>>,
+}
+
+impl Embedder for ReentrantCloseEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("reentrant-close", "rev-a", 384)
+    }
+
+    fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+        Ok(unit_vector(384))
+    }
+}
+
+impl Drop for ReentrantCloseEmbedder {
+    fn drop(&mut self) {
+        let engine = self
+            .engine
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+            .and_then(|weak| weak.upgrade());
+        if let Some(opened) = engine {
+            let outcome = opened.engine.close().map_err(|error| format!("{error:?}"));
+            *self.reentered.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(outcome);
+        }
+    }
+}
+
+#[test]
+fn close_drops_last_embedder_ref_outside_close_lock() {
+    let (_dir, path) = fixture_path("reentrant_close");
+    let mut child = Command::new(current_test_binary())
+        .arg("--exact")
+        .arg("child_embedder_drop_reenters_engine_close")
+        .arg("--ignored")
+        .env("FATHOMDB_TEST_DB_PATH", &path)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn child");
+
+    assert!(
+        wait_with_timeout(&mut child, Duration::from_secs(10)),
+        "close deadlocked when the embedder's Drop re-entered Engine::close"
+    );
+    assert!(child.wait().expect("child status").success(), "re-entrant close child failed");
+}
+
+#[test]
+#[ignore]
+fn child_embedder_drop_reenters_engine_close() {
+    let path = std::env::var_os("FATHOMDB_TEST_DB_PATH").expect("db path");
+    let reentered = Arc::new(std::sync::Mutex::new(None));
+    let embedder = Arc::new(ReentrantCloseEmbedder {
+        engine: std::sync::Mutex::new(None),
+        reentered: Arc::clone(&reentered),
+    });
+    let opened =
+        Arc::new(Engine::open_with_embedder_for_test(&path, embedder.clone()).expect("open"));
+    *embedder.engine.lock().expect("engine slot") = Some(Arc::downgrade(&opened));
+    drop(embedder);
+
+    opened.engine.close().expect("close");
+    let outcome = reentered.lock().expect("reentered").take();
+    assert_eq!(outcome, Some(Ok(())), "embedder Drop must re-enter close once, successfully");
+}
+
 fn current_test_binary() -> std::path::PathBuf {
     std::env::current_exe().expect("test binary path")
 }

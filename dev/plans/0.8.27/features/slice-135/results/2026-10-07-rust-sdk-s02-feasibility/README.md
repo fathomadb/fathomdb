@@ -11,7 +11,7 @@ its local sibling crates from candidate source
 `febc62b5e792937d5312c0d7b8b97db963917784`. The package version string
 is still 0.8.26; the candidate workspace `Cargo.lock` SHA-256 is
 `9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe`.
-The retained [external manifest](Cargo.toml), [external lockfile](Cargo.lock),
+The retained [external manifest snapshot](Cargo.toml.snapshot), [external lockfile](Cargo.lock),
 [dependency tree](cargo-tree.txt), [consumer source](main.rs),
 [compiled executable](consumer.bin), [build output](build.stderr) and
 [Rust toolchain version](rustc-version.txt) identify this source-bound run.

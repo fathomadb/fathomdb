@@ -555,8 +555,9 @@ SDK exercise remain open.
   campaigns and publish one four-area checkpoint note with invalid and
   omitted cells. The most recent full agent gate passed shell lint after a
   fix, then stopped at the pinned-override guard because six tracked result
-  snapshots are named `Cargo.toml`. Resolve their archival format without
-  weakening the guard, then rerun the needed gate. Earlier full-gate failures
+  snapshots were named `Cargo.toml`. Their bytes are now retained under
+  `Cargo.toml.snapshot`; the focused guard passes without a policy change.
+  Rerun the needed full gate at the Phase 1 checkpoint. Earlier full-gate failures
   also have recorded steward-orient and Python environment dispositions to
   recheck. Do not claim a full green gate meanwhile.
 

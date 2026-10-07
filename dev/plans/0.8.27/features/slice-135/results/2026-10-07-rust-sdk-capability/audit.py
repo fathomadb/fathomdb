@@ -84,7 +84,7 @@ if __name__ == "__main__":
         raise ValueError("consumer stderr is not empty")
     if (ROOT / "source-commit.txt").read_text().strip() != SOURCE_COMMIT:
         raise ValueError("candidate source commit changed")
-    manifest = (ROOT / "Cargo.toml").read_text()
+    manifest = (ROOT / "Cargo.toml.snapshot").read_text()
     tree = (ROOT / "cargo-tree.txt").read_text()
     package = tomllib.loads(manifest)
     sdk_dependency = package["dependencies"]["fathomdb-sdk"]
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         negative_control = str(error)
     else:
         raise AssertionError("retained-edge negative control was accepted")
-    files = ["main.rs", "Cargo.toml", "Cargo.lock", "stdout.log", "stderr.log",
+    files = ["main.rs", "Cargo.toml.snapshot", "Cargo.lock", "stdout.log", "stderr.log",
              "consumer.sqlite", "cargo-tree.txt", "operations.json", "build.stdout",
              "build.stderr", "rustc-version.txt", "source-commit.txt", "binary-sha256.txt"]
     result = {
@@ -120,7 +120,7 @@ if __name__ == "__main__":
         "canonical_operation_map_sha256": sha256(REPO / "src/conformance/governed-operation-parity.json"),
         "sdk_source_sha256": {str(path.relative_to(REPO)): sha256(path) for path in sorted(
             (REPO / "src/rust/crates/fathomdb-sdk/src").glob("*.rs"))},
-        "dependencies": {name: sha256(ROOT / name) for name in ("Cargo.toml", "Cargo.lock", "cargo-tree.txt")},
+        "dependencies": {name: sha256(ROOT / name) for name in ("Cargo.toml.snapshot", "Cargo.lock", "cargo-tree.txt")},
         "files": {name: sha256(ROOT / name) for name in files},
         "counts": {status: sum(row["status"] == status for row in rows)
                    for status in ("executed", "gap", "unavailable")},

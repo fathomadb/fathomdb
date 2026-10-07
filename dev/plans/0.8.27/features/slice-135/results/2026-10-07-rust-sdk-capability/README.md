@@ -41,7 +41,8 @@ checkout path. The auditor now verifies the relative manifest dependency,
 the retained tree's SDK path suffix, and equality with the retained audit.
 The replay test is included in the focused accounting suite below.
 
-The successful run used:
+The successful run used the manifest now retained as
+[Cargo.toml.snapshot](Cargo.toml.snapshot). Its historical invocation was:
 
 ```sh
 CARGO_TARGET_DIR=/tmp/slice135-rust-sdk-capability-target cargo build --offline --locked --manifest-path dev/plans/0.8.27/features/slice-135/results/2026-10-07-rust-sdk-capability/Cargo.toml
@@ -49,6 +50,11 @@ timeout 180s /tmp/slice135-rust-sdk-capability-target/debug/slice135-rust-sdk-ca
 python3 dev/plans/0.8.27/features/slice-135/results/2026-10-07-rust-sdk-capability/audit.py
 python3 -m unittest discover -s dev/plans/0.8.27/features/slice-135/results/2026-10-07-rust-sdk-capability -p test_audit.py
 ```
+
+The archived snapshot is not a live Cargo manifest. To rebuild, materialize
+those exact bytes as `Cargo.toml` in an isolated copy with the same relative
+source layout, then use the recorded invocation. The receipt auditor reads
+the snapshot directly.
 
 The run's stdout, stderr and SQLite file were copied into this directory after
 exit 0. The compiled executable was 260 MB, so its SHA-256 is retained in

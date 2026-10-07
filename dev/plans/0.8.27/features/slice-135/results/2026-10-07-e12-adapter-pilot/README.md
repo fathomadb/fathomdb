@@ -56,7 +56,7 @@ retained to demonstrate executable state and result checks.
 Each `block-N/` folder retains `raw.json`, `protocol.json`, `summary.json`,
 `audit.json`, build provenance, the command and child logs. `shared/`
 contains the exact compressed binaries, runner bundles, corpus and build
-manifests/locks, plus the exact adapter/workload source bytes named by each
+manifest snapshots/locks, plus the exact adapter/workload source bytes named by each
 runner bundle. The current workload was subsequently formatted; its measured
 bytes are retained in `shared/workload.rs`. The `binary.gz`, `runner` and `corpus` links in each block
 resolve into `shared/`. The model bytes remain in the pinned local model

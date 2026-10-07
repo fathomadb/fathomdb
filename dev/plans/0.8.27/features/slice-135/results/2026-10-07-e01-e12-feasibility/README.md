@@ -17,7 +17,7 @@ SQLite databases and the same 32-document plus graph corpus digest,
 `c4bbde04fc7415ea321d24a29338a5d56beabca2d04677797de6b14503d3cde0`.
 
 The retained [raw generator source](feasibility.py.raw), [baseline](baseline/raw.json) and
-[candidate](candidate/raw.json) raw observations, exact Cargo manifests and
+[candidate](candidate/raw.json) raw observations, exact Cargo manifest snapshots and
 locks, build/run commands and logs, and compressed executables bind the
 source, runner and binary bytes. The run succeeded for all 12 cells on each
 version. The [independent audit](audit.py) recomputes per-cell counts and
@@ -26,6 +26,9 @@ fields, hashes the decompressed executables, and rejects a deliberately
 corrupted erasure post-state. Its [result](audit.json) lists each measured
 cell and limitation. Re-running the audit from this directory produced the
 same JSON bytes.
+The historical build commands name generated `Cargo.toml` files; their exact
+bytes are archived as `Cargo.toml.snapshot` in the baseline and candidate
+folders so release dependency checks do not treat them as live manifests.
 
 **No latency regression verdict follows from these runs.** Seven samples per
 cell are below the planned count, there were no per-run start/end environment

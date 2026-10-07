@@ -11,7 +11,7 @@ import sqlite3
 ROOT = Path(__file__).resolve().parent
 EXPECTED_HASHES = {
     "main.rs": "dd885f029f003635726c494cd69f565ef2241a5e3e7a432c2722fd0a16879075",
-    "Cargo.toml": "782b26607f9c83382da3a07b75627a04ab3fedfb3815c17dc721f1756d2bba40",
+    "Cargo.toml.snapshot": "782b26607f9c83382da3a07b75627a04ab3fedfb3815c17dc721f1756d2bba40",
     "Cargo.lock": "8e26ebd7ec4c910d69177b736e6a5040c346ec7b9c1250b68a5ded4e24974c52",
     "consumer.bin": "493512a1ac189c483507048ff7eb0362c7d5532c2425b9e878f7b2752be44621",
     "consumer.sqlite": "bb5fdbe6e809fac7c57ff7acb6c8e34860798d1588fb46588acc3c4b8d6d4278",
@@ -58,7 +58,7 @@ def main() -> None:
     for name, expected in EXPECTED_HASHES.items():
         if sha(ROOT / name) != expected:
             raise ValueError(f"{name} changed")
-    manifest = (ROOT / "Cargo.toml").read_text()
+    manifest = (ROOT / "Cargo.toml.snapshot").read_text()
     tree = (ROOT / "cargo-tree.txt").read_text()
     if 'fathomdb-sdk = { path = ' not in manifest or 'features = ["default-embedder"]' not in manifest:
         raise ValueError("external Cargo boundary changed")

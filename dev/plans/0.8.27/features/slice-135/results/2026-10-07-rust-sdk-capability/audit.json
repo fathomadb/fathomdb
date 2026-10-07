@@ -16,13 +16,12 @@
     "src/rust/crates/fathomdb-sdk/src/standalone.rs": "07068da067898c406de288b36160d8f912de38fd585b68d4393f5a1a7a94183a"
   },
   "dependencies": {
-    "Cargo.toml": "19756d13a65e6929d2ca46ef94e3dda47d76cf2c74a362af20ba94d763f6cbce",
     "Cargo.lock": "d745962805be8ceb1a4d8abdc48fbab031ae280164061c3fc661141ea9d4aefd",
-    "cargo-tree.txt": "305f566fa7adbeeedf33f8b886ed2f25fd0bb9abfa40166e3b748149e0529996"
+    "cargo-tree.txt": "305f566fa7adbeeedf33f8b886ed2f25fd0bb9abfa40166e3b748149e0529996",
+    "Cargo.toml.snapshot": "19756d13a65e6929d2ca46ef94e3dda47d76cf2c74a362af20ba94d763f6cbce"
   },
   "files": {
     "main.rs": "442628b1e8d29f97e742e42484f6c9b38a3b59d829c742c2aef0210e7e64302e",
-    "Cargo.toml": "19756d13a65e6929d2ca46ef94e3dda47d76cf2c74a362af20ba94d763f6cbce",
     "Cargo.lock": "d745962805be8ceb1a4d8abdc48fbab031ae280164061c3fc661141ea9d4aefd",
     "stdout.log": "8ee109a3c257fce4db88b037d16cb2168d7529b82a7dc1406913f5d5577ed431",
     "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -33,7 +32,8 @@
     "build.stderr": "308ffff38cbe5fd5653b02888ee74fc9e9dec9c4bb8e3702f731fa1641b5de8d",
     "rustc-version.txt": "f4d034f5660bb49f22bfcba3f3445be67e25b704c193ff421b53863b4faee148",
     "source-commit.txt": "3aee6c42b943539352266f9fefce159a3418b4071e2cc866197bbc9e87bd6dc3",
-    "binary-sha256.txt": "d370622afbb8f9cb414c5173c8ae42e0f3c2b0dfe10d8fbd37a0d7fb29f7ccc2"
+    "binary-sha256.txt": "d370622afbb8f9cb414c5173c8ae42e0f3c2b0dfe10d8fbd37a0d7fb29f7ccc2",
+    "Cargo.toml.snapshot": "19756d13a65e6929d2ca46ef94e3dda47d76cf2c74a362af20ba94d763f6cbce"
   },
   "counts": {
     "executed": 42,

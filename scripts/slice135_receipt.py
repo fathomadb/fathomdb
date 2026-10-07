@@ -54,7 +54,48 @@ def _artifact_bindings(raw: dict, protocol: dict, artifact_root: Path) -> None:
             raise ValueError(f"artifact {name}: content hash mismatch")
 
 
-def _environment(raw: dict, protocol: dict) -> None:
+def _resources(raw: dict, protocol: dict, artifact_root: Path) -> dict:
+    name = protocol.get("resource_report_name")
+    if not isinstance(name, str) or not name:
+        raise ValueError("resource report name missing")
+    root = artifact_root.resolve()
+    path = (root / name).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        raise ValueError("resource report missing or outside artifact root")
+    content = path.read_bytes()
+    _binding("resource_file_sha256", raw.get("resource_file_sha256"), _hash(content), SHA64)
+    lines = content.decode("utf-8").splitlines()
+    entries = [line.split("=", 1) for line in lines]
+    required = ("user_s", "system_s", "peak_rss_kib", "fs_inputs", "fs_outputs",
+                "major_faults", "swap_events")
+    if (len(entries) != len(required) or any(len(entry) != 2 for entry in entries)
+            or {entry[0] for entry in entries} != set(required)):
+        raise ValueError("resource report malformed")
+    values = dict(entries)
+    try:
+        parsed = {
+            "scope": "measured-workload-child-process", "method": "gnu-time",
+            "user_cpu_s": float(values["user_s"]),
+            "system_cpu_s": float(values["system_s"]),
+            "peak_rss_kib": int(values["peak_rss_kib"]),
+            "fs_inputs": int(values["fs_inputs"]),
+            "fs_outputs": int(values["fs_outputs"]),
+            "major_faults": int(values["major_faults"]),
+            "swap_events": int(values["swap_events"]),
+            "unsupported": [],
+        }
+    except ValueError as error:
+        raise ValueError("resource report malformed") from error
+    if (any(not math.isfinite(parsed[name]) or parsed[name] < 0
+            for name in ("user_cpu_s", "system_cpu_s"))
+            or any(parsed[name] < 0 for name in
+                   ("peak_rss_kib", "fs_inputs", "fs_outputs", "major_faults", "swap_events"))
+            or not _same_json(raw.get("resources"), parsed)):
+        raise ValueError("resource report and parsed observations differ")
+    return parsed
+
+
+def _environment(raw: dict, protocol: dict, resources: dict) -> None:
     environment = raw.get("environment")
     minimum = protocol.get("min_disk_free_bytes")
     if (not isinstance(environment, dict)
@@ -78,8 +119,18 @@ def _environment(raw: dict, protocol: dict) -> None:
             raise ValueError("environment invalid: swap, contention or disk pressure")
     if any(start[field] != end[field] for field in STABLE_ENVIRONMENT_FIELDS):
         raise ValueError("environment drift")
-    if start["swap_pages"] != end["swap_pages"]:
-        raise ValueError("environment swap drift")
+    if resources["swap_events"] > 0:
+        raise ValueError("child swap events")
+    delta = end["swap_pages"] - start["swap_pages"]
+    if delta < 0:
+        raise ValueError("environment host swap counter decreased")
+    warnings = []
+    if delta:
+        warnings.append(f"host swap drift: {delta} pages; child swap events: 0")
+    if resources["major_faults"] > 0:
+        warnings.append(f"child major faults: {resources['major_faults']}")
+    if environment.get("warnings") != warnings:
+        raise ValueError("environment paging warnings missing or changed")
 
 
 def _nearest_rank(sorted_values: list[int], fraction: float) -> int:
@@ -116,7 +167,8 @@ def validate(raw: dict, protocol: dict, artifact_root: Path, *,
         expected = protocol.get(name)
         if not isinstance(expected, dict) or not _same_json(raw.get(name), expected):
             raise ValueError(f"{name} missing or changed")
-    _environment(raw, protocol)
+    resources = _resources(raw, protocol, artifact_root)
+    _environment(raw, protocol, resources)
     expected_cells = protocol.get("cells")
     cells = raw.get("cells")
     if (not isinstance(expected_cells, dict) or not expected_cells
@@ -189,6 +241,11 @@ def validate(raw: dict, protocol: dict, artifact_root: Path, *,
         "runner_sha256": runner_sha256,
         "protocol_sha256": protocol_sha256,
         "artifact_sha256": protocol["artifact_sha256"],
+        "resource_file_sha256": raw["resource_file_sha256"],
+        "resources": resources,
+        "environment_warnings": raw["environment"]["warnings"],
+        "host_swap_page_delta": (raw["environment"]["end"]["swap_pages"]
+                                 - raw["environment"]["start"]["swap_pages"]),
         "cells": result,
     }
 
@@ -221,6 +278,7 @@ def main() -> None:
                  Path(__file__).resolve()}
     protected.update((args.artifacts_root / name).resolve()
                      for name in protocol["artifact_sha256"])
+    protected.add((args.artifacts_root / protocol["resource_report_name"]).resolve())
     if args.output.resolve() in protected:
         raise ValueError("output path would overwrite a raw or bound input artifact")
     result["raw_sha256"] = _hash(raw_bytes)

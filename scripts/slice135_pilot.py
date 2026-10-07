@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -28,6 +29,7 @@ STABLE_FIELDS = ("host", "kernel", "cpu", "storage", "governor", "toolchain", "p
 GNU_TIME = Path("/usr/bin/time")
 RESOURCE_FORMAT = (
     "user_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nfs_inputs=%I\nfs_outputs=%O\n"
+    "major_faults=%F\nswap_events=%W\n"
 )
 SOURCE_PATHS = ("Cargo.toml", "Cargo.lock", "src/rust", "third_party")
 REQUIRED_SOURCE_PATHS = SOURCE_PATHS[:3]
@@ -181,7 +183,24 @@ def parse_attempts(stream: str, cells: tuple[str, ...] = CELLS) -> tuple[dict, l
     return attempts, errors
 
 
-def environment_invalidators(start: dict, end: dict, min_disk_free_bytes: int) -> list[str]:
+def complete_child_resources(resources: dict | None) -> bool:
+    """Require a parseable child-only GNU time report before accepting a block."""
+    if (not isinstance(resources, dict) or resources.get("method") != "gnu-time"
+            or resources.get("unsupported") != []):
+        return False
+    for name in ("user_cpu_s", "system_cpu_s"):
+        value = resources.get(name)
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value) or value < 0:
+            return False
+    for name in ("peak_rss_kib", "fs_inputs", "fs_outputs", "major_faults", "swap_events"):
+        value = resources.get(name)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            return False
+    return True
+
+
+def environment_invalidators(start: dict, end: dict, min_disk_free_bytes: int,
+                             resources: dict | None) -> list[str]:
     """Explain runtime changes that invalidate an uninstrumented timing block."""
     invalid = []
     if any(not start.get(field) or start.get(field) != end.get(field)
@@ -189,13 +208,31 @@ def environment_invalidators(start: dict, end: dict, min_disk_free_bytes: int) -
         invalid.append("environment identity drift or missing field")
     if start["governor"] == "unavailable":
         invalid.append("CPU governor unavailable")
-    if start["swap_pages"] != end["swap_pages"]:
-        invalid.append("swap activity")
+    if not complete_child_resources(resources):
+        invalid.append("child resource report missing" if resources is None
+                       else "child resource report incomplete")
+    elif resources["swap_events"] > 0:
+        invalid.append("child swap events")
+    if end["swap_pages"] < start["swap_pages"]:
+        invalid.append("host swap counter decreased")
     if start["competing_jobs"] or end["competing_jobs"]:
         invalid.append("competing jobs")
     if min(start["disk_free_bytes"], end["disk_free_bytes"]) < min_disk_free_bytes:
         invalid.append("disk pressure")
     return invalid
+
+
+def environment_warnings(start: dict, end: dict, resources: dict | None) -> list[str]:
+    """Retain host paging context without attributing it to this process."""
+    warnings = []
+    delta = end["swap_pages"] - start["swap_pages"]
+    if delta > 0:
+        child = resources.get("swap_events") if isinstance(resources, dict) else "unknown"
+        warnings.append(f"host swap drift: {delta} pages; child swap events: {child}")
+    if isinstance(resources, dict) and isinstance(resources.get("major_faults"), int):
+        if resources["major_faults"] > 0:
+            warnings.append(f"child major faults: {resources['major_faults']}")
+    return warnings
 
 
 def inventory(output: Path) -> dict:
@@ -234,10 +271,11 @@ def read_resource_report(path: Path) -> dict:
         "method": "gnu-time" if path.is_file() else "unsupported",
         "user_cpu_s": None, "system_cpu_s": None, "peak_rss_kib": None,
         "fs_inputs": None, "fs_outputs": None,
+        "major_faults": None, "swap_events": None,
     }
     if not path.is_file():
         report["unsupported"] = ["user_cpu_s", "system_cpu_s", "peak_rss_kib",
-                                 "fs_inputs", "fs_outputs"]
+                                 "fs_inputs", "fs_outputs", "major_faults", "swap_events"]
         return report
     values = dict(line.split("=", 1) for line in path.read_text().splitlines() if "=" in line)
     try:
@@ -247,6 +285,8 @@ def read_resource_report(path: Path) -> dict:
             "peak_rss_kib": int(values["peak_rss_kib"]),
             "fs_inputs": int(values["fs_inputs"]),
             "fs_outputs": int(values["fs_outputs"]),
+            "major_faults": int(values["major_faults"]),
+            "swap_events": int(values["swap_events"]),
         })
         report["unsupported"] = []
     except (KeyError, ValueError):
@@ -416,7 +456,9 @@ def pilot(checkout: Path, source_sha: str, output: Path, samples: int,
             "features": {"query": "text_only", "embedder": "none",
                          "timing_mode": timing_mode,
                          "profile_build": profile_build,
+                         "paging_policy": "child_swap_invalid_host_swap_warning_v1",
                          "resource_method": "gnu-time" if GNU_TIME.is_file() else "unsupported"},
+            "resource_report_name": "resource.txt",
             "settings": {"samples_per_cell": samples, "query": "needle",
                          "seed_records": 32, "concurrency": 1, "warmup_per_cell": 1},
             "min_disk_free_bytes": 1_073_741_824,
@@ -458,10 +500,8 @@ def pilot(checkout: Path, source_sha: str, output: Path, samples: int,
         end = inventory(output)
         attempts, parse_errors = parse_attempts(result.stdout)
         resources = read_resource_report(resource_path)
-        invalid = environment_invalidators(start, end, protocol["min_disk_free_bytes"])
+        invalid = environment_invalidators(start, end, protocol["min_disk_free_bytes"], resources)
         invalid.extend(parse_errors)
-        if GNU_TIME.is_file() and resources["unsupported"]:
-            invalid.append("child resource report incomplete")
         if result.returncode:
             invalid.append(f"workload exit {result.returncode}")
         for cell in CELLS:
@@ -477,7 +517,8 @@ def pilot(checkout: Path, source_sha: str, output: Path, samples: int,
             "resources": resources,
             "resource_file_sha256": sha256(resource_path.read_bytes())
             if resource_path.is_file() else None,
-            "environment": {"start": start, "end": end, "invalidators": invalid},
+            "environment": {"start": start, "end": end, "invalidators": invalid,
+                            "warnings": environment_warnings(start, end, resources)},
             "cells": {cell: {"boundary": protocol["cells"][cell]["boundary"],
                              "attempts": attempts[cell]} for cell in CELLS},
         }

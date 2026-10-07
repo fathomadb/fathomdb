@@ -96,6 +96,17 @@ The [current installed Python S02 functional refresh](results/2026-10-07-python-
 passed the mixed sequence through that rebuilt wheel with independent
 observation and archive-byte checks. Its single validation-inclusive timer
 does not qualify S02 latency or contention.
+The [current installed TypeScript S02 functional refresh](results/2026-10-07-ts-s02-current-refresh/README.md)
+passed the equivalent sequence through the rebuilt npm packages with
+independent observation and archive-byte checks. Its single
+validation-inclusive timer has the same latency and contention limits.
+The [installed TypeScript capability exercise](results/2026-10-07-ts-capability-exercise/README.md)
+accounts for all 44 governed operations with 39 selected positive cases,
+two explicit positive-path gaps and three unavailable provider/model cases.
+The [external Rust SDK exercise](results/2026-10-07-rust-sdk-capability/README.md)
+accounts for the same live set with 42 selected cases and two unavailable
+provider/model cases. Its source-bound Cargo package is candidate-only and
+does not qualify a published Rust artifact or a version-paired SDK result.
 
 ## Source-grounded starting point
 

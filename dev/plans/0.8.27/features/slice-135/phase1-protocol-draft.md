@@ -64,6 +64,30 @@ runs are attribution and test-quality evidence with overhead controls.
 Slower or inconclusive results are diagnostic; accepted release gates are
 reported separately.
 
+### Baseline-only noise pilot procedure
+
+After the adapter's negative fixtures and exact 0.8.26 build provenance pass,
+run at least five **separate** unprofiled baseline blocks, each with a unique
+output directory and at least 100 valid text-query and 100 valid close/reopen
+observations. Use the same 32-row seed, model, settings, host and artifact in
+every block. Keep one warm-up per cell outside the timed samples. Preserve
+each block's raw attempts, validator summary, start/end environment snapshots,
+command, runner/protocol/artifact hashes and any invalid attempt. Run blocks
+serially using the same hash-verified workload binary without rebuilding
+between blocks. Let the host return to the recorded idle/thermal condition
+after the qualification build; run without competing builds or profilers.
+Never replace a slow valid sample with a rerun. A single passing block is an
+adapter smoke test, not a noise estimate.
+
+Report the per-block p50/p95, valid-attempt fraction, elapsed block time and
+start-order trend, plus spread of block medians and p95 values. Treat drift or
+invalid environments as a fixture problem and repeat the baseline pilot after
+the cause is addressed. Use the baseline spread to justify final block and
+sample counts and a paired uncertainty rule; the current 100-sample pilot
+blocks cannot support p99. Freeze those decisions and the workload mix before
+examining paired candidate timing. Retain baseline blocks even if the final
+comparison protocol needs a larger sample count.
+
 ## Pareto and logic coverage overlay
 
 Use the fixed query-correctness/benchmark workload mix as a **proxy**, with

@@ -53,18 +53,41 @@ SDK with the Python/TypeScript surface, under
 `ADR-0.8.27-rust-sdk-parity.md`. The `fathomdb` facade is unchanged, and the
 provider/plugin crate posture remains a separate unruled decision.
 
+Slice 117 is planned. It will deliver a CUDA-capable Linux AArch64
+(Jetson/Tegra) Node addon through the release process, because the published
+`fathomdb-linux-arm64-gnu` npm package is CPU-only. On 2026-10-05 the owner
+added it to the ladder, superseded the 0.8.23 Tegra npm exclusions for its
+scope, ruled its channel as the existing Tegra Pages route (not the npm
+registry) for 0.8.27, and ruled that Slice 110 ships early `cuInit` with the
+aarch64-Linux allocation fallback. Its prerequisites are now met: Slice 110 is
+complete on `release/0.8.27`, and the owner's Linux x86_64 hold was met at
+Slice 110 candidate `8b76f6115` (recorded by `c761b9369`). Implementation now
+waits only on the unruled `slice-117-delivery-shape` items, so Slice 135 stays
+next and Slice 117 follows it in the remaining ladder. Publication remains
+behind `release-0.8.27-publication`. The 0.8.27 allocator approach is the
+synchronous fallback with early `cuInit`; no memory pool ships in 0.8.27, and
+0.8.28 evaluates an explicit or lazily created pool.
+
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 135 (PERFORMANCE-BASELINE)** — 0.8.26 performance preservation and improvement qualification. **Remaining ladder:** 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 135 (PERFORMANCE-BASELINE)** — 0.8.26 performance preservation and improvement qualification. **Remaining ladder:** 135 → 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
-There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TWO<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
+There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->THREE<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
 
 - authorize tagging/publication only after the complete ladder and release
   qualification pass.
+- `slice-132-external-provider-disposition`: decide whether the published
+  provider/plugin contract remains a supported extension boundary.
+- `slice-117-delivery-shape`: settle the Jetson Node package name and npm
+  name reservation, loader policy, Pages retention, aarch64 import-time
+  `cuInit` contract and the other items in the
+  [Slice 117 design](../0.8.27/features/slice-117/design.md) § 10. The channel
+  is ruled (`slice-117-channel-tegra-pages`): the existing Tegra Pages route;
+  the npm registry options are not chosen for 0.8.27.
 
 `D27-runtime-topology` is ruled as Option B by HITL decision `seq-293`. That
 ruling selected the architectural direction. `seq-295` accepted the reviewed
@@ -285,3 +308,10 @@ grant/revert evidence.
   and the parity checker covers it (44/44). Before the `v0.8.27` tag, its
   first crates.io publish needs a one-time HITL token bootstrap (ledger
   seq 273). Slice 135 is next.
+- [Slice 117](../0.8.27/features/slice-117/plan.md) depends on Slice 110,
+  which is complete, and is planned. It plans an opt-in CUDA-capable Jetson
+  Node addon built through the existing Jetson Tegra CUDA evidence workflow,
+  with installed and post-publication Jetson smokes. D-80.7-3 and D-80.6-2 are
+  superseded for its scope, and its channel is ruled as Tegra Pages. The
+  owner's x86_64 hold is met; implementation waits only on the remaining
+  `slice-117-delivery-shape` rulings. No other slice depends on it.

@@ -22,7 +22,8 @@ platform-tagged `.node` binary at load time.
   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, macOS
   `x86_64-apple-darwin` and `aarch64-apple-darwin`, and Windows
   `x86_64-pc-windows-msvc`. Other hosts must build from source.
-- Linux glibc floor: **2.28** (both architectures — see
+- Linux glibc floor: **2.28** for `linux-arm64-gnu` and **2.39** for the
+  CUDA-built `linux-x64-gnu` package (see
   [compatibility](../compatibility/index.md)).
 - SQLite + `sqlite-vec` (statically linked into the platform binary).
 

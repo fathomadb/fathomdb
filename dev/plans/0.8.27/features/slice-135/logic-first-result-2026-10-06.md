@@ -15,7 +15,11 @@ its measured source SHA, not the later candidate.
 The separate modern node FTS row-error lead was subsequently confirmed and
 repaired at `ae6127ee3` with a real-database regression test; its
 [receipt](results/2026-10-07-node-fts-repair/README.md) records the RED/GREEN
-result. The other `rows.flatten()` sites remain unclassified leads.
+result. The graph traversal row-error lead was also confirmed and repaired at
+`3ce1a6352` with a real-database regression test; its
+[receipt](results/2026-10-07-graph-arm-row-repair/README.md) records the
+RED/GREEN result. The remaining `rows.flatten()` sites remain unclassified
+leads. The site counts and line numbers below describe the original audit.
 
 This is one inspectable **diagnostic** result on the exact post-Slice-132
 candidate, not the completed Phase 1 logic/exception checkpoint. The package

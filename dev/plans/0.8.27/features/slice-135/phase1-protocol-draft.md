@@ -76,6 +76,11 @@ exercises the candidate-only Rust boundary through a separate Cargo package
 and retained real database. It is source-bound, not a published-crate install;
 0.8.26 has no Rust SDK peer. Its one run does not qualify S02 latency or the
 remaining Rust operation contracts.
+The candidate subsequently changed with the graph traversal row-error
+[repair](results/2026-10-07-graph-arm-row-repair/README.md) at `3ce1a6352`.
+The prior functional receipts still describe their exact SHAs; final Phase 1
+timing and installed-SDK qualification must use rebuilt artifacts from the
+checkpoint candidate.
 
 ## Source-grounded starting point
 

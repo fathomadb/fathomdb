@@ -324,7 +324,8 @@ assertions so the next release can rerun the same functional gate.
 valid result sections, raw receipt links, independently recomputed summaries,
 invalid/omitted cells, coverage gaps, confirmed defects and ranked follow-ups.
 The [node FTS row-error repair](results/2026-10-07-node-fts-repair/README.md)
-changes candidate engine bytes after the paired S01 and S02 receipts. Rebuild
+and [graph traversal row-error repair](results/2026-10-07-graph-arm-row-repair/README.md)
+change candidate engine bytes after the paired S01 and S02 receipts. Rebuild
 and rerun the installed candidate and affected engine cells at the repaired
 SHA before treating those comparisons as checkpoint evidence.
 Actual final-candidate observations in all four areas are required; a harness,
@@ -436,3 +437,9 @@ A [candidate-only external Rust SDK S02 consumer](results/2026-10-07-rust-sdk-s0
 now has a real-database source-bound functional receipt, including vector,
 evidence, graph, erasure and reopen assertions. It does not replace a
 published-crate installation or close the full operation map.
+A third confirmed swallowed-row-error defect in the graph arm was repaired
+test-first at `3ce1a6352` with a [RED/GREEN receipt](results/2026-10-07-graph-arm-row-repair/README.md).
+The focused graph regression and adjacent graph suites passed (10 tests). The
+current source has not passed a new full gate; earlier candidate timing and
+installed-artifact results are historical for their exact SHAs and need a
+current-source refresh before the checkpoint.

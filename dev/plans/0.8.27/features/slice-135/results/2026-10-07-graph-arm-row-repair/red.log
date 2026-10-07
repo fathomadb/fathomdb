@@ -1,0 +1,19 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.58s
+     Running tests/slice135_graph_arm_row_error.rs (target/debug/deps/slice135_graph_arm_row_error-c620222d1c7a662f)
+
+running 1 test
+
+thread 'malformed_graph_edge_source_must_not_silently_drop_reachable_node' (3997048) panicked at src/rust/crates/fathomdb-engine/tests/slice135_graph_arm_row_error.rs:82:5:
+malformed traversed edge must report storage failure: Ok(SearchResult { projection_cursor: 3, soft_fallback: None, results: [SearchHit { id: IdSpace { space: Logical, value: "anchor" }, write_cursor: 1, kind: "doc", body: "slice135graphanchorprobe", score: 0.03225806451612903, branch: Text, source_id: Some("slice135:graph-row-error"), ce_score: None }], explanation: None })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test malformed_graph_edge_source_must_not_silently_drop_reachable_node ... FAILED
+
+failures:
+
+failures:
+    malformed_graph_edge_source_must_not_silently_drop_reachable_node
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p fathomdb-engine --test slice135_graph_arm_row_error`

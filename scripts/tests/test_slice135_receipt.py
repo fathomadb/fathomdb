@@ -144,6 +144,21 @@ class ReceiptTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "boundary"):
             self.validate()
 
+    def test_rejects_json_type_changes_that_python_considers_equal(self):
+        self.raw["features"]["graph"] = 1
+        with self.assertRaisesRegex(ValueError, "features"):
+            self.validate()
+        self.raw["features"]["graph"] = True
+        self.raw["settings"]["concurrency"] = 1.0
+        with self.assertRaisesRegex(ValueError, "settings"):
+            self.validate()
+        self.raw["settings"]["concurrency"] = 1
+        self.raw["cells"]["close"]["attempts"][0]["observed_checks"] = {
+            "workers_stopped": 1,
+        }
+        with self.assertRaisesRegex(ValueError, "observed"):
+            self.validate()
+
     def test_rejects_insufficient_samples_and_unexplained_invalid_attempt(self):
         self.raw["cells"]["close"]["attempts"].pop()
         with self.assertRaisesRegex(ValueError, "100 valid"):

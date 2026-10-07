@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "status": "FUNCTIONAL_REFRESH_VALID_NO_LATENCY_VERDICT",
+  "source_sha": "8587b0571f4e6477045e60ddd341b0cd28f5a3cb",
+  "raw_sha256": "ffb226a2077eb26b0f2d8068b32106d4bb2da4b50878c9bf9248cc5fb62edcb1",
+  "wheel_sha256": "813255e452a5a001fca5a0943412309a277fff67d6128544cfb8850d87dffe38",
+  "native_sha256": "79fd863733d1a97de308b445a5c45b2434e27a1317048376dbfdb76502ff0ae9",
+  "runner_sha256": "75424eb9b939530e4ac039d0e1e4ac5d112ea0fa084cc406688f68c10fac550d",
+  "helper_sha256": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+  "independent_observation_check": "passed",
+  "stage_count": 18,
+  "positive_stage_durations": true,
+  "whole_duration_covers_stage_sum": true,
+  "negative_control_rejected": "after_reopen canonical state changed",
+  "whole_sequence_including_checks_ms": 5377.039
+}

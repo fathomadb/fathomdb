@@ -92,6 +92,10 @@ then passed the four red field cases and 36 installed frozen-read tests. Its
 refreshed operation exercise has 40 executed, zero failed, one committed-
 closure gap and three unavailable cases. Engine/query/schema bytes used for
 the paired E01–E12 cells did not change.
+The [current installed Python S02 functional refresh](results/2026-10-07-python-s02-current-refresh/README.md)
+passed the mixed sequence through that rebuilt wheel with independent
+observation and archive-byte checks. Its single validation-inclusive timer
+does not qualify S02 latency or contention.
 
 ## Source-grounded starting point
 

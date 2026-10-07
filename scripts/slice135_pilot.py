@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and run two real-engine Slice 135 pilot cells with bound raw evidence."""
+"""Build and run real-engine Slice 135 pilot cells with bound raw evidence."""
 
 from __future__ import annotations
 
@@ -19,14 +19,100 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD = ROOT / "scripts/slice135_pilot_workload.rs"
 VALIDATOR = ROOT / "scripts/slice135_receipt.py"
-CELLS = ("text", "close_fresh")
+CELLS = ("text", "close_fresh", "mixed_sequence")
+MIXED_STAGES = (
+    "open", "governed_write", "projection_drain", "text_before_erase",
+    "erasure", "close", "reopen", "text_after_erase", "reclose",
+)
 STABLE_FIELDS = ("host", "kernel", "cpu", "storage", "governor", "toolchain", "profiler")
+GNU_TIME = Path("/usr/bin/time")
+RESOURCE_FORMAT = (
+    "user_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nfs_inputs=%I\nfs_outputs=%O\n"
+)
 SOURCE_PATHS = ("Cargo.toml", "Cargo.lock", "src/rust", "third_party")
 REQUIRED_SOURCE_PATHS = SOURCE_PATHS[:3]
 CORPUS = "".join(
     f"doc-{index}:needle memory document {index} for bounded search\n"
     for index in range(32)
 ).encode()
+
+
+def operation_manifest(samples: int) -> dict:
+    """Declare the exact operation counts used by this bounded Pareto proxy."""
+    return {
+        "schema_version": 1,
+        "scope": "real-engine pilot proxy; not installed SDK or full S02",
+        "cells": {
+            "text": {"observations": samples,
+                     "timed_operations_per_observation": {"text_search": 1}},
+            "close_fresh": {"observations": samples,
+                            "timed_operations_per_observation": {"close": 1}},
+            "mixed_sequence": {
+                "observations": samples,
+                "boundary": "fresh-open-through-reopened-materialized-check",
+                "stages": list(MIXED_STAGES),
+                "counts_per_observation": {stage: 1 for stage in MIXED_STAGES},
+                "note": "Stage timing is a separate attribution run; primary mode measures only the whole sequence.",
+            },
+        },
+    }
+
+
+def validate_build_mode(timing_mode: str, profile_build: bool) -> None:
+    """Keep a symbolized profiler build out of the primary latency campaign."""
+    if profile_build and timing_mode != "attribution":
+        raise ValueError("profile build requires attribution timing mode")
+
+
+def aggregate_attribution(raw: dict, manifest: dict) -> dict:
+    """Rank stage cost only from the separately labeled attribution receipt."""
+    if raw.get("features", {}).get("timing_mode") != "attribution":
+        raise ValueError("attribution requires a separate attribution-mode receipt")
+    specification = manifest["cells"]["mixed_sequence"]
+    stages = specification["stages"]
+    attempts = raw["cells"]["mixed_sequence"]["attempts"]
+    if len(attempts) != specification["observations"]:
+        raise ValueError("attribution attempt count differs from manifest")
+    costs = {stage: 0 for stage in stages}
+    total = 0
+    unattributed = 0
+    for attempt in attempts:
+        elapsed = attempt.get("latency_ns")
+        timings = attempt.get("stages_ns")
+        if (attempt.get("valid") is not True or not isinstance(elapsed, int)
+                or elapsed <= 0 or not isinstance(timings, dict)
+                or set(timings) != set(stages)
+                or any(not isinstance(value, int) or isinstance(value, bool) or value <= 0
+                       for value in timings.values())):
+            raise ValueError("attribution stage receipt missing or invalid")
+        attributed = sum(timings.values())
+        if attributed > elapsed:
+            raise ValueError("attribution stage sum exceeds whole sequence")
+        total += elapsed
+        unattributed += elapsed - attributed
+        for stage in stages:
+            costs[stage] += timings[stage]
+    ranked = sorted(stages, key=lambda stage: (-costs[stage], stage))
+    denominator = sum(costs.values())
+    threshold = 0.8 * denominator
+    cumulative = 0
+    pareto = []
+    for stage in ranked:
+        pareto.append(stage)
+        cumulative += costs[stage]
+        if cumulative >= threshold:
+            break
+    return {
+        "scope": "mixed-sequence stage-attributed proxy only",
+        "stage_cost_ns": costs,
+        "stage_invocations": {stage: len(attempts) * specification["counts_per_observation"][stage]
+                              for stage in stages},
+        "ranked_stages": ranked,
+        "pareto_stages_80": pareto,
+        "total_sequence_ns": total,
+        "unattributed_ns": unattributed,
+        "stage_attributed_fraction": denominator / total,
+    }
 
 
 def sha256(data: bytes) -> str:
@@ -134,9 +220,38 @@ def inventory(output: Path) -> dict:
         "storage": str(output.stat().st_dev),
         "governor": governor.read_text().strip() if governor.exists() else "unavailable",
         "toolchain": run("rustc", "--version").stdout.strip(), "profiler": "none",
+        "resource_tool": run(str(GNU_TIME), "--version").stdout.splitlines()[0]
+        if GNU_TIME.is_file() else "unsupported",
         "swap_pages": swap, "competing_jobs": jobs,
         "disk_free_bytes": shutil.disk_usage(output).free,
     }
+
+
+def read_resource_report(path: Path) -> dict:
+    """Read GNU time's child-only CPU, peak RSS and filesystem-block counters."""
+    report = {
+        "scope": "measured-workload-child-process",
+        "method": "gnu-time" if path.is_file() else "unsupported",
+        "user_cpu_s": None, "system_cpu_s": None, "peak_rss_kib": None,
+        "fs_inputs": None, "fs_outputs": None,
+    }
+    if not path.is_file():
+        report["unsupported"] = ["user_cpu_s", "system_cpu_s", "peak_rss_kib",
+                                 "fs_inputs", "fs_outputs"]
+        return report
+    values = dict(line.split("=", 1) for line in path.read_text().splitlines() if "=" in line)
+    try:
+        report.update({
+            "user_cpu_s": float(values["user_s"]),
+            "system_cpu_s": float(values["system_s"]),
+            "peak_rss_kib": int(values["peak_rss_kib"]),
+            "fs_inputs": int(values["fs_inputs"]),
+            "fs_outputs": int(values["fs_outputs"]),
+        })
+        report["unsupported"] = []
+    except (KeyError, ValueError):
+        report["unsupported"] = ["malformed GNU time report"]
+    return report
 
 
 def bundle_bytes() -> bytes:
@@ -186,14 +301,24 @@ def verify_resolved_lock(source_lock: Path, resolved_lock: Path) -> str:
     return sha256(resolved_lock.read_bytes())
 
 
-def build_binary(checkout: Path, output: Path) -> Path:
+def build_binary(checkout: Path, output: Path, profile_build: bool = False) -> Path:
     """Build the measured release-profile executable and retain compiler logs."""
     path = manifest(checkout, output)
     command = ["cargo", "test", "--offline", "--release", "--no-run",
                "--message-format=json", "--manifest-path", str(path),
                "--target-dir", str(output / "target")]
-    (output / "build-command.json").write_text(json.dumps(command, indent=2) + "\n")
-    result = run(*command)
+    build_env = {**os.environ}
+    if profile_build:
+        build_env["CARGO_PROFILE_RELEASE_DEBUG"] = "1"
+        build_env["CARGO_PROFILE_RELEASE_STRIP"] = "none"
+    (output / "build-command.json").write_text(json.dumps({
+        "command": command,
+        "profile_build": profile_build,
+        "profile_overrides": {name: build_env[name] for name in
+                              ("CARGO_PROFILE_RELEASE_DEBUG", "CARGO_PROFILE_RELEASE_STRIP")}
+        if profile_build else {},
+    }, indent=2) + "\n")
+    result = subprocess.run(command, capture_output=True, text=True, check=False, env=build_env)
     (output / "build.stdout.log").write_text(result.stdout)
     (output / "build.stderr.log").write_text(result.stderr)
     if result.returncode:
@@ -217,7 +342,7 @@ def build_binary(checkout: Path, output: Path) -> Path:
 
 
 def reuse_binary(previous: Path, output: Path, source: dict, runner_hash: str,
-                 binary_hash: str) -> Path:
+                 binary_hash: str, profile_build: bool = False) -> Path:
     """Copy only a verified same-source binary and lock into a new pilot block."""
     prior_binary = previous / "slice135_pilot_workload"
     prior_lock = previous / "build/Cargo.lock"
@@ -237,6 +362,8 @@ def reuse_binary(previous: Path, output: Path, source: dict, runner_hash: str,
         raise ValueError("runner differs from prior build")
     if prior_source != source or prior_protocol.get("source_sha") != source["source_sha"]:
         raise ValueError("source differs from prior build")
+    if prior_protocol.get("features", {}).get("profile_build", False) is not profile_build:
+        raise ValueError("profile build mode differs from prior binary")
     if sha256(prior_lock.read_bytes()) != artifacts.get("build/Cargo.lock"):
         raise ValueError("resolved lock differs from prior build")
     (output / "build").mkdir()
@@ -252,32 +379,44 @@ def reuse_binary(previous: Path, output: Path, source: dict, runner_hash: str,
 
 
 def pilot(checkout: Path, source_sha: str, output: Path, samples: int,
-          reuse_from: Path | None = None, binary_sha256: str | None = None) -> None:
+          reuse_from: Path | None = None, binary_sha256: str | None = None,
+          timing_mode: str = "primary", profile_build: bool = False) -> None:
     """Run a baseline or candidate pilot and retain raw, logs and verdict."""
     if samples < 1:
         raise ValueError("samples must be positive")
+    if timing_mode not in {"primary", "attribution"}:
+        raise ValueError("timing mode must be primary or attribution")
+    validate_build_mode(timing_mode, profile_build)
     output.mkdir(parents=True, exist_ok=False)
     attempt_path = output / "attempt.json"
     try:
         source = verify_source(checkout, source_sha)
         (output / "source.json").write_text(json.dumps(source, indent=2) + "\n")
         (output / "corpus.txt").write_bytes(CORPUS)
+        (output / "operation-manifest.json").write_text(
+            json.dumps(operation_manifest(samples), indent=2, sort_keys=True) + "\n"
+        )
         (output / "runner.bundle").write_bytes(bundle_bytes())
         if reuse_from is None:
-            binary = build_binary(checkout, output)
+            binary = build_binary(checkout, output, profile_build)
         else:
             if binary_sha256 is None:
                 raise ValueError("binary hash required for reuse")
             binary = reuse_binary(reuse_from, output, source,
-                                  sha256((output / "runner.bundle").read_bytes()), binary_sha256)
+                                  sha256((output / "runner.bundle").read_bytes()),
+                                  binary_sha256, profile_build)
             verify_resolved_lock(checkout / "Cargo.lock", output / "build/Cargo.lock")
         artifacts = {name: sha256((output / name).read_bytes()) for name in
-                     ("slice135_pilot_workload", "corpus.txt", "build/Cargo.lock")}
+                     ("slice135_pilot_workload", "corpus.txt", "build/Cargo.lock",
+                      "operation-manifest.json")}
         protocol = {
             "schema_version": 1, "source_sha": source_sha,
             "runner_sha256": sha256((output / "runner.bundle").read_bytes()),
             "artifact_sha256": artifacts,
-            "features": {"query": "text_only", "embedder": "none"},
+            "features": {"query": "text_only", "embedder": "none",
+                         "timing_mode": timing_mode,
+                         "profile_build": profile_build,
+                         "resource_method": "gnu-time" if GNU_TIME.is_file() else "unsupported"},
             "settings": {"samples_per_cell": samples, "query": "needle",
                          "seed_records": 32, "concurrency": 1, "warmup_per_cell": 1},
             "min_disk_free_bytes": 1_073_741_824,
@@ -288,22 +427,41 @@ def pilot(checkout: Path, source_sha: str, output: Path, samples: int,
                                 "expected_checks": {"reopen_ok": True,
                                                     "canonical_rows": [0],
                                                     "second_close_ok": True}},
+                "mixed_sequence": {
+                    "kind": "lifecycle",
+                    "boundary": "fresh-open-through-reopened-materialized-check",
+                    "expected_checks": {
+                        "fresh_rows": [0], "written_rows": [1], "pre_erase_hits": 1,
+                        "pre_erase_body_match": True, "post_erase_rows": [0],
+                        "reopened_rows": [0], "post_reopen_hits": 0,
+                    },
+                },
             },
         }
         protocol_path = output / "pilot-protocol.json"
         protocol_path.write_text(json.dumps(protocol, indent=2, sort_keys=True) + "\n")
         start = inventory(output)
-        command = [str(binary), "--ignored", "--exact", "slice135_pilot", "--nocapture"]
-        (output / "run-command.json").write_text(json.dumps(command, indent=2) + "\n")
+        measured_command = [str(binary), "--ignored", "--exact", "slice135_pilot", "--nocapture"]
+        resource_path = output / "resource.txt"
+        command = ([str(GNU_TIME), "-o", str(resource_path), "-f", RESOURCE_FORMAT]
+                   + measured_command if GNU_TIME.is_file() else measured_command)
+        (output / "run-command.json").write_text(json.dumps({
+            "wrapper": command, "measured_binary": measured_command,
+            "timing_mode": timing_mode,
+        }, indent=2) + "\n")
         result = subprocess.run(command, capture_output=True, text=True,
                                 env={**os.environ, "SLICE135_COUNT": str(samples),
+                                     "SLICE135_TIMING_MODE": timing_mode,
                                      "FATHOMDB_EMBED_DEVICE": "cpu"}, check=False)
         (output / "run.stdout.log").write_text(result.stdout)
         (output / "run.stderr.log").write_text(result.stderr)
         end = inventory(output)
         attempts, parse_errors = parse_attempts(result.stdout)
+        resources = read_resource_report(resource_path)
         invalid = environment_invalidators(start, end, protocol["min_disk_free_bytes"])
         invalid.extend(parse_errors)
+        if GNU_TIME.is_file() and resources["unsupported"]:
+            invalid.append("child resource report incomplete")
         if result.returncode:
             invalid.append(f"workload exit {result.returncode}")
         for cell in CELLS:
@@ -316,6 +474,9 @@ def pilot(checkout: Path, source_sha: str, output: Path, samples: int,
             "protocol_sha256": sha256(protocol_path.read_bytes()),
             "artifact_sha256": artifacts, "features": protocol["features"],
             "settings": protocol["settings"],
+            "resources": resources,
+            "resource_file_sha256": sha256(resource_path.read_bytes())
+            if resource_path.is_file() else None,
             "environment": {"start": start, "end": end, "invalidators": invalid},
             "cells": {cell: {"boundary": protocol["cells"][cell]["boundary"],
                              "attempts": attempts[cell]} for cell in CELLS},
@@ -324,6 +485,11 @@ def pilot(checkout: Path, source_sha: str, output: Path, samples: int,
         raw_path.write_text(json.dumps(raw, indent=2, sort_keys=True) + "\n")
         if invalid:
             raise ValueError("; ".join(invalid))
+        if timing_mode == "attribution":
+            attribution = aggregate_attribution(raw, operation_manifest(samples))
+            (output / "attribution.json").write_text(
+                json.dumps(attribution, indent=2, sort_keys=True) + "\n"
+            )
         if samples < 100:
             attempt_path.write_text(json.dumps({"status": "SMOKE_ONLY",
                                                 "reason": "fewer than 100 valid samples"},
@@ -356,12 +522,14 @@ def main() -> None:
     parser.add_argument("--samples", type=int, default=100)
     parser.add_argument("--reuse-binary-from", type=Path)
     parser.add_argument("--binary-sha256")
+    parser.add_argument("--timing-mode", choices=("primary", "attribution"), default="primary")
+    parser.add_argument("--profile-build", action="store_true")
     args = parser.parse_args()
     if (args.reuse_binary_from is None) != (args.binary_sha256 is None):
         parser.error("--reuse-binary-from and --binary-sha256 must be supplied together")
     pilot(args.checkout.resolve(), args.source_sha, args.output.resolve(), args.samples,
           args.reuse_binary_from.resolve() if args.reuse_binary_from else None,
-          args.binary_sha256)
+          args.binary_sha256, args.timing_mode, args.profile_build)
 
 
 if __name__ == "__main__":

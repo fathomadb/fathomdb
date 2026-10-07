@@ -1,7 +1,8 @@
 # SDK Parity
 
-FathomDB aims for a shared high-level SDK shape across Python and TypeScript,
-while keeping the CLI as a distinct operator surface. Public docs should
+FathomDB aims for a shared high-level SDK shape across Python, TypeScript and
+Rust (the `fathomdb-sdk` crate), while keeping the CLI as a distinct operator
+surface. Public docs should
 describe parity at the behavior level rather than exposing internal planning
 artifacts.
 
@@ -29,7 +30,11 @@ Both bindings therefore expose:
 - **Not identical ergonomics.** `drain` takes **seconds** in Python and
   **milliseconds** in TypeScript; TypeScript is Promise-returning throughout;
   TypeScript accepts both camelCase and snake_case for dual-spelled write keys.
-- **Not identical to the Rust facade.** Rust is a *different consumer
-  contract* — a set of re-exported types plus inherent `Engine` methods, not a
-  verb namespace — so it is governed by its own allowlist and is not asserted
-  membership-equal to the binding verb set.
+- **Not identical to the lower-level Rust facade.** Rust application code
+  should use `fathomdb-sdk`, which carries the same `Engine`, `read`, `graph`
+  and `admin` operations as Python and TypeScript, with synchronous calls,
+  option structs with the same defaults, and an `ErrorKind` per error class.
+  The operation map checks its membership alongside the other two SDKs (0.8.27).
+  The separate `fathomdb` crate is the lower-level engine facade — re-exported
+  types plus inherent core `Engine` methods — governed by its own allowlist
+  and not asserted membership-equal to the SDK verb set.

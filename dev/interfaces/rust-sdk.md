@@ -1,39 +1,35 @@
 ---
-title: FathomDB 0.8.27 Slice 132 — dedicated Rust SDK design
-status: REVIEWED
+title: Rust SDK interface (fathomdb-sdk)
+date: 2026-10-06
 target_release: 0.8.27
-planning_baseline: 316ac4769
+desc: Public contract of the dedicated fathomdb-sdk crate and its mapping to the Python and TypeScript SDKs
+blast_radius: src/rust/crates/fathomdb-sdk; src/conformance/governed-operation-parity.json; scripts/check-sdk-surface-parity.py
+status: locked
 ---
 
-# Slice 132 — dedicated Rust SDK design
+# Rust SDK interface (`fathomdb-sdk`)
+
+Decision: [`ADR-0.8.27-rust-sdk-parity.md`](../adr/ADR-0.8.27-rust-sdk-parity.md).
+`fathomdb-sdk` is the Rust peer of the Python and TypeScript SDKs described in
+[`python.md`](python.md) and [`typescript.md`](typescript.md). Their operation
+semantics, result shapes, and error payloads apply unchanged except where the
+translation rules below say otherwise. The lower-level `fathomdb` facade keeps
+its separate contract in [`rust.md`](rust.md).
 
 ## Boundary
 
-The new workspace crate `src/rust/crates/fathomdb-sdk` (package
-`fathomdb-sdk`, library `fathomdb_sdk`) is the Rust peer of the Python
-`fathomdb` package and the TypeScript `fathomdb` package. It depends
-non-optionally on `fathomdb-engine`, `fathomdb-schema`, `fathomdb-embedder`,
-and `fathomdb-embedder-api`. The last three own types that appear in
-`OpenReport` and the open errors, and the embedder crates own CLS embedding.
-Its public `lib.rs` is a closed export list:
+`fathomdb_sdk` exports `Engine`, `EngineConfig`, `OpenOptions`, the option
+structs, `SearchFilterArg`, `Error`, `ErrorKind`, `Result`, `rerank`,
+`embed_batch_cls`, the rerank DTOs, the shared DTO re-exports, and the
+modules `read`, `graph` and `admin`. The SDK `Engine` owns its core engine
+privately; there is no `Deref`, accessor or conversion to
+`fathomdb_engine::Engine`. Custom embedder injection (`EmbedderChoice`,
+`open_with_choice*`), the operator/recovery seam, raw SQL, test hooks and the
+Rust-only search overloads are not reachable.
 
-- **Root:** `Engine`, `EngineConfig`, `OpenOptions`, the option structs below,
-  `Error`, `ErrorKind`, `Result`, `rerank`, `embed_batch_cls`,
-  `RerankPassage`, `RerankOptions`, `RerankResult`, and the selected DTO
-  re-exports.
-- **Modules:** `read`, `graph`, `admin`.
-
-The SDK `Engine` owns a private `fathomdb_engine::Engine`, the `OpenReport`,
-the effective `EngineConfig`, and the current subscriber attachment. It has
-no `Deref`, no `inner()`, no `From<core::Engine>`, and no public core field.
-The SDK never re-exports `fathomdb_engine::Engine`, `OpenedEngine`,
-`EmbedderChoice`, the `Embedder` trait, operator types, or test hooks.
-
-Adapters are thin: they validate only what the Python and TypeScript bindings
-validate before calling the core, then call the same core function that both
-native bindings call (listed below). Database semantics stay in the engine.
-The existing `fathomdb` crate is unchanged. It stays the lower-level engine
-facade governed by the BIND-RUST allowlist.
+Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
+against the `rust` endpoints of `src/conformance/governed-operation-parity.json`
+(44/44 live operations).
 
 ## Translation rules
 
@@ -303,82 +299,11 @@ behavior without features matches a wheel built without those features:
 The README states that `default-embedder` reproduces the shipped wheel and npm
 behavior.
 
-## Governance and checks
+## Request-struct defaults
 
-- **Operation map.** `src/conformance/governed-operation-parity.json` gains a
-  `rust` endpoint on every operation:
-  - Rust locators reuse the existing set (`engine_static`, `engine_instance`,
-    `read`, `graph`, `admin`, `package`).
-  - Spellings equal the Python spellings.
-  - The signed allowlist and its pin are unchanged.
-- **Checker.** `scripts/check-sdk-surface-parity.py` adds `rust` to
-  `BINDINGS`. It also gains `--rust-crate <dir>`, which observes the Rust
-  surface from source. The observation covers:
-  - `pub fn` items in `impl Engine` in the crate's `engine` module;
-  - `pub fn` items in `read.rs`, `graph.rs`, and `admin.rs`;
-  - root `pub fn` items re-exported by `lib.rs`.
-
-  The scan covers every `impl Engine` block under `src/`, ignores
-  `pub(crate)` items and `#[cfg(test)]` modules, and maps `open` to
-  `engine_static`. It applies its own `RUST_NON_COMMAND` exclusion
-  constant:
-  - the shared non-command members listed above;
-  - `open_report`, `config`, and `attach_subscriber`;
-  - `admin::configure_runtime` and `embed_batch_cls`.
-
-  The SDK keeps each public function on a line beginning `pub fn name`.
-  `scripts/tests/test_check_sdk_surface_parity.py` adds `rust` endpoints to
-  its `COMPANION` fixture. It also gains a real-crate case expecting
-  `rust 44/44`, plus missing, extra, and renamed Rust mutation cases. That
-  test already runs in the `agent-test.sh` fast tier.
-- **Absence proofs.** `compile_fail` doctests on a doc-hidden module, as in
-  the `fathomdb` facade, prove that each of these does not resolve:
-  - `fathomdb_sdk::EmbedderChoice`
-  - `Engine::open_with_choice`
-  - `engine.read_get(..)`
-  - `engine.check_integrity()`
-  - `engine.execute_for_test(..)`
-  - `fathomdb_sdk::OpenedEngine`
-- **Hidden-surface probe.** Deferred to Slice 150, which owns release
-  surface capture and needs a new `ROWS` entry for it.
-
-## Release wiring
-
-The new crate must be added to each list below:
-
-- **Workspace and dependencies:** workspace `members`, plus a
-  `workspace.dependencies` entry (path + version).
-- **Version axes (Axis W):** `scripts/set-version.sh` (both lists),
-  `scripts/tests/test_set_version.sh`, and
-  `scripts/tests/test_release_version_surfaces.sh`.
-- **Publication lists:**
-  - `scripts/verify-release-gates.sh` `PUBLISHABLE_CRATES`;
-  - `scripts/release/cargo-publish-if-new.sh` dependent-crate case, plus its
-    header comment;
-  - a `release.yml` publish and wait step after `fathomdb`.
-
-  It is not added to `local-dry-run.sh` `LEAVES`, which holds only crates
-  without workspace dependencies.
-- **Licensing:** a byte-identical `LICENSE` in the crate root. Update the crate
-  count in `scripts/check-license-consistency.sh`'s comment.
-- **Test matrix:** `scripts/test-feature-matrix.toml`, regenerated with
-  `scripts/lib/test_targets.py --write-matrix`.
-- **Docs:**
-  - a crate README;
-  - a `docs/` page for the Rust SDK, with a `mkdocs.yml` nav entry;
-  - an entry in `CHANGELOG.md`;
-  - cross-references in `dev/design/bindings.md` and
-    `dev/interfaces/README.md`.
-
-## Verification design
-
-The behavior tests (AC27-132D) open real databases in temporary directories
-and use no mock. They assert the documented Python/TypeScript values directly.
-Feature-dependent tests run without features. A test needing the real
-embedder or reranker is marked `#[ignore]` with its reason, or is gated on the
-feature, following the engine's existing pattern. The development loop is:
-
-1. `cargo test -p fathomdb-sdk`
-2. the checker test
-3. `cargo clippy -p fathomdb-sdk --all-targets -D warnings`
-4. strict `./scripts/agent-verify.sh` once, on the candidate
+Core request structs are constructed in full by Rust callers. Use the values
+the Python and TypeScript SDKs default to: `EvidenceSearchRequestV1`
+`{schema_version: 1, rerank_depth: 0, use_graph_arm: false, alpha: 0.3,
+pool_n: 0, include_explanation: false, limit: 10}`;
+`DependencyTraceRequestV1::new(..)` already applies the binding bounds
+(`max_relations` 100, `max_work_units` 101) when `with_bounds` is not called.

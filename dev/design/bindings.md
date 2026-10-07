@@ -73,6 +73,11 @@ comparison. The invariant has three permanent clauses:
 - **Typed / no-raw-SQL boundary** — reads take typed args + a small fixed filter
   grammar (equality + range over body-JSON), never raw SQL or a query DSL.
 
+Rust application code uses the dedicated `fathomdb-sdk` crate (0.8.27,
+`ADR-0.8.27-rust-sdk-parity.md`), a third governed binding checked against the
+same operation map as Python and TypeScript; see `interfaces/rust-sdk.md`.
+The `fathomdb` crate below remains the lower-level facade.
+
 Rust is a stable public facade contract. Under the signed Q5 = BIND-RUST it is
 **also bound** by the governed-surface AC (AC-074); the Rust-facade
 positive-allowlist/parity pin executes at reserved-gap Slice 27.

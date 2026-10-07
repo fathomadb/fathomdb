@@ -191,6 +191,12 @@ ran six real-database, debug-hook tests once through Cargo and ten further
 times through the same test binary. It covers one-shot busy/storage failures,
 worker/subscriber panic cleanup, redispatch, mean-pin rollback and one
 stop/reopen schedule. The full state/fault matrix below remains open.
+The focused [current-product provider and close result](results/2026-10-07-provider-close-current/README.md)
+adds 14 passing real-database cases for provider timeout/error, bounded
+dispatch, close cancellation and pending-projection recovery after reopen.
+Expected injected provider panics are explicit Rust caller-boundary assertions;
+FFI containment and the remaining fault positions still require separate
+evidence.
 
 | Fault or schedule | State oracle after real-database reopen |
 | --- | --- |

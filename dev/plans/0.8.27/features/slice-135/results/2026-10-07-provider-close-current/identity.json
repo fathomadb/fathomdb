@@ -1,0 +1,19 @@
+{
+  "source_sha": "87d8659f18260a19b9f2932f412a42f50f71a692",
+  "rust_crates_tree": "a25573dbe1efffcda1c907dff88e478a87645719",
+  "cargo_lock_blob": "dbd5b98f621aa0fc8e9bccdd053a56be61ced471",
+  "targets": {
+    "projection_capacity": {
+      "path": "target/debug/deps/slice90_projection_capacity-4094f130f88238f3",
+      "sha256": "8f0b148da6610225294f6b64eaaf2b15a10e8a3b85fda639051005d780b58f3c"
+    },
+    "foreground_dispatch": {
+      "path": "target/debug/deps/slice90_foreground_dispatch-29ab0936b623295d",
+      "sha256": "78b0380ebcc404feee8d32001ad7c9ac9c7e3c0d07e1825251961399bcdfc0a9"
+    }
+  },
+  "command_suffix": [
+    "--nocapture",
+    "--test-threads=1"
+  ]
+}

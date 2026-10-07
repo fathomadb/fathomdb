@@ -1,0 +1,45 @@
+OP|engine.open|real fresh SQLite with default embedder
+OP|engine.write|32 corpus and 4 provenanced graph rows committed
+OP|engine.configure_projections|declared searchable summary FTS and vector
+OP|read.projections|declared vector projection reports ready after drain
+OP|read.get|anchor body matches write
+OP|engine.search_text_only|lexical branch finds anchor; invalid NUL refused
+OP|engine.search|vector branch and hybrid anchor; zero limit refused
+OP|engine.freeze_read_context|frozen context created for evidence and graph
+OP|engine.search_with_evidence|single source-bound evidence reference
+OP|engine.resolve_evidence|reference resolves exact canonical source body
+OP|graph.expand|bounded frozen expansion reaches one target
+OP|engine.resolve_graph_evidence|node and edge evidence resolve to source
+OP|graph.neighbors|outgoing graph neighbor contains claim
+OP|admin.configure|registered latest_state collection
+OP|read.collection|two real op-store rows in insertion order
+OP|read.mutations|after-id excludes first mutation
+OP|read.operational_state|point payload matches governed mutation
+OP|read.get_many|ordered present and absent slots
+OP|read.list|doc kind includes retained anchor
+OP|read.canonical_page|two pages agree with point reads; malformed cursor refused
+OP|read.operational_state_page|two pages agree with point reads; malformed cursor refused
+OP|engine.search_frozen|frozen ranked search includes anchor
+OP|engine.search_expand_frozen|frozen search returns seed hits
+OP|graph.search_expand|ranked graph seeds returned
+OP|engine.search_projected_text|declared summary FTS finds anchor
+OP|read.projection_status|summary declaration present in runtime status
+OP|read.embedding_readiness|drained vector work reports ready
+OP|read.projection_generation_status|versioned serving generation returned
+OP|engine.embed|default embedder returned finite vector
+OP|engine.register_source_dependency|source to derived revision registered
+OP|engine.dependencies_for_source|reciprocal source lookup contains dependency
+OP|engine.dependency_for_derived|derived lookup agrees with source lookup
+OP|engine.trace_dependency|derived-to-source trace contains nodes
+OP|engine.read_dependency_closure|committed closure has complete zero proof; unknown ID absent
+OP|engine.actuate|committed receipt replay identical; stale boundary refused without row
+OP|read.mutation_projection_status|actuation receipt cursor resolves to generation
+OP|engine.transition|deleted lifecycle node excluded from current read
+OP|engine.purge|deleted node purged from current read
+OP|read.crossed_boundary_since|written validity window produced boundaries
+OP|rerank|identity path exercised; real cross-encoder qualification unavailable
+OP|engine.erase_source|3 nodes and one edge removed; repeat idempotent
+OP|engine.close|closed before durable reopen
+OP|engine.ingest_with_extractor|unavailable: provider/model qualification
+OP|engine.consolidate_with_provider|unavailable: provider/model qualification
+RUST_SDK_S02_FUNCTIONAL_OK corpus=32 graph_erased_nodes=3 graph_erased_edges=1 evidence=true reopened=true

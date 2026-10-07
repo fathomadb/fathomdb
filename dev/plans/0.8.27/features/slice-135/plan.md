@@ -452,3 +452,9 @@ A fourth confirmed error-suppression defect was repaired at `55f8120f5`:
 shows that a current-schema search previously returned an empty success after
 its edge-index table disappeared. This changes candidate engine bytes again;
 the E01–E12 feasibility receipt remains evidence for its own source SHA only.
+An [expanded four-case real-database robustness result](results/2026-10-07-robustness-expanded/README.md)
+on candidate `7595b31eb` adds a bounded SQLite-full write/refusal/reopen
+oracle to the earlier concurrency, process-kill and injected-refusal probes.
+The focused suite and its deliberately failing missing-row control behaved as
+expected; the raw logs, resource observation and independently recomputed
+summary are retained. The remaining fault and schedule rows are still open.

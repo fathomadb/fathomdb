@@ -58,6 +58,8 @@ dev = ["pytest>=8", "hypothesis>=6", "ruff==0.15.17", "pyright==1.1.410", "matur
 manifest-path = "../rust/crates/fathomdb-py/Cargo.toml"
 module-name = "fathomdb._fathomdb"
 python-source = "."
+# Build outputs must not depend on ignored interpreter caches in the checkout.
+exclude = ["fathomdb/__pycache__/**", "fathomdb/**/__pycache__/**", "fathomdb/**/*.pyc", "fathomdb/**/*.pyo"]
 # EU-6 FIX-1: this list is what BOTH editable installs (`pip install -e .`,
 # `maturin develop`) AND the release workflow's `PyO3/maturin-action`
 # inherit unless they pass an explicit `--features` override. Therefore

@@ -1,0 +1,28 @@
+## Contiguous need (pool_gap, 3 runs per point)
+
+| Series | Largest passing maxSize GiB | First failing maxSize GiB | Gap / largest passing maxSize | new mapping at largest pass (MiB) |
+| --- | --- | --- | --- | --- |
+| between-g0 | None | 1 | - | - |
+| between-g1G | 3 | 4 | 0.333 | 1033, 1033, 1033 |
+| between-g2G | 6 | 7 | 0.333 | 2057, 2057, 2057 |
+| between-g4G | 12 | 13 | 0.333 | 4105, 4105, 4105 |
+| between-g8G | 24 | 25 | 0.333 | 8201, 8201, 8201 |
+| between-g12G | 36 | 37 | 0.333 | 12297, 12297, 12297 |
+| between-g16G | 48 | none <= sweep end | 0.333 | 16393, 16393, 16393 |
+| inunit-g0 | None | 1 | - | - |
+| inunit-g1G | 3 | 4 | 0.333 | 9, 9, 9 |
+| inunit-g2G | 6 | 7 | 0.333 | 9, 9, 9 |
+| inunit-g4G | 12 | 13 | 0.333 | 9, 9, 9 |
+| inunit-g8G | 24 | 25 | 0.333 | 9, 9, 9 |
+| inunit-g12G | 36 | 37 | 0.333 | 9, 9, 9 |
+| inunit-g16G | 48 | none <= sweep end | 0.333 | 9, 9, 9 |
+| nofill | 64 | none <= sweep end | - | 9, 9, 9 |
+| nofill-hold4G | 64 | none <= sweep end | - | 9, 9, 9 |
+
+Negative controls and others:
+  POINT between-g0 maxsize=1GiB fails=3/3
+  POINT inunit-g0 maxsize=1GiB fails=3/3
+  POINT slice110-control (default pool first) maxsize=48GiB fails=0/3
+  POINT slice110-control (default pool first) maxsize=50GiB fails=0/3
+  POINT slice110-control (default pool first) maxsize=52GiB fails=0/3
+  POINT slice110-control (default pool first) maxsize=56GiB fails=0/3

@@ -1,0 +1,74 @@
+# C7 on the revision-5 build, S run 1: gdb -batch output (crash inside Engine::close)
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/aarch64-linux-gnu/libthread_db.so.1".
+
+Thread 1 "python" received signal SIGSEGV, Segmentation fault.
+0x0000fffff33b0314 in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+	Using the running image of child Thread 0xfffff7ff3020 (LWP 3763093).
+Program stopped at 0xfffff33b0314.
+It stopped with signal SIGSEGV, Segmentation fault.
+#0  0x0000fffff33b0314 in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+#1  0x0000fffff3222c2c in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+#2  0x0000fffff62d4678 in cudarc::driver::safe::core::CudaStream::wait () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#3  0x0000fffff612ad6c in <cudarc::driver::safe::core::CudaSlice<T> as core::ops::drop::Drop>::drop () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#4  0x0000fffff6133bb4 in core::ptr::drop_in_place<cudarc::driver::safe::core::CudaSlice<f32>> () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#5  0x0000fffff6134778 in alloc::sync::Arc<T,A>::drop_slow () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#6  0x0000fffff61343bc in alloc::sync::Arc<T,A>::drop_slow () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#7  0x0000fffff5b9d0d4 in core::ptr::drop_in_place<candle_transformers::models::bert::BertModel> () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#8  0x0000fffff5b9d908 in core::ptr::drop_in_place<fathomdb_embedder::candle_bge::CandleBgeEmbedder> () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#9  0x0000fffff5ce3cbc in alloc::sync::Arc<T,A>::drop_slow () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#10 0x0000fffff5c5706c in fathomdb_engine::embed_dispatch::core::EmbedDispatcher::join_after_quiescence () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#11 0x0000fffff5c36fbc in fathomdb_engine::runtime_lifecycle::<impl fathomdb_engine::Engine>::close () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#12 0x0000fffff5bb0338 in fathomdb_py::ffi::call_engine () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#13 0x0000fffff5bc8a14 in fathomdb_py::engine::PyEngine::__pymethod_close__ () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#14 0x0000fffff5bdc2c0 in pyo3::impl_::trampoline::trampoline () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#15 0x0000fffff5bdd834 in pyo3::impl_::trampoline::noargs () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#16 0x0000aaaaaadca094 in method_vectorcall_NOARGS.llvm.2374654612961500414 ()
+#17 0x0000aaaaaae69e28 in _PyEval_EvalFrameDefault ()
+#18 0x0000aaaaaaf84a30 in PyEval_EvalCode ()
+#19 0x0000aaaaaafbb064 in run_mod.llvm ()
+#20 0x0000aaaaaad03ff0 in pyrun_file ()
+#21 0x0000aaaaaad03390 in _PyRun_SimpleFileObject ()
+#22 0x0000aaaaaad02f74 in _PyRun_AnyFileObject ()
+#23 0x0000aaaaaad10130 in pymain_run_file_obj ()
+#24 0x0000aaaaaad0fe68 in pymain_run_file ()
+#25 0x0000aaaaaafcf0dc in Py_RunMain ()
+#26 0x0000aaaaaafcf604 in pymain_main.llvm ()
+#27 0x0000aaaaaaeb83b0 in main ()
+  Id   Target Id                                            Frame 
+* 1    Thread 0xfffff7ff3020 (LWP 3763093) "python"         0x0000fffff33b0314 in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+  20   Thread 0xffffecaee100 (LWP 3763116) "cuda-EvtHandlr" 0x0000fffff7dbfce0 in __GI___poll (fds=0xffffe8000c20, nfds=10, timeout=<optimized out>) at ../sysdeps/unix/sysv/linux/poll.c:41
+  21   Thread 0xffffe7fff100 (LWP 3763117) "python"         __futex_abstimed_wait_common64 (private=0, cancel=true, abstime=0xffffe7ffe7d0, op=393, expected=0, futex_word=0xaaaab08840a0) at ./nptl/futex-internal.c:57
+
+Thread 21 (Thread 0xffffe7fff100 (LWP 3763117) "python"):
+#0  __futex_abstimed_wait_common64 (private=0, cancel=true, abstime=0xffffe7ffe7d0, op=393, expected=0, futex_word=0xaaaab08840a0) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=0, abstime=0xffffe7ffe7d0, clockid=-1, expected=0, futex_word=0xaaaab08840a0) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0xaaaab08840a0, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0xffffe7ffe7d0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x0000fffff7d5f9e4 in __pthread_cond_wait_common (abstime=0xffffe7ffe7d0, clockid=0, mutex=0xaaaab087e8e0, cond=0xaaaab0884078) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_timedwait64 (cond=0xaaaab0884078, mutex=0xaaaab087e8e0, abstime=0xffffe7ffe7d0) at ./nptl/pthread_cond_wait.c:652
+#5  0x0000fffff313180c in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+#6  0x0000fffff31bc0c4 in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+#7  0x0000fffff7d603c8 in start_thread (arg=0x80e940) at ./nptl/pthread_create.c:442
+#8  0x0000fffff7dc9fdc in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone.S:79
+
+Thread 20 (Thread 0xffffecaee100 (LWP 3763116) "cuda-EvtHandlr"):
+#0  0x0000fffff7dbfce0 in __GI___poll (fds=0xffffe8000c20, nfds=10, timeout=<optimized out>) at ../sysdeps/unix/sysv/linux/poll.c:41
+#1  0x0000fffff31bf290 in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+#2  0x0000fffff325c620 in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+#3  0x0000fffff31bc0c4 in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+#4  0x0000fffff7d603c8 in start_thread (arg=0x80e940) at ./nptl/pthread_create.c:442
+#5  0x0000fffff7dc9fdc in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone.S:79
+
+Thread 1 (Thread 0xfffff7ff3020 (LWP 3763093) "python"):
+#0  0x0000fffff33b0314 in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+#1  0x0000fffff3222c2c in ?? () from /lib/aarch64-linux-gnu/libcuda.so
+#2  0x0000fffff62d4678 in cudarc::driver::safe::core::CudaStream::wait () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#3  0x0000fffff612ad6c in <cudarc::driver::safe::core::CudaSlice<T> as core::ops::drop::Drop>::drop () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#4  0x0000fffff6133bb4 in core::ptr::drop_in_place<cudarc::driver::safe::core::CudaSlice<f32>> () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#5  0x0000fffff6134778 in alloc::sync::Arc<T,A>::drop_slow () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#6  0x0000fffff61343bc in alloc::sync::Arc<T,A>::drop_slow () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#7  0x0000fffff5b9d0d4 in core::ptr::drop_in_place<candle_transformers::models::bert::BertModel> () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#8  0x0000fffff5b9d908 in core::ptr::drop_in_place<fathomdb_embedder::candle_bge::CandleBgeEmbedder> () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#9  0x0000fffff5ce3cbc in alloc::sync::Arc<T,A>::drop_slow () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#10 0x0000fffff5c5706c in fathomdb_engine::embed_dispatch::core::EmbedDispatcher::join_after_quiescence () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+#11 0x0000fffff5c36fbc in fathomdb_engine::runtime_lifecycle::<impl fathomdb_engine::Engine>::close () from $PS/venv-p/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so

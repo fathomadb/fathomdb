@@ -19,9 +19,9 @@ Statements marked *inferred* are readings of the data, not measurements.
 Raw logs stay on the host under `<scratch>/pool-study/logs/<phase>/<series>/`
 (protocol § 9.2). This directory holds the harness, matrices, summaries
 (`summaries/*.txt`, produced by `harness/analyze.py`), samples and this file.
-On `release/0.8.28` only this file is present; the directory's other
-contents are on `llm/0.8.28-tegra-pool-study` (see
-`dev/plans/0.8.28/slice-30-tegra-pool-plan.md`, "Study evidence").
+This directory was brought onto `release/0.8.28` from
+`llm/0.8.28-tegra-pool-study` at `b045489d2` (Slice 30 plan § 7), except
+the harness's shell scripts, which are still only on that branch.
 
 ## 1. Environment and artifacts (table 1)
 

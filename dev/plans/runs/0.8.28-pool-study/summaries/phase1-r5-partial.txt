@@ -1,0 +1,11 @@
+## R5 lazy creation after heap growth
+
+| Cell | n | Pass | Pool created (install create+probe) | explicit | default | sync | default pool OOM (B) | min largest hole pre-pool GiB | new mapping at creation MiB (median) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A-first-use-node24-h0-16G-thr0 | 5 | 5/5 [56.6, 100.0] % | 5/5 [56.6, 100.0] % | 5/5 [56.6, 100.0] % | 0 | 0 | 0 | 7.90 | 6 |
+| A-first-use-node24-h0-3G-thr0 | 30 | 30/30 [88.6, 100.0] % | 30/30 [88.6, 100.0] % | 30/30 [88.6, 100.0] % | 0 | 0 | 0 | 6.20 | 6 |
+
+Pooled per variant: pass and stream-ordered fraction of passing processes
+  A-first-use: pass 35/35 [90.1, 100.0] %; stream-ordered 35/35 [90.1, 100.0] %; zero-failure bound 3/N = 8.57 %
+
+Rule 'created iff largest unmapped hole pre-pool >= ceil32(maxSize/3)': 0 misses

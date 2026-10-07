@@ -1,0 +1,322 @@
+seed=20261006 blocks=10 utc_start=2026-10-06T01:03:36Z
+block=1 order=prod-S exp-S 
+block=2 order=prod-S exp-S 
+block=3 order=prod-S exp-S 
+block=4 order=prod-S exp-S 
+block=5 order=prod-S exp-S 
+block=6 order=prod-S exp-S 
+block=7 order=prod-S exp-S 
+block=8 order=prod-S exp-S 
+block=9 order=prod-S exp-S 
+block=10 order=prod-S exp-S 
+utc_end=2026-10-06T01:05:47Z
+seed=20261007 blocks=20 utc_start=2026-10-06T02:32:39Z
+block=1 order=A-load-release A-load-hold S prod-S 
+block=2 order=A-load-release A-load-hold S prod-S 
+block=3 order=A-load-release A-load-hold S prod-S 
+block=4 order=A-load-release A-load-hold S prod-S 
+block=5 order=A-load-release A-load-hold S prod-S 
+block=6 order=A-load-release A-load-hold S prod-S 
+block=7 order=A-load-release A-load-hold S prod-S 
+block=8 order=A-load-release A-load-hold S prod-S 
+block=9 order=A-load-release A-load-hold S prod-S 
+block=10 order=A-load-release A-load-hold S prod-S 
+block=11 order=A-load-release A-load-hold S prod-S 
+block=12 order=A-load-release A-load-hold S prod-S 
+block=13 order=A-load-release A-load-hold S prod-S 
+block=14 order=A-load-release A-load-hold S prod-S 
+block=15 order=A-load-release A-load-hold S prod-S 
+block=16 order=A-load-release A-load-hold S prod-S 
+block=17 order=A-load-release A-load-hold S prod-S 
+block=18 order=A-load-release A-load-hold S prod-S 
+block=19 order=A-load-release A-load-hold S prod-S 
+block=20 order=A-load-release A-load-hold S prod-S 
+utc_end=2026-10-06T02:38:11Z
+# phase3/c2fix
+seed=20261021 blocks=10 utc_start=2026-10-06T22:33:34Z
+block=1 order=c2fix-P-first-use c2fix-B c2fix-S c2fix-A-first-use 
+block=2 order=c2fix-A-first-use c2fix-B c2fix-P-first-use c2fix-S 
+block=3 order=c2fix-A-first-use c2fix-S c2fix-B c2fix-P-first-use 
+block=4 order=c2fix-P-first-use c2fix-A-first-use c2fix-B c2fix-S 
+block=5 order=c2fix-B c2fix-S c2fix-A-first-use c2fix-P-first-use 
+block=6 order=c2fix-S c2fix-B c2fix-P-first-use c2fix-A-first-use 
+block=7 order=c2fix-B c2fix-P-first-use c2fix-A-first-use c2fix-S 
+block=8 order=c2fix-A-first-use c2fix-P-first-use c2fix-B c2fix-S 
+block=9 order=c2fix-P-first-use c2fix-B c2fix-S c2fix-A-first-use 
+block=10 order=c2fix-B c2fix-A-first-use c2fix-P-first-use c2fix-S 
+utc_end=2026-10-06T22:49:21Z
+
+# phase3/r2-n25
+seed=20261031 blocks=30 utc_start=2026-10-06T22:52:31Z
+block=1 order=r2-S-n25-h4000000 r2-P-n25-h400000 r2-P-n25-h1000000 r2-S-n25-h8000000 r2-P-n25-h0 r2-P-n25-h4000000 r2-S-n25-h400000 r2-S-n25-h0 r2-S-n25-h1000000 r2-P-n25-h8000000 
+block=2 order=r2-S-n25-h0 r2-P-n25-h8000000 r2-S-n25-h1000000 r2-S-n25-h4000000 r2-S-n25-h8000000 r2-S-n25-h400000 r2-P-n25-h4000000 r2-P-n25-h400000 r2-P-n25-h1000000 r2-P-n25-h0 
+block=3 order=r2-S-n25-h1000000 r2-P-n25-h400000 r2-P-n25-h4000000 r2-P-n25-h8000000 r2-S-n25-h8000000 r2-P-n25-h1000000 r2-S-n25-h4000000 r2-P-n25-h0 r2-S-n25-h0 r2-S-n25-h400000 
+block=4 order=r2-S-n25-h1000000 r2-S-n25-h400000 r2-P-n25-h8000000 r2-P-n25-h400000 r2-P-n25-h0 r2-S-n25-h8000000 r2-P-n25-h1000000 r2-S-n25-h0 r2-S-n25-h4000000 r2-P-n25-h4000000 
+block=5 order=r2-S-n25-h8000000 r2-S-n25-h400000 r2-S-n25-h1000000 r2-P-n25-h1000000 r2-P-n25-h0 r2-S-n25-h4000000 r2-P-n25-h8000000 r2-S-n25-h0 r2-P-n25-h4000000 r2-P-n25-h400000 
+block=6 order=r2-P-n25-h4000000 r2-S-n25-h400000 r2-S-n25-h4000000 r2-P-n25-h8000000 r2-S-n25-h8000000 r2-P-n25-h0 r2-P-n25-h1000000 r2-S-n25-h1000000 r2-P-n25-h400000 r2-S-n25-h0 
+block=7 order=r2-P-n25-h1000000 r2-S-n25-h1000000 r2-P-n25-h400000 r2-P-n25-h8000000 r2-S-n25-h0 r2-S-n25-h4000000 r2-S-n25-h400000 r2-P-n25-h0 r2-P-n25-h4000000 r2-S-n25-h8000000 
+block=8 order=r2-P-n25-h4000000 r2-S-n25-h4000000 r2-S-n25-h400000 r2-P-n25-h1000000 r2-S-n25-h8000000 r2-S-n25-h1000000 r2-P-n25-h400000 r2-S-n25-h0 r2-P-n25-h0 r2-P-n25-h8000000 
+block=9 order=r2-P-n25-h8000000 r2-P-n25-h4000000 r2-P-n25-h0 r2-S-n25-h4000000 r2-S-n25-h0 r2-P-n25-h400000 r2-S-n25-h1000000 r2-S-n25-h400000 r2-P-n25-h1000000 r2-S-n25-h8000000 
+block=10 order=r2-P-n25-h4000000 r2-P-n25-h8000000 r2-S-n25-h1000000 r2-S-n25-h400000 r2-P-n25-h0 r2-S-n25-h4000000 r2-P-n25-h1000000 r2-S-n25-h0 r2-P-n25-h400000 r2-S-n25-h8000000 
+block=11 order=r2-S-n25-h8000000 r2-P-n25-h4000000 r2-P-n25-h0 r2-S-n25-h1000000 r2-S-n25-h400000 r2-P-n25-h8000000 r2-S-n25-h0 r2-P-n25-h1000000 r2-P-n25-h400000 r2-S-n25-h4000000 
+block=12 order=r2-P-n25-h1000000 r2-S-n25-h400000 r2-S-n25-h0 r2-S-n25-h8000000 r2-P-n25-h8000000 r2-S-n25-h4000000 r2-P-n25-h0 r2-P-n25-h400000 r2-S-n25-h1000000 r2-P-n25-h4000000 
+block=13 order=r2-P-n25-h0 r2-P-n25-h4000000 r2-S-n25-h4000000 r2-S-n25-h8000000 r2-P-n25-h8000000 r2-S-n25-h1000000 r2-P-n25-h400000 r2-S-n25-h400000 r2-P-n25-h1000000 r2-S-n25-h0 
+block=14 order=r2-P-n25-h1000000 r2-S-n25-h8000000 r2-P-n25-h400000 r2-P-n25-h8000000 r2-S-n25-h400000 r2-P-n25-h4000000 r2-S-n25-h1000000 r2-S-n25-h4000000 r2-P-n25-h0 r2-S-n25-h0 
+block=15 order=r2-P-n25-h4000000 r2-S-n25-h4000000 r2-S-n25-h1000000 r2-S-n25-h400000 r2-S-n25-h8000000 r2-P-n25-h400000 r2-S-n25-h0 r2-P-n25-h1000000 r2-P-n25-h8000000 r2-P-n25-h0 
+block=16 order=r2-P-n25-h1000000 r2-S-n25-h1000000 r2-S-n25-h4000000 r2-P-n25-h0 r2-S-n25-h0 r2-S-n25-h400000 r2-P-n25-h4000000 r2-S-n25-h8000000 r2-P-n25-h8000000 r2-P-n25-h400000 
+block=17 order=r2-P-n25-h8000000 r2-S-n25-h400000 r2-P-n25-h4000000 r2-S-n25-h4000000 r2-S-n25-h1000000 r2-P-n25-h0 r2-P-n25-h400000 r2-S-n25-h8000000 r2-P-n25-h1000000 r2-S-n25-h0 
+block=18 order=r2-P-n25-h4000000 r2-S-n25-h8000000 r2-P-n25-h0 r2-S-n25-h0 r2-P-n25-h1000000 r2-S-n25-h400000 r2-S-n25-h1000000 r2-P-n25-h400000 r2-P-n25-h8000000 r2-S-n25-h4000000 
+block=19 order=r2-S-n25-h400000 r2-S-n25-h1000000 r2-P-n25-h4000000 r2-P-n25-h8000000 r2-P-n25-h400000 r2-S-n25-h0 r2-S-n25-h8000000 r2-P-n25-h0 r2-P-n25-h1000000 r2-S-n25-h4000000 
+block=20 order=r2-P-n25-h1000000 r2-P-n25-h0 r2-P-n25-h400000 r2-S-n25-h4000000 r2-S-n25-h0 r2-S-n25-h1000000 r2-P-n25-h4000000 r2-S-n25-h400000 r2-P-n25-h8000000 r2-S-n25-h8000000 
+block=21 order=r2-S-n25-h0 r2-S-n25-h8000000 r2-P-n25-h4000000 r2-P-n25-h0 r2-P-n25-h8000000 r2-P-n25-h400000 r2-S-n25-h400000 r2-S-n25-h1000000 r2-P-n25-h1000000 r2-S-n25-h4000000 
+block=22 order=r2-S-n25-h1000000 r2-S-n25-h8000000 r2-P-n25-h4000000 r2-P-n25-h8000000 r2-P-n25-h1000000 r2-S-n25-h400000 r2-P-n25-h0 r2-S-n25-h0 r2-S-n25-h4000000 r2-P-n25-h400000 
+block=23 order=r2-P-n25-h4000000 r2-P-n25-h1000000 r2-S-n25-h0 r2-P-n25-h8000000 r2-S-n25-h4000000 r2-S-n25-h1000000 r2-P-n25-h400000 r2-S-n25-h8000000 r2-P-n25-h0 r2-S-n25-h400000 
+block=24 order=r2-P-n25-h8000000 r2-S-n25-h1000000 r2-P-n25-h0 r2-S-n25-h8000000 r2-P-n25-h400000 r2-P-n25-h4000000 r2-S-n25-h4000000 r2-S-n25-h0 r2-S-n25-h400000 r2-P-n25-h1000000 
+block=25 order=r2-S-n25-h0 r2-P-n25-h0 r2-S-n25-h4000000 r2-P-n25-h1000000 r2-S-n25-h400000 r2-S-n25-h8000000 r2-P-n25-h4000000 r2-S-n25-h1000000 r2-P-n25-h400000 r2-P-n25-h8000000 
+block=26 order=r2-S-n25-h1000000 r2-P-n25-h4000000 r2-S-n25-h0 r2-S-n25-h8000000 r2-S-n25-h400000 r2-P-n25-h400000 r2-P-n25-h0 r2-P-n25-h1000000 r2-P-n25-h8000000 r2-S-n25-h4000000 
+block=27 order=r2-S-n25-h8000000 r2-P-n25-h0 r2-P-n25-h400000 r2-P-n25-h8000000 r2-S-n25-h4000000 r2-S-n25-h1000000 r2-S-n25-h0 r2-P-n25-h4000000 r2-P-n25-h1000000 r2-S-n25-h400000 
+block=28 order=r2-P-n25-h0 r2-P-n25-h400000 r2-P-n25-h8000000 r2-S-n25-h0 r2-S-n25-h400000 r2-P-n25-h4000000 r2-S-n25-h1000000 r2-S-n25-h4000000 r2-S-n25-h8000000 r2-P-n25-h1000000 
+block=29 order=r2-S-n25-h8000000 r2-P-n25-h0 r2-P-n25-h4000000 r2-S-n25-h4000000 r2-S-n25-h0 r2-P-n25-h400000 r2-P-n25-h8000000 r2-P-n25-h1000000 r2-S-n25-h400000 r2-S-n25-h1000000 
+block=30 order=r2-P-n25-h1000000 r2-S-n25-h1000000 r2-S-n25-h0 r2-P-n25-h400000 r2-S-n25-h8000000 r2-S-n25-h400000 r2-P-n25-h8000000 r2-S-n25-h4000000 r2-P-n25-h4000000 r2-P-n25-h0 
+utc_end=2026-10-06T23:22:17Z
+
+# phase3/r2-n24-26
+seed=20261034 blocks=10 utc_start=2026-10-06T23:43:30Z
+block=1 order=r2-S-n26-h4000000 r2-P-n24-h0 r2-P-n24-h1000000 r2-S-n26-h1000000 r2-S-n24-h1000000 r2-S-n24-h4000000 r2-P-n24-h4000000 r2-P-n26-h1000000 r2-S-n24-h0 r2-S-n26-h0 r2-P-n26-h4000000 r2-P-n26-h0 
+block=2 order=r2-S-n26-h0 r2-P-n24-h1000000 r2-S-n24-h1000000 r2-S-n24-h0 r2-S-n26-h1000000 r2-P-n26-h1000000 r2-S-n24-h4000000 r2-P-n24-h4000000 r2-P-n26-h0 r2-S-n26-h4000000 r2-P-n24-h0 r2-P-n26-h4000000 
+block=3 order=r2-P-n26-h4000000 r2-P-n26-h1000000 r2-P-n24-h0 r2-S-n26-h0 r2-S-n26-h4000000 r2-P-n24-h1000000 r2-P-n24-h4000000 r2-S-n24-h0 r2-S-n24-h1000000 r2-P-n26-h0 r2-S-n24-h4000000 r2-S-n26-h1000000 
+block=4 order=r2-P-n24-h4000000 r2-P-n24-h1000000 r2-S-n24-h4000000 r2-P-n26-h0 r2-P-n26-h4000000 r2-S-n26-h4000000 r2-S-n26-h0 r2-P-n24-h0 r2-S-n26-h1000000 r2-S-n24-h0 r2-S-n24-h1000000 r2-P-n26-h1000000 
+block=5 order=r2-P-n26-h4000000 r2-P-n24-h4000000 r2-S-n26-h0 r2-P-n26-h0 r2-S-n26-h1000000 r2-S-n26-h4000000 r2-S-n24-h0 r2-P-n26-h1000000 r2-P-n24-h1000000 r2-S-n24-h4000000 r2-S-n24-h1000000 r2-P-n24-h0 
+block=6 order=r2-S-n26-h0 r2-S-n24-h0 r2-P-n24-h4000000 r2-S-n26-h1000000 r2-P-n26-h1000000 r2-S-n24-h4000000 r2-S-n26-h4000000 r2-P-n24-h0 r2-S-n24-h1000000 r2-P-n26-h4000000 r2-P-n26-h0 r2-P-n24-h1000000 
+block=7 order=r2-P-n24-h1000000 r2-S-n26-h4000000 r2-P-n26-h4000000 r2-P-n24-h4000000 r2-S-n26-h0 r2-S-n26-h1000000 r2-S-n24-h0 r2-P-n26-h1000000 r2-S-n24-h4000000 r2-P-n24-h0 r2-P-n26-h0 r2-S-n24-h1000000 
+block=8 order=r2-P-n26-h1000000 r2-S-n24-h0 r2-S-n26-h4000000 r2-S-n26-h1000000 r2-P-n26-h0 r2-P-n24-h4000000 r2-P-n24-h0 r2-S-n26-h0 r2-S-n24-h4000000 r2-S-n24-h1000000 r2-P-n26-h4000000 r2-P-n24-h1000000 
+block=9 order=r2-P-n26-h0 r2-S-n26-h4000000 r2-S-n24-h1000000 r2-S-n26-h1000000 r2-P-n24-h1000000 r2-P-n26-h1000000 r2-P-n26-h4000000 r2-S-n26-h0 r2-S-n24-h4000000 r2-P-n24-h0 r2-S-n24-h0 r2-P-n24-h4000000 
+block=10 order=r2-P-n26-h0 r2-P-n26-h1000000 r2-S-n24-h0 r2-P-n24-h4000000 r2-S-n26-h0 r2-P-n24-h1000000 r2-P-n26-h4000000 r2-P-n24-h0 r2-S-n26-h4000000 r2-S-n24-h1000000 r2-S-n24-h4000000 r2-S-n26-h1000000 
+utc_end=2026-10-06T23:54:46Z
+
+# phase3/r3
+seed=20261032 blocks=20 utc_start=2026-10-06T23:22:17Z
+block=1 order=r3-S-n26 r3-P-n25 r3-P-n24 r3-P-n26 r3-S-n25 r3-S-n24 
+block=2 order=r3-P-n26 r3-S-n24 r3-S-n26 r3-S-n25 r3-P-n25 r3-P-n24 
+block=3 order=r3-P-n24 r3-S-n24 r3-S-n26 r3-S-n25 r3-P-n26 r3-P-n25 
+block=4 order=r3-P-n25 r3-S-n25 r3-S-n24 r3-P-n26 r3-P-n24 r3-S-n26 
+block=5 order=r3-P-n24 r3-S-n25 r3-S-n24 r3-P-n25 r3-P-n26 r3-S-n26 
+block=6 order=r3-P-n26 r3-P-n24 r3-S-n24 r3-S-n25 r3-P-n25 r3-S-n26 
+block=7 order=r3-S-n24 r3-P-n25 r3-P-n26 r3-S-n26 r3-P-n24 r3-S-n25 
+block=8 order=r3-P-n25 r3-P-n24 r3-S-n26 r3-S-n25 r3-S-n24 r3-P-n26 
+block=9 order=r3-S-n25 r3-P-n26 r3-S-n24 r3-P-n25 r3-S-n26 r3-P-n24 
+block=10 order=r3-S-n25 r3-P-n25 r3-S-n24 r3-P-n24 r3-S-n26 r3-P-n26 
+block=11 order=r3-S-n26 r3-S-n25 r3-P-n25 r3-P-n26 r3-P-n24 r3-S-n24 
+block=12 order=r3-P-n24 r3-S-n25 r3-S-n24 r3-P-n25 r3-S-n26 r3-P-n26 
+block=13 order=r3-S-n24 r3-P-n25 r3-S-n25 r3-P-n26 r3-S-n26 r3-P-n24 
+block=14 order=r3-P-n25 r3-S-n24 r3-P-n24 r3-P-n26 r3-S-n25 r3-S-n26 
+block=15 order=r3-S-n25 r3-P-n24 r3-P-n26 r3-P-n25 r3-S-n26 r3-S-n24 
+block=16 order=r3-P-n24 r3-S-n24 r3-P-n25 r3-S-n26 r3-P-n26 r3-S-n25 
+block=17 order=r3-S-n24 r3-P-n24 r3-S-n26 r3-P-n26 r3-P-n25 r3-S-n25 
+block=18 order=r3-S-n26 r3-S-n24 r3-P-n24 r3-S-n25 r3-P-n25 r3-P-n26 
+block=19 order=r3-P-n26 r3-P-n24 r3-S-n25 r3-S-n26 r3-P-n25 r3-S-n24 
+block=20 order=r3-S-n24 r3-S-n26 r3-P-n25 r3-P-n24 r3-S-n25 r3-P-n26 
+utc_end=2026-10-06T23:33:19Z
+
+# phase3/r4
+seed=20261033 blocks=15 utc_start=2026-10-06T23:33:19Z
+block=1 order=r4-P-late400000-import r4-P-late400000 r4-S-late400000 r4-P-late1000000-import r4-S-late1000000 r4-S-late400000-import r4-P-late1000000 r4-S-late1000000-import 
+block=2 order=r4-S-late400000-import r4-S-late1000000 r4-P-late400000-import r4-S-late400000 r4-P-late400000 r4-P-late1000000-import r4-P-late1000000 r4-S-late1000000-import 
+block=3 order=r4-S-late400000 r4-P-late1000000-import r4-S-late1000000 r4-S-late1000000-import r4-P-late400000 r4-P-late400000-import r4-P-late1000000 r4-S-late400000-import 
+block=4 order=r4-P-late1000000-import r4-S-late400000-import r4-P-late1000000 r4-S-late1000000-import r4-P-late400000-import r4-S-late1000000 r4-P-late400000 r4-S-late400000 
+block=5 order=r4-P-late400000 r4-P-late400000-import r4-P-late1000000-import r4-S-late400000-import r4-P-late1000000 r4-S-late1000000 r4-S-late1000000-import r4-S-late400000 
+block=6 order=r4-S-late400000-import r4-P-late1000000 r4-S-late1000000 r4-S-late400000 r4-P-late400000-import r4-S-late1000000-import r4-P-late1000000-import r4-P-late400000 
+block=7 order=r4-S-late1000000 r4-S-late400000-import r4-P-late400000-import r4-P-late400000 r4-S-late1000000-import r4-P-late1000000 r4-S-late400000 r4-P-late1000000-import 
+block=8 order=r4-S-late400000-import r4-P-late1000000 r4-S-late1000000-import r4-S-late400000 r4-P-late1000000-import r4-S-late1000000 r4-P-late400000-import r4-P-late400000 
+block=9 order=r4-P-late400000 r4-S-late400000 r4-P-late1000000-import r4-P-late1000000 r4-P-late400000-import r4-S-late1000000 r4-S-late1000000-import r4-S-late400000-import 
+block=10 order=r4-P-late400000-import r4-S-late1000000 r4-P-late1000000-import r4-S-late1000000-import r4-S-late400000 r4-S-late400000-import r4-P-late400000 r4-P-late1000000 
+block=11 order=r4-P-late1000000 r4-P-late1000000-import r4-P-late400000 r4-S-late1000000 r4-S-late400000-import r4-P-late400000-import r4-S-late1000000-import r4-S-late400000 
+block=12 order=r4-P-late1000000-import r4-P-late400000-import r4-S-late400000 r4-P-late1000000 r4-S-late1000000-import r4-S-late400000-import r4-P-late400000 r4-S-late1000000 
+block=13 order=r4-S-late400000 r4-P-late1000000-import r4-S-late1000000 r4-S-late1000000-import r4-S-late400000-import r4-P-late1000000 r4-P-late400000 r4-P-late400000-import 
+block=14 order=r4-S-late400000 r4-S-late1000000 r4-S-late1000000-import r4-P-late1000000-import r4-P-late1000000 r4-P-late400000 r4-P-late400000-import r4-S-late400000-import 
+block=15 order=r4-S-late1000000-import r4-P-late400000 r4-P-late1000000 r4-S-late400000-import r4-P-late400000-import r4-S-late400000 r4-S-late1000000 r4-P-late1000000-import 
+utc_end=2026-10-06T23:43:30Z
+
+# phase3/r8
+seed=20261035 blocks=10 utc_start=2026-10-07T00:22:15Z
+block=1 order=r8-P-thr0 r8-P-thrmax 
+block=2 order=r8-P-thrmax r8-P-thr0 
+block=3 order=r8-P-thr0 r8-P-thrmax 
+block=4 order=r8-P-thrmax r8-P-thr0 
+block=5 order=r8-P-thrmax r8-P-thr0 
+block=6 order=r8-P-thrmax r8-P-thr0 
+block=7 order=r8-P-thr0 r8-P-thrmax 
+block=8 order=r8-P-thr0 r8-P-thrmax 
+block=9 order=r8-P-thr0 r8-P-thrmax 
+block=10 order=r8-P-thrmax r8-P-thr0 
+utc_end=2026-10-07T00:48:34Z
+
+# phase4/equiv
+seed=20261041 blocks=20 utc_start=2026-10-07T01:45:59Z
+block=1 order=p4-eq-expS p4-eq-prod 
+block=2 order=p4-eq-expS p4-eq-prod 
+block=3 order=p4-eq-prod p4-eq-expS 
+block=4 order=p4-eq-prod p4-eq-expS 
+block=5 order=p4-eq-prod p4-eq-expS 
+block=6 order=p4-eq-expS p4-eq-prod 
+block=7 order=p4-eq-prod p4-eq-expS 
+block=8 order=p4-eq-prod p4-eq-expS 
+block=9 order=p4-eq-expS p4-eq-prod 
+block=10 order=p4-eq-prod p4-eq-expS 
+block=11 order=p4-eq-prod p4-eq-expS 
+block=12 order=p4-eq-expS p4-eq-prod 
+block=13 order=p4-eq-expS p4-eq-prod 
+block=14 order=p4-eq-prod p4-eq-expS 
+block=15 order=p4-eq-prod p4-eq-expS 
+block=16 order=p4-eq-expS p4-eq-prod 
+block=17 order=p4-eq-prod p4-eq-expS 
+block=18 order=p4-eq-expS p4-eq-prod 
+block=19 order=p4-eq-prod p4-eq-expS 
+block=20 order=p4-eq-prod p4-eq-expS 
+utc_end=2026-10-07T01:49:30Z
+
+# phase4/p1
+seed=20261042 blocks=20 utc_start=2026-10-07T01:49:30Z
+block=1 order=p4-p1-P p4-p1-S 
+block=2 order=p4-p1-S p4-p1-P 
+block=3 order=p4-p1-S p4-p1-P 
+block=4 order=p4-p1-P p4-p1-S 
+block=5 order=p4-p1-P p4-p1-S 
+block=6 order=p4-p1-P p4-p1-S 
+block=7 order=p4-p1-P p4-p1-S 
+block=8 order=p4-p1-P p4-p1-S 
+block=9 order=p4-p1-P p4-p1-S 
+block=10 order=p4-p1-P p4-p1-S 
+block=11 order=p4-p1-S p4-p1-P 
+block=12 order=p4-p1-P p4-p1-S 
+block=13 order=p4-p1-P p4-p1-S 
+block=14 order=p4-p1-P p4-p1-S 
+block=15 order=p4-p1-S p4-p1-P 
+block=16 order=p4-p1-S p4-p1-P 
+block=17 order=p4-p1-P p4-p1-S 
+block=18 order=p4-p1-P p4-p1-S 
+block=19 order=p4-p1-S p4-p1-P 
+block=20 order=p4-p1-S p4-p1-P 
+utc_end=2026-10-07T01:52:19Z
+
+# phase4/perf
+seed=20261043 blocks=20 utc_start=2026-10-07T01:52:19Z
+block=1 order=p4-P-thrmax-n26 p4-S-n24 p4-S-n26 p4-P-thr0-n26 p4-P-thrmax-n25 p4-P-thr0-n25 p4-B-n24 p4-B-n26 p4-S-n25 p4-P-thrmax-n24 p4-B-n25 p4-P-thr0-n24 
+block=2 order=p4-P-thrmax-n24 p4-B-n25 p4-P-thr0-n24 p4-S-n24 p4-P-thrmax-n26 p4-P-thr0-n26 p4-S-n26 p4-P-thrmax-n25 p4-P-thr0-n25 p4-B-n24 p4-S-n25 p4-B-n26 
+block=3 order=p4-S-n26 p4-P-thrmax-n25 p4-B-n26 p4-P-thr0-n25 p4-B-n25 p4-P-thrmax-n26 p4-S-n25 p4-P-thr0-n26 p4-P-thrmax-n24 p4-S-n24 p4-B-n24 p4-P-thr0-n24 
+block=4 order=p4-B-n25 p4-P-thr0-n26 p4-B-n26 p4-S-n25 p4-B-n24 p4-P-thrmax-n26 p4-S-n26 p4-P-thr0-n24 p4-S-n24 p4-P-thr0-n25 p4-P-thrmax-n24 p4-P-thrmax-n25 
+block=5 order=p4-S-n25 p4-B-n24 p4-P-thr0-n24 p4-P-thrmax-n24 p4-P-thrmax-n25 p4-P-thrmax-n26 p4-P-thr0-n25 p4-P-thr0-n26 p4-B-n26 p4-B-n25 p4-S-n26 p4-S-n24 
+block=6 order=p4-P-thrmax-n24 p4-P-thrmax-n26 p4-B-n24 p4-P-thr0-n26 p4-B-n26 p4-P-thr0-n24 p4-P-thrmax-n25 p4-S-n26 p4-P-thr0-n25 p4-S-n24 p4-B-n25 p4-S-n25 
+block=7 order=p4-S-n24 p4-P-thrmax-n24 p4-P-thrmax-n26 p4-B-n25 p4-S-n26 p4-P-thr0-n25 p4-P-thr0-n26 p4-B-n24 p4-S-n25 p4-B-n26 p4-P-thrmax-n25 p4-P-thr0-n24 
+block=8 order=p4-S-n26 p4-P-thrmax-n25 p4-B-n26 p4-P-thr0-n24 p4-P-thr0-n26 p4-S-n25 p4-S-n24 p4-B-n25 p4-P-thrmax-n24 p4-B-n24 p4-P-thr0-n25 p4-P-thrmax-n26 
+block=9 order=p4-P-thr0-n25 p4-P-thr0-n24 p4-S-n24 p4-P-thr0-n26 p4-P-thrmax-n26 p4-B-n25 p4-S-n26 p4-S-n25 p4-B-n24 p4-P-thrmax-n25 p4-B-n26 p4-P-thrmax-n24 
+block=10 order=p4-P-thrmax-n25 p4-P-thrmax-n24 p4-S-n26 p4-P-thr0-n24 p4-B-n24 p4-S-n24 p4-P-thr0-n26 p4-B-n26 p4-S-n25 p4-P-thr0-n25 p4-B-n25 p4-P-thrmax-n26 
+block=11 order=p4-B-n25 p4-S-n24 p4-S-n26 p4-P-thr0-n26 p4-P-thrmax-n24 p4-P-thrmax-n26 p4-P-thrmax-n25 p4-B-n26 p4-B-n24 p4-P-thr0-n25 p4-S-n25 p4-P-thr0-n24 
+block=12 order=p4-B-n24 p4-P-thr0-n25 p4-B-n26 p4-S-n24 p4-P-thr0-n26 p4-P-thrmax-n26 p4-P-thrmax-n25 p4-S-n26 p4-P-thr0-n24 p4-B-n25 p4-S-n25 p4-P-thrmax-n24 
+block=13 order=p4-B-n26 p4-P-thrmax-n25 p4-B-n25 p4-S-n25 p4-P-thrmax-n24 p4-B-n24 p4-P-thr0-n25 p4-P-thrmax-n26 p4-S-n26 p4-P-thr0-n24 p4-P-thr0-n26 p4-S-n24 
+block=14 order=p4-P-thr0-n25 p4-P-thr0-n26 p4-P-thrmax-n26 p4-P-thrmax-n24 p4-S-n25 p4-P-thr0-n24 p4-B-n25 p4-S-n24 p4-S-n26 p4-P-thrmax-n25 p4-B-n26 p4-B-n24 
+block=15 order=p4-P-thrmax-n25 p4-P-thr0-n24 p4-S-n24 p4-B-n24 p4-B-n25 p4-P-thr0-n25 p4-B-n26 p4-S-n25 p4-S-n26 p4-P-thr0-n26 p4-P-thrmax-n26 p4-P-thrmax-n24 
+block=16 order=p4-S-n25 p4-B-n25 p4-B-n26 p4-P-thr0-n25 p4-B-n24 p4-P-thr0-n24 p4-P-thrmax-n26 p4-S-n24 p4-P-thrmax-n25 p4-P-thrmax-n24 p4-P-thr0-n26 p4-S-n26 
+block=17 order=p4-P-thr0-n24 p4-P-thrmax-n26 p4-S-n25 p4-S-n24 p4-B-n24 p4-P-thr0-n25 p4-B-n25 p4-P-thrmax-n24 p4-P-thrmax-n25 p4-B-n26 p4-P-thr0-n26 p4-S-n26 
+block=18 order=p4-P-thrmax-n26 p4-S-n26 p4-B-n26 p4-P-thr0-n26 p4-S-n25 p4-P-thrmax-n24 p4-P-thr0-n25 p4-S-n24 p4-B-n24 p4-P-thrmax-n25 p4-P-thr0-n24 p4-B-n25 
+block=19 order=p4-P-thr0-n25 p4-S-n24 p4-S-n26 p4-P-thrmax-n25 p4-P-thr0-n26 p4-B-n24 p4-B-n25 p4-P-thrmax-n24 p4-P-thrmax-n26 p4-S-n25 p4-B-n26 p4-P-thr0-n24 
+block=20 order=p4-P-thr0-n26 p4-P-thr0-n24 p4-B-n24 p4-P-thrmax-n24 p4-S-n26 p4-P-thr0-n25 p4-B-n25 p4-S-n25 p4-P-thrmax-n25 p4-S-n24 p4-P-thrmax-n26 p4-B-n26 
+utc_end=2026-10-07T03:10:30Z
+
+# phase4/py
+seed=20261044 blocks=20 utc_start=2026-10-07T03:10:30Z
+block=1 order=p4-py-B p4-py-S p4-py-P 
+block=2 order=p4-py-P p4-py-S p4-py-B 
+block=3 order=p4-py-B p4-py-S p4-py-P 
+block=4 order=p4-py-S p4-py-B p4-py-P 
+block=5 order=p4-py-P p4-py-B p4-py-S 
+block=6 order=p4-py-B p4-py-S p4-py-P 
+block=7 order=p4-py-P p4-py-B p4-py-S 
+block=8 order=p4-py-S p4-py-B p4-py-P 
+block=9 order=p4-py-S p4-py-B p4-py-P 
+block=10 order=p4-py-B p4-py-P p4-py-S 
+block=11 order=p4-py-S p4-py-P p4-py-B 
+block=12 order=p4-py-P p4-py-B p4-py-S 
+block=13 order=p4-py-B p4-py-S p4-py-P 
+block=14 order=p4-py-S p4-py-P p4-py-B 
+block=15 order=p4-py-P p4-py-S p4-py-B 
+block=16 order=p4-py-B p4-py-P p4-py-S 
+block=17 order=p4-py-S p4-py-P p4-py-B 
+block=18 order=p4-py-S p4-py-B p4-py-P 
+block=19 order=p4-py-S p4-py-B p4-py-P 
+block=20 order=p4-py-P p4-py-S p4-py-B 
+utc_end=2026-10-07T03:22:34Z
+
+# phase4/ingest
+seed=20261045 blocks=5 utc_start=2026-10-07T03:22:34Z
+block=1 order=p4-ingest-P p4-ingest-S 
+block=2 order=p4-ingest-S p4-ingest-P 
+block=3 order=p4-ingest-S p4-ingest-P 
+block=4 order=p4-ingest-P p4-ingest-S 
+block=5 order=p4-ingest-P p4-ingest-S 
+utc_end=2026-10-07T03:23:42Z
+
+# phase4/perf-sextra
+seed=20261046 blocks=20 utc_start=2026-10-07T03:25:16Z
+block=1 order=p4-S-n26-extra p4-S-n25-extra p4-S-n24-extra 
+block=2 order=p4-S-n26-extra p4-S-n25-extra p4-S-n24-extra 
+block=3 order=p4-S-n26-extra p4-S-n24-extra p4-S-n25-extra 
+block=4 order=p4-S-n26-extra p4-S-n25-extra p4-S-n24-extra 
+block=5 order=p4-S-n25-extra p4-S-n26-extra p4-S-n24-extra 
+block=6 order=p4-S-n24-extra p4-S-n25-extra p4-S-n26-extra 
+block=7 order=p4-S-n24-extra p4-S-n26-extra p4-S-n25-extra 
+block=8 order=p4-S-n24-extra p4-S-n25-extra p4-S-n26-extra 
+block=9 order=p4-S-n25-extra p4-S-n26-extra p4-S-n24-extra 
+block=10 order=p4-S-n24-extra p4-S-n26-extra p4-S-n25-extra 
+block=11 order=p4-S-n26-extra p4-S-n24-extra p4-S-n25-extra 
+block=12 order=p4-S-n26-extra p4-S-n24-extra p4-S-n25-extra 
+block=13 order=p4-S-n26-extra p4-S-n24-extra p4-S-n25-extra 
+block=14 order=p4-S-n25-extra p4-S-n26-extra p4-S-n24-extra 
+block=15 order=p4-S-n25-extra p4-S-n24-extra p4-S-n26-extra 
+block=16 order=p4-S-n25-extra p4-S-n24-extra p4-S-n26-extra 
+block=17 order=p4-S-n26-extra p4-S-n24-extra p4-S-n25-extra 
+block=18 order=p4-S-n24-extra p4-S-n26-extra p4-S-n25-extra 
+block=19 order=p4-S-n25-extra p4-S-n24-extra p4-S-n26-extra 
+block=20 order=p4-S-n25-extra p4-S-n26-extra p4-S-n24-extra 
+utc_end=2026-10-07T04:01:10Z
+# phase6/c2
+seed=20261061 blocks=10 utc_start=2026-10-07T11:44:51Z
+block=1 order=p6-c2-S p6-c2-P-first-use 
+block=2 order=p6-c2-S p6-c2-P-first-use 
+block=3 order=p6-c2-S p6-c2-P-first-use 
+block=4 order=p6-c2-S p6-c2-P-first-use 
+block=5 order=p6-c2-P-first-use p6-c2-S 
+block=6 order=p6-c2-P-first-use p6-c2-S 
+block=7 order=p6-c2-P-first-use p6-c2-S 
+block=8 order=p6-c2-S p6-c2-P-first-use 
+block=9 order=p6-c2-P-first-use p6-c2-S 
+block=10 order=p6-c2-S p6-c2-P-first-use 
+utc_end=2026-10-07T11:53:33Z
+
+# phase6/perf
+seed=20261062 blocks=10 utc_start=2026-10-07T11:53:33Z
+block=1 order=p6-perf-P-thr0-n25 p6-perf-S-n25 
+block=2 order=p6-perf-S-n25 p6-perf-P-thr0-n25 
+block=3 order=p6-perf-P-thr0-n25 p6-perf-S-n25 
+block=4 order=p6-perf-S-n25 p6-perf-P-thr0-n25 
+block=5 order=p6-perf-S-n25 p6-perf-P-thr0-n25 
+block=6 order=p6-perf-P-thr0-n25 p6-perf-S-n25 
+block=7 order=p6-perf-S-n25 p6-perf-P-thr0-n25 
+block=8 order=p6-perf-S-n25 p6-perf-P-thr0-n25 
+block=9 order=p6-perf-S-n25 p6-perf-P-thr0-n25 
+block=10 order=p6-perf-P-thr0-n25 p6-perf-S-n25 
+utc_end=2026-10-07T12:01:58Z
+
+# phase6/py
+seed=20261063 blocks=10 utc_start=2026-10-07T12:01:58Z
+block=1 order=p6-py-P p6-py-S 
+block=2 order=p6-py-S p6-py-P 
+block=3 order=p6-py-P p6-py-S 
+block=4 order=p6-py-P p6-py-S 
+block=5 order=p6-py-P p6-py-S 
+block=6 order=p6-py-P p6-py-S 
+block=7 order=p6-py-P p6-py-S 
+block=8 order=p6-py-S p6-py-P 
+block=9 order=p6-py-S p6-py-P 
+block=10 order=p6-py-P p6-py-S 
+utc_end=2026-10-07T12:05:54Z

@@ -1,0 +1,4 @@
+# Phase 4: the extra S block per Node version (protocol section 7: when the default-pool reference has fewer than 15 processes)
+p4-S-n24-extra S 24.15.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-S-n25-extra S 25.9.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-S-n26-extra S 26.10.0 $PS/consumer-p4 CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0

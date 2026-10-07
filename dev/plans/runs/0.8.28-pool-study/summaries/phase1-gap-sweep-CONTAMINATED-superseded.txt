@@ -1,0 +1,12 @@
+## Contiguous need (pool_gap, 3 runs per point)
+
+| Series | Largest passing maxSize GiB | First failing maxSize GiB | Gap / largest passing maxSize | new mapping at largest pass (MiB) |
+| --- | --- | --- | --- | --- |
+| between-g1G | 3 | 4 | 0.333 | 1033, 1033, 1033 |
+| between-g2G | 6 | 7 | 0.333 | 2057, 2057, 2057 |
+| between-g4G | 12 | 13 | 0.333 | 4105, 4105, 4105 |
+| inunit-g1G | 3 | 4 | 0.333 | 9, 9, 9 |
+| inunit-g2G | 6 | 7 | 0.333 | 9, 9, 9 |
+| inunit-g4G | 12 | none <= sweep end | 0.333 | 9, 9, 9 |
+
+Negative controls and others:

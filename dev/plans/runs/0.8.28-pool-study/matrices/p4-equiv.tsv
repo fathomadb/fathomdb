@@ -1,0 +1,3 @@
+# Phase 4 equivalence rerun (ruling 22): production 0.8.26 build vs the revision-5 build with S, full mode
+p4-eq-prod S 25.9.0 $PS/consumer-prod CONSUMER_MODE=full
+p4-eq-expS S 25.9.0 $PS/consumer-p4 CONSUMER_MODE=full

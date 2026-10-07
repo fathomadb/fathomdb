@@ -1,0 +1,5 @@
+# P1 import cost, interleaved blocks: label variant node consumer env
+S S 25.9.0 $PS/consumer-exp CONSUMER_MODE=import
+A-load-hold A-load-hold 25.9.0 $PS/consumer-exp CONSUMER_MODE=import
+A-load-release A-load-release 25.9.0 $PS/consumer-exp CONSUMER_MODE=import
+prod-S S 25.9.0 $PS/consumer-prod CONSUMER_MODE=import

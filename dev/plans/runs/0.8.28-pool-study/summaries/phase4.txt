@@ -1,0 +1,111 @@
+# Phase 4 (revision 5 build: consumer-p4, wheel-p3), produced by harness/analyze.py phase4 <scratch>/pool-study/logs/phase4
+## Phase 4 perf: processes per group
+
+  Node 24 B-explicit: 15
+  Node 24 P-thr0: 20
+  Node 24 P-thrmax: 20
+  Node 24 S-sync: 30
+  Node 24 default-ref: 15
+  Node 25 B-explicit: 16
+  Node 25 P-thr0: 20
+  Node 25 P-thrmax: 20
+  Node 25 S-sync: 32
+  Node 25 default-ref: 12
+  Node 26 B-explicit: 18
+  Node 26 P-thr0: 20
+  Node 26 P-thrmax: 20
+  Node 26 S-sync: 37
+  Node 26 default-ref: 5
+
+## Medians of per-process medians (ms), all Node versions pooled
+
+| Measure | S-sync (n) | default-ref (n) | P-thr0 (n) | P-thrmax (n) | B-explicit (n) |
+| --- | --- | --- | --- | --- | --- |
+| embed | 24.69 (99) | 12.95 (32) | 12.77 (60) | 13.33 (60) | 13.73 (49) |
+| batch1 | 23.44 (99) | 8.36 (32) | 8.35 (60) | 8.33 (60) | 8.33 (49) |
+| batch8 | 37.82 (99) | 12.80 (32) | 12.78 (60) | 12.69 (60) | 12.54 (49) |
+| batch32 | 128.30 (99) | 30.85 (32) | 30.64 (60) | 30.58 (60) | 30.44 (49) |
+| batch128 | 412.57 (99) | 84.89 (32) | 84.35 (60) | 84.59 (60) | 84.53 (49) |
+| rerank | 5.68 (99) | 3.81 (32) | 3.74 (60) | 3.80 (60) | 3.69 (49) |
+
+## Gate ratios (ruling 3): P / default-pool reference (target <= ~1) and P / S-sync (floor, must be < 1)
+
+| Node | Measure | P-thr0 / default-ref [95 %] | P-thr0 / S-sync [95 %] | P-thrmax / P-thr0 [95 %] | P-thr0 / B-explicit [95 %] |
+| --- | --- | --- | --- | --- | --- |
+| all | embed | 0.986 [0.907, 1.114] (n=60/32) | 0.517 [0.479, 0.568] (n=60/99) | 1.044 [0.938, 1.134] (n=60/60) | 0.930 [0.865, 1.085] (n=60/49) |
+| all | batch1 | 0.999 [0.987, 1.011] (n=60/32) | 0.356 [0.354, 0.359] (n=60/99) | 0.998 [0.989, 1.006] (n=60/60) | 1.002 [0.995, 1.014] (n=60/49) |
+| all | batch8 | 0.998 [0.972, 1.074] (n=60/32) | 0.338 [0.332, 0.361] (n=60/99) | 0.993 [0.912, 1.053] (n=60/60) | 1.019 [0.930, 1.132] (n=60/49) |
+| all | batch32 | 0.993 [0.976, 1.007] (n=60/32) | 0.239 [0.238, 0.240] (n=60/99) | 0.998 [0.976, 1.006] (n=60/60) | 1.007 [0.993, 1.075] (n=60/49) |
+| all | batch128 | 0.994 [0.944, 1.006] (n=60/32) | 0.204 [0.204, 0.206] (n=60/99) | 1.003 [0.995, 1.008] (n=60/60) | 0.998 [0.993, 1.005] (n=60/49) |
+| all | rerank | 0.981 [0.959, 1.003] (n=60/32) | 0.658 [0.649, 0.665] (n=60/99) | 1.016 [1.002, 1.035] (n=60/60) | 1.014 [0.968, 1.046] (n=60/49) |
+| 24 | embed | 0.986 [0.896, 1.296] (n=20/15) | 0.522 [0.496, 0.582] (n=20/30) | 1.008 [0.881, 1.135] (n=20/20) | 0.906 [0.854, 1.180] (n=20/15) |
+| 24 | batch1 | 0.999 [0.977, 1.011] (n=20/15) | 0.358 [0.350, 0.362] (n=20/30) | 1.002 [0.984, 1.024] (n=20/20) | 1.004 [0.984, 1.033] (n=20/15) |
+| 24 | batch8 | 1.058 [0.929, 1.096] (n=20/15) | 0.359 [0.332, 0.368] (n=20/30) | 1.015 [0.891, 1.095] (n=20/20) | 0.980 [0.910, 1.223] (n=20/15) |
+| 24 | batch32 | 1.005 [0.995, 1.016] (n=20/15) | 0.243 [0.241, 0.246] (n=20/30) | 0.995 [0.985, 1.044] (n=20/20) | 1.002 [0.987, 1.113] (n=20/15) |
+| 24 | batch128 | 1.003 [0.987, 1.010] (n=20/15) | 0.217 [0.214, 0.218] (n=20/30) | 1.003 [0.999, 1.017] (n=20/20) | 0.999 [0.984, 1.007] (n=20/15) |
+| 24 | rerank | 0.989 [0.916, 1.029] (n=20/15) | 0.661 [0.612, 0.676] (n=20/30) | 1.035 [1.002, 1.119] (n=20/20) | 1.014 [0.930, 1.085] (n=20/15) |
+| 25 | embed | 0.989 [0.797, 1.122] (n=20/12) UNDERPOWERED | 0.511 [0.424, 0.574] (n=20/32) | 1.067 [0.916, 1.294] (n=20/20) | 1.074 [0.849, 1.245] (n=20/16) |
+| 25 | batch1 | 1.013 [0.981, 1.045] (n=20/12) UNDERPOWERED | 0.356 [0.353, 0.361] (n=20/32) | 0.997 [0.980, 1.007] (n=20/20) | 1.004 [0.984, 1.030] (n=20/16) |
+| 25 | batch8 | 1.010 [0.954, 1.157] (n=20/12) UNDERPOWERED | 0.340 [0.332, 0.367] (n=20/32) | 0.944 [0.842, 1.047] (n=20/20) | 1.042 [0.923, 1.227] (n=20/16) |
+| 25 | batch32 | 1.034 [0.968, 1.084] (n=20/12) UNDERPOWERED | 0.240 [0.227, 0.242] (n=20/32) | 0.987 [0.916, 1.035] (n=20/20) | 1.010 [0.963, 1.103] (n=20/16) |
+| 25 | batch128 | 1.003 [0.998, 1.008] (n=20/12) UNDERPOWERED | 0.204 [0.203, 0.205] (n=20/32) | 1.002 [0.995, 1.005] (n=20/20) | 1.001 [0.995, 1.008] (n=20/16) |
+| 25 | rerank | 0.975 [0.950, 1.015] (n=20/12) UNDERPOWERED | 0.656 [0.643, 0.674] (n=20/32) | 1.016 [0.979, 1.044] (n=20/20) | 1.023 [0.961, 1.106] (n=20/16) |
+| 26 | embed | 1.095 [0.873, 1.359] (n=20/5) UNDERPOWERED | 0.511 [0.463, 0.568] (n=20/37) | 1.011 [0.868, 1.219] (n=20/20) | 0.897 [0.776, 1.050] (n=20/18) |
+| 26 | batch1 | 1.003 [0.974, 1.030] (n=20/5) UNDERPOWERED | 0.354 [0.350, 0.361] (n=20/37) | 1.000 [0.979, 1.015] (n=20/20) | 0.998 [0.986, 1.017] (n=20/18) |
+| 26 | batch8 | 0.990 [0.882, 1.270] (n=20/5) UNDERPOWERED | 0.330 [0.294, 0.344] (n=20/37) | 1.009 [0.896, 1.156] (n=20/20) | 0.995 [0.878, 1.123] (n=20/18) |
+| 26 | batch32 | 0.998 [0.908, 1.104] (n=20/5) UNDERPOWERED | 0.237 [0.216, 0.239] (n=20/37) | 0.995 [0.920, 1.097] (n=20/20) | 0.993 [0.905, 1.085] (n=20/18) |
+| 26 | batch128 | 0.998 [0.987, 1.004] (n=20/5) UNDERPOWERED | 0.204 [0.203, 0.205] (n=20/37) | 1.004 [0.998, 1.011] (n=20/20) | 0.993 [0.990, 0.999] (n=20/18) |
+| 26 | rerank | 0.964 [0.888, 1.025] (n=20/5) UNDERPOWERED | 0.659 [0.634, 0.669] (n=20/37) | 1.010 [0.981, 1.049] (n=20/20) | 0.994 [0.938, 1.053] (n=20/18) |
+
+## Allocation correctness and release (ruling 25)
+
+  Node perf: private processes 120/120 pass [96.9, 100.0] %
+    x60 teardown threshold=0 reserved_cur=192.0 used_cur=143.4 reserved_high=288.0 maxSize=3072.0 MiB
+    x60 teardown threshold=max reserved_cur=288.0 used_cur=143.4 reserved_high=288.0 maxSize=3072.0 MiB
+  py: private processes 20/20 pass [83.9, 100.0] %
+    x20 teardown threshold=0 reserved_cur=192.0 used_cur=143.4 reserved_high=320.0 maxSize=3072.0 MiB
+  ingest: private processes 5/5 pass [56.6, 100.0] %
+    x5 teardown threshold=0 reserved_cur=64.0 used_cur=16.7 reserved_high=160.0 maxSize=3072.0 MiB
+
+CB1 primary (reserved_high <= maxSize): {'pass': 120}; sanity: {'inconclusive': 120} (baseline n=50, median 408 MiB, noise band 442 MiB)
+  sanity reasons: {'noise band 442': 120}
+With the extra S block in the baseline (not interleaved with P): CB1 primary (reserved_high <= maxSize): {'pass': 120}; sanity: {'consistent': 120} (baseline n=99, median 575 MiB, noise band 99 MiB)
+Python: CB1 primary (reserved_high <= maxSize): {'pass': 20}; sanity: {'skipped': 20} (baseline n=0)
+  sanity reasons: {'MemAvailable not recorded at both points': 20}
+
+## Equivalence rerun (production 0.8.26 vs revision-5 build, S)
+
+  p4-eq-expS: n=20 pass=20 hashes={'d9dafb8c410005f3'} score-sets=1 default: n=5 median 13.55 ms; sync: n=15 median 24.61 ms
+  p4-eq-prod: n=20 pass=20 hashes={'d9dafb8c410005f3'} score-sets=1 sync: n=17 median 24.66 ms; stream: n=3 median 13.89 ms
+  steady embed, sync path, revision-5 S / production: 0.998 [0.989, 1.009] (n=15/17)
+  steady embed, stream path, revision-5 S / production: 0.975 [0.693, 1.066] (n=5/3)
+
+## P1 rerun (import cost)
+
+  p4-p1-P: n=20 import median 148.9 ms, RSS delta median 10.4 MiB
+  p4-p1-S: n=20 import median 148.4 ms, RSS delta median 10.3 MiB
+  p4-p1-P - p4-p1-S import: 0.6 ms [-3.3, 5.8]
+
+## P7 Python perf (ms; by allocMode)
+
+  B-default: embed 12.76 (n=20); batch1 7.86 (n=20); batch8 8.65 (n=20); batch32 16.08 (n=20); batch128 56.09 (n=20); rerank 3.94 (n=20)
+  P-private: embed 12.98 (n=20); batch1 7.84 (n=20); batch8 8.62 (n=20); batch32 16.07 (n=20); batch128 56.15 (n=20); rerank 4.00 (n=20)
+  S-default: embed 14.09 (n=20); batch1 7.84 (n=20); batch8 8.68 (n=20); batch32 16.05 (n=20); batch128 56.10 (n=20); rerank 3.96 (n=20)
+  Python S allocMode (the second default-pool reference; not pooled with Node): {'default': 20}
+  P (private) / Python S default-pool reference:
+    embed: private / default 0.921 [0.786, 1.006] (n=20/20)
+    batch1: private / default 1.000 [0.996, 1.003] (n=20/20)
+    batch8: private / default 0.993 [0.983, 1.001] (n=20/20)
+    batch32: private / default 1.001 [0.999, 1.004] (n=20/20)
+    batch128: private / default 1.001 [1.000, 1.002] (n=20/20)
+    rerank: private / default 1.011 [0.991, 1.033] (n=20/20)
+
+## P5 ingest (10 000 documents)
+
+  p4-ingest-P: n=5 docs/s median 9954 (min 9661, max 10738); allocModes {'private': 5}
+  p4-ingest-S: n=5 docs/s median 9836 (min 6862, max 10860); allocModes {'sync': 3, 'default': 2}
+  p4-ingest-P / p4-ingest-S: 1.012 [0.917, 1.451]
+
+C7 reset on the revision-5 build, S: n=10 exit codes {139: 10}; outcomes {'noresult': 10}
+
+C7 reset on the revision-5 build, P: n=10 exit codes {139: 10}; outcomes {'noresult': 10}

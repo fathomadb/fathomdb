@@ -1,0 +1,3 @@
+# Revision 6 spot check: C2 on the corrected close fix (2ff744b06 + 8247d91a4): 50 open/close cycles, no GC, interleaved
+p6-c2-S S 25.9.0 $PS/consumer-p5 CONSUMER_MODE=cycles,CYCLES=50,FATHOMDB_POOL_COEXIST_CHECK=1,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p6-c2-P-first-use P-first-use 25.9.0 $PS/consumer-p5 CONSUMER_MODE=cycles,CYCLES=50,FATHOMDB_POOL_COEXIST_CHECK=1,FATHOMDB_POOL_RELEASE_THRESHOLD=0

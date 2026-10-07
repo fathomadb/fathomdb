@@ -1,0 +1,2 @@
+RESULT tag=between-g1G-m4G#1 gap_mib=1024 maxsize_mib=4096 in_unit=0 create_rc=CUDA_ERROR_OUT_OF_MEMORY set_rc=CUDA_ERROR_NOT_PERMITTED probe_rc=CUDA_ERROR_NOT_PERMITTED new_mmap_bytes=0 no_fill=0 spacing_mib=128 units=1 unit_max_mib=62787 hole_lo=0x1156bf8000 hole_ok=1 fences=490 fences_moved=1 fences_failed=0 blockers=462 largest_unmapped_mib=1024 free_rc=CUDA_ERROR_NOT_PERMITTED sync_rc=CUDA_ERROR_NOT_PERMITTED hold_mib=0 hold_rc=CUDA_SUCCESS mem_free=56044888064 mem_total=65879896064 driver=12060
+EXIT rc=0

@@ -1,0 +1,3 @@
+## Workload high-water marks (teardown events)
+
+  hw-perf-A-first-use-3G: n=5 used_high max 272.0 MiB, reserved_high max 288.0 MiB

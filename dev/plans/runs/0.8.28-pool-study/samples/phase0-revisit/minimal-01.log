@@ -1,0 +1,14 @@
+mmap 4 KiB PROT_NONE at 0x980000000 -> 0x980000000
+mmap 4 KiB PROT_NONE at 0x1100000000 -> 0x1100000000
+mmap 4 KiB PROT_NONE at 0x1880000000 -> 0x1880000000
+cuInit                       -> 0 (CUDA_SUCCESS)
+cuDeviceGet                  -> 0 (CUDA_SUCCESS)
+cuDevicePrimaryCtxRetain     -> 0 (CUDA_SUCCESS)
+cuCtxSetCurrent              -> 0 (CUDA_SUCCESS)
+cuMemGetInfo                 -> 0 (CUDA_SUCCESS)
+  free=52197572608 total=65879896064
+cuMemAlloc(4)                -> 0 (CUDA_SUCCESS)
+cuMemFree                    -> 0 (CUDA_SUCCESS)
+cuDeviceGetDefaultMemPool    -> 2 (CUDA_ERROR_OUT_OF_MEMORY)
+cuMemAllocAsync(4)           -> 2 (CUDA_ERROR_OUT_OF_MEMORY)
+EXIT rc=1

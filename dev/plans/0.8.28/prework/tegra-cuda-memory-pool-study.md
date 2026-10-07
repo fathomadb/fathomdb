@@ -18,9 +18,10 @@ change. Shipping any option needs its own 0.8.28 ruling.
 **The `release/0.8.28` copy is the record.** It was brought over from
 the study branch `llm/0.8.28-tegra-pool-study` at `b045489d2` on
 2026-10-07, together with the protocol, the cudarc upstream notes and
-`dev/plans/runs/0.8.28-pool-study/results.md`. The rest of the evidence
-(harness, matrices, summaries, samples, patches) is still only on the
-study branch; paths below that name it resolve there. Adoption is planned
+the whole evidence directory `dev/plans/runs/0.8.28-pool-study/`
+(harness, matrices, summaries, samples, patches). The harness's shell
+scripts and the vendored Candle copy stay on the study branch (Slice 30
+plan § 7). Adoption is planned
 in `dev/plans/0.8.28/slice-30-tegra-pool-plan.md`, which also takes over
 Phase 5.
 

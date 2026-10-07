@@ -1,0 +1,4 @@
+# Phase 4 P7: Python perf (wheel-p3 in venv-p)
+p4-py-S S 25.9.0 $PS/consumer-p4 CONSUMER_LANG=py,PYTHON=$PS/venv-p/bin/python,CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-py-P P-first-use 25.9.0 $PS/consumer-p4 CONSUMER_LANG=py,PYTHON=$PS/venv-p/bin/python,CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-py-B B 25.9.0 $PS/consumer-p4 CONSUMER_LANG=py,PYTHON=$PS/venv-p/bin/python,CONSUMER_MODE=perf,FATHOMDB_POOL_RELEASE_THRESHOLD=0

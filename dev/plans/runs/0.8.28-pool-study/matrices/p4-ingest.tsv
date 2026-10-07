@@ -1,0 +1,3 @@
+# Phase 4 P5: ingest 10000 documents, Node 25
+p4-ingest-S S 25.9.0 $PS/consumer-p4 CONSUMER_MODE=ingest,FATHOMDB_POOL_RELEASE_THRESHOLD=0
+p4-ingest-P P-first-use 25.9.0 $PS/consumer-p4 CONSUMER_MODE=ingest,FATHOMDB_POOL_RELEASE_THRESHOLD=0

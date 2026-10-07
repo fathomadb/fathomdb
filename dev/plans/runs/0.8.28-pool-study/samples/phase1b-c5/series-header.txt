@@ -1,0 +1,16 @@
+utc_start=2026-10-06T12:56:31Z
+l4t=# R36 (release), REVISION: 5.2, GCID: 46426093, BOARD: generic, EABI: aarch64, DATE: Thu Jul 16 18:56:22 UTC 2026
+kernel=5.15.199-tegra
+node=v24.15.0
+python=Python 3.10.12
+nvpmodel=NV Power Mode: MAXN 0 
+jetson_clocks=SOC family:tegra234  Machine:NVIDIA Jetson AGX Orin Developer Kit
+swap_base_kib=768
+no_swap=0
+zram_start={"origBytes":438272,"comprBytes":39283,"usedBytes":495616}
+probe=pool_c5
+probe_sha256=151804863b4111a71e34678a2544c40e4d702eee1e7662528b978ed9d4c53b8d
+configs=c5.cfg
+reps=10
+power_mode=NV Power Mode: MAXN
+utc_end=2026-10-06T12:59:13Z

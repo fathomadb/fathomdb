@@ -1,0 +1,12 @@
+## Phase 0 production equivalence (full mode, Node 25, unobstructed)
+
+| Build | Passed | Embed hashes | Rerank score sets | Inferred stream / sync | allocMode read | Steady median ms by path (n) |
+| --- | --- | --- | --- | --- | --- | --- |
+| prod-S | 20/20 | d9dafb8c410005f3 | 1 | 2 / 18 | none=20 | stream: 10.2 (2); sync: 25.1 (18) |
+| exp-S | 20/20 | d9dafb8c410005f3 | 1 | 3 / 17 | default=3, sync=17 | stream: 9.7 (3); sync: 24.9 (17) |
+
+Inferred-vs-read path agreement (exp-S): 20/20
+Steady median ratio exp/prod on the stream path: 0.947 [0.874, 1.406] (n=3/2); pass if within 10 %
+Steady median ratio exp/prod on the sync path: 0.995 [0.972, 1.028] (n=17/18); pass if within 10 %
+prod-S: open median 1704 ms IQR (1678, 1939); gpuIdleBefore all true: True
+exp-S: open median 1699 ms IQR (1671, 1940); gpuIdleBefore all true: True

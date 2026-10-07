@@ -1,0 +1,98 @@
+# Phase 3 (protocol revision 5): analyze.py phase3 over every Phase 3 series
+## Phase 3 pass rates (R2, R3, R4)
+
+| Cell | n | Pass (Wilson 95 %) | allocMode | failed steps | embed hashes |
+| --- | --- | --- | --- | --- | --- |
+| r2-n25/r2-P-n25-h0 | 30 | 30/30 [88.6, 100.0] % | {'private': 30} | - | d9dafb8c410005f3 |
+| r2-n25/r2-P-n25-h1000000 | 30 | 30/30 [88.6, 100.0] % | {'private': 30} | - | d9dafb8c410005f3 |
+| r2-n25/r2-P-n25-h400000 | 30 | 30/30 [88.6, 100.0] % | {'private': 30} | - | d9dafb8c410005f3 |
+| r2-n25/r2-P-n25-h4000000 | 30 | 30/30 [88.6, 100.0] % | {'private': 30} | - | d9dafb8c410005f3 |
+| r2-n25/r2-P-n25-h8000000 | 30 | 30/30 [88.6, 100.0] % | {'private': 30} | - | d9dafb8c410005f3 |
+| r2-n25/r2-S-n25-h0 | 30 | 30/30 [88.6, 100.0] % | {'sync': 20, 'default': 10} | - | d9dafb8c410005f3 |
+| r2-n25/r2-S-n25-h1000000 | 30 | 30/30 [88.6, 100.0] % | {'sync': 27, 'default': 3} | - | d9dafb8c410005f3 |
+| r2-n25/r2-S-n25-h400000 | 30 | 30/30 [88.6, 100.0] % | {'sync': 24, 'default': 6} | - | d9dafb8c410005f3 |
+| r2-n25/r2-S-n25-h4000000 | 30 | 30/30 [88.6, 100.0] % | {'sync': 26, 'default': 4} | - | d9dafb8c410005f3 |
+| r2-n25/r2-S-n25-h8000000 | 30 | 30/30 [88.6, 100.0] % | {'default': 9, 'sync': 21} | - | d9dafb8c410005f3 |
+CB1 primary (reserved_high <= maxSize): {'pass': 150}; sanity: {'consistent': 150} (baseline n=118)
+| r2-n24-26/r2-P-n24-h0 | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-P-n24-h1000000 | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-P-n24-h4000000 | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-P-n26-h0 | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-P-n26-h1000000 | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-P-n26-h4000000 | 10 | 10/10 [72.2, 100.0] % | {'private': 10} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-S-n24-h0 | 10 | 10/10 [72.2, 100.0] % | {'sync': 6, 'default': 4} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-S-n24-h1000000 | 10 | 10/10 [72.2, 100.0] % | {'default': 4, 'sync': 6} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-S-n24-h4000000 | 10 | 10/10 [72.2, 100.0] % | {'sync': 8, 'default': 2} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-S-n26-h0 | 10 | 10/10 [72.2, 100.0] % | {'sync': 9, 'default': 1} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-S-n26-h1000000 | 10 | 10/10 [72.2, 100.0] % | {'sync': 9, 'default': 1} | - | d9dafb8c410005f3 |
+| r2-n24-26/r2-S-n26-h4000000 | 10 | 10/10 [72.2, 100.0] % | {'sync': 10} | - | d9dafb8c410005f3 |
+| r3/r3-P-n24 | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | - | d9dafb8c410005f3 |
+| r3/r3-P-n25 | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | - | d9dafb8c410005f3 |
+| r3/r3-P-n26 | 20 | 20/20 [83.9, 100.0] % | {'private': 20} | - | d9dafb8c410005f3 |
+| r3/r3-S-n24 | 20 | 20/20 [83.9, 100.0] % | {'default': 6, 'sync': 14} | - | d9dafb8c410005f3 |
+| r3/r3-S-n25 | 20 | 20/20 [83.9, 100.0] % | {'sync': 17, 'default': 3} | - | d9dafb8c410005f3 |
+| r3/r3-S-n26 | 20 | 20/20 [83.9, 100.0] % | {'sync': 19, 'default': 1} | - | d9dafb8c410005f3 |
+| r4/r4-P-late1000000 | 15 | 0/15 [-0.0, 20.4] % | {'none': 15} | {'open': 15} | - |
+| r4/r4-P-late1000000-import | 15 | 15/15 [79.6, 100.0] % | {'private': 15} | - | d9dafb8c410005f3 |
+| r4/r4-P-late400000 | 15 | 5/15 [15.2, 58.3] % | {'none': 10, 'private': 5} | {'open': 10} | d9dafb8c410005f3 |
+| r4/r4-P-late400000-import | 15 | 15/15 [79.6, 100.0] % | {'private': 15} | - | d9dafb8c410005f3 |
+| r4/r4-S-late1000000 | 15 | 0/15 [-0.0, 20.4] % | {'none': 15} | {'open': 15} | - |
+| r4/r4-S-late1000000-import | 15 | 15/15 [79.6, 100.0] % | {'sync': 8, 'default': 7} | - | d9dafb8c410005f3 |
+| r4/r4-S-late400000 | 15 | 8/15 [30.1, 75.2] % | {'sync': 8, 'none': 7} | {'open': 7} | d9dafb8c410005f3 |
+| r4/r4-S-late400000-import | 15 | 15/15 [79.6, 100.0] % | {'sync': 9, 'default': 6} | - | d9dafb8c410005f3 |
+
+Failure messages:
+  47 x cuda:0 requested but unavailable: CudaProbeFailed; cuInit returned CUDA_ERROR_OUT_OF_MEMORY: the CUDA driver could not reserve its range of 
+
+## R7 concurrency
+
+| Series | trials x k | processes pass | allocMode | min MemAvailable MiB | max swap rise KiB | embed steady ms, median of process medians |
+| --- | --- | --- | --- | --- | --- | --- |
+| r7-P-thr0-k2 | 10 x 2 | 20/20 [83.9, 100.0] % | {'private': 20} | 49128 | 0 | 10.83 |
+| r7-P-thr0-k4 | 10 x 4 | 40/40 [91.2, 100.0] % | {'private': 40} | 47659 | 0 | 16.66 |
+| r7-P-thr0-k8 | 10 x 8 | 80/80 [95.4, 100.0] % | {'private': 80} | 46068 | 0 | 17.60 |
+| r7-P-thrmax-k2 | 10 x 2 | 20/20 [83.9, 100.0] % | {'private': 20} | 49098 | 0 | 9.88 |
+| r7-P-thrmax-k4 | 10 x 4 | 40/40 [91.2, 100.0] % | {'private': 40} | 47703 | 0 | 16.69 |
+| r7-P-thrmax-k8 | 10 x 8 | 80/80 [95.4, 100.0] % | {'private': 80} | 45687 | 0 | 17.64 |
+| r7-S-k2 | 5 x 2 | 10/10 [72.2, 100.0] % | {'sync': 10} | 48998 | 0 | 71.52 |
+| r7-S-k4 | 5 x 4 | 20/20 [83.9, 100.0] % | {'default': 8, 'sync': 12} | 47787 | 0 | 137.57 |
+| r7-S-k8 | 5 x 8 | 40/40 [91.2, 100.0] % | {'sync': 30, 'default': 10} | 44798 | 0 | 207.03 |
+
+## R8 threshold: perf, close, 60 s idle
+
+  r8-P-thr0: n=10 pass=10 reserved_cur after idle median 192 max 192 MiB; reserved_high max 288 MiB; embed 12.92 ms; batch128 84.3 ms
+  r8-P-thrmax: n=10 pass=10 reserved_cur after idle median 288 max 288 MiB; reserved_high max 288 MiB; embed 13.02 ms; batch128 83.8 ms
+  embed ratio r8-P-thrmax / r8-P-thr0: 1.008 [0.791, 1.194]
+
+## R1 synthetic layouts (pool_capacity)
+
+  r1-3pages-m2048: n=20 pool created and filled 20/20 [83.9, 100.0] %; allocated MiB min 704 max 704; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 20}
+  r1-3pages-m3072: n=20 pool created and filled 20/20 [83.9, 100.0] %; allocated MiB min 1024 max 1024; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 20}
+  r1-freegap-m2048: n=20 pool created and filled 20/20 [83.9, 100.0] %; allocated MiB min 704 max 704; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 20}
+  r1-freegap-m3072: n=20 pool created and filled 20/20 [83.9, 100.0] %; allocated MiB min 1024 max 1024; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 20}
+  r1-n3-m2048: n=10 pool created and filled 10/10 [72.2, 100.0] %; allocated MiB min 704 max 704; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 10}
+  r1-n3-m3072: n=10 pool created and filled 10/10 [72.2, 100.0] %; allocated MiB min 1024 max 1024; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 10}
+  r1-n5-m2048: n=10 pool created and filled 10/10 [72.2, 100.0] %; allocated MiB min 704 max 704; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 10}
+  r1-n5-m3072: n=10 pool created and filled 10/10 [72.2, 100.0] %; allocated MiB min 1024 max 1024; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 10}
+  r1-n6-m2048: n=10 pool created and filled 10/10 [72.2, 100.0] %; allocated MiB min 704 max 704; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 10}
+  r1-n6-m3072: n=10 pool created and filled 10/10 [72.2, 100.0] %; allocated MiB min 1024 max 1024; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 10}
+  r1-n7-m2048: n=10 pool created and filled 10/10 [72.2, 100.0] %; allocated MiB min 704 max 704; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 10}
+  r1-n7-m3072: n=10 pool created and filled 10/10 [72.2, 100.0] %; allocated MiB min 1024 max 1024; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 10}
+  r1-rand18-m2048: n=100 pool created and filled 100/100 [96.3, 100.0] %; allocated MiB min 704 max 704; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 100}
+  r1-rand18-m3072: n=100 pool created and filled 100/100 [96.3, 100.0] %; allocated MiB min 1024 max 1024; first errors {'CUDA_ERROR_OUT_OF_MEMORY': 100}
+
+## R6 soak
+
+  r6-soak-P: outcome pass allocMode private iterations 12506 docs 625300 mismatches 0 aborted None
+    rssMiB: first-5-min max 855.0, last-5-min median 901.0, overall max 901.3
+    embedMs: first-5-min max 22.2, last-5-min median 22.0, overall max 22.2
+    batch32Ms: first-5-min max 50.0, last-5-min median 47.6, overall max 50.6
+    rerankMs: first-5-min max 8.6, last-5-min median 8.5, overall max 8.6
+    memAvailMiB: first-5-min max 50033.8, last-5-min median 49958.6, overall max 50033.8
+    pool reserved_cur per minute: first 288, max 288, last 288 MiB (n=20)
+  r6-soak-S: outcome pass allocMode sync iterations 5615 docs 280750 mismatches 0 aborted None
+    rssMiB: first-5-min max 832.4, last-5-min median 936.4, overall max 937.6
+    embedMs: first-5-min max 46.0, last-5-min median 43.8, overall max 46.0
+    batch32Ms: first-5-min max 138.3, last-5-min median 136.8, overall max 139.9
+    rerankMs: first-5-min max 13.2, last-5-min median 12.4, overall max 13.2
+    memAvailMiB: first-5-min max 50037.5, last-5-min median 49871.1, overall max 50037.5

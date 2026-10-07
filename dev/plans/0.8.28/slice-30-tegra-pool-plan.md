@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 30 — Tegra private CUDA memory pool (D28-08) plan
-status: PROPOSED (2026-10-07)
+status: PROPOSED (revision 2, 2026-10-07)
 target_release: 0.8.28
 observed_on: 2026-10-07
 ---
@@ -9,260 +9,308 @@ observed_on: 2026-10-07
 
 This plan turns the 0.8.28 Tegra CUDA memory-pool study into product work.
 It is the working plan for D28-08 in `dev/plans/0.8.28-draft-scope.md`
-until the 0.8.28 plan, release-state file and board exist. It does not
-replace the owner's rulings; it cites them.
+until the 0.8.28 plan, release-state file and board exist. Those must copy
+§ 8 (host clean-up) into the 0.8.28 plan when they are created. It does
+not replace the owner's rulings; it cites them.
+
+The design input is `dev/plans/0.8.28/slice-30-design-draft.md`. It
+records every decision already taken, and the design agent completes it in
+S30-T1.
 
 ## 1. Sources
 
 All study sources are as of `b045489d2` on `llm/0.8.28-tegra-pool-study`.
+They are all on `release/0.8.28` except the vendored Candle copy, which
+SD-1 makes unnecessary.
 
-| Source | On `release/0.8.28` | Role |
-| --- | --- | --- |
-| `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-study.md` | yes | Study plan, owner rulings 1–38, design notes, gate tables |
-| `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md` | yes | Executable method; governs where it is more specific |
-| `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md` | yes | Upstream cudarc shape (Phase 5 input) |
-| `dev/plans/runs/0.8.28-pool-study/results.md` | yes | Results of record, Phases 0–4 and the revision-6 spot check |
-| `dev/plans/runs/0.8.28-pool-study/{harness,matrices,summaries,samples,patches,seeds-and-layouts}/` | no (study branch) | Evidence; see § 7 |
+| Source | Role |
+| --- | --- |
+| `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-study.md` | Study plan, owner rulings 1–38, design notes, gate tables |
+| `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-experiment-protocol.md` | Executable method; governs where it is more specific |
+| `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md` | Upstream cudarc shape (Phase 5 input) |
+| `dev/plans/runs/0.8.28-pool-study/results.md` | Results of record, Phases 0–4 and the revision-6 spot check |
+| `dev/plans/runs/0.8.28-pool-study/{harness,matrices,summaries,samples,patches,seeds-and-layouts}/` | Evidence and the harness that qualification adapts (§ 7) |
 
 Study code to port (reference only; Slice 30 rewrites it test-first):
 
-| Commit | What |
+| Commit / file | What |
 | --- | --- |
 | `3ce5c5c46` | cudarc: explicit pool primitive and three-state allocator decision |
 | `642347d3a` | embedder: `tegra-pool-experiment` policy and harness |
 | `dbd08e313` | P-first-use private pool, fail-closed policy |
 | `74a6b4d62` | trim arm (dropped), `cuda_pool_exhausted` kind, Python hook, constants |
 | `7b9b18146` | runtime gating and sizing; Python and reranker exhaustion |
-| patch `candle-from-context.patch` | `CudaDevice::from_context` for Candle |
+| `patches/candle-from-context.patch` | `CudaDevice::from_context` for Candle |
 
 Prerequisite already in `release/0.8.28`: the embedder-close fix
 (`c816b8653`, `2ff744b06`, `8247d91a4`; study ruling 26).
 
-## 2. Decisions taken in this plan (2026-10-07)
+## 2. Decisions
 
-The owner delegated these when approving the plan. Each one must be
-restated in the ADR (§ 5).
+Each decision is restated in the design draft and the ADR.
 
-- **SD-1. Candle `from_context` goes on the Candle fork, not a vendored
-  copy.**
-  - Context: the private pool needs Candle to build a device on a context
-    FathomDB created (`CudaDevice::from_context`). The study vendored
-    `third_party/candle-core-fathomdb-0.10.2` (1.5 MiB, 104 files) and marked
-    it "study branch only (never merged)".
-  - FathomDB already pins `coreyt/candle-fathomdb` at `1aefdd008`, the head
-    of the fork's `fix/tegra-static-cudart-release` branch. That branch
-    already carries the Fathom Tegra patches: static CUDA runtime, dynamic
-    driver loading, the AArch64 CPU F16 fallback and packaging.
-  - Decision: cut a fork branch from `1aefdd008`, commit the study's
-    `candle-from-context.patch` there with a test, and move all four rev pins
-    in the root `Cargo.toml` together. No vendored Candle tree lands.
-  - Published crates: `fathomdb-embedder` pins
-    `candle-core-fathomdb = "=0.10.2"` from crates.io, and the root `[patch]`
-    does not reach crates.io users. The new API therefore needs a
-    `candle-core-fathomdb` release (0.10.3, with `nn` and `transformers` at
-    the same version) and the `=` pins moved to it.
-  - Pushing to the fork and publishing to crates.io are outward actions.
-    Each needs the owner's go-ahead at the step that does it (S30-T2).
-  - An upstream Candle PR for `from_context` is optional Phase 5 work (§ 6).
-- **SD-2. The 8 GB Orin is off in every mode.**
-  - Ruling 31 says the 8 GB Orin is off. The results (§ 12.4) say "revisit
-    only with on-device data". The code enforces it through the quarter rule
-    (`TooSmall`: 2 GiB floor > ¼ of the ~7.4 GiB reported).
-  - The accepted settings note lets `on` lift `TooSmall`. On an 8 GB board
-    that would reserve 27 % of system RAM, unmeasured. That conflicts with
-    ruling 31 and with ruling 25 (no host-memory hogging).
-  - Decision: `on` lifts only the Tegra-identity gate and the
-    unmeasured-class gate. `TooSmall`, `Discrete` and `NoPools` hold in every
-    mode, and `on` logs the reason and stays off. Revisit with on-device 8 GB
-    data under a new ruling.
-- **SD-3. Where the boundary between fallback and refusal sits.**
-  - Ruling 37 says FathomDB never refuses. The study's C1 rule is fail
-    closed.
-  - Both hold, at different times:
-    - At the process's first GPU-use decision, every failure falls back to
-      the 0.8.27 synchronous path, with a recorded reason. The failures are:
-      no early `cuInit`, `cuInit` opted out or failed, a gate is off, or pool
-      creation failed.
-    - After a private-pool context exists, a later context-build failure is
-      a typed error, never a silent switch of allocator.
+- **SD-1. Candle `from_context` lands on the Candle fork, not as a vendored
+  copy.** The complete work is S30-T2 (§ 6):
+  - **Fork.** In `coreyt/candle-fathomdb`, cut a branch from `1aefdd008`
+    (the head of `fix/tegra-static-cudart-release`, the reviewed revision
+    FathomDB pins today).
+    - Commit the study's `from_context` change with a unit test.
+    - Bump `candle-core-fathomdb`, `candle-nn-fathomdb` and
+      `candle-transformers-fathomdb` to 0.10.3 together. `candle-kernels`
+      stays at its current version.
+  - **Pin set in FathomDB.** Move every reference to the old revision
+    together:
+    - the four rev pins and their comment in the root `Cargo.toml`;
+    - the three `=0.10.2` pins in `fathomdb-embedder/Cargo.toml`;
+    - `Cargo.lock`;
+    - `CANDLE_GIT_REV` in `scripts/check-cuda-release-contract.py`;
+    - `CANDLE_REV` in `scripts/check-pinned-override-rot.py`, and
+      `scripts/pinned-override-rot.json`;
+    - the fixture revs in `scripts/tests/test_check_pinned_override_rot.sh`
+      and `scripts/tests/test_cuda_release_contract.sh`. This is a
+      mechanical rev bump, the TDD exception;
+    - the version and line references in
+      `dev/design/delivery-requirements-map-20260821.md`.
+  - **Contracts re-verified on the new revision:**
+    - `check-cuda-release-contract.py`: static CUDA runtime, and CPU
+      artifacts load without `libcudart`;
+    - the pinned-override gate;
+    - output equivalence (E2).
+  - **HITL.**
+    - Pushing the fork branch needs the owner's go-ahead.
+    - Publishing the three 0.10.3 crates to crates.io needs it separately,
+      before any FathomDB 0.8.28 publish.
+    - The 0.8.28 publish gate gains a check that `fathomdb-embedder`, with
+      `embed-cuda`, resolves the 0.10.3 crates from crates.io.
+  - **Upstream Candle:** optional Phase 5 note (§ 6.1).
+- **SD-2. The 8 GB Orin is off in every mode.** `on` lifts only the
+  Tegra-identity and unmeasured-class gates. `TooSmall`, `Discrete` and
+  `NoPools` hold in every mode; `on` logs the reason and stays off.
+  - Basis: ruling 31 says off; results § 12.4 says "revisit only with
+    on-device data"; ruling 25 says no host-memory hogging. A 2 GiB pool is
+    27 % of an 8 GB board's RAM, unmeasured.
+  - This narrows the settings design note's "`on` lifts `TooSmall`".
+- **SD-3. Where falling back ends and refusing begins.**
+  - At the process's first GPU-use decision, every failure falls back to
+    the 0.8.27 synchronous path, with a recorded reason (ruling 37). The
+    failures: no early `cuInit`, `cuInit` opted out or failed, a gate is
+    off, or pool creation failed.
+  - After a private-pool context exists, a later context-build failure is a
+    typed error, never a silent switch of allocator (the study's C1
+    fail-closed rule).
 - **SD-4. The Python import gate counts early `cuInit`.**
-  - Python gains early `cuInit` (ruling 37), so its import time rises by the
-    `cuInit` cost (about 12 ms, owner's figure).
-  - The P1 import gate for Python is S + measured `cuInit` cost + 5 ms. The
-    cost is reported on its own line.
-  - Node already has early `cuInit` in 0.8.27, so its gate stays S + 5 ms.
-
-### Open design decision (resolve in the ADR, before S30-T3)
-
-- **OD-1. crates.io consumers of `fathomdb` with `embed-cuda`.**
-  - The pool primitive (`CudaMemPool`, `CudaContext::new_with_mem_pool`)
-    exists only in the vendored cudarc, through a workspace `[patch]` that
-    does not reach crates.io. If product code calls it unconditionally, the
-    published Rust crates stop compiling with `embed-cuda` against stock
-    cudarc 0.19.7.
-  - The study avoided this with a non-default feature.
-  - Recommendation: a non-default Cargo feature, `tegra-pool`, which the
-    napi and Python Tegra builds turn on. Without it the code compiles
-    against stock cudarc, and pool mode resolves to `off` with reason
-    `not_built`.
-  - Alternatives: publish a `cudarc-fathomdb` fork crate, or wait for
-    upstream. Either way, the ADR must state what a crates.io build gets.
+  - The Python gate is S + measured `cuInit` cost + 5 ms, with the cost
+    reported on its own line.
+  - Node keeps S + 5 ms: it already has early `cuInit` in 0.8.27.
+- **SD-5. OD-1 is resolved as a non-default `tegra-pool` Cargo feature.**
+  - The pool primitive exists only in the vendored cudarc, and the
+    workspace `[patch]` does not reach crates.io.
+  - The napi and Python Tegra builds enable `tegra-pool`.
+  - Without the feature, the crate compiles against stock cudarc 0.19.7,
+    pool mode resolves to `off` with reason `not_built`, and behaviour is
+    exactly 0.8.27's.
+  - The design must prove that the feature is clean against every other
+    configuration and execution path (§ 5.2).
+- **SD-6. Performance is re-measured against the study build, not the
+  default-pool reference from scratch.**
+  - The study already measured P-first-use against the default pool and
+    the synchronous path, with references accepted in ruling 29.
+  - The open question for Slice 30 is whether productisation changed
+    anything. So Node compares product P with the study's P build
+    (`b045489d2`, rebuilt) and with S, interleaved. The study's
+    default-pool ratios carry over by transitivity.
+  - Python S is the default pool on this host (results § 12.7.2), so the
+    Python series compares product P with Python S directly.
+  - This replaces a fresh default-pool reference, which needs many S
+    processes because S lands on the default pool only part of the time.
 
 ## 3. Gates
 
-Each study gate is one row. **Disposition** says how Slice 30 meets it:
+### 3.1 The questions
+
+Slice 30 changes how the study's P-first-use path is reached, configured,
+reported and failed. It does not change the allocator mechanism itself. So
+qualification answers six questions. Everything the study settled and
+Slice 30 does not touch is carried, not re-run (§ 3.4).
+
+| Q | Question | Gates |
+| --- | --- | --- |
+| Q1 | Does each process take the private pool exactly where the rules say, and the 0.8.27 synchronous path everywhere else, with the reason reported? | G1, G2 |
+| Q2 | Is the memory given back, and does it stay bounded? | G3 |
+| Q3 | Is pool exhaustion typed, recoverable and kept on CUDA, on every path in all three SDKs? | G4 |
+| Q4 | Did productisation change behaviour: outputs, heap robustness, concurrency, endurance? | G5, G6, G7, G8 |
+| Q5 | Did productisation cost speed? | G9 |
+| Q6 | Do coexistence, multi-device isolation and the C7 instrumentation behave as designed? | G10 (tests only) |
+
+### 3.2 Gate rows
+
+**Disposition:**
 
 - **TEST**: an automated test in the suite, written red first.
-- **QUAL**: re-run on the product build, on the AGX Orin 64 GB, under the
-  GPU lock, with the Node and Python artifacts installed from packed
-  tarballs/wheels.
-- **STUDY**: carried from the study evidence, unchanged. Allowed only where
-  product code does not alter the thing measured.
-- **UNMEASURED**: declared, with the gate that keeps it safe.
+- **QUAL**: run once on the AGX Orin 64 GB, under the GPU lock, with the
+  Node and Python artifacts installed from packed tarballs/wheels.
 
-S means the production 0.8.27 build (synchronous fallback). "Default pool"
-means S's default-pool processes, the reference accepted in ruling 29. The
-study's pass bars are kept. QUAL sample sizes confirm that the product
-build behaves like the study build; the statistical power comes from the
-study's own N, which each row cites. A QUAL row passes only with zero
-allocator errors, crashes or OOM kills, unless it says otherwise.
+S is production 0.8.27. Every QUAL series passes only with zero allocator
+errors, crashes and OOM kills, and only if every process satisfies
+CB1 (`reserved_high` ≤ `maxSize`, read from the pool's own counter, ruling
+34). The sample sizes confirm that the product behaves like the study
+build. The study's own N carries the statistical power, cited in the last
+column.
 
-Allocation correctness and release are gated first (ruling 25). Latency
-rows are gated after them.
-
-### 3.1 Allocation correctness and release
-
-| # | Gate | Disposition | Qualification method and sample | Pass | Study evidence |
+| Gate | Study rows | Disposition | Method and sample | Pass | Study evidence |
 | --- | --- | --- | --- | --- | --- |
-| C1 | Allocator provenance | TEST + QUAL | Vendored cudarc unit tests for the three shipped states (default, private, synchronous); pure test of SD-3; constructor and cross-wrapper free tests as the study ran them. Device: 20 Node + 20 Python processes in `auto`. | Every FathomDB context is a private-pool context; every free uses the allocating API. | 751/751 private (results § 12.8) |
-| C2 | Pool lifetime: open/close cycles | QUAL | 20 Node processes × 100 cycles, no GC. | All cycles allocate on the private path. Median VmRSS growth ≤ 0.36 MiB per cycle, max ≤ 0.44. `reserved_cur` = 0 after the last close when no module-level model is loaded. | 20/20, 0.36 MiB (§ 13.2) |
-| C3 | Exhaustion behaviour | TEST + STUDY | Capacity model carried. Deterministic exhaustion via a test allocator. | Policy (i), typed refusal. Capacity model within 5 % (carried). No silent CPU move. | § 3.1, § 10.2 |
-| C4 | cuBLAS/cuRAND workspaces | STUDY + QUAL | Carried; rerank at 3 GiB is exercised in P3 and R5. | Rerank passes at the chosen size. | Phase 2, § 11 |
-| C5 | Zero-length buffers | TEST | Zero-element tensor and `CudaStream::null()` tests on the private path. | No null pointer reaches a free. | § 10.2 |
-| C6 | Multi-device | TEST + UNMEASURED | Pure two-device decision tests. | Decisions and pools never cross devices. Real multi-GPU declared unmeasured. | — |
-| C7 | Co-resident context reset | TEST (characterization) | The study's reset probe as an expected-crash test; context-id check on CUDA errors. | The probe documents the current crash. The first detected loss raises typed `cuda_context_lost` with both context ids, the driver error and the operation, and writes one diagnostic snapshot. Survival is **not** required (ruling 36; fix in 0.8.29). | § 12.3, § 13.4 |
-| C8 | Python and Node parity | QUAL | 20 processes per binding, packed artifacts. | Same decision; embedding hash and rerank scores identical to S; same error kinds. | § 12.7.3 |
-| C9 | Coexistence with the device's current pool | TEST + QUAL | Vendored device test; Node 10 processes × 50 cycles; Python co-resident `ctypes` user, 10 processes. A test-support hook replaces the removed `FATHOMDB_POOL_COEXIST_CHECK`. | The current-pool handle never equals the private pool's. The co-resident user's allocations land in the default pool. | Phase 2 |
-| CB1 | Cap | QUAL (all QUAL processes) | The pool's own `reserved_high` counter (ruling 34). | `reserved_high` ≤ `maxSize` in every process. `MemAvailable` is a sanity check on integrated devices, never a failure. | 290/290 (§ 12.8) |
-| CB2 | Release after close | QUAL | C2 processes, plus 20 `full` processes: close, 10 s idle. | Threshold 0: `reserved_cur` = 0 after the last close with no module model loaded. Otherwise spare < 2 chunks. | § 12.7.1 |
-| CB3 | Typed error at the cap | TEST + QUAL | Rust test. QUAL: oversized batch (128 long passages) at 3 GiB, 20 Node + 20 Python processes. TS and Python tests on embed, batch, engine rerank, module-level `embed` and module-level `rerank`. | `cuda_pool_exhausted` on every path in all three SDKs (ruling 33). The next embed succeeds. | § 11.6, § 12.1 |
-| CB4 | No CPU move | QUAL | Same runs as CB3. | The embed after the error reports device `cuda` and the pre-error embedding hash. | § 11.6 |
-| E1 | Early `cuInit` check and fallback (ruling 37) | TEST + QUAL | Tests for each state: ran, opted out, failed, pool creation failed (injected). QUAL: 10 processes per state, Node and Python. | Never refuses. Synchronous path with the reason in `doctor gpu` and the allocation-mode diagnostic. | — (new) |
-| E2 | Output equivalence | QUAL | The C8 processes. | Embedding hash and rerank scores identical to S. | § 12.7.3 |
+| G1 Decision | C1, C6 (pure), sizing | TEST + QUAL | Pure tests for every row of § 3.3 and every `GateReason`, what `on` lifts, `off` winning, SD-3, and the two-device case. Vendored cudarc tests for the three allocator states. QUAL: 20 Node + 20 Python processes in `auto`. | Every FathomDB context is private-pool; every free uses the allocating API; `doctor gpu` reports `private` and the size. | 751/751 private (§ 12.8) |
+| G2 Fallback | E1 (ruling 37), R4 | TEST + QUAL | A test per early-`cuInit` state (ran, opted out, failed) and for injected pool-creation failure, in each binding. QUAL: 5 Node + 5 Python processes per state, plus late import without early `cuInit` at a 4M-object heap, 5 processes. | Never refuses. Synchronous path, with the reason in `doctor gpu` and the allocation-mode diagnostic. | R4 (§ 12.6) |
+| G3 Release and lifetime | C2, CB1, CB2 | QUAL | 10 Node processes × 100 open/close cycles, no GC; 10 Python processes × 50 cycles; then close and 10 s idle. | All cycles on the private path. Median VmRSS growth ≤ 0.36 MiB per cycle, max ≤ 0.44. `reserved_cur` = 0 after the last close when no module-level model is loaded; otherwise spare < 2 chunks. | 20/20, 0.36 MiB (§ 13.2) |
+| G4 Exhaustion | C3, CB3, CB4 | TEST + QUAL | Tests for `cuda_pool_exhausted` in Rust, pytest and vitest, on embed, batch, engine rerank, module-level `embed` and module-level `rerank()`, through a deterministic test allocator. QUAL: oversized batch (128 long passages) at 3 GiB, 5 Node + 5 Python processes. | Typed kind on every path (ruling 33), including the Python `CudaPoolExhaustedError` subclass. The next embed succeeds on device `cuda` with the pre-error embedding hash. | § 11.6, § 12.1 |
+| G5 Equivalence | C8, E2 | QUAL | The G1 processes. | Embedding hash and rerank scores identical to S in both bindings; same decision and error kinds. | § 12.7.3 |
+| G6 Heap robustness | R2, R3, R5 | QUAL | Node 25, import first: heap grown to 4M objects before first use, and to the R5 boundary cell; 20 processes each, with further heap growth and a second embed and rerank in the same process. | Private path in every process; no path change after the first decision. A failure stops the run for a ruling, never a retry. | 630 R5 runs; R2/R3 on Node 24–26 (§ 10.6, § 12.6) |
+| G7 Concurrency | R7 | QUAL | 2, 4 and 8 processes, threshold 0, 5 trials per count; abort below 8 GiB `MemAvailable`. | No failure or OOM kill. | 280/280 (§ 12.6) |
+| G8 Soak | R6 | QUAL | One Node and one Python process, concurrently, 20 minutes, no-swap condition. | No allocator error. Reserved memory and RSS within 10 % of the first-5-minute high. Steady drift < 10 %. | P n = 1 (§ 12.6) |
+| G9 Performance | P1–P4, P7 | QUAL | Node 25: product P, study P and S, 20 processes each in interleaved randomised blocks. Python: product P and Python S, 20 each. Per process: import time, 5 warm-up + 50 timed steady embeds, rerank, batches 1/8/32/128. Bootstrap 95 % CI over processes (SD-6). | Node: product/study-P ratio ≤ 1.05 for steady embed, rerank and each batch, with CIs reported (if a CI upper bound exceeds 1.10, double N once); CI lower bound of the speed-up over S's synchronous processes > 1.5; import ≤ S + 5 ms and RSS ≤ S + 32 MiB. Python: product P / S ≤ 1.15 on steady embed and rerank; import per SD-4. | Phase 4 (§ 12.7.2), spot check (§ 13.3) |
+| G10 Coexistence, devices, C7 | C5, C6, C7, C9 | TEST | Vendored device test that the current-pool handle is never the private pool; zero-length tensor tests on the private path; two-device pure tests; the reset probe as an expected-crash characterization test; context-id detection through a fault seam. | Coexistence and C5 hold. On the first detected loss, `cuda_context_lost` carries both context ids, the driver error and the operation, and one diagnostic snapshot is written. Survival is not required (ruling 36). | C9 Phase 2; § 12.3, § 13.4 |
 
-### 3.2 Robustness
+GPU budget: about 2.5 h in one locked window after S30-T8. The study's
+Phases 3 and 4 used about 5.5 h.
 
-| # | Gate | Disposition | Qualification method and sample | Pass | Study evidence |
-| --- | --- | --- | --- | --- | --- |
-| R1 | Synthetic fragmented layouts | STUDY | Not re-run: the C harness exercises the driver, not FathomDB code. | — | 300+ runs, ≥ 98.9 % bound (§ 12.6) |
-| R2 | Real Node heaps | QUAL | Heaps 0, 400k and 4M objects; Node 24, 25, 26; 20 processes per cell (180). | Zero failures; every process private. | § 12.6 |
-| R3 | Heap growth during use | QUAL | 20 processes × Node 24, 25, 26. | Zero failures; no path change after the first decision. | § 12.6 |
-| R4 | Late import | TEST + QUAL | With and without early `cuInit`; 20 processes per heap size (0, 4M). | With early `cuInit`: private. Without: synchronous with the reason (E1). | § 12.6 |
-| R5 | Lazy creation after heap growth | QUAL | 3 GiB at the study's boundary cells and 4M, Node 25, 30 processes per cell. | P passes in every cell. A failure is a stop-and-rule event, not a retry. | 630 P runs (§ 10.6, § 12.6) |
-| R6 | Soak | QUAL | Two processes, 20 min each, Node and Python, no-swap condition. | No allocator error. Reserved memory and RSS within 10 % of the first-5-minute high. Steady drift < 10 %. | P n = 1 (§ 12.6); the protocol asks for 2 |
-| R7 | Concurrent processes | QUAL | 2, 4 and 8 processes, threshold 0, 10 trials per count; abort below 8 GiB `MemAvailable`. | No process fails or is OOM-killed. | 280/280 (§ 12.6) |
-| R8 | Release threshold | STUDY | Ruling 30: threshold 0. | — | § 12.7.2 |
-| R9 | Unmeasured boards | UNMEASURED | Sizing table (§ 3.4). | Unmeasured classes stay off or opt-in. | — |
-
-### 3.3 Performance (gated after § 3.1)
-
-20 fresh processes per cell, 5 warm-up and 50 timed iterations, the process
-as the unit, interleaved randomised blocks, a percentile-bootstrap 95 % CI,
-no-swap condition (protocol § 1.1). Reference: "Default pool" is
-Node + Python pooled per ruling 29.
-
-| # | Measure | Pass |
-| --- | --- | --- |
-| P1 | Import time, open time, RSS | Node: import ≤ S + 5 ms; RSS ≤ S + 32 MiB. Python: SD-4. Open time reported. |
-| P2 | Steady embed | P / default-pool ratio ≤ 1.15. CI lower bound of the speed-up over S's synchronous path > 1.5. If the ratio's CI upper bound exceeds 1.25, double N once before ruling. |
-| P3 | Steady rerank (ruling 28) | P / default-pool rerank time ≤ 1.15, with the CI stated. Report the old 1.5× reading as well. |
-| P4 | Embed batch 1, 8, 32, 128 | Each batch size: P / default-pool ratio ≤ 1.15. |
-| P5 | Bulk ingest (≥ 10,000 docs) | CI lower bound of the P / S throughput ratio ≥ 0.95. |
-| P6 | Memory overhead | Reported; gated by CB1/CB2. |
-| P7 | Python steady embed and ingest | P / Python default-pool ratio ≤ 1.15. |
-| P8 | First embed | No worse than S: CI upper bound of the P / S time ratio ≤ 1.05. |
-
-GPU budget: the study's Phases 3 and 4 used about 5.5 h of lock time. This
-qualification is about 4 h, in one locked window after S30-T8.
-
-### 3.4 Sizing table (ruling 31, SD-2)
+### 3.3 Sizing table (ruling 31, SD-2)
 
 | Device class | `auto` | `on` |
 | --- | --- | --- |
 | AGX Orin 64 GB | 3 GiB (1/20 clamped to [2, 3] GiB) | same |
 | Orin 32 / 16 GB | off until an on-device C3 + R5 run | 2 GiB |
-| Orin 8 GB (Nano/NX) | off (`TooSmall`) | off (`TooSmall`, SD-2) |
+| Orin 8 GB (Nano/NX) | off (`TooSmall`) | off (`TooSmall`) |
 | Thor | off (unmeasured) | 3 GiB |
 | GB10-class (not Tegra) | off (Tegra-identity gate) | sized by rule |
-| GH200 | off if `INTEGRATED` = 0 (verify) | off if discrete |
-| Discrete GPU | off | off (`Discrete`) |
+| GH200 | off if discrete (verify `INTEGRATED`) | off if discrete |
+| Discrete GPU | off (`Discrete`) | off (`Discrete`) |
+| Built without `tegra-pool` | off (`not_built`) | off (`not_built`) |
 
 `off` always wins.
 
+### 3.4 Carried, not re-run
+
+- **R1** synthetic layouts: the C harness exercises the driver, not
+  FathomDB code. 300+ runs.
+- **R8** release threshold: ruling 30 set 0.
+- **C3** capacity model (1/3 of `maxSize`, within 5 %): a driver property.
+- **C4** cuBLAS workspaces: bounded in Phase 2. G9's rerank covers the
+  chosen size.
+- **R2/R3 on Node 24 and 26**: G6 runs Node 25 only.
+- **P5** ingest throughput and **P6** memory overhead: reported in Phase 4.
+  Neither touches code Slice 30 changes.
+- **Unmeasured (declared, kept safe by § 3.3):** real multi-GPU (C6); R9
+  boards (8, 16 and 32 GB Orin; Thor; GB10; GH200).
+
 ## 4. Product changes
 
-These are from D28-08 and rulings 26–38. The study code is the reference
-only. Everything else is removed:
+These come from D28-08 and rulings 26–38.
 
-- **Removed:** the trim arm (`TrimArm`, `parse_trim`, the `TRIM_*`
-  constants, `trim_tick_ms`, `should_trim`, the trim thread and its counters,
-  `FATHOMDB_POOL_TRIM*`); the comparison arms (`A-first-use`, `B`,
-  `PoolAction::CreateInstalled*`, `CudaMemPool::install`,
-  `AllocMode::Explicit`); the study diagnostics (`FATHOMDB_POOL_STATS_EVERY_S`,
-  `FATHOMDB_POOL_COEXIST_CHECK`, `FATHOMDB_POOL_MAPS_DIR`, the
-  `fdb-pool-exp` stderr lines); and `parse_max_size(None)`.
+- **Removed:**
+  - the trim arm: `TrimArm`, `parse_trim`, the `TRIM_*` constants,
+    `trim_tick_ms`, `should_trim`, the trim thread and its counters, and
+    `FATHOMDB_POOL_TRIM*`;
+  - the comparison arms: `A-first-use`, `B`, `PoolAction::CreateInstalled*`,
+    `CudaMemPool::install` and `AllocMode::Explicit`;
+  - the study diagnostics: `FATHOMDB_POOL_STATS_EVERY_S`,
+    `FATHOMDB_POOL_COEXIST_CHECK`, `FATHOMDB_POOL_MAPS_DIR` and the
+    `fdb-pool-exp` stderr lines;
+  - `parse_max_size(None)`.
 - **Kept:**
   - pool mode `auto`/`on`/`off`, set per process (it replaces
     `FATHOMDB_POOL_VARIANT`);
   - `FATHOMDB_POOL_MAXSIZE`;
   - `FATHOMDB_POOL_RELEASE_THRESHOLD`, default 0;
   - the named constants, each with a pure test;
-  - `DEFAULT_MAX_SIZE` as `POOL_SIZE_CEILING`;
-  - the decision and exhaustion events, which become `tracing` events.
+  - `DEFAULT_MAX_SIZE`, as `POOL_SIZE_CEILING`;
+  - the decision and exhaustion events, as `tracing` events;
+  - the `tegra-pool` feature (SD-5).
 
-## 5. What the design (ADR + interface docs) must state
+## 5. Design (S30-T1)
 
-S30-T1 writes the ADR. It is not ready for review until it states each item
-below explicitly. Each item gets a sentence, not a pointer to the study.
+### 5.1 What the design must state
 
-1. The adoption rule: P-first-use, created at first GPU use, only after
-   early `cuInit` ran (ruling 37).
-2. SD-3: the boundary between falling back and refusing.
-3. The early `cuInit` states (ran / opted out / failed). How each binding
-   records them. Python's opt-out. The Slice 117 import-time `cuInit` item
-   settled the same way.
-4. The sizing rule and the constants: divisor 20, floor 2 GiB, ceiling
-   3 GiB, the quarter rule. The measured basis of the floor and ceiling
-   (1/3 capacity, 32 MiB chunks) is cited as evidence, not as logic.
-5. The sizing table in § 3.4, including SD-2 and exactly what `on` lifts.
-6. The settings: names, defaults, accepted values, the process-level
-   carrier, precedence, and when they are read (before the first device).
-   They live in FathomDB, never in cudarc.
-7. The release threshold of 0, its caveat (ruling 30) and why.
-8. The error kinds `cuda_pool_exhausted` and `cuda_context_lost`: payload
-   fields, the class in each SDK (including the Python
-   `CudaPoolExhaustedError` subclass), and every path that raises them.
-9. The `fathomdb doctor gpu` fields and the allocation-mode diagnostic:
-   chosen path, reason, pool size, threshold, the `cuInit` state, context
-   state.
-10. C7: unsupported and documented. What is detected (`cuCtxGetId`), what
-    is raised, and the snapshot contents. The 0.8.29 fix and its
-    characterization test.
-11. Module-level models stay loaded until the process exits and hold pool
-    memory (ruling 32). The release call is 0.8.30 B30-01.
-12. OD-1: what a crates.io build gets.
-13. SD-1: the Candle fork rev and the `candle-core-fathomdb` version.
-14. The cudarc patch items: each with its upstream status (local-only,
-    proposed, merged, released through Candle) and removal path. The
-    aarch64 synchronous fallback stays local. The pinned-override gate's
-    expected set.
-15. The gate table in § 3 by reference, with each disposition.
-16. The behaviour changes for the changelog: the default allocator on AGX
-    Orin 64 GB, Python early `cuInit`, the new error kinds, the new
-    settings.
+The design draft, `dev/plans/0.8.28/slice-30-design-draft.md`, already
+holds every decided item. The design agent completes it into the ADR and
+the `dev/interfaces/` updates. Neither is ready for review until each item
+in the draft's checklist is stated as a sentence in the ADR. A pointer to
+the study does not count.
 
-The `dev/interfaces/` updates (rust, python, typescript, cli) land in the
-same change as the code that they describe (D28-08).
+### 5.2 Instruction to the design agent: trace the paths
+
+Before writing the ADR, trace the real code. Do not rely on the study
+write-up. Record the result in the design draft's § 4 tables. It must show
+that the `tegra-pool` feature, on or off, and the pool mode do not
+interfere with any other configuration, and do not introduce races on any
+execution path.
+
+1. **Configuration matrix.** For each combination, record the build
+   outcome, the allocator decision and the reported reason, and cite the
+   code at file:line:
+   - targets: aarch64 Linux Tegra, aarch64 Linux non-Tegra, x86_64 Linux
+     CUDA, macOS Metal, CPU-only;
+   - Cargo features: `tegra-pool` on and off, crossed with `embed-cuda`,
+     `rerank-cuda`, `embed-metal` and none;
+   - pool mode: `auto`, `on`, `off`, invalid;
+   - early `cuInit` state.
+
+   Expected: built without `tegra-pool`, or on any non-Tegra target,
+   behaviour is byte-for-byte 0.8.27, with no warnings and no dead-code
+   lints.
+2. **Feature unification.** `cargo build --workspace` and `cargo test
+   --workspace` unify features.
+   - Trace which crates enable `tegra-pool`: `fathomdb-napi`,
+     `fathomdb-py`, and whether `fathomdb`, `fathomdb-sdk` or
+     `fathomdb-cli` inherit it.
+   - Show that workspace test runs exercise both the on and off builds,
+     and that crates.io packaging of each crate compiles without the
+     vendored cudarc. Add the CI or verify step that proves it.
+3. **Interference with existing behaviour.** Trace each against the pool
+   decision:
+   - the 0.8.27 synchronous-fallback decision table and `FATHOMDB-PATCH.md`
+     items 1–3;
+   - the Slice 110 early `cuInit` and its opt-out;
+   - the reranker device policy;
+   - forced-device and CPU-fallback options;
+   - the embedder-close fix (`close_lock`, the drop order);
+   - the module-level embedder and reranker singletons;
+   - the existing `FATHOMDB_*` settings;
+   - `doctor gpu` on hosts with no CUDA.
+
+   Each must either be unaffected or have its change named in the
+   behaviour-change list.
+4. **Execution paths.** Trace each end to end:
+   - Node module load → `cuInit` record → first GPU use → decision →
+     context and pool → Candle device → allocation and free → close →
+     environment teardown and process exit. First GPU use can be
+     `Engine.open`, module-level `embedBatchCls`, or `rerank()`;
+   - the same for Python: import, first use with the GIL released, and
+     interpreter finalisation;
+   - the same for direct Rust use;
+   - `fathomdb doctor gpu`, which must report the decision without creating
+     a context or a pool.
+5. **Races and shared state.** Build a table with these columns: shared
+   state, writers, readers, synchronisation primitive, and the test that
+   pins it. Cover at least:
+   - concurrent first use from several threads: Node worker threads and
+     the libuv pool, Python threads, Rust threads. The decision is made
+     exactly once, and every thread sees the same result;
+   - settings read once before the decision; a later environment change is
+     ignored, and that is documented;
+   - the order in which the early-`cuInit` state is written and read;
+   - a pool-creation failure while other threads wait;
+   - close racing an in-flight embed or rerank;
+   - drop order of slices, stream, context and pool at close and at
+     process exit (static destructors, napi environment teardown, Python
+     finalisation);
+   - context-loss detection firing from two threads, so that exactly one
+     snapshot is written;
+   - exhaustion under concurrent requests;
+   - `fork()` after `cuInit` (Python `multiprocessing` with the fork start
+     method): detected or documented.
+6. **Outputs.** The three tables in the design draft's § 4, each row with a
+   file:line citation and a named test. Every hazard found gets a test in
+   the TDD ladder (§ 6) or a documented limit in the ADR.
 
 ## 6. TDD ladder
 
@@ -273,34 +321,36 @@ review gate (D28-08).
 
 | Step | Work | Red test first | Reference |
 | --- | --- | --- | --- |
-| S30-T0 | Preflight. Merge 0.8.27 forward. Create the 0.8.28 plan, release-state file and board, or record that this file stands in until they exist. | — | `scripts/preflight.sh` |
-| S30-T1 | ADR + interface-doc drafts covering § 5; resolve OD-1. Owner review. | — | study plan design notes |
-| S30-T2 | Candle fork: `from_context` with a test; rev pins; `candle-core-fathomdb` 0.10.3. **Owner OK to push and publish.** | Candle unit test for `from_context` (default stream, allocator of the given context) | `candle-from-context.patch` |
-| S30-T3 | cudarc pool primitive, upstream-first: small commits in upstream style; the vendored change is the backport. Update the `FATHOMDB-PATCH.md` items, the pinned-override expected set and `test_vendored_cudarc.sh`. | Vendored unit tests: C1 (three states), C5, C6, drop order (C2 lifetime) | `3ce5c5c46`; upstream notes § 1 |
-| S30-T4 | Policy: sizing, gates, modes, settings, constants, SD-2, SD-3. | Pure tests: sizing table rows, each `GateReason`, what `on` lifts, `off` wins, the constants, SD-3 | `dbd08e313`, `7b9b18146` |
-| S30-T5 | Early `cuInit` contract: state record (Node + Python), Python hook and opt-out, fallback. | E1 state tests in each binding | `74a6b4d62` (Python hook) |
-| S30-T6 | Typed exhaustion on every path in all three SDKs, including module-level `rerank()`. | CB3 tests in Rust, pytest and vitest per path | `7b9b18146`, `src/ts/tests/typed-errors.test.ts` |
-| S30-T7 | C7 instrumentation: context id, `cuda_context_lost`, snapshot, `doctor gpu` context state, characterization test. | Characterization test (expected crash); typed-error tests through a fault seam | study reset probe (`harness/pool_reset.c`) |
-| S30-T8 | `doctor gpu` / allocation-mode diagnostic fields; `tracing` events; scaffolding removal (§ 4). | CLI output tests; a grep test that the removed env vars and `fdb-pool-exp` are absent | design note "Settings and constants" |
-| S30-T9 | Phase 5: analysis and the upstream package (§ 6.1). | — | study plan "Upstream cudarc compatibility" |
+| S30-T0 | Preflight; merge 0.8.27 forward. Create the 0.8.28 plan, release-state file and board, copying § 8 into the plan, or record that this file stands in. | — | `scripts/preflight.sh` |
+| S30-T1 | Design: complete the design draft (§ 5.2 traces), then the ADR and interface-doc drafts. Owner review. | — | design draft; study design notes |
+| S30-T2 | Candle fork and pin set (SD-1). **HITL: push. HITL: crates.io publish.** | Candle unit test for `from_context` (default stream; allocator of the given context) | `patches/candle-from-context.patch` |
+| S30-T3 | cudarc pool primitive, written upstream-first as small commits in upstream style; the vendored change is the backport. Update the `FATHOMDB-PATCH.md` items, the pinned-override expected set and `test_vendored_cudarc.sh`. | Vendored unit tests: the three allocator states, C5, drop order | `3ce5c5c46`; upstream notes § 1 |
+| S30-T4 | Policy: the `tegra-pool` feature, sizing, gates, modes, settings, constants, SD-2, SD-3. | G1 pure tests; feature-off build test | `dbd08e313`, `7b9b18146` |
+| S30-T5 | Early `cuInit` contract: state record in Node and Python, Python hook and opt-out, fallback. | G2 state tests in each binding | `74a6b4d62` |
+| S30-T6 | Typed exhaustion on every path in all three SDKs. | G4 tests per path | `7b9b18146`; `src/ts/tests/typed-errors.test.ts` |
+| S30-T7 | C7 instrumentation: context id, `cuda_context_lost`, snapshot, `doctor gpu` context state, characterization test. | G10 C7 tests | `harness/pool_reset.c` |
+| S30-T8 | Race and path tests from § 5.2 item 5; `doctor gpu` and allocation-mode fields; `tracing` events; scaffolding removal (§ 4). | Race tests; CLI output tests; a test that the removed env vars and `fdb-pool-exp` are absent | design draft § 4 |
+| S30-T9 | Phase 5 (§ 6.1). | — | study plan "Upstream cudarc compatibility" |
 | S30-T10 | Qualification (§ 3) on packed artifacts; results file; codex § 9 review; land. | — | protocol; adapted harness (§ 7) |
+| S30-T11 | Host clean-up (§ 8). **HITL.** | — | — |
 
-S30-T3 → T4 → T5/T6/T7 (parallel worktrees; shared files `errors.rs` in the
-engine, py and napi crates — serialize the error-kind additions) → T8 → T10.
-T2 must land before T4 builds a device. T9 runs alongside T6–T8.
+Order: T2 and T3, then T4, then T5, T6 and T7 in parallel worktrees, then
+T8, then T10 and T11. T9 runs alongside T6–T8. The error kinds touch
+`errors.rs` in the engine, py and napi crates, so those additions in T6 and
+T7 are serialized.
 
 ### 6.1 Phase 5, folded in
 
 The study's Phase 5 (analysis and the upstream package) was never run. It
-is done as S30-T9:
+is S30-T9:
 
 - **Analysis:** a closing section of
   `dev/plans/runs/0.8.28-pool-study/results.md`. It runs the decision rule
-  over Phases 0–4 and the revision-6 spot check, lists every UNMEASURED
-  item, and records what moves to the 0.8.29 C7 fix (TC-281155a1).
+  over Phases 0–4 and the spot check, lists every UNMEASURED item, and
+  records what moves to the 0.8.29 C7 fix (TC-281155a1).
 - **cudarc upstream package:**
-  - re-read every cited thread (upstream notes, "Sources");
-  - prepare the issue and the small commit series for `CudaMemPool`,
+  - re-read every cited thread;
+  - prepare the issue and the commit series for `CudaMemPool`,
     `CudaContext::new_with_mem_pool`, `AllocMode::Private` and
     `CudaContext::mem_pool()`, which S30-T3 already wrote upstream-first;
   - record each item's upstream status in `FATHOMDB-PATCH.md`.
@@ -308,27 +358,54 @@ is done as S30-T9:
     for upstream (ruling 38; TC-b8e5fe4d).
 - **Candle (optional):** a matching upstream note for `from_context`, under
   the same sign-off rule.
-- **NVIDIA report:** the study's decision rule sends unshippable partial
-  results there. Record that adoption passed, and refresh the cuInit
+- **NVIDIA report:** record the adoption outcome and refresh the `cuInit`
   finding if it has changed.
 
 ## 7. Study evidence
 
-Sizes as of 2026-10-07:
+The whole committed evidence directory `dev/plans/runs/0.8.28-pool-study/`
+is on `release/0.8.28` (owner choice, option B): 143 of its 152 files.
+Two exceptions:
 
-| Set | Where | Size |
-| --- | --- | --- |
-| Docs (plan, protocol, upstream notes) | now on `release/0.8.28` | 169 KiB |
-| `results.md` | now on `release/0.8.28` | 125 KiB |
-| Committed evidence: harness 167 KiB, summaries 189, matrices 103, samples 131, patches 62, seeds 45, top-level 128 (`results.md`, `env.txt`, `artifacts.sha256`) | study branch only, except `results.md` | 152 files, 826 KiB |
-| Vendored Candle copy | study branch only | 104 files, 1.5 MiB; not needed after SD-1 |
-| Raw logs, builds, databases | host: an earlier session's scratchpad under `/tmp/claude-1000/.../scratchpad/pool-study/` | 5.4 GiB: logs 292 MiB, databases 4.5 GiB, builds and venvs the rest |
+- **The harness's nine shell scripts (25 KiB) stay on the study branch for
+  now.** They fail the repository's shell lint: 75 SC2312 findings, one
+  SC2012, and three pipes into an early-exiting `head`. The lint's ratchet
+  may only shrink, so they cannot be exempted. Fixing them changes the
+  record without a GPU re-run. S30-T10 brings them over lint-clean, or the
+  owner rules otherwise.
+- **The 1.5 MiB vendored Candle copy** stays on the study branch (SD-1).
 
-**Owner decision pending.** The options are listed in the hand-off. S30-T10
-needs the harness, adapted to the product's `tracing` events, whichever
-option is chosen.
+S30-T10 adapts `harness/` to the product's `tracing` events and pool-mode
+setting, in a new qualification directory. The study's harness files stay
+as they are, as the record.
 
-## 8. Ledger and todos
+## 8. Host clean-up (HITL)
+
+The study's untracked raw data is on the Jetson AGX Orin (Ubuntu) host in
+an earlier session's scratchpad,
+`/tmp/claude-1000/-home-coreyt-projects-fathomdb/ea4f7b06-2eaf-4683-9916-58e4b19cfc97/scratchpad/pool-study/`.
+As of 2026-10-07 it is 5.4 GiB:
+
+- `logs/`: 292 MiB of raw per-run logs;
+- `dbs/`: 4.5 GiB of databases;
+- the rest is builds, staged artifacts and virtual environments.
+
+Protocol § 9.2 keeps it until the 0.8.28 ruling is recorded. Slice 30
+keeps it until S30-T10 closes, because G9 rebuilds the study's P build and
+may need to compare against its artifacts.
+
+Then, as S30-T11, with the owner's explicit permission for each deletion:
+
+1. List and size the directory again.
+2. Ask the owner whether to keep a compressed archive of `logs/`, and
+   where.
+3. Delete `dbs/`, the builds and the virtual environments.
+4. Delete `logs/` once any archive is verified.
+
+Nothing is deleted without a HITL go-ahead. The 0.8.28 plan, when created,
+carries this as a release task.
+
+## 9. Ledger and todos
 
 TC-1c70e523 (study, done) · TC-a7c4a599 (early `cuInit`, decided) ·
 TC-f4e12b96 (typed context loss) · TC-99845d75 (C7 instrumentation) ·

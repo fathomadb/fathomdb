@@ -1,0 +1,2 @@
+fdb-pool-exp event=install pid=2181290 variant=A-load-hold site=registration default_pool=- create=CUDA_SUCCESS set=CUDA_SUCCESS probe=CUDA_SUCCESS release=- alloc_mode=- max_size=3221225472 threshold=0 reserved_cur=0 reserved_high=33554432 used_cur=0 used_high=4 elapsed_us=88573
+fdb-pool-exp event=teardown pid=2181290 variant=A-load-hold site=exit default_pool=- create=- set=- probe=- release=- alloc_mode=- max_size=3221225472 threshold=0 reserved_cur=0 reserved_high=33554432 used_cur=0 used_high=4 elapsed_us=0

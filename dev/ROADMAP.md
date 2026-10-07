@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 scope: post-0.8.26
-updated: 2026-09-21
+updated: 2026-10-07
 ---
 
 # FathomDB roadmap after 0.8.26
@@ -17,11 +17,16 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 ## Current position
 
-- **0.8.26 is published.** Before this planning activation, all tracked
-  releases were published and no implementation release was active.
-- **0.8.27 is the active planning release.** Prework approved correction-safe
-  erasure and a behavior-preserving semantic refactor. Its plan, state, and
-  board are the execution authority; publication remains separately gated.
+- **0.8.26 is published.** It is the latest published release.
+- **0.8.27 is the active implementation release** on `release/0.8.27`.
+  Prework approved correction-safe erasure and a behavior-preserving semantic
+  refactor. As of 2026-10-07, release state records Slices 0–132 complete on
+  the release branch, including the erasure fix (Slice 20) and the NAPI,
+  TypeScript, Python and Rust SDK slices (110–132). Slice 135 (performance
+  qualification) is next, then planned Slice 117 (Jetson CUDA Node addon via
+  the Tegra Pages route, gated on an unruled delivery-shape decision), then
+  140 and 150. Its plan, state, and board are the execution authority;
+  publication remains separately gated.
 - An open todo does not automatically become roadmap scope. This file includes
   work only when a current schedule, draft scope, or explicit backlog/proposal
   record preserves it.
@@ -40,19 +45,21 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 | Release | Status | Theme |
 | --- | --- | --- |
-| **0.8.27** | **Prework complete; implementation not yet commissioned** | Correction-safe source erasure after supersession, followed by behavior-preserving semantic decomposition of five selected monolithic engine, binding, and SDK facades. |
-| **0.8.28** | **Proposed release scope** | Manually selected advanced retrieval plus deferred snapshot/cursor continuity, graph/state continuation, and persisted evidence replay. |
+| **0.8.27** | **Active implementation; Slices 0–132 complete, 135 next** | Correction-safe source erasure after supersession, followed by behavior-preserving semantic decomposition of five selected monolithic engine, binding, and SDK facades; planned Slice 117 adds a Jetson CUDA Node addon through the Tegra Pages route. |
+| **0.8.28** | **Proposed release scope** | Manually selected advanced retrieval plus deferred snapshot/cursor continuity, graph/state continuation, and persisted evidence replay. Prework: the Tegra CUDA memory-pool study. |
 | **0.8.29** | **Review checkpoint** | Candidate-selection experiments. |
+| **0.8.30** | Backlog | Explicit release of the process-lifetime module-level CUDA models. |
 | **0.8.31** | **Review checkpoint** | Associative retrieval and automatic profile-routing experiments. |
 | **0.8.33** | **Review checkpoint** | Expanded integrity, repair-planning, and release-matrix experiments. |
 | **0.9.0** | Planning only | Define post-0.8.x product identity and the next major release. No implementation is scheduled by the program schedule. |
 | **Post-1.0, pre-2.1** | Backlog | ANN indexing for the 100k/1M vector-latency tiers. |
 
-## 0.8.27 proposed scope
+## 0.8.27 scope
 
 The source of record is
-[`plans/plan-0.8.27.md`](plans/plan-0.8.27.md). The original draft intake is
-retained as a superseded record with every item dispositioned.
+[`plans/plan-0.8.27.md`](plans/plan-0.8.27.md), with live progress on
+[`plans/runs/STATUS-0.8.27.md`](plans/runs/STATUS-0.8.27.md). The original
+draft intake is retained as a superseded record with every item dispositioned.
 
 ### Release-blocking finding
 
@@ -70,7 +77,10 @@ replacement bucket first can unlock the original. Memex truthfully reports
 This is a privacy-deletion and authority-boundary risk. Treat it as blocking
 0.8.27 publication until FathomDB resolves it or disproves it with durable
 evidence. Memex later received a narrow exemption for this exact characterized
-refusal, so the finding no longer blocks its 0.6.0 cutover by itself. The
+refusal, so the finding no longer blocks its 0.6.0 cutover by itself.
+Slice 20 implemented and reviewed correction-safe erasure on
+`release/0.8.27`; the finding stays publication-relevant until the release's
+final qualification (Slice 150) and publication decision. The
 required outcome is a supported,
 truthfully reported erase of buckets containing superseded revisions and closed
 dependents, tested for same-bucket and cross-bucket replacements without private
@@ -111,6 +121,57 @@ part of this scope.
 | **D28-05** | Full opt-in cross-operation frozen-snapshot leases. | Compact frozen reads cannot meet a concrete multi-operation consistency need. |
 | **D28-06** | Fully request/snapshot/projection/ordering-bound cursors. | A duplicate, omission, or authorization failure is demonstrated under minimal continuation. |
 | **D28-07** | Persisted source-complete evidence replay. | A caller needs resolution beyond compact-reference lifetime without weaker authorization. |
+| **D28-08** | **Owner-placed (2026-10-07):** adopt the Tegra private CUDA memory pool as the aarch64-Linux integrated-GPU default, with C7 context-reset instrumentation and an upstream cudarc pool primitive. | Requirements, acceptance criteria, ADR, TDD and an AGX Orin qualification against the study's gates, allocation correctness and release first. |
+
+### Prework: Tegra CUDA memory-pool study
+
+The owner ruled on 2026-10-05 that 0.8.27 ships the aarch64-Linux synchronous
+CUDA allocation fallback with early `cuInit` and no memory pool, and that
+0.8.28 evaluates a pool against it. The
+[study plan](plans/0.8.28/prework/tegra-cuda-memory-pool-study.md) defines the
+evidence. As of 2026-10-07, Phases 0–4 are complete on branch
+`llm/0.8.28-tegra-pool-study`. On the AGX Orin 64 GB the private pool created
+at first use passed the allocation, release, cap and performance gates (steady
+embed 0.986 of the default pool; 1.93× faster than the synchronous path).
+A spot check on the corrected embedder-close fix (now on `release/0.8.27`)
+confirmed the result. On 2026-10-07 the owner placed adoption in 0.8.28 as
+D28-08 and ruled:
+
+- a co-resident CUDA context reset stays unsupported and documented in 0.8.28,
+  which adds instrumentation (context-id detection, a typed
+  `cuda_context_lost` error, a diagnostic snapshot, and a characterization
+  test) so 0.8.29 can design the survival fix from data;
+- early `cuInit` at module load is the Tegra contract: FathomDB creates the
+  pool only when its early `cuInit` ran, otherwise uses the synchronous path,
+  and never refuses;
+- an upstream cudarc PR for the pool primitive is a goal, with every vendored
+  patch item tracked to an upstream status and removal path.
+
+The [draft scope](plans/0.8.28-draft-scope.md#d28-08-tegra-private-cuda-memory-pool)
+holds the full rulings.
+
+## 0.8.30 backlog
+
+Placed by HITL decision on 2026-10-07. This is backlog with a release slot,
+not implementation authority; no plan, release-state file, or board exists.
+
+**B30-01 — release the module-level CUDA models.** Todo
+`TC-8d3c1cde-97d7-46d5-af50-9cc479da6de7`. The embedder-close fix releases the
+engine-owned embedder at `close()`. The module-level batch-CLS embedder and
+reranker live in process-lifetime statics instead. They hold about 17 MiB
+(reranker) to 143 MiB (with batch CLS) until exit. The amount is bounded and
+does not grow, but on integrated GPUs it is host memory. It also keeps a
+private CUDA pool from returning to zero reserved.
+
+- Shape: an explicit, opt-in release call in Rust, Python, and TypeScript, not
+  automatic idle release. It needs clearable cells, typed errors, and an
+  interface-doc or ADR update. Tests cover reload after release, concurrent
+  use, and use after release.
+- Prerequisite: fix the cudarc `CudaSlice` drop crash after a co-resident CUDA
+  context reset first. A runtime release drops CUDA objects on the path where
+  that crash occurs. Statics are never dropped at exit today.
+- Revisit triggers: that fix, deployments with many processes, 8 or 16 GB
+  integrated devices, or reports of memory held while idle.
 
 ## Experimental review checkpoints
 
@@ -129,6 +190,12 @@ TDD, and verification.
 Promotion requires a bounded family that improves held-out answer use without
 correctness, groundedness, attribution, latency, lifecycle, or accepted-default
 regression.
+
+**Placed work, not a checkpoint (owner ruling 2026-10-07):** make FathomDB
+survive a co-resident library resetting the CUDA primary context (todo
+`TC-281155a1-4767-4379-9506-ef97b2ed51a9`). Today cudarc's `CudaSlice` drop
+crashes inside `Engine::close` after such a reset. Design the fix from the
+data that the 0.8.28 D28-08 instrumentation collects.
 
 ### 0.8.31 — associative retrieval and routing
 

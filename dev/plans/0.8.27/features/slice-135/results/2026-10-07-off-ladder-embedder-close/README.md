@@ -35,6 +35,8 @@ caller-owned embedder, and timeout/retry ownership. Pending embedding and
 projection cancellation/failure under concurrent close, installed binding
 behavior, and final-candidate lifecycle are still owed by Slice 135/150 as
 specified in the [off-ladder handoff](../../off-ladder-qualification-handoff.md).
-The other off-ladder Tegra Pages landing `c23e2d23f` is still not resolvable
-in this local Git database; its ancestry and exact affected files remain
-unverified here.
+At this receipt's capture time, the other off-ladder Tegra Pages landing
+`c23e2d23f` was not yet in the local Git database. The later fetched release
+commit `b65283317` includes it; see the
+[qualification handoff](../../off-ladder-qualification-handoff.md). This
+focused receipt did not exercise the Tegra install route.

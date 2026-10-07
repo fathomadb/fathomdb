@@ -45,19 +45,19 @@ only supported native-build path for development.
 ## Jetson / Tegra CUDA
 
 On a confirmed classic Jetson Orin (L4T R36 / JetPack 6, CUDA 12.6), install
-the exact 0.8.24 Tegra build from the interim first-party index:
+the exact 0.8.26 Tegra build from the interim first-party index:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.24+tegra'
+  'fathomdb==0.8.26+tegra'
 ```
 
 This is a detection-gated, exact-version route: do not use a floating version
-or `--extra-index-url`. The GitHub Pages transport is interim 0.8.24 hosting
-and must be re-reviewed before a later Tegra release. Unsupported JetPack,
+or `--extra-index-url`. The GitHub Pages transport is interim 0.8.26 hosting
+and is published only through the documented exact-SHA workflow. Unsupported JetPack,
 generic AArch64/SBSA, and Thor hosts have no supported Tegra CUDA route. Do not
 use a generic AArch64 CUDA build on classic Tegra; the SDK emits a visible
 warning if it can confirm that mismatch.

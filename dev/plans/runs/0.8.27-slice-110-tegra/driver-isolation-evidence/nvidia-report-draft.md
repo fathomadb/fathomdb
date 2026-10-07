@@ -1,5 +1,14 @@
 # Jetson AGX Orin 64GB (L4T R36.5.2): `cuInit` and the default memory pool return CUDA_ERROR_OUT_OF_MEMORY when small host mappings fragment [8 GiB, 128 GiB)
 
+> **Note, 2026-10-07: superseded wording, retained as historical evidence.**
+> The corrected finding is that *any* CUDA memory pool, default or explicit,
+> maps one contiguous address range of ceil32(maxSize/3) at creation. The
+> default pool behaves as an explicit pool with maxSize equal to device memory,
+> which is about 20,960 MiB on the 64 GB Orin. A pool's usable capacity equals
+> that range, and new ranges have a 1 GiB minimum. This draft's statements
+> about the pool's address range predate that correction. The corrected draft
+> is kept outside the repository.
+
 ## Summary
 
 On a Jetson AGX Orin 64GB, the CUDA driver places all of its GPU virtual-address (VA) reservations inside the

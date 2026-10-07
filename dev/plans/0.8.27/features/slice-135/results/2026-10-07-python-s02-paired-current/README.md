@@ -71,4 +71,8 @@ This is a controlled **Python S02 subset**, not the full system-latency
 checkpoint. p99 is unsupported by the frozen protocol. TypeScript/Rust SDK
 latency, S01/S03/C01, contention, Pareto coverage, robustness and
 logic/exception matrices remain open. This result does not qualify the final
-0.8.27 candidate or its release artifacts.
+0.8.27 candidate or its release artifacts. The later `b65283317` release
+integration adds the `0.8.26+tegra` install-route fix and changes Python/CLI
+product bytes after this paired wheel was built. Rebuild and rerun affected
+installed cells on that integrated candidate before the Phase 1 checkpoint;
+preserve this receipt as exact-source historical evidence.

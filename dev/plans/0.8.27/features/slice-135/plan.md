@@ -15,7 +15,8 @@ records executed Rust, Python and TypeScript cases and explicit gaps. These
 receipts do not yet constitute the full Phase 1 checkpoint: installed S01
 timing predates later search repairs, the [audited Python S02 paired timing
 subset](results/2026-10-07-python-s02-paired-current/README.md) has host paging
-warnings and does not cover TypeScript/Rust or contention, S03/C01 and the
+warnings and predates the integrated `b65283317` release candidate. It does
+not cover TypeScript/Rust or contention; S03/C01 and the
 full robustness and coverage matrices remain,
 and the [broader Phase 1 protocol](phase1-protocol-draft.md) is still a draft.
 Dedicated correct-results work remains Phase 2.
@@ -27,6 +28,13 @@ qualification, harness work and review may proceed now. The final three-SDK
 feature inventory, installed-artifact tests and 0.8.27 comparison must use
 the candidate after Slice 132 closes. No pre-Slice-132 receipt can qualify
 the final release.
+
+The candidate must include the off-ladder embedder-close and published
+`0.8.26+tegra` install-route fixes, measured at or after `ef4bb42da` as
+recorded in the release plan and board. Count the engine-owned embedder memory
+released at `close()` as an intended lifecycle change relative to 0.8.26.
+Add repeated open/close cycles and post-close memory observations to the
+matched workload; keep caller-owned and module-level model lifetimes distinct.
 
 The [44-operation capability exercise register](phase1-capability-register.md)
 tracks every accepted governed operation against executed SDK evidence or an
@@ -326,9 +334,9 @@ confirm the exact candidate includes the corrected embedder-close change
 `96796fe04` and the reported 0.8.26+Tegra Pages pin/install/docs change
 `c23e2d23f`; exercise their affected close/reopen and installed Tegra
 boundaries where available; and give Slice 150 an explicit integrated
-qualification owner. The release plan, board and state need matching
-off-ladder records before publication. Their shared-state writer should
-apply those records from the handoff; do not infer that a local commit hash
+qualification owner. The release plan and board now record the landings;
+the release-state verification obligation remains for its shared-state
+writer. Do not infer that a local commit hash
 or a prior slice's verification covers the final candidate. The
 [focused embedder-close receipt](results/2026-10-07-off-ladder-embedder-close/README.md)
 checks the known landing's lock and provider ownership regressions; the

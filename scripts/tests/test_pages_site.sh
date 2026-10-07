@@ -100,7 +100,10 @@ for contract in \
   'branches:' \
   '      - main' \
   'bash scripts/release/build-pages-site.sh' \
-  '652ad6926b17c9580365b012ec9cb925fa1aabc6fe83047874c718dc5c5e5897' \
+  'TEGRA_VERSION: 0.8.26+tegra' \
+  'TEGRA_WHEEL_FILENAME: fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl' \
+  '728df8628f45e12c0c04c0a971c174764ef5c988c7d05f0737794aa6f5c5d1fa' \
+  'tegra/packages/fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl' \
   'actions/upload-pages-artifact@' \
   'actions/deploy-pages@' \
   'pages: write' \

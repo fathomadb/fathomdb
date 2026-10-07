@@ -32,6 +32,28 @@ macOS arm64, and Windows x64. The main npm package is on both the `latest` and
 `next` dist-tags.
 Licensed **MIT** (see `LICENSE`).
 
+Platform support for the published 0.8.26 artifacts. "CUDA-capable" artifacts
+contain both CPU and CUDA paths and fall back to CPU under the default `auto`
+policy when no GPU is usable; "CPU-only" artifacts never use a GPU.
+
+| Channel | Artifact | Platforms | GPU |
+| --- | --- | --- | --- |
+| PyPI | `fathomdb` wheel | Linux x86_64/glibc | CUDA-capable (embedding and reranking) |
+| PyPI | `fathomdb` wheel | Linux AArch64/glibc, macOS x64/arm64, Windows x64 | CPU-only |
+| Tegra index | `fathomdb==0.8.26+tegra` wheel | Classic Jetson Orin (JetPack 6, CUDA 12.6) | CUDA-capable (embedding); exact 0.8.26 only, not on PyPI |
+| npm | `fathomdb` + `fathomdb-linux-x64-gnu` | Linux x86_64/glibc | CUDA-capable (embedding and reranking) |
+| npm | `fathomdb` + `fathomdb-linux-arm64-gnu` | Linux AArch64/glibc, including Jetson | CPU-only |
+| npm | `fathomdb` + `fathomdb-darwin-x64`, `fathomdb-darwin-arm64`, `fathomdb-native-win32-x64-msvc` | macOS x64/arm64, Windows x64 | CPU-only |
+| crates.io | `fathomdb` library, `fathomdb-cli` | Built from source | CPU by default; CUDA via the opt-in `embed-cuda` / `rerank-cuda` features |
+
+The Linux AArch64 npm package is CPU-only, so GPU acceleration under Node.js on
+a Jetson currently requires building the CUDA addon from source on the device
+(the `build:native:cuda` npm script targets Linux x86_64 only). Planned
+0.8.27 Slice 117 (`dev/plans/0.8.27/features/slice-117/plan.md`) will update
+this statement when it ships a Jetson CUDA Node addon. No prebuilt CLI binary
+is published; install it with `cargo install`. Details:
+`docs/compatibility/index.md`, `docs/install/` and `docs/embedder.md`.
+
 Public documentation: `docs/` (built with `mkdocs build --strict`).
 Changes since 0.8.9: `CHANGELOG.md`.
 

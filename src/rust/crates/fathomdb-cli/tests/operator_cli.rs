@@ -123,7 +123,7 @@ fn doctor_gpu_help_contains_the_exact_tegra_pages_install_procedure() {
     let output = fathomdb().args(["doctor", "gpu", "--help"]).output().expect("spawn");
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("UTF-8 help");
-    assert!(stdout.contains("fathomdb==0.8.24+tegra"));
+    assert!(stdout.contains("fathomdb==0.8.26+tegra"));
     assert!(stdout.contains("https://fathomadb.github.io/fathomdb/tegra/simple/"));
 }
 

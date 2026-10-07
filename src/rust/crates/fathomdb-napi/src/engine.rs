@@ -180,7 +180,6 @@ impl Engine {
     /// (`_`-prefixed) `sourceId`. NOT a recovery-denylist name — AC-041 holds.
     #[napi]
     pub async fn erase_source(&self, source_id: String) -> Result<EraseReport> {
-        validate_ffi_string_napi(&source_id)?;
         let engine = Arc::clone(&self.inner);
         let report = call_engine(move || engine.erase_source(&source_id)).await?;
         Ok(EraseReport::from_rust(report))

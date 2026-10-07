@@ -194,7 +194,7 @@ impl PyEngine {
     /// Search using eligibility and validity authenticated by a frozen context.
     #[pyo3(signature = (
         query, context, rerank_depth=0, use_graph_arm=false, alpha=0.3,
-        pool_n=0, explain=false, limit=10
+        pool_n=None, explain=false, limit=10
     ))]
     #[allow(clippy::too_many_arguments)]
     fn search_frozen(
@@ -205,10 +205,11 @@ impl PyEngine {
         rerank_depth: i64,
         use_graph_arm: bool,
         alpha: f64,
-        pool_n: i64,
+        pool_n: Option<i64>,
         explain: bool,
         limit: i64,
     ) -> PyResult<PySearchResult> {
+        let pool_n = pool_n.unwrap_or(rerank_depth);
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let context = context.inner.clone();

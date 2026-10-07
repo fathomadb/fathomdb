@@ -10,8 +10,9 @@ use crate::error::{Error, ErrorKind, Result};
 /// The largest ranked-result `limit` the SDKs accept.
 const MAX_RANKED_LIMIT: usize = 100;
 
-/// AC-068a: an embedded NUL in a caller string is a `WriteValidation` error,
-/// raised before the core sees the string. The core does not check.
+/// AC-068a: an embedded NUL in a content/control string is a
+/// `WriteValidation` error before the core sees it. `source_id` instead follows
+/// the Engine's identity grammar and may contain NUL.
 pub(crate) fn text(value: &str) -> Result<()> {
     if value.as_bytes().contains(&0) {
         return Err(Error::sdk(ErrorKind::WriteValidation, "embedded NUL byte in string argument"));

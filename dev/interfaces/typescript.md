@@ -360,6 +360,8 @@ ID permanently unusable without retaining its prior receipt content.
 `sourceId` follows the Engine `SourceId` grammar rather than the generic
 content-string FFI guard, so an embedded NUL is preserved exactly; body, kind,
 and other content/control strings retain the REQ-064 rejection.
+`eraseSource(sourceId)` uses this same identity grammar and can erase a row
+whose source ID contains an embedded NUL.
 
 ## Dependency lifecycle closure (0.8.25 Slice 30)
 

@@ -121,7 +121,7 @@ function in every row.
 | `engine.trace_dependency` | `trace_dependency(&self, DependencyTraceRequestV1) -> Result<DependencyTraceResultV1>` | same |
 | `engine.transition` | `transition(&self, logical_id: &str, to_state: LifecycleState, reason: Option<&str>) -> Result<()>` | same |
 | `engine.purge` | `purge(&self, logical_id: &str) -> Result<()>` | same |
-| `engine.erase_source` | `erase_source(&self, source_id: &str) -> Result<EraseReport>` | `erase_source` |
+| `engine.erase_source` | `erase_source(&self, source_id: &str) -> Result<EraseReport>` | `erase_source`; accepts every Engine-valid `SourceId`, including embedded NUL |
 | `engine.configure_projections` | `configure_projections(&self, specs: &[ProjectionSpec], drop: &[String]) -> Result<ProjectionDelta>` | same |
 | `engine.search` | `search(&self, query: &str, options: SearchOptions) -> Result<SearchResult>` | `search_reranked_view_with_limit` |
 | `engine.search_text_only` | `search_text_only(&self, query: &str, options: TextSearchOptions) -> Result<SearchResult>` | `search_text_only_view_with_limit` |

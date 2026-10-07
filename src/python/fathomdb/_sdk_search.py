@@ -520,7 +520,7 @@ def search_frozen(
     rerank_depth: int = 0,
     use_graph_arm: bool = False,
     alpha: float = 0.3,
-    pool_n: int = 0,
+    pool_n: int | None = None,
     explain: bool = False,
     limit: int = 10,
 ) -> SearchResult:
@@ -538,10 +538,11 @@ def search_frozen(
         raise TypeError("alpha must be a finite number")
     if not math.isfinite(alpha):
         raise ValueError(f"alpha must be a finite number, got {alpha!r}")
-    if not isinstance(pool_n, int) or isinstance(pool_n, bool):
-        raise TypeError("pool_n must be a non-negative integer")
-    if pool_n < 0:
-        raise InvalidArgumentError(f"pool_n must be >= 0, got {pool_n!r}")
+    if pool_n is not None:
+        if not isinstance(pool_n, int) or isinstance(pool_n, bool):
+            raise TypeError("pool_n must be a non-negative integer")
+        if pool_n < 0:
+            raise InvalidArgumentError(f"pool_n must be >= 0, got {pool_n!r}")
     if not isinstance(explain, bool):
         raise TypeError("explain must be a bool")
     _validate_ranked_result_limit("limit", limit)
@@ -551,7 +552,7 @@ def search_frozen(
         rerank_depth=rerank_depth,
         use_graph_arm=use_graph_arm,
         alpha=alpha,
-        pool_n=pool_n,
+        pool_n=rerank_depth if pool_n is None else pool_n,
         explain=explain,
         limit=limit,
     )

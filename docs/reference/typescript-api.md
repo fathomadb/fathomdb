@@ -275,6 +275,8 @@ Rejects with `WriteValidationError` for an empty, whitespace-only, or
 reachable only through `fathomdb recover --excise-source`. Rejects with
 `ErasureIncompleteError` (carrying `stage` and `detail`) rather than reporting
 success if the erasure could not be completed at rest.
+The same source identity accepted by a write can be erased, including one with
+an embedded NUL; the call matches the full identity exactly.
 
 Resolves to an `EraseReport` with `sourceRef`, `nodesExcised`, `edgesExcised`,
 and `projectionsInvalidated`. Mirror of the Python

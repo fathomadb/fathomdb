@@ -5,9 +5,9 @@ use super::*;
 /// Reject strings carrying an embedded NUL or an unpaired UTF-16
 /// surrogate codepoint (`U+D800..=U+DFFF`).
 ///
-/// Both are valid Python `str` values but invalid for SQLite text
-/// columns; AC-068a/b requires the binding to reject them BEFORE the
-/// writer transaction opens (no-row-written invariant).
+/// Both are valid Python `str` values but invalid for content/control fields;
+/// AC-068a/b requires the binding to reject them BEFORE the writer transaction
+/// opens. Source identities use the Engine grammar and retain embedded NUL.
 pub fn validate_ffi_string(value: &str) -> Result<(), String> {
     if value.as_bytes().contains(&0) {
         return Err("embedded NUL byte in FFI string".to_string());
@@ -31,11 +31,16 @@ pub(super) fn validate_ffi_string_py(value: &str) -> PyResult<()> {
 /// raises `UnicodeEncodeError`); we re-raise those as the typed
 /// `WriteValidationError` so callers can dispatch on a single class.
 pub(super) fn extract_validated_str(value: &Bound<'_, PyAny>) -> PyResult<String> {
+    let s = extract_source_id_str(value)?;
+    validate_ffi_string_py(&s)?;
+    Ok(s)
+}
+
+/// Extract a source identity without the content-string NUL restriction; the
+/// Engine's `SourceId` grammar decides whether the identity is admissible.
+pub(super) fn extract_source_id_str(value: &Bound<'_, PyAny>) -> PyResult<String> {
     match value.extract::<String>() {
-        Ok(s) => {
-            validate_ffi_string_py(&s)?;
-            Ok(s)
-        }
+        Ok(s) => Ok(s),
         Err(_) => Err(WriteValidationError::new_err(
             "string contains characters not representable as UTF-8 (lone surrogate)",
         )),

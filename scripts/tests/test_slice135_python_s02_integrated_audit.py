@@ -49,3 +49,14 @@ def test_order_guard_requires_exact_alternation_and_idle_time() -> None:
     changed[1]["exit_code"] = 1
     with pytest.raises(ValueError, match="failed"):
         audit.check_order(changed, [["baseline", "candidate"]], 5)
+
+
+def test_relocated_receipt_keeps_original_command_parent_and_labels() -> None:
+    original = Path("/tmp/original-campaign")
+    paths = [original / "pair-01-baseline", original / "pair-01-candidate"]
+    labels = ["pair-01-baseline", "pair-01-candidate"]
+    assert audit.check_output_paths(paths, labels) == original
+    with pytest.raises(ValueError, match="output"):
+        audit.check_output_paths([paths[0], Path("/tmp/other/pair-01-candidate")], labels)
+    with pytest.raises(ValueError, match="output"):
+        audit.check_output_paths([paths[0], original / "wrong"], labels)

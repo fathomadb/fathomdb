@@ -108,6 +108,12 @@ feasibility only. The [frozen E01–E12 comparison subset](e12-comparison-protoc
 sets 1,000 valid query samples, 100 lifecycle samples and five alternating
 version pairs before current-candidate paired timing. It does not freeze the
 broader installed-SDK, S02, S03 or C01 protocol.
+The [current-candidate E01–E12 paired diagnostic](results/2026-10-07-e12-paired-current/README.md)
+passed all 20 blocks and found repeatable vector/hybrid median-latency leads.
+A separate [futex profile](results/2026-10-07-vector-futex-profile/README.md)
+found about 2.48 times as many whole-process futex calls in the candidate
+query workload. The trace is attribution evidence, not an unprofiled latency
+measurement or proof of a dispatcher root cause.
 
 Historical 0.8.26 gauntlet receipts are context, not matched system timing:
 the [result report](../../../../performance-benchmarking/gauntlet-v1.2/RESULTS-0.8.26.md)

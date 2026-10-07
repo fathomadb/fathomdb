@@ -1,0 +1,72 @@
+{
+  "status": "PROFILE_DIAGNOSTIC_NOT_LATENCY",
+  "trace_command": [
+    "/usr/bin/strace",
+    "-f",
+    "-c",
+    "-e",
+    "futex",
+    "-o",
+    "<label>.strace",
+    "<exact-binary>",
+    "--ignored",
+    "--exact",
+    "slice135_e12_measurement",
+    "--nocapture"
+  ],
+  "workload_env": {
+    "SLICE135_E12_SAMPLES": "1000",
+    "SLICE135_E12_CELLS": "text,vector_stage,hybrid"
+  },
+  "runs": [
+    {
+      "order": 1,
+      "version": "baseline",
+      "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+      "binary_sha256": "401d2375c66c0cd72c81ba8767f777cf79c9ce609c52eb4ceccf2405b4bcb251",
+      "protocol_sha256": "11374e88dd497c946e3f6888f87f3032601bf62c82506c8617734d37ae3bf06f",
+      "query_calls_per_cell": 1000,
+      "futex_calls": 12922,
+      "futex_errors": 248,
+      "aggregate_thread_futex_seconds": 2.313658,
+      "exact_ordered_checks": true
+    },
+    {
+      "order": 2,
+      "version": "candidate",
+      "source_sha": "0245733e42ad1c8b061bb257be793201d3106715",
+      "binary_sha256": "791574b743939d14188df3d47b70a48d3a8f48286e1af49fa5b32643282798f2",
+      "protocol_sha256": "ff2bf22e7fd968a189329311a094f254bf6506ed73fcdd780bd649dbc98689aa",
+      "query_calls_per_cell": 1000,
+      "futex_calls": 32524,
+      "futex_errors": 2614,
+      "aggregate_thread_futex_seconds": 5.600167,
+      "exact_ordered_checks": true
+    },
+    {
+      "order": 3,
+      "version": "candidate",
+      "source_sha": "0245733e42ad1c8b061bb257be793201d3106715",
+      "binary_sha256": "791574b743939d14188df3d47b70a48d3a8f48286e1af49fa5b32643282798f2",
+      "protocol_sha256": "ff2bf22e7fd968a189329311a094f254bf6506ed73fcdd780bd649dbc98689aa",
+      "query_calls_per_cell": 1000,
+      "futex_calls": 32034,
+      "futex_errors": 2415,
+      "aggregate_thread_futex_seconds": 5.009648,
+      "exact_ordered_checks": true
+    },
+    {
+      "order": 4,
+      "version": "baseline",
+      "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+      "binary_sha256": "401d2375c66c0cd72c81ba8767f777cf79c9ce609c52eb4ceccf2405b4bcb251",
+      "protocol_sha256": "11374e88dd497c946e3f6888f87f3032601bf62c82506c8617734d37ae3bf06f",
+      "query_calls_per_cell": 1000,
+      "futex_calls": 13072,
+      "futex_errors": 307,
+      "aggregate_thread_futex_seconds": 1.993182,
+      "exact_ordered_checks": true
+    }
+  ],
+  "interpretation": "Whole-process futex counts include setup/projection and all three query shapes; traced syscall seconds sum over threads and are not call latency."
+}

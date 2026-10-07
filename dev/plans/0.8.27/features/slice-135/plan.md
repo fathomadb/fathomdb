@@ -230,7 +230,7 @@ dataset in Phase 1 does not require withholding its reference answers from
 basic validity checks. Other confirmed product defects remain
 tracked for test-first repair before Slice 135 closeout.
 
-The [SQLite testing fit assessment](sqlite-testing-fit.md) records which
+The [quality testing roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md) records which
 methods from the locally collected SQLite testing page suit this fast-changing
 release and which are recommended for later release lines. It does not create
 a global coverage quota or a new testing gate.

@@ -23,6 +23,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 - **TDD is mandatory.** Failing test first; red → green → refactor. Mechanical version bumps and renames are the only exception. Discipline: § 5.
 - **Stale > missing.** A wrong comment, doc, or ADR is more harmful than its absence. If you cannot maintain something, delete it.
 - **Public surface is contract.** Anything in `dev/interfaces/` or `pub` Rust APIs is a contract; changes need an ADR or interface-doc update in the same PR.
+- **Quality analysis at release planning.** Before drafting each new release plan, read `dev/notes/fathomdb-quality-testing-roadmap.md`. Record which recommendations apply, which are deferred, and what new evidence changes the assessment. The analysis guides scope; it does not create automatic gates.
 
 ## 2. Repo shape
 
@@ -127,6 +128,7 @@ Do not paraphrase, summarize, or shorten compiler diagnostics — pass them thro
 - **Plan / slice templates:** `dev/plans/prompts/PLAN-TEMPLATE.md` (per-release plan + authoring checklist) · `dev/plans/prompts/0.8.0-SLICE-TEMPLATE.md` (per-slice prompt)
 - **Plans:** `dev/plans/`
 - **Research:** `dev/notes/context-research-agentic-best-practices.md` (the best-practices synthesis this file operationalizes)
+- **Quality planning:** `dev/notes/fathomdb-quality-testing-roadmap.md` (testing maturity, SQLite-method fit, and release-line recommendations; consult for every new release plan)
 - **Memory:** `MEMORY.md` in the out-of-repo memory store (§ 1) — index of the kebab-case topic entries; auto-loaded at Claude Code session start.
 
 ### Release state — where the current release actually lives

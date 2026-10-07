@@ -1,10 +1,10 @@
 ---
-title: Slice 135 — SQLite testing practices fitted to FathomDB
-status: DRAFT_RECOMMENDATION
+title: FathomDB quality testing roadmap — SQLite methods fitted to the product
+status: RELEASE_PLANNING_REFERENCE
 source_date: 2026-10-06
 ---
 
-# SQLite testing practices fitted to FathomDB
+# FathomDB quality testing roadmap
 
 The source is [How SQLite Is Tested](https://www.sqlite.org/testing.html),
 collected locally at
@@ -35,7 +35,7 @@ retrieval eligibility, evidence, erasure, provider transitions and three SDK
 boundaries. SQLite's transaction atomicity does not establish that those
 composed operations recover correctly or report truthful completion. A
 structurally valid SQLite file can still contain the wrong FathomDB state.
-This checkout also carries a [targeted Windows SQLite VFS patch](../../../../../third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md),
+This checkout also carries a [targeted Windows SQLite VFS patch](../../third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md),
 so its exact downstream behavior deserves regression coverage.
 
 ## What to adopt from SQLite
@@ -74,3 +74,11 @@ The release-line rows are recommendations, not changes to the existing
 release ladder. Promote them only when the corresponding architecture and
 support contract exist. Track test cost and defect yield so assurance grows
 without making FathomDB resistant to necessary change.
+
+## Release-planning use
+
+Before authoring each new release plan, read this analysis and record in that
+plan which recommendations apply, which are deferred and why, and what new
+evidence or changed architecture revises the assessment. Update this document
+when its change-curve evidence or recommendations become stale. Consultation
+does not make every recommendation an automatic release gate.

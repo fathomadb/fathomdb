@@ -2057,33 +2057,23 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
         let edge_eligibility = format!("{edge_dependency}{edge_filter}");
         let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_eligibility);
-        // search_index_edges may not exist on very old DBs not yet at step-14;
-        // ignore the error gracefully (returns empty slice).
-        if let Ok(mut stmt) = prepare_search_statement(&tx, &edge_sql) {
-            if let Ok(rows) =
-                stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
-                    let body = row.get::<_, String>(0)?;
-                    let logical_id = row.get::<_, Option<String>>(4)?;
-                    Ok(SearchHit {
-                        id: derive_stable_id(logical_id.as_deref(), &body),
-                        body,
-                        kind: row.get::<_, String>(1)?,
-                        write_cursor: row.get::<_, i64>(2)? as u64,
-                        score: row.get::<_, f64>(3)?,
-                        branch: SoftFallbackBranch::TextEdge,
-                        // TC-31: the EDGE's own provenance.
-                        source_id: row.get::<_, Option<String>>(5)?,
-                        ce_score: None,
-                    })
-                })
-            {
-                rows.collect::<rusqlite::Result<Vec<_>>>()?
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        }
+        let mut stmt = prepare_search_statement(&tx, &edge_sql)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
+            let body = row.get::<_, String>(0)?;
+            let logical_id = row.get::<_, Option<String>>(4)?;
+            Ok(SearchHit {
+                id: derive_stable_id(logical_id.as_deref(), &body),
+                body,
+                kind: row.get::<_, String>(1)?,
+                write_cursor: row.get::<_, i64>(2)? as u64,
+                score: row.get::<_, f64>(3)?,
+                branch: SoftFallbackBranch::TextEdge,
+                // TC-31: the EDGE's own provenance.
+                source_id: row.get::<_, Option<String>>(5)?,
+                ce_score: None,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
     };
     // Attribute predicates intentionally apply only to node projections. Count
     // edge-FTS candidates that would otherwise pass when the caller requested

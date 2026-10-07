@@ -35,6 +35,13 @@ version order. The resulting
 descriptive paired-delta rule before candidate timing. Neither the pilot nor
 the S01 subset freezes the full Phase 1 protocol.
 
+The [paired installed-Python S01 result](results/2026-10-07-python-s01-paired/README.md)
+now has five alternating pairs at each declared size, 1,000 warm samples per
+query shape per block, raw materialized-result checks and independent
+recomputation. It remains a Python-only diagnostic; the Rust/TypeScript
+installed boundaries, S02 and E01–E12 still need qualification under the
+broader protocol.
+
 ## Source-grounded starting point
 
 Slice 115's [runner](../../../../../scripts/slice115_runner.py),

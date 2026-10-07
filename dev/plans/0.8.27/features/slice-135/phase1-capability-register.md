@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 1 capability exercise register
-status: INTERIM_INSTALLED_PYTHON_SMOKE
+status: INTERIM_INSTALLED_PYTHON_S01
 target_release: 0.8.27
 ---
 
@@ -9,6 +9,14 @@ target_release: 0.8.27
 The executable [canonical operation map](../../../../../src/conformance/governed-operation-parity.json) is the scope authority for governed operations. Its SHA-256 at the initial inventory snapshot is `da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17`. That snapshot was branch `llm/0.8.27-slice-135` at `ea91ec0e8878d49c44706234ff2ea9c454b55cb5`, before the confirmed edge-FTS-error repair. This living register is not the frozen measurement protocol; only rows explicitly marked with a receipt have executed installed-artifact evidence.
 
 The engine-only first-results receipts cover a narrower text/write/erase/reopen workload; those runs do not close an SDK row. A candidate [installed Python wheel functional smoke](results/2026-10-07-python-wheel-qualification/README.md) now exercises the specifically marked operations against a real database, with state assertions and reopen. The exact [0.8.26 installed wheel](results/2026-10-07-python-wheel-baseline/README.md) passed that same smoke, and the two graph matrices agree on semantic fields. **Functional smoke is not an S01/S02 timing result or complete contract qualification.** Every other row remains an explicit Phase 1 execution gap for installed SDK behavior. The routes below are proposed full Phase 1 cases from the [protocol draft](phase1-protocol-draft.md); each must be replaced with exact command, artifact/source identity, assertions and receipt link, or kept as a named gap in the checkpoint. `S03` may use qualified benchmark data for shape, with basic state or result checks. Dedicated gold scoring remains Phase 2.
+
+The [paired installed Python S01 receipt](results/2026-10-07-python-s01-paired/README.md)
+adds positive, source-bound text and vector-bearing/hybrid retrieval calls
+through the installed wheel after a real-database write, projection drain and
+reopen. Its basic ID/branch assertions and query timing close the S01 Python
+workload shape, not all error, filter, lifecycle or provider conditions on
+those operations. The remaining installed Rust/TypeScript rows and S02 are
+still gaps.
 
 | Canonical operation | Phase 1 exercise route | Rust SDK | Python wheel | TypeScript package |
 | --- | --- | --- | --- | --- |
@@ -27,7 +35,7 @@ The engine-only first-results receipts cover a narrower text/write/erase/reopen 
 | `engine.freeze_read_context` | S02 frozen | Gap | Functional smoke | Gap |
 | `engine.search_frozen` | S02 frozen | Gap | Functional smoke | Gap |
 | `engine.search_expand_frozen` | S03 graph | Gap | Functional smoke | Gap |
-| `engine.search_text_only` | S01/S02 text | Gap | Gap | Gap |
+| `engine.search_text_only` | S01/S02 text | Gap | S01 paired basic; broader contract gap | Gap |
 | `engine.search_projected_text` | S03 projection | Gap | Gap | Gap |
 | `engine.search_with_evidence` | S02 evidence | Gap | Functional smoke | Gap |
 | `engine.resolve_evidence` | S02 evidence | Gap | Functional smoke | Gap |

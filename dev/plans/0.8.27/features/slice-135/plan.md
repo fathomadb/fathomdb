@@ -16,7 +16,11 @@ remains a draft. The installed Python S01
 [baseline-only noise pilot](results/2026-10-07-python-s01-noise-pilot/README.md)
 has ten audited blocks but no candidate comparison. Its measured spread led to
 the separately [frozen installed-Python S01 subset](s01-python-comparison-protocol.json)
-before paired timing.
+before paired timing. The subsequent
+[paired installed-Python result](results/2026-10-07-python-s01-paired/README.md)
+has twenty audited blocks and descriptive p50/p95/p99 deltas. It is one SDK
+workload subset; the full capability exercise and four-area checkpoint remain
+open.
 
 The [release plan](../../../plan-0.8.27.md) owns the release contract. The
 repository owner approved this Slice 135 plan on 2026-10-06 and authorized

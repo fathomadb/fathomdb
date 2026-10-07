@@ -1,0 +1,23 @@
+{
+  "comparison_protocol_sha256": "899b357a43b487d63c633fe1bc06086212293e81a331fd2a8ae5bd03412f2064",
+  "corpus_sha256": "ebbd94f16b40cad184526af3bc2d725b2f433e00683e508adf530d7a925860fb",
+  "corpus_size": 256,
+  "min_disk_free_bytes": 1073741824,
+  "model": "fathomdb-bge-small-en-v1.5 default embedder",
+  "queries": {
+    "hybrid": "harbor ferry",
+    "text": "brightblue",
+    "vector": "boat schedule across water"
+  },
+  "role": "candidate",
+  "runner_sha256": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+  "samples_per_cell": 1000,
+  "schema_version": 1,
+  "session_cold": "first query after engine reopen; OS/model cache may be warm",
+  "source_sha": "b2ac8081e79a6e626d01f5f97331be331f1cc16d",
+  "status": "FROZEN_S01_PYTHON_PAIRED",
+  "timing_mode": "unprofiled",
+  "warm_boundary": "installed Python call to materialized SearchResult",
+  "warmup_per_cell": 1,
+  "wheel_sha256": "6713ade54d62cc1e067fcaf1982a539c1fb8bd3d45d3db18e41155badd0c12e8"
+}

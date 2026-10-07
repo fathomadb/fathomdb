@@ -1,0 +1,31 @@
+{
+  "concurrency": {
+    "fd_delta": 0,
+    "reads": 206,
+    "reads_while_writer_active": 204,
+    "writes": 16
+  },
+  "crash": {
+    "after_acknowledged_write_reopened_as_expected": true,
+    "before_write_reopened_as_expected": true,
+    "exit_statuses": [
+      "ExitStatus(unix_wait_status(9))",
+      "ExitStatus(unix_wait_status(9))"
+    ],
+    "power_loss_simulated": false
+  },
+  "injected_failure": {
+    "error": "Storage",
+    "failed_record_absent_after_reopen": true,
+    "fd_delta": 0,
+    "subsequent_write_present": true
+  },
+  "integrity_check": "ok in all 3 positive cases",
+  "negative_control_detected_missing_row": true,
+  "positive_cases": [
+    "concurrent_read_write",
+    "injected_pretransaction_refusal",
+    "process_kill_at_write_boundary"
+  ],
+  "positive_count": 3
+}

@@ -8,19 +8,15 @@ planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 # Slice 135 — measure the whole system against 0.8.26
 
 **Execution status:** the bounded [first inspectable results](results/2026-10-07-first-results/)
-for the four Phase 1 areas were committed on 2026-10-07. The full Phase 1
-checkpoint and dedicated correct-results phase remain ahead. The
-[first-results protocol](first-results-protocol.json) was frozen before paired
-candidate timing; the broader [Phase 1 protocol](phase1-protocol-draft.md)
-remains a draft. The installed Python S01
-[baseline-only noise pilot](results/2026-10-07-python-s01-noise-pilot/README.md)
-has ten audited blocks but no candidate comparison. Its measured spread led to
-the separately [frozen installed-Python S01 subset](s01-python-comparison-protocol.json)
-before paired timing. The subsequent
-[paired installed-Python result](results/2026-10-07-python-s01-paired/README.md)
-has twenty audited blocks and descriptive p50/p95/p99 deltas. It is one SDK
-workload subset; the full capability exercise and four-area checkpoint remain
-open.
+exist for all four Phase 1 areas. The [E01–E12 paired engine subset](e12-comparison-protocol.json)
+and the Python and TypeScript S01 subsets have frozen protocols and audited
+paired runs. The [44-operation capability register](phase1-capability-register.md)
+records executed Rust, Python and TypeScript cases and explicit gaps. These
+receipts do not yet constitute the full Phase 1 checkpoint: installed S01
+timing predates later search repairs, S02 timing and contention are
+unqualified, S03/C01 and the full robustness and coverage matrices remain,
+and the [broader Phase 1 protocol](phase1-protocol-draft.md) is still a draft.
+Dedicated correct-results work remains Phase 2.
 
 The [release plan](../../../plan-0.8.27.md) owns the release contract. The
 repository owner approved this Slice 135 plan on 2026-10-06 and authorized
@@ -30,10 +26,10 @@ feature inventory, installed-artifact tests and 0.8.27 comparison must use
 the candidate after Slice 132 closes. No pre-Slice-132 receipt can qualify
 the final release.
 
-The initial [44-operation capability exercise register](phase1-capability-register.md)
-tracks every accepted governed operation against installed-SDK Phase 1 evidence
-or an explicit gap. Its proposed routes must be replaced by actual receipts
-before the full Phase 1 checkpoint.
+The [44-operation capability exercise register](phase1-capability-register.md)
+tracks every accepted governed operation against executed SDK evidence or an
+explicit gap. Its remaining supported positive-path gaps and contract
+conditions need execution or a checkpoint risk disposition.
 
 **Order of work:** first produce substantial, inspectable results for what
 matters/Pareto path, system latency, system robustness, and logic and exception
@@ -389,7 +385,7 @@ window and reject incomplete results. Report spend and completeness.
    source, test or executable-script changes. Only complete, exact-SHA Phase 1
    and Phase 2 receipts can close the slice and feed Slice 140/150.
 
-Current status: Slice 132 is merged, the [0.8.26 baseline source is
+Historical execution chronology (early 2026-10-07): Slice 132 is merged, the [0.8.26 baseline source is
 identified](baseline-qualification.md), and the provisional
 [Phase 1 receipt validator](../../../../../scripts/slice135_receipt.py)
 rejects mismatched identities, environment and semantic state with independent
@@ -471,3 +467,54 @@ single full-path functional runs on both versions passed independent audits.
 The [E01–E12 paired subset](e12-comparison-protocol.json) is frozen before
 current-candidate paired timing. The broader Phase 1 protocol and installed
 SDK exercise remain open.
+
+### Current Phase 1 checkpoint status (2026-10-07)
+
+- **Candidate and baseline:** the post-Slice-132 candidate and exact 0.8.26
+  baseline source are identified. Four search/graph error-suppression defects
+  and a Python frozen-error-field defect were repaired test-first. Earlier
+  installed S01 measurements remain historical for their exact source SHAs.
+- **Pareto and coverage:** the first-results cost proxy ranked four of eleven
+  measured operations at 84.12% of elapsed cost. A selected workload/test
+  line-and-branch overlay and a defect-catching negative control exist.
+  Expand to the declared operation mix, CPU/queue cost, search branches,
+  missed-branch dispositions and rare severe paths.
+- **Latency:** the E01–E12 paired engine campaign has audited raw blocks and
+  descriptive deltas; the paired Python and TypeScript S01 subsets also have
+  audited receipts. Refresh affected S01 cells on the repaired candidate.
+  Qualify S02 with a baseline noise pilot, frozen boundaries, alternating
+  blocks and contention; then execute S03 and qualify C01 or record why it
+  cannot run. Keep engine, installed SDK and competitor boundaries distinct.
+- **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
+  projection recovery, provider error/timeout and close cases have inspected
+  results. Finish the declared fault/schedule matrix with persistent and
+  one-shot faults, state and resource oracles, and interrupted erasure.
+- **Logic and exceptions:** focused static checks and regression tests caught
+  confirmed defects; a four-site `rows.flatten()` source audit classified
+  further leads. Complete ranked-path and binding-boundary panic/error
+  review, current-candidate line/branch coverage, targeted negative probes
+  and dispositions for findings and survivors.
+- **Functional exercise:** the [capability register](phase1-capability-register.md)
+  accounts for all 44 canonical operations: Rust 42 selected cases executed
+  and two provider/model cases unavailable; Python 40 executed, one
+  committed-closure positive-path gap and three unavailable; TypeScript 39
+  executed, two positive-path gaps and three unavailable. Candidate S02
+  functional refreshes pass, but their single whole-sequence timers do not
+  qualify S02 latency or contention. Close supported gaps and contract
+  conditions or state residual risk explicitly.
+- **Evidence and gates:** independently audit the exact-candidate raw
+  campaigns and publish one four-area checkpoint note with invalid and
+  omitted cells. The E01–E12 raw paired archive remains local and untracked:
+  automatic approval review rejected a proposed path-scoped Gitleaks policy
+  change, so persistent retention needs explicit authorization or another
+  policy-compliant resolution. The most recent full agent gate passed shell
+  lint after a fix, then stopped at the pinned-override guard because six
+  tracked result snapshots are named `Cargo.toml`. Resolve their archival
+  format without weakening the guard, then rerun the needed gate. Earlier
+  full-gate failures also have recorded steward-orient and Python environment
+  dispositions to recheck. Do not claim a full green gate meanwhile.
+
+Freeze the broader executable protocol after the remaining baseline pilots
+and negative fixtures, run the missing exact-candidate cells, complete the
+four matrices, independently recompute the report and record the Phase 1
+checkpoint. Only then begin dedicated Phase 2 correct-results scoring.

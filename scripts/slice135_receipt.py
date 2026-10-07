@@ -65,6 +65,8 @@ def _resources(raw: dict, protocol: dict, artifact_root: Path) -> dict:
     content = path.read_bytes()
     _binding("resource_file_sha256", raw.get("resource_file_sha256"), _hash(content), SHA64)
     lines = content.decode("utf-8").splitlines()
+    while lines and not lines[-1].strip():
+        lines.pop()
     entries = [line.split("=", 1) for line in lines]
     required = ("user_s", "system_s", "peak_rss_kib", "fs_inputs", "fs_outputs",
                 "major_faults", "swap_events")

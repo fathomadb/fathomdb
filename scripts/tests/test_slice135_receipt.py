@@ -104,6 +104,12 @@ class ReceiptTests(unittest.TestCase):
             runner_sha256=self.runner_hash,
         )
 
+    def test_gnu_time_trailing_blank_line_is_accepted(self):
+        self.resource_bytes += b"\n"
+        (self.root / "resource.txt").write_bytes(self.resource_bytes)
+        self.raw["resource_file_sha256"] = digest(self.resource_bytes)
+        self.validate()
+
     def test_recomputes_nearest_rank_and_omits_unsupported_tail(self):
         self.raw["cells"]["query"]["attempts"].append({
             "valid": False, "reason": "timeout", "latency_ns": 5000,

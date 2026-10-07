@@ -8,6 +8,8 @@ this section is the client-facing view.
   data-plane additions, data shapes, and instrumentation methods.
 - [TypeScript API](typescript-api.md) — Promise-based `Engine`, `admin`,
   governed reads, data-plane additions, data shapes, and instrumentation.
+- [Rust SDK](rust-sdk.md) — `fathomdb-sdk`, the Rust peer of the Python and
+  TypeScript SDKs (0.8.27, unpublished)
 - [Rust API](rust-api.md) — facade model, Engine methods, public carrier
   families, feature boundary, and links to generated rustdoc.
 - [CLI](cli.md) — `fathomdb doctor` + `fathomdb recover` verbs, flag

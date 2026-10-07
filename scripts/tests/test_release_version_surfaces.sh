@@ -78,6 +78,7 @@ axis_w_packages=(
   fathomdb-py
   fathomdb-query
   fathomdb-schema
+  fathomdb-sdk
   fathomdb-tc5-benchmark
 )
 

@@ -12,6 +12,14 @@ AC-050c) gates merges against this invariant.
 
 **Publication status: pending.** This release has not been tagged or published.
 
+### Added
+
+- `fathomdb-sdk`, a Rust application SDK. It exposes the 44 governed Python and
+  TypeScript operations through `Engine`, `read`, `graph`, and `admin`, plus
+  standalone `rerank` and `embed_batch_cls`. Option structs default to the
+  Python/TypeScript values, and errors carry an `ErrorKind` per shared error
+  class. The operation-parity check now covers Rust.
+
 ### Changed
 
 - The TypeScript native subscriber delivers bounded engine diagnostics to its

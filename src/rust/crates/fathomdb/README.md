@@ -3,7 +3,10 @@
 The Rust facade crate for **FathomDB** — a local-first, embedded retrieval engine for application
 and agent workloads, built on SQLite.
 
-If you are writing a Rust application against FathomDB, this is the crate to depend on. It is a thin
+For the application surface shared with the Python and TypeScript SDKs
+(`Engine`, `read`, `graph`, `admin`, and the same option defaults and error
+classes), depend on [`fathomdb-sdk`](https://crates.io/crates/fathomdb-sdk)
+instead. This crate remains the lower-level engine facade. It is a thin
 re-export of the public surface of [`fathomdb-engine`](https://crates.io/crates/fathomdb-engine), so
 you get one dependency and one import path instead of the workspace's internal crate split.
 

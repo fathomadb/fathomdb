@@ -1,0 +1,18 @@
+{
+  "status": "PASS_WITH_RETAINED_PRODUCT_FAILURE",
+  "authority": "Unchanged human-owned functional_retrieve_fixture.json; documented erasure invariant; source-owned dependency assertions; wheel/native archive bytes",
+  "verified": [
+    "exhaustive operation accounting",
+    "single attributed field failure",
+    "exact fixture-derived reopened SDK bodies",
+    "erased canonical/source rows absent after reopen",
+    "dependency generation persisted",
+    "embedder identity/determinism across reopen",
+    "wheel/native SHA256 binding"
+  ],
+  "negative_controls_rejected": [
+    "retained_erased_node",
+    "false_executed_count"
+  ],
+  "limits": "Independent SQLite snapshots were captured during execution; temporary databases were deleted. This read does not independently replay every original operation or qualify model relevance."
+}

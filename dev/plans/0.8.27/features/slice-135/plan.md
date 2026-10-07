@@ -355,4 +355,7 @@ summary recomputation. The bounded engine-only
 [noise pilot](results/2026-10-07-mixed-noise-pilot/) and
 [four first results](results/2026-10-07-first-results/) are retained. The full
 protocol freeze, installed-SDK capability exercise, expanded four-area runs
-and Phase 1 checkpoint remain. Phase 2 awaits that checkpoint.
+and Phase 1 checkpoint remain. The first-results edge FTS error was repaired
+with a [permanent regression test and verification record](results/2026-10-07-edge-fts-repair/);
+the full gate still has two recorded unrelated failing suites. Phase 2 awaits
+the checkpoint.

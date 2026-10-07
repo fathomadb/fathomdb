@@ -1,39 +1,39 @@
 ---
 title: Slice 135 Phase 1 capability exercise register
-status: INITIAL_EXECUTION_GAPS
+status: INTERIM_INSTALLED_PYTHON_SMOKE
 target_release: 0.8.27
 ---
 
 # Phase 1 capability exercise register
 
-The executable [canonical operation map](../../../../../src/conformance/governed-operation-parity.json) is the scope authority for governed operations. Its SHA-256 at this snapshot is `da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17`. The candidate branch is `llm/0.8.27-slice-135` at `ea91ec0e8878d49c44706234ff2ea9c454b55cb5` before the confirmed edge-FTS-error repair. This document is an initial register, not a frozen measurement protocol or a claim that the rows below ran.
+The executable [canonical operation map](../../../../../src/conformance/governed-operation-parity.json) is the scope authority for governed operations. Its SHA-256 at the initial inventory snapshot is `da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17`. That snapshot was branch `llm/0.8.27-slice-135` at `ea91ec0e8878d49c44706234ff2ea9c454b55cb5`, before the confirmed edge-FTS-error repair. This living register is not the frozen measurement protocol; only rows explicitly marked with a receipt have executed installed-artifact evidence.
 
-Every row is currently an explicit **Slice 135 Phase 1 execution gap** for installed SDK behavior. The engine-only first-results receipts cover a narrower text/write/erase/reopen workload; those runs do not close an SDK row. The routes below are proposed full Phase 1 cases from the [protocol draft](phase1-protocol-draft.md); each must be replaced with exact command, artifact/source identity, assertions and receipt link, or kept as a named gap in the checkpoint. `S03` may use qualified benchmark data for shape, with basic state or result checks. Dedicated gold scoring remains Phase 2.
+The engine-only first-results receipts cover a narrower text/write/erase/reopen workload; those runs do not close an SDK row. A candidate [installed Python wheel functional smoke](results/2026-10-07-python-wheel-qualification/README.md) now exercises the specifically marked operations against a real database, with state assertions and reopen. **Functional smoke is not an S01/S02 timing result or complete contract qualification.** Every other row remains an explicit Phase 1 execution gap for installed SDK behavior. The routes below are proposed full Phase 1 cases from the [protocol draft](phase1-protocol-draft.md); each must be replaced with exact command, artifact/source identity, assertions and receipt link, or kept as a named gap in the checkpoint. `S03` may use qualified benchmark data for shape, with basic state or result checks. Dedicated gold scoring remains Phase 2.
 
 | Canonical operation | Phase 1 exercise route | Rust SDK | Python wheel | TypeScript package |
 | --- | --- | --- | --- | --- |
-| `engine.open` | S02 startup/reopen | Gap | Gap | Gap |
+| `engine.open` | S02 startup/reopen | Gap | Functional smoke | Gap |
 | `admin.configure` | S02 startup | Gap | Gap | Gap |
-| `engine.write` | S02 write | Gap | Gap | Gap |
-| `engine.actuate` | S03 actuation | Gap | Gap | Gap |
-| `engine.register_source_dependency` | S03 dependency | Gap | Gap | Gap |
+| `engine.write` | S02 write | Gap | Functional smoke | Gap |
+| `engine.actuate` | S03 actuation | Gap | Functional smoke | Gap |
+| `engine.register_source_dependency` | S03 dependency | Gap | Functional smoke | Gap |
 | `engine.dependencies_for_source` | S03 dependency | Gap | Gap | Gap |
-| `engine.dependency_for_derived` | S03 dependency | Gap | Gap | Gap |
+| `engine.dependency_for_derived` | S03 dependency | Gap | Functional smoke | Gap |
 | `engine.read_dependency_closure` | S03 dependency | Gap | Gap | Gap |
 | `engine.transition` | S03 lifecycle | Gap | Gap | Gap |
 | `engine.purge` | S03 lifecycle | Gap | Gap | Gap |
 | `engine.erase_source` | S02 erasure | Gap | Gap | Gap |
-| `engine.search` | S01/S02 hybrid | Gap | Gap | Gap |
-| `engine.freeze_read_context` | S02 frozen | Gap | Gap | Gap |
-| `engine.search_frozen` | S02 frozen | Gap | Gap | Gap |
-| `engine.search_expand_frozen` | S03 graph | Gap | Gap | Gap |
+| `engine.search` | S01/S02 hybrid | Gap | Functional smoke | Gap |
+| `engine.freeze_read_context` | S02 frozen | Gap | Functional smoke | Gap |
+| `engine.search_frozen` | S02 frozen | Gap | Functional smoke | Gap |
+| `engine.search_expand_frozen` | S03 graph | Gap | Functional smoke | Gap |
 | `engine.search_text_only` | S01/S02 text | Gap | Gap | Gap |
 | `engine.search_projected_text` | S03 projection | Gap | Gap | Gap |
-| `engine.search_with_evidence` | S02 evidence | Gap | Gap | Gap |
-| `engine.resolve_evidence` | S02 evidence | Gap | Gap | Gap |
-| `engine.resolve_graph_evidence` | S02 graph evidence | Gap | Gap | Gap |
+| `engine.search_with_evidence` | S02 evidence | Gap | Functional smoke | Gap |
+| `engine.resolve_evidence` | S02 evidence | Gap | Functional smoke | Gap |
+| `engine.resolve_graph_evidence` | S02 graph evidence | Gap | Functional smoke | Gap |
 | `engine.trace_dependency` | S03 dependency | Gap | Gap | Gap |
-| `engine.close` | S02 close | Gap | Gap | Gap |
+| `engine.close` | S02 close | Gap | Functional smoke | Gap |
 | `read.get` | S02 read | Gap | Gap | Gap |
 | `read.get_many` | S03 read | Gap | Gap | Gap |
 | `read.collection` | S03 read | Gap | Gap | Gap |
@@ -41,7 +41,7 @@ Every row is currently an explicit **Slice 135 Phase 1 execution gap** for insta
 | `read.list` | S03 read | Gap | Gap | Gap |
 | `engine.ingest_with_extractor` | S03 provider | Gap | Gap | Gap |
 | `engine.consolidate_with_provider` | S03 provider | Gap | Gap | Gap |
-| `graph.expand` | S02 graph | Gap | Gap | Gap |
+| `graph.expand` | S02 graph | Gap | Functional smoke | Gap |
 | `graph.neighbors` | S02 graph | Gap | Gap | Gap |
 | `graph.search_expand` | S03 graph | Gap | Gap | Gap |
 | `rerank` | S01 model only | Gap | Gap | Gap |

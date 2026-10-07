@@ -283,6 +283,35 @@ and fault case above. Do not start Phase 2 at the first-results milestone.
    confirmed defects for test-first repair; rerun affected cells after a fix.
    Continue through the full four-area checkpoint below.
 
+### Functional exercise gate for the Phase 1 checkpoint
+
+The checkpoint must contain executed product behavior, not only benchmark
+timings or a list of available tests. Run the frozen S01 text, vector and
+hybrid queries where supported, with cold/warm and declared corpus-size
+conditions, through each available **installed** Rust, Python and TypeScript
+boundary. Run S02's whole open/write/project-to-ready/retrieve/graph and
+evidence/erase/close/reopen sequence with state assertions and bounded
+contention through each available installed boundary. Use the same declared
+operation mix for the Pareto and coverage overlay. Pair shared Python and
+TypeScript behavior with 0.8.26; label the new Rust SDK candidate-only and
+pair comparable engine cells at the engine boundary.
+
+For every accepted operation in the
+[capability exercise register](phase1-capability-register.md), record the
+supported SDKs and an exact-candidate, real-database positive call with an
+asserted return or persisted effect, or an explicitly labeled standalone
+model call where no database boundary exists. Add a negative/error condition and
+reopen check where the operation has such a contract. Mark standalone model
+operations and genuinely unavailable provider/platform cases separately,
+with the reason and an owned follow-up. Preserve the count of supported,
+executed, failed and unexecuted operations per SDK; a test name, compile
+pass, engine-only run or installed smoke does not count as complete exercise
+of that SDK. The checkpoint is incomplete if S01/S02's available installed
+boundaries have not run, or if an accepted supported operation is left as an
+unexplained execution gap. Report remaining explained gaps as residual risk,
+not coverage. Store commands, package identities, raw outputs and independent
+assertions so the next release can rerun the same functional gate.
+
 **Phase 1 checkpoint:** publish an exact-candidate measurement note with four
 valid result sections, raw receipt links, independently recomputed summaries,
 invalid/omitted cells, coverage gaps, confirmed defects and ranked follow-ups.
@@ -358,4 +387,6 @@ protocol freeze, installed-SDK capability exercise, expanded four-area runs
 and Phase 1 checkpoint remain. The first-results edge FTS error was repaired
 with a [permanent regression test and verification record](results/2026-10-07-edge-fts-repair/);
 the full gate still has two recorded unrelated failing suites. Phase 2 awaits
-the checkpoint.
+the checkpoint. A candidate [installed Python wheel functional smoke](results/2026-10-07-python-wheel-qualification/README.md)
+now covers a narrow graph/evidence/dependency flow. It does not satisfy the
+functional exercise gate or a timed S01/S02 cell.

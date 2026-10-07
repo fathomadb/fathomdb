@@ -55,6 +55,24 @@ test("eraseSource erases anonymous content end-to-end without the CLI", async ()
   }
 });
 
+test("eraseSource addresses an embedded NUL sourceId exactly", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  const sourceId = "tenant\0a";
+  try {
+    await engine.write([
+      anonymousNode("nul source payload", sourceId),
+      anonymousNode("other source payload", "tenant-a"),
+    ]);
+    const report = await engine.eraseSource(sourceId);
+    assert.equal(report.sourceRef, sourceId);
+    assert.equal(report.nodesExcised, 1);
+    assert.equal((await engine.eraseSource(sourceId)).nodesExcised, 0);
+    assert.equal((await engine.eraseSource("tenant-a")).nodesExcised, 1);
+  } finally {
+    await engine.close();
+  }
+});
+
 test("eraseSource is idempotent (an absent source is a zero-count success)", async () => {
   const engine = await Engine.open(freshDbPath());
   try {

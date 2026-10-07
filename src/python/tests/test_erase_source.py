@@ -57,6 +57,23 @@ def test_erase_source_erases_anonymous_content_without_cli(db_path: str) -> None
         engine.close()
 
 
+def test_erase_source_addresses_embedded_nul_source_id(db_path: str) -> None:
+    source_id = "tenant\0a"
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write([
+            _anonymous_node("nul source payload", source_id),
+            _anonymous_node("other source payload", "tenant-a"),
+        ])
+        report = engine.erase_source(source_id)
+        assert report.source_ref == source_id
+        assert report.nodes_excised == 1
+        assert engine.erase_source(source_id).nodes_excised == 0
+        assert engine.erase_source("tenant-a").nodes_excised == 1
+    finally:
+        engine.close()
+
+
 def test_erase_source_is_idempotent(db_path: str) -> None:
     engine = Engine.open(db_path)
     try:

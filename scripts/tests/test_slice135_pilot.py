@@ -1,6 +1,8 @@
 """Contracts for the real-engine Slice 135 baseline noise pilot."""
 
 import importlib.util
+import hashlib
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -47,6 +49,49 @@ class PilotTests(unittest.TestCase):
         changed = dict(state, swap_pages=1, competing_jobs=[{"pid": 3}])
         self.assertIn("swap activity", pilot.environment_invalidators(state, changed, 100))
         self.assertIn("competing jobs", pilot.environment_invalidators(state, changed, 100))
+
+    def test_reused_binary_requires_exact_source_runner_lock_and_hash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = root / "previous"
+            previous.mkdir()
+            (previous / "build").mkdir()
+            binary = b"real built binary bytes"
+            lock = b"resolved lock bytes"
+            (previous / "slice135_pilot_workload").write_bytes(binary)
+            (previous / "build/Cargo.lock").write_bytes(lock)
+            source = {"source_sha": "a" * 40, "source_tree_sha256": "b" * 64,
+                      "cargo_lock_sha256": "c" * 64}
+            (previous / "source.json").write_text(json.dumps(source))
+            runner_hash = "d" * 64
+            (previous / "runner.bundle").write_bytes(b"runner")
+            protocol = {
+                "source_sha": source["source_sha"],
+                "runner_sha256": hashlib.sha256(b"runner").hexdigest(),
+                "artifact_sha256": {
+                    "slice135_pilot_workload": hashlib.sha256(binary).hexdigest(),
+                    "build/Cargo.lock": hashlib.sha256(lock).hexdigest(),
+                },
+            }
+            (previous / "pilot-protocol.json").write_text(json.dumps(protocol))
+            (previous / "attempt.json").write_text(json.dumps({"status": "SMOKE_ONLY"}))
+            target = root / "next"
+            target.mkdir()
+            expected = protocol["artifact_sha256"]["slice135_pilot_workload"]
+            with self.assertRaisesRegex(ValueError, "binary hash"):
+                pilot.reuse_binary(previous, target, source, protocol["runner_sha256"], "0" * 64)
+            with self.assertRaisesRegex(ValueError, "runner"):
+                pilot.reuse_binary(previous, target, source, runner_hash, expected)
+            with self.assertRaisesRegex(ValueError, "source"):
+                pilot.reuse_binary(previous, target, dict(source, source_sha="f" * 40),
+                                   protocol["runner_sha256"], expected)
+            (previous / "build/Cargo.lock").write_bytes(b"tampered")
+            with self.assertRaisesRegex(ValueError, "lock"):
+                pilot.reuse_binary(previous, target, source, protocol["runner_sha256"], expected)
+            (previous / "build/Cargo.lock").write_bytes(lock)
+            copied = pilot.reuse_binary(previous, target, source,
+                                       protocol["runner_sha256"], expected)
+            self.assertEqual(copied.read_bytes(), binary)
 
 
 if __name__ == "__main__":

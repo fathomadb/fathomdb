@@ -109,7 +109,10 @@ impl PyReadContextV1 {
         eligibility.status = status;
         eligibility.attributes = attributes.unwrap_or_default();
         if schema_version != 1 {
-            return Err(FrozenReadError::new_err("unsupported_schema_version at /schemaVersion"));
+            return Err(frozen_read_error_to_py(&fathomdb_engine::FrozenReadError {
+                reason: fathomdb_engine::FrozenReadErrorReason::UnsupportedSchemaVersion,
+                field_path: "/schemaVersion".into(),
+            }));
         }
         let inner = RustReadContextV1::new(read_view_or_default(view), eligibility)
             .map_err(engine_error_to_py)?;

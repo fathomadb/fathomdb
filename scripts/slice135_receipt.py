@@ -29,6 +29,14 @@ def _binding(name: str, value: object, expected: str, pattern: re.Pattern[str]) 
         raise ValueError(f"{name} mismatch")
 
 
+def _same_json(left: object, right: object) -> bool:
+    try:
+        options = {"sort_keys": True, "separators": (",", ":"), "allow_nan": False}
+        return json.dumps(left, **options) == json.dumps(right, **options)
+    except (TypeError, ValueError):
+        return False
+
+
 def _artifact_bindings(raw: dict, protocol: dict, artifact_root: Path) -> None:
     expected = protocol.get("artifact_sha256")
     actual = raw.get("artifact_sha256")
@@ -88,7 +96,9 @@ def validate(raw: dict, protocol: dict, artifact_root: Path, *,
     """
     if not isinstance(raw, dict) or not isinstance(protocol, dict):
         raise ValueError("receipt and protocol must be objects")
-    if raw.get("schema_version") != 1 or protocol.get("schema_version") != 1:
+    if (type(raw.get("schema_version")) is not int or raw["schema_version"] != 1
+            or type(protocol.get("schema_version")) is not int
+            or protocol["schema_version"] != 1):
         raise ValueError("schema_version mismatch")
     if not isinstance(expected_source_sha, str) or not SHA40.fullmatch(expected_source_sha):
         raise ValueError("expected_source_sha malformed")
@@ -104,7 +114,7 @@ def validate(raw: dict, protocol: dict, artifact_root: Path, *,
     _artifact_bindings(raw, protocol, artifact_root)
     for name in ("features", "settings"):
         expected = protocol.get(name)
-        if not isinstance(expected, dict) or raw.get(name) != expected:
+        if not isinstance(expected, dict) or not _same_json(raw.get(name), expected):
             raise ValueError(f"{name} missing or changed")
     _environment(raw, protocol)
     expected_cells = protocol.get("cells")
@@ -137,7 +147,7 @@ def validate(raw: dict, protocol: dict, artifact_root: Path, *,
             if "semantic_ok" in attempt and attempt["semantic_ok"] is not True:
                 raise ValueError(f"{name}: attempt {position} semantic failure")
             if ("observed_checks" in attempt
-                    and attempt["observed_checks"] != expected_checks):
+                    and not _same_json(attempt["observed_checks"], expected_checks)):
                 raise ValueError(f"{name}: attempt {position} observed checks mismatch")
             if attempt.get("valid") is False:
                 reason = attempt.get("reason")
@@ -152,7 +162,7 @@ def validate(raw: dict, protocol: dict, artifact_root: Path, *,
                 raise ValueError(f"{name}: attempt {position} latency_ns invalid")
             if attempt.get("semantic_ok") is not True:
                 raise ValueError(f"{name}: attempt {position} semantic failure")
-            if attempt.get("observed_checks") != expected_checks:
+            if not _same_json(attempt.get("observed_checks"), expected_checks):
                 raise ValueError(f"{name}: attempt {position} observed checks mismatch")
             values.append(ns)
         if len(values) < 100:

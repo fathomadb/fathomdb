@@ -116,6 +116,7 @@ measured runner or bundle passed with `--runner` and each artifact's actual
 bytes. Invoke it with `--raw`, `--protocol`, `--runner`, `--artifacts-root`,
 `--source-sha` and `--output`. The summary records the validator's own hash
 separately; it does not substitute for the measured runner hash.
+Feature, setting and observed-state comparisons preserve JSON value types.
 The source SHA is an explicit input and still needs separate source/build
 provenance verification. A package version string is not candidate identity:
 the current 0.8.27 source still uses a 0.8.26 pre-release version string.

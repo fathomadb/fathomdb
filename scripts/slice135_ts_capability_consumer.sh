@@ -11,9 +11,12 @@ git -C "$repo_root" diff --quiet "$source_sha" -- \
   src/rust src/ts/src src/ts/package.json src/ts/npm/linux-x64-gnu/package.json Cargo.lock
 node_root=/home/coreyt/.nvm/versions/node/v25.9.0
 export PATH="$node_root/bin:$PATH"
-test "$(node --version)" = v25.9.0
-test "$(uname -s)" = Linux
-test "$(uname -m)" = x86_64
+node_version=$(node --version)
+kernel_name=$(uname -s)
+machine_arch=$(uname -m)
+test "$node_version" = v25.9.0
+test "$kernel_name" = Linux
+test "$machine_arch" = x86_64
 test -f "$native_binary"
 test ! -e "$result_root"
 mkdir -p "$result_root/main" "$result_root/platform" "$result_root/packs" "$result_root/consumer" "$result_root/compiled"

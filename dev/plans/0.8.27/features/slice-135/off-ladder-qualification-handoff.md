@@ -18,6 +18,10 @@ verify those newer records and this handoff does not reopen the rulings.
 | `c23e2d23f` — 0.8.26+Tegra Pages pin, install command and docs correction | Resolve the commit in the release branch, verify ancestry and affected files, then check the pinned install path and documentation against an actual qualified Tegra package/install route. Record environment, package identity and any unavailable hardware route. | Confirm the final release artifact and published install instructions retain the pin and command, with an installed Tegra smoke or an explicit qualification limit. |
 
 `96796fe04` resolves locally and is an ancestor of this Slice 135 candidate.
+The [focused Phase 1 receipt](results/2026-10-07-off-ladder-embedder-close/README.md)
+passed three real-database close ownership tests and one timed-out-close retry
+test on the repaired candidate. Concurrent pending-work failure/cancellation,
+installed bindings and final-candidate integration remain open.
 `c23e2d23f` is not present in this checkout's local Git object database at
 draft time, so its ancestry and exact diff are **unverified here**. Refresh
 the release ref on the machine that received it before claiming inclusion.

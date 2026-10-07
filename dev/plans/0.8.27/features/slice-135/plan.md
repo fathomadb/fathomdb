@@ -329,7 +329,10 @@ boundaries where available; and give Slice 150 an explicit integrated
 qualification owner. The release plan, board and state need matching
 off-ladder records before publication. Their shared-state writer should
 apply those records from the handoff; do not infer that a local commit hash
-or a prior slice's verification covers the final candidate.
+or a prior slice's verification covers the final candidate. The
+[focused embedder-close receipt](results/2026-10-07-off-ladder-embedder-close/README.md)
+checks the known landing's lock and provider ownership regressions; the
+remaining concurrency, installed and final-candidate checks are still owed.
 The [node FTS row-error repair](results/2026-10-07-node-fts-repair/README.md)
 and [graph traversal row-error repair](results/2026-10-07-graph-arm-row-repair/README.md)
 change candidate engine bytes after the paired S01 and S02 receipts. Rebuild

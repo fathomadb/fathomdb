@@ -80,9 +80,11 @@ These are the only allowed differences from the Python and TypeScript SDKs:
    - every string field of a `PreparedWrite` except `source_id`, which
      AC-068a requires to keep an embedded NUL.
 
-   Lone surrogates cannot occur in a Rust `&str`. Like Python, the SDK does
-   not guard `ingest_with_extractor` and `consolidate_with_provider`
-   arguments. Typed V1 request structs, which Python checks only as serialized
+   It also checks `Predicate` paths and text values, including `Json` filter
+   terms, and page cursors. Lone surrogates cannot occur in a Rust `&str`.
+   Python checks the `ingest_with_extractor` document strings and the
+   `consolidate_with_provider` axis strings, but napi does not; under rule 6
+   the SDK follows TypeScript and leaves them to the core. Typed V1 request structs, which Python checks only as serialized
    JSON, are validated by the core's identity grammar.
 8. **Members specific to one SDK are not reproduced:**
    - Python's `Engine.path`.
@@ -163,7 +165,14 @@ Validation follows Python's order:
 3. The string guard.
 4. The core call.
 
-Every other check, including empty-string arguments (which Python rejects
+Two orders differ from Python, and both still report a typed error:
+
+- `search_with_evidence` checks `limit` before the core's `schema_version`
+  check.
+- The page functions check strings before the core's `PageError` checks.
+
+`graph::search_expand` checks `search_limit` first, as both SDKs do. Every
+other check, including empty-string arguments (which Python rejects
 host-side for `admin.configure` `name` and `graph.neighbors` `logical_id`,
 but TypeScript does not), is left to the core.
 

@@ -1,6 +1,9 @@
 //! Argument checks the Python and TypeScript bindings apply before the core.
 
-use fathomdb_engine::{Filter, FilterTerm, PreparedWrite, ProjectionSpec, SearchFilter};
+use fathomdb_engine::{
+    Filter, FilterTerm, PageRequestV1, Predicate, PreparedWrite, ProjectionSpec, ScalarValue,
+    SearchFilter,
+};
 
 use crate::error::{Error, ErrorKind, Result};
 
@@ -66,8 +69,23 @@ pub(crate) fn filter(filter: &Filter) -> Result<()> {
         FilterTerm::SourceType(value) | FilterTerm::Kind(value) | FilterTerm::Status(value) => {
             text(value)
         }
-        FilterTerm::CreatedAfter(_) | FilterTerm::Json(_) => Ok(()),
+        FilterTerm::Json(predicate) => self::predicate(predicate),
+        FilterTerm::CreatedAfter(_) => Ok(()),
     })
+}
+
+pub(crate) fn predicate(predicate: &Predicate) -> Result<()> {
+    let (Predicate::JsonPathEq { path, value } | Predicate::JsonPathCompare { path, value, .. }) =
+        predicate;
+    text(path)?;
+    match value {
+        ScalarValue::Text(value) => text(value),
+        ScalarValue::Integer(_) | ScalarValue::Bool(_) => Ok(()),
+    }
+}
+
+pub(crate) fn page(page: &PageRequestV1) -> Result<()> {
+    page.cursor.as_ref().map_or(Ok(()), |cursor| text(&cursor.0))
 }
 
 pub(crate) fn projection_spec(spec: &ProjectionSpec) -> Result<()> {

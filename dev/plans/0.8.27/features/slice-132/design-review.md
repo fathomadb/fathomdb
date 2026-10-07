@@ -59,3 +59,21 @@ verified the design at `83f461c2c` and returned **APPROVE-WITH-FIXES**.
 | The lifecycle re-exports were not closed over their field types. | P2 | Added `Phase`, `EventSource`, `EventCategory`, and `ProjectionStatus`. |
 | The interface doc referred to a mapping table that did not exist. | P2 | Added the table, along with the forms an optional view can take. |
 | Validation order, the redundant limit pre-check, empty-string divergences, scan regex hygiene, the unnameable open-error payload. | P3 | The SDK follows Python's order, so the limit pre-check stays. Empty strings are left to the core. The regex now covers `const`, `async`, and `unsafe`. `RuntimeEmbedderError` is re-exported. |
+
+## Code review (Opus, high)
+
+The reviewer checked `316ac4769..9bb29a2f4` plus the release wiring and
+returned **APPROVE-WITH-FIXES**. It confirmed that error mapping, `EngineConfig`
+ranges, close and detach order, and the shared defaults match the bindings,
+and that no re-exported type exposes the core engine.
+
+| Finding | Severity | Resolution |
+| --- | --- | --- |
+| Trusted publishing cannot create a new crate, so the first `fathomdb-sdk` publish would fail in T6 and block T7 and every later stage. | P1 | `dev/design/release.md` now records a one-time HITL token bootstrap. Release state records it as a precondition of the 0.8.27 tag. |
+| The checker missed crate, `self`, absolute, and type-alias re-exports; function re-exports; the core engine in public signatures and impl targets; and public fields on a tuple `Engine`. | P2 | RED fixtures for each case landed first. The checker now refuses all of them. |
+| Predicate paths and text values, `Json` filter terms, and page cursors were forwarded without the NUL guard. | P3 | Guarded, with RED tests first. Extractor and consolidation strings follow TypeScript (unguarded), and the contract now says so. |
+| `graph::search_expand` checked `search_limit` after the string guard. | P3 | It now checks the limit first, with a RED test first. The two remaining order differences are documented. |
+| `compile_fail` doctests pinned no error code; two tests were weak. | P3 | Each doctest now pins `E0432` or `E0599`. The frozen expansion test asserts its hits, and the projected-search test asserts a core error. |
+| `release.md` and the publish-helper test omitted the SDK. | P3 | Both updated. |
+| Escaped char literals could desynchronize brace matching. | P3 | Not reproducible: escaped braces are balanced. A regression fixture was added. |
+| `erase_source` cannot take a `source_id` that contains NUL, although writes preserve one. | P3 | This predates the slice and is shared by both bindings. It is in the todo ledger. |

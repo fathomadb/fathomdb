@@ -166,7 +166,7 @@ sed -i 's/npm install fathomdb@next/npm install fathomdb@0.8.23/' "$FIXTURE/docs
 expect_fail "$FIXTURE" 'requires npm next install guidance'
 
 make_fixture "$FIXTURE"
-sed -i 's/Ten Rust workspace members/Nine Rust workspace members/' "$FIXTURE/README.md"
+sed -i -E 's/^- [A-Za-z]+ Rust workspace members/- Nine Rust workspace members/' "$FIXTURE/README.md"
 expect_fail "$FIXTURE" 'rejects a false Rust workspace member count'
 
 make_fixture "$FIXTURE"

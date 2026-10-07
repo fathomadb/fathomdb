@@ -71,7 +71,10 @@ pub fn list(engine: &Engine, kind: &str, options: ListOptions) -> Result<Vec<Nod
             guard::filter(&filter)?;
             Ok(engine.core().read_list_filter(kind, &filter, limit, &view)?)
         }
-        None => Ok(engine.core().read_list(kind, &predicates, limit, &view)?),
+        None => {
+            predicates.iter().try_for_each(guard::predicate)?;
+            Ok(engine.core().read_list(kind, &predicates, limit, &view)?)
+        }
     }
 }
 
@@ -83,6 +86,7 @@ pub fn canonical_page(
     page: &PageRequestV1,
 ) -> Result<PageV1<NodeRecord>> {
     guard::text(kind)?;
+    guard::page(page)?;
     Ok(engine.core().read_canonical_page(kind, context, page)?)
 }
 
@@ -106,6 +110,7 @@ pub fn operational_state_page(
     page: &PageRequestV1,
 ) -> Result<PageV1<OperationalStateRecordV1>> {
     guard::text(collection)?;
+    guard::page(page)?;
     Ok(engine.core().read_operational_state_page(collection, context, page)?)
 }
 

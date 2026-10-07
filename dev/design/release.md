@@ -55,7 +55,7 @@ sit between tiers (pattern from pre-0.6.0 `.github/workflows/release.yml`).
 | T3   | `fathomdb-query`                                             | Depends on `fathomdb-schema` (per ADR-0.6.0-crate-topology consequences) and `fathomdb-embedder-api` indirectly via retrieval glue.                                 |
 | T4   | `fathomdb-embedder`                                          | Depends on `fathomdb-embedder-api` (T1). Publishes **before** `fathomdb-engine` because engine has a normal dependency on it. (Order corrected 0.7.2 PR-4: engine→embedder edge was added in the 0.7.1 embedder-undefer work; the old T4-engine/T5-embedder order made engine's publish fail to resolve `fathomdb-embedder`.) |
 | T5   | `fathomdb-engine`                                            | Depends on T1+T2+T3+T4 (`fathomdb-embedder-api`, `fathomdb-schema`, `fathomdb-query`, `fathomdb-embedder`). Largest crate; publishes only after all its deps are resolvable on crates.io.                                                                      |
-| T6   | `fathomdb`                                                   | Facade. Depends on `fathomdb-engine` (T5).                                                                                                                          |
+| T6   | `fathomdb`, `fathomdb-sdk`                                   | Facade and Rust application SDK (0.8.27). Both depend on `fathomdb-engine` (T5) and publish in the T6 job, facade first. `fathomdb-sdk`'s first publish needs the one-time token bootstrap below. |
 | T7   | `fathomdb-cli`                                               | Depends on `fathomdb` facade (T6) per ADR-0.6.0-crate-topology amendment 2026-05-11.                                                                                |
 | T8   | Python wheel (`src/python/`); TypeScript package (`src/ts/`) | Both wrap `fathomdb-engine` directly (PyO3 / napi-rs); they can publish in parallel after T5 (engine) resolves on crates.io. PyPI / npm publishing is independent of T6..T7. |
 
@@ -128,10 +128,19 @@ bump** on `main`. The canonical sequence for either kind of tag:
 6. Annotated tag at the bump commit: `git tag -a v<version>` and
    `git push origin v<version>`.
 
+### New-crate first publish (0.8.27 `fathomdb-sdk`)
+
+crates.io trusted publishing (`crates-io-auth-action`) is configured per
+existing crate, so it cannot create a crate that does not exist yet. Before
+the first tag that carries a new crate, the HITL publishes it once with an API
+token and then registers its trusted publisher. Otherwise the T6 job fails,
+and T7 `fathomdb-cli` and every later stage are skipped. For 0.8.27 this
+applies to `fathomdb-sdk`.
+
 ### Dependent-crate dry-run limitation (WF-FIX-2, 2026-05-25)
 
 `cargo publish --dry-run --no-verify` for dependent crates
-(`fathomdb-engine`, `fathomdb-embedder`, `fathomdb`, `fathomdb-cli`)
+(`fathomdb-engine`, `fathomdb-embedder`, `fathomdb`, `fathomdb-sdk`, `fathomdb-cli`)
 cannot succeed in either CI or local rehearsal. `--no-verify` skips
 the verify (compile) step, **not** the package step. `cargo package`
 rewrites path dependencies to versioned dependencies and resolves

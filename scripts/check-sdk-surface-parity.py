@@ -249,18 +249,52 @@ _PUB_FN = re.compile(
 _CORE_ONLY_NAMES = {"Engine", "OpenedEngine", "EmbedderChoice"}
 
 
+def _core_aliases(text: str) -> set[str]:
+    """Local names bound to the core `Engine` by a `use` of `fathomdb_engine`."""
+    aliases = {"fathomdb_engine::Engine"}
+    for use in re.finditer(r"\buse\s+(?:::)?fathomdb_engine\b([^;]*);", text):
+        for name, alias in re.findall(r"\b(Engine|OpenedEngine)\b(?:\s+as\s+(\w+))?", use.group(1)):
+            aliases.add(alias or name)
+    return aliases
+
+
 def _refuse_core_leaks(path: Path, text: str) -> None:
     """Refuse type-level routes to the core that a `pub fn` scan cannot see."""
-    for use in re.finditer(r"(?<![\w)])pub\s+use\s+([^;]+);", text):
-        target = " ".join(use.group(1).split())
-        if not target.startswith("fathomdb_engine"):
+    for item in re.finditer(
+        r"(?<![\w)])pub\s+(use|type|extern\s+crate)\s+([^;]+);", text
+    ):
+        kind, target = item.group(1), " ".join(item.group(2).split())
+        if "fathomdb_engine" not in target:
             continue
-        if re.search(r"(::|\{|,)\s*\*", target):
-            raise ParityError(f"glob re-export {target} in {path.name}; re-export named items only")
-        names = set(re.findall(r"(?:::|\{|,)\s*(\w+)(?=\s*(?:as\b|,|\}|$))", target))
-        leaked = sorted(names & _CORE_ONLY_NAMES)
+        if kind != "use":
+            raise ParityError(f"pub {kind} naming fathomdb_engine in {path.name}: {target}")
+        target = target.removeprefix("::")
+        if not target.startswith("fathomdb_engine::"):
+            raise ParityError(f"re-export of the fathomdb_engine crate itself in {path.name}: {target}")
+        if re.search(r"(::|\{|,)\s*(\*|self\b)", target):
+            raise ParityError(f"glob or self re-export {target} in {path.name}")
+        leaves = re.findall(r"(?:::|\{|,)\s*(\w+)(?=\s*(?:as\b|,|\}|$))", target)
+        leaked = sorted(set(leaves) & _CORE_ONLY_NAMES)
         if leaked:
             raise ParityError(f"re-export of core {', '.join(leaked)} from {target} in {path.name}")
+        functions = sorted(name for name in leaves if name[0].islower())
+        if functions:
+            raise ParityError(
+                f"re-export of fathomdb_engine function(s) {', '.join(functions)} in {path.name}; "
+                "wrap them as governed SDK functions"
+            )
+    aliases = _core_aliases(text)
+    core = re.compile("|".join(rf"(?<![\w:]){re.escape(a)}\b" for a in sorted(aliases)))
+    for fn in _PUB_FN.finditer(text):
+        signature = text[fn.end() : text.find("{", fn.end())]
+        if core.search(signature):
+            raise ParityError(f"core engine type in public fn {fn.group(1)} signature in {path.name}")
+    for impl in re.finditer(r"\bimpl\b[^{;]*\{", text):
+        if core.search(impl.group(0)):
+            raise ParityError(f"impl naming the core engine in {path.name}: {impl.group(0)[:-1].strip()}")
+    for tuple_struct in re.finditer(r"\bpub\s+struct\s+Engine\s*\(([^;]*)\)\s*;", text):
+        if re.search(r"(?<![\w)])pub\b", tuple_struct.group(1)):
+            raise ParityError(f"public field on SDK Engine in {path.name}")
     for struct in re.finditer(r"\bpub\s+struct\s+Engine\s*\{", text):
         body = text[struct.end() : _block_end(text, struct.end() - 1) - 1]
         if re.search(r"(?<![\w)])pub\b", body):

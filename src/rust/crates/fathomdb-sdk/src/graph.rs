@@ -38,6 +38,7 @@ pub fn search_expand(
     filter: Option<SearchFilter>,
     options: SearchExpandOptions,
 ) -> Result<SearchExpandResult> {
+    guard::ranked_limit("search_limit", options.search_limit)?;
     guard::text(query)?;
     if let Some(filter) = &filter {
         if !filter.attributes.is_empty() {

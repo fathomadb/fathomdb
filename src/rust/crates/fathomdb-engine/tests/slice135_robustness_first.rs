@@ -87,16 +87,22 @@ fn slice135_concurrent_read_write_reopens_exact_state() {
     let start = Arc::new(Barrier::new(5));
     let stop = Arc::new(AtomicBool::new(false));
     let reads = Arc::new(AtomicUsize::new(0));
+    let active_writers = Arc::new(AtomicUsize::new(0));
+    let overlapping_reads = Arc::new(AtomicUsize::new(0));
     let mut writers = Vec::new();
     for writer_index in 0..2 {
         let engine = Arc::clone(&engine);
         let start = Arc::clone(&start);
+        let active_writers = Arc::clone(&active_writers);
         writers.push(thread::spawn(move || {
             start.wait();
+            active_writers.fetch_add(1, Ordering::SeqCst);
             for row_index in 0..8 {
                 let id = format!("writer-{writer_index}-{row_index}");
                 engine.write(&[node(&id)]).expect("concurrent write");
+                thread::sleep(Duration::from_millis(1));
             }
+            active_writers.fetch_sub(1, Ordering::SeqCst);
         }));
     }
     let mut readers = Vec::new();
@@ -105,12 +111,17 @@ fn slice135_concurrent_read_write_reopens_exact_state() {
         let start = Arc::clone(&start);
         let stop = Arc::clone(&stop);
         let reads = Arc::clone(&reads);
+        let active_writers = Arc::clone(&active_writers);
+        let overlapping_reads = Arc::clone(&overlapping_reads);
         readers.push(thread::spawn(move || {
             start.wait();
             while !stop.load(Ordering::SeqCst) {
                 let row = engine.read_get("anchor", &ReadView::default()).expect("concurrent read");
                 assert_eq!(row.expect("anchor is durable").body, "slice135robust body anchor");
                 reads.fetch_add(1, Ordering::SeqCst);
+                if active_writers.load(Ordering::SeqCst) > 0 {
+                    overlapping_reads.fetch_add(1, Ordering::SeqCst);
+                }
             }
         }));
     }
@@ -131,6 +142,7 @@ fn slice135_concurrent_read_write_reopens_exact_state() {
     }
     let after = snapshot(&engine, &ids);
     let read_count = reads.load(Ordering::SeqCst);
+    let overlap_count = overlapping_reads.load(Ordering::SeqCst);
     engine.close().expect("bounded close");
     drop(engine);
     let reopened = Engine::open(&path).expect("reopen");
@@ -140,10 +152,11 @@ fn slice135_concurrent_read_write_reopens_exact_state() {
     let fd_after = fd_count();
     eprintln!(
         "SLICE135_ROBUSTNESS {}",
-        json!({"case":"concurrent_read_write", "setup":{"writers":2,"writes_per_writer":8,"readers":2,"seed":before_ids}, "fault_point":"bounded simultaneous read/write schedule", "timeout_ms":30000, "before":before, "after":after, "reopened":reopened_state, "expected":expected(&ids), "reads":read_count, "elapsed_ms":started.elapsed().as_millis(), "integrity_check":integrity, "fd_before":fd_before, "fd_after":fd_after, "wal_bytes_after_close":wal_bytes(&path)})
+        json!({"case":"concurrent_read_write", "setup":{"writers":2,"writes_per_writer":8,"readers":2,"seed":before_ids}, "fault_point":"bounded simultaneous read/write schedule", "timeout_ms":30000, "before":before, "after":after, "reopened":reopened_state, "expected":expected(&ids), "reads":read_count, "reads_while_writer_active":overlap_count, "elapsed_ms":started.elapsed().as_millis(), "integrity_check":integrity, "fd_before":fd_before, "fd_after":fd_after, "wal_bytes_after_close":wal_bytes(&path)})
     );
     assert_eq!(before, expected(&ids[..1]));
     assert!(read_count > 0, "readers must execute during writer schedule");
+    assert!(overlap_count > 0, "readers must overlap the active writer schedule");
     assert_eq!(after, expected(&ids));
     assert_eq!(reopened_state, expected(&ids));
     assert_eq!(integrity, "ok");

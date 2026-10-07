@@ -298,3 +298,63 @@ fn slice135_injected_pretransaction_refusal_preserves_reopened_state() {
     assert_eq!(reopened_state, after_recovery);
     assert_eq!(integrity, "ok");
 }
+
+#[test]
+fn slice135_bounded_sqlite_full_write_rolls_back_and_reopens() {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join("sqlite-full.sqlite");
+    let opened = Engine::open(&path).expect("open");
+    opened.engine.write(&[node("base")]).expect("seed write");
+    opened.engine.drain(10_000).expect("seed projection");
+    let ids = ["base".to_owned(), "oversized".to_owned(), "recovery".to_owned()];
+    let before = snapshot(&opened.engine, &ids);
+    let pages = opened.engine.query_i64_col_for_test("PRAGMA page_count").expect("page count")[0];
+    let limit = pages + 1;
+    opened
+        .engine
+        .execute_for_test(&format!("PRAGMA max_page_count={limit}"))
+        .expect("cap only this temporary database");
+    assert_eq!(
+        opened.engine.query_i64_col_for_test("PRAGMA max_page_count").expect("page cap"),
+        [limit]
+    );
+    let result = opened.engine.write(&[PreparedWrite::Node {
+        kind: "doc".into(),
+        body: "x".repeat(1024 * 1024),
+        source_id: SourceId::new("test:slice135-robustness").expect("source id"),
+        logical_id: Some("oversized".into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    }]);
+    let after_failure = snapshot(&opened.engine, &ids);
+    let error = result.expect_err("SQLite page cap must refuse oversized write");
+    assert_eq!(error, EngineError::Storage);
+    assert_eq!(after_failure, before, "SQLite-full write must not partly commit");
+    opened
+        .engine
+        .execute_for_test("PRAGMA max_page_count=4294967294")
+        .expect("remove temporary size cap");
+    opened.engine.write(&[node("recovery")]).expect("write after full fault");
+    opened.engine.close().expect("close after recovered write");
+    let reopened = Engine::open(&path).expect("reopen");
+    let after_reopen = snapshot(&reopened.engine, &ids);
+    reopened.engine.close().expect("reopened close");
+    let expected = vec![
+        Some("slice135robust body base".into()),
+        None,
+        Some("slice135robust body recovery".into()),
+    ];
+    let physical_rows: i64 = Connection::open(&path)
+        .expect("independent database open")
+        .query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0))
+        .expect("canonical row count");
+    eprintln!(
+        "SLICE135_ROBUSTNESS {}",
+        json!({"case":"bounded_sqlite_full_write", "fault_point":"governed canonical write with max_page_count=page_count+1", "page_count":pages, "max_page_count":limit, "before":before, "error":format!("{error:?}"), "after_failure":after_failure, "reopened":after_reopen, "expected_reopened":expected, "physical_canonical_rows":physical_rows, "integrity_check":integrity(&path)})
+    );
+    assert_eq!(after_reopen, expected);
+    assert_eq!(physical_rows, 2);
+    assert_eq!(integrity(&path), "ok");
+}

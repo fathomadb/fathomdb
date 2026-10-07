@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/tmp/slice135-s01-block-smoke-32/runner.py", line 280, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/tmp/slice135-s01-block-smoke-32/runner.py", line 263, in main
+    result = run_pilot(
+             ^^^^^^^^^^
+  File "/tmp/slice135-s01-block-smoke-32/runner.py", line 162, in run_pilot
+    import fathomdb
+ModuleNotFoundError: No module named 'fathomdb'

@@ -12,7 +12,10 @@ for the four Phase 1 areas were committed on 2026-10-07. The full Phase 1
 checkpoint and dedicated correct-results phase remain ahead. The
 [first-results protocol](first-results-protocol.json) was frozen before paired
 candidate timing; the broader [Phase 1 protocol](phase1-protocol-draft.md)
-remains a draft.
+remains a draft. The installed Python S01
+[baseline-only noise pilot](results/2026-10-07-python-s01-noise-pilot/README.md)
+has ten audited blocks but no candidate comparison; use its measured spread
+to freeze the separate S01 rule before paired timing.
 
 The [release plan](../../../plan-0.8.27.md) owns the release contract. The
 repository owner approved this Slice 135 plan on 2026-10-06 and authorized

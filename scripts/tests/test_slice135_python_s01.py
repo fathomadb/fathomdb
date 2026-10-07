@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -59,3 +61,23 @@ def test_result_guard_rejects_unknown_id_and_empty_hybrid() -> None:
         MODULE.assert_result("vector", unknown, {"A", "B"})
     with pytest.raises(AssertionError, match="empty result"):
         MODULE.assert_result("hybrid", SimpleNamespace(results=[]), {"A", "B"})
+
+
+def test_result_guard_remains_active_under_optimized_python() -> None:
+    code = (
+        "import importlib.util, sys, types; "
+        "spec=importlib.util.spec_from_file_location('s01', sys.argv[1]); "
+        "module=importlib.util.module_from_spec(spec); "
+        "spec.loader.exec_module(module); "
+        "bad=types.SimpleNamespace(results=[types.SimpleNamespace("
+        "id=types.SimpleNamespace(space='logical', value='B'), branch='text')]); "
+        "module.assert_result('text', bad, {'A', 'B'})"
+    )
+    result = subprocess.run(
+        [sys.executable, "-O", "-c", code, str(RUNNER)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "text result" in result.stderr

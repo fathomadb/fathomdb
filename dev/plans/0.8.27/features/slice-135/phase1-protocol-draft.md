@@ -22,10 +22,14 @@ first comparison. This broader Phase 1 protocol remains a draft until the
 installed-SDK and remaining workload cells are qualified.
 
 An [installed 0.8.26 Python S01 functional probe](results/2026-10-07-python-s01-baseline-probe/README.md)
-now establishes a real-database 32/256-row text, vector-bearing and hybrid
-workload with basic validity assertions. Its raw timing is unqualified. It
-does not replace baseline-only repeated blocks, the S01 comparison rule or
-the full protocol freeze.
+established a real-database 32/256-row text, vector-bearing and hybrid
+workload with basic validity assertions. The later
+[baseline-only noise pilot](results/2026-10-07-python-s01-noise-pilot/README.md)
+retains five valid separate blocks per size, raw attempts, a failed launcher
+attempt and independent recomputation. The 100-sample pilot does not qualify
+p99 or a candidate speed comparison. Its 32-row text p95 varied by 28.75%
+across blocks; the S01 paired rule must use longer blocks and alternating
+version order. This is a qualification input, not the full protocol freeze.
 
 ## Source-grounded starting point
 

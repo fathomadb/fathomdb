@@ -1,0 +1,12 @@
+{
+  "fs_inputs": 0,
+  "fs_outputs": 14008,
+  "major_faults": 0,
+  "method": "gnu-time",
+  "peak_rss_kib": 455528,
+  "scope": "measured-workload-child-process",
+  "swap_events": 0,
+  "system_cpu_s": 35.94,
+  "unsupported": [],
+  "user_cpu_s": 92.58
+}

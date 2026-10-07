@@ -344,6 +344,10 @@ fn embedded_nul_in_source_id_is_preserved() {
     let (_dir, engine) = open_engine();
     engine.write(&[node(Some("note:src"), "note", "kept", "tenant\0a")]).expect("write");
     assert!(read::get(&engine, "note:src", None).expect("get").is_some());
+    let report = engine.erase_source("tenant\0a").expect("erase exact NUL source");
+    assert_eq!(report.source_ref, "tenant\0a");
+    assert_eq!(report.nodes_excised, 1);
+    assert_eq!(engine.erase_source("tenant\0a").expect("idempotent erase").nodes_excised, 0);
     engine.close().expect("close");
 }
 

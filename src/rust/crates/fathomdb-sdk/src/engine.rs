@@ -164,9 +164,9 @@ impl Engine {
         Ok(self.core.purge(logical_id)?)
     }
 
-    /// Erase every row written under `source_id`.
+    /// Erase every row written under `source_id`, including an embedded NUL in
+    /// an Engine-valid source identity.
     pub fn erase_source(&self, source_id: &str) -> Result<ExciseReport> {
-        guard::text(source_id)?;
         Ok(self.core.erase_source(source_id)?)
     }
 

@@ -94,8 +94,9 @@ pub(crate) fn typed_error(
 /// JavaScript strings are UTF-16 by spec, so lone surrogates are
 /// representable on the JS side (`String.fromCharCode(0xD800)`). The
 /// napi-rs string conversion translates UTF-16 → UTF-8 and accepts
-/// some malformed inputs; this helper rejects them BEFORE the writer
-/// transaction opens (no-row-written invariant).
+/// some malformed inputs; this helper rejects them for content/control
+/// strings before the writer transaction opens. `source_id` follows the
+/// Engine identity grammar and may contain NUL.
 pub fn validate_ffi_string(value: &str) -> std::result::Result<(), String> {
     if value.as_bytes().contains(&0) {
         return Err("embedded NUL byte in FFI string".to_string());

@@ -267,6 +267,8 @@ substrate and the `_legacy:pre-0.8.20` migration cohort) is reachable only
 through `fathomdb recover --excise-source`. Raises `ErasureIncompleteError`
 (carrying `stage` and `detail`) rather than reporting success if the erasure
 could not be completed at rest.
+The same source identity accepted by a write can be erased, including one with
+an embedded NUL; the call matches the full identity exactly.
 
 Returns an `EraseReport` with `source_ref`, `nodes_excised`, `edges_excised`,
 and `projections_invalidated`. Mirrored in TS as `engine.eraseSource(sourceId)`.
@@ -366,6 +368,10 @@ Domain refusals are terminal receipts while malformed requests raise
 | `read.canonical_page(engine, kind, context, page)` | `PageV1[NodeRecord]` | Read a stable page of canonical logical nodes. |
 | `read.operational_state(engine, collection, record_key, context=None)` | `OperationalStateRecordV1 \| None` | Point-read a registered `latest_state` collection. |
 | `read.operational_state_page(engine, collection, context, page)` | `PageV1[OperationalStateRecordV1]` | Read a stable operational-state page. |
+
+For `search_frozen`, omitted `pool_n` now uses `rerank_depth`, matching ordinary
+search and the other SDKs. Previously the Python frozen default was zero, so
+this can change ranking when a caller sets a positive rerank depth.
 
 `PageRequestV1` limits are 1 through 250 and continuations are opaque
 `PageCursor` values. Frozen-context failures raise `FrozenReadError`; page,

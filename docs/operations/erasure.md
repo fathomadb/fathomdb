@@ -17,6 +17,9 @@ binary on `PATH` could not delete **anonymous content** — rows written without
 
 ## What `erase_source` guarantees
 
+The argument follows the write-side `SourceId` grammar. Embedded NUL is valid
+in a source identity and remains addressable by an exact matching erase call.
+
 For every canonical row whose `source_id` matches, `erase_source` deletes:
 
 1. the **canonical rows** themselves (`canonical_nodes`, `canonical_edges`) —

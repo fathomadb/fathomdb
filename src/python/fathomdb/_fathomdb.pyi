@@ -452,7 +452,7 @@ class Engine:
         rerank_depth: int = ...,
         use_graph_arm: bool = ...,
         alpha: float = ...,
-        pool_n: int = ...,
+        pool_n: int | None = ...,
         explain: bool = ...,
         limit: int = ...,
     ) -> SearchResult: ...

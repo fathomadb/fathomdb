@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 
+import fathomdb.errors as errors
 from fathomdb import Engine
 from fathomdb.errors import (
     ClosingError,
@@ -58,6 +59,13 @@ LEAF_CLASSES = [
     # settlement adds it to the taxonomy of record; this row pins it here too.
     InvalidArgumentError,
 ]
+
+
+def test_dependency_trace_error_is_exported_by_errors_module() -> None:
+    namespace: dict[str, object] = {}
+    exec("from fathomdb.errors import *", namespace)
+    assert "DependencyTraceError" in errors.__all__
+    assert namespace["DependencyTraceError"] is errors.DependencyTraceError
 
 
 @pytest.mark.parametrize("cls", LEAF_CLASSES)

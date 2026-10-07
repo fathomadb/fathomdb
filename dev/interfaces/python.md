@@ -104,7 +104,9 @@ denylist name).
   `edges_excised`, `projections_invalidated`. A source remains erasable after
   correction supersedes it; the original and replacement source buckets may
   be erased in either order. Counts remain exact for only the requested
-  bucket, with no cross-bucket expansion or report-shape change.
+  bucket, with no cross-bucket expansion or report-shape change. The
+  `source_id` argument uses the same `SourceId` grammar as writes: an embedded
+  NUL is preserved and is erasable by an exact matching call.
 
 `Engine.open(...)` returns the engine handle. The structured open report owned
 by `design/engine.md` is accessible after open via `engine.open_report()` (see
@@ -117,6 +119,8 @@ package-level operation paired with TypeScript's `rerank`. Its passage/result
 shape, identity path, defaults, and validation behavior are defined by the
 public stub and are unchanged by the 0.8.26 parity repair; Slice 55 adds the
 missing TypeScript peer and exact two-binding conformance enforcement.
+The optional `alpha` must be finite, including when depth is zero or the
+passage list is empty.
 
 ### Module-level CLS batch embedding (0.8.20 Slice 40)
 
@@ -1021,6 +1025,9 @@ object and raise `errors.FrozenReadError` with `reason` and `field_path` on a
 tampered, foreign, unsupported, unavailable, or drifted context. Search
 controls may change ranking or result count but cannot weaken the bound view or
 eligibility.
+Omitting `pool_n` uses `rerank_depth`, as in ordinary `search` and the
+TypeScript/Rust SDKs. This corrects the former Python frozen-search default of
+zero, which could change ranking for callers that set a positive depth.
 
 With `explain=True`, `engine.search_frozen` returns a mapper-valid explanation
 with a non-empty Engine correlation identity. With `explain=False`, explanation

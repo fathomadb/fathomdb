@@ -3,7 +3,7 @@ import type { NativeEngine } from "./binding.js";
 
 import { ActuationError, DependencyClosureError, DependencyError, rethrowTyped } from "./errors.js";
 import { intercept } from "./native-call.js";
-import { sanitizeActuationFfiTree, validateFfiString, validateWriteFfiTree } from "./validation.js";
+import { sanitizeActuationFfiTree, validateFfiString, validateSourceIdFfiString, validateWriteFfiTree } from "./validation.js";
 
 /**
  * OPP-12 Phase-1 (0.8.19 Slice 10) — the closed lifecycle existence-state
@@ -552,7 +552,7 @@ export async function purge(nativeEngine: NativeEngine, logicalId: string): Prom
   }
 
 export async function eraseSource(nativeEngine: NativeEngine, sourceId: string): Promise<EraseReport> {
-    validateFfiString(sourceId);
+    validateSourceIdFfiString(sourceId);
     return intercept(() => nativeEngine.eraseSource(sourceId));
   }
 

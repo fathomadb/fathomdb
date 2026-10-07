@@ -121,6 +121,7 @@ part of this scope.
 | **D28-05** | Full opt-in cross-operation frozen-snapshot leases. | Compact frozen reads cannot meet a concrete multi-operation consistency need. |
 | **D28-06** | Fully request/snapshot/projection/ordering-bound cursors. | A duplicate, omission, or authorization failure is demonstrated under minimal continuation. |
 | **D28-07** | Persisted source-complete evidence replay. | A caller needs resolution beyond compact-reference lifetime without weaker authorization. |
+| **D28-08** | **Owner-placed (2026-10-07):** adopt the Tegra private CUDA memory pool as the aarch64-Linux integrated-GPU default, with C7 context-reset instrumentation and an upstream cudarc pool primitive. | Requirements, acceptance criteria, ADR, TDD and an AGX Orin qualification against the study's gates, allocation correctness and release first. |
 
 ### Prework: Tegra CUDA memory-pool study
 
@@ -132,10 +133,22 @@ evidence. As of 2026-10-07, Phases 0–4 are complete on branch
 `llm/0.8.28-tegra-pool-study`. On the AGX Orin 64 GB the private pool created
 at first use passed the allocation, release, cap and performance gates (steady
 embed 0.986 of the default pool; 1.93× faster than the synchronous path).
-Adoption still needs the corrected embedder-close fix (now on
-`release/0.8.27`), the owner's C7 context-reset ruling, and a decision on the
-early-`cuInit` requirement. The study authorizes no implementation; shipping a
-pool needs its own 0.8.28 ruling.
+A spot check on the corrected embedder-close fix (now on `release/0.8.27`)
+confirmed the result. On 2026-10-07 the owner placed adoption in 0.8.28 as
+D28-08 and ruled:
+
+- a co-resident CUDA context reset stays unsupported and documented in 0.8.28,
+  which adds instrumentation (context-id detection, a typed
+  `cuda_context_lost` error, a diagnostic snapshot, and a characterization
+  test) so 0.8.29 can design the survival fix from data;
+- early `cuInit` at module load is the Tegra contract: FathomDB creates the
+  pool only when its early `cuInit` ran, otherwise uses the synchronous path,
+  and never refuses;
+- an upstream cudarc PR for the pool primitive is a goal, with every vendored
+  patch item tracked to an upstream status and removal path.
+
+The [draft scope](plans/0.8.28-draft-scope.md#d28-08-tegra-private-cuda-memory-pool)
+holds the full rulings.
 
 ## 0.8.30 backlog
 
@@ -177,6 +190,12 @@ TDD, and verification.
 Promotion requires a bounded family that improves held-out answer use without
 correctness, groundedness, attribution, latency, lifecycle, or accepted-default
 regression.
+
+**Placed work, not a checkpoint (owner ruling 2026-10-07):** make FathomDB
+survive a co-resident library resetting the CUDA primary context (todo
+`TC-281155a1-4767-4379-9506-ef97b2ed51a9`). Today cudarc's `CudaSlice` drop
+crashes inside `Engine::close` after such a reset. Design the fix from the
+data that the 0.8.28 D28-08 instrumentation collects.
 
 ### 0.8.31 — associative retrieval and routing
 

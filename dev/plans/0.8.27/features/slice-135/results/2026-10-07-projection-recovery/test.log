@@ -1,0 +1,21 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized] target(s) in 0.41s
+     Running tests/tc91_projection_commit_hardening.rs (target/debug/deps/tc91_projection_commit_hardening-db2678cd758a31a7)
+
+running 6 tests
+test tc91_panic_terminal_commit_failure_is_reported_and_redispatched ... 
+thread 'fathomdb-embed-4' (3694573) panicked at src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs:66:9:
+intentional first projection panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ok
+test tc91_projection_commit_busy_is_reported_and_redispatched ... ok
+test tc91_projection_commit_failure_at_mean_pin_is_rollback_safe ... ok
+test tc91_projection_commit_failure_survives_stop_and_reopen ... ok
+test tc91_projection_commit_storage_error_is_reported_and_redispatched ... ok
+test tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch ... 
+thread 'fathomdb-projection-worker-0' (3694677) panicked at src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs:33:13:
+intentional subscriber panic after projection commit failure
+ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+

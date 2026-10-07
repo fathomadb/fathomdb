@@ -134,6 +134,11 @@ write reordering or complete the fault/schedule matrix in the plan.
 
 ## 4. Logic and exception handling
 
+Current disposition: the edge FTS defect below was repaired in `9186eb3d0`.
+See the [permanent regression and verification receipt](../2026-10-07-edge-fts-repair/README.md).
+This first-results section preserves the original finding on its earlier
+source SHA; its engine timing does not qualify the repaired candidate.
+
 The [dated diagnostic](../../logic-first-result-2026-10-06.md) found a
 confirmed, still-open defect on the same engine implementation bytes: an
 invalid UTF-8 BLOB in an edge FTS row makes the independent integrity check

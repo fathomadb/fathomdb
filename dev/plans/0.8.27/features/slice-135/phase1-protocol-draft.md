@@ -150,6 +150,12 @@ containment on the ranked and boundary paths. Classify every finding.
 
 ## Robustness matrix
 
+An interim [projection commit recovery diagnostic](results/2026-10-07-projection-recovery/README.md)
+ran six real-database, debug-hook tests once through Cargo and ten further
+times through the same test binary. It covers one-shot busy/storage failures,
+worker/subscriber panic cleanup, redispatch, mean-pin rollback and one
+stop/reopen schedule. The full state/fault matrix below remains open.
+
 | Fault or schedule | State oracle after real-database reopen |
 | --- | --- |
 | Concurrent read/write and projection completion | Snapshot consistency, no missing committed record, truthful readiness and bounded worker shutdown |

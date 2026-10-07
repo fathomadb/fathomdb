@@ -414,3 +414,6 @@ feasibility probes. The [TypeScript paired subset protocol](s01-ts-comparison-pr
 is frozen, and a [paired TypeScript S01 diagnostic](results/2026-10-07-ts-s01-paired/README.md)
 now retains 20 independently audited blocks. The full installed-SDK
 functional exercise and four-area checkpoint remain open.
+An interim [projection commit recovery result](results/2026-10-07-projection-recovery/README.md)
+adds real-database failure, panic, redispatch and stop/reopen observations;
+it does not close the full robustness matrix.

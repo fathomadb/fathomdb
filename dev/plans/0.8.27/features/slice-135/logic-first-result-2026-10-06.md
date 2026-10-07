@@ -1,11 +1,17 @@
 ---
 title: Slice 135 first logic and exception result — edge FTS row error
-status: DIAGNOSTIC_RESULT_OPEN_DEFECT
+status: DIAGNOSTIC_RESULT_REPAIRED_LATER
 target_release: 0.8.27
 source_sha: 8cbd330c8f83f35ef46d538ea23811c08af8066b
 ---
 
 # First logic and exception result — 2026-10-06
+
+Current disposition: the defect found on `8cbd330c8f83f35ef46d538ea23811c08af8066b`
+was repaired in `9186eb3d0` with a permanent real-database regression test.
+The [repair receipt](results/2026-10-07-edge-fts-repair/README.md) records
+verification. The open-defect language below describes the original probe at
+its measured source SHA, not the later candidate.
 
 This is one inspectable **diagnostic** result on the exact post-Slice-132
 candidate, not the completed Phase 1 logic/exception checkpoint. The package

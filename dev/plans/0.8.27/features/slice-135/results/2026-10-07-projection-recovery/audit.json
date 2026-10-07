@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "cargo_run_passed": true,
+  "repeat_count": 10,
+  "repeated_test_assertions": 60,
+  "all_repeat_logs_checked": true,
+  "negative_control_rejected": "six-pass summary absent",
+  "source_test_sha256": "49236d66b3c3c9d98bd076dea47711ed0e9a0b48503c40088e643c50d1f92cb0"
+}

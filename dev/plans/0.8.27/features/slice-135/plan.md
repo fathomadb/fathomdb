@@ -267,8 +267,10 @@ window and reject incomplete results. Report spend and completeness.
    reject missing/mismatched artifact hashes, insufficient samples, semantic
    failures, changed features, invalid environment and an intentionally
    degraded output. Keep measurement adapters separate from product behavior.
-2. Freeze and review the Phase 1 protocol, baseline-only sample-size pilot and
-   reporting rule. Prepare and run the verified 0.8.26 baseline while Slice 132 works.
+2. Source-ground and review the [Phase 1 protocol draft](phase1-protocol-draft.md).
+   Freeze its executable cells after the baseline-only sample-size pilot and
+   reporting rule are qualified. Prepare and run the verified 0.8.26 baseline
+   while Slice 132 works.
 3. After Slice 132 closes, rebase or merge its reviewed candidate into this
    branch, resolve any approved capability changes, freeze the final candidate,
    and run the four Phase 1 campaigns plus applicable accepted release gates.

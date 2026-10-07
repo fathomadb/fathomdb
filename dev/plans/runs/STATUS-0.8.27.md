@@ -68,6 +68,33 @@ behind `release-0.8.27-publication`. The 0.8.27 allocator approach is the
 synchronous fallback with early `cuInit`; no memory pool ships in 0.8.27, and
 0.8.28 evaluates an explicit or lazily created pool.
 
+### Off-ladder landings (recorded 2026-10-07)
+
+Two fixes landed on `release/0.8.27` outside the slice ladder. No completed
+slice verified them, so Slice 135 and Slice 150 must run on a candidate that
+contains both and must cover them:
+
+- **Engine close releases the embedder.** `c816b8653` (merged at
+  `96796fe04`, with `2ff744b06` and `8247d91a4`) makes `Engine::close` release
+  the engine-owned embedder after its workers drain, and drops it after the
+  close lock so an embedder whose `Drop` re-enters `close` cannot deadlock.
+  Before the fix a closed engine still held its model (about 159 MiB per
+  closed engine in the 0.8.28 pool study). This changes lifecycle behaviour:
+  memory now returns at `close()` rather than when the last engine handle
+  drops. Module-level embedding and reranking models still live until process
+  exit (0.8.30 backlog B30-01). Focused tests: `projection_runtime` and the
+  Slice 90 close tests. The 0.8.28 study rerun on this fix is
+  `llm/0.8.28-tegra-pool-study` at `901455d16`.
+- **Tegra install route points at the published `0.8.26+tegra` wheel.**
+  `5ceab8624` (RED) and `c23e2d23f` pin `docs-pages.yml` to the
+  `0.8.26+tegra` wheel that run 37141909082 published to Pages on 2026-10-03
+  (SHA-256 `728df862…`), and change the Python classic-Tegra warning,
+  `fathomdb doctor gpu --help` and the public install docs (`172fc6599`) from
+  the `0.8.24+tegra` command, which the live index no longer serves. The same
+  fix for `main` is PR #254. Slice 150's installed-artifact and Tegra route
+  smokes must use the 0.8.26 route, and the Tegra publication for 0.8.27
+  updates the pin again.
+
 ## Immediate next action
 
 | | |

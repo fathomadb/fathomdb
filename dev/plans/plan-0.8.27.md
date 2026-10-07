@@ -1235,6 +1235,16 @@ runtime qualification. Keep the accepted D27 defaults and topology fixed unless
 a formally reviewed successor changes them; a regression attributable to D27
 still blocks release and requires reviewed remediation.
 
+**Off-ladder landings to include (recorded 2026-10-07).** The candidate must
+contain the embedder-close fix (`c816b8653`, merged at `96796fe04` with
+`8247d91a4`) and the `0.8.26+tegra` install-route fix (`c23e2d23f`); see the
+board's "Off-ladder landings" section. Measure on a candidate at or after
+`ef4bb42da`. The close fix changes lifecycle behaviour: `Engine::close` now
+releases the engine-owned embedder's memory. Record that in the
+feature/function parity inventory as an intended change, and include
+open/close cycles in the workload so memory after close is compared against
+0.8.26 rather than treated as a regression.
+
 ### Slice 137 — Rust crate consolidation and embedder lockdown (proposed)
 
 **PROPOSED; not on the ladder; awaiting HITL rulings.** With `fathomdb-sdk`

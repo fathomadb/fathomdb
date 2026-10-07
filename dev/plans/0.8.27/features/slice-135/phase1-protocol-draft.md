@@ -61,6 +61,14 @@ host paging warnings in 12 blocks and only one warning-free pair per size.
 Its descriptive deltas do not close the whole-system latency or full Phase 1
 checkpoint.
 
+The later `b65283317` release integration adds the off-ladder
+`0.8.26+tegra` install-route fix after these paired SDK artifacts were built.
+The stored comparisons remain exact-source diagnostics. Rebuild and rerun
+affected installed cells on the integrated candidate before the Phase 1
+checkpoint. The corrected embedder-close landing is also an intended
+lifecycle change; measure repeated open/close and post-close memory with the
+S02-L cell below.
+
 An [installed Python S02 feasibility pair](results/2026-10-07-python-s02-feasibility/README.md)
 now passes the same fresh-database write/project/retrieve/graph-evidence/
 erase/reopen sequence through both wheels, including direct canonical-row
@@ -154,7 +162,7 @@ feasibility only. The [frozen E01–E12 comparison subset](e12-comparison-protoc
 sets 1,000 valid query samples, 100 lifecycle samples and five alternating
 version pairs before current-candidate paired timing. It does not freeze the
 broader installed-SDK, S02, S03 or C01 protocol.
-The [current-candidate E01–E12 paired diagnostic](results/2026-10-07-e12-paired-current/README.md)
+The [pre-integration E01–E12 paired diagnostic](results/2026-10-07-e12-paired-current/README.md)
 passed all 20 blocks and found repeatable vector/hybrid median-latency leads.
 A separate [futex profile](results/2026-10-07-vector-futex-profile/README.md)
 found about 2.48 times as many whole-process futex calls in the candidate

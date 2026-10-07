@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/operator_cli.rs (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/target/debug/deps/operator_cli-f7241cf19c060c34)
+
+running 1 test
+test doctor_gpu_help_contains_the_exact_tegra_pages_install_procedure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.00s
+

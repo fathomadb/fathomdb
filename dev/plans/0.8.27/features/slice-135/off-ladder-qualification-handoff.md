@@ -22,6 +22,9 @@ commit `b65283317`, which follows `ef4bb42da`. Verify their ancestry again
 at the exact measurement candidate. The Tegra fix pins the already published
 `0.8.26+tegra` route, so Slice 150's installed smoke must use that route.
 The 0.8.27 Tegra publication updates the pin later.
+The [focused Tegra-route receipt](results/2026-10-07-off-ladder-tegra-route/README.md)
+checks the workflow pin, Python warning and CLI help on the integrated
+candidate; an installed AArch64 wheel and live Pages smoke remain open.
 The [focused Phase 1 receipt](results/2026-10-07-off-ladder-embedder-close/README.md)
 passed three real-database close ownership tests and one timed-out-close retry
 test on the repaired candidate. Concurrent pending-work failure/cancellation,

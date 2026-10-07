@@ -1,0 +1,21 @@
+PASS  combined Pages site builder exists and is executable
+PASS  public documentation Pages workflow exists
+wheel_sha256=ab78f0bb6ec76ee8d3ba4d4d19ceb5b98bc2a2580f3b737b19d35bb71d31a506
+PASS  combined site retains the MkDocs root
+PASS  combined site retains the Tegra package index and wheel
+PASS  combined builder refuses to replace a nonempty output
+PASS  docs workflow retains contract: branches:
+PASS  docs workflow retains contract:       - main
+PASS  docs workflow retains contract: bash scripts/release/build-pages-site.sh
+PASS  docs workflow retains contract: TEGRA_VERSION: 0.8.26+tegra
+PASS  docs workflow retains contract: TEGRA_WHEEL_FILENAME: fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl
+PASS  docs workflow retains contract: 728df8628f45e12c0c04c0a971c174764ef5c988c7d05f0737794aa6f5c5d1fa
+PASS  docs workflow retains contract: tegra/packages/fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl
+PASS  docs workflow retains contract: actions/upload-pages-artifact@
+PASS  docs workflow retains contract: actions/deploy-pages@
+PASS  docs workflow retains contract: pages: write
+PASS  docs workflow retains contract: id-token: write
+PASS  docs workflow cannot publish through registry command: twine upload
+PASS  docs workflow cannot publish through registry command: npm publish
+PASS  docs workflow cannot publish through registry command: cargo publish
+19 passed, 0 failed

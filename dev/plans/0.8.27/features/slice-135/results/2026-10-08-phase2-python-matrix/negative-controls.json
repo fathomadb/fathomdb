@@ -1,0 +1,52 @@
+{
+  "controls": [
+    {
+      "error_type": "ValueError",
+      "message": "filter_note before: gold outcome mismatch",
+      "rejected": true,
+      "scenario": "filter_wrong_id"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "empty_status before: gold outcome mismatch",
+      "rejected": true,
+      "scenario": "empty_as_error"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "invalid_page before: gold outcome mismatch",
+      "rejected": true,
+      "scenario": "typed_error_as_empty"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "page_note after: gold outcome mismatch",
+      "rejected": true,
+      "scenario": "page_order_after_reopen"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "matrix case set missing or changed",
+      "rejected": true,
+      "scenario": "missing_case"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "wheel SHA-256 mismatch",
+      "rejected": true,
+      "scenario": "wrong_wheel"
+    },
+    {
+      "error_type": "FileNotFoundError",
+      "message": "[Errno 2] No such file or directory: '/tmp/slice135-matrix-control-okn8fnxi/missing/raw.json'",
+      "rejected": true,
+      "scenario": "missing_pair"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "persisted matrix database differs from fixture",
+      "rejected": true,
+      "scenario": "persisted_body_tamper"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "protocol_sha256": "e6b8502882b8d310b5f18b60147c629ae2d0573a522365709d732c40521b1212",
+  "versions": {
+    "baseline": {
+      "canonical_rows": 4,
+      "cases": 4,
+      "reopened_cases": 4
+    },
+    "candidate": {
+      "canonical_rows": 4,
+      "cases": 4,
+      "reopened_cases": 4
+    }
+  }
+}

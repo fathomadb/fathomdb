@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 2 query correctness readiness — 2026-10-08
-status: FIRST_DETERMINISTIC_PILOT_AUDITED
+status: SECOND_DETERMINISTIC_MATRIX_AUDITED
 target_release: 0.8.27
 ---
 
@@ -16,6 +16,9 @@ evidence, memory and answer-quality scores remain open.
 The [IR gold input qualification](phase2-ir-gold-qualification-2026-10-08.md)
 checks the pinned local source mapping and class denominators without
 promoting an unscored relevance result.
+The next [paired query matrix](results/2026-10-08-phase2-python-matrix/README.md)
+now adds exact filter, empty-success, pagination, typed-refusal and reopen
+oracles on the same installed Python identities.
 
 ## Exact identities and available local inputs
 
@@ -42,10 +45,10 @@ new paired Phase 2 protocol or independent scorer is qualified.
 
 ## Immediate execution path
 
-1. Extend the audited installed-Python pilot with current-schema typed error
-   versus empty-success, filter, pagination and reopened-state cases using
-   independently specified results. Qualify equivalent TypeScript and Rust
-   candidate-only routes where the public contract permits comparison.
+1. Extend the audited installed-Python cells with current-schema graph,
+   evidence, erasure and lifecycle cases using independently specified
+   results. Qualify equivalent TypeScript and Rust candidate-only routes
+   where the public contract permits comparison.
 2. Freeze the broader gold
    protocol with class denominators, corpus/license qualifications, omission
    rules and independent score recomputation before scored runs.

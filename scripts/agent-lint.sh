@@ -73,6 +73,23 @@ run_capped module-boundary "$SCRIPT_DIR/check-module-boundaries.sh"
 # Rust: clippy with -D warnings (treat warnings as errors)
 run_capped lint-rust cargo clippy --workspace --all-targets --quiet -- -D warnings
 
+# Rust: the Tegra private-pool driver part compiles only with `tegra-pool`
+# and a CUDA feature on aarch64 Linux, which the workspace leg above never
+# enables. It needs the CUDA toolkit (Candle's kernels are built with nvcc);
+# clippy does not link, so no library search path is set. The environment is
+# the command's own, so nothing leaks into the other cargo legs.
+tegra_pool_cuda_path="${CUDA_PATH:-/usr/local/cuda}"
+host_os="$(uname -s)"
+host_arch="$(uname -m)"
+if [ "$host_os" = Linux ] && [ "$host_arch" = aarch64 ] &&
+  [ -x "$tegra_pool_cuda_path/bin/nvcc" ]; then
+  run_capped lint-rust-tegra-pool env CUDA_PATH="$tegra_pool_cuda_path" \
+    PATH="$tegra_pool_cuda_path/bin:$PATH" \
+    cargo clippy -p fathomdb-embedder --features embed-cuda,rerank-cuda,tegra-pool --all-targets --quiet -- -D warnings
+else
+  printf 'skip lint-rust-tegra-pool: needs aarch64 Linux and a CUDA toolkit at %s\n' "$tegra_pool_cuda_path"
+fi
+
 # Rust: format check
 run_capped lint-rustfmt cargo fmt --all --check
 

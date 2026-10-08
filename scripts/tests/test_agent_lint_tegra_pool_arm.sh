@@ -19,8 +19,10 @@ require() {
 
 require 'the tegra-pool clippy arm' \
   'cargo clippy -p fathomdb-embedder --features embed-cuda,rerank-cuda,tegra-pool --all-targets( --quiet)? -- -D warnings'
-require 'an aarch64 guard' 'uname -m\)" = aarch64|uname -m\)" == aarch64'
-require 'a Linux guard' 'uname -s\)" = Linux|uname -s\)" == Linux'
+require 'an aarch64 guard' 'host_arch="\$\(uname -m\)"'
+require 'an aarch64 comparison' '"\$host_arch" = aarch64'
+require 'a Linux guard' 'host_os="\$\(uname -s\)"'
+require 'a Linux comparison' '"\$host_os" = Linux'
 require 'a CUDA toolkit guard' 'bin/nvcc'
 require 'a printed skip notice' "printf 'skip lint-rust-tegra-pool"
 

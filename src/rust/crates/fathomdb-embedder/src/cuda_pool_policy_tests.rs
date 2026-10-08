@@ -1100,6 +1100,110 @@ fn a_later_private_build_on_a_lost_context_is_context_lost_not_refused() {
     }
 }
 
+// ---- model load (CR-1) ------------------------------------------------------
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+fn candle_out_of_memory() -> candle_core::Error {
+    use candle_core::cuda::{
+        cudarc::driver::{result::DriverError, sys::CUresult},
+        CudaError,
+    };
+    candle_core::Error::Cuda(Box::new(CudaError::Cuda(DriverError(
+        CUresult::CUDA_ERROR_OUT_OF_MEMORY,
+    ))))
+}
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+fn off_cell() -> (FakeDriver, OnceLock<FakeDecision>) {
+    let driver =
+        FakeDriver { settings: settings(Some("off"), None, None), ..FakeDriver::default() };
+    let cell: OnceLock<FakeDecision> = OnceLock::new();
+    build_device(&cell, &driver, 0).expect("default");
+    (driver, cell)
+}
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+#[test]
+fn a_candle_out_of_memory_on_the_pool_device_is_exhaustion_at_model_load() {
+    let driver = FakeDriver::default();
+    let cell = private_cell(&driver);
+    match classify_candle_fault(
+        cell.get(),
+        &driver,
+        &candle_out_of_memory(),
+        0,
+        MODEL_LOAD_OPERATION,
+    ) {
+        Some(CudaPoolFailure::Exhausted { ordinal, max_size_bytes, message }) => {
+            assert_eq!((ordinal, max_size_bytes), (0, 3 * GIB));
+            assert!(message.starts_with("model load: "), "{message}");
+        }
+        other => panic!("expected pool exhaustion, got {other:?}"),
+    }
+    assert_eq!(MODEL_LOAD_OPERATION, "model load");
+}
+
+#[cfg(feature = "embed-cuda")]
+#[test]
+fn an_embedder_weight_load_failure_is_classified_through_the_pool_first() {
+    use crate::loader::EmbedderLoadError;
+    let driver = FakeDriver::default();
+    let cell = private_cell(&driver);
+    let error = crate::candle_bge::model_load_error(candle_out_of_memory(), |error| {
+        classify_candle_fault(cell.get(), &driver, error, 0, MODEL_LOAD_OPERATION)
+    });
+    assert!(matches!(error, EmbedderLoadError::CudaPoolExhausted { ordinal: 0, .. }), "{error:?}");
+
+    let (off_driver, off) = off_cell();
+    let error = crate::candle_bge::model_load_error(candle_out_of_memory(), |error| {
+        classify_candle_fault(off.get(), &off_driver, error, 0, MODEL_LOAD_OPERATION)
+    });
+    assert!(matches!(error, EmbedderLoadError::ModelDeserialize { .. }), "{error:?}");
+}
+
+#[cfg(feature = "rerank-cuda")]
+#[test]
+fn a_reranker_weight_load_failure_is_classified_through_the_pool_first() {
+    use crate::{
+        EffectiveRerankerDevice, RerankerDevicePolicy, RerankerDeviceResolution, RerankerLoadError,
+    };
+    let resolution = |requested_policy| RerankerDeviceResolution {
+        requested_policy,
+        cuda_compiled: true,
+        effective_device: EffectiveRerankerDevice::Cpu,
+        visible_cuda_devices: Vec::new(),
+        selected_cuda_uuid: None,
+        reason: None,
+    };
+    let driver = FakeDriver::default();
+    let cell = private_cell(&driver);
+    for policy in [RerankerDevicePolicy::Auto, RerankerDevicePolicy::Cuda(0)] {
+        let error = crate::candle_reranker::model_load_error(
+            &resolution(policy),
+            candle_out_of_memory(),
+            |error| classify_candle_fault(cell.get(), &driver, error, 0, MODEL_LOAD_OPERATION),
+        );
+        assert!(
+            matches!(error, RerankerLoadError::CudaPoolExhausted { ordinal: 0, .. }),
+            "{policy:?}: {error:?}"
+        );
+    }
+
+    let (off_driver, off) = off_cell();
+    let error = crate::candle_reranker::model_load_error(
+        &resolution(RerankerDevicePolicy::Auto),
+        candle_out_of_memory(),
+        |error| classify_candle_fault(off.get(), &off_driver, error, 0, MODEL_LOAD_OPERATION),
+    );
+    assert!(matches!(error, RerankerLoadError::ModelDeserialize(_)), "{error:?}");
+    let error = crate::candle_reranker::model_load_error(
+        &resolution(RerankerDevicePolicy::Cuda(0)),
+        candle_out_of_memory(),
+        |error| classify_candle_fault(off.get(), &off_driver, error, 0, MODEL_LOAD_OPERATION),
+    );
+    assert!(matches!(error, RerankerLoadError::DevicePolicy(_)), "{error:?}");
+}
+
 #[test]
 fn a_later_private_build_on_a_live_context_is_still_refused() {
     let driver = FakeDriver { later_context_error: Some(999), ..FakeDriver::default() };

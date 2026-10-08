@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 9afaec4a6a42eed8415f531b3e22047a9bf7e242
+lib_rs_blob: ab6a3da00b4cf2239633a523f1642ab376e896ec
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -20,7 +20,10 @@ composition, changing its blob from `b2f01b3f95bab83a263bd1f2a1df742e07a72a69`
 to `e395a9b0e75928bcdea6528c71bba65c091050de`. Later Windows-only tests
 and a Slice 114 stale-comment removal changed the whole-file blob to
 `4417d3ad27122c38a1668ca746968af344418905`. The embedder-close fix then made
-`runtime_embedder` a weak reference, changing the blob to the value above. The 43 root storage fields and approved
+`runtime_embedder` a weak reference, changing the blob to
+`9afaec4a6a42eed8415f531b3e22047a9bf7e242`. 0.8.28 Slice 30 added the
+public `RerankPassagesError` re-export beside `rerank_passages`, changing
+the blob to the value above. The 43 root storage fields and approved
 root method inventory remain unchanged.
 
 ## Remaining root declarations

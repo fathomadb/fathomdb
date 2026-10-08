@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -15,14 +16,14 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 PLAN = ROOT / "dev/plans/0.8.27/features/slice-135"
-FREEZE = PLAN / "e12-integrated-comparison-protocol.json"
+DEFAULT_FREEZE = PLAN / "e12-integrated-comparison-protocol.json"
 EXPECTED = PLAN / "e12-expected-checks.json"
 MODEL = (
     Path.home()
     / ".cache/huggingface/hub/models--BAAI--bge-small-en-v1.5"
     / "snapshots/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"
 )
-CANDIDATE_SHA = "cdf253cd223a82e954591db532397a3d78a2027a"
+SHA40 = re.compile(r"[0-9a-f]{40}")
 CELLS = {
     "query": ["text", "vector_stage", "hybrid", "graph_expand", "graph_evidence"],
     "lifecycle": [
@@ -32,12 +33,19 @@ CELLS = {
 }
 
 
+def candidate_sha(frozen: dict) -> str:
+    """Require a concrete candidate identity supplied by the frozen protocol."""
+    value = frozen.get("candidate_product_snapshot", {}).get("source_sha_before_protocol_commit")
+    if not isinstance(value, str) or not SHA40.fullmatch(value) or int(value, 16) == 0:
+        raise ValueError("candidate source identity is invalid")
+    return value
+
+
 def planned_blocks(frozen: dict) -> list[dict]:
     """Expand the exact frozen cell, sample and alternation schedule."""
     if frozen.get("status") != "FROZEN_E01_E12_PAIRED_SUBSET":
         raise ValueError("E01–E12 subset is not frozen")
-    if frozen.get("candidate_product_snapshot", {}).get("source_sha_before_protocol_commit") != CANDIDATE_SHA:
-        raise ValueError("integrated candidate source differs from freeze")
+    candidate_sha(frozen)
     workload = frozen["workload"]
     for group, cells in CELLS.items():
         if workload.get(f"{group}_cells") != cells:
@@ -79,7 +87,7 @@ def check_inputs(frozen: dict, baseline: Path, candidate: Path) -> None:
     """Reject a wrong source, changed workload or insufficient disk before timing."""
     if git(baseline, "HEAD") != frozen["baseline"]["source_sha"]:
         raise ValueError("baseline checkout differs from freeze")
-    if git(candidate, "HEAD") != CANDIDATE_SHA:
+    if git(candidate, "HEAD") != candidate_sha(frozen):
         raise ValueError("candidate checkout differs from freeze")
     for name, expected in (
         ("HEAD:src/rust/crates", frozen["candidate_product_snapshot"]["rust_crates_git_tree"]),
@@ -123,9 +131,10 @@ def main() -> None:
     parser.add_argument("--candidate-checkout", required=True, type=Path)
     parser.add_argument("--baseline-binary", required=True, type=Path)
     parser.add_argument("--candidate-binary", required=True, type=Path)
+    parser.add_argument("--freeze", type=Path, default=DEFAULT_FREEZE)
     args = parser.parse_args()
     output = args.output.resolve()
-    frozen_bytes = FREEZE.read_bytes()
+    frozen_bytes = args.freeze.read_bytes()
     frozen = json.loads(frozen_bytes)
     blocks = planned_blocks(frozen)
     check_inputs(frozen, args.baseline_checkout, args.candidate_checkout)

@@ -49,6 +49,15 @@ def test_rejects_missing_version_and_source_drift() -> None:
         campaign.planned_blocks(changed)
 
 
+def test_refrozen_candidate_source_preserves_frozen_schedule() -> None:
+    """A repaired source may reuse the workload with a newly frozen identity."""
+    changed = frozen()
+    changed["candidate_product_snapshot"]["source_sha_before_protocol_commit"] = "1" * 40
+    blocks = campaign.planned_blocks(changed)
+    assert len(blocks) == 20
+    assert blocks[0]["version"] == "baseline"
+
+
 def test_rejects_changed_cell_list_or_sample_rule() -> None:
     changed = deepcopy(frozen())
     changed["workload"]["query_cells"] = changed["workload"]["query_cells"][:-1]

@@ -1542,8 +1542,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
             })?;
-            for row in rows.flatten() {
-                rowids.push(row);
+            for row in rows {
+                rowids.push(row?);
             }
         }
         // G1: carry the canonical row's `write_cursor` (interim id), `kind`,

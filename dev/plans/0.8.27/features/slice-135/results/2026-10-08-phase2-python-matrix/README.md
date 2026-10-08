@@ -33,6 +33,13 @@ body. The original [baseline](raw-baseline/raw.json) and
 [candidate](raw-candidate/raw.json) raw receipts and SQLite databases remain
 unchanged. [SHA256SUMS](SHA256SUMS) binds the retained files.
 
+The unchanged full `./scripts/agent-verify.sh` gate passed in a
+ptrace-capable executor. Its [verification output](verification.stdout)
+records AC-036 and live AC-037 passes, zero security violations, blockers or
+downgrades, and 186/186 test suites passing. A temporary Git exclude hid
+untracked Phase 1 raw outputs from clean-worktree test preconditions without
+removing or altering those outputs.
+
 This matrix extends deterministic contract coverage only. Graph/evidence,
 erasure, vector fidelity, judged retrieval relevance, memory usefulness,
 generated-answer quality and other SDK routes remain open under the

@@ -19,6 +19,9 @@ promoting an unscored relevance result.
 The next [paired query matrix](results/2026-10-08-phase2-python-matrix/README.md)
 now adds exact filter, empty-success, pagination, typed-refusal and reopen
 oracles on the same installed Python identities.
+The [evidence and memory input qualification](phase2-evidence-memory-gold-qualification-2026-10-08.md)
+records eligible source mappings and class limits without promoting an
+unscored product result.
 
 ## Exact identities and available local inputs
 
@@ -33,7 +36,7 @@ oracles on the same installed Python identities.
 | Resolved IR gold | `/home/coreyt/projects/fathomdb/data/corpus-data/eval/ir_gold/all.gold.json`, SHA-256 `4caabddf7ce55f417e639e3c169fe2035b09c231f36d2f39d293a596373de2bb` | Eval-only outside this worktree; `ir-c-reused-v2`, frozen corpus hash `fe973fcd49fbbda083158f69fe720f17858ab8528e171fa2188eec84131c7d4e`, 4,597 queries: 2,888 exact fact, 1,584 exploratory, 125 negative. Its source mapping and scoring fitness still need qualification for this campaign. |
 | LongMemEval oracle | `/home/coreyt/projects/fathomdb/data/corpus-data/raw/longmemeval-cleaned/longmemeval_oracle.json`, SHA-256 `821a2034d219ab45846873dd14c14f12cfe7776e73527a483f9dac095d38620c` | Eval-only; class and evidence mapping remain to be qualified. |
 | LOCOMO corpus | `/home/coreyt/projects/fathomdb/data/corpus-data/raw/locomo10.json`, SHA-256 `79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4` | Non-commercial eval-only payload; keep it and derived verbatim gold outside Git. |
-| MuSiQue development corpus | `/home/coreyt/projects/fathomdb/data/corpus-data/raw/musique_dev.jsonl`, SHA-256 `3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f` | Eval-only; derive evidence claims only where the supporting-paragraph mapping is validated. |
+| MuSiQue development corpus | `/home/coreyt/projects/fathomdb/data/corpus-data/raw/musique_dev.jsonl`, SHA-256 `3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f` | Eval-only; the acquisition manifest has a different historical hash. Pin these local bytes and use only qualified supporting-paragraph sets. |
 
 The existing `scripts/slice135_python_s01.py` verifies installed wheel/native
 bytes, and `scripts/slice135_python_capabilities.py` exercises selected

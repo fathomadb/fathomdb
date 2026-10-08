@@ -55,7 +55,7 @@ CUDA_GPU_SELECTION = ROOT / "scripts/lib/cuda-gpu-selection.sh"
 NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
 PYTHON_CUDA_FEATURES = "pyo3/extension-module,embed-cuda"
-PYTHON_CUDA_FEATURES_TEGRA = "pyo3/extension-module,embed-cuda,tegra-pool"
+PYTHON_CUDA_FEATURES_TEGRA = "pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool"
 TEGRA_POOL_FEATURE = "tegra-pool"
 # A reference to a Tegra-only feature set (`CUDA_PYTHON_FEATURES_TEGRA`).
 TEGRA_FEATURE_SET_REF = re.compile(r"CUDA_\w*FEATURES_TEGRA\b")
@@ -505,7 +505,8 @@ def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
 
     The private CUDA pool and the import-time early cuInit hook are for
     aarch64 Linux integrated GPUs. Every x86_64 CUDA set and every CPU build
-    must refuse the feature, and the Tegra wheel must carry it.
+    must refuse the feature, and the Tegra wheel must carry it alongside
+    `rerank-cuda`, matching the Tegra Node addon.
     """
     require_fragment(
         contract,

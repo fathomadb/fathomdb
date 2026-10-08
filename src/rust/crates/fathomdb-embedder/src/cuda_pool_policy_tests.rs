@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Barrier, OnceLock};
+use std::sync::{Arc, Barrier, Mutex, Once, OnceLock};
 
 use super::*;
 
@@ -555,6 +555,24 @@ struct FakeDriver {
     pools_dropped: Arc<AtomicUsize>,
     contexts_built: AtomicUsize,
     retained: AtomicUsize,
+    /// `cuDevicePrimaryCtxGetState`: `Err(code)` fails the query; `None` is
+    /// an active context with flags 0.
+    primary_state: Option<Result<CudaPrimaryContextState, u32>>,
+    /// The retained primary context's id: `Err(code)` fails the query;
+    /// `None` is the decision's own first-context id (1000).
+    current_id: Option<Result<u64, u32>>,
+    state_reads: AtomicUsize,
+    id_reads: AtomicUsize,
+    snapshot: TestOnce,
+    snapshots: Mutex<Vec<String>>,
+}
+
+struct TestOnce(Once);
+
+impl Default for TestOnce {
+    fn default() -> Self {
+        Self(Once::new())
+    }
 }
 
 struct FakePool {
@@ -661,6 +679,49 @@ impl PoolDriver for FakeDriver {
 
     fn default_device(&self, ordinal: usize) -> Result<Self::Device, Self::DefaultError> {
         Ok(FakeDevice::Default(ordinal))
+    }
+
+    fn primary_state(&self, _ordinal: usize) -> Result<CudaPrimaryContextState, DriverFailure> {
+        self.state_reads.fetch_add(1, Ordering::SeqCst);
+        match self.primary_state {
+            None => Ok(CudaPrimaryContextState { active: true, flags: 0 }),
+            Some(Ok(state)) => Ok(state),
+            Some(Err(code)) => Err(failure(code)),
+        }
+    }
+
+    fn retained_primary_context_id(&self, _ordinal: usize) -> Result<u64, DriverFailure> {
+        self.id_reads.fetch_add(1, Ordering::SeqCst);
+        match self.current_id {
+            None => Ok(1000),
+            Some(Ok(id)) => Ok(id),
+            Some(Err(code)) => Err(failure(code)),
+        }
+    }
+
+    fn pool_counters(&self, _pool: &Self::Pool) -> Result<PoolCounters, DriverFailure> {
+        Ok(PoolCounters {
+            reserved_current: 32 * MIB,
+            reserved_high: 64 * MIB,
+            used_current: 4 * MIB,
+            used_high: 48 * MIB,
+        })
+    }
+
+    fn live_private_contexts(&self, _pool: &Self::Pool) -> usize {
+        2
+    }
+
+    fn cuda_libraries(&self) -> Vec<String> {
+        vec!["/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1".to_owned()]
+    }
+
+    fn snapshot_once(&self) -> &Once {
+        &self.snapshot.0
+    }
+
+    fn emit_snapshot(&self, line: &str) {
+        self.snapshots.lock().expect("snapshots").push(line.to_owned());
     }
 }
 
@@ -851,6 +912,272 @@ fn a_forward_out_of_memory_is_exhaustion_only_in_a_private_process() {
     );
 }
 
+// ---- context loss (design § 3.5) -------------------------------------------
+
+const INACTIVE: CudaPrimaryContextState = CudaPrimaryContextState { active: false, flags: 0 };
+
+fn private_cell(driver: &FakeDriver) -> OnceLock<FakeDecision> {
+    let cell: OnceLock<FakeDecision> = OnceLock::new();
+    assert_eq!(build_device(&cell, driver, 0), Ok(FakeDevice::Private(FakeContext(0))));
+    cell
+}
+
+fn cuda_fault(code: Option<u32>) -> ForwardFault {
+    ForwardFault { cuda: true, code, error: format!("DriverError({code:?})") }
+}
+
+fn lost(failure: Option<CudaPoolFailure>) -> (u64, Option<u64>, String, String) {
+    match failure {
+        Some(CudaPoolFailure::ContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        }) => (recorded_context_id, current_context_id, driver_error, operation),
+        other => panic!("expected a lost context, got {other:?}"),
+    }
+}
+
+#[test]
+fn context_loss_error_codes_are_the_driver_values() {
+    assert_eq!(CUDA_ERROR_INVALID_CONTEXT, 201);
+    assert_eq!(CUDA_ERROR_CONTEXT_IS_DESTROYED, 709);
+    assert_eq!(CONTEXT_LOST_SNAPSHOT_PREFIX, "fathomdb-cuda-context-lost ");
+}
+
+#[test]
+fn an_inactive_primary_context_is_lost_without_retaining_it() {
+    let driver = FakeDriver { primary_state: Some(Ok(INACTIVE)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    let (recorded, current, driver_error, operation) =
+        lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"));
+    assert_eq!(recorded, 1000);
+    assert_eq!(current, None);
+    assert_eq!(driver_error, "DriverError(Some(999))");
+    assert_eq!(operation, "forward");
+    assert_eq!(driver.state_reads.load(Ordering::SeqCst), 1);
+    assert_eq!(driver.id_reads.load(Ordering::SeqCst), 0, "an inactive context is never retained");
+}
+
+#[test]
+fn an_active_primary_context_with_another_id_is_lost() {
+    let driver = FakeDriver { current_id: Some(Ok(2000)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    let (recorded, current, _, operation) =
+        lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "batch forward"));
+    assert_eq!((recorded, current), (1000, Some(2000)));
+    assert_eq!(operation, "batch forward");
+    assert_eq!(driver.id_reads.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn a_failed_state_query_is_a_lost_context() {
+    let driver = FakeDriver { primary_state: Some(Err(3)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    let (_, current, _, _) =
+        lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"));
+    assert_eq!(current, None);
+    assert_eq!(driver.id_reads.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn a_failed_id_query_is_a_lost_context() {
+    let driver = FakeDriver { current_id: Some(Err(201)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    let (_, current, _, _) =
+        lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"));
+    assert_eq!(current, None);
+}
+
+#[test]
+fn a_destroyed_or_invalid_context_error_is_lost_even_when_the_ids_match() {
+    for code in [CUDA_ERROR_CONTEXT_IS_DESTROYED, CUDA_ERROR_INVALID_CONTEXT] {
+        let driver = FakeDriver::default();
+        let cell = private_cell(&driver);
+        let (recorded, current, _, _) =
+            lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(code)), "forward"));
+        assert_eq!((recorded, current), (1000, Some(1000)), "code {code}");
+    }
+}
+
+#[test]
+fn a_live_unchanged_context_keeps_the_existing_mapping() {
+    let driver = FakeDriver::default();
+    let cell = private_cell(&driver);
+    assert_eq!(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"), None);
+    assert_eq!(driver.state_reads.load(Ordering::SeqCst), 1);
+    assert_eq!(driver.id_reads.load(Ordering::SeqCst), 1);
+    assert!(driver.snapshots.lock().expect("snapshots").is_empty());
+}
+
+#[test]
+fn out_of_memory_is_exhaustion_and_never_queries_the_context() {
+    let driver = FakeDriver { primary_state: Some(Ok(INACTIVE)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    assert!(matches!(
+        classify_forward_fault(
+            cell.get(),
+            &driver,
+            cuda_fault(Some(CUDA_ERROR_OUT_OF_MEMORY)),
+            "forward"
+        ),
+        Some(CudaPoolFailure::Exhausted { .. })
+    ));
+    assert_eq!(driver.state_reads.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn detection_runs_only_for_cuda_errors_in_a_private_process() {
+    let driver = FakeDriver { primary_state: Some(Ok(INACTIVE)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    let not_cuda = ForwardFault { cuda: false, code: None, error: "shape".to_owned() };
+    assert_eq!(classify_forward_fault(cell.get(), &driver, not_cuda, "forward"), None);
+
+    let fallback_driver = FakeDriver {
+        settings: settings(Some("off"), None, None),
+        primary_state: Some(Ok(INACTIVE)),
+        ..FakeDriver::default()
+    };
+    let fallback_cell: OnceLock<FakeDecision> = OnceLock::new();
+    build_device(&fallback_cell, &fallback_driver, 0).expect("default");
+    assert_eq!(
+        classify_forward_fault(fallback_cell.get(), &fallback_driver, cuda_fault(Some(709)), "f"),
+        None
+    );
+    assert_eq!(classify_forward_fault(None, &fallback_driver, cuda_fault(Some(709)), "f"), None);
+    assert_eq!(driver.state_reads.load(Ordering::SeqCst), 0);
+    assert_eq!(fallback_driver.state_reads.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn a_later_private_build_on_a_lost_context_is_context_lost_not_refused() {
+    let driver = FakeDriver {
+        later_context_error: Some(CUDA_ERROR_CONTEXT_IS_DESTROYED),
+        primary_state: Some(Ok(INACTIVE)),
+        ..FakeDriver::default()
+    };
+    let cell = private_cell(&driver);
+    match build_device(&cell, &driver, 0) {
+        Err(DeviceBuildError::Pool(failure)) => {
+            let (recorded, current, driver_error, operation) = lost(Some(failure));
+            assert_eq!((recorded, current), (1000, None));
+            assert!(driver_error.contains("709"), "{driver_error}");
+            assert_eq!(operation, DEVICE_BUILD_OPERATION);
+            assert_eq!(DEVICE_BUILD_OPERATION, "device build");
+        }
+        other => panic!("expected a lost context, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_later_private_build_on_a_live_context_is_still_refused() {
+    let driver = FakeDriver { later_context_error: Some(999), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    assert!(matches!(
+        build_device(&cell, &driver, 0),
+        Err(DeviceBuildError::Pool(CudaPoolFailure::PrivateBuildRefused { .. }))
+    ));
+    assert_eq!(driver.state_reads.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn the_first_loss_writes_one_snapshot_line_with_every_field() {
+    let driver = FakeDriver {
+        primary_state: Some(Ok(CudaPrimaryContextState { active: true, flags: 4 })),
+        current_id: Some(Ok(2000)),
+        ..FakeDriver::default()
+    };
+    let cell = private_cell(&driver);
+    let fault = ForwardFault { cuda: true, code: Some(999), error: "bad \"ctx\"\n".to_owned() };
+    lost(classify_forward_fault(cell.get(), &driver, fault, "forward"));
+    lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(709)), "forward"));
+    let snapshots = driver.snapshots.lock().expect("snapshots");
+    assert_eq!(snapshots.len(), 1, "one snapshot per process");
+    let line = &snapshots[0];
+    let json = line.strip_prefix(CONTEXT_LOST_SNAPSHOT_PREFIX).expect("prefix");
+    assert!(!line.contains('\n'), "one line: {line}");
+    assert_eq!(
+        json,
+        concat!(
+            r#"{"recorded_context_id":1000,"current_context_id":2000,"#,
+            r#""driver_error":"bad \"ctx\"\n","operation":"forward","#,
+            r#""primary_context":{"active":true,"flags":4},"#,
+            r#""cuda_libraries":["/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1"],"#,
+            r#""pool":{"reserved_mem_current":33554432,"reserved_mem_high":67108864,"#,
+            r#""used_mem_current":4194304,"used_mem_high":50331648},"#,
+            r#""live_private_contexts":2}"#
+        )
+    );
+}
+
+#[test]
+fn a_snapshot_after_a_failed_state_query_records_nulls() {
+    let driver = FakeDriver { primary_state: Some(Err(3)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"));
+    let snapshots = driver.snapshots.lock().expect("snapshots");
+    assert_eq!(snapshots.len(), 1);
+    assert!(snapshots[0].contains(r#""current_context_id":null"#), "{}", snapshots[0]);
+    assert!(snapshots[0].contains(r#""primary_context":null"#), "{}", snapshots[0]);
+}
+
+#[test]
+fn two_concurrent_detections_write_one_snapshot_and_both_are_typed() {
+    let driver = FakeDriver { primary_state: Some(Ok(INACTIVE)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    let barrier = Barrier::new(2);
+    let results: Vec<Option<CudaPoolFailure>> = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..2)
+            .map(|_| {
+                scope.spawn(|| {
+                    barrier.wait();
+                    classify_forward_fault(cell.get(), &driver, cuda_fault(Some(709)), "forward")
+                })
+            })
+            .collect();
+        handles.into_iter().map(|h| h.join().expect("thread")).collect()
+    });
+    for result in results {
+        lost(result);
+    }
+    assert_eq!(driver.snapshots.lock().expect("snapshots").len(), 1);
+}
+
+#[test]
+fn cuda_libraries_are_read_from_proc_maps_once_each_in_order() {
+    let maps = "\
+aaaa-bbbb r-xp 00000000 103:02 1 /usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1
+bbbb-cccc r--p 00010000 103:02 1 /usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1
+cccc-dddd r-xp 00000000 103:02 2 /usr/lib/aarch64-linux-gnu/libc.so.6
+dddd-eeee r-xp 00000000 103:02 3 /usr/local/cuda-12.6/lib64/libcublasLt.so.12.6.1.4
+eeee-ffff r-xp 00000000 103:02 4 /usr/local/cuda/lib64/libnvrtc.so.12
+ffff-1111 rw-p 00000000 00:00 0 [heap]
+1111-2222 r-xp 00000000 103:02 5 /opt/my libs/libcudart.so.12
+2222-3333 r-xp 00000000 103:02 6 /usr/lib/aarch64-linux-gnu/nvidia/libnvrm_gpu.so
+";
+    assert_eq!(
+        cuda_libraries_in_maps(maps),
+        vec![
+            "/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1",
+            "/usr/local/cuda-12.6/lib64/libcublasLt.so.12.6.1.4",
+            "/usr/local/cuda/lib64/libnvrtc.so.12",
+            "/opt/my libs/libcudart.so.12",
+            "/usr/lib/aarch64-linux-gnu/nvidia/libnvrm_gpu.so",
+        ]
+    );
+}
+
+#[cfg(not(all(
+    feature = "tegra-pool",
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+)))]
+#[test]
+fn without_the_driver_part_there_is_no_context_state() {
+    assert_eq!(cuda_context_state(0), None);
+}
+
 // ---- GPU smoke (Jetson AGX Orin 64 GB) -------------------------------------
 
 #[cfg(all(
@@ -878,4 +1205,127 @@ fn gpu_orin_64_builds_every_device_on_a_three_gib_private_pool() {
         assert_eq!(report.release_threshold, Some(ReleaseThreshold::Zero));
         assert_eq!(report.module_load_init, ModuleLoadInit::Ran);
     }
+}
+
+#[cfg(all(
+    feature = "tegra-pool",
+    feature = "embed-cuda",
+    target_os = "linux",
+    target_arch = "aarch64"
+))]
+const RESET_CHILD_ENV: &str = "FATHOMDB_TEST_CONTEXT_RESET_CHILD";
+
+/// Characterizes what a co-resident `cuDevicePrimaryCtxReset` does to a
+/// private-pool process (results § 13.4), in a child process so the reset
+/// cannot reach other tests. The child builds a private device, computes on
+/// it, resets the primary context the way the study's `pool_reset.c` does,
+/// and computes again: that error must map to `cuda_context_lost`, with one
+/// snapshot line on stderr. The child then drops its tensors and device.
+/// That teardown dies with SIGSEGV, as the study recorded: cudarc's
+/// `CudaSlice` drop waits on events of the destroyed context. 0.8.29's fix
+/// flips the teardown assertion.
+#[cfg(all(
+    feature = "tegra-pool",
+    feature = "embed-cuda",
+    target_os = "linux",
+    target_arch = "aarch64"
+))]
+#[test]
+#[ignore = "needs the Jetson AGX Orin 64 GB; run under flock /tmp/fathomdb-gpu.lock"]
+fn gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults() {
+    use std::os::unix::process::ExitStatusExt;
+
+    let exe = std::env::current_exe().expect("test binary");
+    let output = std::process::Command::new(exe)
+        .args([
+            "cuda_pool_policy::tests::gpu_orin_64_context_reset_child",
+            "--exact",
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env(RESET_CHILD_ENV, "1")
+        .output()
+        .expect("child process");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let report = format!("status {:?}\nstdout:\n{stdout}\nstderr:\n{stderr}", output.status);
+    assert!(stdout.contains("context-reset-child: context_lost"), "{report}");
+    let snapshots: Vec<&str> =
+        stderr.lines().filter(|line| line.starts_with(CONTEXT_LOST_SNAPSHOT_PREFIX)).collect();
+    assert_eq!(snapshots.len(), 1, "one snapshot per process\n{report}");
+    let snapshot = snapshots[0];
+    assert!(snapshot.contains(r#""current_context_id":null"#), "{report}");
+    assert!(snapshot.contains(r#""primary_context":{"active":false"#), "{report}");
+    assert!(snapshot.contains(r#""live_private_contexts":1"#), "{report}");
+    assert!(snapshot.contains("libcuda.so"), "{report}");
+    assert!(snapshot.contains(r#""pool":{"reserved_mem_current":"#), "{report}");
+    assert!(stdout.contains("context-reset-child: teardown"), "{report}");
+    assert!(!stdout.contains("context-reset-child: torn down"), "{report}");
+    assert_eq!(output.status.signal(), Some(11), "teardown dies with SIGSEGV\n{report}");
+}
+
+#[cfg(all(
+    feature = "tegra-pool",
+    feature = "embed-cuda",
+    target_os = "linux",
+    target_arch = "aarch64"
+))]
+#[test]
+#[ignore = "run by gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults"]
+fn gpu_orin_64_context_reset_child() {
+    use candle_core::cuda::cudarc::driver::{result, sys};
+    use candle_core::{DType, Tensor};
+    use fathomdb_embedder_api::EmbedderError;
+
+    if std::env::var_os(RESET_CHILD_ENV).is_none() {
+        return;
+    }
+    let init = crate::cuda_driver_init::run_module_load_early_init(true, true);
+    assert_eq!(init, ModuleLoadInit::Ran);
+    let device = new_cuda_device(0).expect("private device");
+    let ones = Tensor::ones(1024, DType::F32, &device).expect("allocation");
+    let doubled = (&ones * 2.0).expect("compute");
+    let sum: f32 = doubled.sum_all().and_then(|t| t.to_scalar()).expect("read back");
+    assert!((sum - 2048.0).abs() < f32::EPSILON);
+    assert_eq!(cuda_context_state(0), Some(CudaPrimaryContextState { active: true, flags: 0 }));
+
+    let cu_device = result::device::get(0).expect("device");
+    // SAFETY: cu_device comes from cuDeviceGet. This is the co-resident
+    // library's reset the test characterizes.
+    unsafe { sys::cuDevicePrimaryCtxReset_v2(cu_device) }.result().expect("reset");
+    assert_eq!(cuda_context_state(0).map(|state| state.active), Some(false));
+
+    for operation in ["forward", "batch forward"] {
+        let error = (&ones * 2.0)
+            .and_then(|t| t.to_vec1::<f32>())
+            .expect_err("computing on the reset context fails");
+        match forward_error(error, operation) {
+            EmbedderError::CudaContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation: reported,
+            } => {
+                assert_eq!(current_context_id, None);
+                assert_eq!(reported, operation);
+                println!(
+                    "context-reset-child: context_lost recorded={recorded_context_id} \
+                     driver_error={driver_error}"
+                );
+            }
+            other => panic!("expected cuda_context_lost, got {other:?}"),
+        }
+    }
+    assert_eq!(
+        cuda_context_state(0).map(|state| state.active),
+        Some(false),
+        "detection never creates a primary context"
+    );
+
+    println!("context-reset-child: teardown");
+    drop(doubled);
+    drop(ones);
+    drop(device);
+    println!("context-reset-child: torn down");
 }

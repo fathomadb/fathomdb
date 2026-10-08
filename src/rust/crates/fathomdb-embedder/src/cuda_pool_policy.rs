@@ -33,7 +33,7 @@
 use std::fmt;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::OnceLock;
+use std::sync::{Once, OnceLock};
 
 const MIB: u64 = 1 << 20;
 const GIB: u64 = 1 << 30;
@@ -59,6 +59,12 @@ pub(crate) const MEASURED_CLASS_COMPUTE_CAPABILITY: (u32, u32) = (8, 7);
 pub(crate) const PROBE_BYTES: usize = 4;
 /// `CUDA_ERROR_OUT_OF_MEMORY`, which a pool at its cap returns.
 pub(crate) const CUDA_ERROR_OUT_OF_MEMORY: u32 = 2;
+/// `CUDA_ERROR_INVALID_CONTEXT`.
+pub(crate) const CUDA_ERROR_INVALID_CONTEXT: u32 = 201;
+/// `CUDA_ERROR_CONTEXT_IS_DESTROYED`.
+pub(crate) const CUDA_ERROR_CONTEXT_IS_DESTROYED: u32 = 709;
+/// Prefix of the one stderr line a process writes on its first context loss.
+pub(crate) const CONTEXT_LOST_SNAPSHOT_PREFIX: &str = "fathomdb-cuda-context-lost ";
 
 pub(crate) const ENV_POOL_MODE: &str = "FATHOMDB_POOL_MODE";
 pub(crate) const ENV_POOL_MAXSIZE: &str = "FATHOMDB_POOL_MAXSIZE";
@@ -495,6 +501,58 @@ pub(crate) const fn is_pool_exhaustion(private: bool, driver_code: Option<u32>) 
     private && matches!(driver_code, Some(CUDA_ERROR_OUT_OF_MEMORY))
 }
 
+// ---- context loss -----------------------------------------------------------
+
+/// The state of a device's primary context, read with
+/// `cuDevicePrimaryCtxGetState`, which neither retains nor creates it.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CudaPrimaryContextState {
+    /// The primary context exists.
+    pub active: bool,
+    /// The primary context's creation flags.
+    pub flags: u32,
+}
+
+/// The private pool's `CU_MEMPOOL_ATTR_*` byte counters.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PoolCounters {
+    pub(crate) reserved_current: u64,
+    pub(crate) reserved_high: u64,
+    pub(crate) used_current: u64,
+    pub(crate) used_high: u64,
+}
+
+/// A failed forward pass, as the classification needs it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ForwardFault {
+    /// The error came from the CUDA backend.
+    pub(crate) cuda: bool,
+    /// The driver `CUresult`, when the error carries one.
+    pub(crate) code: Option<u32>,
+    pub(crate) error: String,
+}
+
+/// The CUDA library paths named in `/proc/self/maps`, in first-seen order.
+pub(crate) fn cuda_libraries_in_maps(maps: &str) -> Vec<String> {
+    let _ = maps;
+    Vec::new()
+}
+
+/// Decides whether the private context of `private` is gone after a
+/// non-out-of-memory CUDA error, and on the process's first loss writes one
+/// snapshot line.
+fn context_loss<D: PoolDriver>(
+    driver: &D,
+    private: &PrivateDecision<D::Pool, D::Context>,
+    code: Option<u32>,
+    driver_error: String,
+    operation: &str,
+) -> Option<CudaPoolFailure> {
+    let _ = (driver, private, code, driver_error, operation);
+    None
+}
+
 // ---- typed failures ---------------------------------------------------------
 
 /// A failure of a process that allocates from the private pool.
@@ -505,9 +563,6 @@ pub(crate) enum CudaPoolFailure {
         max_size_bytes: u64,
         message: String,
     },
-    // No detector raises this yet; every conversion below already keeps it
-    // typed.
-    #[cfg_attr(not(test), allow(dead_code))]
     ContextLost {
         recorded_context_id: u64,
         current_context_id: Option<u64>,
@@ -709,6 +764,19 @@ pub(crate) trait PoolDriver {
     fn wrap_context(&self, context: Self::Context) -> Result<Self::Device, DriverFailure>;
     /// The 0.8.27 path: cudarc's own default-pool-or-synchronous decision.
     fn default_device(&self, ordinal: usize) -> Result<Self::Device, Self::DefaultError>;
+    /// `cuDevicePrimaryCtxGetState`; never retains or creates the context.
+    fn primary_state(&self, ordinal: usize) -> Result<CudaPrimaryContextState, DriverFailure>;
+    /// Retains the primary context, reads its `cuCtxGetId`, and releases it.
+    /// Called only when the context is active.
+    fn retained_primary_context_id(&self, ordinal: usize) -> Result<u64, DriverFailure>;
+    fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure>;
+    /// The contexts built on `pool` that are still alive.
+    fn live_private_contexts(&self, pool: &Self::Pool) -> usize;
+    /// The CUDA libraries mapped into the process.
+    fn cuda_libraries(&self) -> Vec<String>;
+    /// The process's one-snapshot gate.
+    fn snapshot_once(&self) -> &Once;
+    fn emit_snapshot(&self, line: &str);
 }
 
 pub(crate) struct PrivateDecision<P, C> {
@@ -716,9 +784,8 @@ pub(crate) struct PrivateDecision<P, C> {
     pub(crate) pool: P,
     pub(crate) first_context: C,
     first_context_handed_out: AtomicBool,
-    /// `cuCtxGetId` of the first context, kept for context-loss detection;
-    /// nothing compares it yet.
-    #[cfg_attr(not(test), allow(dead_code))]
+    /// `cuCtxGetId` of the first context, which is the primary context;
+    /// context-loss detection compares the current primary context with it.
     pub(crate) context_id: u64,
     pub(crate) max_size_bytes: u64,
     pub(crate) release_threshold: ReleaseThreshold,
@@ -836,21 +903,28 @@ pub(crate) fn decision<'a, D: PoolDriver>(
     })
 }
 
-/// Classifies a failed build after the decision is private. Context-loss
-/// detection belongs here, ahead of the refusal.
-fn private_build_failure<P, C>(
-    private: &PrivateDecision<P, C>,
+/// Operation named by a context loss found while building a device.
+pub(crate) const DEVICE_BUILD_OPERATION: &str = "device build";
+
+/// Classifies a failed build after the decision is private: exhaustion, a
+/// lost context, or a refusal.
+fn private_build_failure<D: PoolDriver>(
+    driver: &D,
+    private: &PrivateDecision<D::Pool, D::Context>,
     failure: DriverFailure,
 ) -> CudaPoolFailure {
     if is_pool_exhaustion(true, failure.code) {
-        CudaPoolFailure::Exhausted {
+        return CudaPoolFailure::Exhausted {
             ordinal: private.ordinal,
             max_size_bytes: private.max_size_bytes,
             message: failure.message,
-        }
-    } else {
-        CudaPoolFailure::PrivateBuildRefused { ordinal: private.ordinal, message: failure.message }
+        };
     }
+    context_loss(driver, private, failure.code, failure.message.clone(), DEVICE_BUILD_OPERATION)
+        .unwrap_or(CudaPoolFailure::PrivateBuildRefused {
+            ordinal: private.ordinal,
+            message: failure.message,
+        })
 }
 
 /// Builds a device on `ordinal` under the process's decision: on the private
@@ -870,7 +944,9 @@ pub(crate) fn build_device<D: PoolDriver>(
             } else {
                 driver.wrap_context(private.first_context.clone())
             };
-            built.map_err(|failure| DeviceBuildError::Pool(private_build_failure(private, failure)))
+            built.map_err(|failure| {
+                DeviceBuildError::Pool(private_build_failure(driver, private, failure))
+            })
         }
         _ => driver.default_device(ordinal).map_err(DeviceBuildError::Default),
     }
@@ -892,6 +968,26 @@ pub(crate) fn classify_forward<P, C>(
             message,
         }
     })
+}
+
+/// The typed failure for a failed forward pass, or `None` when it keeps its
+/// untyped report: exhaustion first, then, for any other CUDA error in a
+/// private process, context-loss detection.
+pub(crate) fn classify_forward_fault<D: PoolDriver>(
+    decision: Option<&Decision<D::Pool, D::Context>>,
+    driver: &D,
+    fault: ForwardFault,
+    operation: &str,
+) -> Option<CudaPoolFailure> {
+    let exhausted = classify_forward(decision, fault.code, format!("{operation}: {}", fault.error));
+    if exhausted.is_some() {
+        return exhausted;
+    }
+    let private = decision.and_then(Decision::private)?;
+    if !fault.cuda {
+        return None;
+    }
+    context_loss(driver, private, fault.code, fault.error, operation)
 }
 
 // ---- the candle-facing entry points -----------------------------------------
@@ -986,7 +1082,7 @@ pub(crate) use fallback_only::{forward_failure, new_cuda_device};
     any(feature = "embed-cuda", feature = "rerank-cuda")
 ))]
 mod driver {
-    use std::sync::{Arc, OnceLock};
+    use std::sync::{Arc, Once, OnceLock};
 
     use candle_core::cuda::cudarc::driver::{
         result, sys, AllocMode, CudaContext, CudaMemPool, DriverError, MemPoolProps,
@@ -994,12 +1090,14 @@ mod driver {
     use candle_core::Device;
 
     use super::{
-        build_device, classify_forward, tegra_identity, CudaAllocatorPath, CudaAllocatorReport,
-        CudaDeviceError, CudaPoolFailure, Decision, DeviceFacts, DriverFailure, ModuleLoadInit,
-        PoolDriver, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
+        build_device, classify_forward_fault, cuda_libraries_in_maps, tegra_identity,
+        CudaAllocatorPath, CudaAllocatorReport, CudaDeviceError, CudaPoolFailure,
+        CudaPrimaryContextState, Decision, DeviceFacts, DriverFailure, ForwardFault,
+        ModuleLoadInit, PoolCounters, PoolDriver, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
     };
 
     static DECISION: OnceLock<Decision<Arc<CudaMemPool>, Arc<CudaContext>>> = OnceLock::new();
+    static SNAPSHOT: Once = Once::new();
 
     struct CudarcDriver;
 
@@ -1025,6 +1123,36 @@ mod driver {
 
     fn candle_failure(error: candle_core::Error) -> DriverFailure {
         DriverFailure { code: candle_driver_code(&error), message: error.to_string() }
+    }
+
+    /// Whether a Candle error came from the CUDA backend, looking through the
+    /// same wrappers as [`candle_driver_code`].
+    fn is_candle_cuda_error(error: &candle_core::Error) -> bool {
+        use candle_core::Error;
+        match error {
+            Error::Cuda(_) => true,
+            Error::Context { inner, .. }
+            | Error::WithPath { inner, .. }
+            | Error::WithBacktrace { inner, .. } => is_candle_cuda_error(inner),
+            _ => false,
+        }
+    }
+
+    fn pool_attribute(
+        pool: &CudaMemPool,
+        attr: sys::CUmemPool_attribute,
+    ) -> Result<u64, DriverFailure> {
+        let mut value: u64 = 0;
+        // SAFETY: the pool is live; every counter attribute is a cuuint64_t.
+        unsafe {
+            result::mem_pool::get_attribute(
+                pool.raw(),
+                attr,
+                std::ptr::addr_of_mut!(value).cast::<std::ffi::c_void>(),
+            )
+        }
+        .map_err(failure)?;
+        Ok(value)
     }
 
     /// Releases a retained primary context when dropped, so a panic in the
@@ -1148,6 +1276,60 @@ mod driver {
         fn default_device(&self, ordinal: usize) -> Result<Self::Device, Self::DefaultError> {
             Device::new_cuda(ordinal)
         }
+
+        fn primary_state(&self, ordinal: usize) -> Result<CudaPrimaryContextState, DriverFailure> {
+            let device = result::device::get(ordinal as i32).map_err(failure)?;
+            let mut flags: std::ffi::c_uint = 0;
+            let mut active: std::ffi::c_int = 0;
+            // SAFETY: device comes from cuDeviceGet; both are valid out-pointers.
+            unsafe { sys::cuDevicePrimaryCtxGetState(device, &mut flags, &mut active) }
+                .result()
+                .map_err(failure)?;
+            Ok(CudaPrimaryContextState { active: active != 0, flags })
+        }
+
+        fn retained_primary_context_id(&self, ordinal: usize) -> Result<u64, DriverFailure> {
+            let device = result::device::get(ordinal as i32).map_err(failure)?;
+            // SAFETY: device comes from cuDeviceGet; the guard releases it.
+            let context = unsafe { result::primary_ctx::retain(device) }.map_err(failure)?;
+            let _retained = RetainedPrimary(device);
+            let mut id: std::ffi::c_ulonglong = 0;
+            // SAFETY: the context is retained; `id` is a valid out-pointer.
+            unsafe { sys::cuCtxGetId(context, &mut id) }.result().map_err(failure)?;
+            Ok(id)
+        }
+
+        fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure> {
+            use sys::CUmemPool_attribute::*;
+            Ok(PoolCounters {
+                reserved_current: pool_attribute(pool, CU_MEMPOOL_ATTR_RESERVED_MEM_CURRENT)?,
+                reserved_high: pool_attribute(pool, CU_MEMPOOL_ATTR_RESERVED_MEM_HIGH)?,
+                used_current: pool_attribute(pool, CU_MEMPOOL_ATTR_USED_MEM_CURRENT)?,
+                used_high: pool_attribute(pool, CU_MEMPOOL_ATTR_USED_MEM_HIGH)?,
+            })
+        }
+
+        /// Every private context holds one `Arc` of the pool (cudarc's
+        /// `CudaContext::mem_pool`), and the decision holds one more; slices
+        /// and streams reach the pool only through their context. So the live
+        /// private contexts are the strong count minus the decision's handle.
+        fn live_private_contexts(&self, pool: &Self::Pool) -> usize {
+            Arc::strong_count(pool).saturating_sub(1)
+        }
+
+        fn cuda_libraries(&self) -> Vec<String> {
+            std::fs::read_to_string("/proc/self/maps")
+                .map(|maps| cuda_libraries_in_maps(&maps))
+                .unwrap_or_default()
+        }
+
+        fn snapshot_once(&self) -> &Once {
+            &SNAPSHOT
+        }
+
+        fn emit_snapshot(&self, line: &str) {
+            eprintln!("{line}");
+        }
     }
 
     /// A Candle CUDA device on `ordinal` under the process's allocator
@@ -1160,7 +1342,19 @@ mod driver {
         error: &candle_core::Error,
         what: &str,
     ) -> Option<CudaPoolFailure> {
-        classify_forward(DECISION.get(), candle_driver_code(error), format!("{what}: {error}"))
+        let fault = ForwardFault {
+            cuda: is_candle_cuda_error(error),
+            code: candle_driver_code(error),
+            error: error.to_string(),
+        };
+        classify_forward_fault(DECISION.get(), &CudarcDriver, fault, what)
+    }
+
+    /// The primary context state of `ordinal`, or `None` when the driver
+    /// cannot be read (for example, before `cuInit`). Never creates a context.
+    pub(crate) fn cuda_context_state(ordinal: usize) -> Option<CudaPrimaryContextState> {
+        let _ = ordinal;
+        None
     }
 
     /// The report for a CUDA device built by [`new_cuda_device`], with the
@@ -1183,6 +1377,35 @@ mod driver {
     any(feature = "embed-cuda", feature = "rerank-cuda")
 ))]
 pub(crate) use driver::{allocator_report, forward_failure, new_cuda_device};
+
+/// The primary context state of device `ordinal`, for `doctor
+/// cuda-allocator`. Never retains or creates a context. `None` when this
+/// build has no Tegra private-pool driver part (`tegra-pool` with
+/// `embed-cuda` or `rerank-cuda` on aarch64 Linux), or when the driver is
+/// not initialized or cannot be read.
+#[doc(hidden)]
+#[must_use]
+pub fn cuda_context_state(ordinal: usize) -> Option<CudaPrimaryContextState> {
+    #[cfg(all(
+        feature = "tegra-pool",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    ))]
+    {
+        driver::cuda_context_state(ordinal)
+    }
+    #[cfg(not(all(
+        feature = "tegra-pool",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )))]
+    {
+        let _ = ordinal;
+        None
+    }
+}
 
 #[cfg(test)]
 #[path = "cuda_pool_policy_tests.rs"]

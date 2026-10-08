@@ -520,7 +520,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }\n'
+needle = 'candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "25368139e45fe465e4630b2fbd9eb7f6e732fce6" }\n'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one Candle NN source pin")
 path.write_text(text.replace(needle, "", 1))
@@ -534,7 +534,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"'
+needle = 'source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=25368139e45fe465e4630b2fbd9eb7f6e732fce6#25368139e45fe465e4630b2fbd9eb7f6e732fce6"'
 if text.count(needle) != 4:
     raise SystemExit("fixture no longer contains all four immutable Candle lock sources")
 path.write_text(text.replace(needle, 'source = "registry+https://github.com/rust-lang/crates.io-index"', 1))

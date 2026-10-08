@@ -277,8 +277,8 @@ dependencies = [
 
 [[package]]
 name = "candle-core-fathomdb"
-version = "0.10.2"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
+version = "0.10.3"
+source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=25368139e45fe465e4630b2fbd9eb7f6e732fce6#25368139e45fe465e4630b2fbd9eb7f6e732fce6"
 dependencies = [
  "byteorder",
  "candle-kernels",
@@ -307,7 +307,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.10.2"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
+source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=25368139e45fe465e4630b2fbd9eb7f6e732fce6#25368139e45fe465e4630b2fbd9eb7f6e732fce6"
 dependencies = [
  "cudaforge",
 ]
@@ -329,8 +329,8 @@ dependencies = [
 
 [[package]]
 name = "candle-nn-fathomdb"
-version = "0.10.2"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
+version = "0.10.3"
+source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=25368139e45fe465e4630b2fbd9eb7f6e732fce6#25368139e45fe465e4630b2fbd9eb7f6e732fce6"
 dependencies = [
  "candle-core-fathomdb",
  "candle-metal-kernels",
@@ -346,8 +346,8 @@ dependencies = [
 
 [[package]]
 name = "candle-transformers-fathomdb"
-version = "0.10.2"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
+version = "0.10.3"
+source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=25368139e45fe465e4630b2fbd9eb7f6e732fce6#25368139e45fe465e4630b2fbd9eb7f6e732fce6"
 dependencies = [
  "byteorder",
  "candle-core-fathomdb",

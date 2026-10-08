@@ -9,7 +9,7 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "This checker admits only the root Candle 0.10.2 Git cohort, the exact local libsqlite3-sys 0.38.1 SQLite Windows WAL path backport, and the exact local cudarc 0.19.7 Tegra (aarch64 Linux only) allocator fallback. It authenticates each local crate's version, licenses, Cargo.lock package source, and vendored tree digest (plus the amended SQLite amalgamation digest). Any other [patch], [replace], or direct Git dependency hard-fails as unsupported. Root .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The local patches affect workspace builds; they do not propagate through a published Rust crate.",
+    "cargo": "This checker admits only the root Candle Git cohort (core, nn and transformers 0.10.3; kernels 0.10.2), the exact local libsqlite3-sys 0.38.1 SQLite Windows WAL path backport, and the exact local cudarc 0.19.7 Tegra (aarch64 Linux only) allocator fallback. It authenticates each local crate's version, licenses, Cargo.lock package source, and vendored tree digest (plus the amended SQLite amalgamation digest). Any other [patch], [replace], or direct Git dependency hard-fails as unsupported. Root .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The local patches affect workspace builds; they do not propagate through a published Rust crate.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],
@@ -23,9 +23,14 @@
       "candle-transformers-fathomdb"
     ],
     "git": "https://github.com/coreyt/candle-fathomdb.git",
-    "rev": "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae",
-    "version": "0.10.2",
-    "rationale": "FathomDB-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16 fallback. This immutable source revision keeps CUDA driver discovery dynamic and links the CUDART runtime statically in candle-kernels, so CPU-mode distributable artifacts can map without libcuda.so.1 or libcudart. Core, kernels, nn, and transformers remain one source cohort so their public types and linkage boundary stay unified.",
+    "rev": "25368139e45fe465e4630b2fbd9eb7f6e732fce6",
+    "versions": {
+      "candle-core-fathomdb": "0.10.3",
+      "candle-kernels": "0.10.2",
+      "candle-nn-fathomdb": "0.10.3",
+      "candle-transformers-fathomdb": "0.10.3"
+    },
+    "rationale": "FathomDB-maintained Candle (core, nn and transformers 0.10.3; kernels 0.10.2) preserves the Linux AArch64 CPU Gemm/F16 fallback. This immutable source revision keeps CUDA driver discovery dynamic and links the CUDART runtime statically in candle-kernels, so CPU-mode distributable artifacts can map without libcuda.so.1 or libcudart. Core, kernels, nn, and transformers remain one source cohort so their public types and linkage boundary stay unified. Revision 25368139 adds CudaDevice::from_context for the 0.8.28 Tegra private memory pool.",
     "advisory_posture": {
       "status": "external-source-unassessed",
       "scope": "outside the checked-in npm advisory snapshot",

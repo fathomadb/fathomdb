@@ -65,8 +65,15 @@ CANDLE_PACKAGES = (
     "candle-transformers-fathomdb",
 )
 CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_REV = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
-CANDLE_VERSION = "0.10.2"
+CANDLE_REV = "25368139e45fe465e4630b2fbd9eb7f6e732fce6"
+# Core, nn and transformers carry CudaDevice::from_context (0.8.28 Slice 30) as
+# 0.10.3; candle-kernels keeps 0.10.2, the version crates.io publishes.
+CANDLE_VERSIONS = {
+    "candle-core-fathomdb": "0.10.3",
+    "candle-kernels": "0.10.2",
+    "candle-nn-fathomdb": "0.10.3",
+    "candle-transformers-fathomdb": "0.10.3",
+}
 SQLITE_MANIFEST = "Cargo.toml"
 SQLITE_MECHANISM = "patch.crates-io"
 SQLITE_PACKAGE = "libsqlite3-sys"
@@ -177,7 +184,7 @@ def validate_candle_exception(metadata: dict[str, Any]) -> None:
         "mechanism": CANDLE_MECHANISM,
         "git": CANDLE_GIT,
         "rev": CANDLE_REV,
-        "version": CANDLE_VERSION,
+        "versions": CANDLE_VERSIONS,
     }
     for key, value in expected.items():
         if exception.get(key) != value:
@@ -514,7 +521,7 @@ def validate_cargo_pins(root: Path) -> list[str]:
     expected_source = f"git+{CANDLE_GIT}?rev={CANDLE_REV}#{CANDLE_REV}"
     for package in CANDLE_PACKAGES:
         key = (CANDLE_MANIFEST, CANDLE_MECHANISM, package)
-        if key in found and expected_source not in lock_sources.get((package, CANDLE_VERSION), set()):
+        if key in found and expected_source not in lock_sources.get((package, CANDLE_VERSIONS[package]), set()):
             failures.append(f"Candle patch {package} has no matching Cargo.lock source")
     if sqlite_key in found:
         if "<local>" not in lock_sources.get((SQLITE_PACKAGE, SQLITE_VERSION), set()):

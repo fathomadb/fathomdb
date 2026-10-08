@@ -93,8 +93,9 @@ metadata.write_text(json.dumps(data), encoding="utf-8")
     }}}
 }), encoding="utf-8")
 candle_git = "https://github.com/coreyt/candle-fathomdb.git"
-candle_rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
+candle_rev = "25368139e45fe465e4630b2fbd9eb7f6e732fce6"
 candle_packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
+candle_versions = {"candle-core-fathomdb": "0.10.3", "candle-kernels": "0.10.2", "candle-nn-fathomdb": "0.10.3", "candle-transformers-fathomdb": "0.10.3"}
 (root / "Cargo.toml").write_text(
     "[workspace]\nresolver = '2'\n\n[patch.crates-io]\n"
     + "".join(f'{item} = {{ git = "{candle_git}", rev = "{candle_rev}" }}\n' for item in candle_packages),
@@ -105,7 +106,7 @@ candle_packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb
     + "\n".join(
         "[[package]]\n"
         f'name = "{item}"\n'
-        'version = "0.10.2"\n'
+        f'version = "{candle_versions[item]}"\n'
         f'source = "git+{candle_git}?rev={candle_rev}#{candle_rev}"\n'
         for item in candle_packages
     ),
@@ -421,11 +422,14 @@ from pathlib import Path
 root = Path(sys.argv[1])
 mode = sys.argv[2]
 git = "https://github.com/coreyt/candle-fathomdb.git"
-rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
+rev = "25368139e45fe465e4630b2fbd9eb7f6e732fce6"
 packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
 manifest_packages = packages.copy()
 manifest_revs = {package: rev for package in packages}
 lock_revs = {package: rev for package in packages}
+# The fork moves core, nn and transformers to 0.10.3 for CudaDevice::from_context;
+# candle-kernels keeps the 0.10.2 that crates.io publishes.
+lock_versions = {"candle-core-fathomdb": "0.10.3", "candle-kernels": "0.10.2", "candle-nn-fathomdb": "0.10.3", "candle-transformers-fathomdb": "0.10.3"}
 extra_manifest = ""
 if mode == "missing":
     manifest_packages.pop()
@@ -437,6 +441,8 @@ elif mode == "revision-drift":
     manifest_revs = {package: "89abcdef0123456789abcdef0123456789abcdef" for package in packages}
 elif mode == "lock-drift":
     lock_revs["candle-core-fathomdb"] = "89abcdef0123456789abcdef0123456789abcdef"
+elif mode == "version-drift":
+    lock_versions["candle-kernels"] = "0.10.3"
 elif mode == "replace":
     extra_manifest = "\n[replace]\n\"other:1.0.0\" = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
 elif mode == "direct-git":
@@ -454,7 +460,7 @@ patches = "".join(
 lock_packages = "\n".join(
     "[[package]]\n"
     f'name = "{package}"\n'
-    'version = "0.10.2"\n'
+    f'version = "{lock_versions[package]}"\n'
     f'source = "git+{git}?rev={lock_revs[package]}#{lock_revs[package]}"\n'
     for package in packages
 )
@@ -622,6 +628,13 @@ if [ "$RC" -ne 1 ]; then
 fi
 expect_failure 'Candle patch candle-core-fathomdb has no matching Cargo.lock source' \
   'Candle lock-source drift is rejected'
+
+make_and_run_candle_fixture version-drift version-drift
+if [ "$RC" -ne 1 ]; then
+  fail "Candle per-package version drift must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'Candle patch candle-kernels has no matching Cargo.lock source' \
+  'Candle per-package lock version drift is rejected'
 
 make_and_run_candle_fixture replace replace
 if [ "$RC" -ne 1 ]; then

@@ -1,11 +1,19 @@
 ---
 title: FathomDB 0.8.27 Slice 135 — system qualification plan
-status: APPROVED_FOR_EXECUTION
+status: COMPLETE_WITH_EXPLICIT_LIMITATIONS
 target_release: 0.8.27
 planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 ---
 
 # Slice 135 — measure the whole system against 0.8.26
+
+## Final disposition (2026-10-08)
+
+The [Slice 135 status](status.md) records the five-area diagnostic closeout,
+the exact measured source and artifacts, explicit unsupported cells, raw
+retention, and placement of residual work. This plan remains the protocol
+and audit trail. The result does not qualify the final 0.8.27 release;
+Slice 150 owns integrated final-candidate qualification.
 
 ## Phase 1 checkpoint snapshot (2026-10-08)
 
@@ -17,7 +25,8 @@ now covers all six dimensions with scored or evidence-backed unsupported
 cells. A later [candidate CPU–CUDA 10% query sample](phase2-gpu-sample-2026-10-08.md)
 found identical gold scores and ordered hit lists on 611 selected queries;
 it does not qualify the omitted CUDA release, Jetson or other provider
-cells. Slice 135 is not complete. The
+cells. The later [final disposition](status.md) closes Slice 135 with those
+limits. The
 checkpoint's [full workspace gate](results/2026-10-08-phase1-verification-green/README.md)
 passed all 186 suites after the three Python verifier failures were repaired.
 The raw archives and a self-contained [local transfer bundle](results/2026-10-08-raw-retention-review/README.md)

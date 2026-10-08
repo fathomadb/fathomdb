@@ -683,6 +683,10 @@ SDK exercise remain open.
   A [five-run persistent SQLite-full probe](results/2026-10-08-persistent-sqlite-full-current/README.md)
   adds 15 typed failed writes under an unchanged page cap, exact reopened
   state and independently rejected tampered receipts.
+  An [exact-source provider/close replay](results/2026-10-08-provider-close-current/README.md)
+  adds five direct runs of each existing foreground and projection target:
+  all 70 case executions passed, including expected injected-provider-panic
+  reports, with independently checked raw logs and tamper controls.
   Finish the declared fault/schedule matrix with persistent and one-shot
   faults, further interrupted-erasure positions, state and resource oracles.
 - **Logic and exceptions:** focused static checks and regression tests caught

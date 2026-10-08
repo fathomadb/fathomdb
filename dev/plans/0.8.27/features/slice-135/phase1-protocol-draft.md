@@ -468,6 +468,9 @@ stop/reopen schedule. The full state/fault matrix below remains open.
 The focused [current-product provider and close result](results/2026-10-07-provider-close-current/README.md)
 adds 14 passing real-database cases for provider timeout/error, bounded
 dispatch, close cancellation and pending-projection recovery after reopen.
+An [exact-source five-run replay](results/2026-10-08-provider-close-current/README.md)
+rechecks the same 14 cases at `b72379197` with independently audited raw
+logs, expected injected-panic counts and resource records.
 The [exact-candidate projection-commit replay](results/2026-10-08-projection-commit-current/README.md)
 rechecks six one-shot commit, storage, panic, mean-pin and stop/reopen cases
 ten times on source `3f29d649d`, with independently checked output and

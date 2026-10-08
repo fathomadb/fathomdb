@@ -1,0 +1,15 @@
+
+running 10 tests
+test close_cancels_started_direct_embed_waiter ... ok
+test direct_embed_saturation_and_queued_expiry_are_overloaded ... ok
+test direct_embed_started_error_and_panic_preserve_error_contract_and_worker_reuse ... ok
+test direct_embed_started_timeout_uses_engine_dispatch_deadline ... ok
+test eight_reader_burst_keeps_vector_only_search_results ... ok
+test frozen_search_provider_panic_unwinds_reader_owner_boundary ... ok
+test frozen_sparse_fallback_keeps_reader_snapshot_across_provider_wait ... ok
+test ordinary_and_frozen_search_keep_sparse_fallback_on_provider_error ... ok
+test ordinary_search_provider_panic_reaches_caller_boundary ... ok
+test ordinary_search_uses_sparse_fallback_after_started_provider_timeout ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+

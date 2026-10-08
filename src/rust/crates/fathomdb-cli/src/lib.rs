@@ -2086,6 +2086,66 @@ mod tests {
         assert_eq!(engine_error_code(&error), "EvidenceError");
     }
 
+    /// 0.8.28 Slice 30 (R30-04) — each CUDA pool kind has its own stable code
+    /// and exits 70 (`cli.md` § Error to exit-code mapping).
+    #[test]
+    fn cuda_pool_kinds_use_their_class_codes_and_exit_unrecoverable() {
+        let engine_errors = [
+            (
+                EngineError::CudaPoolExhausted {
+                    ordinal: 0,
+                    max_size_bytes: 1,
+                    message: "m".to_owned(),
+                },
+                "CudaPoolExhaustedError",
+            ),
+            (
+                EngineError::CudaContextLost {
+                    recorded_context_id: 1,
+                    current_context_id: None,
+                    driver_error: "d".to_owned(),
+                    operation: "o".to_owned(),
+                },
+                "CudaContextLostError",
+            ),
+            (
+                EngineError::CudaPrivateBuildRefused { ordinal: 0, message: "m".to_owned() },
+                "CudaPrivateBuildRefusedError",
+            ),
+        ];
+        for (error, code) in engine_errors {
+            assert_eq!(engine_error_code(&error), code);
+            assert_eq!(outcome_to_exit_code(engine_error_to_outcome(&error)), 70);
+        }
+        let open_errors = [
+            (
+                EngineOpenError::CudaPoolExhausted {
+                    ordinal: 0,
+                    max_size_bytes: 1,
+                    message: "m".to_owned(),
+                },
+                "CudaPoolExhaustedError",
+            ),
+            (
+                EngineOpenError::CudaContextLost {
+                    recorded_context_id: 1,
+                    current_context_id: None,
+                    driver_error: "d".to_owned(),
+                    operation: "o".to_owned(),
+                },
+                "CudaContextLostError",
+            ),
+            (
+                EngineOpenError::CudaPrivateBuildRefused { ordinal: 0, message: "m".to_owned() },
+                "CudaPrivateBuildRefusedError",
+            ),
+        ];
+        for (error, code) in open_errors {
+            assert_eq!(engine_open_error_code(&error), code);
+            assert_eq!(outcome_to_exit_code(engine_open_error_to_outcome(&error)), 70);
+        }
+    }
+
     #[test]
     fn engine_open_database_locked_maps_to_lock_held() {
         let err = EngineOpenError::DatabaseLocked { holder_pid: Some(1234) };

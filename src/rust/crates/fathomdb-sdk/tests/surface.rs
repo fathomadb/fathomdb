@@ -213,7 +213,7 @@ fn search_filter_arg_accepts_both_filter_forms() {
 
 /// The shared Python/TypeScript error classes, minus the `Error` suffix, plus
 /// the base. Python: `fathomdb.errors`; TypeScript: `src/ts/src/errors.ts`.
-const SHARED_ERROR_CLASSES: [&str; 42] = [
+const SHARED_ERROR_CLASSES: [&str; 45] = [
     "EngineError",
     "RuntimeConfigurationError",
     "StorageError",
@@ -256,6 +256,9 @@ const SHARED_ERROR_CLASSES: [&str; 42] = [
     "NotLifecycleAddressableError",
     "ErasureIncompleteError",
     "ProjectionDestructiveError",
+    "CudaPoolExhaustedError",
+    "CudaContextLostError",
+    "CudaPrivateBuildRefusedError",
 ];
 
 #[test]
@@ -271,7 +274,10 @@ fn error_kind_hierarchy_matches_python_and_typescript() {
             ErrorKind::EmbedDevicePolicy
             | ErrorKind::RerankerDevicePolicy
             | ErrorKind::EmbedderNotConfigured
-            | ErrorKind::EmbedderRequired => Some(ErrorKind::Embedder),
+            | ErrorKind::EmbedderRequired
+            | ErrorKind::CudaPoolExhausted
+            | ErrorKind::CudaContextLost
+            | ErrorKind::CudaPrivateBuildRefused => Some(ErrorKind::Embedder),
             ErrorKind::KindNotVectorIndexed => Some(ErrorKind::Vector),
             _ => None,
         };

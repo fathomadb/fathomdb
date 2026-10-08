@@ -11,6 +11,9 @@ import { Engine } from "../src/index.js";
 import {
   ClosingError,
   CorruptionError,
+  CudaContextLostError,
+  CudaPoolExhaustedError,
+  CudaPrivateBuildRefusedError,
   DatabaseLockedError,
   EmbedderDimensionMismatchError,
   EmbedderError,
@@ -55,6 +58,10 @@ const LEAF_CLASSES = [
   // tables in dev/design/errors.md despite being a live SDK class. The
   // settlement adds it to the taxonomy of record; this row pins it here too.
   InvalidArgumentError,
+  // 0.8.28 Slice 30 (R30-04) — the three CUDA pool kinds, under EmbedderError.
+  CudaPoolExhaustedError,
+  CudaContextLostError,
+  CudaPrivateBuildRefusedError,
 ] as const;
 
 test("every leaf class extends FathomDbError", () => {
@@ -71,6 +78,14 @@ test("EmbedderNotConfiguredError sits under EmbedderError under FathomDbError", 
   assert.ok(err instanceof EmbedderError);
   assert.ok(err instanceof FathomDbError);
   assert.notEqual(EmbedderNotConfiguredError, EmbedderError);
+});
+
+test("the CUDA pool classes sit under EmbedderError under FathomDbError", () => {
+  for (const Cls of [CudaPoolExhaustedError, CudaContextLostError, CudaPrivateBuildRefusedError]) {
+    const err = Object.create(Cls.prototype) as object;
+    assert.ok(err instanceof EmbedderError, `${Cls.name} must extend EmbedderError`);
+    assert.ok(err instanceof FathomDbError);
+  }
 });
 
 test("KindNotVectorIndexedError sits under VectorError under FathomDbError", () => {

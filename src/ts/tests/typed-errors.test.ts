@@ -12,6 +12,9 @@ import assert from "node:assert/strict";
 import { Engine } from "../src/index.js";
 import {
   CorruptionError,
+  CudaContextLostError,
+  CudaPoolExhaustedError,
+  CudaPrivateBuildRefusedError,
   DatabaseLockedError,
   EmbedDevicePolicyError,
   RerankerDevicePolicyError,
@@ -209,4 +212,78 @@ test("decision #18: an unsatisfiable window crosses the napi envelope as FDB_WRI
   } finally {
     await engine.close();
   }
+});
+
+// ---------------------------------------------------------------------------
+// 0.8.28 Slice 30 (R30-04) — the three CUDA pool kinds
+// ---------------------------------------------------------------------------
+
+function rehydrate(code: string, message: string, payload: Record<string, unknown>): unknown {
+  try {
+    rethrowTyped(new Error(JSON.stringify({ code, message, payload })));
+  } catch (error) {
+    return error;
+  }
+  throw new Error("rethrowTyped must throw");
+}
+
+test("CudaPoolExhaustedError rehydrates with its typed payload", () => {
+  const error = rehydrate("FDB_CUDA_POOL_EXHAUSTED", "rerank forward: out of memory", {
+    ordinal: 0,
+    maxSizeBytes: 3 * 2 ** 30,
+    message: "rerank forward: out of memory",
+  });
+  assert.ok(error instanceof CudaPoolExhaustedError);
+  assert.ok(error instanceof EmbedderError);
+  assert.ok(error instanceof FathomDbError);
+  assert.equal(error.code, "FDB_CUDA_POOL_EXHAUSTED");
+  assert.equal(error.ordinal, 0);
+  assert.equal(error.maxSizeBytes, 3 * 2 ** 30);
+  assert.equal(error.message, "rerank forward: out of memory");
+  assert.equal(error.name, "CudaPoolExhaustedError");
+});
+
+test("CudaContextLostError keeps 64-bit context ids exact as strings", () => {
+  const error = rehydrate("FDB_CUDA_CONTEXT_LOST", "CUDA context lost", {
+    recordedContextId: "18446744073709551615",
+    currentContextId: null,
+    driverError: "CUDA_ERROR_CONTEXT_IS_DESTROYED",
+    operation: "embed forward",
+  });
+  assert.ok(error instanceof CudaContextLostError);
+  assert.ok(error instanceof EmbedderError);
+  assert.equal(error.code, "FDB_CUDA_CONTEXT_LOST");
+  assert.equal(error.recordedContextId, "18446744073709551615");
+  assert.equal(error.currentContextId, null);
+  assert.equal(error.driverError, "CUDA_ERROR_CONTEXT_IS_DESTROYED");
+  assert.equal(error.operation, "embed forward");
+
+  const replaced = rehydrate("FDB_CUDA_CONTEXT_LOST", "CUDA context replaced", {
+    recordedContextId: "1",
+    currentContextId: "2",
+    driverError: "d",
+    operation: "o",
+  });
+  assert.ok(replaced instanceof CudaContextLostError);
+  assert.equal(replaced.currentContextId, "2");
+});
+
+test("CudaPrivateBuildRefusedError rehydrates with its typed payload", () => {
+  const error = rehydrate("FDB_CUDA_PRIVATE_BUILD_REFUSED", "refused", {
+    ordinal: 1,
+    message: "refused",
+  });
+  assert.ok(error instanceof CudaPrivateBuildRefusedError);
+  assert.ok(error instanceof EmbedderError);
+  assert.equal(error.code, "FDB_CUDA_PRIVATE_BUILD_REFUSED");
+  assert.equal(error.ordinal, 1);
+  assert.equal(error.message, "refused");
+});
+
+test("the CUDA pool classes are distinct leaves", () => {
+  assert.notEqual(CudaPoolExhaustedError, EmbedderError);
+  assert.ok(!(Object.create(CudaPoolExhaustedError.prototype) instanceof CudaContextLostError));
+  assert.ok(
+    !(Object.create(CudaPrivateBuildRefusedError.prototype) instanceof CudaPoolExhaustedError),
+  );
 });

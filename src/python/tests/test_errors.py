@@ -14,6 +14,9 @@ from fathomdb import Engine
 from fathomdb.errors import (
     ClosingError,
     CorruptionError,
+    CudaContextLostError,
+    CudaPoolExhaustedError,
+    CudaPrivateBuildRefusedError,
     DatabaseLockedError,
     EmbedderDimensionMismatchError,
     EmbedderError,
@@ -57,6 +60,10 @@ LEAF_CLASSES = [
     # tables in `dev/design/errors.md` despite being a live SDK class. The
     # settlement adds it to the taxonomy of record; this row pins it here too.
     InvalidArgumentError,
+    # 0.8.28 Slice 30 (R30-04) — the three CUDA pool kinds, under EmbedderError.
+    CudaPoolExhaustedError,
+    CudaContextLostError,
+    CudaPrivateBuildRefusedError,
 ]
 
 

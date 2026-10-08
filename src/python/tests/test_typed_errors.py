@@ -13,6 +13,9 @@ import pytest
 from fathomdb import Engine
 from fathomdb.errors import (
     CorruptionError,
+    CudaContextLostError,
+    CudaPoolExhaustedError,
+    CudaPrivateBuildRefusedError,
     DatabaseLockedError,
     EmbedDevicePolicyError,
     EmbedderDimensionMismatchError,
@@ -88,3 +91,53 @@ def test_embedder_dimension_mismatch_attrs_round_trip() -> None:
     assert err.supplied == 768
     assert isinstance(err.stored, int)
     assert isinstance(err.supplied, int)
+
+
+# ---------------------------------------------------------------------------
+# 0.8.28 Slice 30 (R30-04) — the three CUDA pool kinds
+# ---------------------------------------------------------------------------
+
+
+def test_cuda_pool_exhausted_carries_its_payload() -> None:
+    err = CudaPoolExhaustedError(
+        "rerank forward: out of memory",
+        ordinal=0,
+        max_size_bytes=3 << 30,
+        message="rerank forward: out of memory",
+    )
+    assert isinstance(err, EmbedderError)
+    assert isinstance(err, EngineError)
+    assert err.ordinal == 0
+    assert err.max_size_bytes == 3 << 30
+    assert err.message == "rerank forward: out of memory"
+
+
+def test_cuda_context_lost_carries_integer_context_ids() -> None:
+    err = CudaContextLostError(
+        "CUDA context lost",
+        recorded_context_id=2**64 - 1,
+        current_context_id=None,
+        driver_error="CUDA_ERROR_CONTEXT_IS_DESTROYED",
+        operation="embed forward",
+    )
+    assert isinstance(err, EmbedderError)
+    assert err.recorded_context_id == 2**64 - 1
+    assert err.current_context_id is None
+    assert err.driver_error == "CUDA_ERROR_CONTEXT_IS_DESTROYED"
+    assert err.operation == "embed forward"
+
+
+def test_cuda_private_build_refused_carries_its_payload() -> None:
+    err = CudaPrivateBuildRefusedError("refused", ordinal=1, message="refused")
+    assert isinstance(err, EmbedderError)
+    assert err.ordinal == 1
+    assert err.message == "refused"
+
+
+def test_the_cuda_pool_classes_are_distinct_leaves() -> None:
+    classes = (CudaPoolExhaustedError, CudaContextLostError, CudaPrivateBuildRefusedError)
+    for cls in classes:
+        assert issubclass(cls, EmbedderError)
+        assert cls is not EmbedderError
+    assert not issubclass(CudaPoolExhaustedError, CudaContextLostError)
+    assert not issubclass(CudaPrivateBuildRefusedError, CudaPoolExhaustedError)

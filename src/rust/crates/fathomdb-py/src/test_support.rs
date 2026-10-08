@@ -577,4 +577,277 @@ mod tests {
 
         opened.engine.close().unwrap();
     }
+
+    // ----- 0.8.28 Slice 30 (R30-04): the three CUDA pool kinds ---------------
+
+    fn attr<'py>(py: Python<'py>, error: &PyErr, name: &str) -> Bound<'py, PyAny> {
+        error.value(py).getattr(name).unwrap()
+    }
+
+    fn assert_pool_exhausted(py: Python<'_>, error: &PyErr) {
+        assert!(error.is_instance_of::<CudaPoolExhaustedError>(py), "{error}");
+        assert!(error.is_instance_of::<EmbedderError>(py));
+        assert_eq!(attr(py, error, "ordinal").extract::<usize>().unwrap(), 0);
+        assert_eq!(attr(py, error, "max_size_bytes").extract::<u64>().unwrap(), 3 << 30);
+        assert_eq!(attr(py, error, "message").extract::<String>().unwrap(), "oom");
+    }
+
+    fn assert_context_lost(py: Python<'_>, error: &PyErr) {
+        assert!(error.is_instance_of::<CudaContextLostError>(py), "{error}");
+        assert!(error.is_instance_of::<EmbedderError>(py));
+        assert_eq!(attr(py, error, "recorded_context_id").extract::<u64>().unwrap(), u64::MAX);
+        assert_eq!(attr(py, error, "current_context_id").extract::<Option<u64>>().unwrap(), None);
+        assert_eq!(
+            attr(py, error, "driver_error").extract::<String>().unwrap(),
+            "CUDA_ERROR_CONTEXT_IS_DESTROYED"
+        );
+        assert_eq!(attr(py, error, "operation").extract::<String>().unwrap(), "forward");
+    }
+
+    fn assert_build_refused(py: Python<'_>, error: &PyErr) {
+        assert!(error.is_instance_of::<CudaPrivateBuildRefusedError>(py), "{error}");
+        assert!(error.is_instance_of::<EmbedderError>(py));
+        assert_eq!(attr(py, error, "ordinal").extract::<usize>().unwrap(), 1);
+        assert_eq!(attr(py, error, "message").extract::<String>().unwrap(), "refused");
+    }
+
+    fn api_exhausted() -> fathomdb_embedder_api::EmbedderError {
+        fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+            ordinal: 0,
+            max_size_bytes: 3 << 30,
+            message: "oom".to_owned(),
+        }
+    }
+
+    fn api_context_lost() -> fathomdb_embedder_api::EmbedderError {
+        fathomdb_embedder_api::EmbedderError::CudaContextLost {
+            recorded_context_id: u64::MAX,
+            current_context_id: None,
+            driver_error: "CUDA_ERROR_CONTEXT_IS_DESTROYED".to_owned(),
+            operation: "forward".to_owned(),
+        }
+    }
+
+    fn api_refused() -> fathomdb_embedder_api::EmbedderError {
+        fathomdb_embedder_api::EmbedderError::CudaPrivateBuildRefused {
+            ordinal: 1,
+            message: "refused".to_owned(),
+        }
+    }
+
+    fn policy_exhausted() -> fathomdb_embedder::RerankerDevicePolicyError {
+        fathomdb_embedder::RerankerDevicePolicyError::CudaPoolExhausted {
+            ordinal: 0,
+            max_size_bytes: 3 << 30,
+            message: "oom".to_owned(),
+        }
+    }
+
+    fn policy_context_lost() -> fathomdb_embedder::RerankerDevicePolicyError {
+        fathomdb_embedder::RerankerDevicePolicyError::CudaContextLost {
+            recorded_context_id: u64::MAX,
+            current_context_id: None,
+            driver_error: "CUDA_ERROR_CONTEXT_IS_DESTROYED".to_owned(),
+            operation: "forward".to_owned(),
+        }
+    }
+
+    fn policy_refused() -> fathomdb_embedder::RerankerDevicePolicyError {
+        fathomdb_embedder::RerankerDevicePolicyError::CudaPrivateBuildRefused {
+            ordinal: 1,
+            message: "refused".to_owned(),
+        }
+    }
+
+    #[test]
+    fn engine_cuda_kinds_raise_their_own_typed_exceptions() {
+        Python::initialize();
+        Python::attach(|py| {
+            assert_pool_exhausted(
+                py,
+                &engine_error_to_py(RustEngineError::CudaPoolExhausted {
+                    ordinal: 0,
+                    max_size_bytes: 3 << 30,
+                    message: "oom".to_owned(),
+                }),
+            );
+            assert_context_lost(
+                py,
+                &engine_error_to_py(RustEngineError::CudaContextLost {
+                    recorded_context_id: u64::MAX,
+                    current_context_id: None,
+                    driver_error: "CUDA_ERROR_CONTEXT_IS_DESTROYED".to_owned(),
+                    operation: "forward".to_owned(),
+                }),
+            );
+            assert_build_refused(
+                py,
+                &engine_error_to_py(RustEngineError::CudaPrivateBuildRefused {
+                    ordinal: 1,
+                    message: "refused".to_owned(),
+                }),
+            );
+            let replaced = engine_error_to_py(RustEngineError::CudaContextLost {
+                recorded_context_id: 1,
+                current_context_id: Some(2),
+                driver_error: "d".to_owned(),
+                operation: "o".to_owned(),
+            });
+            assert_eq!(
+                attr(py, &replaced, "current_context_id").extract::<Option<u64>>().unwrap(),
+                Some(2)
+            );
+        });
+    }
+
+    #[test]
+    fn engine_reranker_cuda_kinds_are_not_swallowed_by_the_policy_class() {
+        Python::initialize();
+        Python::attach(|py| {
+            assert_pool_exhausted(
+                py,
+                &engine_error_to_py(RustEngineError::RerankerDevicePolicy(policy_exhausted())),
+            );
+            assert_context_lost(
+                py,
+                &engine_error_to_py(RustEngineError::RerankerDevicePolicy(policy_context_lost())),
+            );
+            assert_build_refused(
+                py,
+                &engine_error_to_py(RustEngineError::RerankerDevicePolicy(policy_refused())),
+            );
+        });
+    }
+
+    #[test]
+    fn open_cuda_kinds_raise_their_own_typed_exceptions() {
+        Python::initialize();
+        Python::attach(|py| {
+            assert_pool_exhausted(
+                py,
+                &engine_open_error_to_py(EngineOpenError::CudaPoolExhausted {
+                    ordinal: 0,
+                    max_size_bytes: 3 << 30,
+                    message: "oom".to_owned(),
+                }),
+            );
+            assert_context_lost(
+                py,
+                &engine_open_error_to_py(EngineOpenError::CudaContextLost {
+                    recorded_context_id: u64::MAX,
+                    current_context_id: None,
+                    driver_error: "CUDA_ERROR_CONTEXT_IS_DESTROYED".to_owned(),
+                    operation: "forward".to_owned(),
+                }),
+            );
+            assert_build_refused(
+                py,
+                &engine_open_error_to_py(EngineOpenError::CudaPrivateBuildRefused {
+                    ordinal: 1,
+                    message: "refused".to_owned(),
+                }),
+            );
+            assert_pool_exhausted(
+                py,
+                &engine_open_error_to_py(EngineOpenError::Embedder(api_exhausted())),
+            );
+            assert_context_lost(
+                py,
+                &engine_open_error_to_py(EngineOpenError::Embedder(api_context_lost())),
+            );
+            assert_build_refused(
+                py,
+                &engine_open_error_to_py(EngineOpenError::Embedder(api_refused())),
+            );
+            assert_pool_exhausted(
+                py,
+                &engine_open_error_to_py(EngineOpenError::RerankerDevicePolicy(policy_exhausted())),
+            );
+        });
+    }
+
+    #[test]
+    fn embed_batch_cls_forward_cuda_kinds_are_typed() {
+        Python::initialize();
+        Python::attach(|py| {
+            assert_pool_exhausted(py, &cls_forward_error_to_py(api_exhausted()));
+            assert_context_lost(py, &cls_forward_error_to_py(api_context_lost()));
+            assert_build_refused(py, &cls_forward_error_to_py(api_refused()));
+            let other = cls_forward_error_to_py(fathomdb_embedder_api::EmbedderError::Failed {
+                message: "boom".to_owned(),
+            });
+            assert!(other.is_instance_of::<EmbedderError>(py));
+            assert!(!other.is_instance_of::<CudaPoolExhaustedError>(py));
+        });
+    }
+
+    #[cfg(feature = "default-embedder")]
+    #[test]
+    fn embed_batch_cls_load_cuda_kinds_are_typed() {
+        use fathomdb_embedder::loader::EmbedderLoadError;
+        Python::initialize();
+        Python::attach(|py| {
+            assert_pool_exhausted(
+                py,
+                &cls_load_error_to_py(EmbedderLoadError::CudaPoolExhausted {
+                    ordinal: 0,
+                    max_size_bytes: 3 << 30,
+                    message: "oom".to_owned(),
+                }),
+            );
+            assert_context_lost(
+                py,
+                &cls_load_error_to_py(EmbedderLoadError::CudaContextLost {
+                    recorded_context_id: u64::MAX,
+                    current_context_id: None,
+                    driver_error: "CUDA_ERROR_CONTEXT_IS_DESTROYED".to_owned(),
+                    operation: "forward".to_owned(),
+                }),
+            );
+            assert_build_refused(
+                py,
+                &cls_load_error_to_py(EmbedderLoadError::CudaPrivateBuildRefused {
+                    ordinal: 1,
+                    message: "refused".to_owned(),
+                }),
+            );
+            let other = cls_load_error_to_py(EmbedderLoadError::DeviceInitialization {
+                message: "no device".to_owned(),
+            });
+            assert!(other.is_instance_of::<EmbedderNotConfiguredError>(py));
+        });
+    }
+
+    #[test]
+    fn rerank_errors_keep_their_typed_classes() {
+        use fathomdb_engine::RerankPassagesError;
+        Python::initialize();
+        Python::attach(|py| {
+            assert_pool_exhausted(
+                py,
+                &rerank_passages_error_to_py(RerankPassagesError::Reranker(policy_exhausted())),
+            );
+            assert_context_lost(
+                py,
+                &rerank_passages_error_to_py(RerankPassagesError::Reranker(policy_context_lost())),
+            );
+            assert_build_refused(
+                py,
+                &rerank_passages_error_to_py(RerankPassagesError::Reranker(policy_refused())),
+            );
+            let policy = rerank_passages_error_to_py(RerankPassagesError::Reranker(
+                fathomdb_embedder::RerankerDevicePolicyError::Resolution(
+                    fathomdb_embedder::RerankerDeviceResolutionError::CudaNotCompiled {
+                        ordinal: 0,
+                    },
+                ),
+            ));
+            assert!(policy.is_instance_of::<RerankerDevicePolicyError>(py));
+            assert_eq!(attr(py, &policy, "kind").extract::<String>().unwrap(), "cuda_not_compiled");
+            let invalid = rerank_passages_error_to_py(RerankPassagesError::WriteValidation {
+                message: "non-finite".to_owned(),
+            });
+            assert!(invalid.is_instance_of::<WriteValidationError>(py));
+        });
+    }
 }

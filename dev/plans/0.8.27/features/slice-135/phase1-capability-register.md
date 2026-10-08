@@ -24,16 +24,39 @@ cross-encoder model qualification remains open. The Rust consumer resolves
 the SDK by source path; it is not a published-crate installation, and 0.8.26
 has no Rust SDK peer. "Executed" means one selected asserted call, not every
 condition of an operation's contract.
+The [repaired-source Rust S02 refresh](results/2026-10-07-rust-sdk-s02-current-refresh/README.md)
+repeats the external consumer sequence on the vector-repaired source with an
+independent reopened-state check. It does not change the operation counts or
+qualify Rust S02 latency.
 
 The [paired Python S01](results/2026-10-07-python-s01-paired/README.md) and
 [paired TypeScript S01](results/2026-10-07-ts-s01-paired/README.md) receipts
-cover installed text, vector-bearing and hybrid workload shapes, but predate
-the repaired search source and need final-candidate refresh for checkpoint
-latency. Integrated [Python S02](results/2026-10-07-python-integrated-candidate/README.md)
+cover installed text, vector-bearing and hybrid workload shapes. Their earlier
+candidate measurements predate the repaired search source. The
+[repaired-source Python S01](results/2026-10-07-python-s01-vector-repaired-paired/README.md)
+and [Python S02](results/2026-10-07-python-s02-vector-repaired-paired/README.md)
+paired subsets now have independent exact-wheel and raw-state audits. The
+[repaired-source TypeScript consumer](results/2026-10-07-ts-vector-repaired-candidate/README.md)
+repeated the 39-operation exercise against rebuilt npm packages, and the
+[TypeScript S01 paired subset](results/2026-10-07-ts-s01-vector-repaired-paired/README.md)
+passed independent audit. The repaired-source
+[TypeScript S02 paired subset](results/2026-10-07-ts-s02-vector-repaired-paired/README.md)
+also passed independent raw and order audits over 100 whole sequences per
+version, with host-only paging warnings in every pair. Integrated
+[Python S02](results/2026-10-07-python-integrated-candidate/README.md)
 and [TypeScript S02](results/2026-10-07-ts-s02-current-refresh/README.md)
 functional refreshes
-passed with independent state checks. Their single validation-inclusive
-timers do not qualify S02 latency or contention. The engine-only results
+passed with independent state checks. The subsequent
+[TypeScript S02 paired result](results/2026-10-07-ts-s02-paired-integrated/README.md)
+uses a product-only timer and 100 independently audited whole sequences per
+version; it is a diagnostic latency subset, while the earlier Python
+functional receipt's single validation-inclusive timer does not qualify
+latency or contention. A later [vector row-error repair](results/2026-10-07-vector-row-repair/README.md)
+changed candidate engine bytes after the historical receipts. The
+repaired-source S01/S02 subsets above use rebuilt installed artifacts. The
+[Rust S02 candidate-only timing](results/2026-10-07-rust-s02-candidate-timing/README.md)
+passed 100 measured sequences and independent audit; bounded contention
+remains. The engine-only results
 never substitute for an SDK row. `S03` may use qualified benchmark data as a
 workload; dedicated gold scoring remains Phase 2.
 

@@ -10,17 +10,31 @@ planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 **Execution status:** the bounded [first inspectable results](results/2026-10-07-first-results/)
 exist for all four Phase 1 areas. The [E01–E12 paired engine subset](e12-comparison-protocol.json)
 and the Python and TypeScript S01 subsets have frozen protocols and audited
-paired runs. The [44-operation capability register](phase1-capability-register.md)
+paired runs. Integrated-candidate E01–E12, Python S01/S02 and TypeScript S01/S02 refreshes now
+have separate frozen subsets and audited raw receipts. The
+[44-operation capability register](phase1-capability-register.md)
 records executed Rust, Python and TypeScript cases and explicit gaps, including
 an [integrated-candidate installed Python functional
-receipt](results/2026-10-07-python-integrated-candidate/README.md). These
-receipts do not yet constitute the full Phase 1 checkpoint: installed S01
-timing predates later search repairs, the [audited Python S02 paired timing
-subset](results/2026-10-07-python-s02-paired-current/README.md) has host paging
-warnings and predates the integrated `b65283317` release candidate. It does
-not cover TypeScript/Rust or contention; S03/C01 and the
-full robustness and coverage matrices remain,
-and the [broader Phase 1 protocol](phase1-protocol-draft.md) is still a draft.
+receipt](results/2026-10-07-python-integrated-candidate/README.md) and
+[TypeScript functional receipt](results/2026-10-07-ts-integrated-candidate/README.md).
+These receipts do not yet constitute the full Phase 1 checkpoint. The paired
+TypeScript S02 subset has host paging warnings; the Rust S02 candidate-only
+result is linked below, while bounded contention remains. S03 and the
+full robustness and coverage matrices remain. C01 has a documented
+[qualification failure](results/2026-10-07-c01-qualification/README.md).
+The [broader Phase 1 protocol](phase1-protocol-draft.md) is still a draft.
+An additional [vector row-error defect](results/2026-10-07-vector-row-repair/README.md)
+has a real-database RED/GREEN repair committed at `3f29d649d`. Its source
+change supersedes prior candidate timing for the final checkpoint. The
+[vector-repaired E01–E12 paired refresh](results/2026-10-07-e12-vector-repaired-paired/README.md)
+is independently audited. The repaired-source installed
+[Python S01](results/2026-10-07-python-s01-vector-repaired-paired/README.md),
+[Python S02](results/2026-10-07-python-s02-vector-repaired-paired/README.md),
+[TypeScript S01](results/2026-10-07-ts-s01-vector-repaired-paired/README.md)
+and [TypeScript S02](results/2026-10-07-ts-s02-vector-repaired-paired/README.md)
+subsets are independently audited. Rust S02 now has a candidate-only
+[timing result](results/2026-10-07-rust-s02-candidate-timing/README.md);
+bounded contention remains.
 Dedicated correct-results work remains Phase 2.
 
 The [release plan](../../../plan-0.8.27.md) owns the release contract. The
@@ -508,7 +522,39 @@ SDK exercise remain open.
   missed-branch dispositions and rare severe paths.
 - **Latency:** the E01–E12 paired engine campaign has audited raw blocks and
   descriptive deltas; the paired Python and TypeScript S01 subsets also have
-  audited receipts. Refresh affected S01 cells on the repaired candidate.
+  audited receipts. The [integrated E01–E12 source smoke](results/2026-10-07-e12-integrated-smoke/README.md)
+  passed all twelve paths and an [integrated paired subset](e12-integrated-comparison-protocol.json)
+  refroze the changed candidate Rust tree before timing. The
+  [integrated E01–E12 paired diagnostic](results/2026-10-07-e12-paired-integrated/README.md)
+  passed 20 blocks and independent audit across all twelve cells. Vector,
+  hybrid and populated-open p50 increased in the five-pair diagnostic;
+  investigate and disposition these leads before a release performance claim.
+  The subsequent [vector-repaired E01–E12 refresh](results/2026-10-07-e12-vector-repaired-paired/README.md)
+  completed all 20 blocks at product source `3f29d649d`; the same three
+  p50 leads persisted (+8.79%, +8.04%, +11.16%). Four blocks have host-only
+  paging warnings, with zero measured-child swaps. Attribute these leads
+  across engine and installed boundaries before a release claim.
+  The repaired-source [installed Python S01 refresh](results/2026-10-07-python-s01-vector-repaired-paired/README.md)
+  passed 20 blocks and independent audit over 60,120 materialized calls. Its
+  32-row vector-bearing p50 decreased in all five pairs (median −3.34%);
+  256-row vector and hybrid deltas changed sign. Four blocks have host-only
+  paging warnings. The differing engine and Python boundaries need
+  attribution, not cancellation by one another.
+  The [integrated installed Python S01 diagnostic](results/2026-10-07-python-s01-paired-integrated/README.md)
+  also passed 20 blocks and independent audit over 60,120 materialized
+  calls. Its vector-bearing p50 decreased in all five pairs at each size;
+  host-only paging warnings and differing engine/SDK workload boundaries
+  prevent a broad speed claim. The
+  [integrated installed TypeScript S01 diagnostic](results/2026-10-07-ts-s01-paired-integrated/README.md)
+  passed another 20 blocks and 60,120 calls. At 256 rows, vector-bearing
+  p50 increased in all five pairs (median +2.89%), with two warning-bearing
+  blocks. Disposition the differing engine, Python and TypeScript results
+  at their actual call boundaries.
+  The repaired-source [TypeScript S01 refresh](results/2026-10-07-ts-s01-vector-repaired-paired/README.md)
+  passed 20 blocks and independent audit over 60,120 calls. Median pair p50
+  changes were +2.78% for 32-row vector-bearing queries and +0.57% at 256
+  rows. Seven blocks had host-only paging warnings; the result remains a
+  diagnostic lead, not an equivalence verdict.
   A [controlled baseline-only Python S02 pilot](results/2026-10-07-python-s02-controlled-noise-pilot/README.md)
   now isolates the product timer and measures five environment-checked
   blocks. Its [Python subset protocol](s02-python-comparison-protocol.json)
@@ -518,8 +564,31 @@ SDK exercise remain open.
   then measured 100 valid sequences per version with independent raw and
   execution-order audits: pooled p50 +0.495% and p95 +0.924%, with host
   paging warnings in every pair. This is an observed slowdown, not an
-  equivalence or release verdict. Refresh the remaining affected installed
-  timing cells on the integrated candidate. The
+  equivalence or release verdict. The repaired-source
+  [Python S02 refresh](results/2026-10-07-python-s02-vector-repaired-paired/README.md)
+  passed 100 whole sequences per version and both independent audits: pooled
+  p50 +0.010%, p95 +0.155%, four warning-free pairs. Close and reopened-close
+  stage medians still increased by 7.627 ms and 7.209 ms. This near-neutral
+  diagnostic does not establish equivalence or resolve the lifecycle tradeoff. A
+  [controlled TypeScript S02 baseline pilot](results/2026-10-07-ts-s02-baseline-controlled/README.md)
+  preceded its [frozen paired subset](s02-ts-comparison-protocol.json) and
+  [integrated-candidate TypeScript S02 diagnostic](results/2026-10-07-ts-s02-paired-integrated/README.md).
+  The independent audit accepted 100 whole sequences per version: pooled
+  p50 +2.870%, p95 -0.256%, with all five pair-p50 deltas positive and every
+  pair carrying host-only paging warnings. This is a latency lead, not an
+  equivalence or release verdict. The repaired-source
+  [TypeScript S02 refresh](results/2026-10-07-ts-s02-vector-repaired-paired/README.md)
+  accepted 100 whole sequences per version and independent raw and order
+  audits: pooled p50 +3.308%, p95 +1.370%. All five pair-p50 deltas were
+  positive and every pair had a host-only paging warning. The 147.193 ms
+  reopened-stage median lead needs attribution against Python S02's near-
+  neutral whole sequence. The
+  [Rust SDK S02 candidate-only timing](results/2026-10-07-rust-s02-candidate-timing/README.md)
+  then passed 100 fresh-process sequences and independent raw, resource and
+  reopened-state audits on repaired source `3f29d649d`. Whole p50/p95 were
+  5,754.390/5,815.786 ms; reopened open was the largest named stage at
+  4,767.522 ms p50. No same-SDK 0.8.26 comparison exists. Bounded contention
+  and the cross-boundary attribution remain. The
   [S02-L baseline pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
   has 100 independently audited fresh-process open/close cycles; its
   [paired subset protocol](s02-python-lifecycle-comparison-protocol.json)
@@ -529,8 +598,10 @@ SDK exercise remain open.
   45,719 KiB at close, versus -33 KiB on baseline. Disposition this
   lifecycle tradeoff against system-level latency and ownership/robustness;
   run contention, then
-  execute S03 and
-  qualify C01 or record why it cannot run. Keep engine, installed SDK and
+  execute S03. The [C01 qualification check](results/2026-10-07-c01-qualification/README.md)
+  found the pinned LOCOMO corpus and nonempty Mem0/Qdrant volumes, but the
+  exact external harness, configuration and output root are missing. No
+  matched comparator timing is claimable. Keep engine, installed SDK and
   competitor boundaries distinct.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
@@ -541,15 +612,24 @@ SDK exercise remain open.
   faults, further interrupted-erasure positions, state and resource oracles.
 - **Logic and exceptions:** focused static checks and regression tests caught
   confirmed defects; a four-site `rows.flatten()` source audit classified
-  further leads. Complete ranked-path and binding-boundary panic/error
+  further leads. The active vector site was subsequently confirmed by a
+  real-database RED/GREEN test and repaired at `3f29d649d`. Complete the
+  remaining site probes, ranked-path and binding-boundary panic/error
   review, current-candidate line/branch coverage, targeted negative probes
   and dispositions for findings and survivors.
 - **Functional exercise:** the [capability register](phase1-capability-register.md)
   accounts for all 44 canonical operations: Rust 42 selected cases executed
   and two provider/model cases unavailable; Python 40 executed, one
   committed-closure positive-path gap and three unavailable; TypeScript 39
-  executed, two positive-path gaps and three unavailable. Candidate S02
-  functional refreshes pass. The integrated Python wheel repeated 40 selected
+  executed, two positive-path gaps and three unavailable. The repaired-source
+  [TypeScript consumer](results/2026-10-07-ts-vector-repaired-candidate/README.md)
+  rechecked those 39 operations against rebuilt npm packages. Candidate S02
+  functional refreshes pass, including the
+  [vector-repaired external Rust consumer](results/2026-10-07-rust-sdk-s02-current-refresh/README.md)
+  with independently checked reopened state. Its subsequent
+  [candidate-only timing campaign](results/2026-10-07-rust-s02-candidate-timing/README.md)
+  passed 100 measured sequences and five independent block audits. The
+  integrated Python wheel repeated 40 selected
   positive/negative/reopen routes and one S02 sequence with independent
   audits; its validation-inclusive timer does not qualify S02 latency or
   contention. Close supported gaps and contract

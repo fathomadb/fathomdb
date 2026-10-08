@@ -41,6 +41,20 @@ query shape per block, raw materialized-result checks and independent
 recomputation. It remains a Python-only diagnostic; the Rust/TypeScript
 installed boundaries, S02 and E01–E12 still need qualification under the
 broader protocol.
+The later [integrated-candidate Python S01 subset](s01-python-integrated-comparison-protocol.json)
+refroze the unchanged workload against exact candidate source and wheel bytes
+before timing. Its [paired diagnostic](results/2026-10-07-python-s01-paired-integrated/README.md)
+passed 20 blocks and independently checked 60,120 materialized calls. The
+32-row vector-bearing p50 was lower in all five candidate pairs, while seven
+blocks had host-only swap warnings and the 256-row warning-free sensitivity
+has only one pair. This result does not establish whole-product equivalence.
+The [vector-repaired Python S01 subset](s01-python-vector-repaired-comparison-protocol.json)
+refroze the same schedule and workload against source `3f29d649d` and its
+installed wheel. Its [paired refresh](results/2026-10-07-python-s01-vector-repaired-paired/README.md)
+passed all 20 blocks and 60,120 independently checked calls. At 32 rows,
+vector-bearing p50 decreased in all five pairs; 256-row signs vary. Four
+blocks have host-only paging warnings, and engine and SDK call boundaries
+must be interpreted separately.
 
 The [baseline-only installed-TypeScript S01 noise pilot](results/2026-10-07-ts-s01-noise-pilot/README.md)
 now has five 100-warm-call blocks per corpus size, retained npm archives,
@@ -60,12 +74,33 @@ materialized call attempts. It is a narrow installed-SDK diagnostic, with
 host paging warnings in 12 blocks and only one warning-free pair per size.
 Its descriptive deltas do not close the whole-system latency or full Phase 1
 checkpoint.
+The [integrated-candidate TypeScript package qualification](results/2026-10-07-ts-integrated-candidate/README.md)
+then rebuilt the native addon and installed npm archives from exact source
+`cdf253cd`. Its audited selected-operation exercise had 39 executed, zero
+failed, two supported gaps and three unavailable. The
+[integrated TypeScript S01 subset](s01-ts-integrated-comparison-protocol.json)
+froze before its [paired diagnostic](results/2026-10-07-ts-s01-paired-integrated/README.md).
+All 20 blocks and 60,120 calls passed independent audit. At 256 rows, the
+vector-bearing p50 rose in all five pairs (median +2.89%); two blocks had
+host-only warnings. This is a workload-specific lead, not a release verdict.
+The [vector-repaired TypeScript S01 subset](s01-ts-vector-repaired-comparison-protocol.json)
+bound source `3f29d649d`, rebuilt npm archives and campaign code before its
+[paired refresh](results/2026-10-07-ts-s01-vector-repaired-paired/README.md).
+All 20 blocks and 60,120 materialized calls passed independent audit. Median
+pair p50 rose 2.78% for 32-row vector-bearing queries and 0.57% at 256 rows;
+seven blocks had host-only paging warnings. This is a boundary-specific
+diagnostic, not an equivalence verdict.
 
 The later `b65283317` release integration adds the off-ladder
 `0.8.26+tegra` install-route fix after these paired SDK artifacts were built.
-The stored comparisons remain exact-source diagnostics. Rebuild and rerun
-affected installed cells on the integrated candidate before the Phase 1
-checkpoint. The corrected embedder-close landing is also an intended
+The stored comparisons remain exact-source diagnostics. Python and TypeScript
+S01 and Python S02 were rerun on that integrated candidate; TypeScript
+S02 has an integrated-source paired diagnostic. A later vector-row repair
+supersedes those candidate artifacts; repaired-source Python S01/S02 and
+TypeScript S01 refreshes are linked above; TypeScript S02 has the paired
+refresh below, while contention remains before
+the Phase 1 checkpoint. The corrected embedder-close
+landing is also an intended
 lifecycle change; measure repeated open/close and post-close memory with the
 S02-L cell below.
 
@@ -78,7 +113,35 @@ parallel [installed TypeScript S02 feasibility pair](results/2026-10-07-ts-s02-f
 exercises the same real-database shape and independent canonical erasure
 counts on the repaired candidate. Its one pair and validation-inclusive
 whole-sequence timer likewise do not qualify S02 latency or contention. A
-[baseline-only installed Python S02 timing pilot](results/2026-10-07-python-s02-baseline-noise-pilot/README.md)
+[controlled installed-TypeScript S02 baseline pilot](results/2026-10-07-ts-s02-baseline-controlled/README.md)
+later separated direct SQLite verification from the whole product timer.
+Its five independently audited blocks had 15 measured sequences, no host
+warnings and a 114.934 ms (2.324%) block-median spread. The
+[frozen TypeScript S02 subset](s02-ts-comparison-protocol.json) then fixed
+five alternating pairs of 20 measured sequences per block before candidate
+timing. Its [paired diagnostic](results/2026-10-07-ts-s02-paired-integrated/README.md)
+passed 100 measured sequences per version and an independent raw, state and
+order audit. Pooled p50 was +2.870% and pooled p95 -0.256% on the candidate;
+all five paired block-p50 deltas were positive (+2.601% to +3.667%). Every
+pair had host-only paging warnings and no child swap, so no warning-free
+sensitivity estimate is available. This is a TypeScript S02 latency lead,
+not an equivalence or release verdict; contention remains open. The later
+Rust S02 candidate-only result is linked below.
+The subsequent [vector row-error repair](results/2026-10-07-vector-row-repair/README.md)
+changes the candidate engine source. The TypeScript S02 and other prior
+candidate latency observations remain exact-source diagnostics; affected
+cells need a rebuilt-artifact paired refresh before the final checkpoint.
+The [vector-repaired TypeScript S02 subset](s02-ts-vector-repaired-comparison-protocol.json)
+then bound source `3f29d649d`, rebuilt npm archives, the unchanged schedule
+and the campaign runner before candidate timing. Its
+[paired refresh](results/2026-10-07-ts-s02-vector-repaired-paired/README.md)
+passed all ten blocks and 200 independently checked whole sequences.
+Pooled p50/p95 changes were +3.308%/+1.370%; all five pair-p50 deltas were
+positive. Every pair had a host-only paging warning, so there is no
+warning-free sensitivity estimate. An independent order audit verified all
+nine idle gaps. The reopened-stage median lead is 147.193 ms, a diagnostic
+attribution target rather than a proven cause or release verdict.
+A [baseline-only installed Python S02 timing pilot](results/2026-10-07-python-s02-baseline-noise-pilot/README.md)
 subsequently separated the product timer from direct SQLite verification and
 retained five independently audited blocks, with three measured sequences
 each. Its block-median spread was 64.264 ms (1.20%), and reopened default-
@@ -97,8 +160,8 @@ p50/p95, and explicitly omits p99. The subsequent
 accepted all 100 samples per version. The candidate's pooled p50/p95 were
 +0.158%/+0.076% versus 0.8.26; all ten blocks had host swap-counter movement
 with zero measured-child swaps, so no warning-free sensitivity pair exists.
-TypeScript/Rust S02 timing, contention and the broader Phase 1 protocol
-remain ahead.
+That earlier run preceded TypeScript and Rust S02 timing. Contention and the
+broader Phase 1 protocol remain ahead.
 The later [integrated-candidate Python functional receipt](results/2026-10-07-python-integrated-candidate/README.md)
 uses a clean installed wheel containing both off-ladder landings. Its
 independent audit accepted 40 executed operations, one committed-closure
@@ -111,6 +174,16 @@ exercises the candidate-only Rust boundary through a separate Cargo package
 and retained real database. It is source-bound, not a published-crate install;
 0.8.26 has no Rust SDK peer. Its one run does not qualify S02 latency or the
 remaining Rust operation contracts.
+The [repaired-source Rust S02 refresh](results/2026-10-07-rust-sdk-s02-current-refresh/README.md)
+rebuilt that external consumer after the vector error fix and repeated its
+real-database sequence with direct reopened-state checks. This remains a
+single candidate-only functional run, not qualified Rust S02 timing.
+The later [frozen candidate-only Rust S02 subset](rust-s02-candidate-timing-protocol.json)
+used a five-block noise pilot before 100 fresh-process measurements. Its
+[independently audited timing result](results/2026-10-07-rust-s02-candidate-timing/README.md)
+has whole p50/p95 of 5,754.390/5,815.786 ms and a reopened-open p50 of
+4,767.522 ms. It is not a paired 0.8.26 comparison. The broader Phase 1
+protocol and bounded contention remain open.
 The later [integrated-candidate Python S02 paired run](results/2026-10-07-python-s02-paired-integrated/README.md)
 kept the earlier frozen workload, order and sample design while binding the
 post-Slice-132 wheel with both off-ladder landings. All 100 measured sequences
@@ -120,6 +193,14 @@ pair has a host swap-counter warning and one candidate child had a major
 fault. This is diagnostic and cannot establish equivalence or a release
 performance verdict. It supersedes the earlier Python S02 result for the
 integrated candidate, without freezing the broader Phase 1 protocol.
+The later [vector-repaired Python S02 subset](s02-python-vector-repaired-comparison-protocol.json)
+kept the workload and 100-sample-per-version design while binding source
+`3f29d649d`, its installed wheel and campaign code before timing. Its
+[paired refresh](results/2026-10-07-python-s02-vector-repaired-paired/README.md)
+passed ten blocks, 200 independently checked whole sequences and the
+execution-order audit. Pooled p50/p95 changes are +0.010%/+0.155%, with
+four warning-free pairs. Close and reopened-close stage leads persist;
+the small whole-sequence differences do not establish equivalence.
 The candidate subsequently changed with the graph traversal row-error
 [repair](results/2026-10-07-graph-arm-row-repair/README.md) at `3ce1a6352`.
 The prior functional receipts still describe their exact SHAs; final Phase 1
@@ -180,6 +261,29 @@ version pairs before current-candidate paired timing. It does not freeze the
 broader installed-SDK, S02, S03 or C01 protocol.
 The [pre-integration E01–E12 paired diagnostic](results/2026-10-07-e12-paired-current/README.md)
 passed all 20 blocks and found repeatable vector/hybrid median-latency leads.
+A later [integrated-candidate E01–E12 smoke](results/2026-10-07-e12-integrated-smoke/README.md)
+passed all twelve unchanged paths at 100 samples each with an independent
+audit. Because the candidate Rust tree changed, the
+[integrated E01–E12 paired subset](e12-integrated-comparison-protocol.json)
+refreezes the exact candidate source and tree before the paired refresh; it
+preserves the original workload, sample counts and order. The smoke itself is
+functional feasibility, not paired latency evidence.
+The [integrated-candidate paired diagnostic](results/2026-10-07-e12-paired-integrated/README.md)
+then passed all 20 blocks and its independent audit accepted all twelve cells.
+Its query blocks were warning-free; five lifecycle blocks carried host-only
+swap warnings, with zero measured-child swaps. Median within-pair p50 changes
+were +8.60% for vector stage, +7.99% for hybrid and +11.82% for populated
+open. These are investigation leads, not a performance-equivalence or release
+verdict. The archive is local and untracked pending final Gitleaks retention.
+The later [vector-repaired E01–E12 subset](e12-vector-repaired-comparison-protocol.json)
+froze product source `3f29d649d`, runner bytes and the same workload after an
+audited 12-path smoke. Its [paired refresh](results/2026-10-07-e12-vector-repaired-paired/README.md)
+passed 20 blocks and independently re-audited from the retained archive.
+Median within-pair p50 changes were +8.79% for vector stage, +8.04% for
+hybrid and +11.16% for populated open, each positive in all five pairs.
+Four blocks had host-only paging warnings and no measured-child swaps.
+These remain engine-boundary investigation leads; the installed-SDK and
+contention refreshes are separate obligations.
 A separate [futex profile](results/2026-10-07-vector-futex-profile/README.md)
 found about 2.48 times as many whole-process futex calls in the candidate
 query workload. The trace is attribution evidence, not an unprofiled latency
@@ -207,6 +311,13 @@ temporary build footprint before any heavy comparator re-ingest.
 | S02-L | Repeated open/close cycles with the same default model, including a retained closed engine handle and a later handle drop. Compare 0.8.26 with a candidate containing both off-ladder fixes at or after `ef4bb42da`. | Record close latency and process memory before open, after model use, after `close()`, and after handle drop for each version, with identical idle intervals and at least 100 valid cycles after baseline noise qualification. On Linux retain RSS plus `/proc/self/smaps_rollup` PSS/private bytes; mark unsupported fields elsewhere. The engine-owned embedder release at close is an intended change, checked separately from caller-owned and module-level model lifetimes. Preserve the focused ownership/deadlock tests as the contract oracle; allocator retention means RSS alone is diagnostic. |
 | S03 | Qualified LOCOMO, LongMemEval, MuSiQue or query-correctness cases selected for distinct filter, temporal, graph, evidence and memory load shapes. | Record subset selection, adaptation, answer-bearing fixtures used for basic validity, and denominators. Phase 1 measures workload cost and exercised paths, not the full gold-quality score. |
 | C01 | Matched native Mem0 warmed external client-to-materialized-top-10 LOCOMO cell. | Validate the pinned index before reuse; paid re-ingest has a $20 ceiling and requires checkpoint/resume/backoff. Report separately from 0.8.26 comparison. |
+
+The [C01 qualification check](results/2026-10-07-c01-qualification/README.md)
+found the pinned raw LOCOMO corpus and nonempty historical Docker volumes,
+but the external harness, configuration and output root required to bind the
+old index to the frozen input are missing. It records a raw-backed omitted
+cell, not a matched competitor timing result. The $20 re-ingest ceiling was
+not used.
 
 The [installed Python S02-L baseline-only pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
 qualified five environment-checked blocks and 100 fresh-process cycles. Its

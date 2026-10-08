@@ -1,0 +1,12 @@
+{
+  "false_ready_log": {
+    "error": "failed: false ready vector",
+    "manifest_hash_recomputed": true,
+    "rejected": true
+  },
+  "wrong_terminal_db": {
+    "error": "persisted terminal state mismatch",
+    "manifest_hash_recomputed": true,
+    "rejected": true
+  }
+}

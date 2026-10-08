@@ -1,0 +1,24 @@
+{
+  "attempts": [
+    {
+      "stage": "focused compile",
+      "observation": "rebuild_projections was unavailable without the operator feature",
+      "disposition": "Declared operator and test-hooks as required features for the test target; no database run occurred"
+    },
+    {
+      "stage": "first focused test",
+      "observation": "An assertion that all provider calls stayed at four failed: reopen had made 94 calls while the terminal projection still read Failed",
+      "disposition": "The reopen performs vector-equivalence probes. The revised oracle counts only calls for the failed document body, and the initial test run is excluded"
+    },
+    {
+      "stage": "retained pilot",
+      "observation": "run-01 used binary SHA-256 be9894d3a85f0dc25fc8fc34000b389accc29ee6987a64c5b8805c6f3e7d8a58 from before rustfmt rather than the binary built after source commit",
+      "disposition": "Excluded from the five-run result; pilot output and SQLite file remain local. The committed-source binary was rebuilt to SHA-256 0957d1081a32550e61b0f2f681498d7cdd23ca85095383c89ef1aad9d6f165b1"
+    },
+    {
+      "stage": "campaign preflight",
+      "observation": "A hardcoded full source SHA in the local launcher did not match the actual commit; assertion failed before creating measured run directories",
+      "disposition": "Resolved the source SHA from Git and captured it in the manifest before executing any measured run"
+    }
+  ]
+}

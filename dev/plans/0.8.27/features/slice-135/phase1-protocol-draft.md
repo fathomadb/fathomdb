@@ -505,6 +505,12 @@ fresh-process runs, then cap removal and fresh reopen. Its independent audit
 accepted all five exact-state records and rejected two recomputed-hash
 mutations. It closes that bounded capacity row, not permission, provider or
 in-commit crash faults.
+The [persistent provider diagnostic](results/2026-10-08-persistent-provider-current/README.md)
+adds five exact-source fresh-process runs through failed projection, close,
+reopen, explicit rebuild and final reopen. Independent log and SQLite state
+audits accepted all five and rejected two tampered receipts with recomputed
+hashes. It closes that bounded terminal-failure/rebuild row; other queue
+positions, installed FFI containment and in-commit crash remain open.
 
 | Fault or schedule | State oracle after real-database reopen |
 | --- | --- |

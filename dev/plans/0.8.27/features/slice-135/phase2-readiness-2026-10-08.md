@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 2 query correctness readiness — 2026-10-08
-status: THIRD_DETERMINISTIC_GRAPH_ERASURE_AUDITED
+status: VECTOR_FIDELITY_PROTOCOL_FROZEN_BEFORE_SCORE
 target_release: 0.8.27
 ---
 
@@ -53,6 +53,21 @@ pre-fusion vector-stage measurement seam and label any public hybrid output
 as a distinct diagnostic. Do not compare a mixed text/vector result to the
 exact vector oracle.
 
+The [frozen vector fidelity protocol](phase2-vector-fidelity-protocol.json)
+uses 1,000 locally cached real documents and 100 title-or-lead queries,
+25 from each of four source classes. Its installed-wheel measurement copy
+removes the lexical index rows after projection, verifies that canonical and
+vector storage bytes are preserved, and requires zero text-only hits after
+reopen. This isolates vector-stage ordering while retaining the pinned
+product wheel and embedder. Source text, queries, vectors and database copies
+remain outside Git. A separate 32-row paired pilot exercised the complete
+runner and independent audit before freezing; malformed query, branch, ID,
+wheel, pairing and persisted-body copies were rejected, while plausible
+wrong vector hits lowered the recomputed score. That pilot is qualification
+only and is not the 100-query fidelity result. The indexed SQLite copy is
+intentionally modified for measurement, so this cell must be reported as a
+vector-stage fidelity test seam, not ordinary hybrid search behavior.
+
 ## Exact identities and available local inputs
 
 | Input | Verified identity or location | Boundary |
@@ -78,15 +93,15 @@ new paired Phase 2 protocol or independent scorer is qualified.
 
 ## Immediate execution path
 
-1. Qualify equivalent TypeScript and Rust candidate-only contract routes
-   where the public contract permits comparison. Add targeted lifecycle or
-   fault cases only where a scored query claim depends on them.
-2. Freeze the broader gold
-   protocol with class denominators, corpus/license qualifications, omission
-   rules and independent score recomputation before scored runs.
-3. Run exact-f32 fidelity separately from judged relevance, evidence and
-   memory classes. Qualify checkpoint/resume, backoff, completeness and the
-   approved spending ceiling before any priced answer-quality call.
+1. Complete verification of the frozen vector runner and auditor, then run
+   the 100-query paired fresh-database fidelity cell and independently
+   recompute every query score from retained raw vectors and hits.
+2. Freeze and negatively qualify the judged relevance, evidence and memory
+   protocols using the already qualified local source mappings. Score each
+   class separately with explicit denominators and omissions.
+3. Qualify checkpoint/resume, backoff, completeness and the approved spending
+   ceiling before any priced paired answer-quality call. Add TypeScript, Rust
+   or fault cells when a specific scored claim depends on them.
 
 The [verified Phase 1 raw bundle](results/2026-10-08-raw-retention-review/README.md)
 remains local. Preserve it through Phase 2 and transfer it before any

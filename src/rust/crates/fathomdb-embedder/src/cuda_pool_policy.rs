@@ -1597,7 +1597,29 @@ mod driver {
         };
         DECISION.get().map(|decision| decision.report(context.ordinal(), Some(path)))
     }
+
+    /// The private pool's counters and its decided max size, after
+    /// synchronizing the decision's first context; `None` without a private
+    /// decision.
+    #[cfg(test)]
+    pub(crate) fn private_pool_counters() -> Result<Option<(PoolCounters, u64)>, DriverFailure> {
+        let Some(Decision::Private(private)) = DECISION.get() else {
+            return Ok(None);
+        };
+        private.first_context.synchronize().map_err(failure)?;
+        let counters = CudarcDriver.pool_counters(&private.pool)?;
+        Ok(Some((counters, private.max_size_bytes)))
+    }
 }
+
+#[cfg(all(
+    test,
+    feature = "tegra-pool",
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+pub(crate) use driver::private_pool_counters;
 
 #[cfg(all(
     feature = "tegra-pool",

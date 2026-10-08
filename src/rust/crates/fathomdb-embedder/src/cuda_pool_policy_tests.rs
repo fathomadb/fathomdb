@@ -1438,6 +1438,55 @@ fn gpu_orin_64_builds_every_device_on_a_three_gib_private_pool() {
     }
 }
 
+/// CB1 and CB2 from the pool's own counters (ruling 34): an embedder on
+/// `cuda:0` (cached weights; run with `FATHOMDB_EMBED_DEVICE=cuda:0`) that
+/// embeds realistic batches keeps `reserved_high` within the decided max
+/// size, and once it is dropped and the context synchronized the pool holds
+/// nothing: the decision's retained first context owns no allocations.
+#[cfg(all(
+    feature = "tegra-pool",
+    feature = "embed-cuda",
+    target_os = "linux",
+    target_arch = "aarch64"
+))]
+#[test]
+#[ignore = "needs the Jetson AGX Orin 64 GB; run under flock /tmp/fathomdb-gpu.lock"]
+fn gpu_orin_64_pool_stays_under_max_size_and_is_empty_after_the_embedder_drops() {
+    use fathomdb_embedder_api::Embedder;
+
+    let init = crate::cuda_driver_init::run_module_load_early_init(true, true);
+    assert_eq!(init, ModuleLoadInit::Ran);
+    let embedder = crate::CandleBgeEmbedder::new().expect("embedder on cuda:0");
+    let passages: Vec<String> = (0..64)
+        .map(|i| {
+            format!(
+                "Passage {i}: the Jetson AGX Orin shares one LPDDR5 memory between its CPU and \
+                 GPU, so a CUDA memory pool that never returns its reservation competes with \
+                 every other process on the module. Record {i} of the batch repeats this \
+                 sentence with its own number so that the tokenized lengths stay realistic."
+            )
+        })
+        .collect();
+    let inputs: Vec<&str> = passages.iter().map(String::as_str).collect();
+    for _ in 0..4 {
+        let vectors = embedder.embed_batch(&inputs).expect("embed batch");
+        assert_eq!(vectors.len(), inputs.len());
+    }
+
+    let (loaded, max_size) =
+        private_pool_counters().expect("pool counters").expect("private decision");
+    println!("pool-counters loaded: {loaded:?} max_size={max_size}");
+    assert_eq!(max_size, 3 * GIB);
+    assert!(loaded.reserved_high > 0, "{loaded:?}");
+    assert!(loaded.reserved_high <= max_size, "{loaded:?} max_size={max_size}");
+
+    drop(embedder);
+    let (closed, _) = private_pool_counters().expect("pool counters").expect("private decision");
+    println!("pool-counters closed: {closed:?}");
+    assert_eq!(closed.reserved_current, 0, "{closed:?}");
+    assert_eq!(closed.used_current, 0, "{closed:?}");
+}
+
 #[cfg(all(
     feature = "tegra-pool",
     feature = "embed-cuda",

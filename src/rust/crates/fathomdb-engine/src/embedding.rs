@@ -104,11 +104,28 @@ pub(crate) fn embedder_required_for(affected_kinds: &[String]) -> EmbedderRequir
 
 pub(crate) fn map_runtime_embedder_error(err: RuntimeEmbedderError) -> EngineError {
     match err {
-        RuntimeEmbedderError::Failed { .. }
-        | RuntimeEmbedderError::Timeout
-        | RuntimeEmbedderError::CudaPoolExhausted { .. }
-        | RuntimeEmbedderError::CudaContextLost { .. }
-        | RuntimeEmbedderError::CudaPrivateBuildRefused { .. } => EngineError::Embedder,
+        RuntimeEmbedderError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            EngineError::CudaPoolExhausted { ordinal, max_size_bytes, message }
+        }
+        RuntimeEmbedderError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => EngineError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        },
+        RuntimeEmbedderError::CudaPrivateBuildRefused { ordinal, message } => {
+            EngineError::CudaPrivateBuildRefused { ordinal, message }
+        }
+        RuntimeEmbedderError::Failed { .. } | RuntimeEmbedderError::Timeout => {
+            EngineError::Embedder
+        }
+        // `EmbedderError` is `#[non_exhaustive]`; a kind added after this
+        // release keeps the untyped embedder class.
         _ => EngineError::Embedder,
     }
 }
@@ -158,16 +175,18 @@ impl Engine {
     /// Returns [`EngineError::EmbedderNotConfigured`] without a provider,
     /// [`EngineError::Overloaded`] when admission or queue wait expires before
     /// service, [`EngineError::Closing`] on close cancellation, and
-    /// [`EngineError::Embedder`] for a started provider error or timeout.
+    /// [`EngineError::Embedder`] for a started provider error or timeout. A
+    /// provider failure of a CUDA pool kind keeps its typed variant
+    /// ([`EngineError::CudaPoolExhausted`], [`EngineError::CudaContextLost`],
+    /// [`EngineError::CudaPrivateBuildRefused`]).
     pub fn embed_text(&self, text: &str) -> Result<Vec<f32>, EngineError> {
         self.ensure_open()?;
         dispatch_embed_vector(&self.embed_dispatch, text).map_err(|error| match error {
             DispatchError::NotConfigured => EngineError::EmbedderNotConfigured,
             DispatchError::Saturated | DispatchError::QueuedExpired => EngineError::Overloaded,
             DispatchError::Closing | DispatchError::Cancelled => EngineError::Closing,
-            DispatchError::StartedTimeout
-            | DispatchError::Provider(_)
-            | DispatchError::InvalidOutput => EngineError::Embedder,
+            DispatchError::Provider(error) => map_runtime_embedder_error(error),
+            DispatchError::StartedTimeout | DispatchError::InvalidOutput => EngineError::Embedder,
             DispatchError::Panic(payload) => std::panic::resume_unwind(payload),
         })
     }

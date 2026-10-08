@@ -290,9 +290,9 @@ pub use read::{NodeRecord, OpStoreRow, OperationalStateRecordV1};
 pub use reader_pool::CacheStatusReply;
 pub(crate) use reader_pool::ReaderWorkerPool;
 pub use record_lifecycle::{InitialState, LifecycleState};
-pub use rerank::rerank_passages;
 #[doc(hidden)]
 pub use rerank::{rerank_fused, try_rerank_fused};
+pub use rerank::{rerank_passages, RerankPassagesError};
 pub use runtime_configuration::{
     configure_runtime, EngineConfig, EngineConfigurationError, RuntimeConfiguration,
     RuntimeConfigurationError, RuntimeSqliteMode,

@@ -578,11 +578,8 @@ impl Engine {
         // only; see `ENV_GPU_ALLOCATION_WITNESS`.
         let gpu_allocation_witness = witness_gpu_allocation_if_requested(&device_resolution)?;
         let download_start = DownloadInstant::now();
-        let weights = fathomdb_embedder::loader::load_pinned_default_embedder().map_err(|err| {
-            EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
-                message: format!("default embedder loader: {err}"),
-            })
-        })?;
+        let weights = fathomdb_embedder::loader::load_pinned_default_embedder()
+            .map_err(|err| default_embedder_load_error("loader", err))?;
         let events = weights.events.clone();
         let download_ms = if weights.bytes_downloaded > 0 {
             Some(u64::try_from(download_start.elapsed().as_millis()).unwrap_or(u64::MAX))
@@ -594,11 +591,7 @@ impl Engine {
                 weights,
                 &device_resolution,
             )
-            .map_err(|err| {
-                EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
-                    message: format!("default embedder construct: {err}"),
-                })
-            })?;
+            .map_err(|err| default_embedder_load_error("construct", err))?;
         let embedder: Arc<dyn Embedder> = Arc::new(embedder);
         let identity = embedder.identity();
         let loader_info =
@@ -1799,6 +1792,39 @@ pub(crate) fn parse_gpu_allocation_witness_opt_in(raw: Option<&str>) -> Result<b
                 "{ENV_GPU_ALLOCATION_WITNESS} must be 1/true or 0/false, got {other:?}"
             )),
         },
+    }
+}
+
+/// Map a default-embedder load failure at `stage` (`loader` or `construct`).
+/// The three CUDA pool kinds become their typed open variants rather than an
+/// untyped embedder failure.
+#[cfg(feature = "default-embedder")]
+fn default_embedder_load_error(
+    stage: &str,
+    error: fathomdb_embedder::loader::EmbedderLoadError,
+) -> EngineOpenError {
+    use fathomdb_embedder::loader::EmbedderLoadError;
+    match error {
+        EmbedderLoadError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            EngineOpenError::CudaPoolExhausted { ordinal, max_size_bytes, message }
+        }
+        EmbedderLoadError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => EngineOpenError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        },
+        EmbedderLoadError::CudaPrivateBuildRefused { ordinal, message } => {
+            EngineOpenError::CudaPrivateBuildRefused { ordinal, message }
+        }
+        other => EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
+            message: format!("default embedder {stage}: {other}"),
+        }),
     }
 }
 

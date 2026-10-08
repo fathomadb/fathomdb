@@ -172,7 +172,7 @@ impl Engine {
                 return Err(EngineError::InvalidFilter { reason });
             }
             Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                return Err(EngineError::RerankerDevicePolicy(error));
+                return Err(EngineError::from(error));
             }
             Err(SearchReaderError::FrozenRead(_)) => {
                 return Err(EngineError::Evidence(EvidenceErrorV1::unavailable()))
@@ -633,7 +633,7 @@ impl Engine {
                 }
                 Err(SearchReaderError::Evidence(error)) => return Err(error),
                 Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                    return Err(EngineError::RerankerDevicePolicy(error));
+                    return Err(EngineError::from(error));
                 }
                 Err(SearchReaderError::FrozenRead(error)) => {
                     return Err(EngineError::FrozenRead(error));
@@ -1061,7 +1061,7 @@ impl Engine {
                 }
                 Err(SearchReaderError::Evidence(error)) => return Err(error),
                 Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                    return Err(EngineError::RerankerDevicePolicy(error));
+                    return Err(EngineError::from(error));
                 }
                 Err(SearchReaderError::FrozenRead(error)) => {
                     return Err(EngineError::FrozenRead(error));
@@ -1137,9 +1137,7 @@ impl Engine {
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 Err(EngineError::InvalidFilter { reason })
             }
-            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                Err(EngineError::RerankerDevicePolicy(error))
-            }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => Err(EngineError::from(error)),
             Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
             Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
                 Err(EngineError::VectorEquivalenceMismatch { reason })

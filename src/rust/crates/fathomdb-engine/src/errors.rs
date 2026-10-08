@@ -98,6 +98,28 @@ pub enum EngineOpenError {
     EmbedDevicePolicy(EmbedDevicePolicyError),
     /// The cross-encoder's independent CPU/CUDA policy could not be honored.
     RerankerDevicePolicy(RerankerDevicePolicyError),
+    /// The default embedder's private CUDA memory pool on device `ordinal`
+    /// reached its cap of `max_size_bytes` while the model was loaded.
+    CudaPoolExhausted {
+        ordinal: usize,
+        max_size_bytes: u64,
+        message: String,
+    },
+    /// The recorded CUDA context (`recorded_context_id`) is gone;
+    /// `current_context_id` is `None` when the primary context is inactive.
+    /// `driver_error` exposed it during `operation`.
+    CudaContextLost {
+        recorded_context_id: u64,
+        current_context_id: Option<u64>,
+        driver_error: String,
+        operation: String,
+    },
+    /// Building another private-pool CUDA context on device `ordinal` failed;
+    /// no context on another allocator is built in its place.
+    CudaPrivateBuildRefused {
+        ordinal: usize,
+        message: String,
+    },
     Io {
         message: String,
     },
@@ -142,24 +164,132 @@ impl Display for EngineOpenError {
             ),
             Self::Embedder(err) => match err {
                 RuntimeEmbedderError::Timeout => write!(f, "embedder timeout during open"),
-                RuntimeEmbedderError::Failed { message }
-                | RuntimeEmbedderError::CudaPoolExhausted { message, .. }
-                | RuntimeEmbedderError::CudaPrivateBuildRefused { message, .. } => {
+                RuntimeEmbedderError::Failed { message } => {
                     write!(f, "embedder failure during open: {message}")
                 }
-                RuntimeEmbedderError::CudaContextLost { driver_error, operation, .. } => {
-                    write!(f, "embedder failure during open: CUDA context lost at {operation}: {driver_error}")
+                RuntimeEmbedderError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+                    write_pool_exhausted(f, *ordinal, *max_size_bytes, message)
                 }
+                RuntimeEmbedderError::CudaContextLost {
+                    recorded_context_id,
+                    current_context_id,
+                    driver_error,
+                    operation,
+                } => write_context_lost(
+                    f,
+                    *recorded_context_id,
+                    *current_context_id,
+                    driver_error,
+                    operation,
+                ),
+                RuntimeEmbedderError::CudaPrivateBuildRefused { ordinal, message } => {
+                    write_private_build_refused(f, *ordinal, message)
+                }
+                // `EmbedderError` is `#[non_exhaustive]`; every variant known
+                // to this release has an arm above.
                 _ => write!(f, "embedder failure during open"),
             },
             Self::EmbedDevicePolicy(error) => error.fmt(f),
             Self::RerankerDevicePolicy(error) => error.fmt(f),
+            Self::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+                write_pool_exhausted(f, *ordinal, *max_size_bytes, message)
+            }
+            Self::CudaContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            } => write_context_lost(
+                f,
+                *recorded_context_id,
+                *current_context_id,
+                driver_error,
+                operation,
+            ),
+            Self::CudaPrivateBuildRefused { ordinal, message } => {
+                write_private_build_refused(f, *ordinal, message)
+            }
             Self::Io { message } => write!(f, "database I/O error: {message}"),
         }
     }
 }
 
 impl Error for EngineOpenError {}
+
+fn write_pool_exhausted(
+    f: &mut Formatter<'_>,
+    ordinal: usize,
+    max_size_bytes: u64,
+    message: &str,
+) -> std::fmt::Result {
+    write!(
+        f,
+        "the private CUDA memory pool of device {ordinal} reached its cap of \
+         {max_size_bytes} bytes: {message}"
+    )
+}
+
+fn write_context_lost(
+    f: &mut Formatter<'_>,
+    recorded_context_id: u64,
+    current_context_id: Option<u64>,
+    driver_error: &str,
+    operation: &str,
+) -> std::fmt::Result {
+    match current_context_id {
+        Some(current) => write!(
+            f,
+            "CUDA context {recorded_context_id} was replaced by context {current} \
+             at {operation}: {driver_error}"
+        ),
+        None => write!(
+            f,
+            "CUDA context {recorded_context_id} is gone (no current context) \
+             at {operation}: {driver_error}"
+        ),
+    }
+}
+
+fn write_private_build_refused(
+    f: &mut Formatter<'_>,
+    ordinal: usize,
+    message: &str,
+) -> std::fmt::Result {
+    write!(f, "could not build a private-pool CUDA context on device {ordinal}: {message}")
+}
+
+/// Maps an embedder failure during `Engine::open`. The three CUDA pool kinds
+/// become their typed open variants; every other failure stays
+/// [`EngineOpenError::Embedder`].
+impl From<RuntimeEmbedderError> for EngineOpenError {
+    fn from(error: RuntimeEmbedderError) -> Self {
+        match error {
+            RuntimeEmbedderError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+                Self::CudaPoolExhausted { ordinal, max_size_bytes, message }
+            }
+            RuntimeEmbedderError::CudaContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            } => Self::CudaContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            },
+            RuntimeEmbedderError::CudaPrivateBuildRefused { ordinal, message } => {
+                Self::CudaPrivateBuildRefused { ordinal, message }
+            }
+            RuntimeEmbedderError::Failed { .. } | RuntimeEmbedderError::Timeout => {
+                Self::Embedder(error)
+            }
+            // `EmbedderError` is `#[non_exhaustive]`; a kind added after this
+            // release keeps the untyped embedder class.
+            other => Self::Embedder(other),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EngineError {
@@ -171,6 +301,35 @@ pub enum EngineError {
     /// A forced cross-encoder CUDA policy could not be honored while loading or
     /// running the reranker. CPU fallback is forbidden for this request.
     RerankerDevicePolicy(RerankerDevicePolicyError),
+    /// The process allocates from a private CUDA memory pool on device
+    /// `ordinal`, and the driver reported `CUDA_ERROR_OUT_OF_MEMORY` because the
+    /// pool reached its cap of `max_size_bytes`. Raised by embedding and
+    /// reranking under every device policy. The device stays CUDA: the next
+    /// request runs normally once memory is free.
+    CudaPoolExhausted {
+        ordinal: usize,
+        max_size_bytes: u64,
+        message: String,
+    },
+    /// The CUDA context the process recorded (`recorded_context_id`) is gone:
+    /// the primary context is inactive (`current_context_id` is `None`) or was
+    /// replaced. `driver_error` is the driver error that exposed it and
+    /// `operation` the call that received it. CUDA cannot be used again in
+    /// this process.
+    CudaContextLost {
+        recorded_context_id: u64,
+        current_context_id: Option<u64>,
+        driver_error: String,
+        operation: String,
+    },
+    /// The process allocates from a private CUDA memory pool, and building
+    /// another context on it for device `ordinal` failed for a reason other
+    /// than exhaustion or context loss. No context on another allocator is
+    /// built in its place.
+    CudaPrivateBuildRefused {
+        ordinal: usize,
+        message: String,
+    },
     /// Pending projection work requires an embedder that this session did not
     /// configure. Unlike [`Self::EmbedderNotConfigured`], this is a drain-time
     /// configuration outcome: the accepted write remains durable and can be
@@ -306,6 +465,35 @@ pub enum EngineError {
     },
 }
 
+/// Maps a reranker failure. The three CUDA pool kinds become their typed
+/// variants; every other reranker error stays
+/// [`EngineError::RerankerDevicePolicy`].
+impl From<RerankerDevicePolicyError> for EngineError {
+    fn from(error: RerankerDevicePolicyError) -> Self {
+        match error {
+            RerankerDevicePolicyError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+                Self::CudaPoolExhausted { ordinal, max_size_bytes, message }
+            }
+            RerankerDevicePolicyError::CudaContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            } => Self::CudaContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            },
+            RerankerDevicePolicyError::CudaPrivateBuildRefused { ordinal, message } => {
+                Self::CudaPrivateBuildRefused { ordinal, message }
+            }
+            RerankerDevicePolicyError::InvalidPolicy(_)
+            | RerankerDevicePolicyError::Resolution(_) => Self::RerankerDevicePolicy(error),
+        }
+    }
+}
+
 impl From<ProvenanceError> for EngineError {
     fn from(error: ProvenanceError) -> Self {
         Self::Provenance(error)
@@ -376,6 +564,24 @@ impl Display for EngineError {
             Self::Embedder => write!(f, "embedder error"),
             Self::EmbedderNotConfigured => write!(f, "embedder is not configured"),
             Self::RerankerDevicePolicy(error) => error.fmt(f),
+            Self::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+                write_pool_exhausted(f, *ordinal, *max_size_bytes, message)
+            }
+            Self::CudaContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            } => write_context_lost(
+                f,
+                *recorded_context_id,
+                *current_context_id,
+                driver_error,
+                operation,
+            ),
+            Self::CudaPrivateBuildRefused { ordinal, message } => {
+                write_private_build_refused(f, *ordinal, message)
+            }
             Self::EmbedderRequired(required) => write!(
                 f,
                 "{} requires a configured embedder; see {}",
@@ -455,6 +661,9 @@ impl EngineError {
             Self::Embedder => "EmbedderError",
             Self::EmbedderNotConfigured => "EmbedderNotConfiguredError",
             Self::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
+            Self::CudaPoolExhausted { .. } => "CudaPoolExhaustedError",
+            Self::CudaContextLost { .. } => "CudaContextLostError",
+            Self::CudaPrivateBuildRefused { .. } => "CudaPrivateBuildRefusedError",
             Self::EmbedderRequired(_) => "EmbedderRequiredError",
             Self::KindNotVectorIndexed => "KindNotVectorIndexedError",
             Self::EmbedderDimensionMismatch { .. } => "EmbedderDimensionMismatchError",

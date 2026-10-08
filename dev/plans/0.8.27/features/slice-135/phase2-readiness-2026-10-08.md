@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 2 query correctness readiness — 2026-10-08
-status: SECOND_DETERMINISTIC_MATRIX_AUDITED
+status: THIRD_DETERMINISTIC_GRAPH_ERASURE_AUDITED
 target_release: 0.8.27
 ---
 
@@ -22,6 +22,9 @@ oracles on the same installed Python identities.
 The [evidence and memory input qualification](phase2-evidence-memory-gold-qualification-2026-10-08.md)
 records eligible source mappings and class limits without promoting an
 unscored product result.
+The [paired graph, evidence and erasure contract](results/2026-10-08-phase2-graph-evidence/README.md)
+adds raw-table erasure and reopened graph witnesses for both installed Python
+identities.
 
 ## Exact identities and available local inputs
 
@@ -48,10 +51,9 @@ new paired Phase 2 protocol or independent scorer is qualified.
 
 ## Immediate execution path
 
-1. Extend the audited installed-Python cells with current-schema graph,
-   evidence, erasure and lifecycle cases using independently specified
-   results. Qualify equivalent TypeScript and Rust candidate-only routes
-   where the public contract permits comparison.
+1. Qualify equivalent TypeScript and Rust candidate-only contract routes
+   where the public contract permits comparison. Add targeted lifecycle or
+   fault cases only where a scored query claim depends on them.
 2. Freeze the broader gold
    protocol with class denominators, corpus/license qualifications, omission
    rules and independent score recomputation before scored runs.

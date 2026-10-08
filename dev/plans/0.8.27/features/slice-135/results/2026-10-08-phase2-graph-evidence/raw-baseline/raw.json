@@ -1,0 +1,121 @@
+{
+  "database_sha256": "bbb36ee2acfba139f20b198c39fa94bf9aab7d75254634601efa6e42794b918f",
+  "environment": {
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "python_executable": "/usr/bin/python3.12",
+    "python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]"
+  },
+  "fixture_sha256": "3175982b7a04e719d84badcbe6faddd108f9c744366fb209bf060301dd8d1022",
+  "identity": {
+    "module_path": "/tmp/slice135-python-venv-baseline-f99e002/lib/python3.12/site-packages/fathomdb/__init__.py",
+    "native_path": "/tmp/slice135-python-venv-baseline-f99e002/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so"
+  },
+  "native_sha256": "269fafc1c696244d05f2eabea19b23cfba6de79f5041b1123fe10589c46c51dc",
+  "observations": {
+    "after_erase": {
+      "evidence_hits": [],
+      "graph_depth2": [
+        {
+          "body": "Neighbor node B beta",
+          "kind": "doc",
+          "logical_id": "B"
+        },
+        {
+          "body": "Hop-2 node C gamma",
+          "kind": "doc",
+          "logical_id": "C"
+        },
+        {
+          "body": "Direct leaf D delta",
+          "kind": "doc",
+          "logical_id": "D"
+        }
+      ]
+    },
+    "after_reopen": {
+      "evidence_hits": [],
+      "graph_depth2": [
+        {
+          "body": "Neighbor node B beta",
+          "kind": "doc",
+          "logical_id": "B"
+        },
+        {
+          "body": "Hop-2 node C gamma",
+          "kind": "doc",
+          "logical_id": "C"
+        },
+        {
+          "body": "Direct leaf D delta",
+          "kind": "doc",
+          "logical_id": "D"
+        }
+      ]
+    },
+    "before": {
+      "evidence_hits": [
+        {
+          "body": "pythonevidenceneedle",
+          "branch": "text",
+          "id_space": "logical",
+          "id_value": "evidence-claim",
+          "kind": "fact",
+          "source_id": "evidence-source"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "artifact_revision_id": "evidence-claim-r1",
+          "result_index": 0
+        }
+      ],
+      "graph_depth1": [
+        {
+          "body": "Neighbor node B beta",
+          "kind": "doc",
+          "logical_id": "B"
+        },
+        {
+          "body": "Direct leaf D delta",
+          "kind": "doc",
+          "logical_id": "D"
+        }
+      ],
+      "graph_depth2": [
+        {
+          "body": "Neighbor node B beta",
+          "kind": "doc",
+          "logical_id": "B"
+        },
+        {
+          "body": "Hop-2 node C gamma",
+          "kind": "doc",
+          "logical_id": "C"
+        },
+        {
+          "body": "Direct leaf D delta",
+          "kind": "doc",
+          "logical_id": "D"
+        }
+      ],
+      "resolved": {
+        "canonical_source_body": "canonical evidence bytes",
+        "evidence_text": "canonical evidence bytes",
+        "representative_arm": "text",
+        "source_revision_id": "evidence-source-r1"
+      }
+    },
+    "erase": {
+      "edges_excised": 0,
+      "nodes_excised": 2,
+      "source_ref": "evidence-source"
+    }
+  },
+  "protocol_sha256": "49a848abab6e87d139cc24aee0468900cf3004654b60bf0c071538f2e85bb74f",
+  "runner_sha256": "4f217f36726d2dbf8eba191461e26838f5b8b51286f54439b506ea7c8eeee5d2",
+  "schema_version": 1,
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "sqlite_integrity_check": "ok",
+  "version": "baseline",
+  "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+}

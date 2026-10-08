@@ -1,0 +1,64 @@
+{
+  "controls": [
+    {
+      "error_type": "ValueError",
+      "message": "before: graph/evidence gold outcome mismatch",
+      "rejected": true,
+      "scenario": "wrong_graph_id"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "before: graph/evidence gold outcome mismatch",
+      "rejected": true,
+      "scenario": "wrong_resolved_evidence"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "erase: graph/evidence gold outcome mismatch",
+      "rejected": true,
+      "scenario": "wrong_erase_count"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "after_reopen: graph/evidence gold outcome mismatch",
+      "rejected": true,
+      "scenario": "stale_reopened_hit"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "graph/evidence phase set missing or changed",
+      "rejected": true,
+      "scenario": "missing_phase"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "wheel SHA-256 mismatch",
+      "rejected": true,
+      "scenario": "wrong_wheel"
+    },
+    {
+      "error_type": "FileNotFoundError",
+      "message": "[Errno 2] No such file or directory: '/tmp/slice135-graph-control-uiba1jno/missing/raw.json'",
+      "rejected": true,
+      "scenario": "missing_pair"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "persisted graph/evidence rows differ from authored fixture",
+      "rejected": true,
+      "scenario": "persisted_body_tamper"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "persisted graph/evidence rows differ from authored fixture",
+      "rejected": true,
+      "scenario": "fts_residue"
+    },
+    {
+      "error_type": "ValueError",
+      "message": "fixture or runner SHA-256 mismatch",
+      "rejected": true,
+      "scenario": "altered_fixture"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135",
+  "protocol_sha256": "49a848abab6e87d139cc24aee0468900cf3004654b60bf0c071538f2e85bb74f",
+  "runs": [
+    {
+      "version": "baseline",
+      "python": "/tmp/slice135-python-venv-baseline-f99e002/bin/python",
+      "runner": "scripts/slice135_phase2_graph_evidence_runner.py",
+      "protocol": "dev/plans/0.8.27/features/slice-135/phase2-graph-evidence-protocol.json",
+      "fixture": "dev/plans/0.8.27/features/slice-135/phase2-graph-evidence-fixture.json",
+      "wheel": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/baseline.whl",
+      "output": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-graph-evidence/raw-baseline",
+      "exit_code": 0
+    },
+    {
+      "version": "candidate",
+      "python": "/tmp/slice135-current-venv-224e44/bin/python",
+      "runner": "scripts/slice135_phase2_graph_evidence_runner.py",
+      "protocol": "dev/plans/0.8.27/features/slice-135/phase2-graph-evidence-protocol.json",
+      "fixture": "dev/plans/0.8.27/features/slice-135/phase2-graph-evidence-fixture.json",
+      "wheel": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/candidate.whl",
+      "output": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-graph-evidence/raw-candidate",
+      "exit_code": 0
+    }
+  ],
+  "audit": {
+    "python": "python3",
+    "script": "scripts/slice135_phase2_graph_evidence_audit.py",
+    "output": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-graph-evidence/audit.json",
+    "exit_code": 0
+  }
+}

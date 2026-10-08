@@ -13,6 +13,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import slice135_python_s01_integrated_audit as audit  # noqa: E402
 
 
+def test_archived_campaign_runner_must_match_freeze(tmp_path: Path) -> None:
+    campaign = tmp_path / "campaign.py"
+    campaign.write_text("print('campaign')\n")
+    audit.check_campaign_runner(
+        {"campaign_runner_sha256": audit.base._hash(campaign)}, campaign
+    )
+    with pytest.raises(ValueError, match="campaign runner"):
+        audit.check_campaign_runner(
+            {"campaign_runner_sha256": "0" * 64}, campaign
+        )
+
+
 def test_order_audit_rejects_missing_and_wrong_role() -> None:
     expected = [(32, 1, "baseline"), (32, 1, "candidate")]
     records = [

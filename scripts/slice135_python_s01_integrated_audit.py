@@ -15,6 +15,13 @@ import slice135_python_s01_pair_audit as base
 KINDS = ("text", "vector", "hybrid")
 
 
+def check_campaign_runner(specification: dict, path: Path) -> None:
+    """Bind the archived driver when the frozen protocol declares its hash."""
+    expected = specification.get("campaign_runner_sha256")
+    if expected is not None and base._hash(path) != expected:
+        raise ValueError("archived campaign runner differs from frozen protocol")
+
+
 def check_run_order(
     records: list[dict], expected: list[tuple[int, int, str]], protocol_sha: str
 ) -> None:
@@ -99,6 +106,7 @@ def audit_collection(root: Path, protocol: Path) -> dict:
         raise ValueError("archived frozen protocol bytes differ")
     if base._hash(root / "block-runner.py") != specification["block_runner_sha256"]:
         raise ValueError("archived block runner differs from protocol")
+    check_campaign_runner(specification, root / "campaign.py")
     for role in ("baseline", "candidate"):
         if base._hash(root / f"{role}.whl") != specification[role]["wheel_sha256"]:
             raise ValueError(f"{role} wheel bytes differ from frozen protocol")

@@ -76,6 +76,13 @@ def test_refrozen_protocol_requires_an_expected_byte_hash(tmp_path: Path) -> Non
         campaign.run(SimpleNamespace(freeze=path, freeze_sha256=None))
 
 
+def test_rejects_campaign_runner_drift_when_frozen() -> None:
+    changed = frozen()
+    changed["campaign_runner_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="campaign runner"):
+        campaign.planned_blocks(changed)
+
+
 def test_rejects_sample_and_size_drift() -> None:
     changed = frozen()
     changed["warm_samples_per_cell"] = 100

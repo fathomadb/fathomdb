@@ -42,6 +42,9 @@ def planned_blocks(specification: dict) -> list[dict]:
     """Expand the frozen pair schedule, rejecting changed identity or counts."""
     if specification.get("status") != "FROZEN_S01_PYTHON_PAIRED":
         raise ValueError("S01 protocol is not frozen")
+    campaign_hash = specification.get("campaign_runner_sha256")
+    if campaign_hash is not None and campaign_hash != sha256(Path(__file__)):
+        raise ValueError("campaign runner differs from frozen S01 protocol")
     if specification.get("baseline", {}).get("source_sha") != BASELINE_SOURCE:
         raise ValueError("baseline source differs from integrated S01 freeze")
     candidate_source = specification.get("candidate", {}).get("source_sha")

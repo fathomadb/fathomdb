@@ -241,3 +241,128 @@ fn rerank_passages_error_converts_a_reranker_error_to_the_typed_engine_variant()
         EngineError::WriteValidation
     );
 }
+
+fn open_armed(
+    failure: EmbedderError,
+) -> (TempDir, std::path::PathBuf, fathomdb_engine::OpenedEngine) {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join("slice30-search.sqlite");
+    let embedder = Arc::new(FailingEmbedder { armed: AtomicBool::new(false), failure });
+    let opened =
+        Engine::open_with_choice(&path, EmbedderChoice::Caller(embedder.clone())).expect("open");
+    embedder.armed.store(true, Ordering::SeqCst);
+    (dir, path, opened)
+}
+
+fn engine_kind(failure: &EmbedderError) -> EngineError {
+    match failure.clone() {
+        EmbedderError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            EngineError::CudaPoolExhausted { ordinal, max_size_bytes, message }
+        }
+        EmbedderError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => EngineError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        },
+        EmbedderError::CudaPrivateBuildRefused { ordinal, message } => {
+            EngineError::CudaPrivateBuildRefused { ordinal, message }
+        }
+        other => panic!("not a CUDA pool kind: {other:?}"),
+    }
+}
+
+/// Ruling 33: a query embedding that fails with a CUDA pool kind is raised
+/// typed; search does not quietly serve the text arm alone.
+#[test]
+fn search_raises_a_query_embedding_pool_kind_typed() {
+    for failure in [exhausted(), context_lost(), refused()] {
+        let (_dir, _path, opened) = open_armed(failure.clone());
+        assert_eq!(opened.engine.search("query").expect_err("typed"), engine_kind(&failure));
+        opened.engine.close().expect("close");
+    }
+}
+
+#[test]
+fn frozen_search_raises_a_query_embedding_pool_kind_typed() {
+    use fathomdb_engine::{ReadContextV1, ReadView, SearchFilter};
+    for failure in [exhausted(), context_lost(), refused()] {
+        let (_dir, _path, opened) = open_armed(failure.clone());
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = opened.engine.freeze_read_context(&context).expect("freeze");
+        let error = opened
+            .engine
+            .search_frozen("query", &frozen, 0, false, 0.3, 0, false, 10)
+            .expect_err("typed");
+        assert_eq!(error, engine_kind(&failure));
+        opened.engine.close().expect("close");
+    }
+}
+
+/// Every other query-embedding failure keeps the sparse fallback.
+#[test]
+fn an_ordinary_query_embedding_failure_keeps_the_sparse_fallback() {
+    use fathomdb_engine::{ReadContextV1, ReadView, SearchFilter};
+    let (_dir, _path, opened) = open_armed(EmbedderError::Failed { message: "boom".to_owned() });
+    opened.engine.search("query").expect("sparse fallback");
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let frozen = opened.engine.freeze_read_context(&context).expect("freeze");
+    opened
+        .engine
+        .search_frozen("query", &frozen, 0, false, 0.3, 0, false, 10)
+        .expect("frozen sparse fallback");
+    opened.engine.close().expect("close");
+}
+
+/// The projection worker keeps its retry ladder for a CUDA pool kind, and
+/// the failure it records names the kind's stable code.
+#[test]
+fn the_projection_worker_records_the_pool_kind_stable_code() {
+    use fathomdb_engine::{InitialState, PreparedWrite, SourceId};
+    for (failure, code) in [
+        (exhausted(), "CudaPoolExhaustedError"),
+        (context_lost(), "CudaContextLostError"),
+        (refused(), "CudaPrivateBuildRefusedError"),
+        (EmbedderError::Failed { message: "boom".to_owned() }, "EmbedderError"),
+    ] {
+        let (_dir, path, opened) = open_armed(failure);
+        opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
+        opened.engine.set_projection_retry_delays_for_test(&[0, 0, 0]);
+        let cursor = opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "will fail projection".to_string(),
+                source_id: SourceId::new("test:fixture").expect("source id"),
+                logical_id: None,
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write")
+            .cursor;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while opened.engine.projection_failure_count_for_test(cursor).expect("count") == 0 {
+            assert!(std::time::Instant::now() < deadline, "no projection failure recorded");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        opened.engine.close().expect("close");
+        let connection = rusqlite::Connection::open(&path).expect("raw open");
+        let recorded: String = connection
+            .query_row(
+                "SELECT json_extract(payload_json, '$.failure_code') FROM operational_mutations
+                 WHERE collection_name = 'projection_failures'
+                   AND json_extract(payload_json, '$.write_cursor') = ?1",
+                [cursor],
+                |row| row.get(0),
+            )
+            .expect("failure row");
+        assert_eq!(recorded, code);
+    }
+}

@@ -81,6 +81,12 @@ were not qualified by these cells. Those omissions are explicit rather than
 converted into passes or failures. Phase 1 performance and platform
 follow-ups remain under the [plan's sequencing disposition](plan.md#phase-2-sequencing-decision-2026-10-08).
 
+A later [candidate CPU–CUDA query sample](phase2-gpu-sample-2026-10-08.md)
+used 10% stratified query IDs across these four retrieval corpora. Its
+611/611 ordered hit lists and gold scores matched. This narrows the CUDA
+omission for the named x86_64 candidate route only; the paired 0.8.26 GPU,
+Jetson and other provider/platform cells remain unqualified.
+
 ## Verification and raw evidence
 
 The new evidence/memory mapper, runner, scorer and auditor used failing-first

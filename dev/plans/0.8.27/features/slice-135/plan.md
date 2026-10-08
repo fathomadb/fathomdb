@@ -14,7 +14,10 @@ with explicit unsupported cells and residual risks. Dedicated Phase 2
 gold-answer scoring was unopened at that checkpoint. The later
 [Phase 2 query correctness report](phase2-query-correctness-report-2026-10-08.md)
 now covers all six dimensions with scored or evidence-backed unsupported
-cells; Slice 135 is not complete. The
+cells. A later [candidate CPU–CUDA 10% query sample](phase2-gpu-sample-2026-10-08.md)
+found identical gold scores and ordered hit lists on 611 selected queries;
+it does not qualify the omitted CUDA release, Jetson or other provider
+cells. Slice 135 is not complete. The
 checkpoint's [full workspace gate](results/2026-10-08-phase1-verification-green/README.md)
 passed all 186 suites after the three Python verifier failures were repaired.
 The raw archives and a self-contained [local transfer bundle](results/2026-10-08-raw-retention-review/README.md)
@@ -60,7 +63,7 @@ and its reporting rule before collecting candidate scores.
 | TypeScript S02 reopened-open overhead, engine vector/hybrid/populated-open profiling, and Python `close()` latency | Retain as diagnostic performance leads. Do not change the measured product candidate merely to optimize them before correct-results scoring; a later product change requires affected paired cells to be repeated. Preserve the corrected close memory-release contract. |
 | Per-path CPU/queue instrumentation and sustained mixed-load throughput | Defer to a reviewed performance follow-up. Public instrumentation needs a contract update; neither it nor a production-traffic claim is required for independent query gold. |
 | OS permission, in-commit erasure/WAL, close/cancellation and release-binding panic gaps | Add a targeted real-database fault or error case within Phase 2 when a scored correctness claim depends on that behavior. Report other positions as unsupported and qualify them separately; no blanket fault sweep precedes gold construction. |
-| Missing C01 native Mem0 speed harness, CUDA/Jetson artifact route, Rust baseline and provider/model variants | Keep their Phase 1 omission labels. Qualify a missing environment or comparator before making its specific claim, without delaying supported CPU query correctness cells. |
+| Missing C01 native Mem0 speed harness, CUDA/Jetson artifact route, Rust baseline and provider/model variants | Keep their Phase 1 omission labels. The later [candidate CUDA query sample](phase2-gpu-sample-2026-10-08.md) qualifies only its named retrieval route; it does not qualify a release artifact or Jetson. Qualify a missing environment or comparator before making its specific claim, without delaying supported CPU query correctness cells. |
 | Raw archive publication | Keep the verified [local bundle and manifests](results/2026-10-08-raw-retention-review/README.md) intact and transfer them to approved durable storage before worktree cleanup. A Git publication or scanner-policy decision does not delay gold-fixture work. |
 
 The [logic-boundary audit](logic-boundary-audit-2026-10-08.md) makes
@@ -479,7 +482,10 @@ The [2026-10-08 six-dimension report](phase2-query-correctness-report-2026-10-08
 records the completed exact-identity inquiry, independent audits, shared
 absolute gaps, unisolated vector/rank differences and unsupported generated
 answer quality. Its diagnostic disposition does not close the slice or
-replace later integrated qualification.
+replace later integrated qualification. The subsequent
+[10% candidate CPU–CUDA query sample](phase2-gpu-sample-2026-10-08.md)
+checks route parity on the four measured retrieval corpora; it does not
+alter the original 0.8.26 CPU comparison.
 
 Begin only after the Phase 1 checkpoint. Use two independent oracle classes:
 deterministic database fixtures with specified results, state and errors, and

@@ -208,8 +208,8 @@ projection drain, evidence, erasure and close/reopen state checks. Its
 passed 100 fresh-process sequences per version and independent raw and
 reopened-state audit. Pooled p50/p95 changes were +0.373%/−0.143%; all five
 paired p50 changes were positive, and all pairs had host-only paging warnings.
-The result does not establish equivalence. TypeScript and Rust SDK contention
-and the broader Phase 1 protocol remain open.
+The result does not establish equivalence. Rust SDK contention and the
+broader Phase 1 protocol remain open.
 The [installed TypeScript S02 contention feasibility
 pair](results/2026-10-07-ts-s02-contention-feasibility/README.md) later
 confirmed actual shared-handle writer/reader overlap on both installed
@@ -223,7 +223,13 @@ no child swapped. The subsequent
 [frozen contention subset](s02-ts-contention-comparison-protocol.json)
 fixes five alternating pairs, 20 measurements per block and 20-second idle
 gaps, binding the runner, auditor, installed archives and source before
-candidate timing. The pilot does not supply a paired latency result.
+candidate timing. The pilot did not supply a paired latency result. The
+subsequent [paired TypeScript contention diagnostic](results/2026-10-08-ts-s02-contention-paired/README.md)
+passed 100 measured fresh-process sequences per version and an independent
+raw, resource, overlap and reopened-state audit. Pooled whole-sequence p50
+increased 3.489%; all five pair-p50 changes were positive. Four pairs carried
+host-only paging warnings; one warning-free pair retained a positive p50
+change. This is a bounded installed-SDK latency lead, not a release verdict.
 An earlier candidate changed with the graph traversal row-error
 [repair](results/2026-10-07-graph-arm-row-repair/README.md) at `3ce1a6352`.
 The prior functional receipts still describe their exact SHAs; final Phase 1

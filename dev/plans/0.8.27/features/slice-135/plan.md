@@ -27,8 +27,9 @@ passed independent functional checks. Its [five-block baseline-only noise
 pilot](results/2026-10-08-ts-s02-contention-baseline-pilot/README.md) now has
 independently audited receipts. The
 [TypeScript contention protocol](s02-ts-contention-comparison-protocol.json)
-is frozen before candidate timing; its paired campaign and Rust SDK
-contention remain.
+froze before candidate timing. Its [paired campaign](results/2026-10-08-ts-s02-contention-paired/README.md)
+passed independent audit over 100 fresh-process sequences per version;
+Rust SDK contention remains.
 S03 and the
 full robustness and coverage matrices remain. C01 has a documented
 [qualification failure](results/2026-10-07-c01-qualification/README.md).
@@ -614,8 +615,14 @@ SDK exercise remain open.
   81.814 ms block-median spread. The
   [frozen TypeScript contention subset](s02-ts-contention-comparison-protocol.json)
   binds the runner, installed archives, alternating order and 100 samples
-  per version before candidate timing. Its paired campaign, Rust SDK
-  contention and cross-boundary attribution remain. The
+  per version before candidate timing. Its
+  [paired result](results/2026-10-08-ts-s02-contention-paired/README.md)
+  passed all ten blocks and an independent audit over 200 measured
+  sequences. Pooled whole-sequence p50 increased 3.489%, with all five
+  pair-p50 deltas positive; p95 changed −0.164%. Four pairs had host-only
+  paging warnings, and the one warning-free pair also had a positive p50
+  change. This is a TypeScript latency lead, not an equivalence verdict.
+  Rust SDK contention and cross-boundary attribution remain. The
   [S02-L baseline pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
   has 100 independently audited fresh-process open/close cycles; its
   [paired subset protocol](s02-python-lifecycle-comparison-protocol.json)

@@ -73,8 +73,12 @@ froze before candidate timing. Its
 passed independent audit over 100 measured real-database sequences per
 version with actual shared-handle overlap, semantic assertions and reopened
 state checks. Its observed p50 increase is a diagnostic latency lead, not a
-full Phase 1 verdict. Rust SDK contention remains. The engine-only results
-never substitute for an SDK row. `S03` may use qualified benchmark data as a
+full Phase 1 verdict. The [external Rust SDK bounded-contention
+campaign](results/2026-10-08-rust-s02-contention/README.md) then passed ten
+candidate-only fresh-process sequences with direct overlap and reopened
+state checks. It is source-bound, not a published-crate installation or an
+0.8.26 comparison. The engine-only results never substitute for an SDK row.
+`S03` may use qualified benchmark data as a
 workload; dedicated gold scoring remains Phase 2.
 
 | Canonical operation | Phase 1 exercise route | Rust SDK | Python wheel | TypeScript package |

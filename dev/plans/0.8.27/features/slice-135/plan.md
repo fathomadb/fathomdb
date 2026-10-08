@@ -29,7 +29,8 @@ independently audited receipts. The
 [TypeScript contention protocol](s02-ts-contention-comparison-protocol.json)
 froze before candidate timing. Its [paired campaign](results/2026-10-08-ts-s02-contention-paired/README.md)
 passed independent audit over 100 fresh-process sequences per version;
-Rust SDK contention remains.
+the [Rust SDK candidate-only contention campaign](results/2026-10-08-rust-s02-contention/README.md)
+also passed ten fresh-process runs with independent reopened-state checks.
 S03 and the
 full robustness and coverage matrices remain. C01 has a documented
 [qualification failure](results/2026-10-07-c01-qualification/README.md).
@@ -622,7 +623,11 @@ SDK exercise remain open.
   pair-p50 deltas positive; p95 changed −0.164%. Four pairs had host-only
   paging warnings, and the one warning-free pair also had a positive p50
   change. This is a TypeScript latency lead, not an equivalence verdict.
-  Rust SDK contention and cross-boundary attribution remain. The
+  The [candidate-only Rust SDK contention result](results/2026-10-08-rust-s02-contention/README.md)
+  passed ten fresh-process shared-engine sequences, each with seven or eight
+  overlapping reader cycles and an independently checked reopened database.
+  It has no 0.8.26 Rust SDK peer or paired latency claim. Cross-boundary
+  attribution remains. The
   [S02-L baseline pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
   has 100 independently audited fresh-process open/close cycles; its
   [paired subset protocol](s02-python-lifecycle-comparison-protocol.json)

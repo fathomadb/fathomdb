@@ -183,7 +183,7 @@ used a five-block noise pilot before 100 fresh-process measurements. Its
 [independently audited timing result](results/2026-10-07-rust-s02-candidate-timing/README.md)
 has whole p50/p95 of 5,754.390/5,815.786 ms and a reopened-open p50 of
 4,767.522 ms. It is not a paired 0.8.26 comparison. The broader Phase 1
-protocol and bounded contention remain open.
+protocol and bounded contention remained open at that timing result.
 The later [integrated-candidate Python S02 paired run](results/2026-10-07-python-s02-paired-integrated/README.md)
 kept the earlier frozen workload, order and sample design while binding the
 post-Slice-132 wheel with both off-ladder landings. All 100 measured sequences
@@ -208,8 +208,8 @@ projection drain, evidence, erasure and close/reopen state checks. Its
 passed 100 fresh-process sequences per version and independent raw and
 reopened-state audit. Pooled p50/p95 changes were +0.373%/−0.143%; all five
 paired p50 changes were positive, and all pairs had host-only paging warnings.
-The result does not establish equivalence. Rust SDK contention and the
-broader Phase 1 protocol remain open.
+The result does not establish equivalence. The broader Phase 1 protocol
+remains open.
 The [installed TypeScript S02 contention feasibility
 pair](results/2026-10-07-ts-s02-contention-feasibility/README.md) later
 confirmed actual shared-handle writer/reader overlap on both installed
@@ -230,6 +230,14 @@ raw, resource, overlap and reopened-state audit. Pooled whole-sequence p50
 increased 3.489%; all five pair-p50 changes were positive. Four pairs carried
 host-only paging warnings; one warning-free pair retained a positive p50
 change. This is a bounded installed-SDK latency lead, not a release verdict.
+The [frozen Rust SDK contention protocol](rust-s02-contention-protocol.json)
+subsequently bound the external consumer, binary and clean product source
+before ten fresh-process candidate-only cases. Its
+[independently audited campaign](results/2026-10-08-rust-s02-contention/README.md)
+passed all ten real-database sequences with seven or eight actual overlapping
+reader cycles per run, evidence and erasure assertions, and direct reopened
+state checks. This completes the bounded Rust SDK S02 functional route; it
+does not supply a 0.8.26 peer or a paired performance claim.
 An earlier candidate changed with the graph traversal row-error
 [repair](results/2026-10-07-graph-arm-row-repair/README.md) at `3ce1a6352`.
 The prior functional receipts still describe their exact SHAs; final Phase 1

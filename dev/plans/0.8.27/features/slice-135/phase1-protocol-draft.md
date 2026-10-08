@@ -56,14 +56,14 @@ installed boundaries, S02 and E01–E12 still need qualification under the
 broader protocol.
 The later [integrated-candidate Python S01 subset](s01-python-integrated-comparison-protocol.json)
 refroze the unchanged workload against exact candidate source and wheel bytes
-before timing. Its [paired diagnostic](results/2026-10-07-python-s01-paired-integrated/README.md)
+before timing. Its paired diagnostic (`results/2026-10-07-python-s01-paired-integrated/README.md`)
 passed 20 blocks and independently checked 60,120 materialized calls. The
 32-row vector-bearing p50 was lower in all five candidate pairs, while seven
 blocks had host-only swap warnings and the 256-row warning-free sensitivity
 has only one pair. This result does not establish whole-product equivalence.
 The [vector-repaired Python S01 subset](s01-python-vector-repaired-comparison-protocol.json)
 refroze the same schedule and workload against source `3f29d649d` and its
-installed wheel. Its [paired refresh](results/2026-10-07-python-s01-vector-repaired-paired/README.md)
+installed wheel. Its paired refresh (`results/2026-10-07-python-s01-vector-repaired-paired/README.md`)
 passed all 20 blocks and 60,120 independently checked calls. At 32 rows,
 vector-bearing p50 decreased in all five pairs; 256-row signs vary. Four
 blocks have host-only paging warnings, and engine and SDK call boundaries
@@ -109,18 +109,18 @@ materialized call attempts. It is a narrow installed-SDK diagnostic, with
 host paging warnings in 12 blocks and only one warning-free pair per size.
 Its descriptive deltas do not close the whole-system latency or full Phase 1
 checkpoint.
-The [integrated-candidate TypeScript package qualification](results/2026-10-07-ts-integrated-candidate/README.md)
+The integrated-candidate TypeScript package qualification (`results/2026-10-07-ts-integrated-candidate/README.md`)
 then rebuilt the native addon and installed npm archives from exact source
 `cdf253cd`. Its audited selected-operation exercise had 39 executed, zero
 failed, two supported gaps and three unavailable. The
 [integrated TypeScript S01 subset](s01-ts-integrated-comparison-protocol.json)
-froze before its [paired diagnostic](results/2026-10-07-ts-s01-paired-integrated/README.md).
+froze before its paired diagnostic (`results/2026-10-07-ts-s01-paired-integrated/README.md`).
 All 20 blocks and 60,120 calls passed independent audit. At 256 rows, the
 vector-bearing p50 rose in all five pairs (median +2.89%); two blocks had
 host-only warnings. This is a workload-specific lead, not a release verdict.
 The [vector-repaired TypeScript S01 subset](s01-ts-vector-repaired-comparison-protocol.json)
 bound source `3f29d649d`, rebuilt npm archives and campaign code before its
-[paired refresh](results/2026-10-07-ts-s01-vector-repaired-paired/README.md).
+paired refresh (`results/2026-10-07-ts-s01-vector-repaired-paired/README.md`).
 All 20 blocks and 60,120 materialized calls passed independent audit. Median
 pair p50 rose 2.78% for 32-row vector-bearing queries and 0.57% at 256 rows;
 seven blocks had host-only paging warnings. This is a boundary-specific
@@ -169,7 +169,7 @@ cells need a rebuilt-artifact paired refresh before the final checkpoint.
 The [vector-repaired TypeScript S02 subset](s02-ts-vector-repaired-comparison-protocol.json)
 then bound source `3f29d649d`, rebuilt npm archives, the unchanged schedule
 and the campaign runner before candidate timing. Its
-[paired refresh](results/2026-10-07-ts-s02-vector-repaired-paired/README.md)
+paired refresh (`results/2026-10-07-ts-s02-vector-repaired-paired/README.md`)
 passed all ten blocks and 200 independently checked whole sequences.
 Pooled p50/p95 changes were +3.308%/+1.370%; all five pair-p50 deltas were
 positive. Every pair had a host-only paging warning, so there is no
@@ -231,7 +231,7 @@ integrated candidate, without freezing the broader Phase 1 protocol.
 The later [vector-repaired Python S02 subset](s02-python-vector-repaired-comparison-protocol.json)
 kept the workload and 100-sample-per-version design while binding source
 `3f29d649d`, its installed wheel and campaign code before timing. Its
-[paired refresh](results/2026-10-07-python-s02-vector-repaired-paired/README.md)
+paired refresh (`results/2026-10-07-python-s02-vector-repaired-paired/README.md`)
 passed ten blocks, 200 independently checked whole sequences and the
 execution-order audit. Pooled p50/p95 changes are +0.010%/+0.155%, with
 four warning-free pairs. Close and reopened-close stage leads persist;
@@ -337,16 +337,16 @@ feasibility only. The [frozen E01–E12 comparison subset](e12-comparison-protoc
 sets 1,000 valid query samples, 100 lifecycle samples and five alternating
 version pairs before current-candidate paired timing. It does not freeze the
 broader installed-SDK, S02, S03 or C01 protocol.
-The [pre-integration E01–E12 paired diagnostic](results/2026-10-07-e12-paired-current/README.md)
+The pre-integration E01–E12 paired diagnostic (`results/2026-10-07-e12-paired-current/README.md`)
 passed all 20 blocks and found repeatable vector/hybrid median-latency leads.
-A later [integrated-candidate E01–E12 smoke](results/2026-10-07-e12-integrated-smoke/README.md)
+A later integrated-candidate E01–E12 smoke (`results/2026-10-07-e12-integrated-smoke/README.md`)
 passed all twelve unchanged paths at 100 samples each with an independent
 audit. Because the candidate Rust tree changed, the
 [integrated E01–E12 paired subset](e12-integrated-comparison-protocol.json)
 refreezes the exact candidate source and tree before the paired refresh; it
 preserves the original workload, sample counts and order. The smoke itself is
 functional feasibility, not paired latency evidence.
-The [integrated-candidate paired diagnostic](results/2026-10-07-e12-paired-integrated/README.md)
+The integrated-candidate paired diagnostic (`results/2026-10-07-e12-paired-integrated/README.md`)
 then passed all 20 blocks and its independent audit accepted all twelve cells.
 Its query blocks were warning-free; five lifecycle blocks carried host-only
 swap warnings, with zero measured-child swaps. Median within-pair p50 changes
@@ -355,7 +355,7 @@ open. These are investigation leads, not a performance-equivalence or release
 verdict. The archive is local and untracked pending final Gitleaks retention.
 The later [vector-repaired E01–E12 subset](e12-vector-repaired-comparison-protocol.json)
 froze product source `3f29d649d`, runner bytes and the same workload after an
-audited 12-path smoke. Its [paired refresh](results/2026-10-07-e12-vector-repaired-paired/README.md)
+audited 12-path smoke. Its paired refresh (`results/2026-10-07-e12-vector-repaired-paired/README.md`)
 passed 20 blocks and independently re-audited from the retained archive.
 Median within-pair p50 changes were +8.79% for vector stage, +8.04% for
 hybrid and +11.16% for populated open, each positive in all five pairs.

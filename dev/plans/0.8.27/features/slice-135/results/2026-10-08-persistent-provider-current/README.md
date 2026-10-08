@@ -23,7 +23,7 @@ same canonical row and failed terminal state remained; the terminal document
 was not silently re-embedded. An explicit `rebuild_projections()` then
 produced an `UpToDate` vector that survived a further reopen.
 
-The [independent audit](audit.py) recomputed the five [raw logs](measured-01/stderr.log)
+The [independent audit](audit.py) recomputed the five raw logs (`measured-01/stderr.log`)
 and opened each retained SQLite database. Its [summary](audit.json) accepted
 all five runs: exactly one canonical row, one `up_to_date` terminal, one vector
 row and the historical `EmbedderError` failure audit were present, with

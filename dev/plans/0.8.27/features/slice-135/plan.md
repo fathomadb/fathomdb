@@ -95,7 +95,7 @@ have separate frozen subsets and audited raw receipts. The
 records executed Rust, Python and TypeScript cases and explicit gaps, including
 an [integrated-candidate installed Python functional
 receipt](results/2026-10-07-python-integrated-candidate/README.md) and
-[TypeScript functional receipt](results/2026-10-07-ts-integrated-candidate/README.md).
+TypeScript functional receipt (`results/2026-10-07-ts-integrated-candidate/README.md`).
 These receipts do not yet constitute the full Phase 1 checkpoint. The paired
 TypeScript S02 subset has host paging warnings; the Rust S02 candidate-only
 result is linked below. The [installed Python S02 bounded-contention
@@ -134,12 +134,12 @@ their build files. None of these attempts is a full-gate green claim.
 An additional [vector row-error defect](results/2026-10-07-vector-row-repair/README.md)
 has a real-database RED/GREEN repair committed at `3f29d649d`. Its source
 change supersedes prior candidate timing for the final checkpoint. The
-[vector-repaired E01–E12 paired refresh](results/2026-10-07-e12-vector-repaired-paired/README.md)
+vector-repaired E01–E12 paired refresh (`results/2026-10-07-e12-vector-repaired-paired/README.md`)
 is independently audited. The repaired-source installed
-[Python S01](results/2026-10-07-python-s01-vector-repaired-paired/README.md),
-[Python S02](results/2026-10-07-python-s02-vector-repaired-paired/README.md),
-[TypeScript S01](results/2026-10-07-ts-s01-vector-repaired-paired/README.md)
-and [TypeScript S02](results/2026-10-07-ts-s02-vector-repaired-paired/README.md)
+Python S01 (`results/2026-10-07-python-s01-vector-repaired-paired/README.md`),
+Python S02 (`results/2026-10-07-python-s02-vector-repaired-paired/README.md`),
+TypeScript S01 (`results/2026-10-07-ts-s01-vector-repaired-paired/README.md`)
+and TypeScript S02 (`results/2026-10-07-ts-s02-vector-repaired-paired/README.md`)
 subsets are independently audited. Rust S02 now has a candidate-only
 [timing result](results/2026-10-07-rust-s02-candidate-timing/README.md);
 bounded contention remained at that point.
@@ -594,6 +594,11 @@ window and reject incomplete results. Report spend and completeness.
    source, test or executable-script changes. Only complete, exact-SHA Phase 1
    and Phase 2 receipts can close the slice and feed Slice 140/150.
 
+Historical execution chronology below retains local-only pilot file paths as
+inline code where their raw or summary files are absent from a clean Git
+checkout. The linked exact-source final reports and external raw archives
+are the closeout evidence.
+
 Historical execution chronology (early 2026-10-07): Slice 132 is merged, the [0.8.26 baseline source is
 identified](baseline-qualification.md), and the provisional
 [Phase 1 receipt validator](../../../../../scripts/slice135_receipt.py)
@@ -698,35 +703,35 @@ SDK exercise remain open.
   missed-branch dispositions and rare severe paths.
 - **Latency:** the E01–E12 paired engine campaign has audited raw blocks and
   descriptive deltas; the paired Python and TypeScript S01 subsets also have
-  audited receipts. The [integrated E01–E12 source smoke](results/2026-10-07-e12-integrated-smoke/README.md)
+  audited receipts. The integrated E01–E12 source smoke (`results/2026-10-07-e12-integrated-smoke/README.md`)
   passed all twelve paths and an [integrated paired subset](e12-integrated-comparison-protocol.json)
   refroze the changed candidate Rust tree before timing. The
-  [integrated E01–E12 paired diagnostic](results/2026-10-07-e12-paired-integrated/README.md)
+  integrated E01–E12 paired diagnostic (`results/2026-10-07-e12-paired-integrated/README.md`)
   passed 20 blocks and independent audit across all twelve cells. Vector,
   hybrid and populated-open p50 increased in the five-pair diagnostic;
   investigate and disposition these leads before a release performance claim.
-  The subsequent [vector-repaired E01–E12 refresh](results/2026-10-07-e12-vector-repaired-paired/README.md)
+  The subsequent vector-repaired E01–E12 refresh (`results/2026-10-07-e12-vector-repaired-paired/README.md`)
   completed all 20 blocks at product source `3f29d649d`; the same three
   p50 leads persisted (+8.79%, +8.04%, +11.16%). Four blocks have host-only
   paging warnings, with zero measured-child swaps. Attribute these leads
   across engine and installed boundaries before a release claim.
-  The repaired-source [installed Python S01 refresh](results/2026-10-07-python-s01-vector-repaired-paired/README.md)
+  The repaired-source installed Python S01 refresh (`results/2026-10-07-python-s01-vector-repaired-paired/README.md`)
   passed 20 blocks and independent audit over 60,120 materialized calls. Its
   32-row vector-bearing p50 decreased in all five pairs (median −3.34%);
   256-row vector and hybrid deltas changed sign. Four blocks have host-only
   paging warnings. The differing engine and Python boundaries need
   attribution, not cancellation by one another.
-  The [integrated installed Python S01 diagnostic](results/2026-10-07-python-s01-paired-integrated/README.md)
+  The integrated installed Python S01 diagnostic (`results/2026-10-07-python-s01-paired-integrated/README.md`)
   also passed 20 blocks and independent audit over 60,120 materialized
   calls. Its vector-bearing p50 decreased in all five pairs at each size;
   host-only paging warnings and differing engine/SDK workload boundaries
   prevent a broad speed claim. The
-  [integrated installed TypeScript S01 diagnostic](results/2026-10-07-ts-s01-paired-integrated/README.md)
+  integrated installed TypeScript S01 diagnostic (`results/2026-10-07-ts-s01-paired-integrated/README.md`)
   passed another 20 blocks and 60,120 calls. At 256 rows, vector-bearing
   p50 increased in all five pairs (median +2.89%), with two warning-bearing
   blocks. Disposition the differing engine, Python and TypeScript results
   at their actual call boundaries.
-  The repaired-source [TypeScript S01 refresh](results/2026-10-07-ts-s01-vector-repaired-paired/README.md)
+  The repaired-source TypeScript S01 refresh (`results/2026-10-07-ts-s01-vector-repaired-paired/README.md`)
   passed 20 blocks and independent audit over 60,120 calls. Median pair p50
   changes were +2.78% for 32-row vector-bearing queries and +0.57% at 256
   rows. Seven blocks had host-only paging warnings; the result remains a
@@ -741,7 +746,7 @@ SDK exercise remain open.
   execution-order audits: pooled p50 +0.495% and p95 +0.924%, with host
   paging warnings in every pair. This is an observed slowdown, not an
   equivalence or release verdict. The repaired-source
-  [Python S02 refresh](results/2026-10-07-python-s02-vector-repaired-paired/README.md)
+  Python S02 refresh (`results/2026-10-07-python-s02-vector-repaired-paired/README.md`)
   passed 100 whole sequences per version and both independent audits: pooled
   p50 +0.010%, p95 +0.155%, four warning-free pairs. Close and reopened-close
   stage medians still increased by 7.627 ms and 7.209 ms. This near-neutral
@@ -753,7 +758,7 @@ SDK exercise remain open.
   p50 +2.870%, p95 -0.256%, with all five pair-p50 deltas positive and every
   pair carrying host-only paging warnings. This is a latency lead, not an
   equivalence or release verdict. The repaired-source
-  [TypeScript S02 refresh](results/2026-10-07-ts-s02-vector-repaired-paired/README.md)
+  TypeScript S02 refresh (`results/2026-10-07-ts-s02-vector-repaired-paired/README.md`)
   accepted 100 whole sequences per version and independent raw and order
   audits: pooled p50 +3.308%, p95 +1.370%. All five pair-p50 deltas were
   positive and every pair had a host-only paging warning. The 147.193 ms
@@ -934,7 +939,7 @@ SDK exercise remain open.
   supported gaps and three unavailable; TypeScript has the same 41/0/0/3
   partition. Both independent auditors accepted the retained raw receipts.
   The earlier repaired-source
-  [TypeScript consumer](results/2026-10-07-ts-vector-repaired-candidate/README.md)
+  TypeScript consumer (`results/2026-10-07-ts-vector-repaired-candidate/README.md`)
   rechecked those 39 operations against rebuilt npm packages. Candidate S02
   functional refreshes pass, including the
   [vector-repaired external Rust consumer](results/2026-10-07-rust-sdk-s02-current-refresh/README.md)

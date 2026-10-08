@@ -47,7 +47,7 @@ a separate conclusion. These are descriptive workload-specific results, not
 an equivalence claim or release verdict. The engine-only E01–E12 vector-stage
 and hybrid increases use different work and timing boundaries.
 
-The [copied raw archive](raw-archive/) retains each command, raw call,
+The copied raw archive (`raw-archive/`) retains each command, raw call,
 environment and resource record, npm archives, runner bytes and run order.
 Its 271-file `SHA256SUMS` manifest has SHA-256
 `e2e797430b0db39fb758ecae9a855ca503d423c29383f3af936aacd00d74f044`;

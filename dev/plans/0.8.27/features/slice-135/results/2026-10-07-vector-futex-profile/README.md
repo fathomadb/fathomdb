@@ -1,7 +1,7 @@
 # Slice 135 vector/hybrid futex profile — 2026-10-07 UTC
 
 **Status:** source-bound diagnostic profile, separate from the unprofiled
-[E01–E12 paired comparison](../2026-10-07-e12-paired-current/README.md).
+E01–E12 paired comparison (`../2026-10-07-e12-paired-current/README.md`).
 The profile used the exact preserved baseline and candidate query binaries
 (SHA-256 in [summary.json](summary.json)), rebuilt no product source, and
 executed two alternating B–C–C–B runs. Each run made 1,000 materialized
@@ -22,7 +22,7 @@ block. This supports a source-level hypothesis: candidate
 `search_api.rs` routes embedding through `dispatch_embed_vector`, which
 queues a request and waits for its reply; 0.8.26 called the provider directly.
 The same dispatcher serves both vector-bearing query shapes, while text-only
-search avoids it. The [paired latency receipt](../2026-10-07-e12-paired-current/README.md)
+search avoids it. The paired latency receipt (`../2026-10-07-e12-paired-current/README.md`)
 shows vector/hybrid p50 losses of +8.6/+8.8% and near-parity text p50.
 
 This trace **does not isolate** query calls from setup/projection or split

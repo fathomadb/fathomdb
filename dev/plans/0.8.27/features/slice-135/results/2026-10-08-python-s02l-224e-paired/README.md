@@ -41,7 +41,7 @@ boundary. `close()` remains functional and persisted state reopens correctly
 in every measured cycle. These 100 samples support p50/p95 but not p99, and
 five pairs do not prove general significance or establish a release gate.
 
-The [copied raw archive](raw-archive/) retains all cycle JSON, source and
+The copied raw archive (`raw-archive/`) retains all cycle JSON, source and
 wheel identities, resource reports, environment and command records. Its
 1,124-file `SHA256SUMS` manifest has SHA-256
 `22dba02e0279caaa7112948593fe5f7b577cb473a449dc7f96eb13c081c9f85c`;

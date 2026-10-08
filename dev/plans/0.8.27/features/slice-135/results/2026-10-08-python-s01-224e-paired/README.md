@@ -34,7 +34,7 @@ rows and 456,832/371,200 KiB at 256 rows; these are whole-worker resources,
 not per-query allocations. The results are workload-specific diagnostics,
 not a statistical equivalence or release verdict.
 
-The copied [raw archive](raw-archive/) currently remains untracked pending
+The copied raw archive (`raw-archive/`) currently remains untracked pending
 end-of-phase retention. Its 248-file `SHA256SUMS` manifest has SHA-256
 `3c5d7658544fab0d05956f851215498c7d9732a8259aaa1d57bc70e45c8cd49a`;
 all copied bytes passed `sha256sum -c`. The tracked audit SHA-256 is

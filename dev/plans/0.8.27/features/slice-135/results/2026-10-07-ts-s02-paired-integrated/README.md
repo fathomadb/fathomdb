@@ -12,7 +12,7 @@ and installed package/native bytes were bound by SHA-256 for each role. The
 package metadata still says 0.8.26, so that label alone is not the candidate
 identity.
 
-The [campaign receipt](run-manifest.json) and [execution order](run-order.jsonl)
+The campaign receipt (`run-manifest.json`) and execution order (`run-order.jsonl`)
 contain five alternating pairs and ten valid blocks. Each block has one
 fresh-process warm-up and 20 measured sequences. All **100 measured sequences
 per version** passed materialized text/vector/hybrid, graph/evidence,
@@ -21,7 +21,7 @@ after the product timer. Every raw sequence, command, child resource report,
 host snapshot and output stream is retained under `pair-01-*` through
 `pair-05-*`. No valid slow sample was removed.
 
-The [independent audit](independent-audit.json) rehashed every raw sample,
+The independent audit (`independent-audit.json`) rehashed every raw sample,
 reran a separate state oracle, checked the archives and command order, and
 recomputed the statistics:
 
@@ -39,7 +39,7 @@ warning-free sensitivity estimate is unavailable. P99 is unsupported with
 345,904 KiB on candidate; this whole-process maximum is not a post-close
 memory-release measurement.
 
-The [negative controls](negative-controls.json) show the auditor rejecting a
+The negative controls (`negative-controls.json`) show the auditor rejecting a
 surviving canonical edge, a changed native artifact identity and a swapped
 execution-order entry. This is a TypeScript whole-sequence latency lead, not
 an equivalence, significance or release verdict. Python S02 and engine

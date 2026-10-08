@@ -14,11 +14,11 @@ The pinned local CPU model, 32-row corpus and unchanged twelve Slice 115
 engine paths were used. All twelve paths completed 100 valid observations
 each. The [independent audit](audit.json) checked source, binary, model,
 expected ordered outputs, persisted state, samples and resources against
-the [raw receipt](raw-archive/raw.json). The [negative
+the raw receipt (`raw-archive/raw.json`). The [negative
 controls](negative-controls.json) rejected changed source identity and an
 altered ordered text result.
 
-The copied [raw archive](raw-archive/) is local and untracked pending
+The copied raw archive (`raw-archive/`) is local and untracked pending
 end-of-phase retention. Its 17 regular-file `SHA256SUMS` manifest has
 SHA-256 `502d68c8c3c9bbbe783267c5a79173bbe0b55e3e5b0cd5e70e1517940ede7f96`;
 the nested build manifest is retained as `Cargo.toml.snapshot` so the

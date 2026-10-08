@@ -41,7 +41,7 @@ on baseline. The memory release at close is an intended lifecycle change;
 its latency/resource tradeoff remains a checkpoint disposition. Five pairs
 do not support an equivalence or statistical significance claim.
 
-The copied [raw archive](raw-archive/) is untracked; its verified local
+The copied raw archive (`raw-archive/`) is untracked; its verified local
 bundle and copied manifest are recorded in the
 [retention receipt](../2026-10-08-raw-retention-review/README.md).
 Its 1,167-file `SHA256SUMS` manifest has SHA-256

@@ -53,7 +53,7 @@ warning-free, so its sensitivity is too narrow for a separate verdict.
 Close has one +164.73% within-pair p50 outlier; the other four pairs range
 from -0.73% to +4.77%. Preserve that valid observation for attribution.
 
-The copied [raw archive](raw-archive/) is local and untracked pending
+The copied raw archive (`raw-archive/`) is local and untracked pending
 end-of-phase retention. Its 323 regular-file `SHA256SUMS` manifest has
 SHA-256 `db89cf20de42a8313fe1806b0685de7b7690b600e2c043e94aa835715635bd1d`;
 model asset symlinks are bound by pinned hashes. The copied archive passed

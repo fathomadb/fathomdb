@@ -17,11 +17,11 @@ canonical-row count ran afterward. Raw materialized observations, per-stage
 durations, GNU Time child resources, command, host inventory and invalidators
 are retained under `block-01` through `block-05`.
 
-The [independent audit](independent-audit.json) rechecked all 20 attempted
+The independent audit (`independent-audit.json`) rechecked all 20 attempted
 sequences and accepted all 15 measured sequences. Block medians were 4,954.871,
 4,883.622, 4,951.635, 4,839.937 and 4,944.749 ms. Their spread was
 114.934 ms, or 2.324% of the median block median. All five blocks had no host
-warning and no measured-child swap. The [negative controls](negative-controls.json)
+warning and no measured-child swap. The negative controls (`negative-controls.json`)
 were rejected for a retained canonical edge and an interleaved direct SQLite
 read inside the product timer.
 

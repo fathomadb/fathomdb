@@ -55,7 +55,7 @@ Audit, order, negative-control, stage and run-order SHA-256 values are
 `e62b9d51b94a933b3bf7a15ce6800c7b1183d10123e99feb3c32ea911f4a59ed`,
 `0a0c9471fa193e45933a5e084db26a4ddae2f9ad7475d71457d2b4515acd9d8e`
 and `27e9c24dea14c26fd5dc43cbaec498ac03147a9e879ff37e9592a0879440397a`.
-The [copied raw archive](raw-archive/) retains sequences, environment
+The copied raw archive (`raw-archive/`) retains sequences, environment
 records, SQLite databases, commands and resource reports. Its 1,122-file
 `SHA256SUMS` manifest has SHA-256
 `bef3056ceda8c4a84a995392b80a949da0c01c2221611bfd43196577a951822e`;

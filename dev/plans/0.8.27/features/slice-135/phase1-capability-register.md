@@ -57,14 +57,14 @@ The [paired Python S01](results/2026-10-07-python-s01-paired/README.md) and
 [paired TypeScript S01](results/2026-10-07-ts-s01-paired/README.md) receipts
 cover installed text, vector-bearing and hybrid workload shapes. Their earlier
 candidate measurements predate the repaired search source. The
-[repaired-source Python S01](results/2026-10-07-python-s01-vector-repaired-paired/README.md)
-and [Python S02](results/2026-10-07-python-s02-vector-repaired-paired/README.md)
+repaired-source Python S01 (`results/2026-10-07-python-s01-vector-repaired-paired/README.md`)
+and Python S02 (`results/2026-10-07-python-s02-vector-repaired-paired/README.md`)
 paired subsets now have independent exact-wheel and raw-state audits. The
-[repaired-source TypeScript consumer](results/2026-10-07-ts-vector-repaired-candidate/README.md)
+repaired-source TypeScript consumer (`results/2026-10-07-ts-vector-repaired-candidate/README.md`)
 repeated the 39-operation exercise against rebuilt npm packages, and the
-[TypeScript S01 paired subset](results/2026-10-07-ts-s01-vector-repaired-paired/README.md)
+TypeScript S01 paired subset (`results/2026-10-07-ts-s01-vector-repaired-paired/README.md`)
 passed independent audit. The repaired-source
-[TypeScript S02 paired subset](results/2026-10-07-ts-s02-vector-repaired-paired/README.md)
+TypeScript S02 paired subset (`results/2026-10-07-ts-s02-vector-repaired-paired/README.md`)
 also passed independent raw and order audits over 100 whole sequences per
 version, with host-only paging warnings in every pair. Integrated
 [Python S02](results/2026-10-07-python-integrated-candidate/README.md)

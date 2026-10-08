@@ -14,7 +14,7 @@ place. Copies of the eight original manifests are retained under
 [`manifests/`](manifests/). The measured candidate source is
 `224e44c593c13d86ece648adabe445723db04070`.
 
-A 121 MiB [local transfer bundle](phase1-exact-raw.tar.zst) contains copies
+A 121 MiB local transfer bundle (`phase1-exact-raw.tar.zst`) contains copies
 of all eight archives. Its [SHA-256 record](BUNDLE-SHA256SUMS) is
 `9674227303546aa9a7bffb9152ebc2c25fa4dfeaad6ec89469d455ad2c15ea8e`.
 The [bundle index](bundle-index.json) lists the archive names and the three

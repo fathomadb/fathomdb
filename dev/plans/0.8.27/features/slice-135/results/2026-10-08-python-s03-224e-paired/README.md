@@ -53,7 +53,7 @@ materialized elapsed call time, not per-path CPU or queue time. The latter
 remain unsupported by this query-mix instrumentation and are reported
 separately in the [four-area checkpoint](../../phase1-checkpoint-2026-10-08.md).
 
-The [copied raw archive](raw-archive/) retains the exact commands,
+The copied raw archive (`raw-archive/`) retains the exact commands,
 environment and each block's source, wheel, model, database and resource
 metadata. Its 305-file `SHA256SUMS` manifest has SHA-256
 `a08cc52bf8ac707b6907d9d6779643405816ca0f684b7d946f371e867aa9902f`;

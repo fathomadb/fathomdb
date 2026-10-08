@@ -385,9 +385,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 135** (`PERFORMANCE-BASELINE`) — 0.8.26 performance preservation and improvement qualification
+**IMMEDIATE NEXT: Slice 117** (`JETSON-NODE-CUDA`) — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline
 
-**Remaining ladder:** 135 → 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1219,9 +1219,11 @@ and refuses core-engine leaks. See the
 
 ### Slice 135 — 0.8.26 performance preservation and improvement qualification
 
-**PLAN APPROVED; preparation in progress.** The repository owner approved the
-Slice 135 plan and authorized preparation in parallel with Slice 132 on
-2026-10-06. The
+**COMPLETE ON THE RELEASE BRANCH WITH EXPLICIT LIMITATIONS.** The
+[final Slice 135 disposition](0.8.27/features/slice-135/status.md) records
+the five-area diagnostic inquiry, the independent scoped closeout review,
+and the archived raw receipts. The owner approved the Slice 135 plan and
+authorized preparation in parallel with Slice 132 on 2026-10-06. The
 [Slice 135 measurement plan](0.8.27/features/slice-135/plan.md) covers five
 aspects: what matters/Pareto path, system latency, system robustness, logic
 and exception handling, and correct results. The first four must yield

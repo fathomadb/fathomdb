@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 135 (PERFORMANCE-BASELINE), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) · 110 (`a25d063cd3e1642ad08dcc6aed3691b94445fe20`) · 114 (`25115902db8b9b5648c5ceca1823d3cc66fec8e8`) · 115 (`012e132920147396ac195f14af74444dd698f48e`) · 120 (`e05bfd5330beb737b7704300e2752d2b977bb5b8`) · 130 (`58b0bd192f6bc7cc87ea6e8099bfe1c52e68893f`) · 132 (`2996417f0cb78b2dbf5262de53798ae6a263469a`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 117 (JETSON-NODE-CUDA), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) · 110 (`a25d063cd3e1642ad08dcc6aed3691b94445fe20`) · 114 (`25115902db8b9b5648c5ceca1823d3cc66fec8e8`) · 115 (`012e132920147396ac195f14af74444dd698f48e`) · 120 (`e05bfd5330beb737b7704300e2752d2b977bb5b8`) · 130 (`58b0bd192f6bc7cc87ea6e8099bfe1c52e68893f`) · 132 (`2996417f0cb78b2dbf5262de53798ae6a263469a`) · 135 (`a815584b3b907596be00c501eca3ec140c3c7c88`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -95,28 +95,27 @@ contains both and must cover them:
   smokes must use the 0.8.26 route, and the Tegra publication for 0.8.27
   updates the pin again.
 
-### Slice 135 execution note (2026-10-08)
+### Slice 135 closeout (2026-10-08)
 
-Slice 135 is in progress on `llm/0.8.27-slice-135`; the release-state-owned
-ladder still lists it as next until its complete closeout. The current
-comparison product source is `224e44c593c13d86ece648adabe445723db04070`,
-after Slice 132 and both off-ladder landings. Audited exact-source paired
-E01–E12 engine and installed Python S01/S02 diagnostics exist. The Python
-whole-sequence pooled p50 changed +0.287% against exact 0.8.26; engine
-vector, hybrid and populated-open p50 increases remain attribution leads.
-The four-area Phase 1 checkpoint and full protocol freeze are still open.
-The [active Slice 135 plan](../0.8.27/features/slice-135/plan.md#active-phase-1-execution-snapshot-2026-10-08)
-and [direct-execution hand-off](../0.8.27/features/slice-135/handoff-phase1-2026-10-08.md)
-hold the remaining work and evidence limits. Local raw archives are preserved
-but not yet committed; their retention and the deferred Gitleaks decision
-remain end-of-phase work. No publication or release qualification claim
-follows from these diagnostics.
+Slice 135 landed locally at `a815584b3b907596be00c501eca3ec140c3c7c88`.
+The measured product source remains
+`224e44c593c13d86ece648adabe445723db04070`, after Slice 132 and both
+off-ladder landings. The [final disposition](../0.8.27/features/slice-135/status.md)
+links the four-area Phase 1 checkpoint, six-dimension Phase 2 report,
+611-query candidate CPU–CUDA sample, independent scoped closeout review,
+and raw-archive transfer. No confirmed candidate-specific deterministic
+query defect was found; performance leads, absolute evidence gaps, vector
+index-state differences, and unsupported cells remain explicit. Three raw
+archives were verified in the local evaluation store outside the feature
+worktree. The full workspace gate passed 186/186 suites after executable
+changes; final documentation received scoped checks. This diagnostic
+closeout does not qualify the final release or authorize publication.
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 135 (PERFORMANCE-BASELINE)** — 0.8.26 performance preservation and improvement qualification. **Remaining ladder:** 135 → 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 117 (JETSON-NODE-CUDA)** — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline. **Remaining ladder:** 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 

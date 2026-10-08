@@ -171,6 +171,9 @@ pub enum DoctorCommand {
     Platform(PlatformDoctorArgs),
     /// Inspect the isolated cross-encoder CUDA provider without loading a model.
     RerankerGpu(GpuDoctorArgs),
+    /// Report this process's CUDA allocator decision (the Tegra private pool)
+    /// without opening an engine.
+    CudaAllocator(GpuDoctorArgs),
     /// Run a structural integrity check against the database.
     CheckIntegrity(CheckIntegrityArgs),
     /// Run bounded integrity checks over dependency and serving-projection authority.
@@ -572,6 +575,7 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
         DoctorCommand::Gpu(args) => run_doctor_gpu(args),
         DoctorCommand::Platform(args) => run_doctor_platform(args),
         DoctorCommand::RerankerGpu(args) => run_doctor_reranker_gpu(args),
+        DoctorCommand::CudaAllocator(args) => run_doctor_cuda_allocator(args),
         DoctorCommand::CheckIntegrity(args) => {
             let opts = CheckIntegrityOpts {
                 quick: args.quick,
@@ -1075,6 +1079,239 @@ fn run_doctor_reranker_gpu(args: GpuDoctorArgs) -> i32 {
         println!("{}", serde_json::to_string_pretty(&outcome).expect("diagnostic serializes"));
     }
     exit
+}
+
+const CUDA_ALLOCATOR_SCHEMA: &str = "fathomdb.doctor.cuda-allocator.v1";
+
+/// Whether this binary compiled the Tegra private-pool driver part.
+const TEGRA_POOL_BUILT: bool = cfg!(all(
+    feature = "tegra-pool",
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+));
+
+/// The process facts `doctor cuda-allocator` decides from; read before any
+/// CUDA call.
+struct CudaAllocatorInputs<'a> {
+    built: bool,
+    embed_cuda_compiled: bool,
+    rerank_cuda_compiled: bool,
+    embed_policy: Option<&'a str>,
+    rerank_policy: Option<&'a str>,
+    pool_mode: Option<&'a str>,
+}
+
+/// Every CUDA action of `doctor cuda-allocator`, so the early returns can be
+/// shown to make none.
+trait CudaAllocatorProbe {
+    fn run_early_init(&mut self) -> fathomdb_embedder::ModuleLoadInit;
+    /// The CUDA device the SDK would build, or `None` when it resolves to CPU.
+    fn resolve_device(&mut self) -> Result<Option<fathomdb_embedder::CudaDeviceInfo>, String>;
+    fn context_state(
+        &mut self,
+        ordinal: usize,
+    ) -> Option<fathomdb_embedder::CudaPrimaryContextState>;
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct CudaAllocatorRecord {
+    built: bool,
+    module_load_init: fathomdb_embedder::ModuleLoadInit,
+    mode: String,
+    report: Option<fathomdb_embedder::CudaAllocatorReport>,
+    context_state: Option<fathomdb_embedder::CudaPrimaryContextState>,
+}
+
+fn diagnose_cuda_allocator(
+    inputs: &CudaAllocatorInputs<'_>,
+    platform: &dyn PlatformProbe,
+    probe: &mut dyn CudaAllocatorProbe,
+) -> Result<CudaAllocatorRecord, String> {
+    let mut record = CudaAllocatorRecord {
+        built: inputs.built,
+        module_load_init: fathomdb_embedder::ModuleLoadInit::NotAtLoad,
+        mode: inputs.pool_mode.unwrap_or("auto").to_owned(),
+        report: None,
+        context_state: None,
+    };
+    // Same rule as the bindings' load hook: only an exact `cpu` policy, or no
+    // CUDA component at all, rules CUDA out.
+    let wants_cuda = fathomdb_embedder::early_cuda_init_wanted(
+        inputs.embed_cuda_compiled,
+        inputs.rerank_cuda_compiled,
+        inputs.embed_policy,
+        inputs.rerank_policy,
+    );
+    if !wants_cuda || classify_platform(platform).is_affirmed_sbsa() {
+        return Ok(record);
+    }
+    record.module_load_init = probe.run_early_init();
+    let Some(info) = probe.resolve_device()? else {
+        return Ok(record);
+    };
+    record.context_state = probe.context_state(info.ordinal);
+    record.report = info.cuda_allocator;
+    Ok(record)
+}
+
+const fn cuda_allocator_exit_code(outcome: &Result<CudaAllocatorRecord, String>) -> i32 {
+    match outcome {
+        Ok(_) => exit_code::OK,
+        Err(_) => exit_code::UNRECOVERABLE,
+    }
+}
+
+#[derive(Serialize)]
+struct DoctorCudaAllocatorJson<'a> {
+    schema_version: &'static str,
+    built: bool,
+    module_load_init: &'static str,
+    mode: &'a str,
+    path: Option<&'static str>,
+    reason: &'static str,
+    pool_max_size_bytes: Option<u64>,
+    release_threshold: Option<&'static str>,
+    cuda_context_state: Option<CudaContextStateJson>,
+}
+
+#[derive(Serialize)]
+struct CudaContextStateJson {
+    state: &'static str,
+    flags: u32,
+}
+
+fn cuda_allocator_json(record: &CudaAllocatorRecord) -> DoctorCudaAllocatorJson<'_> {
+    let report = record.report.as_ref();
+    DoctorCudaAllocatorJson {
+        schema_version: CUDA_ALLOCATOR_SCHEMA,
+        built: record.built,
+        module_load_init: record.module_load_init.as_str(),
+        mode: &record.mode,
+        path: report
+            .and_then(|report| report.path)
+            .map(fathomdb_embedder::CudaAllocatorPath::as_str),
+        reason: report.map_or("not_applicable", |report| report.reason.as_str()),
+        pool_max_size_bytes: report.and_then(|report| report.pool_max_size_bytes),
+        release_threshold: report
+            .and_then(|report| report.release_threshold)
+            .map(fathomdb_embedder::ReleaseThreshold::as_str),
+        cuda_context_state: record.context_state.map(|state| CudaContextStateJson {
+            state: if state.active { "active" } else { "inactive" },
+            flags: state.flags,
+        }),
+    }
+}
+
+fn cuda_allocator_output(record: &CudaAllocatorRecord, json_mode: bool) -> String {
+    let json = cuda_allocator_json(record);
+    if json_mode {
+        let mut output = serde_json::to_string(&json).expect("cuda allocator fields serialize");
+        output.push('\n');
+        return output;
+    }
+    format!(
+        "doctor cuda-allocator\nschema_version={}\nbuilt={}\nmodule_load_init={}\nmode={}\npath={}\nreason={}\npool_max_size_bytes={}\nrelease_threshold={}\ncuda_context_state={}\n",
+        json.schema_version,
+        json.built,
+        json.module_load_init,
+        json.mode,
+        json.path.unwrap_or("null"),
+        json.reason,
+        json.pool_max_size_bytes.map_or("null".to_owned(), |bytes| bytes.to_string()),
+        json.release_threshold.unwrap_or("null"),
+        json.cuda_context_state
+            .map_or("null".to_owned(), |state| format!("{} flags={}", state.state, state.flags)),
+    )
+}
+
+/// The real CUDA actions: the shared early-`cuInit` helper, then the device
+/// probe the SDKs use, so this process makes the allocator decision itself.
+struct SystemCudaAllocatorProbe;
+
+impl CudaAllocatorProbe for SystemCudaAllocatorProbe {
+    fn run_early_init(&mut self) -> fathomdb_embedder::ModuleLoadInit {
+        #[cfg(all(
+            target_os = "linux",
+            target_arch = "aarch64",
+            any(feature = "embed-cuda", feature = "rerank-cuda")
+        ))]
+        {
+            fathomdb_embedder::run_module_load_early_init(
+                cfg!(feature = "embed-cuda"),
+                cfg!(feature = "rerank-cuda"),
+            )
+        }
+        #[cfg(not(all(
+            target_os = "linux",
+            target_arch = "aarch64",
+            any(feature = "embed-cuda", feature = "rerank-cuda")
+        )))]
+        {
+            fathomdb_embedder::recorded_module_load_init()
+        }
+    }
+
+    fn resolve_device(&mut self) -> Result<Option<fathomdb_embedder::CudaDeviceInfo>, String> {
+        let embed_cpu = std::env::var("FATHOMDB_EMBED_DEVICE")
+            .is_ok_and(|raw| matches!(raw.parse(), Ok(fathomdb_embedder::EmbedDevicePolicy::Cpu)));
+        #[cfg(feature = "embed-cuda")]
+        if !embed_cpu {
+            return match fathomdb_embedder::resolve_default_embedder_device_from_env() {
+                Ok(resolution) => Ok(match resolution.effective_device {
+                    fathomdb_embedder::EffectiveEmbedDevice::Cuda(info) => Some(info),
+                    fathomdb_embedder::EffectiveEmbedDevice::Cpu => None,
+                }),
+                Err(error) => Err(error.to_string()),
+            };
+        }
+        let _ = embed_cpu;
+        #[cfg(feature = "rerank-cuda")]
+        {
+            match fathomdb_embedder::resolve_default_reranker_device_from_env() {
+                Ok(resolution) => Ok(match resolution.effective_device {
+                    fathomdb_embedder::EffectiveRerankerDevice::Cuda(info) => Some(info),
+                    fathomdb_embedder::EffectiveRerankerDevice::Cpu => None,
+                }),
+                Err(error) => Err(error.to_string()),
+            }
+        }
+        #[cfg(not(feature = "rerank-cuda"))]
+        {
+            Ok(None)
+        }
+    }
+
+    fn context_state(
+        &mut self,
+        ordinal: usize,
+    ) -> Option<fathomdb_embedder::CudaPrimaryContextState> {
+        fathomdb_embedder::cuda_context_state(ordinal)
+    }
+}
+
+/// Report the CUDA allocator decision this process makes, as an SDK process
+/// would: early returns first (explicit `cpu`, affirmed ARM64 SBSA, no CUDA
+/// feature), then the early `cuInit` helper, then the device probe.
+fn run_doctor_cuda_allocator(args: GpuDoctorArgs) -> i32 {
+    let embed_policy = std::env::var("FATHOMDB_EMBED_DEVICE").ok();
+    let rerank_policy = std::env::var(fathomdb_embedder::ENV_RERANK_DEVICE).ok();
+    let pool_mode = std::env::var("FATHOMDB_POOL_MODE").ok();
+    let inputs = CudaAllocatorInputs {
+        built: TEGRA_POOL_BUILT,
+        embed_cuda_compiled: cfg!(feature = "embed-cuda"),
+        rerank_cuda_compiled: cfg!(feature = "rerank-cuda"),
+        embed_policy: embed_policy.as_deref(),
+        rerank_policy: rerank_policy.as_deref(),
+        pool_mode: pool_mode.as_deref(),
+    };
+    let outcome =
+        diagnose_cuda_allocator(&inputs, &SystemPlatformProbe, &mut SystemCudaAllocatorProbe);
+    match &outcome {
+        Ok(record) => print!("{}", cuda_allocator_output(record, args.json)),
+        Err(message) => eprintln!("doctor cuda-allocator: {message}"),
+    }
+    cuda_allocator_exit_code(&outcome)
 }
 
 #[cfg(feature = "default-reranker")]

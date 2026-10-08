@@ -2175,3 +2175,106 @@ mod default_embedder_load_error_tests {
         assert!(message.contains("no device"), "{message}");
     }
 }
+
+#[cfg(test)]
+mod device_policy_open_error_tests {
+    use fathomdb_embedder::{
+        CudaPoolFailure, DeviceResolutionError, EmbedDevicePolicyError, RerankerDevicePolicyError,
+        RerankerDeviceResolutionError, RerankerDeviceResolutionReason,
+    };
+
+    use super::*;
+
+    fn exhausted() -> CudaPoolFailure {
+        CudaPoolFailure::Exhausted { ordinal: 0, max_size_bytes: 9, message: "m".to_owned() }
+    }
+
+    #[test]
+    fn a_pool_failure_in_the_embedder_probe_is_the_typed_open_kind() {
+        assert_eq!(
+            embed_device_policy_open_error(EmbedDevicePolicyError::Resolution(
+                DeviceResolutionError::CudaPool(exhausted())
+            )),
+            EngineOpenError::CudaPoolExhausted {
+                ordinal: 0,
+                max_size_bytes: 9,
+                message: "m".into()
+            }
+        );
+        assert_eq!(
+            embed_device_policy_open_error(EmbedDevicePolicyError::Resolution(
+                DeviceResolutionError::CudaPool(CudaPoolFailure::ContextLost {
+                    recorded_context_id: 3,
+                    current_context_id: None,
+                    driver_error: "d".to_owned(),
+                    operation: "device probe".to_owned(),
+                })
+            )),
+            EngineOpenError::CudaContextLost {
+                recorded_context_id: 3,
+                current_context_id: None,
+                driver_error: "d".into(),
+                operation: "device probe".into(),
+            }
+        );
+        assert_eq!(
+            embed_device_policy_open_error(EmbedDevicePolicyError::Resolution(
+                DeviceResolutionError::CudaPool(CudaPoolFailure::PrivateBuildRefused {
+                    ordinal: 1,
+                    message: "m".to_owned(),
+                })
+            )),
+            EngineOpenError::CudaPrivateBuildRefused { ordinal: 1, message: "m".into() }
+        );
+        let other = EmbedDevicePolicyError::Resolution(DeviceResolutionError::CudaNotCompiled {
+            ordinal: 0,
+        });
+        assert_eq!(
+            embed_device_policy_open_error(other.clone()),
+            EngineOpenError::EmbedDevicePolicy(other)
+        );
+    }
+
+    #[test]
+    fn a_pool_failure_in_the_reranker_probe_is_the_typed_open_kind() {
+        assert_eq!(
+            reranker_device_policy_open_error(RerankerDevicePolicyError::CudaPoolExhausted {
+                ordinal: 0,
+                max_size_bytes: 9,
+                message: "m".to_owned(),
+            }),
+            EngineOpenError::CudaPoolExhausted {
+                ordinal: 0,
+                max_size_bytes: 9,
+                message: "m".into()
+            }
+        );
+        assert_eq!(
+            reranker_device_policy_open_error(RerankerDevicePolicyError::Resolution(
+                RerankerDeviceResolutionError::CudaPool(exhausted())
+            )),
+            EngineOpenError::CudaPoolExhausted {
+                ordinal: 0,
+                max_size_bytes: 9,
+                message: "m".into()
+            }
+        );
+        assert_eq!(
+            reranker_device_policy_open_error(RerankerDevicePolicyError::CudaPrivateBuildRefused {
+                ordinal: 1,
+                message: "m".to_owned(),
+            }),
+            EngineOpenError::CudaPrivateBuildRefused { ordinal: 1, message: "m".into() }
+        );
+        let other = RerankerDevicePolicyError::Resolution(
+            RerankerDeviceResolutionError::ForcedCudaUnavailable {
+                ordinal: 0,
+                reason: RerankerDeviceResolutionReason::CudaProbeFailed,
+            },
+        );
+        assert_eq!(
+            reranker_device_policy_open_error(other.clone()),
+            EngineOpenError::RerankerDevicePolicy(other)
+        );
+    }
+}

@@ -8,8 +8,9 @@
 use std::str::FromStr;
 
 use fathomdb_embedder::{
-    resolve_embed_device_policy, CudaDeviceInfo, CudaProbeError, CudaProvider, CudaVisibleDevice,
-    DeviceResolutionError, DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy,
+    resolve_embed_device_policy, CudaDeviceInfo, CudaPoolFailure, CudaProbeError, CudaProvider,
+    CudaVisibleDevice, DeviceResolutionError, DeviceResolutionReason, EffectiveEmbedDevice,
+    EmbedDevicePolicy, EmbedDevicePolicyError,
 };
 
 #[derive(Debug)]
@@ -51,14 +52,16 @@ impl CudaProvider for RecordingProvider {
                 compute_capability: info.compute_capability.clone(),
             }]),
             Err(CudaProbeError::NoVisibleDevice) => Ok(Vec::new()),
-            Err(CudaProbeError::Incompatible { .. } | CudaProbeError::ProbeFailed { .. }) => {
-                Ok(vec![CudaVisibleDevice {
-                    visible_ordinal: 0,
-                    uuid: "GPU-0".to_owned(),
-                    name: "fixture GPU".to_owned(),
-                    compute_capability: Some("8.6".to_owned()),
-                }])
-            }
+            Err(
+                CudaProbeError::Incompatible { .. }
+                | CudaProbeError::ProbeFailed { .. }
+                | CudaProbeError::Pool(_),
+            ) => Ok(vec![CudaVisibleDevice {
+                visible_ordinal: 0,
+                uuid: "GPU-0".to_owned(),
+                name: "fixture GPU".to_owned(),
+                compute_capability: Some("8.6".to_owned()),
+            }]),
         }
     }
 
@@ -165,4 +168,70 @@ fn forced_cuda_never_falls_back_to_cpu() {
     );
     assert_eq!(provider.enumerate_calls, 1);
     assert!(provider.calls.is_empty());
+}
+
+fn pool_failures() -> [CudaPoolFailure; 3] {
+    [
+        CudaPoolFailure::Exhausted {
+            ordinal: 0,
+            max_size_bytes: 3 << 30,
+            message: "device probe: CUDA_ERROR_OUT_OF_MEMORY".to_owned(),
+        },
+        CudaPoolFailure::ContextLost {
+            recorded_context_id: 7,
+            current_context_id: None,
+            driver_error: "CUDA_ERROR_CONTEXT_IS_DESTROYED".to_owned(),
+            operation: "device probe".to_owned(),
+        },
+        CudaPoolFailure::PrivateBuildRefused { ordinal: 0, message: "refused".to_owned() },
+    ]
+}
+
+/// A private-pool process never moves to CPU: a pool failure inside the
+/// probe is the typed kind under `auto` as under forced CUDA.
+#[test]
+fn a_pool_failure_in_the_probe_is_typed_under_every_cuda_policy() {
+    for failure in pool_failures() {
+        for policy in [EmbedDevicePolicy::Auto, EmbedDevicePolicy::Cuda(0)] {
+            let mut provider =
+                RecordingProvider::unavailable(CudaProbeError::Pool(failure.clone()));
+            assert_eq!(
+                resolve_embed_device_policy(policy, true, &mut provider),
+                Err(DeviceResolutionError::CudaPool(failure.clone())),
+                "{policy:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_probe_pool_failure_keeps_its_kind_and_ordinal() {
+    let kinds = ["cuda_pool_exhausted", "cuda_context_lost", "cuda_private_build_refused"];
+    let ordinals = [Some(0), None, Some(0)];
+    for ((failure, kind), ordinal) in pool_failures().into_iter().zip(kinds).zip(ordinals) {
+        assert_eq!(failure.kind(), kind);
+        let error = EmbedDevicePolicyError::Resolution(DeviceResolutionError::CudaPool(failure));
+        assert_eq!(error.kind(), kind);
+        assert_eq!(error.ordinal(), ordinal);
+    }
+}
+
+/// Outside a private-pool process a probe failure keeps 0.8.27's contract:
+/// `auto` uses CPU with a reason, forced CUDA refuses.
+#[test]
+fn a_non_private_probe_failure_keeps_the_auto_cpu_move() {
+    let failed = || CudaProbeError::ProbeFailed { message: "probe".to_owned() };
+    let mut provider = RecordingProvider::unavailable(failed());
+    let auto = resolve_embed_device_policy(EmbedDevicePolicy::Auto, true, &mut provider)
+        .expect("auto falls back");
+    assert_eq!(auto.effective_device, EffectiveEmbedDevice::Cpu);
+    assert_eq!(auto.reason, Some(DeviceResolutionReason::CudaProbeFailed));
+    let mut provider = RecordingProvider::unavailable(failed());
+    assert_eq!(
+        resolve_embed_device_policy(EmbedDevicePolicy::Cuda(0), true, &mut provider),
+        Err(DeviceResolutionError::ForcedCudaUnavailable {
+            ordinal: 0,
+            reason: DeviceResolutionReason::CudaProbeFailed,
+        })
+    );
 }

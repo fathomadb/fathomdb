@@ -198,3 +198,26 @@ fn load_errors_classify_into_the_three_singleton_outcomes() {
         LoadFailure::Unavailable
     );
 }
+
+/// A pool failure in the open-time reranker probe reaches the singleton as a
+/// device-policy error; it is returned and retried, never memoized.
+#[cfg(feature = "default-reranker")]
+#[test]
+fn a_pool_kind_device_policy_failure_is_retried_not_memoized() {
+    use fathomdb_embedder::RerankerLoadError;
+
+    assert_eq!(
+        classify_reranker_load_error(RerankerLoadError::DevicePolicy(exhausted())),
+        LoadFailure::Retry(exhausted())
+    );
+    assert_eq!(
+        classify_reranker_load_error(RerankerLoadError::DevicePolicy(context_lost())),
+        LoadFailure::Retry(context_lost())
+    );
+    let refused =
+        RerankerDevicePolicyError::CudaPrivateBuildRefused { ordinal: 0, message: "m".to_owned() };
+    assert_eq!(
+        classify_reranker_load_error(RerankerLoadError::DevicePolicy(refused.clone())),
+        LoadFailure::Retry(refused)
+    );
+}

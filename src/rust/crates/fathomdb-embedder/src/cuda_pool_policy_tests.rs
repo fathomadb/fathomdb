@@ -1204,6 +1204,82 @@ fn a_reranker_weight_load_failure_is_classified_through_the_pool_first() {
     assert!(matches!(error, RerankerLoadError::DevicePolicy(_)), "{error:?}");
 }
 
+// ---- device probe (CR-2) ---------------------------------------------------
+
+#[cfg(feature = "embed-cuda")]
+#[test]
+fn an_embedder_probe_pool_failure_is_typed_in_a_private_process() {
+    use crate::CudaProbeError;
+    let refused = CudaPoolFailure::PrivateBuildRefused { ordinal: 0, message: "m".to_owned() };
+    assert_eq!(
+        crate::candle_bge::classify_device_build_error(DeviceBuildError::Pool(refused.clone())),
+        CudaProbeError::Pool(refused)
+    );
+    let driver = FakeDriver::default();
+    let cell = private_cell(&driver);
+    let error = crate::candle_bge::probe_allocation_error(candle_out_of_memory(), |error| {
+        classify_candle_fault(cell.get(), &driver, error, 0, PROBE_OPERATION)
+    });
+    assert!(
+        matches!(error, CudaProbeError::Pool(CudaPoolFailure::Exhausted { ordinal: 0, .. })),
+        "{error:?}"
+    );
+    let (off_driver, off) = off_cell();
+    let error = crate::candle_bge::probe_allocation_error(candle_out_of_memory(), |error| {
+        classify_candle_fault(off.get(), &off_driver, error, 0, PROBE_OPERATION)
+    });
+    assert!(matches!(error, CudaProbeError::ProbeFailed { .. }), "{error:?}");
+    assert_eq!(PROBE_OPERATION, "device probe");
+}
+
+#[cfg(feature = "rerank-cuda")]
+#[test]
+fn a_reranker_probe_pool_failure_is_typed_in_a_private_process() {
+    use crate::CudaProbeError;
+    let refused = CudaPoolFailure::PrivateBuildRefused { ordinal: 0, message: "m".to_owned() };
+    assert_eq!(
+        crate::candle_reranker::classify_device_build_error(DeviceBuildError::Pool(
+            refused.clone()
+        )),
+        CudaProbeError::Pool(refused)
+    );
+    let driver = FakeDriver::default();
+    let cell = private_cell(&driver);
+    let error = crate::candle_reranker::probe_allocation_error(candle_out_of_memory(), |error| {
+        classify_candle_fault(cell.get(), &driver, error, 0, PROBE_OPERATION)
+    });
+    assert!(
+        matches!(error, CudaProbeError::Pool(CudaPoolFailure::Exhausted { ordinal: 0, .. })),
+        "{error:?}"
+    );
+    let (off_driver, off) = off_cell();
+    let error = crate::candle_reranker::probe_allocation_error(candle_out_of_memory(), |error| {
+        classify_candle_fault(off.get(), &off_driver, error, 0, PROBE_OPERATION)
+    });
+    assert!(matches!(error, CudaProbeError::ProbeFailed { .. }), "{error:?}");
+}
+
+#[cfg(feature = "default-embedder")]
+#[test]
+fn a_probe_pool_failure_is_the_typed_embedder_load_error() {
+    use crate::loader::EmbedderLoadError;
+    use crate::{DeviceResolutionError, EmbedDevicePolicyError};
+    let exhausted =
+        CudaPoolFailure::Exhausted { ordinal: 0, max_size_bytes: 1, message: "m".to_owned() };
+    assert!(matches!(
+        crate::candle_bge::device_policy_load_error(EmbedDevicePolicyError::Resolution(
+            DeviceResolutionError::CudaPool(exhausted)
+        )),
+        EmbedderLoadError::CudaPoolExhausted { ordinal: 0, max_size_bytes: 1, .. }
+    ));
+    assert!(matches!(
+        crate::candle_bge::device_policy_load_error(EmbedDevicePolicyError::Resolution(
+            DeviceResolutionError::CudaNotCompiled { ordinal: 0 }
+        )),
+        EmbedderLoadError::DeviceInitialization { .. }
+    ));
+}
+
 #[test]
 fn a_later_private_build_on_a_live_context_is_still_refused() {
     let driver = FakeDriver { later_context_error: Some(999), ..FakeDriver::default() };

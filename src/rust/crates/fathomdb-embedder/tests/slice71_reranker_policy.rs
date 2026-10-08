@@ -1,7 +1,7 @@
 //! Behavioral contract for Slice 71's strict cross-encoder device resolver.
 
 use fathomdb_embedder::{
-    resolve_reranker_device_policy, CudaDeviceInfo, CudaProbeError, CudaProvider,
+    resolve_reranker_device_policy, CudaDeviceInfo, CudaPoolFailure, CudaProbeError, CudaProvider,
     CudaVisibleDevice, EffectiveRerankerDevice, RerankerDevicePolicy, RerankerDevicePolicyError,
     RerankerDevicePolicyParseError, RerankerDeviceResolutionError, RerankerDeviceResolutionReason,
 };
@@ -234,4 +234,47 @@ fn cuda_info_at(ordinal: usize, uuid: &str) -> CudaDeviceInfo {
         Some("8.6".to_owned()),
         None,
     )
+}
+
+/// A private-pool process never moves the reranker to CPU: a pool failure
+/// inside the probe is the typed kind under `auto` as under forced CUDA, and
+/// `auto` does not go on to probe another device.
+#[test]
+fn a_pool_failure_in_the_probe_is_typed_under_every_cuda_policy() {
+    let failure = CudaPoolFailure::Exhausted {
+        ordinal: 0,
+        max_size_bytes: 3 << 30,
+        message: "device probe: CUDA_ERROR_OUT_OF_MEMORY".to_owned(),
+    };
+    for policy in [RerankerDevicePolicy::Auto, RerankerDevicePolicy::Cuda(0)] {
+        let mut provider = MultiDeviceProvider {
+            devices: vec![visible_at(0, "GPU-0"), visible_at(1, "GPU-1")],
+            probes: vec![Err(CudaProbeError::Pool(failure.clone())), Ok(cuda_info_at(1, "GPU-1"))],
+            probed_ordinals: Vec::new(),
+        };
+        assert_eq!(
+            resolve_reranker_device_policy(policy, true, &mut provider),
+            Err(RerankerDeviceResolutionError::CudaPool(failure.clone())),
+            "{policy:?}"
+        );
+        assert_eq!(provider.probed_ordinals, vec![0], "{policy:?}");
+    }
+    let error = RerankerDevicePolicyError::Resolution(RerankerDeviceResolutionError::CudaPool(
+        failure.clone(),
+    ));
+    assert_eq!(error.kind(), "cuda_pool_exhausted");
+    assert_eq!(error.ordinal(), Some(0));
+}
+
+#[test]
+fn a_non_private_probe_failure_keeps_the_auto_cpu_move() {
+    let mut provider = Provider {
+        enumerate: Ok(vec![visible()]),
+        probe: Err(CudaProbeError::ProbeFailed { message: "probe".to_owned() }),
+        ..Provider::default()
+    };
+    let auto = resolve_reranker_device_policy(RerankerDevicePolicy::Auto, true, &mut provider)
+        .expect("auto falls back");
+    assert_eq!(auto.effective_device, EffectiveRerankerDevice::Cpu);
+    assert_eq!(auto.reason, Some(RerankerDeviceResolutionReason::CudaProbeFailed));
 }

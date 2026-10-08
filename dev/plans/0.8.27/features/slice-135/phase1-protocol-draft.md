@@ -500,6 +500,12 @@ unchanged paths at 100 observations each. The
 [replacement paired subset](e12-224e-comparison-protocol.json) binds the
 rebuilt binary and unchanged workload before new candidate timing. The
 selected coverage overlay above remains historical for its source SHA.
+The [exact-source paired refresh](results/2026-10-08-e12-224e-paired/README.md)
+subsequently passed 20 blocks and independent recomputation of twelve cells.
+Vector-stage, hybrid and populated-open p50 rose in all five pairs, with
+host-only paging warnings retained. Its raw archive remains local pending
+final retention; this engine subset does not substitute for installed-SDK
+whole-call latency or the broader Phase 1 protocol.
 
 ## Robustness matrix
 

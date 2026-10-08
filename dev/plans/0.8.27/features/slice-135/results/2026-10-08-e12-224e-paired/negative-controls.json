@@ -1,0 +1,10 @@
+{
+  "reordered_schedule": {
+    "error": "campaign block order differs from freeze",
+    "rejected": true
+  },
+  "wrong_ordered_text_id": {
+    "error": "text: state or output mismatch at attempt 0",
+    "rejected": true
+  }
+}

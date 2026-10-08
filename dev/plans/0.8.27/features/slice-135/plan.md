@@ -723,8 +723,12 @@ SDK exercise remain open.
   passed all twelve paths at 100 observations each, with independent audit
   and two rejected identity/output mutants. Its
   [paired protocol](e12-224e-comparison-protocol.json) is frozen to the
-  rebuilt binary before timing. The older engine paired result remains
-  historical after these Rust source changes.
+  rebuilt binary before timing. The [paired engine refresh](results/2026-10-08-e12-224e-paired/README.md)
+  passed 20 independently audited blocks. Vector-stage, hybrid and populated
+  open p50 increased in all five pairs; the four warning-free query pairs
+  retain the vector and hybrid leads. Attribute these separately from
+  installed Python S01/S02 before a system-level claim. The older engine
+  paired result remains historical after these Rust source changes.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

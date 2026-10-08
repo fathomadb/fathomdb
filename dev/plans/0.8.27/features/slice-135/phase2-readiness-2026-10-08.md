@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 2 query correctness readiness — 2026-10-08
-status: VECTOR_FIDELITY_PROTOCOL_FROZEN_BEFORE_SCORE
+status: VECTOR_FIDELITY_AUDITED_JUDGED_GOLD_OPEN
 target_release: 0.8.27
 ---
 
@@ -76,6 +76,16 @@ diagnostic audit are retained locally; the observed `0.945` means are not
 promoted as a Phase 2 fidelity verdict. The v2 protocol was frozen after
 that diagnosis and before any corrected scored run.
 
+The corrected [paired vector-stage result](results/2026-10-08-phase2-vector-fidelity-v2/README.md)
+has now passed independent audit over 1,000 unique bodies and 100 queries:
+baseline/candidate exact-neighbor recall@10 is 0.933/0.931. Candidate scores
+worse on 14 queries, better on 11 and equally on 75; the paired bootstrap
+interval includes zero. The [per-case diagnosis](results/2026-10-08-phase2-vector-fidelity-v2/diagnosis.json)
+records all missed exact ranks. Same-model f32 document/query vectors match
+between versions, but pinned mean vectors and vec0 layouts differ, so this
+pair does not isolate a version-specific ANN loss. The measurement is a
+vector-stage seam; public hybrid relevance remains unscored.
+
 ## Exact identities and available local inputs
 
 | Input | Verified identity or location | Boundary |
@@ -101,15 +111,15 @@ new paired Phase 2 protocol or independent scorer is qualified.
 
 ## Immediate execution path
 
-1. Complete verification of the frozen vector runner and auditor, then run
-   the 100-query paired fresh-database fidelity cell and independently
-   recompute every query score from retained raw vectors and hits.
-2. Freeze and negatively qualify the judged relevance, evidence and memory
+1. Freeze and negatively qualify the judged relevance, evidence and memory
    protocols using the already qualified local source mappings. Score each
    class separately with explicit denominators and omissions.
-3. Qualify checkpoint/resume, backoff, completeness and the approved spending
+2. Qualify checkpoint/resume, backoff, completeness and the approved spending
    ceiling before any priced paired answer-quality call. Add TypeScript, Rust
    or fault cells when a specific scored claim depends on them.
+3. Treat the paired vector-stage difference as a diagnostic until a
+   controlled mean-state or repeated-pair study separates runtime index
+   variation from a version effect.
 
 The [verified Phase 1 raw bundle](results/2026-10-08-raw-retention-review/README.md)
 remains local. Preserve it through Phase 2 and transfer it before any

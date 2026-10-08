@@ -1,0 +1,1258 @@
+{
+  "by_source": {
+    "bahmutov_dailylogs": {
+      "baseline_mean_recall_at_10": 0.9799999999999999,
+      "candidate_better": 2,
+      "candidate_mean_recall_at_10": 0.9839999999999998,
+      "candidate_worse": 1,
+      "equal": 22,
+      "queries": 25
+    },
+    "cnn_dailymail": {
+      "baseline_mean_recall_at_10": 0.9480000000000001,
+      "candidate_better": 2,
+      "candidate_mean_recall_at_10": 0.9440000000000001,
+      "candidate_worse": 4,
+      "equal": 19,
+      "queries": 25
+    },
+    "enron": {
+      "baseline_mean_recall_at_10": 0.868,
+      "candidate_better": 6,
+      "candidate_mean_recall_at_10": 0.8719999999999998,
+      "candidate_worse": 6,
+      "equal": 13,
+      "queries": 25
+    },
+    "landes_todos": {
+      "baseline_mean_recall_at_10": 0.9359999999999999,
+      "candidate_better": 1,
+      "candidate_mean_recall_at_10": 0.924,
+      "candidate_worse": 3,
+      "equal": 21,
+      "queries": 25
+    }
+  },
+  "cases": [
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:000",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:010",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:020",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:030",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:040",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:050",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:060",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:070",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:080",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:090",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:100",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:110",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        10
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:120",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:130",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:140",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        1
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:150",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:160",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        4
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        4
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:170",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:180",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        3
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:190",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:200",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        10
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        10
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:210",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:220",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        5
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        5
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:230",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "bahmutov_dailylogs:240",
+      "source": "bahmutov_dailylogs"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:000",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:010",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:020",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        2
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:030",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        4
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        4
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:040",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:050",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        6
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        6
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:060",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        1,
+        4,
+        9
+      ],
+      "baseline_recall_at_10": 0.7,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        1,
+        4,
+        9
+      ],
+      "candidate_recall_at_10": 0.7,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:070",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        4,
+        7,
+        8,
+        9,
+        10
+      ],
+      "baseline_recall_at_10": 0.5,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        3,
+        4,
+        6,
+        7,
+        8,
+        10
+      ],
+      "candidate_recall_at_10": 0.4,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:080",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:090",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        5,
+        9
+      ],
+      "baseline_recall_at_10": 0.8,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        5,
+        9
+      ],
+      "candidate_recall_at_10": 0.8,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:100",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:110",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        8
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        8
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:120",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:130",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:140",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:150",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        9
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        9
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:160",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        10
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:170",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        9
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        9
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:180",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:190",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:200",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:210",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:220",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        3,
+        10
+      ],
+      "candidate_recall_at_10": 0.8,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:230",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "landes_todos:240",
+      "source": "landes_todos"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        9,
+        10
+      ],
+      "baseline_recall_at_10": 0.8,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        10
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:000",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        2,
+        5,
+        7
+      ],
+      "baseline_recall_at_10": 0.7,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        5
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:010",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        8
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        5
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:020",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        6
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        6
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:030",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        3
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        3
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:040",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        9
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:050",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        1,
+        5,
+        9,
+        10
+      ],
+      "baseline_recall_at_10": 0.6,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        1,
+        5,
+        9,
+        10
+      ],
+      "candidate_recall_at_10": 0.6,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:060",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        3,
+        7,
+        9,
+        10
+      ],
+      "baseline_recall_at_10": 0.6,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        3,
+        7,
+        9
+      ],
+      "candidate_recall_at_10": 0.7,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:070",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:080",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        8,
+        10
+      ],
+      "candidate_recall_at_10": 0.8,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:090",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        8
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        8
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:100",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        9
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:110",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        2,
+        5,
+        8
+      ],
+      "baseline_recall_at_10": 0.7,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        2,
+        4,
+        5,
+        8
+      ],
+      "candidate_recall_at_10": 0.6,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:120",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        10
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:130",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:140",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:150",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:160",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        3,
+        5,
+        6,
+        7,
+        8
+      ],
+      "baseline_recall_at_10": 0.5,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        3,
+        5,
+        6,
+        7,
+        8
+      ],
+      "candidate_recall_at_10": 0.5,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:170",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        2
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:180",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        3,
+        5,
+        7,
+        9
+      ],
+      "baseline_recall_at_10": 0.6,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        2
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:190",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        10
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        10
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:200",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:210",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:220",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        6
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        6,
+        7,
+        8
+      ],
+      "candidate_recall_at_10": 0.7,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:230",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        10
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "enron:240",
+      "source": "enron"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:000",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        6
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:010",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:020",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        4,
+        5,
+        7,
+        8
+      ],
+      "baseline_recall_at_10": 0.6,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        4,
+        5,
+        7,
+        8
+      ],
+      "candidate_recall_at_10": 0.6,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:030",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        9
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:040",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        10
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        10
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:050",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        4,
+        5
+      ],
+      "baseline_recall_at_10": 0.8,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        5,
+        7
+      ],
+      "candidate_recall_at_10": 0.8,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:060",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:070",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:080",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        10
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:090",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:100",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:110",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:120",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        6
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:130",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:140",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        1,
+        6,
+        9,
+        10
+      ],
+      "baseline_recall_at_10": 0.6,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        1,
+        6
+      ],
+      "candidate_recall_at_10": 0.8,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:150",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [
+        8
+      ],
+      "baseline_recall_at_10": 0.9,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        8
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:160",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:170",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:180",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:190",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:200",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:210",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [
+        9
+      ],
+      "candidate_recall_at_10": 0.9,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:220",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:230",
+      "source": "cnn_dailymail"
+    },
+    {
+      "baseline_missing_exact_ranks": [],
+      "baseline_recall_at_10": 1.0,
+      "baseline_returned_hits": 15,
+      "candidate_missing_exact_ranks": [],
+      "candidate_recall_at_10": 1.0,
+      "candidate_returned_hits": 15,
+      "query_id": "cnn_dailymail:240",
+      "source": "cnn_dailymail"
+    }
+  ],
+  "input_audit_sha256": "e305e941996a8bb73ee31b17b35c04377604bb58c72b7a4272505170b9991a8b",
+  "mean_vec_sha256": {
+    "baseline": "0a8286515df948119c4ecd38ba7f78fd7a9a348fda967fada9c69c4978a97e21",
+    "candidate": "00af6ca380699a0f19802088839c18dde6bbbaacdd96e4f3b84897d19049f93d"
+  },
+  "same_document_vectors": true,
+  "same_query_text_hashes": true,
+  "same_query_vectors": true,
+  "schema_version": 1
+}

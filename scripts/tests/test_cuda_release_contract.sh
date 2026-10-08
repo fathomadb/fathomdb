@@ -1011,4 +1011,56 @@ path.write_text(text.replace(needle, 'export CUDA_NAPI_HOST_CC="$CUDA_HOST_CC_TE
 PY
 expect_fail "$FIXTURE" 'rejects an N-API host CC silently re-pointed at the Tegra axis'
 
+# --- 0.8.28 Slice 30 (R30-07, AC30-07): tegra-pool is Tegra-only ------------
+# The Tegra wheel selects its own feature set carrying `tegra-pool`; every x86
+# and CPU set refuses it.
+mutate_tegra_pool() {
+  local file="$1" needle="$2" replacement="$3" description="$4"
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/$file" "$needle" "$replacement" <<'PY'
+from pathlib import Path
+import sys
+
+path, needle, replacement = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+text = path.read_text()
+if text.count(needle) != 1:
+    raise SystemExit(f"fixture {path.name} no longer contains {needle!r} exactly once")
+path.write_text(text.replace(needle, replacement, 1))
+PY
+  expect_fail "$FIXTURE" "$description"
+}
+
+mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
+  "CUDA_PYTHON_FEATURES='pyo3/extension-module,embed-cuda'" \
+  "CUDA_PYTHON_FEATURES='pyo3/extension-module,embed-cuda,tegra-pool'" \
+  'rejects tegra-pool in the x86_64 CUDA Python feature set'
+mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
+  "CUDA_NAPI_FEATURES='embed-cuda'" \
+  "CUDA_NAPI_FEATURES='embed-cuda,tegra-pool'" \
+  'rejects tegra-pool in the x86_64 CUDA N-API feature set'
+mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
+  "CUDA_RERANK_PYTHON_FEATURES='pyo3/extension-module,embed-cuda,rerank-cuda'" \
+  "CUDA_RERANK_PYTHON_FEATURES='pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool'" \
+  'rejects tegra-pool in the x86_64 CUDA reranker Python feature set'
+mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
+  "CUDA_RERANK_NAPI_FEATURES='embed-cuda,rerank-cuda'" \
+  "CUDA_RERANK_NAPI_FEATURES='embed-cuda,rerank-cuda,tegra-pool'" \
+  'rejects tegra-pool in the x86_64 CUDA reranker N-API feature set'
+mutate_tegra_pool .github/workflows/release.yml \
+  '--features pyo3/extension-module,default-embedder -i' \
+  '--features pyo3/extension-module,default-embedder,tegra-pool -i' \
+  'rejects tegra-pool in the CPU Python release build'
+mutate_tegra_pool src/rust/crates/fathomdb-napi/Cargo.toml \
+  'default-reranker = ["fathomdb-engine/default-reranker"]' \
+  'default-reranker = ["fathomdb-engine/default-reranker", "tegra-pool"]' \
+  'rejects tegra-pool reached through a default N-API feature'
+mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
+  "CUDA_PYTHON_FEATURES_TEGRA='pyo3/extension-module,embed-cuda,tegra-pool'" \
+  "CUDA_PYTHON_FEATURES_TEGRA='pyo3/extension-module,embed-cuda'" \
+  'rejects a Tegra CUDA Python feature set without tegra-pool'
+mutate_tegra_pool scripts/release/build-python-cuda-tegra.sh \
+  '--features "$CUDA_PYTHON_FEATURES_TEGRA"' \
+  '--features "$CUDA_PYTHON_FEATURES"' \
+  'rejects a Tegra CUDA Python build that uses the x86_64 feature set'
+
 printf '\nCUDA release-contract tests passed\n'

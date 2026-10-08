@@ -8,6 +8,45 @@ released section MUST list every removed public symbol under a `### Removed` hea
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
+## 0.8.28 — unreleased
+
+**Publication status: pending.** This release has not been tagged or published.
+
+### Added
+
+- A private CUDA memory pool on the Jetson AGX Orin 64 GB, behind the new
+  non-default `tegra-pool` Cargo feature. In `tegra-pool` builds every
+  FathomDB CUDA context allocates from one pool capped at 3 GiB that returns
+  freed memory at once; other hosts and builds keep the 0.8.27 allocator.
+  The Tegra Python wheel enables it.
+- Settings `FATHOMDB_POOL_MODE`, `FATHOMDB_POOL_MAXSIZE` and
+  `FATHOMDB_POOL_RELEASE_THRESHOLD`, read once at the first CUDA device build.
+- Error kinds `cuda_pool_exhausted`, `cuda_context_lost` and
+  `cuda_private_build_refused` in every SDK (`CudaPoolExhaustedError`,
+  `CudaContextLostError`, `CudaPrivateBuildRefusedError`; Rust `ErrorKind`
+  variants and `Error::cuda_details`); CLI exit 70.
+- The `cuda_allocator` field on the Rust `CudaDeviceInfo`, and the CLI verb
+  `fathomdb doctor cuda-allocator` (`fathomdb.doctor.cuda-allocator.v1`).
+
+### Changed
+
+- **Potentially breaking (Tegra Python wheel only):** importing `fathomdb`
+  starts the CUDA driver. A `multiprocessing` child created with `fork` after
+  the import cannot use CUDA; use `spawn` or `forkserver`, or set
+  `FATHOMDB_CUDA_EARLY_INIT=off`.
+- Module-level `rerank()` raises device-policy errors as their typed class
+  instead of `WriteValidation`.
+- The reranker under `auto` raises CUDA pool exhaustion and context loss
+  instead of returning neutral scores.
+- A reranker load that fails with a transient CUDA pool error is retried on
+  the next call instead of being memoized.
+- `fathomdb-embedder-api` 0.7.0: `EmbedderError` gains the three CUDA
+  variants and is `#[non_exhaustive]`. `CudaDeviceInfo` is
+  `#[non_exhaustive]`; `RerankerDevicePolicyError`, `EmbedderLoadError` and
+  `RerankerLoadError` gain the CUDA variants; `rerank_passages` returns
+  `RerankPassagesError`.
+- The Fathom Candle crates move to 0.10.3 (`candle-kernels` stays 0.10.2).
+
 ## 0.8.27 — unreleased
 
 **Publication status: pending.** This release has not been tagged or published.

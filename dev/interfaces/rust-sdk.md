@@ -378,6 +378,22 @@ behavior without features matches a wheel built without those features:
 The README states that `default-embedder` reproduces the shipped wheel and npm
 behavior.
 
+`tegra-pool` (0.8.28) is also forwarded and non-default. It selects the Tegra
+private CUDA memory pool on aarch64 Linux with `embed-cuda` or `rerank-cuda`
+(`dev/interfaces/rust.md` § CUDA private memory pool;
+`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`). It needs the workspace's
+vendored cudarc, so it builds only in this repository and its artifacts;
+against registry cudarc it fails at resolution. Even with it, an SDK process
+has no module-load hook: its allocator report says `cuinit_not_at_load` and
+it takes the 0.8.27 allocator path. The pool settings are the environment
+variables `FATHOMDB_POOL_MODE`, `FATHOMDB_POOL_MAXSIZE` and
+`FATHOMDB_POOL_RELEASE_THRESHOLD`, read once at the first CUDA device build.
+The `cuda_allocator` field of `CudaDeviceInfo` is reachable through
+`OpenReport`; its report types (`CudaAllocatorReport` and its enums) are
+not yet re-exported by this crate and come from `fathomdb-embedder`. The
+standalone `embed_batch_cls` and `rerank` models are process singletons:
+on the private pool they hold their memory until the process exits.
+
 ## Request-struct defaults
 
 Core request structs are constructed in full by Rust callers. Use the values

@@ -69,6 +69,7 @@ see that ADR's 2026-06-06 amendment).
 | `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `doctor-gpu` = 0 / 65 / 70          |
 | `platform`        | `fathomdb doctor platform [--json]`                                            | `0 / 70`                            |
 | `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]`                                        | `0 / 65 / 70`                       |
+| `cuda-allocator`  | `fathomdb doctor cuda-allocator [--json]`                                      | `0 / 70`                            |
 | `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `doctor-check-*` = 0 / 70 / 71      |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0 / 70 / 71`      |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` (EU-5b)                                       | `doctor-check-*`                    |
@@ -152,6 +153,46 @@ only the reranker v1 record (`effective_device: "cpu"`, empty inventory,
 `reason: null`). Forced-policy/device refusals exit `65`; malformed policy or
 an artifact without the default reranker exits `70`. This command never opens a
 database, loads/downloads a model, or writes its current directory/cache.
+
+`doctor cuda-allocator` (0.8.28 Slice 30) is a separate database-free,
+model-loader-free record of this process's CUDA allocator decision (the Tegra
+private CUDA memory pool, `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`).
+It emits exactly one compact JSON object with keys in this exact order:
+`schema_version`, `built`, `module_load_init`, `mode`, `path`, `reason`,
+`pool_max_size_bytes`, `release_threshold`, `cuda_context_state`.
+
+- `schema_version` is `"fathomdb.doctor.cuda-allocator.v1"`.
+- `built` is whether this binary compiled the private-pool driver part
+  (`tegra-pool` with `embed-cuda` or `rerank-cuda` on aarch64 Linux).
+- `module_load_init` is `ran`, `opted_out`, `skipped_cpu_only`,
+  `driver_absent`, `failed` or `not_at_load`.
+- `mode` is the `FATHOMDB_POOL_MODE` value as read (`auto` when unset).
+- `path` is `private`, `default_pool`, `synchronous` or `null` (unknown, or
+  no CUDA device built).
+- `reason` is a `CudaAllocatorReason` name (`private_pool`, `mode_off`,
+  `invalid_setting`, the `cuinit_*` reasons, `discrete`, `no_pools`,
+  `too_small`, `not_tegra`, `unmeasured_class`, `pool_create_failed`,
+  `probe_failed`, `private_build_failed`, `decision_panicked`,
+  `other_ordinal`, `not_built`), or `not_applicable` when no allocator report
+  exists: an early return, a CPU resolution, or a target without one.
+- `pool_max_size_bytes` is an integer and `release_threshold` is `"0"` or
+  `"max"` only on the private path; otherwise both are `null`.
+- `cuda_context_state` is `{"state":"active"|"inactive","flags":<u32>}` for
+  the probed device's primary context, read without retaining it, or `null`.
+
+The order of work is fixed. An exact `cpu` policy for every compiled CUDA
+component, an affirmed `arm64_sbsa` platform, or a build without a CUDA
+feature returns the frozen `not_applicable` record (`module_load_init:
+"not_at_load"`, every other nullable field `null`) **before any CUDA call**.
+Otherwise the command runs the shared early-`cuInit` helper, as a binding's
+load hook would, and then the device probe that `doctor gpu` uses, so this
+process makes the allocator decision an SDK process would make. Text output is
+a `doctor cuda-allocator` header followed by the same fields as `key=value`
+lines in that order, with `cuda_context_state=<state> flags=<flags>`. A
+completed record exits 0; a probe or policy failure (for example a forced
+`cuda:N` that cannot be selected) writes `doctor cuda-allocator: <message>`
+to stderr and exits 70. The command never exits 65, opens a database, loads
+or downloads a model, or writes configuration. `doctor gpu` v1 is unchanged.
 
 Normal `Engine::open` resolution and `doctor gpu` have distinct result mappings.
 Open uses `DeviceResolution`, which may describe automatic CPU selection with a

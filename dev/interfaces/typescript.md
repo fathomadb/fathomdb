@@ -837,6 +837,34 @@ the text is for people; match on `code` and `kind`. Other targets do not
 compile this. User guide: `docs/embedder.md` § "Node.js on Jetson: load
 fathomdb first".
 
+### Tegra private CUDA memory pool (0.8.28 Slice 30)
+
+An addon built with the `tegra-pool` Cargo feature (the manual Tegra recipe
+in `scripts/tests/test_tegra_node_early_cuinit.sh`; no published npm package
+carries it) gives FathomDB a private CUDA memory pool on the Jetson AGX Orin
+64 GB. The rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
+
+- The registration-time `cuInit` above is recorded; the pool is created at
+  the first CUDA device build only if it ran. If it was opted out, skipped or
+  failed, the addon takes the 0.8.27 path.
+- **Settings.** `FATHOMDB_POOL_MODE` (`auto`, `on`, `off`),
+  `FATHOMDB_POOL_MAXSIZE` (bytes, `<n>G` or `<n>M`) and
+  `FATHOMDB_POOL_RELEASE_THRESHOLD` (`0`, `max`) are read once, at the first
+  CUDA device build; changing `process.env` later has no effect. A malformed
+  value turns the pool off and never throws.
+- **Report.** `CudaDeviceInfo` does not yet carry the core
+  `cuda_allocator` report; `fathomdb doctor cuda-allocator --json` reports
+  the decision (`dev/interfaces/cli.md`).
+- **Module-level models.** `embedBatchCls` and `rerank` load process
+  singletons; on the private pool they hold their memory until the process
+  exits. An engine's own embedder returns its memory when the engine closes.
+- **Errors.** `CudaPoolExhaustedError`, `CudaContextLostError` and
+  `CudaPrivateBuildRefusedError` (below).
+- **Context reset is unsupported.** Another library resetting the CUDA
+  primary context under FathomDB throws `CudaContextLostError` and writes one
+  `fathomdb-cuda-context-lost` line to stderr; closing afterwards can still
+  crash the process until the 0.8.29 fix.
+
 TypeScript exposes one concrete class per canonical row in
 `design/errors.md` — **44** of them as of 0.8.28, 1:1 with the Python set
 below `EngineError`.

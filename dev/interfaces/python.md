@@ -257,6 +257,44 @@ neither a doctor method nor a device-setting API.
 This is open-time evidence only: it does not add a Python device-setting API.
 `FATHOMDB_EMBED_DEVICE` remains the single cross-surface policy transport.
 
+### Tegra private CUDA memory pool (0.8.28 Slice 30)
+
+Only the Tegra CUDA wheel (`+tegra`, built with
+`CUDA_PYTHON_FEATURES_TEGRA`, which adds the `tegra-pool` Cargo feature)
+carries the private pool; every other wheel keeps the 0.8.27 allocator. The
+rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
+
+- **Early `cuInit` at import.** The Tegra wheel initialises the CUDA driver
+  once when `fathomdb` is imported, with the same rules as the Node addon
+  (`dev/interfaces/typescript.md` § Early CUDA initialisation): skipped when
+  every CUDA-capable policy is exactly `cpu`, and skipped by
+  `FATHOMDB_CUDA_EARLY_INIT=off` (that exact value). Import never fails
+  because of it. The pool is created only if this ran; otherwise the process
+  takes the 0.8.27 path.
+- **Fork hazard H-1 (potentially breaking).** After `import fathomdb` the
+  driver is initialised, and the CUDA driver is not fork-safe once
+  initialised. A `multiprocessing` child created with `fork` after the
+  import cannot use CUDA. Use the `spawn` or `forkserver` start methods (the
+  Linux default from Python 3.14), or set `FATHOMDB_CUDA_EARLY_INIT=off`.
+  Never fork while another thread is inside FathomDB's CUDA initialisation.
+- **Settings.** `FATHOMDB_POOL_MODE` (`auto`, `on`, `off`),
+  `FATHOMDB_POOL_MAXSIZE` (bytes, `<n>G` or `<n>M`) and
+  `FATHOMDB_POOL_RELEASE_THRESHOLD` (`0`, `max`) are read once, at the first
+  CUDA device build; changing them later in the process has no effect. A
+  malformed value turns the pool off and never raises.
+- **Report.** The Python `CudaDeviceInfo` does not yet carry the core
+  `cuda_allocator` report; `fathomdb doctor cuda-allocator --json` reports
+  the decision (`dev/interfaces/cli.md`).
+- **Module-level models.** `embed_batch_cls` and `rerank()` load process
+  singletons; on the private pool they hold their memory until the process
+  exits. An engine's own embedder returns its memory when the engine closes.
+- **Errors.** `CudaPoolExhaustedError`, `CudaContextLostError` and
+  `CudaPrivateBuildRefusedError` (§ Errors).
+- **Context reset is unsupported.** Another library resetting the CUDA
+  primary context under FathomDB raises `CudaContextLostError` and writes one
+  `fathomdb-cuda-context-lost` line to stderr; closing afterwards can still
+  crash the process until the 0.8.29 fix.
+
 ### `SearchHit.id` is `IdSpace` (C-2, 0.8.19 / TC-8)
 
 `SearchHit.id` is **`fathomdb.IdSpace`**, not the pre-0.8.19 `int`

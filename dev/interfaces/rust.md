@@ -1200,6 +1200,60 @@ variants and leave the rest unchanged. `rerank_passages` returns
 memoizes a loaded model, a device-policy refusal and a genuinely unavailable
 model; a load failure of a CUDA pool kind is returned and retried next call.
 
+#### Allocator decision, settings and report
+
+The decision rule is
+[`ADR-0.8.28-tegra-private-cuda-pool`](../adr/ADR-0.8.28-tegra-private-cuda-pool.md).
+
+- **Feature.** `tegra-pool` is non-default. It lives in `fathomdb-embedder`
+  and is forwarded by `fathomdb-engine`, `fathomdb`, `fathomdb-sdk`,
+  `fathomdb-napi`, `fathomdb-py` and `fathomdb-cli`. It has an effect only on
+  aarch64 Linux with `embed-cuda` or `rerank-cuda`. It is supported only in
+  repository and artifact builds, which carry the vendored cudarc through
+  the workspace `[patch.crates-io]`. A downstream build of the published
+  crates gets registry cudarc, so enabling it fails at resolution with
+  "depends on `cudarc` with feature `fathomdb-private-pool` but `cudarc` does
+  not have that feature" (`scripts/check-tegra-pool-registry-build.sh`).
+- **Settings**, read once, inside the decision at the first CUDA device
+  build; a later change has no effect:
+  - `FATHOMDB_POOL_MODE`: `auto` (default), `on` (lifts only the Tegra
+    identity and measured-class gates) or `off`;
+  - `FATHOMDB_POOL_MAXSIZE`: bytes, `<n>G` or `<n>M`, from 32 MiB to device
+    total; replaces the derived size (3 GiB on the AGX Orin 64 GB) only after
+    every gate passes;
+  - `FATHOMDB_POOL_RELEASE_THRESHOLD`: `0` (default) or `max`.
+
+  A malformed value turns the pool off with reason `invalid_setting`; it
+  never aborts.
+- **Report.** `CudaDeviceInfo` is `#[non_exhaustive]` (build it with
+  `CudaDeviceInfo::new(..).with_cuda_allocator(..)`) and carries
+  `cuda_allocator: Option<CudaAllocatorReport>`. `CudaAllocatorReport` is
+  `#[non_exhaustive]` with `path: Option<CudaAllocatorPath>` (`Private`,
+  `DefaultPool`, `Synchronous`; `None` when unknown), `reason:
+  CudaAllocatorReason`, `pool_max_size_bytes: Option<u64>`,
+  `release_threshold: Option<ReleaseThreshold>` (`Zero`, `Max`) and
+  `module_load_init: ModuleLoadInit` (`Ran`, `OptedOut`, `SkippedCpuOnly`,
+  `DriverAbsent`, `Failed(u32)`, `NotAtLoad`). Each enum has a stable
+  `as_str()` name. It is `Some` with `reason: NotBuilt` and `path: None` on
+  aarch64 Linux CUDA builds without `tegra-pool`, the built context's real
+  allocator with it, and `None` on every other target. These types are
+  exported by `fathomdb-embedder`.
+- **No load hook in Rust.** Rust has no module-load hook, so a Rust process
+  reports `cuinit_not_at_load` and takes the 0.8.27 path even with
+  `tegra-pool`. `run_module_load_early_init` is binding support (§ Unstable
+  binding-support items in `fathomdb-embedder`), not re-exported by the
+  facade or the SDK.
+- **Module-level models hold pool memory until exit.** The CLS embedder and
+  reranker singletons are never released; an engine's own embedder returns
+  its memory to the pool, and at threshold 0 to the driver, when the engine
+  closes.
+- **Context reset is unsupported (C7).** If another library in the process
+  resets the device's primary context while FathomDB holds a private one,
+  the next CUDA operation returns `CudaContextLost` and one
+  `fathomdb-cuda-context-lost` JSON line is written to stderr per process.
+  Closing afterwards can still crash; the survival fix is planned for
+  0.8.29.
+
 Canonical leaf mapping lives in `design/errors.md`. This file adopts those
 types without renaming them.
 

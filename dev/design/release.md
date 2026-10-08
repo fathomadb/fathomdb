@@ -128,6 +128,18 @@ bump** on `main`. The canonical sequence for either kind of tag:
 6. Annotated tag at the bump commit: `git tag -a v<version>` and
    `git push origin v<version>`.
 
+### Registry-cudarc check for `tegra-pool` (0.8.28)
+
+Before a release that changes cudarc, the Candle pins or the `tegra-pool`
+wiring, run `scripts/check-tegra-pool-registry-build.sh` on a host with the
+network and a CUDA toolkit (the Jetson). It builds a scratch downstream
+consumer of `fathomdb-embedder` without the workspace's cudarc patch and
+asserts that `embed-cuda` builds against registry cudarc 0.19.7 while
+`tegra-pool` fails at resolution with the `fathomdb-private-pool` marker
+message (`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`). It keeps the
+Candle patch until the Fathom Candle 0.10.3 crates are on crates.io. It is
+not part of `scripts/agent-verify.sh`.
+
 ### New-crate first publish (0.8.27 `fathomdb-sdk`)
 
 crates.io trusted publishing (`crates-io-auth-action`) is configured per

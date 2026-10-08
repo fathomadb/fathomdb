@@ -170,8 +170,8 @@ regardless of where embedding or CE runs.
 
 This applies to a Node.js addon built with CUDA (`embed-cuda` or
 `rerank-cuda`) on an NVIDIA Jetson running Linux AArch64. The published Linux
-AArch64 npm package is CPU-only and does not need it, and Python is
-unaffected.
+AArch64 npm package is CPU-only and does not need it. Python's Tegra wheel
+starts CUDA at import instead; see "Jetson: private CUDA memory pool" below.
 
 On a Jetson, the CUDA driver must reserve one large range of the process's
 virtual address space when it starts. On the Jetson AGX Orin 64 GB that range
@@ -246,6 +246,52 @@ this path. Results are correct either way.
 These measurements come from one Jetson AGX Orin 64 GB (L4T R36, CUDA 12.6).
 Other Jetson models are unmeasured. So are non-Tegra AArch64 Linux CUDA hosts
 such as Grace Hopper, GB10 and SBSA servers, which also build this behaviour.
+
+### Jetson: private CUDA memory pool
+
+Since 0.8.28, a pool-enabled build on the Jetson AGX Orin 64 GB gives
+FathomDB its own CUDA memory pool, capped at 3 GiB, that hands freed memory
+back to the system at once. Every allocation that fits succeeds, and the
+memory is returned when the work ends, without the slower synchronous path
+described above. The Tegra Python wheel (`fathomdb==<version>+tegra`) is
+built this way; the published npm packages and every other wheel are not, and
+keep the earlier behaviour. Other Jetsons and other AArch64 CUDA hosts keep
+it too unless `FATHOMDB_POOL_MODE=on` is set and they pass the remaining
+checks.
+
+- **Python starts CUDA at import.** The Tegra wheel starts the CUDA driver
+  once when `fathomdb` is imported, under the same rules as the Node addon
+  above (skipped when every CUDA-capable policy is `cpu`, or with
+  `FATHOMDB_CUDA_EARLY_INIT=off`). The pool is used only if that start-up
+  ran.
+- **`fork` breaks CUDA in children.** After `import fathomdb`, a
+  `multiprocessing` child created with the `fork` start method cannot use
+  CUDA. Use `spawn` or `forkserver` (the Linux default from Python 3.14), or
+  set `FATHOMDB_CUDA_EARLY_INIT=off`. This can break code that worked with
+  0.8.27.
+- **Settings**, read once at the first GPU use:
+  - `FATHOMDB_POOL_MODE`: `auto` (default), `on`, or `off` (the earlier
+    behaviour);
+  - `FATHOMDB_POOL_MAXSIZE`: the cap, as bytes, `<n>G` or `<n>M` (at least
+    32 MiB);
+  - `FATHOMDB_POOL_RELEASE_THRESHOLD`: `0` (default, return freed memory at
+    once) or `max` (keep it).
+
+  A malformed value turns the pool off; it never stops the process.
+- **When the pool is full**, the request fails with
+  `CudaPoolExhaustedError`, and the next request runs normally.
+- **Module-level models keep their memory.** `embed_batch_cls` /
+  `embedBatchCls` and module-level `rerank` keep one model for the life of
+  the process, so their pool memory is held until it exits. An engine's own
+  embedder returns its memory when the engine closes.
+- **Do not reset the GPU context underneath FathomDB.** If another library in
+  the same process resets the CUDA primary context, FathomDB raises
+  `CudaContextLostError` and writes one `fathomdb-cuda-context-lost` line to
+  stderr; closing afterwards can still crash the process. This is
+  unsupported in 0.8.28.
+
+`fathomdb doctor cuda-allocator` shows which allocator a process gets and
+why ([CLI reference](reference/cli.md)).
 
 ### Measured speedup
 

@@ -21,8 +21,13 @@ See the [plan](plan.md) and the [design](design.md).
 | S30-T3 | done | `14cd40ab0` red, `75f58a4ae` green: the vendored cudarc primitive (23 vendored tests pass on the Orin). `d4d909ce0` red, `077701775` green: the pinned-override gate checks the item set and statuses. |
 | S30-T4/T5 | done | `e80700648` axis-E 0.7.0; `7fab51721` red, `cbe46d538` green: the policy, decision and report; `a1e76d55d` red, `53ad469b0` green: the shared early-`cuInit` helper and the Tegra Python hook. The Orin GPU smoke test (private pool, 3 GiB) passes. |
 | S30-T6 | done | `67514d382` red, `50dc12346` green: engine; `caf0a9608` red, `1ecef7fa0` green: napi, py, SDK, CLI, TS and Python; `38aa47a51` docs. The Slice 130 Python baseline stays frozen; declared additions at `b63087b80` (owner choice). |
+| S30-T8 | done | `01710c020` red, `cc056ed54` green: `doctor cuda-allocator` (on the Orin: `private`, 3 GiB, `"0"`, `ran`, context `active`). `7c0fb04b6` red, `d5f5087ad` green: `CUDA_PYTHON_FEATURES_TEGRA` and the contract guard. `4815afe8a`: `scripts/check-tegra-pool-registry-build.sh` passed on the Orin. `d5bb4a63c`: the scaffolding-removal test. Docs, the ADR (index row 62) and the changelog follow. |
 
 ## Notes
+
+- **Release check.** `scripts/check-tegra-pool-registry-build.sh` needs the
+  network and a CUDA toolkit, so it is a manual release check
+  (`dev/design/release.md`), not part of `agent-verify`.
 
 - **Pre-existing failure.** The CLI test
   `doctor_gpu_process_matrix_has_exact_outputs_and_no_side_effects` fails

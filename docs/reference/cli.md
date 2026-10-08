@@ -39,6 +39,7 @@ recovery semantics owned by `dev/design/recovery.md`.
 | `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `0` / `65` / `70` / `71` |
 | `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `0` / `65` / `70`        |
 | `platform`        | `fathomdb doctor platform [--json]`                                            | `0` / `70`               |
+| `cuda-allocator`  | `fathomdb doctor cuda-allocator [--json]`                                      | `0` / `70`               |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0` / `70` / `71` |
 | `orphan-provenance` | `fathomdb doctor orphan-provenance [--json] <db_path>`                        | `0` / `65` / `70` / `71` |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` — pre-fetch + verify the pinned default-embedder weights so the next open runs offline | see [exit-code classes](#exit-code-classes) |
@@ -108,6 +109,18 @@ Its JSON record is `fathomdb.doctor.platform.v1` with ordered fields
 `arm64_sbsa`, `generic_aarch64`, `non_aarch64`, or `unknown`. The classifier
 uses filesystem Tier 1 plus an ordered absolute `nvidia-smi` Tier 2 probe; an
 unavailable, timed-out, or nonzero Tier 2 result is `unknown` and exits `70`.
+
+`fathomdb doctor cuda-allocator [--json]` (0.8.28) reports the CUDA
+allocator this process uses, as an SDK process would decide it: the Jetson
+private memory pool or the earlier default-pool/synchronous path. Its JSON
+record is `fathomdb.doctor.cuda-allocator.v1` with ordered fields
+`schema_version`, `built`, `module_load_init`, `mode`, `path`, `reason`,
+`pool_max_size_bytes`, `release_threshold`, and `cuda_context_state`. An
+explicit `cpu` policy, confirmed ARM64 SBSA hardware, or a binary without
+CUDA returns `reason: "not_applicable"` without touching CUDA. On a Jetson
+AGX Orin 64 GB with a pool-enabled build it reports `"path":"private"`,
+`"reason":"private_pool"`, a 3 GiB pool and release threshold `"0"`. It exits
+`0`, or `70` when the device probe fails. `doctor gpu` is unchanged.
 
 For a confirmed classic Jetson/Tegra CUDA host, `fathomdb doctor gpu --help`
 prints the exact interim 0.8.26 command: `fathomdb==0.8.26+tegra` from

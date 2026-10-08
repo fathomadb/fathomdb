@@ -1,0 +1,2153 @@
+{
+  "databases": {
+    "baseline": {
+      "canonical_nodes": 1669,
+      "integrity": "ok",
+      "search_index": 1669,
+      "search_index_v2": 1669,
+      "vector_rows": 1669
+    },
+    "candidate": {
+      "canonical_nodes": 1669,
+      "integrity": "ok",
+      "search_index": 1669,
+      "search_index_v2": 1669,
+      "vector_rows": 1669
+    }
+  },
+  "denominator": {
+    "by_class": {
+      "four_hop": 25,
+      "three_hop": 35,
+      "two_hop": 40
+    },
+    "documents": 1669,
+    "queries": 100
+  },
+  "paired": {
+    "candidate_better_at_10": [],
+    "candidate_better_at_20": [],
+    "candidate_worse_at_10": [],
+    "candidate_worse_at_20": [],
+    "coverage_delta_bootstrap_95pct_at_10": {
+      "four_hop": [
+        0.0,
+        0.0
+      ],
+      "three_hop": [
+        0.0,
+        0.0
+      ],
+      "two_hop": [
+        0.0,
+        0.0
+      ]
+    },
+    "coverage_delta_bootstrap_95pct_at_20": {
+      "four_hop": [
+        0.0,
+        0.0
+      ],
+      "three_hop": [
+        0.0,
+        0.0
+      ],
+      "two_hop": [
+        0.0,
+        0.0
+      ]
+    },
+    "coverage_delta_by_class_at_10": {
+      "four_hop": 0.0,
+      "three_hop": 0.0,
+      "two_hop": 0.0
+    },
+    "coverage_delta_by_class_at_20": {
+      "four_hop": 0.0,
+      "three_hop": 0.0,
+      "two_hop": 0.0
+    },
+    "query_count": 100
+  },
+  "protocol_sha256": "20080a0db5cf52bf0a2af388e4f6aaaae18d6883334640726935a26b09200aa5",
+  "scores": {
+    "baseline": {
+      "by_class": {
+        "four_hop": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 0.04,
+          "denominator": 25,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.42,
+          "mean_support_recall_at_20": 0.56
+        },
+        "overall": {
+          "complete_at_10": 0.22,
+          "complete_at_20": 0.36,
+          "denominator": 100,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.5966666666666667,
+          "mean_support_recall_at_20": 0.7033333333333333
+        },
+        "three_hop": {
+          "complete_at_10": 0.2,
+          "complete_at_20": 0.34285714285714286,
+          "denominator": 35,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.6476190476190475,
+          "mean_support_recall_at_20": 0.7238095238095238
+        },
+        "two_hop": {
+          "complete_at_10": 0.375,
+          "complete_at_20": 0.575,
+          "denominator": 40,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.6625,
+          "mean_support_recall_at_20": 0.775
+        }
+      },
+      "per_query": {
+        "2hop__132469_533882": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 9,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__152027_141308": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 20,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__157376_643670": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__17455_21567": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__198459_61845": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 8,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__200391_44187": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 20,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__24661_66233": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 1
+        },
+        "2hop__24973_5674": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 3,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__258940_135844": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__26642_81961": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__273020_57594": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 0
+        },
+        "2hop__286268_97805": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__373544_66723": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 11,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__421324_97805": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 2,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__445963_6098": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 3,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__463884_807572": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__48481_319887": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__50199_59409": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__51261_87295": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 5,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__547045_131879": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__575282_114648": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 9,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__611538_152907": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__61318_362941": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__632161_643449": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__67660_81007": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__699172_141338": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__706637_93362": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 11,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__72686_83769": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 13,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__747306_72813": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 12,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__747758_58067": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 5,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__75207_365216": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 3,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__77832_159673": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__800166_156034": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__8347_8311": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 17,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__835710_7298": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 10,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__85463_33311": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__85463_50252": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 19,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__860241_766393": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__87953_17335": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__89403_602275": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__106688_160713_77246": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__136129_87694_124169": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 11,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "3hop1__140855_2053_5289": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__145427_106426_77199": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 6,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop1__241001_568433_47686": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__255970_831637_91775": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__268450_503371_21711": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop1__273571_834494_34099": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__285585_538202_84283": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__302383_503371_21711": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 10,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop1__305282_282081_73772": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 2
+        },
+        "3hop1__374018_160713_77246": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__462960_160545_60577": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__480375_709625_84283": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__497845_629431_64412": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__536452_15840_36014": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 15,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "3hop1__57186_237521_291682": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__582007_160713_77246": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 19,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 3
+        },
+        "3hop1__603558_87694_64412": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__671542_665330_51423": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__695430_831637_91775": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__73796_87694_124169": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__823336_228453_86925": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop2__106842_30645_84681": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__11282_57233_56883": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 6,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop2__132957_132798_40768": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 5,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop2__132957_295815_40768": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 9,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop2__132957_433432_40768": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__140194_16797_51068": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__222979_840908_40768": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 16,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "3hop2__57186_89048_66294": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__76873_69814_64554": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 15,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "3hop2__89854_38738_76291": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__90098_156850_10557": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 8,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop2__93066_88342_47738": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "4hop1__131632_32392_823060_610794": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "4hop1__145494_698949_157828_162309": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__152146_5274_458768_33632": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__152562_5274_458768_33633": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "4hop1__341156_49925_13759_736921": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "4hop1__3496_5274_458768_33677": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__429751_32392_823060_610794": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 0
+        },
+        "4hop1__455862_508773_85832_745702": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "4hop1__46196_497223_15840_36002": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 19,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 4
+        },
+        "4hop1__567737_141375_458768_33637": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 3
+        },
+        "4hop1__58323_375563_161848_28750": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "4hop1__636860_49925_13759_736921": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "4hop1__720201_153080_159767_81096": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "4hop1__836115_49925_13759_736921": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__88342_49853_128008_48717": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 0
+        },
+        "4hop2__161324_14670_8987_8974": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop2__161602_426860_88460_21062": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 2
+        },
+        "4hop2__161602_474028_88460_21034": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 3
+        },
+        "4hop2__161602_474028_88460_21063": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "4hop2__71753_158279_70784_61381": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop3__193820_466199_695123_72134": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop3__524186_219173_638950_72134": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "4hop3__650050_88460_30152_20999": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "4hop3__800262_466199_695123_72134": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop3__860588_88460_30152_20999": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        }
+      },
+      "strict_multi_session": null
+    },
+    "candidate": {
+      "by_class": {
+        "four_hop": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 0.04,
+          "denominator": 25,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.42,
+          "mean_support_recall_at_20": 0.56
+        },
+        "overall": {
+          "complete_at_10": 0.22,
+          "complete_at_20": 0.36,
+          "denominator": 100,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.5966666666666667,
+          "mean_support_recall_at_20": 0.7033333333333333
+        },
+        "three_hop": {
+          "complete_at_10": 0.2,
+          "complete_at_20": 0.34285714285714286,
+          "denominator": 35,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.6476190476190475,
+          "mean_support_recall_at_20": 0.7238095238095238
+        },
+        "two_hop": {
+          "complete_at_10": 0.375,
+          "complete_at_20": 0.575,
+          "denominator": 40,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.6625,
+          "mean_support_recall_at_20": 0.775
+        }
+      },
+      "per_query": {
+        "2hop__132469_533882": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 9,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__152027_141308": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 20,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__157376_643670": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__17455_21567": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__198459_61845": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 8,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__200391_44187": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 20,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__24661_66233": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 1
+        },
+        "2hop__24973_5674": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 3,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__258940_135844": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__26642_81961": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__273020_57594": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 0
+        },
+        "2hop__286268_97805": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__373544_66723": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 11,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__421324_97805": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 2,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__445963_6098": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 3,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__463884_807572": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__48481_319887": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__50199_59409": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__51261_87295": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 5,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__547045_131879": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__575282_114648": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 9,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__611538_152907": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__61318_362941": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__632161_643449": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__67660_81007": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__699172_141338": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__706637_93362": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 11,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__72686_83769": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 13,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__747306_72813": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 12,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__747758_58067": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 5,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__75207_365216": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 3,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__77832_159673": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__800166_156034": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__8347_8311": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 17,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__835710_7298": {
+          "class": "two_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 10,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "2hop__85463_33311": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__85463_50252": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 19,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "2hop__860241_766393": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__87953_17335": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "2hop__89403_602275": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__106688_160713_77246": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__136129_87694_124169": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 11,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "3hop1__140855_2053_5289": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__145427_106426_77199": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 6,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop1__241001_568433_47686": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__255970_831637_91775": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__268450_503371_21711": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 4,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop1__273571_834494_34099": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__285585_538202_84283": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__302383_503371_21711": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 10,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop1__305282_282081_73772": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 2
+        },
+        "3hop1__374018_160713_77246": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__462960_160545_60577": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__480375_709625_84283": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__497845_629431_64412": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__536452_15840_36014": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 15,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "3hop1__57186_237521_291682": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__582007_160713_77246": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 19,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 3
+        },
+        "3hop1__603558_87694_64412": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__671542_665330_51423": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop1__695430_831637_91775": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__73796_87694_124169": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop1__823336_228453_86925": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "3hop2__106842_30645_84681": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__11282_57233_56883": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 6,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop2__132957_132798_40768": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 5,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop2__132957_295815_40768": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 9,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop2__132957_433432_40768": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__140194_16797_51068": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__222979_840908_40768": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 16,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "3hop2__57186_89048_66294": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__76873_69814_64554": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 15,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "3hop2__89854_38738_76291": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "3hop2__90098_156850_10557": {
+          "class": "three_hop",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 8,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "3hop2__93066_88342_47738": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "4hop1__131632_32392_823060_610794": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "4hop1__145494_698949_157828_162309": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__152146_5274_458768_33632": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__152562_5274_458768_33633": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "4hop1__341156_49925_13759_736921": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "4hop1__3496_5274_458768_33677": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__429751_32392_823060_610794": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 0
+        },
+        "4hop1__455862_508773_85832_745702": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "4hop1__46196_497223_15840_36002": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 19,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 4
+        },
+        "4hop1__567737_141375_458768_33637": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 3
+        },
+        "4hop1__58323_375563_161848_28750": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "4hop1__636860_49925_13759_736921": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "4hop1__720201_153080_159767_81096": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 3
+        },
+        "4hop1__836115_49925_13759_736921": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__88342_49853_128008_48717": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 0
+        },
+        "4hop2__161324_14670_8987_8974": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop2__161602_426860_88460_21062": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 0,
+          "support_found_at_20": 2
+        },
+        "4hop2__161602_474028_88460_21034": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 3
+        },
+        "4hop2__161602_474028_88460_21063": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "4hop2__71753_158279_70784_61381": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop3__193820_466199_695123_72134": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop3__524186_219173_638950_72134": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 3,
+          "support_found_at_20": 3
+        },
+        "4hop3__650050_88460_30152_20999": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "4hop3__800262_466199_695123_72134": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop3__860588_88460_30152_20999": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        }
+      },
+      "strict_multi_session": null
+    }
+  }
+}

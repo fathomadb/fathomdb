@@ -1,0 +1,58 @@
+{
+  "commands": {
+    "audit": [
+      "python3",
+      "scripts/slice135_phase2_support_audit.py",
+      "--protocol",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/phase2-musique-support-protocol.json",
+      "--source",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/raw/musique_dev.jsonl",
+      "--derived",
+      "/tmp/slice135-musique-support-input-v2.json",
+      "--baseline-wheel",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/baseline.whl",
+      "--candidate-wheel",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/candidate.whl",
+      "--baseline-dir",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-musique-support/raw-baseline",
+      "--candidate-dir",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-musique-support/raw-candidate"
+    ],
+    "baseline": [
+      "/tmp/slice135-python-venv-baseline-f99e002/bin/python",
+      "scripts/slice135_phase2_support_runner.py",
+      "--protocol",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/phase2-musique-support-protocol.json",
+      "--source",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/raw/musique_dev.jsonl",
+      "--derived",
+      "/tmp/slice135-musique-support-input-v2.json",
+      "--wheel",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/baseline.whl",
+      "--version",
+      "baseline",
+      "--output",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-musique-support/raw-baseline"
+    ],
+    "candidate": [
+      "/tmp/slice135-current-venv-224e44/bin/python",
+      "scripts/slice135_phase2_support_runner.py",
+      "--protocol",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/phase2-musique-support-protocol.json",
+      "--source",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/raw/musique_dev.jsonl",
+      "--derived",
+      "/tmp/slice135-musique-support-input-v2.json",
+      "--wheel",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/candidate.whl",
+      "--version",
+      "candidate",
+      "--output",
+      "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-musique-support/raw-candidate"
+    ]
+  },
+  "derived_sha256": "84913e51d546c3551c1b02e1f9764fbb5f294f90f7b1090b8a34b306a182101f",
+  "freeze_commit": "c5b3e77ba9ca78e477fd5ea4311a6d99e97d2eab",
+  "full_gate_sha256": "fe862f598c103d3c050646e7557571d750b78f1555665af369d9c921c87e4b44",
+  "protocol_sha256": "20080a0db5cf52bf0a2af388e4f6aaaae18d6883334640726935a26b09200aa5"
+}

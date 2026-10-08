@@ -1,0 +1,13 @@
+{
+  "altered_gold_rejected": "baseline: query required_ids mismatch",
+  "incomplete_pair_rejected": "FileNotFoundError",
+  "omitted_query_rejected": "incomplete query receipt",
+  "persisted_body_rejected": "persisted canonical rows differ from source mapping",
+  "source_hash_rejected": "source or derived input changed",
+  "unknown_hit_rejected": "unknown, malformed or duplicate hit",
+  "valid_wrong_hit_lowers_complete_20": [
+    0.6666666666666666,
+    0.3333333333333333
+  ],
+  "wrong_wheel_rejected": "wheel bytes changed"
+}

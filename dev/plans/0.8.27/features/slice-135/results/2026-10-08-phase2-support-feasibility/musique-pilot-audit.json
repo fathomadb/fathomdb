@@ -1,0 +1,213 @@
+{
+  "databases": {
+    "baseline": {
+      "canonical_nodes": 60,
+      "integrity": "ok",
+      "search_index": 60,
+      "search_index_v2": 60,
+      "vector_rows": 60
+    },
+    "candidate": {
+      "canonical_nodes": 60,
+      "integrity": "ok",
+      "search_index": 60,
+      "search_index_v2": 60,
+      "vector_rows": 60
+    }
+  },
+  "denominator": {
+    "by_class": {
+      "four_hop": 1,
+      "three_hop": 1,
+      "two_hop": 1
+    },
+    "documents": 60,
+    "queries": 3
+  },
+  "paired": {
+    "candidate_better_at_10": [],
+    "candidate_better_at_20": [],
+    "candidate_worse_at_10": [],
+    "candidate_worse_at_20": [],
+    "coverage_delta_bootstrap_95pct_at_10": {
+      "four_hop": [
+        0.0,
+        0.0
+      ],
+      "three_hop": [
+        0.0,
+        0.0
+      ],
+      "two_hop": [
+        0.0,
+        0.0
+      ]
+    },
+    "coverage_delta_bootstrap_95pct_at_20": {
+      "four_hop": [
+        0.0,
+        0.0
+      ],
+      "three_hop": [
+        0.0,
+        0.0
+      ],
+      "two_hop": [
+        0.0,
+        0.0
+      ]
+    },
+    "coverage_delta_by_class_at_10": {
+      "four_hop": 0.0,
+      "three_hop": 0.0,
+      "two_hop": 0.0
+    },
+    "coverage_delta_by_class_at_20": {
+      "four_hop": 0.0,
+      "three_hop": 0.0,
+      "two_hop": 0.0
+    },
+    "query_count": 3
+  },
+  "protocol_sha256": "5c887ba462cd095e1d55dc009e8ab8e1f06618bb0715a7e194d2f5b8e9202550",
+  "scores": {
+    "baseline": {
+      "by_class": {
+        "four_hop": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 1.0,
+          "denominator": 1,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.5,
+          "mean_support_recall_at_20": 1.0
+        },
+        "overall": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 0.6666666666666666,
+          "denominator": 3,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.5555555555555555,
+          "mean_support_recall_at_20": 0.8888888888888888
+        },
+        "three_hop": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 0.0,
+          "denominator": 1,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.6666666666666666,
+          "mean_support_recall_at_20": 0.6666666666666666
+        },
+        "two_hop": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 1.0,
+          "denominator": 1,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.5,
+          "mean_support_recall_at_20": 1.0
+        }
+      },
+      "per_query": {
+        "2hop__231890_595414": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 15,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "3hop1__241001_568433_47686": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__436202_765799_282674_759393": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 19,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 4
+        }
+      },
+      "strict_multi_session": null
+    },
+    "candidate": {
+      "by_class": {
+        "four_hop": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 1.0,
+          "denominator": 1,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.5,
+          "mean_support_recall_at_20": 1.0
+        },
+        "overall": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 0.6666666666666666,
+          "denominator": 3,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.5555555555555555,
+          "mean_support_recall_at_20": 0.8888888888888888
+        },
+        "three_hop": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 0.0,
+          "denominator": 1,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.6666666666666666,
+          "mean_support_recall_at_20": 0.6666666666666666
+        },
+        "two_hop": {
+          "complete_at_10": 0.0,
+          "complete_at_20": 1.0,
+          "denominator": 1,
+          "errors": 0,
+          "mean_support_recall_at_10": 0.5,
+          "mean_support_recall_at_20": 1.0
+        }
+      },
+      "per_query": {
+        "2hop__231890_595414": {
+          "class": "two_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 15,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 2
+        },
+        "3hop1__241001_568433_47686": {
+          "class": "three_hop",
+          "complete_at_10": false,
+          "complete_at_20": false,
+          "last_required_rank": null,
+          "required_count": 3,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "4hop1__436202_765799_282674_759393": {
+          "class": "four_hop",
+          "complete_at_10": false,
+          "complete_at_20": true,
+          "last_required_rank": 19,
+          "required_count": 4,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 4
+        }
+      },
+      "strict_multi_session": null
+    }
+  }
+}

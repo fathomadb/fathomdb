@@ -1,0 +1,413 @@
+{
+  "baseline_candidate_changed_hit_list_ids": [],
+  "candidate_coverage_losses_at_10": [],
+  "candidate_coverage_losses_at_20": [],
+  "dataset": "musique",
+  "query_count": 100,
+  "shared_incomplete_at_20": [
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__24661_66233",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__61318_362941",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__860241_766393",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__699172_141338",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__87953_17335",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__611538_152907",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__77832_159673",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__157376_643670",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__89403_602275",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 2,
+      "query_id": "2hop__273020_57594",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__463884_807572",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__800166_156034",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__48481_319887",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__286268_97805",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__85463_33311",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__547045_131879",
+      "required_count": 2
+    },
+    {
+      "class": "two_hop",
+      "missing_count": 1,
+      "query_id": "2hop__632161_643449",
+      "required_count": 2
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop2__132957_433432_40768",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__462960_160545_60577",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__241001_568433_47686",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 2,
+      "query_id": "3hop1__823336_228453_86925",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop2__106842_30645_84681",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop2__89854_38738_76291",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 2,
+      "query_id": "3hop1__671542_665330_51423",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop2__57186_89048_66294",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 2,
+      "query_id": "3hop1__480375_709625_84283",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 2,
+      "query_id": "3hop2__93066_88342_47738",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__273571_834494_34099",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop2__140194_16797_51068",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__603558_87694_64412",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__73796_87694_124169",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__57186_237521_291682",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__695430_831637_91775",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 2,
+      "query_id": "3hop1__285585_538202_84283",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__374018_160713_77246",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__255970_831637_91775",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__140855_2053_5289",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__106688_160713_77246",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 2,
+      "query_id": "3hop1__497845_629431_64412",
+      "required_count": 3
+    },
+    {
+      "class": "three_hop",
+      "missing_count": 1,
+      "query_id": "3hop1__305282_282081_73772",
+      "required_count": 3
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 1,
+      "query_id": "4hop1__636860_49925_13759_736921",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 1,
+      "query_id": "4hop1__58323_375563_161848_28750",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop3__193820_466199_695123_72134",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop2__161324_14670_8987_8974",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 1,
+      "query_id": "4hop1__720201_153080_159767_81096",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 4,
+      "query_id": "4hop1__88342_49853_128008_48717",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 1,
+      "query_id": "4hop1__341156_49925_13759_736921",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop2__71753_158279_70784_61381",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 1,
+      "query_id": "4hop2__161602_474028_88460_21034",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop1__152146_5274_458768_33632",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 1,
+      "query_id": "4hop3__524186_219173_638950_72134",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop1__3496_5274_458768_33677",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop3__860588_88460_30152_20999",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop1__145494_698949_157828_162309",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 4,
+      "query_id": "4hop1__429751_32392_823060_610794",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop3__650050_88460_30152_20999",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 3,
+      "query_id": "4hop1__131632_32392_823060_610794",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop1__152562_5274_458768_33633",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 1,
+      "query_id": "4hop1__455862_508773_85832_745702",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 1,
+      "query_id": "4hop2__161602_474028_88460_21063",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop1__836115_49925_13759_736921",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 1,
+      "query_id": "4hop1__567737_141375_458768_33637",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop2__161602_426860_88460_21062",
+      "required_count": 4
+    },
+    {
+      "class": "four_hop",
+      "missing_count": 2,
+      "query_id": "4hop3__800262_466199_695123_72134",
+      "required_count": 4
+    }
+  ],
+  "shared_incomplete_by_class": {
+    "four_hop": {
+      "incomplete_at_10": 25,
+      "incomplete_at_20": 24,
+      "missing_required_at_10": 58,
+      "missing_required_at_20": 44
+    },
+    "three_hop": {
+      "incomplete_at_10": 28,
+      "incomplete_at_20": 23,
+      "missing_required_at_10": 37,
+      "missing_required_at_20": 29
+    },
+    "two_hop": {
+      "incomplete_at_10": 25,
+      "incomplete_at_20": 17,
+      "missing_required_at_10": 27,
+      "missing_required_at_20": 18
+    }
+  }
+}

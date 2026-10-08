@@ -1,0 +1,419 @@
+{
+  "baseline_candidate_changed_hit_list_ids": [],
+  "candidate_coverage_losses_at_10": [],
+  "candidate_coverage_losses_at_20": [],
+  "dataset": "locomo",
+  "query_count": 1443,
+  "shared_incomplete_at_20": [
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0223",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0226",
+      "required_count": 4
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0238",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0245",
+      "required_count": 4
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0247",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0263",
+      "required_count": 2
+    },
+    {
+      "class": "factoid",
+      "missing_count": 1,
+      "query_id": "locomo-0319",
+      "required_count": 1
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 3,
+      "query_id": "locomo-0364",
+      "required_count": 5
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0367",
+      "required_count": 2
+    },
+    {
+      "class": "temporal",
+      "missing_count": 1,
+      "query_id": "locomo-0371",
+      "required_count": 1
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0394",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0415",
+      "required_count": 5
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0418",
+      "required_count": 5
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0430",
+      "required_count": 5
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0437",
+      "required_count": 5
+    },
+    {
+      "class": "factoid",
+      "missing_count": 1,
+      "query_id": "locomo-0475",
+      "required_count": 1
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 2,
+      "query_id": "locomo-0555",
+      "required_count": 7
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 2,
+      "query_id": "locomo-0557",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0560",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0566",
+      "required_count": 6
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 2,
+      "query_id": "locomo-0578",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0581",
+      "required_count": 3
+    },
+    {
+      "class": "temporal",
+      "missing_count": 1,
+      "query_id": "locomo-0583",
+      "required_count": 1
+    },
+    {
+      "class": "factoid",
+      "missing_count": 1,
+      "query_id": "locomo-0689",
+      "required_count": 1
+    },
+    {
+      "class": "factoid",
+      "missing_count": 1,
+      "query_id": "locomo-0704",
+      "required_count": 1
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0718",
+      "required_count": 4
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0719",
+      "required_count": 7
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0731",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0733",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0734",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0741",
+      "required_count": 4
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0761",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0762",
+      "required_count": 4
+    },
+    {
+      "class": "temporal",
+      "missing_count": 1,
+      "query_id": "locomo-0832",
+      "required_count": 1
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0833",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0836",
+      "required_count": 2
+    },
+    {
+      "class": "temporal",
+      "missing_count": 1,
+      "query_id": "locomo-0840",
+      "required_count": 1
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0849",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0851",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0858",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0870",
+      "required_count": 5
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0875",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-0980",
+      "required_count": 4
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 2,
+      "query_id": "locomo-1041",
+      "required_count": 4
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1047",
+      "required_count": 4
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1150",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1151",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1156",
+      "required_count": 7
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1159",
+      "required_count": 15
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1180",
+      "required_count": 3
+    },
+    {
+      "class": "temporal",
+      "missing_count": 1,
+      "query_id": "locomo-1187",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1189",
+      "required_count": 4
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1190",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1191",
+      "required_count": 6
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1218",
+      "required_count": 8
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1219",
+      "required_count": 4
+    },
+    {
+      "class": "factoid",
+      "missing_count": 1,
+      "query_id": "locomo-1246",
+      "required_count": 1
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1296",
+      "required_count": 2
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 2,
+      "query_id": "locomo-1298",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1309",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 2,
+      "query_id": "locomo-1312",
+      "required_count": 4
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1318",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1319",
+      "required_count": 3
+    },
+    {
+      "class": "multi_session",
+      "missing_count": 1,
+      "query_id": "locomo-1332",
+      "required_count": 3
+    },
+    {
+      "class": "factoid",
+      "missing_count": 1,
+      "query_id": "locomo-1419",
+      "required_count": 1
+    }
+  ],
+  "shared_incomplete_by_class": {
+    "factoid": {
+      "incomplete_at_10": 48,
+      "incomplete_at_20": 6,
+      "missing_required_at_10": 48,
+      "missing_required_at_20": 6
+    },
+    "multi_session": {
+      "incomplete_at_10": 148,
+      "incomplete_at_20": 54,
+      "missing_required_at_10": 224,
+      "missing_required_at_20": 62
+    },
+    "temporal": {
+      "incomplete_at_10": 28,
+      "incomplete_at_20": 5,
+      "missing_required_at_10": 29,
+      "missing_required_at_20": 5
+    }
+  }
+}

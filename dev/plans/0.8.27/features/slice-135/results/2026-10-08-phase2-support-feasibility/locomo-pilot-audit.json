@@ -1,0 +1,206 @@
+{
+  "databases": {
+    "baseline": {
+      "canonical_nodes": 4,
+      "integrity": "ok",
+      "search_index": 4,
+      "search_index_v2": 4,
+      "vector_rows": 4
+    },
+    "candidate": {
+      "canonical_nodes": 4,
+      "integrity": "ok",
+      "search_index": 4,
+      "search_index_v2": 4,
+      "vector_rows": 4
+    }
+  },
+  "denominator": {
+    "by_class": {
+      "multi_session": 2,
+      "temporal": 2
+    },
+    "documents": 4,
+    "queries": 4
+  },
+  "paired": {
+    "candidate_better_at_10": [],
+    "candidate_better_at_20": [],
+    "candidate_worse_at_10": [],
+    "candidate_worse_at_20": [],
+    "coverage_delta_bootstrap_95pct_at_10": {
+      "multi_session": [
+        0.0,
+        0.0
+      ],
+      "temporal": [
+        0.0,
+        0.0
+      ]
+    },
+    "coverage_delta_bootstrap_95pct_at_20": {
+      "multi_session": [
+        0.0,
+        0.0
+      ],
+      "temporal": [
+        0.0,
+        0.0
+      ]
+    },
+    "coverage_delta_by_class_at_10": {
+      "multi_session": 0.0,
+      "temporal": 0.0
+    },
+    "coverage_delta_by_class_at_20": {
+      "multi_session": 0.0,
+      "temporal": 0.0
+    },
+    "query_count": 4
+  },
+  "protocol_sha256": "e1c655f15adb35a5689b28db228f2b1081cea9c32e7bfd43cb01dae870766741",
+  "scores": {
+    "baseline": {
+      "by_class": {
+        "multi_session": {
+          "complete_at_10": 1.0,
+          "complete_at_20": 1.0,
+          "denominator": 2,
+          "errors": 0,
+          "mean_support_recall_at_10": 1.0,
+          "mean_support_recall_at_20": 1.0
+        },
+        "overall": {
+          "complete_at_10": 1.0,
+          "complete_at_20": 1.0,
+          "denominator": 4,
+          "errors": 0,
+          "mean_support_recall_at_10": 1.0,
+          "mean_support_recall_at_20": 1.0
+        },
+        "temporal": {
+          "complete_at_10": 1.0,
+          "complete_at_20": 1.0,
+          "denominator": 2,
+          "errors": 0,
+          "mean_support_recall_at_10": 1.0,
+          "mean_support_recall_at_20": 1.0
+        }
+      },
+      "per_query": {
+        "locomo-0001": {
+          "class": "multi_session",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 1,
+          "required_count": 1,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "locomo-0002": {
+          "class": "temporal",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 2,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "locomo-0003": {
+          "class": "multi_session",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 1,
+          "required_count": 1,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "locomo-0004": {
+          "class": "temporal",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 2,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        }
+      },
+      "strict_multi_session": null
+    },
+    "candidate": {
+      "by_class": {
+        "multi_session": {
+          "complete_at_10": 1.0,
+          "complete_at_20": 1.0,
+          "denominator": 2,
+          "errors": 0,
+          "mean_support_recall_at_10": 1.0,
+          "mean_support_recall_at_20": 1.0
+        },
+        "overall": {
+          "complete_at_10": 1.0,
+          "complete_at_20": 1.0,
+          "denominator": 4,
+          "errors": 0,
+          "mean_support_recall_at_10": 1.0,
+          "mean_support_recall_at_20": 1.0
+        },
+        "temporal": {
+          "complete_at_10": 1.0,
+          "complete_at_20": 1.0,
+          "denominator": 2,
+          "errors": 0,
+          "mean_support_recall_at_10": 1.0,
+          "mean_support_recall_at_20": 1.0
+        }
+      },
+      "per_query": {
+        "locomo-0001": {
+          "class": "multi_session",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 1,
+          "required_count": 1,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "locomo-0002": {
+          "class": "temporal",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 2,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        },
+        "locomo-0003": {
+          "class": "multi_session",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 1,
+          "required_count": 1,
+          "status": "ok",
+          "support_found_at_10": 1,
+          "support_found_at_20": 1
+        },
+        "locomo-0004": {
+          "class": "temporal",
+          "complete_at_10": true,
+          "complete_at_20": true,
+          "last_required_rank": 2,
+          "required_count": 2,
+          "status": "ok",
+          "support_found_at_10": 2,
+          "support_found_at_20": 2
+        }
+      },
+      "strict_multi_session": null
+    }
+  }
+}

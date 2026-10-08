@@ -51,10 +51,15 @@ coverage instrumentation against the same clean product source. Failed-run
 profiles were excluded from the accepted overlay, and both passing isolated
 profiles were included.
 
-The older rank-stream fallback oracle and the newer fail-closed row-error
-contract require explicit reconciliation. Decide from the accepted design
-whether a malformed persisted FTS row should abort the search or permit a
-fallback that discards it; then repair the product or supersede the outdated
-test and contract together. Do not count this test target or the full gate as
-green until that decision is implemented and rerun. The local failed and
-uninstrumented outputs remain in `test-runs/` in the raw archive.
+The older rank-stream fallback oracle conflicted with the newer fail-closed
+row-error contract. The follow-up changed the older test expectation to
+`EngineError::Storage` for a malformed persisted FTS row and clarified the
+contract in `dev/design/retrieval.md` and `dev/interfaces/rust-sdk.md`. The
+separate successful fallback test with valid rows remains. The focused
+`slice20_fts_rank_stream` target then passed all three cases with
+`test-hooks,default-embedder`, as recorded in its
+[stdout](rank-resolved.stdout) and [stderr](rank-resolved.stderr); the product
+source did not change. The local
+failed and uninstrumented outputs remain in `test-runs/` in the raw archive
+as the RED evidence. The full repository gate has not been rerun, so this
+focused pass is not a full-gate green claim.

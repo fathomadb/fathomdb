@@ -454,7 +454,9 @@ now records 888 workload-hit engine branch IDs, all hit by the accepted
 selected tests, and 13 workload-hit lines not hit by those tests. It does not
 substitute for the broader cost-ranked operation mix, assertion-strength
 probe, or rare-path review. The same run exposed an existing rank-stream
-test-contract conflict that must be resolved before a full-gate claim.
+test-contract conflict. The older expectation has been reconciled with the
+fail-closed row-error contract and its focused target passes; the full gate
+still needs its checkpoint run.
 
 ## Robustness matrix
 

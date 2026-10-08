@@ -691,8 +691,9 @@ SDK exercise remain open.
   and dispositions for findings and survivors. The exact-candidate coverage
   run also exposed a failing older `slice20_fts_rank_stream` malformed-row
   fallback test; its `Storage` result reproduced without instrumentation.
-  Reconcile the old fallback oracle with the newer fail-closed row-error
-  contract before claiming the test target or full gate is green.
+  The stale expectation was reconciled with the fail-closed row-error
+  contract, and the focused target passed all three cases. The full gate
+  remains open.
 - **Functional exercise:** the [capability register](phase1-capability-register.md)
   accounts for all 44 canonical operations: Rust 42 selected cases executed
   and two provider/model cases unavailable; Python 40 executed, one

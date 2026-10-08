@@ -136,6 +136,11 @@ function in every row.
 | `engine.consolidate_with_provider` | `consolidate_with_provider(&self, cmd: &[&str], axes: &[ConsolidateAxis]) -> Result<ConsolidateReceipt>` | same |
 | `engine.embed` | `embed(&self, text: &str) -> Result<Vec<f32>>` | `embed_text` |
 
+Search through the engine's maintained FTS index returns `Storage` when a
+persisted FTS row cannot be decoded. The rank-stream optimization may retry
+through full stable sort, but a decoding failure there does not return a
+partial successful result. See [retrieval](../design/retrieval.md).
+
 Shared non-command members are reproduced with core semantics:
 
 - `drain(timeout_ms: u64)`

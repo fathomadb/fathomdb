@@ -59,8 +59,10 @@ text participates only through the registered projection grammar. Direct
 node-only fast path reads the hidden-rank stream through the complete score
 group crossing its fixed candidate boundary, restores stable
 `(bm25 score, write_cursor)` order, and then applies the public limit. Filters,
-edge-bearing workspaces, unsupported shapes, and statement/row failures use the
-full stable-sort path. The optimization does not change public ordering.
+edge-bearing workspaces, unsupported shapes, and statement/stream-row failures
+use the full stable-sort path. A row decoding failure on that path propagates
+`EngineError::Storage`; it must not return a partial result. The optimization
+does not change public ordering.
 
 ### Vector collection and fusion
 

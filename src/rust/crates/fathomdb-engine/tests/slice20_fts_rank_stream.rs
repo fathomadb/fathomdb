@@ -1,7 +1,7 @@
 //! Slice 20 exact-result contracts for the production FTS rank stream.
 
 use fathomdb_embedder::NoopEmbedder;
-use fathomdb_engine::{EmbedderChoice, Engine, InitialState, PreparedWrite, SourceId};
+use fathomdb_engine::{EmbedderChoice, Engine, EngineError, InitialState, PreparedWrite, SourceId};
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::params;
 use serde_json::Value;
@@ -247,7 +247,7 @@ fn full_sort_with_limit(
 }
 
 #[test]
-fn edges_are_ineligible_and_stream_row_errors_fall_back_without_partial_output() {
+fn edges_are_ineligible_and_malformed_full_sort_rows_fail_closed() {
     let _lock = ENV_LOCK.lock().expect("environment lock");
     let dir = TempDir::new().expect("tempdir");
     let route_witness = dir.path().join("fallback-routes.jsonl");
@@ -305,9 +305,12 @@ fn edges_are_ineligible_and_stream_row_errors_fall_back_without_partial_output()
     connection.close().expect("close FTS");
 
     let reopened = open(&dir, "fallback");
-    let result = reopened.engine.search_text_only("slice20fallback").expect("fallback search");
+    let result = reopened.engine.search_text_only("slice20fallback");
     reopened.engine.close().expect("close fallback engine");
-    assert_eq!(result.results.len(), 3, "partial stream output must be discarded");
+    assert!(
+        matches!(result, Err(EngineError::Storage)),
+        "a malformed persisted FTS row must not produce a partial result"
+    );
     let observed = routes(&route_witness);
     assert!(observed.contains(&"full_sort_ineligible".to_string()));
     assert!(observed.contains(&"full_sort_fallback".to_string()));

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The CUDA memory-pool study's scaffolding stays out of the product (0.8.28
-# Slice 30, R30-10 / AC30-10): its environment variables and its `fdb-pool-exp`
-# report lines must not appear in any tracked file outside `dev/`, where the
+# Slice 30, R30-10 / AC30-10): its environment variables and its experiment
+# report-line tag must not appear in any tracked file outside `dev/`, where the
 # study and its history live.
 #
 # The names are assembled at run time so this file does not match itself.

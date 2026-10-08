@@ -1,0 +1,16 @@
+{
+  "campaign_paid_calls": 0,
+  "campaign_spend_usd": 0,
+  "checked_at_utc": "2026-10-08 22:07:51 UTC",
+  "claim": "generated answer correctness, faithfulness and citations unsupported",
+  "configuration_presence": {
+    "FDB_EARP_PRICED": false,
+    "R2_ANSWERER_API_KEY": false,
+    "R2_ANSWERER_BASE_URL": false,
+    "R2_ANSWERER_MODEL": false,
+    "R2_MEM0_API_KEY": false,
+    "R2_RUN": false
+  },
+  "paired_generated_answer_run": "not_started",
+  "reason": "No external answerer endpoint/model and no priced-run configuration; answerer/judge, checkpoint-resume, backoff, completeness and $20 ceiling could not be qualified for a paid call."
+}

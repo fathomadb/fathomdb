@@ -1,0 +1,10 @@
+{
+  "archive_listing": "11 Phase 2 result directories, including invalid vector and LOCOMO pilot attempts, all raw receipts and SQLite files",
+  "archive_path": "/home/coreyt/projects/fathomdb/data/corpus-data/eval/slice135-phase2-raw-2026-10-08.tar.zst",
+  "distribution_boundary": "local evaluation only; contains licensed query text and derived corpus payloads; do not commit",
+  "sha256": "1817c5a961e9a4e419b78eaef63a9680e7ba2bbf821600f4322054b6b343bfdb",
+  "size_bytes": 100077425,
+  "source_payload_store": "/home/coreyt/projects/fathomdb/data/corpus-data/raw",
+  "source_payloads_in_archive": false,
+  "zstd_integrity": "passed"
+}

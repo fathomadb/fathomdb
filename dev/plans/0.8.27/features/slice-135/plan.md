@@ -11,7 +11,10 @@ planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 
 The [full four-area checkpoint](phase1-checkpoint-2026-10-08.md) is recorded
 with explicit unsupported cells and residual risks. Dedicated Phase 2
-gold-answer scoring remains unopened, and Slice 135 is not complete. The
+gold-answer scoring was unopened at that checkpoint. The later
+[Phase 2 query correctness report](phase2-query-correctness-report-2026-10-08.md)
+now covers all six dimensions with scored or evidence-backed unsupported
+cells; Slice 135 is not complete. The
 checkpoint's [full workspace gate](results/2026-10-08-phase1-verification-green/README.md)
 passed all 186 suites after the three Python verifier failures were repaired.
 The raw archives and a self-contained [local transfer bundle](results/2026-10-08-raw-retention-review/README.md)
@@ -471,6 +474,12 @@ release and which are recommended for later release lines. It does not create
 a global coverage quota or a new testing gate.
 
 ## Phase 2 — correct results
+
+The [2026-10-08 six-dimension report](phase2-query-correctness-report-2026-10-08.md)
+records the completed exact-identity inquiry, independent audits, shared
+absolute gaps, unisolated vector/rank differences and unsupported generated
+answer quality. Its diagnostic disposition does not close the slice or
+replace later integrated qualification.
 
 Begin only after the Phase 1 checkpoint. Use two independent oracle classes:
 deterministic database fixtures with specified results, state and errors, and

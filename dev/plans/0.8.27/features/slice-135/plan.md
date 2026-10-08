@@ -39,8 +39,35 @@ TypeScript each exercised 41 selected positive paths (zero failed; three
 provider/model unavailable), and the external Rust consumer exercised 42
 (zero supported gaps; two unavailable). These counts are not complete
 contract-condition coverage. The [broader protocol bundle](phase1-224e-broader-protocol-v2.json)
-governs the measured cells and named omissions. The next release-plan decision
-can use the checkpoint; it must preserve the unsupported-cell boundaries.
+governs the measured cells and named omissions. The Phase 2 decision below
+uses the checkpoint and preserves its unsupported-cell boundaries.
+
+## Phase 2 sequencing decision (2026-10-08)
+
+The owner agreed that the recorded Phase 1 checkpoint permits the query
+correctness effort to begin now. None of the [ranked Phase 1 follow-ups](phase1-checkpoint-2026-10-08.md#capability-reconciliation-omissions-and-next-work)
+is an entry gate for constructing gold or qualifying the correctness harness.
+The first Phase 2 work is protocol and oracle qualification, followed by
+deterministic real-database cases, qualified retrieval/evidence/memory gold,
+and only then any priced answer-quality campaign. Freeze each scored protocol
+and its reporting rule before collecting candidate scores.
+
+| Phase 1 item | Placement for Slice 135 |
+| --- | --- |
+| TypeScript S02 reopened-open overhead, engine vector/hybrid/populated-open profiling, and Python `close()` latency | Retain as diagnostic performance leads. Do not change the measured product candidate merely to optimize them before correct-results scoring; a later product change requires affected paired cells to be repeated. Preserve the corrected close memory-release contract. |
+| Per-path CPU/queue instrumentation and sustained mixed-load throughput | Defer to a reviewed performance follow-up. Public instrumentation needs a contract update; neither it nor a production-traffic claim is required for independent query gold. |
+| OS permission, in-commit erasure/WAL, close/cancellation and release-binding panic gaps | Add a targeted real-database fault or error case within Phase 2 when a scored correctness claim depends on that behavior. Report other positions as unsupported and qualify them separately; no blanket fault sweep precedes gold construction. |
+| Missing C01 native Mem0 speed harness, CUDA/Jetson artifact route, Rust baseline and provider/model variants | Keep their Phase 1 omission labels. Qualify a missing environment or comparator before making its specific claim, without delaying supported CPU query correctness cells. |
+| Raw archive publication | Keep the verified [local bundle and manifests](results/2026-10-08-raw-retention-review/README.md) intact and transfer them to approved durable storage before worktree cleanup. A Git publication or scanner-policy decision does not delay gold-fixture work. |
+
+The [logic-boundary audit](logic-boundary-audit-2026-10-08.md) makes
+current-schema query errors versus successful empty results an early
+deterministic oracle. Exercise repaired row-hydration and fallback paths,
+typed error precedence, and reopened state through real databases. The
+legacy-schema `rows.flatten()` sites are outside supported current-schema
+open; revisit them only if admission changes. The poisoned-lock reason and
+release-artifact panic gaps remain explicit risks until a claim-specific test
+qualifies them. Do not infer their safety from the green workspace gate.
 
 ### Earlier execution chronology (2026-10-07)
 
@@ -461,6 +488,55 @@ remain separate measures.
 | Memory usefulness | Extraction, multi-session, temporal, knowledge-update and abstention accuracy | Qualified [LongMemEval](https://arxiv.org/abs/2410.10813) and existing LOCOMO cells, by query class |
 | Generated answer quality | Reference-answer correctness, faithfulness to evidence and citation quality, separately | Fresh paired 0.8.26/0.8.27 answerer/judge run; [ALCE](https://arxiv.org/abs/2305.14627) and [ARES](https://aclanthology.org/2024.naacl-long.20/) inform scoring. Diagnostic only, with a separate **$20 ceiling**. |
 
+### Phase 2 qualification and execution order
+
+1. **Bind identities and scope.** Recheck the 0.8.26 source
+   `f99e002f0d2e4002f3694c9f8d4986b56089edaa`, exact candidate product
+   source `224e44c593c13d86ece648adabe445723db04070`, installed Python and
+   TypeScript artifact hashes in the [Phase 1 checkpoint](phase1-checkpoint-2026-10-08.md#identity-and-audit-boundary),
+   and the selected feature/configuration set. Package version text alone is
+   insufficient. Rust SDK evidence is candidate-only where no same-SDK
+   0.8.26 baseline exists. Any source or artifact change starts a new
+   identity-bound result; rerun affected paired cells and shared-system
+   checks after a test-first product repair.
+2. **Freeze the gold protocol before scored runs.** For each dimension,
+   declare eligible cases, corpus/model and license boundary, gold origin,
+   exact expected result or judgment rubric, query class, version pairing,
+   scoring function, denominator, abstention/missing-data rule, and
+   unsupported-cell rule. Keep non-redistributable corpus payloads and
+   derived verbatim gold outside Git. Use human-owned or independently
+   specified fixture truth; do not generate oracles from either product
+   version. Qualify each external corpus mapping and do not inflate the
+   limited supersession-gold denominator.
+3. **Prove the evaluator can fail.** On a small pilot, require the audit to
+   reject a wrong ID, order, eligibility set, typed error, or persisted state
+   as applicable; also reject an altered artifact hash, omitted case and
+   incomplete paired receipt. Confirm that fresh, equivalent real databases
+   are used for both versions. A version match is never scored as gold.
+4. **Run from deterministic to judged cases.** Start with exact query
+   eligibility, ranking, filters, pagination, provenance, graph/evidence,
+   error-versus-empty success, erasure and reopen oracles on current schema.
+   Add claim-specific fault cases where the expected query or persisted state
+   depends on recovery. Then score same-model exact-f32 vector fidelity and
+   separately qualified relevance, evidence and memory-usefulness gold by
+   class. Run paired generated-answer quality only after its external
+   answerer/judge protocol and spending controls pass qualification.
+5. **Audit and disposition.** Preserve raw per-case outcomes, commands,
+   hashes, environment, invalid attempts, evaluator negative controls and
+   independent score recomputation. Report every dimension with its
+   denominator, uncertainty where supported, abstentions, unsupported
+   claims, confirmed defects and residual risks. A confirmed correctness
+   loss receives a RED test and verified repair, followed by affected
+   candidate and paired reruns before the final verdict. Run the full
+   workspace gate for source, test or executable-script changes.
+
+Completion requires one exact-identity Phase 2 report covering all six
+dimensions above with independently auditable results or explicit,
+evidence-backed omissions. Neither a diagnostic speed lead nor an
+unsupported platform is silently converted into a correctness failure or a
+pass. The result must remain separate from accepted release gates and from
+the later integrated Slice 150 qualification.
+
 FathomDB's data-plane boundary means generated answers are an external
 consumer outcome, not a database return value. Before any priced run,
 validate a small sample, checkpoint completed cells, verify resume skips
@@ -480,8 +556,10 @@ window and reject incomplete results. Report spend and completeness.
 3. After Slice 132 closes, rebase or merge its reviewed candidate into this
    branch, resolve any approved capability changes, freeze the final candidate,
    and run the four Phase 1 campaigns plus applicable accepted release gates.
-4. Publish the Phase 1 checkpoint. Then freeze the qualified gold/answer
-   protocol and run Phase 2's paired correct-results campaign.
+4. Use the recorded [Phase 1 checkpoint](phase1-checkpoint-2026-10-08.md)
+   and its [Phase 2 sequencing decision](#phase-2-sequencing-decision-2026-10-08).
+   Freeze and negatively qualify the gold/answer protocol, then run the
+   identity-bound Phase 2 correct-results campaign in the order above.
 5. Diagnose each loss as measurement artifact, bottleneck or product defect.
    Repair confirmed defects with a RED test and separately reviewed change,
    then repeat affected paired cells and shared-system cells.

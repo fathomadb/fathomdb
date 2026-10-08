@@ -54,6 +54,8 @@ reported lifecycle
 reported mean
 reported mean::mean_centering_internals_for_test
 reported open
+reported open::default_embedder_load_error_tests
+reported open::device_policy_open_error_tests
 reported operator
 reported operator::data_plane
 reported pagination
@@ -73,6 +75,7 @@ governed reader_pool
 governed reader_transaction
 reported record_lifecycle
 reported rerank
+reported rerank::tests
 admitted root
 reported root::gpu_allocation_witness_opt_in_tests
 reported root::tests

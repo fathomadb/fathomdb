@@ -161,7 +161,8 @@ projection, ordinary/frozen search, direct embedding and open-time equivalence
 probes use the engine embed dispatcher and one queue-plus-service deadline per
 call or batch. Direct embedding maps full/expired queue to `OverloadedError`,
 started failure/timeout to `EmbedderError`, and close cancellation to
-`ClosingError`. Hybrid search preserves same-snapshot sparse fallback;
+`ClosingError`. Hybrid search preserves same-snapshot sparse fallback, except
+that a query-embedding failure of a CUDA pool kind raises its typed class;
 projection capacity waits leave durable work pending without a provider retry.
 Explicit close may raise `SchedulerError` until an unfinished provider exits.
 Engine open selects the pinned default embedder or none; it does not inject a

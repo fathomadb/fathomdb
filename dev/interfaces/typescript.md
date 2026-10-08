@@ -166,7 +166,8 @@ reads), direct embedding and open-time equivalence probes share the engine
 embed dispatcher and its queue-plus-service deadline. Direct embedding maps
 full/expired queue to `OverloadedError`, started failure/timeout to
 `EmbedderError`, and close cancellation to `ClosingError`. Hybrid search keeps
-same-snapshot sparse fallback; projection capacity waits keep rows pending
+same-snapshot sparse fallback, except that a query-embedding failure of a CUDA
+pool kind rejects with its typed class; projection capacity waits keep rows pending
 without spending a provider retry. Explicit close may reject with
 `SchedulerError` while a provider worker remains after the drain budget.
 

@@ -1417,11 +1417,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             return Err(SearchReaderError::WriteValidation);
         }
         owned_compiled = compile_text_query(raw_query);
-        let raw_vector = match dispatch_embed_vector(&runtime.embed_dispatch, raw_query) {
-            Ok(vector) => Some(vector),
-            Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
-            Err(_) => None,
-        };
+        let raw_vector = search_query_vector(&runtime.embed_dispatch, raw_query)
+            .map_err(SearchReaderError::Evidence)?;
         owned_query_vector_bin = match raw_vector.as_ref() {
             Some(vector) if identity_requires_mean_centering(&runtime.embedder_identity) => {
                 let pinned = read_pinned_mean_vec(&tx, runtime.embedder_identity.dimension)
@@ -2423,8 +2420,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     Ok(output)
 }
 use crate::dependency_closure;
-use crate::embed_dispatch::{DispatchError, EmbedDispatcher};
-use crate::embedding::dispatch_embed_vector;
+use crate::embed_dispatch::EmbedDispatcher;
+use crate::embedding::search_query_vector;
 use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{

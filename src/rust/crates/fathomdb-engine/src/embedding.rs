@@ -130,6 +130,25 @@ pub(crate) fn map_runtime_embedder_error(err: RuntimeEmbedderError) -> EngineErr
     }
 }
 
+/// The query vector for a search. A failed query embedding drops the vector
+/// arm (`Ok(None)`, the sparse fallback), except a CUDA pool kind, which is
+/// raised typed (ruling 33). A provider panic resumes.
+pub(crate) fn search_query_vector(
+    dispatcher: &EmbedDispatcher,
+    text: &str,
+) -> Result<Option<Vec<f32>>, EngineError> {
+    match dispatch_embed_vector(dispatcher, text) {
+        Ok(vector) => Ok(Some(vector)),
+        Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
+        Err(DispatchError::Provider(
+            error @ (RuntimeEmbedderError::CudaPoolExhausted { .. }
+            | RuntimeEmbedderError::CudaContextLost { .. }
+            | RuntimeEmbedderError::CudaPrivateBuildRefused { .. }),
+        )) => Err(map_runtime_embedder_error(error)),
+        Err(_) => Ok(None),
+    }
+}
+
 pub(crate) fn dispatch_embed_vector(
     dispatcher: &EmbedDispatcher,
     text: &str,

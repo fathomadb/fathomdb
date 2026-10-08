@@ -89,7 +89,8 @@ a batch) has one absolute queue-plus-service deadline. Full admission and
 queued expiry map to `EngineError::Overloaded` for direct `embed_text`; a
 started failure/timeout maps to `EngineError::Embedder`, except a provider
 failure of a CUDA pool kind, which keeps its typed variant (§ Errors). Hybrid search retains
-same-snapshot sparse fallback. Projection capacity waits leave durable work
+same-snapshot sparse fallback, except for a query-embedding failure of a CUDA pool
+kind, which search raises typed. Projection capacity waits leave durable work
 pending without spending or resetting a provider-failure retry; started
 failures/timeouts use the fixed 1/4/16-second ladder and may terminalize.
 Close cancels pending replies; if a provider worker remains after the shared

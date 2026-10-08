@@ -790,8 +790,14 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
                 last_code = "EmbedderDimensionMismatchError";
                 Vec::new()
             }
-            Err(DispatchError::StartedTimeout | DispatchError::Provider(_)) => {
+            Err(DispatchError::StartedTimeout) => {
                 last_code = "EmbedderError";
+                Vec::new()
+            }
+            // A CUDA pool kind records its own stable code and keeps the
+            // retry ladder; every other provider failure is `EmbedderError`.
+            Err(DispatchError::Provider(error)) => {
+                last_code = crate::embedding::map_runtime_embedder_error(error).stable_code();
                 Vec::new()
             }
             Ok(EmbedOutput::Batch(_)) => unreachable!("single embedding returned a batch"),

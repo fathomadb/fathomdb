@@ -1,0 +1,33 @@
+{
+  "comment": "Reviewed Python surface additions since the Slice 130 pre-move baseline. Each entry is a deliberate public addition; the baseline file itself stays frozen. native_stub_sha256 supersedes the baseline's stub digest.",
+  "additions": [
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.errors.CudaContextLostError",
+        "signature": "CudaContextLostError = _CudaContextLostError"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.errors.CudaPoolExhaustedError",
+        "signature": "CudaPoolExhaustedError = _CudaPoolExhaustedError"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.errors.CudaPrivateBuildRefusedError",
+        "signature": "CudaPrivateBuildRefusedError = _CudaPrivateBuildRefusedError"
+      }
+    }
+  ],
+  "native_stub_sha256": "3925dc70cd098fd0d1d74237e14ab1da6e3c92e6bacf5adb54162162d0397f02"
+}

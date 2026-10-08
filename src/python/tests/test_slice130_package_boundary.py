@@ -16,6 +16,9 @@ BASELINE = (
     Path(__file__).resolve().parents[3]
     / "dev/plans/0.8.27/features/slice-130/pre-move-python-surface.json"
 )
+# Deliberate public additions after the frozen Slice 130 baseline. The
+# baseline never changes; each later addition is declared and reviewed here.
+ADDITIONS = Path(__file__).resolve().parent / "python_surface_additions.json"
 
 
 def test_package_boundary_matches_pre_move_baseline() -> None:
@@ -64,10 +67,15 @@ def test_all_python_declarations_match_pre_move_baseline() -> None:
         path.relative_to(package).as_posix(): path.read_text() for path in package.rglob("*.py")
     }
     baseline = json.loads(BASELINE.read_text())
+    additions = json.loads(ADDITIONS.read_text())
+    declared = [entry["declaration"] for entry in additions["additions"]]
     declarations = comparator.parse_python_wrappers(sources)
-    assert len(declarations) == 1131
-    assert declarations == baseline["python_wrapper_declarations"]
+    assert len(baseline["python_wrapper_declarations"]) == 1131
+    assert len(declarations) == 1131 + len(declared)
+    added = [d for d in declarations if d not in baseline["python_wrapper_declarations"]]
+    assert added == declared
+    assert [d for d in declarations if d not in declared] == baseline["python_wrapper_declarations"]
     assert (
         hashlib.sha256((package / "_fathomdb.pyi").read_bytes()).hexdigest()
-        == baseline["native_stub_sha256"]
+        == additions["native_stub_sha256"]
     )

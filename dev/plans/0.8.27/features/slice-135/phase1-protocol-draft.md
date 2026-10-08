@@ -62,6 +62,13 @@ freezes the same workload and schedule with the new exact wheel hash before
 current-wheel candidate timing. Product engine/Python trees and `Cargo.lock`
 match the later Slice 135 branch; this subset remains separate from the full
 Phase 1 protocol.
+After later search row-error repairs, the [clean-source 224e44c59 installed
+smoke](results/2026-10-08-python-224e-functional-smoke/README.md) passed S01
+and S02 functional checks with independent result and reopened-state audit.
+The [new S01 subset](s01-python-224e-comparison-protocol.json) and
+[S02 subset](s02-python-224e-comparison-protocol.json) retain their prior
+workload and analysis rules but bind the repaired wheel before paired timing.
+They do not freeze this broader protocol.
 
 The [baseline-only installed-TypeScript S01 noise pilot](results/2026-10-07-ts-s01-noise-pilot/README.md)
 now has five 100-warm-call blocks per corpus size, retained npm archives,

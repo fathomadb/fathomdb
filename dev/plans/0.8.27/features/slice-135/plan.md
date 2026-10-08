@@ -706,6 +706,14 @@ SDK exercise remain open.
   subsequently confirmed [vector-hydration row-error defect](results/2026-10-08-vector-hydration-repair/README.md)
   was repaired test-first; this changes candidate engine bytes and makes the
   current-wheel timing historical for the final checkpoint.
+  A clean checkout at `224e44c59` now has a rebuilt installed Python wheel
+  and an [S01/S02 functional smoke](results/2026-10-08-python-224e-functional-smoke/README.md)
+  with 72 independently checked S01 calls, one S02 reopened-state sequence
+  and three rejected result/state mutants. The unchanged
+  [S01](s01-python-224e-comparison-protocol.json) and
+  [S02](s02-python-224e-comparison-protocol.json) paired methods are frozen
+  to this wheel before timing. Paired runs and other installed boundaries
+  remain due; this smoke is not a latency comparison.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

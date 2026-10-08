@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run frozen installed-TypeScript S01 pairs on integrated candidate bytes."""
+"""Run source-bound frozen installed-TypeScript S01 pairs."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -23,7 +24,6 @@ FREEZE_SHA256 = "9fbf31fca79074928c80e1e271e446655923c236e8b4ab3d4900f677f5aa88e
 BLOCK_RUNNER = ROOT / "scripts/slice135_ts_s01_block.py"
 WORKLOAD = ROOT / "scripts/slice135_ts_s01.mjs"
 BASELINE_SOURCE = "f99e002f0d2e4002f3694c9f8d4986b56089edaa"
-CANDIDATE_SOURCE = "cdf253cd223a82e954591db532397a3d78a2027a"
 PAIR_ORDER = (
     ("baseline", "candidate"),
     ("candidate", "baseline"),
@@ -42,13 +42,21 @@ def planned_blocks(specification: dict) -> list[dict]:
     """Expand the frozen TypeScript order, rejecting identity or count drift."""
     if specification.get("status") != "FROZEN_TS_S01_PAIRED":
         raise ValueError("TypeScript S01 protocol is not frozen")
+    campaign_hash = specification.get("campaign_runner_sha256")
+    if campaign_hash is not None and campaign_hash != sha256(Path(__file__)):
+        raise ValueError("campaign runner differs from frozen TypeScript S01")
     if specification.get("baseline", {}).get("source_sha") != BASELINE_SOURCE:
         raise ValueError("baseline source differs from freeze")
-    if specification.get("candidate", {}).get("source_sha") != CANDIDATE_SOURCE:
-        raise ValueError("candidate source differs from freeze")
+    candidate_source = specification.get("candidate", {}).get("source_sha")
+    if (
+        not isinstance(candidate_source, str)
+        or re.fullmatch(r"[0-9a-f]{40}", candidate_source) is None
+        or candidate_source == "0" * 40
+    ):
+        raise ValueError("candidate source identity invalid")
     if (
         specification.get("candidate_product_snapshot", {}).get("source_sha")
-        != CANDIDATE_SOURCE
+        != candidate_source
     ):
         raise ValueError("candidate product snapshot differs from freeze")
     if specification.get("rows") != [32, 256]:
@@ -93,9 +101,17 @@ def source_head(checkout: Path) -> str:
 
 def run(args: argparse.Namespace) -> None:
     """Run each block once, retaining failures and exact command order."""
-    if sha256(FREEZE) != FREEZE_SHA256:
-        raise ValueError("integrated TypeScript S01 freeze bytes changed")
-    specification = json.loads(FREEZE.read_text())
+    freeze = args.freeze
+    freeze_sha256 = args.freeze_sha256
+    if freeze != FREEZE and freeze_sha256 is None:
+        raise ValueError("a refrozen TypeScript S01 protocol requires --freeze-sha256")
+    if freeze_sha256 is None:
+        freeze_sha256 = FREEZE_SHA256
+    if re.fullmatch(r"[0-9a-f]{64}", freeze_sha256) is None:
+        raise ValueError("invalid frozen TypeScript S01 protocol SHA-256")
+    if sha256(freeze) != freeze_sha256:
+        raise ValueError("TypeScript S01 freeze bytes differ from declared hash")
+    specification = json.loads(freeze.read_text())
     blocks = planned_blocks(specification)
     if sha256(WORKLOAD) != specification["workload_runner_sha256"]:
         raise ValueError("TypeScript S01 workload differs from freeze")
@@ -127,7 +143,7 @@ def run(args: argparse.Namespace) -> None:
             raise ValueError(f"{role} installed consumer missing")
     args.output.mkdir(parents=True, exist_ok=False)
     for source, name in (
-        (FREEZE, "freeze.json"),
+        (freeze, "freeze.json"),
         (Path(__file__), "campaign.py"),
         (BLOCK_RUNNER, "block-runner.py"),
         (WORKLOAD, "workload.mjs"),
@@ -137,7 +153,7 @@ def run(args: argparse.Namespace) -> None:
     for index, block in enumerate(blocks):
         if index:
             time.sleep(specification["minimum_idle_seconds_between_blocks"])
-        if sha256(FREEZE) != FREEZE_SHA256:
+        if sha256(freeze) != freeze_sha256:
             raise ValueError("TypeScript S01 freeze changed during campaign")
         role = block["role"]
         artifact = artifacts[role]
@@ -167,7 +183,7 @@ def run(args: argparse.Namespace) -> None:
             "--samples",
             str(block["samples"]),
             "--comparison-protocol",
-            str(FREEZE),
+            str(freeze),
             "--role",
             role,
             "--output-dir",
@@ -183,7 +199,7 @@ def run(args: argparse.Namespace) -> None:
             "exit_code": result.returncode,
             "stdout": result.stdout,
             "stderr": result.stderr,
-            "protocol_sha256": FREEZE_SHA256,
+            "protocol_sha256": freeze_sha256,
         }
         if (destination / "attempt.json").is_file():
             attempt = json.loads((destination / "attempt.json").read_text())
@@ -205,6 +221,8 @@ def run(args: argparse.Namespace) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--freeze", type=Path, default=FREEZE)
+    parser.add_argument("--freeze-sha256")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--node", type=Path, required=True)
     for role in ("baseline", "candidate"):

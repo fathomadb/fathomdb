@@ -16,7 +16,7 @@ BASE_AUDITOR = ROOT / "scripts/slice135_ts_s01_pair_audit.py"
 KINDS = ("text", "vector", "hybrid")
 
 
-def load_base_auditor():
+def load_base_auditor(protocol: dict | None = None):
     """Load existing independent raw checks with isolated integrated identities."""
     specification = importlib.util.spec_from_file_location(
         "slice135_ts_s01_base_for_integrated", BASE_AUDITOR
@@ -24,17 +24,30 @@ def load_base_auditor():
     assert specification is not None and specification.loader is not None
     base = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(base)
-    base.NATIVE_SHA256["candidate"] = (
-        "2d26e58cda598d702c3dc333beaeec355e268c093c342fbf1efd26e4ccd5186d"
+    snapshot = (protocol or {}).get("candidate_product_snapshot", {})
+    base.NATIVE_SHA256["candidate"] = snapshot.get(
+        "native_sha256",
+        "2d26e58cda598d702c3dc333beaeec355e268c093c342fbf1efd26e4ccd5186d",
     )
-    base.MODULE_SHA256["candidate"] = (
-        "cc0ea0b2ae641aa5162a223985d9afb5ba1233b073899e66a2847f92f36bf432"
+    base.MODULE_SHA256["candidate"] = snapshot.get(
+        "module_sha256",
+        "cc0ea0b2ae641aa5162a223985d9afb5ba1233b073899e66a2847f92f36bf432",
     )
     base.ARCHIVES = {
         "baseline": ("baseline-main.tgz", "baseline-platform.tgz"),
         "candidate": ("candidate-main.tgz", "candidate-platform.tgz"),
     }
     return base
+
+
+def check_campaign_runner(protocol: dict, path: Path) -> None:
+    """Bind archived campaign bytes when the refrozen protocol declares them."""
+    expected = protocol.get("campaign_runner_sha256")
+    if expected is not None:
+        import hashlib
+
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError("archived campaign runner differs from protocol")
 
 
 def check_run_order(
@@ -106,13 +119,14 @@ def audit_collection(
     root: Path, protocol: Path, baseline_checkout: Path, candidate_checkout: Path
 ) -> dict:
     """Audit exact archives, raw calls, run order, resources and paired deltas."""
-    base = load_base_auditor()
-    frozen = base._read(protocol)
+    frozen = json.loads(protocol.read_text())
+    base = load_base_auditor(frozen)
     if frozen.get("status") != "FROZEN_TS_S01_PAIRED":
         raise ValueError("integrated TypeScript S01 protocol is not frozen")
     protocol_sha = base._hash(protocol)
     if base._hash(root / "freeze.json") != protocol_sha:
         raise ValueError("archived protocol differs from frozen bytes")
+    check_campaign_runner(frozen, root / "campaign.py")
     if base._hash(root / "block-runner.py") != frozen["block_runner_sha256"]:
         raise ValueError("archived TypeScript block runner differs")
     if base._hash(root / "workload.mjs") != frozen["workload_runner_sha256"]:

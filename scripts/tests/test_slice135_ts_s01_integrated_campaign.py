@@ -6,6 +6,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -57,4 +58,32 @@ def test_rejects_corpus_and_sample_drift() -> None:
     changed = frozen()
     changed["warm_samples_per_cell"] = 100
     with pytest.raises(ValueError, match="samples"):
+        campaign.planned_blocks(changed)
+
+
+def test_refrozen_candidate_keeps_schedule_and_requires_matching_snapshot() -> None:
+    changed = frozen()
+    changed["candidate"]["source_sha"] = (
+        "3f29d649d0213e595c0dab251a449d92fd625792"
+    )
+    changed["candidate_product_snapshot"]["source_sha"] = changed["candidate"][
+        "source_sha"
+    ]
+    assert campaign.planned_blocks(changed) == campaign.planned_blocks(frozen())
+    changed["candidate_product_snapshot"]["source_sha"] = "0" * 40
+    with pytest.raises(ValueError, match="snapshot"):
+        campaign.planned_blocks(changed)
+
+
+def test_refrozen_protocol_requires_declared_hash(tmp_path: Path) -> None:
+    path = tmp_path / "refrozen.json"
+    path.write_text(json.dumps(frozen()))
+    with pytest.raises(ValueError, match="freeze-sha256"):
+        campaign.run(SimpleNamespace(freeze=path, freeze_sha256=None))
+
+
+def test_rejects_campaign_runner_drift_when_frozen() -> None:
+    changed = frozen()
+    changed["campaign_runner_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="campaign runner"):
         campaign.planned_blocks(changed)

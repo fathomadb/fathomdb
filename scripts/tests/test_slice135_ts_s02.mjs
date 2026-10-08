@@ -66,3 +66,16 @@ test("S02 state oracle catches missing evidence and incomplete erasure", () => {
   absentVector.vector.branches = ["text"];
   assert.throws(() => validateObservations(absentVector), /vector branch/);
 });
+
+test("S02 timed mode accepts final independent counts after product timing", () => {
+  const observed = good();
+  delete observed.after_erasure.canonical_counts;
+  delete observed.after_reopen.canonical_counts;
+  const counts = { graph_nodes: 0, graph_edges: 0, corpus_nodes: 32 };
+  assert.doesNotThrow(() => validateObservations(observed, { finalCanonicalCounts: counts }));
+  assert.throws(() => validateObservations(observed), /canonical persistence/);
+  assert.throws(
+    () => validateObservations(observed, { finalCanonicalCounts: { ...counts, graph_edges: 1 } }),
+    /canonical persistence/,
+  );
+});

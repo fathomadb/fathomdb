@@ -73,7 +73,7 @@ function checkHits(kind, result, eligible) {
   return { ids, branches };
 }
 
-export function validateObservations(observed) {
+export function validateObservations(observed, { finalCanonicalCounts = null } = {}) {
   requireCondition(observed.embedder === "fathomdb-bge-small-en-v1.5", "embedder identity");
   requireCondition(observed.readiness === "ready", "projection not ready");
   requireCondition(observed.unsupported_kinds.length === 0, "unsupported vector kind");
@@ -111,8 +111,18 @@ export function validateObservations(observed) {
         .every((key) => state[key] === true),
       `${name} state`,
     );
+    if (state.canonical_counts !== undefined || finalCanonicalCounts === null) {
+      requireCondition(
+        JSON.stringify(state.canonical_counts) === JSON.stringify({
+          graph_nodes: 0, graph_edges: 0, corpus_nodes: 32,
+        }),
+        "canonical persistence",
+      );
+    }
+  }
+  if (finalCanonicalCounts !== null) {
     requireCondition(
-      JSON.stringify(state.canonical_counts) === JSON.stringify({
+      JSON.stringify(finalCanonicalCounts) === JSON.stringify({
         graph_nodes: 0, graph_edges: 0, corpus_nodes: 32,
       }),
       "canonical persistence",
@@ -157,21 +167,24 @@ function canonicalCounts(database) {
   }
 }
 
-async function postState(engine, read, graph, database, anchorBody) {
-  return {
+async function postState(engine, read, graph, database, anchorBody, includeCanonicalCounts) {
+  const state = {
     source_absent: (await read.get(engine, "s02-source")) === null,
     root_absent: (await read.get(engine, "s02-root")) === null,
     claim_absent: (await read.get(engine, "s02-claim")) === null,
     anchor_retained: (await read.get(engine, "A"))?.body === anchorBody,
     evidence_query_empty: (await engine.searchTextOnly(CLAIM_TOKEN)).results.length === 0,
     graph_empty: (await graph.neighbors(engine, "s02-root", 1)).length === 0,
-    canonical_counts: canonicalCounts(database),
   };
+  if (includeCanonicalCounts) state.canonical_counts = canonicalCounts(database);
+  return state;
 }
 
-export async function runOnce({ installRoot, sourceSha, expectedNativeSha256 }) {
+export async function runOnce({ installRoot, sourceSha, expectedNativeSha256, timingMode = "functional" }) {
   requireCondition(/^[0-9a-f]{40}$/.test(sourceSha), "source SHA malformed");
   requireCondition(/^[0-9a-f]{64}$/.test(expectedNativeSha256), "native SHA malformed");
+  requireCondition(["functional", "product"].includes(timingMode), "timing mode invalid");
+  const productTiming = timingMode === "product";
   const artifact = artifactIdentity(installRoot, expectedNativeSha256);
   const { Engine, graph, read } = await import(pathToFileURL(artifact.module_path).href);
   const corpus = makeCorpus(32);
@@ -245,7 +258,7 @@ export async function runOnce({ installRoot, sourceSha, expectedNativeSha256 }) 
           edges_excised: report.edgesExcised,
         },
         second_erasure: { nodes_excised: second.nodesExcised, edges_excised: second.edgesExcised },
-        after_erasure: await postState(engine, read, graph, database, corpus[0].body),
+        after_erasure: await postState(engine, read, graph, database, corpus[0].body, !productTiming),
       };
     } finally {
       await timed("close", () => engine.close());
@@ -254,22 +267,28 @@ export async function runOnce({ installRoot, sourceSha, expectedNativeSha256 }) 
     try {
       const projection = (await read.projections(reopened)).find((item) => item.name === "summary");
       observed.after_reopen = {
-        ...await postState(reopened, read, graph, database, corpus[0].body),
+        ...await postState(reopened, read, graph, database, corpus[0].body, !productTiming),
         readiness: projection?.vectorDenseReadiness,
       };
     } finally {
       await timed("reopened_close", () => reopened.close());
     }
-    const wholeSequenceIncludingChecksNs = Number(process.hrtime.bigint() - wholeStart);
-    validateObservations(observed);
+    const wholeNs = Number(process.hrtime.bigint() - wholeStart);
+    const verificationStart = process.hrtime.bigint();
+    const finalCanonicalCounts = productTiming ? canonicalCounts(database) : null;
+    validateObservations(observed, { finalCanonicalCounts });
+    const verificationNs = Number(process.hrtime.bigint() - verificationStart);
     return {
-      schema_version: 1, status: "UNFROZEN_TS_S02_FUNCTIONAL_FEASIBILITY",
+      schema_version: 1,
+      status: productTiming ? "UNFROZEN_TS_S02_PRODUCT_TIMING_FEASIBILITY" : "UNFROZEN_TS_S02_FUNCTIONAL_FEASIBILITY",
       finished_utc: new Date().toISOString(), source_sha: sourceSha,
       runner_sha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
       s01_helper_sha256: sha256(readFileSync(fileURLToPath(new URL("./slice135_ts_s01.mjs", import.meta.url)))),
       artifact, corpus_sha256: sha256(JSON.stringify(corpus)),
       graph_records_sha256: sha256(JSON.stringify(makeGraphRecords())),
-      whole_sequence_including_checks_ns: wholeSequenceIncludingChecksNs,
+      ...(productTiming
+        ? { whole_product_ns: wholeNs, verification_ns: verificationNs, final_canonical_counts: finalCanonicalCounts }
+        : { whole_sequence_including_checks_ns: wholeNs }),
       stage_ns: stages, observed, semantic_ok: true,
     };
   } finally {
@@ -296,6 +315,7 @@ async function main() {
   const output = await runOnce({
     installRoot: values["install-root"], sourceSha: values["source-sha"],
     expectedNativeSha256: values["expected-native-sha256"],
+    timingMode: values["timing-mode"] ?? "functional",
   });
   writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
 }

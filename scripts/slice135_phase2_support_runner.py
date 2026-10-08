@@ -27,6 +27,13 @@ def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def _stored_body(row: dict[str, str]) -> str:
+    payload = {"summary": row["body"]}
+    if "conversation" in row:
+        payload["conversation"] = row["conversation"]
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
 def validate_inputs(data: dict[str, Any], denominator: dict[str, Any]) -> dict[str, Any]:
     """Require unique corpus IDs, complete gold and declared denominators."""
     if not isinstance(data, dict) or data.get("dataset") not in {"musique", "locomo"}:
@@ -36,6 +43,7 @@ def validate_inputs(data: dict[str, Any], denominator: dict[str, Any]) -> dict[s
     if not isinstance(documents, list) or not documents or not isinstance(queries, list) or not queries:
         raise ValueError("missing corpus or query list")
     ids: set[str] = set()
+    conversations: dict[str, str] = {}
     for document in documents:
         if not isinstance(document, dict):
             raise ValueError("malformed document")
@@ -45,6 +53,15 @@ def validate_inputs(data: dict[str, Any], denominator: dict[str, Any]) -> dict[s
                 or not isinstance(document.get("source_id"), str) or not document["source_id"]):
             raise ValueError("invalid or duplicate document")
         ids.add(logical_id)
+        conversation = document.get("conversation")
+        if data["dataset"] == "locomo":
+            if (not isinstance(conversation, str) or not conversation
+                    or ":session_" not in logical_id
+                    or conversation != logical_id.split(":session_", 1)[0]):
+                raise ValueError("LOCOMO document conversation scope mismatch")
+            conversations[logical_id] = conversation
+        elif conversation is not None:
+            raise ValueError("MuSiQue document has unexpected conversation")
     query_ids: set[str] = set()
     classes = Counter()
     for query in queries:
@@ -61,6 +78,13 @@ def validate_inputs(data: dict[str, Any], denominator: dict[str, Any]) -> dict[s
                 or len(set(required)) != len(required)
                 or not isinstance(query.get("answers"), list) or not query["answers"]):
             raise ValueError("invalid or incomplete support-set query")
+        scope_conversation = query.get("scope_conversation")
+        if data["dataset"] == "locomo":
+            if (not isinstance(scope_conversation, str) or not scope_conversation
+                    or any(conversations[item] != scope_conversation for item in required)):
+                raise ValueError("LOCOMO query conversation scope differs from required sessions")
+        elif scope_conversation is not None:
+            raise ValueError("MuSiQue query has unexpected scope")
         query_ids.add(query_id)
         classes[query_class] += 1
     if (len(documents) != denominator.get("documents")
@@ -121,16 +145,21 @@ def run(
     try:
         if engine.open_report().default_embedder.name != protocol["model_name"]:
             raise ValueError("model identity mismatch")
-        engine.configure_projections([fathomdb.ProjectionSpec(
+        projections = [fathomdb.ProjectionSpec(
             name="summary", roles=frozenset({fathomdb.ProjectionRole.SEARCHABLE}), vector=True,
-        )])
+        )]
+        if data["dataset"] == "locomo":
+            projections.append(fathomdb.ProjectionSpec(
+                name="conversation", roles=frozenset({fathomdb.ProjectionRole.FILTERABLE}),
+            ))
+        engine.configure_projections(projections)
         documents = data["documents"]
         batch_size = protocol["write_batch_size"]
         for start in range(0, len(documents), batch_size):
             engine.write([{
                 "kind": "doc", "logical_id": row["logical_id"],
                 "source_id": row["source_id"],
-                "body": json.dumps({"summary": row["body"]}, ensure_ascii=False, separators=(",", ":")),
+                "body": _stored_body(row),
             } for row in documents[start:start + batch_size]])
             engine.drain(timeout_s=600)
             print(f"{version}: projected {min(start + batch_size, len(documents))}/{len(documents)}", file=sys.stderr, flush=True)
@@ -152,9 +181,15 @@ def run(
                 "text": query["text"], "text_sha256": _hash_text(query["text"]),
                 "required_ids": query["required_ids"],
                 "strict_multi_session": query.get("strict_multi_session", False),
+                "scope_conversation": query.get("scope_conversation"),
             }
             try:
-                hits = engine.search(query["text"], limit=20).results
+                scope_conversation = query.get("scope_conversation")
+                search_filter = (
+                    fathomdb.SearchFilter(attributes=(("conversation", scope_conversation),))
+                    if scope_conversation else None
+                )
+                hits = engine.search(query["text"], filter=search_filter, limit=20).results
                 record.update({"status": "ok", "hits": [
                     {"doc_id": hit.id.value, "branch": hit.branch} for hit in hits
                 ]})
@@ -180,9 +215,8 @@ def run(
                         "python_version": sys.version, "platform": platform.platform()},
         "model_name": protocol["model_name"],
         "documents": [{"logical_id": row["logical_id"],
-                       "body_sha256": _hash_text(json.dumps(
-                           {"summary": row["body"]}, ensure_ascii=False, separators=(",", ":")
-                       ))} for row in data["documents"]],
+                       "body_sha256": _hash_text(_stored_body(row))}
+                      for row in data["documents"]],
         "queries": observations,
     }
     path = output / "raw.json"

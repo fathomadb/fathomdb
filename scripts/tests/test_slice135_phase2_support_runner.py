@@ -45,3 +45,14 @@ def test_wrong_support_or_duplicate_corpus_rejected(alter) -> None:
     with pytest.raises(ValueError):
         RUNNER.validate_inputs(data, {"documents": 2, "queries": 1,
                                       "by_class": {"two_hop": 1}})
+
+
+def test_locomo_question_scope_must_match_every_required_session() -> None:
+    data = _data()
+    data["dataset"] = "locomo"
+    data["documents"][0]["conversation"] = "conv-a"
+    data["documents"][1]["conversation"] = "conv-b"
+    data["queries"][0]["scope_conversation"] = "conv-a"
+    with pytest.raises(ValueError, match="conversation scope"):
+        RUNNER.validate_inputs(data, {"documents": 2, "queries": 1,
+                                      "by_class": {"two_hop": 1}})

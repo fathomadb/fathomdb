@@ -94,6 +94,8 @@ def test_locomo_session_mapping_and_strict_multisession_flag(tmp_path: Path) -> 
     data = INPUTS.build_locomo(path)
     assert len(data["documents"]) == 2
     assert len(data["queries"]) == 2
+    assert {doc["conversation"] for doc in data["documents"]} == {"conv-x"}
+    assert {q["scope_conversation"] for q in data["queries"]} == {"conv-x"}
     multi = next(q for q in data["queries"] if q["query_class"] == "multi_session")
     assert multi["strict_multi_session"] is True
     assert multi["required_ids"] == ["conv-x:session_1", "conv-x:session_2"]

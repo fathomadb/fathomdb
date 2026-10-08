@@ -106,7 +106,9 @@ def _audit_one(
     expected_documents = [{
         "logical_id": row["logical_id"],
         "body_sha256": _hash_text(json.dumps(
-            {"summary": row["body"]}, ensure_ascii=False, separators=(",", ":")
+            {"summary": row["body"], **({"conversation": row["conversation"]}
+                                      if "conversation" in row else {})},
+            ensure_ascii=False, separators=(",", ":")
         )),
     } for row in data["documents"]]
     required = {
@@ -141,6 +143,8 @@ def _audit_one(
     observations = raw.get("queries")
     if not isinstance(observations, list) or len(observations) != len(data["queries"]):
         raise ValueError("incomplete query receipt")
+    conversation_by_id = {row["logical_id"]: row.get("conversation")
+                          for row in data["documents"]}
     for expected, actual in zip(data["queries"], observations):
         if not isinstance(actual, dict):
             raise ValueError("malformed query receipt")
@@ -149,11 +153,20 @@ def _audit_one(
                 raise ValueError(f"{version}: query {key} mismatch")
         if (actual.get("text_sha256") != _hash_text(expected["text"])
                 or actual.get("strict_multi_session")
-                != expected.get("strict_multi_session", False)):
+                != expected.get("strict_multi_session", False)
+                or actual.get("scope_conversation") != expected.get("scope_conversation")):
             raise ValueError("query identity mismatch")
+        scope_conversation = expected.get("scope_conversation")
+        if scope_conversation and any(
+            conversation_by_id.get(hit.get("doc_id")) != scope_conversation
+            for hit in actual.get("hits", []) if isinstance(hit, dict)
+        ):
+            raise ValueError("out-of-scope LOCOMO hit")
     expected_rows = [(
         row["logical_id"], "doc",
-        json.dumps({"summary": row["body"]}, ensure_ascii=False, separators=(",", ":")),
+        json.dumps({"summary": row["body"], **({"conversation": row["conversation"]}
+                                              if "conversation" in row else {})},
+                   ensure_ascii=False, separators=(",", ":")),
         row["source_id"],
     ) for row in data["documents"]]
     database_result = ir_audit.audit_database(database, expected_rows, vector_count=len(expected_rows))

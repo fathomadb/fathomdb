@@ -105,6 +105,7 @@ def build_locomo(path: Path) -> dict[str, Any]:
         documents.append({
             "logical_id": logical_id, "body": body,
             "source_id": f"slice135-locomo:{conversation}",
+            "conversation": conversation,
         })
     allowed = {document["logical_id"] for document in documents}
     queries = []
@@ -123,9 +124,13 @@ def build_locomo(path: Path) -> dict[str, Any]:
                 or not isinstance(answers, list) or not answers):
             raise ValueError("invalid LOCOMO positive query or support set")
         seen.add(query_id)
+        conversations = {item.split(":session_", 1)[0] for item in required}
+        if len(conversations) != 1:
+            raise ValueError("LOCOMO support crosses conversation scope")
         queries.append({
             "query_id": query_id, "query_class": query_class, "text": text,
             "required_ids": required, "answers": answers,
+            "scope_conversation": next(iter(conversations)),
             "strict_multi_session": query_class == "multi_session" and len(required) >= 2,
         })
     return {"dataset": "locomo", "selection": {"classes": [

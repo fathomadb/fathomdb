@@ -1,4 +1,5 @@
 //! A damaged current-schema canonical node table must not expose orphaned FTS hits.
+#![cfg(any(debug_assertions, feature = "test-hooks"))]
 
 use fathomdb_engine::{Engine, EngineError, InitialState, PreparedWrite, SourceId};
 use fathomdb_schema::SQLITE_SUFFIX;

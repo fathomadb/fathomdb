@@ -1,4 +1,5 @@
 //! A damaged current-schema edge index must not produce a successful partial search.
+#![cfg(any(debug_assertions, feature = "test-hooks"))]
 
 use std::sync::Arc;
 

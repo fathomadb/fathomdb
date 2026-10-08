@@ -1,0 +1,17 @@
+310M	/qdrant
+7.1M	/history
+/history/history.db 7401472 bytes
+/qdrant/aliases/data.json 2 bytes
+/qdrant/collections/mem0migrations/config.json 701 bytes
+/qdrant/collections/mem0migrations/payload_index.json 93 bytes
+/qdrant/collections/mem0migrations/shard_key_mapping.json 2 bytes
+/qdrant/collections/mem0migrations/version.info 5 bytes
+/qdrant/collections/memories/config.json 701 bytes
+/qdrant/collections/memories/payload_index.json 93 bytes
+/qdrant/collections/memories/shard_key_mapping.json 2 bytes
+/qdrant/collections/memories/version.info 5 bytes
+/qdrant/collections/memories_entities/config.json 701 bytes
+/qdrant/collections/memories_entities/payload_index.json 93 bytes
+/qdrant/collections/memories_entities/shard_key_mapping.json 2 bytes
+/qdrant/collections/memories_entities/version.info 5 bytes
+/qdrant/raft_state.json 355 bytes

@@ -1,0 +1,2 @@
+fathomdb-mem0-locomo-mem0-1 fathomdb-mem0-locomo-mem0 Exited (127) 5 weeks ago
+fathomdb-mem0-locomo-qdrant-1 qdrant/qdrant:latest Exited (255) 5 weeks ago

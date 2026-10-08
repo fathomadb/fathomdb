@@ -1,0 +1,30 @@
+[
+    {
+        "CreatedAt": "2026-08-13T13:04:47-05:00",
+        "Driver": "local",
+        "Labels": {
+            "com.docker.compose.config-hash": "6f6fc9668db75d968170c190069c1b514cb77641e0a4a21475173ccd23310517",
+            "com.docker.compose.project": "fathomdb-mem0-locomo",
+            "com.docker.compose.version": "5.3.1",
+            "com.docker.compose.volume": "mem0_history"
+        },
+        "Mountpoint": "/var/lib/docker/volumes/fathomdb-mem0-locomo_mem0_history/_data",
+        "Name": "fathomdb-mem0-locomo_mem0_history",
+        "Options": null,
+        "Scope": "local"
+    },
+    {
+        "CreatedAt": "2026-08-13T13:04:47-05:00",
+        "Driver": "local",
+        "Labels": {
+            "com.docker.compose.config-hash": "86f9eb292b7208c23ec0df922f3f81c53c5cc677c2a1876002766858c49c6fc2",
+            "com.docker.compose.project": "fathomdb-mem0-locomo",
+            "com.docker.compose.version": "5.3.1",
+            "com.docker.compose.volume": "qdrant_data"
+        },
+        "Mountpoint": "/var/lib/docker/volumes/fathomdb-mem0-locomo_qdrant_data/_data",
+        "Name": "fathomdb-mem0-locomo_qdrant_data",
+        "Options": null,
+        "Scope": "local"
+    }
+]

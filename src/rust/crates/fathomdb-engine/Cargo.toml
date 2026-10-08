@@ -180,6 +180,10 @@ name = "rebuild_projections"
 required-features = ["operator"]
 
 [[test]]
+name = "slice135_persistent_provider"
+required-features = ["operator", "test-hooks"]
+
+[[test]]
 name = "rebuild_report"
 required-features = ["operator"]
 

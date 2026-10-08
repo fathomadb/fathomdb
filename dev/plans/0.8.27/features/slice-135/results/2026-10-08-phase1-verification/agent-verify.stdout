@@ -1,0 +1,409 @@
+==> AC-036 no-listen-syscall
+AC-036 OK: no successful listen() captured across security_cycle.
+    PASS
+==> AC-037 netns-deny-egress
+AC-037 OK: all connect() syscalls were loopback / AF_UNIX / AF_NETLINK.
+    PASS
+==> AC-037 catch (demonstrate)
+AC-037 catch OK (offline): 2 off-loopback connect() flagged:
+    connect(3, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr("8.8.8.8")}, 16) = -1 ENETUNREACH (Network is unreachable)
+    connect(4, {sa_family=AF_INET6, sin6_port=htons(443), inet_pton(AF_INET6, "2606:4700:4700::1111", &sin6_addr), sin6_scope_id=0}, 28) = -1 ENETUNREACH (Network is unreachable)
+AC-037 catch OK (live netns): deliberate egress flagged:
+    3321824 connect(3, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr("8.8.8.8")}, 16) = -1 ENETUNREACH (Network is unreachable)
+    PASS
+==> AC-037 policy self-test
+policy self-test OK: exit-code classification is honest (STRICT narrowed to the environmental case).
+    PASS
+==> AC-038 FTS5-injection-safe
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+    PASS
+==> AC-050a ast-scan rust
+AC-050a OK: rust surface clean (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates)
+    PASS
+==> AC-050a ast-scan python
+AC-050a OK: python surface clean (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/python)
+    PASS
+==> AC-050a ast-scan ts
+AC-050a OK: ts surface clean (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts)
+    PASS
+==> AC-050c removal-detect
+AC-050c OK: 31 removals all documented.
+    PASS
+
+agent-security: 0 violation(s), 0 blocker(s), 0 downgrade(s)
+FAIL test-python (exit=1, 47123ms)
+----
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+...............................s........................................ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+............................................................sss.s....... [ 35%]
+........................................................................ [ 40%]
+................s....................................................... [ 44%]
+.............................................................s.......... [ 48%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 62%]
+.............................ss....................s............ssss.... [ 66%]
+...................................................F.................... [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 80%]
+...............................sss.ssss.s............................... [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 93%]
+........................................s............................... [ 97%]
+..........s..sss...sssFF............                                     [100%]
+=================================== FAILURES ===================================
+_____________ test_all_python_declarations_match_pre_move_baseline _____________
+
+    def test_all_python_declarations_match_pre_move_baseline() -> None:
+        checkout = Path(__file__).resolve().parents[3]
+        package = checkout / "src/python/fathomdb"
+        spec = importlib.util.spec_from_file_location(
+            "slice130_surface_comparator", checkout / "dev/tools/surface_comparator.py"
+        )
+        assert spec is not None and spec.loader is not None
+        comparator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(comparator)
+    
+        sources = {
+            path.relative_to(package).as_posix(): path.read_text() for path in package.rglob("*.py")
+        }
+        baseline = json.loads(BASELINE.read_text())
+        declarations = comparator.parse_python_wrappers(sources)
+>       assert len(declarations) == 1131
+E       AssertionError: assert 1132 == 1131
+E        +  where 1132 = len([{'path': 'fathomdb.ActuationBatchV1', 'kind': 'python-class', 'signature': 'class ActuationBatchV1(_ActuationBatchReq...eiptV1.affected_revision_ids', 'kind': 'python-attribute', 'signature': 'affected_revision_ids: tuple[str, ...]'}, ...])
+
+src/python/tests/test_slice130_package_boundary.py:68: AssertionError
+_______________________ test_unregistered_doc_kind_fails _______________________
+
+no_kind_db = PosixPath('/tmp/pytest-of-coreyt/pytest-1272/verify_nokind0/nokind.sqlite')
+
+    def test_unregistered_doc_kind_fails(no_kind_db):
+>       rep = inspect_embed_db(str(no_kind_db), expected_docs=len(_DOCS), kind="doc")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/python/tests/test_verify_embed_db.py:109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+db_path = '/tmp/pytest-of-coreyt/pytest-1272/verify_nokind0/nokind.sqlite'
+kind = 'doc', expected_docs = 3, expected_dim = 384
+expected_embedder = 'fathomdb-bge-small-en-v1.5', min_coverage = 1.0
+
+    def inspect_embed_db(
+        db_path: str,
+        *,
+        kind: str = "doc",
+        expected_docs: Optional[int] = None,
+        expected_dim: int = DEFAULT_DIM,
+        expected_embedder: Optional[str] = DEFAULT_EMBEDDER,
+        min_coverage: float = 1.0,
+    ) -> VerifyReport:
+        """Inspect a DB read-only in an isolated process and return its report.
+    
+        FathomDB and Python can load separate SQLite images. Keeping their WAL
+        connections in one process is unsafe because POSIX advisory locks are
+        process-scoped; a close in one image can invalidate the other's shared WAL
+        mapping. A child process preserves live-WAL visibility while giving the raw
+        inspector independent lock ownership.
+        """
+        payload = json.dumps(
+            {
+                "db_path": db_path,
+                "kind": kind,
+                "expected_docs": expected_docs,
+                "expected_dim": expected_dim,
+                "expected_embedder": expected_embedder,
+                "min_coverage": min_coverage,
+            }
+        )
+        source = """
+    import json
+    import sys
+    
+    from eval.verify_embed_db import _inspect_embed_db_local
+    
+    report = _inspect_embed_db_local(**json.loads(sys.argv[1]))
+    print(json.dumps(report.to_dict()))
+    """
+        result = subprocess.run(
+            [sys.executable, "-c", source, payload],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+>           raise RuntimeError(result.stderr.strip() or "embed DB inspection child failed")
+E           RuntimeError: Traceback (most recent call last):
+E             File "<string>", line 5, in <module>
+E           ModuleNotFoundError: No module named 'eval'
+
+src/python/eval/verify_embed_db.py:252: RuntimeError
+_____________________________ test_fts_only_fails ______________________________
+
+fts_only_db = PosixPath('/tmp/pytest-of-coreyt/pytest-1272/verify_fts0/fts.sqlite')
+
+    def test_fts_only_fails(fts_only_db):
+>       rep = inspect_embed_db(str(fts_only_db), expected_docs=len(_DOCS), kind="doc")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/python/tests/test_verify_embed_db.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+db_path = '/tmp/pytest-of-coreyt/pytest-1272/verify_fts0/fts.sqlite'
+kind = 'doc', expected_docs = 3, expected_dim = 384
+expected_embedder = 'fathomdb-bge-small-en-v1.5', min_coverage = 1.0
+
+    def inspect_embed_db(
+        db_path: str,
+        *,
+        kind: str = "doc",
+        expected_docs: Optional[int] = None,
+        expected_dim: int = DEFAULT_DIM,
+        expected_embedder: Optional[str] = DEFAULT_EMBEDDER,
+        min_coverage: float = 1.0,
+    ) -> VerifyReport:
+        """Inspect a DB read-only in an isolated process and return its report.
+    
+        FathomDB and Python can load separate SQLite images. Keeping their WAL
+        connections in one process is unsafe because POSIX advisory locks are
+        process-scoped; a close in one image can invalidate the other's shared WAL
+        mapping. A child process preserves live-WAL visibility while giving the raw
+        inspector independent lock ownership.
+        """
+        payload = json.dumps(
+            {
+                "db_path": db_path,
+                "kind": kind,
+                "expected_docs": expected_docs,
+                "expected_dim": expected_dim,
+                "expected_embedder": expected_embedder,
+                "min_coverage": min_coverage,
+            }
+        )
+        source = """
+    import json
+    import sys
+    
+    from eval.verify_embed_db import _inspect_embed_db_local
+    
+    report = _inspect_embed_db_local(**json.loads(sys.argv[1]))
+    print(json.dumps(report.to_dict()))
+    """
+        result = subprocess.run(
+            [sys.executable, "-c", source, payload],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+>           raise RuntimeError(result.stderr.strip() or "embed DB inspection child failed")
+E           RuntimeError: Traceback (most recent call last):
+E             File "<string>", line 5, in <module>
+E           ModuleNotFoundError: No module named 'eval'
+
+src/python/eval/verify_embed_db.py:252: RuntimeError
+=========================== short test summary info ============================
+FAILED src/python/tests/test_slice130_package_boundary.py::test_all_python_declarations_match_pre_move_baseline
+FAILED src/python/tests/test_verify_embed_db.py::test_unregistered_doc_kind_fails
+FAILED src/python/tests/test_verify_embed_db.py::test_fts_only_fails - Runtim...
+3 failed, 1587 passed, 30 skipped in 31.74s
+----
+full log: /tmp/fathomdb-agent-test-python-3321906.log
+PASS test-set-version rc=0 3655ms
+PASS test-scale-ac013-matrix rc=0 218ms
+PASS test-release-version-surfaces rc=0 35ms
+PASS test-platform-capabilities rc=0 117ms
+PASS test-sqlite-dependency-contract rc=0 17ms
+PASS test-public-doc-truth rc=0 1110ms
+PASS test-slice10-preparation rc=0 27ms
+PASS test-slice30-surface-comparator rc=0 192ms
+PASS test-hidden-surface rc=0 2208ms
+PASS test-test-targets rc=0 491ms
+PASS check-test-target-coverage rc=0 287ms
+PASS test-napi-build-hermetic rc=0 147ms
+PASS test-python-artifact-gate-contract rc=0 159ms
+PASS test-check-architecture-authority rc=0 439ms
+PASS test-check-design-lifecycle rc=0 2019ms
+PASS test-slice70-embedding-docs-contract rc=0 160ms
+PASS test-slice70-cli-artifact-design rc=0 565ms
+PASS test-ac036-ptrace-blocker rc=0 49ms
+PASS test-agent-verify-markdown-scope rc=0 106ms
+PASS test-agent-test-tiers rc=0 2873ms
+PASS test-agent-test-collect-all rc=0 191ms
+PASS test-verify-release-gates rc=0 3284ms
+PASS test-verify-release-python-wheel rc=0 487ms
+PASS test-slice50-hook-inventory rc=0 47ms
+PASS test-wait-for-registry-visibility rc=0 2097ms
+PASS test-native-artifact-receipts rc=0 727ms
+PASS test-slice65-candidate-manifest rc=0 91ms
+PASS test-slice50-evidence-matrix rc=0 26ms
+PASS test-dependency-policy rc=0 168ms
+PASS test-module-boundary-gate rc=0 4764ms
+PASS test-slice90-runtime-configuration-owner rc=0 50ms
+PASS test-slice90-connection-runtime-owner rc=0 70ms
+PASS test-slice90-open-admission-owner rc=0 64ms
+PASS test-slice90-open-methods-owner rc=0 114ms
+PASS test-slice90-open-startup-owner rc=0 121ms
+PASS test-slice90-open-embedder-owner rc=0 265ms
+PASS test-slice90-open-cleanup-owner rc=0 316ms
+PASS test-slice90-runtime-lifecycle-owner rc=0 62ms
+PASS test-slice90-wal-runtime-owner rc=0 227ms
+PASS test-slice90-wal-inventory-arms-owner rc=0 70ms
+PASS test-slice90-index-projector-owner rc=0 95ms
+PASS test-slice90-operator-diagnostics-owner rc=0 21918ms
+PASS test-slice90-operator-integrity-owner rc=0 23969ms
+PASS test-slice90-operator-recovery-owner rc=0 111ms
+PASS test-slice90-provenance-trace-owner rc=0 119ms
+PASS test-slice90-dependency-trace-owner rc=0 135ms
+PASS test-slice90-data-plane-integrity-owner rc=0 84ms
+PASS test-slice90-embedding-owner rc=0 22015ms
+PASS test-slice90-projection-registry-carriers-owner rc=0 220ms
+PASS test-slice90-projection-runtime-status-owner rc=0 340ms
+PASS test-slice90-projection-rebuild-owner rc=0 183ms
+PASS test-slice90-projection-commit-owner rc=0 84ms
+PASS test-slice90-telemetry-owner rc=0 204ms
+PASS test-slice90-lifecycle-events-owner rc=0 129ms
+PASS test-slice90-error-mapping-owner rc=0 83ms
+PASS test-slice90-vector-constants-owner rc=0 231ms
+PASS test-slice90-erasure-bookkeeping-owner rc=0 368ms
+PASS test-slice90-record-lifecycle-owner rc=0 1248ms
+PASS test-slice90-temporal-epoch-owner rc=0 510ms
+PASS test-slice90-reader-pool-size-owner rc=0 620ms
+PASS test-slice90-write-cursor-owner rc=0 516ms
+PASS test-slice90-identity-helpers-owner rc=0 8681ms
+PASS test-slice90-mean-carriers-owner rc=0 728ms
+PASS test-slice90-engine-config-owner rc=0 521ms
+PASS test-slice90-write-importance-owner rc=0 547ms
+PASS test-slice90-read-importance-owner rc=0 535ms
+PASS test-slice90-embed-timeout-owner rc=0 479ms
+PASS test-slice90-mean-test-seams-owner rc=0 1324ms
+PASS test-slice90-projection-runtime-test-seams-owner rc=0 536ms
+PASS test-slice90-search-api-test-seams-owner rc=0 912ms
+PASS test-slice90-frozen-timing-owner rc=0 1202ms
+PASS test-slice90-reader-connection-test-seams-owner rc=0 756ms
+PASS test-slice90-dependency-trace-test-seams-owner rc=0 634ms
+PASS test-slice90-projection-metadata-test-seams-owner rc=0 1140ms
+PASS test-slice90-vector-storage-test-seams-owner rc=0 567ms
+PASS test-slice90-canonical-row-test-seams-owner rc=0 806ms
+PASS test-slice90-writer-control-test-seams-owner rc=0 1118ms
+PASS test-slice90-final-observation-test-seams-owner rc=0 44004ms
+PASS test-slice90-d27-adapter-owner rc=0 21980ms
+PASS test-slice90-root-reconciliation rc=0 9889ms
+PASS test-runtime-release-alignment rc=0 165ms
+PASS test-cuda-package-rehearsal rc=0 1749ms
+PASS test-cuda-reranker-producer-contract rc=0 35ms
+PASS test-cuda-reranker-forced-harness rc=0 88ms
+PASS test-cargo-publish-if-new rc=0 293ms
+PASS test-check-license-consistency rc=0 4300ms
+PASS test-preflight-landing rc=0 6217ms
+PASS test-preflight-release-state rc=0 661ms
+PASS test-slice72-ce-profile rc=0 78ms
+PASS test-slice73-windows-napi-ci rc=0 1192ms
+PASS test-check-board-currency rc=0 23117ms
+PASS test-check-ledgers rc=0 2289ms
+PASS test-staged-ledger-sidecar rc=0 546ms
+PASS test-check-governed-surface-pin rc=0 2904ms
+PASS test-check-sdk-surface-parity rc=0 155ms
+PASS test-check-pinned-override-rot rc=0 7819ms
+PASS test-vendored-cudarc rc=0 1254ms
+PASS test-check-glibc-floor rc=0 80ms
+PASS test-check-glibc-floor-doc-truth rc=0 113ms
+PASS test-check-c1-conformance rc=0 27781ms
+PASS test-check-transcript-hygiene rc=0 9959ms
+PASS test-seat-path-guard rc=0 6098ms
+PASS test-assert-co-tagging rc=0 233ms
+PASS test-embedder-api-no-drift rc=0 365ms
+PASS test-smoke-scripts rc=0 85ms
+PASS test-release-workflow-scope rc=0 702ms
+PASS test-release-contract-truth rc=0 1571ms
+PASS test-cuda-release-contract rc=0 8368ms
+PASS test-tegra-wheel-linkage rc=0 70ms
+PASS test-cuda-unmerged-candidate-provenance rc=0 1629ms
+PASS test-cuda-preflight-witness rc=0 1063ms
+PASS test-cuda-candidate-sha rc=0 17ms
+PASS test-tegra-gpu-witness rc=0 1473ms
+PASS test-gitleaks-guards rc=0 68008ms
+PASS test-gitleaks-history-classifier rc=0 178ms
+PASS test-gitleaks-history-environment rc=0 371ms
+PASS test-default-embedder-ci-contract rc=0 12ms
+PASS test-windows-wal-diagnosis-ci-job rc=0 177ms
+PASS test-windows-wal-attribution-ci-job rc=0 149130ms
+PASS test-jetson-tegra-cuda-evidence-ci-job rc=0 290ms
+PASS test-tegra-pages-publisher-ci-job rc=0 302ms
+PASS test-tegra-publication-operator-path rc=0 160ms
+PASS test-tegra-pages-index rc=0 197ms
+PASS test-pages-site rc=0 109ms
+PASS test-tegra-pages-release-version rc=0 69ms
+PASS test-native-artifact-runtime-validation rc=0 3366ms
+PASS test-linux-first-platform-scope rc=0 250ms
+PASS test-linux-aarch64-release-artifacts rc=0 207ms
+PASS test-verify-ci-timeout-budget rc=0 14ms
+PASS test-ts-cache-coverage-split rc=0 49ms
+PASS test-idempotent-republish rc=0 3224ms
+PASS test-pypi-publish-roundtrip rc=0 6165ms
+PASS test-publish-registry-safety rc=0 216ms
+PASS test-wait-for-crate-version rc=0 1139ms
+PASS test-npm-inject-optional-deps rc=0 143ms
+PASS test-actionlint-fixture rc=0 454ms
+PASS test-paths-filter-oracle rc=0 303ms
+PASS test-ci-proportional-routing rc=0 3966ms
+PASS test-ci-skip-message-warning rc=0 47ms
+PASS test-ci-long-job-efficiency rc=0 625ms
+PASS test-bootstrap-heavy rc=0 97ms
+PASS test-actionlint-go-install-version rc=0 799ms
+PASS test-agent-lint-ruff-version rc=0 47ms
+PASS test-agent-lint-actionlint-version rc=0 37ms
+PASS test-agent-typecheck-pyright-version rc=0 247ms
+PASS test-pyright-pin-consistency rc=0 52ms
+PASS test-ci-run-hygiene rc=0 13ms
+PASS test-ci-run-hygiene-ci-env rc=0 17ms
+PASS test-agent-lint-shellcheck-version rc=0 101ms
+PASS test-agent-lint-shellcheck-gate rc=0 14684ms
+PASS test-install-shellcheck rc=0 190ms
+PASS test-select-python-for-venv rc=0 63ms
+PASS test-create-venv-with-selected-python rc=0 2118ms
+PASS test-dev-environment-tools rc=0 386ms
+PASS test-dev-environment-tools-contract rc=0 392ms
+PASS test-shell-lint-ci-job rc=0 945ms
+PASS test-ci-verify-observability rc=0 523ms
+PASS test-lint-md-hard-fail-on-missing-linter rc=0 38ms
+PASS test-plans-status-frontmatter rc=0 161ms
+PASS test-lint-plan-anchors rc=0 779ms
+PASS test-track-runner rc=0 2295ms
+PASS test-check-release-state-views rc=0 7087ms
+PASS test-runtime-checkpoints rc=0 5903ms
+PASS test-steward-orient rc=0 6582ms
+PASS test-commission-manifest rc=0 19375ms
+PASS test-md-generators rc=0 52168ms
+PASS test-cargo-skew rc=0 47ms
+PASS test-pip-skew rc=0 19ms
+PASS test-rust-workspace-gate rc=0 69ms
+PASS test-ci-rust-workspace-gate rc=0 513ms
+PASS test-aarch64-candle-feature-closure rc=0 8ms
+PASS test-aarch64-candle-cpu rc=0 9ms
+PASS test-rust rc=0 279490ms
+FAIL test-python rc=1 47129ms
+PASS test-python-native-receipt rc=0 81ms
+PASS test-program-experiment-harness rc=0 2146ms
+PASS test-slice135-harness rc=0 2808ms
+PASS test-slice135-ts-s01-contracts rc=0 56ms
+PASS test-ledgerwatch rc=0 535ms
+PASS test-ts rc=0 10474ms
+PASS test-napi-build-hermetic-executable rc=0 24321ms
+PASS test-tegra-node-early-cuinit rc=0 11ms
+PASS test-release-surface-repo-root rc=0 17ms
+PASS test-release-surface-native-api rc=0 16ms
+PASS test-ts-cache-coverage-no-rg rc=0 67ms
+PASS test-shell-pipefail-guards rc=0 11148ms
+registered=186 ran=186 passed=185 failed=1 skipped=0 excluded=0
+FAILED SUITES: test-python
+FAIL verify at step=test tier=all (1132s elapsed)

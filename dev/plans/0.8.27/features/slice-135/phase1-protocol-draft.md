@@ -210,6 +210,13 @@ reopened-state audit. Pooled p50/p95 changes were +0.373%/−0.143%; all five
 paired p50 changes were positive, and all pairs had host-only paging warnings.
 The result does not establish equivalence. TypeScript and Rust SDK contention
 and the broader Phase 1 protocol remain open.
+The [installed TypeScript S02 contention feasibility
+pair](results/2026-10-07-ts-s02-contention-feasibility/README.md) later
+confirmed actual shared-handle writer/reader overlap on both installed
+packages, with independent semantic and reopened-state checks. Its corrected
+timer leaves direct SQLite verification outside the whole sequence; one
+functional run per version does not qualify a latency delta. A baseline
+pilot, frozen sample rule and paired campaign remain.
 An earlier candidate changed with the graph traversal row-error
 [repair](results/2026-10-07-graph-arm-row-repair/README.md) at `3ce1a6352`.
 The prior functional receipts still describe their exact SHAs; final Phase 1

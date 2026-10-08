@@ -61,7 +61,11 @@ pair](results/2026-10-07-python-s02-contention-paired/README.md) passed 100
 real-database sequences per version with actual shared-handle reader/writer
 overlap, semantic assertions and independent reopened-state checks. Its
 all-warning paired latency diagnostic does not qualify TypeScript or Rust SDK
-contention. The engine-only results
+contention. The [installed TypeScript contention feasibility
+pair](results/2026-10-07-ts-s02-contention-feasibility/README.md) subsequently
+passed a real-database shared-handle sequence and independent persisted-state
+audit on both versions; its timing remains unqualified until a controlled
+pilot and frozen paired campaign. The engine-only results
 never substitute for an SDK row. `S03` may use qualified benchmark data as a
 workload; dedicated gold scoring remains Phase 2.
 

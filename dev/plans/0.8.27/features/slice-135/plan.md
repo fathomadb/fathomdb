@@ -21,7 +21,10 @@ These receipts do not yet constitute the full Phase 1 checkpoint. The paired
 TypeScript S02 subset has host paging warnings; the Rust S02 candidate-only
 result is linked below. The [installed Python S02 bounded-contention
 pair](results/2026-10-07-python-s02-contention-paired/README.md) now has
-independently audited raw receipts; TypeScript and Rust SDK contention remain.
+independently audited raw receipts. An [installed TypeScript contention
+feasibility pair](results/2026-10-07-ts-s02-contention-feasibility/README.md)
+passed independent functional checks but has no qualified timing; its pilot
+and Rust SDK contention remain.
 S03 and the
 full robustness and coverage matrices remain. C01 has a documented
 [qualification failure](results/2026-10-07-c01-qualification/README.md).
@@ -598,7 +601,11 @@ SDK exercise remain open.
   p50 changes were positive, and each pair had host-only paging warnings.
   Actual writer/reader overlap, evidence, erasure and reopened SQLite state
   passed independent checks. This is a bounded Python diagnostic, not an
-  equivalence claim; other SDK contention and attribution remain. The
+  equivalence claim. The subsequent [TypeScript contention feasibility
+  pair](results/2026-10-07-ts-s02-contention-feasibility/README.md) exercised
+  the installed packages with shared-handle overlap and independent reopened
+  state checks, but its one-off times are unqualified. TypeScript pilot,
+  Rust SDK contention and cross-boundary attribution remain. The
   [S02-L baseline pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
   has 100 independently audited fresh-process open/close cycles; its
   [paired subset protocol](s02-python-lifecycle-comparison-protocol.json)

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 30 — design and code reviews
-status: DESIGN REVIEW RESOLVED (code review pending)
+status: DESIGN REVIEW RESOLVED; CODE REVIEW FINDINGS BEING FIXED
 target_release: 0.8.28
 observed_on: 2026-10-08
 ---
@@ -38,6 +38,33 @@ design revision 2.
 with the F-10 conditions. DQ-2 goes to the owner before S30-T5, as the
 reviewer recommended.
 
-## Code review
+## Code review (independent Opus subagent, high effort, 2026-10-08)
 
-Pending (S30-T10a).
+**Input:** `git diff cb9594f44 deffb5fd6` (product code, scripts, tests,
+vendored cudarc).
+
+**Verdict:** APPROVE-WITH-FIXES. The reviewer confirmed these hold:
+
+- every free uses the allocating API (`cuMemFreeAsync` back to the pool);
+- the drop order (pool `Arc` → context → slices and streams);
+- the retain/release guards;
+- no re-entrancy into `DECISION` or the reranker cell, and a single lock
+  order;
+- `catch_unwind` works (no `panic=abort` profile);
+- with the feature off, the path is identical to 0.8.27;
+- the pinned-override gate has only stricter requirements;
+- clippy is clean with the feature on.
+
+| CR | Sev. | Finding | Resolution |
+| --- | --- | --- | --- |
+| 1 | major | Pool exhaustion or context loss while loading weights (`candle_bge.rs:603-614`, `candle_reranker.rs:454-472`) maps to `ModelDeserialize`, and the reranker memoizes it as `Unavailable`. | Fix: classify weight-load Candle errors through the pool-failure path first; test with a CUDA OOM under a private decision. |
+| 2 | major | The resolution probe turns every private-build or pool failure into `CudaProbeError::ProbeFailed`. Forced `cuda:N` loses the kind, and `auto` silently runs on the CPU for the engine's life. | Fix: a typed probe failure. In a `Private` process the open raises the typed kind under any policy (no CPU move, CB4). Forced-policy and `auto` tests. |
+| 3 | minor | Search query embedding (`search.rs:1420`, `search_api.rs:543`) falls back to sparse-only on a CUDA kind, and the projection worker records a generic `EmbedderError`. | Fix: search propagates the three CUDA kinds typed (ruling 33); the worker records the stable kind name. |
+| 4 | minor | Forward classification uses the decision's ordinal, not the faulting device's. | Fix: pass the device ordinal; classify only when it is the pool's. |
+| 5 | minor | `agent-verify` never compiles the `tegra-pool` driver part. | Fix: an aarch64-only clippy arm with `tegra-pool` in the lint verb. |
+| 6 | minor | The release-contract guard is bypassable through double-quoted or composed values and the x86 Python build script. | Fix: forbid `tegra-pool` in every non-Tegra build script and in expanded values. |
+
+The reviewer judged the other reported deviations acceptable. Separately,
+the S30-T9 docs pass found a stale Cargo-message quote in
+`third_party/cudarc-0.19.7/FATHOMDB-PATCH.md` item 6; it is fixed with
+these findings.

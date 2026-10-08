@@ -12,6 +12,7 @@ import slice135_python_s03 as s03  # noqa: E402
 import slice135_python_s03_audit as audit  # noqa: E402
 import slice135_python_s03_block as block  # noqa: E402
 import slice135_python_s03_baseline_campaign as campaign  # noqa: E402
+import slice135_python_s03_baseline_audit as campaign_audit  # noqa: E402
 
 
 def test_fixture_preserves_named_semantic_controls_and_scale() -> None:
@@ -106,3 +107,18 @@ def test_baseline_campaign_has_ten_distinct_sequential_blocks() -> None:
     assert planned[5] == (256, 1, "256-block-01")
     assert planned[-1] == (256, 5, "256-block-05")
     assert len({item[2] for item in planned}) == 10
+
+
+def test_campaign_auditor_rejects_swapped_block_order() -> None:
+    records = [
+        {"ordinal": ordinal, "size": size, "block_index": index, "name": name}
+        for ordinal, (size, index, name) in enumerate(campaign.planned_blocks(), 1)
+    ]
+    campaign_audit.check_order(records)
+    records[0], records[1] = records[1], records[0]
+    try:
+        campaign_audit.check_order(records)
+    except ValueError as error:
+        assert "order" in str(error)
+    else:
+        raise AssertionError("swapped campaign blocks accepted")

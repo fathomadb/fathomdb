@@ -87,7 +87,8 @@ Projection, ordinary and frozen search, direct `embed_text`, and open-time
 vector-equivalence probes use the engine dispatcher. Each invocation (including
 a batch) has one absolute queue-plus-service deadline. Full admission and
 queued expiry map to `EngineError::Overloaded` for direct `embed_text`; a
-started failure/timeout maps to `EngineError::Embedder`. Hybrid search retains
+started failure/timeout maps to `EngineError::Embedder`, except a provider
+failure of a CUDA pool kind, which keeps its typed variant (§ Errors). Hybrid search retains
 same-snapshot sparse fallback. Projection capacity waits leave durable work
 pending without spending or resetting a provider-failure retry; started
 failures/timeouts use the fixed 1/4/16-second ladder and may terminalize.
@@ -1165,6 +1166,31 @@ Rust exposes typed open/runtime errors without message parsing:
 
 - `EngineOpenError`
 - `EngineError`
+
+### CUDA private memory pool (0.8.28 Slice 30)
+
+`EngineError` and `EngineOpenError` each carry three CUDA pool kinds, with
+stable codes `CudaPoolExhaustedError`, `CudaContextLostError` and
+`CudaPrivateBuildRefusedError`:
+
+- `CudaPoolExhausted { ordinal, max_size_bytes, message }` — the private pool
+  reached its cap; the device stays CUDA and the next request runs normally.
+- `CudaContextLost { recorded_context_id, current_context_id: Option<u64>,
+  driver_error, operation }` — the recorded context is gone (`None`: no
+  current context) or was replaced.
+- `CudaPrivateBuildRefused { ordinal, message }` — another private-pool
+  context could not be built; no context on another allocator replaces it.
+
+They are raised by `embed_text`, search reranking (under every reranker
+policy, never as neutral scores), and `Engine::open` (default-embedder load,
+not `Embedder(Failed)`). `From<RerankerDevicePolicyError> for EngineError` and
+`From<EmbedderError> for EngineOpenError` map the corresponding kinds to these
+variants and leave the rest unchanged. `rerank_passages` returns
+`RerankPassagesError` — `WriteValidation { message }` for a non-finite score,
+`Reranker(RerankerDevicePolicyError)` for a reranker refusal — and
+`From<RerankPassagesError> for EngineError` maps it. The reranker singleton
+memoizes a loaded model, a device-policy refusal and a genuinely unavailable
+model; a load failure of a CUDA pool kind is returned and retried next call.
 
 Canonical leaf mapping lives in `design/errors.md`. This file adopts those
 types without renaming them.

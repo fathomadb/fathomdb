@@ -355,6 +355,9 @@ to its class.
 | `EngineError::EmbedderNotConfigured`             | 70        | unrecoverable |
 | `EngineError::KindNotVectorIndexed`              | 70        | unrecoverable |
 | `EngineError::EmbedderDimensionMismatch{..}`     | 70        | unrecoverable |
+| `EngineError::CudaPoolExhausted{..}`             | 70        | unrecoverable |
+| `EngineError::CudaContextLost{..}`               | 70        | unrecoverable |
+| `EngineError::CudaPrivateBuildRefused{..}`       | 70        | unrecoverable |
 | `EngineOpenError::RuntimeConfiguration(..)`      | 70        | unrecoverable |
 | `EngineOpenError::DatabaseLocked{..}`            | 71        | lock-held     |
 | `EngineError::Closing`                           | 71        | lock-held     |
@@ -363,6 +366,9 @@ to its class.
 | `EngineOpenError::MigrationError{..}`            | 70        | unrecoverable |
 | `EngineOpenError::EmbedderIdentityMismatch{..}`  | 70        | unrecoverable |
 | `EngineOpenError::EmbedderDimensionMismatch{..}` | 70        | unrecoverable |
+| `EngineOpenError::CudaPoolExhausted{..}`         | 70        | unrecoverable |
+| `EngineOpenError::CudaContextLost{..}`           | 70        | unrecoverable |
+| `EngineOpenError::CudaPrivateBuildRefused{..}`   | 70        | unrecoverable |
 | `EngineOpenError::Io{..}`                        | 70        | unrecoverable |
 
 ## JSON output wrapping

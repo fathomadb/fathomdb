@@ -228,8 +228,8 @@ This file owns the stable inputs bindings map from:
 
 ## Binding-facing class matrix
 
-The matrix below is the canonical 41-row cross-binding class-stem table for
-0.8.25.
+The matrix below is the canonical 44-row cross-binding class-stem table for
+0.8.28.
 Per-language interface docs may apply idiomatic casing, but they must not
 rename the semantic class stems or collapse distinct rows.
 
@@ -305,6 +305,21 @@ provider panics keep their operation-specific panic boundary.
 | `EngineError::NotLifecycleAddressable` | `NotLifecycleAddressableError`  | `NotLifecycleAddressableError`   | runtime failure       |
 | `EngineError::ErasureIncomplete`      | `ErasureIncompleteError`         | `ErasureIncompleteError`         | retryable incomplete erasure |
 | `EngineError::ProjectionDestructive`  | `ProjectionDestructiveError`     | `ProjectionDestructiveError`     | caller confirmation required |
+| `EngineError::CudaPoolExhausted` / `EngineOpenError::CudaPoolExhausted` | `CudaPoolExhaustedError` | `CudaPoolExhaustedError` | runtime failure |
+| `EngineError::CudaContextLost` / `EngineOpenError::CudaContextLost` | `CudaContextLostError` | `CudaContextLostError` | runtime failure |
+| `EngineError::CudaPrivateBuildRefused` / `EngineOpenError::CudaPrivateBuildRefused` | `CudaPrivateBuildRefusedError` | `CudaPrivateBuildRefusedError` | runtime failure |
+
+2026-10-08 amendment (0.8.28 Slice 30, R30-04): the three CUDA
+private-memory-pool kinds. Each class derives from `EmbedderError` in both
+SDKs (and `ErrorKind::Embedder` in `fathomdb-sdk`). Payloads:
+`CudaPoolExhausted` — `ordinal`, `max_size_bytes`, `message`;
+`CudaContextLost` — `recorded_context_id`, `current_context_id` (nullable),
+`driver_error`, `operation`; `CudaPrivateBuildRefused` — `ordinal`,
+`message`. TypeScript uses camelCase, and its context ids are decimal strings
+because they are 64-bit; the napi envelope codes are `FDB_CUDA_POOL_EXHAUSTED`,
+`FDB_CUDA_CONTEXT_LOST` and `FDB_CUDA_PRIVATE_BUILD_REFUSED`. A reranker
+`RerankerDevicePolicyError` of one of these kinds maps to the kind's own
+class, never to `RerankerDevicePolicyError`. The CLI exits 70 for each.
 
 2026-07-28 amendment (0.8.20 Slice 22, R-20-VC decision #18): `InvalidArgument`
 added to BOTH tables above. It was absent from the module taxonomy and from this

@@ -786,7 +786,7 @@ Returned by `graph.search_expand`. `all_logical_ids` contains the
 
 ## Errors
 
-`fathomdb.errors` exports `EngineError` (the catch-all base) plus **41**
+`fathomdb.errors` exports `EngineError` (the catch-all base) plus **44**
 concrete classes below it. See [errors reference](errors.md) for the full
 matrix and recovery-hint codes.
 

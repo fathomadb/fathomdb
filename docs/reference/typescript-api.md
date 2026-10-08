@@ -785,7 +785,7 @@ interface SearchExpandResult {
 
 ## Errors
 
-`fathomdb` exports `FathomDbError` (the catch-all base) plus **41**
+`fathomdb` exports `FathomDbError` (the catch-all base) plus **44**
 concrete classes below it. See [errors reference](errors.md).
 
 The lifecycle / erasure verbs reject with `IllegalTransitionError`,

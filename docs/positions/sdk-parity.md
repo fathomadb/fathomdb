@@ -18,7 +18,7 @@ Both bindings therefore expose:
 
 - the same governed commands, in each language's idiomatic spelling
   (`read.get_many` / `read.getMany`, `erase_source` / `eraseSource`);
-- the same 41-class error taxonomy under a single catch-all root
+- the same 44-class error taxonomy under a single catch-all root
   (`EngineError` in Python, `FathomDbError` in TypeScript), with the same
   typed payload fields in snake_case / camelCase;
 - the same result shapes, including the typed `SearchHit.id`.

@@ -1,7 +1,7 @@
 # Errors
 
 Single-rooted exception hierarchy. Python root is `EngineError`; TS root is
-`FathomDbError`. Both bindings expose the same **41 typed classes below the
+`FathomDbError`. Both bindings expose the same **44 typed classes below the
 root** in idiomatic spelling: Python payload fields use snake_case and
 TypeScript uses camelCase. Panic carriers are deliberately outside the
 catch-all root.
@@ -54,6 +54,9 @@ try {
 | `EmbedderNotConfiguredError`       | Vector op attempted with no embedder configured                               | —                                                                        | configure an embedder via `admin.configure` |
 | `EmbedDevicePolicyError`           | Requested embedder device is invalid, unavailable, or incompatible            | `kind`, `ordinal`                                                        | use `cpu`, `auto`, or an available compatible CUDA device |
 | `RerankerDevicePolicyError`        | Requested cross-encoder device is invalid, unavailable, or incompatible       | `kind`, `ordinal`                                                        | use `cpu`, `auto`, or an available compatible CUDA device |
+| `CudaPoolExhaustedError`           | The private CUDA memory pool reached its cap during embedding or reranking (any device policy) | `ordinal`, `max_size_bytes` / `maxSizeBytes`, `message` | retry; the next request runs normally once memory is free |
+| `CudaContextLostError`             | The recorded CUDA context is gone or was replaced                             | `recorded_context_id`, `current_context_id`, `driver_error`, `operation` / camelCase (TS ids are strings) | restart the process; CUDA cannot be used again in it |
+| `CudaPrivateBuildRefusedError`     | Another private-pool CUDA context could not be built                          | `ordinal`, `message`                                                     | restart the process, or turn the private pool off |
 | `EmbedderRequiredError`            | An operation requires an embedder but the runtime cannot provide one          | `code`, `operation`, `state`, `remediations`, `documentation_url` / camelCase | follow a listed remediation or use a text-only route |
 | `KindNotVectorIndexedError`        | Vector op attempted on a kind that has no vector projection                   | —                                                                        | add vector projection in schema |
 | `SchedulerError`                   | Projection scheduler fault or incomplete provider-only drain at close        | —                                                                        | inspect pending work or wait for the provider to return, then close again |

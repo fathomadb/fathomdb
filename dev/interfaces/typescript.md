@@ -838,7 +838,7 @@ compile this. User guide: `docs/embedder.md` § "Node.js on Jetson: load
 fathomdb first".
 
 TypeScript exposes one concrete class per canonical row in
-`design/errors.md` — **41** of them as of 0.8.25, 1:1 with the Python set
+`design/errors.md` — **44** of them as of 0.8.28, 1:1 with the Python set
 below `EngineError`.
 
 Class examples:
@@ -864,6 +864,20 @@ The 0.8.19/0.8.20 additions, all of which the governed verbs above can throw:
 - `ProjectionDestructiveError` (`name`, `delta`)
 - `VectorEquivalenceMismatchError` (`reason`)
 - `ConsolidatorError`
+
+The 0.8.28 additions are the CUDA private-memory-pool kinds, each extending
+`EmbedderError`. They are thrown on every path — `engine.embed`, search
+reranking, `Engine.open`, module-level `embedBatchCls` and `rerank` — under
+every device policy:
+
+- `CudaPoolExhaustedError` (code `FDB_CUDA_POOL_EXHAUSTED`; `ordinal`,
+  `maxSizeBytes`; `message` is the driver failure text): the private pool
+  reached its cap; the next request runs normally.
+- `CudaContextLostError` (code `FDB_CUDA_CONTEXT_LOST`; `recordedContextId`,
+  `currentContextId` — `null` when no context is current, `driverError`,
+  `operation`). Context ids are 64-bit, so they are decimal strings.
+- `CudaPrivateBuildRefusedError` (code `FDB_CUDA_PRIVATE_BUILD_REFUSED`;
+  `ordinal`; `message`).
 
 The 0.8.25 additions are `RuntimeConfigurationError`,
 `ProjectionGenerationError`, `ProvenanceError`, `DependencyError`,

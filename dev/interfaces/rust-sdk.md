@@ -217,7 +217,7 @@ impls for both. `Unified` is lowered through the public
 | `graph.search_expand` | `graph::search_expand(engine, query: &str, depth: u32, filter: Option<SearchFilter>, options: SearchExpandOptions) -> Result<SearchExpandResult>`. Non-empty `filter.attributes` is `InvalidArgument`, because neither SDK forwards attributes on this path. | `search_expand_with_limit` |
 | `admin.configure` | `admin::configure(engine, name: &str, body: &str) -> Result<WriteReceipt>` | `write(&[PreparedWrite::AdminSchema { name, kind: "latest_state", schema_json: body, retention_json: "{}" }])` |
 | — | `admin::configure_runtime(sqlite_mode: RuntimeSqliteMode) -> Result<RuntimeConfiguration>` | `fathomdb_engine::configure_runtime` |
-| `rerank` | `rerank(query: &str, passages: &[RerankPassage], rerank_depth: usize, options: RerankOptions) -> Result<Vec<RerankResult>>`. Takes `RerankPassage { id: u64, body: String, score: f64 }` and returns `RerankResult { id: u64, score: f64, ce_score: Option<f64> }`. A non-finite `alpha` is `InvalidArgument`, matching TypeScript. A non-finite passage `score` or a core `Err(String)` is `WriteValidation`, following Python and napi. This is a deliberate exception to rule 6, because the TypeScript wrapper's `RangeError` is a host-side check. | `fathomdb_engine::rerank_passages` |
+| `rerank` | `rerank(query: &str, passages: &[RerankPassage], rerank_depth: usize, options: RerankOptions) -> Result<Vec<RerankResult>>`. Takes `RerankPassage { id: u64, body: String, score: f64 }` and returns `RerankResult { id: u64, score: f64, ce_score: Option<f64> }`. A non-finite `alpha` is `InvalidArgument`, matching TypeScript. A non-finite passage `score` is `WriteValidation`, following Python and napi; a reranker refusal from the core's `RerankPassagesError` keeps its typed kind (`RerankerDevicePolicy` or a CUDA pool kind). This is a deliberate exception to rule 6, because the TypeScript wrapper's `RangeError` is a host-side check. | `fathomdb_engine::rerank_passages` |
 | — | `embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>>`. With `default-embedder`: empty input returns `[]`; the embedder is a process singleton cached only on success; a load failure is `EmbedderNotConfigured`, and an embed failure is `Embedder`. Without the feature, every call, including one with empty input, returns `EmbedderNotConfigured`. | `CandleBgeEmbedder::new()?.with_pooling(Pooling::Cls)` then `Embedder::embed_batch` |
 
 The namespace functions take `&Engine` first, as the Python and TypeScript
@@ -284,31 +284,54 @@ pub enum Error {
     Open(EngineOpenError),
     RuntimeConfiguration(RuntimeConfigurationError),
     Sdk { kind: ErrorKind, message: String },
+    Cuda(CudaErrorDetails),
 }
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[non_exhaustive]
+pub enum CudaErrorDetails {
+    PoolExhausted { ordinal: usize, max_size_bytes: u64, message: String },
+    ContextLost {
+        recorded_context_id: u64,
+        current_context_id: Option<u64>,
+        driver_error: String,
+        operation: String,
+    },
+    PrivateBuildRefused { ordinal: usize, message: String },
+}
+impl Error { pub fn cuda_details(&self) -> Option<&CudaErrorDetails>; }
 ```
 
 `Error` implements `Display`, `std::error::Error` (with `source`), and `From`
 for the three core error types. The core error enums are re-exported so
 callers can still read typed payloads such as `holder_pid` and `legal`.
 `Sdk` holds errors raised by the SDK itself or by a component outside the
-engine, such as a rerank `Err(String)` or a CLS embedder failure.
+engine, such as invalid rerank input or a CLS embedder failure.
 
-`ErrorKind` is a fieldless `Copy` enum with 42 variants:
+`Cuda` holds the three CUDA private-memory-pool kinds from every path (engine,
+open, reranker, CLS embedder). `From<EngineError>` and `From<EngineOpenError>`
+produce it for `CudaPoolExhausted`, `CudaContextLost` and
+`CudaPrivateBuildRefused` (including a reranker or open-time embedder failure
+of one of those kinds); `Error::cuda_details()` returns the payload, and
+`None` for every other error. Context ids are `u64`.
 
-- one for each of the 41 non-base error classes Python and TypeScript share,
-  with the `Error` suffix removed: 39 true leaves plus the parents `Vector` and
+`ErrorKind` is a fieldless `Copy` enum with 45 variants:
+
+- one for each of the 44 non-base error classes Python and TypeScript share,
+  with the `Error` suffix removed: 42 true leaves plus the parents `Vector` and
   `Embedder`;
 - `Engine` for the base-class fallback.
 
-`ErrorKind::ALL` lists all 42 variants in the order the Python binding
+`ErrorKind::ALL` lists all 45 variants in the order the Python binding
 declares the classes: base first, then `RuntimeConfiguration`, `Storage`, and
-so on through `ProjectionDestructive`.
+so on through `ProjectionDestructive`, `CudaPoolExhausted`, `CudaContextLost`
+and `CudaPrivateBuildRefused`.
 
 `ErrorKind::parent()` returns:
 
 - `Embedder` for `EmbedDevicePolicy`, `RerankerDevicePolicy`,
-  `EmbedderNotConfigured`, and `EmbedderRequired`;
+  `EmbedderNotConfigured`, `EmbedderRequired`, `CudaPoolExhausted`,
+  `CudaContextLost`, and `CudaPrivateBuildRefused`;
 - `Vector` for `KindNotVectorIndexed`;
 - `None` otherwise.
 
@@ -327,7 +350,8 @@ TypeScript base is `FathomDbError`.
   `ErrorKind::Engine`, as in Python, through an
   `#[allow(unreachable_patterns)]` catch-all. That arm would also absorb a
   future core variant, so a Rust test maps every non-operator core variant
-  explicitly.
+  explicitly. The three CUDA core variants, and a `RerankerDevicePolicy` or
+  open `Embedder` payload of a CUDA kind, have explicit arms ahead of it.
 
 ## Features
 

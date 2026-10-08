@@ -774,7 +774,7 @@ memory quota, scheduler, or evidence that retrieval/FTS/fusion/graph work used
 the GPU.
 
 Python exposes one catch-all base class, `EngineError`, plus one concrete
-subclass per canonical row in `design/errors.md` — **41** of them as of 0.8.25,
+subclass per canonical row in `design/errors.md` — **44** of them as of 0.8.28,
 1:1 with the TypeScript set below `FathomDbError`.
 
 Examples of caller-visible subclasses:
@@ -798,6 +798,18 @@ The 0.8.19/0.8.20 additions, all of which the governed verbs above can raise:
 - `ErasureIncompleteError` (`stage`, `detail`) — note the `Error` suffix; the
   class is NOT spelled `ErasureIncomplete`
 - `ProjectionDestructiveError` (`name`, `delta`)
+
+The 0.8.28 additions are the CUDA private-memory-pool kinds, each a subclass
+of `EmbedderError`. They are raised on every path — `Engine.embed`, search
+reranking, `Engine.open`, module-level `embed_batch_cls` and `rerank` — under
+every device policy:
+
+- `CudaPoolExhaustedError` (`ordinal`, `max_size_bytes`, `message`): the
+  private pool reached its cap; the next request runs normally.
+- `CudaContextLostError` (`recorded_context_id`, `current_context_id` —
+  `None` when no context is current, `driver_error`, `operation`); the ids
+  are ints.
+- `CudaPrivateBuildRefusedError` (`ordinal`, `message`).
 - `VectorEquivalenceMismatchError` (`reason`)
 - `ConsolidatorError`
 

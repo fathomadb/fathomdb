@@ -676,8 +676,9 @@ SDK exercise remain open.
   The [current-source E01–E12 smoke](results/2026-10-08-e12-current-smoke/README.md)
   passed all twelve cells at 100 observations on `8c2455b6c`, with an
   independent audit and two rejected negative controls. The
-  [paired subset](e12-current-comparison-protocol.json) was refrozen before
-  candidate timing; paired and coverage refreshes remain open.
+  [paired subset](e12-current-comparison-protocol-v2.json) was refrozen before
+  candidate timing after an [invalid baseline-binary preflight](results/2026-10-08-e12-current-invalid-preflight/README.md).
+  Paired and coverage refreshes remain open.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

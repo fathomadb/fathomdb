@@ -16,7 +16,7 @@ are retained locally. The [negative controls](negative-controls.json) show
 that altered source identity and an altered ordered text result are rejected.
 
 The smoke established feasibility before the
-[current-source paired subset](../../e12-current-comparison-protocol.json)
+[current-source paired subset](../../e12-current-comparison-protocol-v2.json)
 was frozen. Its 100 query observations do not support p99 or a 0.8.26
 comparison; the paired campaign uses the larger frozen sample counts. The
 binary and raw observations remain local pending end-of-phase retention and

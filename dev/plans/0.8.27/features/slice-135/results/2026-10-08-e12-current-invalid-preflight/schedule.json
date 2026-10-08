@@ -1,0 +1,20 @@
+{
+  "freeze_sha256": "f2d0b2d6960e8b12dd2e1f5fc4a3e7613c07f8e6344eaf584c8dc5adde8c173c",
+  "baseline_source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "candidate_source_sha": "8c2455b6ccf1d06d5bf87fc4278aecc631014da0",
+  "minimum_idle_seconds": 20,
+  "campaign_runner_sha256": "ea865e0043f2e1d6aaa2baa297567601ac4a55e6e71e58eb2b28b70bcf6a687b",
+  "blocks": [
+    {
+      "group": "query",
+      "pair": 1,
+      "position": 1,
+      "version": "baseline",
+      "name": "query-pair-1-1-baseline",
+      "start_unix": 1791447898.1103637,
+      "status": "invalid",
+      "error": "query-pair-1-1-baseline-adapter exited 1",
+      "end_unix": 1791447898.3355193
+    }
+  ]
+}

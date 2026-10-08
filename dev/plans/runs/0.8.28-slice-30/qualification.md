@@ -21,6 +21,13 @@ against the criterion as written in plan § 4.2; no criterion was tuned.
 
 ## 1. Summary
 
+**Owner rulings (2026-10-08), after this record was written:** G3's median
+bound is revised to 0.400 MiB per cycle, so G3 passes (Python median 0.400,
+max 0.429). G8 is approved as measured: the Node drift matches the pool-off
+control. G9's rerank speed-up lower bound of 1.49 against 1.50 is
+immaterial, and the bound is non-gating and non-blocking. The verdicts below
+are as measured.
+
 | Gate | Verdict | Key numbers |
 | --- | --- | --- |
 | G1 Decision | **PASS** | 20/20 Node, 20/20 Python: report `private` / `private_pool`, 3 GiB, threshold `0`, `module_load_init` `ran`. `doctor cuda-allocator`: same record 20/20. |

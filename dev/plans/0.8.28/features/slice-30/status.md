@@ -26,18 +26,23 @@ See the [plan](plan.md) and the [design](design.md).
 | S30-T9 | done | Phase 5: `results.md` § 14 (decision rule, UNMEASURED, 0.8.29 / 0.8.30); [upstream-cudarc-package.md](upstream-cudarc-package.md), prepared and not posted (owner sign-off required), with the NVIDIA report addendum; design revision 3 reconciled with the code (§ 8); plan revision 3.2 (minimal corrections). |
 | S30-T10a | done | Opus code review of `cb9594f44..deffb5fd6`: APPROVE-WITH-FIXES, CR-1 to CR-6, each fixed red then green (`a87e64d35`..`797e891bf`, recorded at `618cb7f14`); shell lint at `5f515dac2`. See [design-review.md](design-review.md). |
 | S30-T10b | done | Sonnet verifier at `5f515dac2`: AC30-01 to 09 and 11 PASS; AC30-10 FAIL (the guard matched its own comment), fixed at `372f49aae`. Qualification on the Orin at `88c5028bf` ([qualification.md](../../../runs/0.8.28-slice-30/qualification.md)): G1, G2, G4, G5, G6, G7 PASS; G3, G8, G9 PARTIAL (dispositions below); G10 by the verifier. CB1/CB2, which the product cannot report, measured by the `#[ignore]` GPU test at `a03af758c`: 3 of 3 runs, `reserved_high` 288 MiB of a 3 GiB maximum, and `reserved_cur` = `used_cur` = 0 after drop and sync. |
+| S30-T11 | done | Owner approved each deletion, 2026-10-08. The study scratch directory (5.4 GB: databases 4.5 GB, builds, wheels and venvs about 600 MB, raw logs 292 MB, scripts and notes) was archived without the databases and builds to `~/archive/fathomdb-pool-study-2026-10-08.tar.zst` (20 MB, 28,624 entries, listing verified), then deleted by the owner. The stray 935 MB `target-basecheck/` in this worktree was deleted by the owner. |
 
 ## Qualification dispositions
 
-- **G3 (Python growth).** The median of 0.400 MiB/cycle misses the 0.36
-  bound, but the pool-off baseline is also 0.400 (max 0.416). The growth
-  is not from the pool; the pool's own counters return to zero (CB2).
-  Accepted.
-- **G8 (Node RSS drift).** +10.8 % against a 10 % bound; the pool-off
-  control drifts +12.3 %. No allocator errors in either process. Accepted.
-- **G9 (rerank speed-up).** The lower CI bound is 1.49 against the old 1.5
-  floor; ruling 28 re-based the floor on product versus study P, where
-  every measure is within 0.975-1.008. Accepted.
+Owner rulings, 2026-10-08 (plan revision 3.3):
+
+- **G3 (Python growth): PASS under the revised bound.** The median bound
+  is now 0.400 MiB per cycle; the Python median is 0.400 (max 0.429),
+  the same as the pool-off baseline, and the pool's own counters return
+  to zero (CB2).
+- **G8 (Node RSS drift): approved as measured.** The drift is +10.8 %
+  against a 10 % bound; the pool-off control drifts +12.3 %, and neither
+  process had an allocator error.
+- **G9 (rerank speed-up): accepted, non-gating.** The lower CI bound of
+  1.49 against 1.50 is immaterial; the bound is non-gating and
+  non-blocking. Product versus study P is within 0.975-1.008 for every
+  measure.
 
 ## Follow-ups
 

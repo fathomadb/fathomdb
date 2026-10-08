@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 30 — Tegra private CUDA memory pool (D28-08) plan
-status: APPROVED FOR EXECUTION (revision 3.2, 2026-10-08; aligned with design revision 3)
+status: APPROVED FOR EXECUTION (revision 3.3, 2026-10-08; aligned with design revision 3)
 target_release: 0.8.28
 observed_on: 2026-10-08
 ---
@@ -20,7 +20,10 @@ Files of this slice, all in `dev/plans/0.8.28/features/slice-30/`:
 - `design-review.md`: the design and code reviews;
 - `status.md`: the slice status record.
 
-Revision 3.2 (S30-T9) only corrects statements the implementation made
+Revision 3.3 records the owner's qualification rulings (2026-10-08): the G3
+median bound is 0.400 MiB per cycle, the G8 Node drift is accepted as
+measured, and the G9 rerank speed-up bound is non-gating. Revision 3.2
+(S30-T9) only corrects statements the implementation made
 false: the decision is reported by `doctor cuda-allocator`, not
 `doctor gpu` (C-10, SD-8, G1, S30-T5, § 8), and the registry check uses a
 scratch downstream crate (AC30-07). Design revision 3 § 8 has the detail.
@@ -211,7 +214,7 @@ samples confirm the product build behaves like it.
 | --- | --- | --- | --- | --- | --- |
 | G1 Decision | C1, C6 (pure), sizing | TEST + QUAL | AC30-01 tests. QUAL: 20 Node + 20 Python processes in `auto`. | Every FathomDB context is private-pool; every free uses the allocating API; the report and `doctor cuda-allocator` show `private` and the size. | 751/751 (§ 12.8) |
 | G2 Fallback | ruling 37, R4 | TEST + QUAL | AC30-02 tests. QUAL: 5 Node + 5 Python processes per state (opted out, `off`, invalid setting), plus 5 late-import Node processes at a 4M-object heap. | Never refuses; 0.8.27 path; the reason is reported. | R4 (§ 12.6) |
-| G3 Release and lifetime | C2, CB1, CB2 | QUAL | 10 Node processes × 100 open/close cycles, no GC; 10 Python × 50; then close and 10 s idle. | All cycles on the private path. Median VmRSS growth ≤ 0.36 MiB per cycle, max ≤ 0.44. `reserved_cur` = 0 after the last close when no module-level model is loaded; otherwise spare < 2 chunks. | 20/20, 0.36 MiB (§ 13.2) |
+| G3 Release and lifetime | C2, CB1, CB2 | QUAL | 10 Node processes × 100 open/close cycles, no GC; 10 Python × 50; then close and 10 s idle. | All cycles on the private path. Median VmRSS growth ≤ 0.400 MiB per cycle (owner ruling, 2026-10-08; was 0.36), max ≤ 0.44. `reserved_cur` = 0 after the last close when no module-level model is loaded; otherwise spare < 2 chunks. | 20/20, 0.36 MiB (§ 13.2) |
 | G4 Exhaustion | C3, CB3, CB4 | TEST + QUAL | AC30-04 tests. QUAL: oversized batch (128 long passages) at 3 GiB, 5 Node + 5 Python processes. | Typed kind; the next embed succeeds on `cuda` with the pre-error hash. | § 11.6, § 12.1 |
 | G5 Equivalence | C8 | QUAL | The G1 processes against S. | Identical embedding hash and rerank scores; same decision and error kinds per binding. | § 12.7.3 |
 | G6 Heap robustness | R2, R3, R5 | QUAL | Node 25, import first; heap grown to 4M objects before first use, and to the R5 boundary cell; 20 processes each; more growth, then a second embed and rerank. | Private path in every process; no path change. A failure stops the run for a ruling. | 630 R5 runs (§ 10.6, § 12.6) |

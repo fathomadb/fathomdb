@@ -1,0 +1,3 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/slice135_edge_explanation_row_error.rs (/tmp/slice135-current-tc91-target/debug/deps/slice135_edge_explanation_row_error-245a92b818d0c9a6)
+error: test failed, to rerun pass `-p fathomdb-engine --test slice135_edge_explanation_row_error`

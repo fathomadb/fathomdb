@@ -1123,7 +1123,8 @@ attributes.
 On `search_explained` with attribute predicates, `Explanation.trace.dropped_edge_hits`
 reports edge-FTS candidates rejected solely by the
 node-scoped attribute rule. Default non-explained searches do not collect the
-counter or incur its extra comparison.
+counter or incur its extra comparison. If the count query or its row decoding
+fails, search returns `EngineError::Storage` rather than a plausible zero.
 
 - `Engine::search_projected_text(query, name, filter, &ReadView) ->
   Result<SearchResult, EngineError>` searches exactly one declared

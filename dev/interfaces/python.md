@@ -984,7 +984,8 @@ non-empty attribute list with `InvalidFilterError` rather than losing predicates
 For `engine.search(..., explain=True)` with attribute predicates,
 `result.explanation.trace.dropped_edge_hits` reports edge-FTS candidates rejected
 solely by the node-scoped attribute rule. The default non-explain path does not
-collect this count.
+collect this count. If the count query or its row decoding fails, search raises
+`StorageError` rather than returning a plausible zero.
 
 `engine.search_projected_text(query, name, filter=None, *, view=None, limit=10)` searches
 only the named declared `SEARCHABLE` property-FTS projection, applying metadata,

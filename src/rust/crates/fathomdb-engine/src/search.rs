@@ -2078,44 +2078,49 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // Attribute predicates intentionally apply only to node projections. Count
     // edge-FTS candidates that would otherwise pass when the caller requested
     // the opt-in explanation, without adding work to the default search path.
-    let dropped_edge_hits = if explain
-        && filter.is_some_and(|active_filter| !active_filter.attributes.is_empty())
-    {
-        let mut non_attribute_filter = filter.cloned().unwrap_or_default();
-        non_attribute_filter.attributes.clear();
-        let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
-        let mut params = vec![
-            rusqlite::types::Value::Text(compiled.match_expression.clone()),
-            rusqlite::types::Value::Integer(view.edge_now()),
-        ];
-        let eligibility =
-            append_edge_eligibility_sql(Some(&non_attribute_filter), "ce", &mut params);
-        let sql = format!(
-            "SELECT ce.write_cursor FROM search_index_edges sei \
+    let dropped_edge_hits =
+        if explain && filter.is_some_and(|active_filter| !active_filter.attributes.is_empty()) {
+            let mut non_attribute_filter = filter.cloned().unwrap_or_default();
+            non_attribute_filter.attributes.clear();
+            let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
+            let mut params = vec![
+                rusqlite::types::Value::Text(compiled.match_expression.clone()),
+                rusqlite::types::Value::Integer(view.edge_now()),
+            ];
+            let eligibility =
+                append_edge_eligibility_sql(Some(&non_attribute_filter), "ce", &mut params);
+            #[cfg(feature = "test-hooks")]
+            let cursor_column =
+                if std::env::var_os("FATHOMDB_EDGE_EXPLANATION_BAD_CURSOR_FOR_TEST").is_some() {
+                    "CAST(ce.write_cursor AS BLOB)"
+                } else {
+                    "ce.write_cursor"
+                };
+            #[cfg(not(feature = "test-hooks"))]
+            let cursor_column = "ce.write_cursor";
+            let sql = format!(
+                "SELECT {cursor_column} FROM search_index_edges sei \
              JOIN canonical_edges ce ON ce.write_cursor=sei.write_cursor \
              WHERE search_index_edges MATCH ?1 AND ce.superseded_at IS NULL\
              {edge_validity}{eligibility}"
-        );
-        let mut dropped = 0_u32;
-        if let Ok(mut statement) = tx.prepare(&sql) {
-            if let Ok(rows) = statement
-                .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get::<_, i64>(0))
-            {
-                for cursor in rows.flatten() {
-                    if !hit_attributes_pass_filter(
-                        &tx,
-                        cursor as u64,
-                        filter.expect("attribute filter checked above"),
-                    )? {
-                        dropped = dropped.saturating_add(1);
-                    }
+            );
+            let mut dropped = 0_u32;
+            let mut statement = tx.prepare(&sql)?;
+            let rows = statement
+                .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get::<_, i64>(0))?;
+            for cursor in rows {
+                if !hit_attributes_pass_filter(
+                    &tx,
+                    cursor? as u64,
+                    filter.expect("attribute filter checked above"),
+                )? {
+                    dropped = dropped.saturating_add(1);
                 }
             }
-        }
-        dropped
-    } else {
-        0
-    };
+            dropped
+        } else {
+            0
+        };
     text_results.extend(edge_candidates);
     // GA-2 / Slice-40 (◆ B-1) measurement seam: when `vector_stage_only` is set
     // (only ever by the eu7 recall harness via `set_vector_stage_only_for_test`,

@@ -693,7 +693,11 @@ SDK exercise remain open.
   fallback test; its `Storage` result reproduced without instrumentation.
   The stale expectation was reconciled with the fail-closed row-error
   contract, and the focused target passed all three cases. The full gate
-  remains open.
+  remains open. The active opt-in edge explanation count then proved capable
+  of hiding a row decode failure behind a successful count of zero. A
+  [test-first repair](results/2026-10-08-edge-explanation-repair/README.md)
+  now propagates count-query errors; its focused and adjacent cases pass.
+  This product-source change requires a new exact-candidate latency refresh.
 - **Functional exercise:** the [capability register](phase1-capability-register.md)
   accounts for all 44 canonical operations: Rust 42 selected cases executed
   and two provider/model cases unavailable; Python 40 executed, one

@@ -1,0 +1,18 @@
+
+running 1 test
+test edge_count_decode_error_must_not_report_zero_dropped_edge_hits ... FAILED
+
+failures:
+
+---- edge_count_decode_error_must_not_report_zero_dropped_edge_hits stdout ----
+
+thread 'edge_count_decode_error_must_not_report_zero_dropped_edge_hits' (19) panicked at src/rust/crates/fathomdb-engine/tests/slice135_edge_explanation_row_error.rs:88:5:
+a failed edge-count decode must not return an exact zero explanation
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    edge_count_decode_error_must_not_report_zero_dropped_edge_hits
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+

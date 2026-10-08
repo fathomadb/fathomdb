@@ -1,6 +1,6 @@
 ---
 title: Slice 135 search row-error follow-up audit
-status: VECTOR_SITE_CONFIRMED_REPAIRED_OTHER_PROBES_PENDING
+status: VECTOR_AND_EXPLANATION_SITES_REPAIRED_LEGACY_PROBES_PENDING
 target_release: 0.8.27
 ---
 
@@ -25,7 +25,7 @@ The current node and edge FTS paths instead collect into
 | `search.rs:1545` vector phase-1 candidates | A `rowid` or distance decode error can omit a nearest-neighbor candidate before hydration. | Confirmed incomplete-result defect on the active vector path; repaired after this snapshot. | The [RED/GREEN real-database receipt](results/2026-10-07-vector-row-repair/README.md) shows `Ok([])` before the fix and `EngineError::Storage` after it. |
 | `search.rs:1987` pre-step-12 node fallback with `source_id` | A row error can remove a text hit. | Unsafe iterator shape, but unreachable through current public open: normal admission requires schema version 34 before search. Migration test hooks are a distinct route. | Retain as a test-hook-only audit lead; do not count it as a supported runtime path without a route witness. |
 | `search.rs:2011` pre-step-8 node fallback | A row error can remove a text hit. | Same current public-open exclusion; a missing `source_id` column is a legacy-schema condition. | Retain as a test-hook-only audit lead; verify any future historical-data compatibility decision before deleting or repairing the branch. |
-| `search.rs:2104` edge attribute explanation count | A failed cursor decode can undercount `dropped_edge_hits`; outer `if let Ok` also suppresses statement/query errors. | Explanation-integrity lead. The default result set is unchanged, but an opt-in diagnostic can report a false count. | With explanation and an attribute filter active, inject a malformed matching edge cursor or a named SQL failure and assert whether the API returns a typed error or a documented unavailable explanation. |
+| `search.rs:2104` edge attribute explanation count | A failed cursor decode can undercount `dropped_edge_hits`; outer `if let Ok` also suppresses statement/query errors. | Confirmed on the active opt-in route by a test-only SQL decode fault; repaired after this snapshot. | The [RED/GREEN real-database receipt](results/2026-10-08-edge-explanation-repair/README.md) shows the previous false success and the repaired `EngineError::Storage` result. |
 
 The source also has `rank_stream_candidates` ending in `.ok()` near line 1870.
 That fallback to full sorting is intentional only if the fallback produces
@@ -46,7 +46,7 @@ rejects a noncurrent `user_version`; the current `SCHEMA_VERSION` is 34.
 route proof does not establish that the legacy branches are harmless if a
 future release again supports opening those historical schemas.
 
-For this checkpoint, probe the edge explanation site and review test-hook
+The edge explanation site has now been probed and repaired. Review test-hook
 routes before considering a generic Semgrep prohibition on `.flatten()`:
 most other uses in the crate
 flatten `Option`, not iterator `Result`, and a broad rule would be noisy.

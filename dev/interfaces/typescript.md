@@ -1075,7 +1075,8 @@ string `"1"` and number `1` both match `"1"`. `searchFilterToFilter` throws
 For a search invoked with its `explain` argument set to `true` and attribute predicates,
 `result.explanation.trace.droppedEdgeHits` reports edge-FTS candidates rejected
 solely by the node-scoped attribute rule. The default non-explain path does not
-collect this count.
+collect this count. If the count query or its row decoding fails, search throws
+`StorageError` rather than returning a plausible zero.
 
 `engine.searchProjectedText(query, name, filter?, view?)` searches only the
 named declared `"searchable"` property-FTS projection, applying metadata,

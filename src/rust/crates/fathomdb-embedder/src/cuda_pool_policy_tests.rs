@@ -462,12 +462,21 @@ fn this_build_reports_no_allocator() {
 ))]
 #[test]
 fn without_the_driver_part_a_forward_error_is_failed_with_its_context() {
-    let error = forward_error(candle_core::Error::Msg("boom".to_owned()), "batch forward");
+    let error = forward_error(
+        candle_core::Error::Msg("boom".to_owned()),
+        &candle_core::Device::Cpu,
+        "batch forward",
+    );
     assert_eq!(
         error,
         fathomdb_embedder_api::EmbedderError::Failed { message: "batch forward: boom".to_owned() }
     );
-    assert!(forward_failure(&candle_core::Error::Msg("boom".to_owned()), "forward").is_none());
+    assert!(forward_failure(
+        &candle_core::Error::Msg("boom".to_owned()),
+        &candle_core::Device::Cpu,
+        "forward"
+    )
+    .is_none());
 }
 
 // ---- typed failures --------------------------------------------------------
@@ -1209,7 +1218,11 @@ fn without_the_driver_part_there_is_no_context_state() {
 ))]
 #[test]
 fn with_the_driver_part_a_non_cuda_forward_error_is_failed_without_detection() {
-    let error = forward_error(candle_core::Error::Msg("boom".to_owned()), "forward");
+    let error = forward_error(
+        candle_core::Error::Msg("boom".to_owned()),
+        &candle_core::Device::Cpu,
+        "forward",
+    );
     assert_eq!(
         error,
         fathomdb_embedder_api::EmbedderError::Failed { message: "forward: boom".to_owned() }

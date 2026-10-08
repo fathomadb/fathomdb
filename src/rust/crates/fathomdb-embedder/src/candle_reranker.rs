@@ -487,7 +487,7 @@ impl CandleTinyBertReranker {
     /// means the error keeps its existing handling.
     #[must_use]
     pub fn cuda_pool_error(&self, error: &candle_core::Error) -> Option<RerankerDevicePolicyError> {
-        crate::cuda_pool_policy::forward_failure(error, "rerank forward")
+        crate::cuda_pool_policy::forward_failure(error, &self.device, "rerank forward")
             .map(crate::cuda_pool_policy::CudaPoolFailure::into_reranker_policy_error)
     }
 

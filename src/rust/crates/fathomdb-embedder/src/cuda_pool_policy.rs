@@ -526,6 +526,8 @@ pub(crate) struct PoolCounters {
 /// A failed forward pass, as the classification needs it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ForwardFault {
+    /// Ordinal of the device the error happened on.
+    pub(crate) ordinal: usize,
     /// The error came from the CUDA backend.
     pub(crate) cuda: bool,
     /// The driver `CUresult`, when the error carries one.
@@ -1090,14 +1092,25 @@ pub(crate) fn build_device<D: PoolDriver>(
     }
 }
 
-/// The typed failure for a forward error with driver code `driver_code`, or
-/// `None` when it keeps its untyped report.
+/// The private decision when its pool belongs to device `ordinal`. A device
+/// on another ordinal allocates on the 0.8.27 path, so its errors keep their
+/// untyped report.
+fn private_for<P, C>(
+    decision: Option<&Decision<P, C>>,
+    ordinal: usize,
+) -> Option<&PrivateDecision<P, C>> {
+    decision.and_then(Decision::private).filter(|private| private.ordinal == ordinal)
+}
+
+/// The typed failure for a forward error with driver code `driver_code` on
+/// device `ordinal`, or `None` when it keeps its untyped report.
 pub(crate) fn classify_forward<P, C>(
     decision: Option<&Decision<P, C>>,
+    ordinal: usize,
     driver_code: Option<u32>,
     message: String,
 ) -> Option<CudaPoolFailure> {
-    let private = decision.and_then(Decision::private);
+    let private = private_for(decision, ordinal);
     is_pool_exhaustion(private.is_some(), driver_code).then(|| {
         let private = private.expect("checked by is_pool_exhaustion");
         CudaPoolFailure::Exhausted {
@@ -1109,19 +1122,24 @@ pub(crate) fn classify_forward<P, C>(
 }
 
 /// The typed failure for a failed forward pass, or `None` when it keeps its
-/// untyped report: exhaustion first, then, for any other CUDA error in a
-/// private process, context-loss detection.
+/// untyped report: exhaustion first, then, for any other CUDA error on the
+/// private pool's device, context-loss detection.
 pub(crate) fn classify_forward_fault<D: PoolDriver>(
     decision: Option<&Decision<D::Pool, D::Context>>,
     driver: &D,
     fault: ForwardFault,
     operation: &str,
 ) -> Option<CudaPoolFailure> {
-    let exhausted = classify_forward(decision, fault.code, format!("{operation}: {}", fault.error));
+    let exhausted = classify_forward(
+        decision,
+        fault.ordinal,
+        fault.code,
+        format!("{operation}: {}", fault.error),
+    );
     if exhausted.is_some() {
         return exhausted;
     }
-    let private = decision.and_then(Decision::private)?;
+    let private = private_for(decision, fault.ordinal)?;
     if !fault.cuda {
         return None;
     }
@@ -1133,17 +1151,18 @@ pub(crate) fn classify_forward_fault<D: PoolDriver>(
 #[cfg(any(feature = "default-embedder", feature = "default-reranker"))]
 pub(crate) type CudaDeviceError = DeviceBuildError<candle_core::Error>;
 
-/// The embedder error for a failed forward pass: a typed pool failure, or
-/// `Failed` with `what` and the error as before.
+/// The embedder error for a failed forward pass on `device`: a typed pool
+/// failure, or `Failed` with `what` and the error as before.
 #[cfg(all(
     any(test, feature = "default-embedder"),
     any(feature = "default-embedder", feature = "default-reranker")
 ))]
 pub(crate) fn forward_error(
     error: candle_core::Error,
+    device: &candle_core::Device,
     what: &str,
 ) -> fathomdb_embedder_api::EmbedderError {
-    match forward_failure(&error, what) {
+    match forward_failure(&error, device, what) {
         Some(failure) => failure.into_embedder_error(),
         None => {
             fathomdb_embedder_api::EmbedderError::Failed { message: format!("{what}: {error}") }
@@ -1173,6 +1192,7 @@ mod fallback_only {
 
     pub(crate) fn forward_failure(
         _error: &candle_core::Error,
+        _device: &Device,
         _what: &str,
     ) -> Option<CudaPoolFailure> {
         None
@@ -1476,11 +1496,18 @@ mod driver {
         build_device(&DECISION, &CudarcDriver, ordinal)
     }
 
+    /// The typed failure for `error` on `device`; `None` for a device that
+    /// is not CUDA.
     pub(crate) fn forward_failure(
         error: &candle_core::Error,
+        device: &Device,
         what: &str,
     ) -> Option<CudaPoolFailure> {
+        let candle_core::DeviceLocation::Cuda { gpu_id } = device.location() else {
+            return None;
+        };
         let fault = ForwardFault {
+            ordinal: gpu_id,
             cuda: is_candle_cuda_error(error),
             code: candle_driver_code(error),
             error: error.to_string(),

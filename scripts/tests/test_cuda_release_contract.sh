@@ -36,6 +36,8 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/provision-cuda-manylinux.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/src/rust/crates/fathomdb-napi/Cargo.toml" "$root/src/rust/crates/fathomdb-napi/"
   cp "$REPO_ROOT/src/ts/package.json" "$root/src/ts/"
+  mkdir -p "$root/src/python"
+  cp "$REPO_ROOT/src/python/pyproject.toml" "$root/src/python/"
   cp "$REPO_ROOT/dev/release/cuda-unmerged-candidates.json" "$root/dev/release/"
   cp "$REPO_ROOT/dev/release/cuda-unmerged-candidates.schema.json" "$root/dev/release/"
   cp "$REPO_ROOT/dev/release/cuda-protection-baseline.json" "$root/dev/release/"
@@ -1062,5 +1064,35 @@ mutate_tegra_pool scripts/release/build-python-cuda-tegra.sh \
   '--features "$CUDA_PYTHON_FEATURES_TEGRA"' \
   '--features "$CUDA_PYTHON_FEATURES"' \
   'rejects a Tegra CUDA Python build that uses the x86_64 feature set'
+
+# The guard is not a single-quoted-literal match: a double-quoted or composed
+# value, a reference to the Tegra set from an x86 build, the CPU wheel's
+# default features, and any workflow are all refused (CR-6).
+mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
+  "export CUDA_RERANK_NAPI_FEATURES='embed-cuda,rerank-cuda'" \
+  "export CUDA_RERANK_NAPI_FEATURES='embed-cuda,rerank-cuda'
+export CUDA_NAPI_FEATURES=\"embed-cuda,tegra-pool\"" \
+  'rejects tegra-pool in a double-quoted x86_64 CUDA feature set'
+mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
+  "export CUDA_RERANK_NAPI_FEATURES='embed-cuda,rerank-cuda'" \
+  "export CUDA_RERANK_NAPI_FEATURES='embed-cuda,rerank-cuda'
+export CUDA_PYTHON_FEATURES=\"\$CUDA_PYTHON_FEATURES,tegra-pool\"" \
+  'rejects tegra-pool composed onto an x86_64 CUDA feature set'
+mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
+  "export CUDA_RERANK_PYTHON_FEATURES='pyo3/extension-module,embed-cuda,rerank-cuda'" \
+  "export CUDA_RERANK_PYTHON_FEATURES=\"\$CUDA_PYTHON_FEATURES_TEGRA,rerank-cuda\"" \
+  'rejects an x86_64 CUDA feature set composed from the Tegra set'
+mutate_tegra_pool scripts/release/cuda-preflight.sh \
+  '--features "$CUDA_PYTHON_FEATURES" \' \
+  '--features "$CUDA_PYTHON_FEATURES" --features "$CUDA_PYTHON_FEATURES_TEGRA" \' \
+  'rejects the Tegra feature set in the x86_64 CUDA Python build'
+mutate_tegra_pool src/python/pyproject.toml \
+  'features = ["pyo3/extension-module", "default-embedder", "default-reranker"]' \
+  'features = ["pyo3/extension-module", "default-embedder", "default-reranker", "tegra-pool"]' \
+  'rejects tegra-pool in the CPU Python wheel default features'
+make_fixture "$FIXTURE"
+printf 'name: extra\non: push\njobs:\n  b:\n    runs-on: ubuntu-latest\n    steps:\n      - run: cargo build --features "embed-cuda,tegra-pool"\n' \
+  >"$FIXTURE/.github/workflows/extra.yml"
+expect_fail "$FIXTURE" 'rejects tegra-pool in any workflow feature string'
 
 printf '\nCUDA release-contract tests passed\n'

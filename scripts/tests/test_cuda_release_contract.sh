@@ -1083,8 +1083,8 @@ mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
   "export CUDA_RERANK_PYTHON_FEATURES=\"\$CUDA_PYTHON_FEATURES_TEGRA,rerank-cuda\"" \
   'rejects an x86_64 CUDA feature set composed from the Tegra set'
 mutate_tegra_pool scripts/release/cuda-preflight.sh \
-  '--features "$CUDA_PYTHON_FEATURES" \' \
-  '--features "$CUDA_PYTHON_FEATURES" --features "$CUDA_PYTHON_FEATURES_TEGRA" \' \
+  '--features "$CUDA_PYTHON_FEATURES"' \
+  '--features "$CUDA_PYTHON_FEATURES" --features "$CUDA_PYTHON_FEATURES_TEGRA"' \
   'rejects the Tegra feature set in the x86_64 CUDA Python build'
 mutate_tegra_pool src/python/pyproject.toml \
   'features = ["pyo3/extension-module", "default-embedder", "default-reranker"]' \

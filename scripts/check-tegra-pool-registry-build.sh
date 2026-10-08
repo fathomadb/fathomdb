@@ -176,7 +176,7 @@ set -e
 if [ "$STATUS" -eq 0 ]; then
   fail 'fathomdb-embedder with embed-cuda,tegra-pool built against registry cudarc'
 fi
-if ! printf '%s\n' "$OUTPUT" | grep -Fq "$MARKER_MESSAGE"; then
+if ! grep -Fq -- "$MARKER_MESSAGE" <<<"$OUTPUT"; then
   printf '%s\n' "$OUTPUT" >&2
   fail "the tegra-pool build failed without the marker message: $MARKER_MESSAGE"
 fi

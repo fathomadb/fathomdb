@@ -1,0 +1,70 @@
+{
+  "audit": {
+    "argv": [
+      "python3",
+      "scripts/slice135_phase2_ir_campaign_audit.py",
+      "--protocol",
+      "dev/plans/0.8.27/features/slice-135/phase2-ir-relevance-protocol.json",
+      "--runner",
+      "scripts/slice135_phase2_ir_runner.py",
+      "--scorer",
+      "scripts/slice135_phase2_ir_scorer.py",
+      "--source-root",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/raw",
+      "--gold",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/eval/ir_gold/all.gold.json",
+      "--baseline-wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/baseline.whl",
+      "--candidate-wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/candidate.whl",
+      "--baseline-dir",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-ir-relevance/raw-baseline",
+      "--candidate-dir",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-ir-relevance/raw-candidate"
+    ],
+    "exit_code": 0,
+    "stdout": "audit.json"
+  },
+  "baseline": {
+    "argv": [
+      "/tmp/slice135-python-venv-baseline-f99e002/bin/python",
+      "scripts/slice135_phase2_ir_runner.py",
+      "--protocol",
+      "dev/plans/0.8.27/features/slice-135/phase2-ir-relevance-protocol.json",
+      "--wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/baseline.whl",
+      "--version",
+      "baseline",
+      "--source-root",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/raw",
+      "--gold",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/eval/ir_gold/all.gold.json",
+      "--output",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-ir-relevance/raw-baseline"
+    ],
+    "exit_code": 0,
+    "stderr": "baseline.stderr",
+    "stdout": "baseline.stdout"
+  },
+  "candidate": {
+    "argv": [
+      "/tmp/slice135-current-venv-224e44/bin/python",
+      "scripts/slice135_phase2_ir_runner.py",
+      "--protocol",
+      "dev/plans/0.8.27/features/slice-135/phase2-ir-relevance-protocol.json",
+      "--wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/candidate.whl",
+      "--version",
+      "candidate",
+      "--source-root",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/raw",
+      "--gold",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/eval/ir_gold/all.gold.json",
+      "--output",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-ir-relevance/raw-candidate"
+    ],
+    "exit_code": 0,
+    "stderr": "candidate.stderr",
+    "stdout": "candidate.stdout"
+  }
+}

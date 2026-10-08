@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 2 query correctness readiness — 2026-10-08
-status: VECTOR_FIDELITY_AUDITED_JUDGED_GOLD_OPEN
+status: VECTOR_AND_RETRIEVAL_AUDITED_EVIDENCE_MEMORY_OPEN
 target_release: 0.8.27
 ---
 
@@ -86,6 +86,18 @@ between versions, but pinned mean vectors and vec0 layouts differ, so this
 pair does not isolate a version-specific ANN loss. The measurement is a
 vector-stage seam; public hybrid relevance remains unscored.
 
+The [full judged-retrieval pair](results/2026-10-08-phase2-ir-relevance/README.md)
+has now passed independent audit on 2,050 source documents and 4,472
+positive gold queries. Required-document Recall@10 is 0.8902 for 2,888
+exact-fact queries and 0.4249 for 1,584 exploratory queries on both
+versions, with no search errors. Four top-10 lists differ; one required
+document moves from rank 2 to 3 on the candidate, and no required document
+leaves the top 10. The [frozen protocol](phase2-ir-relevance-protocol.json)
+and [qualified pilot](results/2026-10-08-phase2-ir-feasibility/README.md)
+preceded scoring. The single required label per positive query cannot
+support all-corpus nDCG or precision; evidence sufficiency, memory
+usefulness and answer quality remain open.
+
 ## Exact identities and available local inputs
 
 | Input | Verified identity or location | Boundary |
@@ -111,9 +123,9 @@ new paired Phase 2 protocol or independent scorer is qualified.
 
 ## Immediate execution path
 
-1. Freeze and negatively qualify the judged relevance, evidence and memory
-   protocols using the already qualified local source mappings. Score each
-   class separately with explicit denominators and omissions.
+1. Freeze and negatively qualify the judged evidence and memory protocols
+   using the already qualified local source mappings. Score complete
+   supporting sets and memory classes separately with explicit denominators.
 2. Qualify checkpoint/resume, backoff, completeness and the approved spending
    ceiling before any priced paired answer-quality call. Add TypeScript, Rust
    or fault cells when a specific scored claim depends on them.

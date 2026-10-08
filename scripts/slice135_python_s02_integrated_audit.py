@@ -14,7 +14,9 @@ import slice135_python_s02_pair_audit as paired
 
 ROOT = Path(__file__).resolve().parents[1]
 PLAN = ROOT / "dev/plans/0.8.27/features/slice-135"
-CAMPAIGN_RUNNER = ROOT / "scripts/slice135_python_s02_integrated_campaign.py"
+LEGACY_CAMPAIGN_SHA256 = (
+    "1da66c45b81537993d69210e8ee83b954d28ffc944679b54aad47994ca035a40"
+)
 WHEELS = {
     "baseline": PLAN
     / "results/2026-10-07-python-wheel-baseline/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl",
@@ -26,6 +28,13 @@ WHEELS = {
 def sha(path: Path) -> str:
     """Hash exact receipt bytes."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def check_campaign_runner(protocol: dict, path: Path) -> None:
+    """Check the archived campaign code when the protocol binds it."""
+    expected = protocol.get("campaign_runner_sha256")
+    if expected is not None and sha(path) != expected:
+        raise ValueError("archived campaign runner differs from protocol")
 
 
 def check_order(entries: list[dict], pairs: list[list[str]], idle_seconds: int) -> None:
@@ -79,9 +88,18 @@ def check_output_paths(paths: list[Path], labels: list[str]) -> Path:
     return parents.pop()
 
 
-def audit_integrated(root: Path, protocol_path: Path, paired_audit_path: Path) -> dict:
+def audit_integrated(
+    root: Path,
+    protocol_path: Path,
+    paired_audit_path: Path,
+    *,
+    wheel_paths: dict[str, Path] | None = None,
+) -> dict:
     """Check campaign order and recompute the complete paired S02 receipt."""
+    wheels = WHEELS if wheel_paths is None else wheel_paths
     protocol = json.loads(protocol_path.read_text())
+    if protocol.get("campaign_runner_sha256") is not None:
+        check_campaign_runner(protocol, root / "campaign.py")
     if (root / "protocol.json").read_bytes() != protocol_path.read_bytes():
         raise ValueError("retained protocol bytes changed")
     manifest_path = root / "run-manifest.json"
@@ -89,7 +107,8 @@ def audit_integrated(root: Path, protocol_path: Path, paired_audit_path: Path) -
     if (
         manifest.get("status") != "FULL_CAMPAIGN_COMPLETE"
         or manifest.get("protocol_sha256") != sha(protocol_path)
-        or manifest.get("campaign_runner_sha256") != sha(CAMPAIGN_RUNNER)
+        or manifest.get("campaign_runner_sha256")
+        != protocol.get("campaign_runner_sha256", LEGACY_CAMPAIGN_SHA256)
         or manifest.get("pair_order") != protocol["pair_order"]
         or manifest.get("samples_per_block") != protocol["samples_per_block"]
         or manifest.get("last_complete_pair") != protocol["pairs"]
@@ -117,6 +136,10 @@ def audit_integrated(root: Path, protocol_path: Path, paired_audit_path: Path) -
         ):
             if command_value(command, flag) != expected:
                 raise ValueError(f"{label} {flag} changed")
+        if manifest.get(f"{role}_wheel") is not None and command_value(
+            command, "--wheel"
+        ) != manifest[f"{role}_wheel"]:
+            raise ValueError(f"{label} wheel path changed")
         output_paths.append(Path(command_value(command, "--output-dir")))
         if (
             Path(command_value(command, "--comparison-protocol")).read_bytes()
@@ -125,7 +148,7 @@ def audit_integrated(root: Path, protocol_path: Path, paired_audit_path: Path) -
             raise ValueError(f"{label} protocol command changed")
     check_output_paths(output_paths, [entry["label"] for entry in entries])
     recomputed = paired.recompute(
-        root, protocol_path, WHEELS["baseline"], WHEELS["candidate"], protocol["pairs"]
+        root, protocol_path, wheels["baseline"], wheels["candidate"], protocol["pairs"]
     )
     stored = json.loads(paired_audit_path.read_text())
     if recomputed != stored or recomputed["status"] != "FULL_PYTHON_S02_PAIRED":
@@ -137,7 +160,7 @@ def audit_integrated(root: Path, protocol_path: Path, paired_audit_path: Path) -
         "run_manifest_sha256": sha(manifest_path),
         "run_order_sha256": sha(order_path),
         "paired_audit_sha256": sha(paired_audit_path),
-        "campaign_runner_sha256": sha(CAMPAIGN_RUNNER),
+        "campaign_runner_sha256": manifest["campaign_runner_sha256"],
         "blocks": len(entries),
         "samples_per_version": recomputed["sample_count_per_version"],
         "negative_control_rejected": recomputed["negative_control_rejected"],
@@ -150,11 +173,21 @@ def main() -> None:
     parser.add_argument("--campaign", required=True, type=Path)
     parser.add_argument("--protocol", required=True, type=Path)
     parser.add_argument("--paired-audit", required=True, type=Path)
+    parser.add_argument("--baseline-wheel", type=Path, default=WHEELS["baseline"])
+    parser.add_argument("--candidate-wheel", type=Path, default=WHEELS["candidate"])
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     if args.output.exists():
         parser.error("refusing to overwrite integrated S02 order audit")
-    result = audit_integrated(args.campaign, args.protocol, args.paired_audit)
+    result = audit_integrated(
+        args.campaign,
+        args.protocol,
+        args.paired_audit,
+        wheel_paths={
+            "baseline": args.baseline_wheel,
+            "candidate": args.candidate_wheel,
+        },
+    )
     args.output.write_text(json.dumps(result, indent=2) + "\n")
 
 

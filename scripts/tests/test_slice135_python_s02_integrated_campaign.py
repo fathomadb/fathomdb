@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -44,3 +45,33 @@ def test_integrated_protocol_preserves_count_and_pair_order() -> None:
     changed["pair_order"][1].reverse()
     with pytest.raises(ValueError, match="pair order"):
         campaign.validate_protocol(changed)
+
+
+def test_refrozen_protocol_uses_supplied_wheels_and_candidate_snapshot(
+    tmp_path: Path,
+) -> None:
+    protocol = json.loads(PROTOCOL.read_text())
+    wheels = {
+        "baseline": tmp_path / "baseline.whl",
+        "candidate": tmp_path / "candidate.whl",
+    }
+    for role, path in wheels.items():
+        path.write_bytes(role.encode())
+        protocol[role]["wheel_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    protocol["candidate"]["source_sha"] = (
+        "3f29d649d0213e595c0dab251a449d92fd625792"
+    )
+    protocol["candidate_product_snapshot"] = {
+        "source_sha": protocol["candidate"]["source_sha"]
+    }
+    campaign.validate_protocol(protocol, wheel_paths=wheels)
+    protocol["candidate_product_snapshot"]["source_sha"] = "0" * 40
+    with pytest.raises(ValueError, match="snapshot"):
+        campaign.validate_protocol(protocol, wheel_paths=wheels)
+
+
+def test_refrozen_protocol_rejects_campaign_runner_drift() -> None:
+    protocol = json.loads(PROTOCOL.read_text())
+    protocol["campaign_runner_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="campaign runner"):
+        campaign.validate_protocol(protocol)

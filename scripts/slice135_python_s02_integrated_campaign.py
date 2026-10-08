@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the frozen installed-Python S02 integrated-candidate paired campaign."""
+"""Run a source-bound frozen installed-Python S02 paired campaign."""
 
 from __future__ import annotations
 
@@ -40,8 +40,11 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def validate_protocol(protocol: dict) -> None:
+def validate_protocol(
+    protocol: dict, *, wheel_paths: dict[str, Path] | None = None
+) -> None:
     """Reject drift from the pre-registered S02 timing and artifact design."""
+    wheels = WHEELS if wheel_paths is None else wheel_paths
     if (
         protocol.get("schema_version") != 1
         or protocol.get("status") != "FROZEN_S02_PYTHON_PAIRED"
@@ -58,6 +61,14 @@ def validate_protocol(protocol: dict) -> None:
         raise ValueError("integrated S02 pair order changed")
     if protocol.get("minimum_idle_seconds_between_blocks", 0) < 5:
         raise ValueError("integrated S02 idle interval changed")
+    campaign_hash = protocol.get("campaign_runner_sha256")
+    if campaign_hash is not None and campaign_hash != sha(Path(__file__)):
+        raise ValueError("campaign runner differs from frozen S02 protocol")
+    snapshot = protocol.get("candidate_product_snapshot")
+    if snapshot is not None and snapshot.get("source_sha") != protocol.get(
+        "candidate", {}
+    ).get("source_sha"):
+        raise ValueError("candidate product snapshot differs from protocol")
     for key, path in (
         ("block_runner_sha256", BLOCK),
         ("timed_runner_sha256", RUNNER),
@@ -76,7 +87,7 @@ def validate_protocol(protocol: dict) -> None:
     for role in ("baseline", "candidate"):
         identity = protocol.get(role, {})
         if len(identity.get("source_sha", "")) != 40 or sha(
-            WHEELS[role]
+            wheels[role]
         ) != identity.get("wheel_sha256"):
             raise ValueError(f"{role} wheel or source identity changed")
 
@@ -94,19 +105,26 @@ def run_campaign(
     baseline_python: Path,
     candidate_python: Path,
     output: Path,
+    wheel_paths: dict[str, Path] | None = None,
+    expected_protocol_sha256: str | None = None,
 ) -> None:
     """Run alternating blocks serially, preserving every attempted block."""
+    wheels = WHEELS if wheel_paths is None else wheel_paths
+    protocol_hash = sha(protocol_path)
+    if expected_protocol_sha256 is not None and protocol_hash != expected_protocol_sha256:
+        raise ValueError("S02 protocol bytes differ from declared freeze")
     protocol = json.loads(protocol_path.read_text())
-    validate_protocol(protocol)
+    validate_protocol(protocol, wheel_paths=wheels)
     for path in (baseline_python, candidate_python):
         if not path.is_file():
             raise ValueError(f"installed Python missing: {path}")
     output.mkdir(parents=True, exist_ok=False)
     (output / "protocol.json").write_bytes(protocol_path.read_bytes())
+    (output / "campaign.py").write_bytes(Path(__file__).read_bytes())
     run = {
         "schema_version": 1,
         "status": "RUNNING",
-        "protocol_sha256": sha(protocol_path),
+        "protocol_sha256": protocol_hash,
         "campaign_runner_sha256": sha(Path(__file__)),
         "started_utc": now(),
         "pair_order": protocol["pair_order"],
@@ -116,12 +134,16 @@ def run_campaign(
         "candidate_checkout": str(candidate_checkout),
         "baseline_python": str(baseline_python),
         "candidate_python": str(candidate_python),
+        "baseline_wheel": str(wheels["baseline"]),
+        "candidate_wheel": str(wheels["candidate"]),
     }
     manifest_path = output / "run-manifest.json"
     manifest_path.write_text(json.dumps(run, indent=2) + "\n")
     order_path = output / "run-order.jsonl"
     for pair_index, pair in enumerate(protocol["pair_order"], 1):
         for position, role in enumerate(pair, 1):
+            if sha(protocol_path) != protocol_hash:
+                raise ValueError("frozen S02 protocol changed during campaign")
             if order_path.exists():
                 time.sleep(protocol["minimum_idle_seconds_between_blocks"])
             label = f"pair-{pair_index:02d}-{role}"
@@ -135,7 +157,7 @@ def run_campaign(
                 "--source-sha",
                 protocol[role]["source_sha"],
                 "--wheel",
-                str(WHEELS[role]),
+                str(wheels[role]),
                 "--wheel-sha256",
                 protocol[role]["wheel_sha256"],
                 "--venv-python",
@@ -210,6 +232,9 @@ def main() -> None:
     parser.add_argument("--candidate-checkout", required=True, type=Path)
     parser.add_argument("--baseline-python", required=True, type=Path)
     parser.add_argument("--candidate-python", required=True, type=Path)
+    parser.add_argument("--baseline-wheel", type=Path, default=WHEELS["baseline"])
+    parser.add_argument("--candidate-wheel", type=Path, default=WHEELS["candidate"])
+    parser.add_argument("--protocol-sha256")
     parser.add_argument("--output-dir", required=True, type=Path)
     args = parser.parse_args()
     run_campaign(
@@ -219,6 +244,11 @@ def main() -> None:
         baseline_python=args.baseline_python.absolute(),
         candidate_python=args.candidate_python.absolute(),
         output=args.output_dir.absolute(),
+        wheel_paths={
+            "baseline": args.baseline_wheel.resolve(),
+            "candidate": args.candidate_wheel.resolve(),
+        },
+        expected_protocol_sha256=args.protocol_sha256,
     )
 
 

@@ -190,8 +190,9 @@ not cover them.
        leaves the item 2 table empty.
 6. **Feature marker.** `Cargo.toml` declares the no-op feature
    `fathomdb-private-pool`. A dependent that enables it fails to resolve
-   against an unpatched cudarc with "package `cudarc` does not have feature
-   `fathomdb-private-pool`", not with a missing symbol.
+   against an unpatched cudarc with "… depends on `cudarc` with feature
+   `fathomdb-private-pool` but `cudarc` does not have that feature", not
+   with a missing symbol.
 
 ## Why
 

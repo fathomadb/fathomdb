@@ -1190,9 +1190,17 @@ stable codes `CudaPoolExhaustedError`, `CudaContextLostError` and
 - `CudaPrivateBuildRefused { ordinal, message }` — another private-pool
   context could not be built; no context on another allocator replaces it.
 
-They are raised by `embed_text`, search reranking (under every reranker
-policy, never as neutral scores), and `Engine::open` (default-embedder load,
-not `Embedder(Failed)`). `From<RerankerDevicePolicyError> for EngineError` and
+They are raised by `embed_text`, search query embedding (other
+query-embedding failures keep the sparse fallback), search reranking (under
+every reranker policy, never as neutral scores), and `Engine::open`
+(default-embedder load, not `Embedder(Failed)`, and the embedder and
+reranker device resolutions). In a process that allocates from the private
+pool, a pool failure inside the resolution probe is
+`CudaProbeError::Pool(CudaPoolFailure)` and resolution returns
+`DeviceResolutionError::CudaPool` / `RerankerDeviceResolutionError::CudaPool`
+under `auto` as under forced CUDA: it never moves to CPU.
+`resolve_reranker_device_policy_from_env` returns it as the flat
+`RerankerDevicePolicyError` pool variant. `From<RerankerDevicePolicyError> for EngineError` and
 `From<EmbedderError> for EngineOpenError` map the corresponding kinds to these
 variants and leave the rest unchanged. `rerank_passages` returns
 `RerankPassagesError` — `WriteValidation { message }` for a non-finite score,

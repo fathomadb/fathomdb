@@ -194,10 +194,12 @@ A mapping test per variant per surface proves that no catch-all swallows
 the variant.
 
 **Every path is typed (ruling 33).** There is no `WriteValidation`, Debug
-string or neutral score on any of these (two exceptions, § 8: a pool
-failure inside an `auto` CUDA probe, and search query embedding):
+string or neutral score on any of these (§ 8):
 
 - engine `embed`, batch embed and search rerank;
+- search query embedding (ordinary and frozen); any other query-embedding
+  failure keeps the sparse fallback;
+- the device-resolution probe of a `Private` process, under every policy;
 - module-level CLS `embed_batch_cls` / `embedBatchCls`, load and forward;
 - module-level `rerank()`, load and forward;
 - engine open (`open.rs:582ff`), which today wraps everything in
@@ -690,13 +692,25 @@ checked against the code at `deffb5fd6`. Paths are under
   first-context build or a `cuCtxGetId` failure is
   `private_build_failed`. Each takes the 0.8.27 path (rule 1.2).
 - **A pool failure inside a CUDA probe** (`candle_bge.rs` and
-  `candle_reranker.rs`, `classify_device_build_error`) is
-  `CudaProbeError::ProbeFailed`, whose device-policy reason is
-  `cuda_probe_failed`. Under `auto` the component then runs on CPU; under
-  forced CUDA it is the existing typed refusal. Either way no CUDA
-  context outside the pool is built, so rule 1.3 holds.
+  `candle_reranker.rs`: the device build, `classify_device_build_error`,
+  or the probe allocation, `probe_allocation_error`, operation
+  `device probe`) is `CudaProbeError::Pool(CudaPoolFailure)`. Resolution
+  returns `DeviceResolutionError::CudaPool` /
+  `RerankerDeviceResolutionError::CudaPool` under `auto` and forced CUDA
+  alike, so a `Private` process never moves a component to CPU (CB4).
+  Engine open raises the typed `EngineOpenError` kind for both
+  resolutions; the reranker's env resolution (and so `rerank()`'s early
+  resolve) returns the flat `RerankerDevicePolicyError` pool variant, and
+  the reranker singleton retries it. A non-private process keeps the
+  0.8.27 contract (`cuda_probe_failed`, CPU under `auto`).
+- **Classification is per ordinal.** A forward, load or probe error is
+  classified only when the faulting device's ordinal (from the Candle
+  device location) is the private decision's; another ordinal keeps its
+  untyped report.
 - **Load paths.** A pool failure while loading a model is the typed
-  `EmbedderLoadError` / `RerankerLoadError` variant. A 0.8.27-path
+  `EmbedderLoadError` / `RerankerLoadError` variant, both for the device
+  build and for the weight load (operation `model load`, classified before
+  `ModelDeserialize`). A 0.8.27-path
   failure is `DeviceInitialization` (the witness path keeps
   `DeviceUnavailable`). The reranker singleton caches
   `DeviceInitialization` as `Unavailable` (`fathomdb-engine/src/rerank.rs`,
@@ -709,11 +723,14 @@ checked against the code at `deffb5fd6`. Paths are under
   (`EngineError::stable_code`), the SDK and the CLI. The napi envelope
   and TS codes carry the `FDB_` prefix (`FDB_CUDA_POOL_EXHAUSTED`, …).
   The payload `kind` strings are `cuda_pool_exhausted`, … (§ 2.4).
-- **Search query embedding keeps its sparse fallback.** A failed query
-  embedding, of a CUDA pool kind or any other, still drops the vector
-  arm and the text arm serves (`fathomdb-engine/src/search_api.rs:543`,
-  `search.rs:1420`), as in 0.8.27. `Engine::embed_text` and every other
-  path of § 2.4 raise the typed kind.
+- **Search query embedding raises the CUDA pool kinds.** A query
+  embedding that fails with one of the three kinds is raised as its
+  typed `EngineError` by ordinary and frozen search
+  (`fathomdb-engine/src/embedding.rs`, `search_query_vector`); any other
+  failure still drops the vector arm and the text arm serves, as in
+  0.8.27. The projection worker records the kind's stable code
+  (`CudaPoolExhaustedError`, …) as its failure code and keeps its retry
+  ladder.
 - **Context-loss detection** runs on any Candle `Error::Cuda`, with or
   without a driver code (for example a cuBLAS error), after the
   exhaustion check (`is_candle_cuda_error`).

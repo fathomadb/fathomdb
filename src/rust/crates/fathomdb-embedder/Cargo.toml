@@ -56,6 +56,21 @@ tokenizers          = { version = "0.20", optional = true, default-features = fa
 # build/eval concern, not a compile dep.
 ort = { version = "=2.0.0-rc.10", optional = true, default-features = false, features = ["load-dynamic"] }
 
+# The Tegra private CUDA memory pool needs FathomDB's vendored cudarc 0.19.7
+# (the root `[patch.crates-io]`), which declares the no-op marker feature
+# `fathomdb-private-pool`. This direct dependency resolves to the same cudarc
+# as Candle's, so enabling the marker makes a build against registry cudarc
+# fail at resolution ("does not have feature") instead of on a missing symbol.
+# Its features mirror Candle's driver-side set so the two unify. Only aarch64
+# Linux, the one target the pool exists on, compiles it.
+[target.'cfg(all(target_os = "linux", target_arch = "aarch64"))'.dependencies]
+cudarc = { version = "=0.19.7", optional = true, default-features = false, features = [
+    "std",
+    "driver",
+    "dynamic-loading",
+    "cuda-version-from-build-system",
+] }
+
 [features]
 default = []
 default-embedder = [
@@ -125,6 +140,12 @@ onnx-embedder = [
     "dep:tokenizers",
     "dep:sha2",
 ]
+# The Tegra private CUDA memory pool (0.8.28 Slice 30): on aarch64 Linux with
+# `embed-cuda` or `rerank-cuda`, the first CUDA device build decides once
+# whether every FathomDB context allocates from one private pool. Supported
+# only in repository and artifact builds, which carry the vendored cudarc.
+# Non-default; without it the allocator decision is 0.8.27's.
+tegra-pool = ["dep:cudarc", "cudarc/fathomdb-private-pool"]
 # Exposes `LoaderConfig` constructors/setters and `load_with_config` so
 # integration tests (or downstream test harnesses) can substitute base URLs,
 # cache roots, and pinned shas. Production callers MUST NOT enable this

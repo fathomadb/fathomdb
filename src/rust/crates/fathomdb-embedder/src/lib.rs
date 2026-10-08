@@ -22,6 +22,9 @@ use std::path::PathBuf;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 
 mod cuda_pool_policy;
+pub use cuda_pool_policy::{
+    CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, ModuleLoadInit, ReleaseThreshold,
+};
 mod device_policy;
 pub use device_policy::{
     diagnose_gpu, resolve_embed_device_policy, resolve_embed_device_policy_from_env,
@@ -43,14 +46,6 @@ pub use reranker_device_policy::{
 // forced-CUDA refusal. Binding support, not a public SDK surface: hidden and
 // unstable (dev/interfaces/rust.md). Its record type is also unit-tested on
 // every host.
-#[cfg(any(
-    test,
-    all(
-        target_os = "linux",
-        target_arch = "aarch64",
-        any(feature = "embed-cuda", feature = "rerank-cuda")
-    )
-))]
 mod cuda_driver_init;
 #[cfg(all(
     target_os = "linux",
@@ -59,8 +54,12 @@ mod cuda_driver_init;
 ))]
 #[doc(hidden)]
 pub use cuda_driver_init::{
-    cuda_driver_init_seen_by, initialize_cuda_driver, last_cuda_driver_init, CudaDriverInit,
-    CudaInitCaller,
+    cuda_driver_init_seen_by, initialize_cuda_driver, last_cuda_driver_init,
+    run_module_load_early_init, CudaDriverInit, CudaInitCaller,
+};
+#[doc(hidden)]
+pub use cuda_driver_init::{
+    early_cuda_init_opted_out, early_cuda_init_wanted, ENV_CUDA_EARLY_INIT,
 };
 
 // 0.8.23 Slice 80.5 (D-80.5-4) — the Tegra-portable GPU allocation witness.

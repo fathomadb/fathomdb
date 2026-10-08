@@ -50,14 +50,14 @@ impl Provider {
                 name: "slice71-test".to_owned(),
                 compute_capability: Some("8.6".to_owned()),
             }]),
-            probe: Ok(CudaDeviceInfo {
-                ordinal: 0,
-                uuid: Some("GPU-slice71".to_owned()),
-                name: Some("slice71-test".to_owned()),
-                driver_version: None,
-                compute_capability: Some("8.6".to_owned()),
-                cuda_toolkit_version: None,
-            }),
+            probe: Ok(CudaDeviceInfo::new(
+                0,
+                Some("GPU-slice71".to_owned()),
+                Some("slice71-test".to_owned()),
+                None,
+                Some("8.6".to_owned()),
+                None,
+            )),
             ..Self::default()
         }
     }
@@ -226,12 +226,12 @@ fn visible_at(visible_ordinal: usize, uuid: &str) -> CudaVisibleDevice {
 }
 
 fn cuda_info_at(ordinal: usize, uuid: &str) -> CudaDeviceInfo {
-    CudaDeviceInfo {
+    CudaDeviceInfo::new(
         ordinal,
-        uuid: Some(uuid.to_owned()),
-        name: Some("slice71-test".to_owned()),
-        driver_version: None,
-        compute_capability: Some("8.6".to_owned()),
-        cuda_toolkit_version: None,
-    }
+        Some(uuid.to_owned()),
+        Some("slice71-test".to_owned()),
+        None,
+        Some("8.6".to_owned()),
+        None,
+    )
 }

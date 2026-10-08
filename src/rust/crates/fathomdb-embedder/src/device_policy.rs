@@ -6,6 +6,7 @@
 //! the resulting [`DeviceResolution`] exactly once to create the actual
 //! embedder backend.
 
+use crate::cuda_pool_policy::CudaAllocatorReport;
 use std::{fmt, str::FromStr};
 
 /// The supported value of `FATHOMDB_EMBED_DEVICE`.
@@ -91,6 +92,9 @@ impl std::error::Error for EmbedDevicePolicyError {}
 
 /// Safe metadata returned after a compatible CUDA device has been initialized
 /// and minimally probed.
+///
+/// Non-exhaustive: build one with [`CudaDeviceInfo::new`].
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CudaDeviceInfo {
     /// CUDA ordinal used to initialize the provider.
@@ -105,6 +109,40 @@ pub struct CudaDeviceInfo {
     pub compute_capability: Option<String>,
     /// CUDA toolkit version used by the loaded provider, when available.
     pub cuda_toolkit_version: Option<String>,
+    /// The allocator decision behind the probed device: `None` off aarch64
+    /// Linux CUDA builds and for providers that do not build a Candle
+    /// device; `not_built` without the `tegra-pool` feature.
+    pub cuda_allocator: Option<CudaAllocatorReport>,
+}
+
+impl CudaDeviceInfo {
+    /// Device metadata without an allocator report.
+    #[must_use]
+    pub fn new(
+        ordinal: usize,
+        uuid: Option<String>,
+        name: Option<String>,
+        driver_version: Option<String>,
+        compute_capability: Option<String>,
+        cuda_toolkit_version: Option<String>,
+    ) -> Self {
+        Self {
+            ordinal,
+            uuid,
+            name,
+            driver_version,
+            compute_capability,
+            cuda_toolkit_version,
+            cuda_allocator: None,
+        }
+    }
+
+    /// The same metadata with `cuda_allocator` replaced.
+    #[must_use]
+    pub fn with_cuda_allocator(mut self, cuda_allocator: Option<CudaAllocatorReport>) -> Self {
+        self.cuda_allocator = cuda_allocator;
+        self
+    }
 }
 
 /// One CUDA device visible to this process.

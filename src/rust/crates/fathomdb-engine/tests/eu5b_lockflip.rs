@@ -142,14 +142,17 @@ fn open_report_embedder_download_ms_some_on_cold_open() {
 
 #[test]
 fn default_embedder_not_wired_error_variant_removed() {
-    // Exhaustive-match witness: if `DefaultEmbedderNotWired` were re-added
-    // to `EmbedderError`, the compiler would force an arm here and we'd
-    // notice immediately. The two production variants are the only legal
-    // inhabitants after EU-5b.
+    // Match witness: names every variant the API defines. `EmbedderError` is
+    // `#[non_exhaustive]`, so the wildcard is required and a new variant no
+    // longer forces an arm here; a removed one still fails to compile.
     fn _exhaustive_witness(err: EmbedderError) -> &'static str {
         match err {
             EmbedderError::Failed { .. } => "failed",
             EmbedderError::Timeout => "timeout",
+            EmbedderError::CudaPoolExhausted { .. } => "cuda_pool_exhausted",
+            EmbedderError::CudaContextLost { .. } => "cuda_context_lost",
+            EmbedderError::CudaPrivateBuildRefused { .. } => "cuda_private_build_refused",
+            _ => "unknown",
         }
     }
     // Touch the witness so the compiler keeps it. No runtime assertion.

@@ -142,9 +142,15 @@ impl Display for EngineOpenError {
             ),
             Self::Embedder(err) => match err {
                 RuntimeEmbedderError::Timeout => write!(f, "embedder timeout during open"),
-                RuntimeEmbedderError::Failed { message } => {
+                RuntimeEmbedderError::Failed { message }
+                | RuntimeEmbedderError::CudaPoolExhausted { message, .. }
+                | RuntimeEmbedderError::CudaPrivateBuildRefused { message, .. } => {
                     write!(f, "embedder failure during open: {message}")
                 }
+                RuntimeEmbedderError::CudaContextLost { driver_error, operation, .. } => {
+                    write!(f, "embedder failure during open: CUDA context lost at {operation}: {driver_error}")
+                }
+                _ => write!(f, "embedder failure during open"),
             },
             Self::EmbedDevicePolicy(error) => error.fmt(f),
             Self::RerankerDevicePolicy(error) => error.fmt(f),

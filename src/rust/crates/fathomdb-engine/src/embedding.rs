@@ -104,9 +104,12 @@ pub(crate) fn embedder_required_for(affected_kinds: &[String]) -> EmbedderRequir
 
 pub(crate) fn map_runtime_embedder_error(err: RuntimeEmbedderError) -> EngineError {
     match err {
-        RuntimeEmbedderError::Failed { .. } | RuntimeEmbedderError::Timeout => {
-            EngineError::Embedder
-        }
+        RuntimeEmbedderError::Failed { .. }
+        | RuntimeEmbedderError::Timeout
+        | RuntimeEmbedderError::CudaPoolExhausted { .. }
+        | RuntimeEmbedderError::CudaContextLost { .. }
+        | RuntimeEmbedderError::CudaPrivateBuildRefused { .. } => EngineError::Embedder,
+        _ => EngineError::Embedder,
     }
 }
 

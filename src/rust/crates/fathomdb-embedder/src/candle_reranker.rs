@@ -118,21 +118,23 @@ impl CudaProvider for RerankerCudaProvider {
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         #[cfg(feature = "rerank-cuda")]
         {
-            let device = Device::new_cuda(ordinal).map_err(classify_candle_cuda_error)?;
+            let device = crate::cuda_pool_policy::new_cuda_device(ordinal)
+                .map_err(classify_device_build_error)?;
             Tensor::zeros(1, DType::F32, &device).map_err(classify_candle_cuda_error)?;
             let visible = self
                 .enumerate_visible_cuda_devices()?
                 .into_iter()
                 .find(|visible| visible.visible_ordinal == ordinal)
                 .ok_or(CudaProbeError::NoVisibleDevice)?;
-            Ok(CudaDeviceInfo {
+            Ok(CudaDeviceInfo::new(
                 ordinal,
-                uuid: Some(visible.uuid),
-                name: Some(visible.name),
-                driver_version: None,
-                compute_capability: visible.compute_capability,
-                cuda_toolkit_version: None,
-            })
+                Some(visible.uuid),
+                Some(visible.name),
+                None,
+                visible.compute_capability,
+                None,
+            )
+            .with_cuda_allocator(crate::cuda_pool_policy::allocator_report(&device)))
         }
         #[cfg(not(feature = "rerank-cuda"))]
         {
@@ -163,7 +165,17 @@ fn device_from_resolution(
     match &resolution.effective_device {
         EffectiveRerankerDevice::Cpu => Ok(Device::Cpu),
         EffectiveRerankerDevice::Cuda(info) => {
-            Device::new_cuda(info.ordinal).map_err(RerankerLoadError::ModelDeserialize)
+            crate::cuda_pool_policy::new_cuda_device(info.ordinal).map_err(|error| match error {
+                crate::cuda_pool_policy::DeviceBuildError::Pool(failure) => {
+                    failure.into_reranker_load_error()
+                }
+                crate::cuda_pool_policy::DeviceBuildError::Default(error) => {
+                    forced_cuda_runtime_error(resolution).map_or_else(
+                        || RerankerLoadError::DeviceInitialization { message: error.to_string() },
+                        RerankerLoadError::DevicePolicy,
+                    )
+                }
+            })
         }
     }
 }
@@ -207,6 +219,20 @@ fn classify_cuda_driver_error(
         | CUresult::CUDA_ERROR_NO_BINARY_FOR_GPU
         | CUresult::CUDA_ERROR_UNSUPPORTED_PTX_VERSION => CudaProbeError::Incompatible { message },
         _ => CudaProbeError::ProbeFailed { message },
+    }
+}
+
+/// A pool failure during the probe is a probe failure: under `auto` the
+/// reranker then runs on CPU, never on a CUDA context outside the pool.
+#[cfg(feature = "rerank-cuda")]
+fn classify_device_build_error(error: crate::cuda_pool_policy::CudaDeviceError) -> CudaProbeError {
+    match error {
+        crate::cuda_pool_policy::DeviceBuildError::Default(error) => {
+            classify_candle_cuda_error(error)
+        }
+        crate::cuda_pool_policy::DeviceBuildError::Pool(failure) => {
+            CudaProbeError::ProbeFailed { message: failure.to_string() }
+        }
     }
 }
 
@@ -338,8 +364,31 @@ pub enum RerankerLoadError {
     TokenizerLoad(String),
     #[error("reranker model deserialize: {0}")]
     ModelDeserialize(#[source] candle_core::Error),
+    /// The selected CUDA device could not be built for the model. Never
+    /// converted into a CPU fallback.
+    #[error("reranker device could not be initialized: {message}")]
+    DeviceInitialization { message: String },
     #[error("reranker lock timeout at {path:?} after {waited_s}s")]
     LockTimeout { path: PathBuf, waited_s: u64 },
+    /// The private CUDA memory pool of device `ordinal` reached its cap of
+    /// `max_size_bytes` while the model was loaded onto it.
+    #[error("reranker: the private CUDA memory pool of device {ordinal} reached its cap of {max_size_bytes} bytes: {message}")]
+    CudaPoolExhausted { ordinal: usize, max_size_bytes: u64, message: String },
+    /// The recorded CUDA context (`recorded_context_id`) is gone;
+    /// `current_context_id` is `None` when the primary context is inactive.
+    #[error("reranker: CUDA context {recorded_context_id} is gone (current: {current_context_id:?}) at {operation}: {driver_error}")]
+    CudaContextLost {
+        recorded_context_id: u64,
+        current_context_id: Option<u64>,
+        driver_error: String,
+        operation: String,
+    },
+    /// Building another private-pool CUDA context on device `ordinal`
+    /// failed; no context on another allocator is built in its place.
+    #[error(
+        "reranker: could not build a private-pool CUDA context on device {ordinal}: {message}"
+    )]
+    CudaPrivateBuildRefused { ordinal: usize, message: String },
 }
 
 // ----- Loaded model ---------------------------------------------------------
@@ -430,6 +479,16 @@ impl CandleTinyBertReranker {
     #[must_use]
     pub fn forced_cuda_runtime_error(&self) -> Option<RerankerDevicePolicyError> {
         forced_cuda_runtime_error(&self.resolution)
+    }
+
+    /// The typed error for a failed [`score`](Self::score) or
+    /// [`score_batch`](Self::score_batch) that must propagate whatever the
+    /// device policy: exhaustion of the private CUDA memory pool. `None`
+    /// means the error keeps its existing handling.
+    #[must_use]
+    pub fn cuda_pool_error(&self, error: &candle_core::Error) -> Option<RerankerDevicePolicyError> {
+        crate::cuda_pool_policy::forward_failure(error, "rerank forward")
+            .map(crate::cuda_pool_policy::CudaPoolFailure::into_reranker_policy_error)
     }
 
     /// Score a `(query, passage)` pair → the raw cross-encoder relevance logit.

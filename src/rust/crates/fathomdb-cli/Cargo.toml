@@ -45,6 +45,9 @@ default-embedder = ["fathomdb-embedder/default-embedder"]
 # The CLI forwards the same product CUDA capability to both the facade's
 # `Engine::open` path and the direct `doctor gpu` provider diagnostic.
 embed-cuda = ["default-embedder", "fathomdb/embed-cuda", "fathomdb-embedder/embed-cuda"]
+# The Tegra private CUDA memory pool; non-default, effective only on
+# aarch64 Linux with a CUDA feature (fathomdb-embedder `tegra-pool`).
+tegra-pool = ["fathomdb/tegra-pool"]
 default-reranker = ["fathomdb/default-reranker", "fathomdb-embedder/default-reranker"]
 rerank-cuda = ["default-reranker", "fathomdb/rerank-cuda", "fathomdb-embedder/rerank-cuda"]
 

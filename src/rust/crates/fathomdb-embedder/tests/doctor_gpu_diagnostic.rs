@@ -51,14 +51,14 @@ fn visible(ordinal: usize, uuid: &str) -> CudaVisibleDevice {
 }
 
 fn compatible(ordinal: usize, uuid: &str) -> Result<CudaDeviceInfo, CudaProbeError> {
-    Ok(CudaDeviceInfo {
+    Ok(CudaDeviceInfo::new(
         ordinal,
-        uuid: Some(uuid.to_owned()),
-        name: Some(format!("GPU {ordinal}")),
-        driver_version: None,
-        compute_capability: Some("8.6".to_owned()),
-        cuda_toolkit_version: None,
-    })
+        Some(uuid.to_owned()),
+        Some(format!("GPU {ordinal}")),
+        None,
+        Some("8.6".to_owned()),
+        None,
+    ))
 }
 
 #[test]

@@ -36,14 +36,14 @@ fn a_caller_supplied_cuda_resolution_still_reports_no_witness() {
     let resolution = DeviceResolution {
         requested_policy: EmbedDevicePolicy::Cuda(0),
         cuda_compiled: true,
-        effective_device: EffectiveEmbedDevice::Cuda(CudaDeviceInfo {
-            ordinal: 0,
-            uuid: Some("GPU-11111111-2222-3333-4444-555555555555".to_string()),
-            name: Some("Orin".to_string()),
-            driver_version: Some("540.4.0".to_string()),
-            compute_capability: Some("8.7".to_string()),
-            cuda_toolkit_version: Some("12.6".to_string()),
-        }),
+        effective_device: EffectiveEmbedDevice::Cuda(CudaDeviceInfo::new(
+            0,
+            Some("GPU-11111111-2222-3333-4444-555555555555".to_string()),
+            Some("Orin".to_string()),
+            Some("540.4.0".to_string()),
+            Some("8.7".to_string()),
+            Some("12.6".to_string()),
+        )),
         visible_cuda_devices: Vec::new(),
         selected_cuda_uuid: Some("GPU-11111111-2222-3333-4444-555555555555".to_string()),
         reason: None,

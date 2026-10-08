@@ -1871,6 +1871,9 @@ fn run_requested_gpu_allocation_witness(
 
 /// Caller-facing selector for the embedder used by an opened engine
 /// (`dev/design/embedder.md` §0).
+// Built once per open and moved into it, so the size of the device
+// resolution variant costs nothing; boxing it would change the public shape.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 pub enum EmbedderChoice {
     /// Use the engine's default embedder. With the `default-embedder`

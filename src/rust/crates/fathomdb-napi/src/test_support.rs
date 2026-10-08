@@ -374,14 +374,14 @@ mod tests {
             requested_policy: fathomdb_embedder::EmbedDevicePolicy::Cuda(3),
             cuda_compiled: true,
             effective_device: fathomdb_embedder::EffectiveEmbedDevice::Cuda(
-                fathomdb_embedder::CudaDeviceInfo {
-                    ordinal: 3,
-                    uuid: Some("GPU-test".to_string()),
-                    name: Some("test CUDA".to_string()),
-                    driver_version: Some("555.42".to_string()),
-                    compute_capability: Some("8.6".to_string()),
-                    cuda_toolkit_version: Some("12.8".to_string()),
-                },
+                fathomdb_embedder::CudaDeviceInfo::new(
+                    3,
+                    Some("GPU-test".to_string()),
+                    Some("test CUDA".to_string()),
+                    Some("555.42".to_string()),
+                    Some("8.6".to_string()),
+                    Some("12.8".to_string()),
+                ),
             ),
             visible_cuda_devices: vec![fathomdb_embedder::CudaVisibleDevice {
                 visible_ordinal: 3,

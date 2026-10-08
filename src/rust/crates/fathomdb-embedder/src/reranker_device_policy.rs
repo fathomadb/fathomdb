@@ -70,6 +70,21 @@ pub enum RerankerDevicePolicyError {
     InvalidPolicy(RerankerDevicePolicyParseError),
     /// A forced CUDA policy could not select its required device.
     Resolution(RerankerDeviceResolutionError),
+    /// The private CUDA memory pool of device `ordinal` reached its cap of
+    /// `max_size_bytes`. The device stays usable for the next call.
+    CudaPoolExhausted { ordinal: usize, max_size_bytes: u64, message: String },
+    /// The CUDA context recorded as `recorded_context_id` is gone
+    /// (`current_context_id` is `None` when the primary context is
+    /// inactive); `driver_error` exposed it during `operation`.
+    CudaContextLost {
+        recorded_context_id: u64,
+        current_context_id: Option<u64>,
+        driver_error: String,
+        operation: String,
+    },
+    /// Building another private-pool CUDA context on device `ordinal` failed;
+    /// no context on another allocator is built in its place.
+    CudaPrivateBuildRefused { ordinal: usize, message: String },
 }
 
 impl RerankerDevicePolicyError {
@@ -85,6 +100,9 @@ impl RerankerDevicePolicyError {
                 reason,
                 ..
             }) => reason.as_str(),
+            Self::CudaPoolExhausted { .. } => "cuda_pool_exhausted",
+            Self::CudaContextLost { .. } => "cuda_context_lost",
+            Self::CudaPrivateBuildRefused { .. } => "cuda_private_build_refused",
         }
     }
 
@@ -92,7 +110,9 @@ impl RerankerDevicePolicyError {
     #[must_use]
     pub const fn ordinal(&self) -> Option<usize> {
         match self {
-            Self::InvalidPolicy(_) => None,
+            Self::InvalidPolicy(_) | Self::CudaContextLost { .. } => None,
+            Self::CudaPoolExhausted { ordinal, .. }
+            | Self::CudaPrivateBuildRefused { ordinal, .. } => Some(*ordinal),
             Self::Resolution(RerankerDeviceResolutionError::CudaNotCompiled { ordinal })
             | Self::Resolution(RerankerDeviceResolutionError::ForcedCudaUnavailable {
                 ordinal,
@@ -107,6 +127,27 @@ impl fmt::Display for RerankerDevicePolicyError {
         match self {
             Self::InvalidPolicy(error) => error.fmt(formatter),
             Self::Resolution(error) => error.fmt(formatter),
+            Self::CudaPoolExhausted { ordinal, max_size_bytes, message } => write!(
+                formatter,
+                "the private CUDA memory pool of device {ordinal} reached its cap of \
+                 {max_size_bytes} bytes: {message}"
+            ),
+            Self::CudaContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            } => {
+                write!(
+                    formatter,
+                    "CUDA context {recorded_context_id} is gone (current: \
+                     {current_context_id:?}) at {operation}: {driver_error}"
+                )
+            }
+            Self::CudaPrivateBuildRefused { ordinal, message } => write!(
+                formatter,
+                "could not build a private-pool CUDA context on device {ordinal}: {message}"
+            ),
         }
     }
 }

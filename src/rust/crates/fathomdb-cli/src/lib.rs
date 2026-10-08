@@ -2120,14 +2120,14 @@ mod tests {
             cuda_compiled: true,
             status: fathomdb_embedder::DoctorGpuStatus::SelectedCuda,
             effective_device: Some(fathomdb_embedder::EffectiveEmbedDevice::Cuda(
-                fathomdb_embedder::CudaDeviceInfo {
-                    ordinal: 1,
-                    uuid: Some("GPU-second".to_owned()),
-                    name: Some("RTX 3090".to_owned()),
-                    driver_version: None,
-                    compute_capability: Some("8.6".to_owned()),
-                    cuda_toolkit_version: None,
-                },
+                fathomdb_embedder::CudaDeviceInfo::new(
+                    1,
+                    Some("GPU-second".to_owned()),
+                    Some("RTX 3090".to_owned()),
+                    None,
+                    Some("8.6".to_owned()),
+                    None,
+                ),
             )),
             devices: vec![
                 fathomdb_embedder::CudaVisibleDevice {
@@ -2600,14 +2600,14 @@ mod tests {
             Ok(Vec::new())
         };
         let probe = if case.selected {
-            Ok(fathomdb_embedder::CudaDeviceInfo {
-                ordinal: 0,
-                uuid: Some("GPU-a".to_owned()),
-                name: Some("GPU 0".to_owned()),
-                driver_version: None,
-                compute_capability: Some("8.6".to_owned()),
-                cuda_toolkit_version: None,
-            })
+            Ok(fathomdb_embedder::CudaDeviceInfo::new(
+                0,
+                Some("GPU-a".to_owned()),
+                Some("GPU 0".to_owned()),
+                None,
+                Some("8.6".to_owned()),
+                None,
+            ))
         } else {
             Err(classified_error)
         };

@@ -24,14 +24,14 @@ impl RecordingProvider {
         Self {
             calls: Vec::new(),
             enumerate_calls: 0,
-            response: Ok(CudaDeviceInfo {
+            response: Ok(CudaDeviceInfo::new(
                 ordinal,
-                uuid: Some(format!("GPU-{ordinal}")),
-                name: Some("RTX 3090".to_owned()),
-                driver_version: Some("555.42".to_owned()),
-                compute_capability: Some("8.6".to_owned()),
-                cuda_toolkit_version: Some("12.6".to_owned()),
-            }),
+                Some(format!("GPU-{ordinal}")),
+                Some("RTX 3090".to_owned()),
+                Some("555.42".to_owned()),
+                Some("8.6".to_owned()),
+                Some("12.6".to_owned()),
+            )),
         }
     }
 
@@ -136,14 +136,14 @@ fn auto_with_compatible_gpu_selects_cuda_and_preserves_safe_metadata() {
 
     assert_eq!(
         report.effective_device,
-        EffectiveEmbedDevice::Cuda(CudaDeviceInfo {
-            ordinal: 0,
-            uuid: Some("GPU-0".to_owned()),
-            name: Some("RTX 3090".to_owned()),
-            driver_version: Some("555.42".to_owned()),
-            compute_capability: Some("8.6".to_owned()),
-            cuda_toolkit_version: Some("12.6".to_owned()),
-        })
+        EffectiveEmbedDevice::Cuda(CudaDeviceInfo::new(
+            0,
+            Some("GPU-0".to_owned()),
+            Some("RTX 3090".to_owned()),
+            Some("555.42".to_owned()),
+            Some("8.6".to_owned()),
+            Some("12.6".to_owned()),
+        ))
     );
     assert_eq!(report.reason, None);
     assert_eq!(provider.calls, vec![0]);

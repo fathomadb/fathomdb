@@ -19,6 +19,23 @@
 //! `rerank-cuda`, so every such build (the Node addon, the Tegra Python
 //! wheel, the CLI) contains them; only the Node addon reads them. The record
 //! type alone is also compiled for unit tests everywhere.
+//!
+//! The module-load early `cuInit` itself is decided here too, so that every
+//! binding that runs it at load (the Node addon, the Tegra Python wheel)
+//! applies the same opt-out and CPU-only skip. Its outcome is kept as a
+//! [`ModuleLoadInit`], which the private memory pool's decision reads.
+
+// Off aarch64 Linux CUDA builds only the load-time decision and the
+// `not_at_load` reader are live; the record types stay compiled for their
+// tests.
+#![cfg_attr(
+    not(all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )),
+    allow(dead_code)
+)]
 
 #[cfg(all(
     target_os = "linux",
@@ -33,6 +50,73 @@ use std::sync::{Mutex, PoisonError};
     any(feature = "embed-cuda", feature = "rerank-cuda")
 ))]
 use candle_core::cuda::cudarc::driver::{result, sys, DriverError};
+
+use crate::cuda_pool_policy::ModuleLoadInit;
+use crate::{EmbedDevicePolicy, RerankerDevicePolicy};
+
+/// The environment variable that turns the module-load `cuInit` off while
+/// keeping CUDA: open then initialises the driver as before.
+#[doc(hidden)]
+pub const ENV_CUDA_EARLY_INIT: &str = "FATHOMDB_CUDA_EARLY_INIT";
+
+/// Whether loading a binding should initialise the CUDA driver.
+///
+/// Only an exact `cpu` policy rules CUDA out, using the same parsers as open:
+/// unset means `auto`, and a malformed value is refused at open rather than
+/// here. A component built without CUDA cannot use it whatever its policy,
+/// so each caller passes its own compiled flags.
+#[doc(hidden)]
+#[must_use]
+pub fn early_cuda_init_wanted(
+    embed_cuda_compiled: bool,
+    rerank_cuda_compiled: bool,
+    embed_policy: Option<&str>,
+    rerank_policy: Option<&str>,
+) -> bool {
+    let embed_cpu = embed_policy
+        .is_some_and(|raw| matches!(raw.parse::<EmbedDevicePolicy>(), Ok(EmbedDevicePolicy::Cpu)));
+    let rerank_cpu = rerank_policy.is_some_and(|raw| {
+        matches!(raw.parse::<RerankerDevicePolicy>(), Ok(RerankerDevicePolicy::Cpu))
+    });
+    (embed_cuda_compiled && !embed_cpu) || (rerank_cuda_compiled && !rerank_cpu)
+}
+
+/// Whether `FATHOMDB_CUDA_EARLY_INIT` opts out. Only the exact value `off`
+/// does; a binding cannot report a malformed value while it loads, so
+/// anything else keeps the default.
+#[doc(hidden)]
+#[must_use]
+pub fn early_cuda_init_opted_out(raw: Option<&str>) -> bool {
+    raw == Some("off")
+}
+
+/// The module-load outcome: `init` runs only when not opted out and wanted.
+pub(crate) fn module_load_outcome(
+    opted_out: bool,
+    wanted: bool,
+    init: impl FnOnce() -> CudaDriverInit,
+) -> ModuleLoadInit {
+    if opted_out {
+        return ModuleLoadInit::OptedOut;
+    }
+    if !wanted {
+        return ModuleLoadInit::SkippedCpuOnly;
+    }
+    match init() {
+        CudaDriverInit::Initialized => ModuleLoadInit::Ran,
+        CudaDriverInit::DriverLibraryAbsent => ModuleLoadInit::DriverAbsent,
+        CudaDriverInit::Failed(code) => ModuleLoadInit::Failed(code),
+    }
+}
+
+pub(crate) const fn module_load_init_or_not_at_load(
+    recorded: Option<ModuleLoadInit>,
+) -> ModuleLoadInit {
+    match recorded {
+        Some(init) => init,
+        None => ModuleLoadInit::NotAtLoad,
+    }
+}
 
 /// The outcome of one attempt to initialise the CUDA driver.
 #[doc(hidden)]
@@ -71,6 +155,14 @@ pub enum CudaInitCaller {
     RerankerProbe,
 }
 
+#[cfg(any(
+    test,
+    all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )
+))]
 /// The most recent outcome overall and per caller.
 #[derive(Debug)]
 pub(crate) struct InitRecord {
@@ -80,6 +172,14 @@ pub(crate) struct InitRecord {
     reranker_probe: Option<CudaDriverInit>,
 }
 
+#[cfg(any(
+    test,
+    all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )
+))]
 impl InitRecord {
     pub(crate) const fn new() -> Self {
         Self { last: None, module_load: None, embedder_probe: None, reranker_probe: None }
@@ -177,6 +277,64 @@ pub fn initialize_cuda_driver() -> CudaDriverInit {
         return record(CudaInitCaller::ModuleLoad, CudaDriverInit::DriverLibraryAbsent);
     }
     record_init_result(CudaInitCaller::ModuleLoad, &result::init())
+}
+
+#[cfg(all(
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+static MODULE_LOAD_INIT: Mutex<Option<ModuleLoadInit>> = Mutex::new(None);
+
+/// Runs the module-load early `cuInit` unless `FATHOMDB_CUDA_EARLY_INIT=off`
+/// or every component compiled with CUDA has an exact `cpu` policy, and
+/// records the outcome for the allocator decision.
+///
+/// `embed_cuda_compiled` and `rerank_cuda_compiled` are the caller's own
+/// `cfg!` flags, so that feature unification inside this crate cannot change
+/// what the caller's artifact can use. Call it from the binding's load hook,
+/// once per process, before any export is reachable; a later call replaces
+/// the record. Never fails; a missing driver is recorded, not raised.
+#[doc(hidden)]
+#[cfg(all(
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+pub fn run_module_load_early_init(
+    embed_cuda_compiled: bool,
+    rerank_cuda_compiled: bool,
+) -> ModuleLoadInit {
+    let opted_out = early_cuda_init_opted_out(std::env::var(ENV_CUDA_EARLY_INIT).ok().as_deref());
+    let embed_policy = std::env::var("FATHOMDB_EMBED_DEVICE").ok();
+    let rerank_policy = std::env::var(crate::ENV_RERANK_DEVICE).ok();
+    let wanted = early_cuda_init_wanted(
+        embed_cuda_compiled,
+        rerank_cuda_compiled,
+        embed_policy.as_deref(),
+        rerank_policy.as_deref(),
+    );
+    let outcome = module_load_outcome(opted_out, wanted, initialize_cuda_driver);
+    *MODULE_LOAD_INIT.lock().unwrap_or_else(PoisonError::into_inner) = Some(outcome);
+    outcome
+}
+
+/// The recorded module-load outcome; [`ModuleLoadInit::NotAtLoad`] when the
+/// load hook never ran (always, off aarch64 Linux CUDA builds).
+pub(crate) fn recorded_module_load_init() -> ModuleLoadInit {
+    #[cfg(all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    ))]
+    let recorded = *MODULE_LOAD_INIT.lock().unwrap_or_else(PoisonError::into_inner);
+    #[cfg(not(all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )))]
+    let recorded = None;
+    module_load_init_or_not_at_load(recorded)
 }
 
 /// The outcome of the most recent `cuInit` attempt in this process by any

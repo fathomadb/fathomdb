@@ -39,10 +39,41 @@ impl EmbedderIdentity {
     }
 }
 
+/// Why an [`Embedder`] call failed.
+///
+/// Non-exhaustive: a match outside this crate needs a wildcard arm, and new
+/// failure kinds are added without a major version. Caller-supplied
+/// embedders may return any variant, including the CUDA pool kinds.
+#[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EmbedderError {
+    /// Any failure without a more specific kind; `message` says what failed.
     Failed { message: String },
+    /// The call did not finish within its deadline.
     Timeout,
+    /// The process allocates from a private CUDA memory pool on device
+    /// `ordinal`, and the driver reported `CUDA_ERROR_OUT_OF_MEMORY` because
+    /// the pool reached its cap of `max_size_bytes`. The device stays
+    /// usable: the next call runs normally once memory is free.
+    CudaPoolExhausted { ordinal: usize, max_size_bytes: u64, message: String },
+    /// The CUDA context the process recorded (`recorded_context_id`, from
+    /// `cuCtxGetId`) is gone: the primary context is inactive
+    /// (`current_context_id` is `None`) or was replaced by one with another
+    /// id. `driver_error` is the driver error that exposed it and
+    /// `operation` the call that received it. The device cannot be used
+    /// again in this process.
+    CudaContextLost {
+        recorded_context_id: u64,
+        current_context_id: Option<u64>,
+        driver_error: String,
+        operation: String,
+    },
+    /// The process allocates from a private CUDA memory pool, and building
+    /// another context on it for device `ordinal` failed for a reason other
+    /// than exhaustion or context loss. FathomDB never answers this with a
+    /// context on another allocator, because each buffer must be freed by
+    /// the allocator that made it.
+    CudaPrivateBuildRefused { ordinal: usize, message: String },
 }
 
 pub trait Embedder: Send + Sync {

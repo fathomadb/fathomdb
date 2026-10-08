@@ -56,6 +56,9 @@ default-embedder = ["fathomdb-embedder/default-embedder"]
 # CUDA-capable artifact selects at runtime under strict
 # FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N; unset is `auto` on that artifact.
 embed-cuda = ["default-embedder", "fathomdb-embedder/embed-cuda"]
+# The Tegra private CUDA memory pool; non-default, effective only on
+# aarch64 Linux with a CUDA feature (fathomdb-embedder `tegra-pool`).
+tegra-pool = ["fathomdb-embedder/tegra-pool"]
 embed-metal = ["default-embedder", "fathomdb-embedder/embed-metal"]
 # 0.8.1 Slice 10 (R1): enabling this feature gates the cross-encoder CE
 # inference path (TinyBERT-L-2 via Candle) in `rerank_fused`. Without this

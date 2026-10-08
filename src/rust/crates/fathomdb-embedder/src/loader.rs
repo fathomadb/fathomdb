@@ -217,6 +217,26 @@ pub enum EmbedderLoadError {
     #[error("selected embedder device could not be initialized: {message}")]
     DeviceInitialization { message: String },
 
+    /// The private CUDA memory pool of device `ordinal` reached its cap of
+    /// `max_size_bytes` while the model was loaded onto it.
+    #[error("the private CUDA memory pool of device {ordinal} reached its cap of {max_size_bytes} bytes: {message}")]
+    CudaPoolExhausted { ordinal: usize, max_size_bytes: u64, message: String },
+
+    /// The recorded CUDA context (`recorded_context_id`) is gone;
+    /// `current_context_id` is `None` when the primary context is inactive.
+    #[error("CUDA context {recorded_context_id} is gone (current: {current_context_id:?}) at {operation}: {driver_error}")]
+    CudaContextLost {
+        recorded_context_id: u64,
+        current_context_id: Option<u64>,
+        driver_error: String,
+        operation: String,
+    },
+
+    /// Building another private-pool CUDA context on device `ordinal`
+    /// failed; no context on another allocator is built in its place.
+    #[error("could not build a private-pool CUDA context on device {ordinal}: {message}")]
+    CudaPrivateBuildRefused { ordinal: usize, message: String },
+
     /// `tokenizer.json` parse failure (EU-4). Wraps the tokenizers error
     /// verbatim. Boxed because `tokenizers::Error` is a
     /// `Box<dyn Error + Send + Sync>` alias, and we need a sized type.

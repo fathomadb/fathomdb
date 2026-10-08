@@ -26,14 +26,14 @@ const DEVICE_UUID: &str = "GPU-bbbe9f37-7028-556a-930b-54e5f3b67a82";
 const NVIDIA_SMI_UUID: &str = "bbbe9f37-7028-556a-930b-54e5f3b67a82";
 
 fn cuda_device_info() -> CudaDeviceInfo {
-    CudaDeviceInfo {
-        ordinal: 0,
-        uuid: Some(DEVICE_UUID.to_owned()),
-        name: Some("Orin".to_owned()),
-        driver_version: None,
-        compute_capability: Some("8.7".to_owned()),
-        cuda_toolkit_version: None,
-    }
+    CudaDeviceInfo::new(
+        0,
+        Some(DEVICE_UUID.to_owned()),
+        Some("Orin".to_owned()),
+        None,
+        Some("8.7".to_owned()),
+        None,
+    )
 }
 
 /// The numbers of an actual witnessed run on this Orin (2026-08-18): the

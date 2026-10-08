@@ -257,21 +257,23 @@ impl CudaProvider for CandleCudaProvider {
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         #[cfg(feature = "embed-cuda")]
         {
-            let device = Device::new_cuda(ordinal).map_err(classify_candle_cuda_error)?;
+            let device = crate::cuda_pool_policy::new_cuda_device(ordinal)
+                .map_err(classify_device_build_error)?;
             Tensor::zeros(1, DType::F32, &device).map_err(classify_candle_cuda_error)?;
             let visible = self
                 .enumerate_visible_cuda_devices()?
                 .into_iter()
                 .find(|visible| visible.visible_ordinal == ordinal)
                 .ok_or(CudaProbeError::NoVisibleDevice)?;
-            Ok(CudaDeviceInfo {
+            Ok(CudaDeviceInfo::new(
                 ordinal,
-                uuid: Some(visible.uuid),
-                name: Some(visible.name),
-                driver_version: None,
-                compute_capability: visible.compute_capability,
-                cuda_toolkit_version: None,
-            })
+                Some(visible.uuid),
+                Some(visible.name),
+                None,
+                visible.compute_capability,
+                None,
+            )
+            .with_cuda_allocator(crate::cuda_pool_policy::allocator_report(&device)))
         }
 
         #[cfg(not(feature = "embed-cuda"))]
@@ -305,6 +307,20 @@ fn classify_cuda_driver_error(
         | CUresult::CUDA_ERROR_NO_BINARY_FOR_GPU
         | CUresult::CUDA_ERROR_UNSUPPORTED_PTX_VERSION => CudaProbeError::Incompatible { message },
         _ => CudaProbeError::ProbeFailed { message },
+    }
+}
+
+/// A pool failure during the probe is a probe failure: under `auto` the
+/// embedder then runs on CPU, never on a CUDA context outside the pool.
+#[cfg(feature = "embed-cuda")]
+fn classify_device_build_error(error: crate::cuda_pool_policy::CudaDeviceError) -> CudaProbeError {
+    match error {
+        crate::cuda_pool_policy::DeviceBuildError::Default(error) => {
+            classify_candle_cuda_error(error)
+        }
+        crate::cuda_pool_policy::DeviceBuildError::Pool(failure) => {
+            CudaProbeError::ProbeFailed { message: failure.to_string() }
+        }
     }
 }
 
@@ -379,7 +395,15 @@ pub(crate) fn attest_retained_cuda_device(
         device: format!("cuda:{ordinal}"),
         reason,
     };
-    let device = Device::new_cuda(ordinal).map_err(|error| unavailable(error.to_string()))?;
+    let device =
+        crate::cuda_pool_policy::new_cuda_device(ordinal).map_err(|error| match error {
+            crate::cuda_pool_policy::DeviceBuildError::Pool(failure) => {
+                failure.into_embedder_load_error()
+            }
+            crate::cuda_pool_policy::DeviceBuildError::Default(error) => {
+                unavailable(error.to_string())
+            }
+        })?;
     let actual_ordinal = match device.location() {
         candle_core::DeviceLocation::Cuda { gpu_id } => gpu_id,
         _ => {
@@ -429,9 +453,15 @@ pub fn diagnose_default_embedder_gpu_from_env() -> DoctorGpuDiagnosticResult {
 fn device_from_resolution(resolution: &DeviceResolution) -> Result<Device, EmbedderLoadError> {
     match &resolution.effective_device {
         EffectiveEmbedDevice::Cpu => Ok(Device::Cpu),
-        EffectiveEmbedDevice::Cuda(info) => Device::new_cuda(info.ordinal).map_err(|error| {
-            EmbedderLoadError::DeviceInitialization { message: error.to_string() }
-        }),
+        EffectiveEmbedDevice::Cuda(info) => crate::cuda_pool_policy::new_cuda_device(info.ordinal)
+            .map_err(|error| match error {
+                crate::cuda_pool_policy::DeviceBuildError::Pool(failure) => {
+                    failure.into_embedder_load_error()
+                }
+                crate::cuda_pool_policy::DeviceBuildError::Default(error) => {
+                    EmbedderLoadError::DeviceInitialization { message: error.to_string() }
+                }
+            }),
     }
 }
 
@@ -655,7 +685,7 @@ impl Embedder for CandleBgeEmbedder {
             Ok(v)
         };
 
-        embed_impl().map_err(|e| EmbedderError::Failed { message: format!("forward: {e}") })
+        embed_impl().map_err(|e| crate::cuda_pool_policy::forward_error(e, "forward"))
     }
 
     fn embed_batch(&self, inputs: &[&str]) -> Result<Vec<Vector>, EmbedderError> {
@@ -708,7 +738,7 @@ impl Embedder for CandleBgeEmbedder {
             normed.to_vec2::<f32>() // Vec<Vec<f32>>, one row per input
         };
 
-        embed_impl().map_err(|e| EmbedderError::Failed { message: format!("batch forward: {e}") })
+        embed_impl().map_err(|e| crate::cuda_pool_policy::forward_error(e, "batch forward"))
     }
 }
 
@@ -735,7 +765,7 @@ impl CandleBgeEmbedder {
             let cls = l2_normalize(&cls_pool(&hidden)?)?.squeeze(0)?.to_vec1()?;
             Ok((mean, cls))
         };
-        dual().map_err(|e| EmbedderError::Failed { message: format!("forward: {e}") })
+        dual().map_err(|e| crate::cuda_pool_policy::forward_error(e, "forward"))
     }
 }
 

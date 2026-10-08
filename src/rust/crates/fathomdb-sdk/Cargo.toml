@@ -22,6 +22,9 @@ fathomdb-schema.workspace = true
 default = []
 default-embedder = ["fathomdb-engine/default-embedder", "fathomdb-embedder/default-embedder"]
 embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]
+# The Tegra private CUDA memory pool; non-default, effective only on
+# aarch64 Linux with a CUDA feature (fathomdb-embedder `tegra-pool`).
+tegra-pool = ["fathomdb-engine/tegra-pool"]
 embed-metal = ["default-embedder", "fathomdb-engine/embed-metal"]
 default-reranker = ["fathomdb-engine/default-reranker"]
 rerank-cuda = ["default-reranker", "fathomdb-engine/rerank-cuda"]

@@ -1,4 +1,5 @@
 """Frozen-read schema refusals retain stable fields at the installed boundary."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,21 +17,35 @@ def test_unsupported_read_context_schema_retains_reason_and_path(
     database = str(tmp_path / "frozen-refusal.sqlite")
     engine = fathomdb.Engine.open(database, use_default_embedder=False)
     try:
-        engine.write([{"kind": "doc", "body": "retained bytes", "logical_id": "retained", "source_id": "frozen-refusal"}])
-        with pytest.raises(fathomdb.FrozenReadError, match="unsupported_schema_version at /schemaVersion") as refused:
+        engine.write(
+            [
+                {
+                    "kind": "doc",
+                    "body": "retained bytes",
+                    "logical_id": "retained",
+                    "source_id": "frozen-refusal",
+                }
+            ]
+        )
+        with pytest.raises(
+            fathomdb.FrozenReadError, match="unsupported_schema_version at /schemaVersion"
+        ) as refused:
             if boundary == "native_constructor":
                 native.ReadContextV1(schema_version=schema_version)
             else:
                 engine.freeze_read_context(fathomdb.ReadContextV1(schema_version=schema_version))
         assert (refused.value.reason, refused.value.field_path) == (
-            "unsupported_schema_version", "/schemaVersion"
+            "unsupported_schema_version",
+            "/schemaVersion",
         )
-        assert fathomdb.read.get(engine, "retained").body == "retained bytes"
+        retained = fathomdb.read.get(engine, "retained")
+        assert retained is not None and retained.body == "retained bytes"
         assert engine.freeze_read_context(fathomdb.ReadContextV1()).schema_version == 1
     finally:
         engine.close()
     reopened = fathomdb.Engine.open(database, use_default_embedder=False)
     try:
-        assert fathomdb.read.get(reopened, "retained").body == "retained bytes"
+        retained = fathomdb.read.get(reopened, "retained")
+        assert retained is not None and retained.body == "retained bytes"
     finally:
         reopened.close()

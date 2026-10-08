@@ -194,13 +194,31 @@ fn forced_cuda_runtime_error(
     }
 }
 
-fn model_deserialize_error(
+/// A failed weight load: one of the three CUDA pool kinds when `classify`
+/// finds a pool failure (under every policy), otherwise the forced policy's
+/// refusal or `ModelDeserialize`.
+pub(crate) fn model_load_error(
     resolution: &RerankerDeviceResolution,
     error: candle_core::Error,
+    classify: impl FnOnce(&candle_core::Error) -> Option<crate::cuda_pool_policy::CudaPoolFailure>,
 ) -> RerankerLoadError {
+    if let Some(failure) = classify(&error) {
+        return failure.into_reranker_load_error();
+    }
     forced_cuda_runtime_error(resolution)
         .map(RerankerLoadError::DevicePolicy)
         .unwrap_or(RerankerLoadError::ModelDeserialize(error))
+}
+
+fn load_failure(
+    error: &candle_core::Error,
+    device: &Device,
+) -> Option<crate::cuda_pool_policy::CudaPoolFailure> {
+    crate::cuda_pool_policy::forward_failure(
+        error,
+        device,
+        crate::cuda_pool_policy::MODEL_LOAD_OPERATION,
+    )
 }
 
 #[cfg(feature = "rerank-cuda")]
@@ -459,18 +477,18 @@ impl CandleTinyBertReranker {
                 &device,
             )
         }
-        .map_err(|error| model_deserialize_error(resolution, error))?;
+        .map_err(|error| model_load_error(resolution, error, |e| load_failure(e, &device)))?;
 
         let model = BertModel::load(vb.clone(), &config)
-            .map_err(|error| model_deserialize_error(resolution, error))?;
+            .map_err(|error| model_load_error(resolution, error, |e| load_failure(e, &device)))?;
         let pooler = linear(
             RERANKER_HIDDEN_SIZE,
             RERANKER_HIDDEN_SIZE,
             vb.pp("bert").pp("pooler").pp("dense"),
         )
-        .map_err(|error| model_deserialize_error(resolution, error))?;
+        .map_err(|error| model_load_error(resolution, error, |e| load_failure(e, &device)))?;
         let classifier = linear(RERANKER_HIDDEN_SIZE, 1, vb.pp("classifier"))
-            .map_err(|error| model_deserialize_error(resolution, error))?;
+            .map_err(|error| model_load_error(resolution, error, |e| load_failure(e, &device)))?;
 
         Ok(Self { tokenizer, model, pooler, classifier, device, resolution: resolution.clone() })
     }

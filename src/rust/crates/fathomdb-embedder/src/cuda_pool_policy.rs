@@ -1148,6 +1148,62 @@ pub(crate) fn classify_forward_fault<D: PoolDriver>(
 
 // ---- the candle-facing entry points -----------------------------------------
 
+/// Operation named by a failure while loading model weights onto a device.
+pub(crate) const MODEL_LOAD_OPERATION: &str = "model load";
+
+/// The driver `CUresult` inside a Candle error, looking through Candle's
+/// context, path and backtrace wrappers.
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+pub(crate) fn candle_driver_code(error: &candle_core::Error) -> Option<u32> {
+    use candle_core::{
+        cuda::{cudarc::driver::DriverError, CudaError},
+        Error,
+    };
+    match error {
+        Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
+            Some(CudaError::Cuda(DriverError(code))) => Some(*code as u32),
+            _ => None,
+        },
+        Error::Context { inner, .. }
+        | Error::WithPath { inner, .. }
+        | Error::WithBacktrace { inner, .. } => candle_driver_code(inner),
+        _ => None,
+    }
+}
+
+/// Whether a Candle error came from the CUDA backend, looking through the
+/// same wrappers as [`candle_driver_code`].
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+fn is_candle_cuda_error(error: &candle_core::Error) -> bool {
+    use candle_core::Error;
+    match error {
+        Error::Cuda(_) => true,
+        Error::Context { inner, .. }
+        | Error::WithPath { inner, .. }
+        | Error::WithBacktrace { inner, .. } => is_candle_cuda_error(inner),
+        _ => false,
+    }
+}
+
+/// The typed failure for a Candle `error` on device `ordinal` during
+/// `operation`, or `None` when it keeps its untyped report.
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+pub(crate) fn classify_candle_fault<D: PoolDriver>(
+    decision: Option<&Decision<D::Pool, D::Context>>,
+    driver: &D,
+    error: &candle_core::Error,
+    ordinal: usize,
+    operation: &str,
+) -> Option<CudaPoolFailure> {
+    let fault = ForwardFault {
+        ordinal,
+        cuda: is_candle_cuda_error(error),
+        code: candle_driver_code(error),
+        error: error.to_string(),
+    };
+    classify_forward_fault(decision, driver, fault, operation)
+}
+
 #[cfg(any(feature = "default-embedder", feature = "default-reranker"))]
 pub(crate) type CudaDeviceError = DeviceBuildError<candle_core::Error>;
 
@@ -1248,10 +1304,10 @@ mod driver {
     use candle_core::Device;
 
     use super::{
-        build_device, classify_forward_fault, cuda_libraries_in_maps, tegra_identity,
-        CudaAllocatorPath, CudaAllocatorReport, CudaDeviceError, CudaPoolFailure,
-        CudaPrimaryContextState, Decision, DeviceFacts, DriverFailure, ForwardFault,
-        ModuleLoadInit, PoolCounters, PoolDriver, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
+        build_device, candle_driver_code, classify_candle_fault, cuda_libraries_in_maps,
+        tegra_identity, CudaAllocatorPath, CudaAllocatorReport, CudaDeviceError, CudaPoolFailure,
+        CudaPrimaryContextState, Decision, DeviceFacts, DriverFailure, ModuleLoadInit,
+        PoolCounters, PoolDriver, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
     };
 
     static DECISION: OnceLock<Decision<Arc<CudaMemPool>, Arc<CudaContext>>> = OnceLock::new();
@@ -1263,37 +1319,8 @@ mod driver {
         DriverFailure { code: Some(error.0 as u32), message: error.to_string() }
     }
 
-    /// The driver `CUresult` inside a Candle error, looking through Candle's
-    /// context, path and backtrace wrappers.
-    fn candle_driver_code(error: &candle_core::Error) -> Option<u32> {
-        use candle_core::{cuda::CudaError, Error};
-        match error {
-            Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
-                Some(CudaError::Cuda(DriverError(code))) => Some(*code as u32),
-                _ => None,
-            },
-            Error::Context { inner, .. }
-            | Error::WithPath { inner, .. }
-            | Error::WithBacktrace { inner, .. } => candle_driver_code(inner),
-            _ => None,
-        }
-    }
-
     fn candle_failure(error: candle_core::Error) -> DriverFailure {
         DriverFailure { code: candle_driver_code(&error), message: error.to_string() }
-    }
-
-    /// Whether a Candle error came from the CUDA backend, looking through the
-    /// same wrappers as [`candle_driver_code`].
-    fn is_candle_cuda_error(error: &candle_core::Error) -> bool {
-        use candle_core::Error;
-        match error {
-            Error::Cuda(_) => true,
-            Error::Context { inner, .. }
-            | Error::WithPath { inner, .. }
-            | Error::WithBacktrace { inner, .. } => is_candle_cuda_error(inner),
-            _ => false,
-        }
     }
 
     fn pool_attribute(
@@ -1506,13 +1533,7 @@ mod driver {
         let candle_core::DeviceLocation::Cuda { gpu_id } = device.location() else {
             return None;
         };
-        let fault = ForwardFault {
-            ordinal: gpu_id,
-            cuda: is_candle_cuda_error(error),
-            code: candle_driver_code(error),
-            error: error.to_string(),
-        };
-        classify_forward_fault(DECISION.get(), &CudarcDriver, fault, what)
+        classify_candle_fault(DECISION.get(), &CudarcDriver, error, gpu_id, what)
     }
 
     /// The primary context state of `ordinal`, or `None` when the driver

@@ -465,6 +465,29 @@ fn device_from_resolution(resolution: &DeviceResolution) -> Result<Device, Embed
     }
 }
 
+fn load_failure(
+    error: &candle_core::Error,
+    device: &Device,
+) -> Option<crate::cuda_pool_policy::CudaPoolFailure> {
+    crate::cuda_pool_policy::forward_failure(
+        error,
+        device,
+        crate::cuda_pool_policy::MODEL_LOAD_OPERATION,
+    )
+}
+
+/// A failed weight load: one of the three CUDA pool kinds when `classify`
+/// finds a pool failure, otherwise `ModelDeserialize`.
+pub(crate) fn model_load_error(
+    error: candle_core::Error,
+    classify: impl FnOnce(&candle_core::Error) -> Option<crate::cuda_pool_policy::CudaPoolFailure>,
+) -> EmbedderLoadError {
+    match classify(&error) {
+        Some(failure) => failure.into_embedder_load_error(),
+        None => EmbedderLoadError::ModelDeserialize { source: error },
+    }
+}
+
 impl CandleBgeEmbedder {
     /// Fetch (or read from cache) the pinned weights and construct a ready
     /// embedder. First call on a cold cache downloads ~135 MB from
@@ -608,10 +631,10 @@ impl CandleBgeEmbedder {
                 &device,
             )
         }
-        .map_err(|source| EmbedderLoadError::ModelDeserialize { source })?;
+        .map_err(|source| model_load_error(source, |error| load_failure(error, &device)))?;
 
         let model = BertModel::load(vb, &config)
-            .map_err(|source| EmbedderLoadError::ModelDeserialize { source })?;
+            .map_err(|source| model_load_error(source, |error| load_failure(error, &device)))?;
 
         let identity =
             EmbedderIdentity::new(DEFAULT_EMBEDDER_NAME, HF_REVISION, DEFAULT_EMBEDDER_DIM);

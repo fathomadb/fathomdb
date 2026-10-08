@@ -23,7 +23,8 @@ use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 
 mod cuda_pool_policy;
 pub use cuda_pool_policy::{
-    CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, ModuleLoadInit, ReleaseThreshold,
+    CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaPoolFailure, ModuleLoadInit,
+    ReleaseThreshold,
 };
 // Driver facts for `doctor cuda-allocator`; binding support, not SDK surface.
 #[doc(hidden)]

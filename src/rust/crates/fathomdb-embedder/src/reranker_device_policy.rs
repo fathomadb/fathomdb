@@ -5,7 +5,7 @@
 
 use std::{fmt, str::FromStr};
 
-use crate::{CudaDeviceInfo, CudaProbeError, CudaProvider, CudaVisibleDevice};
+use crate::{CudaDeviceInfo, CudaPoolFailure, CudaProbeError, CudaProvider, CudaVisibleDevice};
 
 /// The sole cross-SDK transport for reranker policy selection.
 pub const ENV_RERANK_DEVICE: &str = "FATHOMDB_RERANK_DEVICE";
@@ -100,6 +100,7 @@ impl RerankerDevicePolicyError {
                 reason,
                 ..
             }) => reason.as_str(),
+            Self::Resolution(RerankerDeviceResolutionError::CudaPool(failure)) => failure.kind(),
             Self::CudaPoolExhausted { .. } => "cuda_pool_exhausted",
             Self::CudaContextLost { .. } => "cuda_context_lost",
             Self::CudaPrivateBuildRefused { .. } => "cuda_private_build_refused",
@@ -118,6 +119,7 @@ impl RerankerDevicePolicyError {
                 ordinal,
                 ..
             }) => Some(*ordinal),
+            Self::Resolution(RerankerDeviceResolutionError::CudaPool(failure)) => failure.ordinal(),
         }
     }
 }
@@ -196,6 +198,11 @@ pub enum RerankerDeviceResolutionError {
     CudaNotCompiled { ordinal: usize },
     /// CUDA was requested and could not be engaged; CPU must not be tried.
     ForcedCudaUnavailable { ordinal: usize, reason: RerankerDeviceResolutionReason },
+    /// The probe failed with a private CUDA memory pool kind. Raised under
+    /// `auto` as well as forced CUDA: a private-pool process never moves to
+    /// CPU. [`resolve_reranker_device_policy_from_env`] returns it as the
+    /// matching [`RerankerDevicePolicyError`] pool variant.
+    CudaPool(CudaPoolFailure),
 }
 
 impl fmt::Display for RerankerDeviceResolutionError {
@@ -209,6 +216,7 @@ impl fmt::Display for RerankerDeviceResolutionError {
                 formatter,
                 "cuda:{ordinal} requested for reranking but unavailable: {reason:?}"
             ),
+            Self::CudaPool(failure) => failure.fmt(formatter),
         }
     }
 }
@@ -236,6 +244,9 @@ pub struct RerankerDeviceResolution {
 ///
 /// `cpu` does not invoke the provider. `auto` may use CPU only with an
 /// explicit reason. Forced `cuda:N` returns an error and never resolves CPU.
+/// A probe that fails with a private CUDA memory pool kind is
+/// [`RerankerDeviceResolutionError::CudaPool`] under `auto` and forced CUDA
+/// alike, and `auto` probes no further device.
 pub fn resolve_reranker_device_policy(
     requested_policy: RerankerDevicePolicy,
     cuda_compiled: bool,
@@ -255,6 +266,9 @@ pub fn resolve_reranker_device_policy(
             Err(RerankerDeviceResolutionError::CudaNotCompiled { ordinal })
         }
         RerankerDevicePolicy::Auto => match enumerate(provider) {
+            Err(Unavailable::Pool(failure)) => {
+                Err(RerankerDeviceResolutionError::CudaPool(failure))
+            }
             Ok(devices) if devices.is_empty() => Ok(cpu_resolution(
                 requested_policy,
                 cuda_compiled,
@@ -275,32 +289,36 @@ pub fn resolve_reranker_device_policy(
                                 info,
                             ));
                         }
-                        Err(reason) => last_reason = reason,
+                        Err(Unavailable::Reason(reason)) => last_reason = reason,
+                        Err(Unavailable::Pool(failure)) => {
+                            return Err(RerankerDeviceResolutionError::CudaPool(failure));
+                        }
                     }
                 }
                 Ok(cpu_resolution(requested_policy, cuda_compiled, devices, Some(last_reason)))
             }
-            Err(reason) => {
+            Err(Unavailable::Reason(reason)) => {
                 Ok(cpu_resolution(requested_policy, cuda_compiled, vec![], Some(reason)))
             }
         },
-        RerankerDevicePolicy::Cuda(ordinal) => match enumerate(provider) {
-            Ok(devices) => match devices.iter().find(|device| device.visible_ordinal == ordinal) {
+        RerankerDevicePolicy::Cuda(ordinal) => {
+            let forced = |unavailable| match unavailable {
+                Unavailable::Reason(reason) => {
+                    RerankerDeviceResolutionError::ForcedCudaUnavailable { ordinal, reason }
+                }
+                Unavailable::Pool(failure) => RerankerDeviceResolutionError::CudaPool(failure),
+            };
+            let devices = enumerate(provider).map_err(forced)?;
+            match devices.iter().find(|device| device.visible_ordinal == ordinal) {
                 Some(device) => probe(provider, device)
                     .map(|info| selected_resolution(requested_policy, cuda_compiled, devices, info))
-                    .map_err(|reason| RerankerDeviceResolutionError::ForcedCudaUnavailable {
-                        ordinal,
-                        reason,
-                    }),
+                    .map_err(forced),
                 None => Err(RerankerDeviceResolutionError::ForcedCudaUnavailable {
                     ordinal,
                     reason: RerankerDeviceResolutionReason::NoVisibleCudaDevice,
                 }),
-            },
-            Err(reason) => {
-                Err(RerankerDeviceResolutionError::ForcedCudaUnavailable { ordinal, reason })
             }
-        },
+        }
     }
 }
 
@@ -311,8 +329,10 @@ pub fn resolve_reranker_device_policy_from_env(
 ) -> Result<RerankerDeviceResolution, RerankerDevicePolicyError> {
     let raw = std::env::var(ENV_RERANK_DEVICE).unwrap_or_else(|_| "auto".to_owned());
     let policy = raw.parse().map_err(RerankerDevicePolicyError::InvalidPolicy)?;
-    resolve_reranker_device_policy(policy, cuda_compiled, provider)
-        .map_err(RerankerDevicePolicyError::Resolution)
+    resolve_reranker_device_policy(policy, cuda_compiled, provider).map_err(|error| match error {
+        RerankerDeviceResolutionError::CudaPool(failure) => failure.into_reranker_policy_error(),
+        error => RerankerDevicePolicyError::Resolution(error),
+    })
 }
 
 fn cpu_resolution(
@@ -347,25 +367,40 @@ fn selected_resolution(
     }
 }
 
-fn enumerate(
-    provider: &mut dyn CudaProvider,
-) -> Result<Vec<CudaVisibleDevice>, RerankerDeviceResolutionReason> {
+/// Why CUDA could not be selected: a reason `auto` may fall back to CPU on,
+/// or a private-pool failure it never falls back on.
+enum Unavailable {
+    Reason(RerankerDeviceResolutionReason),
+    Pool(CudaPoolFailure),
+}
+
+fn unavailable(error: CudaProbeError) -> Unavailable {
+    match error {
+        CudaProbeError::NoVisibleDevice => {
+            Unavailable::Reason(RerankerDeviceResolutionReason::NoVisibleCudaDevice)
+        }
+        CudaProbeError::Incompatible { .. } => {
+            Unavailable::Reason(RerankerDeviceResolutionReason::CudaIncompatible)
+        }
+        CudaProbeError::ProbeFailed { .. } => {
+            Unavailable::Reason(RerankerDeviceResolutionReason::CudaProbeFailed)
+        }
+        CudaProbeError::Pool(failure) => Unavailable::Pool(failure),
+    }
+}
+
+fn enumerate(provider: &mut dyn CudaProvider) -> Result<Vec<CudaVisibleDevice>, Unavailable> {
     match provider.enumerate_visible_cuda_devices() {
         Ok(devices) => Ok(devices),
         Err(CudaProbeError::NoVisibleDevice) => Ok(vec![]),
-        Err(CudaProbeError::Incompatible { .. }) => {
-            Err(RerankerDeviceResolutionReason::CudaIncompatible)
-        }
-        Err(CudaProbeError::ProbeFailed { .. }) => {
-            Err(RerankerDeviceResolutionReason::CudaProbeFailed)
-        }
+        Err(error) => Err(unavailable(error)),
     }
 }
 
 fn probe(
     provider: &mut dyn CudaProvider,
     selected: &CudaVisibleDevice,
-) -> Result<CudaDeviceInfo, RerankerDeviceResolutionReason> {
+) -> Result<CudaDeviceInfo, Unavailable> {
     match provider.probe_cuda(selected.visible_ordinal) {
         Ok(info)
             if info.ordinal == selected.visible_ordinal
@@ -373,15 +408,7 @@ fn probe(
         {
             Ok(info)
         }
-        Ok(_) => Err(RerankerDeviceResolutionReason::CudaProbeFailed),
-        Err(CudaProbeError::NoVisibleDevice) => {
-            Err(RerankerDeviceResolutionReason::NoVisibleCudaDevice)
-        }
-        Err(CudaProbeError::Incompatible { .. }) => {
-            Err(RerankerDeviceResolutionReason::CudaIncompatible)
-        }
-        Err(CudaProbeError::ProbeFailed { .. }) => {
-            Err(RerankerDeviceResolutionReason::CudaProbeFailed)
-        }
+        Ok(_) => Err(Unavailable::Reason(RerankerDeviceResolutionReason::CudaProbeFailed)),
+        Err(error) => Err(unavailable(error)),
     }
 }

@@ -571,7 +571,7 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         use std::time::Instant as DownloadInstant;
         let device_resolution = fathomdb_embedder::resolve_default_embedder_device_from_env()
-            .map_err(EngineOpenError::EmbedDevicePolicy)?;
+            .map_err(embed_device_policy_open_error)?;
         // 0.8.23 Slice 80.6 (D-80.6-6) — the witness runs BEFORE this open's
         // own model reaches the device, so its `free_before`/`free_after`
         // bracket surrounds nothing but the load it is measuring. Opted in
@@ -760,7 +760,7 @@ impl Engine {
         #[cfg(feature = "default-reranker")]
         let reranker_device_resolution = Some(
             fathomdb_embedder::resolve_default_reranker_device_from_env()
-                .map_err(EngineOpenError::RerankerDevicePolicy)?,
+                .map_err(reranker_device_policy_open_error)?,
         );
         #[cfg(not(feature = "default-reranker"))]
         let reranker_device_resolution = None;
@@ -1792,6 +1792,75 @@ pub(crate) fn parse_gpu_allocation_witness_opt_in(raw: Option<&str>) -> Result<b
                 "{ENV_GPU_ALLOCATION_WITNESS} must be 1/true or 0/false, got {other:?}"
             )),
         },
+    }
+}
+
+#[cfg(any(test, feature = "default-embedder", feature = "default-reranker"))]
+fn cuda_pool_open_error(failure: fathomdb_embedder::CudaPoolFailure) -> EngineOpenError {
+    use fathomdb_embedder::CudaPoolFailure;
+    match failure {
+        CudaPoolFailure::Exhausted { ordinal, max_size_bytes, message } => {
+            EngineOpenError::CudaPoolExhausted { ordinal, max_size_bytes, message }
+        }
+        CudaPoolFailure::ContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => EngineOpenError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        },
+        CudaPoolFailure::PrivateBuildRefused { ordinal, message } => {
+            EngineOpenError::CudaPrivateBuildRefused { ordinal, message }
+        }
+    }
+}
+
+/// A failed embedder device resolution at open: a private-pool probe failure
+/// is its typed open kind under every policy, never a CPU move.
+#[cfg(any(test, feature = "default-embedder"))]
+fn embed_device_policy_open_error(
+    error: fathomdb_embedder::EmbedDevicePolicyError,
+) -> EngineOpenError {
+    use fathomdb_embedder::{DeviceResolutionError, EmbedDevicePolicyError};
+    match error {
+        EmbedDevicePolicyError::Resolution(DeviceResolutionError::CudaPool(failure)) => {
+            cuda_pool_open_error(failure)
+        }
+        error => EngineOpenError::EmbedDevicePolicy(error),
+    }
+}
+
+/// A failed reranker device resolution at open: the three CUDA pool kinds
+/// are their typed open variants; every other refusal is unchanged.
+#[cfg(any(test, feature = "default-reranker"))]
+fn reranker_device_policy_open_error(error: RerankerDevicePolicyError) -> EngineOpenError {
+    use fathomdb_embedder::RerankerDeviceResolutionError;
+    match error {
+        RerankerDevicePolicyError::Resolution(RerankerDeviceResolutionError::CudaPool(failure)) => {
+            cuda_pool_open_error(failure)
+        }
+        RerankerDevicePolicyError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            EngineOpenError::CudaPoolExhausted { ordinal, max_size_bytes, message }
+        }
+        RerankerDevicePolicyError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => EngineOpenError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        },
+        RerankerDevicePolicyError::CudaPrivateBuildRefused { ordinal, message } => {
+            EngineOpenError::CudaPrivateBuildRefused { ordinal, message }
+        }
+        error => EngineOpenError::RerankerDevicePolicy(error),
     }
 }
 

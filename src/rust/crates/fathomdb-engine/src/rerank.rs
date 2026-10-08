@@ -388,6 +388,13 @@ fn get_or_load<T: 'static>(
 fn classify_reranker_load_error(error: fathomdb_embedder::RerankerLoadError) -> LoadFailure {
     use fathomdb_embedder::RerankerLoadError;
     match error {
+        // A private-pool failure in the resolution probe: returned, and the
+        // next call resolves again.
+        RerankerLoadError::DevicePolicy(
+            error @ (RerankerDevicePolicyError::CudaPoolExhausted { .. }
+            | RerankerDevicePolicyError::CudaContextLost { .. }
+            | RerankerDevicePolicyError::CudaPrivateBuildRefused { .. }),
+        ) => LoadFailure::Retry(error),
         RerankerLoadError::DevicePolicy(error) => LoadFailure::DevicePolicy(error),
         RerankerLoadError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
             LoadFailure::Retry(RerankerDevicePolicyError::CudaPoolExhausted {

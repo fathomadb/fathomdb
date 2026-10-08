@@ -6,7 +6,7 @@
 //! the resulting [`DeviceResolution`] exactly once to create the actual
 //! embedder backend.
 
-use crate::cuda_pool_policy::CudaAllocatorReport;
+use crate::cuda_pool_policy::{CudaAllocatorReport, CudaPoolFailure};
 use std::{fmt, str::FromStr};
 
 /// The supported value of `FATHOMDB_EMBED_DEVICE`.
@@ -186,6 +186,9 @@ pub enum CudaProbeError {
     Incompatible { message: String },
     /// Provider initialization or the minimal probe failed for another reason.
     ProbeFailed { message: String },
+    /// The process allocates from the private CUDA memory pool and the probe
+    /// failed with one of its kinds. Resolution never moves to CPU on it.
+    Pool(CudaPoolFailure),
 }
 
 /// The device ultimately selected by a successful policy resolution.
@@ -371,6 +374,10 @@ pub enum DeviceResolutionError {
     CudaNotCompiled { ordinal: usize },
     /// A forced CUDA policy could not initialize/probe the requested ordinal.
     ForcedCudaUnavailable { ordinal: usize, reason: DeviceResolutionReason },
+    /// The probe failed with a private CUDA memory pool kind. Raised under
+    /// `auto` as well as forced CUDA: a private-pool process never moves to
+    /// CPU.
+    CudaPool(CudaPoolFailure),
 }
 
 impl EmbedDevicePolicyError {
@@ -383,6 +390,7 @@ impl EmbedDevicePolicyError {
             Self::Resolution(DeviceResolutionError::ForcedCudaUnavailable { reason, .. }) => {
                 reason.as_str()
             }
+            Self::Resolution(DeviceResolutionError::CudaPool(failure)) => failure.kind(),
         }
     }
 
@@ -395,6 +403,7 @@ impl EmbedDevicePolicyError {
             | Self::Resolution(DeviceResolutionError::ForcedCudaUnavailable { ordinal, .. }) => {
                 Some(*ordinal)
             }
+            Self::Resolution(DeviceResolutionError::CudaPool(failure)) => failure.ordinal(),
         }
     }
 }
@@ -411,6 +420,7 @@ impl fmt::Display for DeviceResolutionError {
             Self::ForcedCudaUnavailable { ordinal, reason } => {
                 write!(formatter, "cuda:{ordinal} requested but unavailable: {reason:?}")
             }
+            Self::CudaPool(failure) => failure.fmt(formatter),
         }
     }
 }
@@ -423,7 +433,9 @@ impl std::error::Error for DeviceResolutionError {}
 /// `FATHOMDB_EMBED_DEVICE` once, then passes its explicit policy here. `cpu`
 /// and CPU-only `auto` do not call `provider`. `auto` can select CPU only for
 /// an unavailable/unusable CUDA provider; forced `cuda:N` returns a typed error
-/// for the same conditions and never resolves to CPU.
+/// for the same conditions and never resolves to CPU. A probe that fails with
+/// a private CUDA memory pool kind ([`CudaProbeError::Pool`]) is
+/// [`DeviceResolutionError::CudaPool`] under `auto` and forced CUDA alike.
 pub fn resolve_embed_device_policy(
     requested_policy: EmbedDevicePolicy,
     cuda_compiled: bool,
@@ -455,8 +467,11 @@ pub fn resolve_embed_device_policy(
                     Ok(info) => {
                         Ok(selected_resolution(requested_policy, cuda_compiled, devices, info))
                     }
-                    Err(reason) => {
+                    Err(Unavailable::Reason(reason)) => {
                         Ok(cpu_resolution(requested_policy, cuda_compiled, devices, reason))
+                    }
+                    Err(Unavailable::Pool(failure)) => {
+                        Err(DeviceResolutionError::CudaPool(failure))
                     }
                 },
                 None => Ok(cpu_resolution(
@@ -466,25 +481,29 @@ pub fn resolve_embed_device_policy(
                     DeviceResolutionReason::NoVisibleCudaDevice,
                 )),
             },
-            Err(reason) => Ok(cpu_resolution(requested_policy, cuda_compiled, Vec::new(), reason)),
+            Err(Unavailable::Reason(reason)) => {
+                Ok(cpu_resolution(requested_policy, cuda_compiled, Vec::new(), reason))
+            }
+            Err(Unavailable::Pool(failure)) => Err(DeviceResolutionError::CudaPool(failure)),
         },
-        EmbedDevicePolicy::Cuda(ordinal) => match enumerate(provider) {
-            Ok(devices) => match devices.iter().find(|device| device.visible_ordinal == ordinal) {
-                Some(device) => match probe(provider, device) {
-                    Ok(info) => {
-                        Ok(selected_resolution(requested_policy, cuda_compiled, devices, info))
-                    }
-                    Err(reason) => {
-                        Err(DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason })
-                    }
-                },
+        EmbedDevicePolicy::Cuda(ordinal) => {
+            let forced = |unavailable| match unavailable {
+                Unavailable::Reason(reason) => {
+                    DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason }
+                }
+                Unavailable::Pool(failure) => DeviceResolutionError::CudaPool(failure),
+            };
+            let devices = enumerate(provider).map_err(forced)?;
+            match devices.iter().find(|device| device.visible_ordinal == ordinal) {
+                Some(device) => probe(provider, device)
+                    .map(|info| selected_resolution(requested_policy, cuda_compiled, devices, info))
+                    .map_err(forced),
                 None => Err(DeviceResolutionError::ForcedCudaUnavailable {
                     ordinal,
                     reason: DeviceResolutionReason::NoVisibleCudaDevice,
                 }),
-            },
-            Err(reason) => Err(DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason }),
-        },
+            }
+        }
     }
 }
 
@@ -537,21 +556,31 @@ pub fn resolve_embed_device_policy_from_env(
         .map_err(EmbedDevicePolicyError::Resolution)
 }
 
-fn enumerate(
-    provider: &mut dyn CudaProvider,
-) -> Result<Vec<CudaVisibleDevice>, DeviceResolutionReason> {
+/// Why CUDA could not be selected: a reason `auto` may fall back to CPU on,
+/// or a private-pool failure it never falls back on.
+enum Unavailable {
+    Reason(DeviceResolutionReason),
+    Pool(CudaPoolFailure),
+}
+
+fn enumerate(provider: &mut dyn CudaProvider) -> Result<Vec<CudaVisibleDevice>, Unavailable> {
     match provider.enumerate_visible_cuda_devices() {
         Ok(devices) => Ok(devices),
         Err(CudaProbeError::NoVisibleDevice) => Ok(Vec::new()),
-        Err(CudaProbeError::Incompatible { .. }) => Err(DeviceResolutionReason::CudaIncompatible),
-        Err(CudaProbeError::ProbeFailed { .. }) => Err(DeviceResolutionReason::CudaProbeFailed),
+        Err(CudaProbeError::Incompatible { .. }) => {
+            Err(Unavailable::Reason(DeviceResolutionReason::CudaIncompatible))
+        }
+        Err(CudaProbeError::ProbeFailed { .. }) => {
+            Err(Unavailable::Reason(DeviceResolutionReason::CudaProbeFailed))
+        }
+        Err(CudaProbeError::Pool(failure)) => Err(Unavailable::Pool(failure)),
     }
 }
 
 fn probe(
     provider: &mut dyn CudaProvider,
     selected: &CudaVisibleDevice,
-) -> Result<CudaDeviceInfo, DeviceResolutionReason> {
+) -> Result<CudaDeviceInfo, Unavailable> {
     match provider.probe_cuda(selected.visible_ordinal) {
         Ok(info)
             if info.ordinal == selected.visible_ordinal
@@ -560,10 +589,15 @@ fn probe(
             Ok(info)
         }
         Ok(_) | Err(CudaProbeError::ProbeFailed { .. }) => {
-            Err(DeviceResolutionReason::CudaProbeFailed)
+            Err(Unavailable::Reason(DeviceResolutionReason::CudaProbeFailed))
         }
-        Err(CudaProbeError::NoVisibleDevice) => Err(DeviceResolutionReason::NoVisibleCudaDevice),
-        Err(CudaProbeError::Incompatible { .. }) => Err(DeviceResolutionReason::CudaIncompatible),
+        Err(CudaProbeError::NoVisibleDevice) => {
+            Err(Unavailable::Reason(DeviceResolutionReason::NoVisibleCudaDevice))
+        }
+        Err(CudaProbeError::Incompatible { .. }) => {
+            Err(Unavailable::Reason(DeviceResolutionReason::CudaIncompatible))
+        }
+        Err(CudaProbeError::Pool(failure)) => Err(Unavailable::Pool(failure)),
     }
 }
 
@@ -636,7 +670,7 @@ pub fn diagnose_gpu(
                         Some(DeviceResolutionReason::CudaIncompatible),
                     );
                 }
-                Err(CudaProbeError::ProbeFailed { .. }) => {
+                Err(CudaProbeError::ProbeFailed { .. } | CudaProbeError::Pool(_)) => {
                     return diagnostic(
                         policy,
                         cuda_compiled,
@@ -698,15 +732,17 @@ pub fn diagnose_gpu(
                     None,
                     Some(DeviceResolutionReason::NoVisibleCudaDevice),
                 ),
-                Ok(_) | Err(CudaProbeError::ProbeFailed { .. }) => diagnostic(
-                    policy,
-                    cuda_compiled,
-                    DoctorGpuStatus::ProbeFailed,
-                    forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
-                    devices,
-                    None,
-                    Some(DeviceResolutionReason::CudaProbeFailed),
-                ),
+                Ok(_) | Err(CudaProbeError::ProbeFailed { .. } | CudaProbeError::Pool(_)) => {
+                    diagnostic(
+                        policy,
+                        cuda_compiled,
+                        DoctorGpuStatus::ProbeFailed,
+                        forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                        devices,
+                        None,
+                        Some(DeviceResolutionReason::CudaProbeFailed),
+                    )
+                }
             }
         }
     }

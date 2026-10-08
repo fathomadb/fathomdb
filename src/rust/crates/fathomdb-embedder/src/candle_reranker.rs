@@ -120,7 +120,15 @@ impl CudaProvider for RerankerCudaProvider {
         {
             let device = crate::cuda_pool_policy::new_cuda_device(ordinal)
                 .map_err(classify_device_build_error)?;
-            Tensor::zeros(1, DType::F32, &device).map_err(classify_candle_cuda_error)?;
+            Tensor::zeros(1, DType::F32, &device).map_err(|error| {
+                probe_allocation_error(error, |error| {
+                    crate::cuda_pool_policy::forward_failure(
+                        error,
+                        &device,
+                        crate::cuda_pool_policy::PROBE_OPERATION,
+                    )
+                })
+            })?;
             let visible = self
                 .enumerate_visible_cuda_devices()?
                 .into_iter()
@@ -240,17 +248,31 @@ fn classify_cuda_driver_error(
     }
 }
 
-/// A pool failure during the probe is a probe failure: under `auto` the
-/// reranker then runs on CPU, never on a CUDA context outside the pool.
+/// A pool failure while building the probe's device is
+/// [`CudaProbeError::Pool`]: resolution raises it under every policy, so a
+/// private-pool process never moves the reranker to CPU.
 #[cfg(feature = "rerank-cuda")]
-fn classify_device_build_error(error: crate::cuda_pool_policy::CudaDeviceError) -> CudaProbeError {
+pub(crate) fn classify_device_build_error(
+    error: crate::cuda_pool_policy::CudaDeviceError,
+) -> CudaProbeError {
     match error {
         crate::cuda_pool_policy::DeviceBuildError::Default(error) => {
             classify_candle_cuda_error(error)
         }
-        crate::cuda_pool_policy::DeviceBuildError::Pool(failure) => {
-            CudaProbeError::ProbeFailed { message: failure.to_string() }
-        }
+        crate::cuda_pool_policy::DeviceBuildError::Pool(failure) => CudaProbeError::Pool(failure),
+    }
+}
+
+/// A failed probe allocation: [`CudaProbeError::Pool`] when `classify` finds
+/// a pool failure, otherwise the existing classification.
+#[cfg(feature = "rerank-cuda")]
+pub(crate) fn probe_allocation_error(
+    error: candle_core::Error,
+    classify: impl FnOnce(&candle_core::Error) -> Option<crate::cuda_pool_policy::CudaPoolFailure>,
+) -> CudaProbeError {
+    match classify(&error) {
+        Some(failure) => CudaProbeError::Pool(failure),
+        None => classify_candle_cuda_error(error),
     }
 }
 

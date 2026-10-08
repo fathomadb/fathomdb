@@ -695,22 +695,40 @@ fn context_loss<D: PoolDriver>(
 
 // ---- typed failures ---------------------------------------------------------
 
-/// A failure of a process that allocates from the private pool.
+/// A failure of a process that allocates from the private CUDA memory pool,
+/// carried by [`crate::CudaProbeError::Pool`] and the resolution errors when
+/// it happens while a device is probed. Each variant is one of the three
+/// CUDA pool kinds; [`CudaPoolFailure::kind`] gives its stable name.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum CudaPoolFailure {
+pub enum CudaPoolFailure {
+    /// `cuda_pool_exhausted`: the private pool of device `ordinal` reached
+    /// its cap of `max_size_bytes`.
     Exhausted {
+        /// The pool's device ordinal.
         ordinal: usize,
+        /// The pool's cap in bytes.
         max_size_bytes: u64,
+        /// The operation and the driver error.
         message: String,
     },
+    /// `cuda_context_lost`: the recorded private context is gone;
+    /// `current_context_id` is `None` when the primary context is inactive.
     ContextLost {
+        /// `cuCtxGetId` of the context the pool was built with.
         recorded_context_id: u64,
+        /// `cuCtxGetId` of the current primary context, when active.
         current_context_id: Option<u64>,
+        /// The driver error that exposed the loss.
         driver_error: String,
+        /// What was running when the loss was found.
         operation: String,
     },
+    /// `cuda_private_build_refused`: another private-pool context on device
+    /// `ordinal` could not be built; none on another allocator replaces it.
     PrivateBuildRefused {
+        /// The pool's device ordinal.
         ordinal: usize,
+        /// The driver error.
         message: String,
     },
 }
@@ -744,7 +762,31 @@ impl fmt::Display for CudaPoolFailure {
     }
 }
 
+impl std::error::Error for CudaPoolFailure {}
+
 impl CudaPoolFailure {
+    /// Stable lowercase kind: `cuda_pool_exhausted`, `cuda_context_lost` or
+    /// `cuda_private_build_refused`.
+    #[must_use]
+    pub const fn kind(&self) -> &'static str {
+        match self {
+            Self::Exhausted { .. } => "cuda_pool_exhausted",
+            Self::ContextLost { .. } => "cuda_context_lost",
+            Self::PrivateBuildRefused { .. } => "cuda_private_build_refused",
+        }
+    }
+
+    /// The device ordinal; `None` for a lost context.
+    #[must_use]
+    pub const fn ordinal(&self) -> Option<usize> {
+        match self {
+            Self::Exhausted { ordinal, .. } | Self::PrivateBuildRefused { ordinal, .. } => {
+                Some(*ordinal)
+            }
+            Self::ContextLost { .. } => None,
+        }
+    }
+
     #[cfg(any(test, feature = "default-embedder"))]
     pub(crate) fn into_embedder_error(self) -> fathomdb_embedder_api::EmbedderError {
         use fathomdb_embedder_api::EmbedderError;
@@ -769,7 +811,6 @@ impl CudaPoolFailure {
         }
     }
 
-    #[cfg(any(test, feature = "default-reranker"))]
     pub(crate) fn into_reranker_policy_error(self) -> crate::RerankerDevicePolicyError {
         use crate::RerankerDevicePolicyError;
         match self {
@@ -1150,6 +1191,8 @@ pub(crate) fn classify_forward_fault<D: PoolDriver>(
 
 /// Operation named by a failure while loading model weights onto a device.
 pub(crate) const MODEL_LOAD_OPERATION: &str = "model load";
+/// Operation named by a failure of the resolution probe's allocation.
+pub(crate) const PROBE_OPERATION: &str = "device probe";
 
 /// The driver `CUresult` inside a Candle error, looking through Candle's
 /// context, path and backtrace wrappers.

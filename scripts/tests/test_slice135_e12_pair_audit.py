@@ -51,6 +51,14 @@ def test_frozen_schedule_and_paired_deltas() -> None:
     assert "p99" not in result["close"]
 
 
+def test_rejects_campaign_runner_drift_when_frozen() -> None:
+    frozen, schedule, _ = fixture()
+    frozen["runner_sources"] = {"campaign_sha256": "1" * 64}
+    schedule["campaign_runner_sha256"] = "2" * 64
+    with pytest.raises(ValueError, match="campaign runner"):
+        validate_schedule(schedule, frozen)
+
+
 @pytest.mark.parametrize("change", ["order", "gap", "status", "missing", "sample"])
 def test_schedule_or_sample_mutation_is_rejected(change: str) -> None:
     frozen, schedule, summaries = fixture()

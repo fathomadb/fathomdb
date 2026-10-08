@@ -24,6 +24,9 @@ def validate_schedule(schedule: dict, frozen: dict) -> list[dict]:
     minimum_idle = workload["minimum_idle_seconds_between_blocks"]
     if schedule.get("minimum_idle_seconds") != minimum_idle:
         raise ValueError("idle interval differs from freeze")
+    campaign_hash = frozen.get("runner_sources", {}).get("campaign_sha256")
+    if campaign_hash is not None and schedule.get("campaign_runner_sha256") != campaign_hash:
+        raise ValueError("campaign runner differs from freeze")
     expected = []
     for group in ("query", "lifecycle"):
         for pair, order in enumerate(workload["pair_order"], start=1):

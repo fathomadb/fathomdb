@@ -85,6 +85,9 @@ def git(checkout: Path, object_name: str) -> str:
 
 def check_inputs(frozen: dict, baseline: Path, candidate: Path) -> None:
     """Reject a wrong source, changed workload or insufficient disk before timing."""
+    campaign_hash = frozen.get("runner_sources", {}).get("campaign_sha256")
+    if campaign_hash is not None and sha(Path(__file__)) != campaign_hash:
+        raise ValueError("campaign runner differs from freeze")
     if git(baseline, "HEAD") != frozen["baseline"]["source_sha"]:
         raise ValueError("baseline checkout differs from freeze")
     if git(candidate, "HEAD") != candidate_sha(frozen):

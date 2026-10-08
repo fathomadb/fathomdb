@@ -325,6 +325,10 @@ run_tier_suite fast test-check-pinned-override-rot bash scripts/tests/test_check
 # buffers). Pure arms run everywhere; GPU arms SKIP without a CUDA device.
 run_tier_suite fast test-vendored-cudarc bash scripts/tests/test_vendored_cudarc.sh
 
+# 0.8.28 Slice 30 (R30-10): the CUDA pool study's environment variables and
+# report lines stay out of tracked files outside dev/.
+run_tier_suite fast test-pool-study-scaffolding-removed bash scripts/tests/test_pool_study_scaffolding_removed.sh
+
 # 0.8.23 Slice 80.1 (AC80-1/AC80-2/R80-2): glibc-floor gate for the native
 # .node/.abi3.so artifacts. objdump/readelf are stubbed in fixtures so the
 # suite runs identically regardless of host architecture; fails closed when

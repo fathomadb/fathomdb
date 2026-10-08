@@ -65,3 +65,28 @@ pub trait Embedder: Send + Sync {
         inputs.iter().map(|input| self.embed(input)).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::EmbedderError;
+
+    #[test]
+    fn the_cuda_pool_errors_carry_their_payloads() {
+        let exhausted = EmbedderError::CudaPoolExhausted {
+            ordinal: 0,
+            max_size_bytes: 3 << 30,
+            message: "forward: out of memory".to_owned(),
+        };
+        let lost = EmbedderError::CudaContextLost {
+            recorded_context_id: 7,
+            current_context_id: None,
+            driver_error: "CUDA_ERROR_CONTEXT_IS_DESTROYED".to_owned(),
+            operation: "forward".to_owned(),
+        };
+        let refused =
+            EmbedderError::CudaPrivateBuildRefused { ordinal: 0, message: "refused".to_owned() };
+        assert_ne!(exhausted, lost);
+        assert_ne!(lost, refused);
+        assert_eq!(exhausted.clone(), exhausted);
+    }
+}

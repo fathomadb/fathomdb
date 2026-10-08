@@ -21,6 +21,7 @@ use std::path::PathBuf;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 
+mod cuda_pool_policy;
 mod device_policy;
 pub use device_policy::{
     diagnose_gpu, resolve_embed_device_policy, resolve_embed_device_policy_from_env,

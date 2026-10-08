@@ -246,4 +246,55 @@ mod tests {
         assert_eq!(CudaDriverInit::Initialized.cu_result(), Some(0));
         assert_eq!(CudaDriverInit::Failed(OUT_OF_MEMORY).cu_result(), Some(OUT_OF_MEMORY));
     }
+
+    #[test]
+    fn the_module_load_outcome_maps_every_init_result() {
+        use crate::cuda_pool_policy::ModuleLoadInit;
+        let never = || -> CudaDriverInit { panic!("cuInit must not run") };
+        assert_eq!(module_load_outcome(true, true, never), ModuleLoadInit::OptedOut);
+        assert_eq!(module_load_outcome(true, false, never), ModuleLoadInit::OptedOut);
+        assert_eq!(module_load_outcome(false, false, never), ModuleLoadInit::SkippedCpuOnly);
+        assert_eq!(
+            module_load_outcome(false, true, || CudaDriverInit::Initialized),
+            ModuleLoadInit::Ran
+        );
+        assert_eq!(
+            module_load_outcome(false, true, || CudaDriverInit::DriverLibraryAbsent),
+            ModuleLoadInit::DriverAbsent
+        );
+        assert_eq!(
+            module_load_outcome(false, true, || CudaDriverInit::Failed(OUT_OF_MEMORY)),
+            ModuleLoadInit::Failed(OUT_OF_MEMORY)
+        );
+    }
+
+    #[test]
+    fn an_unrecorded_module_load_is_not_at_load() {
+        use crate::cuda_pool_policy::ModuleLoadInit;
+        assert_eq!(module_load_init_or_not_at_load(None), ModuleLoadInit::NotAtLoad);
+        assert_eq!(
+            module_load_init_or_not_at_load(Some(ModuleLoadInit::OptedOut)),
+            ModuleLoadInit::OptedOut
+        );
+    }
+
+    #[test]
+    fn early_init_is_skipped_only_when_every_cuda_component_is_exactly_cpu() {
+        assert!(early_cuda_init_wanted(true, true, None, None));
+        assert!(early_cuda_init_wanted(true, true, Some("cpu"), None));
+        assert!(!early_cuda_init_wanted(true, true, Some("cpu"), Some("cpu")));
+        assert!(!early_cuda_init_wanted(true, false, Some("cpu"), Some("cuda:0")));
+        assert!(early_cuda_init_wanted(false, true, Some("cpu"), Some("auto")));
+        assert!(!early_cuda_init_wanted(false, false, None, None));
+        assert!(early_cuda_init_wanted(true, true, Some("CPU"), Some("cpu")));
+    }
+
+    #[test]
+    fn only_the_exact_value_off_opts_out() {
+        assert_eq!(ENV_CUDA_EARLY_INIT, "FATHOMDB_CUDA_EARLY_INIT");
+        assert!(early_cuda_init_opted_out(Some("off")));
+        for raw in [None, Some("on"), Some(""), Some("OFF"), Some(" off"), Some("0")] {
+            assert!(!early_cuda_init_opted_out(raw), "{raw:?}");
+        }
+    }
 }

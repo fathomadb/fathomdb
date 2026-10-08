@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_S02_PYTHON_CONTENTION_PAIRED",
+  "cell": "installed Python S02 shared-engine bounded contention",
+  "boundary": "client call through installed wheel, materialized concurrent reads and writes, projection drain, evidence, erasure, close and reopened state",
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+  },
+  "candidate": {
+    "source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+    "rust_crates_tree": "c8eaaa19a0e0e876326b778733ace354cc7e21e8",
+    "wheel_sha256": "39d4af3060ca4b72d7ad16211fa0ba44a8992feef87040f3513a262cbdc359a4"
+  },
+  "pilot": {
+    "status": "ACCEPTED_S02_PYTHON_CONTENTION_BASELINE_PILOT",
+    "valid_blocks": 5,
+    "valid_measured_sequences": 15,
+    "block_p50_spread_ms": 77.204683,
+    "median_block_p50_ms": 5440.127732,
+    "host_only_swap_warning_blocks": 3,
+    "child_swap_event_blocks": 0,
+    "initial_invalid_attempt": "virtual-environment launcher symlink was resolved to the system interpreter; retained separately and excluded before timing",
+    "pilot_audit_source_sha256": "13d333449dc7a05ce1e9a96a10f5bca5daf673d2f2bceba3675289bc8786a0cc",
+    "pilot_audit_sha256": "cd181ede3bff2025a5c9967a8af2727a05997cba992b59a8c8a740b8d826e955",
+    "pilot_negative_control_sha256": "298ad51d533623a58db409c1a0d8c1ee1de4f124d7a2cfadb9e87bc2da9aff0a",
+    "block_summary_sha256": [
+      "46b4c30605d1f7345030529592ca3ca63a2b7947e9b3fbdfb904e0ec7e013555",
+      "38198e06b80f73ffe62de3219254994fcd15e365ecf31d685f6a118b5c56c4a5",
+      "0931f06118cc52378e1b3d1af22e15aa19e7573e5927d167b51d82b5a9be9a3d",
+      "2be9ffcb550b5c165f760a3f9e1ea6774efb9d8a6ca6a088f1363bf7c348ef63",
+      "11bf180bce27fa0becd758cf0df808f563d158c1524d23922ae1fe35af5e97ef"
+    ]
+  },
+  "workload": {
+    "initial_corpus_nodes": 32,
+    "initial_graph_nodes": 3,
+    "initial_graph_edges": 1,
+    "concurrent_writer_calls": 8,
+    "concurrent_reader_cycles": 8,
+    "minimum_witnessed_call_overlap_cycles": 1,
+    "reader_operations_per_cycle": ["get", "text_search", "vector_search", "graph_neighbors"],
+    "post_contention_operations": ["projection_drain", "evidence_search_resolve", "graph_and_writer_source_erasure", "close", "reopen", "reopened_close"],
+    "fresh_database_per_sequence": true,
+    "threads_share_one_engine": true,
+    "external_timeout_seconds": 120,
+    "internal_worker_join_seconds": 30
+  },
+  "pairs": 5,
+  "samples_per_block": 20,
+  "warmup_per_block": 1,
+  "minimum_idle_seconds": 10,
+  "block_timeout_seconds": 600,
+  "pair_order": [
+    [1, "baseline"], [1, "candidate"],
+    [2, "candidate"], [2, "baseline"],
+    [3, "baseline"], [3, "candidate"],
+    [4, "candidate"], [4, "baseline"],
+    [5, "baseline"], [5, "candidate"]
+  ],
+  "validity": "exact installed wheel and clean source, all semantic and reopened SQLite checks, 20 valid measured sequences per block, actual overlapping SDK call intervals, stable environment, zero measured-child swap, no trimming or replacement of valid slow samples",
+  "statistics": "nearest-rank pooled and per-block p50/p95, five paired block deltas and their median/range, resource observations; p99 unsupported; no equivalence verdict",
+  "host_paging_rule": "retain host-only swap-counter drift as a warning; report warning-free sensitivity when available and avoid a broad speed claim if not",
+  "frozen_sha256": {
+    "runner": "7a304e21ae2a4fd81c2aaa2218490864e6b373d26f9428d166d4f316c3cb3f47",
+    "auditor": "5b45d5ff40fdf04b122d643b31be7ffe7db8e9eaa53a54603f61ca3c8153198e",
+    "block_runner": "21fbb18e16b0df7818e11ea974fda1fb6a352754655ed7cc2083e3d6f06237cb",
+    "campaign_runner": "717159f6eb81a710c3416ea036f2c95c37d282a39ce8066977b151adbe4616ca",
+    "comparison_protocol": "3b4909ca47c281072415962da7d0c6d1aca1fc227245d7d336abf518671d7354",
+    "baseline_wheel": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282",
+    "candidate_wheel": "39d4af3060ca4b72d7ad16211fa0ba44a8992feef87040f3513a262cbdc359a4"
+  }
+}

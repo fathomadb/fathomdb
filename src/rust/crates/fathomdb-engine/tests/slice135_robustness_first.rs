@@ -358,3 +358,81 @@ fn slice135_bounded_sqlite_full_write_rolls_back_and_reopens() {
     assert_eq!(physical_rows, 2);
     assert_eq!(integrity(&path), "ok");
 }
+
+#[test]
+fn slice135_persistent_sqlite_full_preserves_state_until_cap_lifts() {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join("persistent-sqlite-full.sqlite");
+    let fd_before = fd_count();
+    let opened = Engine::open(&path).expect("open");
+    opened.engine.write(&[node("base")]).expect("seed write");
+    opened.engine.drain(10_000).expect("seed projection");
+    let ids = vec![
+        "base".to_owned(),
+        "failed-0".to_owned(),
+        "failed-1".to_owned(),
+        "failed-2".to_owned(),
+        "recovery".to_owned(),
+    ];
+    let before = snapshot(&opened.engine, &ids);
+    let pages = opened.engine.query_i64_col_for_test("PRAGMA page_count").expect("page count")[0];
+    let limit = pages + 1;
+    opened
+        .engine
+        .execute_for_test(&format!("PRAGMA max_page_count={limit}"))
+        .expect("cap temporary database");
+
+    let mut errors = Vec::new();
+    let mut states = Vec::new();
+    for index in 0..3 {
+        let id = format!("failed-{index}");
+        let result = opened.engine.write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: "x".repeat(1024 * 1024),
+            source_id: SourceId::new("test:slice135-robustness").expect("source id"),
+            logical_id: Some(id),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }]);
+        let error = result.expect_err("persistent SQLite page cap must refuse every write");
+        errors.push(format!("{error:?}"));
+        states.push(snapshot(&opened.engine, &ids));
+        assert_eq!(error, EngineError::Storage);
+        assert_eq!(states.last(), Some(&before), "failed write must not partly commit");
+        assert_eq!(
+            opened.engine.query_i64_col_for_test("PRAGMA max_page_count").expect("page cap"),
+            [limit],
+            "the same capacity fault must remain active"
+        );
+    }
+
+    opened.engine.execute_for_test("PRAGMA max_page_count=4294967294").expect("lift cap");
+    opened.engine.write(&[node("recovery")]).expect("write after cap lifts");
+    opened.engine.close().expect("close");
+    let reopened = Engine::open(&path).expect("reopen");
+    let reopened_state = snapshot(&reopened.engine, &ids);
+    reopened.engine.close().expect("close reopened engine");
+    let expected = vec![
+        Some("slice135robust body base".into()),
+        None,
+        None,
+        None,
+        Some("slice135robust body recovery".into()),
+    ];
+    let physical_rows: i64 = Connection::open(&path)
+        .expect("independent database open")
+        .query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0))
+        .expect("canonical row count");
+    let check = integrity(&path);
+    let fd_after = fd_count();
+    eprintln!(
+        "SLICE135_ROBUSTNESS {}",
+        json!({"case":"persistent_sqlite_full_write", "fault_point":"three governed writes while max_page_count remains page_count+1", "page_count":pages, "max_page_count":limit, "before":before, "attempt_errors":errors, "states_after_each_failure":states, "reopened":reopened_state, "expected_reopened":expected, "physical_canonical_rows":physical_rows, "integrity_check":check, "fd_before":fd_before, "fd_after":fd_after})
+    );
+    assert_eq!(reopened_state, expected);
+    assert_eq!(physical_rows, 2);
+    assert_eq!(check, "ok");
+    assert_eq!(fd_before, fd_after, "no persistent descriptor growth");
+}

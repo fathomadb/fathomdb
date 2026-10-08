@@ -33,6 +33,12 @@ fixture. The original [baseline](raw-baseline/raw.json) and
 [candidate](raw-candidate/raw.json) raw receipts and databases remained
 unchanged. [SHA256SUMS](SHA256SUMS) binds the retained files.
 
+The required [full workspace verification](verification.stdout) passed after
+the runner and authored tests were committed: 186/186 registered suites,
+with no skipped or excluded suite, and zero security violations, blockers or
+downgrades. This verifies the changed test and executable-script surfaces;
+the paired result remains limited to this frozen deterministic contract.
+
 This is a deterministic SDK and persisted-state contract cell. It does not
 measure judged evidence sufficiency, memory usefulness, vector fidelity,
 retrieval relevance or generated-answer quality. It does not inject a process

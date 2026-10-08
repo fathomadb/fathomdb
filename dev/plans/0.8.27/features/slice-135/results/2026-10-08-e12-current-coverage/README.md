@@ -6,6 +6,10 @@ target_release: 0.8.27
 
 # Exact-candidate E01–E12 coverage overlay
 
+This result is historical on `3f29d649d`. The
+[current-source refresh](../2026-10-08-e12-current-coverage-refresh/README.md)
+repeats the overlay after later product repairs.
+
 This diagnostic uses clean product source
 `3f29d649d0213e595c0dab251a449d92fd625792` and separate
 `rustc -C instrument-coverage -Z coverage-options=branch` workload and test

@@ -548,10 +548,10 @@ SDK exercise remain open.
 - **Pareto and coverage:** the first-results cost proxy ranked four of eleven
   measured operations at 84.12% of elapsed cost. A selected workload/test
   line-and-branch overlay and a defect-catching negative control exist.
-  The [exact-candidate E01–E12 overlay](results/2026-10-08-e12-current-coverage/README.md)
-  now compares all twelve workload cells with 14 passing targeted test
-  binaries and two isolated passing rank cases: the tests hit all 888
-  workload-hit engine branch IDs and 8,119 of 8,132 workload-hit lines.
+  The [current-source E01–E12 refresh](results/2026-10-08-e12-current-coverage-refresh/README.md)
+  now compares all twelve workload cells with 20 passing targeted test
+  binaries: the tests hit all 888 workload-hit engine branch IDs and 8,120
+  of 8,133 workload-hit lines.
   This is a selected-route overlap, not production-traffic coverage.
   Expand to the declared operation mix, CPU/queue cost, search branches,
   missed-branch dispositions and rare severe paths.
@@ -683,7 +683,11 @@ SDK exercise remain open.
   audits on `8c2455b6c`. Vector-stage, hybrid and populated-open p50 rose in
   all five pairs; warning-free sensitivity preserves the leads. The copied
   raw archive is local pending end-of-phase retention. Installed-boundary
-  attribution and current-source coverage refresh remain open.
+  attribution remain open. The [current-source coverage refresh](results/2026-10-08-e12-current-coverage-refresh/README.md)
+  ran all twelve workload cells and 20 passing targeted test binaries at
+  `8c2455b6c`; the tests hit all 888 workload-hit engine branch IDs and
+  8,120 of 8,133 workload-hit lines. Expand beyond this selected engine
+  overlay to the full operation mix and binding boundaries.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)
@@ -718,8 +722,8 @@ SDK exercise remain open.
   now propagates count-query errors; its focused and adjacent cases pass.
   A [second test-first repair](results/2026-10-08-importance-lookup-repair/README.md)
   prevents failed stored importance/confidence lookups from masquerading as
-  neutral values; its focused and neighboring cases pass. These product-source
-  changes require a new exact-candidate latency and coverage refresh. The
+  neutral values; its focused and neighboring cases pass. The new
+  exact-source E01–E12 latency and coverage refreshes are linked above. The
   [scoped boundary audit](logic-boundary-audit-2026-10-08.md) classifies the
   guarded panic sites, FFI containment structure and remaining `.ok()` leads;
   final-artifact binding panic execution is still due.

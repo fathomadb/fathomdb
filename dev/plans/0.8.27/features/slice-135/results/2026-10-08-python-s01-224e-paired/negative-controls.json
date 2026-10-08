@@ -1,0 +1,14 @@
+{
+  "measured_child_swap": {
+    "error": "measured child resource invalidator",
+    "rejected": true
+  },
+  "reordered_block": {
+    "error": "run-order record differs from frozen order",
+    "rejected": true
+  },
+  "wrong_materialized_text_id": {
+    "error": "text anchor result changed",
+    "rejected": true
+  }
+}

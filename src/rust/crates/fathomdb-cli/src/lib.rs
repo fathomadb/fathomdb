@@ -3030,7 +3030,10 @@ mod tests {
                     .env("HF_HOME", &hf)
                     .env("HF_HUB_CACHE", &hf)
                     .env("FATHOMDB_MODEL_CACHE", &model)
-                    .env("TERMINFO", "/usr/share/terminfo")
+                    // libtest resolves TERM through terminfo and falls back to
+                    // $HOME/.terminfo (a canary) when the entry lives elsewhere,
+                    // such as /lib/terminfo on Ubuntu.
+                    .env_remove("TERM")
                     .env("FATHOMDB_INTERNAL_TEST_DOCTOR_CASE", case.name)
                     .env("FATHOMDB_INTERNAL_TEST_DOCTOR_CAPTURE", &capture);
                 if json_mode {

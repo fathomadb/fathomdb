@@ -1,475 +1,628 @@
 ---
 title: FathomDB 0.8.28 Slice 30 — Tegra private CUDA memory pool, design
-status: PROPOSED (revision 1, 2026-10-08; for design review)
+status: PROPOSED (revision 2, 2026-10-08; design-review findings 1–14 resolved)
 target_release: 0.8.28
 observed_on: 2026-10-08
 ---
 
 # Slice 30 design: Tegra private CUDA memory pool
 
-This design implements D28-08 under the [Slice 30 plan](plan.md). It is
-written from the code at `cb9594f44`. Citations are `path:line` on that
-commit. Owner rulings are cited by number from
-`dev/plans/0.8.28/prework/tegra-cuda-memory-pool-study.md`, and plan
-decisions as SD-n.
+This design implements D28-08 under the [Slice 30 plan](plan.md).
+
+- **Code citations** are `path:line` on `b11e4523d`. The source does not
+  differ from `cb9594f44`.
+- **Owner rulings** are cited by number from
+  `dev/plans/0.8.28/prework/tegra-cuda-memory-pool-study.md`.
+- **Plan decisions** are cited as SD-n.
+- **Review findings** are cited as F-n (`design-review.md`).
 
 ## 1. Rule
 
-1. **Who gets the pool.** A process with these properties creates one
-   private CUDA memory pool at its first GPU use, and builds every FathomDB
-   CUDA context on it (P-first-use; rulings 7, 12, 38):
-   - it was built with the `tegra-pool` feature;
-   - it runs on aarch64 Linux;
-   - it has an integrated GPU of a measured class (§ 2.1);
+1. **Who gets the pool.** A process with all of these properties makes one
+   allocator decision at its first CUDA device build:
+   - built with the `tegra-pool` feature;
+   - running on aarch64 Linux;
+   - an integrated GPU of a measured class (§ 2.1);
    - its module-load early `cuInit` ran.
 
-   The pool's release threshold is 0. The device's current pool is never
-   read or changed.
-2. **Never refuse at the first decision (SD-3).** In every other case the
-   process takes the 0.8.27 path: cudarc's own default-pool-or-synchronous
-   decision. That covers:
-   - an early `cuInit` that was opted out, failed, or did not run at load;
-   - a gate that is off;
-   - an invalid setting;
-   - pool creation that fails.
+   If every gate passes, the decision does three things:
+   1. creates one private CUDA memory pool, with release threshold 0 (P-first-use; rulings 7, 12, 30, 38);
+   2. allocates and frees a 4-byte probe on it;
+   3. builds the first private context.
 
-   The reason is recorded (§ 2.5).
-3. **Fail closed afterwards.** Once a private-pool context exists, the
-   process never builds a non-private context. A later private build failure
-   is an error, not a fallback, because a buffer must never reach a free API
-   other than the one that allocated it.
-4. **Without `tegra-pool`, nothing changes (SD-5).** The device-creation
-   function is `Device::new_cuda`, as in 0.8.27, and no pool symbol is
-   compiled. The allocator report is `None`.
+   The device's current pool is never read or changed.
+2. **Never refuse at the decision (SD-3).** The process takes the 0.8.27
+   path, which is cudarc's own default-pool-or-synchronous decision, with a
+   recorded reason (§ 2.6), in any of these cases (F-7):
+   - early `cuInit` was opted out, failed, skipped or not run at load;
+   - a gate is off;
+   - a setting is invalid;
+   - pool creation fails;
+   - the probe fails;
+   - the first private context build fails;
+   - the decision panics.
+3. **Fail closed afterwards.** Once the decision is `Private`, every later
+   CUDA device for that ordinal is built on the pool. If such a build fails,
+   it returns the typed error of § 2.4 (`cuda_pool_exhausted`,
+   `cuda_context_lost`, or `cuda_private_build_refused`); it never builds a
+   non-private context.
+   - **Why:** a buffer must always be freed by the API that allocated it.
+   - **Another ordinal** takes the 0.8.27 path. A buffer never crosses
+     devices, so per-device allocators are safe. No Tegra has two GPUs, so
+     this is tested with pure tests only (F-7).
+4. **Without `tegra-pool`, the allocator decision is 0.8.27's (SD-5,
+   F-5).** The device-creation function is `Device::new_cuda`, and no pool
+   symbol is compiled. Other parts of this slice ship in every build:
+   - the typed `rerank()` errors (§ 2.4);
+   - the `cuda_allocator` report (`not_built`);
+   - `doctor cuda-allocator`.
+
+   The Python early-`cuInit` hook is compiled only with `tegra-pool`
+   (§ 3.4).
 
 ## 2. Parameters
 
-### 2.1 Gates and sizing (ruling 31, SD-2)
+### 2.1 Gates and sizing (ruling 31, SD-2, DQ-1)
 
-The device facts are read once, with the device's primary context retained:
+The decision reads these device facts with the primary context retained:
 
 - `CU_DEVICE_ATTRIBUTE_INTEGRATED`;
 - `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED`;
-- `cuDeviceTotalMem`;
-- the Tegra identity: `/etc/nv_tegra_release` exists, the same check
-  `tegra_fragmented_va_cuda.rs` uses.
+- `CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR` and `_MINOR`;
+- `cuDeviceTotalMem`.
 
-The gates are evaluated in this order. The first that is off gives the
-reason.
+The Tegra identity is `/etc/nv_tegra_release` **or** a
+`/proc/device-tree/compatible` entry containing `nvidia,tegra`, the
+two-source check of `tegra_fragmented_va_cuda.rs:74-83` (F-12).
+
+Gates are evaluated in order. The first that is off gives the reason.
 
 | Gate | Off when | Reason | Lifted by `on` |
 | --- | --- | --- | --- |
 | Mode | `FATHOMDB_POOL_MODE=off` | `mode_off` | — |
-| Setting | Any pool setting malformed | `invalid_setting` | no |
-| Early `cuInit` | `ModuleLoad` record is not `Initialized` | `cuinit_opted_out`, `cuinit_failed`, `cuinit_not_at_load` | no |
+| Setting | any pool setting malformed | `invalid_setting` | no |
+| Early `cuInit` | `ModuleLoadInit` is not `Ran` | `cuinit_opted_out`, `cuinit_skipped_cpu_only`, `cuinit_driver_absent`, `cuinit_failed`, `cuinit_not_at_load` | no |
 | Integrated | attribute ≠ 1 | `discrete` | no |
 | Pool support | attribute ≠ 1 | `no_pools` | no |
 | Size floor | 2 GiB > total / 4 | `too_small` | no (SD-2) |
-| Tegra identity | no `/etc/nv_tegra_release` | `not_tegra` | yes |
-| Measured class | not (total ≥ 48 GiB and compute capability 8.7): only the AGX Orin 64 GB class is measured | `unmeasured_class` | yes |
+| Tegra identity | neither source present | `not_tegra` | yes |
+| Measured class | not (compute capability 8.7 and total ≥ 48 GiB) | `unmeasured_class` | yes |
 
-Size = clamp(total / 20, 2 GiB, 3 GiB), unless `FATHOMDB_POOL_MAXSIZE` is
-set. The override applies only after every gate passes. On the AGX Orin
-64 GB (61.36 GiB reported, sm_87) the size is 3 GiB. Thor (about 122 GiB,
-sm_110) and the 32 and 16 GB Orin fail the measured-class gate, so they
-need `on` (DQ-1).
+The measured class admits only the AGX Orin 64 GB, which reports
+61.36 GiB at sm_87:
+
+- the 32 GB Orin reports about 30 GiB;
+- Thor is sm_110;
+- GB10 is sm_121.
+
+Size = clamp(total / 20, 2 GiB, 3 GiB), which is 3 GiB on the 64 GB Orin.
+`FATHOMDB_POOL_MAXSIZE` replaces it only after every gate passes.
 
 ### 2.2 Settings (SD-7)
 
 | Variable | Default | Values |
 | --- | --- | --- |
 | `FATHOMDB_POOL_MODE` | `auto` | `auto`, `on`, `off` |
-| `FATHOMDB_POOL_MAXSIZE` | derived (§ 2.1) | bytes, `<n>G` or `<n>M`; > 0 |
+| `FATHOMDB_POOL_MAXSIZE` | derived (§ 2.1) | bytes, `<n>G` (GiB) or `<n>M` (MiB); at least 32 MiB and at most device total; out of bounds is `invalid_setting` |
 | `FATHOMDB_POOL_RELEASE_THRESHOLD` | `0` (ruling 30) | `0`, `max` |
 
-- They are read once, at the first device decision. A later change has no
-  effect, and the interface docs say so.
-- A malformed value turns the pool off with `invalid_setting` and the
-  offending variable's name. It never aborts.
-- The settings live in FathomDB, never in cudarc.
+- They are read once, inside the decision. A later change has no effect,
+  and the docs say so.
+- A malformed value turns the pool off with `invalid_setting`, naming the
+  variable. It never aborts.
+- They live in FathomDB, never in cudarc.
 
-### 2.3 Named constants (each has a pure test)
+### 2.3 Named constants (each with a pure test)
 
 `POOL_SIZE_DEVICE_DIVISOR` = 20 · `POOL_SIZE_FLOOR` = 2 GiB ·
 `POOL_SIZE_CEILING` = 3 GiB · `POOL_FLOOR_MAX_SHARE_DIVISOR` = 4 ·
-`MEASURED_CLASS_MIN_TOTAL` = 48 GiB · `MEASURED_CLASS_COMPUTE_CAPABILITY` = 8.7 · `PROBE_BYTES` = 4 ·
-`POOL_EXHAUSTED_KIND` = `"cuda_pool_exhausted"` ·
-`CONTEXT_LOST_KIND` = `"cuda_context_lost"`.
+`MAXSIZE_MIN` = 32 MiB · `MEASURED_CLASS_MIN_TOTAL` = 48 GiB ·
+`MEASURED_CLASS_COMPUTE_CAPABILITY` = (8, 7) · `PROBE_BYTES` = 4.
 
 The floor and ceiling rest on two measurements from one AGX Orin: a pool
-holds ceil32(`maxSize`/3), and it grows in 32 MiB chunks. They are cited as
-evidence in the docs, not used as logic.
+holds ceil32(`maxSize`/3), and it grows in 32 MiB chunks. The docs cite
+them as evidence, not as logic.
 
 ### 2.4 Errors
 
-**`fathomdb-embedder-api::EmbedderError`** gains two variants and becomes
-`#[non_exhaustive]` (SD-9 below):
+**Three kinds.**
 
-```rust
-CudaPoolExhausted { ordinal: usize, max_size_bytes: u64, message: String },
-CudaContextLost { recorded_context_id: u64, current_context_id: Option<u64>,
-                  driver_error: String, operation: String },
-```
-
-`fathomdb-embedder::RerankerDevicePolicyError` gains the same two shapes as
-variants, for the reranker. Mapping by surface:
-
-| Surface | `cuda_pool_exhausted` | `cuda_context_lost` |
+| Kind (stable code) | Raised when | Payload |
 | --- | --- | --- |
-| Engine | `EngineError::CudaPoolExhausted {..}`, stable code `cuda_pool_exhausted` | `EngineError::CudaContextLost {..}`, stable code `cuda_context_lost` |
-| napi / TS | code `CUDA_POOL_EXHAUSTED`, class `CudaPoolExhaustedError extends EmbedderError` | `CUDA_CONTEXT_LOST`, `CudaContextLostError extends EmbedderError` |
-| py / Python | `CudaPoolExhaustedError(EmbedderError)` | `CudaContextLostError(EmbedderError)` |
-| `fathomdb-sdk` | `ErrorKind::CudaPoolExhausted`, parent `Embedder` | `ErrorKind::CudaContextLost`, parent `Embedder` |
-| CLI | its own exit code in `engine_error_code`, beside `Embedder` | same |
+| `cuda_pool_exhausted` | a `Private` process gets `CUDA_ERROR_OUT_OF_MEMORY` | `ordinal`, `max_size_bytes`, `message` |
+| `cuda_context_lost` | § 3.5 detection | `recorded_context_id`, `current_context_id` (nullable), `driver_error`, `operation` |
+| `cuda_private_build_refused` | rule 1.3: a later private build fails for another reason | `ordinal`, `message` |
 
-**Payloads.**
+**Where they are added.**
 
-- Exhausted: `ordinal`, `max_size_bytes`, `message`.
-- Context lost: `recorded_context_id`, `current_context_id` (absent if the
-  query itself failed), `driver_error`, `operation`.
-- They appear as typed attributes in Python and TS and as fields in Rust.
+- **`fathomdb-embedder-api::EmbedderError`** gains `CudaPoolExhausted`,
+  `CudaContextLost` and `CudaPrivateBuildRefused`, and becomes
+  `#[non_exhaustive]` (§ 2.7).
+- **`fathomdb-embedder`:**
+  - `RerankerDevicePolicyError` gains the same three, and `kind()` covers
+    them.
+  - `EmbedderLoadError` and `RerankerLoadError` gain them for load-time
+    failures (F-2).
+  - `candle_reranker.rs:166` stops mapping a device-build failure to
+    `ModelDeserialize`.
+- **Engine.** `EngineError` and `EngineOpenError` gain matching variants,
+  with stable codes equal to the kind names.
 
-**Paths.** Every path raises the typed kind, with no `WriteValidation` or
-Debug string:
+**Binding classes.** Each class extends the binding's `EmbedderError`.
+
+| Kind | napi / TS (code; class) | py / Python | `fathomdb-sdk` | CLI exit |
+| --- | --- | --- | --- | --- |
+| `cuda_pool_exhausted` | `CUDA_POOL_EXHAUSTED`; `CudaPoolExhaustedError` | `CudaPoolExhaustedError` | `ErrorKind::CudaPoolExhausted` | 70 |
+| `cuda_context_lost` | `CUDA_CONTEXT_LOST`; `CudaContextLostError` | `CudaContextLostError` | `ErrorKind::CudaContextLost` | 70 |
+| `cuda_private_build_refused` | `CUDA_PRIVATE_BUILD_REFUSED`; `CudaPrivateBuildRefusedError` | `CudaPrivateBuildRefusedError` | `ErrorKind::CudaPrivateBuildRefused` | 70 |
+
+The SDK kinds have parent `Embedder`, and each CLI exit is its own row in
+`cli.md`.
+
+**Payload access.**
+
+- Python and TS expose the payload as typed attributes.
+- `fathomdb-sdk` gains `Error::cuda_details() -> Option<&CudaErrorDetails>`
+  (F-3). `Error::sdk(kind, message)` cannot carry fields, so the SDK
+  constructs these three kinds with details.
+
+**Explicit arms (F-3, F-10).** Every match that maps these enums gets an
+explicit arm for each new variant, ahead of any `_` or generic arm. The
+places:
+
+- py `errors.rs:81-82,429`;
+- napi `errors.rs:157,469`;
+- SDK `error.rs:58,89`;
+- engine `embedding.rs:107` and `errors.rs:144-145`;
+- `tests/eu5b_lockflip.rs:151`;
+- CLI `engine_error_code`.
+
+A mapping test per variant per surface proves that no catch-all swallows
+the variant.
+
+**Every path is typed (ruling 33).** There is no `WriteValidation`, Debug
+string or neutral score on any of these:
 
 - engine `embed`, batch embed and search rerank;
-- module-level `embed_batch_cls` / `embedBatchCls`;
-- module-level `rerank()`.
+- module-level CLS `embed_batch_cls` / `embedBatchCls`, load and forward;
+- module-level `rerank()`, load and forward;
+- engine open (`open.rs:582ff`), which today wraps everything in
+  `Failed`.
 
-For `rerank()`, `rerank_passages` (`fathomdb-engine/src/rerank.rs:98`)
-returns a typed error enum in place of `String`. Non-finite scores stay
-`WriteValidation`. Device-policy errors keep their existing typed classes
-(`RerankerDevicePolicyError` in TS and Python), which today are flattened
-to strings (plan C-6).
+`rerank_passages` (`rerank.rs:98`) returns `RerankPassagesError`
+(`WriteValidation { message }` | `Reranker(RerankerDevicePolicyError)`)
+in place of `String`. Non-finite scores stay `WriteValidation`, and
+device-policy errors keep their existing typed classes, no longer
+stringified (plan C-6).
+
+**The reranker under `auto` (F-1).**
+`CandleCrossEncoder::score_batch` (`rerank.rs:328-339`) first classifies
+the batch error through `forward_error`. Pool exhaustion and context loss
+then propagate as errors whatever the policy. Only other errors keep the
+per-pair neutral-score fallback, and `score` (:315) does the same per pair.
 
 **Recovery.**
 
-- After `cuda_pool_exhausted` the device stays CUDA and the next request
-  runs normally. Nothing moves to the CPU (CB4).
-- A load-time pool exhaustion is not memoized by the reranker singleton
-  (`rerank.rs:279-298` memoizes only `DevicePolicy` errors today). The
-  next call retries.
+- After `cuda_pool_exhausted` the device stays CUDA, and the next request
+  runs normally (CB4).
+- The reranker singleton (`rerank.rs:279-298`) changes from `OnceLock` to
+  `Mutex<Option<Singleton>>`, held only across the load (F-2). It caches
+  `Loaded`, `DevicePolicy` and genuine `Unavailable` (no weights or
+  network).
+  - **What it does not cache:** load-time pool exhaustion, context loss
+    and private-build refusals. They are returned, and the next call
+    retries.
+  - **CLS singletons** (napi `embedding.rs:13`, py `:154`, SDK
+    `standalone.rs:80`) already cache only success.
 
-### 2.5 Report (SD-8)
+### 2.5 Fork (hazard H-1, F-13)
 
-`CudaDeviceInfo` (`fathomdb-embedder/src/device_policy.rs:95`) gains
-`cuda_allocator: Option<CudaAllocatorReport>`. `fathomdb-sdk` re-exports
-the type (`fathomdb-sdk/src/lib.rs:60`); napi, py, TS and Python map it.
+The CUDA driver is not fork-safe once initialised. With the Python hook,
+a `multiprocessing` child forked after `import fathomdb` cannot use CUDA,
+and it will see a driver error. In 0.8.27 such a child worked if the
+parent had not used the GPU. The fix is documentation plus the existing
+opt-out:
+
+- set `FATHOMDB_CUDA_EARLY_INIT=off`; or
+- use the `spawn` or `forkserver` start methods (the default on Linux from
+  Python 3.14).
+
+A fork while another thread is inside FathomDB's CUDA initialisation can
+leave the child blocked on a copied lock; the docs say not to fork during
+initialisation. G2 records the forked child's outcome on device, with and
+without the hook. The hook ships only in `tegra-pool` builds, and the
+owner rules on it before S30-T5 (DQ-2).
+
+### 2.6 Report (SD-8, F-5, F-6, F-12)
+
+`CudaDeviceInfo` (`device_policy.rs:95`) becomes `#[non_exhaustive]` and
+gains `cuda_allocator: Option<CudaAllocatorReport>`.
 
 ```rust
+#[non_exhaustive]
 pub struct CudaAllocatorReport {
-    pub path: CudaAllocatorPath,        // Private | DefaultPool | Synchronous
-    pub reason: CudaAllocatorReason,    // § 2.1 reasons, plus `private_pool`, `pool_create_failed`
+    pub path: Option<CudaAllocatorPath>,   // Private | DefaultPool | Synchronous; None = unknown
+    pub reason: CudaAllocatorReason,       // § 2.1 reasons + private_pool, pool_create_failed,
+                                           // probe_failed, private_build_failed, decision_panicked,
+                                           // other_ordinal, not_built
     pub pool_max_size_bytes: Option<u64>,
-    pub release_threshold: Option<u64>, // Some(0) or Some(u64::MAX) on Private
-    pub early_cuinit: EarlyCuInit,      // Ran | OptedOut | Failed(u32) | NotAtLoad
+    pub release_threshold: Option<ReleaseThreshold>, // Zero | Max ("0" / "max" in JSON and napi)
+    pub module_load_init: ModuleLoadInit,  // Ran | OptedOut | SkippedCpuOnly | DriverAbsent | Failed(u32) | NotAtLoad
 }
 ```
 
-- It is `None` when the build lacks `tegra-pool`, or the target is not
-  aarch64 Linux with `embed-cuda`/`rerank-cuda`.
-- `path` comes from the context that was actually built: cudarc's
-  `alloc_mode()`, added with the primitive in § 3.1.
-- In a fallback process, `path` is `DefaultPool` or `Synchronous`.
+**When it is `None`, and when it reports `not_built`:**
 
-`fathomdb doctor gpu` adds these JSON keys, in this order after the existing
-ones, and the same lines in text: `allocator_path`, `allocator_reason`,
-`pool_max_size_bytes`, `pool_release_threshold`, `early_cuinit`,
-`cuda_context_state`. The schema version moves to
-`fathomdb.doctor.gpu.v2`.
+| Build | `cuda_allocator` |
+| --- | --- |
+| aarch64 Linux, `embed-cuda`/`rerank-cuda`, no `tegra-pool` | `Some { path: None, reason: not_built, .. }` (stock cudarc has no `alloc_mode()`) |
+| aarch64 Linux, CUDA features, `tegra-pool` | `path` from the context actually built, through `alloc_mode()` |
+| Every other target | `None` |
 
-### 2.6 SD-9 (new, from the code): `fathomdb-embedder-api` takes one breaking change
+`fathomdb-sdk` re-exports the types (`lib.rs:60`); napi, py, TS and Python
+map them.
+
+**`fathomdb doctor cuda-allocator [--json]` (F-6).** This is a new sibling
+record, `fathomdb.doctor.cuda-allocator.v1`, following the
+`reranker-gpu.v1` and `platform.v1` precedent. `doctor gpu` v1 is
+unchanged.
+
+- **JSON keys, in order:** `schema_version`, `built`,
+  `module_load_init`, `mode`, `path`, `reason`, `pool_max_size_bytes`,
+  `release_threshold`, `cuda_context_state`.
+- **Exit:** 0, or 70 on an internal failure.
+- **Order of work:**
+  1. Return a frozen `not_applicable` result for an explicit `cpu` policy,
+     an affirmed `arm64_sbsa` platform, or a build without a CUDA feature,
+     before any CUDA call.
+  2. Otherwise run the early-`cuInit` helper, so the process decides as an
+     SDK process would.
+  3. Run the device probe and report the decision.
+
+  `doctor gpu` itself does not change.
+
+### 2.7 SD-9: `fathomdb-embedder-api` takes one breaking change (DQ-3, F-10)
 
 `EmbedderError` (`fathomdb-embedder-api/src/lib.rs:42`) is a public enum
-without `#[non_exhaustive]`, in the separately versioned axis-E crate
-(0.6.1). Adding a variant breaks exhaustive matches downstream. The
-study's note says adoption "is a breaking change to this crate and needs an
-ADR".
+without `#[non_exhaustive]` in the axis-E crate, version 0.6.1.
 
-**Decision:**
-
-- Add both variants unconditionally. A feature-gated variant would change a
-  public enum through Cargo feature unification.
-- Mark the enum `#[non_exhaustive]`, so later kinds do not break again.
-- Bump axis-E to 0.7.0 in this slice.
-- The ADR amends `ADR-0.6.0-embedder-protocol.md` (decision index row 7)
-  for the error-set change only.
-- `tests/eu5b_lockflip.rs`, which matches exhaustively, gains the new arms.
+- **Decision:**
+  - Add the three variants unconditionally. A feature-gated variant would
+    change a public enum through Cargo feature unification.
+  - Mark the enum `#[non_exhaustive]`.
+  - Bump axis-E to 0.7.0.
+- **ADR.** It amends `ADR-0.6.0-embedder-protocol.md` (index row 7) for
+  the error set. It also states that caller-supplied embedders may return
+  the new variants.
+- **Other public breaks**, recorded in the ADR:
+  - `CudaDeviceInfo` (new field; now `#[non_exhaustive]`);
+  - `RerankerDevicePolicyError`, `EmbedderLoadError` and
+    `RerankerLoadError` (new variants);
+  - `fathomdb_engine::rerank_passages` (error type changes from `String`).
 
 ## 3. Components
 
 ### 3.1 cudarc primitive (vendored, upstream-first; ruling 38)
 
-`third_party/cudarc-0.19.7/src/driver/safe/mem_pool.rs` (new) adds
-`CudaMemPool`:
+**`mem_pool.rs` (new).** `CudaMemPool` with these members:
 
-- `new(ordinal, MemPoolProps { max_size, release_threshold })`;
+- `create(ordinal, &MemPoolProps { max_size, release_threshold })`;
 - `attribute`;
 - `trim_to`;
 - `raw`;
 - `Drop`, which calls `cuMemPoolDestroy`.
 
-The constructor uses the result-layer calls upstream merged in #544.
+It sits on the result-layer calls merged upstream in #544. It does not
+port the study's `install`, `InstalledPools`, `AllocMode::Explicit` or the
+A / B arms.
 
-`core.rs` adds three things:
+**`core.rs`.**
 
+- `pub enum AllocMode { Default, Synchronous, Private }`.
 - `CudaContext::new_with_mem_pool(ordinal, Arc<CudaMemPool>)`. It retains
-  the primary context, as `new` does, and stores
-  `alloc_mode = AllocMode::Private`.
+  the primary context as `new` does, and checks that the pool's device
+  matches.
 - `alloc_mode()` and `mem_pool()` accessors.
-- Allocation and free branches for `Private`: `cuMemAllocFromPoolAsync`,
-  freed with the ordinary `cuMemFreeAsync`.
+- `Private` branches: allocation uses `cuMemAllocFromPoolAsync`, and free
+  uses the ordinary `cuMemFreeAsync`.
 
-The private constructor does **not** call `select_async_alloc`
-(`core.rs:155`). It never touches `PROCESS_ALLOC_MODE` (:141) or the
-default pool, so a co-resident cudarc user's decision is unaffected (C9).
+The private constructor does not call `select_async_alloc` (`core.rs:155`)
+or touch `PROCESS_ALLOC_MODE` (:141). The 0.8.27 decision of every other
+context on the device, including a co-resident cudarc user's, is
+unaffected (C9).
 
-**Lifetime.** The pool outlives everything allocated from it, through this
-chain: slice → stream → context → `Arc<CudaMemPool>`. No product path
-destroys a pool that a live context references.
+**Zero length (F-4).** A zero-byte request goes to the driver.
+`cuMemAllocFromPoolAsync(0)` returns success with a null pointer that can
+be freed (results § 10.2, 60/60), so there is no special case. That keeps
+the primitive identical to what goes upstream (cudarc#194). The C5 test
+asserts a null pointer that is freed without error.
 
-**Zero-length allocations.** A private context returns a null pointer for a
-zero-byte request without a driver call, matching patch item 3. No null
-pointer reaches a free.
+**Lifetime.** The pool outlives every allocation through
+slice → stream → context → `Arc<CudaMemPool>`.
 
-The study's install path is not ported: `CudaMemPool::install`,
-`AllocMode::Explicit`, and the A-first-use / B arms.
+**Feature marker (F-9).** The vendored crate declares a no-op feature,
+`fathomdb-private-pool = []`. `fathomdb-embedder`'s `tegra-pool` enables
+`cudarc/fathomdb-private-pool` through a direct optional dependency on
+`cudarc = "=0.19.7"`, which unifies with Candle's. Built against stock
+crates.io cudarc, Cargo then fails with "package `cudarc` does not have
+feature `fathomdb-private-pool`", not an opaque missing-symbol error.
 
-`FATHOMDB-PATCH.md` lists every item with an upstream status and a removal
+**`FATHOMDB-PATCH.md`** gives each item an upstream status and a removal
 path:
 
-| Item | Upstream status |
+| Item | Status |
 | --- | --- |
 | 1. Allocator fallback | local-only |
 | 2. Per-device decision | local-only |
-| 3. Zero-length | local-only |
+| 3. Zero-length sync | local-only |
 | 4. Tests | local-only |
 | 5. Private pool primitive | proposed (not posted) |
+| 6. Feature marker | local-only, removed with item 5 |
 
-`scripts/pinned-override-rot.json` lists exactly this set, and the vendored
-tests run through `scripts/tests/test_vendored_cudarc.sh`.
+`scripts/pinned-override-rot.json` lists exactly this set. The tests run
+through `scripts/tests/test_vendored_cudarc.sh`.
 
 ### 3.2 Candle (SD-1)
 
 `CudaDevice::from_context(Arc<CudaContext>)` and
-`Device::new_cuda_from_context` come from local commit `bd68a7ca`, rebased
-onto the fork's `1aefdd008`. The device uses the context's default stream,
-and every Candle allocation goes through the context's allocator. The three
-crates move to 0.10.3.
+`Device::new_cuda_from_context` are on
+`coreyt/candle-fathomdb@fathomdb/0.8.28-cuda-from-context`, built from
+`1aefdd008` in three commits:
 
-### 3.3 Policy module, `fathomdb-embedder/src/cuda_pool_policy.rs`
+1. `73e267d0`: the test, red;
+2. `5b74532e`: the implementation, green on the Orin;
+3. `25368139`: core, nn and transformers move to 0.10.3; `candle-kernels`
+   stays at 0.10.2.
 
-The study's module, cut down (plan § 5), in two parts.
+The device uses the context's default stream, so every Candle allocation
+goes through the context's allocator.
+
+### 3.3 Policy module, `fathomdb-embedder/src/cuda_pool_policy.rs` (F-7)
 
 **The pure part** compiles on every host:
 
-- mode and setting parsers;
+- the setting parsers;
 - `DeviceFacts`;
-- `gate_and_size(mode, facts, early, settings) -> Decision`;
-- the process-mode functions: `next_build`, `on_private_failure`,
-  `mode_after`;
+- `decide(mode, facts, init, settings) -> Plan`;
+- the reasons;
 - `is_pool_exhaustion`;
 - the report types.
 
-**The driver part** compiles only with
+**The driver part** compiles under
 `cfg(all(feature = "tegra-pool", target_os = "linux", target_arch = "aarch64", any(feature = "embed-cuda", feature = "rerank-cuda")))`.
-Its process state and functions:
 
 ```text
-static SETTINGS:   OnceLock<Result<Settings, InvalidSetting>>
-static FIRST_USE:  Once                       // runs the decision once
-static PRIVATE:    OnceLock<(usize, Arc<CudaMemPool>)>
-static MODE:       Mutex<ProcessMode>         // Undecided | Production | Private
-static REPORT:     OnceLock<CudaAllocatorReport>
-static CTX_ID:     OnceLock<u64>              // § 3.5
+enum Decision {
+    Private { ordinal, pool: Arc<CudaMemPool>, first_ctx: Arc<CudaContext>, ctx_id: u64 },
+    Fallback { reason },
+}
+static DECISION: OnceLock<Decision>   // one state, set once
 pub(crate) fn new_cuda_device(ordinal) -> candle_core::Result<Device>
 pub(crate) fn forward_error(candle_core::Error, what) -> EmbedderError
 pub(crate) fn allocator_report() -> Option<CudaAllocatorReport>
 ```
 
-Without the driver part, `new_cuda_device` is `Device::new_cuda`,
-`forward_error` maps to `Failed` as today, and `allocator_report` returns
-`None`.
+**`new_cuda_device(ordinal)`:**
 
-**Call sites.** Every Candle CUDA device FathomDB creates goes through
+1. `DECISION.get_or_init(|| catch_unwind(decide_and_build).unwrap_or(Fallback { decision_panicked }))`.
+   - The decision reads the settings and the module-load record.
+   - It creates the pool, probes it, and builds the first private context
+     on it.
+   - Any failure is `Fallback { reason }`. It never panics out, and a
+     panic cannot poison a `Once`.
+2. **`Fallback`, or another ordinal:** `Device::new_cuda(ordinal)`, the
+   0.8.27 path.
+3. **`Private`:**
+   - **The first build** wraps the stored `first_ctx` through
+     `Device::new_cuda_from_context`. The first context counts as a live
+     use of the pool.
+   - **Later builds** call `CudaContext::new_with_mem_pool` and wrap the
+     result.
+   - **On failure:** `CUDA_ERROR_OUT_OF_MEMORY` gives
+     `CudaPoolExhausted`; a § 3.5 loss gives `CudaContextLost`; anything
+     else gives `CudaPrivateBuildRefused`.
+
+There is no `MODE` mutex and no lock is held across a device build. After
+the decision, the state is immutable, so there is no lock order to state
+(F-7).
+
+**Call sites.** Every Candle CUDA device FathomDB builds goes through
 `new_cuda_device`:
 
 - `candle_bge.rs:260` (probe), `:382` (witness) and `:432` (load);
 - `candle_reranker.rs:121` (probe) and `:166` (load).
 
-Every forward error goes through `forward_error`. The reranker maps it into
-`RerankerDevicePolicyError`.
+Every forward error goes through `forward_error`, and the reranker maps it
+into `RerankerDevicePolicyError`.
 
-### 3.4 Early-`cuInit` contract (ruling 37)
+**Excluded.** `tegra_fragmented_va_cuda.rs:194,208` deliberately calls
+`Device::new_cuda`. It is a 0.8.27 fallback test and is not run with
+`tegra-pool` (F-14).
+
+Without the driver part:
+
+- `new_cuda_device` is `Device::new_cuda`;
+- `forward_error` maps to `Failed` as today;
+- `allocator_report` gives `not_built` on aarch64 Linux CUDA builds and
+  `None` elsewhere.
+
+### 3.4 Early-`cuInit` contract (ruling 37, F-11)
 
 - **Shared helper.** The decision now in napi `cuda_early_init.rs:56-100`
-  (opt-out `FATHOMDB_CUDA_EARLY_INIT=off`; skipped when every compiled
-  component's policy is exactly `cpu`) moves into `cuda_driver_init.rs` as
-  `run_module_load_early_init()`. Napi keeps its `module_exports` hook
-  (:207) and calls the helper. A test pins that napi's behaviour does not
-  change.
-- **New states.** `CudaDriverInit` gains `OptedOut` and `SkippedCpuOnly`.
-  They are recorded in the `ModuleLoad` slot, so the policy can tell
-  "opted out" from "never ran at load".
-- **Python.** `#[pymodule] _fathomdb` (`fathomdb-py/src/lib.rs`) calls the
-  helper first, under a `Once`, inside `catch_unwind`. Import never fails
-  because of it.
-- **CLI.** `run_doctor_gpu` (`fathomdb-cli/src/lib.rs:738`) calls the
-  helper before `product_gpu_diagnostic`.
-- **Gate.** The pool gate reads `cuda_driver_init_seen_by(ModuleLoad)`
-  (`cuda_driver_init.rs:205`). Only `Initialized` passes.
+  moves into `cuda_driver_init.rs` as
+  `run_module_load_early_init(embed_cuda_compiled: bool, rerank_cuda_compiled: bool)`.
+  - Each caller passes its own `cfg!` flags, so feature unification inside
+    `fathomdb-embedder` cannot change the meaning.
+  - The helper keeps the opt-out (`FATHOMDB_CUDA_EARLY_INIT=off`) and the
+    skip when every compiled component's policy is exactly `cpu`.
+- **Napi** keeps `initialize_cuda_driver_at_registration` (:207) and calls
+  the helper. Its existing tests pin that its behaviour is unchanged.
+- **New state type.** A separate `ModuleLoadInit` records the load-time
+  outcome: `Ran | OptedOut | SkippedCpuOnly | DriverAbsent | Failed(u32)`.
+  `NotAtLoad` is what the gate sees when nothing was recorded.
+  `CudaDriverInit` and `cu_result()` are unchanged.
+- **Python.** `#[pymodule] _fathomdb` calls the helper first, under a
+  `Once`, inside `catch_unwind`.
+  - It is compiled only under `tegra-pool` + aarch64 Linux + CUDA, so the
+    Tegra wheel is the only Python artifact that runs `cuInit` at import.
+  - Import never fails because of it.
+- **CLI.** `doctor cuda-allocator` calls the helper after its early returns
+  (§ 2.6).
+- **Rust users.** There is no load hook in Rust. `initialize_cuda_driver()`
+  stays `#[doc(hidden)]`, and `fathomdb-sdk` does not re-export the
+  helper. A Rust process therefore reports `cuinit_not_at_load` and takes
+  the 0.8.27 path. `rust-sdk.md` says so. Whether a call counts as "at
+  load" is the caller's contract and is not verified.
 
-### 3.5 C7 instrumentation (ruling 36)
+### 3.5 C7 instrumentation (ruling 36, F-8)
 
-- **Recording the id.** When the private context is created, its
-  primary-context id (`cuCtxGetId`, available in the vendored sys layer,
-  `sys/mod.rs:7878`) is stored in `CTX_ID`.
-- **Detection.** `forward_error`, and the device-build path, handle every
-  non-OOM CUDA driver error the same way:
-  1. Retain the primary context and query its id.
-  2. If the id differs from `CTX_ID`, or the query fails with
-     `CUDA_ERROR_CONTEXT_IS_DESTROYED` / `INVALID_CONTEXT`, map the error to
-     `CudaContextLost`.
-  3. Otherwise keep the existing mapping.
-- **Scope.** Detection runs only in a private-pool process. The 0.8.27 path
-  is unchanged.
-- **One snapshot per process.** A `static SNAPSHOT: Once` writes one JSON
-  line to stderr, prefixed `fathomdb-cuda-context-lost`, containing:
+- **Recording the id.** The decision records the private context's
+  primary-context id (`cuCtxGetId`; `sys/mod.rs:7878`) in
+  `Decision::Private`.
+- **Detection.** It runs only in a `Private` process, on a non-OOM CUDA
+  error in `forward_error` or a private build:
+  1. Call `cuDevicePrimaryCtxGetState`, which does not retain. If it is
+     inactive, the context was lost.
+  2. Only when it is active: retain, call `cuCtxGetId`, then release. A
+     different id means it was lost.
+  3. An error from either query, `CUDA_ERROR_CONTEXT_IS_DESTROYED` or
+     `INVALID_CONTEXT`, also means lost.
+
+  This never creates a primary context after a reset.
+- **One snapshot per process.** `static SNAPSHOT: Once` writes one JSON
+  line to stderr, prefixed `fathomdb-cuda-context-lost`, with:
   - the error fields;
-  - `cuDevicePrimaryCtxGetState` (flags, active);
+  - the primary-context state (flags, active);
   - the CUDA libraries in `/proc/self/maps`;
   - the pool's reserved and used counters;
-  - whether the module-level embedder and reranker are loaded;
-  - the count of live engines.
-
-  The study's `fdb-pool-exp` lines are not kept. This line exists only on
-  the loss path.
+  - the live private contexts, `Arc::strong_count(&pool) - 1`.
 - **Characterization.** A heavy-tier GPU test (`#[ignore]`, run in G10)
-  spawns a child that resets the primary context through the study's probe
-  logic and then embeds. It records whether the child crashes or returns
-  `cuda_context_lost`. The test asserts that it does one of the two, and
-  documents which. 0.8.29's fix flips it.
-- **`doctor gpu`.** `cuda_context_state` reports `active` or `inactive`,
-  with flags, from `cuDevicePrimaryCtxGetState`.
+  spawns a child. The child builds an embedder, resets the primary context
+  with the study's probe logic, then embeds and closes. The test asserts
+  what results § 13.4 shows, which this slice keeps: the first embed after
+  the reset returns `cuda_context_lost`, and `close()` then dies with
+  SIGSEGV in `CudaSlice::drop`. 0.8.29's fix flips the second assertion.
+- **Doctor.** `doctor cuda-allocator` reports `cuda_context_state` as
+  `active` or `inactive`, with flags.
 
-### 3.6 Feature wiring (SD-5)
+### 3.6 Feature wiring (SD-5, F-9)
 
-- **Chain.** `tegra-pool = []` in `fathomdb-embedder`, forwarded by
-  `fathomdb-engine`, `fathomdb-napi`, `fathomdb-py`, `fathomdb-sdk`,
-  `fathomdb` and `fathomdb-cli`. It does not imply `embed-cuda`. Without a
-  CUDA feature it compiles to nothing.
-- **Tegra Python wheel.** `scripts/release/cuda-artifact-contract.sh` gains
-  `CUDA_PYTHON_FEATURES_TEGRA` (`…,embed-cuda,tegra-pool`), which
-  `build-python-cuda-tegra.sh:205` uses. The x86 sets are unchanged.
-- **Contract guard.** A check, with its test, refuses `tegra-pool` in any
-  x86 or CPU feature set.
-- **Manual Tegra addon.** The recipe in
-  `scripts/tests/test_tegra_node_early_cuinit.sh`'s header, and Slice 117's
-  plan note, add `tegra-pool`.
+- **Chain.** `tegra-pool = ["dep:cudarc", "cudarc/fathomdb-private-pool"]`
+  in `fathomdb-embedder`. It is forwarded by `fathomdb-engine`,
+  `fathomdb-napi`, `fathomdb-py`, `fathomdb-sdk`, `fathomdb` and
+  `fathomdb-cli`.
+- **Docs.** The feature is documented as supported only in repository and
+  artifact builds, which carry the vendored cudarc.
+- **Tegra Python wheel.** `cuda-artifact-contract.sh` gains
+  `CUDA_PYTHON_FEATURES_TEGRA` (`pyo3/extension-module,embed-cuda,tegra-pool`),
+  used by `build-python-cuda-tegra.sh:206`.
+- **Contract guard.** A guard and its test refuse `tegra-pool` in any x86
+  or CPU set.
+- **Manual Tegra Node addon.** The recipe in
+  `scripts/tests/test_tegra_node_early_cuinit.sh` and the Slice 117 note
+  add `tegra-pool`.
 
 ## 4. Traces (plan § 5.2)
 
 ### 4.1 Configuration matrix
 
-| Target | Features | Mode | `cuInit` at load | Result | Code |
-| --- | --- | --- | --- | --- | --- |
-| aarch64 Linux Tegra 64 GB | `tegra-pool` + `embed-cuda` | `auto` | ran | `Private`, 3 GiB, reason `private_pool` | § 3.3 |
-| same | same | `auto` | opted out | 0.8.27 path, `cuinit_opted_out` | § 3.4 |
-| same | same | `auto` | never ran (Rust direct use) | 0.8.27 path, `cuinit_not_at_load` | § 3.4 |
-| same | same | `off` | ran | 0.8.27 path, `mode_off` | § 2.1 |
-| same | same | `bogus` | ran | 0.8.27 path, `invalid_setting` | § 2.2 |
-| same | `embed-cuda` only | any | any | 0.8.27 path, report `None` | § 1.4 |
-| aarch64 Linux, not Tegra (GB10-class) | `tegra-pool` + `embed-cuda` | `auto` / `on` | ran | `not_tegra` / sized by rule | § 2.1 |
-| aarch64 Linux + discrete GPU | `tegra-pool` + `embed-cuda` | `on` | ran | 0.8.27 path, `discrete` | § 2.1 |
-| x86_64 Linux CUDA | `tegra-pool` + `embed-cuda` | any | — | compiles to the 0.8.27 path, report `None` | § 3.3 cfg |
-| macOS | `embed-metal` (+ `tegra-pool`) | any | — | unaffected, report `None` | § 3.3 cfg |
-| any | no CUDA feature | any | — | unaffected | § 3.6 |
+| Target | Features | Mode | Load init | Result |
+| --- | --- | --- | --- | --- |
+| aarch64 Linux Tegra 64 GB | `tegra-pool` + `embed-cuda` | `auto` | `Ran` | `Private`, 3 GiB, `private_pool` |
+| same | same | `auto` | `OptedOut` / `NotAtLoad` | 0.8.27 path, `cuinit_opted_out` / `cuinit_not_at_load` |
+| same | same | `off` / bogus | `Ran` | 0.8.27 path, `mode_off` / `invalid_setting` |
+| same | `embed-cuda` only | any | any | 0.8.27 path, `not_built` |
+| aarch64 Linux, not Tegra (GB10-class) | `tegra-pool` + `embed-cuda` | `auto` / `on` | `Ran` | `unmeasured_class` / sized by rule |
+| aarch64 Linux + discrete GPU | `tegra-pool` + `embed-cuda` | `on` | `Ran` | 0.8.27 path, `discrete` |
+| x86_64 Linux CUDA | `tegra-pool` + `embed-cuda` | any | — | 0.8.27 path, `cuda_allocator` `None` |
+| macOS | `embed-metal` (+ `tegra-pool`) | any | — | unaffected, `None` |
+| any | no CUDA feature | any | — | unaffected |
 
-### 4.2 Feature unification
+### 4.2 Feature unification and crates.io (F-9)
 
-- `cargo test --workspace` unifies `tegra-pool` only if a workspace crate
-  enables it by default. None does, so workspace runs build the
-  feature-off code.
+- No crate enables `tegra-pool` by default. `cargo test --workspace`
+  therefore builds the feature-off code.
 - The feature-on code runs in:
-  - `cargo test -p fathomdb-embedder --features tegra-pool`, the pure tests
+  - `cargo test -p fathomdb-embedder --features tegra-pool`, the pure part
     on every host;
   - the Tegra GPU tests.
-- A `cargo check` matrix step covers both states: every crate per crate,
-  with and without `tegra-pool`, on the host target.
-- Without the feature, `fathomdb-embedder` uses no vendored-only cudarc
-  symbol, so the crates.io build compiles against stock cudarc. This is
-  asserted by building `fathomdb-embedder` with the `[patch]` table
-  disabled (`--config` override) in the T8 check.
+- **The T8 matrix step:**
+  - `cargo check` every crate with and without `tegra-pool`, per crate.
+  - In a scratch copy of the workspace with `[patch.crates-io]` stripped,
+    check that `fathomdb-embedder --features embed-cuda` compiles against
+    registry cudarc.
+  - In the same copy, check that `--features embed-cuda,tegra-pool` fails
+    with the feature-marker message.
 
 ### 4.3 Interference with existing behaviour
 
 | Existing behaviour | Interaction | Result |
 | --- | --- | --- |
-| 0.8.27 fallback (patch items 1–3, `core.rs:72-182`) | The private constructor bypasses it; non-private constructors use it unchanged. | No change for non-pool processes. |
-| Slice 110 early `cuInit` and opt-out (`cuda_early_init.rs`) | Logic moves to a shared helper; napi's behaviour is pinned by its existing tests. | Unchanged. |
-| Reranker device policy (`reranker_device_policy.rs`) | Policy resolution is unchanged; a CUDA reranker device is built through `new_cuda_device`. | Same private pool and context as the embedder. |
-| `FATHOMDB_EMBED_DEVICE=cpu` / forced CUDA | No CUDA device, so no decision; forced CUDA probes through `new_cuda_device`. | Unchanged semantics. |
-| Embedder-close fix (`close_lock`, drop order) | Contexts are `Arc`; the pool is process-lifetime in `PRIVATE`; closing an engine drops its contexts but not the pool. | Reserved memory returns to the pool and, at threshold 0, to the driver (G3). |
+| 0.8.27 fallback (`core.rs:72-182`) | Bypassed only by `new_with_mem_pool`. | Unchanged for every other context. |
+| Slice 110 early `cuInit` | Moved into the helper, with the flags passed in. | napi behaviour pinned by its existing tests. |
+| Reranker device policy | Resolution unchanged; devices built through `new_cuda_device`. | One pool and decision for both models. |
+| `cpu` / forced CUDA | No device means no decision; a forced probe goes through `new_cuda_device`. | Unchanged. |
+| Close fix (`close_lock`) | Contexts are `Arc`; the decision holds one context and the pool for the process lifetime. | The engine's memory returns to the pool, and at threshold 0 to the driver, except the first context's footprint (G3 measures it). |
 | Module-level singletons (ruling 32) | They hold pool memory until exit. | Documented. |
-| `doctor gpu` | Runs early `cuInit`, then its probe makes the real decision. | It reports what an SDK process would get. |
-| Existing `FATHOMDB_*` variables | New names only; no collision. | — |
+| `doctor gpu` v1 | Untouched. | — |
+| `FATHOMDB_*` variables | New names only. | — |
 
 ### 4.4 Execution paths
 
-| Path | Load | First GPU use | Decision | Teardown |
-| --- | --- | --- | --- | --- |
-| Node | `module_exports` hook runs the helper (`cuda_early_init.rs:207`) | `Engine.open` probe, `embedBatchCls` (`embedding.rs:122`), or `rerank()` | `FIRST_USE` in `new_cuda_device` | Contexts drop with engines and singletons; `PRIVATE` lives until exit. No exit hook. |
-| Python | `#[pymodule]` init runs the helper | the same three entries, with the GIL released around the native call | same | Interpreter finalisation: static `OnceLock`s are not dropped, so the driver reclaims at exit. |
-| Rust | none (no load hook) | `Engine::open` / embedder | same; `cuinit_not_at_load` unless the application calls the helper | drop |
-| CLI | `run_doctor_gpu` calls the helper | probe | same | exit |
+| Path | Load | First GPU use | Teardown |
+| --- | --- | --- | --- |
+| Node | the hook (`cuda_early_init.rs:207`) runs the helper | `Engine.open` probe, `embedBatchCls` or `rerank()` | Contexts drop with engines; `DECISION` lives until exit; the driver reclaims |
+| Python (Tegra wheel) | `#[pymodule]` runs the helper | the same, with the GIL released around native calls | statics are not dropped at finalisation |
+| Rust | none | `Engine::open` / embedder | `cuinit_not_at_load` |
+| CLI | `doctor cuda-allocator` runs the helper | probe | exit |
 
 ### 4.5 Shared state and races
 
-| State | Writers | Readers | Primitive | Hazard and answer | Test |
-| --- | --- | --- | --- | --- | --- |
-| Decision (`FIRST_USE`, `REPORT`) | first `new_cuda_device` | all later calls | `Once` + `OnceLock` | Concurrent first use: `Once` blocks the others until the decision is stored; all see one result. | Pure test with 8 threads over an injected driver |
-| `MODE` | every device build | every device build | `Mutex`, held across the build | A build racing a failure: the mode is read and written under one lock. | Pure process-mode tests |
-| `SETTINGS` | the first decision | the decision, the report | `OnceLock` | An environment change afterwards is ignored and documented. | Unit test |
-| `ModuleLoad` record | the load hook | the gate, `doctor` | `Mutex` (`cuda_driver_init.rs:119`) | First use on another thread before registration finishes: Node and Python run the hook before any export is callable. | Existing napi tests and the new py test |
-| `PRIVATE` pool | the decision | contexts | `OnceLock` + `Arc` | Pool creation fails while others wait: they see `MODE = Production` and use the 0.8.27 path. | Fault-seam test |
-| Embedder in an engine | open, close | embed, rerank | `close_lock` (unchanged) | Close racing an in-flight embed: the existing fix holds. | Existing `slice90_close_tests.rs` |
-| Drop order | Candle, cudarc | — | `Arc` chain (§ 3.1) | Exit with live singletons: the statics are never dropped, the pool is never destroyed before its contexts, and the driver reclaims at exit. | Vendored drop-order test |
-| `CTX_ID`, `SNAPSHOT` | the private build; the first loss | every error mapping | `OnceLock` + `Once` | Two threads detect a loss together: one snapshot, both get typed errors. | Fault-seam test with 2 threads |
-| Pool reservation | allocations | the exhaustion path | the driver | Concurrent exhaustion: each request gets its own typed error; nothing is shared. | G4 QUAL |
-| CUDA across `fork()` | — | the child | — | **Hazard H-1:** Python now runs `cuInit` at import. A `multiprocessing` child forked after import cannot use CUDA (the driver is not fork-safe). In 0.8.27 that worked if the parent had not used the GPU. Answer: the docs name the opt-out and the `spawn`/`forkserver` start methods; G2 records the child's outcome on device. | G2 QUAL (characterization) |
+| State | Primitive | Hazard and answer | Test |
+| --- | --- | --- | --- |
+| `DECISION` | `OnceLock` + `catch_unwind` | Concurrent first use: `get_or_init` runs one initialiser, and others block, then read the result. A panic becomes `Fallback`. | 8-thread test over an injected decider; panic test |
+| Module-load record | `Mutex` (`cuda_driver_init.rs:119`) | Use before registration completes cannot happen: napi and py run the hook before any export is reachable. | Existing napi tests; new py test |
+| Reranker singleton | `Mutex<Option<…>>`, held across the load | Concurrent `rerank()` calls during a load wait, then see the cached or retried result. No lock is taken inside the load. | Retry test with an injected loader |
+| Engine embedder | `close_lock` (unchanged) | Close racing an embed: the existing fix holds. | `slice90_close_tests.rs` |
+| Drop order | the `Arc` chain | Statics are never dropped, so the pool outlives every context. | Vendored drop-order test |
+| `SNAPSHOT` | `Once` | Two concurrent detections write one snapshot, and both return typed errors. | 2-thread fault-seam test |
+| Pool reservation | the driver | Concurrent exhaustion: each request gets its own typed error. | G4 QUAL |
+| Fork (H-1) | — | § 2.5. | G2 QUAL characterization |
 
-## 5. Design questions for review
+## 5. Design questions (resolved)
 
-- **DQ-1. Measured-class gate.** A memory threshold alone (≥ 48 GiB)
-  would also admit a 128 GB Thor in `auto`, which ruling 31 says must be
-  opt-in. This design therefore adds compute capability 8.7 (Orin) to the
-  gate, as § 2.1 shows. Reviewers: confirm this is the narrowest gate that
-  admits only the measured class.
-- **DQ-2. H-1 and Python early `cuInit`.** Ruling 37 requires it. The fork
-  hazard is new information. Is documentation plus the opt-out enough for
-  0.8.28, or should the Python hook default off until measured? This design
-  follows the ruling and surfaces it to the owner.
-- **DQ-3. SD-9.** The axis-E breaking bump (0.6.1 → 0.7.0) is a consequence
-  of rulings 33 and 36. It is listed for the owner.
+- **DQ-1.** The gate is integrated, compute capability 8.7 and at least
+  48 GiB, with the two-source Tegra identity (§ 2.1). A unit test shows
+  that a missing `/etc/nv_tegra_release` with a device-tree entry still
+  passes on Orin.
+- **DQ-2.** The ruling binds, so the hook ships only in `tegra-pool`
+  builds (§ 3.4) and hazard H-1 is documented (§ 2.5). It goes to the
+  owner as a HITL decision before S30-T5.
+- **DQ-3.** SD-9 is accepted, with § 2.7's conditions.
 
 ## 6. ADR
 
 `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md` records §§ 1–5 and amends
-`ADR-0.6.0-embedder-protocol.md` (SD-9). It is indexed as row 62.
+`ADR-0.6.0-embedder-protocol.md` (§ 2.7). It is index row 62.
 
 ## 7. Behaviour changes (changelog)
 
-- **Default allocator:** in `tegra-pool` builds on the AGX Orin 64 GB, it is
-  the private pool.
-- **Python:** runs early `cuInit` at import (opt-out
-  `FATHOMDB_CUDA_EARLY_INIT=off`); hazard H-1.
-- **New error kinds:** `cuda_pool_exhausted` and `cuda_context_lost`, in
-  every SDK.
-- **`rerank()` typing:** device-policy errors from module-level `rerank()`
-  now raise their typed class instead of `WriteValidation`.
+- **Default allocator.** In `tegra-pool` builds on the AGX Orin 64 GB, it
+  is the private pool.
+- **Python (Tegra wheel only).** It runs early `cuInit` at import; hazard
+  H-1, **potentially breaking** for fork-based `multiprocessing`.
+- **New error kinds** in every SDK: `cuda_pool_exhausted`,
+  `cuda_context_lost` and `cuda_private_build_refused`.
+- **Module-level `rerank()`.** Device-policy errors now raise their typed
+  class instead of `WriteValidation`.
+- **Reranker under `auto`.** Pool exhaustion and context loss now raise
+  instead of becoming neutral scores.
+- **Reranker load retries.** A load that fails with a transient CUDA error
+  is retried, not memoized.
 - **New settings:** `FATHOMDB_POOL_MODE`, `FATHOMDB_POOL_MAXSIZE` and
   `FATHOMDB_POOL_RELEASE_THRESHOLD`.
-- **New report field:** `cuda_allocator`.
-- **`doctor gpu`:** schema `v2`, with new fields.
-- **Dependency versions:** `fathomdb-embedder-api` 0.7.0; the Candle crates
-  0.10.3.
+- **New report field** `cuda_allocator`, and the new verb `fathomdb doctor
+  cuda-allocator`.
+- **Version changes:** `fathomdb-embedder-api` 0.7.0
+  (`EmbedderError` now `#[non_exhaustive]`); `CudaDeviceInfo` now
+  `#[non_exhaustive]`; the Candle crates 0.10.3.

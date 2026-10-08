@@ -973,6 +973,34 @@ class RerankerDevicePolicyError(EmbedderError):
     ordinal: int | None
     def __init__(self, *args: Any, kind: str = ..., ordinal: int | None = ...) -> None: ...
 
+# 0.8.28 Slice 30 (R30-04) — the three CUDA pool kinds.
+class CudaPoolExhaustedError(EmbedderError):
+    ordinal: int
+    max_size_bytes: int
+    message: str
+    def __init__(
+        self, *args: Any, ordinal: int = ..., max_size_bytes: int = ..., message: str = ...
+    ) -> None: ...
+
+class CudaContextLostError(EmbedderError):
+    recorded_context_id: int
+    current_context_id: int | None
+    driver_error: str
+    operation: str
+    def __init__(
+        self,
+        *args: Any,
+        recorded_context_id: int = ...,
+        current_context_id: int | None = ...,
+        driver_error: str = ...,
+        operation: str = ...,
+    ) -> None: ...
+
+class CudaPrivateBuildRefusedError(EmbedderError):
+    ordinal: int
+    message: str
+    def __init__(self, *args: Any, ordinal: int = ..., message: str = ...) -> None: ...
+
 # G11 (Slice 15) — BYO-LLM extraction harness protocol error.
 class ExtractorError(EngineError): ...
 

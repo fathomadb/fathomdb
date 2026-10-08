@@ -77,8 +77,8 @@ pub(super) fn rerank(
     // model load on a cold cache, so release the GIL for the duration.
     // `catch_unwind` + `AssertUnwindSafe` mirror `call_engine` so the never-panic
     // contract holds even though the helper returns a Result channel.
-    // E2 fix-1 [P2]: `rust_rerank_passages` now returns `Result<Vec<…>, String>`;
-    // the inner `Err` (non-finite score) surfaces as `WriteValidationError`.
+    // The inner `Err` keeps its typed class: a non-finite score is
+    // `WriteValidationError`; a reranker refusal is its own class.
     let reranked = py
         .detach(|| {
             catch_unwind(AssertUnwindSafe(move || {
@@ -87,8 +87,7 @@ pub(super) fn rerank(
         })
         // outer Result: catch_unwind — any panic → PanicException (hard invariant).
         .map_err(|_| PanicException::new_err("rerank panic (see logs)"))?
-        // inner Result: validation error (non-finite score) → WriteValidationError.
-        .map_err(WriteValidationError::new_err)?;
+        .map_err(rerank_passages_error_to_py)?;
 
     reranked
         .into_iter()
@@ -101,6 +100,25 @@ pub(super) fn rerank(
             Ok(d.unbind())
         })
         .collect()
+}
+
+/// A standalone rerank refusal: invalid input is `WriteValidationError`; a
+/// reranker refusal keeps its typed class.
+pub(super) fn rerank_passages_error_to_py(error: fathomdb_engine::RerankPassagesError) -> PyErr {
+    match error {
+        fathomdb_engine::RerankPassagesError::WriteValidation { message } => {
+            WriteValidationError::new_err(message)
+        }
+        fathomdb_engine::RerankPassagesError::Reranker(error) => {
+            reranker_device_policy_error_to_py(error)
+        }
+    }
+}
+
+/// A CLS forward failure: a CUDA pool kind keeps its typed class.
+#[cfg_attr(not(feature = "default-embedder"), allow(dead_code))]
+pub(super) fn cls_forward_error_to_py(error: fathomdb_embedder_api::EmbedderError) -> PyErr {
+    embedder_api_error_to_py(error, "embed_batch_cls")
 }
 
 // ===== CLS batch embedder (V-3 dense-encoder GPU path) ================
@@ -179,12 +197,7 @@ pub(super) fn embed_batch_cls_impl(py: Python<'_>, texts: Vec<String>) -> PyResu
     if texts.is_empty() {
         return Ok(Vec::new());
     }
-    let embedder = cls_embedder_singleton().map_err(|e| {
-        // fix-1 finding 2: surface the REAL loader error (e.g. checksum
-        // mismatch, cache I/O, dimension drift) instead of flattening every
-        // failure to a generic "cache miss + no network" string.
-        EmbedderNotConfiguredError::new_err(format!("default embedder weights unavailable: {e}"))
-    })?;
+    let embedder = cls_embedder_singleton().map_err(cls_load_error_to_py)?;
     // Release the GIL for the (pure CPU/GPU compute) forward pass, and wrap in
     // `catch_unwind` so the never-panic FFI contract holds even though the
     // embedder returns a Result channel (mirrors `rerank`).
@@ -196,7 +209,37 @@ pub(super) fn embed_batch_cls_impl(py: Python<'_>, texts: Vec<String>) -> PyResu
             }))
         })
         .map_err(|_| PanicException::new_err("embed_batch_cls panic (see logs)"))?;
-    result.map_err(|e| EmbedderError::new_err(format!("embed_batch_cls: {e:?}")))
+    result.map_err(cls_forward_error_to_py)
+}
+
+/// A CLS model-load failure: a CUDA pool kind keeps its typed class; any
+/// other failure (the real loader error, e.g. checksum mismatch or cache I/O)
+/// means the default weights are unavailable.
+#[cfg(feature = "default-embedder")]
+pub(super) fn cls_load_error_to_py(error: fathomdb_embedder::loader::EmbedderLoadError) -> PyErr {
+    use fathomdb_embedder::loader::EmbedderLoadError;
+    match error {
+        EmbedderLoadError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            cuda_pool_exhausted_to_py(ordinal, max_size_bytes, message)
+        }
+        EmbedderLoadError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => cuda_context_lost_to_py(
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        ),
+        EmbedderLoadError::CudaPrivateBuildRefused { ordinal, message } => {
+            cuda_private_build_refused_to_py(ordinal, message)
+        }
+        other => EmbedderNotConfiguredError::new_err(format!(
+            "default embedder weights unavailable: {other}"
+        )),
+    }
 }
 
 #[cfg(not(feature = "default-embedder"))]

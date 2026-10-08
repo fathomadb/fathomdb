@@ -7,7 +7,9 @@ which inherits from Python `Exception`. Typed payload attributes
 (`holder_pid`, `kind`, `stage`, `recovery_hint_code`, `doc_anchor`,
 `stored`, `supplied`, `stored_name`, `stored_revision`, `supplied_name`,
 `supplied_revision`, `reason`, `requested_mode`, `effective_mode`,
-`sqlite_code`) are set by the binding's
+`sqlite_code`, and the CUDA pool payloads `ordinal`, `max_size_bytes`,
+`message`, `recorded_context_id`, `current_context_id`, `driver_error`,
+`operation`) are set by the binding's
 `engine_error_to_py` / `engine_open_error_to_py` translators on raise.
 
 For Python-only construction with typed kwargs (used by binding tests),
@@ -42,6 +44,11 @@ from fathomdb._fathomdb import (
 )
 from fathomdb._fathomdb import (
     EmbedderNotConfiguredError as _EmbedderNotConfiguredError,
+)
+from fathomdb._fathomdb import CudaContextLostError as _CudaContextLostError
+from fathomdb._fathomdb import CudaPoolExhaustedError as _CudaPoolExhaustedError
+from fathomdb._fathomdb import (
+    CudaPrivateBuildRefusedError as _CudaPrivateBuildRefusedError,
 )
 from fathomdb._fathomdb import EmbedderRequiredError as _EmbedderRequiredError
 from fathomdb._fathomdb import (
@@ -135,6 +142,11 @@ EmbedDevicePolicyError = _EmbedDevicePolicyError
 RerankerDevicePolicyError = _RerankerDevicePolicyError
 EmbedderNotConfiguredError = _EmbedderNotConfiguredError
 EmbedderRequiredError = _EmbedderRequiredError
+# 0.8.28 Slice 30 (R30-04) — CUDA private-memory-pool failures, under
+# EmbedderError. Context ids are Python ints (64-bit values).
+CudaPoolExhaustedError = _CudaPoolExhaustedError
+CudaContextLostError = _CudaContextLostError
+CudaPrivateBuildRefusedError = _CudaPrivateBuildRefusedError
 KindNotVectorIndexedError = _KindNotVectorIndexedError
 SchedulerError = _SchedulerError
 OpStoreError = _OpStoreError
@@ -208,6 +220,12 @@ _install_typed_init(
 _install_typed_init(EmbedderDimensionMismatchError, ("stored", "supplied"))
 _install_typed_init(EmbedDevicePolicyError, ("kind", "ordinal"))
 _install_typed_init(RerankerDevicePolicyError, ("kind", "ordinal"))
+_install_typed_init(CudaPoolExhaustedError, ("ordinal", "max_size_bytes", "message"))
+_install_typed_init(
+    CudaContextLostError,
+    ("recorded_context_id", "current_context_id", "driver_error", "operation"),
+)
+_install_typed_init(CudaPrivateBuildRefusedError, ("ordinal", "message"))
 _install_typed_init(
     EmbedderRequiredError, ("code", "operation", "state", "remediations", "documentation_url")
 )
@@ -236,6 +254,9 @@ __all__ = [
     "ClosingError",
     "ActuationError",
     "CorruptionError",
+    "CudaContextLostError",
+    "CudaPoolExhaustedError",
+    "CudaPrivateBuildRefusedError",
     "DatabaseLockedError",
     "EmbedderDimensionMismatchError",
     "EmbedDevicePolicyError",

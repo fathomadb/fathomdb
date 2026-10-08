@@ -462,6 +462,9 @@ pub fn engine_error_to_outcome(err: &EngineError) -> CliOutcome {
         // `code` + `detail` naming the real stage, so the precise cause is not
         // lost.
         EngineError::ErasureIncomplete { .. } => CliOutcome::LockHeld,
+        EngineError::CudaPoolExhausted { .. }
+        | EngineError::CudaContextLost { .. }
+        | EngineError::CudaPrivateBuildRefused { .. } => CliOutcome::Unrecoverable,
         _ => CliOutcome::Unrecoverable,
     }
 }
@@ -472,6 +475,9 @@ pub fn engine_error_to_outcome(err: &EngineError) -> CliOutcome {
 pub fn engine_open_error_to_outcome(err: &EngineOpenError) -> CliOutcome {
     match err {
         EngineOpenError::DatabaseLocked { .. } => CliOutcome::LockHeld,
+        EngineOpenError::CudaPoolExhausted { .. }
+        | EngineOpenError::CudaContextLost { .. }
+        | EngineOpenError::CudaPrivateBuildRefused { .. } => CliOutcome::Unrecoverable,
         _ => CliOutcome::Unrecoverable,
     }
 }
@@ -1496,6 +1502,9 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::Vector => "VectorError",
         EngineError::Embedder => "EmbedderError",
         EngineError::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
+        EngineError::CudaPoolExhausted { .. } => "CudaPoolExhaustedError",
+        EngineError::CudaContextLost { .. } => "CudaContextLostError",
+        EngineError::CudaPrivateBuildRefused { .. } => "CudaPrivateBuildRefusedError",
         EngineError::EmbedderNotConfigured => "EmbedderNotConfiguredError",
         EngineError::EmbedderRequired(_) => "EmbedderRequiredError",
         EngineError::KindNotVectorIndexed => "KindNotVectorIndexedError",
@@ -1547,6 +1556,9 @@ fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
         EngineOpenError::Embedder(_) => "EmbedderError",
         EngineOpenError::EmbedDevicePolicy(_) => "EmbedDevicePolicyError",
         EngineOpenError::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
+        EngineOpenError::CudaPoolExhausted { .. } => "CudaPoolExhaustedError",
+        EngineOpenError::CudaContextLost { .. } => "CudaContextLostError",
+        EngineOpenError::CudaPrivateBuildRefused { .. } => "CudaPrivateBuildRefusedError",
         EngineOpenError::Io { .. } => "IoError",
     }
 }

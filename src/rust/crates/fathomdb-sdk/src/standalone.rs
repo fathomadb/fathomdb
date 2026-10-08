@@ -29,7 +29,10 @@ pub struct RerankResult {
 ///
 /// # Errors
 /// `InvalidArgument` for a non-finite `alpha`; `WriteValidation` for a
-/// non-finite score, an embedded NUL, or a reranker refusal.
+/// non-finite score or an embedded NUL; `RerankerDevicePolicy` when the
+/// reranker device policy cannot be honored; a CUDA pool kind
+/// (`CudaPoolExhausted`, `CudaContextLost`, `CudaPrivateBuildRefused`, with
+/// [`Error::cuda_details`]) when the cross-encoder fails with one.
 pub fn rerank(
     query: &str,
     passages: &[RerankPassage],
@@ -48,11 +51,27 @@ pub fn rerank(
     }
     let pool_n = options.pool_n.unwrap_or(rerank_depth);
     let reranked = fathomdb_engine::rerank_passages(query, tuples, rerank_depth, alpha, pool_n)
-        .map_err(|message| Error::sdk(ErrorKind::WriteValidation, message))?;
+        .map_err(rerank_error)?;
     Ok(reranked
         .into_iter()
         .map(|(id, score, ce_score)| RerankResult { id, score, ce_score })
         .collect())
+}
+
+fn rerank_error(error: fathomdb_engine::RerankPassagesError) -> Error {
+    match error {
+        fathomdb_engine::RerankPassagesError::WriteValidation { message } => {
+            Error::sdk(ErrorKind::WriteValidation, message)
+        }
+        fathomdb_engine::RerankPassagesError::Reranker(error) => {
+            Error::from(fathomdb_engine::EngineError::from(error))
+        }
+    }
+}
+
+#[cfg_attr(not(feature = "default-embedder"), allow(dead_code))]
+fn cls_forward_error(error: fathomdb_embedder_api::EmbedderError) -> Error {
+    Error::embedder(&error, "embed_batch_cls")
 }
 
 /// Embed `texts` with the pinned default BGE weights using CLS pooling and
@@ -61,8 +80,10 @@ pub fn rerank(
 ///
 /// # Errors
 /// `EmbedderNotConfigured` without the `default-embedder` feature (for every
-/// input, including empty) or when the weights cannot be loaded; `Embedder`
-/// when embedding fails; `WriteValidation` for an embedded NUL.
+/// input, including empty) or when the weights cannot be loaded; a CUDA pool
+/// kind (with [`Error::cuda_details`]) when loading or embedding fails with
+/// one; `Embedder` when embedding otherwise fails; `WriteValidation` for an
+/// embedded NUL.
 pub fn embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>> {
     guard::texts(texts)?;
     cls::embed(texts)
@@ -72,26 +93,48 @@ pub fn embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>> {
 mod cls {
     use std::sync::OnceLock;
 
+    use fathomdb_embedder::loader::EmbedderLoadError;
     use fathomdb_embedder::{CandleBgeEmbedder, Pooling};
     use fathomdb_embedder_api::Embedder;
 
-    use crate::error::{Error, ErrorKind, Result};
+    use crate::error::{CudaErrorDetails, Error, ErrorKind, Result};
 
     static EMBEDDER: OnceLock<CandleBgeEmbedder> = OnceLock::new();
+
+    /// A CUDA pool kind keeps its typed class; any other load failure means
+    /// the default weights are unavailable.
+    pub(super) fn load_error(error: EmbedderLoadError) -> Error {
+        match error {
+            EmbedderLoadError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+                Error::Cuda(CudaErrorDetails::PoolExhausted { ordinal, max_size_bytes, message })
+            }
+            EmbedderLoadError::CudaContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            } => Error::Cuda(CudaErrorDetails::ContextLost {
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            }),
+            EmbedderLoadError::CudaPrivateBuildRefused { ordinal, message } => {
+                Error::Cuda(CudaErrorDetails::PrivateBuildRefused { ordinal, message })
+            }
+            other => Error::sdk(
+                ErrorKind::EmbedderNotConfigured,
+                format!("default embedder weights unavailable: {other}"),
+            ),
+        }
+    }
 
     // Cached on success only, so a failed weight load is retried next call.
     fn embedder() -> Result<&'static CandleBgeEmbedder> {
         if let Some(embedder) = EMBEDDER.get() {
             return Ok(embedder);
         }
-        let loaded = CandleBgeEmbedder::new()
-            .map_err(|error| {
-                Error::sdk(
-                    ErrorKind::EmbedderNotConfigured,
-                    format!("default embedder weights unavailable: {error}"),
-                )
-            })?
-            .with_pooling(Pooling::Cls);
+        let loaded = CandleBgeEmbedder::new().map_err(load_error)?.with_pooling(Pooling::Cls);
         Ok(EMBEDDER.get_or_init(|| loaded))
     }
 
@@ -99,9 +142,7 @@ mod cls {
         if texts.is_empty() {
             return Ok(Vec::new());
         }
-        embedder()?
-            .embed_batch(texts)
-            .map_err(|error| Error::sdk(ErrorKind::Embedder, format!("embed_batch_cls: {error:?}")))
+        embedder()?.embed_batch(texts).map_err(super::cls_forward_error)
     }
 }
 

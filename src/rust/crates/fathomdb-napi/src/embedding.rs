@@ -108,13 +108,64 @@ pub async fn rerank(
                 Ok(RerankResult { id, score, ce_score })
             })
             .collect(),
-        Ok(Ok(Err(error))) => Err(typed_error(CODE_WRITE_VALIDATION, error, JsonValue::Null)),
+        Ok(Ok(Err(error))) => Err(rerank_passages_error_to_napi(error)),
         Ok(Err(_panic)) => Err(panic_error()),
         Err(join_error) => Err(typed_error(
             CODE_PANIC,
             format!("spawn_blocking join error: {join_error}"),
             JsonValue::Null,
         )),
+    }
+}
+
+/// A standalone rerank refusal: invalid input is `FDB_WRITE_VALIDATION`; a
+/// reranker refusal keeps its typed class (a CUDA pool kind or
+/// `FDB_RERANKER_DEVICE_POLICY`).
+pub(crate) fn rerank_passages_error_to_napi(error: fathomdb_engine::RerankPassagesError) -> Error {
+    match error {
+        fathomdb_engine::RerankPassagesError::WriteValidation { message } => {
+            typed_error(CODE_WRITE_VALIDATION, message, JsonValue::Null)
+        }
+        fathomdb_engine::RerankPassagesError::Reranker(error) => {
+            reranker_device_policy_error_to_napi(error)
+        }
+    }
+}
+
+/// A CLS forward failure: a CUDA pool kind keeps its typed class.
+#[cfg_attr(not(feature = "default-embedder"), allow(dead_code))]
+pub(crate) fn cls_forward_error_to_napi(error: fathomdb_embedder_api::EmbedderError) -> Error {
+    embedder_api_error_to_napi(error, "embed_batch_cls")
+}
+
+/// A CLS model-load failure: a CUDA pool kind keeps its typed class; any
+/// other failure means the default weights are unavailable.
+#[cfg(feature = "default-embedder")]
+pub(crate) fn cls_load_error_to_napi(error: fathomdb_embedder::loader::EmbedderLoadError) -> Error {
+    use fathomdb_embedder::loader::EmbedderLoadError;
+    match error {
+        EmbedderLoadError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            cuda_pool_exhausted_to_napi(ordinal, max_size_bytes, message)
+        }
+        EmbedderLoadError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => cuda_context_lost_to_napi(
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        ),
+        EmbedderLoadError::CudaPrivateBuildRefused { ordinal, message } => {
+            cuda_private_build_refused_to_napi(ordinal, message)
+        }
+        other => typed_error(
+            CODE_EMBEDDER_NOT_CONFIGURED,
+            format!("default embedder weights unavailable: {other}"),
+            JsonValue::Null,
+        ),
     }
 }
 
@@ -127,17 +178,9 @@ pub(crate) async fn embed_batch_cls_impl(texts: Vec<String>) -> Result<Vec<Vec<f
     }
     let join_result = tokio::task::spawn_blocking(move || {
         catch_unwind(AssertUnwindSafe(|| {
-            let embedder = cls_embedder_singleton().map_err(|err| {
-                typed_error(
-                    CODE_EMBEDDER_NOT_CONFIGURED,
-                    format!("default embedder weights unavailable: {err}"),
-                    JsonValue::Null,
-                )
-            })?;
+            let embedder = cls_embedder_singleton().map_err(cls_load_error_to_napi)?;
             let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
-            embedder.embed_batch(&refs).map_err(|err| {
-                typed_error(CODE_EMBEDDER, format!("embed_batch_cls: {err:?}"), JsonValue::Null)
-            })
+            embedder.embed_batch(&refs).map_err(cls_forward_error_to_napi)
         }))
     })
     .await;

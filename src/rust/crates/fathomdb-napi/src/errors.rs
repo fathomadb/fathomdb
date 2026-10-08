@@ -58,6 +58,10 @@ pub(crate) const CODE_EVIDENCE: &str = "FDB_EVIDENCE";
 pub(crate) const CODE_PAGE: &str = "FDB_PAGE";
 pub(crate) const CODE_DEPENDENCY_TRACE: &str = "FDB_DEPENDENCY_TRACE";
 pub(crate) const CODE_GRAPH_EXPANSION: &str = "FDB_GRAPH_EXPANSION";
+// 0.8.28 Slice 30 (R30-04) — the three CUDA pool kinds, each under EmbedderError.
+pub(crate) const CODE_CUDA_POOL_EXHAUSTED: &str = "FDB_CUDA_POOL_EXHAUSTED";
+pub(crate) const CODE_CUDA_CONTEXT_LOST: &str = "FDB_CUDA_CONTEXT_LOST";
+pub(crate) const CODE_CUDA_PRIVATE_BUILD_REFUSED: &str = "FDB_CUDA_PRIVATE_BUILD_REFUSED";
 pub(crate) const CODE_PANIC: &str = "FDB_PANIC";
 
 // ===== Typed-error encoder ============================================
@@ -155,6 +159,23 @@ pub(crate) fn engine_error_to_napi(err: RustEngineError) -> Error {
         RustEngineError::Vector => typed_error(CODE_VECTOR, "vector error", JsonValue::Null),
         RustEngineError::Embedder => typed_error(CODE_EMBEDDER, "embedder error", JsonValue::Null),
         RustEngineError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_napi(error),
+        RustEngineError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            cuda_pool_exhausted_to_napi(ordinal, max_size_bytes, message)
+        }
+        RustEngineError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => cuda_context_lost_to_napi(
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        ),
+        RustEngineError::CudaPrivateBuildRefused { ordinal, message } => {
+            cuda_private_build_refused_to_napi(ordinal, message)
+        }
         RustEngineError::EmbedderNotConfigured => {
             typed_error(CODE_EMBEDDER_NOT_CONFIGURED, "embedder is not configured", JsonValue::Null)
         }
@@ -387,9 +408,118 @@ pub(crate) fn embed_device_policy_error_to_napi(
     typed_error(CODE_EMBED_DEVICE_POLICY, message, JsonValue::Object(payload))
 }
 
+/// `message` is the payload message itself, so TypeScript's `error.message`
+/// and Python's `message` attribute carry the same text.
+pub(crate) fn cuda_pool_exhausted_to_napi(
+    ordinal: usize,
+    max_size_bytes: u64,
+    message: String,
+) -> Error {
+    typed_error(
+        CODE_CUDA_POOL_EXHAUSTED,
+        message.clone(),
+        json!({ "ordinal": ordinal, "maxSizeBytes": max_size_bytes, "message": message }),
+    )
+}
+
+/// Context ids are `u64` and may exceed 2^53, so they cross as decimal
+/// strings.
+pub(crate) fn cuda_context_lost_to_napi(
+    recorded_context_id: u64,
+    current_context_id: Option<u64>,
+    driver_error: String,
+    operation: String,
+) -> Error {
+    let message = match current_context_id {
+        Some(current) => format!(
+            "CUDA context {recorded_context_id} was replaced by context {current} at \
+             {operation}: {driver_error}"
+        ),
+        None => format!(
+            "CUDA context {recorded_context_id} is gone (no current context) at \
+             {operation}: {driver_error}"
+        ),
+    };
+    typed_error(
+        CODE_CUDA_CONTEXT_LOST,
+        message,
+        json!({
+            "recordedContextId": recorded_context_id.to_string(),
+            "currentContextId": current_context_id.map(|id| id.to_string()),
+            "driverError": driver_error,
+            "operation": operation,
+        }),
+    )
+}
+
+pub(crate) fn cuda_private_build_refused_to_napi(ordinal: usize, message: String) -> Error {
+    typed_error(
+        CODE_CUDA_PRIVATE_BUILD_REFUSED,
+        message.clone(),
+        json!({ "ordinal": ordinal, "message": message }),
+    )
+}
+
+/// An embedder-API failure of a CUDA pool kind as its typed envelope; every
+/// other failure as `FDB_EMBEDDER` with `context` and the failure's debug text.
+pub(crate) fn embedder_api_error_to_napi(
+    error: fathomdb_embedder_api::EmbedderError,
+    context: &str,
+) -> Error {
+    use fathomdb_embedder_api::EmbedderError as ApiError;
+    match error {
+        ApiError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            cuda_pool_exhausted_to_napi(ordinal, max_size_bytes, message)
+        }
+        ApiError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => cuda_context_lost_to_napi(
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        ),
+        ApiError::CudaPrivateBuildRefused { ordinal, message } => {
+            cuda_private_build_refused_to_napi(ordinal, message)
+        }
+        ApiError::Failed { .. } | ApiError::Timeout => {
+            typed_error(CODE_EMBEDDER, format!("{context}: {error:?}"), JsonValue::Null)
+        }
+        // `EmbedderError` is `#[non_exhaustive]`; every kind known to this
+        // release has an arm above.
+        other => typed_error(CODE_EMBEDDER, format!("{context}: {other:?}"), JsonValue::Null),
+    }
+}
+
 pub(crate) fn reranker_device_policy_error_to_napi(
     error: fathomdb_embedder::RerankerDevicePolicyError,
 ) -> Error {
+    use fathomdb_embedder::RerankerDevicePolicyError as PolicyError;
+    let error = match error {
+        PolicyError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            return cuda_pool_exhausted_to_napi(ordinal, max_size_bytes, message);
+        }
+        PolicyError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => {
+            return cuda_context_lost_to_napi(
+                recorded_context_id,
+                current_context_id,
+                driver_error,
+                operation,
+            );
+        }
+        PolicyError::CudaPrivateBuildRefused { ordinal, message } => {
+            return cuda_private_build_refused_to_napi(ordinal, message);
+        }
+        PolicyError::InvalidPolicy(_) | PolicyError::Resolution(_) => error,
+    };
     let mut payload = serde_json::Map::new();
     payload.insert("kind".to_string(), json!(error.kind()));
     if let Some(ordinal) = error.ordinal() {
@@ -460,13 +590,26 @@ pub(crate) fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
             ),
             json!({ "stored": stored, "supplied": supplied }),
         ),
-        EngineOpenError::Embedder(err) => typed_error(
-            CODE_EMBEDDER,
-            format!("embedder error during open: {err:?}"),
-            JsonValue::Null,
-        ),
+        EngineOpenError::Embedder(err) => embedder_api_error_to_napi(err, "embedder error during open"),
         EngineOpenError::EmbedDevicePolicy(error) => embed_device_policy_error_to_napi(error),
         EngineOpenError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_napi(error),
+        EngineOpenError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            cuda_pool_exhausted_to_napi(ordinal, max_size_bytes, message)
+        }
+        EngineOpenError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => cuda_context_lost_to_napi(
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        ),
+        EngineOpenError::CudaPrivateBuildRefused { ordinal, message } => {
+            cuda_private_build_refused_to_napi(ordinal, message)
+        }
         EngineOpenError::Io { message } => typed_error(
             CODE_STORAGE,
             format!("database I/O error: {message}"),

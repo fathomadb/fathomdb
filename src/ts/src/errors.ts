@@ -113,6 +113,79 @@ export class RerankerDevicePolicyError extends EmbedderError {
   }
 }
 
+export interface CudaPoolExhaustedErrorPayload {
+  ordinal: number;
+  maxSizeBytes: number;
+}
+
+/**
+ * The process allocates from a private CUDA memory pool on device `ordinal`,
+ * and the pool reached its cap of `maxSizeBytes` (`CUDA_ERROR_OUT_OF_MEMORY`).
+ * Raised by embedding and reranking under every device policy. The device
+ * stays CUDA: a following request runs normally once memory is free.
+ * `message` is the driver-side failure text.
+ */
+export class CudaPoolExhaustedError extends EmbedderError {
+  readonly code = "FDB_CUDA_POOL_EXHAUSTED";
+  readonly ordinal: number;
+  readonly maxSizeBytes: number;
+
+  constructor(message: string, payload: CudaPoolExhaustedErrorPayload) {
+    super(message);
+    this.ordinal = payload.ordinal;
+    this.maxSizeBytes = payload.maxSizeBytes;
+  }
+}
+
+export interface CudaContextLostErrorPayload {
+  recordedContextId: string;
+  currentContextId: string | null;
+  driverError: string;
+  operation: string;
+}
+
+/**
+ * The CUDA context the process recorded is gone: no context is current
+ * (`currentContextId` is `null`) or it was replaced. Context ids are 64-bit,
+ * so they are decimal strings. `driverError` exposed the loss during
+ * `operation`. CUDA cannot be used again in this process.
+ */
+export class CudaContextLostError extends EmbedderError {
+  readonly code = "FDB_CUDA_CONTEXT_LOST";
+  readonly recordedContextId: string;
+  readonly currentContextId: string | null;
+  readonly driverError: string;
+  readonly operation: string;
+
+  constructor(message: string, payload: CudaContextLostErrorPayload) {
+    super(message);
+    this.recordedContextId = payload.recordedContextId;
+    this.currentContextId = payload.currentContextId;
+    this.driverError = payload.driverError;
+    this.operation = payload.operation;
+  }
+}
+
+export interface CudaPrivateBuildRefusedErrorPayload {
+  ordinal: number;
+}
+
+/**
+ * The process allocates from a private CUDA memory pool, and building another
+ * context on it for device `ordinal` failed for a reason other than exhaustion
+ * or context loss. No context on another allocator is built in its place.
+ * `message` is the build failure text.
+ */
+export class CudaPrivateBuildRefusedError extends EmbedderError {
+  readonly code = "FDB_CUDA_PRIVATE_BUILD_REFUSED";
+  readonly ordinal: number;
+
+  constructor(message: string, payload: CudaPrivateBuildRefusedErrorPayload) {
+    super(message);
+    this.ordinal = payload.ordinal;
+  }
+}
+
 export interface EmbedderRequiredErrorPayload {
   operation: string;
   state: string;
@@ -402,6 +475,10 @@ type ErrorCode =
   | "FDB_RERANKER_DEVICE_POLICY"
   | "FDB_EMBEDDER_NOT_CONFIGURED"
   | "FDB_EMBEDDER_REQUIRED"
+  // 0.8.28 Slice 30 (R30-04) — the three CUDA pool kinds.
+  | "FDB_CUDA_POOL_EXHAUSTED"
+  | "FDB_CUDA_CONTEXT_LOST"
+  | "FDB_CUDA_PRIVATE_BUILD_REFUSED"
   | "FDB_KIND_NOT_VECTOR_INDEXED"
   | "FDB_EMBEDDER_DIMENSION_MISMATCH"
   | "FDB_SCHEDULER"
@@ -510,6 +587,22 @@ function build(envelope: Envelope): Error {
       });
     case "FDB_EMBEDDER_NOT_CONFIGURED":
       return new EmbedderNotConfiguredError(envelope.message);
+    case "FDB_CUDA_POOL_EXHAUSTED":
+      return new CudaPoolExhaustedError(String(p.message ?? envelope.message), {
+        ordinal: Number(p.ordinal ?? 0),
+        maxSizeBytes: Number(p.maxSizeBytes ?? 0),
+      });
+    case "FDB_CUDA_CONTEXT_LOST":
+      return new CudaContextLostError(envelope.message, {
+        recordedContextId: String(p.recordedContextId ?? ""),
+        currentContextId: typeof p.currentContextId === "string" ? p.currentContextId : null,
+        driverError: String(p.driverError ?? ""),
+        operation: String(p.operation ?? ""),
+      });
+    case "FDB_CUDA_PRIVATE_BUILD_REFUSED":
+      return new CudaPrivateBuildRefusedError(String(p.message ?? envelope.message), {
+        ordinal: Number(p.ordinal ?? 0),
+      });
     case "FDB_EMBEDDER_REQUIRED":
       return new EmbedderRequiredError(envelope.message, {
         operation: String(p.operation ?? ""),

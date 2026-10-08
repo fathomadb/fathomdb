@@ -317,6 +317,9 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("RerankerDevicePolicyError", py.get_type::<RerankerDevicePolicyError>())?;
     m.add("EmbedderNotConfiguredError", py.get_type::<EmbedderNotConfiguredError>())?;
     m.add("EmbedderRequiredError", py.get_type::<EmbedderRequiredError>())?;
+    m.add("CudaPoolExhaustedError", py.get_type::<CudaPoolExhaustedError>())?;
+    m.add("CudaContextLostError", py.get_type::<CudaContextLostError>())?;
+    m.add("CudaPrivateBuildRefusedError", py.get_type::<CudaPrivateBuildRefusedError>())?;
     m.add("SchedulerError", py.get_type::<SchedulerError>())?;
     m.add("OpStoreError", py.get_type::<OpStoreError>())?;
     m.add("WriteValidationError", py.get_type::<WriteValidationError>())?;

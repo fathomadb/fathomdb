@@ -64,6 +64,10 @@ create_exception!(_fathomdb, ErasureIncompleteError, EngineError);
 // `delta`). Omission never drops; a role removal / tokenizer / embedder change
 // requires an explicit drop.
 create_exception!(_fathomdb, ProjectionDestructiveError, EngineError);
+// 0.8.28 Slice 30 (R30-04) — the three CUDA pool kinds.
+create_exception!(_fathomdb, CudaPoolExhaustedError, EmbedderError);
+create_exception!(_fathomdb, CudaContextLostError, EmbedderError);
+create_exception!(_fathomdb, CudaPrivateBuildRefusedError, EmbedderError);
 
 // ===== Error mapping ==================================================
 
@@ -78,14 +82,23 @@ pub(super) fn engine_error_to_py(err: RustEngineError) -> PyErr {
         RustEngineError::ProjectionGeneration(error) => projection_generation_error_to_py(&error),
         RustEngineError::Vector => VectorError::new_err("vector error"),
         RustEngineError::Embedder => EmbedderError::new_err("embedder error"),
-        RustEngineError::RerankerDevicePolicy(error) => {
-            let exc = RerankerDevicePolicyError::new_err(error.to_string());
-            Python::attach(|py| {
-                let value = exc.value(py);
-                let _ = value.setattr("kind", error.kind());
-                let _ = value.setattr("ordinal", error.ordinal());
-            });
-            exc
+        RustEngineError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_py(error),
+        RustEngineError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            cuda_pool_exhausted_to_py(ordinal, max_size_bytes, message)
+        }
+        RustEngineError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => cuda_context_lost_to_py(
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        ),
+        RustEngineError::CudaPrivateBuildRefused { ordinal, message } => {
+            cuda_private_build_refused_to_py(ordinal, message)
         }
         RustEngineError::EmbedderNotConfigured => {
             EmbedderNotConfiguredError::new_err("embedder is not configured")
@@ -227,6 +240,129 @@ pub(super) fn engine_error_to_py(err: RustEngineError) -> PyErr {
         // still has no operator surface capable of producing it.
         #[allow(unreachable_patterns)]
         operator_only => EngineError::new_err(operator_only.to_string()),
+    }
+}
+
+/// `str(exc)` and the `message` attribute are both the payload message.
+pub(super) fn cuda_pool_exhausted_to_py(
+    ordinal: usize,
+    max_size_bytes: u64,
+    message: String,
+) -> PyErr {
+    let exc = CudaPoolExhaustedError::new_err(message.clone());
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("ordinal", ordinal);
+        let _ = value.setattr("max_size_bytes", max_size_bytes);
+        let _ = value.setattr("message", message);
+    });
+    exc
+}
+
+pub(super) fn cuda_context_lost_to_py(
+    recorded_context_id: u64,
+    current_context_id: Option<u64>,
+    driver_error: String,
+    operation: String,
+) -> PyErr {
+    let message = match current_context_id {
+        Some(current) => format!(
+            "CUDA context {recorded_context_id} was replaced by context {current} at \
+             {operation}: {driver_error}"
+        ),
+        None => format!(
+            "CUDA context {recorded_context_id} is gone (no current context) at \
+             {operation}: {driver_error}"
+        ),
+    };
+    let exc = CudaContextLostError::new_err(message);
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("recorded_context_id", recorded_context_id);
+        let _ = value.setattr("current_context_id", current_context_id);
+        let _ = value.setattr("driver_error", driver_error);
+        let _ = value.setattr("operation", operation);
+    });
+    exc
+}
+
+pub(super) fn cuda_private_build_refused_to_py(ordinal: usize, message: String) -> PyErr {
+    let exc = CudaPrivateBuildRefusedError::new_err(message.clone());
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("ordinal", ordinal);
+        let _ = value.setattr("message", message);
+    });
+    exc
+}
+
+/// An embedder-API failure of a CUDA pool kind as its typed exception; every
+/// other failure as `EmbedderError` with `context` and the failure's debug text.
+pub(super) fn embedder_api_error_to_py(
+    error: fathomdb_embedder_api::EmbedderError,
+    context: &str,
+) -> PyErr {
+    use fathomdb_embedder_api::EmbedderError as ApiError;
+    match error {
+        ApiError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            cuda_pool_exhausted_to_py(ordinal, max_size_bytes, message)
+        }
+        ApiError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => cuda_context_lost_to_py(
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        ),
+        ApiError::CudaPrivateBuildRefused { ordinal, message } => {
+            cuda_private_build_refused_to_py(ordinal, message)
+        }
+        ApiError::Failed { .. } | ApiError::Timeout => {
+            EmbedderError::new_err(format!("{context}: {error:?}"))
+        }
+        // `EmbedderError` is `#[non_exhaustive]`; every kind known to this
+        // release has an arm above.
+        other => EmbedderError::new_err(format!("{context}: {other:?}")),
+    }
+}
+
+/// The CUDA pool kinds keep their own classes, ahead of the generic
+/// `RerankerDevicePolicyError`.
+pub(super) fn reranker_device_policy_error_to_py(
+    error: fathomdb_embedder::RerankerDevicePolicyError,
+) -> PyErr {
+    use fathomdb_embedder::RerankerDevicePolicyError as PolicyError;
+    match error {
+        PolicyError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            cuda_pool_exhausted_to_py(ordinal, max_size_bytes, message)
+        }
+        PolicyError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => cuda_context_lost_to_py(
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        ),
+        PolicyError::CudaPrivateBuildRefused { ordinal, message } => {
+            cuda_private_build_refused_to_py(ordinal, message)
+        }
+        PolicyError::InvalidPolicy(_) | PolicyError::Resolution(_) => {
+            let exc = RerankerDevicePolicyError::new_err(error.to_string());
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("kind", error.kind());
+                let _ = value.setattr("ordinal", error.ordinal());
+            });
+            exc
+        }
     }
 }
 
@@ -416,7 +552,7 @@ pub(super) fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             });
             exc
         }
-        EngineOpenError::Embedder(err) => EmbedderError::new_err(format!("{err:?}")),
+        EngineOpenError::Embedder(err) => embedder_api_error_to_py(err, "embedder error during open"),
         EngineOpenError::EmbedDevicePolicy(error) => {
             let exc = EmbedDevicePolicyError::new_err(error.to_string());
             Python::attach(|py| {
@@ -426,14 +562,23 @@ pub(super) fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             });
             exc
         }
-        EngineOpenError::RerankerDevicePolicy(error) => {
-            let exc = RerankerDevicePolicyError::new_err(error.to_string());
-            Python::attach(|py| {
-                let value = exc.value(py);
-                let _ = value.setattr("kind", error.kind());
-                let _ = value.setattr("ordinal", error.ordinal());
-            });
-            exc
+        EngineOpenError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_py(error),
+        EngineOpenError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
+            cuda_pool_exhausted_to_py(ordinal, max_size_bytes, message)
+        }
+        EngineOpenError::CudaContextLost {
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        } => cuda_context_lost_to_py(
+            recorded_context_id,
+            current_context_id,
+            driver_error,
+            operation,
+        ),
+        EngineOpenError::CudaPrivateBuildRefused { ordinal, message } => {
+            cuda_private_build_refused_to_py(ordinal, message)
         }
         EngineOpenError::Io { message } => {
             StorageError::new_err(format!("database I/O error: {message}"))

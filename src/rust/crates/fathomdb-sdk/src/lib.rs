@@ -46,7 +46,7 @@ pub mod graph;
 pub mod read;
 
 pub use engine::Engine;
-pub use error::{Error, ErrorKind, Result};
+pub use error::{CudaErrorDetails, Error, ErrorKind, Result};
 pub use options::{
     FrozenSearchOptions, ListOptions, NeighborsOptions, OpenOptions, ProjectedTextSearchOptions,
     RerankOptions, SearchExpandOptions, SearchFilterArg, SearchOptions, TextSearchOptions,

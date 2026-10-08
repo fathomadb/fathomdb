@@ -2086,3 +2086,66 @@ impl Engine {
         load_default_profile(connection).map_err(|_| EngineError::Storage)
     }
 }
+
+#[cfg(all(test, feature = "default-embedder"))]
+mod default_embedder_load_error_tests {
+    use fathomdb_embedder::loader::EmbedderLoadError;
+
+    use super::*;
+
+    #[test]
+    fn pool_kind_load_failures_become_the_typed_open_variants() {
+        assert_eq!(
+            default_embedder_load_error(
+                "construct",
+                EmbedderLoadError::CudaPoolExhausted {
+                    ordinal: 0,
+                    max_size_bytes: 9,
+                    message: "m".to_owned(),
+                },
+            ),
+            EngineOpenError::CudaPoolExhausted {
+                ordinal: 0,
+                max_size_bytes: 9,
+                message: "m".into()
+            }
+        );
+        assert_eq!(
+            default_embedder_load_error(
+                "construct",
+                EmbedderLoadError::CudaContextLost {
+                    recorded_context_id: 3,
+                    current_context_id: None,
+                    driver_error: "d".to_owned(),
+                    operation: "o".to_owned(),
+                },
+            ),
+            EngineOpenError::CudaContextLost {
+                recorded_context_id: 3,
+                current_context_id: None,
+                driver_error: "d".into(),
+                operation: "o".into(),
+            }
+        );
+        assert_eq!(
+            default_embedder_load_error(
+                "construct",
+                EmbedderLoadError::CudaPrivateBuildRefused { ordinal: 1, message: "m".to_owned() },
+            ),
+            EngineOpenError::CudaPrivateBuildRefused { ordinal: 1, message: "m".into() }
+        );
+    }
+
+    #[test]
+    fn other_load_failures_keep_the_embedder_failure() {
+        let error = default_embedder_load_error(
+            "construct",
+            EmbedderLoadError::DeviceInitialization { message: "no device".to_owned() },
+        );
+        let EngineOpenError::Embedder(RuntimeEmbedderError::Failed { message }) = error else {
+            panic!("expected Embedder(Failed), got {error:?}")
+        };
+        assert!(message.contains("default embedder construct"), "{message}");
+        assert!(message.contains("no device"), "{message}");
+    }
+}

@@ -1,6 +1,8 @@
 //! Public standalone rerank observes strict Slice 71 policy failures.
 
-use fathomdb_engine::{rerank_passages, try_rerank_fused, IdSpace, SearchHit, SoftFallbackBranch};
+use fathomdb_engine::{
+    rerank_passages, try_rerank_fused, IdSpace, RerankPassagesError, SearchHit, SoftFallbackBranch,
+};
 use std::sync::Mutex;
 
 static RERANK_DEVICE_ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -18,8 +20,12 @@ fn forced_cuda_does_not_become_a_cpu_rerank_on_a_cpu_artifact() {
     unsafe { std::env::set_var("FATHOMDB_RERANK_DEVICE", "cuda:0") };
     let error = rerank_passages("query", input(), 1, 0.3, 1)
         .expect_err("forced CUDA must not silently score on CPU");
-    assert!(error.contains("reranker device policy"));
-    assert!(error.contains("built without CUDA"));
+    // Slice 30 (plan C-6): the device-policy refusal keeps its typed class.
+    let RerankPassagesError::Reranker(policy) = error else {
+        panic!("expected the typed reranker refusal, got {error:?}")
+    };
+    assert_eq!(policy.kind(), "cuda_not_compiled");
+    assert!(policy.to_string().contains("built without CUDA"));
     restore(previous);
 }
 
@@ -30,7 +36,11 @@ fn malformed_policy_is_not_accepted_as_a_cpu_fallback() {
     unsafe { std::env::set_var("FATHOMDB_RERANK_DEVICE", "cuda") };
     let error = rerank_passages("query", input(), 1, 0.3, 1)
         .expect_err("legacy bare CUDA spelling must fail");
-    assert!(error.contains("invalid FATHOMDB_RERANK_DEVICE"));
+    let RerankPassagesError::Reranker(policy) = error else {
+        panic!("expected the typed reranker refusal, got {error:?}")
+    };
+    assert_eq!(policy.kind(), "invalid_policy");
+    assert!(policy.to_string().contains("invalid FATHOMDB_RERANK_DEVICE"));
     restore(previous);
 }
 

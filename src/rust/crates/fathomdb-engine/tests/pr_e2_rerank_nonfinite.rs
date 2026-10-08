@@ -20,7 +20,7 @@ fn rerank_passages_rejects_nan_score() {
         result.is_err(),
         "NaN score must return Err — got Ok (is_finite guard not yet in place)"
     );
-    let msg = result.unwrap_err();
+    let msg = result.unwrap_err().to_string();
     assert!(msg.contains("non-finite"), "error message must mention 'non-finite'; got: {msg:?}");
 }
 

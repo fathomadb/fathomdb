@@ -338,3 +338,7 @@ impl CandleCrossEncoder {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "rerank_tests.rs"]
+mod tests;

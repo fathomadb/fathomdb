@@ -1,6 +1,6 @@
 ---
 title: Slice 135 Phase 2 query correctness readiness — 2026-10-08
-status: PREPARATION_NOT_SCORED
+status: FIRST_DETERMINISTIC_PILOT_AUDITED
 target_release: 0.8.27
 ---
 
@@ -8,9 +8,11 @@ target_release: 0.8.27
 
 The [approved plan](plan.md#phase-2-qualification-and-execution-order) and
 [Phase 1 checkpoint](phase1-checkpoint-2026-10-08.md) permit Phase 2 work.
-This note preserves the first read-only qualification inventory. No Phase 2
-gold protocol is frozen, no new Phase 2 runner or auditor has been written,
-and no candidate correctness score has been collected.
+This note preserves the initial read-only qualification inventory. The first
+small [paired deterministic contract pilot](results/2026-10-08-phase2-python-x1-pilot/README.md)
+now has a frozen subset protocol, independently audited raw results and
+negative controls. The broader Phase 2 gold protocol and retrieval,
+evidence, memory and answer-quality scores remain open.
 
 ## Exact identities and available local inputs
 
@@ -37,13 +39,11 @@ new paired Phase 2 protocol or independent scorer is qualified.
 
 ## Immediate execution path
 
-1. Specify a small installed-Python baseline/candidate deterministic protocol
-   using the existing FTS fixture and fresh databases. Keep expected answers
-   out of the product runner; make a separate auditor compare raw observations
-   with the authored fixture. Test the auditor RED against wrong ID/order,
-   missing case and artifact-identity changes before running it on real data.
-2. Add current-schema typed error versus empty-success and reopened-state
-   cases using independently specified results. Then freeze the broader gold
+1. Extend the audited installed-Python pilot with current-schema typed error
+   versus empty-success, filter, pagination and reopened-state cases using
+   independently specified results. Qualify equivalent TypeScript and Rust
+   candidate-only routes where the public contract permits comparison.
+2. Freeze the broader gold
    protocol with class denominators, corpus/license qualifications, omission
    rules and independent score recomputation before scored runs.
 3. Run exact-f32 fidelity separately from judged relevance, evidence and

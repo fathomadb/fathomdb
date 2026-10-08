@@ -1,0 +1,29 @@
+{
+  "fixture_sha256": "3f216e6b4fa1ed2aa8ac44eb67cb07ce38d10437b0603ecd3ca9d9b088d045a2",
+  "ordered_oracle_source_sha256": "996923be660d0479b9dd42343a582a2b6095a1e4632501a94a1cb7bb6e7f3e98",
+  "protocol_sha256": "6698d77a8a113b0cb2da3b40144867e1f76b062946464e6a330b66af6c302855",
+  "runner_sha256": "403e3517de6fc86ae82fc7b5f60b150bc735d54c758f088a8797b7933d00ff3f",
+  "verdict": "both_versions_match_independent_fixture_gold",
+  "versions": {
+    "baseline": {
+      "canonical_rows": 4,
+      "database_sha256": "2546a08e6ebaeee5bdab1eafd97eea50844430188b98c786ad0baa2a50a335d4",
+      "exact_order_queries": 1,
+      "integrity": "ok",
+      "queries": 3,
+      "raw_sha256": "c2782eaec51d67943f8568a8a09b68a74377755b15da23c085b6ade7180fb6ab",
+      "reopened_queries": 3,
+      "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+    },
+    "candidate": {
+      "canonical_rows": 4,
+      "database_sha256": "03970a0c53557e6da2ba9c0bec9071bbe3fb193080df2f6e0c16210d01b49ea9",
+      "exact_order_queries": 1,
+      "integrity": "ok",
+      "queries": 3,
+      "raw_sha256": "5530bfb9ebdf3d8fce72dcc4c3c9443d1398f25674303ecbfe7a684fa6cb1d34",
+      "reopened_queries": 3,
+      "wheel_sha256": "ee8b402f76377956034f900ef69f9e3c0296d79ea30d6728dc1283040266f85a"
+    }
+  }
+}

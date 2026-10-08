@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_UNSCORED_PILOT_BEFORE_PAIRED_RUN",
+  "purpose": "Installed-Python deterministic query, identity, provenance, ordered retrieval and reopen pilot; not the full Phase 2 gold campaign",
+  "gold_class": "contract_correctness",
+  "fixture_path": "src/python/tests/functional_search_fixture.json",
+  "fixture_sha256": "3f216e6b4fa1ed2aa8ac44eb67cb07ce38d10437b0603ecd3ca9d9b088d045a2",
+  "ordered_case_source": "src/python/tests/test_functional_search.py",
+  "ordered_case_source_sha256": "996923be660d0479b9dd42343a582a2b6095a1e4632501a94a1cb7bb6e7f3e98",
+  "ordered_case": {
+    "query": "retrieval",
+    "expected_bodies": [
+      "alpha structured retrieval document",
+      "delta retrieval and ranking notes"
+    ]
+  },
+  "runner_path": "scripts/slice135_phase2_contract_runner.py",
+  "runner_sha256": "403e3517de6fc86ae82fc7b5f60b150bc735d54c758f088a8797b7933d00ff3f",
+  "source_id": "slice135-phase2-x1",
+  "logical_id_prefix": "phase2-x1-",
+  "versions": {
+    "baseline": {
+      "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+      "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282",
+      "native_sha256": "269fafc1c696244d05f2eabea19b23cfba6de79f5041b1123fe10589c46c51dc"
+    },
+    "candidate": {
+      "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+      "wheel_sha256": "ee8b402f76377956034f900ef69f9e3c0296d79ea30d6728dc1283040266f85a",
+      "native_sha256": "1f213a700cf0c96b9997700d6e44ed7019b26fb91df1259bc6514fefb4a8d013"
+    }
+  },
+  "denominator": {
+    "query_cases_per_version": 3,
+    "reopen_observations_per_version": 3,
+    "ordered_cases_per_version": 1
+  },
+  "scoring_rule": "Each version must independently match every authored fixture body set, explicit logical ID, kind, text branch, source provenance and reopened result. The authored retrieval order is exact. Any missing, duplicate or mismatched case is a failed contract observation; version agreement alone has no score.",
+  "omission_rule": "No case in this three-query pilot may be omitted. A blocked version or unavailable artifact invalidates the pair; record the failed attempt and do not promote a score.",
+  "license_boundary": "Existing repository-authored synthetic fixture; no restricted external corpus payload in this pilot."
+}

@@ -1,0 +1,71 @@
+{
+  "audit_command": {
+    "argv": [
+      "python3",
+      "scripts/slice135_phase2_contract_audit.py",
+      "--protocol",
+      "dev/plans/0.8.27/features/slice-135/phase2-python-x1-pilot-protocol.json",
+      "--fixture",
+      "src/python/tests/functional_search_fixture.json",
+      "--runner",
+      "scripts/slice135_phase2_contract_runner.py",
+      "--oracle-source",
+      "src/python/tests/test_functional_search.py",
+      "--baseline-wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/baseline.whl",
+      "--candidate-wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/candidate.whl",
+      "--baseline-dir",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-python-x1-pilot/raw-baseline",
+      "--candidate-dir",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-python-x1-pilot/raw-candidate",
+      "--output",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-python-x1-pilot/audit.json"
+    ],
+    "exit_code": 0
+  },
+  "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135",
+  "order": [
+    "baseline",
+    "candidate",
+    "audit"
+  ],
+  "runner_commands": [
+    {
+      "argv": [
+        "/tmp/slice135-python-venv-baseline-f99e002/bin/python",
+        "scripts/slice135_phase2_contract_runner.py",
+        "--protocol",
+        "dev/plans/0.8.27/features/slice-135/phase2-python-x1-pilot-protocol.json",
+        "--fixture",
+        "src/python/tests/functional_search_fixture.json",
+        "--wheel",
+        "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/baseline.whl",
+        "--version",
+        "baseline",
+        "--output",
+        "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-python-x1-pilot/raw-baseline"
+      ],
+      "exit_code": 0,
+      "version": "baseline"
+    },
+    {
+      "argv": [
+        "/tmp/slice135-current-venv-224e44/bin/python",
+        "scripts/slice135_phase2_contract_runner.py",
+        "--protocol",
+        "dev/plans/0.8.27/features/slice-135/phase2-python-x1-pilot-protocol.json",
+        "--fixture",
+        "src/python/tests/functional_search_fixture.json",
+        "--wheel",
+        "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/candidate.whl",
+        "--version",
+        "candidate",
+        "--output",
+        "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-python-x1-pilot/raw-candidate"
+      ],
+      "exit_code": 0,
+      "version": "candidate"
+    }
+  ]
+}

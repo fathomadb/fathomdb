@@ -2861,4 +2861,216 @@ mod tests {
             }
         }
     }
+
+    /// Fails the test on any CUDA activity: early returns must not reach it.
+    struct NoCudaAllowed;
+
+    impl CudaAllocatorProbe for NoCudaAllowed {
+        fn run_early_init(&mut self) -> fathomdb_embedder::ModuleLoadInit {
+            panic!("an early return ran the early cuInit helper")
+        }
+
+        fn resolve_device(&mut self) -> Result<Option<fathomdb_embedder::CudaDeviceInfo>, String> {
+            panic!("an early return probed a CUDA device")
+        }
+
+        fn context_state(
+            &mut self,
+            _ordinal: usize,
+        ) -> Option<fathomdb_embedder::CudaPrimaryContextState> {
+            panic!("an early return read the primary context")
+        }
+    }
+
+    struct FixtureAllocatorProbe {
+        init: fathomdb_embedder::ModuleLoadInit,
+        device: Result<Option<fathomdb_embedder::CudaDeviceInfo>, String>,
+        state: Option<fathomdb_embedder::CudaPrimaryContextState>,
+        calls: Vec<&'static str>,
+    }
+
+    impl CudaAllocatorProbe for FixtureAllocatorProbe {
+        fn run_early_init(&mut self) -> fathomdb_embedder::ModuleLoadInit {
+            self.calls.push("early_init");
+            self.init
+        }
+
+        fn resolve_device(&mut self) -> Result<Option<fathomdb_embedder::CudaDeviceInfo>, String> {
+            self.calls.push("resolve_device");
+            self.device.clone()
+        }
+
+        fn context_state(
+            &mut self,
+            ordinal: usize,
+        ) -> Option<fathomdb_embedder::CudaPrimaryContextState> {
+            assert_eq!(ordinal, 0);
+            self.calls.push("context_state");
+            self.state
+        }
+    }
+
+    fn allocator_inputs(
+        embed_cuda: bool,
+        embed_policy: Option<&'static str>,
+    ) -> CudaAllocatorInputs<'static> {
+        CudaAllocatorInputs {
+            built: embed_cuda,
+            embed_cuda_compiled: embed_cuda,
+            rerank_cuda_compiled: false,
+            embed_policy,
+            rerank_policy: None,
+            pool_mode: None,
+        }
+    }
+
+    const NOT_APPLICABLE_JSON: &str = "{\"schema_version\":\"fathomdb.doctor.cuda-allocator.v1\",\"built\":BUILT,\"module_load_init\":\"not_at_load\",\"mode\":\"auto\",\"path\":null,\"reason\":\"not_applicable\",\"pool_max_size_bytes\":null,\"release_threshold\":null,\"cuda_context_state\":null}\n";
+
+    #[test]
+    fn doctor_cuda_allocator_explicit_cpu_returns_before_any_cuda_call() {
+        let record = diagnose_cuda_allocator(
+            &allocator_inputs(true, Some("cpu")),
+            &PlatformFixture::classic_tegra(),
+            &mut NoCudaAllowed,
+        )
+        .expect("cpu early return");
+        assert_eq!(
+            cuda_allocator_output(&record, true),
+            NOT_APPLICABLE_JSON.replace("BUILT", "true")
+        );
+    }
+
+    #[test]
+    fn doctor_cuda_allocator_affirmed_sbsa_returns_before_any_cuda_call() {
+        for platform in [PlatformFixture::arm64_sbsa(), PlatformFixture::thor()] {
+            let record = diagnose_cuda_allocator(
+                &allocator_inputs(true, None),
+                &platform,
+                &mut NoCudaAllowed,
+            )
+            .expect("sbsa early return");
+            assert_eq!(
+                cuda_allocator_output(&record, true),
+                NOT_APPLICABLE_JSON.replace("BUILT", "true")
+            );
+        }
+    }
+
+    #[test]
+    fn doctor_cuda_allocator_without_a_cuda_feature_returns_before_any_cuda_call() {
+        let record = diagnose_cuda_allocator(
+            &allocator_inputs(false, None),
+            &PlatformFixture::classic_tegra(),
+            &mut NoCudaAllowed,
+        )
+        .expect("non-CUDA early return");
+        assert_eq!(
+            cuda_allocator_output(&record, true),
+            NOT_APPLICABLE_JSON.replace("BUILT", "false")
+        );
+        assert_eq!(
+            cuda_allocator_output(&record, false),
+            "doctor cuda-allocator\nschema_version=fathomdb.doctor.cuda-allocator.v1\nbuilt=false\nmodule_load_init=not_at_load\nmode=auto\npath=null\nreason=not_applicable\npool_max_size_bytes=null\nrelease_threshold=null\ncuda_context_state=null\n"
+        );
+    }
+
+    #[test]
+    fn doctor_cuda_allocator_runs_early_init_then_probe_and_reports_the_decision() {
+        let report = fathomdb_embedder::CudaAllocatorReport::new(
+            Some(fathomdb_embedder::CudaAllocatorPath::Private),
+            fathomdb_embedder::CudaAllocatorReason::PrivatePool,
+            Some(3 << 30),
+            Some(fathomdb_embedder::ReleaseThreshold::Zero),
+            fathomdb_embedder::ModuleLoadInit::Ran,
+        );
+        let mut probe = FixtureAllocatorProbe {
+            init: fathomdb_embedder::ModuleLoadInit::Ran,
+            device: Ok(Some(
+                fathomdb_embedder::CudaDeviceInfo::new(0, None, None, None, None, None)
+                    .with_cuda_allocator(Some(report)),
+            )),
+            state: Some(fathomdb_embedder::CudaPrimaryContextState { active: true, flags: 8 }),
+            calls: Vec::new(),
+        };
+        let mut inputs = allocator_inputs(true, None);
+        inputs.pool_mode = Some("on");
+        let record =
+            diagnose_cuda_allocator(&inputs, &PlatformFixture::classic_tegra(), &mut probe)
+                .expect("probe succeeds");
+        assert_eq!(probe.calls, ["early_init", "resolve_device", "context_state"]);
+        assert_eq!(
+            cuda_allocator_output(&record, true),
+            "{\"schema_version\":\"fathomdb.doctor.cuda-allocator.v1\",\"built\":true,\"module_load_init\":\"ran\",\"mode\":\"on\",\"path\":\"private\",\"reason\":\"private_pool\",\"pool_max_size_bytes\":3221225472,\"release_threshold\":\"0\",\"cuda_context_state\":{\"state\":\"active\",\"flags\":8}}\n"
+        );
+        assert_eq!(
+            cuda_allocator_output(&record, false),
+            "doctor cuda-allocator\nschema_version=fathomdb.doctor.cuda-allocator.v1\nbuilt=true\nmodule_load_init=ran\nmode=on\npath=private\nreason=private_pool\npool_max_size_bytes=3221225472\nrelease_threshold=0\ncuda_context_state=active flags=8\n"
+        );
+    }
+
+    #[test]
+    fn doctor_cuda_allocator_reports_a_cpu_resolution_and_a_missing_report_as_not_applicable() {
+        for device in
+            [None, Some(fathomdb_embedder::CudaDeviceInfo::new(0, None, None, None, None, None))]
+        {
+            let has_device = device.is_some();
+            let mut probe = FixtureAllocatorProbe {
+                init: fathomdb_embedder::ModuleLoadInit::OptedOut,
+                device: Ok(device),
+                state: Some(fathomdb_embedder::CudaPrimaryContextState { active: false, flags: 0 }),
+                calls: Vec::new(),
+            };
+            let mut inputs = allocator_inputs(true, None);
+            inputs.built = false;
+            let record =
+                diagnose_cuda_allocator(&inputs, &PlatformFixture::non_aarch64(), &mut probe)
+                    .expect("probe succeeds");
+            let state = if has_device { "{\"state\":\"inactive\",\"flags\":0}" } else { "null" };
+            assert_eq!(
+                cuda_allocator_output(&record, true),
+                format!("{{\"schema_version\":\"fathomdb.doctor.cuda-allocator.v1\",\"built\":false,\"module_load_init\":\"opted_out\",\"mode\":\"auto\",\"path\":null,\"reason\":\"not_applicable\",\"pool_max_size_bytes\":null,\"release_threshold\":null,\"cuda_context_state\":{state}}}\n")
+            );
+        }
+    }
+
+    #[test]
+    fn doctor_cuda_allocator_probe_failure_is_an_internal_failure() {
+        let mut probe = FixtureAllocatorProbe {
+            init: fathomdb_embedder::ModuleLoadInit::Ran,
+            device: Err("cuda:0 was refused".to_owned()),
+            state: None,
+            calls: Vec::new(),
+        };
+        let error = diagnose_cuda_allocator(
+            &allocator_inputs(true, Some("cuda:0")),
+            &PlatformFixture::classic_tegra(),
+            &mut probe,
+        )
+        .expect_err("a refused probe fails");
+        assert!(error.contains("cuda:0 was refused"), "{error}");
+        assert_eq!(cuda_allocator_exit_code(&Err(error)), exit_code::UNRECOVERABLE);
+        let record = diagnose_cuda_allocator(
+            &allocator_inputs(false, None),
+            &PlatformFixture::classic_tegra(),
+            &mut NoCudaAllowed,
+        );
+        assert_eq!(cuda_allocator_exit_code(&record), exit_code::OK);
+    }
+
+    #[test]
+    fn doctor_cuda_allocator_parses_as_a_doctor_verb() {
+        for argv in [
+            vec!["fathomdb", "doctor", "cuda-allocator"],
+            vec!["fathomdb", "doctor", "cuda-allocator", "--json"],
+        ] {
+            let json = argv.len() == 4;
+            match Cli::try_parse_from(argv) {
+                Ok(Cli {
+                    command:
+                        Command::Doctor(DoctorArgs { command: DoctorCommand::CudaAllocator(args) }),
+                }) => assert_eq!(args.json, json),
+                other => panic!("unexpected parse: {other:?}"),
+            }
+        }
+    }
 }

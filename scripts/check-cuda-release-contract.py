@@ -54,6 +54,8 @@ CUDA_GPU_SELECTION = ROOT / "scripts/lib/cuda-gpu-selection.sh"
 NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
 PYTHON_CUDA_FEATURES = "pyo3/extension-module,embed-cuda"
+PYTHON_CUDA_FEATURES_TEGRA = "pyo3/extension-module,embed-cuda,tegra-pool"
+TEGRA_POOL_FEATURE = "tegra-pool"
 RUNNER_LABELS = ("self-hosted", "Linux", "X64", "gpu", "cuda-12")
 CUDA_GPU_UUID_ENV = "env:\n      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}"
 CUDA_MANYLINUX_BASE_IMAGE = (
@@ -495,6 +497,37 @@ def require_cuda_package_rehearsal() -> None:
     )
 
 
+def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
+    """0.8.28 Slice 30 (R30-07): `tegra-pool` ships only in the Tegra wheel.
+
+    The private CUDA pool and the import-time early cuInit hook are for
+    aarch64 Linux integrated GPUs. Every x86_64 CUDA set and every CPU build
+    must refuse the feature, and the Tegra wheel must carry it.
+    """
+    require_fragment(
+        contract,
+        f"CUDA_PYTHON_FEATURES_TEGRA='{PYTHON_CUDA_FEATURES_TEGRA}'",
+        "CUDA artifact contract",
+    )
+    for name, value in re.findall(r"^export (CUDA_\w*FEATURES\w*)='([^']*)'", contract, re.MULTILINE):
+        if name.endswith("_TEGRA"):
+            continue
+        if TEGRA_POOL_FEATURE in value.split(","):
+            fail(f"CUDA artifact contract {name} must not carry {TEGRA_POOL_FEATURE!r}; it is Tegra-only")
+    for path in (CUDA_NAPI_BUILD, CUDA_PREFLIGHT, WORKFLOW, TS_PACKAGE):
+        forbid_fragment(
+            read_text(path),
+            TEGRA_POOL_FEATURE,
+            str(path.relative_to(ROOT)),
+            "tegra-pool belongs only to the Tegra CUDA Python wheel (R30-07)",
+        )
+    features = load_toml(NAPI_MANIFEST).get("features")
+    if isinstance(features, dict):
+        for name, members in features.items():
+            if name != TEGRA_POOL_FEATURE and TEGRA_POOL_FEATURE in (members or []):
+                fail(f"fathomdb-napi feature {name!r} must not enable {TEGRA_POOL_FEATURE!r}")
+
+
 def main() -> None:
     workspace_manifest = load_toml(WORKSPACE_MANIFEST)
     patches = workspace_manifest.get("patch")
@@ -570,6 +603,7 @@ def main() -> None:
         "CUDA artifact contract",
     )
     require_fragment(contract, "CUDA_MANYLINUX='2_28'", "CUDA artifact contract")
+    require_tegra_pool_only_in_tegra_sets(contract)
     # 0.8.23 Slice 80.4 (R80-5, AC80-8): compute capability is a per-target
     # axis — x86_64's value stays the literal '75' this checker has always
     # pinned, Tegra Orin's '87' is new, and CUDA_COMPUTE_CAP itself (the
@@ -823,7 +857,7 @@ def main() -> None:
         '"$CUDA_HOST_CXX_TEGRA_ORIN" --version | grep -F "$CUDA_HOST_GCC_VERSION_TEGRA_ORIN"',
         '"$CUDA_TEGRA_HOST_DRIVER_LIB"',
         '"$CUDA_TEGRA_HOST_ARCH"',
-        '--features "$CUDA_PYTHON_FEATURES"',
+        '--features "$CUDA_PYTHON_FEATURES_TEGRA"',
         '--compatibility "$CUDA_TEGRA_WHEEL_COMPATIBILITY"',
         'grep -F "maturin $CUDA_MATURIN_VERSION"',
         # D-80.6-5: the Tegra floor is higher than the manylinux families'

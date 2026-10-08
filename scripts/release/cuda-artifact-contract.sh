@@ -76,6 +76,11 @@ export CUDA_COMPUTE_CAP_TEGRA_ORIN='87'
 export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_X86_64"
 export CUDA_NAPI_FEATURES='embed-cuda'
 export CUDA_PYTHON_FEATURES='pyo3/extension-module,embed-cuda'
+# The Tegra wheel alone carries `tegra-pool` (0.8.28 Slice 30): the private
+# CUDA pool and the import-time early cuInit hook exist only for aarch64
+# Linux integrated GPUs. check-cuda-release-contract.py refuses the feature
+# in every other set.
+export CUDA_PYTHON_FEATURES_TEGRA='pyo3/extension-module,embed-cuda,tegra-pool'
 # Additive candidate-only Slice 71 tuple. The established v2 route continues
 # to use the two variables above; callers opt into this tuple explicitly.
 export CUDA_RERANK_NAPI_FEATURES='embed-cuda,rerank-cuda'

@@ -23,7 +23,15 @@
 #   - FATHOMDB_TEGRA_NODE_PACKAGE: a package root holding dist/index.js whose
 #     native addon was built with embed-cuda (in-tree src/ts after a CUDA
 #     `napi build`, or an installed node_modules/fathomdb). The ordinary
-#     agent-test loop builds only a CPU debug addon, so it skips here;
+#     agent-test loop builds only a CPU debug addon, so it skips here. The
+#     manual Tegra recipe, from src/ts with the Orin CUDA toolkit on PATH:
+#       CUDA_COMPUTE_CAP=87 \
+#       LIBRARY_PATH=/usr/local/cuda/targets/aarch64-linux/lib \
+#       npm exec -- napi build --platform --release \
+#         --cargo-cwd ../rust/crates/fathomdb-napi \
+#         --features embed-cuda,tegra-pool --js false
+#     `tegra-pool` (0.8.28) gives the addon the private CUDA pool; without it
+#     the addon reports `not_built` and keeps 0.8.27's allocator;
 #   - cuda:0 is an integrated GPU with 60-64 GiB of device memory (the
 #     measured Jetson AGX Orin 64 GB). Another Jetson has a different driver
 #     reservation size, so the heap size that defeats cuInit there is unknown.

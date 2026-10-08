@@ -164,7 +164,7 @@ printf 'build-python-cuda-tegra: CC=%s CXX=%s\n' "$CC" "$CXX"
 printf 'build-python-cuda-tegra: CUDA_COMPUTE_CAP=%s\n' "$CUDA_COMPUTE_CAP"
 printf 'build-python-cuda-tegra: LIBRARY_PATH=%s\n' "$LIBRARY_PATH"
 printf 'build-python-cuda-tegra: LD_LIBRARY_PATH=%s\n' "$LD_LIBRARY_PATH"
-printf 'build-python-cuda-tegra: features=%s\n' "$CUDA_PYTHON_FEATURES"
+printf 'build-python-cuda-tegra: features=%s\n' "$CUDA_PYTHON_FEATURES_TEGRA"
 printf 'build-python-cuda-tegra: base-version=%s\n' "$BASE_VERSION"
 
 if [ "$ASSERT_ONLY" -eq 1 ]; then
@@ -203,7 +203,7 @@ cd "$STAGED_PYTHON"
 # exact drift AC80-9's doc-truth gate exists to stop. D-80.6-1 keeps this wheel
 # out of every registry, which is what makes an unauditable tag acceptable.
 maturin build --release --out "$OUT_DIR" \
-  --features "$CUDA_PYTHON_FEATURES" \
+  --features "$CUDA_PYTHON_FEATURES_TEGRA" \
   --compatibility "$CUDA_TEGRA_WHEEL_COMPATIBILITY" \
   --auditwheel skip \
   --interpreter "$INTERPRETER"

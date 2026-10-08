@@ -135,6 +135,13 @@ candidate.
   JetPack 7/CUDA 13 are out of scope. Memory-pool recovery of
   stream-ordered allocation is evaluated in 0.8.28, not here.
 
+**0.8.28 note (Slice 30).** The Tegra Node addon build must enable the
+`tegra-pool` Cargo feature, so its features are `embed-cuda,rerank-cuda,tegra-pool`
+(R27-117B). Without it the addon keeps 0.8.27's allocator and reports
+`not_built`. The x86_64 sets refuse the feature
+(`scripts/check-cuda-release-contract.py`); see
+`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
+
 ## Ladder placement
 
 Slice 117 depends on Slice 110. Slice 120 kept its dependency on Slice 115,

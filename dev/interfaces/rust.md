@@ -147,6 +147,14 @@ binding support, not an SDK surface. They are unstable, are not re-exported
 by the `fathomdb` facade, are outside the AC-074 governed set, and may change
 or disappear in any release without a successor ADR.
 
+0.8.28 Slice 30 adds two more for `doctor cuda-allocator`:
+`cuda_context_state(ordinal)` and its `CudaPrimaryContextState { active,
+flags }`. The function reads `cuDevicePrimaryCtxGetState`, which never
+retains or creates a context. It returns `None` unless the build has the
+Tegra private-pool driver part (`tegra-pool` with `embed-cuda` or
+`rerank-cuda` on aarch64 Linux) and the driver can be read. The same terms
+apply: binding support, unstable, not re-exported by the facade.
+
 ## Governed-surface contract (AC-074, Q5 = BIND-RUST — landed Slice 27; method-level + feature-gated by Slice 27 fix-1)
 
 This file **owns** the governed Rust-facade surface. The `fathomdb` facade is a

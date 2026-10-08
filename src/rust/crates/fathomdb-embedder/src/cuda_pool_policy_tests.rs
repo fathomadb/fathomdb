@@ -1178,6 +1178,21 @@ fn without_the_driver_part_there_is_no_context_state() {
     assert_eq!(cuda_context_state(0), None);
 }
 
+#[cfg(all(
+    feature = "tegra-pool",
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+#[test]
+fn with_the_driver_part_a_non_cuda_forward_error_is_failed_without_detection() {
+    let error = forward_error(candle_core::Error::Msg("boom".to_owned()), "forward");
+    assert_eq!(
+        error,
+        fathomdb_embedder_api::EmbedderError::Failed { message: "forward: boom".to_owned() }
+    );
+}
+
 // ---- GPU smoke (Jetson AGX Orin 64 GB) -------------------------------------
 
 #[cfg(all(
@@ -1217,13 +1232,16 @@ const RESET_CHILD_ENV: &str = "FATHOMDB_TEST_CONTEXT_RESET_CHILD";
 
 /// Characterizes what a co-resident `cuDevicePrimaryCtxReset` does to a
 /// private-pool process (results § 13.4), in a child process so the reset
-/// cannot reach other tests. The child builds a private device, computes on
-/// it, resets the primary context the way the study's `pool_reset.c` does,
-/// and computes again: that error must map to `cuda_context_lost`, with one
-/// snapshot line on stderr. The child then drops its tensors and device.
-/// That teardown dies with SIGSEGV, as the study recorded: cudarc's
-/// `CudaSlice` drop waits on events of the destroyed context. 0.8.29's fix
-/// flips the teardown assertion.
+/// cannot reach other tests. The child builds the default embedder on
+/// `cuda:0` (cached weights), embeds, resets the primary context the way the
+/// study's `pool_reset.c` does, and embeds twice more: both embeds return
+/// `cuda_context_lost` (driver error `CUDA_ERROR_CONTEXT_IS_DESTROYED`), with
+/// exactly one snapshot line on stderr. Dropping the embedder then dies with
+/// SIGSEGV. On this path the faulting frame is `cublasDestroy_v2`, reached
+/// from the Candle device's `CudaBlas` drop, not the study's
+/// `CudaSlice::drop` -> `CudaStream::wait`: a device built on the private
+/// context uses only the context's default stream, so its slices record no
+/// events to wait on. 0.8.29's fix flips the teardown assertion.
 #[cfg(all(
     feature = "tegra-pool",
     feature = "embed-cuda",
@@ -1245,6 +1263,7 @@ fn gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults() 
             "--test-threads=1",
         ])
         .env(RESET_CHILD_ENV, "1")
+        .env("FATHOMDB_EMBED_DEVICE", "cuda:0")
         .output()
         .expect("child process");
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -1257,7 +1276,9 @@ fn gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults() 
     let snapshot = snapshots[0];
     assert!(snapshot.contains(r#""current_context_id":null"#), "{report}");
     assert!(snapshot.contains(r#""primary_context":{"active":false"#), "{report}");
-    assert!(snapshot.contains(r#""live_private_contexts":1"#), "{report}");
+    // The decision's first context (handed to the embedder's CUDA probe and
+    // kept by the decision) and the embedder's own context.
+    assert!(snapshot.contains(r#""live_private_contexts":2"#), "{report}");
     assert!(snapshot.contains("libcuda.so"), "{report}");
     assert!(snapshot.contains(r#""pool":{"reserved_mem_current":"#), "{report}");
     assert!(stdout.contains("context-reset-child: teardown"), "{report}");
@@ -1275,19 +1296,15 @@ fn gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults() 
 #[ignore = "run by gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults"]
 fn gpu_orin_64_context_reset_child() {
     use candle_core::cuda::cudarc::driver::{result, sys};
-    use candle_core::{DType, Tensor};
-    use fathomdb_embedder_api::EmbedderError;
+    use fathomdb_embedder_api::{Embedder, EmbedderError};
 
     if std::env::var_os(RESET_CHILD_ENV).is_none() {
         return;
     }
     let init = crate::cuda_driver_init::run_module_load_early_init(true, true);
     assert_eq!(init, ModuleLoadInit::Ran);
-    let device = new_cuda_device(0).expect("private device");
-    let ones = Tensor::ones(1024, DType::F32, &device).expect("allocation");
-    let doubled = (&ones * 2.0).expect("compute");
-    let sum: f32 = doubled.sum_all().and_then(|t| t.to_scalar()).expect("read back");
-    assert!((sum - 2048.0).abs() < f32::EPSILON);
+    let embedder = crate::CandleBgeEmbedder::new().expect("embedder on cuda:0");
+    embedder.embed("before the reset").expect("embed");
     assert_eq!(cuda_context_state(0), Some(CudaPrimaryContextState { active: true, flags: 0 }));
 
     let cu_device = result::device::get(0).expect("device");
@@ -1296,19 +1313,16 @@ fn gpu_orin_64_context_reset_child() {
     unsafe { sys::cuDevicePrimaryCtxReset_v2(cu_device) }.result().expect("reset");
     assert_eq!(cuda_context_state(0).map(|state| state.active), Some(false));
 
-    for operation in ["forward", "batch forward"] {
-        let error = (&ones * 2.0)
-            .and_then(|t| t.to_vec1::<f32>())
-            .expect_err("computing on the reset context fails");
-        match forward_error(error, operation) {
-            EmbedderError::CudaContextLost {
+    for _ in 0..2 {
+        match embedder.embed("after the reset") {
+            Err(EmbedderError::CudaContextLost {
                 recorded_context_id,
                 current_context_id,
                 driver_error,
-                operation: reported,
-            } => {
+                operation,
+            }) => {
                 assert_eq!(current_context_id, None);
-                assert_eq!(reported, operation);
+                assert_eq!(operation, "forward");
                 println!(
                     "context-reset-child: context_lost recorded={recorded_context_id} \
                      driver_error={driver_error}"
@@ -1324,8 +1338,6 @@ fn gpu_orin_64_context_reset_child() {
     );
 
     println!("context-reset-child: teardown");
-    drop(doubled);
-    drop(ones);
-    drop(device);
+    drop(embedder);
     println!("context-reset-child: torn down");
 }

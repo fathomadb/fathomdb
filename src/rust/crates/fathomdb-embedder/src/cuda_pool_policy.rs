@@ -533,15 +533,115 @@ pub(crate) struct ForwardFault {
     pub(crate) error: String,
 }
 
+/// File-name fragments of the CUDA user-space libraries a snapshot lists.
+const CUDA_LIBRARY_MARKERS: [&str; 7] =
+    ["libcuda", "libcublas", "libnvrtc", "libnvJitLink", "libcurand", "libnvidia", "libnvrm"];
+
 /// The CUDA library paths named in `/proc/self/maps`, in first-seen order.
 pub(crate) fn cuda_libraries_in_maps(maps: &str) -> Vec<String> {
-    let _ = maps;
-    Vec::new()
+    let mut libraries: Vec<String> = Vec::new();
+    for line in maps.lines() {
+        // The path is the rest of the line from its first `/`; it may hold spaces.
+        let Some(path) = line.find('/').map(|start| &line[start..]) else { continue };
+        let name = path.rsplit('/').next().unwrap_or(path);
+        if CUDA_LIBRARY_MARKERS.iter().any(|marker| name.starts_with(marker))
+            && !libraries.iter().any(|seen| seen == path)
+        {
+            libraries.push(path.to_owned());
+        }
+    }
+    libraries
+}
+
+fn push_json_string(out: &mut String, value: &str) {
+    use fmt::Write as _;
+    out.push('"');
+    for c in value.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if u32::from(c) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", u32::from(c));
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+}
+
+/// What the one snapshot line of a process records.
+struct LossSnapshot<'a> {
+    recorded_context_id: u64,
+    current_context_id: Option<u64>,
+    driver_error: &'a str,
+    operation: &'a str,
+    primary_context: Option<CudaPrimaryContextState>,
+    cuda_libraries: &'a [String],
+    pool: Option<PoolCounters>,
+    live_private_contexts: usize,
+}
+
+/// The snapshot line: the prefix, then one JSON object.
+fn snapshot_line(snapshot: &LossSnapshot<'_>) -> String {
+    use fmt::Write as _;
+    let mut out = String::from(CONTEXT_LOST_SNAPSHOT_PREFIX);
+    let _ = write!(
+        out,
+        "{{\"recorded_context_id\":{},\"current_context_id\":",
+        snapshot.recorded_context_id
+    );
+    match snapshot.current_context_id {
+        Some(id) => {
+            let _ = write!(out, "{id}");
+        }
+        None => out.push_str("null"),
+    }
+    out.push_str(",\"driver_error\":");
+    push_json_string(&mut out, snapshot.driver_error);
+    out.push_str(",\"operation\":");
+    push_json_string(&mut out, snapshot.operation);
+    out.push_str(",\"primary_context\":");
+    match snapshot.primary_context {
+        Some(state) => {
+            let _ = write!(out, "{{\"active\":{},\"flags\":{}}}", state.active, state.flags);
+        }
+        None => out.push_str("null"),
+    }
+    out.push_str(",\"cuda_libraries\":[");
+    for (index, library) in snapshot.cuda_libraries.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        push_json_string(&mut out, library);
+    }
+    out.push_str("],\"pool\":");
+    match snapshot.pool {
+        Some(pool) => {
+            let _ = write!(
+                out,
+                "{{\"reserved_mem_current\":{},\"reserved_mem_high\":{},\
+                 \"used_mem_current\":{},\"used_mem_high\":{}}}",
+                pool.reserved_current, pool.reserved_high, pool.used_current, pool.used_high
+            );
+        }
+        None => out.push_str("null"),
+    }
+    let _ = write!(out, ",\"live_private_contexts\":{}}}", snapshot.live_private_contexts);
+    out
 }
 
 /// Decides whether the private context of `private` is gone after a
 /// non-out-of-memory CUDA error, and on the process's first loss writes one
 /// snapshot line.
+///
+/// The state query never retains, so an inactive primary context (a reset
+/// destroyed it) is never re-created. The id query retains only an active
+/// context; if a reset lands between the two queries, that retain creates a
+/// new context with a new id, which reads as lost, and the release that
+/// follows drops it again.
 fn context_loss<D: PoolDriver>(
     driver: &D,
     private: &PrivateDecision<D::Pool, D::Context>,
@@ -549,8 +649,46 @@ fn context_loss<D: PoolDriver>(
     driver_error: String,
     operation: &str,
 ) -> Option<CudaPoolFailure> {
-    let _ = (driver, private, code, driver_error, operation);
-    None
+    let mut is_lost =
+        matches!(code, Some(CUDA_ERROR_CONTEXT_IS_DESTROYED | CUDA_ERROR_INVALID_CONTEXT));
+    let primary_context = driver.primary_state(private.ordinal).ok();
+    let mut current_context_id = None;
+    match primary_context {
+        Some(state) if state.active => match driver.retained_primary_context_id(private.ordinal) {
+            Ok(id) => {
+                current_context_id = Some(id);
+                is_lost |= id != private.context_id;
+            }
+            Err(_) => is_lost = true,
+        },
+        _ => is_lost = true,
+    }
+    if !is_lost {
+        return None;
+    }
+    driver.snapshot_once().call_once(|| {
+        // A panic here must not poison the gate for later detections.
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            let cuda_libraries = driver.cuda_libraries();
+            let snapshot = LossSnapshot {
+                recorded_context_id: private.context_id,
+                current_context_id,
+                driver_error: &driver_error,
+                operation,
+                primary_context,
+                cuda_libraries: &cuda_libraries,
+                pool: driver.pool_counters(&private.pool).ok(),
+                live_private_contexts: driver.live_private_contexts(&private.pool),
+            };
+            driver.emit_snapshot(&snapshot_line(&snapshot));
+        }));
+    });
+    Some(CudaPoolFailure::ContextLost {
+        recorded_context_id: private.context_id,
+        current_context_id,
+        driver_error,
+        operation: operation.to_owned(),
+    })
 }
 
 // ---- typed failures ---------------------------------------------------------
@@ -1353,8 +1491,8 @@ mod driver {
     /// The primary context state of `ordinal`, or `None` when the driver
     /// cannot be read (for example, before `cuInit`). Never creates a context.
     pub(crate) fn cuda_context_state(ordinal: usize) -> Option<CudaPrimaryContextState> {
-        let _ = ordinal;
-        None
+        // A build that cannot load libcuda panics in cudarc's dynamic loader.
+        std::panic::catch_unwind(|| CudarcDriver.primary_state(ordinal).ok()).ok().flatten()
     }
 
     /// The report for a CUDA device built by [`new_cuda_device`], with the

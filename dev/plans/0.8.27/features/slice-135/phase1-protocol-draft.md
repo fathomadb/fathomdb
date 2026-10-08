@@ -201,7 +201,16 @@ passed ten blocks, 200 independently checked whole sequences and the
 execution-order audit. Pooled p50/p95 changes are +0.010%/+0.155%, with
 four warning-free pairs. Close and reopened-close stage leads persist;
 the small whole-sequence differences do not establish equivalence.
-The candidate subsequently changed with the graph traversal row-error
+The [frozen installed-Python S02 contention subset](s02-python-contention-comparison-protocol.json)
+added synchronized readers and writers sharing one engine handle, then
+projection drain, evidence, erasure and close/reopen state checks. Its
+[paired diagnostic](results/2026-10-07-python-s02-contention-paired/README.md)
+passed 100 fresh-process sequences per version and independent raw and
+reopened-state audit. Pooled p50/p95 changes were +0.373%/−0.143%; all five
+paired p50 changes were positive, and all pairs had host-only paging warnings.
+The result does not establish equivalence. TypeScript and Rust SDK contention
+and the broader Phase 1 protocol remain open.
+An earlier candidate changed with the graph traversal row-error
 [repair](results/2026-10-07-graph-arm-row-repair/README.md) at `3ce1a6352`.
 The prior functional receipts still describe their exact SHAs; final Phase 1
 timing and installed-SDK qualification must use rebuilt artifacts from the

@@ -56,7 +56,12 @@ changed candidate engine bytes after the historical receipts. The
 repaired-source S01/S02 subsets above use rebuilt installed artifacts. The
 [Rust S02 candidate-only timing](results/2026-10-07-rust-s02-candidate-timing/README.md)
 passed 100 measured sequences and independent audit; bounded contention
-remains. The engine-only results
+remains. The [installed Python S02 bounded-contention
+pair](results/2026-10-07-python-s02-contention-paired/README.md) passed 100
+real-database sequences per version with actual shared-handle reader/writer
+overlap, semantic assertions and independent reopened-state checks. Its
+all-warning paired latency diagnostic does not qualify TypeScript or Rust SDK
+contention. The engine-only results
 never substitute for an SDK row. `S03` may use qualified benchmark data as a
 workload; dedicated gold scoring remains Phase 2.
 

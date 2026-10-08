@@ -19,7 +19,10 @@ receipt](results/2026-10-07-python-integrated-candidate/README.md) and
 [TypeScript functional receipt](results/2026-10-07-ts-integrated-candidate/README.md).
 These receipts do not yet constitute the full Phase 1 checkpoint. The paired
 TypeScript S02 subset has host paging warnings; the Rust S02 candidate-only
-result is linked below, while bounded contention remains. S03 and the
+result is linked below. The [installed Python S02 bounded-contention
+pair](results/2026-10-07-python-s02-contention-paired/README.md) now has
+independently audited raw receipts; TypeScript and Rust SDK contention remain.
+S03 and the
 full robustness and coverage matrices remain. C01 has a documented
 [qualification failure](results/2026-10-07-c01-qualification/README.md).
 The [broader Phase 1 protocol](phase1-protocol-draft.md) is still a draft.
@@ -588,7 +591,14 @@ SDK exercise remain open.
   reopened-state audits on repaired source `3f29d649d`. Whole p50/p95 were
   5,754.390/5,815.786 ms; reopened open was the largest named stage at
   4,767.522 ms p50. No same-SDK 0.8.26 comparison exists. Bounded contention
-  and the cross-boundary attribution remain. The
+  and the cross-boundary attribution remain. The [installed Python S02
+  contention pair](results/2026-10-07-python-s02-contention-paired/README.md)
+  subsequently audited 100 whole sequences per version on the same repaired
+  source. Pooled p50/p95 changes were +0.373%/−0.143%; all five paired block
+  p50 changes were positive, and each pair had host-only paging warnings.
+  Actual writer/reader overlap, evidence, erasure and reopened SQLite state
+  passed independent checks. This is a bounded Python diagnostic, not an
+  equivalence claim; other SDK contention and attribution remain. The
   [S02-L baseline pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
   has 100 independently audited fresh-process open/close cycles; its
   [paired subset protocol](s02-python-lifecycle-comparison-protocol.json)

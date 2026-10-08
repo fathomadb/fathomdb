@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 135 — Phase 1 measurement protocol draft
-status: DRAFT_NOT_FROZEN
+status: SUPERSEDED_BY_FROZEN_PHASE1_BUNDLE
 target_release: 0.8.27
 ---
 
@@ -8,21 +8,23 @@ target_release: 0.8.27
 
 **Current boundary (2026-10-08):** exact product source `224e44c593c13d86ece648adabe445723db04070`
 has audited E01–E12 engine, installed Python S01/S02 and installed TypeScript
-S01 paired subsets. The exact-source [selected coverage overlay](results/2026-10-08-e12-224e-coverage/README.md)
-is complete; TypeScript S02, Rust refresh and the common operation mix remain
-open. The
+S01/S02 paired subsets. The exact-source [selected coverage overlay](results/2026-10-08-e12-224e-coverage/README.md)
+is complete; the Rust refresh and candidate timing for the frozen Python S02-L
+remains open. The
 [active execution snapshot](plan.md#active-phase-1-execution-snapshot-2026-10-08)
 and [direct hand-off](handoff-phase1-2026-10-08.md) govern the next work.
-This document stays `DRAFT_NOT_FROZEN` until the remaining baseline pilots,
-negative fixtures, conditions and executable reporting rule are resolved.
+The [frozen broader bundle](phase1-224e-broader-protocol-v2.json) now binds the
+component protocols and executable auditors. This draft remains the design
+history; its earlier `DRAFT_NOT_FROZEN` statements describe the chronology
+before that bundle was committed.
 
 The [approved Slice 135 plan](plan.md) controls this draft. It covers Pareto
 paths, system latency, system robustness, and logic/exception handling. Use
 existing benchmark datasets as workload inputs where qualified. Dedicated
-gold-based quality scoring begins only after the four-result checkpoint. This
-full protocol is **not frozen**: the remaining workload cells, mapping the
-completed Slice 132 SDK surface to benchmark operations, corpus/model hashes
-for those cells and independent review remain.
+gold-based quality scoring begins only after the four-result checkpoint. At
+the time this draft was written, the broader protocol was not frozen. The
+replacement bundle records its executable cells and explicit omissions;
+those omissions remain limitations of the eventual Phase 1 checkpoint.
 
 The bounded engine-only first-results subset is frozen separately in
 [first-results-protocol.json](first-results-protocol.json) after the

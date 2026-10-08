@@ -31,9 +31,10 @@ governed operations: its earlier installed Python and TypeScript run on
 `d465cd56d` exercised 41 selected positive cases each (zero failed, three
 provider/model cases unavailable); Rust exercised 42 selected cases. These
 counts are not complete contract-condition coverage and require exact-source
-artifact review at the checkpoint. The [broader protocol](phase1-protocol-draft.md)
-is still `DRAFT_NOT_FROZEN`; its remaining pilots and negative fixtures must
-be resolved before new final cells run. No dedicated Phase 2 gold scoring
+artifact review at the checkpoint. The
+[broader protocol bundle](phase1-224e-broader-protocol-v2.json) is frozen for the
+remaining exact-candidate Python S02-L timing; its component subset
+protocols govern their own cells. No dedicated Phase 2 gold scoring
 begins until the four-area checkpoint is recorded.
 
 ### Earlier execution chronology (2026-10-07)

@@ -592,6 +592,53 @@ run_fixture "$cudarc_license"
 expect_failure 'cudarc vendor license is missing' \
   'vendored cudarc without its upstream licenses is rejected'
 
+# The vendored cudarc delta is exactly the reviewed item set, and the patch
+# note gives every item an upstream status and a removal path.
+cudarc_items="$(make_candle_fixture cudarc-items approved)"
+python3 - "$cudarc_items/scripts/pinned-override-rot.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+data = json.loads(path.read_text())
+data["cargo_cudarc_exception"]["patch_items"] = ["1. Allocator fallback"]
+path.write_text(json.dumps(data))
+PY
+run_fixture "$cudarc_items"
+expect_failure 'cargo_cudarc_exception.patch_items must equal' \
+  'a cudarc patch item set other than the reviewed one is rejected'
+
+cudarc_note="$(make_candle_fixture cudarc-note approved)"
+run_fixture "$cudarc_note"
+python3 - "$cudarc_note/third_party/cudarc-0.19.7/FATHOMDB-PATCH.md" <<'PY'
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+lines = path.read_text().splitlines(keepends=True)
+path.write_text("".join(
+    line for line in lines if not line.startswith("| 5. Private memory pool primitive |")
+))
+PY
+run_fixture "$cudarc_note"
+expect_failure 'cudarc patch note has no status row for 5. Private memory pool primitive' \
+  'a cudarc patch item without an upstream status and removal path is rejected'
+
+cudarc_blank="$(make_candle_fixture cudarc-blank approved)"
+run_fixture "$cudarc_blank"
+python3 - "$cudarc_blank/third_party/cudarc-0.19.7/FATHOMDB-PATCH.md" <<'PY'
+import re
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+text = path.read_text()
+text, count = re.subn(r"^(\| 6\. Feature marker [^|]*\|)[^|]*(\|[^|]*\|)$", r"\1  \2", text, flags=re.MULTILINE)
+assert count == 1
+path.write_text(text)
+PY
+run_fixture "$cudarc_blank"
+expect_failure 'cudarc patch note has no status row for 6. Feature marker' \
+  'a cudarc patch item with a blank upstream status is rejected'
+
 make_and_run_candle_fixture missing missing
 if [ "$RC" -ne 1 ]; then
   fail "missing Candle patch must fail, got rc=$RC output=$OUT"

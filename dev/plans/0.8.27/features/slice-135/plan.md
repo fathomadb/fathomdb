@@ -753,6 +753,10 @@ SDK exercise remain open.
   A subsequent [deferred text-hit identity RED/GREEN repair](results/2026-10-08-deferred-identity-repair/README.md)
   fixed another common hybrid fallback that had returned a successful hit with
   a substituted ID and missing provenance after a row decode failure.
+  The [soft-fallback probe RED/GREEN repair](results/2026-10-08-soft-fallback-probe-repair/README.md)
+  then stopped a missing vector-kind metadata table from masquerading as a
+  successful hybrid search. The test fixture's initial seven-versus-eight
+  dimension mismatch was excluded before the valid RED/GREEN run.
   The
   [scoped boundary audit](logic-boundary-audit-2026-10-08.md) classifies the
   guarded panic sites, FFI containment structure and remaining `.ok()` leads;

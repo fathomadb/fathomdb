@@ -1708,7 +1708,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             [compiled.match_expression.as_str()],
             |_row| Ok(SoftFallback { branch: SoftFallbackBranch::Vector }),
         )
-        .ok()
+        .optional()?
     } else {
         None
     };

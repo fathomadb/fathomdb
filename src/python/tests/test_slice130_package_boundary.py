@@ -50,7 +50,7 @@ def test_candidate_sources_are_from_this_checkout() -> None:
     assert Path(inspect.getfile(fathomdb.Engine)).resolve().is_relative_to(checkout)
 
 
-def test_all_python_declarations_match_pre_move_baseline() -> None:
+def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> None:
     checkout = Path(__file__).resolve().parents[3]
     package = checkout / "src/python/fathomdb"
     spec = importlib.util.spec_from_file_location(
@@ -65,9 +65,37 @@ def test_all_python_declarations_match_pre_move_baseline() -> None:
     }
     baseline = json.loads(BASELINE.read_text())
     declarations = comparator.parse_python_wrappers(sources)
-    assert len(declarations) == 1131
-    assert declarations == baseline["python_wrapper_declarations"]
-    assert (
-        hashlib.sha256((package / "_fathomdb.pyi").read_bytes()).hexdigest()
-        == baseline["native_stub_sha256"]
+    baseline_declarations = baseline["python_wrapper_declarations"]
+    expected = {row["path"]: row for row in baseline_declarations}
+    assert len(baseline_declarations) == len(expected) == 1131
+
+    # The snapshot is historical; these later public-interface changes are explicit.
+    for path in ("fathomdb.Engine.search_frozen", "fathomdb.engine.Engine.search_frozen"):
+        old = expected[path]
+        assert "pool_n: int=0" in old["signature"]
+        expected[path] = {
+            **old,
+            "signature": old["signature"].replace("pool_n: int=0", "pool_n: int | None=None"),
+        }
+    expected["fathomdb.errors.DependencyTraceError"] = {
+        "kind": "python-value",
+        "path": "fathomdb.errors.DependencyTraceError",
+        "signature": "DependencyTraceError = _DependencyTraceError",
+    }
+    observed = {row["path"]: row for row in declarations}
+    assert len(declarations) == len(observed) == len(expected) == 1132
+    assert observed == expected
+    stub = (package / "_fathomdb.pyi").read_text()
+    prefix, marker, tail = stub.partition("    def search_frozen(\n")
+    assert marker and "    def search_frozen(\n" not in tail
+    frozen, suffix = tail.split("    ) -> SearchResult: ...\n", 1)
+    approved = "pool_n: int | None = ..."
+    assert frozen.count(approved) == 1
+    historical_stub = (
+        prefix
+        + marker
+        + frozen.replace(approved, "pool_n: int = ...", 1)
+        + "    ) -> SearchResult: ...\n"
+        + suffix
     )
+    assert hashlib.sha256(historical_stub.encode()).hexdigest() == baseline["native_stub_sha256"]

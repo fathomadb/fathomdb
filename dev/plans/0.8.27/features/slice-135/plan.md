@@ -750,6 +750,9 @@ SDK exercise remain open.
   row could become a successful incomplete vector search. Its focused repair
   propagates non-absence row errors and passed adjacent vector suites; affected
   final-candidate measurements need rebuilt artifacts.
+  A subsequent [deferred text-hit identity RED/GREEN repair](results/2026-10-08-deferred-identity-repair/README.md)
+  fixed another common hybrid fallback that had returned a successful hit with
+  a substituted ID and missing provenance after a row decode failure.
   The
   [scoped boundary audit](logic-boundary-audit-2026-10-08.md) classifies the
   guarded panic sites, FFI containment structure and remaining `.ok()` leads;

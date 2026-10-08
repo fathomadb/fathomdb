@@ -20,6 +20,9 @@ A later vector-hydration review found another error-suppression path. Its
 [real-database RED/GREEN result](results/2026-10-08-vector-hydration-repair/README.md)
 is an addendum to this earlier source snapshot; the final candidate and
 coverage run must include the repair.
+The subsequent [deferred text-hit identity repair](results/2026-10-08-deferred-identity-repair/README.md)
+is a second addendum: the common hybrid route had suppressed provenance row
+errors and emitted a successful hit with missing source identity.
 
 | Finding | Classification and evidence |
 | --- | --- |
@@ -27,6 +30,7 @@ coverage run must include the repair.
 | Importance/confidence map suppressed prepare/row errors | Confirmed defect repaired on current-only schema with a real-database importance RED/GREEN probe; see [receipt](results/2026-10-08-importance-lookup-repair/README.md). Edge confidence uses the same repaired fallible query shape but has no separate injected confidence receipt. |
 | Modern node, edge and vector candidate row decoding | Earlier confirmed defects repaired test-first; see the [row-site audit](logic-row-error-audit-2026-10-07.md) and its linked receipts. |
 | Vector canonical node/edge hydration | Confirmed defect: `if let Ok` discarded a row decoding error and could return empty success. The staged real-database node test failed before the fix and passed after only absence became optional; see the [receipt](results/2026-10-08-vector-hydration-repair/README.md). The edge branch uses the same repair but lacks its own damaged-row fixture. |
+| Deferred text-hit identity hydration | Confirmed defect: `if let Ok` discarded a canonical provenance decode error and silently changed a text hit's ID and source. A real-database RED/GREEN test now requires `Storage` for malformed provenance; see the [receipt](results/2026-10-08-deferred-identity-repair/README.md). |
 | Two remaining `rows.flatten()` sites in legacy node-FTS fallback | Source-reachable only through pre-step-12/pre-step-8 schema branches, while public open admits current schema 34. They remain test-hook/historical-compatibility risks, not evidence of a supported current-runtime defect. A future change to admission requires re-audit. |
 | Rank-stream `.ok()` | Deliberate optimization fallback to full stable sort. The focused rank target now passes three cases; a malformed row in the fallback propagates `Storage` rather than returning partial results. A statement-failure route is tested, but every possible SQL failure is not enumerated. |
 | `filter.expect` in the edge explanation loop | Guarded by `filter.is_some_and` requiring nonempty attributes in the same branch. No `None` route reaches it. |

@@ -1,0 +1,8 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.57s
+     Running tests/slice135_deferred_text_identity_error.rs (target/debug/deps/slice135_deferred_text_identity_error-443e0347c4bcdb47)
+
+thread 'malformed_deferred_source_must_fail_instead_of_erasing_hit_provenance' (2359705) panicked at src/rust/crates/fathomdb-engine/tests/slice135_deferred_text_identity_error.rs:77:5:
+malformed provenance must not yield a successful hit: Ok(SearchResult { projection_cursor: 1, soft_fallback: None, results: [SearchHit { id: IdSpace { space: Content, value: "a05947d157c6f8b78c13d109ba0caac9a24c63503550e266193af7729595146e" }, write_cursor: 1, kind: "doc", body: "needle source passage", score: 0.0967741935483871, branch: Text, source_id: None, ce_score: None }], explanation: None })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p fathomdb-engine --test slice135_deferred_text_identity_error`

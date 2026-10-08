@@ -2269,10 +2269,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             if hit.branch != SoftFallbackBranch::Text {
                 continue;
             }
-            if let Ok((logical_id, source_id)) = identity_stmt
+            if let Some((logical_id, source_id)) = identity_stmt
                 .query_row([hit.write_cursor], |row| {
                     Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?))
                 })
+                .optional()?
             {
                 hit.id = derive_stable_id(logical_id.as_deref(), &hit.body);
                 hit.source_id = source_id;

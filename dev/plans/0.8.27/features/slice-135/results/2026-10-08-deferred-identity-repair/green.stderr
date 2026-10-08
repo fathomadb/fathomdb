@@ -1,0 +1,3 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.31s
+     Running tests/slice135_deferred_text_identity_error.rs (target/debug/deps/slice135_deferred_text_identity_error-443e0347c4bcdb47)

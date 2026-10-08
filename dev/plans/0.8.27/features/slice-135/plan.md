@@ -700,8 +700,12 @@ SDK exercise remain open.
   A [current-wheel Python S02 whole-sequence smoke](results/2026-10-08-python-s02-current-smoke/README.md)
   then passed real-database state and tampered-state checks. Its
   [replacement paired subset](s02-python-current-comparison-protocol.json)
-  is frozen before current-wheel candidate timing; the smoke itself is not a
-  latency comparison.
+  froze before candidate timing. Its [audited paired diagnostic](results/2026-10-08-python-s02-current-paired/README.md)
+  passed 100 whole sequences per version with pooled p50 +0.129% and median
+  within-pair p50 +0.239%. Four pairs have host-only paging warnings. A
+  subsequently confirmed [vector-hydration row-error defect](results/2026-10-08-vector-hydration-repair/README.md)
+  was repaired test-first; this changes candidate engine bytes and makes the
+  current-wheel timing historical for the final checkpoint.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)
@@ -742,6 +746,11 @@ SDK exercise remain open.
   prevents failed stored importance/confidence lookups from masquerading as
   neutral values; its focused and neighboring cases pass. The new
   exact-source E01–E12 latency and coverage refreshes are linked above. The
+  later vector-hydration RED/GREEN test confirmed that a malformed canonical
+  row could become a successful incomplete vector search. Its focused repair
+  propagates non-absence row errors and passed adjacent vector suites; affected
+  final-candidate measurements need rebuilt artifacts.
+  The
   [scoped boundary audit](logic-boundary-audit-2026-10-08.md) classifies the
   guarded panic sites, FFI containment structure and remaining `.ok()` leads;
   final-artifact binding panic execution is still due.

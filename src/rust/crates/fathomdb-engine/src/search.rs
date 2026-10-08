@@ -1639,8 +1639,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             if results.len() >= final_limit {
                 break;
             }
-            if let Ok((kind, body, logical_id, source_id)) =
-                node_stmt.query_row(rusqlite::params_from_iter(node_params(rowid)), |row| {
+            if let Some((kind, body, logical_id, source_id)) = node_stmt
+                .query_row(rusqlite::params_from_iter(node_params(rowid)), |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, String>(1)?,
@@ -1648,6 +1648,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         row.get::<_, Option<String>>(3)?,
                     ))
                 })
+                .optional()?
             {
                 let id = derive_stable_id(logical_id.as_deref(), &body);
                 results.push(SearchHit {
@@ -1662,14 +1663,15 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     source_id,
                     ce_score: None,
                 });
-            } else if let Ok((body, logical_id, source_id)) =
-                edge_stmt.query_row(rusqlite::params![rowid, view.edge_now()], |row| {
+            } else if let Some((body, logical_id, source_id)) = edge_stmt
+                .query_row(rusqlite::params![rowid, view.edge_now()], |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, Option<String>>(1)?,
                         row.get::<_, Option<String>>(2)?,
                     ))
                 })
+                .optional()?
             {
                 let id = derive_stable_id(logical_id.as_deref(), &body);
                 results.push(SearchHit {

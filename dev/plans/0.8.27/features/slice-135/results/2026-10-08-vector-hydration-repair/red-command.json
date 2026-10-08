@@ -1,0 +1,13 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "fathomdb-engine",
+    "--test",
+    "slice135_vector_hydration_error",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 101
+}

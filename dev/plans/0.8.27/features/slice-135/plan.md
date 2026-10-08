@@ -547,6 +547,11 @@ SDK exercise remain open.
 - **Pareto and coverage:** the first-results cost proxy ranked four of eleven
   measured operations at 84.12% of elapsed cost. A selected workload/test
   line-and-branch overlay and a defect-catching negative control exist.
+  The [exact-candidate E01–E12 overlay](results/2026-10-08-e12-current-coverage/README.md)
+  now compares all twelve workload cells with 14 passing targeted test
+  binaries and two isolated passing rank cases: the tests hit all 888
+  workload-hit engine branch IDs and 8,119 of 8,132 workload-hit lines.
+  This is a selected-route overlap, not production-traffic coverage.
   Expand to the declared operation mix, CPU/queue cost, search branches,
   missed-branch dispositions and rare severe paths.
 - **Latency:** the E01–E12 paired engine campaign has audited raw blocks and
@@ -683,7 +688,11 @@ SDK exercise remain open.
   real-database RED/GREEN test and repaired at `3f29d649d`. Complete the
   remaining site probes, ranked-path and binding-boundary panic/error
   review, current-candidate line/branch coverage, targeted negative probes
-  and dispositions for findings and survivors.
+  and dispositions for findings and survivors. The exact-candidate coverage
+  run also exposed a failing older `slice20_fts_rank_stream` malformed-row
+  fallback test; its `Storage` result reproduced without instrumentation.
+  Reconcile the old fallback oracle with the newer fail-closed row-error
+  contract before claiming the test target or full gate is green.
 - **Functional exercise:** the [capability register](phase1-capability-register.md)
   accounts for all 44 canonical operations: Rust 42 selected cases executed
   and two provider/model cases unavailable; Python 40 executed, one

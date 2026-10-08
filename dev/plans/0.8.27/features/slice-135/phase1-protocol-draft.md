@@ -449,6 +449,13 @@ must be detected for at least one high-use assertion gap. Run existing static
 checks, then audit `unwrap`/`expect`, error conversions, cleanup and FFI panic
 containment on the ranked and boundary paths. Classify every finding.
 
+The [exact-candidate E01–E12 overlay](results/2026-10-08-e12-current-coverage/README.md)
+now records 888 workload-hit engine branch IDs, all hit by the accepted
+selected tests, and 13 workload-hit lines not hit by those tests. It does not
+substitute for the broader cost-ranked operation mix, assertion-strength
+probe, or rare-path review. The same run exposed an existing rank-stream
+test-contract conflict that must be resolved before a full-gate claim.
+
 ## Robustness matrix
 
 An interim [projection commit recovery diagnostic](results/2026-10-07-projection-recovery/README.md)

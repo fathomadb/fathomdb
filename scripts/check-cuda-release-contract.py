@@ -28,6 +28,7 @@ WORKSPACE_MANIFEST = ROOT / "Cargo.toml"
 LOCKFILE = ROOT / "Cargo.lock"
 NAPI_MANIFEST = ROOT / "src/rust/crates/fathomdb-napi/Cargo.toml"
 TS_PACKAGE = ROOT / "src/ts/package.json"
+PYTHON_PYPROJECT = ROOT / "src/python/pyproject.toml"
 WORKFLOW = ROOT / ".github/workflows/release.yml"
 CUDA_CONTRACT = ROOT / "scripts/release/cuda-artifact-contract.sh"
 CUDA_NAPI_BUILD = ROOT / "scripts/release/build-napi-cuda.sh"
@@ -56,6 +57,8 @@ NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
 PYTHON_CUDA_FEATURES = "pyo3/extension-module,embed-cuda"
 PYTHON_CUDA_FEATURES_TEGRA = "pyo3/extension-module,embed-cuda,tegra-pool"
 TEGRA_POOL_FEATURE = "tegra-pool"
+# A reference to a Tegra-only feature set (`CUDA_PYTHON_FEATURES_TEGRA`).
+TEGRA_FEATURE_SET_REF = re.compile(r"CUDA_\w*FEATURES_TEGRA\b")
 RUNNER_LABELS = ("self-hosted", "Linux", "X64", "gpu", "cuda-12")
 CUDA_GPU_UUID_ENV = "env:\n      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}"
 CUDA_MANYLINUX_BASE_IMAGE = (
@@ -509,18 +512,39 @@ def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
         f"CUDA_PYTHON_FEATURES_TEGRA='{PYTHON_CUDA_FEATURES_TEGRA}'",
         "CUDA artifact contract",
     )
-    for name, value in re.findall(r"^export (CUDA_\w*FEATURES\w*)='([^']*)'", contract, re.MULTILINE):
-        if name.endswith("_TEGRA"):
+    # Every non-comment line of the contract that names the feature or the
+    # Tegra set, in any quoting and whether literal or composed, must be the
+    # Tegra set's own assignment.
+    tegra_set = re.compile(r"^(?:export\s+)?CUDA_\w*FEATURES_TEGRA\+?=")
+    for line in contract.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
             continue
-        if TEGRA_POOL_FEATURE in value.split(","):
-            fail(f"CUDA artifact contract {name} must not carry {TEGRA_POOL_FEATURE!r}; it is Tegra-only")
-    for path in (CUDA_NAPI_BUILD, CUDA_PREFLIGHT, WORKFLOW, TS_PACKAGE):
+        if TEGRA_POOL_FEATURE not in stripped and not TEGRA_FEATURE_SET_REF.search(stripped):
+            continue
+        if not tegra_set.match(stripped):
+            fail(
+                "CUDA artifact contract may carry "
+                f"{TEGRA_POOL_FEATURE!r} only in a *_TEGRA feature set; got {stripped!r}"
+            )
+    non_tegra_builds = [CUDA_NAPI_BUILD, CUDA_PREFLIGHT, TS_PACKAGE, PYTHON_PYPROJECT]
+    non_tegra_builds += sorted((ROOT / ".github/workflows").glob("*.y*ml"))
+    non_tegra_builds += [
+        path
+        for path in sorted((ROOT / "scripts/release").glob("*"))
+        if path.is_file() and "tegra" not in path.name and path != CUDA_CONTRACT
+    ]
+    for path in dict.fromkeys(non_tegra_builds):
+        text = read_text(path)
+        label = str(path.relative_to(ROOT))
         forbid_fragment(
-            read_text(path),
+            text,
             TEGRA_POOL_FEATURE,
-            str(path.relative_to(ROOT)),
+            label,
             "tegra-pool belongs only to the Tegra CUDA Python wheel (R30-07)",
         )
+        if TEGRA_FEATURE_SET_REF.search(text):
+            fail(f"{label} must not use the Tegra feature set; it belongs to the Tegra build only")
     features = load_toml(NAPI_MANIFEST).get("features")
     if isinstance(features, dict):
         for name, members in features.items():

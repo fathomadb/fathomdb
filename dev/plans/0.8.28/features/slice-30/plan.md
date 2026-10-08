@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 30 — Tegra private CUDA memory pool (D28-08) plan
-status: APPROVED FOR EXECUTION (revision 3.1, 2026-10-08; aligned with design revision 2)
+status: APPROVED FOR EXECUTION (revision 3.2, 2026-10-08; aligned with design revision 3)
 target_release: 0.8.28
 observed_on: 2026-10-08
 ---
@@ -19,6 +19,11 @@ Files of this slice, all in `dev/plans/0.8.28/features/slice-30/`:
 - `design.md`: the design, completed in S30-T1;
 - `design-review.md`: the design and code reviews;
 - `status.md`: the slice status record.
+
+Revision 3.2 (S30-T9) only corrects statements the implementation made
+false: the decision is reported by `doctor cuda-allocator`, not
+`doctor gpu` (C-10, SD-8, G1, S30-T5, § 8), and the registry check uses a
+scratch downstream crate (AC30-07). Design revision 3 § 8 has the detail.
 
 Work runs in the worktree `.claude/worktrees/slice-30-tegra-pool` on
 branch `slice/0.8.28-30-tegra-pool`, cut from `release/0.8.28` at
@@ -40,7 +45,7 @@ Each change was checked against the branch at `cb9594f44`.
 | C-7 | Module-level CLS `embed_batch_cls` maps forward errors to the `Embedder` class with a Debug string (napi `embedding.rs:138`, py `:199`, SDK `standalone.rs:105`). | Pool exhaustion there must surface as `cuda_pool_exhausted` (R30-04b). |
 | C-8 | Early `cuInit` already has a process-wide record, `fathomdb-embedder/src/cuda_driver_init.rs` (`RECORD`, slots `ModuleLoad` / `EmbedderProbe` / `RerankerProbe`). napi calls it at registration, with the opt-out `FATHOMDB_CUDA_EARLY_INIT=off` (`fathomdb-napi/src/cuda_early_init.rs:207`). Python has no hook. | Ruling 37 builds on this record; there is no new state store. Python gains the same hook and opt-out. |
 | C-9 | `fathomdb doctor gpu` already creates a CUDA context, through `probe_cuda` (`candle_bge.rs:260`). It reports no allocator facts. Its v1 record is frozen (`cli.md:80`), and new facts go into sibling records (precedent: `reranker-gpu.v1`, `platform.v1`). | Revision 2's "doctor must not create a context" is withdrawn. A new verb, `doctor cuda-allocator`, runs early `cuInit`, decides as an SDK process would, and reports the decision (R30-06). |
-| C-10 | The workspace has no `tracing` dependency. | Revision 2's "decision and exhaustion events as `tracing` events" is replaced. The decision goes into the existing `OpenReport.embedder_device_resolution` and into `doctor gpu`. Exhaustion is the typed error. No new dependency. |
+| C-10 | The workspace has no `tracing` dependency. | Revision 2's "decision and exhaustion events as `tracing` events" is replaced. The decision goes into the existing `OpenReport.embedder_device_resolution` and into `doctor cuda-allocator` (C-9). Exhaustion is the typed error. No new dependency. |
 | C-11 | The Tegra Python wheel is built without `rerank-cuda` (`scripts/release/cuda-artifact-contract.sh:78`, shared with x86). No Tegra Node addon is built in CI or release; it is manual, and 0.8.27 Slice 117 is still planned. | `tegra-pool` goes into a Tegra-only Python feature set (R30-07). For the Node addon, Slice 30 adds the feature to the manual build recipe and records it for Slice 117. A contract check forbids `tegra-pool` in x86 sets. |
 | C-12 | The study's `Cargo.toml` comments claim `cuda-artifact-contract.sh` forbids the experiment feature. No such guard exists. | The guard is real work (AC30-07). |
 | C-13 | The study's local Candle commit `bd68a7ca` ("`CudaDevice::from_context` and `Device::new_cuda_from_context`", on `1aefdd00`) exists only in the earlier session's `/tmp` scratchpad. | S30-T2 moves it to a durable clone before the scratchpad is cleaned (§ 9). |
@@ -148,7 +153,7 @@ Each one is restated in `design.md` and the ADR.
 - **SD-8 (new). Where the decision is reported:**
   - a `cuda_allocator` field on the CUDA facts of `DeviceResolution`
     (`OpenReport.embedder_device_resolution`) in all four SDK surfaces;
-  - `fathomdb doctor gpu` (C-9, C-10).
+  - `fathomdb doctor cuda-allocator` (C-9, C-10).
 
 ## 3. Requirements and acceptance criteria
 
@@ -165,7 +170,7 @@ rank above latency (ruling 25).
 | R30-04 | `cuda_pool_exhausted` is raised when a private-pool process gets `CUDA_ERROR_OUT_OF_MEMORY`. It carries the ordinal, the pool's `maxSize` and the message, and is present on every path in every SDK, including load paths and the reranker under `auto`: (a) engine embed, batch embed and engine rerank; (b) module-level `embed_batch_cls` / `embedBatchCls` and `rerank()`; (c) `fathomdb-sdk`. A following request runs on CUDA. | **AC30-04:** for each path in (a)–(c), a Rust, pytest and vitest test drives exhaustion through a deterministic seam and asserts the kind, class and payload. The SDK `ErrorKind` table, the Python and TS classes and every count (C-5) move together. The SDK's catch-all cannot swallow the kind, and a test proves it. G4 QUAL. |
 | R30-05 | C7 instrumentation (ruling 36). Record the primary-context id (`cuCtxGetId`) when the private context is created. On a CUDA error, compare it. On a mismatch, raise typed `cuda_context_lost` (both ids, the driver error, the operation) and write one diagnostic snapshot per process. Survival is not required. | **AC30-05:** tests through a fault seam show the typed error, its payload, and exactly one snapshot under two concurrent detections. A GPU characterization test (heavy tier) runs the study's reset probe and records the current outcome. |
 | R30-06 | The decision is reported: `cuda_allocator` in `DeviceResolution`'s CUDA facts, and a new sibling verb `fathomdb doctor cuda-allocator` (`fathomdb.doctor.cuda-allocator.v1`, design § 2.6). `doctor gpu` v1 is unchanged. The new verb runs early `cuInit` after its `cpu` and SBSA early returns. | **AC30-06:** CLI JSON/text tests pin the record's keys and order and the early returns. Tests in each SDK show the report field on a CUDA resolution, `not_built` without the feature, and its absence on CPU. |
-| R30-07 | Isolation: `tegra-pool` is non-default. Built without it, the allocator decision equals 0.8.27's. The Python early-`cuInit` hook is compiled only with it. The x86 and CPU release feature sets cannot carry it, and the Tegra Python wheel does. Built against registry cudarc, it fails with a clear message. | **AC30-07:** `cargo check` per crate with and without the feature. A `not_built` test. A contract test rejects `tegra-pool` in x86 or CPU sets. A scratch-workspace check without `[patch]` passes without the feature and fails with the marker message with it. The design § 4 tables are complete, each row cited and tested. |
+| R30-07 | Isolation: `tegra-pool` is non-default. Built without it, the allocator decision equals 0.8.27's. The Python early-`cuInit` hook is compiled only with it. The x86 and CPU release feature sets cannot carry it, and the Tegra Python wheel does. Built against registry cudarc, it fails with a clear message. | **AC30-07:** `cargo check` per crate with and without the feature. A `not_built` test. A contract test rejects `tegra-pool` in x86 or CPU sets. A scratch downstream crate, patched like the workspace minus cudarc so that cudarc comes from the registry, compiles without the feature and fails with the marker message with it (`scripts/check-tegra-pool-registry-build.sh`, a manual release check). The design § 4 tables are complete, each row cited and tested. |
 | R30-08 | Candle `from_context` (SD-1). | **AC30-08:** the Candle unit test; the pin set moved together; the CUDA release contract and the pinned-override gate pass. |
 | R30-09 | The cudarc pool primitive (`CudaMemPool`, `CudaContext::new_with_mem_pool`, `AllocMode::Private`, `CudaContext::mem_pool`) is written upstream-first and vendored as its backport. Each `FATHOMDB-PATCH.md` item has an upstream status and a removal path. The pinned-override gate checks the vendored tree against 0.19.7 plus exactly the listed items. | **AC30-09:** vendored unit tests (`test_vendored_cudarc.sh`): the three allocator states, zero-length (C5), drop order. The pinned-override gate passes with the new item set. |
 | R30-10 | Study scaffolding removed (§ 5). | **AC30-10:** a test asserts that the removed environment variables and `fdb-pool-exp` are absent from the source tree outside `dev/`. |
@@ -204,7 +209,7 @@ samples confirm the product build behaves like it.
 
 | Gate | Study rows | Disposition | Method and sample | Pass | Study evidence |
 | --- | --- | --- | --- | --- | --- |
-| G1 Decision | C1, C6 (pure), sizing | TEST + QUAL | AC30-01 tests. QUAL: 20 Node + 20 Python processes in `auto`. | Every FathomDB context is private-pool; every free uses the allocating API; the report and `doctor gpu` show `private` and the size. | 751/751 (§ 12.8) |
+| G1 Decision | C1, C6 (pure), sizing | TEST + QUAL | AC30-01 tests. QUAL: 20 Node + 20 Python processes in `auto`. | Every FathomDB context is private-pool; every free uses the allocating API; the report and `doctor cuda-allocator` show `private` and the size. | 751/751 (§ 12.8) |
 | G2 Fallback | ruling 37, R4 | TEST + QUAL | AC30-02 tests. QUAL: 5 Node + 5 Python processes per state (opted out, `off`, invalid setting), plus 5 late-import Node processes at a 4M-object heap. | Never refuses; 0.8.27 path; the reason is reported. | R4 (§ 12.6) |
 | G3 Release and lifetime | C2, CB1, CB2 | QUAL | 10 Node processes × 100 open/close cycles, no GC; 10 Python × 50; then close and 10 s idle. | All cycles on the private path. Median VmRSS growth ≤ 0.36 MiB per cycle, max ≤ 0.44. `reserved_cur` = 0 after the last close when no module-level model is loaded; otherwise spare < 2 chunks. | 20/20, 0.36 MiB (§ 13.2) |
 | G4 Exhaustion | C3, CB3, CB4 | TEST + QUAL | AC30-04 tests. QUAL: oversized batch (128 long passages) at 3 GiB, 5 Node + 5 Python processes. | Typed kind; the next embed succeeds on `cuda` with the pre-error hash. | § 11.6, § 12.1 |
@@ -289,7 +294,7 @@ read-only during fix-to-spec.
 | S30-T2 | Candle: a durable clone; apply `bd68a7ca` plus a unit test; versions to 0.10.3. **HITL: push the fork branch.** Then move the pin set. | Candle `from_context` test | AC30-08 |
 | S30-T3 | cudarc primitive, upstream-first, vendored; `FATHOMDB-PATCH.md`; pinned-override set; `test_vendored_cudarc.sh`. | Vendored tests: three states, C5, drop order, current pool untouched | AC30-09 |
 | S30-T4 | Policy module (product): feature, sizing, gates, modes, settings, constants, SD-2, SD-3, SD-7; device creation sites; report field (SD-8). | Pure tests; `not_built` test | AC30-01, AC30-03, AC30-07 (part) |
-| S30-T5 | Early-`cuInit` contract: gate the pool on `ModuleLoad`; Python hook and opt-out; CLI `doctor gpu` runs it first. | State-mapping tests; Python import test | AC30-02 |
+| S30-T5 | Early-`cuInit` contract: gate the pool on `ModuleLoad`; Python hook and opt-out; CLI `doctor cuda-allocator` runs it after its early returns. | State-mapping tests; Python import test | AC30-02 |
 | S30-T6 | Typed exhaustion: engine, napi, py, Python SDK, TS, `fathomdb-sdk`, CLI exit code; module-level paths typed (C-6, C-7); counts (C-5). | AC30-04 tests per path and surface | AC30-04 |
 | S30-T7 | C7 instrumentation and `cuda_context_lost` in every surface. | AC30-05 tests | AC30-05 |
 | S30-T8 | `doctor cuda-allocator`; feature wiring in Cargo, the Tegra wheel script and the manual addon recipe; contract guard (C-12); the no-`[patch]` scratch check; removal test; interface docs, ADR final, changelog. | CLI tests; contract test; removal test | AC30-06, AC30-07, AC30-10, AC30-11 |
@@ -326,7 +331,7 @@ on those crates, and the Markdown checks for doc changes. The full
   fail shell lint. S30-T10b brings them over lint-clean, inside the new
   qualification directory `dev/plans/runs/0.8.28-slice-30/harness/`. The
   harness is adapted there to `FATHOMDB_POOL_MODE`, the report field and
-  `doctor gpu`. The study copies stay as the record.
+  `doctor cuda-allocator`. The study copies stay as the record.
 - **The vendored Candle copy** stays on the study branch only (SD-1).
 
 ## 9. Host clean-up (HITL)

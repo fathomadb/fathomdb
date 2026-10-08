@@ -133,7 +133,8 @@ makes; `doctor gpu` v1 is unchanged.
    lost: the operation returns `cuda_context_lost` and one
    `fathomdb-cuda-context-lost` JSON line goes to stderr per process. A
    co-resident reset of the primary context stays **unsupported** in
-   0.8.28: closing afterwards still crashes in `CudaSlice::drop`, and a
+   0.8.28: teardown afterwards still crashes (on the private-pool path in
+   `cublasDestroy_v2`, from the Candle device's cuBLAS handle drop), and a
    heavy-tier characterization test pins that until the 0.8.29 fix.
 6. **Feature wiring (SD-5).** `tegra-pool` is non-default in
    `fathomdb-embedder` and forwarded by the engine, napi, py, sdk, facade and

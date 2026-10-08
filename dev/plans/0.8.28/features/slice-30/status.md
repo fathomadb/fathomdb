@@ -22,6 +22,7 @@ See the [plan](plan.md) and the [design](design.md).
 | S30-T4/T5 | done | `e80700648` axis-E 0.7.0; `7fab51721` red, `cbe46d538` green: the policy, decision and report; `a1e76d55d` red, `53ad469b0` green: the shared early-`cuInit` helper and the Tegra Python hook. The Orin GPU smoke test (private pool, 3 GiB) passes. |
 | S30-T6 | done | `67514d382` red, `50dc12346` green: engine; `caf0a9608` red, `1ecef7fa0` green: napi, py, SDK, CLI, TS and Python; `38aa47a51` docs. The Slice 130 Python baseline stays frozen; declared additions at `b63087b80` (owner choice). |
 | S30-T8 | done | `01710c020` red, `cc056ed54` green: `doctor cuda-allocator` (on the Orin: `private`, 3 GiB, `"0"`, `ran`, context `active`). `7c0fb04b6` red, `d5f5087ad` green: `CUDA_PYTHON_FEATURES_TEGRA` and the contract guard. `4815afe8a`: `scripts/check-tegra-pool-registry-build.sh` passed on the Orin. `d5bb4a63c`: the scaffolding-removal test. Docs, the ADR (index row 62) and the changelog follow. |
+| S30-T9 | done | Phase 5: `results.md` § 14 (decision rule, UNMEASURED, 0.8.29 / 0.8.30); [upstream-cudarc-package.md](upstream-cudarc-package.md), prepared and not posted (owner sign-off required), with the NVIDIA report addendum; design revision 3 reconciled with the code (§ 8); plan revision 3.2 (minimal corrections). |
 
 ## Notes
 

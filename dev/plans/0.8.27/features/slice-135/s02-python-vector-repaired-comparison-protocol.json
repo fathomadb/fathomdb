@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_S02_PYTHON_PAIRED",
+  "scope": "Installed Python S02 whole-product sequence on vector-repaired post-Slice-132 candidate; not the full Phase 1 protocol",
+  "freeze_date_utc": "2026-10-07",
+  "baseline_noise_evidence": "results/2026-10-07-python-s02-controlled-noise-pilot/audit.json",
+  "baseline_noise_audit_sha256": "a65631cf02da968a481c5d98d741046fa74cff2fe2761df5b122052e03b48f76",
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+  },
+  "candidate": {
+    "source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+    "wheel_sha256": "39d4af3060ca4b72d7ad16211fa0ba44a8992feef87040f3513a262cbdc359a4"
+  },
+  "candidate_source_note": "A clean detached 3f29d649d checkout built and installed the candidate wheel with bytecode hygiene and frozen-evidence profile checks. Wheel metadata remains 0.8.26 before the release version bump; exact source and installed wheel bytes define identity. One full product sequence passed independent state validation before this freeze.",
+  "block_runner_sha256": "71ff1fa004b3b91f492cd5d5ec9d28251fdb0b1c0952c8d632074e61e7a6fa3e",
+  "timed_runner_sha256": "9d4c63335127807daf3d1561b7aeff2c4d6f658d153dd54c08558500ff0c966d",
+  "s01_helper_sha256": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+  "s02_helper_sha256": "75424eb9b939530e4ac039d0e1e4ac5d112ea0fa084cc406688f68c10fac550d",
+  "pilot_helper_sha256": "e8fde3e7caab5c5b6a43069562c7b0d29825d9ac9766539a94ccf7050b0a866d",
+  "corpus_sha256": "77c89858630fd30f5b4ce68748f309047908213e6cbb834b3d812ad87f2be051",
+  "graph_records_sha256": "f62b7379f2d7fa61a6ac20a16d4e4bb4a21462a6ff5a6900aee65e6fd8ed8c4f",
+  "model": "fathomdb-bge-small-en-v1.5 default CPU embedder",
+  "database": "Fresh real SQLite database and fresh Python process per sequence",
+  "timing_boundary": "Installed Python Engine.open invocation through materialized post-erasure and reopened state and reopened close; direct SQLite verification and semantic assertions excluded",
+  "warmup_per_block": 1,
+  "samples_per_block": 20,
+  "pairs": 5,
+  "pair_order": [
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ]
+  ],
+  "minimum_idle_seconds_between_blocks": 5,
+  "total_valid_samples_per_version": 100,
+  "primary_statistics": [
+    "nearest_rank_p50",
+    "nearest_rank_p95"
+  ],
+  "unsupported_statistics": [
+    "p99"
+  ],
+  "percentile_rule": "Sort all 100 valid per-version samples; nearest-rank index ceil(p*n)-1, without trimming. Also report each block's median and complete observed range.",
+  "pair_delta_formula": "100*(candidate_percentile_ns-baseline_percentile_ns)/baseline_percentile_ns",
+  "uncertainty_rule": "Report every one of the five pair deltas, their median and complete range. Five pairs do not support a significance or equivalence claim.",
+  "resource_rule": "Retain GNU Time child CPU, peak RSS, filesystem block I/O, major faults and swaps for every fresh process. Report per-version resource distributions without attributing whole-process cost to one stage.",
+  "invalid_block_rule": "Preserve all attempts. Require a clean exact-source checkout, verified installed wheel and native bytes, frozen protocol and runner hashes, exactly 20 valid measured samples plus one valid warmup, expected state and counts, stable host/kernel/CPU/storage/governor/toolchain, no named competing jobs, at least 1 GiB free and zero measured-child swap events. Host-only swap drift is a warning with a sensitivity result. Do not replace a failed sample silently; invalidate and retain its block and pair.",
+  "candidate_verdict_rule": "Diagnostic latency comparison only. Report regression/improvement and observed uncertainty separately from accepted release gates; version agreement is not a correctness oracle.",
+  "phase1_limit": "This integrated Python S02 subset does not close TypeScript/Rust, S01/S03/C01, contention, Pareto coverage, robustness or logic/exception matrices.",
+  "freeze_revision": 2,
+  "superseded_protocol_sha256": "8aa493bfe49426fc8253672692f22268224dbc88074133ba1fde79a0451cbce1",
+  "revision_reason": "Refreeze unchanged S02 sequence, fixture, model, sample count, alternation and analysis for vector-row-error-repaired candidate at 3f29d649d. Earlier candidate timing remains historical.",
+  "candidate_product_snapshot": {
+    "source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+    "rust_crates_git_tree": "c8eaaa19a0e0e876326b778733ace354cc7e21e8",
+    "cargo_lock_git_blob": "dbd5b98f621aa0fc8e9bccdd053a56be61ced471",
+    "rule": "Any change to installed wheel bytes or relevant product source after this freeze requires affected-cell rerun."
+  },
+  "campaign_runner_sha256": "98ec8165f3ea36a3b1093c13239d30b1964c4dc5a84a1e5ea35286a2c797d1e9",
+  "candidate_smoke_sha256": "4cf39fe37ef62270a7aec463a5e9cebfdc4d0fd2aaf9b4d36139d94c62c51f7e"
+}

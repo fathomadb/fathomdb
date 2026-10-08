@@ -680,6 +680,9 @@ SDK exercise remain open.
   An [exact-candidate projection-commit replay](results/2026-10-08-projection-commit-current/README.md)
   adds ten independently checked runs of six debug-hook fault and recovery
   tests, including stop/reopen, plus tampered-log negative controls.
+  A [five-run persistent SQLite-full probe](results/2026-10-08-persistent-sqlite-full-current/README.md)
+  adds 15 typed failed writes under an unchanged page cap, exact reopened
+  state and independently rejected tampered receipts.
   Finish the declared fault/schedule matrix with persistent and one-shot
   faults, further interrupted-erasure positions, state and resource oracles.
 - **Logic and exceptions:** focused static checks and regression tests caught

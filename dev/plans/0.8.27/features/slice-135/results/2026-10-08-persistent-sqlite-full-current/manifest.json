@@ -1,0 +1,105 @@
+{
+  "binary": "/tmp/slice135-current-tc91-target/debug/deps/slice135_robustness_first-ec087767fc98effb",
+  "binary_sha256": "4ee6defa14652bc041b1210ada0c536f73b189247f9a4396eeec7b60dd3e8304",
+  "cargo_lock_sha256": "9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe",
+  "features": [
+    "test-hooks",
+    "default-embedder"
+  ],
+  "host": "windchill3",
+  "kernel": "7.0.0-38-generic",
+  "runs": [
+    {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/tmp/slice135-persistent-full-1509818c6/run-01.resource.txt",
+        "/tmp/slice135-current-tc91-target/debug/deps/slice135_robustness_first-ec087767fc98effb",
+        "--exact",
+        "slice135_persistent_sqlite_full_preserves_state_until_cap_lifts",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "ordinal": 1,
+      "resource_sha256": "4ce369e9b209e447eaa85b9ff8203d0fb5069d22967a405583a9edd95bcdac9b",
+      "returncode": 0,
+      "stderr_sha256": "c242b145d161c63d292ad060f6b82dd2e063398fd828cf334cb4acd001ac6b3b",
+      "stdout_sha256": "c464b91a41a3195c7bda07b2075495c1d6dfcbc13de0922b857e1d50a6c6f91a"
+    },
+    {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/tmp/slice135-persistent-full-1509818c6/run-02.resource.txt",
+        "/tmp/slice135-current-tc91-target/debug/deps/slice135_robustness_first-ec087767fc98effb",
+        "--exact",
+        "slice135_persistent_sqlite_full_preserves_state_until_cap_lifts",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "ordinal": 2,
+      "resource_sha256": "519a54f9049bf57b914e312b3352f081e92945a826804e6f13efe5c667fc4929",
+      "returncode": 0,
+      "stderr_sha256": "c242b145d161c63d292ad060f6b82dd2e063398fd828cf334cb4acd001ac6b3b",
+      "stdout_sha256": "c464b91a41a3195c7bda07b2075495c1d6dfcbc13de0922b857e1d50a6c6f91a"
+    },
+    {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/tmp/slice135-persistent-full-1509818c6/run-03.resource.txt",
+        "/tmp/slice135-current-tc91-target/debug/deps/slice135_robustness_first-ec087767fc98effb",
+        "--exact",
+        "slice135_persistent_sqlite_full_preserves_state_until_cap_lifts",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "ordinal": 3,
+      "resource_sha256": "f50a2c59bd4377d2ae39e1bf5161a9bb83fa2ea406a92b4d5588844f46d1d767",
+      "returncode": 0,
+      "stderr_sha256": "c242b145d161c63d292ad060f6b82dd2e063398fd828cf334cb4acd001ac6b3b",
+      "stdout_sha256": "c464b91a41a3195c7bda07b2075495c1d6dfcbc13de0922b857e1d50a6c6f91a"
+    },
+    {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/tmp/slice135-persistent-full-1509818c6/run-04.resource.txt",
+        "/tmp/slice135-current-tc91-target/debug/deps/slice135_robustness_first-ec087767fc98effb",
+        "--exact",
+        "slice135_persistent_sqlite_full_preserves_state_until_cap_lifts",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "ordinal": 4,
+      "resource_sha256": "c827602f965da0ecd236dfae66b745a7927b565e72c07dbf3d4a4e13b6890397",
+      "returncode": 0,
+      "stderr_sha256": "c242b145d161c63d292ad060f6b82dd2e063398fd828cf334cb4acd001ac6b3b",
+      "stdout_sha256": "c464b91a41a3195c7bda07b2075495c1d6dfcbc13de0922b857e1d50a6c6f91a"
+    },
+    {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/tmp/slice135-persistent-full-1509818c6/run-05.resource.txt",
+        "/tmp/slice135-current-tc91-target/debug/deps/slice135_robustness_first-ec087767fc98effb",
+        "--exact",
+        "slice135_persistent_sqlite_full_preserves_state_until_cap_lifts",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "ordinal": 5,
+      "resource_sha256": "b3ef7bd250dd683bd0bb57594e434e5bc4bf6ec50393fd6b341ca39b915a830d",
+      "returncode": 0,
+      "stderr_sha256": "c242b145d161c63d292ad060f6b82dd2e063398fd828cf334cb4acd001ac6b3b",
+      "stdout_sha256": "c464b91a41a3195c7bda07b2075495c1d6dfcbc13de0922b857e1d50a6c6f91a"
+    }
+  ],
+  "source_sha": "1509818c64cde4c45478c5a2404ead4472cd9667",
+  "test_source_sha256": "c942670fdc7a31471e34587ead50434fc1c50284344c073f687a27356b65c3e9"
+}

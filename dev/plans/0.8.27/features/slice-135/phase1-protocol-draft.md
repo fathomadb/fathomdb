@@ -481,6 +481,12 @@ checks a durable pending telemetry redaction across close and fresh engine
 open. Retry without the original sink refuses completion; restoring it clears
 the obligation and preserves a control record. This closes one named schedule,
 not the remaining erasure or persistent-fault rows.
+The [persistent SQLite-full diagnostic](results/2026-10-08-persistent-sqlite-full-current/README.md)
+checks three governed writes under one unchanged page cap in each of five
+fresh-process runs, then cap removal and fresh reopen. Its independent audit
+accepted all five exact-state records and rejected two recomputed-hash
+mutations. It closes that bounded capacity row, not permission, provider or
+in-commit crash faults.
 
 | Fault or schedule | State oracle after real-database reopen |
 | --- | --- |

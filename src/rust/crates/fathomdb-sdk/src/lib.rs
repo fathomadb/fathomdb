@@ -57,8 +57,9 @@ pub use standalone::{embed_batch_cls, rerank, RerankPassage, RerankResult};
 // non-operator types minus `Engine`, `OpenedEngine` and `Subscription`, plus
 // the names SDK signatures and public fields need.
 pub use fathomdb_embedder::{
-    CudaDeviceInfo, CudaVisibleDevice, DeviceResolution, EffectiveEmbedDevice,
-    EffectiveRerankerDevice, EmbedDevicePolicyError, EmbedderEvent, GpuAllocationWitness,
+    CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaDeviceInfo, CudaVisibleDevice,
+    DeviceResolution, EffectiveEmbedDevice, EffectiveRerankerDevice, EmbedDevicePolicyError,
+    EmbedderEvent, GpuAllocationWitness, ModuleLoadInit, ReleaseThreshold,
     RerankerDevicePolicyError, RerankerDeviceResolution,
 };
 pub use fathomdb_embedder_api::{EmbedderError as RuntimeEmbedderError, EmbedderIdentity};

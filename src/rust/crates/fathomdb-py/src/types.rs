@@ -229,6 +229,34 @@ impl PyEmbedderIdentity {
 
 #[pyclass(
     module = "fathomdb._fathomdb",
+    name = "CudaAllocatorReport",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub(super) struct PyCudaAllocatorReport {
+    pub(super) path: Option<String>,
+    pub(super) reason: String,
+    pub(super) pool_max_size_bytes: Option<u64>,
+    pub(super) release_threshold: Option<String>,
+    pub(super) module_load_init: String,
+}
+
+impl PyCudaAllocatorReport {
+    pub(super) fn from_rust(report: &RustCudaAllocatorReport) -> Self {
+        Self {
+            path: report.path.map(|path| path.as_str().to_string()),
+            reason: report.reason.as_str().to_string(),
+            pool_max_size_bytes: report.pool_max_size_bytes,
+            release_threshold: report.release_threshold.map(|t| t.as_str().to_string()),
+            module_load_init: report.module_load_init.as_str().to_string(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
     name = "CudaDeviceInfo",
     frozen,
     get_all,
@@ -242,6 +270,7 @@ pub(super) struct PyCudaDeviceInfo {
     pub(super) driver_version: Option<String>,
     pub(super) compute_capability: Option<String>,
     pub(super) cuda_toolkit_version: Option<String>,
+    pub(super) cuda_allocator: Option<PyCudaAllocatorReport>,
 }
 
 impl PyCudaDeviceInfo {
@@ -253,6 +282,7 @@ impl PyCudaDeviceInfo {
             driver_version: info.driver_version.clone(),
             compute_capability: info.compute_capability.clone(),
             cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+            cuda_allocator: info.cuda_allocator.as_ref().map(PyCudaAllocatorReport::from_rust),
         }
     }
 }

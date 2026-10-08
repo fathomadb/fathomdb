@@ -251,6 +251,10 @@ The readonly additive fields are `visibleCudaDevices: readonly CudaVisibleDevice
 inventory member. CPU-effective automatic outcomes retain the observed
 inventory.
 
+`CudaDeviceInfo.cudaAllocator: CudaAllocatorReport | null` (0.8.28 Slice 30)
+carries the CUDA allocator decision behind the device (§ Tegra private CUDA
+memory pool).
+
 This `DeviceResolution` is normal open-time evidence only. The CLI-only
 `DoctorGpuDiagnosticResult` is intentionally distinct: a
 `CudaProbeError::ProbeFailed` may be recorded as automatic CPU open evidence,
@@ -852,9 +856,19 @@ carries it) gives FathomDB a private CUDA memory pool on the Jetson AGX Orin
   `FATHOMDB_POOL_RELEASE_THRESHOLD` (`0`, `max`) are read once, at the first
   CUDA device build; changing `process.env` later has no effect. A malformed
   value turns the pool off and never throws.
-- **Report.** `CudaDeviceInfo` does not yet carry the core
-  `cuda_allocator` report; `fathomdb doctor cuda-allocator --json` reports
-  the decision (`dev/interfaces/cli.md`).
+- **Report.** `CudaDeviceInfo.cudaAllocator` is a readonly
+  `CudaAllocatorReport | null` (exported from the package root) on the CUDA
+  facts of both `embedderDeviceResolution` and `rerankerDeviceResolution`.
+  Its fields are `path: string | null` (`private`, `default_pool`,
+  `synchronous`; `null` when unknown), `reason: string` (a
+  `CudaAllocatorReason` name, `dev/interfaces/cli.md`),
+  `poolMaxSizeBytes: number | null`, `releaseThreshold: "0" | "max" | null`
+  (both `null` unless the path is private) and `moduleLoadInit: string`
+  (`ran`, `opted_out`, `skipped_cpu_only`, `driver_absent`, `failed`,
+  `not_at_load`). It is `null` off aarch64 Linux CUDA builds, and has reason
+  `not_built` in an aarch64 Linux CUDA build without `tegra-pool`.
+  `fathomdb doctor cuda-allocator --json` reports the same decision from the
+  CLI.
 - **Module-level models.** `embedBatchCls` and `rerank` load process
   singletons; on the private pool they hold their memory until the process
   exits. An engine's own embedder returns its memory when the engine closes.

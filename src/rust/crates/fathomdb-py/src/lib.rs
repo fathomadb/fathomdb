@@ -41,8 +41,9 @@ use std::sync::Barrier;
 use std::sync::Mutex;
 
 use fathomdb_embedder::{
-    CudaDeviceInfo as RustCudaDeviceInfo, CudaVisibleDevice as RustCudaVisibleDevice,
-    DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
+    CudaAllocatorReport as RustCudaAllocatorReport, CudaDeviceInfo as RustCudaDeviceInfo,
+    CudaVisibleDevice as RustCudaVisibleDevice, DeviceResolution as RustDeviceResolution,
+    EffectiveEmbedDevice as RustEffectiveEmbedDevice,
     EffectiveRerankerDevice as RustEffectiveRerankerDevice,
     EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
     GpuAllocationWitness as RustGpuAllocationWitness,
@@ -237,6 +238,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyCounterSnapshot>()?;
     m.add_class::<PyMigrationStepReport>()?;
     m.add_class::<PyEmbedderIdentity>()?;
+    m.add_class::<PyCudaAllocatorReport>()?;
     m.add_class::<PyCudaDeviceInfo>()?;
     m.add_class::<PyCudaVisibleDevice>()?;
     m.add_class::<PyEffectiveEmbedDevice>()?;

@@ -9,6 +9,7 @@ from fathomdb.errors import (
     FrozenReadError,
 )
 from fathomdb.types import (
+    CudaAllocatorReport,
     CudaDeviceInfo,
     CudaVisibleDevice,
     DeviceResolution,
@@ -204,6 +205,29 @@ def _map_gpu_allocation_witness(native: Any) -> GpuAllocationWitness:
     )
 
 
+def _map_cuda_device_info(native: Any) -> CudaDeviceInfo:
+    allocator = native.cuda_allocator
+    return CudaDeviceInfo(
+        ordinal=native.ordinal,
+        uuid=native.uuid,
+        name=native.name,
+        driver_version=native.driver_version,
+        compute_capability=native.compute_capability,
+        cuda_toolkit_version=native.cuda_toolkit_version,
+        cuda_allocator=(
+            None
+            if allocator is None
+            else CudaAllocatorReport(
+                path=allocator.path,
+                reason=allocator.reason,
+                pool_max_size_bytes=allocator.pool_max_size_bytes,
+                release_threshold=allocator.release_threshold,
+                module_load_init=allocator.module_load_init,
+            )
+        ),
+    )
+
+
 def _map_open_report(native: Any) -> OpenReport:
     """Map one native open-time snapshot into the public Python contract."""
 
@@ -245,16 +269,7 @@ def _map_open_report(native: Any) -> OpenReport:
                     cuda_device=(
                         None
                         if device_resolution.effective_device.cuda_device is None
-                        else CudaDeviceInfo(
-                            ordinal=device_resolution.effective_device.cuda_device.ordinal,
-                            uuid=device_resolution.effective_device.cuda_device.uuid,
-                            name=device_resolution.effective_device.cuda_device.name,
-                            driver_version=device_resolution.effective_device.cuda_device.driver_version,
-                            compute_capability=device_resolution.effective_device.cuda_device.compute_capability,
-                            cuda_toolkit_version=(
-                                device_resolution.effective_device.cuda_device.cuda_toolkit_version
-                            ),
-                        )
+                        else _map_cuda_device_info(device_resolution.effective_device.cuda_device)
                     ),
                 ),
                 visible_cuda_devices=tuple(
@@ -284,13 +299,8 @@ def _map_open_report(native: Any) -> OpenReport:
                     cuda_device=(
                         None
                         if reranker_device_resolution.effective_device.cuda_device is None
-                        else CudaDeviceInfo(
-                            ordinal=reranker_device_resolution.effective_device.cuda_device.ordinal,
-                            uuid=reranker_device_resolution.effective_device.cuda_device.uuid,
-                            name=reranker_device_resolution.effective_device.cuda_device.name,
-                            driver_version=reranker_device_resolution.effective_device.cuda_device.driver_version,
-                            compute_capability=reranker_device_resolution.effective_device.cuda_device.compute_capability,
-                            cuda_toolkit_version=reranker_device_resolution.effective_device.cuda_device.cuda_toolkit_version,
+                        else _map_cuda_device_info(
+                            reranker_device_resolution.effective_device.cuda_device
                         )
                     ),
                 ),

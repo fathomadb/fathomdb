@@ -248,6 +248,10 @@ The frozen additive fields are `visible_cuda_devices: tuple[CudaVisibleDevice,
 inventory member. CPU-effective automatic outcomes retain the observed
 inventory.
 
+`CudaDeviceInfo.cuda_allocator: CudaAllocatorReport | None = None` (0.8.28
+Slice 30) carries the CUDA allocator decision behind the device (§ Tegra
+private CUDA memory pool).
+
 This `DeviceResolution` is normal open-time evidence only. The CLI-only
 `DoctorGpuDiagnosticResult` is intentionally distinct: a
 `CudaProbeError::ProbeFailed` may be recorded as automatic CPU open evidence,
@@ -282,9 +286,19 @@ rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
   `FATHOMDB_POOL_RELEASE_THRESHOLD` (`0`, `max`) are read once, at the first
   CUDA device build; changing them later in the process has no effect. A
   malformed value turns the pool off and never raises.
-- **Report.** The Python `CudaDeviceInfo` does not yet carry the core
-  `cuda_allocator` report; `fathomdb doctor cuda-allocator --json` reports
-  the decision (`dev/interfaces/cli.md`).
+- **Report.** `CudaDeviceInfo.cuda_allocator` is a frozen-dataclass
+  `CudaAllocatorReport | None` (import it from `fathomdb.types`) on the CUDA
+  facts of both `embedder_device_resolution` and
+  `reranker_device_resolution`. Its fields are `path: str | None`
+  (`private`, `default_pool`, `synchronous`; `None` when unknown),
+  `reason: str` (a `CudaAllocatorReason` name, `dev/interfaces/cli.md`),
+  `pool_max_size_bytes: int | None`, `release_threshold: str | None` (`"0"`
+  or `"max"`; both `None` unless the path is private) and
+  `module_load_init: str` (`ran`, `opted_out`, `skipped_cpu_only`,
+  `driver_absent`, `failed`, `not_at_load`). It is `None` off aarch64 Linux
+  CUDA builds, and has reason `not_built` in an aarch64 Linux CUDA build
+  without `tegra-pool`. `fathomdb doctor cuda-allocator --json` reports the
+  same decision from the CLI.
 - **Module-level models.** `embed_batch_cls` and `rerank()` load process
   singletons; on the private pool they hold their memory until the process
   exits. An engine's own embedder returns its memory when the engine closes.

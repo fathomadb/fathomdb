@@ -250,7 +250,9 @@ sources:
    - `EmbedderEvent`, `DeviceResolution`, `RerankerDeviceResolution`,
      `EmbedDevicePolicyError`, and `RerankerDevicePolicyError` (embedder)
    - the CUDA device and witness types inside `OpenReport` that Python and
-     TypeScript export, under their core names
+     TypeScript export, under their core names, including the allocator
+     report types `CudaAllocatorReport`, `CudaAllocatorPath`,
+     `CudaAllocatorReason`, `ReleaseThreshold` and `ModuleLoadInit`
 
 Python/TypeScript inventory concepts that are enum variants or plain fields
 in Rust are not separate types. Examples are the source-locator variants and
@@ -389,8 +391,9 @@ it takes the 0.8.27 allocator path. The pool settings are the environment
 variables `FATHOMDB_POOL_MODE`, `FATHOMDB_POOL_MAXSIZE` and
 `FATHOMDB_POOL_RELEASE_THRESHOLD`, read once at the first CUDA device build.
 The `cuda_allocator` field of `CudaDeviceInfo` is reachable through
-`OpenReport`; its report types (`CudaAllocatorReport` and its enums) are
-not yet re-exported by this crate and come from `fathomdb-embedder`. The
+`OpenReport`; this crate re-exports its report types
+(`CudaAllocatorReport`, `CudaAllocatorPath`, `CudaAllocatorReason`,
+`ReleaseThreshold`, `ModuleLoadInit`). The
 standalone `embed_batch_cls` and `rerank` models are process singletons:
 on the private pool they hold their memory until the process exits.
 

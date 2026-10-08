@@ -1237,7 +1237,9 @@ The decision rule is
   `as_str()` name. It is `Some` with `reason: NotBuilt` and `path: None` on
   aarch64 Linux CUDA builds without `tegra-pool`, the built context's real
   allocator with it, and `None` on every other target. These types are
-  exported by `fathomdb-embedder`.
+  exported by `fathomdb-embedder` and re-exported by `fathomdb-sdk`; the
+  Python (`cuda_allocator`) and TypeScript (`cudaAllocator`) open reports
+  carry the same report with each enum as its `as_str()` name.
 - **No load hook in Rust.** Rust has no module-load hook, so a Rust process
   reports `cuinit_not_at_load` and takes the 0.8.27 path even with
   `tegra-pool`. `run_module_load_early_init` is binding support (§ Unstable

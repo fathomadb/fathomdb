@@ -485,6 +485,14 @@ export interface NativeEmbedderEvent {
   docCount?: number | null;
 }
 
+export interface NativeCudaAllocatorReport {
+  path?: string | null;
+  reason: string;
+  poolMaxSizeBytes?: number | null;
+  releaseThreshold?: string | null;
+  moduleLoadInit: string;
+}
+
 export interface NativeCudaDeviceInfo {
   ordinal: number;
   uuid: string | null;
@@ -492,6 +500,7 @@ export interface NativeCudaDeviceInfo {
   driverVersion: string | null;
   computeCapability: string | null;
   cudaToolkitVersion: string | null;
+  cudaAllocator?: NativeCudaAllocatorReport | null;
 }
 
 export interface NativeCudaVisibleDevice {

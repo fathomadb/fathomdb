@@ -348,6 +348,13 @@ class EmbedderIdentity:
     revision: str
     dimension: int
 
+class CudaAllocatorReport:
+    path: str | None
+    reason: str
+    pool_max_size_bytes: int | None
+    release_threshold: str | None
+    module_load_init: str
+
 class CudaDeviceInfo:
     ordinal: int
     uuid: str | None
@@ -355,6 +362,7 @@ class CudaDeviceInfo:
     driver_version: str | None
     compute_capability: str | None
     cuda_toolkit_version: str | None
+    cuda_allocator: CudaAllocatorReport | None
 
 class CudaVisibleDevice:
     visible_ordinal: int

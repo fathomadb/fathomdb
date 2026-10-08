@@ -291,7 +291,9 @@ checks.
   unsupported in 0.8.28.
 
 `fathomdb doctor cuda-allocator` shows which allocator a process gets and
-why ([CLI reference](reference/cli.md)).
+why ([CLI reference](reference/cli.md)). Each SDK's open report carries the
+same decision on the CUDA device facts: `cuda_allocator` in Rust and Python,
+`cudaAllocator` in TypeScript.
 
 ### Measured speedup
 

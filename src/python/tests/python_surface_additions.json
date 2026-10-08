@@ -5,6 +5,15 @@
       "release": "0.8.28",
       "slice": 30,
       "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.CudaDeviceInfo.cuda_allocator",
+        "signature": "cuda_allocator: CudaAllocatorReport | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
         "kind": "python-value",
         "path": "fathomdb.errors.CudaContextLostError",
         "signature": "CudaContextLostError = _CudaContextLostError"
@@ -27,7 +36,70 @@
         "path": "fathomdb.errors.CudaPrivateBuildRefusedError",
         "signature": "CudaPrivateBuildRefusedError = _CudaPrivateBuildRefusedError"
       }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.CudaAllocatorReport",
+        "signature": "@dataclass(frozen=True) class CudaAllocatorReport"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaAllocatorReport.module_load_init",
+        "signature": "module_load_init: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaAllocatorReport.path",
+        "signature": "path: str | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaAllocatorReport.pool_max_size_bytes",
+        "signature": "pool_max_size_bytes: int | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaAllocatorReport.reason",
+        "signature": "reason: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaAllocatorReport.release_threshold",
+        "signature": "release_threshold: str | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaDeviceInfo.cuda_allocator",
+        "signature": "cuda_allocator: CudaAllocatorReport | None = None"
+      }
     }
   ],
-  "native_stub_sha256": "3925dc70cd098fd0d1d74237e14ab1da6e3c92e6bacf5adb54162162d0397f02"
+  "native_stub_sha256": "20bece48d5383149d7c366195f36d212b57470e032213844ef6420e1c6c02ea2"
 }

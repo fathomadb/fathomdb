@@ -1300,8 +1300,28 @@ class EmbedderIdentity:
 
 
 @dataclass(frozen=True)
+class CudaAllocatorReport:
+    """The CUDA allocator decision behind one device.
+
+    Each string is the stable core name. `path` is `private`, `default_pool`
+    or `synchronous`, and `None` when unknown. `pool_max_size_bytes` and
+    `release_threshold` (`"0"` or `"max"`) are `None` unless the path is
+    private.
+    """
+
+    path: str | None
+    reason: str
+    pool_max_size_bytes: int | None
+    release_threshold: str | None
+    module_load_init: str
+
+
+@dataclass(frozen=True)
 class CudaDeviceInfo:
-    """Safe CUDA provider facts associated with an effective CUDA selection."""
+    """Safe CUDA provider facts associated with an effective CUDA selection.
+
+    `cuda_allocator` is `None` off aarch64 Linux CUDA builds.
+    """
 
     ordinal: int
     uuid: str | None
@@ -1309,6 +1329,7 @@ class CudaDeviceInfo:
     driver_version: str | None
     compute_capability: str | None
     cuda_toolkit_version: str | None
+    cuda_allocator: CudaAllocatorReport | None = None
 
 
 @dataclass(frozen=True)
@@ -1508,6 +1529,7 @@ __all__ = [
     "FrozenReadContextV1",
     "BoundaryCrossing",
     "CounterSnapshot",
+    "CudaAllocatorReport",
     "CudaDeviceInfo",
     "CudaVisibleDevice",
     "DefaultEmbedderCacheHitEvent",

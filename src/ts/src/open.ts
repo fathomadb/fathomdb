@@ -2,6 +2,7 @@ import type { NativeEngine } from "./binding.js";
 import { interceptSync } from "./native-call.js";
 // Private open owner for the TypeScript SDK package root.
 import {
+  type NativeCudaAllocatorReport,
   type NativeCudaDeviceInfo,
   type NativeCudaVisibleDevice,
   type NativeEffectiveEmbedDevice,
@@ -232,7 +233,24 @@ export interface GpuAllocationWitness {
   readonly embeddedVectorDim: number;
 }
 
-/** Safe CUDA provider facts associated with an effective CUDA selection. */
+/**
+ * The CUDA allocator decision behind one device. Each string is the stable
+ * core name: `path` is `private`, `default_pool` or `synchronous` (`null`
+ * when unknown); `poolMaxSizeBytes` and `releaseThreshold` are `null` unless
+ * the path is private.
+ */
+export interface CudaAllocatorReport {
+  readonly path: string | null;
+  readonly reason: string;
+  readonly poolMaxSizeBytes: number | null;
+  readonly releaseThreshold: "0" | "max" | null;
+  readonly moduleLoadInit: string;
+}
+
+/**
+ * Safe CUDA provider facts associated with an effective CUDA selection.
+ * `cudaAllocator` is `null` off aarch64 Linux CUDA builds.
+ */
 export interface CudaDeviceInfo {
   readonly ordinal: number;
   readonly uuid: string | null;
@@ -240,6 +258,7 @@ export interface CudaDeviceInfo {
   readonly driverVersion: string | null;
   readonly computeCapability: string | null;
   readonly cudaToolkitVersion: string | null;
+  readonly cudaAllocator: CudaAllocatorReport | null;
 }
 
 /** One CUDA device visible to the process after `CUDA_VISIBLE_DEVICES`. */
@@ -269,6 +288,20 @@ export interface DeviceResolution {
   readonly reason: string | null;
 }
 
+export function mapCudaAllocatorReport(report: NativeCudaAllocatorReport): CudaAllocatorReport {
+  const threshold = report.releaseThreshold ?? null;
+  if (threshold !== null && threshold !== "0" && threshold !== "max") {
+    throw new Error(`invalid native CUDA release threshold: ${threshold}`);
+  }
+  return {
+    path: report.path ?? null,
+    reason: report.reason,
+    poolMaxSizeBytes: report.poolMaxSizeBytes ?? null,
+    releaseThreshold: threshold,
+    moduleLoadInit: report.moduleLoadInit,
+  };
+}
+
 export function mapCudaDeviceInfo(info: NativeCudaDeviceInfo): CudaDeviceInfo {
   return {
     ordinal: info.ordinal,
@@ -277,6 +310,7 @@ export function mapCudaDeviceInfo(info: NativeCudaDeviceInfo): CudaDeviceInfo {
     driverVersion: info.driverVersion ?? null,
     computeCapability: info.computeCapability ?? null,
     cudaToolkitVersion: info.cudaToolkitVersion ?? null,
+    cudaAllocator: info.cudaAllocator ? mapCudaAllocatorReport(info.cudaAllocator) : null,
   };
 }
 

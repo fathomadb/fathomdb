@@ -25,7 +25,10 @@ AC-050c) gates merges against this invariant.
   `cuda_private_build_refused` in every SDK (`CudaPoolExhaustedError`,
   `CudaContextLostError`, `CudaPrivateBuildRefusedError`; Rust `ErrorKind`
   variants and `Error::cuda_details`); CLI exit 70.
-- The `cuda_allocator` field on the Rust `CudaDeviceInfo`, and the CLI verb
+- The CUDA allocator report on `CudaDeviceInfo` in every SDK: Rust
+  `cuda_allocator` (types re-exported by `fathomdb-sdk`), Python
+  `cuda_allocator` (`fathomdb.types.CudaAllocatorReport`) and TypeScript
+  `cudaAllocator` (`CudaAllocatorReport`); and the CLI verb
   `fathomdb doctor cuda-allocator` (`fathomdb.doctor.cuda-allocator.v1`).
 
 ### Changed

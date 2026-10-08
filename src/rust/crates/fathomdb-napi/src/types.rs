@@ -148,6 +148,31 @@ impl EmbedderEvent {
     }
 }
 
+/// The CUDA allocator decision behind one device, as stable `as_str()` names.
+#[napi(object)]
+pub struct CudaAllocatorReport {
+    /// `private`, `default_pool` or `synchronous`; absent when unknown.
+    pub path: Option<String>,
+    pub reason: String,
+    pub pool_max_size_bytes: Option<i64>,
+    /// `"0"` or `"max"`; absent unless the path is private.
+    pub release_threshold: Option<String>,
+    pub module_load_init: String,
+}
+
+impl CudaAllocatorReport {
+    pub(crate) fn from_rust(report: &RustCudaAllocatorReport) -> Self {
+        Self {
+            path: report.path.map(|path| path.as_str().to_string()),
+            reason: report.reason.as_str().to_string(),
+            // A pool cap never approaches i64::MAX bytes.
+            pool_max_size_bytes: report.pool_max_size_bytes.map(|bytes| bytes as i64),
+            release_threshold: report.release_threshold.map(|t| t.as_str().to_string()),
+            module_load_init: report.module_load_init.as_str().to_string(),
+        }
+    }
+}
+
 /// Safe CUDA provider facts associated with an effective CUDA selection.
 #[napi(object)]
 pub struct CudaDeviceInfo {
@@ -157,6 +182,7 @@ pub struct CudaDeviceInfo {
     pub driver_version: Option<String>,
     pub compute_capability: Option<String>,
     pub cuda_toolkit_version: Option<String>,
+    pub cuda_allocator: Option<CudaAllocatorReport>,
 }
 
 impl CudaDeviceInfo {
@@ -168,6 +194,7 @@ impl CudaDeviceInfo {
             driver_version: info.driver_version.clone(),
             compute_capability: info.compute_capability.clone(),
             cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+            cuda_allocator: info.cuda_allocator.as_ref().map(CudaAllocatorReport::from_rust),
         }
     }
 }

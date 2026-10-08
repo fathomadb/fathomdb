@@ -121,6 +121,7 @@ export {
   mapEmbedderEvent,
   OpenReport,
   GpuAllocationWitness,
+  CudaAllocatorReport,
   CudaDeviceInfo,
   CudaVisibleDevice,
   EffectiveEmbedDevice,

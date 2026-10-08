@@ -6,13 +6,14 @@ target_release: 0.8.27
 
 # Phase 1 measurement protocol draft
 
-**Current boundary (2026-10-08):** exact product source `224e44c593c13d86ece648adabe445723db04070`
-has audited E01–E12 engine, installed Python S01/S02 and installed TypeScript
-S01/S02 paired subsets. The exact-source [selected coverage overlay](results/2026-10-08-e12-224e-coverage/README.md)
-is complete; the Rust refresh and candidate timing for the frozen Python S02-L
-remains open. The
-[active execution snapshot](plan.md#active-phase-1-execution-snapshot-2026-10-08)
-and [direct hand-off](handoff-phase1-2026-10-08.md) govern the next work.
+**Current boundary (2026-10-08):** the
+[four-area Phase 1 checkpoint](phase1-checkpoint-2026-10-08.md) records
+audited exact-source engine, installed Python and TypeScript, and external
+Rust-consumer results at product source
+`224e44c593c13d86ece648adabe445723db04070`, with explicit unsupported
+cells. The [plan snapshot](plan.md#phase-1-checkpoint-snapshot-2026-10-08)
+and [direct hand-off](handoff-phase1-2026-10-08.md) preserve the execution
+boundary; dedicated Phase 2 gold scoring remains unopened.
 The [frozen broader bundle](phase1-224e-broader-protocol-v2.json) now binds the
 component protocols and executable auditors. This draft remains the design
 history; its earlier `DRAFT_NOT_FROZEN` statements describe the chronology
@@ -24,7 +25,7 @@ existing benchmark datasets as workload inputs where qualified. Dedicated
 gold-based quality scoring begins only after the four-result checkpoint. At
 the time this draft was written, the broader protocol was not frozen. The
 replacement bundle records its executable cells and explicit omissions;
-those omissions remain limitations of the eventual Phase 1 checkpoint.
+those omissions remain limitations of the recorded Phase 1 checkpoint.
 
 The bounded engine-only first-results subset is frozen separately in
 [first-results-protocol.json](first-results-protocol.json) after the

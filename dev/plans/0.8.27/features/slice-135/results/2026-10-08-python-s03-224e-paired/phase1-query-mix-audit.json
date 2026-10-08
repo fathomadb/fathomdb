@@ -1,0 +1,316 @@
+{
+  "boundaries": "Installed Python materialized calls; S01 and S03 use separately prepared real databases",
+  "protocol_sha256": "6f04fa9e044a867db754216ba80eb96bea6f5b6cee08f6bdbd84b8429df5bffb",
+  "s01_audit_sha256": "fcee812c132333c8d8a6d235912d1aacdf9c9cbade910fc7f694fe92a55caad2",
+  "s03_audit_sha256": "bbf461a9ee55e72391a6cfc65a0aff277b5759ae84f5df4c2186c1cca796afe1",
+  "schema_version": 1,
+  "sizes": {
+    "256": {
+      "baseline": [
+        {
+          "cumulative_fraction": 0.34605272207523335,
+          "fraction": 0.34605272207523335,
+          "path": "evidence",
+          "samples": 500,
+          "total_ns": 9031264949
+        },
+        {
+          "cumulative_fraction": 0.5687708249563815,
+          "fraction": 0.22271810288114816,
+          "path": "vector",
+          "samples": 500,
+          "total_ns": 5812484826
+        },
+        {
+          "cumulative_fraction": 0.7646414635331504,
+          "fraction": 0.19587063857676892,
+          "path": "filter",
+          "samples": 500,
+          "total_ns": 5111821176
+        },
+        {
+          "cumulative_fraction": 0.9599191773823424,
+          "fraction": 0.19527771384919204,
+          "path": "hybrid",
+          "samples": 500,
+          "total_ns": 5096347059
+        },
+        {
+          "cumulative_fraction": 0.9761494984313213,
+          "fraction": 0.01623032104897883,
+          "path": "graph",
+          "samples": 500,
+          "total_ns": 423578028
+        },
+        {
+          "cumulative_fraction": 0.9921804933273681,
+          "fraction": 0.016030994896046858,
+          "path": "memory_256",
+          "samples": 500,
+          "total_ns": 418376025
+        },
+        {
+          "cumulative_fraction": 0.9944790890492331,
+          "fraction": 0.0022985957218649633,
+          "path": "temporal_early",
+          "samples": 500,
+          "total_ns": 59988625
+        },
+        {
+          "cumulative_fraction": 0.9964369710114723,
+          "fraction": 0.001957881962239251,
+          "path": "temporal_late",
+          "samples": 500,
+          "total_ns": 51096696
+        },
+        {
+          "cumulative_fraction": 0.9982833604026784,
+          "fraction": 0.0018463893912060764,
+          "path": "text",
+          "samples": 500,
+          "total_ns": 48186969
+        },
+        {
+          "cumulative_fraction": 1.0,
+          "fraction": 0.0017166395973215473,
+          "path": "temporal_boundary",
+          "samples": 500,
+          "total_ns": 44800766
+        }
+      ],
+      "candidate": [
+        {
+          "cumulative_fraction": 0.35033275311211654,
+          "fraction": 0.35033275311211654,
+          "path": "evidence",
+          "samples": 500,
+          "total_ns": 9193476886
+        },
+        {
+          "cumulative_fraction": 0.5705515288181041,
+          "fraction": 0.2202187757059876,
+          "path": "vector",
+          "samples": 500,
+          "total_ns": 5779009260
+        },
+        {
+          "cumulative_fraction": 0.7673274004933437,
+          "fraction": 0.19677587167523947,
+          "path": "filter",
+          "samples": 500,
+          "total_ns": 5163817576
+        },
+        {
+          "cumulative_fraction": 0.9619913153034853,
+          "fraction": 0.19466391481014164,
+          "path": "hybrid",
+          "samples": 500,
+          "total_ns": 5108395334
+        },
+        {
+          "cumulative_fraction": 0.9779943667676255,
+          "fraction": 0.01600305146414023,
+          "path": "graph",
+          "samples": 500,
+          "total_ns": 419954122
+        },
+        {
+          "cumulative_fraction": 0.9920947966781221,
+          "fraction": 0.014100429910496521,
+          "path": "memory_256",
+          "samples": 500,
+          "total_ns": 370025284
+        },
+        {
+          "cumulative_fraction": 0.9944791478798978,
+          "fraction": 0.0023843512017757067,
+          "path": "temporal_early",
+          "samples": 500,
+          "total_ns": 62570449
+        },
+        {
+          "cumulative_fraction": 0.9964216561000213,
+          "fraction": 0.0019425082201236308,
+          "path": "temporal_late",
+          "samples": 500,
+          "total_ns": 50975549
+        },
+        {
+          "cumulative_fraction": 0.9982909302053915,
+          "fraction": 0.0018692741053701089,
+          "path": "text",
+          "samples": 500,
+          "total_ns": 49053730
+        },
+        {
+          "cumulative_fraction": 1.0,
+          "fraction": 0.001709069794608528,
+          "path": "temporal_boundary",
+          "samples": 500,
+          "total_ns": 44849628
+        }
+      ],
+      "candidate_prefix_80pct": [
+        "evidence",
+        "vector",
+        "filter",
+        "hybrid"
+      ],
+      "equal_frequency_calls_per_path_per_version": 500
+    },
+    "32": {
+      "baseline": [
+        {
+          "cumulative_fraction": 0.36259908863892143,
+          "fraction": 0.36259908863892143,
+          "path": "evidence",
+          "samples": 500,
+          "total_ns": 8942481937
+        },
+        {
+          "cumulative_fraction": 0.5763001782848519,
+          "fraction": 0.21370108964593054,
+          "path": "vector",
+          "samples": 500,
+          "total_ns": 5270333528
+        },
+        {
+          "cumulative_fraction": 0.7833103510727665,
+          "fraction": 0.2070101727879145,
+          "path": "filter",
+          "samples": 500,
+          "total_ns": 5105320970
+        },
+        {
+          "cumulative_fraction": 0.9696481014653121,
+          "fraction": 0.18633775039254566,
+          "path": "hybrid",
+          "samples": 500,
+          "total_ns": 4595494085
+        },
+        {
+          "cumulative_fraction": 0.9871061526162962,
+          "fraction": 0.017458051150984054,
+          "path": "graph",
+          "samples": 500,
+          "total_ns": 430553501
+        },
+        {
+          "cumulative_fraction": 0.9916464405279817,
+          "fraction": 0.004540287911685487,
+          "path": "memory_32",
+          "samples": 500,
+          "total_ns": 111973372
+        },
+        {
+          "cumulative_fraction": 0.9942066464590342,
+          "fraction": 0.002560205931052608,
+          "path": "temporal_early",
+          "samples": 500,
+          "total_ns": 63140245
+        },
+        {
+          "cumulative_fraction": 0.9962431304008738,
+          "fraction": 0.0020364839418394684,
+          "path": "temporal_late",
+          "samples": 500,
+          "total_ns": 50224122
+        },
+        {
+          "cumulative_fraction": 0.9981765342993368,
+          "fraction": 0.0019334038984631485,
+          "path": "text",
+          "samples": 500,
+          "total_ns": 47681944
+        },
+        {
+          "cumulative_fraction": 1.0,
+          "fraction": 0.0018234657006631256,
+          "path": "temporal_boundary",
+          "samples": 500,
+          "total_ns": 44970629
+        }
+      ],
+      "candidate": [
+        {
+          "cumulative_fraction": 0.3711699652597363,
+          "fraction": 0.3711699652597363,
+          "path": "evidence",
+          "samples": 500,
+          "total_ns": 9192564262
+        },
+        {
+          "cumulative_fraction": 0.5832257474275511,
+          "fraction": 0.21205578216781482,
+          "path": "filter",
+          "samples": 500,
+          "total_ns": 5251869998
+        },
+        {
+          "cumulative_fraction": 0.788453600744374,
+          "fraction": 0.20522785331682294,
+          "path": "vector",
+          "samples": 500,
+          "total_ns": 5082766405
+        },
+        {
+          "cumulative_fraction": 0.9701177723502875,
+          "fraction": 0.1816641716059135,
+          "path": "hybrid",
+          "samples": 500,
+          "total_ns": 4499177541
+        },
+        {
+          "cumulative_fraction": 0.987378647314747,
+          "fraction": 0.017260874964459497,
+          "path": "graph",
+          "samples": 500,
+          "total_ns": 427490684
+        },
+        {
+          "cumulative_fraction": 0.9917838754655711,
+          "fraction": 0.004405228150824075,
+          "path": "memory_32",
+          "samples": 500,
+          "total_ns": 109101885
+        },
+        {
+          "cumulative_fraction": 0.994238081562789,
+          "fraction": 0.002454206097217905,
+          "path": "temporal_early",
+          "samples": 500,
+          "total_ns": 60781985
+        },
+        {
+          "cumulative_fraction": 0.9962719667470098,
+          "fraction": 0.0020338851842207615,
+          "path": "temporal_late",
+          "samples": 500,
+          "total_ns": 50372126
+        },
+        {
+          "cumulative_fraction": 0.9981526657771472,
+          "fraction": 0.001880699030137428,
+          "path": "text",
+          "samples": 500,
+          "total_ns": 46578248
+        },
+        {
+          "cumulative_fraction": 1.0,
+          "fraction": 0.0018473342228528043,
+          "path": "temporal_boundary",
+          "samples": 500,
+          "total_ns": 45751920
+        }
+      ],
+      "candidate_prefix_80pct": [
+        "evidence",
+        "filter",
+        "vector",
+        "hybrid"
+      ],
+      "equal_frequency_calls_per_path_per_version": 500
+    }
+  },
+  "status": "AUDITED_PHASE1_PYTHON_QUERY_COST_PROXY"
+}

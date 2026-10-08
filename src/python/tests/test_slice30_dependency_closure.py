@@ -8,7 +8,7 @@ from typing import Any, cast
 
 import pytest
 
-from fathomdb import Engine
+from fathomdb import ClosureLookupV1, Engine
 from fathomdb.errors import DependencyClosureError
 
 
@@ -94,7 +94,7 @@ def test_committed_closure_status_survives_reopen(db_path: str) -> None:
         )
         assert receipt.outcome == "committed_closure_pending"
         assert len(receipt.closure_operation_ids) == 1
-        request = {
+        request: ClosureLookupV1 = {
             "schema_version": 1,
             "closure_operation_id": receipt.closure_operation_ids[0],
         }

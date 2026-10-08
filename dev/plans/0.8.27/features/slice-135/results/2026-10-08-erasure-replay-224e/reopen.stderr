@@ -1,0 +1,3 @@
+   Compiling fathomdb-engine v0.8.26 (/tmp/slice135-candidate-224e44/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.60s
+     Running tests/erasure_completeness.rs (/tmp/slice135-mutant-target/debug/deps/erasure_completeness-cc2046de0cad7882)

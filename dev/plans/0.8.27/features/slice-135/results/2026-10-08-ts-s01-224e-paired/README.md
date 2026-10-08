@@ -47,9 +47,11 @@ a separate conclusion. These are descriptive workload-specific results, not
 an equivalence claim or release verdict. The engine-only E01–E12 vector-stage
 and hybrid increases use different work and timing boundaries.
 
-The local raw campaign remains at `/tmp/slice135-ts-s01-224e-paired` pending
-end-of-phase archive retention. It includes each command, raw call, environment
-and resource record, copied npm archives, runner bytes and run order. It is
-not yet tracked in Git; the linked audit and negative controls are tracked.
+The [copied raw archive](raw-archive/) retains each command, raw call,
+environment and resource record, npm archives, runner bytes and run order.
+Its 271-file `SHA256SUMS` manifest has SHA-256
+`e2e797430b0db39fb758ecae9a855ca503d423c29383f3af936aacd00d74f044`;
+all copied bytes were verified. The raw archive remains untracked pending
+end-of-phase retention; the audit and negative controls are tracked.
 This subset does not close S02, the broader operation mix, robustness or the
 four-area Phase 1 checkpoint.

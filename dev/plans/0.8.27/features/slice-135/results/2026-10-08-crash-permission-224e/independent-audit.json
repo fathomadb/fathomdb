@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "candidate_source_sha": "224e44c593c13d86ece648adabe445723db04070",
+  "files_sha256": {
+    "Cargo.toml.snapshot": "7a169cb07648c066f4da6a60cd27a000f55d4f47ca7da8f67d771ba1284d3b5e",
+    "Cargo.lock": "c904dd28cc4a4df9ea2527a327490a23b7c9ac6d094e2851e593da6faee17aea",
+    "probe.rs": "1a3cc98f3b27c519d546e4ead5a373ada674664fd72844d23bc75fe8348790fc",
+    "test.stdout": "9c01ca99926ecb21b06a7f15f6c805db66869cf5ebcb9fd76fe8f3801dbc4e83",
+    "test.stderr": "f5f0f281aff4f30fd39f55fedaffe5b436d07db8f169af29af4952ea00a91389",
+    "source-commit.txt": "22eb5bfa982e9bcb646480133976a6da30c68f9f35d95fcca17e1a3f4fae90e6"
+  },
+  "records": {
+    "SLICE135_READONLY": {
+      "errors": [
+        "Storage",
+        "Storage",
+        "Storage"
+      ],
+      "integrity": [
+        "ok"
+      ],
+      "point": "writer connection PRAGMA query_only=ON before governed write",
+      "state": [
+        "durable body base",
+        null,
+        null,
+        null,
+        "durable body recovery"
+      ]
+    },
+    "SLICE135_CRASH": {
+      "body": "durable body crash-pending",
+      "cursor": 1,
+      "failure_count": 0,
+      "integrity": [
+        "ok"
+      ],
+      "point": "after failed projection commit and before queue cleanup",
+      "vector": true,
+      "victim_status": "ExitStatus(unix_wait_status(9))"
+    },
+    "SLICE135_BUSY": {
+      "elapsed_ms": 15013,
+      "errors": [
+        "Storage",
+        "Storage",
+        "Storage"
+      ],
+      "integrity": [
+        "ok"
+      ],
+      "point": "external SQLite BEGIN IMMEDIATE lock around three governed writes",
+      "state": [
+        "durable body base",
+        null,
+        null,
+        null,
+        "durable body recovery"
+      ]
+    }
+  },
+  "limitation": "Test assertions establish reopened product state; temporary SQLite databases are not retained. PRAGMA query_only tests connection-level write refusal, not OS file permissions. SIGKILL does not simulate power-loss ordering."
+}

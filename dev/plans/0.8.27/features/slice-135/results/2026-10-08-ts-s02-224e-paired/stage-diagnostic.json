@@ -1,0 +1,102 @@
+{
+  "boundary": "Marginal median stage per 100 independently audited whole sequences; not an additive decomposition of pooled whole-sequence percentiles",
+  "samples_per_version": 100,
+  "schema_version": 1,
+  "sources": {
+    "baseline": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "candidate": "224e44c593c13d86ece648adabe445723db04070"
+  },
+  "stages": {
+    "close": {
+      "baseline_median_ns": 3165923.5,
+      "candidate_median_ns": 11194552.0,
+      "candidate_minus_baseline_ns": 8028628.5
+    },
+    "configure_projection": {
+      "baseline_median_ns": 1995389.5,
+      "candidate_median_ns": 2007036.0,
+      "candidate_minus_baseline_ns": 11646.5
+    },
+    "drain": {
+      "baseline_median_ns": 692732540.0,
+      "candidate_median_ns": 695149750.0,
+      "candidate_minus_baseline_ns": 2417210.0
+    },
+    "erase": {
+      "baseline_median_ns": 6984416.5,
+      "candidate_median_ns": 7014397.5,
+      "candidate_minus_baseline_ns": 29981.0
+    },
+    "erase_again": {
+      "baseline_median_ns": 2053798.5,
+      "candidate_median_ns": 2087805.5,
+      "candidate_minus_baseline_ns": 34007.0
+    },
+    "evidence_resolve": {
+      "baseline_median_ns": 954427.5,
+      "candidate_median_ns": 985372.0,
+      "candidate_minus_baseline_ns": 30944.5
+    },
+    "evidence_search": {
+      "baseline_median_ns": 20216265.0,
+      "candidate_median_ns": 20544998.5,
+      "candidate_minus_baseline_ns": 328733.5
+    },
+    "graph_edge_resolve": {
+      "baseline_median_ns": 490536.5,
+      "candidate_median_ns": 492177.5,
+      "candidate_minus_baseline_ns": 1641.0
+    },
+    "graph_expand": {
+      "baseline_median_ns": 2423248.5,
+      "candidate_median_ns": 2391825.5,
+      "candidate_minus_baseline_ns": -31423.0
+    },
+    "graph_target_resolve": {
+      "baseline_median_ns": 793138.5,
+      "candidate_median_ns": 809904.5,
+      "candidate_minus_baseline_ns": 16766.0
+    },
+    "hybrid": {
+      "baseline_median_ns": 9547345.0,
+      "candidate_median_ns": 10109496.0,
+      "candidate_minus_baseline_ns": 562151.0
+    },
+    "hybrid_lexical_control": {
+      "baseline_median_ns": 628374.0,
+      "candidate_median_ns": 634306.5,
+      "candidate_minus_baseline_ns": 5932.5
+    },
+    "open": {
+      "baseline_median_ns": 214458792.5,
+      "candidate_median_ns": 213883112.0,
+      "candidate_minus_baseline_ns": -575680.5
+    },
+    "reopen": {
+      "baseline_median_ns": 4031045451.0,
+      "candidate_median_ns": 4189936137.0,
+      "candidate_minus_baseline_ns": 158890686.0
+    },
+    "reopened_close": {
+      "baseline_median_ns": 8692585.5,
+      "candidate_median_ns": 13852793.0,
+      "candidate_minus_baseline_ns": 5160207.5
+    },
+    "text": {
+      "baseline_median_ns": 770109.0,
+      "candidate_median_ns": 773573.0,
+      "candidate_minus_baseline_ns": 3464.0
+    },
+    "vector": {
+      "baseline_median_ns": 11053365.0,
+      "candidate_median_ns": 11641701.0,
+      "candidate_minus_baseline_ns": 588336.0
+    },
+    "write": {
+      "baseline_median_ns": 2815977.0,
+      "candidate_median_ns": 2894575.0,
+      "candidate_minus_baseline_ns": 78598.0
+    }
+  },
+  "status": "EXACT_SOURCE_STAGE_DIAGNOSTIC"
+}

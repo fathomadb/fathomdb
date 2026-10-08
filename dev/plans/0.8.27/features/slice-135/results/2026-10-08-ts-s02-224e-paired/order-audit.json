@@ -1,0 +1,19 @@
+{
+  "status": "AUDITED_TS_S02_BLOCK_ORDER_AND_IDLE",
+  "protocol_sha256": "5d52c0a6be26936afd24bfe5917b4ba05535c1f3539abfeb7dd465b91690a75a",
+  "run_order_sha256": "27e9c24dea14c26fd5dc43cbaec498ac03147a9e879ff37e9592a0879440397a",
+  "completed_blocks": 10,
+  "minimum_required_idle_seconds": 20,
+  "observed_idle_seconds": [
+    20.000817,
+    20.000998,
+    20.000813,
+    20.00093,
+    20.000836,
+    20.001074,
+    20.000831,
+    20.00099,
+    20.000786
+  ],
+  "minimum_observed_idle_seconds": 20.000786
+}

@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "product_source_sha": "224e44c593c13d86ece648adabe445723db04070",
+  "raw_sha256": "b30a0667aeb0a43eef653226a167459054501809775f3132b7951ed400488364",
+  "wheel_sha256": "ee8b402f76377956034f900ef69f9e3c0296d79ea30d6728dc1283040266f85a",
+  "native_sha256": "1f213a700cf0c96b9997700d6e44ed7019b26fb91df1259bc6514fefb4a8d013",
+  "counts": {
+    "supported": 44,
+    "executed": 41,
+    "failed": 0,
+    "unavailable": 3,
+    "gap": 0,
+    "unexecuted": 3
+  },
+  "cases_checked": 48,
+  "reopened_databases_checked": 48,
+  "oracle_fixtures_checked": 19,
+  "negative_controls_rejected": [
+    "persisted table counts changed",
+    "operation counts changed"
+  ],
+  "limits": "Retained SQLite snapshots are recomputed; original temporary databases were deleted. Selected source tests do not cover every accepted contract condition."
+}

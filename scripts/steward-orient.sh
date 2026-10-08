@@ -370,7 +370,8 @@ rem = d.get("remaining_ladder") or []
 print(f"RELEASE {ver}  SCHEMA {schema}  board={board.split('/')[-1]}")
 
 if completed:
-    cells = " ".join(f"{e.get('slice')}({e.get('sha') or '?'})" for e in completed)
+    # Keep actionable commit prefixes here; the release state retains full IDs.
+    cells = " ".join(f"{e.get('slice')}({(e.get('sha') or '?')[:12]})" for e in completed)
     label = "COMPLETE" if completed_on_branch else "LANDED"
     print(f"  {label} {cells}")
 else:

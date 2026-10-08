@@ -1,21 +1,24 @@
 ---
 title: Slice 135 Phase 1 capability exercise register
-status: INTERIM_THREE_SDK_OPERATION_EXERCISE
+status: EXACT_CANDIDATE_SELECTED_OPERATION_EXERCISE
 target_release: 0.8.27
 ---
 
 # Phase 1 capability exercise register
 
-**Current checkpoint boundary (2026-10-08):** the latest measured product
-source is `224e44c593c13d86ece648adabe445723db04070`. Its
-[installed Python S01/S02 functional smoke](results/2026-10-08-python-224e-functional-smoke/README.md)
-and independently audited [S01](results/2026-10-08-python-s01-224e-paired/README.md)
-and [S02](results/2026-10-08-python-s02-224e-paired/README.md) campaigns
-exercise selected text/vector/hybrid and whole-sequence conditions. They do
-not repeat all 41 Python operations. The 41/0/0/3 Python and TypeScript
-operation partitions below were established at earlier source `d465cd56d`;
-reconcile exact artifacts and conditions before the full Phase 1 checkpoint.
-The [direct hand-off](handoff-phase1-2026-10-08.md) lists that work.
+**Current checkpoint boundary (2026-10-08):** exact product source is
+`224e44c593c13d86ece648adabe445723db04070`. The
+[installed Python exercise](results/2026-10-08-python-capability-224e/README.md)
+passed independent audit with 41 selected governed operations executed, zero
+failed, zero supported gaps and three provider/model cases unavailable. The
+[installed TypeScript exercise](results/2026-10-08-ts-224e-candidate/README.md)
+has the same 41/0/0/3 partition against exact-source npm packages. The
+[external Rust consumer](results/2026-10-08-rust-sdk-capability-224e/README.md)
+passed with 42 selected operations executed, zero supported gaps and two
+provider/model cases unavailable. Rust remains a source-path consumer, not a
+published-crate installation or same-SDK baseline comparison. The separate
+S01/S02/S03 installed-SDK campaigns measure selected workload conditions;
+none of these partitions prove every accepted contract condition.
 
 The executable [canonical operation map](../../../../../src/conformance/governed-operation-parity.json) is the scope authority for governed operations. Its SHA-256 at the initial inventory snapshot is `da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17`. That snapshot was branch `llm/0.8.27-slice-135` at `ea91ec0e8878d49c44706234ff2ea9c454b55cb5`, before the confirmed edge-FTS-error repair. This living register is not the frozen measurement protocol; only rows explicitly marked with a receipt have executed installed-artifact evidence.
 

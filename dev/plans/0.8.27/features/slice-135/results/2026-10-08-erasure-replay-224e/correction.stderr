@@ -1,0 +1,3 @@
+   Compiling fathomdb-engine v0.8.26 (/tmp/slice135-candidate-224e44/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+     Running tests/correction_safe_erasure.rs (/tmp/slice135-mutant-target/debug/deps/correction_safe_erasure-f314c5d4b12ce9b0)

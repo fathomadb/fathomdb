@@ -7,9 +7,11 @@ planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 
 # Slice 135 — measure the whole system against 0.8.26
 
-## Active Phase 1 execution snapshot (2026-10-08)
+## Phase 1 checkpoint snapshot (2026-10-08)
 
-The full four-area checkpoint is **open**. Work on branch
+The [full four-area checkpoint](phase1-checkpoint-2026-10-08.md) is recorded
+with explicit unsupported cells and residual risks. Dedicated Phase 2
+gold-answer scoring remains unopened, and Slice 135 is not complete. Work on branch
 `llm/0.8.27-slice-135` has reached product source
 `224e44c593c13d86ece648adabe445723db04070`, after Slice 132 and both
 off-ladder landings. The exact 0.8.26 comparison source is
@@ -17,25 +19,23 @@ off-ladder landings. The exact 0.8.26 comparison source is
 candidate checkout at `/tmp/slice135-candidate-224e44` is for reproducible
 builds and should stay unchanged. Older results below remain valid only for
 their recorded source bytes. Use the [direct-execution hand-off](handoff-phase1-2026-10-08.md)
-for the immediate work; the detailed chronology below is retained for audit.
+for the execution instructions; the detailed chronology below is retained for audit.
 
-| Area | Latest inspectable evidence | Checkpoint work still owed |
+| Area | Latest inspectable evidence | Checkpoint disposition |
 | --- | --- | --- |
-| Pareto path | [Exact-candidate E01–E12 overlay](results/2026-10-08-e12-224e-coverage/README.md) at `224e44c59`: all 888 workload-hit engine branch IDs and 8,121/8,134 workload-hit lines reached by 20 selected test binaries. Two supplemental test binaries hit all 13 selected-set line gaps. Earlier mixed-cost ranking put four of eleven operations at 84.12% of measured elapsed cost. | Rank the broader common operation mix by elapsed and CPU/queue cost; inspect rare severe paths and assertion strength. Selected tests and synthetic mix are not production-traffic coverage. |
-| System latency | Audited exact-source [E01–E12](results/2026-10-08-e12-224e-paired/README.md), [installed Python S01](results/2026-10-08-python-s01-224e-paired/README.md), [installed Python S02](results/2026-10-08-python-s02-224e-paired/README.md) and [installed TypeScript S01](results/2026-10-08-ts-s01-224e-paired/README.md) paired campaigns. Python S02 whole-sequence pooled p50 is +0.287%; engine vector, hybrid and populated-open p50 rose +15.67%, +14.54% and +12.14% by median pair. | Attribute boundary and stage differences before any system verdict; finish TypeScript S02 and applicable Rust SDK cells on exact source; complete broader mix, cold/warm, scale/concurrency and supported tail cells. C01 is currently unqualified. |
-| System robustness | Real-database concurrency, kill/reopen, persistent SQLite-full, provider failure, projection commit recovery, interrupted erasure and close receipts; exact-candidate provider/close and recovery replays include independent checks. | Close declared one-shot/persistent and in-commit crash positions, remaining interrupted-erasure schedules, resource/reopen oracles and installed binding boundaries. |
-| Logic and exception handling | Scoped static and boundary audits, failing-first repairs of row-error suppression, and exact-source E01–E12 selected line/branch overlay; focused regression tests passed. | Probe ranked assertion strength and Rust/PyO3/NAPI error and panic boundaries; disposition findings, survivors and uncovered paths. |
+| Pareto path | [Exact-candidate E01–E12 overlay](results/2026-10-08-e12-224e-coverage/README.md) at `224e44c59`: all 888 workload-hit engine branch IDs and 8,121/8,134 workload-hit lines reached by 20 selected test binaries. Two supplemental test binaries hit all 13 selected-set line gaps. [Ten-path elapsed mix](results/2026-10-08-python-s03-224e-paired/phase1-query-mix-audit.json) identifies four paths to exceed 80% at each size. | Equal-frequency proxy only; per-path CPU/queue and production usage are unsupported. Rare severe paths and one assertion-strength mutant are recorded in the checkpoint. |
+| System latency | Audited exact-source engine, installed Python S01/S02/S02-L/S03 and installed TypeScript S01/S02 paired campaigns are linked in the checkpoint. Engine vector, hybrid and populated-open p50 rose +15.67%, +14.54% and +12.14% by median pair; TypeScript S02 pooled p50 rose +3.454%; Python S02-L close pooled p50 rose +143.722% with intended model-memory release. | Timer boundaries and host-warning limits are separated in the checkpoint. C01, CUDA, matched Rust baseline, TypeScript S03 and qualified sustained throughput remain unsupported. |
+| System robustness | Exact-source real-database concurrency, kill/reopen, persistent SQLite-full and busy/read-only refusal, provider failure, projection commit recovery, erasure and close receipts are linked in the checkpoint. | OS permission changes, in-commit erasure/WAL interruption and all provider/model/platform variants remain unsupported. |
+| Logic and exception handling | Scoped static and boundary audits, failing-first repairs of row-error suppression, exact-source E01–E12 overlay, a killed search mutant and installed Python/TypeScript FFI negative-string probes are linked in the checkpoint. | Full exported-path panic proof and broad mutation score remain unsupported; specific survivor and fallback risks are dispositioned. |
 
 The [capability register](phase1-capability-register.md) accounts for 44
-governed operations: its earlier installed Python and TypeScript run on
-`d465cd56d` exercised 41 selected positive cases each (zero failed, three
-provider/model cases unavailable); Rust exercised 42 selected cases. These
-counts are not complete contract-condition coverage and require exact-source
-artifact review at the checkpoint. The
-[broader protocol bundle](phase1-224e-broader-protocol-v2.json) is frozen for the
-remaining exact-candidate Python S02-L timing; its component subset
-protocols govern their own cells. No dedicated Phase 2 gold scoring
-begins until the four-area checkpoint is recorded.
+governed operations at exact candidate source: installed Python and
+TypeScript each exercised 41 selected positive paths (zero failed; three
+provider/model unavailable), and the external Rust consumer exercised 42
+(zero supported gaps; two unavailable). These counts are not complete
+contract-condition coverage. The [broader protocol bundle](phase1-224e-broader-protocol-v2.json)
+governs the measured cells and named omissions. The next release-plan decision
+can use the checkpoint; it must preserve the unsupported-cell boundaries.
 
 ### Earlier execution chronology (2026-10-07)
 

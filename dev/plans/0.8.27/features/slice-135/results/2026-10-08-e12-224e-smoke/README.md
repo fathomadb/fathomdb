@@ -20,7 +20,9 @@ altered ordered text result.
 
 The copied [raw archive](raw-archive/) is local and untracked pending
 end-of-phase retention. Its 17 regular-file `SHA256SUMS` manifest has
-SHA-256 `48170fa2e4678f22616ef83d851dfce60c76a7fca25cc6b4448e5fe794fa537b`;
+SHA-256 `502d68c8c3c9bbbe783267c5a79173bbe0b55e3e5b0cd5e70e1517940ede7f96`;
+the nested build manifest is retained as `Cargo.toml.snapshot` so the
+repository's override checker does not treat the raw build as live source.
 model asset symlinks are bound separately by their pinned hashes. The raw
 observation SHA-256 is
 `2352d6ba0b0e90229b5bff1f2fa1aaae1f016b68927729769622f45ff77b5d5b`.

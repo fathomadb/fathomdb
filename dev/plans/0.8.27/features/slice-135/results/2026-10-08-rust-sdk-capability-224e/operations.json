@@ -1,0 +1,222 @@
+[
+  {
+    "id": "engine.open",
+    "status": "executed",
+    "detail": "real fresh SQLite with default embedder"
+  },
+  {
+    "id": "engine.write",
+    "status": "executed",
+    "detail": "32 corpus and 4 provenanced graph rows committed"
+  },
+  {
+    "id": "engine.configure_projections",
+    "status": "executed",
+    "detail": "declared searchable summary FTS and vector"
+  },
+  {
+    "id": "read.projections",
+    "status": "executed",
+    "detail": "declared vector projection reports ready after drain"
+  },
+  {
+    "id": "read.get",
+    "status": "executed",
+    "detail": "anchor body matches write"
+  },
+  {
+    "id": "engine.search_text_only",
+    "status": "executed",
+    "detail": "lexical branch finds anchor; invalid NUL refused"
+  },
+  {
+    "id": "engine.search",
+    "status": "executed",
+    "detail": "vector branch and hybrid anchor; zero limit refused"
+  },
+  {
+    "id": "engine.freeze_read_context",
+    "status": "executed",
+    "detail": "frozen context created for evidence and graph"
+  },
+  {
+    "id": "engine.search_with_evidence",
+    "status": "executed",
+    "detail": "single source-bound evidence reference"
+  },
+  {
+    "id": "engine.resolve_evidence",
+    "status": "executed",
+    "detail": "reference resolves exact canonical source body"
+  },
+  {
+    "id": "graph.expand",
+    "status": "executed",
+    "detail": "bounded frozen expansion reaches one target"
+  },
+  {
+    "id": "engine.resolve_graph_evidence",
+    "status": "executed",
+    "detail": "node and edge evidence resolve to source"
+  },
+  {
+    "id": "graph.neighbors",
+    "status": "executed",
+    "detail": "outgoing graph neighbor contains claim"
+  },
+  {
+    "id": "admin.configure",
+    "status": "executed",
+    "detail": "registered latest_state collection"
+  },
+  {
+    "id": "read.collection",
+    "status": "executed",
+    "detail": "two real op-store rows in insertion order"
+  },
+  {
+    "id": "read.mutations",
+    "status": "executed",
+    "detail": "after-id excludes first mutation"
+  },
+  {
+    "id": "read.operational_state",
+    "status": "executed",
+    "detail": "point payload matches governed mutation"
+  },
+  {
+    "id": "read.get_many",
+    "status": "executed",
+    "detail": "ordered present and absent slots"
+  },
+  {
+    "id": "read.list",
+    "status": "executed",
+    "detail": "doc kind includes retained anchor"
+  },
+  {
+    "id": "read.canonical_page",
+    "status": "executed",
+    "detail": "two pages agree with point reads; malformed cursor refused"
+  },
+  {
+    "id": "read.operational_state_page",
+    "status": "executed",
+    "detail": "two pages agree with point reads; malformed cursor refused"
+  },
+  {
+    "id": "engine.search_frozen",
+    "status": "executed",
+    "detail": "frozen ranked search includes anchor"
+  },
+  {
+    "id": "engine.search_expand_frozen",
+    "status": "executed",
+    "detail": "frozen search returns seed hits"
+  },
+  {
+    "id": "graph.search_expand",
+    "status": "executed",
+    "detail": "ranked graph seeds returned"
+  },
+  {
+    "id": "engine.search_projected_text",
+    "status": "executed",
+    "detail": "declared summary FTS finds anchor"
+  },
+  {
+    "id": "read.projection_status",
+    "status": "executed",
+    "detail": "summary declaration present in runtime status"
+  },
+  {
+    "id": "read.embedding_readiness",
+    "status": "executed",
+    "detail": "drained vector work reports ready"
+  },
+  {
+    "id": "read.projection_generation_status",
+    "status": "executed",
+    "detail": "versioned serving generation returned"
+  },
+  {
+    "id": "engine.embed",
+    "status": "executed",
+    "detail": "default embedder returned finite vector"
+  },
+  {
+    "id": "engine.register_source_dependency",
+    "status": "executed",
+    "detail": "source to derived revision registered"
+  },
+  {
+    "id": "engine.dependencies_for_source",
+    "status": "executed",
+    "detail": "reciprocal source lookup contains dependency"
+  },
+  {
+    "id": "engine.dependency_for_derived",
+    "status": "executed",
+    "detail": "derived lookup agrees with source lookup"
+  },
+  {
+    "id": "engine.trace_dependency",
+    "status": "executed",
+    "detail": "derived-to-source trace contains nodes"
+  },
+  {
+    "id": "engine.read_dependency_closure",
+    "status": "executed",
+    "detail": "committed closure has complete zero proof; unknown ID absent"
+  },
+  {
+    "id": "engine.actuate",
+    "status": "executed",
+    "detail": "committed receipt replay identical; stale boundary refused without row"
+  },
+  {
+    "id": "read.mutation_projection_status",
+    "status": "executed",
+    "detail": "actuation receipt cursor resolves to generation"
+  },
+  {
+    "id": "engine.transition",
+    "status": "executed",
+    "detail": "deleted lifecycle node excluded from current read"
+  },
+  {
+    "id": "engine.purge",
+    "status": "executed",
+    "detail": "deleted node purged from current read"
+  },
+  {
+    "id": "read.crossed_boundary_since",
+    "status": "executed",
+    "detail": "written validity window produced boundaries"
+  },
+  {
+    "id": "rerank",
+    "status": "executed",
+    "detail": "identity path exercised; real cross-encoder qualification unavailable"
+  },
+  {
+    "id": "engine.erase_source",
+    "status": "executed",
+    "detail": "3 nodes and one edge removed; repeat idempotent"
+  },
+  {
+    "id": "engine.close",
+    "status": "executed",
+    "detail": "closed before durable reopen"
+  },
+  {
+    "id": "engine.ingest_with_extractor",
+    "status": "unavailable",
+    "detail": "unavailable: provider/model qualification"
+  },
+  {
+    "id": "engine.consolidate_with_provider",
+    "status": "unavailable",
+    "detail": "unavailable: provider/model qualification"
+  }
+]

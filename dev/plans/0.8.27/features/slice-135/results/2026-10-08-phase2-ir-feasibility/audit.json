@@ -1,0 +1,128 @@
+{
+  "databases": {
+    "baseline": {
+      "canonical_nodes": 3,
+      "integrity": "ok",
+      "search_index": 3,
+      "search_index_v2": 3,
+      "vector_rows": 3
+    },
+    "candidate": {
+      "canonical_nodes": 3,
+      "integrity": "ok",
+      "search_index": 3,
+      "search_index_v2": 3,
+      "vector_rows": 3
+    }
+  },
+  "paired": {
+    "by_class": {
+      "exact_fact": {
+        "mrr_at_10_delta": 0.0,
+        "recall_at_10_delta": 0.0
+      },
+      "exploratory": {
+        "mrr_at_10_delta": 0.0,
+        "recall_at_10_delta": 0.0
+      }
+    },
+    "candidate_better": 0,
+    "candidate_worse": 0,
+    "equal": 3,
+    "mrr_delta_bootstrap_95pct_by_class": {
+      "exact_fact": [
+        0.0,
+        0.0
+      ],
+      "exploratory": [
+        0.0,
+        0.0
+      ]
+    },
+    "per_query_mrr_delta": {
+      "enronqa:0050c1d44ea2ca4b782ce8d6": 0.0,
+      "qaconv:002b946847d9f75979abca25": 0.0,
+      "qmsum:001c822939459a66a7692919": 0.0
+    },
+    "query_count": 3
+  },
+  "protocol_sha256": "90236400fcd6458984e54d9d500b90903bdee959f0b1b1a3f61ea16db4487899",
+  "scores": {
+    "baseline": {
+      "by_class": {
+        "exact_fact": {
+          "denominator": 2,
+          "errors": 0,
+          "mrr_at_10": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_10": 1.0,
+          "recall_at_5": 1.0
+        },
+        "exploratory": {
+          "denominator": 1,
+          "errors": 0,
+          "mrr_at_10": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_10": 1.0,
+          "recall_at_5": 1.0
+        }
+      },
+      "negative_queries_omitted": 0,
+      "per_query": {
+        "enronqa:0050c1d44ea2ca4b782ce8d6": {
+          "class": "exact_fact",
+          "required_rank": 1,
+          "status": "ok"
+        },
+        "qaconv:002b946847d9f75979abca25": {
+          "class": "exact_fact",
+          "required_rank": 1,
+          "status": "ok"
+        },
+        "qmsum:001c822939459a66a7692919": {
+          "class": "exploratory",
+          "required_rank": 1,
+          "status": "ok"
+        }
+      }
+    },
+    "candidate": {
+      "by_class": {
+        "exact_fact": {
+          "denominator": 2,
+          "errors": 0,
+          "mrr_at_10": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_10": 1.0,
+          "recall_at_5": 1.0
+        },
+        "exploratory": {
+          "denominator": 1,
+          "errors": 0,
+          "mrr_at_10": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_10": 1.0,
+          "recall_at_5": 1.0
+        }
+      },
+      "negative_queries_omitted": 0,
+      "per_query": {
+        "enronqa:0050c1d44ea2ca4b782ce8d6": {
+          "class": "exact_fact",
+          "required_rank": 1,
+          "status": "ok"
+        },
+        "qaconv:002b946847d9f75979abca25": {
+          "class": "exact_fact",
+          "required_rank": 1,
+          "status": "ok"
+        },
+        "qmsum:001c822939459a66a7692919": {
+          "class": "exploratory",
+          "required_rank": 1,
+          "status": "ok"
+        }
+      }
+    }
+  }
+}

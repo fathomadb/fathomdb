@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_S01_PYTHON_PAIRED",
+  "scope": "Installed Python S01 text/vector-bearing/hybrid subset on vector-repaired post-Slice-132 candidate; not the full Phase 1 protocol",
+  "freeze_date_utc": "2026-10-07",
+  "freeze_revision": 2,
+  "superseded_protocol_sha256": "750c9fdabcaf941b0f966218569718d0f8f1ea86a2a715316a3483229dc72123",
+  "revision_reason": "Refreeze unchanged S01 corpus, model, queries, warmups, counts, alternation and analysis for vector-row-error-repaired candidate product bytes at 3f29d649d. Prior comparisons remain historical.",
+  "baseline_noise_evidence": "results/2026-10-07-python-s01-noise-pilot/independent-audit.json",
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+  },
+  "candidate": {
+    "source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+    "wheel_sha256": "39d4af3060ca4b72d7ad16211fa0ba44a8992feef87040f3513a262cbdc359a4"
+  },
+  "candidate_artifact_note": "Clean detached 3f29d649d checkout built and installed a wheel with bytecode hygiene and frozen-evidence profile checks. Wheel metadata still says 0.8.26 before release version bump; exact source and wheel hashes identify the candidate. Both 32- and 256-row ten-sample functional smokes passed with zero semantic failures before this freeze.",
+  "workload_runner_sha256": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+  "block_runner_sha256": "dd545dfecda957dc21d035d8ea2845948aeb28386f96fa31083dc965f9bb248d",
+  "rows": [
+    32,
+    256
+  ],
+  "corpus_sha256_by_size": {
+    "32": "e01c7b7772a925ab9c3a80ffb1d20ae1f9338c4fb0501fa16fcc844b871338dd",
+    "256": "ebbd94f16b40cad184526af3bc2d725b2f433e00683e508adf530d7a925860fb"
+  },
+  "model": "fathomdb-bge-small-en-v1.5 default embedder",
+  "embed_device": "cpu",
+  "queries": {
+    "text": "brightblue",
+    "vector": "boat schedule across water",
+    "hybrid": "harbor ferry"
+  },
+  "timing_boundary": "Installed Python method invocation through materialized SearchResult; corpus setup, model loading and semantic verification excluded",
+  "session_first_per_cell": 1,
+  "warmup_per_cell": 1,
+  "warm_samples_per_cell": 1000,
+  "pairs_per_size": 5,
+  "pair_order_each_size": [
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ]
+  ],
+  "minimum_idle_seconds_between_blocks": 20,
+  "primary_mode": "unprofiled",
+  "primary_statistics": [
+    "nearest_rank_p50",
+    "nearest_rank_p95",
+    "nearest_rank_p99"
+  ],
+  "p99_minimum_valid_samples": 1000,
+  "pair_delta_formula": "100*(candidate_percentile_ns-baseline_percentile_ns)/baseline_percentile_ns",
+  "pair_summary_rule": "Report all five per-pair deltas, their median and full observed range for every size/query/statistic; no significance claim or regression threshold from five pairs",
+  "resource_rule": "Report GNU Time child user/system CPU, peak RSS, filesystem block I/O, major faults and swap per block; do not attribute whole-worker resources to an individual query",
+  "cold_rule": "Report each session-first observation as a diagnostic; do not call it cold OS/model cache or calculate a cold percentile",
+  "invalid_block_rule": "Preserve every attempt. Require clean source checkout, installed wheel byte match, exact protocol and runner hashes, semantic checks on every result, 1000 valid warm observations per cell, stable host/CPU/storage/governor, no competing build/profiler, at least 1 GiB free and zero measured-child swap events. Host-only swap drift is a recorded warning with sensitivity analysis.",
+  "candidate_verdict_rule": "Diagnostic latency comparison only. Report regressions, improvements and uncertainty separately from accepted release gates; do not infer correctness from version agreement.",
+  "phase1_limit": "This S01 Python subset cannot close the complete installed-SDK functional exercise, S02, E01-E12, Pareto, robustness or logic/exception matrices.",
+  "candidate_product_snapshot": {
+    "source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+    "rust_crates_git_tree": "c8eaaa19a0e0e876326b778733ace354cc7e21e8",
+    "cargo_lock_git_blob": "dbd5b98f621aa0fc8e9bccdd053a56be61ced471",
+    "rule": "Any change to installed wheel bytes or relevant product source after this freeze requires affected-cell rerun."
+  },
+  "campaign_runner_sha256": "2462163bb6a24c192feac10704b08113946b264a0fb6135f3090fdd62e1f5367",
+  "candidate_smoke_sha256_by_size": {
+    "32": "8f2b69aa0a7134cb9b1c6502581edbd4f458ce560c77a3f5415843a428b1201c",
+    "256": "73bb4e0c82451ee303ce9c65a7520ffde0eca94e6acd61baeeac016d8dad5aef"
+  }
+}

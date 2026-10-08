@@ -1,0 +1,10 @@
+{
+  "changed_swap_report": {
+    "outcome": "rejected",
+    "reason": "measured test process swapped, faulted or failed"
+  },
+  "changed_test_result": {
+    "outcome": "rejected",
+    "reason": "expected six passing tests are not present"
+  }
+}

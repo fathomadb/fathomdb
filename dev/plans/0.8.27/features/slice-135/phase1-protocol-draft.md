@@ -459,6 +459,11 @@ stop/reopen schedule. The full state/fault matrix below remains open.
 The focused [current-product provider and close result](results/2026-10-07-provider-close-current/README.md)
 adds 14 passing real-database cases for provider timeout/error, bounded
 dispatch, close cancellation and pending-projection recovery after reopen.
+The [exact-candidate projection-commit replay](results/2026-10-08-projection-commit-current/README.md)
+rechecks six one-shot commit, storage, panic, mean-pin and stop/reopen cases
+ten times on source `3f29d649d`, with independently checked output and
+resources. It strengthens current-source evidence but does not cover
+persistent faults or retain the temporary databases for a separate reopen.
 Expected injected provider panics are explicit Rust caller-boundary assertions;
 FFI containment and the remaining fault positions still require separate
 evidence.

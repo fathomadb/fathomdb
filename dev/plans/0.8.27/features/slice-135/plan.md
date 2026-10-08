@@ -672,6 +672,9 @@ SDK exercise remain open.
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)
   now proves that pending telemetry redaction survives a fresh engine open,
   refuses a sinkless retry and completes after the original sink is restored.
+  An [exact-candidate projection-commit replay](results/2026-10-08-projection-commit-current/README.md)
+  adds ten independently checked runs of six debug-hook fault and recovery
+  tests, including stop/reopen, plus tampered-log negative controls.
   Finish the declared fault/schedule matrix with persistent and one-shot
   faults, further interrupted-erasure positions, state and resource oracles.
 - **Logic and exceptions:** focused static checks and regression tests caught

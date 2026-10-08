@@ -1,0 +1,79 @@
+{
+  "binary": "/tmp/slice135-current-tc91-target/debug/deps/tc91_projection_commit_hardening-6f6e7fefbaf34ef8",
+  "binary_sha256": "857d661d436207eae15c1675eeb82e879b24deff80093b3d4f24dd16ab333ec4",
+  "command": [
+    "/usr/bin/time",
+    "-v",
+    "-o",
+    "resource.txt",
+    "/tmp/slice135-current-tc91-target/debug/deps/tc91_projection_commit_hardening-6f6e7fefbaf34ef8",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "results": [
+    {
+      "expected_panic_markers": true,
+      "index": 1,
+      "returncode": 0,
+      "six_passed": true
+    },
+    {
+      "expected_panic_markers": true,
+      "index": 2,
+      "returncode": 0,
+      "six_passed": true
+    },
+    {
+      "expected_panic_markers": true,
+      "index": 3,
+      "returncode": 0,
+      "six_passed": true
+    },
+    {
+      "expected_panic_markers": true,
+      "index": 4,
+      "returncode": 0,
+      "six_passed": true
+    },
+    {
+      "expected_panic_markers": true,
+      "index": 5,
+      "returncode": 0,
+      "six_passed": true
+    },
+    {
+      "expected_panic_markers": true,
+      "index": 6,
+      "returncode": 0,
+      "six_passed": true
+    },
+    {
+      "expected_panic_markers": true,
+      "index": 7,
+      "returncode": 0,
+      "six_passed": true
+    },
+    {
+      "expected_panic_markers": true,
+      "index": 8,
+      "returncode": 0,
+      "six_passed": true
+    },
+    {
+      "expected_panic_markers": true,
+      "index": 9,
+      "returncode": 0,
+      "six_passed": true
+    },
+    {
+      "expected_panic_markers": true,
+      "index": 10,
+      "returncode": 0,
+      "six_passed": true
+    }
+  ],
+  "run_count": 10,
+  "schema_version": 1,
+  "source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+  "test_source_sha256": "49236d66b3c3c9d98bd076dea47711ed0e9a0b48503c40088e643c50d1f92cb0"
+}

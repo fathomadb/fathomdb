@@ -890,26 +890,48 @@ fn another_ordinal_takes_the_default_path_and_reports_other_ordinal() {
 fn a_forward_out_of_memory_is_exhaustion_only_in_a_private_process() {
     let driver = FakeDriver::default();
     let cell: OnceLock<FakeDecision> = OnceLock::new();
-    assert_eq!(classify_forward(cell.get(), Some(CUDA_ERROR_OUT_OF_MEMORY), "m".to_owned()), None);
+    assert_eq!(
+        classify_forward(cell.get(), 0, Some(CUDA_ERROR_OUT_OF_MEMORY), "m".to_owned()),
+        None
+    );
     build_device(&cell, &driver, 0).expect("private");
     assert_eq!(
-        classify_forward(cell.get(), Some(CUDA_ERROR_OUT_OF_MEMORY), "m".to_owned()),
+        classify_forward(cell.get(), 0, Some(CUDA_ERROR_OUT_OF_MEMORY), "m".to_owned()),
         Some(CudaPoolFailure::Exhausted {
             ordinal: 0,
             max_size_bytes: 3 * GIB,
             message: "m".to_owned()
         })
     );
-    assert_eq!(classify_forward(cell.get(), Some(999), "m".to_owned()), None);
+    assert_eq!(classify_forward(cell.get(), 0, Some(999), "m".to_owned()), None);
 
     let fallback_driver =
         FakeDriver { settings: settings(Some("off"), None, None), ..FakeDriver::default() };
     let fallback_cell: OnceLock<FakeDecision> = OnceLock::new();
     build_device(&fallback_cell, &fallback_driver, 0).expect("default");
     assert_eq!(
-        classify_forward(fallback_cell.get(), Some(CUDA_ERROR_OUT_OF_MEMORY), "m".to_owned()),
+        classify_forward(fallback_cell.get(), 0, Some(CUDA_ERROR_OUT_OF_MEMORY), "m".to_owned()),
         None
     );
+}
+
+#[test]
+fn a_fault_on_another_ordinal_keeps_the_existing_mapping() {
+    let driver = FakeDriver { primary_state: Some(Ok(INACTIVE)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    assert_eq!(
+        classify_forward(cell.get(), 1, Some(CUDA_ERROR_OUT_OF_MEMORY), "m".to_owned()),
+        None
+    );
+    for code in [Some(CUDA_ERROR_OUT_OF_MEMORY), Some(CUDA_ERROR_CONTEXT_IS_DESTROYED), Some(999)] {
+        let fault = ForwardFault { ordinal: 1, ..cuda_fault(code) };
+        assert_eq!(classify_forward_fault(cell.get(), &driver, fault, "forward"), None, "{code:?}");
+    }
+    assert_eq!(driver.state_reads.load(Ordering::SeqCst), 0, "another ordinal is never queried");
+    assert!(matches!(
+        classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"),
+        Some(CudaPoolFailure::ContextLost { .. })
+    ));
 }
 
 // ---- context loss (design § 3.5) -------------------------------------------
@@ -923,7 +945,7 @@ fn private_cell(driver: &FakeDriver) -> OnceLock<FakeDecision> {
 }
 
 fn cuda_fault(code: Option<u32>) -> ForwardFault {
-    ForwardFault { cuda: true, code, error: format!("DriverError({code:?})") }
+    ForwardFault { ordinal: 0, cuda: true, code, error: format!("DriverError({code:?})") }
 }
 
 fn lost(failure: Option<CudaPoolFailure>) -> (u64, Option<u64>, String, String) {
@@ -1030,7 +1052,7 @@ fn out_of_memory_is_exhaustion_and_never_queries_the_context() {
 fn detection_runs_only_for_cuda_errors_in_a_private_process() {
     let driver = FakeDriver { primary_state: Some(Ok(INACTIVE)), ..FakeDriver::default() };
     let cell = private_cell(&driver);
-    let not_cuda = ForwardFault { cuda: false, code: None, error: "shape".to_owned() };
+    let not_cuda = ForwardFault { ordinal: 0, cuda: false, code: None, error: "shape".to_owned() };
     assert_eq!(classify_forward_fault(cell.get(), &driver, not_cuda, "forward"), None);
 
     let fallback_driver = FakeDriver {
@@ -1088,7 +1110,8 @@ fn the_first_loss_writes_one_snapshot_line_with_every_field() {
         ..FakeDriver::default()
     };
     let cell = private_cell(&driver);
-    let fault = ForwardFault { cuda: true, code: Some(999), error: "bad \"ctx\"\n".to_owned() };
+    let fault =
+        ForwardFault { ordinal: 0, cuda: true, code: Some(999), error: "bad \"ctx\"\n".to_owned() };
     lost(classify_forward_fault(cell.get(), &driver, fault, "forward"));
     lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(709)), "forward"));
     let snapshots = driver.snapshots.lock().expect("snapshots");

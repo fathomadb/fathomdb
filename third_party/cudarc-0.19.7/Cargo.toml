@@ -123,6 +123,10 @@ f4 = ["dep:float4"]
 f8 = ["dep:float8"]
 fallback-dynamic-loading = []
 fallback-latest = []
+# FATHOMDB PATCH: no-op marker for the private memory pool primitive
+# (FATHOMDB-PATCH.md item 6). A dependent that enables it fails to resolve
+# against an unpatched cudarc instead of failing on a missing symbol.
+fathomdb-private-pool = []
 nccl = ["nccl-02030"]
 nccl-02018 = ["driver"]
 nccl-02019 = ["driver"]

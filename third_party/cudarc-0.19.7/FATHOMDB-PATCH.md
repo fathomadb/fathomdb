@@ -1,4 +1,4 @@
-# Vendored cudarc 0.19.7 with a CUDA allocator fallback
+# Vendored cudarc 0.19.7 with a CUDA allocator fallback and a private memory pool
 
 This is the published `cudarc` 0.19.7 crate, extracted from the crates.io
 package whose `Cargo.lock` checksum is
@@ -11,12 +11,29 @@ licenses are the upstream `LICENSE-MIT` and `LICENSE-APACHE`.
 
 ## Delta from upstream
 
-The only changed file is `src/driver/safe/core.rs`. Every change is marked
-`FATHOMDB PATCH`. The complete diff against the published crate is
-`fathomdb-alloc-fallback.patch` in this directory; applying it with
-`patch -p1` to the published 0.19.7 package reproduces this tree.
+The changed files are `src/driver/safe/core.rs`, `src/driver/safe/mod.rs`
+and `Cargo.toml`, and `src/driver/safe/mem_pool.rs` is new. Every change is
+marked `FATHOMDB PATCH`. The complete diff against the published crate is
+two patches in this directory, applied in order with `patch -p1` to the
+published 0.19.7 package:
 
-**Scope: aarch64 Linux only.** Items 1 to 3 apply only when the crate is
+1. `fathomdb-alloc-fallback.patch`: items 1 to 4 (0.8.27);
+2. `fathomdb-private-pool.patch`: items 5 and 6 and their tests (0.8.28).
+
+Together they reproduce this tree.
+
+### Item status
+
+| Item | Upstream status | Removal path |
+| --- | --- | --- |
+| 1. Allocator fallback | Local only | Drop when Candle's cudarc resolves to a release with an equivalent fallback, or when no FathomDB artifact needs the default pool to be optional on aarch64 Linux. |
+| 2. Per-device decision | Local only | Removed with item 1, which it serves. |
+| 3. Zero-length synchronous allocation | Local only | Removed with item 1; only the synchronous fallback path needs it. |
+| 4. Tests (`fathomdb_alloc_fallback`) | Local only | Removed with items 1 to 3. |
+| 5. Private memory pool primitive | Proposed upstream, not posted | Drop when Candle's cudarc resolves to a release with `CudaMemPool` and `CudaContext::new_with_mem_pool`; switch FathomDB to the upstream names. The tests (`fathomdb_private_pool`) go with it. |
+| 6. Feature marker `fathomdb-private-pool` | Local only | Removed with item 5; FathomDB stops enabling it in the same change. |
+
+**Scope of items 1 to 4: aarch64 Linux only.** Items 1 to 3 apply only when the crate is
 built for `cfg(all(target_os = "linux", target_arch = "aarch64"))`, the
 platform of the measured Jetson failure. That predicate also covers non-Tegra
 aarch64 Linux CUDA hosts, such as Grace Hopper, GB10 and other SBSA servers.
@@ -37,7 +54,7 @@ The zero-length handling is gated as well. Off target the synchronous path
 runs only on devices without memory pools, and there it would turn
 upstream's `CUDA_ERROR_INVALID_VALUE` into success. That is a behaviour
 change, and nothing has measured it there. Off target the only remaining
-differences are structural: helper functions and doc comments.
+differences from items 1 to 4 are structural: helper functions and doc comments.
 `select_async_alloc` has an upstream-equivalent variant, and the
 `SYNC_FALLBACK` constant is `false`. The off-target branch has not been
 compiled for a real non-aarch64 target on the Jetson used for this work. It
@@ -134,6 +151,47 @@ not cover them.
    build's target.
 
    Run the module with `scripts/tests/test_vendored_cudarc.sh`.
+5. **Private memory pool primitive.** Opt-in and on every target, so it
+   matches the upstream proposal; nothing changes for a caller that does not
+   use it.
+   - `CudaMemPool` (`mem_pool.rs`) wraps the result-layer `cuMemPool*` calls
+     that upstream already has: `create(ordinal, &MemPoolProps { max_size,
+     release_threshold })` makes a pinned device-memory pool, `attribute`
+     reads a 64-bit pool attribute, `trim_to` and `raw` expose the driver's,
+     and `Drop` calls `cuMemPoolDestroy`. The pool is never made the device's
+     current pool.
+   - `CudaContext::new_with_mem_pool(ordinal, Arc<CudaMemPool>)` retains the
+     primary context as `new` does, after checking that the pool belongs to
+     that device (`CUDA_ERROR_INVALID_VALUE` otherwise, with nothing
+     retained). Its allocations use `cuMemAllocFromPoolAsync` on that pool;
+     frees use the ordinary `cuMemFreeAsync`, which returns memory to the
+     pool it came from, so `CudaSlice::drop` is unchanged.
+   - It does not run the item 1 decision and does not read or record the
+     item 2 table, so every other context of the device, including a
+     co-resident cudarc user's, keeps its own allocator. The device's current
+     pool is neither read nor changed.
+   - `pub enum AllocMode { Default, Synchronous, Private }` and
+     `CudaContext::alloc_mode()` report the allocator a context uses;
+     `CudaContext::mem_pool()` returns its pool.
+   - Zero-byte requests go to the driver like any other.
+     `cuMemAllocFromPoolAsync(0)` succeeds with a null pointer that
+     `cuMemFreeAsync` accepts, so item 3 is not needed here.
+   - Lifetime: the context holds the pool, every stream holds the context
+     and every slice holds its stream, so the pool is destroyed after the
+     last of them.
+   - Tests, in the `fathomdb_private_pool` module, run through the same
+     script. A pure test covers the three allocator states. On a CUDA host
+     the tests check:
+     - allocation from the pool, with the device's current pool unchanged;
+     - null zero-length buffers that free without error;
+     - the pool released only after the context, then destroyed cleanly;
+     - rejection of another device's pool;
+     - on aarch64 Linux, in a fresh child process, that a private context
+       leaves the item 2 table empty.
+6. **Feature marker.** `Cargo.toml` declares the no-op feature
+   `fathomdb-private-pool`. A dependent that enables it fails to resolve
+   against an unpatched cudarc with "package `cudarc` does not have feature
+   `fathomdb-private-pool`", not with a missing symbol.
 
 ## Why
 
@@ -160,5 +218,13 @@ FathomDB must revisit this workaround at its next micro release and loudly at
 its next minor release. The obligation is recorded in
 `dev/todos-and-considerations-ledger.jsonl`.
 
-The change is intended to be proposed upstream. Drop this vendor copy once
-the Candle cudarc resolves to a release containing an equivalent fallback.
+Item 5 lets FathomDB keep stream-ordered allocation on such a device
+without the default pool: a capped pool of its own needs a far smaller
+contiguous range, and it is used only by FathomDB's contexts. The design is
+in the FathomDB repository under
+`dev/plans/0.8.28/features/slice-30/`.
+
+Items 1 to 4 are not proposed upstream. Item 5 is intended to be; nothing
+is posted without the FathomDB owner's sign-off. Drop this vendor copy once
+the Candle cudarc resolves to a release that makes every item removable (see
+the item status table).

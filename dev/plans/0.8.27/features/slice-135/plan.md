@@ -700,7 +700,10 @@ SDK exercise remain open.
   A [second test-first repair](results/2026-10-08-importance-lookup-repair/README.md)
   prevents failed stored importance/confidence lookups from masquerading as
   neutral values; its focused and neighboring cases pass. These product-source
-  changes require a new exact-candidate latency and coverage refresh.
+  changes require a new exact-candidate latency and coverage refresh. The
+  [scoped boundary audit](logic-boundary-audit-2026-10-08.md) classifies the
+  guarded panic sites, FFI containment structure and remaining `.ok()` leads;
+  final-artifact binding panic execution is still due.
 - **Functional exercise:** the [capability register](phase1-capability-register.md)
   accounts for all 44 canonical operations: Rust 42 selected cases executed
   and two provider/model cases unavailable; Python 40 executed, one

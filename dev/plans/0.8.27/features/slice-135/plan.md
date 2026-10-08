@@ -478,6 +478,8 @@ qualified external gold judgments. Version agreement is not a gold answer.
 Report class denominators, abstentions and claim limitations; existing
 supersession human gold is limited. Vector fidelity and semantic relevance
 remain separate measures.
+The dated [readiness inventory](phase2-readiness-2026-10-08.md) records exact
+local input identities and the first unscored execution steps.
 
 | Dimension | What to measure | How to measure |
 | --- | --- | --- |

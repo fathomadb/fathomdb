@@ -79,6 +79,10 @@ def audit_operations(
         if row["status"] == "executed":
             positive = row["positive"]["case"]
             negative = row["negative"]["case"]
+            if operation == "engine.read_dependency_closure" and (
+                positive != "closure_committed" or negative != "closure"
+            ):
+                raise ValueError("committed closure route changed")
             if any(
                 name not in cases or cases[name]["status"] != "passed"
                 for name in (positive, negative)

@@ -8,6 +8,16 @@ target_release: 0.8.27
 
 The executable [canonical operation map](../../../../../src/conformance/governed-operation-parity.json) is the scope authority for governed operations. Its SHA-256 at the initial inventory snapshot is `da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17`. That snapshot was branch `llm/0.8.27-slice-135` at `ea91ec0e8878d49c44706234ff2ea9c454b55cb5`, before the confirmed edge-FTS-error repair. This living register is not the frozen measurement protocol; only rows explicitly marked with a receipt have executed installed-artifact evidence.
 
+The [current-source installed SDK exercise](results/2026-10-08-current-sdk-capabilities/README.md)
+on `d465cd56d2e863f900ea9a9da8bc372ca6a077c5` now accounts for the
+supported Python and TypeScript positive paths: **41 executed, zero failed,
+zero supported gaps, three unavailable provider/model cases per SDK**.
+Independent audits accepted both raw receipts and retained artifact bytes.
+Python's committed-closure status and TypeScript's committed closure and
+successful dependency trace are now selected real-database cases with
+reopen assertions. The package archives remain local until final retention;
+the earlier counts below describe historical candidate SHAs.
+
 The [integrated-candidate installed Python exercise](results/2026-10-07-python-integrated-candidate/README.md)
 accounts for all 44 governed operations: **40 selected cases executed, zero
 failed, one committed-closure gap, three provider/model cases unavailable**.
@@ -90,7 +100,7 @@ workload; dedicated gold scoring remains Phase 2.
 | `engine.register_source_dependency` | S03 dependency | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
 | `engine.dependencies_for_source` | S03 dependency | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
 | `engine.dependency_for_derived` | S03 dependency | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
-| `engine.read_dependency_closure` | S03 dependency | External Cargo: selected case executed | Gap: committed closure result | Gap: positive committed closure result |
+| `engine.read_dependency_closure` | S03 dependency | External Cargo: selected case executed | Installed wheel: committed closure and reopen executed | Installed package: committed closure executed |
 | `engine.transition` | S03 lifecycle | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
 | `engine.purge` | S03 lifecycle | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
 | `engine.erase_source` | S02 erasure | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
@@ -103,7 +113,7 @@ workload; dedicated gold scoring remains Phase 2.
 | `engine.search_with_evidence` | S02 evidence | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
 | `engine.resolve_evidence` | S02 evidence | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
 | `engine.resolve_graph_evidence` | S02 graph evidence | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
-| `engine.trace_dependency` | S03 dependency | External Cargo: selected case executed | Installed wheel: selected case executed | Gap: successful trace result |
+| `engine.trace_dependency` | S03 dependency | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: successful trace and reopen executed |
 | `engine.close` | S02 close | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
 | `read.get` | S02 read | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
 | `read.get_many` | S03 read | External Cargo: selected case executed | Installed wheel: selected case executed | Installed package: selected case executed |
@@ -133,9 +143,9 @@ workload; dedicated gold scoring remains Phase 2.
 - A selected positive case does not establish every filter, temporal,
   validity, provenance, error-precedence, cancellation or concurrency branch.
   Use the Pareto/coverage and robustness matrices to select the next cases.
-- Python and TypeScript still need a committed dependency-closure result;
-  TypeScript also needs a successful dependency trace. The retained negative
-  cases are evidence for refusals, not a positive substitute.
+- The three previously supported positive-path gaps now have current-source
+  installed SDK receipts. Their negative cases remain separate evidence for
+  refusals. Final artifact retention and broader contract conditions remain.
 - Qualified extraction and consolidation providers remain unavailable in all
   three exercises. The standalone cross-encoder `rerank` model remains
   unqualified; only the Rust identity path ran.

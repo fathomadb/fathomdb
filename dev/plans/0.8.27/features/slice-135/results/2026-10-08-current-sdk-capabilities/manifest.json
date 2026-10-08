@@ -1,0 +1,39 @@
+{
+  "candidate_package_version": "0.8.26",
+  "candidate_source_sha": "d465cd56d2e863f900ea9a9da8bc372ca6a077c5",
+  "files": {
+    "adapted-tests.tgz": "111955de1fa02211336d44150f5796c5b1fdbb490f29715de4c147311e58f978",
+    "fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl": "33d37be7c80183b063788889954da698ea959997fc13b61e356006a3c26c8894",
+    "fathomdb-0.8.26.tgz": "8c8a97fbe26c541cddadfec7f9faef518102307f927ce6b4b095e5da721ca49d",
+    "fathomdb-linux-x64-gnu-0.8.26.tgz": "5609a57277c0be3c5e6ac164f3edb094243ccfc332f3be60b02c391ca07aeeaa",
+    "invalid-sandbox-raw.json": "b8d4a9ef63c85ec643202189cd50e3c6eae6e06a97339c020be7fe2a88b314ae",
+    "invalid-sandbox-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "invalid-sandbox-stdout.log": "499a6bcaaaf1bed7abcc9b44c370b5a781713ad657b739df5e1628d3a0d3516b",
+    "python-audit.json": "f104bec8da02270821697299f28a106566145c5ee09911c4b4647dfe5d5324af",
+    "python-raw.json": "affeb2efd8f489a041ade833c947209db5871b7b40685dfdd5f0378a24fad5d9",
+    "python-retained-audit.json": "f104bec8da02270821697299f28a106566145c5ee09911c4b4647dfe5d5324af",
+    "python-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "python-stdout.log": "bafd12ae15092174800cc9bfcf68fd465ee4c8ef6411f64797a9ac4305a788aa",
+    "ts-live-audit.json": "8b294c5e2f0d814a8abcd03549945de0bc65843d66a36a53df43271f0c30fe16",
+    "ts-raw.json": "c3073779bd9d0dcb3cdaf2725974bba31ac8c1bb493bcfa6142637be5c073c1d",
+    "ts-retained-audit.json": "33745d36b3dc32075306d60e0db74b5c8ed69e7890bbf1beac90168ebe2a9ed8",
+    "ts-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ts-stdout.log": "8e6a5739118a64ad0fbe6c46a593cc50a15ad442a985255f7c3f06b4851420a8"
+  },
+  "python_counts": {
+    "executed": 41,
+    "failed": 0,
+    "gap": 0,
+    "supported": 44,
+    "unavailable": 3
+  },
+  "schema_version": 1,
+  "scope": "source-bound installed Python wheel and Linux x64 GNU TypeScript package functional capability exercise",
+  "typescript_counts": {
+    "executed": 41,
+    "failed": 0,
+    "gap": 0,
+    "supported": 44,
+    "unavailable": 3
+  }
+}

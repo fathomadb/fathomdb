@@ -21,7 +21,11 @@ def recount(operations: list[str], rows: dict[str, Any]) -> dict[str, int]:
     if len(operations) != len(set(operations)) or set(rows) != set(operations):
         raise ValueError("row set differs from canonical operations")
     counts = {"supported": len(operations), "executed": 0, "failed": 0, "gap": 0, "unavailable": 0}
-    for row in rows.values():
+    required_routes = {
+        "engine.read_dependency_closure": ("closure_committed", "closure_absent"),
+        "engine.trace_dependency": ("trace_success", "trace_refusal"),
+    }
+    for operation, row in rows.items():
         status = row.get("status")
         if status not in ("executed", "failed", "gap", "unavailable"):
             raise ValueError("unknown operation status")
@@ -31,6 +35,10 @@ def recount(operations: list[str], rows: dict[str, Any]) -> dict[str, int]:
             and row.get("reopen", {}).get("databases", 0) > 0
         ):
             raise ValueError("executed row lacks independently asserted evidence")
+        if status == "executed" and operation in required_routes and (
+            row["positive"]["case"], row["negative"]["case"]
+        ) != required_routes[operation]:
+            raise ValueError(f"{operation} positive route changed")
         if status == "failed" and not row.get("error"):
             raise ValueError("failed row lacks error")
         if status in ("gap", "unavailable") and not (row.get("reason") and row.get("owner")):

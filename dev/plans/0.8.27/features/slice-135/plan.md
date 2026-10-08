@@ -83,8 +83,9 @@ matched workload; keep caller-owned and module-level model lifetimes distinct.
 
 The [44-operation capability exercise register](phase1-capability-register.md)
 tracks every accepted governed operation against executed SDK evidence or an
-explicit gap. Its remaining supported positive-path gaps and contract
-conditions need execution or a checkpoint risk disposition.
+explicit gap. The [current-source installed SDK exercise](results/2026-10-08-current-sdk-capabilities/README.md)
+closes the three previously supported positive-path gaps; remaining contract
+conditions and unavailable provider/model cases need checkpoint dispositions.
 
 **Order of work:** first produce substantial, inspectable results for what
 matters/Pareto path, system latency, system robustness, and logic and exception
@@ -713,9 +714,12 @@ SDK exercise remain open.
   final-artifact binding panic execution is still due.
 - **Functional exercise:** the [capability register](phase1-capability-register.md)
   accounts for all 44 canonical operations: Rust 42 selected cases executed
-  and two provider/model cases unavailable; Python 40 executed, one
-  committed-closure positive-path gap and three unavailable; TypeScript 39
-  executed, two positive-path gaps and three unavailable. The repaired-source
+  and two provider/model cases unavailable. The latest
+  [installed SDK exercise](results/2026-10-08-current-sdk-capabilities/README.md)
+  on source `d465cd56d` records Python 41 executed, zero failed, zero
+  supported gaps and three unavailable; TypeScript has the same 41/0/0/3
+  partition. Both independent auditors accepted the retained raw receipts.
+  The earlier repaired-source
   [TypeScript consumer](results/2026-10-07-ts-vector-repaired-candidate/README.md)
   rechecked those 39 operations against rebuilt npm packages. Candidate S02
   functional refreshes pass, including the
@@ -726,8 +730,8 @@ SDK exercise remain open.
   integrated Python wheel repeated 40 selected
   positive/negative/reopen routes and one S02 sequence with independent
   audits; its validation-inclusive timer does not qualify S02 latency or
-  contention. Close supported gaps and contract
-  conditions or state residual risk explicitly.
+  contention. Finish the remaining contract conditions and state residual
+  risk explicitly; final artifact retention is still open.
 - **Evidence and gates:** independently audit the exact-candidate raw
   campaigns and publish one four-area checkpoint note with invalid and
   omitted cells. The most recent full agent gate passed shell lint after a

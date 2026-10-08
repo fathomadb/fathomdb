@@ -1,0 +1,18 @@
+[
+  {
+    "attempt": "typescript-default-npm-cache",
+    "outcome": "INVALID_ENVIRONMENT",
+    "exit_code": 226,
+    "stage": "npm pack",
+    "reason": "EROFS opening /home/coreyt/.npm/_cacache/tmp; no product test ran",
+    "raw_receipt": null
+  },
+  {
+    "attempt": "typescript-sandbox-child-spawn",
+    "outcome": "INVALID_ENVIRONMENT",
+    "exit_code": 0,
+    "stage": "isolated node test spawn",
+    "reason": "spawnSync Node v25.9.0 returned EPERM for each selected child test; all 41 supported operations marked failed",
+    "raw_receipt": "invalid-sandbox-raw.json"
+  }
+]

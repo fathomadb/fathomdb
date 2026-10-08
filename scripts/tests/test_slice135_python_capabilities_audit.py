@@ -72,3 +72,31 @@ def test_operation_accounting_rejects_false_count_and_missing_case() -> None:
     missing_case["engine.open"]["positive"]["case"] = "absent"
     with pytest.raises(ValueError, match="missing or failed case"):
         audit.audit_operations(["engine.open"], missing_case, cases, counts)
+
+
+def test_committed_closure_cannot_be_replaced_by_absence_case() -> None:
+    observed = snapshot()
+    cases = {
+        "closure_committed": {"status": "passed", "reopen": [observed]},
+        "closure": {"status": "passed", "reopen": [observed]},
+    }
+    row = {
+        "status": "executed",
+        "positive": {"case": "closure_committed"},
+        "negative": {"case": "closure"},
+        "reopen": {"case": "closure_committed", "checks": [observed]},
+    }
+    counts = {
+        "supported": 1, "executed": 1, "failed": 0,
+        "gap": 0, "unavailable": 0, "unexecuted": 0,
+    }
+    audit.audit_operations(["engine.read_dependency_closure"],
+                           {"engine.read_dependency_closure": row}, cases, counts)
+    absence_only = deepcopy(row)
+    absence_only["positive"]["case"] = "closure"
+    absence_only["reopen"]["case"] = "closure"
+    absence_only["reopen"]["checks"] = cases["closure"]["reopen"]
+    with pytest.raises(ValueError, match="committed closure"):
+        audit.audit_operations(["engine.read_dependency_closure"],
+                               {"engine.read_dependency_closure": absence_only},
+                               cases, counts)

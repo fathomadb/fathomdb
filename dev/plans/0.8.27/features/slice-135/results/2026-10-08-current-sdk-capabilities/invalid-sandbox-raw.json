@@ -1,0 +1,1732 @@
+{
+  "schema_version": 1,
+  "kind": "installed_ts_selected_functional_capabilities",
+  "source_sha": "d465cd56d2e863f900ea9a9da8bc372ca6a077c5",
+  "canonical": {
+    "path": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/conformance/governed-operation-parity.json",
+    "sha256": "da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17"
+  },
+  "runner_sha256": "8d6b343b5f86c1d4231e81ca724144cd2de91ad1985c4eb0af1301f2fc1ba8fc",
+  "node": "v25.9.0",
+  "artifact": {
+    "module": {
+      "path": "/tmp/slice135-current-ts-capability-d465-v2/consumer/node_modules/fathomdb/dist/index.js",
+      "sha256": "cc0ea0b2ae641aa5162a223985d9afb5ba1233b073899e66a2847f92f36bf432"
+    },
+    "main_package": {
+      "path": "/tmp/slice135-current-ts-capability-d465-v2/consumer/node_modules/fathomdb/package.json",
+      "sha256": "27f22e9812ce3a2e166871c72520b3d1396b1d819c44b73bbdb6ea66be81928b"
+    },
+    "native": {
+      "path": "/tmp/slice135-current-ts-capability-d465-v2/consumer/node_modules/fathomdb-linux-x64-gnu/fathomdb.linux-x64-gnu.node",
+      "sha256": "9b619fef068a313a6e68218ed7ead26244fc16fc4e2b19b5451d68c258d3a6fd"
+    },
+    "native_package": {
+      "path": "/tmp/slice135-current-ts-capability-d465-v2/consumer/node_modules/fathomdb-linux-x64-gnu/package.json",
+      "sha256": "b7d6229b413e8a26365de73fc4c16c60bf538da7b0324b3b1a581dee79a89db3"
+    }
+  },
+  "archives": [
+    {
+      "path": "/tmp/slice135-current-ts-capability-d465-v2/packs/fathomdb-0.8.26.tgz",
+      "sha256": "8c8a97fbe26c541cddadfec7f9faef518102307f927ce6b4b095e5da721ca49d"
+    },
+    {
+      "path": "/tmp/slice135-current-ts-capability-d465-v2/packs/fathomdb-linux-x64-gnu-0.8.26.tgz",
+      "sha256": "5609a57277c0be3c5e6ac164f3edb094243ccfc332f3be60b02c391ca07aeeaa"
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/python/tests/functional_retrieve_fixture.json",
+      "sha256": "c136355cb52c9c43bb83d38fec9076a9507ace082e0c34f8b6ef05ac01fbe0c3"
+    },
+    {
+      "path": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/python/tests/functional_search_fixture.json",
+      "sha256": "3f216e6b4fa1ed2aa8ac44eb67cb07ce38d10437b0603ecd3ca9d9b088d045a2"
+    }
+  ],
+  "cases": {
+    "retrieve": {
+      "case": "retrieve",
+      "test": "functional-retrieve.test.ts::functional retrieve: read.get returns the active node by id",
+      "file": "functional-retrieve",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-retrieve.test.ts",
+      "testSourceSha256": "deb0e1c57e0b842244964186e09f65980cb3ce75326bd2c227a4d656f88c1960",
+      "compiledSha256": "5c0b5b065fab6359ec6117faff4edc492d4552f746607b52979962d6a7da6f0e",
+      "installedTestSha256": "e6d1eb108cfe5b44a74e34a63b1253289627f26eb0baf6241eba9c6d8dd32011",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-retrieve.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^functional retrieve: read\\.get returns the active node by id$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-retrieve.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-retrieve-hecMN2",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "admin": {
+      "case": "admin",
+      "test": "functional-retrieve.test.ts::functional retrieve: admin.configure path exercised",
+      "file": "functional-retrieve",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-retrieve.test.ts",
+      "testSourceSha256": "deb0e1c57e0b842244964186e09f65980cb3ce75326bd2c227a4d656f88c1960",
+      "compiledSha256": "5c0b5b065fab6359ec6117faff4edc492d4552f746607b52979962d6a7da6f0e",
+      "installedTestSha256": "e6d1eb108cfe5b44a74e34a63b1253289627f26eb0baf6241eba9c6d8dd32011",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-retrieve.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^functional retrieve: admin\\.configure path exercised$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-retrieve.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-admin-LQJX94",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "write": {
+      "case": "write",
+      "test": "functional-search.test.ts::functional write: rowCursors are 1:1 with the batch (Py ≡ TS)",
+      "file": "functional-search",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-search.test.ts",
+      "testSourceSha256": "8207f1d068656d77b5e6fd65791beea49c764e2f1c3bb39ffce423a4bd5fbd33",
+      "compiledSha256": "3ab77c14e27943fea4c075bea0db3ed193675f308ef949eabe465bdc58d705c4",
+      "installedTestSha256": "7bda7f0bffdccf497c3216931425050a2a1a0258602a93dfdd4d718bdbf7346f",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-search.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^functional write: rowCursors are 1:1 with the batch \\(Py ≡ TS\\)$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-search.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-write-cVKNCs",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "actuation": {
+      "case": "actuation",
+      "test": "slice25-actuation.test.ts::actuation commits and exact replay returns the terminal receipt",
+      "file": "slice25-actuation",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice25-actuation.test.ts",
+      "testSourceSha256": "a03e397d5f051c5c1e7cdb66d05452231cb357f03fbb0de5ac45516e2c51f78c",
+      "compiledSha256": "c7a504fb10289f71e92552ff2585491a90a141c8f5d4123c33b8d857ab2397ca",
+      "installedTestSha256": "b958e36ff0c3bb59c408de4c07ac3763fa0d219e0d405f987b8d5af50e26ab25",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice25-actuation.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^actuation commits and exact replay returns the terminal receipt$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice25-actuation.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-actuation-5JdQ7U",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "actuation_refusal": {
+      "case": "actuation_refusal",
+      "test": "slice25-actuation.test.ts::actuation rejects an unpaired surrogate at the canonical nested path",
+      "file": "slice25-actuation",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice25-actuation.test.ts",
+      "testSourceSha256": "a03e397d5f051c5c1e7cdb66d05452231cb357f03fbb0de5ac45516e2c51f78c",
+      "compiledSha256": "c7a504fb10289f71e92552ff2585491a90a141c8f5d4123c33b8d857ab2397ca",
+      "installedTestSha256": "b958e36ff0c3bb59c408de4c07ac3763fa0d219e0d405f987b8d5af50e26ab25",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice25-actuation.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^actuation rejects an unpaired surrogate at the canonical nested path$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice25-actuation.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-actuation_refusal-pF2L4e",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "dependency": {
+      "case": "dependency",
+      "test": "slice20-source-dependencies.test.ts::dependency round trip uses canonical decimal generation",
+      "file": "slice20-source-dependencies",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice20-source-dependencies.test.ts",
+      "testSourceSha256": "9021ebdada875d019451c772085bb7520f1857232b25f50e583d75b9d9e1e176",
+      "compiledSha256": "459f871ff7b1684d0b640e78488d440b28abe3e6815cd8578f502905b4baf9fa",
+      "installedTestSha256": "bedf1bfc9f37bf24b63e428778f0aea34cb57f8f8e0c1d30a4dc80099e17729e",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice20-source-dependencies.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^dependency round trip uses canonical decimal generation$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice20-source-dependencies.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-dependency-5xPvPp",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "lifecycle": {
+      "case": "lifecycle",
+      "test": "opp12-lifecycle-verbs.test.ts::legal transitions + reason clear-on-admit / set-on-exclude",
+      "file": "opp12-lifecycle-verbs",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/opp12-lifecycle-verbs.test.ts",
+      "testSourceSha256": "592009750d5e0f3ab8ad3d23b0f07ad752e6e6581c59f8884fd422f90a01a643",
+      "compiledSha256": "55ba23d56e1df9d4c1f4360f3e6b36b6b2cc9379430fe98d0d2028081f554f7b",
+      "installedTestSha256": "6a228d0b0f56c1bac98829c8eb13f22d9e4c40b6072f2d93f089c6f61faabb03",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/opp12-lifecycle-verbs.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^legal transitions \\+ reason clear-on-admit / set-on-exclude$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/opp12-lifecycle-verbs.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-lifecycle-2cL9Fi",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "lifecycle_refusal": {
+      "case": "lifecycle_refusal",
+      "test": "opp12-lifecycle-verbs.test.ts::illegal transition is a typed error with fromState/toState/legal",
+      "file": "opp12-lifecycle-verbs",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/opp12-lifecycle-verbs.test.ts",
+      "testSourceSha256": "592009750d5e0f3ab8ad3d23b0f07ad752e6e6581c59f8884fd422f90a01a643",
+      "compiledSha256": "55ba23d56e1df9d4c1f4360f3e6b36b6b2cc9379430fe98d0d2028081f554f7b",
+      "installedTestSha256": "6a228d0b0f56c1bac98829c8eb13f22d9e4c40b6072f2d93f089c6f61faabb03",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/opp12-lifecycle-verbs.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^illegal transition is a typed error with fromState/toState/legal$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/opp12-lifecycle-verbs.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-lifecycle_refusal-107pQJ",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "purge": {
+      "case": "purge",
+      "test": "opp12-lifecycle-verbs.test.ts::purge requires deleted-first and is idempotent",
+      "file": "opp12-lifecycle-verbs",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/opp12-lifecycle-verbs.test.ts",
+      "testSourceSha256": "592009750d5e0f3ab8ad3d23b0f07ad752e6e6581c59f8884fd422f90a01a643",
+      "compiledSha256": "55ba23d56e1df9d4c1f4360f3e6b36b6b2cc9379430fe98d0d2028081f554f7b",
+      "installedTestSha256": "6a228d0b0f56c1bac98829c8eb13f22d9e4c40b6072f2d93f089c6f61faabb03",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/opp12-lifecycle-verbs.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^purge requires deleted-first and is idempotent$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/opp12-lifecycle-verbs.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-purge-GG7p8T",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "erasure": {
+      "case": "erasure",
+      "test": "erase-source.test.ts::eraseSource erases anonymous content end-to-end without the CLI",
+      "file": "erase-source",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/erase-source.test.ts",
+      "testSourceSha256": "0b13bfc9aff21da2191dc05e50d02342ff4ca8220ef5c5dc7614edcb42fdaa44",
+      "compiledSha256": "f5a9a8b883cf95ee49e3374bdfd361ff52fa23f1b2c3743e1d8e6b880310cff2",
+      "installedTestSha256": "e0f30a00c393bcfb14848b23df8b0f5d4701e059b58f309630cd2de043c46ca2",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/erase-source.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^eraseSource erases anonymous content end-to-end without the CLI$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/erase-source.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-erasure-kgEYbE",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "search": {
+      "case": "search",
+      "test": "functional-search.test.ts::functional search: structured hit shape across the FFI",
+      "file": "functional-search",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-search.test.ts",
+      "testSourceSha256": "8207f1d068656d77b5e6fd65791beea49c764e2f1c3bb39ffce423a4bd5fbd33",
+      "compiledSha256": "3ab77c14e27943fea4c075bea0db3ed193675f308ef949eabe465bdc58d705c4",
+      "installedTestSha256": "7bda7f0bffdccf497c3216931425050a2a1a0258602a93dfdd4d718bdbf7346f",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-search.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^functional search: structured hit shape across the FFI$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-search.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-search-vKUfst",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "frozen": {
+      "case": "frozen",
+      "test": "slice35-frozen-read.test.ts::frozen read context binds eligibility and rejects drift",
+      "file": "slice35-frozen-read",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice35-frozen-read.test.ts",
+      "testSourceSha256": "2c1f413ef667c0e21736588a927ed01acdd8cb0373f9ce9b0ddc4471d1b77bcb",
+      "compiledSha256": "3414c7d59b04c5c0dd125796b41dcf821b18ebeb2ae278425f8d5fff9d4c67c8",
+      "installedTestSha256": "33341c1a4c5a939280b0cb041c6f34a18a52e6e96c794b2916dc164f7dc80b36",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice35-frozen-read.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^frozen read context binds eligibility and rejects drift$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice35-frozen-read.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-frozen-NtvomA",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "frozen_refusal": {
+      "case": "frozen_refusal",
+      "test": "slice35-frozen-read.test.ts::frozen authentication precedes query, shape, and range validation",
+      "file": "slice35-frozen-read",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice35-frozen-read.test.ts",
+      "testSourceSha256": "2c1f413ef667c0e21736588a927ed01acdd8cb0373f9ce9b0ddc4471d1b77bcb",
+      "compiledSha256": "3414c7d59b04c5c0dd125796b41dcf821b18ebeb2ae278425f8d5fff9d4c67c8",
+      "installedTestSha256": "33341c1a4c5a939280b0cb041c6f34a18a52e6e96c794b2916dc164f7dc80b36",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice35-frozen-read.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^frozen authentication precedes query, shape, and range validation$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice35-frozen-read.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-frozen_refusal-rCRfZv",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "frozen_expand": {
+      "case": "frozen_expand",
+      "test": "slice35-frozen-read.test.ts::frozen search expansion returns the governed union",
+      "file": "slice35-frozen-read",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice35-frozen-read.test.ts",
+      "testSourceSha256": "2c1f413ef667c0e21736588a927ed01acdd8cb0373f9ce9b0ddc4471d1b77bcb",
+      "compiledSha256": "3414c7d59b04c5c0dd125796b41dcf821b18ebeb2ae278425f8d5fff9d4c67c8",
+      "installedTestSha256": "33341c1a4c5a939280b0cb041c6f34a18a52e6e96c794b2916dc164f7dc80b36",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice35-frozen-read.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^frozen search expansion returns the governed union$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice35-frozen-read.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-frozen_expand-lS6NqS",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "text_only": {
+      "case": "text_only",
+      "test": "slice23-text-limit-prefix-stability.test.ts::direct text limits are prefix-stable through TypeScript",
+      "file": "slice23-text-limit-prefix-stability",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice23-text-limit-prefix-stability.test.ts",
+      "testSourceSha256": "a6acad3256340cce120ca37c295b1d3009fd79e96e663daae97b72fbd7df5682",
+      "compiledSha256": "5bb637ffdb958bacc665bc863de059a779f04b6c9d5511f33dd12bdea596b1f1",
+      "installedTestSha256": "c23d188e190e0f6f5ec66a74a73fe63d72ffd2b2e5dcde14517f463dad773b37",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice23-text-limit-prefix-stability.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^direct text limits are prefix-stable through TypeScript$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice23-text-limit-prefix-stability.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-text_only-SXLyh8",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "projected": {
+      "case": "projected",
+      "test": "slice45-nested-source-projections.test.ts::nested source type-collapsed equality and projected search use a real database",
+      "file": "slice45-nested-source-projections",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice45-nested-source-projections.test.ts",
+      "testSourceSha256": "5dc4573317a2e7cc4ccd224ba846ff07c4288f09964706769f56ba4f67105faa",
+      "compiledSha256": "cf84b22ef4a946d35c2329d62bc2471342ba7e6015aaaa492b53ea0350385896",
+      "installedTestSha256": "7b7f960e2a362ea2e394a9f3e050121654e525f300773acbca66d68d29d32079",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice45-nested-source-projections.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^nested source type-collapsed equality and projected search use a real database$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice45-nested-source-projections.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-projected-up6hLj",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "evidence": {
+      "case": "evidence",
+      "test": "slice50-evidence.test.ts::search and resolve exact source evidence",
+      "file": "slice50-evidence",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice50-evidence.test.ts",
+      "testSourceSha256": "4d0f1987d41ddd0101ef6dbdf32f89628c842f792f340483ed62405379688610",
+      "compiledSha256": "ebb7315f3cf0a8a6238e175fc15efbba42910b78a7eb39f3b4aa8e98de89a709",
+      "installedTestSha256": "01309606bf83ff6266fc1d35e4f62c9aa472f17daaa19be7f59ffed0fa99dc04",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice50-evidence.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^search and resolve exact source evidence$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice50-evidence.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-evidence-yfMbcU",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "evidence_refusal": {
+      "case": "evidence_refusal",
+      "test": "slice50-evidence.test.ts::evidence request schema and unknown fields are typed",
+      "file": "slice50-evidence",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice50-evidence.test.ts",
+      "testSourceSha256": "4d0f1987d41ddd0101ef6dbdf32f89628c842f792f340483ed62405379688610",
+      "compiledSha256": "ebb7315f3cf0a8a6238e175fc15efbba42910b78a7eb39f3b4aa8e98de89a709",
+      "installedTestSha256": "01309606bf83ff6266fc1d35e4f62c9aa472f17daaa19be7f59ffed0fa99dc04",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice50-evidence.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^evidence request schema and unknown fields are typed$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice50-evidence.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-evidence_refusal-NSEe3w",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "graph_evidence": {
+      "case": "graph_evidence",
+      "test": "slice20-graph-evidence.test.ts::real engine resolves exact target and terminal edge graph evidence",
+      "file": "slice20-graph-evidence",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice20-graph-evidence.test.ts",
+      "testSourceSha256": "35462cb22d3f37d2c371824b496ca3469bee620ab6fff770ab44684a86efee5e",
+      "compiledSha256": "272cd42731d740201413c07e1e418dd31aa2c191d4aa697800e078abf23e6cd7",
+      "installedTestSha256": "558df3631c5fa0cbebe0491e3c2a279491ac5140338da408f22dd44a06ff4044",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice20-graph-evidence.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^real engine resolves exact target and terminal edge graph evidence$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice20-graph-evidence.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-graph_evidence-InYTD8",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "many": {
+      "case": "many",
+      "test": "functional-retrieve.test.ts::functional retrieve: read.getMany preserves order with null",
+      "file": "functional-retrieve",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-retrieve.test.ts",
+      "testSourceSha256": "deb0e1c57e0b842244964186e09f65980cb3ce75326bd2c227a4d656f88c1960",
+      "compiledSha256": "5c0b5b065fab6359ec6117faff4edc492d4552f746607b52979962d6a7da6f0e",
+      "installedTestSha256": "e6d1eb108cfe5b44a74e34a63b1253289627f26eb0baf6241eba9c6d8dd32011",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-retrieve.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^functional retrieve: read\\.getMany preserves order with null$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-retrieve.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-many-umf6cp",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "log": {
+      "case": "log",
+      "test": "functional-retrieve.test.ts::functional retrieve: read.collection/read.mutations honor cursor + limit",
+      "file": "functional-retrieve",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-retrieve.test.ts",
+      "testSourceSha256": "deb0e1c57e0b842244964186e09f65980cb3ce75326bd2c227a4d656f88c1960",
+      "compiledSha256": "5c0b5b065fab6359ec6117faff4edc492d4552f746607b52979962d6a7da6f0e",
+      "installedTestSha256": "e6d1eb108cfe5b44a74e34a63b1253289627f26eb0baf6241eba9c6d8dd32011",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-retrieve.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^functional retrieve: read\\.collection/read\\.mutations honor cursor \\+ limit$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-retrieve.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-log-oOWqOy",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "list": {
+      "case": "list",
+      "test": "functional-read-list.test.ts::functional read.list: unfiltered returns all active nodes of the kind",
+      "file": "functional-read-list",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-read-list.test.ts",
+      "testSourceSha256": "64b579144c855c157e4b6de92596d27c9ab137f248e90ca802929634fa0cc8fb",
+      "compiledSha256": "39eae79155e64bf129e91f8f8fc903c65e79599c76db7544d2a6c9b62bf31b5b",
+      "installedTestSha256": "eeec20a1ea1747be0c4dcc004cb3fa0843409d94d89cc75fba0124de8752d4a5",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-read-list.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^functional read\\.list: unfiltered returns all active nodes of the kind$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-read-list.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-list-j11IuM",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "list_refusal": {
+      "case": "list_refusal",
+      "test": "functional-read-list.test.ts::functional read.list: non-allowlisted path throws InvalidFilterError",
+      "file": "functional-read-list",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-read-list.test.ts",
+      "testSourceSha256": "64b579144c855c157e4b6de92596d27c9ab137f248e90ca802929634fa0cc8fb",
+      "compiledSha256": "39eae79155e64bf129e91f8f8fc903c65e79599c76db7544d2a6c9b62bf31b5b",
+      "installedTestSha256": "eeec20a1ea1747be0c4dcc004cb3fa0843409d94d89cc75fba0124de8752d4a5",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-read-list.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^functional read\\.list: non-allowlisted path throws InvalidFilterError$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-read-list.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-list_refusal-GVTbJc",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "graph_expand": {
+      "case": "graph_expand",
+      "test": "slice60-graph-expand.test.ts::graph.expand applies direction, edge kind, and return-only target kind",
+      "file": "slice60-graph-expand",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice60-graph-expand.test.ts",
+      "testSourceSha256": "205fe4a7c0138a10433b3933e31e75fd772d7afa54132cd4aafd72981950a960",
+      "compiledSha256": "e09877d2f6d5f499a8b586bad5ea89be8bf13d2970046edaac9c14acde87de88",
+      "installedTestSha256": "6718a23e3976895c822e27bfa416aa2fe2ffe827b077842b603bb8a7eb0d8a93",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice60-graph-expand.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^graph\\.expand applies direction, edge kind, and return-only target kind$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice60-graph-expand.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-graph_expand-Py1f9u",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "graph_refusal": {
+      "case": "graph_refusal",
+      "test": "slice60-graph-expand.test.ts::graph.expand validates canonical u64, real booleans, and closed unions",
+      "file": "slice60-graph-expand",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice60-graph-expand.test.ts",
+      "testSourceSha256": "205fe4a7c0138a10433b3933e31e75fd772d7afa54132cd4aafd72981950a960",
+      "compiledSha256": "e09877d2f6d5f499a8b586bad5ea89be8bf13d2970046edaac9c14acde87de88",
+      "installedTestSha256": "6718a23e3976895c822e27bfa416aa2fe2ffe827b077842b603bb8a7eb0d8a93",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice60-graph-expand.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^graph\\.expand validates canonical u64, real booleans, and closed unions$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice60-graph-expand.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-graph_refusal-dF90Cz",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "neighbors": {
+      "case": "neighbors",
+      "test": "functional-graph.test.ts::graph.neighbors depth=1 outgoing returns B and D (direct children of A)",
+      "file": "functional-graph",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-graph.test.ts",
+      "testSourceSha256": "2b803ff2aeffeb2d684ef7e22528e31d4271ddf8104d8371be8e64fb8888af7a",
+      "compiledSha256": "d07700e13c89dfc6be1768f0422e7647f117a99818b5459a273a6591ef5c2c41",
+      "installedTestSha256": "5a993e56f40e66db642b527e837d45dd3c906a4c0550c607e7826f3245d09939",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-graph.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^graph\\.neighbors depth=1 outgoing returns B and D \\(direct children of A\\)$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-graph.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-neighbors-TA6wGs",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "neighbors_refusal": {
+      "case": "neighbors_refusal",
+      "test": "functional-graph.test.ts::graph.neighbors depth=4 raises InvalidArgumentError",
+      "file": "functional-graph",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-graph.test.ts",
+      "testSourceSha256": "2b803ff2aeffeb2d684ef7e22528e31d4271ddf8104d8371be8e64fb8888af7a",
+      "compiledSha256": "d07700e13c89dfc6be1768f0422e7647f117a99818b5459a273a6591ef5c2c41",
+      "installedTestSha256": "5a993e56f40e66db642b527e837d45dd3c906a4c0550c607e7826f3245d09939",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-graph.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^graph\\.neighbors depth=4 raises InvalidArgumentError$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-graph.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-neighbors_refusal-8M2fdj",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "graph_search": {
+      "case": "graph_search",
+      "test": "functional-graph.test.ts::graph.searchExpand: neighbor appears in expanded",
+      "file": "functional-graph",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-graph.test.ts",
+      "testSourceSha256": "2b803ff2aeffeb2d684ef7e22528e31d4271ddf8104d8371be8e64fb8888af7a",
+      "compiledSha256": "d07700e13c89dfc6be1768f0422e7647f117a99818b5459a273a6591ef5c2c41",
+      "installedTestSha256": "5a993e56f40e66db642b527e837d45dd3c906a4c0550c607e7826f3245d09939",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-graph.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^graph\\.searchExpand: neighbor appears in expanded$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-graph.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-graph_search-HLK57Q",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "embed": {
+      "case": "embed",
+      "test": "functional-embed.test.ts::embed: returns a fixed-dim float vector",
+      "file": "functional-embed",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-embed.test.ts",
+      "testSourceSha256": "2d08d663d9967ee0fa699fbeac7705d968ec3510c20092a52c8ac50104bfc81a",
+      "compiledSha256": "0f9f8be74f1edbb1d49490744b84bffb1adffc7c080ee32dcbde17f4abe08d82",
+      "installedTestSha256": "e9cc8fa5a1255f6505d2dda7a46080921f452367e5c51810ae5cf326ef040f21",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-embed.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^embed: returns a fixed-dim float vector$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-embed.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-embed-AaX8DM",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "embed_refusal": {
+      "case": "embed_refusal",
+      "test": "functional-embed.test.ts::embed: without an embedder rejects EmbedderNotConfiguredError",
+      "file": "functional-embed",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/functional-embed.test.ts",
+      "testSourceSha256": "2d08d663d9967ee0fa699fbeac7705d968ec3510c20092a52c8ac50104bfc81a",
+      "compiledSha256": "0f9f8be74f1edbb1d49490744b84bffb1adffc7c080ee32dcbde17f4abe08d82",
+      "installedTestSha256": "e9cc8fa5a1255f6505d2dda7a46080921f452367e5c51810ae5cf326ef040f21",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-embed.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^embed: without an embedder rejects EmbedderNotConfiguredError$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/functional-embed.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-embed_refusal-kkDJiv",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "closure_committed": {
+      "case": "closure_committed",
+      "test": "slice30-dependency-closure.test.ts::closure response decoder accepts a non-null installed status",
+      "file": "slice30-dependency-closure",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice30-dependency-closure.test.ts",
+      "testSourceSha256": "3943eea773324a43ec293032e797250fe0c0a5381ee904521eb77d12e1b8af2a",
+      "compiledSha256": "9456c1b6d9116879424893df6f33d54ed53041e85a32ff022f700f4173a564bf",
+      "installedTestSha256": "f1356606cc83925745d92c873689f2b53ece077878d5d6b0bfd87d4d5b2ba48f",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice30-dependency-closure.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^closure response decoder accepts a non-null installed status$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice30-dependency-closure.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-closure_committed-UmgARF",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "closure_absent": {
+      "case": "closure_absent",
+      "test": "slice30-dependency-closure.test.ts::closure lookup is closed and absent ids disclose nothing",
+      "file": "slice30-dependency-closure",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice30-dependency-closure.test.ts",
+      "testSourceSha256": "3943eea773324a43ec293032e797250fe0c0a5381ee904521eb77d12e1b8af2a",
+      "compiledSha256": "9456c1b6d9116879424893df6f33d54ed53041e85a32ff022f700f4173a564bf",
+      "installedTestSha256": "f1356606cc83925745d92c873689f2b53ece077878d5d6b0bfd87d4d5b2ba48f",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice30-dependency-closure.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^closure lookup is closed and absent ids disclose nothing$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice30-dependency-closure.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-closure_absent-pOtYct",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "trace_success": {
+      "case": "trace_success",
+      "test": "slice55-request-validation.test.ts::slice55 installed trace returns a committed dependency edge",
+      "file": "slice55-request-validation",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice55-request-validation.test.ts",
+      "testSourceSha256": "136e947bc66ff5aa6967b1f684323d15d2858abdcf12dd07eb435da83bb189aa",
+      "compiledSha256": "fe59ee5484f63eff12495e43bb1dd90ceeaeb63c2b431aae0d918b7617c6a356",
+      "installedTestSha256": "7f1215118c564dbd68c3a2bb71e991dda605e4fa4e53a70256f2dbdc84693fed",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice55-request-validation.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^slice55 installed trace returns a committed dependency edge$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice55-request-validation.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-trace_success-KILPup",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "trace_refusal": {
+      "case": "trace_refusal",
+      "test": "slice55-request-validation.test.ts::slice55 request validation rejects schema before semantic fields",
+      "file": "slice55-request-validation",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice55-request-validation.test.ts",
+      "testSourceSha256": "136e947bc66ff5aa6967b1f684323d15d2858abdcf12dd07eb435da83bb189aa",
+      "compiledSha256": "fe59ee5484f63eff12495e43bb1dd90ceeaeb63c2b431aae0d918b7617c6a356",
+      "installedTestSha256": "7f1215118c564dbd68c3a2bb71e991dda605e4fa4e53a70256f2dbdc84693fed",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice55-request-validation.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^slice55 request validation rejects schema before semantic fields$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice55-request-validation.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-trace_refusal-QjdR7L",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "boundary": {
+      "case": "boundary",
+      "test": "slice15b-node-validity-write.test.ts::TC-34: crossedBoundarySince works on SDK-authored windows",
+      "file": "slice15b-node-validity-write",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice15b-node-validity-write.test.ts",
+      "testSourceSha256": "4d6b79765a8b919bf456aef1113103d617e187a7613b457482920b5ab4972e15",
+      "compiledSha256": "93f4f3eb8b54110456448c7bd2700ac018d8a89eb41003dc3ce8382cdaf774e3",
+      "installedTestSha256": "9816066037e6ba1919815851562c89619513693ce34018672650e7b2ec2e03da",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice15b-node-validity-write.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^TC-34: crossedBoundarySince works on SDK-authored windows$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice15b-node-validity-write.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-boundary-79Hb9j",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "projection": {
+      "case": "projection",
+      "test": "slice15d-projection-registry.test.ts::configure + read.projections round-trips a spec verbatim",
+      "file": "slice15d-projection-registry",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice15d-projection-registry.test.ts",
+      "testSourceSha256": "d45e904e91b7da70d71900e90c574f0855aa7a7d4d4800d5caa6e949178d9332",
+      "compiledSha256": "4e9bad8b8d0fa0d7d14fa7548c9b70b5cd55d47369bdd3a7500960e8dddfc6a7",
+      "installedTestSha256": "8f619faeca686c3ae7d6ce16a429756062bdccae76fa7aa6774fa19e5dfbd081",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice15d-projection-registry.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^configure \\+ read\\.projections round-trips a spec verbatim$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice15d-projection-registry.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-projection-0hmTcG",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "projection_refusal": {
+      "case": "projection_refusal",
+      "test": "slice15d-projection-registry.test.ts::destructive change requires an explicit drop",
+      "file": "slice15d-projection-registry",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice15d-projection-registry.test.ts",
+      "testSourceSha256": "d45e904e91b7da70d71900e90c574f0855aa7a7d4d4800d5caa6e949178d9332",
+      "compiledSha256": "4e9bad8b8d0fa0d7d14fa7548c9b70b5cd55d47369bdd3a7500960e8dddfc6a7",
+      "installedTestSha256": "8f619faeca686c3ae7d6ce16a429756062bdccae76fa7aa6774fa19e5dfbd081",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice15d-projection-registry.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^destructive change requires an explicit drop$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice15d-projection-registry.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-projection_refusal-F3maQY",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "projection_status": {
+      "case": "projection_status",
+      "test": "slice22-projection-status.test.ts::read.projectionStatus exposes exact current status wires",
+      "file": "slice22-projection-status",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice22-projection-status.test.ts",
+      "testSourceSha256": "bfb229c7a88508d260cce7cb507c26858b8bc1f567ea9ad87bc0abe6142480fd",
+      "compiledSha256": "34ee4cbaeffc9c7e7332fddc285be27c2d9ab9730b3adb6ad73ca065758a85cc",
+      "installedTestSha256": "51d712c449468069dcd344d4bb70b99ac7d153c4886c27de839a46358a0d4e49",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice22-projection-status.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^read\\.projectionStatus exposes exact current status wires$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice22-projection-status.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-projection_status-7ykoZB",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "readiness": {
+      "case": "readiness",
+      "test": "slice30-embedding-readiness.test.ts::read.embeddingReadiness and immediate typed drain rejection keep edge bodies private",
+      "file": "slice30-embedding-readiness",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice30-embedding-readiness.test.ts",
+      "testSourceSha256": "7fe8ffde074c435164ec0ccb58bf90f9b5f8d482f3b015d87d00608093d3cf92",
+      "compiledSha256": "3aeacf7727780870908567113a8f0ec1be1beab5b1d42d9cba167563c2afe8dd",
+      "installedTestSha256": "0fef8df9bf67faf4639f2de659bb93a19504f3cce7e733b9a32c4ceeca194ad8",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice30-embedding-readiness.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^read\\.embeddingReadiness and immediate typed drain rejection keep edge bodies private$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice30-embedding-readiness.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-readiness-j0wCLE",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "generation": {
+      "case": "generation",
+      "test": "slice40-projection-generation.test.ts::projection generation status is typed and stable",
+      "file": "slice40-projection-generation",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice40-projection-generation.test.ts",
+      "testSourceSha256": "2fde2df638752619426ee316b91368cb85f30006dcb08048b6a1f4616e556713",
+      "compiledSha256": "3bb8ca2de022e3d6d9a207eafd3e0fb449f8738670aa3c1e5da8181d4fe53384",
+      "installedTestSha256": "de7d0386688b4ae709f03e385b7fd55492eee7ac8cfa5f99699b0be045de1656",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice40-projection-generation.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^projection generation status is typed and stable$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice40-projection-generation.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-generation-d9aYqO",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "mutation_status": {
+      "case": "mutation_status",
+      "test": "slice40-projection-generation.test.ts::receipt-keyed mutation status round-trips through TypeScript",
+      "file": "slice40-projection-generation",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice40-projection-generation.test.ts",
+      "testSourceSha256": "2fde2df638752619426ee316b91368cb85f30006dcb08048b6a1f4616e556713",
+      "compiledSha256": "3bb8ca2de022e3d6d9a207eafd3e0fb449f8738670aa3c1e5da8181d4fe53384",
+      "installedTestSha256": "de7d0386688b4ae709f03e385b7fd55492eee7ac8cfa5f99699b0be045de1656",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice40-projection-generation.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^receipt-keyed mutation status round-trips through TypeScript$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice40-projection-generation.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-mutation_status-MmDDB8",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "pages": {
+      "case": "pages",
+      "test": "slice45-pagination.test.ts::canonical and operational pages share frozen authority",
+      "file": "slice45-pagination",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice45-pagination.test.ts",
+      "testSourceSha256": "7d0b5ada53b17e281159a95240ce941a5e48daeffa0041acc27426192b7d268b",
+      "compiledSha256": "c4a77ae74a547fb7fb13ece601374485ecc034dd1ac1b24ed8d9d09e926da622",
+      "installedTestSha256": "54ba273ce38a6d3cfda026b350040106ae29c7214a9b2f17805ed909f45c9875",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice45-pagination.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^canonical and operational pages share frozen authority$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice45-pagination.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-pages-x8IDZN",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "pages_refusal": {
+      "case": "pages_refusal",
+      "test": "slice45-pagination.test.ts::page request refusals retain PageError reason and field path",
+      "file": "slice45-pagination",
+      "testSource": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/tests/slice45-pagination.test.ts",
+      "testSourceSha256": "7d0b5ada53b17e281159a95240ce941a5e48daeffa0041acc27426192b7d268b",
+      "compiledSha256": "c4a77ae74a547fb7fb13ece601374485ecc034dd1ac1b24ed8d9d09e926da622",
+      "installedTestSha256": "54ba273ce38a6d3cfda026b350040106ae29c7214a9b2f17805ed909f45c9875",
+      "adaptation": "package import replacement; evidence-case temporary cleanup deferred for independent reopen",
+      "target": "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice45-pagination.test.js",
+      "command": [
+        "/home/coreyt/.nvm/versions/node/v25.9.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^page request refusals retain PageError reason and field path$",
+        "/tmp/slice135-current-ts-capability-d465-v2/consumer/dist/tests/slice45-pagination.test.js"
+      ],
+      "cwd": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts",
+      "temp": "/tmp/slice135-ts-cap-pages_refusal-MCtAaA",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "status": "failed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    }
+  },
+  "direct": {
+    "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+    "observed": {
+      "admin.configure": {
+        "status": "passed",
+        "error": {
+          "name": "WriteValidationError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "unpaired UTF-16 high surrogate in FFI string"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.write": {
+        "status": "passed",
+        "error": {
+          "name": "WriteValidationError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "unpaired UTF-16 high surrogate in FFI string"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.register_source_dependency": {
+        "status": "passed",
+        "error": {
+          "name": "DependencyError",
+          "code": "FDB_DEPENDENCY",
+          "reason": "unsupported_schema_version",
+          "fieldPath": "/schemaVersion",
+          "message": "dependency unsupported_schema_version at /schemaVersion"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.dependencies_for_source": {
+        "status": "passed",
+        "error": {
+          "name": "DependencyError",
+          "code": "FDB_DEPENDENCY",
+          "reason": "unsupported_schema_version",
+          "fieldPath": "/schemaVersion",
+          "message": "dependency unsupported_schema_version at /schemaVersion"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.dependency_for_derived": {
+        "status": "passed",
+        "error": {
+          "name": "DependencyError",
+          "code": "FDB_DEPENDENCY",
+          "reason": "unsupported_schema_version",
+          "fieldPath": "/schemaVersion",
+          "message": "dependency unsupported_schema_version at /schemaVersion"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.erase_source": {
+        "status": "passed",
+        "error": {
+          "name": "WriteValidationError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "unpaired UTF-16 high surrogate in FFI string"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.search": {
+        "status": "passed",
+        "error": {
+          "name": "WriteValidationError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "unpaired UTF-16 high surrogate in FFI string"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.freeze_read_context": {
+        "status": "passed",
+        "error": {
+          "name": "InvalidArgumentError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "ReadContextV1.schemaVersion must be 1"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.search_text_only": {
+        "status": "passed",
+        "error": {
+          "name": "WriteValidationError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "unpaired UTF-16 high surrogate in FFI string"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.search_projected_text": {
+        "status": "passed",
+        "error": {
+          "name": "WriteValidationError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "unpaired UTF-16 high surrogate in FFI string"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.resolve_evidence": {
+        "status": "passed",
+        "error": {
+          "name": "EvidenceError",
+          "code": null,
+          "reason": "unsupported_schema_version",
+          "fieldPath": "/schemaVersion",
+          "message": "unsupported_schema_version at /schemaVersion"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.resolve_graph_evidence": {
+        "status": "passed",
+        "error": {
+          "name": "EvidenceError",
+          "code": null,
+          "reason": "unsupported_schema_version",
+          "fieldPath": "/schemaVersion",
+          "message": "unsupported_schema_version at /schemaVersion"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.get": {
+        "status": "passed",
+        "error": {
+          "name": "WriteValidationError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "unpaired UTF-16 high surrogate in FFI string"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.get_many": {
+        "status": "passed",
+        "error": {
+          "name": "WriteValidationError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "unpaired UTF-16 high surrogate in FFI string"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.collection": {
+        "status": "passed",
+        "error": {
+          "name": "RangeError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "read.collection/read.mutations require a non-negative integer limit"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.mutations": {
+        "status": "passed",
+        "error": {
+          "name": "RangeError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "read.collection/read.mutations require a non-negative integer limit"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "graph.search_expand": {
+        "status": "passed",
+        "error": {
+          "name": "InvalidArgumentError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "graph.searchExpand depth must be an integer between 0 and 3; got 4"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.crossed_boundary_since": {
+        "status": "passed",
+        "error": {
+          "name": "InvalidArgumentError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "read.crossedBoundarySince requires an integer `since`; got 1.5"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.mutation_projection_status": {
+        "status": "passed",
+        "error": {
+          "name": "ProjectionGenerationError",
+          "code": "FDB_PROJECTION_GENERATION",
+          "reason": "unsupported_schema_version",
+          "fieldPath": "/schemaVersion",
+          "message": "projection generation unsupported_schema_version at /schemaVersion"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.operational_state": {
+        "status": "passed",
+        "error": {
+          "name": "WriteValidationError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "unpaired UTF-16 high surrogate in FFI string"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.operational_state_page": {
+        "status": "passed",
+        "error": {
+          "name": "PageError",
+          "code": null,
+          "reason": "invalid_page_limit",
+          "fieldPath": "/limit",
+          "message": "invalid_page_limit at /limit"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.projections": {
+        "status": "passed",
+        "error": {
+          "name": "ClosingError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "engine is closing"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.projection_status": {
+        "status": "passed",
+        "error": {
+          "name": "ClosingError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "engine is closing"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.embedding_readiness": {
+        "status": "passed",
+        "error": {
+          "name": "ClosingError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "engine is closing"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "read.projection_generation_status": {
+        "status": "passed",
+        "error": {
+          "name": "ClosingError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "engine is closing"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.close": {
+        "status": "passed",
+        "control": "second close accepted idempotently",
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      },
+      "engine.open": {
+        "status": "passed",
+        "error": {
+          "name": "RangeError",
+          "code": null,
+          "reason": null,
+          "fieldPath": null,
+          "message": "engineConfig.schedulerRuntimeThreads must be a safe integer in 1..=64"
+        },
+        "reopen": {
+          "database": "/tmp/slice135-ts-direct-refusals-fQioEz/refusals.sqlite",
+          "activeBodiesChecked": 1
+        }
+      }
+    }
+  },
+  "operations": {
+    "engine.open": {
+      "status": "failed",
+      "case": "retrieve",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "admin.configure": {
+      "status": "failed",
+      "case": "admin",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.write": {
+      "status": "failed",
+      "case": "write",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.actuate": {
+      "status": "failed",
+      "case": "actuation",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.register_source_dependency": {
+      "status": "failed",
+      "case": "dependency",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.dependencies_for_source": {
+      "status": "failed",
+      "case": "dependency",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.dependency_for_derived": {
+      "status": "failed",
+      "case": "dependency",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.read_dependency_closure": {
+      "status": "failed",
+      "case": "closure_committed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.transition": {
+      "status": "failed",
+      "case": "lifecycle",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.purge": {
+      "status": "failed",
+      "case": "purge",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.erase_source": {
+      "status": "failed",
+      "case": "erasure",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.search": {
+      "status": "failed",
+      "case": "search",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.freeze_read_context": {
+      "status": "failed",
+      "case": "frozen",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.search_frozen": {
+      "status": "failed",
+      "case": "frozen",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.search_expand_frozen": {
+      "status": "failed",
+      "case": "frozen_expand",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.search_text_only": {
+      "status": "failed",
+      "case": "text_only",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.search_projected_text": {
+      "status": "failed",
+      "case": "projected",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.search_with_evidence": {
+      "status": "failed",
+      "case": "evidence",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.resolve_evidence": {
+      "status": "failed",
+      "case": "evidence",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.resolve_graph_evidence": {
+      "status": "failed",
+      "case": "graph_evidence",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.trace_dependency": {
+      "status": "failed",
+      "case": "trace_success",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.close": {
+      "status": "failed",
+      "case": "retrieve",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.get": {
+      "status": "failed",
+      "case": "retrieve",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.get_many": {
+      "status": "failed",
+      "case": "many",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.collection": {
+      "status": "failed",
+      "case": "log",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.mutations": {
+      "status": "failed",
+      "case": "log",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.list": {
+      "status": "failed",
+      "case": "list",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.ingest_with_extractor": {
+      "status": "unavailable",
+      "reason": "No qualified extractor command or model for this artifact; protocol stubs are not provider evidence.",
+      "owner": "Slice 135 provider/model qualification"
+    },
+    "engine.consolidate_with_provider": {
+      "status": "unavailable",
+      "reason": "The existing real subprocess test uses fabricated local LLM verdicts; no independently qualified provider/model is available.",
+      "owner": "Slice 135 provider/model qualification"
+    },
+    "graph.expand": {
+      "status": "failed",
+      "case": "graph_expand",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "graph.neighbors": {
+      "status": "failed",
+      "case": "neighbors",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "graph.search_expand": {
+      "status": "failed",
+      "case": "graph_search",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "rerank": {
+      "status": "unavailable",
+      "reason": "Standalone cross-encoder model and feature availability are not qualified by this installed-package run.",
+      "owner": "Slice 135 provider/model qualification"
+    },
+    "engine.embed": {
+      "status": "failed",
+      "case": "embed",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.crossed_boundary_since": {
+      "status": "failed",
+      "case": "boundary",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "engine.configure_projections": {
+      "status": "failed",
+      "case": "projection",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.projections": {
+      "status": "failed",
+      "case": "projection",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.projection_status": {
+      "status": "failed",
+      "case": "projection_status",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.embedding_readiness": {
+      "status": "failed",
+      "case": "readiness",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.projection_generation_status": {
+      "status": "failed",
+      "case": "generation",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.mutation_projection_status": {
+      "status": "failed",
+      "case": "mutation_status",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.canonical_page": {
+      "status": "failed",
+      "case": "pages",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.operational_state": {
+      "status": "failed",
+      "case": "pages",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    },
+    "read.operational_state_page": {
+      "status": "failed",
+      "case": "pages",
+      "error": "spawnSync /home/coreyt/.nvm/versions/node/v25.9.0/bin/node EPERM"
+    }
+  },
+  "counts": {
+    "supported": 44,
+    "executed": 0,
+    "failed": 41,
+    "gap": 0,
+    "unavailable": 3
+  }
+}

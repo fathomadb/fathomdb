@@ -269,6 +269,12 @@ The [external Rust SDK exercise](results/2026-10-07-rust-sdk-capability/README.m
 accounts for the same live set with 42 selected cases and two unavailable
 provider/model cases. Its source-bound Cargo package is candidate-only and
 does not qualify a published Rust artifact or a version-paired SDK result.
+The later [current-source installed Python and TypeScript exercise](results/2026-10-08-current-sdk-capabilities/README.md)
+on `d465cd56d` closed their three supported positive-path gaps. Each SDK now
+has 41 executed operations, zero failed, zero supported gaps and three
+unavailable provider/model cases, with raw and independent audit receipts.
+Its local package archives await final retention; the full contract matrix
+and final-source latency refresh remain open.
 
 ## Source-grounded starting point
 

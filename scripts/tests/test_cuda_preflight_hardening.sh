@@ -91,12 +91,12 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "printf '\\n[node ldd]\\n'; ldd \"$NAPI_BINARY\""
+needle = 'python3 "$SCRIPT_DIR/inspect-cuda-artifacts.py" \\\n'
 if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains exactly one strict Node ldd")
-path.write_text(text.replace(needle, needle + " || true", 1))
+    raise SystemExit("fixture no longer contains exactly one strict artifact linkage inspection")
+path.write_text(text.replace(needle, ": \\\n", 1))
 PY
-expect_fail "$FIXTURE" 'rejects dynamic dependency checks that tolerate ldd failure'
+expect_fail "$FIXTURE" 'rejects a preflight that skips the strict artifact linkage inspection'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'

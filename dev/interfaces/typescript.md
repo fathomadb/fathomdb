@@ -1077,6 +1077,8 @@ For a search invoked with its `explain` argument set to `true` and attribute pre
 solely by the node-scoped attribute rule. The default non-explain path does not
 collect this count. If the count query or its row decoding fails, search throws
 `StorageError` rather than returning a plausible zero.
+Stored importance/confidence lookup failures also throw `StorageError`
+instead of yielding a neutral ranking or explanation value.
 
 `engine.searchProjectedText(query, name, filter?, view?)` searches only the
 named declared `"searchable"` property-FTS projection, applying metadata,

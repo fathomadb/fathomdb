@@ -697,7 +697,10 @@ SDK exercise remain open.
   of hiding a row decode failure behind a successful count of zero. A
   [test-first repair](results/2026-10-08-edge-explanation-repair/README.md)
   now propagates count-query errors; its focused and adjacent cases pass.
-  This product-source change requires a new exact-candidate latency refresh.
+  A [second test-first repair](results/2026-10-08-importance-lookup-repair/README.md)
+  prevents failed stored importance/confidence lookups from masquerading as
+  neutral values; its focused and neighboring cases pass. These product-source
+  changes require a new exact-candidate latency and coverage refresh.
 - **Functional exercise:** the [capability register](phase1-capability-register.md)
   accounts for all 44 canonical operations: Rust 42 selected cases executed
   and two provider/model cases unavailable; Python 40 executed, one

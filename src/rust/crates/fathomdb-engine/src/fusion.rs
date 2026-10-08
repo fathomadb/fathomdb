@@ -1,4 +1,5 @@
 use super::*;
+use rusqlite::OptionalExtension;
 
 /// G9 — Reciprocal Rank Fusion constant. IR-C (2026-06-10b,
 /// `performance-output-and-compare.md`) found the standard `k≈60` slightly too
@@ -235,31 +236,32 @@ pub fn apply_importance_reweight(
 /// the candidate `hits` from the durable columns (`canonical_nodes.importance`,
 /// `canonical_edges.confidence`). Only NON-NULL values are inserted; an absent
 /// value stays out of the map (graceful-absent ⇒ neutral in
-/// [`apply_importance_reweight`]). Prepared statements are guarded so a pre-step-18
-/// / pre-step-14 schema (no column) yields empty maps rather than an error.
+/// [`apply_importance_reweight`]). Current-schema statement and row errors
+/// propagate so a failed lookup cannot masquerade as an absent value.
 pub(crate) fn build_importance_confidence_maps(
     tx: &rusqlite::Connection,
     hits: &[SearchHit],
 ) -> rusqlite::Result<(HashMap<u64, f64>, HashMap<u64, f64>)> {
     let mut importance_by_id: HashMap<u64, f64> = HashMap::new();
     let mut confidence_by_id: HashMap<u64, f64> = HashMap::new();
-    if let Ok(mut stmt) =
-        tx.prepare("SELECT importance FROM canonical_nodes WHERE write_cursor = ?1 LIMIT 1")
-    {
-        for h in hits {
-            if let Ok(Some(v)) = stmt.query_row([h.write_cursor], |r| r.get::<_, Option<f64>>(0)) {
-                importance_by_id.insert(h.write_cursor, v);
-            }
+    let mut importance_stmt =
+        tx.prepare("SELECT importance FROM canonical_nodes WHERE write_cursor = ?1 LIMIT 1")?;
+    for h in hits {
+        let value: Option<Option<f64>> =
+            importance_stmt.query_row([h.write_cursor], |row| row.get(0)).optional()?;
+        if let Some(Some(value)) = value {
+            importance_by_id.insert(h.write_cursor, value);
         }
     }
-    if let Ok(mut stmt) = tx.prepare(
+    let mut confidence_stmt = tx.prepare(
         "SELECT confidence FROM canonical_edges \
          WHERE write_cursor = ?1 AND superseded_at IS NULL LIMIT 1",
-    ) {
-        for h in hits {
-            if let Ok(Some(v)) = stmt.query_row([h.write_cursor], |r| r.get::<_, Option<f64>>(0)) {
-                confidence_by_id.insert(h.write_cursor, v);
-            }
+    )?;
+    for h in hits {
+        let value: Option<Option<f64>> =
+            confidence_stmt.query_row([h.write_cursor], |row| row.get(0)).optional()?;
+        if let Some(Some(value)) = value {
+            confidence_by_id.insert(h.write_cursor, value);
         }
     }
     Ok((importance_by_id, confidence_by_id))

@@ -2210,7 +2210,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // F9 — importance (node) / confidence (edge) reweight, OFF by default.
         // Order: AFTER recency (consistent placement), BEFORE the CE rerank seam.
         let (imp_map, mut conf_map) = if importance_enabled || explain {
-            build_importance_confidence_maps(&tx, &fused).unwrap_or_default()
+            build_importance_confidence_maps(&tx, &fused)?
         } else {
             (HashMap::new(), HashMap::new())
         };
@@ -2243,7 +2243,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // F9 — importance (node) / confidence (edge) reweight, OFF by default.
         // Same placement as the graph-arm branch: after recency, before CE rerank.
         let (imp_map, conf_map) = if importance_enabled || explain {
-            build_importance_confidence_maps(&tx, &fused).unwrap_or_default()
+            build_importance_confidence_maps(&tx, &fused)?
         } else {
             (HashMap::new(), HashMap::new())
         };

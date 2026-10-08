@@ -1125,6 +1125,8 @@ reports edge-FTS candidates rejected solely by the
 node-scoped attribute rule. Default non-explained searches do not collect the
 counter or incur its extra comparison. If the count query or its row decoding
 fails, search returns `EngineError::Storage` rather than a plausible zero.
+Stored importance/confidence lookup failures likewise return
+`EngineError::Storage` instead of a neutral ranking or explanation value.
 
 - `Engine::search_projected_text(query, name, filter, &ReadView) ->
   Result<SearchResult, EngineError>` searches exactly one declared

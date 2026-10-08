@@ -1,0 +1,35 @@
+
+running 10 tests
+test confidence_on_graph_arm_reorders_and_surfaces_in_explain ... ok
+test confidence_scales_contribution_pure_fn ... ok
+test explain_surfaces_importance_contribution ... ok
+test importance_all_absent_equals_disabled_r_f9_4 ... ok
+test importance_disabled_is_a_no_op ... ok
+test importance_enabled_deweights_and_reorders ... ok
+test importance_floor_zero_zeroes_contribution ... ok
+test importance_reweight_on_all_null_equals_off_e2e ... ok
+test importance_reweight_reorders_vs_off ... ok
+test importance_write_read_roundtrip_and_range_validation ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+
+running 1 test
+test edge_count_decode_error_must_not_report_zero_dropped_edge_hits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 1 test
+test malformed_importance_must_not_produce_neutral_explanation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 3 tests
+test edges_are_ineligible_and_malformed_full_sort_rows_fail_closed ... ok
+test eligible_stream_preserves_public_limit_prefixes_and_full_sort_equivalence ... ok
+test production_stream_matches_full_sort_across_strict_tie_and_rank_override ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+

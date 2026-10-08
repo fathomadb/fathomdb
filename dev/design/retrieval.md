@@ -76,6 +76,9 @@ reciprocal-rank fusion. There is no public `fusion_mode` switch. Vector-first
 tiebreaking and stable cursor ordering make equal-score output deterministic.
 Recency and importance/confidence reweights are separate, default-off
 mechanisms; they do not redefine the base fusion contract.
+Absent stored importance or confidence remains neutral. When ranking or an
+opt-in explanation reads those values, a statement or row-decoding failure
+returns `EngineError::Storage` rather than treating the failed lookup as absent.
 
 Dense-equivalence failure disables vector-dependent work without disabling the
 text-only path. Device selection for the embedder and cross-encoder is

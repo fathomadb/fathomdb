@@ -697,6 +697,11 @@ SDK exercise remain open.
   host-only swap warnings remain in the report. At 32/256 rows the median
   vector-bearing p50 changes were -1.62%/-1.68%, while text changed
   +4.53%/+0.98%; the result is boundary-specific and diagnostic.
+  A [current-wheel Python S02 whole-sequence smoke](results/2026-10-08-python-s02-current-smoke/README.md)
+  then passed real-database state and tampered-state checks. Its
+  [replacement paired subset](s02-python-current-comparison-protocol.json)
+  is frozen before current-wheel candidate timing; the smoke itself is not a
+  latency comparison.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

@@ -349,6 +349,17 @@ temporary build footprint before any heavy comparator re-ingest.
 | S03 | Qualified LOCOMO, LongMemEval, MuSiQue or query-correctness cases selected for distinct filter, temporal, graph, evidence and memory load shapes. | Record subset selection, adaptation, answer-bearing fixtures used for basic validity, and denominators. Phase 1 measures workload cost and exercised paths, not the full gold-quality score. |
 | C01 | Matched native Mem0 warmed external client-to-materialized-top-10 LOCOMO cell. | Validate the pinned index before reuse; paid re-ingest has a $20 ceiling and requires checkpoint/resume/backoff. Report separately from 0.8.26 comparison. |
 
+The [installed Python S03 functional feasibility](results/2026-10-08-python-s03-feasibility/README.md)
+has one fresh-database run for each version and 32/256-row size. It selects
+the existing X1 filtered-search fixture, fixed-instant half-open validity
+cases, bounded graph and provenance-backed evidence cases, and the S01 corpus
+as a memory-load proxy. All seven selected cells passed at each size/version;
+the independent auditor reopened all four databases and rejected result and
+persisted-state negative controls. This qualifies the selected fixture shapes
+for a baseline noise pilot. It does not establish pair order, sample counts,
+resource limits or comparison statistics, and does not freeze S03 or the
+broader Phase 1 protocol. No external benchmark gold is scored.
+
 The [C01 qualification check](results/2026-10-07-c01-qualification/README.md)
 found the pinned raw LOCOMO corpus and nonempty historical Docker volumes,
 but the external harness, configuration and output root required to bind the

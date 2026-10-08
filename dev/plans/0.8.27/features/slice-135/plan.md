@@ -31,8 +31,11 @@ froze before candidate timing. Its [paired campaign](results/2026-10-08-ts-s02-c
 passed independent audit over 100 fresh-process sequences per version;
 the [Rust SDK candidate-only contention campaign](results/2026-10-08-rust-s02-contention/README.md)
 also passed ten fresh-process runs with independent reopened-state checks.
-S03 and the
-full robustness and coverage matrices remain. C01 has a documented
+The [installed Python S03 functional feasibility](results/2026-10-08-python-s03-feasibility/README.md)
+now exercises fixture-grounded filter, temporal, graph, evidence and 32/256-row
+memory-load shapes on both exact installed versions, with four independently
+audited real databases. It is not a frozen latency comparison. The full S03
+campaign and the robustness and coverage matrices remain. C01 has a documented
 [qualification failure](results/2026-10-07-c01-qualification/README.md).
 The [broader Phase 1 protocol](phase1-protocol-draft.md) is still a draft.
 An additional [vector row-error defect](results/2026-10-07-vector-row-repair/README.md)

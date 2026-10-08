@@ -52,6 +52,12 @@ class CapabilityContract(unittest.TestCase):
         self.assertEqual(expected, set(runner.PLANNED) | set(runner.UNAVAILABLE))
         self.assertFalse(set(runner.PLANNED) & set(runner.UNAVAILABLE))
 
+    def test_committed_closure_has_a_positive_real_database_route(self) -> None:
+        positive, negative = runner.PLANNED["engine.read_dependency_closure"]
+        self.assertEqual(positive, "closure_committed")
+        self.assertIn(positive, runner.CASES)
+        self.assertEqual(negative, "closure")
+
 
 if __name__ == "__main__":
     unittest.main()

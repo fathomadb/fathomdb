@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { summarize, validateInstalledIdentity } from "../slice135_ts_capabilities.mjs";
+import { CASES, PLAN, summarize, validateInstalledIdentity } from "../slice135_ts_capabilities.mjs";
 
 const operations = ["engine.open", "read.get"];
 const executed = { status: "executed", positive: { case: "real-test" },
@@ -33,4 +33,11 @@ test("installed identity rejects path escape and mismatched native bytes", () =>
     installRoot: "/tmp/synthetic-consumer", nativePath: "/tmp/escape.node",
     expectedNativeSha256: "0".repeat(64),
   }), /installed/);
+});
+
+test("committed closure and successful trace have real database routes", () => {
+  assert.equal(PLAN["engine.read_dependency_closure"][0], "closure_committed");
+  assert.equal(CASES.closure_committed[0], "slice30-dependency-closure");
+  assert.equal(PLAN["engine.trace_dependency"][0], "trace_success");
+  assert.equal(CASES.trace_success[0], "slice55-request-validation");
 });

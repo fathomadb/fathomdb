@@ -64,6 +64,7 @@ CASES = {
     "embed": ("test_embed.py", "test_embed_returns_fixed_dim_float_vector"),
     "embed_determinism": ("test_embed.py", "test_embed_is_deterministic"),
     "embed_error": ("test_embed.py", "test_embed_without_embedder_raises"),
+    "closure_committed": ("test_slice30_dependency_closure.py", "test_committed_closure_status_survives_reopen"),
 }
 
 # The second member names an independently executed error case, if available.
@@ -75,7 +76,7 @@ PLANNED = {
     "engine.register_source_dependency": ("dependency", "dependency_errors"),
     "engine.dependencies_for_source": ("dependency", "dependency_errors"),
     "engine.dependency_for_derived": ("dependency", "dependency_errors"),
-    "engine.read_dependency_closure": ("closure", "closure"),
+    "engine.read_dependency_closure": ("closure_committed", "closure"),
     "engine.transition": ("lifecycle", "lifecycle_error"),
     "engine.purge": ("purge", "purge"),
     "engine.erase_source": ("erasure", "erasure"),
@@ -315,7 +316,7 @@ def _extra_case(name: str, temporary: Path) -> dict[str, Any]:
         elif name == "closure":
             request = {"schema_version": 1, "closure_operation_id": "_fdb:c:" + "a" * 64}
             assert engine.read_dependency_closure(request) is None
-            observed["engine.read_dependency_closure"] = {"absent_closure": None, "refusal": refusal(lambda: engine.read_dependency_closure({**request, "schema_version": 2}), f.errors.DependencyClosureError, reason="unsupported_schema_version", field_path="/schemaVersion"), "scope": "absence only; existing committed-closure result remains a contract gap"}
+            observed["engine.read_dependency_closure"] = {"absent_closure": None, "refusal": refusal(lambda: engine.read_dependency_closure({**request, "schema_version": 2}), f.errors.DependencyClosureError, reason="unsupported_schema_version", field_path="/schemaVersion")}
         elif name == "erasure":
             engine.write(s02.make_graph_records())
             report = engine.erase_source(s02.GRAPH_SOURCE)
@@ -367,13 +368,12 @@ def run(repo: Path, wheel: Path, wheel_sha256: str, source_sha: str) -> dict[str
     rows: dict[str, Any] = {}
     for op, (positive, negative) in PLANNED.items():
         rows[op] = operation_result(op, positive, negative, cases)
-    rows["engine.read_dependency_closure"] = {"status": "gap", "reason": "Valid absence and unsupported-schema refusal executed; no independently qualified committed closure fixture executed.", "owner": "Slice 135 stored dependency-closure exercise", "cases": ["closure"]}
     for op, reason in UNAVAILABLE.items():
         rows[op] = {"status": "unavailable", **reason}
     counts = summarize(operations, rows)
     fixture_paths = subprocess.check_output(["git", "-C", str(repo), "ls-files", "dev/fixtures/*.json", "src/conformance/*.json", "src/python/tests/*.json"], text=True).splitlines()
     fixture_hashes = {path: _hash(repo / path) for path in fixture_paths}
-    return {"schema_version": "fathomdb.slice135-python-capabilities/v1", "status": "INTERIM_INSTALLED_WHEEL_CAPABILITY_EXERCISE", "finished_utc": datetime.now(timezone.utc).isoformat(), "product_source_sha": source_sha, "product_rust_tree": product_tree, "product_python_tree": subprocess.check_output(["git", "-C", str(repo), "rev-parse", source_sha + ":src/python/fathomdb"], text=True).strip(), "cargo_lock_sha256": _hash(repo / "Cargo.lock"), "runner_sha256": _hash(Path(__file__)), "oracle_fixtures_sha256": fixture_hashes, "s02_helper_sha256": _hash(Path(__file__).with_name("slice135_python_s02.py")), "s01_helper_sha256": _hash(Path(__file__).with_name("slice135_python_s01.py")), "operation_map_sha256": _hash(map_path), "artifact": identity, "counts": counts, "operations": rows, "cases": cases, "contract_gaps": ["This is a selected operation exercise, not complete contract qualification.", "read_dependency_closure exercises valid absence, not a stored committed closure.", "Generic reopen checks compare canonical/operational SQLite rows and active SDK read bodies; they do not replay every original operation after restart.", "No platform beyond this recorded Linux wheel, no provider success or standalone reranker, no concurrent/cancellation matrix.", "Search positive cases exercise lexical and projected paths; qualified vector/hybrid S01 and S02 receipts remain separate."]}
+    return {"schema_version": "fathomdb.slice135-python-capabilities/v1", "status": "INTERIM_INSTALLED_WHEEL_CAPABILITY_EXERCISE", "finished_utc": datetime.now(timezone.utc).isoformat(), "product_source_sha": source_sha, "product_rust_tree": product_tree, "product_python_tree": subprocess.check_output(["git", "-C", str(repo), "rev-parse", source_sha + ":src/python/fathomdb"], text=True).strip(), "cargo_lock_sha256": _hash(repo / "Cargo.lock"), "runner_sha256": _hash(Path(__file__)), "oracle_fixtures_sha256": fixture_hashes, "s02_helper_sha256": _hash(Path(__file__).with_name("slice135_python_s02.py")), "s01_helper_sha256": _hash(Path(__file__).with_name("slice135_python_s01.py")), "operation_map_sha256": _hash(map_path), "artifact": identity, "counts": counts, "operations": rows, "cases": cases, "contract_gaps": ["This is a selected operation exercise, not complete contract qualification.", "Generic reopen checks compare canonical/operational SQLite rows and active SDK read bodies; they do not replay every original operation after restart.", "No platform beyond this recorded Linux wheel, no provider success or standalone reranker, no concurrent/cancellation matrix.", "Search positive cases exercise lexical and projected paths; qualified vector/hybrid S01 and S02 receipts remain separate."]}
 
 
 def main() -> None:

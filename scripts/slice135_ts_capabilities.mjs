@@ -47,7 +47,7 @@ export function validateInstalledIdentity({ installRoot, nativePath, expectedNat
 
 // Every name is an inspected, real-engine Node test. Test sources remain unchanged;
 // only compiled package import specifiers are replaced in the isolated consumer.
-const CASES = {
+export const CASES = {
   retrieve: ["functional-retrieve", "functional retrieve: read.get returns the active node by id"],
   many: ["functional-retrieve", "functional retrieve: read.getMany preserves order with null"],
   log: ["functional-retrieve", "functional retrieve: read.collection/read.mutations honor cursor + limit"],
@@ -90,10 +90,12 @@ const CASES = {
   pages: ["slice45-pagination", "canonical and operational pages share frozen authority"],
   pages_refusal: ["slice45-pagination", "page request refusals retain PageError reason and field path"],
   closure_absent: ["slice30-dependency-closure", "closure lookup is closed and absent ids disclose nothing"],
+  closure_committed: ["slice30-dependency-closure", "closure response decoder accepts a non-null installed status"],
   trace_refusal: ["slice55-request-validation", "slice55 request validation rejects schema before semantic fields"],
+  trace_success: ["slice55-request-validation", "slice55 installed trace returns a committed dependency edge"],
 };
 
-const PLAN = {
+export const PLAN = {
   "engine.open": ["retrieve", "direct"],
   "admin.configure": ["admin", "direct"],
   "engine.write": ["write", "direct"],
@@ -123,6 +125,8 @@ const PLAN = {
   "graph.neighbors": ["neighbors", "neighbors_refusal"],
   "graph.search_expand": ["graph_search", "direct"],
   "engine.embed": ["embed", "embed_refusal"],
+  "engine.read_dependency_closure": ["closure_committed", "closure_absent"],
+  "engine.trace_dependency": ["trace_success", "trace_refusal"],
   "read.crossed_boundary_since": ["boundary", "direct"],
   "engine.configure_projections": ["projection", "projection_refusal"],
   "read.projections": ["projection", "direct"],
@@ -336,14 +340,6 @@ export async function run({ repo, compiledRoot, installRoot, canonicalPath, sour
   const rows = {};
   for (const id of operations) {
     if (UNAVAILABLE[id]) { rows[id] = { status: "unavailable", reason: UNAVAILABLE[id], owner: "Slice 135 provider/model qualification" }; continue; }
-    if (id === "engine.read_dependency_closure") {
-      rows[id] = { status: "gap", partial_case: "closure_absent", reason: "Installed case proves typed absence/refusal only; no committed closure status was observed", owner: "Slice 135 committed closure exercise" };
-      continue;
-    }
-    if (id === "engine.trace_dependency") {
-      rows[id] = { status: "gap", partial_case: "trace_refusal", reason: "Installed case proves typed schema refusal only; no successful dependency trace was asserted", owner: "Slice 135 dependency trace exercise" };
-      continue;
-    }
     const route = PLAN[id];
     if (!route || route.some((name) => name !== "direct" && !CASES[name])) {
       rows[id] = { status: "gap", reason: route ? `Selected case unavailable: ${route.filter((name) => name !== "direct" && !CASES[name]).join(", ")}` : "No inspected installed native positive and typed-refusal route", owner: "Slice 135 TypeScript capability exercise" }; continue;

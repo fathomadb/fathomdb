@@ -25,6 +25,33 @@ unscored product result.
 The [paired graph, evidence and erasure contract](results/2026-10-08-phase2-graph-evidence/README.md)
 adds raw-table erasure and reopened graph witnesses for both installed Python
 identities.
+Its changed runner and tests passed the [full workspace gate](results/2026-10-08-phase2-graph-evidence/verification.stdout):
+186/186 suites, no skipped or excluded suite, and zero security blockers.
+
+## Vector fidelity feasibility finding (unscored)
+
+A candidate-only local probe used the pinned default BGE model to embed the
+canonical stored JSON bodies and compute brute-force squared-distance neighbors
+over the returned vectors. The exploratory distance sums used Python floats;
+the scored oracle still needs explicit f32 arithmetic and a tie rule.
+On the 32- and 256-row S01 corpus, the probe's zero-text-hit queries returned
+only `vector` branch hits and matched exact top-10 IDs. A second probe used 64
+nonempty rows each from the locally cached daily-log, to-do, Enron and
+CNN/DailyMail corpora (256 total). Of 12 exploratory natural-language queries,
+11 had text-search hits and therefore exercised a hybrid path that cannot be
+judged against a vector-only oracle. The remaining zero-text-hit query
+returned only `vector` hits and matched exact top-10 IDs. These observations
+establish route feasibility, not paired recall or a general fidelity score.
+The probes used temporary databases and are not frozen scored evidence.
+
+The scored fidelity protocol must bind the same-model body and query
+embeddings, exact-f32 ranking and tie rule, top-10 denominator, real-corpus
+selection and source hashes, and per-query proof that `search_text_only`
+returns no hits and every observed hit is from `vector`. If that public-SDK
+qualification cannot support a representative query set, use a separate
+pre-fusion vector-stage measurement seam and label any public hybrid output
+as a distinct diagnostic. Do not compare a mixed text/vector result to the
+exact vector oracle.
 
 ## Exact identities and available local inputs
 

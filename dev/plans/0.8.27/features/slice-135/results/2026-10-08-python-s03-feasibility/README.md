@@ -41,8 +41,11 @@ The raw directories are local pending the final Phase 1 retention review:
 
 The runner SHA-256 is
 `116f1e206970a257119fee34b2deb034178cb11154bcdf8a002af6cbc9480c78`;
-the auditor SHA-256 is
-`723c639db5e77c9791152c0e5a5fa974b45cac7bc276cc5518855d33f8fc7641`.
+the current auditor SHA-256 is
+`5745bc8bebe41b7afa68fc0a91a753a75daf966b4c78541fbc37a2e8732e1373`.
+The four feasibility receipts were re-audited after the auditor added
+nearest-rank and aggregate-cost summaries; their raw JSON and database hashes
+above did not change.
 Each raw JSON binds the runner, X1 fixture, S01 corpus helper, and S02 graph
 helper bytes. The prior S01 receipts bind each wheel to its clean source.
 The negative-control outcomes are retained at

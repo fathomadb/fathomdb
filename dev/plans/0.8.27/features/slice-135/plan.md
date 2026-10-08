@@ -34,10 +34,21 @@ also passed ten fresh-process runs with independent reopened-state checks.
 The [installed Python S03 functional feasibility](results/2026-10-08-python-s03-feasibility/README.md)
 now exercises fixture-grounded filter, temporal, graph, evidence and 32/256-row
 memory-load shapes on both exact installed versions, with four independently
-audited real databases. It is not a frozen latency comparison. The full S03
+audited real databases. The [S03 baseline-only noise pilot](results/2026-10-08-python-s03-baseline-noise/README.md)
+then passed ten audited blocks and 7,000 fixture-checked observations with
+no environment invalidators. It is not a frozen latency comparison. The full S03
 campaign and the robustness and coverage matrices remain. C01 has a documented
 [qualification failure](results/2026-10-07-c01-qualification/README.md).
 The [broader Phase 1 protocol](phase1-protocol-draft.md) is still a draft.
+The full verification gate is still open. A clean-checkout attempt through
+`90d1fa1cb` passed lint, typecheck and strict security, then the test stage
+found an invalid fake-wheel fixture (repaired at `1f8d03cc7`) and a separate
+real-repository `steward-orient` output-cap failure (4,635 bytes against its
+4,096-byte cap). The already-failed test stage was stopped before completing
+the workspace tests. The local worktree's untracked raw archives also contain
+temporary Cargo manifests that trip the pinned-override scanner; the clean
+checkout made them available to the Markdown link check without scanning
+their build files. None of these attempts is a full-gate green claim.
 An additional [vector row-error defect](results/2026-10-07-vector-row-repair/README.md)
 has a real-database RED/GREEN repair committed at `3f29d649d`. Its source
 change supersedes prior candidate timing for the final checkpoint. The

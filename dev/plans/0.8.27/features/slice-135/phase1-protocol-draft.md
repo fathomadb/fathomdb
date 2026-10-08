@@ -360,6 +360,16 @@ for a baseline noise pilot. It does not establish pair order, sample counts,
 resource limits or comparison statistics, and does not freeze S03 or the
 broader Phase 1 protocol. No external benchmark gold is scored.
 
+The [S03 Python baseline-only noise pilot](results/2026-10-08-python-s03-baseline-noise/README.md)
+subsequently ran five fresh-process blocks for each size, 100 fixture-checked
+observations per case and a 20-second idle interval. All 10 blocks and 7,000
+observations passed independent raw, resource, order and reopened-state audit.
+Across cells, block-p50 span reached 15.30% of the median and block-p95 span
+reached 21.59%; the higher spreads were in submillisecond temporal cells.
+The pilot supports p50/p95 with explicit within-pair and baseline-noise
+context; p99 remains unsupported. The candidate paired wrapper and executable
+S03 protocol must still be frozen before paired candidate timing.
+
 The [C01 qualification check](results/2026-10-07-c01-qualification/README.md)
 found the pinned raw LOCOMO corpus and nonempty historical Docker volumes,
 but the external harness, configuration and output root required to bind the

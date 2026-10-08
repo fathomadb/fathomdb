@@ -1,0 +1,73 @@
+{
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+  },
+  "baseline_noise_independent_audit_sha256": "d0c7e017ecfcfe101fdce4fa91fcd715471161c9604aac963bb0fbd4e426ecaa",
+  "baseline_noise_manifest_sha256": "67a073c0a86b2a241d1f4ea245d77df5b649b5f84dba206c55467ffef347a8fa",
+  "block_runner_sha256": "abb2bfc569f4e0fbe0b16596d6faea6107f8b76a227b1d61cd10c01559f053b4",
+  "boundary": "installed Python call through materialized observation",
+  "campaign_runner_sha256": "8786217d53d5d76df1bdc00475edabfc312ad3be37ec71466c4333442081efb5",
+  "candidate": {
+    "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+    "wheel_sha256": "ee8b402f76377956034f900ef69f9e3c0296d79ea30d6728dc1283040266f85a"
+  },
+  "candidate_smoke_note": "Both exact-wheel sizes passed seven semantic fixtures and independent reopened-state audit before freeze; one call per cell is functional only.",
+  "candidate_smoke_raw_sha256_by_size": {
+    "256": "ef8f60d8f2987419f901070dd26f413d137ffe52af4506137297c9f9706d690a",
+    "32": "82443eb4f42fa5fab021c18155c50693b2ad4cfa14d4bc116752e7a464dfdc79"
+  },
+  "candidate_source_note": "Clean exact source includes corrected embedder-close and Tegra install-route landings; package version remains 0.8.26.",
+  "cases": [
+    "filter",
+    "temporal_early",
+    "temporal_boundary",
+    "temporal_late",
+    "graph",
+    "evidence",
+    "memory_{size}"
+  ],
+  "idle_seconds": 20,
+  "input_sha256": {
+    "scripts/slice135_python_s01.py": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+    "scripts/slice135_python_s01_block.py": "dd545dfecda957dc21d035d8ea2845948aeb28386f96fa31083dc965f9bb248d",
+    "scripts/slice135_python_s02.py": "75424eb9b939530e4ac039d0e1e4ac5d112ea0fa084cc406688f68c10fac550d",
+    "scripts/slice135_python_s03.py": "116f1e206970a257119fee34b2deb034178cb11154bcdf8a002af6cbc9480c78",
+    "src/python/tests/functional_search_fixture.json": "3f216e6b4fa1ed2aa8ac44eb67cb07ce38d10437b0603ecd3ca9d9b088d045a2"
+  },
+  "invalidators": [
+    "source or wheel identity mismatch",
+    "runner or fixture hash mismatch",
+    "missing or incorrect semantic observation",
+    "reopened database state mismatch",
+    "measured child swap event",
+    "environment identity drift or competing heavy work",
+    "fewer than 100 valid samples per version and cell",
+    "wrong schedule or less than 20 seconds idle between blocks"
+  ],
+  "paired_auditor_sha256": "6a07531fe33ab14804e03c7166a6ba2c5f775150a026e46c618b71f7d28445e7",
+  "pairs_per_size": 5,
+  "replaces": "s03-python-comparison-protocol.json",
+  "reporting": {
+    "invalid_attempts": "retain and report all, do not discard slow valid samples",
+    "noise_context": "show all five pair deltas beside five-block baseline span; no equivalence threshold inferred",
+    "p99": "unsupported_below_1000_samples_per_version_cell",
+    "pair_delta": "100 * (candidate_percentile / baseline_percentile - 1)",
+    "pooled_delta": "descriptive; 500 raw samples per version and cell",
+    "supported_percentiles": [
+      "p50",
+      "p95"
+    ]
+  },
+  "resource_auditor_sha256": "b71be6b164702b8034f12f3f5518c8158f7ba6d86b9259bdad17901d29d16176",
+  "revision_reason": "Bind unchanged baseline-qualified S03 fixture, schedule and analysis rules to the exact post-Slice-132 repaired wheel.",
+  "samples_per_case": 100,
+  "schema_version": 1,
+  "sizes": [
+    32,
+    256
+  ],
+  "status": "FROZEN_S03_PYTHON_PAIRED",
+  "timing_mode": "unprofiled",
+  "workload_auditor_sha256": "5745bc8bebe41b7afa68fc0a91a753a75daf966b4c78541fbc37a2e8732e1373"
+}

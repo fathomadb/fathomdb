@@ -1,0 +1,46 @@
+{
+  "analysis_runner_sha256": "90c9f25b9ec53c9840c1da7410a53c7b7a1f00c2fd77762016778445ac0289c0",
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+  },
+  "baseline_noise_evidence": {
+    "S01": "results/2026-10-07-python-s01-noise-pilot/README.md",
+    "S03": "results/2026-10-08-python-s03-baseline-noise/README.md"
+  },
+  "candidate": {
+    "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+    "wheel_sha256": "ee8b402f76377956034f900ef69f9e3c0296d79ea30d6728dc1283040266f85a"
+  },
+  "cpu_queue_rule": "Do not derive per-path CPU or queue time from whole-child GNU Time; collect and report separately instrumented per-path CPU/wait evidence or mark unsupported. Unprofiled elapsed ranking is primary.",
+  "freeze_date_utc": "2026-10-08",
+  "frequency_rule": "100 evenly spaced valid warm observations from each of five S01 blocks per version, plus all 100 valid S03 observations from each of five blocks per version; 500 calls per path and version; source/wheel/raw/independent-audit hashes must match",
+  "latency_boundary": "Installed Python call through materialized result; S01 and S03 use different real database fixtures and their independently frozen setup; session-first and setup excluded",
+  "limits": "This is a declared workload proxy across separately measured fixtures; it does not establish production frequencies, cross-SDK equivalence, per-path CPU/queue attribution or a full release verdict.",
+  "negative_fixtures": "S01 and S03 independent auditors reject altered ordered result, block schedule or reopened state; mix analyzer rejects false selected semantics, missing count, nonpositive latency and unequal path counts.",
+  "pairs": 5,
+  "paths_per_size": [
+    "text",
+    "vector",
+    "hybrid",
+    "filter",
+    "temporal_early",
+    "temporal_boundary",
+    "temporal_late",
+    "graph",
+    "evidence",
+    "memory_{size}"
+  ],
+  "ranking_rule": "For each corpus size and version, sum all 500 selected elapsed ns for each of ten equally frequent operation paths, order descending with path-name tie break, and report the smallest prefix reaching at least 80% of total. Keep all valid slow calls.",
+  "s01_protocol_sha256": "019c953091eb6a0582e64ed4e420a13e5d6d71ab7ce4b4d8f3053ef69289173e",
+  "s03_protocol_sha256": "bc098de2cece9e7e5d837981145e0075d2b4dddf6610fc031ad08beed21fb3e8",
+  "sample_stride": 10,
+  "schema_version": 1,
+  "scope": "Reproducible equal-frequency installed-Python query-cost proxy over exact-source S01 and S03 paired materialized calls; one component of broader Phase 1, not production traffic",
+  "severe_rare_paths": "Keep erasure, failed projection commit, provider failure, malformed row, FFI panic and permission/busy refusal outside frequency-ranked query mix and rank by outcome severity.",
+  "sizes": [
+    32,
+    256
+  ],
+  "status": "FROZEN_PHASE1_PYTHON_QUERY_MIX"
+}

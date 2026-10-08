@@ -7,9 +7,10 @@ target_release: 0.8.27
 # Phase 1 measurement protocol draft
 
 **Current boundary (2026-10-08):** exact product source `224e44c593c13d86ece648adabe445723db04070`
-has audited E01–E12 engine and installed Python S01/S02 paired subsets. The
-selected coverage overlay is still at older source `8c2455b6c` and the
-installed TypeScript/Rust refresh and common operation mix remain open. The
+has audited E01–E12 engine, installed Python S01/S02 and installed TypeScript
+S01 paired subsets. The exact-source [selected coverage overlay](results/2026-10-08-e12-224e-coverage/README.md)
+is complete; TypeScript S02, Rust refresh and the common operation mix remain
+open. The
 [active execution snapshot](plan.md#active-phase-1-execution-snapshot-2026-10-08)
 and [direct hand-off](handoff-phase1-2026-10-08.md) govern the next work.
 This document stays `DRAFT_NOT_FROZEN` until the remaining baseline pilots,

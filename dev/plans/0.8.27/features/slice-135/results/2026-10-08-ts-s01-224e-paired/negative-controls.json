@@ -1,0 +1,6 @@
+{
+  "invalid_status": "32-01-baseline: run-order validity or protocol differs",
+  "reordered_blocks": "run-order record differs from frozen order",
+  "wrong_protocol_hash": "32-01-baseline: run-order validity or protocol differs",
+  "wrong_text_id_rehashed": "text: malformed or ineligible result"
+}

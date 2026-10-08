@@ -1,0 +1,1545 @@
+{
+  "archives": {
+    "baseline": {
+      "main_archive_sha256": "90363762405041b11e6dd654da9cb6347695399eb37b81c5c09fde91296ac336",
+      "module_sha256": "9d86c756e481ee09581ff8c687fd74de8cefbf2ad825a582015cb7b703ea4dc7",
+      "native_sha256": "4a3aef2833060cde858faad689e4c734de31dc70e9dab13a00a6594f694c60ca",
+      "platform_archive_sha256": "b59b1862b11b8ed3edcdc2e5ee86f9db142268bb5e14571054f6245718fc28f6"
+    },
+    "candidate": {
+      "main_archive_sha256": "8c8a97fbe26c541cddadfec7f9faef518102307f927ce6b4b095e5da721ca49d",
+      "module_sha256": "cc0ea0b2ae641aa5162a223985d9afb5ba1233b073899e66a2847f92f36bf432",
+      "native_sha256": "5073e7ecc7dfef733da97cc5ff92be0f128f61741e1bc6ad05093d9d913b5aa2",
+      "platform_archive_sha256": "8ce9b8e57b8f8ddf9adb3035822f14d61a4465a6da1e4ad7897d25c892998d6c"
+    }
+  },
+  "block_runner_sha256": "bc0a0fa9c6510491da552995ea50993b2452b33b8a2907ea545192f75a033119",
+  "campaign_sha256": "d3037afb64c017e7bfe288a901bcf6c9ae5de30f66161c7d3c60cc5308214b10",
+  "checked_attempts": 60120,
+  "protocol_sha256": "18818cf596a3747806c9b316eeecf80fb31cac1913f975a039a7100d8fb2896c",
+  "schema_version": 1,
+  "scope": "integrated-candidate installed TypeScript S01; not full Phase 1",
+  "sizes": {
+    "256": {
+      "block_receipts": [
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 11586766,
+              "warm_count": 1000,
+              "warm_max_ns": 16069385,
+              "warm_p50_ns": 10680436,
+              "warm_p95_ns": 12018351,
+              "warm_p99_ns": 13061048
+            },
+            "text": {
+              "session_cold_ns": 871104,
+              "warm_count": 1000,
+              "warm_max_ns": 7893716,
+              "warm_p50_ns": 119105,
+              "warm_p95_ns": 168879,
+              "warm_p99_ns": 264429
+            },
+            "vector": {
+              "session_cold_ns": 18233368,
+              "warm_count": 1000,
+              "warm_max_ns": 18330732,
+              "warm_p50_ns": 12158415,
+              "warm_p95_ns": 13445183,
+              "warm_p99_ns": 14418760
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16504,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 635184,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 112.78,
+            "unsupported": [],
+            "user_cpu_s": 311.42
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-01-baseline",
+          "elapsed_block_s": 32.614,
+          "finished_utc": "2026-10-08T12:17:43.240Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 1,
+          "pair": 1,
+          "raw_sha256": "1668c3f1486f08d6c0b8ec78fe0e969b3030ba34b2f403503f966cc99522fbfd",
+          "role": "baseline",
+          "size": 256,
+          "started_utc": "2026-10-08T12:17:10.626Z",
+          "warnings": [
+            "host swap drift: 1 pages; child swap events: 0"
+          ]
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 12485915,
+              "warm_count": 1000,
+              "warm_max_ns": 19619388,
+              "warm_p50_ns": 10959153,
+              "warm_p95_ns": 12937537,
+              "warm_p99_ns": 14883740
+            },
+            "text": {
+              "session_cold_ns": 794690,
+              "warm_count": 1000,
+              "warm_max_ns": 621593,
+              "warm_p50_ns": 123654,
+              "warm_p95_ns": 168968,
+              "warm_p99_ns": 245613
+            },
+            "vector": {
+              "session_cold_ns": 13667074,
+              "warm_count": 1000,
+              "warm_max_ns": 19879669,
+              "warm_p50_ns": 12063908,
+              "warm_p95_ns": 13570232,
+              "warm_p99_ns": 14610595
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16504,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 396220,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 107.28,
+            "unsupported": [],
+            "user_cpu_s": 295.49
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-01-candidate",
+          "elapsed_block_s": 30.999,
+          "finished_utc": "2026-10-08T12:18:34.811Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 1,
+          "pair": 1,
+          "raw_sha256": "6a0d83a0d694079f21c9d691385ccc0d8d0e85bd3137a2e003e2dc82b05d9d35",
+          "role": "candidate",
+          "size": 256,
+          "started_utc": "2026-10-08T12:18:03.812Z",
+          "warnings": [
+            "host swap drift: 1 pages; child swap events: 0"
+          ]
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 11699242,
+              "warm_count": 1000,
+              "warm_max_ns": 17154849,
+              "warm_p50_ns": 10733259,
+              "warm_p95_ns": 12194507,
+              "warm_p99_ns": 13441991
+            },
+            "text": {
+              "session_cold_ns": 786224,
+              "warm_count": 1000,
+              "warm_max_ns": 526514,
+              "warm_p50_ns": 126068,
+              "warm_p95_ns": 164551,
+              "warm_p99_ns": 297432
+            },
+            "vector": {
+              "session_cold_ns": 14387776,
+              "warm_count": 1000,
+              "warm_max_ns": 16213992,
+              "warm_p50_ns": 12062547,
+              "warm_p95_ns": 13444787,
+              "warm_p99_ns": 14968011
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16504,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 391368,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 107.09,
+            "unsupported": [],
+            "user_cpu_s": 295.48
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-02-candidate",
+          "elapsed_block_s": 30.659,
+          "finished_utc": "2026-10-08T12:19:26.009Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 2,
+          "raw_sha256": "5dfed7603a91ca5937a65994095e78d2618809991571e8963449dbe88cdda181",
+          "role": "candidate",
+          "size": 256,
+          "started_utc": "2026-10-08T12:18:55.350Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 13310826,
+              "warm_count": 1000,
+              "warm_max_ns": 16060246,
+              "warm_p50_ns": 10717942,
+              "warm_p95_ns": 12484747,
+              "warm_p99_ns": 13982333
+            },
+            "text": {
+              "session_cold_ns": 868549,
+              "warm_count": 1000,
+              "warm_max_ns": 8463686,
+              "warm_p50_ns": 127781,
+              "warm_p95_ns": 169240,
+              "warm_p99_ns": 253529
+            },
+            "vector": {
+              "session_cold_ns": 13939401,
+              "warm_count": 1000,
+              "warm_max_ns": 18929311,
+              "warm_p50_ns": 12144193,
+              "warm_p95_ns": 13924914,
+              "warm_p99_ns": 15312334
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16504,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 633204,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 115.69,
+            "unsupported": [],
+            "user_cpu_s": 312.03
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-02-baseline",
+          "elapsed_block_s": 33.265,
+          "finished_utc": "2026-10-08T12:20:19.799Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 1,
+          "pair": 2,
+          "raw_sha256": "b4068b2ca874406dc5863f09484a5989bf66a6bd6dcc28bf2c4ad079b875f596",
+          "role": "baseline",
+          "size": 256,
+          "started_utc": "2026-10-08T12:19:46.534Z",
+          "warnings": [
+            "host swap drift: 1 pages; child swap events: 0"
+          ]
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 10837829,
+              "warm_count": 1000,
+              "warm_max_ns": 22628547,
+              "warm_p50_ns": 10696182,
+              "warm_p95_ns": 12331739,
+              "warm_p99_ns": 14116399
+            },
+            "text": {
+              "session_cold_ns": 980841,
+              "warm_count": 1000,
+              "warm_max_ns": 8542406,
+              "warm_p50_ns": 120037,
+              "warm_p95_ns": 176553,
+              "warm_p99_ns": 269789
+            },
+            "vector": {
+              "session_cold_ns": 13083649,
+              "warm_count": 1000,
+              "warm_max_ns": 25284219,
+              "warm_p50_ns": 11853436,
+              "warm_p95_ns": 13673071,
+              "warm_p99_ns": 15328707
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16520,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 634604,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 114.57,
+            "unsupported": [],
+            "user_cpu_s": 310.46
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-03-baseline",
+          "elapsed_block_s": 32.669,
+          "finished_utc": "2026-10-08T12:21:13.017Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 1,
+          "pair": 3,
+          "raw_sha256": "8ea80fc6ad9b0192ef932775c4b61703d8880b95bd71f136e9e7ba77f7bd8769",
+          "role": "baseline",
+          "size": 256,
+          "started_utc": "2026-10-08T12:20:40.348Z",
+          "warnings": [
+            "host swap drift: 1 pages; child swap events: 0"
+          ]
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 12481874,
+              "warm_count": 1000,
+              "warm_max_ns": 21276477,
+              "warm_p50_ns": 10703097,
+              "warm_p95_ns": 12771371,
+              "warm_p99_ns": 14395677
+            },
+            "text": {
+              "session_cold_ns": 710843,
+              "warm_count": 1000,
+              "warm_max_ns": 538256,
+              "warm_p50_ns": 123633,
+              "warm_p95_ns": 163810,
+              "warm_p99_ns": 228021
+            },
+            "vector": {
+              "session_cold_ns": 13701997,
+              "warm_count": 1000,
+              "warm_max_ns": 16005135,
+              "warm_p50_ns": 11761443,
+              "warm_p95_ns": 13099980,
+              "warm_p99_ns": 13997565
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16520,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 389508,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 105.32,
+            "unsupported": [],
+            "user_cpu_s": 295.47
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-03-candidate",
+          "elapsed_block_s": 30.377,
+          "finished_utc": "2026-10-08T12:22:03.963Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 3,
+          "raw_sha256": "0c1b345e7050b614cfcc051ebe35852367ea2a2683ee629f9e19ed0115c49329",
+          "role": "candidate",
+          "size": 256,
+          "started_utc": "2026-10-08T12:21:33.586Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 11360829,
+              "warm_count": 1000,
+              "warm_max_ns": 19592089,
+              "warm_p50_ns": 10805330,
+              "warm_p95_ns": 12466156,
+              "warm_p99_ns": 13895425
+            },
+            "text": {
+              "session_cold_ns": 744696,
+              "warm_count": 1000,
+              "warm_max_ns": 515403,
+              "warm_p50_ns": 129254,
+              "warm_p95_ns": 167005,
+              "warm_p99_ns": 238150
+            },
+            "vector": {
+              "session_cold_ns": 17324267,
+              "warm_count": 1000,
+              "warm_max_ns": 23436347,
+              "warm_p50_ns": 12004984,
+              "warm_p95_ns": 13440745,
+              "warm_p99_ns": 14598611
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16488,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 402164,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 107.01,
+            "unsupported": [],
+            "user_cpu_s": 294.66
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-04-candidate",
+          "elapsed_block_s": 30.647,
+          "finished_utc": "2026-10-08T12:22:55.148Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 4,
+          "raw_sha256": "521bbbdb299ab3b64f2774ded0673e098470d7091f8eda8ba0ae6a4ec66dae2a",
+          "role": "candidate",
+          "size": 256,
+          "started_utc": "2026-10-08T12:22:24.501Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 12648371,
+              "warm_count": 1000,
+              "warm_max_ns": 15786506,
+              "warm_p50_ns": 10469077,
+              "warm_p95_ns": 11776375,
+              "warm_p99_ns": 13110594
+            },
+            "text": {
+              "session_cold_ns": 974520,
+              "warm_count": 1000,
+              "warm_max_ns": 7962824,
+              "warm_p50_ns": 130476,
+              "warm_p95_ns": 170782,
+              "warm_p99_ns": 273657
+            },
+            "vector": {
+              "session_cold_ns": 14117474,
+              "warm_count": 1000,
+              "warm_max_ns": 18556655,
+              "warm_p50_ns": 12040834,
+              "warm_p95_ns": 13446006,
+              "warm_p99_ns": 15287303
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16520,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 635168,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 112.12,
+            "unsupported": [],
+            "user_cpu_s": 307.31
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-04-baseline",
+          "elapsed_block_s": 32.375,
+          "finished_utc": "2026-10-08T12:23:48.049Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 4,
+          "raw_sha256": "222e9a26895b366ab7abd5145eebe8b91f35279aa592a3a79233e2ceb90b020b",
+          "role": "baseline",
+          "size": 256,
+          "started_utc": "2026-10-08T12:23:15.674Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 11145204,
+              "warm_count": 1000,
+              "warm_max_ns": 19569039,
+              "warm_p50_ns": 10459900,
+              "warm_p95_ns": 11638054,
+              "warm_p99_ns": 12558442
+            },
+            "text": {
+              "session_cold_ns": 968088,
+              "warm_count": 1000,
+              "warm_max_ns": 8364774,
+              "warm_p50_ns": 122512,
+              "warm_p95_ns": 163809,
+              "warm_p99_ns": 245354
+            },
+            "vector": {
+              "session_cold_ns": 13972321,
+              "warm_count": 1000,
+              "warm_max_ns": 19790127,
+              "warm_p50_ns": 12187281,
+              "warm_p95_ns": 13927277,
+              "warm_p99_ns": 15890694
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16488,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 634084,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 113.63,
+            "unsupported": [],
+            "user_cpu_s": 310.79
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-05-baseline",
+          "elapsed_block_s": 32.653,
+          "finished_utc": "2026-10-08T12:24:41.259Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 5,
+          "raw_sha256": "aac8cbdf762d3777e7ca4e84310ecf02c678d1bbef539ab6610b288862ad2d7a",
+          "role": "baseline",
+          "size": 256,
+          "started_utc": "2026-10-08T12:24:08.606Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 11091082,
+              "warm_count": 1000,
+              "warm_max_ns": 21834268,
+              "warm_p50_ns": 10543498,
+              "warm_p95_ns": 12043821,
+              "warm_p99_ns": 14545706
+            },
+            "text": {
+              "session_cold_ns": 762971,
+              "warm_count": 1000,
+              "warm_max_ns": 545801,
+              "warm_p50_ns": 123333,
+              "warm_p95_ns": 165974,
+              "warm_p99_ns": 248078
+            },
+            "vector": {
+              "session_cold_ns": 13535117,
+              "warm_count": 1000,
+              "warm_max_ns": 18422074,
+              "warm_p50_ns": 11903076,
+              "warm_p95_ns": 12950574,
+              "warm_p99_ns": 14104312
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 16520,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 397088,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 105.51,
+            "unsupported": [],
+            "user_cpu_s": 294.67
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "256-05-candidate",
+          "elapsed_block_s": 30.202,
+          "finished_utc": "2026-10-08T12:25:32.034Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 5,
+          "raw_sha256": "7ae2c460895d0a8de2d89edb7166d426b3a804935a68d9d5ef1e155c87ce9c34",
+          "role": "candidate",
+          "size": 256,
+          "started_utc": "2026-10-08T12:25:01.832Z",
+          "warnings": []
+        }
+      ],
+      "cells": {
+        "hybrid": {
+          "p50": {
+            "clean_pair_count": 2,
+            "clean_pair_deltas_pct": [
+              3.2119,
+              0.7992
+            ],
+            "clean_pair_inference": "insufficient",
+            "median_delta_pct": 0.7992,
+            "observed_range_pct": [
+              0.0646,
+              3.2119
+            ],
+            "pair_deltas_pct": [
+              2.6096,
+              0.1429,
+              0.0646,
+              3.2119,
+              0.7992
+            ]
+          },
+          "p95": {
+            "clean_pair_count": 2,
+            "clean_pair_deltas_pct": [
+              5.8573,
+              3.4866
+            ],
+            "clean_pair_inference": "insufficient",
+            "median_delta_pct": 3.565,
+            "observed_range_pct": [
+              -2.3248,
+              7.6482
+            ],
+            "pair_deltas_pct": [
+              7.6482,
+              -2.3248,
+              3.565,
+              5.8573,
+              3.4866
+            ]
+          },
+          "p99": {
+            "clean_pair_count": 2,
+            "clean_pair_deltas_pct": [
+              5.9862,
+              15.8241
+            ],
+            "clean_pair_inference": "insufficient",
+            "median_delta_pct": 5.9862,
+            "observed_range_pct": [
+              -3.8645,
+              15.8241
+            ],
+            "pair_deltas_pct": [
+              13.9552,
+              -3.8645,
+              1.9784,
+              5.9862,
+              15.8241
+            ]
+          }
+        },
+        "text": {
+          "p50": {
+            "clean_pair_count": 2,
+            "clean_pair_deltas_pct": [
+              -0.9366,
+              0.6701
+            ],
+            "clean_pair_inference": "insufficient",
+            "median_delta_pct": 0.6701,
+            "observed_range_pct": [
+              -1.3406,
+              3.8193
+            ],
+            "pair_deltas_pct": [
+              3.8193,
+              -1.3406,
+              2.9957,
+              -0.9366,
+              0.6701
+            ]
+          },
+          "p95": {
+            "clean_pair_count": 2,
+            "clean_pair_deltas_pct": [
+              -2.2116,
+              1.3217
+            ],
+            "clean_pair_inference": "insufficient",
+            "median_delta_pct": -2.2116,
+            "observed_range_pct": [
+              -7.2177,
+              1.3217
+            ],
+            "pair_deltas_pct": [
+              0.0527,
+              -2.7706,
+              -7.2177,
+              -2.2116,
+              1.3217
+            ]
+          },
+          "p99": {
+            "clean_pair_count": 2,
+            "clean_pair_deltas_pct": [
+              -12.975,
+              1.1102
+            ],
+            "clean_pair_inference": "insufficient",
+            "median_delta_pct": -7.1157,
+            "observed_range_pct": [
+              -15.4817,
+              17.3168
+            ],
+            "pair_deltas_pct": [
+              -7.1157,
+              17.3168,
+              -15.4817,
+              -12.975,
+              1.1102
+            ]
+          }
+        },
+        "vector": {
+          "p50": {
+            "clean_pair_count": 2,
+            "clean_pair_deltas_pct": [
+              -0.2977,
+              -2.332
+            ],
+            "clean_pair_inference": "insufficient",
+            "median_delta_pct": -0.7761,
+            "observed_range_pct": [
+              -2.332,
+              -0.2977
+            ],
+            "pair_deltas_pct": [
+              -0.7773,
+              -0.6723,
+              -0.7761,
+              -0.2977,
+              -2.332
+            ]
+          },
+          "p95": {
+            "clean_pair_count": 2,
+            "clean_pair_deltas_pct": [
+              -0.0391,
+              -7.0129
+            ],
+            "clean_pair_inference": "insufficient",
+            "median_delta_pct": -3.448,
+            "observed_range_pct": [
+              -7.0129,
+              0.9301
+            ],
+            "pair_deltas_pct": [
+              0.9301,
+              -3.448,
+              -4.1914,
+              -0.0391,
+              -7.0129
+            ]
+          },
+          "p99": {
+            "clean_pair_count": 2,
+            "clean_pair_deltas_pct": [
+              -4.505,
+              -11.2417
+            ],
+            "clean_pair_inference": "insufficient",
+            "median_delta_pct": -4.505,
+            "observed_range_pct": [
+              -11.2417,
+              1.3305
+            ],
+            "pair_deltas_pct": [
+              1.3305,
+              -2.2487,
+              -8.684,
+              -4.505,
+              -11.2417
+            ]
+          }
+        }
+      },
+      "checked_attempts": 30060,
+      "pairs": 5
+    },
+    "32": {
+      "block_receipts": [
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 9497707,
+              "warm_count": 1000,
+              "warm_max_ns": 17794302,
+              "warm_p50_ns": 9379525,
+              "warm_p95_ns": 11000140,
+              "warm_p99_ns": 12994758
+            },
+            "text": {
+              "session_cold_ns": 807241,
+              "warm_count": 1000,
+              "warm_max_ns": 8410037,
+              "warm_p50_ns": 117471,
+              "warm_p95_ns": 161855,
+              "warm_p99_ns": 223421
+            },
+            "vector": {
+              "session_cold_ns": 11783002,
+              "warm_count": 1000,
+              "warm_max_ns": 20440166,
+              "warm_p50_ns": 10572171,
+              "warm_p95_ns": 11970337,
+              "warm_p99_ns": 13111306
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 96,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 628712,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 98.85,
+            "unsupported": [],
+            "user_cpu_s": 267.22
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-01-baseline",
+          "elapsed_block_s": 25.61,
+          "finished_utc": "2026-10-08T12:09:49.954Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 1,
+          "raw_sha256": "efd0c970d2569fd00d83804c543220b9506d9b96489feb0283c5e977767bd11a",
+          "role": "baseline",
+          "size": 32,
+          "started_utc": "2026-10-08T12:09:24.344Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 9828024,
+              "warm_count": 1000,
+              "warm_max_ns": 19331157,
+              "warm_p50_ns": 9436396,
+              "warm_p95_ns": 11233593,
+              "warm_p99_ns": 12838188
+            },
+            "text": {
+              "session_cold_ns": 881351,
+              "warm_count": 1000,
+              "warm_max_ns": 687626,
+              "warm_p50_ns": 123322,
+              "warm_p95_ns": 172866,
+              "warm_p99_ns": 281311
+            },
+            "vector": {
+              "session_cold_ns": 12054620,
+              "warm_count": 1000,
+              "warm_max_ns": 19166714,
+              "warm_p50_ns": 11040760,
+              "warm_p95_ns": 12723039,
+              "warm_p99_ns": 14597283
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 396868,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 99.74,
+            "unsupported": [],
+            "user_cpu_s": 266.42
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-01-candidate",
+          "elapsed_block_s": 26.321,
+          "finished_utc": "2026-10-08T12:10:36.848Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 1,
+          "raw_sha256": "d90c9e7d52c8e86742a9db2a987e2fb854df184b13ce861be508946e2eb18e06",
+          "role": "candidate",
+          "size": 32,
+          "started_utc": "2026-10-08T12:10:10.527Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 10564555,
+              "warm_count": 1000,
+              "warm_max_ns": 16493522,
+              "warm_p50_ns": 9641386,
+              "warm_p95_ns": 11228849,
+              "warm_p99_ns": 12688049
+            },
+            "text": {
+              "session_cold_ns": 729556,
+              "warm_count": 1000,
+              "warm_max_ns": 730397,
+              "warm_p50_ns": 120417,
+              "warm_p95_ns": 180981,
+              "warm_p99_ns": 239521
+            },
+            "vector": {
+              "session_cold_ns": 13076269,
+              "warm_count": 1000,
+              "warm_max_ns": 19482035,
+              "warm_p50_ns": 10890620,
+              "warm_p95_ns": 13180306,
+              "warm_p99_ns": 15427442
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 415944,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 102.11,
+            "unsupported": [],
+            "user_cpu_s": 266.07
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-02-candidate",
+          "elapsed_block_s": 26.386,
+          "finished_utc": "2026-10-08T12:11:23.772Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 2,
+          "raw_sha256": "6c9008ad3905e41a71fae8de1e6705a2cef15da0b1e0fbf729f8f2176afe7692",
+          "role": "candidate",
+          "size": 32,
+          "started_utc": "2026-10-08T12:10:57.386Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 9469534,
+              "warm_count": 1000,
+              "warm_max_ns": 14594058,
+              "warm_p50_ns": 9429149,
+              "warm_p95_ns": 10753656,
+              "warm_p99_ns": 12204160
+            },
+            "text": {
+              "session_cold_ns": 781504,
+              "warm_count": 1000,
+              "warm_max_ns": 7477538,
+              "warm_p50_ns": 124585,
+              "warm_p95_ns": 162476,
+              "warm_p99_ns": 233050
+            },
+            "vector": {
+              "session_cold_ns": 11548483,
+              "warm_count": 1000,
+              "warm_max_ns": 16503757,
+              "warm_p50_ns": 10879212,
+              "warm_p95_ns": 12695246,
+              "warm_p99_ns": 14059168
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 619840,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 98.04,
+            "unsupported": [],
+            "user_cpu_s": 266.97
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-02-baseline",
+          "elapsed_block_s": 26.013,
+          "finished_utc": "2026-10-08T12:12:10.313Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 2,
+          "raw_sha256": "c1b9edb8734a6490de8e19ee7bcddb72114532b0f11c19589f9f46d3355bda18",
+          "role": "baseline",
+          "size": 32,
+          "started_utc": "2026-10-08T12:11:44.300Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 9843824,
+              "warm_count": 1000,
+              "warm_max_ns": 16368378,
+              "warm_p50_ns": 9522858,
+              "warm_p95_ns": 11919878,
+              "warm_p99_ns": 13654139
+            },
+            "text": {
+              "session_cold_ns": 884468,
+              "warm_count": 1000,
+              "warm_max_ns": 8450124,
+              "warm_p50_ns": 127471,
+              "warm_p95_ns": 170752,
+              "warm_p99_ns": 235934
+            },
+            "vector": {
+              "session_cold_ns": 12312228,
+              "warm_count": 1000,
+              "warm_max_ns": 16455070,
+              "warm_p50_ns": 10595149,
+              "warm_p95_ns": 12356742,
+              "warm_p99_ns": 13678905
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 628788,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 99.74,
+            "unsupported": [],
+            "user_cpu_s": 267.84
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-03-baseline",
+          "elapsed_block_s": 25.983,
+          "finished_utc": "2026-10-08T12:12:56.854Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 3,
+          "raw_sha256": "6c262d4e31e5afe22b9e570ae15f62d1f74e1fe791a617b3d4167b4428158298",
+          "role": "baseline",
+          "size": 32,
+          "started_utc": "2026-10-08T12:12:30.871Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 11033981,
+              "warm_count": 1000,
+              "warm_max_ns": 14935260,
+              "warm_p50_ns": 9527660,
+              "warm_p95_ns": 11097982,
+              "warm_p99_ns": 12203046
+            },
+            "text": {
+              "session_cold_ns": 752409,
+              "warm_count": 1000,
+              "warm_max_ns": 595594,
+              "warm_p50_ns": 128913,
+              "warm_p95_ns": 163598,
+              "warm_p99_ns": 248319
+            },
+            "vector": {
+              "session_cold_ns": 13061594,
+              "warm_count": 1000,
+              "warm_max_ns": 18996378,
+              "warm_p50_ns": 10915206,
+              "warm_p95_ns": 12616224,
+              "warm_p99_ns": 14698683
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 417384,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 99.11,
+            "unsupported": [],
+            "user_cpu_s": 266.1
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-03-candidate",
+          "elapsed_block_s": 26.366,
+          "finished_utc": "2026-10-08T12:13:43.805Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 3,
+          "raw_sha256": "10129c8ef0ecc9ef072973e7d9b583a630a75756c34740f64bea378a170fca3f",
+          "role": "candidate",
+          "size": 32,
+          "started_utc": "2026-10-08T12:13:17.439Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 9687003,
+              "warm_count": 1000,
+              "warm_max_ns": 17753369,
+              "warm_p50_ns": 9366639,
+              "warm_p95_ns": 11335102,
+              "warm_p99_ns": 13590256
+            },
+            "text": {
+              "session_cold_ns": 816861,
+              "warm_count": 1000,
+              "warm_max_ns": 607406,
+              "warm_p50_ns": 125918,
+              "warm_p95_ns": 163639,
+              "warm_p99_ns": 212451
+            },
+            "vector": {
+              "session_cold_ns": 11431002,
+              "warm_count": 1000,
+              "warm_max_ns": 16832411,
+              "warm_p50_ns": 10999518,
+              "warm_p95_ns": 13024929,
+              "warm_p99_ns": 14592406
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 8,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 397072,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 100.95,
+            "unsupported": [],
+            "user_cpu_s": 263.15
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-04-candidate",
+          "elapsed_block_s": 26.277,
+          "finished_utc": "2026-10-08T12:14:30.617Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 32,
+          "pair": 4,
+          "raw_sha256": "bf9be1978f09cf2fc612df59e167a4dee555a7648c217a64f60868bc02611e67",
+          "role": "candidate",
+          "size": 32,
+          "started_utc": "2026-10-08T12:14:04.340Z",
+          "warnings": [
+            "host swap drift: 32 pages; child swap events: 0"
+          ]
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 9714787,
+              "warm_count": 1000,
+              "warm_max_ns": 18968906,
+              "warm_p50_ns": 9543945,
+              "warm_p95_ns": 11170604,
+              "warm_p99_ns": 12555397
+            },
+            "text": {
+              "session_cold_ns": 843120,
+              "warm_count": 1000,
+              "warm_max_ns": 8560279,
+              "warm_p50_ns": 121509,
+              "warm_p95_ns": 161644,
+              "warm_p99_ns": 220826
+            },
+            "vector": {
+              "session_cold_ns": 12603687,
+              "warm_count": 1000,
+              "warm_max_ns": 16530064,
+              "warm_p50_ns": 10744710,
+              "warm_p95_ns": 12419710,
+              "warm_p99_ns": 13950347
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 628204,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 101.21,
+            "unsupported": [],
+            "user_cpu_s": 267.11
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-04-baseline",
+          "elapsed_block_s": 25.955,
+          "finished_utc": "2026-10-08T12:15:17.097Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 119,
+          "pair": 4,
+          "raw_sha256": "5aa935152149501a1e68e43c56526bda71dca4a933f4866e88d05430377d3ed4",
+          "role": "baseline",
+          "size": 32,
+          "started_utc": "2026-10-08T12:14:51.142Z",
+          "warnings": [
+            "host swap drift: 119 pages; child swap events: 0"
+          ]
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 10226194,
+              "warm_count": 1000,
+              "warm_max_ns": 16457382,
+              "warm_p50_ns": 9416567,
+              "warm_p95_ns": 10710678,
+              "warm_p99_ns": 12100822
+            },
+            "text": {
+              "session_cold_ns": 863850,
+              "warm_count": 1000,
+              "warm_max_ns": 8477184,
+              "warm_p50_ns": 119376,
+              "warm_p95_ns": 165071,
+              "warm_p99_ns": 265121
+            },
+            "vector": {
+              "session_cold_ns": 12400376,
+              "warm_count": 1000,
+              "warm_max_ns": 16320231,
+              "warm_p50_ns": 10641237,
+              "warm_p95_ns": 12013617,
+              "warm_p99_ns": 13530920
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 628072,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 99.22,
+            "unsupported": [],
+            "user_cpu_s": 269.38
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-05-baseline",
+          "elapsed_block_s": 25.835,
+          "finished_utc": "2026-10-08T12:16:03.491Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 5,
+          "raw_sha256": "ffd386fa7886bc49bd13709c2498cbe6ba49274522aff0ab0f27eb3bf65c622c",
+          "role": "baseline",
+          "size": 32,
+          "started_utc": "2026-10-08T12:15:37.656Z",
+          "warnings": []
+        },
+        {
+          "cells": {
+            "hybrid": {
+              "session_cold_ns": 10535690,
+              "warm_count": 1000,
+              "warm_max_ns": 12711597,
+              "warm_p50_ns": 9332670,
+              "warm_p95_ns": 10453264,
+              "warm_p99_ns": 11373351
+            },
+            "text": {
+              "session_cold_ns": 733334,
+              "warm_count": 1000,
+              "warm_max_ns": 614770,
+              "warm_p50_ns": 128432,
+              "warm_p95_ns": 162316,
+              "warm_p99_ns": 214845
+            },
+            "vector": {
+              "session_cold_ns": 12125019,
+              "warm_count": 1000,
+              "warm_max_ns": 17805428,
+              "warm_p50_ns": 10857377,
+              "warm_p95_ns": 12946870,
+              "warm_p99_ns": 15575129
+            }
+          },
+          "checked_attempts": 3006,
+          "child_resources": {
+            "fs_inputs": 0,
+            "fs_outputs": 13864,
+            "major_faults": 0,
+            "method": "gnu-time",
+            "peak_rss_kib": 423880,
+            "scope": "measured-workload-child-process",
+            "swap_events": 0,
+            "system_cpu_s": 97.72,
+            "unsupported": [],
+            "user_cpu_s": 267.38
+          },
+          "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+          "directory": "32-05-candidate",
+          "elapsed_block_s": 26.043,
+          "finished_utc": "2026-10-08T12:16:50.103Z",
+          "governor": "performance",
+          "host": "windchill3",
+          "host_swap_pages_delta": 0,
+          "pair": 5,
+          "raw_sha256": "926663cacfaca52580231ecc5dd2cce913e148acc99b248c1227ba710767eb55",
+          "role": "candidate",
+          "size": 32,
+          "started_utc": "2026-10-08T12:16:24.060Z",
+          "warnings": []
+        }
+      ],
+      "cells": {
+        "hybrid": {
+          "p50": {
+            "clean_pair_count": 4,
+            "clean_pair_deltas_pct": [
+              0.6063,
+              2.2509,
+              0.0504,
+              -0.891
+            ],
+            "clean_pair_inference": "descriptive_only",
+            "median_delta_pct": 0.0504,
+            "observed_range_pct": [
+              -1.8578,
+              2.2509
+            ],
+            "pair_deltas_pct": [
+              0.6063,
+              2.2509,
+              0.0504,
+              -1.8578,
+              -0.891
+            ]
+          },
+          "p95": {
+            "clean_pair_count": 4,
+            "clean_pair_deltas_pct": [
+              2.1223,
+              4.4189,
+              -6.8952,
+              -2.4033
+            ],
+            "clean_pair_inference": "descriptive_only",
+            "median_delta_pct": 1.4726,
+            "observed_range_pct": [
+              -6.8952,
+              4.4189
+            ],
+            "pair_deltas_pct": [
+              2.1223,
+              4.4189,
+              -6.8952,
+              1.4726,
+              -2.4033
+            ]
+          },
+          "p99": {
+            "clean_pair_count": 4,
+            "clean_pair_deltas_pct": [
+              -1.2049,
+              3.965,
+              -10.6275,
+              -6.0117
+            ],
+            "clean_pair_inference": "descriptive_only",
+            "median_delta_pct": -1.2049,
+            "observed_range_pct": [
+              -10.6275,
+              8.2423
+            ],
+            "pair_deltas_pct": [
+              -1.2049,
+              3.965,
+              -10.6275,
+              8.2423,
+              -6.0117
+            ]
+          }
+        },
+        "text": {
+          "p50": {
+            "clean_pair_count": 4,
+            "clean_pair_deltas_pct": [
+              4.9808,
+              -3.3455,
+              1.1312,
+              7.5861
+            ],
+            "clean_pair_inference": "descriptive_only",
+            "median_delta_pct": 3.6285,
+            "observed_range_pct": [
+              -3.3455,
+              7.5861
+            ],
+            "pair_deltas_pct": [
+              4.9808,
+              -3.3455,
+              1.1312,
+              3.6285,
+              7.5861
+            ]
+          },
+          "p95": {
+            "clean_pair_count": 4,
+            "clean_pair_deltas_pct": [
+              6.803,
+              11.3894,
+              -4.1897,
+              -1.669
+            ],
+            "clean_pair_inference": "descriptive_only",
+            "median_delta_pct": 1.2342,
+            "observed_range_pct": [
+              -4.1897,
+              11.3894
+            ],
+            "pair_deltas_pct": [
+              6.803,
+              11.3894,
+              -4.1897,
+              1.2342,
+              -1.669
+            ]
+          },
+          "p99": {
+            "clean_pair_count": 4,
+            "clean_pair_deltas_pct": [
+              25.9107,
+              2.7767,
+              5.2493,
+              -18.9634
+            ],
+            "clean_pair_inference": "descriptive_only",
+            "median_delta_pct": 2.7767,
+            "observed_range_pct": [
+              -18.9634,
+              25.9107
+            ],
+            "pair_deltas_pct": [
+              25.9107,
+              2.7767,
+              5.2493,
+              -3.7926,
+              -18.9634
+            ]
+          }
+        },
+        "vector": {
+          "p50": {
+            "clean_pair_count": 4,
+            "clean_pair_deltas_pct": [
+              4.4323,
+              0.1049,
+              3.0208,
+              2.0312
+            ],
+            "clean_pair_inference": "descriptive_only",
+            "median_delta_pct": 2.3715,
+            "observed_range_pct": [
+              0.1049,
+              4.4323
+            ],
+            "pair_deltas_pct": [
+              4.4323,
+              0.1049,
+              3.0208,
+              2.3715,
+              2.0312
+            ]
+          },
+          "p95": {
+            "clean_pair_count": 4,
+            "clean_pair_deltas_pct": [
+              6.2881,
+              3.8208,
+              2.0999,
+              7.7683
+            ],
+            "clean_pair_inference": "descriptive_only",
+            "median_delta_pct": 4.8731,
+            "observed_range_pct": [
+              2.0999,
+              7.7683
+            ],
+            "pair_deltas_pct": [
+              6.2881,
+              3.8208,
+              2.0999,
+              4.8731,
+              7.7683
+            ]
+          },
+          "p99": {
+            "clean_pair_count": 4,
+            "clean_pair_deltas_pct": [
+              11.3336,
+              9.7323,
+              7.4551,
+              15.1077
+            ],
+            "clean_pair_inference": "descriptive_only",
+            "median_delta_pct": 9.7323,
+            "observed_range_pct": [
+              4.6025,
+              15.1077
+            ],
+            "pair_deltas_pct": [
+              11.3336,
+              9.7323,
+              7.4551,
+              4.6025,
+              15.1077
+            ]
+          }
+        }
+      },
+      "checked_attempts": 30060,
+      "pairs": 5
+    }
+  },
+  "sources": {
+    "baseline": {
+      "cargo_lock_sha256": "ffebda90ad6bae977a63cdb7d4c8edbce88632c2d353d5251247410040a16022",
+      "npm_lock_sha256": "36ed30648b87f581f4abb608ff1774dbcd5a79e7b3c94524d2bcf55749eb5709",
+      "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa"
+    },
+    "candidate": {
+      "cargo_lock_sha256": "9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe",
+      "npm_lock_sha256": "36ed30648b87f581f4abb608ff1774dbcd5a79e7b3c94524d2bcf55749eb5709",
+      "source_sha": "224e44c593c13d86ece648adabe445723db04070"
+    }
+  },
+  "status": "PAIRED_DIAGNOSTIC",
+  "valid_blocks": 20,
+  "warning_blocks": [
+    "32-04-candidate",
+    "32-04-baseline",
+    "256-01-baseline",
+    "256-01-candidate",
+    "256-02-baseline",
+    "256-03-baseline"
+  ],
+  "workload_runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d"
+}

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import sqlite3
 from typing import Any
@@ -51,6 +52,32 @@ def check_attempt(name: str, attempt: dict[str, Any], size: int) -> int:
     else:
         raise ValueError(f"{name}: unrecognized case")
     return elapsed
+
+
+def summarize_durations(durations: list[int]) -> dict[str, int | str]:
+    """Recompute total cost and supported nearest-rank statistics."""
+    if not durations or any(
+        type(value) is not int or value <= 0 for value in durations
+    ):
+        raise ValueError("nonempty positive integer durations required")
+    ordered = sorted(durations)
+
+    def percentile(fraction: float) -> int:
+        return ordered[math.ceil(fraction * len(ordered)) - 1]
+
+    summary: dict[str, int | str] = {
+        "count": len(ordered),
+        "total_elapsed_ns": sum(ordered),
+        "minimum_ns": ordered[0],
+        "p50_ns": percentile(0.50),
+        "p95_ns": percentile(0.95),
+        "maximum_ns": ordered[-1],
+        "p99": "unsupported_below_1000_samples",
+    }
+    if len(ordered) >= 1000:
+        summary["p99"] = "measured"
+        summary["p99_ns"] = percentile(0.99)
+    return summary
 
 
 def _check_database(path: Path, size: int) -> dict[str, Any]:
@@ -149,16 +176,12 @@ def audit(
     repetitions = raw.get("repetitions")
     if type(repetitions) is not int or repetitions < 1:
         raise ValueError("invalid repetition count")
-    case_summary: dict[str, dict[str, int]] = {}
+    case_summary: dict[str, dict[str, int | str]] = {}
     for name, attempts in raw["cases"].items():
         if not isinstance(attempts, list) or len(attempts) != repetitions:
             raise ValueError(f"{name}: attempt count differs from declaration")
         durations = [check_attempt(name, attempt, size) for attempt in attempts]
-        case_summary[name] = {
-            "count": len(durations),
-            "minimum_ns": min(durations),
-            "maximum_ns": max(durations),
-        }
+        case_summary[name] = summarize_durations(durations)
     return {
         "status": "S03_FUNCTIONAL_FEASIBILITY_AUDITED_NOT_TIMING_COMPARISON",
         "source_sha": source_sha,

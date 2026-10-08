@@ -10,6 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import slice135_python_s03 as s03  # noqa: E402
 import slice135_python_s03_audit as audit  # noqa: E402
+import slice135_python_s03_block as block  # noqa: E402
+import slice135_python_s03_baseline_campaign as campaign  # noqa: E402
 
 
 def test_fixture_preserves_named_semantic_controls_and_scale() -> None:
@@ -70,3 +72,37 @@ def test_independent_auditor_rejects_false_semantic_claim() -> None:
         assert "temporal_early" in str(error)
     else:
         raise AssertionError("auditor accepted an incorrect temporal result")
+
+
+def test_pilot_percentiles_use_nearest_rank_without_p99_from_100_samples() -> None:
+    durations = list(range(1, 101))
+    assert audit.summarize_durations(durations) == {
+        "count": 100,
+        "total_elapsed_ns": 5050,
+        "minimum_ns": 1,
+        "p50_ns": 50,
+        "p95_ns": 95,
+        "maximum_ns": 100,
+        "p99": "unsupported_below_1000_samples",
+    }
+
+
+def test_baseline_block_rejects_unsupported_size_or_sample_count() -> None:
+    block.validate_request(size=32, repetitions=100)
+    for size, repetitions in ((16, 100), (32, 99), (256, 0)):
+        try:
+            block.validate_request(size=size, repetitions=repetitions)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("unsupported baseline pilot block accepted")
+
+
+def test_baseline_campaign_has_ten_distinct_sequential_blocks() -> None:
+    planned = campaign.planned_blocks()
+    assert len(planned) == 10
+    assert planned[0] == (32, 1, "32-block-01")
+    assert planned[4] == (32, 5, "32-block-05")
+    assert planned[5] == (256, 1, "256-block-01")
+    assert planned[-1] == (256, 5, "256-block-05")
+    assert len({item[2] for item in planned}) == 10

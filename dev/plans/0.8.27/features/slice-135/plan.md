@@ -719,6 +719,12 @@ SDK exercise remain open.
   order and reopened-state audits. Its pooled p50 changed +0.287%; close and
   reopened-open remain latency attribution leads. Other installed boundaries
   remain due; the functional smoke itself is not a latency comparison.
+  The exact-source [E01–E12 engine smoke](results/2026-10-08-e12-224e-smoke/README.md)
+  passed all twelve paths at 100 observations each, with independent audit
+  and two rejected identity/output mutants. Its
+  [paired protocol](e12-224e-comparison-protocol.json) is frozen to the
+  rebuilt binary before timing. The older engine paired result remains
+  historical after these Rust source changes.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

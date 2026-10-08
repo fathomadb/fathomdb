@@ -492,8 +492,14 @@ binaries, and 13 workload-hit lines not hit by those tests. It does not
 substitute for the broader cost-ranked operation mix, assertion-strength
 probe, or rare-path review. The same run exposed an existing rank-stream
 test-contract conflict. The older expectation has been reconciled with the
-fail-closed row-error contract and its focused target passes; the full gate
-still needs its checkpoint run.
+ fail-closed row-error contract and its focused target passes; the full gate
+ still needs its checkpoint run.
+After later engine row-error repairs, the [source 224e44c59 E01–E12
+smoke](results/2026-10-08-e12-224e-smoke/README.md) passed all twelve
+unchanged paths at 100 observations each. The
+[replacement paired subset](e12-224e-comparison-protocol.json) binds the
+rebuilt binary and unchanged workload before new candidate timing. The
+selected coverage overlay above remains historical for its source SHA.
 
 ## Robustness matrix
 

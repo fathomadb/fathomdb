@@ -13,6 +13,9 @@ small [paired deterministic contract pilot](results/2026-10-08-phase2-python-x1-
 now has a frozen subset protocol, independently audited raw results and
 negative controls. The broader Phase 2 gold protocol and retrieval,
 evidence, memory and answer-quality scores remain open.
+The [IR gold input qualification](phase2-ir-gold-qualification-2026-10-08.md)
+checks the pinned local source mapping and class denominators without
+promoting an unscored relevance result.
 
 ## Exact identities and available local inputs
 

@@ -34,6 +34,14 @@ missing query, changed wheel identity, and altered persisted body. The
 original raw files remained unchanged. The auditor's focused tests also
 cover duplicate hits, source provenance, and tampered wheel and oracle files.
 
+The unchanged full `./scripts/agent-verify.sh` gate passed after rerunning in
+a ptrace-capable executor. The first sandboxed attempt reached AC-036 and
+reported only its `PTRACE_TRACEME` environmental blocker. The successful
+[verification output](verification.stdout) records AC-036 and live AC-037
+passes, zero security violations, blockers or downgrades, and 186/186 test
+suites passing. The gate used a temporary Git exclude for untracked Phase 1
+raw outputs; it did not remove or alter them.
+
 This is one narrow deterministic contract cell on a four-row FTS-only
 fixture. It does not qualify typed-error versus empty-success, filters,
 pagination, graph/evidence, erasure, vector fidelity, retrieval relevance,

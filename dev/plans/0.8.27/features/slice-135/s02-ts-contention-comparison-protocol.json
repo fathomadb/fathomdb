@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_S02_TS_CONTENTION_PAIRED",
+  "cell": "installed TypeScript S02 shared-engine bounded contention",
+  "boundary": "client call through installed npm packages, materialized concurrent reads and writes, projection drain, evidence, erasure, close and reopened state",
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "main_archive_sha256": "90363762405041b11e6dd654da9cb6347695399eb37b81c5c09fde91296ac336",
+    "platform_archive_sha256": "b59b1862b11b8ed3edcdc2e5ee86f9db142268bb5e14571054f6245718fc28f6",
+    "reference_manifest_sha256": "2a471eb9a6eaf9bd67b069f60761162a400d25641e1f9cbbd15d9d5fb534f6b8"
+  },
+  "candidate": {
+    "source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+    "rust_crates_tree": "c8eaaa19a0e0e876326b778733ace354cc7e21e8",
+    "main_archive_sha256": "13c5c384b401ec3d7c66c5b28473b17877bd5f896c2b85d8aa7d0605b1cf4f54",
+    "platform_archive_sha256": "49ee0dbced467a7e39fd4517793302bce765323d370983bf3949f1aaa51d1b5d",
+    "reference_manifest_sha256": "01367c837ae3e20a97179ab4f3328c8880d54049400a01f4caed3986d0fab5e2"
+  },
+  "pilot": {
+    "status": "ACCEPTED_S02_TS_CONTENTION_BASELINE_PILOT",
+    "valid_blocks": 5,
+    "valid_measured_sequences": 15,
+    "median_block_p50_ms": 5062.213013,
+    "block_p50_spread_ms": 81.813681,
+    "host_only_swap_warning_blocks": 2,
+    "child_swap_event_blocks": 0,
+    "pilot_audit_source_sha256": "8b26a7ca76dff48bb38671e3f74891db4560bd98a7389eca94d175cbc213e185",
+    "pilot_audit_sha256": "274000b8b3b5cdc13aa421f59e62fab3545b80e066a0755d22fac0aaf2b4b641",
+    "pilot_negative_control_sha256": "ea516141d8ed68e8bb830ab6410ab4470b5c6149ee992e7cd062dd5532ebcfb5",
+    "pilot_runner_sha256": "7f147e23746c78a25831fcb362b2bba5d01a4ac1068a12aef9ea79959d4e3ab4",
+    "note": "The block runner gained only a frozen-reference-manifest preflight after the pilot; the measured JavaScript runner and per-process auditor are unchanged. Pilot blocks retain the earlier block-runner bytes."
+  },
+  "workload": {
+    "initial_corpus_nodes": 32,
+    "initial_graph_nodes": 3,
+    "initial_graph_edges": 1,
+    "concurrent_writer_calls": 8,
+    "concurrent_reader_cycles": 8,
+    "minimum_witnessed_call_overlap_cycles": 1,
+    "reader_operations_per_cycle": ["get", "text_search", "vector_search", "graph_neighbors"],
+    "post_contention_operations": ["projection_drain", "evidence_search_resolve", "graph_and_writer_source_erasure", "close", "reopen", "reopened_close"],
+    "fresh_database_per_sequence": true,
+    "threads_share_one_engine": true,
+    "external_timeout_seconds": 120,
+    "product_timer": "initial Engine.open through reopened Engine.close, including SDK state checks; direct SQLite verification follows outside timer"
+  },
+  "pairs": 5,
+  "samples_per_block": 20,
+  "warmup_per_block": 1,
+  "minimum_idle_seconds": 20,
+  "block_timeout_seconds": 600,
+  "pair_order": [
+    [1, "baseline"], [1, "candidate"],
+    [2, "candidate"], [2, "baseline"],
+    [3, "baseline"], [3, "candidate"],
+    [4, "candidate"], [4, "baseline"],
+    [5, "baseline"], [5, "candidate"]
+  ],
+  "validity": "exact installed archives and clean source, all semantic and reopened SQLite checks, 20 valid measured sequences per block, actual overlapping SDK call intervals, stable environment, zero measured-child swap, no trimming or replacement of valid slow samples",
+  "statistics": "nearest-rank pooled and per-block p50/p95, five paired block deltas and their median/range, resource observations; p99 unsupported; no equivalence verdict",
+  "host_paging_rule": "retain host-only swap-counter drift as a warning; report warning-free sensitivity when available and avoid a broad speed claim if not",
+  "frozen_sha256": {
+    "runner": "7f147e23746c78a25831fcb362b2bba5d01a4ac1068a12aef9ea79959d4e3ab4",
+    "auditor": "9a807f1a7808921c3c933a67df2a627ed415848142295a0105d98e6d25d94722",
+    "block_runner": "a9474e8a60432622772c12c9003598add81f3d076589bd8873bbe076fcfbc041",
+    "campaign_runner": "43727fcb156a6809880e345da98b6639495975dde63fb138d0a21ec7ecd22bc1",
+    "s01_helper": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+    "s02_helper": "18c24b13e98d234922d5ed499d3a59b333b16bf11402465144f4d623922e7005",
+    "prior_protocol": "7113ed86675b8437a482e14c85df626c75af4aed059e62d4627e6d0f91b1d9b8",
+    "baseline_main_archive": "90363762405041b11e6dd654da9cb6347695399eb37b81c5c09fde91296ac336",
+    "baseline_platform_archive": "b59b1862b11b8ed3edcdc2e5ee86f9db142268bb5e14571054f6245718fc28f6",
+    "baseline_reference_manifest": "2a471eb9a6eaf9bd67b069f60761162a400d25641e1f9cbbd15d9d5fb534f6b8",
+    "candidate_main_archive": "13c5c384b401ec3d7c66c5b28473b17877bd5f896c2b85d8aa7d0605b1cf4f54",
+    "candidate_platform_archive": "49ee0dbced467a7e39fd4517793302bce765323d370983bf3949f1aaa51d1b5d",
+    "candidate_reference_manifest": "01367c837ae3e20a97179ab4f3328c8880d54049400a01f4caed3986d0fab5e2"
+  }
+}

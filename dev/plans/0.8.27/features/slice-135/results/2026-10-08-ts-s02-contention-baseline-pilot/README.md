@@ -53,6 +53,7 @@ negative control, driver and block manifests are at
 `/tmp/slice135-ts-s02-contention-pilot-evidence`, whose verified manifest
 SHA-256 is
 `de691ad50d8daf13710a1f42b3850b4fed067940c95e80f9f391924c4b1f26c2`.
-Raw archive retention remains at the end of Phase 1. The frozen paired
-protocol and campaign, Rust SDK contention, S03 and the broader four-area
-checkpoint remain open.
+Raw archive retention remains at the end of Phase 1. The
+[paired protocol](../../s02-ts-contention-comparison-protocol.json) was frozen
+after this pilot and before candidate timing. Its campaign, Rust SDK
+contention, S03 and the broader four-area checkpoint remain open.

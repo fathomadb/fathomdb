@@ -49,7 +49,8 @@ def validate_identity(protocol: dict, role: str, source: str, main: str, platfor
 
 
 def validate_frozen(protocol: dict, *, role: str, samples: int,
-                    main_archive: Path, platform_archive: Path) -> None:
+                    main_archive: Path, platform_archive: Path,
+                    reference_manifest: Path) -> None:
     """Reject changed workload code, archives or paired sample rule."""
     if (
         protocol.get("status") != "FROZEN_S02_TS_CONTENTION_PAIRED"
@@ -63,6 +64,7 @@ def validate_frozen(protocol: dict, *, role: str, samples: int,
         "prior_protocol": PRIOR,
         f"{role}_main_archive": main_archive,
         f"{role}_platform_archive": platform_archive,
+        f"{role}_reference_manifest": reference_manifest,
     }
     if any(protocol["frozen_sha256"].get(name) != sha(path) for name, path in expected.items()):
         raise ValueError("contention frozen source or archive changed")
@@ -95,7 +97,8 @@ def run_block(
     if contention_protocol is not None:
         frozen = json.loads(contention_protocol.read_text())
         validate_frozen(frozen, role=role, samples=samples,
-                        main_archive=main_archive, platform_archive=platform_archive)
+                        main_archive=main_archive, platform_archive=platform_archive,
+                        reference_manifest=reference_manifest)
         frozen_sha = sha(contention_protocol)
     elif role != "baseline":
         raise ValueError("candidate requires frozen contention protocol")

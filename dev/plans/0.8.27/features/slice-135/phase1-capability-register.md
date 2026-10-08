@@ -66,7 +66,9 @@ pair](results/2026-10-07-ts-s02-contention-feasibility/README.md) subsequently
 passed a real-database shared-handle sequence and independent persisted-state
 audit on both versions; its one-off timing remains unqualified. The later
 [baseline-only pilot](results/2026-10-08-ts-s02-contention-baseline-pilot/README.md)
-passed five audited blocks; the paired campaign remains. The engine-only results
+passed five audited blocks. The
+[TypeScript contention subset](s02-ts-contention-comparison-protocol.json)
+is frozen before candidate timing; the paired campaign remains. The engine-only results
 never substitute for an SDK row. `S03` may use qualified benchmark data as a
 workload; dedicated gold scoring remains Phase 2.
 

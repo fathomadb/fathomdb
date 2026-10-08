@@ -15,6 +15,7 @@ out=${QUAL_OUT:-$SCRATCH/series}
 lock=${GPU_LOCK:-/tmp/fathomdb-gpu.lock}
 gate=$1
 nover=${2:-}
+soak_s=${SOAK_SECONDS:-1200}
 mkdir -p "$out" "$SCRATCH/dbs"
 export FATHOMDB_DB_SCRATCH="$SCRATCH/dbs"
 export QUAL_QUIET_STRICT=${QUAL_QUIET_STRICT:-0}
@@ -102,7 +103,7 @@ case $gate in
     ;;
   g8)
     # Soak: one Node and one Python process together, no-swap condition.
-    (base_env; use_node; export PYTHON="$PY_W1" CONSUMER_MODE=soak SOAK_SECONDS="${SOAK_SECONDS:-1200}" NO_SWAP=1 EXPECT_PATH=private
+    (base_env; use_node; export PYTHON="$PY_W1" CONSUMER_MODE=soak SOAK_SECONDS="$soak_s" QUAL_RUN_TIMEOUT_S=$((soak_s + 600)) NO_SWAP=1 EXPECT_PATH=private
       QUAL_LABEL=g8 flock "$lock" bash "$here/concurrent-runner.sh" 1 "$out/g8" node py)
     ;;
   g9)

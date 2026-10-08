@@ -6,6 +6,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -49,6 +50,30 @@ def test_rejects_wrong_candidate_or_schedule() -> None:
     changed["pair_order_each_size"][1] = ["baseline", "baseline"]
     with pytest.raises(ValueError, match="pair"):
         campaign.planned_blocks(changed)
+
+
+def test_refrozen_candidate_keeps_schedule_and_requires_matching_snapshot() -> None:
+    changed = frozen()
+    changed["candidate"]["source_sha"] = (
+        "3f29d649d0213e595c0dab251a449d92fd625792"
+    )
+    changed["candidate_product_snapshot"]["source_sha"] = changed["candidate"][
+        "source_sha"
+    ]
+    assert campaign.planned_blocks(changed) == campaign.planned_blocks(frozen())
+
+    changed["candidate_product_snapshot"]["source_sha"] = (
+        "cdf253cd223a82e954591db532397a3d78a2027a"
+    )
+    with pytest.raises(ValueError, match="snapshot"):
+        campaign.planned_blocks(changed)
+
+
+def test_refrozen_protocol_requires_an_expected_byte_hash(tmp_path: Path) -> None:
+    path = tmp_path / "refrozen.json"
+    path.write_text(json.dumps(frozen()))
+    with pytest.raises(ValueError, match="freeze-sha256"):
+        campaign.run(SimpleNamespace(freeze=path, freeze_sha256=None))
 
 
 def test_rejects_sample_and_size_drift() -> None:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the frozen installed-Python S01 comparison on integrated candidate bytes."""
+"""Run a source-bound frozen installed-Python S01 comparison."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -23,7 +24,6 @@ FREEZE_SHA256 = "750c9fdabcaf941b0f966218569718d0f8f1ea86a2a715316a3483229dc7212
 BLOCK_RUNNER = ROOT / "scripts/slice135_python_s01_block.py"
 WORKLOAD = ROOT / "scripts/slice135_python_s01.py"
 BASELINE_SOURCE = "f99e002f0d2e4002f3694c9f8d4986b56089edaa"
-CANDIDATE_SOURCE = "cdf253cd223a82e954591db532397a3d78a2027a"
 PAIR_ORDER = (
     ("baseline", "candidate"),
     ("candidate", "baseline"),
@@ -44,10 +44,15 @@ def planned_blocks(specification: dict) -> list[dict]:
         raise ValueError("S01 protocol is not frozen")
     if specification.get("baseline", {}).get("source_sha") != BASELINE_SOURCE:
         raise ValueError("baseline source differs from integrated S01 freeze")
-    if specification.get("candidate", {}).get("source_sha") != CANDIDATE_SOURCE:
-        raise ValueError("candidate source differs from integrated S01 freeze")
+    candidate_source = specification.get("candidate", {}).get("source_sha")
+    if (
+        not isinstance(candidate_source, str)
+        or re.fullmatch(r"[0-9a-f]{40}", candidate_source) is None
+        or candidate_source == "0" * 40
+    ):
+        raise ValueError("candidate source identity is invalid")
     snapshot = specification.get("candidate_product_snapshot", {})
-    if snapshot.get("source_sha") != CANDIDATE_SOURCE:
+    if snapshot.get("source_sha") != candidate_source:
         raise ValueError("candidate product snapshot differs from protocol")
     if specification.get("rows") != [32, 256]:
         raise ValueError("S01 rows differ from frozen sizes")
@@ -93,9 +98,17 @@ def source_head(checkout: Path) -> str:
 
 def run(args: argparse.Namespace) -> None:
     """Execute each frozen block once and preserve failures without replacement."""
-    if sha256(FREEZE) != FREEZE_SHA256:
-        raise ValueError("integrated S01 protocol bytes changed after commit")
-    specification = json.loads(FREEZE.read_text())
+    freeze = args.freeze
+    freeze_sha256 = args.freeze_sha256
+    if freeze != FREEZE and freeze_sha256 is None:
+        raise ValueError("a refrozen S01 protocol requires --freeze-sha256")
+    if freeze_sha256 is None:
+        freeze_sha256 = FREEZE_SHA256
+    if re.fullmatch(r"[0-9a-f]{64}", freeze_sha256) is None:
+        raise ValueError("invalid frozen S01 protocol SHA-256")
+    if sha256(freeze) != freeze_sha256:
+        raise ValueError("S01 protocol bytes differ from declared freeze")
+    specification = json.loads(freeze.read_text())
     blocks = planned_blocks(specification)
     if sha256(BLOCK_RUNNER) != specification["block_runner_sha256"]:
         raise ValueError("block runner differs from frozen protocol")
@@ -121,14 +134,14 @@ def run(args: argparse.Namespace) -> None:
         if not artifact["python"].is_file():
             raise ValueError(f"{role} installed Python is unavailable")
     args.output.mkdir(parents=True, exist_ok=False)
-    shutil.copyfile(FREEZE, args.output / "freeze.json")
+    shutil.copyfile(freeze, args.output / "freeze.json")
     shutil.copyfile(Path(__file__), args.output / "campaign.py")
     shutil.copyfile(BLOCK_RUNNER, args.output / "block-runner.py")
     order_path = args.output / "run-order.jsonl"
     for index, block in enumerate(blocks):
         if index:
             time.sleep(specification["minimum_idle_seconds_between_blocks"])
-        if sha256(FREEZE) != FREEZE_SHA256:
+        if sha256(freeze) != freeze_sha256:
             raise ValueError("frozen protocol changed during campaign")
         role = block["role"]
         artifact = artifacts[role]
@@ -151,7 +164,7 @@ def run(args: argparse.Namespace) -> None:
             "--samples",
             str(block["samples"]),
             "--comparison-protocol",
-            str(FREEZE),
+            str(freeze),
             "--role",
             role,
             "--output-dir",
@@ -167,7 +180,7 @@ def run(args: argparse.Namespace) -> None:
             "exit_code": result.returncode,
             "stdout": result.stdout,
             "stderr": result.stderr,
-            "protocol_sha256": FREEZE_SHA256,
+            "protocol_sha256": freeze_sha256,
         }
         if (destination / "attempt.json").is_file():
             attempt = json.loads((destination / "attempt.json").read_text())
@@ -189,6 +202,8 @@ def run(args: argparse.Namespace) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--freeze", type=Path, default=FREEZE)
+    parser.add_argument("--freeze-sha256")
     parser.add_argument("--output", type=Path, required=True)
     for role in ("baseline", "candidate"):
         parser.add_argument(f"--{role}-checkout", type=Path, required=True)

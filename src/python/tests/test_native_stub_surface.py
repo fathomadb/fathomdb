@@ -1,6 +1,9 @@
 """TC-140 — the native stub exposes runtime observability and typed errors."""
 
+from fathomdb import _fathomdb
 from fathomdb._fathomdb import (
+    CudaAllocatorReport,
+    CudaDeviceInfo,
     Engine,
     ErasureIncompleteError,
     IllegalTransitionError,
@@ -60,3 +63,20 @@ def test_native_stub_exposes_runtime_members() -> None:
 
     # `verify` is intentionally type-checked, not invoked: it needs no database.
     assert callable(verify)
+
+
+def test_native_stub_declares_the_cuda_allocator_report() -> None:
+    """0.8.28 Slice 30 (AC30-06): the native CUDA facts carry the allocator report."""
+
+    def verify(info: CudaDeviceInfo) -> None:
+        report: CudaAllocatorReport | None = info.cuda_allocator
+        if report is not None:
+            path: str | None = report.path
+            reason: str = report.reason
+            pool_max_size_bytes: int | None = report.pool_max_size_bytes
+            release_threshold: str | None = report.release_threshold
+            module_load_init: str = report.module_load_init
+            _ = (path, reason, pool_max_size_bytes, release_threshold, module_load_init)
+
+    assert callable(verify)
+    assert _fathomdb.CudaAllocatorReport.__name__ == "CudaAllocatorReport"

@@ -13,23 +13,24 @@ use std::sync::Arc;
 use fathomdb_sdk::{
     admin, embed_batch_cls, graph, read, rerank, ActuationBatchV1, ActuationReceiptV1,
     BoundaryCrossing, ClosureLookupV1, ClosureStatusV1, ConsolidateAxis, ConsolidateReceipt,
-    CounterSnapshot, DependencyDerivedLookupV1, DependencyListV1, DependencySourceLookupV1,
+    CounterSnapshot, CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaDeviceInfo,
+    DependencyDerivedLookupV1, DependencyListV1, DependencySourceLookupV1,
     DependencyTraceRequestV1, DependencyTraceResultV1, DeviceResolution, EmbedderEvent,
     EmbedderIdentity, EmbeddingReadiness, Engine, EngineConfig, EngineError, EngineOpenError,
     EraseReport, Error, ErrorKind, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
     EvidenceSearchResultV1, ExtractDocument, Filter, FilterTerm, FrozenReadContextV1,
     FrozenSearchOptions, GpuAllocationWitness, GraphEvidenceResolveRequestV1, GraphExpandRequestV1,
     GraphExpandResultV1, IdSpace, IdSpaceKind, IngestWithExtractorReceipt, LifecycleState,
-    ListOptions, MigrationStepReport, MutationProjectionStatusRequestV1,
+    ListOptions, MigrationStepReport, ModuleLoadInit, MutationProjectionStatusRequestV1,
     MutationProjectionStatusV1, NeighborsOptions, NodeRecord, OpStoreRow, OpenOptions, OpenReport,
     OperationalStateRecordV1, PageRequestV1, PageV1, Predicate, PreparedWrite,
     ProjectedTextSearchOptions, ProjectionDelta, ProjectionGenerationStatusV1,
-    ProjectionRuntimeStatus, ProjectionSpec, ReadContextV1, ReadView, RerankOptions, RerankPassage,
-    RerankResult, RerankerDeviceResolution, ResolvedEvidenceV1, ResolvedGraphEvidenceV1, Result,
-    RuntimeConfiguration, RuntimeConfigurationError, RuntimeSqliteMode, SearchExpandOptions,
-    SearchExpandResult, SearchFilter, SearchFilterArg, SearchHit, SearchOptions, SearchResult,
-    SourceDependencyRegistrationV1, SourceDependencyV1, SourceId, Subscriber, SubscriberEvent,
-    TextSearchOptions, TraversalDirection, WriteReceipt,
+    ProjectionRuntimeStatus, ProjectionSpec, ReadContextV1, ReadView, ReleaseThreshold,
+    RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution, ResolvedEvidenceV1,
+    ResolvedGraphEvidenceV1, Result, RuntimeConfiguration, RuntimeConfigurationError,
+    RuntimeSqliteMode, SearchExpandOptions, SearchExpandResult, SearchFilter, SearchFilterArg,
+    SearchHit, SearchOptions, SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1,
+    SourceId, Subscriber, SubscriberEvent, TextSearchOptions, TraversalDirection, WriteReceipt,
 };
 
 #[test]
@@ -314,4 +315,30 @@ fn shared_types_are_nameable() {
     named::<DeviceResolution>();
     named::<RerankerDeviceResolution>();
     named::<GpuAllocationWitness>();
+    named::<CudaDeviceInfo>();
+    named::<CudaAllocatorReport>();
+    named::<CudaAllocatorPath>();
+    named::<CudaAllocatorReason>();
+    named::<ReleaseThreshold>();
+    named::<ModuleLoadInit>();
+}
+
+/// 0.8.28 Slice 30 (AC30-06) — the allocator report on an open report's CUDA
+/// facts is readable through the SDK alone.
+#[test]
+fn cuda_allocator_report_is_readable_through_the_sdk() {
+    let info = CudaDeviceInfo::new(0, None, None, None, None, None).with_cuda_allocator(Some(
+        CudaAllocatorReport::new(
+            Some(CudaAllocatorPath::Private),
+            CudaAllocatorReason::PrivatePool,
+            Some(1 << 31),
+            Some(ReleaseThreshold::Zero),
+            ModuleLoadInit::Ran,
+        ),
+    ));
+    let report = info.cuda_allocator.expect("report");
+    assert_eq!(report.path.map(CudaAllocatorPath::as_str), Some("private"));
+    assert_eq!(report.reason.as_str(), "private_pool");
+    assert_eq!(report.release_threshold.map(ReleaseThreshold::as_str), Some("0"));
+    assert_eq!(report.module_load_init.as_str(), "ran");
 }

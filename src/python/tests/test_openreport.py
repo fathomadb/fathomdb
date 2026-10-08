@@ -20,6 +20,7 @@ from types import SimpleNamespace
 
 from fathomdb import Engine
 from fathomdb.engine import _map_open_report
+from fathomdb.types import CudaAllocatorReport
 
 
 def test_open_report_returns_native_fields(db_path: str) -> None:
@@ -127,6 +128,95 @@ def test_open_report_maps_present_auto_cpu_device_resolution() -> None:
     assert resolution.visible_cuda_devices[0].uuid == "GPU-first"
     assert resolution.selected_cuda_uuid is None
     assert resolution.reason == "cuda_probe_failed"
+
+
+def _native_cuda_resolution(cuda_allocator: object) -> SimpleNamespace:
+    return SimpleNamespace(
+        requested_policy="cuda:0",
+        cuda_compiled=True,
+        effective_device=SimpleNamespace(
+            kind="cuda",
+            cuda_device=SimpleNamespace(
+                ordinal=0,
+                uuid="GPU-orin",
+                name="Orin",
+                driver_version=None,
+                compute_capability="8.7",
+                cuda_toolkit_version=None,
+                cuda_allocator=cuda_allocator,
+            ),
+        ),
+        visible_cuda_devices=(),
+        selected_cuda_uuid="GPU-orin",
+        reason=None,
+    )
+
+
+def test_open_report_maps_the_cuda_allocator_report() -> None:
+    """0.8.28 Slice 30 (AC30-06): both CUDA resolutions carry the allocator report."""
+
+    native = SimpleNamespace(
+        schema_version_before=1,
+        schema_version_after=1,
+        migration_steps=[],
+        embedder_warmup_ms=0,
+        query_backend="sqlite",
+        default_embedder=SimpleNamespace(name="test", revision="test", dimension=384),
+        embedder_download_ms=None,
+        embedder_events=[],
+        embedder_mean_centering_required=False,
+        embedder_mean_vec_pinned=False,
+        dense_disabled=False,
+        dense_disabled_reason=None,
+        embedder_device_resolution=_native_cuda_resolution(
+            SimpleNamespace(
+                path="private",
+                reason="private_pool",
+                pool_max_size_bytes=3_221_225_472,
+                release_threshold="max",
+                module_load_init="ran",
+            )
+        ),
+        reranker_device_resolution=_native_cuda_resolution(
+            SimpleNamespace(
+                path=None,
+                reason="not_built",
+                pool_max_size_bytes=None,
+                release_threshold=None,
+                module_load_init="not_at_load",
+            )
+        ),
+        embedder_gpu_allocation_witness=None,
+    )
+
+    report = _map_open_report(native)
+
+    assert report.embedder_device_resolution is not None
+    embedder_device = report.embedder_device_resolution.effective_device.cuda_device
+    assert embedder_device is not None
+    assert embedder_device.cuda_allocator == CudaAllocatorReport(
+        path="private",
+        reason="private_pool",
+        pool_max_size_bytes=3_221_225_472,
+        release_threshold="max",
+        module_load_init="ran",
+    )
+    assert report.reranker_device_resolution is not None
+    reranker_device = report.reranker_device_resolution.effective_device.cuda_device
+    assert reranker_device is not None
+    assert reranker_device.cuda_allocator == CudaAllocatorReport(
+        path=None,
+        reason="not_built",
+        pool_max_size_bytes=None,
+        release_threshold=None,
+        module_load_init="not_at_load",
+    )
+
+    native.embedder_device_resolution = _native_cuda_resolution(None)
+    absent = _map_open_report(native).embedder_device_resolution
+    assert absent is not None
+    assert absent.effective_device.cuda_device is not None
+    assert absent.effective_device.cuda_device.cuda_allocator is None
 
 
 def test_open_report_exposes_absent_gpu_allocation_witness(db_path: str) -> None:

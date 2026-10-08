@@ -424,6 +424,55 @@ mod tests {
         });
     }
 
+    /// 0.8.28 Slice 30 (AC30-06) — the CUDA allocator report reaches Python
+    /// as the stable `as_str()` names, and stays absent when the core has none.
+    #[test]
+    fn cuda_allocator_report_crosses_the_pyo3_boundary() {
+        let base = fathomdb_embedder::CudaDeviceInfo::new(
+            0,
+            Some("GPU-orin".to_string()),
+            Some("Orin".to_string()),
+            None,
+            Some("8.7".to_string()),
+            None,
+        );
+        let private =
+            base.clone().with_cuda_allocator(Some(fathomdb_embedder::CudaAllocatorReport::new(
+                Some(fathomdb_embedder::CudaAllocatorPath::DefaultPool),
+                fathomdb_embedder::CudaAllocatorReason::UnmeasuredClass,
+                Some(2 * (1 << 30)),
+                Some(fathomdb_embedder::ReleaseThreshold::Zero),
+                fathomdb_embedder::ModuleLoadInit::SkippedCpuOnly,
+            )));
+        let mapped = PyCudaDeviceInfo::from_rust(&private)
+            .cuda_allocator
+            .expect("a core report must reach the Python device info");
+        assert_eq!(mapped.path.as_deref(), Some("default_pool"));
+        assert_eq!(mapped.reason, "unmeasured_class");
+        assert_eq!(mapped.pool_max_size_bytes, Some(2 * (1 << 30)));
+        assert_eq!(mapped.release_threshold.as_deref(), Some("0"));
+        assert_eq!(mapped.module_load_init, "skipped_cpu_only");
+
+        let not_built =
+            base.clone().with_cuda_allocator(Some(fathomdb_embedder::CudaAllocatorReport::new(
+                None,
+                fathomdb_embedder::CudaAllocatorReason::NotBuilt,
+                None,
+                None,
+                fathomdb_embedder::ModuleLoadInit::NotAtLoad,
+            )));
+        let mapped = PyCudaDeviceInfo::from_rust(&not_built)
+            .cuda_allocator
+            .expect("a not_built report must reach the Python device info");
+        assert_eq!(mapped.path, None);
+        assert_eq!(mapped.reason, "not_built");
+        assert_eq!(mapped.pool_max_size_bytes, None);
+        assert_eq!(mapped.release_threshold, None);
+        assert_eq!(mapped.module_load_init, "not_at_load");
+
+        assert!(PyCudaDeviceInfo::from_rust(&base).cuda_allocator.is_none());
+    }
+
     /// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the witness crosses the PyO3
     /// boundary with every number the verdict used still present, so a Python
     /// consumer can re-derive the verdict instead of trusting it.

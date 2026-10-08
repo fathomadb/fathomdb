@@ -18,6 +18,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { Engine, mapOpenReport } from "../src/index.js";
+import type { CudaAllocatorReport } from "../src/index.js";
+import { mapDeviceResolution } from "../src/open.js";
 import { freshDbPath } from "./helpers.js";
 
 test("openReport returns the spec-locked native fields", async () => {
@@ -137,6 +139,120 @@ test("openReport maps a present auto-to-CPU device resolution", () => {
   });
   // 0.8.23 Slice 80.6 (D-80.6-6) — a CUDA policy outcome is not a measurement.
   assert.equal(report.embedderGpuAllocationWitness, null);
+});
+
+// 0.8.28 Slice 30 (AC30-06) — the CUDA allocator report reaches the CUDA facts
+// of both device resolutions, and is null when the core reports none.
+test("openReport maps the CUDA allocator report on CUDA device resolutions", () => {
+  const cudaDevice = {
+    ordinal: 0,
+    uuid: "GPU-orin",
+    name: "Orin",
+    driverVersion: null,
+    computeCapability: "8.7",
+    cudaToolkitVersion: null,
+  };
+  const report = mapOpenReport({
+    schemaVersionBefore: 1,
+    schemaVersionAfter: 1,
+    migrationSteps: [],
+    embedderWarmupMs: 0,
+    queryBackend: "sqlite",
+    defaultEmbedder: { name: "test", revision: "test", dimension: 384 },
+    embedderDownloadMs: null,
+    embedderEvents: [],
+    embedderMeanCenteringRequired: false,
+    embedderMeanVecPinned: false,
+    denseDisabled: false,
+    denseDisabledReason: null,
+    embedderDeviceResolution: {
+      requestedPolicy: "cuda:0",
+      cudaCompiled: true,
+      effectiveDevice: {
+        kind: "cuda",
+        cudaDevice: {
+          ...cudaDevice,
+          cudaAllocator: {
+            path: "private",
+            reason: "private_pool",
+            poolMaxSizeBytes: 3_221_225_472,
+            releaseThreshold: "max",
+            moduleLoadInit: "ran",
+          },
+        },
+      },
+      visibleCudaDevices: [],
+      selectedCudaUuid: "GPU-orin",
+      reason: null,
+    },
+    rerankerDeviceResolution: {
+      requestedPolicy: "cuda:0",
+      cudaCompiled: true,
+      effectiveDevice: {
+        kind: "cuda",
+        cudaDevice: {
+          ...cudaDevice,
+          cudaAllocator: {
+            path: null,
+            reason: "not_built",
+            poolMaxSizeBytes: null,
+            releaseThreshold: null,
+            moduleLoadInit: "not_at_load",
+          },
+        },
+      },
+      visibleCudaDevices: [],
+      selectedCudaUuid: "GPU-orin",
+      reason: null,
+    },
+    embedderGpuAllocationWitness: null,
+  });
+
+  const privatePool: CudaAllocatorReport = {
+    path: "private",
+    reason: "private_pool",
+    poolMaxSizeBytes: 3_221_225_472,
+    releaseThreshold: "max",
+    moduleLoadInit: "ran",
+  };
+  assert.deepEqual(
+    report.embedderDeviceResolution?.effectiveDevice.cudaDevice?.cudaAllocator,
+    privatePool,
+  );
+  assert.deepEqual(report.embedderDeviceResolution?.effectiveDevice.cudaDevice?.cudaAllocator, {
+    path: "private",
+    reason: "private_pool",
+    poolMaxSizeBytes: 3_221_225_472,
+    releaseThreshold: "max",
+    moduleLoadInit: "ran",
+  });
+  assert.deepEqual(report.rerankerDeviceResolution?.effectiveDevice.cudaDevice?.cudaAllocator, {
+    path: null,
+    reason: "not_built",
+    poolMaxSizeBytes: null,
+    releaseThreshold: null,
+    moduleLoadInit: "not_at_load",
+  });
+
+  const absent = mapDeviceResolution({
+    requestedPolicy: "cuda:0",
+    cudaCompiled: true,
+    effectiveDevice: { kind: "cuda", cudaDevice: { ...cudaDevice, cudaAllocator: null } },
+    visibleCudaDevices: [],
+    selectedCudaUuid: "GPU-orin",
+    reason: null,
+  });
+  assert.equal(absent.effectiveDevice.cudaDevice?.cudaAllocator, null);
+  // napi omits a `None` field entirely; that also maps to null.
+  const omitted = mapDeviceResolution({
+    requestedPolicy: "cuda:0",
+    cudaCompiled: true,
+    effectiveDevice: { kind: "cuda", cudaDevice },
+    visibleCudaDevices: [],
+    selectedCudaUuid: "GPU-orin",
+    reason: null,
+  });
+  assert.equal(omitted.effectiveDevice.cudaDevice?.cudaAllocator, null);
 });
 
 // 0.8.23 Slice 80.6 (D-80.6-6, AC80-6) — the in-process GPU allocation witness

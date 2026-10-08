@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+  "rust_crates_git_tree": "997b041d87852323a6da18cf824ec18bdc64fec8",
+  "cargo_lock_git_blob": "dbd5b98f621aa0fc8e9bccdd053a56be61ced471",
+  "node_version": "v25.9.0",
+  "build_route": "npm ci --offline; CARGO_TARGET_DIR=/tmp/slice135-ts-224e-target npm run build:native; exact-source installed capability consumer",
+  "native_sha256": "5073e7ecc7dfef733da97cc5ff92be0f128f61741e1bc6ad05093d9d913b5aa2",
+  "main_archive_sha256": "8c8a97fbe26c541cddadfec7f9faef518102307f927ce6b4b095e5da721ca49d",
+  "platform_archive_sha256": "8ce9b8e57b8f8ddf9adb3035822f14d61a4465a6da1e4ad7897d25c892998d6c",
+  "module_sha256": "cc0ea0b2ae641aa5162a223985d9afb5ba1233b073899e66a2847f92f36bf432",
+  "raw_sha256": "e92e2bd512bc02b3fb6d8620ef7d7e1d70f5d7a510832a94345351174d2f754c",
+  "live_audit_sha256": "694cc4357ded0678624fc43a427a31ba4e566504a39bbec211e58dbb62148366",
+  "retained_audit_sha256": "36786a1b6a075fea925e5ac940c0ce448459ec552df725557cc26b5418326df1",
+  "adapted_tests_sha256": "111955de1fa02211336d44150f5796c5b1fdbb490f29715de4c147311e58f978",
+  "s01_smoke_raw_sha256_by_size": {
+    "32": "22b86e56d60f274554b5eb5cf5be8624f6ccbf862cae68feaa7f7d274d9e18be",
+    "256": "f304eb2a5d935c843dae6c5904154d1f68f031640e959c9adc537fccc3785345"
+  },
+  "s02_smoke_summary_sha256": "b2d29bda9537447df0e701be053f009ccbfd5b7f3322ddf533385a41c1131e38"
+}

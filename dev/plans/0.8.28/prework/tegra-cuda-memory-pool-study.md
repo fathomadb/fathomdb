@@ -13,7 +13,7 @@ would count as a pass, before FathomDB decides whether 0.8.28 ships a CUDA
 memory pool on aarch64 Linux (Jetson/Tegra). Nothing here authorizes a product
 change. Shipping any option needs its own 0.8.28 ruling.
 
-## Status (2026-10-07)
+## Status (2026-10-08)
 
 **The `release/0.8.28` copy is the record.** It was brought over from
 the study branch `llm/0.8.28-tegra-pool-study` at `b045489d2` on
@@ -31,11 +31,16 @@ Phase 5.
   - Results are in `dev/plans/runs/0.8.28-pool-study/results.md`: §§ 2–11
     for Phases 0–2, § 12 for Phases 3 and 4, § 13 for the spot check.
   - Owner rulings 12–38 are recorded below, revision 6.
-- **Phase 5 (analysis and the upstream package) is folded into Slice 30**
-  (`dev/plans/0.8.28/features/slice-30/plan.md`, step S30-T9). The
-  upstream shape is prepared in
-  `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md`; nothing is
-  posted without the owner.
+- **Phase 5 (analysis and the upstream package) was done in Slice 30**
+  (`dev/plans/0.8.28/features/slice-30/plan.md`, step S30-T9,
+  2026-10-08):
+  - the decision rule, the UNMEASURED list and what moves to 0.8.29 and
+    0.8.30 are in `dev/plans/runs/0.8.28-pool-study/results.md` § 14;
+  - the upstream package (issue draft, commit series, item statuses,
+    re-read checklist, NVIDIA report addendum) is
+    `dev/plans/0.8.28/features/slice-30/upstream-cudarc-package.md`,
+    built on `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md`.
+    Nothing is posted without the owner.
 - **Finding on this host** (Jetson AGX Orin 64 GB). The private pool
   (P-first-use) passes:
   - **Allocation correctness:** 751/751 private-pool processes in Phases

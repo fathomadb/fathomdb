@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Tegra CUDA memory-pool study — results, Phases 0-4 and the revision-6 spot check
-status: PARTIAL (Phases 0, 1, 1b, 2, 3, 4 and the revision-6 spot check; Phase 5 not started)
+status: COMPLETE (Phases 0, 1, 1b, 2, 3, 4, the revision-6 spot check, and Phase 5 in 0.8.28 Slice 30, 2026-10-08)
 target_release: 0.8.28
 observed_on: 2026-10-06
 ---
@@ -13,7 +13,7 @@ This records Phases 0 and 1 of
 revision 3 (§ 10), Phase 2 of revision 4 (§ 11), and Phases 3 and 4 of
 revision 5 (§ 12), and the revision-6 spot check on the corrected close fix
 (§ 13). It does not rule. Phase 5 (analysis and upstream
-package) was not started. Everything not measured here is marked UNMEASURED.
+package) was done in 0.8.28 Slice 30 (§ 14). Everything not measured here is marked UNMEASURED.
 Statements marked *inferred* are readings of the data, not measurements.
 
 Raw logs stay on the host under `<scratch>/pool-study/logs/<phase>/<series>/`
@@ -2177,3 +2177,115 @@ The engine tests, clippy and the builds ran outside the lock.
      diagnostics.
 6. **The corrected close fix** is on `release/0.8.27` (merge `96796fe04`).
    It ships when that release publishes. The study uses a cherry-pick.
+
+## 14. Phase 5: analysis and adoption (0.8.28 Slice 30)
+
+Phase 5 was folded into 0.8.28 Slice 30, as step S30-T9 of
+`dev/plans/0.8.28/features/slice-30/plan.md` (§ 7). It writes no new
+measurement. It runs the study plan's "Decision rule for 0.8.28" over
+§§ 2–13, records the outcome the owner ruled (rulings 36–38), lists what
+stays UNMEASURED, and says what moves to later releases. The upstream
+package is prepared, not posted, in
+`dev/plans/0.8.28/features/slice-30/upstream-cudarc-package.md`.
+
+Slice 30's own qualification of the product build (gates G1–G10, plan
+§ 4) is a separate record, `dev/plans/runs/0.8.28-slice-30/qualification.md`,
+written by S30-T10b. This section neither anticipates nor reports it.
+
+### 14.1 The decision rule, row by row
+
+The rule makes P-first-use the default, with early `cuInit` at module load
+(ruling 12) and the owner's close fix (ruling 18), if every row below
+holds. Statuses are from the study's own decision tables (§ 5, § 10.8,
+§ 11.11, § 12.8) and the spot check (§ 13).
+
+| Clause | Status | Evidence |
+| --- | --- | --- |
+| C1 provenance | PASS: 200/200, one decision per process; P private 50/50 | § 11.2 |
+| C2 lifetime | PASS on the close fix: 40/40 (§ 12.2); on the corrected fix 20/20, 0.36 MiB per cycle (max 0.44), `reserved_cur` 0 after the last close | § 12.2, § 13.2 |
+| C3 capacity and exhaustion policy | PASS: capacity ceil32(`maxSize`/3), 560/560; policy (i), typed refusal at a sized cap (CB3) | § 3.1, § 11.6 |
+| C4 cuBLAS / cuRAND workspaces | not measured as specified (no attribution of workspace memory). Rerank passed at 3 GiB in every private process (§ 12.7.1). Carried, not re-run (plan § 4.4) | § 12.7.1 |
+| C5 zero-length | PASS: 60/60 null and freeable (C); product suites 9/9 + 1/1 under P | § 10.2, § 11.2 |
+| C6 multi-device | code path only (pure tests); real multi-GPU UNMEASURED | § 11.2 |
+| C7 co-resident reset | FAIL for every variant, the shipped S included: the crash is in `close()` after the reset, 5/5 S and 5/5 P on the corrected fix. Not a pool result. **Ruled by ruling 36** (option C: unsupported in 0.8.28, instrumented; the survival fix in 0.8.29) | § 11.4, § 12.3, § 12.7.4, § 13.4 |
+| C8 parity | PASS: 80/80 Python, hashes and scores identical to Node | § 11.2 |
+| C9 coexistence (ruling 13) | PASS: current pool never the private pool (0/80); co-resident user 30/30 | § 11.2, § 11.5 |
+| R1 synthetic layouts | PASS: 360/360 [98.9, 100] % | § 12.6 |
+| R2, R3 real heaps | PASS: P 150/150 (Node 25), 60/60 (Node 24, 26), R3 60/60 | § 12.6 |
+| R4 late import | P = S without `--import` (all failures are `cuInit`); 30/30 with it. Satisfied by early `cuInit` at module load (rulings 12, 35, 37) | § 12.6, § 10.7 |
+| R5 lazy creation at 3 GiB | PASS: creation 720/720, boundary cells included | § 10.6 |
+| R6 soak | P PASS (n = 1 per arm; the protocol asks 2) | § 12.6 |
+| R7 concurrency | PASS: 280/280 at 2, 4 and 8 processes | § 12.6 |
+| R8 threshold | threshold 0, approved by ruling 30 | § 12.6, § 12.7.2 |
+| R9 other boards | UNMEASURED; kept safe by sizing (§ 14.3) | — |
+| CB1 cap | PASS: primary 290/290 (§ 12.8) and 20/20 (§ 13.2); sanity check weak (ruling 34) | § 12.5, § 13.2 |
+| CB2 trim after close (ruling 20) | PASS at threshold 0: spare < 2 chunks with singletons; `reserved_cur` 0 without them | § 12.7.1, § 13.2 |
+| CB3 typed cap error | PASS (P: 40/40 `cuda_pool_exhausted`); the module-level `rerank()` string gap was closed in Slice 30 (ruling 33) | § 11.6, § 12.8 |
+| CB4 no CPU move | PASS: 60/60 | § 11.6 |
+| Performance gate (Node) | PASS pooled: embed 0.986 [0.907, 1.114] of the default pool; 1.9–4.9× over S-sync; rerank PASS on the re-based reading (ruling 28) | § 12.7.2, § 13.3 |
+| Performance (Python) | P = default pool (0.921 [0.786, 1.006] embed); Python S is never synchronous on this host | § 12.7.2 |
+| Equivalence, P1 | PASS: one hash `d9dafb8c410005f3`; import +0.6 ms [−3.3, 5.8] | § 12.7.3, § 13.3 |
+| Close fix (ruling 18) | the corrected fix (`8247d91a4`, ruling 26) replaces the cherry-pick with the P1 deadlock; C2 and the spot check pass on it | § 12.7.5, § 13.1–13.3 |
+
+**Reading.** Every allocation, release, cap, robustness and performance
+row passes on the AGX Orin 64 GB. C7 fails for every variant, the shipped
+path included, so it does not tell the arms apart; the owner ruled it
+(ruling 36). R4 makes early `cuInit` a precondition, which ruling 37 turns
+into a check-and-fall-back contract. C4 and R6 are below their specified
+form and are carried as recorded (plan § 4.4). No row argues for keeping
+the 0.8.27 synchronous path as the default on this device.
+
+### 14.2 Outcome
+
+**P-first-use is adopted** (ruling 38, D28-08) as the allocator on the
+Jetson AGX Orin 64 GB, with:
+
+- early `cuInit` at module load as the gate, never a refusal (ruling 37):
+  if it was opted out, failed or did not run, the process takes the 0.8.27
+  path and reports why;
+- the owner's corrected close fix (rulings 18 and 26), which ships with
+  0.8.27;
+- release threshold 0 (ruling 30) and the sizing rule of ruling 31;
+- C7 instrumentation, not a fix (ruling 36): context-id detection, typed
+  `cuda_context_lost`, one diagnostic snapshot per process, and the reset
+  probe as a characterization test;
+- typed `cuda_pool_exhausted` on every path in every SDK (ruling 33);
+- the comparison arms, the trim arm and the study diagnostics removed.
+
+The product design is `dev/plans/0.8.28/features/slice-30/design.md`; the
+decision record is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
+
+### 14.3 UNMEASURED
+
+Nothing here was measured; each item is kept safe by the shipped gates
+(design § 2.1) or recorded as a hazard.
+
+- **R9 boards:** no other Jetson board was run.
+  - Orin 32 GB and 16 GB: off in `auto` (`unmeasured_class`) until an
+    on-device C3 and R5 run; 2 GiB under `on`.
+  - Orin 8 GB: off in every mode (`too_small`, SD-2).
+  - Thor: off in `auto` (`unmeasured_class`); 3 GiB under `on`.
+  - GB10-class (aarch64, not Tegra): off in `auto` (`not_tegra`).
+  - GH200 and any discrete GPU: off in every mode (`discrete`). That GH200
+    reports `CU_DEVICE_ATTRIBUTE_INTEGRATED = 0` is not verified.
+- **Real multi-GPU:** pure tests only (C6).
+- **C4 workspace attribution:** not done.
+- **R6 with two processes per arm:** one each.
+- **Python fork hazard H-1:** a `fork`-based child after `import fathomdb`
+  in the Tegra wheel cannot use CUDA. It is documented, not measured; G2
+  of Slice 30's qualification records the forked child's outcome.
+- **Per-version Node default-pool power:** Node 25 and 26 references are
+  underpowered (n = 12 and 5); the pooled reference stands (ruling 29).
+
+### 14.4 Moved to later releases
+
+- **0.8.29: the C7 survival fix** (todo `TC-281155a1`). A co-resident
+  primary-context reset stays unsupported in 0.8.28. The fix is designed
+  from the instrumentation data that Slice 30 ships. Slice 30's
+  characterization test pins today's outcome (`cuda_context_lost`, then a
+  crash at teardown) and the fix flips it.
+- **0.8.30: an explicit release call for the module-level models**
+  (backlog B30-01). Until then the CLS embedder and reranker singletons
+  hold their pool memory until exit (ruling 32).
+- **Upstream cudarc:** the package is prepared; posting needs the owner's
+  sign-off (ruling 38, todo `TC-b8e5fe4d`). 0.8.28 does not wait for it.

@@ -321,7 +321,9 @@ pub fn run_module_load_early_init(
 
 /// The recorded module-load outcome; [`ModuleLoadInit::NotAtLoad`] when the
 /// load hook never ran (always, off aarch64 Linux CUDA builds).
-pub(crate) fn recorded_module_load_init() -> ModuleLoadInit {
+#[doc(hidden)]
+#[must_use]
+pub fn recorded_module_load_init() -> ModuleLoadInit {
     #[cfg(all(
         target_os = "linux",
         target_arch = "aarch64",

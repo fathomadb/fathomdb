@@ -59,7 +59,8 @@ pub use cuda_driver_init::{
 };
 #[doc(hidden)]
 pub use cuda_driver_init::{
-    early_cuda_init_opted_out, early_cuda_init_wanted, ENV_CUDA_EARLY_INIT,
+    early_cuda_init_opted_out, early_cuda_init_wanted, recorded_module_load_init,
+    ENV_CUDA_EARLY_INIT,
 };
 
 // 0.8.23 Slice 80.5 (D-80.5-4) — the Tegra-portable GPU allocation witness.

@@ -37,68 +37,12 @@
         any(feature = "embed-cuda", feature = "rerank-cuda")
     )
 ))]
-use fathomdb_embedder::{EmbedDevicePolicy, RerankerDevicePolicy};
-
-#[cfg(any(
-    test,
-    all(
-        target_os = "linux",
-        target_arch = "aarch64",
-        any(feature = "embed-cuda", feature = "rerank-cuda")
-    )
-))]
 const CUDA_ERROR_OUT_OF_MEMORY: u32 = 2;
 
-/// The environment variable that turns the registration-time `cuInit` off
-/// while keeping CUDA: open then initialises the driver as before.
-#[cfg(all(
-    target_os = "linux",
-    target_arch = "aarch64",
-    any(feature = "embed-cuda", feature = "rerank-cuda")
-))]
-const ENV_CUDA_EARLY_INIT: &str = "FATHOMDB_CUDA_EARLY_INIT";
-
-/// Whether loading the addon should initialise the CUDA driver.
-///
-/// Only an exact `cpu` policy rules CUDA out, using the same parsers as open:
-/// unset means `auto`, and a malformed value is refused at open rather than
-/// here. A component built without CUDA cannot use it whatever its policy.
-#[cfg(any(
-    test,
-    all(
-        target_os = "linux",
-        target_arch = "aarch64",
-        any(feature = "embed-cuda", feature = "rerank-cuda")
-    )
-))]
-fn early_cuda_init_wanted(
-    embed_cuda_compiled: bool,
-    rerank_cuda_compiled: bool,
-    embed_policy: Option<&str>,
-    rerank_policy: Option<&str>,
-) -> bool {
-    let embed_cpu = embed_policy
-        .is_some_and(|raw| matches!(raw.parse::<EmbedDevicePolicy>(), Ok(EmbedDevicePolicy::Cpu)));
-    let rerank_cpu = rerank_policy.is_some_and(|raw| {
-        matches!(raw.parse::<RerankerDevicePolicy>(), Ok(RerankerDevicePolicy::Cpu))
-    });
-    (embed_cuda_compiled && !embed_cpu) || (rerank_cuda_compiled && !rerank_cpu)
-}
-
-/// Whether `FATHOMDB_CUDA_EARLY_INIT` opts out. Only the exact value `off`
-/// does; registration cannot report a malformed value, so anything else
-/// keeps the default.
-#[cfg(any(
-    test,
-    all(
-        target_os = "linux",
-        target_arch = "aarch64",
-        any(feature = "embed-cuda", feature = "rerank-cuda")
-    )
-))]
-fn early_cuda_init_opted_out(raw: Option<&str>) -> bool {
-    raw == Some("off")
-}
+// The load-time decision lives in fathomdb-embedder, shared with the Tegra
+// Python wheel; these names keep this module's tests pinned to it.
+#[cfg(test)]
+use fathomdb_embedder::{early_cuda_init_opted_out, early_cuda_init_wanted};
 
 /// Runs `init` on the first call for `once` only.
 #[cfg(any(
@@ -207,21 +151,14 @@ static EARLY_INIT: std::sync::Once = std::sync::Once::new();
 #[napi_derive::module_exports]
 fn initialize_cuda_driver_at_registration(_exports: napi::JsObject) -> napi::Result<()> {
     register_once(&EARLY_INIT, || {
-        if early_cuda_init_opted_out(std::env::var(ENV_CUDA_EARLY_INIT).ok().as_deref()) {
-            return;
-        }
-        let embed_policy = std::env::var("FATHOMDB_EMBED_DEVICE").ok();
-        let rerank_policy = std::env::var(fathomdb_embedder::ENV_RERANK_DEVICE).ok();
-        if early_cuda_init_wanted(
-            cfg!(feature = "embed-cuda"),
-            cfg!(feature = "rerank-cuda"),
-            embed_policy.as_deref(),
-            rerank_policy.as_deref(),
-        ) {
-            // A panic must not fail module registration; the embedder records
-            // the outcome either way.
-            let _ = std::panic::catch_unwind(fathomdb_embedder::initialize_cuda_driver);
-        }
+        // A panic must not fail module registration; the embedder records
+        // the outcome either way.
+        let _ = std::panic::catch_unwind(|| {
+            fathomdb_embedder::run_module_load_early_init(
+                cfg!(feature = "embed-cuda"),
+                cfg!(feature = "rerank-cuda"),
+            )
+        });
     });
     Ok(())
 }

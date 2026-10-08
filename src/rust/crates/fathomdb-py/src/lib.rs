@@ -143,6 +143,51 @@ mod test_support;
 #[cfg(any(test, feature = "test-hooks"))]
 use test_support::*;
 
+// ===== Tegra early cuInit ==============================================
+
+// The Tegra wheel initialises the CUDA driver when it is imported, so that
+// the private memory pool can be decided at first GPU use (the same hook the
+// Node addon runs at registration). A process imports the module once per
+// interpreter, but sub-interpreters can import it again; the `Once` keeps
+// the call to the first. It never fails the import.
+#[cfg(all(
+    feature = "tegra-pool",
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+static EARLY_CUDA_INIT: std::sync::Once = std::sync::Once::new();
+
+#[cfg(all(
+    feature = "tegra-pool",
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+fn run_early_cuda_init_once() {
+    EARLY_CUDA_INIT.call_once(|| {
+        let _ = std::panic::catch_unwind(|| {
+            fathomdb_embedder::run_module_load_early_init(
+                cfg!(feature = "embed-cuda"),
+                cfg!(feature = "rerank-cuda"),
+            )
+        });
+    });
+}
+
+/// What the import-time `cuInit` did in this process: the stable name of
+/// `fathomdb_embedder::ModuleLoadInit`. Private; only the Tegra wheel has it.
+#[cfg(all(
+    feature = "tegra-pool",
+    target_os = "linux",
+    target_arch = "aarch64",
+    any(feature = "embed-cuda", feature = "rerank-cuda")
+))]
+#[pyfunction]
+fn _cuda_module_load_init() -> &'static str {
+    fathomdb_embedder::recorded_module_load_init().as_str()
+}
+
 // ===== Module =========================================================
 
 // `gil_used = true` preserves current GIL semantics: PyO3 makes
@@ -152,6 +197,20 @@ use test_support::*;
 // campaign — see dev/design/free-threaded-python-value-lift-and-experiments.md.
 #[pymodule(gil_used = true)]
 fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
+    #[cfg(all(
+        feature = "tegra-pool",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    ))]
+    run_early_cuda_init_once();
+    #[cfg(all(
+        feature = "tegra-pool",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    ))]
+    m.add_function(wrap_pyfunction!(_cuda_module_load_init, &m)?)?;
     m.add_class::<PyEngine>()?;
     #[cfg(feature = "test-hooks")]
     m.add_class::<PyWalSnapshotPause>()?;

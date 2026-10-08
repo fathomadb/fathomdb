@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_UNSCORED_BEFORE_PAIRED_RUN",
+  "purpose": "Installed-Python current-schema filter, successful empty result, cursor pagination, typed refusal and reopen matrix",
+  "gold_class": "contract_correctness",
+  "fixture_path": "src/python/tests/functional_search_fixture.json",
+  "fixture_sha256": "3f216e6b4fa1ed2aa8ac44eb67cb07ce38d10437b0603ecd3ca9d9b088d045a2",
+  "authored_sources": {
+    "search_test": {
+      "path": "src/python/tests/test_functional_search.py",
+      "sha256": "996923be660d0479b9dd42343a582a2b6095a1e4632501a94a1cb7bb6e7f3e98"
+    },
+    "page_test": {
+      "path": "src/python/tests/test_slice45_pagination.py",
+      "sha256": "3f046737971bbd9e8ada6b7b7ac447500fb05d0c54b94da84e6170bbeef3fbfd"
+    }
+  },
+  "runner_path": "scripts/slice135_phase2_matrix_runner.py",
+  "runner_sha256": "58ec086bb94ff6bc36d5a0b9a9ffd1655b0b44fbdd38155a7318c86540899fbc",
+  "source_id": "phase2-matrix-source",
+  "logical_id_prefix": "phase2-matrix-",
+  "versions": {
+    "baseline": {
+      "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+      "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282",
+      "native_sha256": "269fafc1c696244d05f2eabea19b23cfba6de79f5041b1123fe10589c46c51dc"
+    },
+    "candidate": {
+      "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+      "wheel_sha256": "ee8b402f76377956034f900ef69f9e3c0296d79ea30d6728dc1283040266f85a",
+      "native_sha256": "1f213a700cf0c96b9997700d6e44ed7019b26fb91df1259bc6514fefb4a8d013"
+    }
+  },
+  "requests": [
+    {"id": "filter_note", "op": "search", "query": "retrieval", "filter": {"kind": "note"}},
+    {"id": "empty_status", "op": "search", "query": "retrieval", "filter": {"status": "open"}},
+    {"id": "page_note", "op": "canonical_page", "kind": "note", "limit": 1},
+    {"id": "invalid_page", "op": "canonical_page", "kind": "note", "limit": 0}
+  ],
+  "gold": {
+    "filter_note": {
+      "kind": "success",
+      "hits": [
+        {
+          "id_space": "logical",
+          "id_value": "phase2-matrix-0",
+          "kind": "note",
+          "body": "alpha structured retrieval document",
+          "branch": "text",
+          "source_id": "phase2-matrix-source"
+        }
+      ]
+    },
+    "empty_status": {"kind": "success", "hits": []},
+    "page_note": {
+      "kind": "success",
+      "pages": [
+        {
+          "items": [
+            {"logical_id": "phase2-matrix-0", "kind": "note", "body": "alpha structured retrieval document"}
+          ],
+          "has_more": true
+        },
+        {
+          "items": [
+            {"logical_id": "phase2-matrix-1", "kind": "note", "body": "beta structured search payload"}
+          ],
+          "has_more": false
+        }
+      ]
+    },
+    "invalid_page": {
+      "kind": "error",
+      "error_type": "PageError",
+      "reason": "invalid_page_limit",
+      "field_path": "/limit"
+    }
+  },
+  "denominator": {
+    "cases_per_version": 4,
+    "reopened_cases_per_version": 4,
+    "canonical_rows_per_version": 4
+  },
+  "scoring_rule": "Each version independently matches every complete predeclared outcome before close and after fresh reopen, including exact hit/page item IDs and order, kind, body, search provenance, page continuation, empty success and typed refusal; persisted canonical rows and integrity also match fixture truth. Any mismatch fails the case.",
+  "omission_rule": "No case or version may be omitted. An unavailable wheel, malformed receipt or incomplete pair invalidates the campaign rather than reducing its denominator.",
+  "license_boundary": "Existing repository-authored synthetic fixture only; no external corpus payload or model calls."
+}

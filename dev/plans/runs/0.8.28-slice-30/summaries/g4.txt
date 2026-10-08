@@ -1,0 +1,12 @@
+G4 node: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  oversize ok flags {False: 5}
+  error {'CudaPoolExhaustedError': 5} code/kind {'FDB_CUDA_POOL_EXHAUSTED': 5}
+  error ordinal {0: 5} maxSize {3221225472: 5}
+  next embed ok {True: 5} sameHash {True: 5} deviceAfter {'cuda': 5} pathAfter {'private/private_pool': 5}
+  PASS: typed CudaPoolExhaustedError, next embed on cuda with the pre-error hash
+G4 py: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  oversize ok flags {False: 5}
+  error {'CudaPoolExhaustedError': 5} code/kind {None: 5}
+  error ordinal {0: 5} maxSize {3221225472: 5}
+  next embed ok {True: 5} sameHash {True: 5} deviceAfter {'cuda': 5} pathAfter {'private/private_pool': 5}
+  PASS: typed CudaPoolExhaustedError, next embed on cuda with the pre-error hash

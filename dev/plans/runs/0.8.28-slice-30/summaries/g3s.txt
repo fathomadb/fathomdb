@@ -1,0 +1,6 @@
+G3 control, pool off, node: n=10 outcomes {'pass': 10} exit codes {0: 10} cycles=100; paths {('synchronous/mode_off',): 6, ('default_pool/mode_off',): 4}
+  VmRSS growth per cycle (cycles 2..N), MiB: median 0.200 max 0.222 (n=10), all [0.173, 0.181, 0.185, 0.187, 0.198, 0.202, 0.203, 0.206, 0.211, 0.222]
+  MemAvailable drop beforeOpen->afterIdle MiB median 266 (range -240..1198); process RSS rise median 383 MiB
+G3 control, pool off, py: n=10 outcomes {'pass': 10} exit codes {0: 10} cycles=50; paths {('default_pool/mode_off',): 10}
+  VmRSS growth per cycle (cycles 2..N), MiB: median 0.400 max 0.416 (n=10), all [0.234, 0.361, 0.363, 0.39, 0.395, 0.405, 0.409, 0.41, 0.415, 0.416]
+  MemAvailable drop beforeOpen->afterIdle MiB median 225 (range 192..273); process RSS rise median 391 MiB

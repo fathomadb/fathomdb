@@ -1,0 +1,46 @@
+G2 node-earlyoff: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  allocator path/reason {'default_pool/cuinit_opted_out': 3, 'synchronous/cuinit_opted_out': 2}
+  moduleLoadInit {'opted_out': 5}
+  device {'cuda': 5} reason {None: 5}
+  PASS: 5/5 opened and embedded (never refused), none private
+G2 node-invalid: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  allocator path/reason {'synchronous/invalid_setting': 4, 'default_pool/invalid_setting': 1}
+  moduleLoadInit {'ran': 5}
+  device {'cuda': 5} reason {None: 5}
+  PASS: 5/5 opened and embedded (never refused), none private
+G2 node-late4m: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  allocator path/reason {'none': 5}
+  moduleLoadInit {None: 5}
+  device {'cpu': 5} reason {'cuda_probe_failed': 5}
+  PASS: 5/5 opened and embedded (never refused), none private
+G2 node-late4m-S: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  allocator path/reason {'none': 5}
+  moduleLoadInit {None: 5}
+  device {'cpu': 5} reason {'cuda_probe_failed': 5}
+  PASS: 5/5 opened and embedded (never refused), none private
+G2 node-modeoff: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  allocator path/reason {'default_pool/mode_off': 2, 'synchronous/mode_off': 3}
+  moduleLoadInit {'ran': 5}
+  device {'cuda': 5} reason {None: 5}
+  PASS: 5/5 opened and embedded (never refused), none private
+G2 py-earlyoff: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  allocator path/reason {'default_pool/cuinit_opted_out': 5}
+  moduleLoadInit {'opted_out': 5}
+  device {'cuda': 5} reason {None: 5}
+  PASS: 5/5 opened and embedded (never refused), none private
+G2 py-fork-hook: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  child (ok, device, error kind, allocator reason): {(False, None, 'cuda_probe_failed', None): 5}
+  parent moduleLoadInit at import {'ran': 5}
+G2 py-fork-nohook: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  child (ok, device, error kind, allocator reason): {(True, 'cuda', None, 'cuinit_opted_out'): 5}
+  parent moduleLoadInit at import {'opted_out': 5}
+G2 py-invalid: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  allocator path/reason {'default_pool/invalid_setting': 5}
+  moduleLoadInit {'ran': 5}
+  device {'cuda': 5} reason {None: 5}
+  PASS: 5/5 opened and embedded (never refused), none private
+G2 py-modeoff: n=5 outcomes {'pass': 5} exit codes {0: 5}
+  allocator path/reason {'default_pool/mode_off': 5}
+  moduleLoadInit {'ran': 5}
+  device {'cuda': 5} reason {None: 5}
+  PASS: 5/5 opened and embedded (never refused), none private

@@ -1,0 +1,9 @@
+G8 node: outcome pass iterations 14311 errors 0 mismatches 0 aborted None allocator private/private_pool
+  samples 20; RSS first-5-min high 829 MiB, max 930, last 930; late-5 median 914 vs first-5 median 825 (drift 10.8 %)
+  swap MiB max 0.0; MemAvailable MiB min 54689; embed ms first 19.2 last 22.2
+  FAIL: no allocator error; RSS within 10 % of the first-5-minute high (+12.2 %); drift +10.8 % < 10 %
+G8 py: outcome pass iterations 24977 errors 0 mismatches 0 aborted None allocator private/private_pool
+  samples 20; RSS first-5-min high 722 MiB, max 737, last 737; late-5 median 735 vs first-5 median 720 (drift 2.1 %)
+  swap MiB max 0.0; MemAvailable MiB min 54677; embed ms first 16.0 last 21.3
+  PASS: no allocator error; RSS within 10 % of the first-5-minute high (+2.1 %); drift +2.1 % < 10 %
+  UNMEASURED: reserved memory (pool counters are not exposed); RSS and system MemAvailable stand in.

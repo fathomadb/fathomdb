@@ -1,0 +1,11 @@
+run-001 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=12.6 import_ms=154.9 wall=9906
+run-002 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=13.9 import_ms=152.1 wall=9856
+run-003 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=11.5 import_ms=151.1 wall=9567
+run-004 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=12.8 import_ms=148.9 wall=9607
+run-005 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=13.1 import_ms=146.8 wall=9859
+run-006 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=11.0 import_ms=147.7 wall=9691
+run-007 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=15.2 import_ms=147.2 wall=10129
+run-008 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=11.3 import_ms=150.7 wall=9789
+run-009 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=15.3 import_ms=153.7 wall=10060
+run-010 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=14.6 import_ms=148.3 wall=10086
+STOP floor-or-power after run 010: {"utc":"2026-10-08T20:30:15.552Z","memAvailableKiB":54935488,"swapUsedKiB":647936,"swapBaseKiB":645888,"noSwap":1,"cachedKiB":49431768,"loadAvg1":1.08,"gpuLoad":0,"gpuIdleBefore":null,"busy":"364850:cargo 507907:cargo "}

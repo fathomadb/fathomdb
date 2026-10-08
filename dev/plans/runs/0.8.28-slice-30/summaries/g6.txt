@@ -1,0 +1,8 @@
+G6 node-heap4000000: n=20 outcomes {'pass': 20} exit codes {0: 20}
+  allocator {'private/private_pool': 20} later reports {'private/private_pool': 40}
+  heapObjects {4000000: 20} heapUsedMiB median 645.0
+  PASS: 20/20 [83.9, 100.0] % private path held through growth, second embed and rerank
+G6 node-heap8000000: n=20 outcomes {'pass': 20} exit codes {0: 20}
+  allocator {'private/private_pool': 20} later reports {'private/private_pool': 40}
+  heapObjects {8000000: 20} heapUsedMiB median 1216.5
+  PASS: 20/20 [83.9, 100.0] % private path held through growth, second embed and rerank

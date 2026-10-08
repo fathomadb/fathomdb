@@ -1,0 +1,14 @@
+G1 node: n=20 outcomes {'pass': 20} exit codes {0: 20}
+  allocator path/reason {'private/private_pool': 20}
+  poolMaxSizeBytes {3221225472: 20}
+  releaseThreshold {'0': 20}
+  moduleLoadInit {'ran': 20}
+  reranker allocator {"{'path': 'private', 'reason': 'private_pool', 'poolMaxSizeBytes': 3221225472, 'releaseThreshold': '0', 'moduleLoadInit': 'ran'}": 20}
+  PASS: 20/20 [83.9, 100.0] % pass, every report private/3 GiB
+G1 py: n=20 outcomes {'pass': 20} exit codes {0: 20}
+  allocator path/reason {'private/private_pool': 20}
+  poolMaxSizeBytes {3221225472: 20}
+  releaseThreshold {'0': 20}
+  moduleLoadInit {'ran': 20}
+  reranker allocator {'None': 20}
+  PASS: 20/20 [83.9, 100.0] % pass, every report private/3 GiB

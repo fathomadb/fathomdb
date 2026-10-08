@@ -1,0 +1,6 @@
+run-000 rc=0 outcome=pass step=None path=private reason=private_pool init=ran steady_med=13.5 import_ms=161.4 wall=1903
+run-001 rc=0 outcome=pass step=None path=private reason=private_pool init=ran steady_med=10.1 import_ms=162.4 wall=1845
+run-002 rc=0 outcome=pass step=None path=private reason=private_pool init=ran steady_med=9.9 import_ms=164.5 wall=1880
+run-003 rc=0 outcome=pass step=None path=private reason=private_pool init=ran steady_med=14.1 import_ms=151.1 wall=1822
+run-004 rc=0 outcome=pass step=None path=private reason=private_pool init=ran steady_med=13.7 import_ms=159.3 wall=1860
+run-005 rc=0 outcome=pass step=None path=private reason=private_pool init=ran steady_med=13.5 import_ms=159.3 wall=1885

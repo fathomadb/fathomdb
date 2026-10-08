@@ -1,0 +1,11 @@
+run-000 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=158.7 wall=50507
+run-001 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=160.0 wall=50565
+run-002 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=163.1 wall=52697
+run-003 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=155.7 wall=50561
+run-004 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=154.0 wall=49520
+run-005 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=154.9 wall=50869
+run-006 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=153.4 wall=48580
+run-007 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=163.9 wall=54173
+run-008 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=159.6 wall=48577
+run-009 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=166.1 wall=48771
+run-010 rc=0 outcome=pass step=None path=None reason=None init=None steady_med=None import_ms=158.6 wall=50790

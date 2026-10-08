@@ -1,0 +1,9 @@
+G7 k2: n=10 outcomes {'pass': 10} exit codes {0: 10} paths {'private/private_pool': 10}
+  min MemAvailable across trials GiB: 54.7
+  PASS: no failure or OOM kill; 10/10 processes
+G7 k4: n=20 outcomes {'pass': 20} exit codes {0: 20} paths {'private/private_pool': 20}
+  min MemAvailable across trials GiB: 54.3
+  PASS: no failure or OOM kill; 20/20 processes
+G7 k8: n=40 outcomes {'pass': 40} exit codes {0: 40} paths {'private/private_pool': 40}
+  min MemAvailable across trials GiB: 51.9
+  PASS: no failure or OOM kill; 40/40 processes

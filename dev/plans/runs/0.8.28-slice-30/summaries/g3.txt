@@ -1,0 +1,11 @@
+G3 node: n=10 outcomes {'pass': 10} exit codes {0: 10} cycles=100
+  VmRSS growth per cycle (cycles 2..N), MiB: median 0.214 max 0.237 (n=10), all [0.192, 0.2, 0.206, 0.21, 0.214, 0.215, 0.217, 0.218, 0.23, 0.237]
+  cycle allocator paths {('private/private_pool',): 10}
+  MemAvailable drop beforeOpen->afterIdle MiB median 235 (range 197..271); process RSS rise median 393 MiB
+  PASS: all cycles private; growth median 0.214 <= 0.36, max 0.237 <= 0.44
+G3 py: n=10 outcomes {'pass': 10} exit codes {0: 10} cycles=50
+  VmRSS growth per cycle (cycles 2..N), MiB: median 0.400 max 0.429 (n=10), all [0.378, 0.383, 0.387, 0.39, 0.396, 0.403, 0.413, 0.42, 0.422, 0.429]
+  cycle allocator paths {('private/private_pool',): 10}
+  MemAvailable drop beforeOpen->afterIdle MiB median 238 (range 199..259); process RSS rise median 391 MiB
+  FAIL: all cycles private; growth median 0.400 <= 0.36, max 0.429 <= 0.44
+  UNMEASURED: reserved_cur after the last close (the product does not expose pool counters); see the system-level residue above.

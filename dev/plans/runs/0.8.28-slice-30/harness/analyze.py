@@ -156,6 +156,20 @@ def g3(root: str) -> None:
     print("  UNMEASURED: reserved_cur after the last close (the product does not expose pool counters); see the system-level residue above.")
 
 
+def g3s(root: str) -> None:
+    for lang, cycles in (("node", 100), ("py", 50)):
+        rs = runs(f"{root}/g3s/{lang}")
+        gr = sorted(g for g in (growth(r.get("cyclesRssMiB") or []) for r in rs) if g is not None)
+        print(f"G3 control, pool off, {lang}: {outcome_line(rs)} cycles={cycles}; paths {dict(Counter(tuple(r.get('cyclePaths') or []) for r in rs))}")
+        print(f"  VmRSS growth per cycle (cycles 2..N), MiB: median {med(gr):.3f} max {max(gr) if gr else float('nan'):.3f} (n={len(gr)}), all {[round(x, 3) for x in gr]}")
+        resid = [
+            (r["mem"]["points"]["beforeOpen"]["memAvailMiB"] - r["mem"]["points"]["afterIdle"]["memAvailMiB"], r["mem"]["points"]["afterIdle"]["rssMiB"] - r["mem"]["points"]["beforeOpen"]["rssMiB"])
+            for r in rs if "afterIdle" in r["mem"]["points"]
+        ]
+        if resid:
+            print(f"  MemAvailable drop beforeOpen->afterIdle MiB median {med([a for a, _ in resid]):.0f} (range {min(a for a, _ in resid):.0f}..{max(a for a, _ in resid):.0f}); process RSS rise median {med([b for _, b in resid]):.0f} MiB")
+
+
 def g4(root: str) -> None:
     for lang in ("node", "py"):
         rs = runs(f"{root}/g4/{lang}")
@@ -228,8 +242,8 @@ def g7(root: str) -> None:
         verdict(ok, f"no failure or OOM kill; {sum(r.get('outcome') == 'pass' for r in rs)}/{len(rs)} processes")
 
 
-def g8(root: str) -> None:
-    rs = runs(f"{root}/g8")
+def g8(root: str, d: str = "g8") -> None:
+    rs = runs(f"{root}/{d}")
     for r in rs:
         lang = "node" if "node" in r else "py"
         soak = r.get("soak") or {}
@@ -272,8 +286,11 @@ def per_process(r: dict) -> dict[str, float]:
 
 
 def collect(d: str, only_path: str | None = None) -> dict[str, list[float]]:
+    """Per-process measures of one cell; a Node cell is pooled over every
+    g9/node* directory (a stopped series continues in node2, node3)."""
     acc: dict[str, list[float]] = {}
-    for r in runs(d):
+    dirs = sorted(glob.glob(d.replace("/g9/node/", "/g9/node*/"))) if "/g9/node/" in d else [d]
+    for r in (r for x in dirs for r in runs(x)):
         if r.get("outcome") != "pass":
             continue
         if only_path and (r.get("allocator") or {}).get("path") != only_path:
@@ -288,8 +305,7 @@ def g9(root: str) -> None:
     py = f"{root}/g9/py"
     for lang, cells in (("node", ("prodP", "studyP", "S")), ("py", ("pyP", "pyS"))):
         for c in cells:
-            d = f"{root}/g9/{lang}/{c}"
-            rs = runs(d)
+            rs = [r for x in sorted(glob.glob(f"{root}/g9/{lang}*/{c}")) for r in runs(x)]
             if rs:
                 print(f"G9 {lang} {c}: {outcome_line(rs)} paths {dict(Counter(alloc_key(r) for r in rs))}")
     p = collect(f"{node}/prodP")
@@ -346,7 +362,7 @@ def g9(root: str) -> None:
             verdict(ip - i_s <= cuinit + 5, "Python import <= S + measured cuInit + 5 ms (SD-4)")
 
 
-GATES = {"g1": g1, "g2": g2, "g3": g3, "g4": g4, "g5": g5, "g6": g6, "g7": g7, "g8": g8, "g9": g9}
+GATES = {"g8s": lambda root: g8(root, "g8s"), "g3s": g3s, "g1": g1, "g2": g2, "g3": g3, "g4": g4, "g5": g5, "g6": g6, "g7": g7, "g8": g8, "g9": g9}
 
 if __name__ == "__main__":
     GATES[sys.argv[2]](sys.argv[1])

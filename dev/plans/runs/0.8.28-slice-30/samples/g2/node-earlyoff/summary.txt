@@ -1,0 +1,6 @@
+run-000 rc=0 outcome=pass step=None path=synchronous reason=cuinit_opted_out init=opted_out steady_med=25.2 import_ms=29.3 wall=1389
+run-001 rc=0 outcome=pass step=None path=default_pool reason=cuinit_opted_out init=opted_out steady_med=14.7 import_ms=29.9 wall=1239
+run-002 rc=0 outcome=pass step=None path=synchronous reason=cuinit_opted_out init=opted_out steady_med=26.3 import_ms=30.0 wall=1381
+run-003 rc=0 outcome=pass step=None path=synchronous reason=cuinit_opted_out init=opted_out steady_med=24.3 import_ms=29.4 wall=1350
+run-004 rc=0 outcome=pass step=None path=default_pool reason=cuinit_opted_out init=opted_out steady_med=9.6 import_ms=30.9 wall=1211
+run-005 rc=0 outcome=pass step=None path=default_pool reason=cuinit_opted_out init=opted_out steady_med=10.7 import_ms=30.5 wall=1174

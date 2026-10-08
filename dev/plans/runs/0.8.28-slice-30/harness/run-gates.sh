@@ -72,6 +72,11 @@ case $gate in
     (base_env; use_node; export CONSUMER_MODE=cycles CYCLES=100 IDLE_AFTER_CLOSE_S=10; ser node-cycles "$(n 10)" g3/node)
     (base_env; use_py "$PY_W1"; export CONSUMER_MODE=cycles CYCLES=50 IDLE_AFTER_CLOSE_S=10; ser py-cycles "$(n 10)" g3/py)
     ;;
+  g3s)
+    # Attribution control for G3: the same cycles with the pool off.
+    (base_env; use_node; export CONSUMER_MODE=cycles CYCLES=100 IDLE_AFTER_CLOSE_S=10 FATHOMDB_POOL_MODE=off; ser node-cycles-S "$(n 10)" g3s/node)
+    (base_env; use_py "$PY_W1"; export CONSUMER_MODE=cycles CYCLES=50 IDLE_AFTER_CLOSE_S=10 FATHOMDB_POOL_MODE=off; ser py-cycles-S "$(n 10)" g3s/py)
+    ;;
   g4)
     (base_env; use_node; export CONSUMER_MODE=full OVERSIZE_BATCH=128 FATHOMDB_POOL_MAXSIZE=3221225472 EXPECT_PATH=private
       ser node-oversize "$(n 5)" g4/node)
@@ -106,6 +111,12 @@ case $gate in
     (base_env; use_node; export PYTHON="$PY_W1" CONSUMER_MODE=soak SOAK_SECONDS="$soak_s" QUAL_RUN_TIMEOUT_S=$((soak_s + 600)) NO_SWAP=1 EXPECT_PATH=private
       QUAL_LABEL=g8 flock "$lock" bash "$here/concurrent-runner.sh" 1 "$out/g8" node py)
     ;;
+  g8s)
+    # Attribution control for G8: the same soak with the pool off (the Node
+    # and Python processes still run together).
+    (base_env; use_node; export PYTHON="$PY_W1" CONSUMER_MODE=soak SOAK_SECONDS="$soak_s" QUAL_RUN_TIMEOUT_S=$((soak_s + 600)) NO_SWAP=1 FATHOMDB_POOL_MODE=off
+      QUAL_LABEL=g8s flock "$lock" bash "$here/concurrent-runner.sh" 1 "$out/g8s" node py)
+    ;;
   g9)
     # Performance: randomised interleaved blocks, no-swap condition, strict
     # quiet check. Node 25: product P, study P, S. Python (rerank-cuda wheel):
@@ -130,9 +141,16 @@ case $gate in
       echo "pyimpS py 25.9.0 $PY_W2 $py_art CONSUMER_MODE=import,FATHOMDB_POOL_MODE=off,FATHOMDB_CUDA_EARLY_INIT=off"
       echo "pyimpI py 25.9.0 $PY_W2 $py_art CONSUMER_MODE=import,FATHOMDB_POOL_MODE=off"
     } >"$SCRATCH/g9-pyimp.tsv"
-    (base_env; flock "$lock" bash "$here/interleave.sh" "$SCRATCH/g9-node.tsv" "$(n 20)" 20261081 "$out/g9/node")
-    (base_env; flock "$lock" bash "$here/interleave.sh" "$SCRATCH/g9-py.tsv" "$(n 20)" 20261082 "$out/g9/py")
-    (base_env; flock "$lock" bash "$here/interleave.sh" "$SCRATCH/g9-pyimp.tsv" "$(n 20)" 20261083 "$out/g9/pyimp")
+    # G9_PARTS picks the interleaved series (node, py, pyimp); G9_NODE_DIR and
+    # G9_NODE_SEED let a stopped Node series continue in a new directory.
+    for part in ${G9_PARTS:-node py pyimp}; do
+      case $part in
+        node) (base_env; flock "$lock" bash "$here/interleave.sh" "$SCRATCH/g9-node.tsv" "$(n 20)" "${G9_NODE_SEED:-20261081}" "$out/g9/${G9_NODE_DIR:-node}") ;;
+        py) (base_env; flock "$lock" bash "$here/interleave.sh" "$SCRATCH/g9-py.tsv" "$(n 20)" 20261082 "$out/g9/py") ;;
+        pyimp) (base_env; flock "$lock" bash "$here/interleave.sh" "$SCRATCH/g9-pyimp.tsv" "$(n 20)" 20261083 "$out/g9/pyimp") ;;
+        *) echo "unknown G9 part $part" >&2 ;;
+      esac
+    done
     ;;
   *)
     echo "unknown gate $gate" >&2

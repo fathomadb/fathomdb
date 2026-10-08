@@ -1,0 +1,14 @@
+G5 node: P n=20 S n=20
+  embedSha: P {'"d9dafb8c410005f3"': 20} ; S {'"d9dafb8c410005f3"': 20}
+  clsSha: P {'null': 20} ; S {'null': 20}
+  rerankScores: P {'[9.954336737870562e-06, 0.9979814299391018]': 20} ; S {'[9.954336737870562e-06, 0.9979814299391018]': 20}
+  S paths {'synchronous/mode_off': 15, 'default_pool/mode_off': 5}
+  PASS: node: embedding hash , rerank scores identical P vs S
+G5 py: P n=20 S n=20
+  embedSha: P {'"d9dafb8c410005f3"': 20} ; S {'"d9dafb8c410005f3"': 20}
+  clsSha: P {'"a0cdfdfecb115b33"': 20} ; S {'"a0cdfdfecb115b33"': 20}
+  rerankScores: P {'[null, null]': 20} ; S {'[null, null]': 20}
+  S paths {'default_pool/mode_off': 20}
+  PASS: py: embedding hash, cls hash identical P vs S
+G5 py rerank-cuda wheel (G9 series): P n=20 S n=20 rerank score sets {'[9.954336737870562e-06, 0.9979814299391018]'} embed hashes {'d9dafb8c410005f3'}
+  PASS: py (rerank-cuda wheel): rerank scores and embedding hash identical P vs S

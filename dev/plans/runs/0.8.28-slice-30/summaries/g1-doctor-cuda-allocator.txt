@@ -1,0 +1,9 @@
+auto device policy, 20 runs of the CLI built with embed-cuda,rerank-cuda,tegra-pool:
+     20 {"schema_version":"fathomdb.doctor.cuda-allocator.v1","built":true,"module_load_init":"ran","mode":"auto","path":"private","reason":"private_pool","pool_max_size_bytes":3221225472,"release_threshold":"0","cuda_context_state":{"state":"active","flags":0}}
+
+mode off, 5 runs:
+      5 {"schema_version":"fathomdb.doctor.cuda-allocator.v1","built":true,"module_load_init":"ran","mode":"off","path":"default_pool","reason":"mode_off","pool_max_size_bytes":null,"release_threshold":null,"cuda_context_state":{"state":"active","flags":0}}
+invalid setting, 5 runs:
+      5 {"schema_version":"fathomdb.doctor.cuda-allocator.v1","built":true,"module_load_init":"ran","mode":"bogus","path":"default_pool","reason":"invalid_setting","pool_max_size_bytes":null,"release_threshold":null,"cuda_context_state":{"state":"active","flags":0}}
+early init off, 5 runs:
+      5 {"schema_version":"fathomdb.doctor.cuda-allocator.v1","built":true,"module_load_init":"opted_out","mode":"auto","path":"default_pool","reason":"cuinit_opted_out","pool_max_size_bytes":null,"release_threshold":null,"cuda_context_state":{"state":"active","flags":0}}

@@ -1,0 +1,33 @@
+G9 node prodP: n=39 outcomes {'pass': 39} exit codes {0: 39} paths {'private/private_pool': 39}
+G9 node studyP: n=40 outcomes {'pass': 40} exit codes {0: 40} paths {'none': 40}
+G9 node S: n=39 outcomes {'pass': 39} exit codes {0: 39} paths {'synchronous/mode_off': 32, 'default_pool/mode_off': 7}
+G9 py pyP: n=20 outcomes {'pass': 20} exit codes {0: 20} paths {'private/private_pool': 20}
+G9 py pyS: n=20 outcomes {'pass': 20} exit codes {0: 20} paths {'default_pool/mode_off': 20}
+
+Node 25 (medians of per-process medians, ms; n P=39, studyP=40, S=39, S-sync=32)
+measure      prodP    studyP         S     Ssync  prodP/studyP [CI]            S/prodP [CI] (all S)        Ssync/prodP [CI]
+embed        12.72     13.04     24.49     24.56  0.975 [0.840, 1.139]   1.93 [1.74, 2.19]   1.93 [1.74, 2.19]
+    NOTE embed: CI upper 1.139 > 1.10 (plan: double N once)
+b1            8.30      8.36     23.35     23.38  0.993 [0.985, 1.004]   2.81 [2.78, 2.83]   2.82 [2.79, 2.84]
+b8           12.51     12.61     37.68     37.88  0.992 [0.904, 1.054]   3.01 [2.93, 3.09]   3.03 [2.94, 3.11]
+b32          30.52     30.29    127.52    127.79  1.008 [1.000, 1.080]   4.18 [4.14, 4.20]   4.19 [4.17, 4.21]
+b128         84.15     84.23    409.14    409.29  0.999 [0.996, 1.001]   4.86 [4.85, 4.88]   4.86 [4.86, 4.89]
+rerank        3.68      3.65      5.63      5.64  1.008 [0.977, 1.039]   1.53 [1.49, 1.56]   1.53 [1.49, 1.57]
+  PASS: Node product/study-P <= 1.05 per measure
+  FAIL: Node speed-up over S > 1.5 (CI lower bound; S-sync subset where present, else all S)
+Node import: P 159.9 ms, S 160.0 ms, diff -0.1 [-2.7, 2.8]
+  PASS: Node import <= S + 5 ms (point estimate)
+Node peak RSS: P 792 MiB, S 770 MiB, diff 21.5 [20.3, 23.0]
+  PASS: Node RSS <= S + 32 MiB (point estimate)
+
+Python (rerank-cuda wheel; n P=20, S=20); S = pool off and early cuInit off
+embed    P    15.49 S    15.57  P/S 0.995 [0.865, 1.128]
+b1       P     7.86 S     7.82  P/S 1.005 [1.000, 1.009]
+b8       P     8.61 S     8.62  P/S 0.998 [0.985, 1.018]
+b32      P    16.04 S    16.05  P/S 0.999 [0.997, 1.002]
+b128     P    56.01 S    56.03  P/S 1.000 [0.998, 1.001]
+rerank   P     3.98 S     4.05  P/S 0.984 [0.964, 0.997]
+  PASS: Python P/S <= 1.15 per measure (point estimate)
+Python import (n=20 each): P 279.6 ms, S(no hook) 255.0 ms, I(hook, pool off) 279.9 ms; measured cuInit cost 24.9 ms
+  P - S 24.7 [20.2, 26.3] ms; allowed S + cuInit + 5 = 29.9 ms
+  PASS: Python import <= S + measured cuInit + 5 ms (SD-4)

@@ -1,0 +1,6 @@
+run-000 rc=0 outcome=pass step=None path=synchronous reason=invalid_setting init=ran steady_med=24.7 import_ms=166.3 wall=1338
+run-001 rc=0 outcome=pass step=None path=synchronous reason=invalid_setting init=ran steady_med=24.7 import_ms=158.2 wall=1318
+run-002 rc=0 outcome=pass step=None path=default_pool reason=invalid_setting init=ran steady_med=9.8 import_ms=153.9 wall=1168
+run-003 rc=0 outcome=pass step=None path=synchronous reason=invalid_setting init=ran steady_med=25.0 import_ms=166.9 wall=1300
+run-004 rc=0 outcome=pass step=None path=synchronous reason=invalid_setting init=ran steady_med=24.6 import_ms=156.5 wall=1282
+run-005 rc=0 outcome=pass step=None path=synchronous reason=invalid_setting init=ran steady_med=24.9 import_ms=158.8 wall=1358

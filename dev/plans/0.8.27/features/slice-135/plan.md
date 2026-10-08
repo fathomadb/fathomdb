@@ -688,6 +688,9 @@ SDK exercise remain open.
   `8c2455b6c`; the tests hit all 888 workload-hit engine branch IDs and
   8,120 of 8,133 workload-hit lines. Expand beyond this selected engine
   overlay to the full operation mix and binding boundaries.
+  The [current-wheel installed Python S01 smoke](results/2026-10-08-python-s01-current-smoke/README.md)
+  passed both corpus sizes, and its [replacement paired subset](s01-python-current-comparison-protocol.json)
+  is frozen before candidate timing. The paired current-wheel run is open.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

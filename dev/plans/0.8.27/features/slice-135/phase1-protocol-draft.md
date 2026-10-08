@@ -55,6 +55,13 @@ passed all 20 blocks and 60,120 independently checked calls. At 32 rows,
 vector-bearing p50 decreased in all five pairs; 256-row signs vary. Four
 blocks have host-only paging warnings, and engine and SDK call boundaries
 must be interpreted separately.
+The [current-wheel Python S01 smoke](results/2026-10-08-python-s01-current-smoke/README.md)
+then passed 32- and 256-row installed functional checks on source `d465cd56d`.
+The [replacement S01 paired subset](s01-python-current-comparison-protocol.json)
+freezes the same workload and schedule with the new exact wheel hash before
+current-wheel candidate timing. Product engine/Python trees and `Cargo.lock`
+match the later Slice 135 branch; this subset remains separate from the full
+Phase 1 protocol.
 
 The [baseline-only installed-TypeScript S01 noise pilot](results/2026-10-07-ts-s01-noise-pilot/README.md)
 now has five 100-warm-call blocks per corpus size, retained npm archives,

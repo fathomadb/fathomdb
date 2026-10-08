@@ -1057,9 +1057,13 @@ mutate_tegra_pool src/rust/crates/fathomdb-napi/Cargo.toml \
   'default-reranker = ["fathomdb-engine/default-reranker", "tegra-pool"]' \
   'rejects tegra-pool reached through a default N-API feature'
 mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
-  "CUDA_PYTHON_FEATURES_TEGRA='pyo3/extension-module,embed-cuda,tegra-pool'" \
-  "CUDA_PYTHON_FEATURES_TEGRA='pyo3/extension-module,embed-cuda'" \
+  "CUDA_PYTHON_FEATURES_TEGRA='pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool'" \
+  "CUDA_PYTHON_FEATURES_TEGRA='pyo3/extension-module,embed-cuda,rerank-cuda'" \
   'rejects a Tegra CUDA Python feature set without tegra-pool'
+mutate_tegra_pool scripts/release/cuda-artifact-contract.sh \
+  "CUDA_PYTHON_FEATURES_TEGRA='pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool'" \
+  "CUDA_PYTHON_FEATURES_TEGRA='pyo3/extension-module,embed-cuda,tegra-pool'" \
+  'rejects a Tegra CUDA Python feature set without rerank-cuda'
 mutate_tegra_pool scripts/release/build-python-cuda-tegra.sh \
   '--features "$CUDA_PYTHON_FEATURES_TEGRA"' \
   '--features "$CUDA_PYTHON_FEATURES"' \

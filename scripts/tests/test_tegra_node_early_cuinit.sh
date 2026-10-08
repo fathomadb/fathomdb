@@ -29,7 +29,7 @@
 #       LIBRARY_PATH=/usr/local/cuda/targets/aarch64-linux/lib \
 #       npm exec -- napi build --platform --release \
 #         --cargo-cwd ../rust/crates/fathomdb-napi \
-#         --features embed-cuda,tegra-pool --js false
+#         --features embed-cuda,rerank-cuda,tegra-pool --js false
 #     `tegra-pool` (0.8.28) gives the addon the private CUDA pool; without it
 #     the addon reports `not_built` and keeps 0.8.27's allocator;
 #   - cuda:0 is an integrated GPU with 60-64 GiB of device memory (the

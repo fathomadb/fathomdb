@@ -22,7 +22,7 @@ the whole evidence directory `dev/plans/runs/0.8.28-pool-study/`
 (harness, matrices, summaries, samples, patches). The harness's shell
 scripts and the vendored Candle copy stay on the study branch (Slice 30
 plan § 7). Adoption is planned
-in `dev/plans/0.8.28/slice-30-tegra-pool-plan.md`, which also takes over
+in `dev/plans/0.8.28/features/slice-30/plan.md`, which also takes over
 Phase 5.
 
 - **Done.**
@@ -32,7 +32,7 @@ Phase 5.
     for Phases 0–2, § 12 for Phases 3 and 4, § 13 for the spot check.
   - Owner rulings 12–38 are recorded below, revision 6.
 - **Phase 5 (analysis and the upstream package) is folded into Slice 30**
-  (`dev/plans/0.8.28/slice-30-tegra-pool-plan.md`, step S30-T9). The
+  (`dev/plans/0.8.28/features/slice-30/plan.md`, step S30-T9). The
   upstream shape is prepared in
   `dev/plans/0.8.28/prework/cudarc-upstream-patch-notes.md`; nothing is
   posted without the owner.

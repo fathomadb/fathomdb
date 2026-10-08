@@ -678,7 +678,12 @@ SDK exercise remain open.
   independent audit and two rejected negative controls. The
   [paired subset](e12-current-comparison-protocol-v2.json) was refrozen before
   candidate timing after an [invalid baseline-binary preflight](results/2026-10-08-e12-current-invalid-preflight/README.md).
-  Paired and coverage refreshes remain open.
+  The [current-source E01–E12 paired diagnostic](results/2026-10-08-e12-current-paired/README.md)
+  then passed all 20 blocks and independent raw, state, order and resource
+  audits on `8c2455b6c`. Vector-stage, hybrid and populated-open p50 rose in
+  all five pairs; warning-free sensitivity preserves the leads. The copied
+  raw archive is local pending end-of-phase retention. Installed-boundary
+  attribution and current-source coverage refresh remain open.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

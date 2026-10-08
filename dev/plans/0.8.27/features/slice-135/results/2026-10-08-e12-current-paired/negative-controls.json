@@ -1,0 +1,10 @@
+{
+  "ordered_output_mutant": {
+    "error": "text: state or output mismatch at attempt 0",
+    "rejected": true
+  },
+  "schedule_order_mutant": {
+    "error": "campaign block order differs from freeze",
+    "rejected": true
+  }
+}

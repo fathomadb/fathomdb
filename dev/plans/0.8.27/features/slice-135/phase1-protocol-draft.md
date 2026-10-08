@@ -327,6 +327,15 @@ hybrid and +11.16% for populated open, each positive in all five pairs.
 Four blocks had host-only paging warnings and no measured-child swaps.
 These remain engine-boundary investigation leads; the installed-SDK and
 contention refreshes are separate obligations.
+The [current-source E01–E12 replacement subset](e12-current-comparison-protocol-v2.json)
+then bound `8c2455b6c` after the edge-explanation and importance-lookup
+repairs. The first preflight rejected an incompatible baseline binary before
+timing; the replacement freeze selected a matching workload binary. Its
+[paired run](results/2026-10-08-e12-current-paired/README.md) passed all 20
+blocks and an independent audit. Median within-pair p50 changes were +9.62%
+for vector stage, +9.94% for hybrid and +11.96% for populated open, all
+positive in each of five pairs. These remain engine-only leads; the copied
+raw campaign is local pending end-of-phase retention.
 A separate [futex profile](results/2026-10-07-vector-futex-profile/README.md)
 found about 2.48 times as many whole-process futex calls in the candidate
 query workload. The trace is attribution evidence, not an unprofiled latency

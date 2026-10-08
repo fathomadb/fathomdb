@@ -1,0 +1,209 @@
+{
+  "freeze_sha256": "f354ac7025181c29bb7aa4c37fa6fccb3a114631c7de6f74484d3ec8df26e869",
+  "baseline_source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "candidate_source_sha": "8c2455b6ccf1d06d5bf87fc4278aecc631014da0",
+  "minimum_idle_seconds": 20,
+  "campaign_runner_sha256": "ea865e0043f2e1d6aaa2baa297567601ac4a55e6e71e58eb2b28b70bcf6a687b",
+  "blocks": [
+    {
+      "group": "query",
+      "pair": 1,
+      "position": 1,
+      "version": "baseline",
+      "name": "query-pair-1-1-baseline",
+      "start_unix": 1791448051.0474088,
+      "status": "audited",
+      "end_unix": 1791448054.1055248
+    },
+    {
+      "group": "query",
+      "pair": 1,
+      "position": 2,
+      "version": "candidate",
+      "name": "query-pair-1-2-candidate",
+      "start_unix": 1791448074.105736,
+      "status": "audited",
+      "end_unix": 1791448077.2690759
+    },
+    {
+      "group": "query",
+      "pair": 2,
+      "position": 1,
+      "version": "candidate",
+      "name": "query-pair-2-1-candidate",
+      "start_unix": 1791448097.26935,
+      "status": "audited",
+      "end_unix": 1791448100.4345047
+    },
+    {
+      "group": "query",
+      "pair": 2,
+      "position": 2,
+      "version": "baseline",
+      "name": "query-pair-2-2-baseline",
+      "start_unix": 1791448120.434747,
+      "status": "audited",
+      "end_unix": 1791448123.4481847
+    },
+    {
+      "group": "query",
+      "pair": 3,
+      "position": 1,
+      "version": "baseline",
+      "name": "query-pair-3-1-baseline",
+      "start_unix": 1791448143.4484477,
+      "status": "audited",
+      "end_unix": 1791448146.5082045
+    },
+    {
+      "group": "query",
+      "pair": 3,
+      "position": 2,
+      "version": "candidate",
+      "name": "query-pair-3-2-candidate",
+      "start_unix": 1791448166.5084865,
+      "status": "audited",
+      "end_unix": 1791448169.6639452
+    },
+    {
+      "group": "query",
+      "pair": 4,
+      "position": 1,
+      "version": "candidate",
+      "name": "query-pair-4-1-candidate",
+      "start_unix": 1791448189.6642091,
+      "status": "audited",
+      "end_unix": 1791448192.8117466
+    },
+    {
+      "group": "query",
+      "pair": 4,
+      "position": 2,
+      "version": "baseline",
+      "name": "query-pair-4-2-baseline",
+      "start_unix": 1791448212.812039,
+      "status": "audited",
+      "end_unix": 1791448215.8453531
+    },
+    {
+      "group": "query",
+      "pair": 5,
+      "position": 1,
+      "version": "baseline",
+      "name": "query-pair-5-1-baseline",
+      "start_unix": 1791448235.8456168,
+      "status": "audited",
+      "end_unix": 1791448238.8883429
+    },
+    {
+      "group": "query",
+      "pair": 5,
+      "position": 2,
+      "version": "candidate",
+      "name": "query-pair-5-2-candidate",
+      "start_unix": 1791448258.888649,
+      "status": "audited",
+      "end_unix": 1791448262.0739224
+    },
+    {
+      "group": "lifecycle",
+      "pair": 1,
+      "position": 1,
+      "version": "baseline",
+      "name": "lifecycle-pair-1-1-baseline",
+      "start_unix": 1791448282.0742261,
+      "status": "audited",
+      "end_unix": 1791448335.2537785
+    },
+    {
+      "group": "lifecycle",
+      "pair": 1,
+      "position": 2,
+      "version": "candidate",
+      "name": "lifecycle-pair-1-2-candidate",
+      "start_unix": 1791448355.2540603,
+      "status": "audited",
+      "end_unix": 1791448408.7296224
+    },
+    {
+      "group": "lifecycle",
+      "pair": 2,
+      "position": 1,
+      "version": "candidate",
+      "name": "lifecycle-pair-2-1-candidate",
+      "start_unix": 1791448428.7298918,
+      "status": "audited",
+      "end_unix": 1791448495.9271445
+    },
+    {
+      "group": "lifecycle",
+      "pair": 2,
+      "position": 2,
+      "version": "baseline",
+      "name": "lifecycle-pair-2-2-baseline",
+      "start_unix": 1791448515.927485,
+      "status": "audited",
+      "end_unix": 1791448570.3825786
+    },
+    {
+      "group": "lifecycle",
+      "pair": 3,
+      "position": 1,
+      "version": "baseline",
+      "name": "lifecycle-pair-3-1-baseline",
+      "start_unix": 1791448590.3828797,
+      "status": "audited",
+      "end_unix": 1791448643.4652376
+    },
+    {
+      "group": "lifecycle",
+      "pair": 3,
+      "position": 2,
+      "version": "candidate",
+      "name": "lifecycle-pair-3-2-candidate",
+      "start_unix": 1791448663.4655862,
+      "status": "audited",
+      "end_unix": 1791448724.242503
+    },
+    {
+      "group": "lifecycle",
+      "pair": 4,
+      "position": 1,
+      "version": "candidate",
+      "name": "lifecycle-pair-4-1-candidate",
+      "start_unix": 1791448744.2428782,
+      "status": "audited",
+      "end_unix": 1791448798.0595756
+    },
+    {
+      "group": "lifecycle",
+      "pair": 4,
+      "position": 2,
+      "version": "baseline",
+      "name": "lifecycle-pair-4-2-baseline",
+      "start_unix": 1791448818.0598798,
+      "status": "audited",
+      "end_unix": 1791448871.2376432
+    },
+    {
+      "group": "lifecycle",
+      "pair": 5,
+      "position": 1,
+      "version": "baseline",
+      "name": "lifecycle-pair-5-1-baseline",
+      "start_unix": 1791448891.2379267,
+      "status": "audited",
+      "end_unix": 1791448958.764805
+    },
+    {
+      "group": "lifecycle",
+      "pair": 5,
+      "position": 2,
+      "version": "candidate",
+      "name": "lifecycle-pair-5-2-candidate",
+      "start_unix": 1791448978.7651525,
+      "status": "audited",
+      "end_unix": 1791449032.6395888
+    }
+  ]
+}

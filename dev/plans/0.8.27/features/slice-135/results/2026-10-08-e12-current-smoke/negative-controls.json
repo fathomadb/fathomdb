@@ -1,0 +1,10 @@
+[
+  {
+    "mutation": "ordered_text_result",
+    "rejected_with": "ValueError: text: state or output mismatch at attempt 0"
+  },
+  {
+    "mutation": "source_identity",
+    "rejected_with": "ValueError: source mismatch"
+  }
+]

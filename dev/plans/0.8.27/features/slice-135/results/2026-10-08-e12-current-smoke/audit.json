@@ -1,0 +1,157 @@
+{
+  "audit_sha256": "a294311f6545a97483e039ab6c38b955b79f7dfe74b5e36ca81176149b1ad6ff",
+  "cells": {
+    "canonical_write": {
+      "invalid_attempts": 0,
+      "maximum_ns": 684393,
+      "p50_ns": 515004,
+      "p95_ns": 602148,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "close": {
+      "invalid_attempts": 0,
+      "maximum_ns": 4724601,
+      "p50_ns": 4187826,
+      "p95_ns": 4541525,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "erasure": {
+      "invalid_attempts": 0,
+      "maximum_ns": 28035993,
+      "p50_ns": 20491092,
+      "p95_ns": 26508125,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "graph_evidence": {
+      "invalid_attempts": 0,
+      "maximum_ns": 434471,
+      "p50_ns": 289948,
+      "p95_ns": 383415,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "graph_expand": {
+      "invalid_attempts": 0,
+      "maximum_ns": 952090,
+      "p50_ns": 743575,
+      "p95_ns": 883941,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "hybrid": {
+      "invalid_attempts": 0,
+      "maximum_ns": 1089299,
+      "p50_ns": 432197,
+      "p95_ns": 471261,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "model_cpu": {
+      "invalid_attempts": 0,
+      "maximum_ns": 220359845,
+      "p50_ns": 197111378,
+      "p95_ns": 203479836,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "open_fresh": {
+      "invalid_attempts": 0,
+      "maximum_ns": 50338551,
+      "p50_ns": 21457309,
+      "p95_ns": 22577275,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "open_populated": {
+      "invalid_attempts": 0,
+      "maximum_ns": 16402955,
+      "p50_ns": 13905735,
+      "p95_ns": 14619534,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "projection": {
+      "invalid_attempts": 0,
+      "maximum_ns": 21123077,
+      "p50_ns": 10517280,
+      "p95_ns": 12020842,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "text": {
+      "invalid_attempts": 0,
+      "maximum_ns": 521566,
+      "p50_ns": 219886,
+      "p95_ns": 250013,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "vector_stage": {
+      "invalid_attempts": 0,
+      "maximum_ns": 1102444,
+      "p50_ns": 432608,
+      "p95_ns": 462244,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    }
+  },
+  "environment_warnings": [
+    "host swap drift: 5 pages; child swap events: 0"
+  ],
+  "protocol_sha256": "0e50d311cb55e679759e45dbe19353f237a0d15ae237890ab257a087163ddce8",
+  "raw_sha256": "049bd83e15b5c26e079417761f5e8b12a19cc5922dca0cae8d19979749284a6e",
+  "resources": {
+    "elapsed_wall_s": 59.95,
+    "fs_inputs": 32,
+    "fs_outputs": 7426440,
+    "major_faults": 0,
+    "method": "gnu-time",
+    "peak_rss_kib": 330920,
+    "scope": "measured child",
+    "swap_events": 0,
+    "system_cpu_s": 34.29,
+    "user_cpu_s": 85.3
+  },
+  "run_stderr_sha256": "050c66b971425937c1287c2502cd00384a1f67963c3bb9d763296a09ca079f78",
+  "schema_version": 1,
+  "source_sha": "8c2455b6ccf1d06d5bf87fc4278aecc631014da0"
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "VALID_INTEGRATED_S02_ORDER_AND_PAIRED_AUDIT",
+  "protocol_sha256": "095195b28220a07b92b0317c917b1848575b3fb6e5e65a521b6739a04e8c682e",
+  "run_manifest_sha256": "e824919dffd64e5e8a23c73c38dae8c539ea893f4779631ceab602c97ad6ece7",
+  "run_order_sha256": "7b66fd9b3c4f74d78b94bb0d14cb278bcb549e94c1583b07bd3100d1160a8d85",
+  "paired_audit_sha256": "13d50229a7f3a20dd58d9da1bf18a399423b52e74ea11e43f61c4098d879d4c3",
+  "campaign_runner_sha256": "98ec8165f3ea36a3b1093c13239d30b1964c4dc5a84a1e5ea35286a2c797d1e9",
+  "blocks": 10,
+  "samples_per_version": {
+    "baseline": 100,
+    "candidate": 100
+  },
+  "negative_control_rejected": "after_reopen source_absent failed"
+}

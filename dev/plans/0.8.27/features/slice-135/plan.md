@@ -714,8 +714,11 @@ SDK exercise remain open.
   [S02](s02-python-224e-comparison-protocol.json) paired methods are frozen
   to this wheel before timing. The [S01 paired refresh](results/2026-10-08-python-s01-224e-paired/README.md)
   passed all 20 blocks, 60,120 materialized observations and independent
-  audit. S02 paired timing and other installed boundaries remain due; the
-  functional smoke itself is not a latency comparison.
+  audit. The [S02 paired refresh](results/2026-10-08-python-s02-224e-paired/README.md)
+  passed 100 fresh-process whole sequences per version and independent raw,
+  order and reopened-state audits. Its pooled p50 changed +0.287%; close and
+  reopened-open remain latency attribution leads. Other installed boundaries
+  remain due; the functional smoke itself is not a latency comparison.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

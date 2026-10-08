@@ -72,7 +72,11 @@ They do not freeze this broader protocol.
 The [S01 paired refresh](results/2026-10-08-python-s01-224e-paired/README.md)
 then passed all 20 blocks and an independent audit of 60,120 materialized
 calls. Four blocks carry host-only swap warnings. Its raw archive is local
-pending final retention; S02 paired timing is still due.
+pending final retention. The [S02 paired refresh](results/2026-10-08-python-s02-224e-paired/README.md)
+then accepted 100 whole sequences per version with independent state, order
+and raw-sample audits. Its pooled p50 increased 0.287%; three pairs have
+host-only swap warnings. Its raw archive is also local pending final
+retention. Neither subset freezes the broader protocol.
 
 The [baseline-only installed-TypeScript S01 noise pilot](results/2026-10-07-ts-s01-noise-pilot/README.md)
 now has five 100-warm-call blocks per corpus size, retained npm archives,

@@ -36,8 +36,11 @@ now exercises fixture-grounded filter, temporal, graph, evidence and 32/256-row
 memory-load shapes on both exact installed versions, with four independently
 audited real databases. The [S03 baseline-only noise pilot](results/2026-10-08-python-s03-baseline-noise/README.md)
 then passed ten audited blocks and 7,000 fixture-checked observations with
-no environment invalidators. It is not a frozen latency comparison. The full S03
-campaign and the robustness and coverage matrices remain. C01 has a documented
+no environment invalidators. The [S03 Python paired subset](results/2026-10-08-python-s03-paired/README.md)
+then froze before candidate timing and passed 20 independently audited blocks
+and 14,000 observations, with no environment warnings. Its 256-row evidence
+p50 increase is an attribution lead. Other S03 bindings, the broader workload
+mix and the robustness and coverage matrices remain. C01 has a documented
 [qualification failure](results/2026-10-07-c01-qualification/README.md).
 The [broader Phase 1 protocol](phase1-protocol-draft.md) is still a draft.
 The full verification gate is still open. A clean-checkout attempt through
@@ -656,6 +659,14 @@ SDK exercise remain open.
   exact external harness, configuration and output root are missing. No
   matched comparator timing is claimable. Keep engine, installed SDK and
   competitor boundaries distinct.
+  The [S03 Python paired subset](results/2026-10-08-python-s03-paired/README.md)
+  subsequently passed its precommitted protocol, 20 alternating blocks,
+  14,000 independently audited fixture observations, reopened-state checks
+  and three tamper controls. At 256 rows, the evidence p50 was +3.863% with
+  five positive within-pair deltas; this needs call-boundary attribution.
+  The same fixed mix put 93.49% of candidate elapsed query cost in evidence
+  and filtered search at 256 rows. It is a workload proxy, not a production
+  traffic profile or whole-release latency verdict.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

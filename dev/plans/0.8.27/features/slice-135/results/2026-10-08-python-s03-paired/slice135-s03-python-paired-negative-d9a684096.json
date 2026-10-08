@@ -1,0 +1,14 @@
+{
+  "changed_database": {
+    "outcome": "rejected",
+    "reason": "reopened SQLite bodies or validity windows differ from fixture"
+  },
+  "false_filter": {
+    "outcome": "rejected",
+    "reason": "filter: observed result differs from fixture"
+  },
+  "swapped_order": {
+    "outcome": "rejected",
+    "reason": "S03 paired block order differs from frozen schedule"
+  }
+}

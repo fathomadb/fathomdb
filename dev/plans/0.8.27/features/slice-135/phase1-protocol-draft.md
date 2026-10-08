@@ -367,8 +367,15 @@ observations passed independent raw, resource, order and reopened-state audit.
 Across cells, block-p50 span reached 15.30% of the median and block-p95 span
 reached 21.59%; the higher spreads were in submillisecond temporal cells.
 The pilot supports p50/p95 with explicit within-pair and baseline-noise
-context; p99 remains unsupported. The candidate paired wrapper and executable
-S03 protocol must still be frozen before paired candidate timing.
+context; p99 remains unsupported. The
+[S03 Python paired protocol](s03-python-comparison-protocol.json) subsequently
+froze at `d9a684096` before candidate timing. Its
+[independently audited comparison](results/2026-10-08-python-s03-paired/README.md)
+accepted 20 alternating blocks and 14,000 observations, with no environment
+warnings. The 256-row evidence p50 increased 3.863% in the pool, with all
+five pair-p50 deltas positive. This is an attribution lead; the selected
+Python subset does not freeze the broader Phase 1 protocol or supply a
+whole-release performance verdict.
 
 The [C01 qualification check](results/2026-10-07-c01-qualification/README.md)
 found the pinned raw LOCOMO corpus and nonempty historical Docker volumes,

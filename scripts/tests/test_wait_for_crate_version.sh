@@ -28,9 +28,9 @@ mkdir -p "$SERVE_DIR/api/v1/crates"
 cat >"$SERVE_DIR/api/v1/crates/fathomdb-schema" <<'JSON'
 {"crate":{"name":"fathomdb-schema"},"versions":[{"num":"0.8.9","yanked":false}]}
 JSON
-# fathomdb-embedder-api present at its Axis-E version 0.6.1 (manifest-resolution).
+# fathomdb-embedder-api present at its Axis-E version 0.7.0 (manifest-resolution).
 cat >"$SERVE_DIR/api/v1/crates/fathomdb-embedder-api" <<'JSON'
-{"crate":{"name":"fathomdb-embedder-api"},"versions":[{"num":"0.6.1","yanked":false}]}
+{"crate":{"name":"fathomdb-embedder-api"},"versions":[{"num":"0.7.0","yanked":false}]}
 JSON
 
 ( cd "$SERVE_DIR" && python3 -u -m http.server 0 ) >"$SERVE_DIR/server.log" 2>&1 &
@@ -66,11 +66,11 @@ else
   fail "absent-version: expected exit 1 + TIMEOUT; got rc=$rc out='$out'"
 fi
 
-# 3) manifest version resolution: omit version -> reads Axis-E 0.6.1 from the
+# 3) manifest version resolution: omit version -> reads Axis-E 0.7.0 from the
 #    fathomdb-embedder-api manifest and finds it present.
 if out="$(WAIT_FOR_CRATE_REGISTRY="$REG" WAIT_FOR_CRATE_TIMEOUT=5 WAIT_FOR_CRATE_INTERVAL=1 \
           "$POLL" fathomdb-embedder-api 2>&1)"; then
-  printf '%s' "$out" | grep -q '0.6.1' && pass "resolves version from manifest (Axis-E 0.6.1)" \
+  printf '%s' "$out" | grep -q '0.7.0' && pass "resolves version from manifest (Axis-E 0.7.0)" \
     || fail "manifest-resolution: wrong output: $out"
 else
   fail "manifest-resolution should exit 0: $out"

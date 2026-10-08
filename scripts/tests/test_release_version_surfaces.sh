@@ -94,10 +94,10 @@ for package in "${axis_w_packages[@]}"; do
 done
 
 mapfile -t axis_e_versions < <(lock_package_versions fathomdb-embedder-api)
-if [ "${#axis_e_versions[@]}" -eq 1 ] && [ "${axis_e_versions[0]}" = '0.6.1' ]; then
-  printf 'PASS  Cargo.lock fathomdb-embedder-api remains Axis E 0.6.1\n'
+if [ "${#axis_e_versions[@]}" -eq 1 ] && [ "${axis_e_versions[0]}" = '0.7.0' ]; then
+  printf 'PASS  Cargo.lock fathomdb-embedder-api remains Axis E 0.7.0\n'
 else
-  printf 'FAIL  Cargo.lock fathomdb-embedder-api version(s) %s must remain Axis E 0.6.1\n' \
+  printf 'FAIL  Cargo.lock fathomdb-embedder-api version(s) %s must remain Axis E 0.7.0\n' \
     "${axis_e_versions[*]:-<missing>}" >&2
   failed=$((failed + 1))
 fi

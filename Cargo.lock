@@ -945,7 +945,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-embedder-api"
-version = "0.6.1"
+version = "0.7.0"
 
 [[package]]
 name = "fathomdb-engine"

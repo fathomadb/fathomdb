@@ -267,7 +267,7 @@ def main() -> None:
         assert validated.returncode == 0, validated.stderr
         candidate = json.loads(manifest.read_text(encoding="utf-8"))
         assert candidate["schema_version"] == "fathomdb.slice50-candidate/v1"
-        assert candidate["axes"] == {"workspace": "0.8.26", "embedder_api": "0.6.1"}
+        assert candidate["axes"] == {"workspace": "0.8.26", "embedder_api": "0.7.0"}
         assert {item["kind"] for item in candidate["artifacts"]} == {"wheel", "npm", "cli"}
         assert candidate["external"]["native_matrix"]["state"] == "passed"
         assert candidate["external"]["windows_wal"]["state"] == "passed"

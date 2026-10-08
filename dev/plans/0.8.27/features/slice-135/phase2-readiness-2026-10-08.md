@@ -53,12 +53,14 @@ pre-fusion vector-stage measurement seam and label any public hybrid output
 as a distinct diagnostic. Do not compare a mixed text/vector result to the
 exact vector oracle.
 
-The [frozen vector fidelity protocol](phase2-vector-fidelity-protocol.json)
+The [revised frozen vector fidelity protocol](phase2-vector-fidelity-protocol-v2.json)
 uses 1,000 locally cached real documents and 100 title-or-lead queries,
 25 from each of four source classes. Its installed-wheel measurement copy
 removes the lexical index rows after projection, verifies that canonical and
 vector storage bytes are preserved, and requires zero text-only hits after
-reopen. This isolates vector-stage ordering while retaining the pinned
+reopen. It selects globally unique canonical bodies and requires exact-f32
+rank monotonicity, so one-arm fusion preserves vector-stage ordering while
+retaining the pinned
 product wheel and embedder. Source text, queries, vectors and database copies
 remain outside Git. A separate 32-row paired pilot exercised the complete
 runner and independent audit before freezing; malformed query, branch, ID,
@@ -67,6 +69,12 @@ wrong vector hits lowered the recomputed score. That pilot is qualification
 only and is not the 100-query fidelity result. The indexed SQLite copy is
 intentionally modified for measurement, so this cell must be reported as a
 vector-stage fidelity test seam, not ordinary hybrid search behavior.
+The [first frozen protocol](phase2-vector-fidelity-protocol.json) was executed
+but its result is an invalid fidelity attempt: two duplicate bodies received
+extra same-arm RRF weight and caused three rank inversions. Its raw pair and
+diagnostic audit are retained locally; the observed `0.945` means are not
+promoted as a Phase 2 fidelity verdict. The v2 protocol was frozen after
+that diagnosis and before any corrected scored run.
 
 ## Exact identities and available local inputs
 

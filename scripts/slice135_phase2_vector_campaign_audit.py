@@ -159,15 +159,26 @@ def _expected_inputs(protocol: dict[str, Any], source_root: Path) -> tuple[list[
     corpus = protocol["corpus"]
     documents: list[dict[str, str]] = []
     queries: list[dict[str, str]] = []
+    seen_bodies: set[str] = set()
     for item in corpus["sources"]:
         path = source_root / item["filename"]
         if _sha256(path) != item["sha256"]:
             raise ValueError(f"{item['name']}: source SHA-256 mismatch")
-        rows = sorted(
+        sorted_rows = sorted(
             (json.loads(line) for line in path.read_text().splitlines() if line.strip()),
             key=lambda row: row["doc_id"],
         )
-        rows = [row for row in rows if row.get("body")][:corpus["per_source"]]
+        rows = []
+        for row in sorted_rows:
+            if not row.get("body"):
+                continue
+            body_hash = _bytes_hash(json.dumps({"summary": row["body"]}).encode())
+            if body_hash in seen_bodies:
+                continue
+            seen_bodies.add(body_hash)
+            rows.append(row)
+            if len(rows) == corpus["per_source"]:
+                break
         if len(rows) != corpus["per_source"]:
             raise ValueError("source corpus denominator changed")
         for index, row in enumerate(rows):

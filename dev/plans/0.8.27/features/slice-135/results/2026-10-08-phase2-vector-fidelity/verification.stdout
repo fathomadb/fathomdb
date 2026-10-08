@@ -1,0 +1,38 @@
+==> AC-036 no-listen-syscall
+AC-036 OK: no successful listen() captured across security_cycle.
+    PASS
+==> AC-037 netns-deny-egress
+AC-037 OK: all connect() syscalls were loopback / AF_UNIX / AF_NETLINK.
+    PASS
+==> AC-037 catch (demonstrate)
+AC-037 catch OK (offline): 2 off-loopback connect() flagged:
+    connect(3, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr("8.8.8.8")}, 16) = -1 ENETUNREACH (Network is unreachable)
+    connect(4, {sa_family=AF_INET6, sin6_port=htons(443), inet_pton(AF_INET6, "2606:4700:4700::1111", &sin6_addr), sin6_scope_id=0}, 28) = -1 ENETUNREACH (Network is unreachable)
+AC-037 catch OK (live netns): deliberate egress flagged:
+    470711 connect(3, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr("8.8.8.8")}, 16) = -1 ENETUNREACH (Network is unreachable)
+    PASS
+==> AC-037 policy self-test
+policy self-test OK: exit-code classification is honest (STRICT narrowed to the environmental case).
+    PASS
+==> AC-038 FTS5-injection-safe
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+    PASS
+==> AC-050a ast-scan rust
+AC-050a OK: rust surface clean (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates)
+    PASS
+==> AC-050a ast-scan python
+AC-050a OK: python surface clean (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/python)
+    PASS
+==> AC-050a ast-scan ts
+AC-050a OK: ts surface clean (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts)
+    PASS
+==> AC-050c removal-detect
+AC-050c OK: 31 removals all documented.
+    PASS
+
+agent-security: 0 violation(s), 0 blocker(s), 0 downgrade(s)
+agent-test.sh: 186/186 suites passed (skipped=0 excluded=0)

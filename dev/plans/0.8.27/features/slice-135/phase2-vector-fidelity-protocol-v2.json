@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_UNSCORED_BEFORE_PAIRED_RUN",
+  "purpose": "Installed-Python paired vector-stage recall@10 against same-model exact-f32 neighbors on a fixed 1000-document four-source corpus",
+  "dimension_name": "vector_fidelity",
+  "model_name": "fathomdb-bge-small-en-v1.5",
+  "model_hf_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+  "runner_path": "scripts/slice135_phase2_vector_runner.py",
+  "runner_sha256": "080e6541e899440799e49b3e77b4ddf16e7ea0948fc8eaa6fb3e932abfa02633",
+  "scorer_path": "scripts/slice135_phase2_vector_audit.py",
+  "scorer_sha256": "b8ddcbb7b5dc85f53e0ce2360ed7195d3eb4eadbb0594d0c9653c6b1e4f68fba",
+  "auditor_path": "scripts/slice135_phase2_vector_campaign_audit.py",
+  "auditor_sha256": "fb9dc3767312a14bc682b4bbb4821263c6ca9c3396800606a01e76218ceacf06",
+  "corpus": {
+    "per_source": 250,
+    "query_stride": 10,
+    "sources": [
+      {
+        "name": "bahmutov_dailylogs",
+        "filename": "bahmutov_dailylogs.jsonl",
+        "sha256": "bdecf3e8ffef86dc2cb136bce9912b629f91774c41d9cf34224f3f7d8e1a0e81",
+        "license": "MIT"
+      },
+      {
+        "name": "landes_todos",
+        "filename": "landes_todos.jsonl",
+        "sha256": "74f0248261f701856f72f2921abb1cd004b1773c13201e7b6ae5ad93e810e812",
+        "license": "MIT"
+      },
+      {
+        "name": "enron",
+        "filename": "enron.jsonl",
+        "sha256": "c4df0c71e2de1505c8114ae3f96ff5dac2769786eee6028ba2d46bf0e83486ab",
+        "license": "LicenseRef-Enron-Research-Use"
+      },
+      {
+        "name": "cnn_dailymail",
+        "filename": "cnn_dailymail.jsonl",
+        "sha256": "7c371528f9f86d5ca06a0ed39e3ed2da63bf09cbd71de988f692129c69493d09",
+        "license": "Apache-2.0"
+      }
+    ],
+    "selection_rule": "For each source in declared order, parse JSONL, retain nonempty body rows, sort by doc_id, and select the first 250 whose Python json.dumps({summary: source body}) canonical body bytes are unique across all earlier selected sources and this source. Assign logical IDs <source>-000..249 and source IDs slice135-fidelity:<source>.",
+    "query_rule": "Within each selected source, choose indices 0,10,...,240. Use a title when trimmed length >=6, not untitled, and not verbatim body; otherwise use the first sentence or 140 characters of cleaned lead text. Target is the selected source body, excluded before top-10 truncation.",
+    "body_uniqueness_rule": "Exactly 1000 distinct canonical body SHA-256 values; duplicate bodies are skipped before assigning selection indices and query targets."
+  },
+  "query_classes": {
+    "bahmutov_dailylogs": 25,
+    "landes_todos": 25,
+    "enron": 25,
+    "cnn_dailymail": 25
+  },
+  "denominator": {
+    "documents_per_version": 1000,
+    "queries_per_version": 100,
+    "eligible_unique_non_target_bodies_minimum": 10
+  },
+  "k": 10,
+  "result_limit": 15,
+  "dimension": 384,
+  "vector_stage_isolation": "After projection drain and independent same-model embeddings, close the engine, back up the intact SQLite database, delete only rows in search_index, search_index_v2 and search_index_edges in the measurement copy, and reopen. Audit exact canonical rows, unchanged vector storage bytes, pre/post FTS counts and integrity; every scored query must have zero text-only hits and vector-only observed hits. Corpus bodies are unique so one-arm RRF order is rank-equivalent to the pre-fusion vector arm; the auditor rejects any exact-f32 rank inversion.",
+  "gold_origin": "Brute-force squared L2 over the engine default embedder f32 vectors of the canonical stored JSON bodies and title-or-lead query text; no product search result supplies gold.",
+  "scoring_rule": "For each query, fold squared L2 in f32 over 384 dimensions, order by (distance, body SHA-256), exclude all copies of the target body and deduplicate by body before exact top 10. From up to 15 ordered vector-stage hits, exclude target and duplicate bodies before taking 10. Recall@10 is intersection size divided by 10 even if fewer than 10 hits remain. Report 100 per-query values, each version mean and paired candidate-minus-baseline mean.",
+  "uncertainty_rule": "Deterministic paired bootstrap of 100 query deltas with replacement, 2000 resamples, seed 135, percentile 2.5% and 97.5%; descriptive uncertainty, no automatic superiority claim.",
+  "omission_rule": "No query, source, wheel, database, or version may be omitted or replaced; an incomplete or malformed pair invalidates the fidelity cell. A short valid product result stays in the fixed denominator and scores lower. If lexical isolation, body uniqueness, monotonic vector rank or model identity fails, report this cell unsupported until repaired; never score hybrid or duplicate-boosted one-arm output against vector gold.",
+  "license_boundary": "Cached source JSONL, canonical body text, title-or-lead queries, raw databases and derived vectors remain local and outside Git. The Git protocol and report contain source hashes, nonverbatim metadata and aggregate metrics only. Enron is research-use; MIT and Apache-2.0 sources retain their source licenses.",
+  "version_pairing": "Two fresh SQLite databases, same selected source bytes, model identity, query set, vector-stage isolation, K and result limit; baseline and candidate wheel/native bytes verified against source SHAs. No same-database reuse.",
+  "versions": {
+    "baseline": {
+      "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+      "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282",
+      "native_sha256": "269fafc1c696244d05f2eabea19b23cfba6de79f5041b1123fe10589c46c51dc"
+    },
+    "candidate": {
+      "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+      "wheel_sha256": "ee8b402f76377956034f900ef69f9e3c0296d79ea30d6728dc1283040266f85a",
+      "native_sha256": "1f213a700cf0c96b9997700d6e44ed7019b26fb91df1259bc6514fefb4a8d013"
+    }
+  },
+  "model_assets_rule": "Use the default Candle BGE loader at the pinned Hugging Face revision; its source-pinned config, tokenizer and safetensors checksums are verified by the selected wheel. The installed wheel/native hashes and engine-reported model name bind this run.",
+  "protocol_revision": 2,
+  "supersedes_protocol_sha256": "535c4217838696d52bfdb27b885e4e19c9177c719cc13efa050e1e974dab1ac7",
+  "supersession_reason": "The first 1000-row attempt contained two duplicate canonical bodies. One-arm RRF accumulated duplicate contributions, so clearing FTS alone did not reproduce pre-fusion vector order for three queries. V2 selects 1000 globally unique bodies and audits exact-f32 rank monotonicity."
+}

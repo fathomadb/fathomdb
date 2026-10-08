@@ -60,13 +60,20 @@ def select_corpus_and_queries(
     documents: list[dict[str, str]] = []
     queries: list[dict[str, str]] = []
     seen_doc_ids: set[tuple[str, str]] = set()
+    seen_bodies: set[str] = set()
     for source, path in source_paths.items():
         if not source or not path.is_file():
             raise ValueError("source file missing")
         rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
-        chosen = sorted((row for row in rows if row.get("body")), key=lambda row: row["doc_id"])[
-            :per_source
-        ]
+        chosen = []
+        for row in sorted((row for row in rows if row.get("body")), key=lambda row: row["doc_id"]):
+            body_hash = _bytes_hash(json.dumps({"summary": row["body"]}).encode())
+            if body_hash in seen_bodies:
+                continue
+            seen_bodies.add(body_hash)
+            chosen.append(row)
+            if len(chosen) == per_source:
+                break
         if len(chosen) != per_source:
             raise ValueError(f"{source}: fewer than declared nonempty rows")
         for index, row in enumerate(chosen):

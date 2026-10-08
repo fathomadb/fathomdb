@@ -121,6 +121,7 @@ def score_version(
         exact = set(exact_neighbors(normalized_documents, query_vector, target, k))
         seen: set[str] = set()
         observed: list[str] = []
+        previous_distance: float | None = None
         for hit in hits:
             if not isinstance(hit, dict) or hit.get("branch") != "vector":
                 raise ValueError("non-vector hit in isolated stage")
@@ -130,6 +131,10 @@ def score_version(
             body_hash = by_id[logical_id]["body_sha256"]
             if hit.get("body_sha256") != body_hash:
                 raise ValueError("hit body hash mismatch")
+            distance = f32_squared_l2(by_id[logical_id]["vector"], query_vector)
+            if previous_distance is not None and distance < previous_distance:
+                raise ValueError("vector-only hit rank inversion against exact f32 distance")
+            previous_distance = distance
             if body_hash == target or body_hash in seen:
                 continue
             seen.add(body_hash)

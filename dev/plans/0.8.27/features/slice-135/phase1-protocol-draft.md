@@ -215,8 +215,13 @@ pair](results/2026-10-07-ts-s02-contention-feasibility/README.md) later
 confirmed actual shared-handle writer/reader overlap on both installed
 packages, with independent semantic and reopened-state checks. Its corrected
 timer leaves direct SQLite verification outside the whole sequence; one
-functional run per version does not qualify a latency delta. A baseline
-pilot, frozen sample rule and paired campaign remain.
+functional run per version does not qualify a latency delta.
+The [baseline-only TypeScript contention pilot](results/2026-10-08-ts-s02-contention-baseline-pilot/README.md)
+then passed five independent blocks and 15 measured fresh-process sequences.
+Block medians spanned 81.814 ms; two blocks had host-only paging warnings and
+no child swapped. This supports a proposed five-pair, 20-measurement-per-block
+schedule with 20-second idle gaps, pending a frozen protocol before candidate
+timing. The pilot does not supply a paired latency result.
 An earlier candidate changed with the graph traversal row-error
 [repair](results/2026-10-07-graph-arm-row-repair/README.md) at `3ce1a6352`.
 The prior functional receipts still describe their exact SHAs; final Phase 1

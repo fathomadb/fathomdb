@@ -23,8 +23,10 @@ result is linked below. The [installed Python S02 bounded-contention
 pair](results/2026-10-07-python-s02-contention-paired/README.md) now has
 independently audited raw receipts. An [installed TypeScript contention
 feasibility pair](results/2026-10-07-ts-s02-contention-feasibility/README.md)
-passed independent functional checks but has no qualified timing; its pilot
-and Rust SDK contention remain.
+passed independent functional checks. Its [five-block baseline-only noise
+pilot](results/2026-10-08-ts-s02-contention-baseline-pilot/README.md) now has
+independently audited receipts; a frozen TypeScript paired campaign and Rust
+SDK contention remain.
 S03 and the
 full robustness and coverage matrices remain. C01 has a documented
 [qualification failure](results/2026-10-07-c01-qualification/README.md).
@@ -604,8 +606,11 @@ SDK exercise remain open.
   equivalence claim. The subsequent [TypeScript contention feasibility
   pair](results/2026-10-07-ts-s02-contention-feasibility/README.md) exercised
   the installed packages with shared-handle overlap and independent reopened
-  state checks, but its one-off times are unqualified. TypeScript pilot,
-  Rust SDK contention and cross-boundary attribution remain. The
+  state checks, but its one-off times are unqualified. A subsequent
+  [baseline-only TypeScript pilot](results/2026-10-08-ts-s02-contention-baseline-pilot/README.md)
+  passed five independently audited blocks with 15 measured sequences and an
+  81.814 ms block-median spread. The frozen paired campaign, Rust SDK
+  contention and cross-boundary attribution remain. The
   [S02-L baseline pilot](results/2026-10-07-python-s02-lifecycle-baseline-pilot/README.md)
   has 100 independently audited fresh-process open/close cycles; its
   [paired subset protocol](s02-python-lifecycle-comparison-protocol.json)

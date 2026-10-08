@@ -64,8 +64,9 @@ all-warning paired latency diagnostic does not qualify TypeScript or Rust SDK
 contention. The [installed TypeScript contention feasibility
 pair](results/2026-10-07-ts-s02-contention-feasibility/README.md) subsequently
 passed a real-database shared-handle sequence and independent persisted-state
-audit on both versions; its timing remains unqualified until a controlled
-pilot and frozen paired campaign. The engine-only results
+audit on both versions; its one-off timing remains unqualified. The later
+[baseline-only pilot](results/2026-10-08-ts-s02-contention-baseline-pilot/README.md)
+passed five audited blocks; the paired campaign remains. The engine-only results
 never substitute for an SDK row. `S03` may use qualified benchmark data as a
 workload; dedicated gold scoring remains Phase 2.
 

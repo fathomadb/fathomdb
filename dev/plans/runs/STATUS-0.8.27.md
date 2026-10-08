@@ -95,6 +95,23 @@ contains both and must cover them:
   smokes must use the 0.8.26 route, and the Tegra publication for 0.8.27
   updates the pin again.
 
+### Slice 135 execution note (2026-10-08)
+
+Slice 135 is in progress on `llm/0.8.27-slice-135`; the release-state-owned
+ladder still lists it as next until its complete closeout. The current
+comparison product source is `224e44c593c13d86ece648adabe445723db04070`,
+after Slice 132 and both off-ladder landings. Audited exact-source paired
+E01–E12 engine and installed Python S01/S02 diagnostics exist. The Python
+whole-sequence pooled p50 changed +0.287% against exact 0.8.26; engine
+vector, hybrid and populated-open p50 increases remain attribution leads.
+The four-area Phase 1 checkpoint and full protocol freeze are still open.
+The [active Slice 135 plan](../0.8.27/features/slice-135/plan.md#active-phase-1-execution-snapshot-2026-10-08)
+and [direct-execution hand-off](../0.8.27/features/slice-135/handoff-phase1-2026-10-08.md)
+hold the remaining work and evidence limits. Local raw archives are preserved
+but not yet committed; their retention and the deferred Gitleaks decision
+remain end-of-phase work. No publication or release qualification claim
+follows from these diagnostics.
+
 ## Immediate next action
 
 | | |

@@ -6,6 +6,17 @@ target_release: 0.8.27
 
 # Phase 1 capability exercise register
 
+**Current checkpoint boundary (2026-10-08):** the latest measured product
+source is `224e44c593c13d86ece648adabe445723db04070`. Its
+[installed Python S01/S02 functional smoke](results/2026-10-08-python-224e-functional-smoke/README.md)
+and independently audited [S01](results/2026-10-08-python-s01-224e-paired/README.md)
+and [S02](results/2026-10-08-python-s02-224e-paired/README.md) campaigns
+exercise selected text/vector/hybrid and whole-sequence conditions. They do
+not repeat all 41 Python operations. The 41/0/0/3 Python and TypeScript
+operation partitions below were established at earlier source `d465cd56d`;
+reconcile exact artifacts and conditions before the full Phase 1 checkpoint.
+The [direct hand-off](handoff-phase1-2026-10-08.md) lists that work.
+
 The executable [canonical operation map](../../../../../src/conformance/governed-operation-parity.json) is the scope authority for governed operations. Its SHA-256 at the initial inventory snapshot is `da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17`. That snapshot was branch `llm/0.8.27-slice-135` at `ea91ec0e8878d49c44706234ff2ea9c454b55cb5`, before the confirmed edge-FTS-error repair. This living register is not the frozen measurement protocol; only rows explicitly marked with a receipt have executed installed-artifact evidence.
 
 The [current-source installed SDK exercise](results/2026-10-08-current-sdk-capabilities/README.md)

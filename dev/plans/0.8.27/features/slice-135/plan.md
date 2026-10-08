@@ -7,7 +7,38 @@ planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 
 # Slice 135 — measure the whole system against 0.8.26
 
-**Execution status:** the bounded [first inspectable results](results/2026-10-07-first-results/)
+## Active Phase 1 execution snapshot (2026-10-08)
+
+The full four-area checkpoint is **open**. Work on branch
+`llm/0.8.27-slice-135` has reached product source
+`224e44c593c13d86ece648adabe445723db04070`, after Slice 132 and both
+off-ladder landings. The exact 0.8.26 comparison source is
+`f99e002f0d2e4002f3694c9f8d4986b56089edaa`. The clean detached
+candidate checkout at `/tmp/slice135-candidate-224e44` is for reproducible
+builds and should stay unchanged. Older results below remain valid only for
+their recorded source bytes. Use the [direct-execution hand-off](handoff-phase1-2026-10-08.md)
+for the immediate work; the detailed chronology below is retained for audit.
+
+| Area | Latest inspectable evidence | Checkpoint work still owed |
+| --- | --- | --- |
+| Pareto path | [Selected E01–E12 workload/test overlay](results/2026-10-08-e12-current-coverage-refresh/README.md) at `8c2455b6c`: all 888 workload-hit engine branch IDs and 8,120/8,133 workload-hit lines reached by 20 targeted test binaries. Earlier mixed-cost ranking put four of eleven operations at 84.12% of measured elapsed cost. | Refresh coverage at `224e44c59`; rank the broader common operation mix by elapsed and CPU/queue cost; inspect unhit branches and rare severe paths. Selected tests and synthetic mix are not production-traffic coverage. |
+| System latency | Audited exact-source [E01–E12](results/2026-10-08-e12-224e-paired/README.md), [installed Python S01](results/2026-10-08-python-s01-224e-paired/README.md) and [installed Python S02](results/2026-10-08-python-s02-224e-paired/README.md) paired campaigns. Python S02 whole-sequence pooled p50 is +0.287%; engine vector, hybrid and populated-open p50 rose +15.67%, +14.54% and +12.14% by median pair. | Attribute boundary and stage differences before any system verdict; rebuild and refresh TypeScript and applicable Rust SDK cells on exact source; complete broader mix, cold/warm, scale/concurrency and supported tail cells. C01 is currently unqualified. |
+| System robustness | Real-database concurrency, kill/reopen, persistent SQLite-full, provider failure, projection commit recovery, interrupted erasure and close receipts; exact-candidate provider/close and recovery replays include independent checks. | Close declared one-shot/persistent and in-commit crash positions, remaining interrupted-erasure schedules, resource/reopen oracles and installed binding boundaries. |
+| Logic and exception handling | Scoped static and boundary audits plus failing-first repairs of row-error suppression in FTS, graph, vector, evidence and fallback paths; focused regression tests passed. | Refresh current-source line/branch evidence; probe ranked paths and Rust/PyO3/NAPI error and panic boundaries; disposition findings, survivors and uncovered paths. |
+
+The [capability register](phase1-capability-register.md) accounts for 44
+governed operations: its earlier installed Python and TypeScript run on
+`d465cd56d` exercised 41 selected positive cases each (zero failed, three
+provider/model cases unavailable); Rust exercised 42 selected cases. These
+counts are not complete contract-condition coverage and require exact-source
+artifact review at the checkpoint. The [broader protocol](phase1-protocol-draft.md)
+is still `DRAFT_NOT_FROZEN`; its remaining pilots and negative fixtures must
+be resolved before new final cells run. No dedicated Phase 2 gold scoring
+begins until the four-area checkpoint is recorded.
+
+### Earlier execution chronology (2026-10-07)
+
+**Earlier execution status:** the bounded [first inspectable results](results/2026-10-07-first-results/)
 exist for all four Phase 1 areas. The [E01–E12 paired engine subset](e12-comparison-protocol.json)
 and the Python and TypeScript S01 subsets have frozen protocols and audited
 paired runs. Integrated-candidate E01–E12, Python S01/S02 and TypeScript S01/S02 refreshes now
@@ -63,7 +94,7 @@ is independently audited. The repaired-source installed
 and [TypeScript S02](results/2026-10-07-ts-s02-vector-repaired-paired/README.md)
 subsets are independently audited. Rust S02 now has a candidate-only
 [timing result](results/2026-10-07-rust-s02-candidate-timing/README.md);
-bounded contention remains.
+bounded contention remained at that point.
 Dedicated correct-results work remains Phase 2.
 
 The [release plan](../../../plan-0.8.27.md) owns the release contract. The
@@ -815,14 +846,44 @@ SDK exercise remain open.
   also have recorded steward-orient and Python environment dispositions to
   recheck. Do not claim a full green gate meanwhile.
 
-Freeze the broader executable protocol after the remaining baseline pilots
-and negative fixtures, run the missing exact-candidate cells, complete the
-four matrices, independently recompute the report and record the Phase 1
-checkpoint. Only then begin dedicated Phase 2 correct-results scoring.
-Leave Gitleaks and final raw-archive retention until the end of this Phase 1
-work. The E01–E12 paired archive remains local and untracked; preserve it for
-analysis meanwhile. Automatic approval review rejected the proposed
-path-scoped Gitleaks policy change, so final retention needs explicit
-authorization or another policy-compliant resolution. This retention issue
-does not delay the remaining measurements, fault cases, coverage analysis or
-checkpoint drafting.
+### Ordered path to the full Phase 1 checkpoint
+
+1. Verify the current product tree against `224e44c59`, the baseline and
+   off-ladder landings. Refresh the selected E01–E12 workload/test coverage
+   overlay at this source, preserving separate workload and test profiles.
+   Then define the common mixed operation workload and its cost weights for
+   the wider Pareto, latency and coverage analyses.
+2. Attribute the consistent engine vector, hybrid and populated-open latency
+   leads against the near-neutral installed Python S01/S02 measurements.
+   Compare matched work, model lifecycle and timing boundaries. Refresh
+   installed TypeScript S01/S02/S03 and supported Rust candidate-only cells
+   from exact-source artifacts; rerun Python S03/S02-L only if the repaired
+   code affects them or the common protocol requires it. Preserve warning-free
+   sensitivity and distinguish engine, SDK and competitor claims.
+3. Resolve the remaining baseline pilots, negative fixtures, feature/platform
+   mapping and disk/time budget; freeze the broader executable Phase 1
+   protocol before its remaining candidate timing. Run the common mix under
+   separate unprofiled timing and profiled/coverage modes. Rank elapsed and
+   CPU/queue cost, identify the observed 80%-cost set, inspect unhit branches
+   and retain severe rare-path cases.
+4. Complete the declared real-database robustness matrix and error/panic
+   boundary audit, including crash positions, one-shot and persistent faults,
+   interruption, close/cancellation, installed bindings, reopened state and
+   resources. Use a failing test before each confirmed product repair, then
+   repeat only the affected measurement cells on the new exact source.
+5. Reconcile the 44-operation capability register and off-ladder landing
+   audit against final artifacts. Independently recompute raw results, mark
+   invalid and omitted cells, disposition C01's missing harness/config/output
+   or report it unqualified, and write one four-area checkpoint with ranked
+   follow-ups and residual risks. Run the needed full workspace gate at the
+   checkpoint; scoped checks suffice for documentation-only increments.
+
+Only then begin dedicated Phase 2 correct-results scoring. Leave Gitleaks
+policy and raw-archive retention to the end of Phase 1 as requested. The
+archives must remain intact and hash-verifiable while local; the final
+checkpoint must state their retention status without implying tracked raw
+evidence that is still untracked.
+Automatic approval review rejected the proposed path-scoped Gitleaks policy
+change. Final raw-archive retention therefore needs explicit authorization or
+another policy-compliant resolution; it does not delay the remaining
+measurements, fault cases, coverage analysis or checkpoint drafting.

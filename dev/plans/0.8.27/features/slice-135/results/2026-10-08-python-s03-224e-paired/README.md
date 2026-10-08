@@ -50,12 +50,12 @@ finds the smallest prefix exceeding 80% of elapsed call time:
 This ranking is an equal-frequency installed-Python proxy across separately
 prepared S01 and S03 fixtures, not observed production traffic. It ranks
 materialized elapsed call time, not per-path CPU or queue time. The latter
-remain unsupported by this query-mix instrumentation and must be reported
-separately at the four-area checkpoint.
+remain unsupported by this query-mix instrumentation and are reported
+separately in the [four-area checkpoint](../../phase1-checkpoint-2026-10-08.md).
 
 The [copied raw archive](raw-archive/) retains the exact commands,
 environment and each block's source, wheel, model, database and resource
 metadata. Its 305-file `SHA256SUMS` manifest has SHA-256
 `a08cc52bf8ac707b6907d9d6779643405816ca0f684b7d946f371e867aa9902f`;
-all copied bytes were verified. It remains untracked pending end-of-phase
-retention. The broader Phase 1 checkpoint remains open.
+all copied bytes were verified. It remains untracked, with its manifest and
+a verified local bundle recorded in the [retention receipt](../2026-10-08-raw-retention-review/README.md).

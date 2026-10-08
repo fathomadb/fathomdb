@@ -49,8 +49,10 @@ not started.
   raw archives for Python S01/S02/S03/S02-L, TypeScript S01/S02 and engine
   E01–E12 remain local and untracked under their result directories, with
   verified `SHA256SUMS` manifests. Their linked audits and summary receipts
-  are tracked. This is a retention limitation for a future clone of Git;
-  the current worktree can recompute the reported cells.
+  are tracked. The [raw retention receipt](results/2026-10-08-raw-retention-review/README.md)
+  records a separately verified, self-contained local transfer bundle and
+  its checksum. A clean Git clone needs that bundle to recompute raw cells;
+  the current worktree retains both the originals and the bundle.
 
 ## 1. What matters and Pareto path
 
@@ -209,31 +211,28 @@ to improve timing.
 
 Ranked follow-ups from this Phase 1 evidence:
 
-1. Repair the Python workspace gate: reconcile the Slice 130 declaration
-   comparator with the documented later API changes through a reviewed
-   successor oracle, and give the embed verifier's child process a stable
-   import path. Rerun the full gate before any workspace-green claim.
-2. Investigate TypeScript S02 reopened-open and whole-sequence overhead with
+1. Investigate TypeScript S02 reopened-open and whole-sequence overhead with
    matched stage and CPU/queue observations, then repeat under warning-free
    conditions. Its +2.772% to +3.675% five-pair p50 range is a descriptive
    lead, not a release gate.
-3. Profile the exact engine vector/hybrid and populated-open leads with the
+2. Profile the exact engine vector/hybrid and populated-open leads with the
    same corpus, model and timer used by installed calls. Keep profile runs
    separate from unprofiled latency; do not infer whole-call loss from the
    synthetic engine stage alone.
-4. Retain the close memory-release contract while investigating its roughly
+3. Retain the close memory-release contract while investigating its roughly
    7.8 ms added installed-Python `close()` p50 and its interaction with
    reopened-open behavior. Test repeated close/cancel under contention.
-5. Add consented per-path CPU and queue instrumentation and a qualified
+4. Add consented per-path CPU and queue instrumentation and a qualified
    sustained mixed-load throughput cell; then revisit the four-path elapsed
    ranking with observed rather than equal-frequency usage.
-6. Cover the remaining high-severity fault positions: OS permissions,
+5. Cover the remaining high-severity fault positions: OS permissions,
    in-commit erasure/WAL interruption and release-binding panic containment.
    Qualify the missing external Mem0 harness, CUDA/Jetson artifact route and
    provider/model cases separately.
-7. Resolve raw archive publication/retention without weakening secret
-   scanning. Current local archives and manifests preserve recomputation in
-   this worktree; a clean Git clone has tracked audits and summaries only.
+6. Decide whether to publish the verified raw bundle through a reviewed
+   route. Local originals, copied manifests and the self-contained bundle
+   preserve recomputation here; a clean Git clone has tracked audits,
+   summaries and checksums but needs the separate bundle for raw replay.
 
 The full gate result below establishes the checkout's verification state.
 This checkpoint closes the Phase 1 recording step with explicit unsupported
@@ -242,31 +241,24 @@ release gates or authorize a Phase 2 quality claim.
 
 ## Verification
 
-- Full workspace gate on committed evidence `b25bd8a41`: **exit 1** at the
-  test step after 1,132 seconds. Lint, typecheck and strict security passed
-  (zero security violations, blockers or downgrades). Of 186 registered test
-  suites, 185 passed, including serial Rust, TypeScript and the repaired
-  `steward-orient` suite; `test-python` failed. Python had 1,587 passed,
-  30 skipped and three failed cases. This is **not** a full-workspace green
-  claim. The [verification receipt](results/2026-10-08-phase1-verification/README.md)
-  retains the exact gate output, Python diagnostics and gate-only Git exclude.
-- The Python declaration comparator expected 1,131 pre-move declarations
-  but found 1,132. Its exact set delta is two `search_frozen` signatures
-  changing `pool_n: int=0` to `pool_n: int | None=None` plus the
-  `DependencyTraceError` export. Commit `a8a0c74f0` made those intentional,
-  [interface-documented](../../../../interfaces/python.md) changes after
-  the Slice 130 snapshot. The old golden was not regenerated.
-- Two `verify_embed_db` tests failed because their inspection subprocess
-  could not import `eval` from its inherited Python path. A focused rerun
-  with `PYTHONPATH` set to this checkout's `src/python` passed both tests
-  (two passed, four deselected). The gate runner and child import path still
-  need reconciliation; this scoped rerun does not make the full gate green.
+- Full workspace gate on committed evidence `418fc23c4`: **exit 0**. Lint,
+  typecheck and strict security passed (zero security violations, blockers
+  or downgrades); test reported **186/186 suites passed**, with no skipped
+  or excluded suites. The [green verification receipt](results/2026-10-08-phase1-verification-green/README.md)
+  retains exact gate output and its gate-only Git exclude. The earlier
+  [red receipt](results/2026-10-08-phase1-verification/README.md) remains
+  available for the three repaired Python failures.
+- Commit `418fc23c4` made the Slice 130 declaration comparator recognize
+  only the approved, interface-documented `search_frozen` and
+  `DependencyTraceError` deltas from `a8a0c74f0`, while retaining its
+  historical snapshot and stub hash for every other declaration. It also
+  supplied the embed verifier's inspection child a stable package path.
 - The gate-only `core.excludesFile` pointed at a local `/tmp` pattern for
   untracked Slice 135 raw-result files. It let the committed source satisfy
   Python's clean-worktree precondition while leaving those files retained
   and ordinary Git status unchanged outside the run.
-- Scoped Markdown validator: passed after the report and plan update.
+- Scoped Markdown validator: passed after the final report and plan update.
 - Exact product diff: `git diff --quiet 224e44c59 -- src/rust/crates src/python/fathomdb src/ts/src`
-  returned zero before this report; rerun after final commit. The sole `src/`
-  difference is a `ClosureLookupV1` annotation in an existing Python test,
-  added after Pyright rejected its two otherwise valid calls.
+  returned zero after the green gate. Later changes are documentation and
+  evidence receipts only. Other `src/` differences are test-only verifier
+  repairs and a `ClosureLookupV1` annotation in an existing Python test.

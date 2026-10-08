@@ -12,9 +12,11 @@ planning_baseline: 316ac4769c0f4e23e9eff14e1190f66b2988f6b2
 The [full four-area checkpoint](phase1-checkpoint-2026-10-08.md) is recorded
 with explicit unsupported cells and residual risks. Dedicated Phase 2
 gold-answer scoring remains unopened, and Slice 135 is not complete. The
-checkpoint's full workspace gate is red only in the Python suite (three
-cases); its [verification record](phase1-checkpoint-2026-10-08.md#verification)
-names the failures and the two focused import-path passes. Work on branch
+checkpoint's [full workspace gate](results/2026-10-08-phase1-verification-green/README.md)
+passed all 186 suites after the three Python verifier failures were repaired.
+The raw archives and a self-contained [local transfer bundle](results/2026-10-08-raw-retention-review/README.md)
+are verified; a clean Git clone still needs that separate bundle for raw
+recomputation. Work on branch
 `llm/0.8.27-slice-135` has reached product source
 `224e44c593c13d86ece648adabe445723db04070`, after Slice 132 and both
 off-ladder landings. The exact 0.8.26 comparison source is

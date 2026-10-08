@@ -1,6 +1,6 @@
 ---
 title: Slice 135 installed Python S02 paired comparison at source 224e44c59
-status: AUDITED_DIAGNOSTIC_NOT_PHASE1_CHECKPOINT
+status: AUDITED_DIAGNOSTIC_IN_PHASE1_CHECKPOINT
 target_release: 0.8.27
 ---
 
@@ -41,11 +41,14 @@ on baseline. The memory release at close is an intended lifecycle change;
 its latency/resource tradeoff remains a checkpoint disposition. Five pairs
 do not support an equivalence or statistical significance claim.
 
-The copied [raw archive](raw-archive/) is currently untracked pending
-end-of-phase retention. Its 1,167-file `SHA256SUMS` manifest has SHA-256
+The copied [raw archive](raw-archive/) is untracked; its verified local
+bundle and copied manifest are recorded in the
+[retention receipt](../2026-10-08-raw-retention-review/README.md).
+Its 1,167-file `SHA256SUMS` manifest has SHA-256
 `8c3a4a2cb2395560465fee43d2de675816297c648286c98ec5f15398d3a8d5e4`;
 the copied archive passed `sha256sum -c`. The paired and order audit hashes
 are `13d50229a7f3a20dd58d9da1bf18a399423b52e74ea11e43f61c4098d879d4c3`
 and `8ea5b7ade9236e6aa6efc8c76442ee51fbf671b4b41b479e39aef58bb718fbf3`.
-This Python S02 result is an exact-source diagnostic; other installed SDKs,
-the broader workload and the four-area Phase 1 checkpoint remain open.
+This Python S02 result is an exact-source diagnostic incorporated into the
+[four-area Phase 1 checkpoint](../../phase1-checkpoint-2026-10-08.md).
+Other SDK and workload boundaries are dispositioned there.

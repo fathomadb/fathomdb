@@ -144,9 +144,10 @@ def audit_collection(root: Path, protocol: Path) -> dict:
         "block_runner_sha256": base._hash(root / "block-runner.py"),
         "valid_blocks": len(blocks),
         "checked_attempts": sum(block["checked_attempts"] for block in blocks),
-        "host_swap_warning_blocks": [
-            block["directory"] for block in blocks if block["warnings"]
-        ],
+        "host_swap_warning_blocks": base.warning_block_names(blocks, "host swap drift:"),
+        "child_major_fault_warning_blocks": base.warning_block_names(
+            blocks, "child major faults:"
+        ),
         "sizes": {},
     }
     for size in specification["rows"]:

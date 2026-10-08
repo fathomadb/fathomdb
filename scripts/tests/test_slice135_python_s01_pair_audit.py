@@ -50,3 +50,27 @@ def test_pair_audit_rejects_wrong_p99_summary() -> None:
     summary["cells"]["hybrid"]["warm_p99_ns"] = 1
     with pytest.raises(ValueError, match="p99"):
         MODULE.audit_observations(raw, size=32, samples=1000, summary=summary)
+
+
+def test_child_major_faults_are_reported_as_warning_without_losing_samples() -> None:
+    resources = {
+        "method": "gnu-time",
+        "unsupported": [],
+        "swap_events": 0,
+        "major_faults": 20,
+    }
+    assert MODULE.child_resource_warnings(resources) == [
+        "child major faults: 20"
+    ]
+    resources["swap_events"] = 1
+    with pytest.raises(ValueError, match="resource invalidator"):
+        MODULE.child_resource_warnings(resources)
+
+
+def test_warning_block_names_keep_host_swap_separate_from_major_faults() -> None:
+    blocks = [
+        {"directory": "a", "warnings": ["child major faults: 20"]},
+        {"directory": "b", "warnings": ["host swap drift: 2 pages; child swap events: 0"]},
+    ]
+    assert MODULE.warning_block_names(blocks, "host swap drift:") == ["b"]
+    assert MODULE.warning_block_names(blocks, "child major faults:") == ["a"]

@@ -128,6 +128,29 @@ def audit_observations(
     return result
 
 
+def child_resource_warnings(resources: dict) -> list[str]:
+    """Reject child swap while retaining measured major faults as noise evidence."""
+    faults = resources.get("major_faults")
+    if (
+        resources.get("method") != "gnu-time"
+        or resources.get("unsupported") != []
+        or resources.get("swap_events") != 0
+        or type(faults) is not int
+        or faults < 0
+    ):
+        raise ValueError("measured child resource invalidator")
+    return [f"child major faults: {faults}"] if faults else []
+
+
+def warning_block_names(blocks: list[dict], prefix: str) -> list[str]:
+    """Name only blocks carrying a warning of the requested type."""
+    return [
+        block["directory"]
+        for block in blocks
+        if any(warning.startswith(prefix) for warning in block["warnings"])
+    ]
+
+
 def audit_block(directory: Path, specification: dict, protocol_sha: str) -> dict:
     """Validate one source/artifact-bound block against archived bytes."""
     parts = directory.name.split("-")
@@ -225,13 +248,10 @@ def audit_block(directory: Path, specification: dict, protocol_sha: str) -> dict
     swap_delta = after.get("swap_pages", -1) - before.get("swap_pages", -1)
     if swap_delta < 0:
         raise ValueError(f"{directory.name}: swap counter reversed")
-    if (
-        resources.get("method") != "gnu-time"
-        or resources.get("unsupported") != []
-        or resources.get("swap_events") != 0
-        or resources.get("major_faults") != 0
-    ):
-        raise ValueError(f"{directory.name}: measured child resource invalidator")
+    try:
+        resource_warnings = child_resource_warnings(resources)
+    except ValueError as error:
+        raise ValueError(f"{directory.name}: {error}") from error
     for field in ("user_cpu_s", "system_cpu_s"):
         value = resources.get(field)
         if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
@@ -245,8 +265,8 @@ def audit_block(directory: Path, specification: dict, protocol_sha: str) -> dict
         if swap_delta
         else []
     )
-    if environment.get("warnings") != expected_warnings:
-        raise ValueError(f"{directory.name}: host warning differs from counters")
+    if environment.get("warnings") != expected_warnings + resource_warnings:
+        raise ValueError(f"{directory.name}: environment warning differs from counters")
     report = audit_observations(
         raw, size=size, samples=specification["warm_samples_per_cell"], summary=summary
     )
@@ -261,7 +281,7 @@ def audit_block(directory: Path, specification: dict, protocol_sha: str) -> dict
             "cpu": before["cpu"],
             "governor": before["governor"],
             "host_swap_pages_delta": swap_delta,
-            "warnings": expected_warnings,
+            "warnings": expected_warnings + resource_warnings,
             "child_resources": resources,
         }
     )

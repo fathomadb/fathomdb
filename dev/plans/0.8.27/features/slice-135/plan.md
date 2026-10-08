@@ -690,7 +690,13 @@ SDK exercise remain open.
   overlay to the full operation mix and binding boundaries.
   The [current-wheel installed Python S01 smoke](results/2026-10-08-python-s01-current-smoke/README.md)
   passed both corpus sizes, and its [replacement paired subset](s01-python-current-comparison-protocol.json)
-  is frozen before candidate timing. The paired current-wheel run is open.
+  is frozen before candidate timing. The [current-wheel paired Python S01
+  diagnostic](results/2026-10-08-python-s01-current-paired/README.md)
+  subsequently passed 20 alternating blocks, 60,120 observations and an
+  independent archive audit. One measured-child major-fault warning and two
+  host-only swap warnings remain in the report. At 32/256 rows the median
+  vector-bearing p50 changes were -1.62%/-1.68%, while text changed
+  +4.53%/+0.98%; the result is boundary-specific and diagnostic.
 - **Robustness:** real-database concurrency, kill/reopen, SQLite-full,
   projection recovery, provider error/timeout and close cases have inspected
   results. An [interrupted-erasure reopen case](results/2026-10-07-erasure-reopen-current/README.md)

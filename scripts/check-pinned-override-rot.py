@@ -90,6 +90,16 @@ CUDARC_VERSION = "0.19.7"
 CUDARC_UPSTREAM_CRATE_SHA256 = "1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc"
 CUDARC_VENDOR_TREE_SHA256 = "bc5bf93bfc0f1db0792c3833ca80d6e0b315cec4909b8dab2847f3dfa86f2af2"
 CUDARC_LICENSE_FILES = ("LICENSE-MIT", "LICENSE-APACHE")
+# The reviewed FATHOMDB-PATCH.md items; the note's status table must give each
+# an upstream status and a removal path.
+CUDARC_PATCH_ITEMS = (
+    "1. Allocator fallback",
+    "2. Per-device decision",
+    "3. Zero-length synchronous allocation",
+    "4. Tests (`fathomdb_alloc_fallback`)",
+    "5. Private memory pool primitive",
+    "6. Feature marker `fathomdb-private-pool`",
+)
 VENDOR_PATCH_NOTE = "FATHOMDB-PATCH.md"
 
 
@@ -242,6 +252,7 @@ def validate_cudarc_exception(metadata: dict[str, Any]) -> None:
         "version": CUDARC_VERSION,
         "upstream_crate_sha256": CUDARC_UPSTREAM_CRATE_SHA256,
         "vendor_tree_sha256": CUDARC_VENDOR_TREE_SHA256,
+        "patch_items": list(CUDARC_PATCH_ITEMS),
     }
     for key, value in expected.items():
         if exception.get(key) != value:
@@ -570,10 +581,28 @@ def validate_cargo_pins(root: Path) -> list[str]:
                 failures.append("cudarc vendor manifest package/version drift")
             if not all((source_dir / name).is_file() for name in CUDARC_LICENSE_FILES):
                 failures.append("cudarc vendor license is missing")
-            if not (source_dir / VENDOR_PATCH_NOTE).is_file():
+            note_path = source_dir / VENDOR_PATCH_NOTE
+            if not note_path.is_file():
                 failures.append("cudarc vendor patch note is missing")
+            else:
+                failures.extend(cudarc_patch_note_failures(note_path.read_text(encoding="utf-8")))
             if vendor_tree_digest(source_dir, "cudarc", failures) != CUDARC_VENDOR_TREE_SHA256:
                 failures.append("cudarc vendor tree SHA-256 drift")
+    return failures
+
+
+def cudarc_patch_note_failures(note: str) -> list[str]:
+    """Require a status-table row with a non-empty upstream status and removal path per item."""
+    rows: dict[str, list[str]] = {}
+    for line in note.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if line.lstrip().startswith("|") and len(cells) == 3:
+            rows[cells[0]] = cells[1:]
+    failures = []
+    for item in CUDARC_PATCH_ITEMS:
+        status_and_removal = rows.get(item)
+        if status_and_removal is None or not all(status_and_removal):
+            failures.append(f"cudarc patch note has no status row for {item}")
     return failures
 
 

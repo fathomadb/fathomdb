@@ -1,0 +1,15 @@
+{
+  "expected": {
+    "corpus_nodes": 32,
+    "graph_edges": 0,
+    "graph_nodes": 0,
+    "integrity_check": "ok"
+  },
+  "mutant": {
+    "corpus_nodes": 32,
+    "graph_edges": 1,
+    "graph_nodes": 0,
+    "integrity_check": "ok"
+  },
+  "rejected": true
+}

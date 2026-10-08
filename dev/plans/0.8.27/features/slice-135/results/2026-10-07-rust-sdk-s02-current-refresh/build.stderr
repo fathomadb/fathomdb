@@ -1,0 +1,4 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+   Compiling fathomdb-sdk v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-sdk)
+   Compiling slice135-rust-sdk-consumer v0.1.0 (/tmp/slice135-rust-sdk-consumer)
+    Finished `release` profile [optimized] target(s) in 8.77s

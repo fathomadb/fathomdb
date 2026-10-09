@@ -56,9 +56,10 @@ Owner rulings, 2026-10-08 (plan revision 3.3):
 
 ## Follow-ups
 
-- Candle 0.10.3 crates.io publication of core, nn and transformers from
-  `859b8ea1`: commands handed to the owner (2026-10-09); required before
-  the 0.8.28 publish. The pinned-override entry asks for a fresh human
+- Candle 0.10.3 is on crates.io (core, nn and transformers, published by
+  the owner on 2026-10-09 from `859b8ea1`; dry-run first). Release task:
+  the `tegra-pool` registry check drops its Candle git patch (0.8.28
+  plan, D28-08). The pinned-override entry asks for a fresh human
   advisory review of the rev change (`25368139..859b8ea1`, one
   `build.rs` line plus a comment).
 - The upstream cudarc package awaits owner sign-off; nothing is posted.
@@ -74,11 +75,16 @@ Owner rulings, 2026-10-08 (plan revision 3.3):
   network and a CUDA toolkit, so it is a manual release check
   (`dev/design/release.md`), not part of `agent-verify`.
 
+- **Final gate (2026-10-09, `68ac62d7a`).** Typecheck passes; Rust tests
+  all pass; lint fails only `lint-md-links` (environment, below); 180 of
+  185 test suites pass, and each of the five failures is listed below.
 - **Pre-existing, not fixed here** (each also fails on the base
   `cb9594f44`): `test_preflight_release_state.py`,
   `test_check_release_state_views.sh` (shallow-clone probe) and
   `test_steward_orient.sh` (output budget 4657 > 4096 bytes on the real
-  repository); the engine lib test
+  repository), `test_shell_pipefail_guards.sh` (it reruns the release-state
+  views test), and five `test_coinstallation_guard.py` cases that do not
+  mock the host and so see this Jetson as classic Tegra; the engine lib test
   `current_opener_holds_lock_before_admission_classification` hangs
   intermittently (3 of 3 on the base, 1 of 3 on the slice head).
 - **Environment in this worktree.** `lychee` scans `node_modules`, `.venv`

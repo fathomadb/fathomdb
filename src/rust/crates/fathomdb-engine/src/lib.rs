@@ -883,6 +883,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn local_canonical_path_does_not_strand_idle_wal_readers() {
+        crate::configure_runtime_for_open().unwrap();
         if !super::connection_runtime::sqlite_local_verbatim_vfs_is_patched()
             && rusqlite::version_number() < 3_053_003
         {
@@ -1013,6 +1014,9 @@ mod tests {
 
     #[test]
     fn current_opener_holds_lock_before_admission_classification() {
+        // A runtime poisoned by an earlier raw connection must fail here, not
+        // strand the rendezvous below when the opener returns early.
+        crate::configure_runtime_for_open().unwrap();
         let dir = TempDir::new().expect("tempdir");
         let path = dir.path().join("current-wins.sqlite");
         let rendezvous = Arc::new(Barrier::new(2));
@@ -1049,6 +1053,7 @@ mod tests {
 
     #[test]
     fn statement_reuse_refreshes_alternating_bindings() {
+        crate::configure_runtime_for_open().unwrap();
         let connection = Connection::open_in_memory().expect("open");
         connection
             .execute_batch(
@@ -1070,6 +1075,7 @@ mod tests {
 
     #[test]
     fn statement_reuse_releases_rows_and_recovers_after_error() {
+        crate::configure_runtime_for_open().unwrap();
         let mut connection = Connection::open_in_memory().expect("open");
         connection
             .execute_batch("CREATE TABLE item(value INTEGER); INSERT INTO item VALUES(7)")
@@ -1093,6 +1099,7 @@ mod tests {
 
     #[test]
     fn statement_reuse_reprepares_after_schema_change() {
+        crate::configure_runtime_for_open().unwrap();
         let connection = Connection::open_in_memory().expect("open");
         connection
             .execute_batch(
@@ -1120,6 +1127,7 @@ mod tests {
 
     #[test]
     fn statement_reuse_recovers_after_concurrent_schema_change() {
+        crate::configure_runtime_for_open().unwrap();
         let dir = TempDir::new().expect("tempdir");
         let path = dir.path().join("statement-cache.sqlite");
         let reader = Connection::open(&path).expect("reader");
@@ -1860,6 +1868,7 @@ mod tests {
     /// rows/statement values are dropped.
     #[test]
     fn wal_attribution_native_state_observes_busy_statement_then_reset() {
+        crate::configure_runtime_for_open().unwrap();
         let connection = Connection::open_in_memory().expect("open");
         connection
             .execute_batch(
@@ -3393,6 +3402,7 @@ mod tests {
     // `dev/design/0.7.0-vector-quant-pack1.md` D3 / D4.
     #[test]
     fn resolve_source_type_drift_check() {
+        crate::configure_runtime_for_open().unwrap();
         let kinds = ["email", "article", "paper", "meeting", "note", "todo", "doc"];
 
         // 1. Rust helper return values (table is the contract: changes

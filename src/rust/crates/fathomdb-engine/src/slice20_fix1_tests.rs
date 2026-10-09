@@ -51,6 +51,7 @@ fn derived(revision: &str, logical: &str) -> PreparedWrite {
 
 #[test]
 fn prospective_validation_and_apply_reuse_one_enclosing_transaction_generation() {
+    crate::configure_runtime_for_open().unwrap();
     let connection = Connection::open_in_memory().unwrap();
     fathomdb_schema::migrate(&connection).unwrap();
     connection.execute_batch("BEGIN IMMEDIATE").unwrap();

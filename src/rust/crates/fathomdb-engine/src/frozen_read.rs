@@ -1009,6 +1009,7 @@ mod tests {
 
     #[test]
     fn normative_v1_fixture_remains_pinned_at_schema_31() {
+        crate::configure_runtime_for_open().unwrap();
         let fixture: Value = serde_json::from_str(include_str!(
             "../../../../../tests/fixtures/slice35_frozen_context_v1.json"
         ))
@@ -1020,6 +1021,7 @@ mod tests {
 
     #[test]
     fn normative_v2_fixture_pins_projection_generation_binding() {
+        crate::configure_runtime_for_open().unwrap();
         let fixture: Value = serde_json::from_str(include_str!(
             "../../../../../tests/fixtures/slice40_frozen_context_v2.json"
         ))
@@ -1108,6 +1110,7 @@ mod tests {
 
     #[test]
     fn schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation() {
+        crate::configure_runtime_for_open().unwrap();
         crate::register_sqlite_vec_extension();
         let mut connection = Connection::open_in_memory().unwrap();
         migrate_with_steps(&connection, &MIGRATIONS[..32]).unwrap();

@@ -1915,6 +1915,7 @@ mod tests {
 
     #[test]
     fn generation_mint_retries_collisions_without_reusing_history() {
+        crate::configure_runtime_for_open().unwrap();
         let connection = Connection::open_in_memory().unwrap();
         connection
             .execute_batch(

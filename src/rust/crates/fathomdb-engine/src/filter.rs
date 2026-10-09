@@ -967,6 +967,7 @@ mod slice85_boundary_tests {
 
     #[test]
     fn snapshot_filter_error_is_narrow_and_preserves_its_payload() {
+        crate::configure_runtime_for_open().unwrap();
         let storage = SnapshotFilterError::from(rusqlite::Error::InvalidQuery);
         assert!(matches!(storage, SnapshotFilterError::Sqlite(rusqlite::Error::InvalidQuery)));
 

@@ -44,16 +44,24 @@ Owner rulings, 2026-10-08 (plan revision 3.3):
   non-blocking. Product versus study P is within 0.975-1.008 for every
   measure.
 
+## Close-out work (owner-directed, 2026-10-08/09)
+
+| Item | Evidence |
+| --- | --- |
+| Gate fixes from the full verify | `89c31b16b`: rerank tests move to `rerank/tests.rs` and the module-boundary policy classifies the three new engine test modules. `e9e6c0a82`, `d5439fd5f`: the co-tagging and publish-if-new mock registries list embedder-api 0.7.0 (precedent `3ec248c07`). `31d1b44e9`: the Slice 90 root inventory records the `RerankPassagesError` re-export blob. |
+| Tegra wheel `rerank-cuda` | `30cf216dc` red, `c57b8dfda` green: `CUDA_PYTHON_FEATURES_TEGRA` is `pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool`, matching the Tegra Node addon; the manual Node recipe lists the same. |
+| Candle `CUDA_PATH` rerun | Fork `859b8ea1` (pushed with owner approval): red on the Orin, a kernels build first run without `CUDA_PATH` still failed to link `cudart_static` after it was set; green, it reruns and links. FathomDB re-pinned at `961dd13dc`; the four Orin private-pool GPU tests pass on the new rev. |
+| CLI `doctor_gpu` matrix (pre-existing) | `7ac1aea31`: the straced child ran with the inherited `TERM`; libtest's terminfo lookup fell through to the `$HOME/.terminfo` canary because Ubuntu keeps `xterm-256color` in `/lib/terminfo`. The child now runs without `TERM`; 22 of 22 pass. |
+| Preflight `ldd` fixture (pre-existing) | `548e83111`: `e0c574834` moved the dependency check into `inspect-cuda-artifacts.py`; the mutation now removes that strict inspection. |
+
 ## Follow-ups
 
-- Candle fork `build.rs` lacks `rerun-if-env-changed=CUDA_PATH`; a build
-  without `CUDA_PATH` caches a `cudart_static` failure until
-  `cargo clean -p candle-kernels`.
-- Publishing Candle 0.10.3 (the fork) to crates.io is a release task
-  before the 0.8.28 publish.
+- Candle 0.10.3 crates.io publication of core, nn and transformers from
+  `859b8ea1`: commands handed to the owner (2026-10-09); required before
+  the 0.8.28 publish. The pinned-override entry asks for a fresh human
+  advisory review of the rev change (`25368139..859b8ea1`, one
+  `build.rs` line plus a comment).
 - The upstream cudarc package awaits owner sign-off; nothing is posted.
-- The Tegra Python wheel contract (`CUDA_PYTHON_FEATURES_TEGRA`) lacks
-  `rerank-cuda`; qualification built W2 by hand.
 - Node 24 and 26 were not run; the Node early-`cuInit` script SKIPs
   without `FATHOMDB_TEGRA_NODE_PACKAGE`.
 - H-1: Python children forked after import lose CUDA; use the
@@ -66,14 +74,18 @@ Owner rulings, 2026-10-08 (plan revision 3.3):
   network and a CUDA toolkit, so it is a manual release check
   (`dev/design/release.md`), not part of `agent-verify`.
 
-- **Pre-existing failure.** The CLI test
-  `doctor_gpu_process_matrix_has_exact_outputs_and_no_side_effects` fails
-  identically on the base `cb9594f44` ("cpu accessed forbidden root"). It
-  is not caused by Slice 30. Also pre-existing on the base:
-  `scripts/tests/test_cuda_preflight_hardening.sh` (Node `ldd` fixture),
-  and the engine lib test
-  `current_opener_holds_lock_before_admission_classification`, which hangs
+- **Pre-existing, not fixed here** (each also fails on the base
+  `cb9594f44`): `test_preflight_release_state.py`,
+  `test_check_release_state_views.sh` (shallow-clone probe) and
+  `test_steward_orient.sh` (output budget 4657 > 4096 bytes on the real
+  repository); the engine lib test
+  `current_opener_holds_lock_before_admission_classification` hangs
   intermittently (3 of 3 on the base, 1 of 3 on the slice head).
+- **Environment in this worktree.** `lychee` scans `node_modules`, `.venv`
+  and other paths `lychee.toml` excludes (115 errors, none in files the
+  slice touched; `agent-lint-md.sh` and `lychee.toml` are unchanged).
+  `fathomdb-py --lib` needs the uv Python `LIBDIR` on `LD_LIBRARY_PATH`
+  (25 of 25 pass with it).
 - **Process deviation.** During S30-T6 a subagent made one temporary local
   "wip" commit with `--no-verify` while splitting the red commit. It was
   soft-reset at once and is not in history.

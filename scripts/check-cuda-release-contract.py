@@ -108,7 +108,7 @@ CUDA_TEGRA_HOST_CUDART_LIB = "/usr/local/cuda-12.6/targets/aarch64-linux/lib"
 CUDA_TEGRA_HOST_DRIVER_LIB = "/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 CANDLE_GIT_URL = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_GIT_REV = "25368139e45fe465e4630b2fbd9eb7f6e732fce6"
+CANDLE_GIT_REV = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
 CANDLE_PACKAGES = (
     "candle-core-fathomdb",
     "candle-kernels",

@@ -93,7 +93,7 @@ metadata.write_text(json.dumps(data), encoding="utf-8")
     }}}
 }), encoding="utf-8")
 candle_git = "https://github.com/coreyt/candle-fathomdb.git"
-candle_rev = "25368139e45fe465e4630b2fbd9eb7f6e732fce6"
+candle_rev = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
 candle_packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
 candle_versions = {"candle-core-fathomdb": "0.10.3", "candle-kernels": "0.10.2", "candle-nn-fathomdb": "0.10.3", "candle-transformers-fathomdb": "0.10.3"}
 (root / "Cargo.toml").write_text(
@@ -422,7 +422,7 @@ from pathlib import Path
 root = Path(sys.argv[1])
 mode = sys.argv[2]
 git = "https://github.com/coreyt/candle-fathomdb.git"
-rev = "25368139e45fe465e4630b2fbd9eb7f6e732fce6"
+rev = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
 packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
 manifest_packages = packages.copy()
 manifest_revs = {package: rev for package in packages}

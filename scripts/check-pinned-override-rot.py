@@ -65,7 +65,7 @@ CANDLE_PACKAGES = (
     "candle-transformers-fathomdb",
 )
 CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_REV = "25368139e45fe465e4630b2fbd9eb7f6e732fce6"
+CANDLE_REV = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
 # Core, nn and transformers carry CudaDevice::from_context (0.8.28 Slice 30) as
 # 0.10.3; candle-kernels keeps 0.10.2, the version crates.io publishes.
 CANDLE_VERSIONS = {

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 30 — Tegra private CUDA memory pool status
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.28
 observed_on: 2026-10-08
 ---
@@ -52,6 +52,7 @@ Owner rulings, 2026-10-08 (plan revision 3.3):
 | Tegra wheel `rerank-cuda` | `30cf216dc` red, `c57b8dfda` green: `CUDA_PYTHON_FEATURES_TEGRA` is `pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool`, matching the Tegra Node addon; the manual Node recipe lists the same. |
 | Candle `CUDA_PATH` rerun | Fork `859b8ea1` (pushed with owner approval): red on the Orin, a kernels build first run without `CUDA_PATH` still failed to link `cudart_static` after it was set; green, it reruns and links. FathomDB re-pinned at `961dd13dc`; the four Orin private-pool GPU tests pass on the new rev. |
 | CLI `doctor_gpu` matrix (pre-existing) | `7ac1aea31`: the straced child ran with the inherited `TERM`; libtest's terminfo lookup fell through to the `$HOME/.terminfo` canary because Ubuntu keeps `xterm-256color` in `/lib/terminfo`. The child now runs without `TERM`; 22 of 22 pass. |
+| Engine lock-test hang (pre-existing) | `6f5aec196`: fourteen unit tests opened raw SQLite connections before any `Engine::open`, latching the runtime into `Failed(TooLate)` for the process; the lock test's opener then failed early and its rendezvous hung. Reproduced deterministically (hung past 120 s); each test now configures the runtime first, as `evidence.rs` did. Engine lib passes 3 of 3 (109) and once with `test-hooks` (110). |
 | Preflight `ldd` fixture (pre-existing) | `548e83111`: `e0c574834` moved the dependency check into `inspect-cuda-artifacts.py`; the mutation now removes that strict inspection. |
 
 ## Follow-ups
@@ -80,13 +81,11 @@ Owner rulings, 2026-10-08 (plan revision 3.3):
   185 test suites pass, and each of the five failures is listed below.
 - **Pre-existing, not fixed here** (each also fails on the base
   `cb9594f44`): `test_preflight_release_state.py`,
-  `test_check_release_state_views.sh` (shallow-clone probe) and
+  `test_check_release_state_views.sh` (shallow-clone probe),
   `test_steward_orient.sh` (output budget 4657 > 4096 bytes on the real
   repository), `test_shell_pipefail_guards.sh` (it reruns the release-state
   views test), and five `test_coinstallation_guard.py` cases that do not
-  mock the host and so see this Jetson as classic Tegra; the engine lib test
-  `current_opener_holds_lock_before_admission_classification` hangs
-  intermittently (3 of 3 on the base, 1 of 3 on the slice head).
+  mock the host and so see this Jetson as classic Tegra.
 - **Environment in this worktree.** `lychee` scans `node_modules`, `.venv`
   and other paths `lychee.toml` excludes (115 errors, none in files the
   slice touched; `agent-lint-md.sh` and `lychee.toml` are unchanged).

@@ -60,9 +60,9 @@ Owner rulings, 2026-10-08 (plan revision 3.3):
 - Candle 0.10.3 is on crates.io (core, nn and transformers, published by
   the owner on 2026-10-09 from `859b8ea1`; dry-run first). Release task:
   the `tegra-pool` registry check drops its Candle git patch (0.8.28
-  plan, D28-08). The pinned-override entry asks for a fresh human
-  advisory review of the rev change (`25368139..859b8ea1`, one
-  `build.rs` line plus a comment).
+  plan, D28-08). The human advisory review the pinned-override entry
+  requires for the rev change (`25368139..859b8ea1`, one `build.rs` line
+  plus a comment) was approved by the owner on 2026-10-09.
 - The upstream cudarc package awaits owner sign-off; nothing is posted.
 - Node 24 and 26 were not run; the Node early-`cuInit` script SKIPs
   without `FATHOMDB_TEGRA_NODE_PACKAGE`.

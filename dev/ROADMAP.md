@@ -10,6 +10,10 @@ Start here for future work. This document consolidates the active release
 schedule, draft scopes, experimental review checkpoints, and explicitly
 preserved backlog into one readable map.
 
+The [product hygiene roadmap](hygeine-roadmap.md) tracks cross-release
+correctness, quality, performance and qualification risks separately from
+this release schedule.
+
 This is a roadmap, not implementation authority. Release placement is owned by
 [`plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md`](plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md).
 A release becomes executable only when it has an approved plan, release-state
@@ -111,7 +115,7 @@ The source of record is
 [`plans/0.8.28-draft-scope.md`](plans/0.8.28-draft-scope.md). D28-01 to D28-07
 are caller-selected advanced reads. D28-08 is owner-placed Tegra pool work;
 D28-09 to D28-12 are the four owner-placed items from the
-[ranked Slice 135 register](../ROADMAP.md#slice-135-suspected-issues-and-evidence-gaps).
+[product hygiene roadmap](hygeine-roadmap.md#open-risk-register).
 Automatic routing is outside this scope; default changes require their own
 reviewed contracts and gates.
 

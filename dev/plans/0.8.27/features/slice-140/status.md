@@ -9,10 +9,11 @@ planning_baseline: 360bbe63e65aca93cb2200f6c8e27624f4042ea8
 
 The [plan](plan.md) is reviewed and the [design](design.md) is approved for
 the `360bbe63e` release baseline. This is a **planning closeout**, not Slice
-140 implementation or release qualification. Slice 117 continues separately;
-its reviewed candidate handoff is required before final Slice 140 product and
-documentation verification. The release-state ladder remains `117 → 140 → 150`
-and Slice 140 remains `PLANNED`.
+140 implementation or release qualification. This planning review used the
+pre-handoff `360bbe63e` baseline. Slice 117 has since closed on the release
+branch at its qualified, unpublished candidate; the current remaining ladder
+is `140 → 150 → 160`, with Slice 140 still `PLANNED`. Its final product and
+documentation verification must use the integrated source.
 
 ## Reviewed decisions and corrections
 
@@ -43,7 +44,7 @@ An independent `gpt-5.6-terra` high read-only verification returned **PASS**
 for the planning-only diff. It checked the 39-file count, nine production-file
 sizes, three-SDK taxonomy, seam scope, Slice 40 classifier order, dual-runtime
 ADR against policy/source and HITL `seq:250`/`seq:252`, historical labels,
-and the `117 → 140 → 150` ladder. It confirmed that formal Slice 140 release
+and the then-current `117 → 140 → 150` ladder. It confirmed that formal Slice 140 release
 state remains `PLANNED` with Slice 135 as its recorded dependency; the reviewed
 Slice 117 handoff is an execution precondition, not a silently rewritten
 release-state dependency.
@@ -55,7 +56,7 @@ did not change, so this is not a public-doc or full-workspace gate claim.
 
 ## Work still required to close Slice 140
 
-Rebase on Slice 117's reviewed candidate and re-scan; gate the inventoried test
+Rebase on the integrated Slice 117 candidate and re-scan; gate the inventoried test
 seams with RED/GREEN controls, preserve the required feature test routes, and
 record a reviewed successor hidden baseline and `CHANGELOG.md` Removed entry.
 Converge current architecture, interfaces, examples, links, and citations;

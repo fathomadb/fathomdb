@@ -1,19 +1,19 @@
 ---
 title: FathomDB 0.8.27 Slice 117 — Jetson CUDA Node addon delivery design
-status: DRAFT
+status: ACCEPTED_DESIGN
 target_release: 0.8.27
 planning_baseline: 80246a567
 ---
 
 # Slice 117 — Jetson CUDA Node addon delivery design
 
-This is a draft design note for owner review. Statements about the current
-pipeline cite the file or commit that establishes them. Everything labelled
-**Proposal** or **Recommendation** is a proposal, not a ruling. The
-[plan](plan.md) owns requirements, acceptance and execution order. The
-[status](status.md) records lifecycle and the implementation hold. The
-proposed record of the recommendation is
-`dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md`.
+This design preserves the option analysis from planning. The owner accepted
+`dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` on 2026-10-09;
+proposal and open-decision wording below is historical. Slice 117 closed on
+2026-10-10 at its qualified, unpublished candidate after the
+`slice-160-owns-publication` ruling. The [plan](plan.md) owns acceptance and
+the [status](status.md) records the exact run and artifact evidence. Slice 160
+owns the later Pages publication and post-publication proof.
 
 **Revision, 2026-10-05.** The owner directed that Slice 117 build on the
 existing Tegra build, packaging and distribution path from the 0.8.26 work,
@@ -26,7 +26,7 @@ the same day are recorded in § 2.
 route (Option B) for 0.8.27, not the npm registry
 (`slice-117-channel-tegra-pages`). § 4 keeps the option analysis as the record
 of why. The npm registry options are not chosen for 0.8.27. The other
-delivery-shape items in § 10 remain open.
+delivery-shape items in § 10 were later ruled by the accepted ADR.
 
 ## 1. Problem
 
@@ -64,13 +64,14 @@ Recorded in `dev/plans/release-state-0.8.27.json` `decisions.ruled`:
 
 | Ruled id | Effect on Slice 117 |
 | --- | --- |
-| `slice-117-jetson-node-cuda-direction` | Slice 117 is on the 0.8.27 ladder after Slice 110, and its planning and governance work is authorized. **Implementation is held** until Linux x86_64 has been tested with the Slice 110 fixes on `llm/slice110-tegra-allocator-fix`. Publication remains behind `release-0.8.27-publication`. |
+| `slice-117-jetson-node-cuda-direction` | Slice 117 was placed on the 0.8.27 ladder after Slice 110. Implementation was held until Linux x86_64 was tested with the Slice 110 fixes on `llm/slice110-tegra-allocator-fix`; that condition was met on 2026-10-05. Publication remains behind `release-0.8.27-publication`. |
 | `slice-117-supersede-d-80-7-3-and-d-80-6-2` | D-80.7-3 and D-80.6-2 no longer bar a Jetson Node addon. Other 0.8.23 Tegra rulings are unchanged. In-place notes mark the supersession in `dev/design/0.8.23-aarch64-tegra.md` and `dev/tegra-platform-reference.md` § 3.7. |
 | `slice-110-early-cuinit-with-allocator-fallback` | The Slice 117 artifact carries Slice 110's early `cuInit` at addon load and the aarch64-Linux synchronous allocation fallback, as integrated and qualified by Slice 110. Evidence: `dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`. |
 | `slice-117-channel-tegra-pages` | The channel is the existing first-party Tegra Pages route (§ 4, Option B). The addon is not published to the npm registry in 0.8.27; a later registry publication needs its own ruling. Rationale: npm ignores semver build metadata, so `X.Y.Z+tegra` cannot coexist with `X.Y.Z` under one package name (§ 4, same-name variant). A separately named registry package could avoid that, but the Pages route was chosen; it is also this design's recommendation and reuses the tested Tegra workflow, candidate guard, linkage check and post-publication proof. |
 | `tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28` | The 0.8.27 allocator approach is the synchronous fallback with early `cuInit`. No explicit or lazily created memory pool ships in 0.8.27, so the Slice 117 artifact carries none. 0.8.28 evaluates the pool options (`dev/plans/0.8.28/prework/tegra-cuda-memory-pool-study.md`). |
 
-The remaining choices are recorded as unruled `slice-117-delivery-shape` (§ 10).
+The remaining choices were ruled as `slice-117-delivery-shape` on 2026-10-09
+(§ 10).
 
 ### Records this slice builds on or must respect
 
@@ -454,8 +455,8 @@ loader and packaging work triggers only the affected paired Slice 135 cells
 at the changed product source. The full `./scripts/agent-verify.sh` code gate,
 applicable route and docs checks, exact install guidance, and independent
 review precede the Slice 140 handoff. That handoff may be qualified but
-unpublished; the post-publication Node smoke is still required to complete
-Slice 117. Slice 150 qualifies the integrated final candidate.
+unpublished; Slice 160 runs the post-publication Node smoke. Slice 150
+qualifies the integrated final candidate.
 
 ## 8. Risks
 
@@ -483,7 +484,7 @@ Jetson Node GPU support and the exact install command. In addition,
 Node tarball, and `dev/tegra-platform-reference.md` must record the Node
 route.
 
-## 10. Open decisions for the owner
+## 10. Historical decision questions, since ruled
 
 Ruled on 2026-10-05 and removed from this list: superseding D-80.7-3 and
 D-80.6-2; including Slice 117 in the 0.8.27 ladder; early `cuInit` and the
@@ -493,7 +494,8 @@ existing Tegra path (build location, runner trust, release coupling, candidate
 guard, exact-version guidance, compatibility declaration; § 3) are proposals
 the owner may still override.
 
-The items below make up unruled `slice-117-delivery-shape`:
+The items below made up `slice-117-delivery-shape`. The owner accepted the ADR
+on 2026-10-09, ruling them; the list preserves the questions considered.
 
 1. **Package name** (unscoped), and whether to reserve it on the npm registry
    (§ 8, name not held on npm).
@@ -522,11 +524,11 @@ The items below make up unruled `slice-117-delivery-shape`:
 10. **ADR:** accept, revise or reject
     `dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` (proposed).
 
-The proposed ADR now gives concrete recommended answers to all ten items:
+The accepted ADR gives concrete answers to all ten items:
 the named Pages tarball without an npm reservation, two-tier classic-Orin
 loader detection with a clear version-mismatch error, retention of all
 published URLs, the aarch64 import-time probe exception, a measured
 driverless ARM64 import, licence/SBOM review, a separate capability variant,
 an optional dependency tested across hosts, and a qualified unpublished
-Slice 140 handoff. These are proposals until the owner rules them; they do
-not lift the implementation hold.
+Slice 140 handoff. The owner accepted the ADR as proposed on 2026-10-09,
+which rules all ten items and lifts the implementation hold.

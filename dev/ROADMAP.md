@@ -24,13 +24,13 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 - **0.8.26 is published.** It is the latest published release.
 - **0.8.27 is the active implementation release** on `release/0.8.27`.
   Prework approved correction-safe erasure and a behavior-preserving semantic
-  refactor. As of 2026-10-09, release state records Slice 135's bounded
-  system qualification complete alongside the erasure fix (Slice 20) and the
-  NAPI, TypeScript, Python and Rust SDK slices (110–132). Planned Slice 117
-  (Jetson CUDA Node addon via the Tegra Pages route, gated on an unruled
-  delivery-shape decision) is next, then 140 and 150. Its plan, state, and
-  board are the execution authority;
-  publication remains separately gated.
+  refactor. As of 2026-10-10, release state records Slice 135's bounded
+  system qualification and Slice 117's qualified, unpublished Jetson Node
+  delivery route complete alongside the erasure fix (Slice 20) and the
+  NAPI, TypeScript, Python and Rust SDK slices (110–132). Slice 140 is next,
+  followed by final-candidate qualification (150) and publication (160).
+  Its plan, state, and board are the execution authority; publication remains
+  separately gated.
 - An open todo does not automatically become roadmap scope. This file includes
   work only when a current schedule, draft scope, or explicit backlog/proposal
   record preserves it.
@@ -49,7 +49,7 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 | Release | Status | Theme |
 | --- | --- | --- |
-| **0.8.27** | **Active implementation; Slice 135 complete, 117 next** | Correction-safe source erasure, semantic decomposition, and bounded system qualification are recorded; planned Slice 117 adds a Jetson CUDA Node addon through the Tegra Pages route. |
+| **0.8.27** | **Active implementation; Slice 117 complete, 140 next** | Correction-safe source erasure, semantic decomposition, bounded system qualification, and the qualified, unpublished Jetson CUDA Node route are recorded. Slice 160 owns publication and post-publication proof. |
 | **0.8.28** | **Proposed release scope** | Advanced retrieval and continuation, Tegra CUDA memory-pool adoption, plus four owner-placed Slice 135 fault, quality, artifact and latency follow-ups. |
 | **0.8.29** | **Review checkpoint** | Candidate-selection experiments. |
 | **0.8.30** | Backlog | Explicit release of the process-lifetime module-level CUDA models. |

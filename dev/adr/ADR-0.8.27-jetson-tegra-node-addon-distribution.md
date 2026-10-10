@@ -4,18 +4,18 @@ date: 2026-10-05
 target_release: 0.8.27
 desc: Distribute a CUDA-capable Node addon for classic Jetson Orin through the existing Tegra Pages route
 blast_radius: TypeScript loader; Jetson Tegra CUDA evidence workflow; Tegra Pages site builders and publisher; CUDA artifact and glibc-floor contracts; Tegra platform reference; public install and compatibility docs
-status: proposed
+status: accepted
 ---
 
 # ADR — Jetson (classic Tegra) CUDA Node addon distribution
 
-**Status: PROPOSED (draft for HITL review; not accepted).** Nothing in this
-record authorizes implementation or publication. It records the
-recommendation of the Slice 117 design
-(`dev/plans/0.8.27/features/slice-117/design.md`) for the open release-state
-decision `slice-117-delivery-shape`. One part is already ruled: the channel
-(decision 2, `slice-117-channel-tegra-pages`, 2026-10-05). The record as a
-whole stays proposed until the remaining items are ruled and it is accepted.
+**Status: ACCEPTED (repository owner, 2026-10-09).** The owner accepted this
+record as proposed, which rules every remaining item of release-state
+decision `slice-117-delivery-shape`. The channel (decision 2) was ruled
+earlier, on 2026-10-05, by `slice-117-channel-tegra-pages`. Acceptance lifts
+the Slice 117 implementation hold. It does not authorize publication, which
+stays behind `release-0.8.27-publication`. The recommendation came from the
+Slice 117 design (`dev/plans/0.8.27/features/slice-117/design.md`).
 
 ## Context
 
@@ -52,7 +52,7 @@ host-native `scripts/release/build-python-cuda-tegra.sh`, the fail-closed
 and the exact-SHA operator script `scripts/release/publish-tegra-pages.sh`
 with its post-publication smoke.
 
-## Decision (proposed)
+## Decision
 
 1. **Package shape.** The Tegra addon is the separately named, unscoped
    `fathomdb-linux-arm64-gnu-tegra` platform package carrying a dual-runtime
@@ -108,11 +108,15 @@ with its post-publication smoke.
    fixture confirms that form.
 8. **Release handoff.** Slice 140 may consume the reviewed, qualified,
    unpublished candidate and its exact install documentation. The later
-   Pages-installed forced-CUDA, witness and heap-growth smoke is required
-   before Slice 117 is COMPLETE. Slice 150 owns integrated final-candidate
-   qualification. Slice 135's measurements remain bound to its pinned
-   source; repeat affected paired cells only if Slice 117 changes query or
-   retrieval behavior beyond loader and packaging work.
+   Pages-installed forced-CUDA, witness and heap-growth smoke remains required
+   for the release and is owned by Slice 160, after publication authorization.
+   By the owner's 2026-10-10 `slice-160-owns-publication` ruling, Slice 117
+   closes at the qualified, unpublished handoff; this supersedes the original
+   condition that held Slice 117 below COMPLETE until the Pages smoke. Slice
+   150 owns integrated final-candidate qualification. Slice 135's measurements
+   remain bound to its pinned source; repeat affected paired cells only if
+   Slice 117 changes query or retrieval behavior beyond loader and packaging
+   work.
 
 ## Consequences
 

@@ -202,9 +202,11 @@ form is `--extra-index-url` + detection-gating + an exact pin.
 > be built and distributed. The structural facts in this section still hold.
 > The channel is ruled (`slice-117-channel-tegra-pages`): the existing Tegra
 > Pages route, not the npm registry, for 0.8.27. The rest of the delivery
-> shape is open under `slice-117-delivery-shape`. Read the
-> [Slice 117 design](plans/0.8.27/features/slice-117/design.md) and the
-> proposed
+> shape was ruled under `slice-117-delivery-shape` on 2026-10-09. Slice 117
+> closed at its qualified, unpublished candidate on 2026-10-10; Slice 160
+> owns publication and the Pages-installed smoke. Read the
+> [Slice 117 status](plans/0.8.27/features/slice-117/status.md) and the
+> accepted
 > [distribution ADR](adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md).
 > The rest of this section is the original 0.8.23 ruling.
 

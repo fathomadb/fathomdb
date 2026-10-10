@@ -18,6 +18,10 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/cuda-artifact-contract.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/build-napi-cuda.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/build-napi-cuda-tegra.sh" "$root/scripts/release/"
+  mkdir -p "$root/src/ts/npm/linux-arm64-gnu" "$root/src/ts/npm-tegra/linux-arm64-gnu-tegra"
+  cp "$REPO_ROOT/src/ts/npm/linux-arm64-gnu/package.json" "$root/src/ts/npm/linux-arm64-gnu/"
+  cp "$REPO_ROOT/src/ts/npm-tegra/linux-arm64-gnu-tegra/package.json" "$root/src/ts/npm-tegra/linux-arm64-gnu-tegra/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/inspect-cuda-artifacts.py" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/lib/cuda-gpu-selection.sh" "$root/scripts/lib/"
@@ -1010,5 +1014,88 @@ if text.count(needle) != 1:
 path.write_text(text.replace(needle, 'export CUDA_NAPI_HOST_CC="$CUDA_HOST_CC_TEGRA_ORIN"\n', 1))
 PY
 expect_fail "$FIXTURE" 'rejects an N-API host CC silently re-pointed at the Tegra axis'
+
+# --- Jetson Tegra N-API build (ADR-0.8.27-jetson-tegra-node-addon-distribution)
+# The Tegra .node wrapper consumes its own contract axis, asserts every pin
+# before an --assert-only exit, proves the tegra floor and CUDA linkage on the
+# .node, records digests, and publishes nothing. The x86_64 N-API wrapper, its
+# feature set and the generic linux-arm64-gnu package are left untouched.
+if ! shellcheck --severity=style --include=SC2312 \
+  "$REPO_ROOT/scripts/release/build-napi-cuda-tegra.sh" >/dev/null; then
+  printf '%s\n' 'FAIL  rejects a Tegra N-API build wrapper with an SC2312 masked-return finding' >&2
+  exit 1
+fi
+printf '%s\n' 'PASS  accepts a Tegra N-API build wrapper without SC2312 masked-return findings'
+
+mutate_tegra_napi() {
+  local target="$1" needle="$2" replacement="$3" label="$4"
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/$target" "$needle" "$replacement" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+needle, replacement = sys.argv[2], sys.argv[3]
+text = path.read_text()
+if needle == "<<APPEND>>":
+    path.write_text(text + replacement)
+else:
+    if text.count(needle) != 1:
+        raise SystemExit(f"fixture {path.name} no longer contains exactly one {needle!r}")
+    path.write_text(text.replace(needle, replacement, 1))
+PY
+  expect_fail "$FIXTURE" "$label"
+}
+
+TEGRA_NAPI=scripts/release/build-napi-cuda-tegra.sh
+mutate_tegra_napi "$TEGRA_NAPI" '<<APPEND>>' 'npm publish "$TEGRA_TARBALL"
+' 'rejects a Tegra N-API build wrapper that publishes to npm'
+mutate_tegra_napi "$TEGRA_NAPI" '<<APPEND>>' 'git push origin HEAD:gh-pages
+' 'rejects a Tegra N-API build wrapper that pushes to Pages'
+mutate_tegra_napi "$TEGRA_NAPI" '<<APPEND>>' 'gh workflow run docs-pages.yml
+' 'rejects a Tegra N-API build wrapper that dispatches a publication workflow'
+mutate_tegra_napi "$TEGRA_NAPI" 'if [ "$ASSERT_ONLY" -eq 1 ]; then' 'if false; then' \
+  'rejects a Tegra N-API build wrapper without an --assert-only arm'
+mutate_tegra_napi "$TEGRA_NAPI" 'export CC="$CUDA_HOST_CC_TEGRA_ORIN"' 'export CC="$CUDA_NAPI_HOST_CC"' \
+  'rejects a Tegra N-API build that selects the x86_64 N-API host compiler'
+mutate_tegra_napi "$TEGRA_NAPI" 'export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_TEGRA_ORIN"' 'export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_X86_64"' \
+  'rejects a Tegra N-API build that selects the x86_64 compute capability'
+mutate_tegra_napi "$TEGRA_NAPI" '--features "$CUDA_TEGRA_NAPI_FEATURES"' '--features "$CUDA_NAPI_FEATURES"' \
+  'rejects a Tegra N-API build that drops the reranker from its feature tuple'
+# @napi-rs/cli 2.x joins process.cwd() onto destDir for the type
+# definitions, so an absolute staging path aborts the build after compiling.
+mutate_tegra_napi "$TEGRA_NAPI" '"$NATIVE_DEST"' '"$NATIVE_DIR"' \
+  'rejects a Tegra N-API build that hands napi an absolute destination'
+mutate_tegra_napi "$TEGRA_NAPI" 'TEGRA_FLOOR="$(glibc_floor_for_family tegra)"' 'TEGRA_FLOOR="2.28"' \
+  'rejects a Tegra N-API build that hard-codes its glibc floor'
+mutate_tegra_napi "$TEGRA_NAPI" 'bash "$SCRIPT_DIR/check-tegra-wheel-linkage.sh" "$NATIVE_BINARY"' 'true' \
+  'rejects a Tegra N-API build that skips the .node CUDA linkage check'
+mutate_tegra_napi "$TEGRA_NAPI" 'sha256sum --' 'true --' \
+  'rejects a Tegra N-API build that records no artifact digests'
+mutate_tegra_napi "$TEGRA_NAPI" '<<APPEND>>' 'cp "$NATIVE_BINARY" "$REPO_ROOT/src/ts/npm/linux-arm64-gnu/"
+' 'rejects a Tegra N-API build that writes into the generic linux-arm64-gnu package'
+mutate_tegra_napi scripts/release/cuda-artifact-contract.sh \
+  'export CUDA_TEGRA_NAPI_FEATURES="$CUDA_RERANK_NAPI_FEATURES"' 'export CUDA_TEGRA_NAPI_FEATURES="$CUDA_NAPI_FEATURES"' \
+  'rejects a contract that narrows the Tegra N-API feature tuple'
+mutate_tegra_napi scripts/release/cuda-artifact-contract.sh \
+  "export CUDA_TEGRA_NAPI_NODE_VERSION='25.9.0'" "export CUDA_TEGRA_NAPI_NODE_VERSION='24.15.0'" \
+  'rejects a contract that moves the Tegra N-API Node pin'
+mutate_tegra_napi scripts/release/cuda-artifact-contract.sh \
+  "export CUDA_TEGRA_NAPI_NPM_VERSION='11.12.1'" "export CUDA_TEGRA_NAPI_NPM_VERSION='12.2.0'" \
+  'rejects a contract that moves the Tegra N-API npm pin'
+mutate_tegra_napi scripts/release/cuda-artifact-contract.sh \
+  'export CUDA_TEGRA_NAPI_RUST_VERSION="$CUDA_RUST_VERSION"' "export CUDA_TEGRA_NAPI_RUST_VERSION='1.94.0'" \
+  'rejects a contract that splits the Tegra N-API Rust pin from the shared one'
+mutate_tegra_napi scripts/release/cuda-artifact-contract.sh \
+  "export CUDA_NAPI_FEATURES='embed-cuda'" 'export CUDA_NAPI_FEATURES="$CUDA_TEGRA_NAPI_FEATURES"' \
+  'rejects an x86_64 N-API feature set re-pointed at the Tegra tuple'
+mutate_tegra_napi scripts/release/build-napi-cuda.sh '<<APPEND>>' 'export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_TEGRA_ORIN"
+' 'rejects an x86_64 N-API build wrapper that consumes the Tegra axis'
+mutate_tegra_napi src/ts/npm-tegra/linux-arm64-gnu-tegra/package.json \
+  '"name": "fathomdb-linux-arm64-gnu-tegra"' '"name": "fathomdb-linux-arm64-gnu"' \
+  'rejects a Tegra platform package that takes the generic package name'
+mutate_tegra_napi src/ts/npm/linux-arm64-gnu/package.json \
+  '"name": "fathomdb-linux-arm64-gnu"' '"name": "fathomdb-linux-arm64-gnu-tegra"' \
+  'rejects a generic linux-arm64-gnu package renamed to the Tegra identity'
 
 printf '\nCUDA release-contract tests passed\n'

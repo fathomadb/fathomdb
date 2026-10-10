@@ -9,9 +9,10 @@ planning_baseline: 360bbe63e65aca93cb2200f6c8e27624f4042ea8
 
 This plan approves the bounded Slice 140 scope in the [release plan](../../../plan-0.8.27.md).
 The [design](design.md) gives the current owners, edit rules, and verification
-routes. Planning can proceed beside Slice 117 in an isolated worktree. Product
-edits and final candidate receipts must be rebased on its reviewed handoff;
-Slice 117's unpublished candidate is not a published Jetson claim. Slice 150
+routes. Planning was approved beside Slice 117 in an isolated worktree. Slice 117
+has since closed at its qualified, unpublished candidate on the release
+branch. Product edits and final candidate receipts must use that integrated
+source; an unpublished candidate is not a published Jetson claim. Slice 150
 owns final release qualification.
 
 ## Reconciliation since the release draft
@@ -27,7 +28,7 @@ follow-ups. The decisions below supersede the draft's stale assumptions.
 | Slices 100–115 split PyO3 and NAPI, corrected diagnostic transport, and audited warning/dead-code paths. Slice 120 split TypeScript; Slice 130 split Python. Their current largest production files are 1,111, 1,049, 1,035, and 1,551 lines respectively. | Treat four of the five original outliers as resolved by their own slices. Check their interface/docs citations and imports; do not move code solely to reduce line counts. |
 | Slice 132 added the dedicated `fathomdb-sdk` Rust application SDK, with a 44-operation parity map beside Python and TypeScript. | Document three peer SDKs and the separate lower-level `fathomdb` facade accurately. Run published-path import/compile examples for all three. Do not add SDK operations or reopen Slice 132's external-provider decision. |
 | Slice 135 closed a five-area diagnostic inquiry and a 611-query CPU–CUDA sample at a pinned candidate, host, and protocol. Some raw licensed archives remain local only. | Cite tracked reports and their limits. Do not claim final-candidate equivalence, improvement, or publicly available raw archives. Slice 150 repeats final qualification. |
-| Slice 117 is concurrently developing a Tegra Node addon. Its current plan/status remain draft, with delivery-shape and publication conditions. | Use its reviewed final handoff when available. Do not mark Node Jetson GPU support shipped from draft or local qualification evidence. Recheck install docs against the landed candidate before closing Slice 140. |
+| Slice 117 closed its Tegra Node delivery route at a qualified, unpublished candidate; Slice 160 owns publication and post-publication proof. | Use its exact-source closeout and installed-artifact receipt. Do not mark Jetson Node GPU support shipped from local qualification evidence. Recheck install docs against the integrated candidate before closing Slice 140. |
 | Slice 137 is only a proposed Rust consolidation/extension-lockdown approach with four unruled choices. | Reject its work from Slice 140. No crate consolidation, provider-contract withdrawal, or ONNX decision is implied by documentation convergence. |
 | Slice 70 carried a proposed dual-runtime ADR, two unreviewed historical memos, a Slice 40 precedence defect, and default-compiled test seams. Slice 80/90 moved many seam owners; the hidden-surface plan requires a successor baseline for an intended gate change. | Accept all four as explicit work. ADR status requires a HITL ruling and code/decision consistency check. Mark the memos historical or review them. Correct the precedence table. Inventory and gate seams at their current owners, record a reviewed hidden diff and a `CHANGELOG.md` Removed entry. |
 | The original five-file size target has nine current first-party production files at or above 2,000 lines: engine `lib.rs` above 3,500, seven other engine files and CLI `lib.rs` in the review band. A wider tracked-code scan also finds owned tests/tools and vendored/generated files. | Enumerate all tracked code-file triggers in the register. Record a concise disposition for each first-party file and a provenance explanation for third-party/generated files. The register requires no human review or approval for slice or release closure. No size threshold becomes CI policy. |
@@ -47,7 +48,7 @@ follow-ups. The decisions below supersede the draft's stale assumptions.
 
 ## Execution after design approval
 
-1. **Rebase and inventory.** Bring in Slice 117's reviewed handoff when ready.
+1. **Rebase and inventory.** Bring in the closed Slice 117 handoff.
    Re-enumerate current owners, documented paths, links, and file sizes at that
    exact source. Record a before-state hidden manifest. Keep the Slice 117
    checkout and its build/package state untouched.
@@ -76,6 +77,7 @@ follow-ups. The decisions below supersede the draft's stale assumptions.
 - No tag, registry publication, Pages publication, or final release claim.
 - No size-based blocking test, wholesale source move, SDK feature addition,
   ONNX/provider policy change, or change to locked global acceptance.
-- The unruled Slice 117 delivery shape and Slice 132 provider disposition
-  remain with their owners. A conditional documentation claim cannot resolve
-  either decision.
+- The Slice 117 delivery shape is ruled and its unpublished candidate is
+  closed; do not turn that evidence into a publication claim. The unruled
+  Slice 132 provider disposition remains with its owner. Documentation
+  convergence cannot resolve that decision.

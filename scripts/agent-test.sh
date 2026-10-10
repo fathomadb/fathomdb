@@ -411,6 +411,19 @@ run_tier_suite fast test-release-contract-truth bash scripts/tests/test_release_
 # re-points an x86_64 selector at the Tegra axis.
 run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_release_contract.sh
 run_tier_suite fast test-tegra-wheel-linkage bash scripts/tests/test_tegra_wheel_linkage.sh
+# The Jetson Tegra N-API wrapper fails closed off its pinned host and never
+# publishes; its separately named platform package is never injected as an
+# optional dependency (ADR-0.8.27-jetson-tegra-node-addon-distribution).
+run_tier_suite fast test-tegra-napi-build-contract bash scripts/tests/test_tegra_napi_build_contract.sh
+# The installed Tegra Node package smoke never reports a skipped, missing or
+# CPU-fallback row as a pass; its verdict runs here against evidence fixtures.
+run_tier_suite fast test-tegra-node-package-smoke bash scripts/tests/test_tegra_node_package_smoke.sh
+# The driverless ARM64 import of the Tegra Node package refuses any host but a
+# driverless non-Tegra AArch64 one; its verdict runs here against fixtures.
+run_tier_suite fast test-tegra-node-driverless-smoke bash scripts/tests/test_tegra_node_driverless_smoke.sh
+# The documented optionalDependency form for the Tegra Pages tarball installs
+# on every host and is selected only on a confirmed Jetson; offline fixtures.
+run_tier_suite fast test-tegra-node-optional-dependency-install bash scripts/tests/test_tegra_node_optional_dependency_install.sh
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 
@@ -453,6 +466,9 @@ run_tier_suite fast test-tegra-pages-publisher-ci-job bash scripts/tests/test_te
 run_tier_suite fast test-tegra-publication-operator-path bash scripts/tests/test_tegra_publication_operator_path.sh
 run_tier_suite fast test-tegra-pages-index bash scripts/tests/test_tegra_pages_index.sh
 run_tier_suite fast test-pages-site bash scripts/tests/test_pages_site.sh
+run_tier_suite fast test-tegra-pages-retention bash scripts/tests/test_tegra_pages_retention.sh
+run_tier_suite fast test-tegra-pages-live-verification bash scripts/tests/test_tegra_pages_live_verification.sh
+run_tier_suite fast test-tegra-pages-retention-live bash scripts/tests/test_tegra_pages_retention_live.sh
 run_tier_suite fast test-tegra-pages-release-version bash scripts/tests/test_tegra_pages_release_version.sh
 
 # Slice 15: each release-ready runner must consume its locally built wheel and

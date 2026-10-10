@@ -2,7 +2,8 @@ name: Jetson Tegra CUDA evidence
 
 # Slice 80's real-hardware evidence route. It is deliberately independent of
 # release.yml: it builds and validates a host-native, nonpublishable Tegra
-# wheel on the dedicated Jetson runner and retains the resulting evidence.
+# wheel and Tegra Node packages on the dedicated Jetson runner and retains the
+# resulting evidence.
 on:
   workflow_dispatch:
     inputs:
@@ -15,10 +16,15 @@ on:
         required: true
         type: string
       publish_to_pages:
-        description: "After Jetson validation, publish the exact Tegra wheel to the interim GitHub Pages index"
+        description: "After Jetson validation, publish the exact Tegra wheel and Node tarball to the interim GitHub Pages site"
         required: false
         default: false
         type: boolean
+      withdraw_tegra_artifacts:
+        description: "Deliberate withdrawal only: comma-separated Tegra wheel or tarball filenames now on Pages that this deployment removes"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -74,11 +80,11 @@ jobs:
           printf 'candidate_version=%s\n' "$CANDIDATE_VERSION" >> "$GITHUB_OUTPUT"
 
   tegra-cuda-evidence:
-    name: Build and witness the Tegra CUDA wheel
+    name: Build and witness the Tegra CUDA wheel and Node packages
     needs: validate-candidate
     if: startsWith(github.ref, 'refs/heads/release/')
     runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       CANDIDATE_SHA: ${{ needs.validate-candidate.outputs.candidate_sha }}
       CANDIDATE_VERSION: ${{ needs.validate-candidate.outputs.candidate_version }}
@@ -272,6 +278,65 @@ jobs:
             --nvidia-smi \
             2>&1 | tee "$EVIDENCE_DIR/witness-verification.log"
 
+      # The Tegra Node addon is built, smoked and retained in this same run so
+      # the wheel and tarball a Pages dispatch publishes come from one
+      # validated candidate. Node is provisioned on the Jetson host itself;
+      # no registry authentication is configured and nothing is published.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "25.9.0"
+          package-manager-cache: false
+
+      - name: Require the contract Node toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          . scripts/release/cuda-artifact-contract.sh
+          node_version="$(node --version)"
+          npm_version="$(npm --version)"
+          [ "$node_version" = "v$CUDA_TEGRA_NAPI_NODE_VERSION" ] || {
+            printf 'node %s does not match the release contract v%s\n' "$node_version" "$CUDA_TEGRA_NAPI_NODE_VERSION" >&2
+            exit 1
+          }
+          [ "$npm_version" = "$CUDA_TEGRA_NAPI_NPM_VERSION" ] || {
+            printf 'npm %s does not match the release contract %s\n' "$npm_version" "$CUDA_TEGRA_NAPI_NPM_VERSION" >&2
+            exit 1
+          }
+          printf 'node=%s\nnpm=%s\n' "$node_version" "$npm_version" > "$EVIDENCE_DIR/node-toolchain.txt"
+
+      - name: Install the N-API build dependencies
+        working-directory: src/ts
+        shell: bash
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Assert the measured Tegra N-API build contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/build-napi-cuda-tegra.sh --base-version "$CANDIDATE_VERSION" --assert-only \
+            2>&1 | tee "$EVIDENCE_DIR/node-build-contract.log"
+
+      - name: Build and pack the nonpublishing Tegra Node packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/build-napi-cuda-tegra.sh \
+            --base-version "$CANDIDATE_VERSION" --out "$EVIDENCE_DIR/node" \
+            2>&1 | tee "$EVIDENCE_DIR/node-build.log"
+
+      - name: Smoke every policy from the installed Tegra Node packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/smoke/smoke-tegra-node-package.sh \
+            --source local \
+            --main-tarball "$EVIDENCE_DIR/node/fathomdb-$CANDIDATE_VERSION.tgz" \
+            --tegra-tarball "$EVIDENCE_DIR/node/fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --evidence-dir "$EVIDENCE_DIR/node-local-smoke" \
+            2>&1 | tee "$EVIDENCE_DIR/node-local-smoke.log"
+
       - name: Upload Jetson Tegra CUDA evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -281,19 +346,74 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+  # The Jetson cannot prove a driverless or non-Tegra import. A hosted ARM64
+  # runner without a CUDA driver installs this run's Tegra tarball in a
+  # network-less container, imports it, and proves the loader ignores it on a
+  # non-Tegra host. Publication waits for it.
+  tegra-node-driverless-arm64:
+    name: Import the Tegra Node package on a driverless non-Tegra ARM64 runner
+    needs: [validate-candidate, tegra-cuda-evidence]
+    if: startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      CANDIDATE_SHA: ${{ needs.validate-candidate.outputs.candidate_sha }}
+      CANDIDATE_VERSION: ${{ needs.validate-candidate.outputs.candidate_version }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Download only this run's Jetson evidence artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence
+      - name: Require the Jetson-built tarball bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd evidence/node
+          for name in "fathomdb-$CANDIDATE_VERSION.tgz" "fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz"; do
+            grep -F "  $name" SHA256SUMS | sha256sum --check --strict -
+          done
+      - name: Install and import the Tegra Node package without a CUDA driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/smoke/smoke-tegra-node-driverless.sh \
+            --main-tarball "evidence/node/fathomdb-$CANDIDATE_VERSION.tgz" \
+            --tegra-tarball "evidence/node/fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --evidence-dir "$RUNNER_TEMP/tegra-node-driverless"
+      - name: Upload driverless ARM64 import evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tegra-node-driverless-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/tegra-node-driverless
+          retention-days: 30
+          if-no-files-found: warn
+
   # The Jetson has no publication credential. This hosted job receives only
   # its retained artifact and constructs the public docs plus the interim,
   # exact-version PEP 503 site. It is deliberately opt-in for the matching
   # release branch.
   prepare-tegra-pages:
     name: Prepare docs and Tegra PEP 503 Pages artifact
-    needs: tegra-cuda-evidence
+    needs: [tegra-cuda-evidence, tegra-node-driverless-arm64]
     if: ${{ inputs.publish_to_pages == true && startsWith(github.ref, 'refs/heads/release/') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
     outputs:
+      wheel_filename: ${{ steps.index.outputs.wheel_filename }}
       wheel_sha256: ${{ steps.index.outputs.wheel_sha256 }}
+      node_tarball_filename: ${{ steps.index.outputs.node_tarball_filename }}
+      node_tarball_sha256: ${{ steps.index.outputs.node_tarball_sha256 }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -307,15 +427,19 @@ jobs:
           path: evidence
       - name: Install the documentation builder
         run: python3 -m pip install --disable-pip-version-check mkdocs
+      # The wheel and the Node tarball from this one Jetson run publish
+      # together, beside every artifact in the retained list that the docs
+      # deployer also rebuilds.
       - id: index
-        name: Verify wheel and construct the combined Pages site
+        name: Verify wheel and Node tarball and construct the combined Pages site
         shell: bash
         env:
           CANDIDATE_VERSION: ${{ inputs.candidate_version }}
         run: |
           set -euo pipefail
           bash scripts/release/require-tegra-pages-release-version.sh \
-            --manifest src/python/pyproject.toml --expected-version "$CANDIDATE_VERSION"
+            --manifest src/python/pyproject.toml \
+            --manifest src/ts/package.json --expected-version "$CANDIDATE_VERSION"
           expected_version="${CANDIDATE_VERSION}+tegra"
           mapfile -t wheels < <(find evidence/wheel -maxdepth 1 -type f \
             -name "fathomdb-${expected_version}-*-linux_aarch64.whl" -print)
@@ -325,16 +449,67 @@ jobs:
             exit 1
           }
           wheel="${wheels[0]}"
-          site_root="$RUNNER_TEMP/fathomdb-tegra-pages-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          index_result="$(bash scripts/release/build-pages-site.sh \
-            --wheel "$wheel" --out "$site_root" --version "$expected_version")"
-          wheel_sha256="${index_result#wheel_sha256=}"
-          [ "$wheel_sha256" != "$index_result" ] || {
-            printf 'Pages index builder did not return wheel_sha256\n' >&2
+          tarball_name="fathomdb-linux-arm64-gnu-tegra-${CANDIDATE_VERSION}.tgz"
+          tarball="evidence/node/$tarball_name"
+          [ -f "$tarball" ] || { printf 'retained evidence lacks %s\n' "$tarball_name" >&2; exit 1; }
+          built_sha256="$(awk -v name="$tarball_name" '$2 == name { print $1 }' evidence/node/SHA256SUMS)"
+          tarball_sha256="$(sha256sum "$tarball" | awk '{print $1}')"
+          [ -n "$built_sha256" ] && [ "$built_sha256" = "$tarball_sha256" ] || {
+            printf 'Node tarball SHA-256 %s differs from the Jetson build digest %s\n' \
+              "$tarball_sha256" "${built_sha256:-missing}" >&2
             exit 1
           }
-          printf 'wheel_sha256=%s\n' "$wheel_sha256" >> "$GITHUB_OUTPUT"
-          printf 'site_root=%s\n' "$site_root" >> "$GITHUB_OUTPUT"
+          python3 - evidence/node-local-smoke/summary.json "$tarball_sha256" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          context = json.loads((Path(sys.argv[1]).parent / "context.json").read_text(encoding="utf-8"))
+          if summary.get("outcome") != "PASS":
+              raise SystemExit("the installed Node smoke did not pass; refusing to publish the tarball")
+          if context.get("tegra_tarball_sha256") != sys.argv[2]:
+              raise SystemExit("the installed Node smoke did not test this tarball")
+          PY
+          retained_dir="$RUNNER_TEMP/fathomdb-retained-tegra-artifacts"
+          bash scripts/release/fetch-tegra-pages-retained.sh --manifest scripts/release/tegra-pages-retained.json \
+            --dest "$retained_dir"
+          site_root="$RUNNER_TEMP/fathomdb-tegra-pages-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          index_result="$(bash scripts/release/build-pages-site.sh \
+            --manifest scripts/release/tegra-pages-retained.json --artifact-dir "$retained_dir" \
+            --wheel "$wheel" --version "$expected_version" \
+            --node-tarball "$tarball" --node-version "$CANDIDATE_VERSION" \
+            --out "$site_root")"
+          wheel_sha256="$(sed -n 's/^wheel_sha256=//p' <<<"$index_result")"
+          node_tarball_sha256="$(sed -n 's/^node_tarball_sha256=//p' <<<"$index_result")"
+          [[ "$wheel_sha256" =~ ^[0-9a-f]{64}$ ]] && [ "$node_tarball_sha256" = "$tarball_sha256" ] || {
+            printf 'Pages site builder did not report the published wheel and tarball digests\n' >&2
+            exit 1
+          }
+          {
+            printf 'wheel_filename=%s\n' "${wheel##*/}"
+            printf 'wheel_sha256=%s\n' "$wheel_sha256"
+            printf 'node_tarball_filename=%s\n' "$tarball_name"
+            printf 'node_tarball_sha256=%s\n' "$node_tarball_sha256"
+            printf 'site_root=%s\n' "$site_root"
+          } >> "$GITHUB_OUTPUT"
+      # The site is rebuilt from the retained list plus this run's wheel and
+      # tarball, so anything else live would vanish; only a named withdrawal
+      # may remove it.
+      - name: Refuse to withdraw a live Tegra artifact unannounced
+        shell: bash
+        env:
+          WITHDRAW_TEGRA_ARTIFACTS: ${{ inputs.withdraw_tegra_artifacts }}
+          WHEEL_FILENAME: ${{ steps.index.outputs.wheel_filename }}
+          WHEEL_SHA256: ${{ steps.index.outputs.wheel_sha256 }}
+          NODE_TARBALL_FILENAME: ${{ steps.index.outputs.node_tarball_filename }}
+          NODE_TARBALL_SHA256: ${{ steps.index.outputs.node_tarball_sha256 }}
+        run: |
+          set -euo pipefail
+          bash scripts/release/check-tegra-pages-retention-live.sh --manifest scripts/release/tegra-pages-retained.json \
+            --added "$WHEEL_FILENAME=$WHEEL_SHA256" \
+            --added "$NODE_TARBALL_FILENAME=$NODE_TARBALL_SHA256" \
+            --withdraw "$WITHDRAW_TEGRA_ARTIFACTS"
       - name: Upload static Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
@@ -353,6 +528,12 @@ jobs:
       actions: read
       pages: write
       id-token: write
+    # The digests the site builder reported, passed on to the live verifier.
+    outputs:
+      wheel_filename: ${{ needs.prepare-tegra-pages.outputs.wheel_filename }}
+      wheel_sha256: ${{ needs.prepare-tegra-pages.outputs.wheel_sha256 }}
+      node_tarball_filename: ${{ needs.prepare-tegra-pages.outputs.node_tarball_filename }}
+      node_tarball_sha256: ${{ needs.prepare-tegra-pages.outputs.node_tarball_sha256 }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -360,3 +541,34 @@ jobs:
       - id: deployment
         name: Deploy combined artifact to GitHub Pages
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+  # The deployment is correct only if every retained artifact and the wheel
+  # and tarball this run added are served at their public URLs with their
+  # SHA-256 and linked from the index pages. Separate from the deploy job so
+  # that job keeps no contents permission.
+  verify-tegra-pages-live:
+    name: Verify the deployed Tegra artifacts from their public URLs
+    needs: deploy-tegra-pages
+    if: ${{ inputs.publish_to_pages == true && startsWith(github.ref, 'refs/heads/release/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      WHEEL_FILENAME: ${{ needs.deploy-tegra-pages.outputs.wheel_filename }}
+      WHEEL_SHA256: ${{ needs.deploy-tegra-pages.outputs.wheel_sha256 }}
+      NODE_TARBALL_FILENAME: ${{ needs.deploy-tegra-pages.outputs.node_tarball_filename }}
+      NODE_TARBALL_SHA256: ${{ needs.deploy-tegra-pages.outputs.node_tarball_sha256 }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify every retained and added Tegra artifact live
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/verify-tegra-pages-live.sh --manifest scripts/release/tegra-pages-retained.json \
+            --added "$WHEEL_FILENAME=$WHEEL_SHA256" \
+            --added "$NODE_TARBALL_FILENAME=$NODE_TARBALL_SHA256"

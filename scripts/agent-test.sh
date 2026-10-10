@@ -459,6 +459,7 @@ run_tier_suite fast test-tegra-pages-publisher-ci-job bash scripts/tests/test_te
 run_tier_suite fast test-tegra-publication-operator-path bash scripts/tests/test_tegra_publication_operator_path.sh
 run_tier_suite fast test-tegra-pages-index bash scripts/tests/test_tegra_pages_index.sh
 run_tier_suite fast test-pages-site bash scripts/tests/test_pages_site.sh
+run_tier_suite fast test-tegra-pages-retention bash scripts/tests/test_tegra_pages_retention.sh
 run_tier_suite fast test-tegra-pages-release-version bash scripts/tests/test_tegra_pages_release_version.sh
 
 # Slice 15: each release-ready runner must consume its locally built wheel and

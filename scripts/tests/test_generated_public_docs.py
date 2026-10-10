@@ -55,6 +55,12 @@ class GeneratedDocs(unittest.TestCase):
         self.assertNotIn('0.8.26', pages[1].read_text())
         self.assertNotIn(str(self.root), '\n'.join(p.read_text() for p in pages))
 
+    def test_generated_source_links_use_publication_release_branch(self):
+        for page in self.generate():
+            text = page.read_text()
+            self.assertIn('https://github.com/fathomadb/fathomdb/blob/release/0.8.27/', text)
+            self.assertNotIn('https://github.com/fathomadb/fathomdb/blob/main/', text)
+
     def test_changed_source_stale_check_is_read_only(self):
         pages = self.generate()
         before = [p.read_bytes() for p in pages]

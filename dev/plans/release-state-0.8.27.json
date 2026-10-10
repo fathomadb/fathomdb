@@ -1,7 +1,7 @@
 {
   "release": "0.8.27",
   "public_docs_target_release": "0.8.27",
-  "release_kind": "active implementation release; Slices 110, 114, 115, 120, 130, 132 and 135 complete; Slice 117 next",
+  "release_kind": "active implementation release; current work selected by next_slice and remaining_ladder",
   "board": "dev/plans/runs/STATUS-0.8.27.md",
   "plan": "dev/plans/plan-0.8.27.md",
   "active_ref": "refs/heads/release/0.8.27",

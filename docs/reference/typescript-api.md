@@ -32,6 +32,7 @@ import {
   type SearchHit,
   type SearchResult,
   type SearchFilter,
+  type Filter,
   type SoftFallback,
   type SoftFallbackBranch,
   type CounterSnapshot,
@@ -154,8 +155,11 @@ Run hybrid retrieval, ranked by **G9 RRF fusion**, with optional
 cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
 
 - `query` (`string`).
-- `filter` ([`SearchFilter`](#searchfilter), optional) — closed metadata filter;
-  omitted (or all-`undefined`) is the unfiltered path.
+- `filter` ([`SearchFilter`](#searchfilter) | `Filter`, optional) — closed
+  metadata filter. `Filter` accepts the unified metadata terms and lowers to
+  `SearchFilter`; a `json` term throws `InvalidFilterError` because search must
+  not apply a JSON predicate after vector candidate selection. Omitted (or
+  all-`undefined`) is the unfiltered path.
 - `rerankDepth` (`number`, optional, default `undefined`/`0`) — 0.8.1 R1 opt-in.
   `0` or omitted uses the identity / soft-fallback path: byte-identical to the
   pre-0.8.1 fused order. `N > 0` applies a cross-encoder (TinyBERT-L-2,

@@ -169,9 +169,9 @@ def asserts_published_version(text: str, version: str) -> bool:
     v = rf"v?{re.escape(version)}(?![\w+-]|\.[\w])"
     subject = r"(?:(?:release|CLI|packages?|artifacts?|tarballs?|wheels?)\s+)?"
     assertion = (
-        r"(?:(?:is|are|was|were|has\s+been|have\s+been)\s+(?:already\s+)?published\b"
-        r"|(?:has|have)\s+(?:already\s+)?shipped\b"
-        r"|(?:is|are)\s+(?:already\s+)?available\s+(?:now\s+)?"
+        r"(?:(?:is|are|was|were|has\s+been|have\s+been)\s+(?:(?:already|now|currently)\s+)?published\b"
+        r"|(?:has|have)\s+(?:(?:already|now|currently)\s+)?shipped\b"
+        r"|(?:is|are)\s+(?:(?:already|now|currently)\s+)?available\s+(?:now\s+)?"
         r"(?:on|from)\s+(?:PyPI|npm|crates\.io|Pages)\b)"
     )
     return bool(

@@ -15,6 +15,7 @@ from fathomdb import (
     DenseReadiness,
     Engine,
     EngineConfig,
+    Filter,
     IdSpace,
     NodeRecord,
     OpStoreRow,
@@ -148,8 +149,11 @@ with optional cross-encoder reranking (0.8.1 R1) and optional graph-BFS third
 arm (0.8.1 R3).
 
 - `query` (`str`).
-- `filter` ([`SearchFilter`](#searchfilter) | `None`) — optional closed metadata
-  filter. `None` (or an all-`None` filter) is the unfiltered path.
+- `filter` ([`SearchFilter`](#searchfilter) | `Filter` | `None`) — optional closed
+  metadata filter. `Filter` accepts the unified metadata terms and lowers to
+  `SearchFilter`; a `Json` term raises `InvalidFilterError` because search must
+  not apply a JSON predicate after vector candidate selection. `None` (or an
+  all-`None` filter) is the unfiltered path.
 - `rerank_depth` (`int`, default `0`) — 0.8.1 R1 opt-in. `0` (default) uses the
   identity / soft-fallback path: byte-identical to the pre-0.8.1 fused order.
   `N > 0` applies a cross-encoder (TinyBERT-L-2, ≈4 MB; latency depends on

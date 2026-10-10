@@ -65,8 +65,8 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through Slice 65 | 0.8.26 Slice 65 | 2026-09-21 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
 | `dev/plans/plan-0.8.27.md` | Correction-safe erasure and semantic-refactor release plan | 0.8.27 | 2026-09-21 |
-| `dev/plans/release-state-0.8.27.json` | Single-writer 0.8.27 ladder, decisions, completed Slice 30, and gated Slice 40 pointer | 0.8.27 | 2026-09-22 |
-| `dev/plans/runs/STATUS-0.8.27.md` | Active board; Slices 0-30 complete and Slice 40 remains uncommissioned | 0.8.27 | 2026-09-22 |
+| `dev/plans/release-state-0.8.27.json` | Single-writer 0.8.27 ladder, decisions, live next-slice pointer, and publication state | 0.8.27 Slice 140 | 2026-10-10 |
+| `dev/plans/runs/STATUS-0.8.27.md` | Active board; current slice and completion set derive from release state | 0.8.27 Slice 140 | 2026-10-10 |
 | `dev/plans/0.8.27/features/slice-10/` | Completed bounded-preparation plan, design, reviews, verification, and status | 0.8.27 Slice 10 | 2026-09-21 |
 | `dev/plans/0.8.27/features/slice-20/` | Completed correction-safe erasure plan, design, TDD, consumer oracle, reviews, verification, and status | 0.8.27 Slice 20 | 2026-09-21 |
 | `dev/plans/0.8.27/features/slice-30/` | Completed real-surface comparator plan, reviewed design, baseline, inventory, TDD, reviews, verification, and status | 0.8.27 Slice 30 | 2026-09-22 |

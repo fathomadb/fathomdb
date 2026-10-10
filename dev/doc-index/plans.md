@@ -25,8 +25,8 @@
 | `dev/plans/runs/STATUS-0.8.26.md` | **Completed 0.8.26 board.** Retained release and publication evidence through Slice 65. | 0.8.26 history | 2026-09-21 |
 | `dev/plans/0.8.27-draft-scope.md` | **Superseded 0.8.27 intake.** F27-01 moved into the executable plan; unproven continuity candidates moved to 0.8.28. | 0.8.27 history | 2026-09-21 |
 | `dev/plans/plan-0.8.27.md` | **0.8.27 release plan.** Correction-safe erasure followed by behavior-preserving semantic decomposition; publication separately gated. | 0.8.27 | 2026-09-21 |
-| `dev/plans/release-state-0.8.27.json` | **Active 0.8.27 single writer.** Owns the 25-slice ladder, ruled/open decisions, schema baseline, completed Slice 30, and gated Slice 40 pointer. | 0.8.27 | 2026-09-22 |
-| `dev/plans/runs/STATUS-0.8.27.md` | **Active 0.8.27 board.** Records Slices 0-30 complete on the release branch and Slice 40 uncommissioned. | 0.8.27 | 2026-09-22 |
+| `dev/plans/release-state-0.8.27.json` | **Active 0.8.27 single writer.** Owns the release ladder, ruled/open decisions, schema baseline, live next-slice pointer, and publication state. | 0.8.27 Slice 140 | 2026-10-10 |
+| `dev/plans/runs/STATUS-0.8.27.md` | **Active 0.8.27 board.** Renders current slice and release-branch completion from release state; prose records slice evidence and limits. | 0.8.27 Slice 140 | 2026-10-10 |
 | `dev/plans/0.8.27/features/slice-10/` | **Completed Slice 10 package.** Plan, design, reviews, TDD chronology, exact prerequisites, verification, and status for bounded repository preparation. | 0.8.27 Slice 10 | 2026-09-21 |
 | `dev/plans/0.8.27/features/slice-20/` | **Completed Slice 20 package.** Reconciled plan, reviewed design, RED/GREEN chronology, frozen Memex oracle, code review, independent verification, and status for correction-safe source erasure. | 0.8.27 Slice 20 | 2026-09-21 |
 | `dev/plans/0.8.27/features/slice-30/` | **Completed Slice 30 package.** Reconciled plan, reviewed design, immutable real-surface baseline, navigation inventory, RED/GREEN chronology, code review, independent verification, and status. | 0.8.27 Slice 30 | 2026-09-22 |

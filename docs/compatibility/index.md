@@ -60,8 +60,10 @@ same gate, not exempted from it: both numbers come from
 `scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
 drifts from it.
 
-For a confirmed classic Jetson Orin only, 0.8.27 serves the exact
-`fathomdb==0.8.27+tegra` wheel from the interim first-party PEP 503 index:
+For a confirmed classic Jetson Orin only, the 0.8.27 distribution route for
+the exact `fathomdb==0.8.27+tegra` wheel is the interim first-party PEP 503
+index. Install it only after the retained manifest lists the exact wheel and
+digest:
 
 ```bash
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \

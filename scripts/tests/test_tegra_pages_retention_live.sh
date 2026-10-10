@@ -59,8 +59,8 @@ assert_block() {
 # deploy job publishes is uploaded.
 assert_before() {
   local block="$1" first="$2" second="$3" description="$4" first_line second_line
-  first_line="$(grep -nF -- "$first" <<<"$block" | head -n 1 | cut -d: -f1 || true)"
-  second_line="$(grep -nF -- "$second" <<<"$block" | head -n 1 | cut -d: -f1 || true)"
+  first_line="$(grep -m1 -nF -- "$first" <<<"$block" | cut -d: -f1 || true)"
+  second_line="$(grep -m1 -nF -- "$second" <<<"$block" | cut -d: -f1 || true)"
   if [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ]; then
     pass "$description"
   else

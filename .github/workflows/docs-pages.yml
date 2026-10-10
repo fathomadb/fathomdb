@@ -2,6 +2,12 @@ name: Publish public documentation
 
 on:
   workflow_dispatch:
+    inputs:
+      withdraw_tegra_artifacts:
+        description: "Deliberate withdrawal only: comma-separated Tegra wheel or tarball filenames now on Pages that this deployment removes"
+        required: false
+        default: ""
+        type: string
   push:
     branches:
       - main
@@ -11,6 +17,7 @@ on:
       - mkdocs.yml
       - scripts/release/build-pages-site.sh
       - scripts/release/build-tegra-pages-index.sh
+      - scripts/release/check-tegra-pages-retention-live.sh
       - scripts/release/fetch-tegra-pages-retained.sh
       - scripts/release/tegra-pages-retained.json
       - scripts/release/tegra-pages-retained.py
@@ -59,6 +66,16 @@ jobs:
           }
           printf 'site_root=%s\n' "$site_root" >> "$GITHUB_OUTPUT"
           printf 'retained_artifacts=%s\n' "$retained_artifacts" >> "$GITHUB_OUTPUT"
+      # The site is rebuilt from the retained list, so anything live that the
+      # list misses would vanish; only a named withdrawal may remove it.
+      - name: Refuse to withdraw a live Tegra artifact unannounced
+        shell: bash
+        env:
+          WITHDRAW_TEGRA_ARTIFACTS: ${{ inputs.withdraw_tegra_artifacts }}
+        run: |
+          set -euo pipefail
+          bash scripts/release/check-tegra-pages-retention-live.sh --manifest scripts/release/tegra-pages-retained.json \
+            --withdraw "$WITHDRAW_TEGRA_ARTIFACTS"
       - name: Upload combined Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:

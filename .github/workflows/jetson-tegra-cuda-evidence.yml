@@ -20,6 +20,11 @@ on:
         required: false
         default: false
         type: boolean
+      withdraw_tegra_artifacts:
+        description: "Deliberate withdrawal only: comma-separated Tegra wheel or tarball filenames now on Pages that this deployment removes"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -488,6 +493,23 @@ jobs:
             printf 'node_tarball_sha256=%s\n' "$node_tarball_sha256"
             printf 'site_root=%s\n' "$site_root"
           } >> "$GITHUB_OUTPUT"
+      # The site is rebuilt from the retained list plus this run's wheel and
+      # tarball, so anything else live would vanish; only a named withdrawal
+      # may remove it.
+      - name: Refuse to withdraw a live Tegra artifact unannounced
+        shell: bash
+        env:
+          WITHDRAW_TEGRA_ARTIFACTS: ${{ inputs.withdraw_tegra_artifacts }}
+          WHEEL_FILENAME: ${{ steps.index.outputs.wheel_filename }}
+          WHEEL_SHA256: ${{ steps.index.outputs.wheel_sha256 }}
+          NODE_TARBALL_FILENAME: ${{ steps.index.outputs.node_tarball_filename }}
+          NODE_TARBALL_SHA256: ${{ steps.index.outputs.node_tarball_sha256 }}
+        run: |
+          set -euo pipefail
+          bash scripts/release/check-tegra-pages-retention-live.sh --manifest scripts/release/tegra-pages-retained.json \
+            --added "$WHEEL_FILENAME=$WHEEL_SHA256" \
+            --added "$NODE_TARBALL_FILENAME=$NODE_TARBALL_SHA256" \
+            --withdraw "$WITHDRAW_TEGRA_ARTIFACTS"
       - name: Upload static Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:

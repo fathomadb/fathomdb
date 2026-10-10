@@ -147,7 +147,7 @@ class MeanTestSeamsOwnerTest(unittest.TestCase):
             self.assertIn("mean gates internals accumulator_add", owner_errors(root, changed, modules))
             changed = owner.replace("pub mod mean_centering_internals_for_test {", "pub mod mean_centering_internals_for_test {\n    #!" + attr[1:], 1)
             self.assertIn("mean gates internals module body", owner_errors(root, changed, modules))
-        changed = owner.replace("#[cfg(any(test, feature = \"test-hooks\"))]\n    pub fn force_next_recompute_failure_for_test(", "    pub fn force_next_recompute_failure_for_test(", 1)
+        changed = owner.replace("#[cfg(any(test, feature = \"test-hooks\"))]\n    #[doc(hidden)]\n    pub fn force_next_recompute_failure_for_test(", "    #[doc(hidden)]\n    pub fn force_next_recompute_failure_for_test(", 1)
         self.assertIn("mean changes recompute fault hook attrs", owner_errors(root, changed, modules))
         changed = root.replace("#[doc(hidden)]\n" + REEXPORT, REEXPORT, 1)
         self.assertIn("root loses hidden ungated internals path", owner_errors(changed, owner, modules))

@@ -166,14 +166,17 @@ def documentation_target_state(root: Path, published_state: dict) -> dict:
 
 def asserts_published_version(text: str, version: str) -> bool:
     normalized = text.replace("**", "").replace("`", "")
-    v = rf"v?{re.escape(version)}\b"
+    v = rf"v?{re.escape(version)}(?![\w+-]|\.[\w])"
+    subject = r"(?:(?:release|CLI|packages?|artifacts?|tarballs?|wheels?)\s+)?"
+    assertion = (
+        r"(?:(?:is|are|was|were|has\s+been|have\s+been)\s+(?:already\s+)?published\b"
+        r"|(?:has|have)\s+(?:already\s+)?shipped\b"
+        r"|(?:is|are)\s+(?:already\s+)?available\s+(?:now\s+)?"
+        r"(?:on|from)\s+(?:PyPI|npm|crates\.io|Pages)\b)"
+    )
     return bool(
         re.search(rf"(?i)\bpublished\s+(?:FathomDB\s+)?{v}", normalized)
-        or re.search(
-            rf"(?i)\b{v}\s+(?:(?:release|CLI|packages?|artifacts?)\s+)?"
-            r"(?:is|was|has\s+been)\s+(?:already\s+)?published\b",
-            normalized,
-        )
+        or re.search(rf"(?i)\b{v}\s+{subject}{assertion}", normalized)
     )
 
 
@@ -276,8 +279,10 @@ def main() -> None:
     ts_install = docs[Path("docs/install/typescript.md")]
     exact_commands = (f"npm install --save-exact fathomdb@{version}", f"npm install fathomdb@{version}")
     dist_tag = state.get("published", {}).get("npm_dist_tag") if not pending else None
-    if not any(command in ts_install for command in exact_commands):
-        if pending or not dist_tag or f"npm install fathomdb@{dist_tag}" not in ts_install:
+    if not any(re.search(re.escape(command) + r"(?![\w.+-])", ts_install) for command in exact_commands):
+        if pending or not dist_tag or not re.search(
+            re.escape(f"npm install fathomdb@{dist_tag}") + r"(?![\w.+-])", ts_install
+        ):
             fail(f"docs/install/typescript.md lacks exact {version} install or recorded tag {dist_tag}")
 
     cargo_toml = (root / "Cargo.toml").read_text()

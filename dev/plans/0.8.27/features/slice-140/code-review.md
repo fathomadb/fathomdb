@@ -68,3 +68,26 @@ structural-proof relocation, 321 unchanged ignored occurrences and exact
 artifact hashes. It did not rerun the collector or execution matrix.
 The successor is promoted; Terra, three final reviews and full integrated
 verification remain separate closeout requirements.
+
+## Documentation-target and current-owner follow-up
+
+Checker/state/API/install/index corrections are committed at `9ff7326b7`.
+The 32-control focused truth suite and scoped validators pass; no integrated
+full pass is claimed. The parent obtains independent code review and the
+required subsequent `gpt-6-sol` high architecture-addendum review, then runs
+the final full gate, Terra recheck and three final reviews. The prior f327
+Rust surface receipt remains exact and source-scoped.
+
+## Documentation-target review corrections
+
+Independent `gpt-6-sol` high review of `9ff7326b7` found two P2 issues:
+exact npm versions matched prerelease/suffix substrings, and explicit
+pending publication claims using availability, tarballs and shipped wheels
+were missed. RED `575d18a96` adds two suffix and three claim mutations;
+`63dd16937` preserves sentence-final publication assertions.
+The checker now bounds version/tag tokens and rejects those explicit
+completed-publication assertions without rejecting future install routes.
+The Tegra guide describes its distribution route and retained-manifest
+verification rather than asserting delivery already occurred. The focused
+suite passes **38/38**; subsequent code review and full integrated
+verification remain parent-owned.

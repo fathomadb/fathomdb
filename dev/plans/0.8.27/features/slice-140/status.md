@@ -290,3 +290,27 @@ adds the current eleven-member workspace/Rust SDK peer ownership explicitly.
 Its existing approval/activation history remains intact. The parent obtains
 a subsequent `gpt-6-sol` high design review of that documentation correction
 before closeout.
+
+The initial follow-up implementation is `9ff7326b7`; its source scan bound
+the register to `9ff7326b7b431ebcee489a4d0052db279ad0ff00`, with all
+39 paths/counts unchanged and no new trigger. Subsequent register receipts
+change internal documentation only. Source/code and architecture addendum
+reviews remain parent-owned before integration and full verification.
+
+## Documentation-target review corrections — focused GREEN
+
+RED `575d18a96` demonstrates the exact-version suffix bug. The unchanged
+new controls pass after bounding npm version/tag tokens and extending the
+explicit publication-claim detector: **38/38** tests pass, including two
+suffix mutations and three PyPI/Pages/shipped-wheel assertions. Actual
+checkout public-doc truth, Ruff, Bash syntax, design lifecycle and scoped
+public-doc lint pass. The Tegra install guide now describes the exact
+Pages distribution route and fail-closed retained-manifest verification.
+
+The architecture addendum follows the accepted SDK ADR precisely: root
+`rerank` belongs to the signed 44-operation map, `embed_batch_cls` remains
+outside it, and option translations resolve existing binding differences
+through the TypeScript contract. This addresses the design review's P2.
+Independent review confirmation, the integrated full gate, Terra and three
+final reviews remain parent-owned. Rust source and its f327 surface receipt
+are unchanged; the register will be rebound to this exact checker follow-up.

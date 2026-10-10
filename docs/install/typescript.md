@@ -36,10 +36,11 @@ next section.
 ## Classic Jetson Orin with CUDA
 
 A CUDA-capable Node addon for **classic Jetson Orin** (JetPack 6 / L4T R36,
-CUDA 12.6) ships as the separately named package
-`fathomdb-linux-arm64-gnu-tegra`. It is not on the npm registry. It is
-published only as an exact-version tarball on the first-party Tegra Pages
-site, beside the `+tegra` Python wheel:
+CUDA 12.6) uses the separately named package
+`fathomdb-linux-arm64-gnu-tegra`. Its distribution route is an exact-version
+tarball on the first-party Tegra Pages site, beside the `+tegra` Python
+wheel; use the retained manifest and verification procedure below instead
+of the npm registry:
 
 ```text
 https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-<version>.tgz

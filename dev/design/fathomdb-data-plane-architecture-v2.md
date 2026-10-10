@@ -97,9 +97,13 @@ engine module/file boundaries remain internal and may change.
 The current Rust workspace has **eleven** members: the ten retained owners
 listed in the historical 0.8.26 profile plus `fathomdb-sdk`. The dedicated
 Rust application SDK is a peer of the Python and TypeScript SDKs, with the
-same 44 governed operations and default options through `Engine`, `read`,
-`graph` and `admin`; calls are synchronous and return `Result`, with one
-`Error` type and `ErrorKind` categories. Its source owner is
+44 governed operations across `Engine`, `read`, `graph`, `admin` and
+root-level `rerank`. The standalone `embed_batch_cls` operation remains
+outside that signed map. Arguments and defaults follow the accepted
+[Rust SDK translations](../adr/ADR-0.8.27-rust-sdk-parity.md), including the
+TypeScript resolution where Python and TypeScript differ. Calls are
+synchronous and return `Result`, with one `Error` type and `ErrorKind`
+categories. Its source owner is
 `src/rust/crates/fathomdb-sdk/`; Python and TypeScript package owners remain
 `src/python/` and `src/ts/`, over `fathomdb-py` and `fathomdb-napi`.
 

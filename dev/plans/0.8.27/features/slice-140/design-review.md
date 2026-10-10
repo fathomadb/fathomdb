@@ -97,3 +97,14 @@ relying only on the published 0.8.26 state. The plan/design now require that
 check and a RED active-schema mutation while historical schema remains valid.
 This resolves the finding within the approved design. Review was read-only;
 checker implementation and focused verification follow.
+
+## Architecture addendum follow-up — correction
+
+Independent `gpt-6-sol` high review found a P2 in the 0.8.27 workspace
+addendum: its namespace/default summary omitted the root `rerank` route
+and overstated identical defaults. The addendum now follows the accepted
+SDK ADR: the signed 44-operation map includes root `rerank`, standalone
+`embed_batch_cls` remains outside it, and explicit translation rules use
+the TypeScript resolution where the existing SDKs differ. Subsequent
+review confirmation remains parent-owned; this correction changes prose
+only and preserves the historical 0.8.26 profile.

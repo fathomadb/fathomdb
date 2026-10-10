@@ -78,5 +78,26 @@ An independent `gpt-6-sol` high review accepted the policy change with one
 wording fix in the prework test approach; that fix was applied and the scoped
 Markdown and release-state checks passed.
 
-No Slice 140 source/test implementation, code review, Terra verification,
-full-gate run, final acceptance claim, tag, or publication is recorded here.
+## Implementation progress — 2026-10-10
+
+The integrated candidate at `18ef03da9` includes the qualified unpublished
+Slice 117 handoff (`1476d83e0`). RED `2ea164f09`, GREEN `7556f1913`, and the
+narrow ownership-mutation correction `7d91b5a38` gate the inventoried fixtures;
+see the [test-seam change record](test-seam-change.md) for exact controls and
+focused receipts. The [independent code review](code-review.md) returned PASS
+on that candidate. Current architecture, interfaces, Rust install routes,
+and local-only evidence citations have been corrected, and the integrated
+large-file scan still enumerates 39 triggers.
+
+Public capture completed 13 rows against `18ef03da9`. The immutable Slice 30
+baseline remains unchanged; its comparison reports inherited public changes
+from earlier slices, which require a recorded review rather than an equal
+claim. Hidden before/after capture and the reviewed successor record remain
+in progress. The scoped Markdown and public-document checks passed.
+
+The implementation worktree's full verification attempt fails at preflight
+because no checkout-owned `.venv/bin/python` is installed. The prepared
+release checkout must run the unchanged full gate after landing the reviewed
+candidate. Independent Terra implementation verification, runnable package
+examples, final acceptance, and release-state closeout remain open. No tag
+or publication has occurred.

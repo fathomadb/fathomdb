@@ -218,9 +218,6 @@ pub(crate) enum ReaderRequest {
     /// transaction, executes a query to acquire its WAL snapshot, reports the
     /// rendezvous, and holds the snapshot until released. It is never compiled
     /// into a release SDK artifact.
-    // `test` added alongside `debug_assertions`/`test-hooks` so the crate's own
-    // `--release --tests` lib-test build (cfg(test) true, debug_assertions
-    // false) can still see this variant; it stays absent from any shipped build.
     #[cfg(any(test, feature = "test-hooks"))]
     #[allow(dead_code)]
     HoldWalSnapshot {

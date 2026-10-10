@@ -88,3 +88,12 @@ Independent `gpt-6-sol` high follow-up review approved `78aced66d`, with
 no P0/P1/P2. It checked source-derived Python/TypeScript package names and
 manifest paths, version-neutral output, trigger coverage and the RED
 freshness test plan. Implementation and verification remain separate.
+
+## Public-documentation target review — approved with correction
+
+Independent `gpt-6-sol` high review approved `706edb986` with a P2:
+the selected pending target needs its own schema-34 assertion instead of
+relying only on the published 0.8.26 state. The plan/design now require that
+check and a RED active-schema mutation while historical schema remains valid.
+This resolves the finding within the approved design. Review was read-only;
+checker implementation and focused verification follow.

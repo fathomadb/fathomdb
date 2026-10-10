@@ -182,6 +182,10 @@ state. It must equal that state's own release; it is a documentation target,
 not acceptance or a publication receipt. `published` and all package/retained
 artifact metadata remain unchanged.
 
+The selected documentation-target state must declare schema 34, independently
+of the newest published state; RED mutates the active 0.8.27 schema while
+leaving historical 0.8.26 valid.
+
 The public-doc checker first validates every tracked publication record as
 today, then resolves the active tracked state/board through
 `scripts/release-current.py`. Only that active state's explicit marker can

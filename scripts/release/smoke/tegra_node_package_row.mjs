@@ -75,6 +75,8 @@ try {
     if (!vector.every(Number.isFinite)) throw new Error("embedding contains a non-finite value");
     out.embedding_dim = vector.length;
   } else if (component === "rerank") {
+    // The reranker reports no GPU allocation witness. CUDA is shown only by
+    // the open-time device resolution plus finite cross-encoder scores.
     out.step = "open";
     const dir = mkdtempSync(join(dbDir, "rerank-"));
     engine = await fathomdb.Engine.open(join(dir, "smoke.fdb"), { useDefaultEmbedder: false });

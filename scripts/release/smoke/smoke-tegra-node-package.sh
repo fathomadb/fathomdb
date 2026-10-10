@@ -11,7 +11,9 @@
 #   - `cpu`, `auto` and `cuda:0` each resolve as required for embedding and
 #     for reranking, with forced CUDA never falling back to CPU;
 #   - forced CUDA embedding yields an in-process GPU allocation witness that
-#     verify-tegra-gpu-witness.py accepts against nvidia-smi;
+#     verify-tegra-gpu-witness.py accepts against nvidia-smi. Reranking has no
+#     allocation witness: its CUDA rows rest on the open-time device
+#     resolution and finite cross-encoder scores;
 #   - the heap-growth regression passes against the installed main package.
 # Every row is retained, and tegra_node_package_verdict.py decides the result
 # from that evidence: a missing, skipped or CPU-fallback row is a failure.

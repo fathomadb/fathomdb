@@ -3,7 +3,9 @@
 
 `witness` converts the forced-CUDA embed row's in-process allocation witness
 (camelCase, as the Node SDK reports it) into the canonical snake_case record
-that `scripts/release/verify-tegra-gpu-witness.py` verifies.
+that `scripts/release/verify-tegra-gpu-witness.py` verifies. Only embedding
+has an allocation witness; a rerank row shows CUDA through its open-time
+device resolution and finite cross-encoder scores.
 
 `verdict` reads the retained evidence directory and decides PASS or FAIL. It
 writes `summary.json` either way. Every required row must be present and

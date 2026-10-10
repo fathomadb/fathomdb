@@ -16,11 +16,27 @@ Every Pages deployment rebuilds the whole site, from both the docs deployer
 (`docs-pages.yml`) and this route. Each published Tegra artifact therefore
 stays online only while `scripts/release/tegra-pages-retained.json` names it
 with its URL and SHA-256. Both deployers download every listed artifact,
-check its digest, and republish it. After deploying, each runs
+check its digest, and republish it.
+
+Before deploying, each runs
+`scripts/release/check-tegra-pages-retention-live.sh`. It reads the live
+`tegra/simple/fathomdb/` and `tegra/node/` index pages over https and fails
+if any artifact they link is missing from the list and was not added by
+this run, or is linked with a different SHA-256. A deployment from a branch
+whose list lags the live site therefore stops instead of withdrawing
+artifacts. An index page that answers 404 is accepted only while the list
+holds no artifact of that kind, which is the first deployment of that kind.
+Otherwise the 404 means the live site is already damaged, and the
+deployment stops. Withdrawing a live artifact on purpose needs a separate
+decision. Name each withdrawn filename, comma-separated, in the
+`withdraw_tegra_artifacts` input of a manual dispatch of either workflow. A
+push-triggered docs deployment cannot withdraw anything. The run summary
+records each withdrawal.
+
+After deploying, each runs
 `scripts/release/verify-tegra-pages-live.sh`. It downloads every listed
 artifact, plus any the run added, from its public URL, checks each SHA-256,
-and checks that the index pages link each one. Removing a published artifact
-needs a separate decision.
+and checks that the index pages link each one.
 
 Today the list holds one artifact, the `fathomdb-0.8.26+tegra` wheel. No Node
 tarball has been published yet. After a publication, the script prints the
@@ -51,7 +67,9 @@ In one run, the workflow:
 - tests CPU, auto and forced-CUDA paths and retains an in-process CUDA
   witness;
 - builds and packs the Tegra Node package, then smokes every policy from a
-  fresh installed consumer;
+  fresh installed consumer. Forced-CUDA embedding must yield a GPU allocation
+  witness; forced-CUDA reranking must resolve to CUDA at open and return
+  finite scores, without falling back to CPU;
 - on a hosted, driverless, non-Tegra ARM64 runner, installs that tarball
   without a CUDA driver, imports it, and checks that the loader ignores it;
 - deploys the matching wheel and tarball beside every retained artifact.
@@ -69,8 +87,10 @@ The script then runs two post-publication smokes on the Jetson:
 - the installed Pages-wheel forced-CUDA smoke;
 - a Node smoke that installs `fathomdb@0.8.27` from npm and the tarball from
   its Pages URL. It checks the downloaded tarball's SHA-256 against the
-  Jetson build digest before installing. It then repeats the forced-CUDA
-  embedding and reranking, GPU witness and heap-growth checks.
+  Jetson build digest before installing. It then repeats forced-CUDA
+  embedding with its GPU allocation witness, forced-CUDA reranking (checked
+  by its open-time device resolution and finite scores, not a witness) and
+  the heap-growth check.
 
 It reports completion only after both pass. `--skip-pages-smoke` records an
 INCOMPLETE publication check with a nonzero exit. A failed smoke also reports

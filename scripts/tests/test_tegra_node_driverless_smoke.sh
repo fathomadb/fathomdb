@@ -129,8 +129,8 @@ absent() {
   local label="$1" needle="$2" file="$3"
   if grep -Fq -- "$needle" "$file"; then fail "$label (unexpected: $needle)"; else pass "$label"; fi
 }
-contains 'the contract pins a separate ARM64 driverless Node image' \
-  "export CUDA_TEGRA_DRIVERLESS_NODE_IMAGE='node:25-trixie-slim'" "$CONTRACT"
+contains 'the contract pins the ARM64 driverless Node 25.9.0 image by digest' \
+  "export CUDA_TEGRA_DRIVERLESS_NODE_IMAGE='node:25.9.0-trixie-slim@sha256:aabbe39553d15ede8a97cc60c9e1a97034ff772afcf696ea42b94e7f5f2ec71b'" "$CONTRACT"
 contains 'smoke sources the CUDA artifact contract' 'cuda-artifact-contract.sh' "$SMOKE"
 # shellcheck disable=SC2016 # the needle is the smoke's literal, unexpanded text
 contains 'smoke runs the ARM64 driverless image' '"$CUDA_TEGRA_DRIVERLESS_NODE_IMAGE"' "$SMOKE"

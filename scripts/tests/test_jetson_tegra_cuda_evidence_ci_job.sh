@@ -59,7 +59,7 @@ assert_contains '  contents: read' "workflow grants only read-only repository co
 assert_contains '  cancel-in-progress: false' "Jetson evidence lock never cancels an in-flight run"
 assert_contains 'runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]' "job routes to the registered Jetson labels exactly"
 assert_config_contains 'labels: [gpu, cuda-12, jetson, aarch64]' "actionlint knows the registered custom Jetson labels"
-assert_contains 'timeout-minutes: 90' "evidence job has a bounded timeout"
+assert_contains 'timeout-minutes: 180' "evidence job has a bounded timeout"
 assert_contains 'persist-credentials: false' "checkout leaves no GitHub credential in git config"
 assert_contains "startsWith(github.ref, 'refs/heads/release/')" "self-hosted jobs are restricted to release branches"
 assert_absent "refs/heads/release/0.8.24" "stale fixed release-branch predicates are absent"

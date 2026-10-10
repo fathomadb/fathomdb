@@ -135,7 +135,7 @@ for suffix in rc.1 malicious; do
   sed -i "s/fathomdb@0.8.27/fathomdb@0.8.27-$suffix/g" "$FIXTURE/docs/install/typescript.md"
   expect_fail "npm target suffix $suffix cannot pass as exact release" 'typescript.md.*exact.*0.8.27'
 done
-for claim in 'FathomDB 0.8.27 is available on PyPI now.' '0.8.27 tarball is published on Pages.' '0.8.27 wheels have shipped.'; do
+for claim in 'Current published FathomDB 0.8.27.' 'FathomDB 0.8.27 is available on PyPI now.' '0.8.27 tarball is published on Pages.' '0.8.27 wheels have shipped.'; do
   pending_fixture
   printf '\n%s\n' "$claim" >>"$FIXTURE/README.md"
   expect_fail "pending publication claim: $claim" 'README.md.*unpublished.*published'

@@ -175,6 +175,7 @@ contains 'witness is verified against nvidia-smi' 'verify-tegra-gpu-witness.py'
 contains 'witness verifier correlates the device UUID' '--nvidia-smi'
 contains 'heap-growth regression runs against the installed package' 'test_tegra_node_early_cuinit.sh'
 contains 'heap-growth regression cannot skip' 'FATHOMDB_REQUIRE_LIVE=1'
+# shellcheck disable=SC2016 # the needle is the smoke's literal, unexpanded text
 contains 'heap-growth regression targets the installed main package' \
   'FATHOMDB_TEGRA_NODE_PACKAGE="$CONSUMER/node_modules/fathomdb"'
 contains 'pages source checks the downloaded SHA-256' 'downloaded tarball SHA-256 differs'

@@ -72,6 +72,30 @@ follow-ups. The decisions below supersede the draft's stale assumptions.
    reviewed branch into `release/0.8.27` after Slice 117's work is integrated,
    verify from Git, then remove this temporary worktree and branch.
 
+## Full-gate follow-up plan
+
+The first integrated full gate found stale cfg/blob owner assertions and
+whole-target feature gating that disabled required default C1 proofs. Update
+only assertions for the intentional fixture gate, retaining their narrowing,
+widening, and behavioral mutants. Restore the two pinned integration targets
+to the default route; use production caller/no-embedder opens and governed
+vector declarations. Move the structural-writer proof to its default unit
+owner because its writer is strictly test-only. Update only its C1 evidence
+location, preserving the clause and contract pin. Re-capture hidden/test
+inventory after these changes and explicitly review the renamed unit proof
+and item-gated fixture distribution.
+
+The user requested an excellent 0.8.27 publication-facing README/docs set.
+Extend document convergence to installation, compatibility, embedder,
+operations, references, package READMEs, release notes, and site navigation.
+Public pages describe final install routes without transient candidate
+notices; internal verification records unavailable registry/Pages routes
+until Slice 160. Check runnable API examples from source/installed candidates
+and the strict retained-manifest digest script. Run focused
+pinned/owner/CLI/scanner tests and scoped document checks. Obtain a subsequent
+`gpt-6-sol` high design review and source review before final full-gate/Terra
+verification; keep source versions and retention unchanged.
+
 ## Boundaries
 
 - No tag, registry publication, Pages publication, or final release claim.

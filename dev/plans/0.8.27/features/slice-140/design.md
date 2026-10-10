@@ -32,12 +32,44 @@ Only test mechanisms whose default-compiled presence is unnecessary are gated. T
 Before each gate, record the declaration path, existing `cfg`, public or crate-private reachability, direct integration/unit callers, feature requirements, and whether runtime code calls the item. Distinguish three classes:
 
 1. Already gated `test-hooks`, `slice72-test-hooks`, migration, benchmark, or `cfg(test)` mechanisms: preserve their effective reachability unless a failing test proves a defect.
-2. Always-compiled `#[doc(hidden)]` public Engine/test wrappers and private witness plumbing: move to the narrowest `cfg(any(test, feature = "test-hooks"))` or a more specific existing feature. An external integration test requiring them declares the feature explicitly; `cfg(test)` alone does not apply to its library dependency.
+2. Always-compiled `#[doc(hidden)]` public Engine/test wrappers and private witness plumbing: move to the narrowest `cfg(any(test, feature = "test-hooks"))` or a more specific existing feature. An external integration test requiring them declares the feature explicitly; `cfg(test)` alone does not apply to its library dependency. Default pinned proofs are retained through production routes or relocated to unit tests, rather than requiring `test-hooks` for their entire target.
 3. Production diagnostic or configuration paths that happen to carry a `for_test` name: preserve default reachability until caller analysis proves they are strictly test-only. Do not suppress a whole module because one witness is test-only.
 
 `execute_for_test` and the other root arbitrary-writer-SQL fixtures need special handling: `debug_assertions` currently makes some available in default dev builds. The removal objective includes **default dev dependencies** as well as release builds. The final gate must remove that default-dev route while retaining an explicit supported test route and preserving tests that exercise lifecycle, WAL, projection, and graph behavior. Isolated external-dependency compile-negative controls must name each removed public path in both default dev and release builds, paired with positive explicit-feature controls. The hidden oracle's release probe is supplementary: once a path is absent from the default rustdoc row, that probe no longer selects it and cannot alone prove removal. Method-name searches are not proof either. Document removed doc-hidden paths under the 0.8.27 `CHANGELOG.md` Removed heading and run AC-050c's removal checker.
 
 Run the Slice 30 public comparator unchanged. The hidden oracle captures the before and after manifests, tests and release probe. Unexpected differences block the batch. For intended removals, the successor `baseline-<sha>.json` is immutable and paired with a reviewed diff record listing each changed row/path, former and new gate, direct caller disposition, and test-inventory effect. Slice 150 consumes that baseline and retires the oracle only after final qualification. Do not edit the existing baselines.
+
+## Default proof preservation and release documentation
+
+Keep `slice20_dense_readiness` and `slice25_registration_identity_inert` as
+default targets. Slice 20's two pinned proofs use public
+`open_with_choice_and_config`, a caller embedder, and governed vector
+declarations. The readiness proof pauses that embedder with a condition
+variable, then releases it; its raw sidecar/vec0 absence and presence checks
+are unchanged. A drop guard releases the embedder before Engine teardown if
+an assertion panics. Six remaining fixture cases require `test-hooks` at the
+test-item level.
+
+Slice 25 uses public no-embedder open. Its negative control runs the same
+forbidden backfill through a separate real SQLite connection, preserving the
+raw identity comparator. The structural writer has no production caller or
+public equivalent. Move its exact named proof and raw SQL/content-id oracle
+to a top-level `#[test]` function in `write.rs`; Rust compiles that function
+only for unit tests. C1's evidence locator follows this default unit proof;
+its obligation, category, and pinned contract hash stay unchanged. Extend the
+existing evaporation mutants to the relocated function. The managed-opener
+scanner excludes actual `#[test]` function spans while continuing to reject
+the same unannotated opener, comment decoy, and string decoy.
+
+The user's publication-facing ruling sets README, package READMEs, public
+installation/reference/compatibility pages, navigation, and release notes to
+0.8.27. Document the intended registry routes and both Tegra Pages artifacts
+without transient candidate/publication-pending prose. Digest verification
+requires the exact retained manifest entry and checked bytes; an absent entry
+fails closed. Do not invent a digest or update retention before publication.
+Internal status retains the actual qualified/unpublished state, manifest
+versions, and Slice 160 publication owner. Source examples can verify API
+semantics before publication; they cannot prove future registry availability.
 
 ## Large-file exception register
 

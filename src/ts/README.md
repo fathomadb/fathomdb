@@ -3,9 +3,9 @@
 Node.js SDK for **FathomDB** — a local-first, embedded retrieval engine for application and agent
 workloads, built on SQLite.
 
-A FathomDB database is a single file on your disk. There is no server, no daemon and no network
-call: you `open` a path and you have hybrid full-text + vector search over your own data, in your
-own process.
+A FathomDB database is a local file. No server or daemon is required. A default
+open uses no embedder and makes no model download; opting into the default
+embedder can download its weights. Retrieval runs in your own process.
 
 ## Status: pre-1.0, beta
 
@@ -15,19 +15,20 @@ and scale/stability guarantees are staged for 0.9.x and later.
 ## Install
 
 ```bash
-npm install fathomdb
+npm install --save-exact fathomdb@0.8.27
 ```
 
 The package is a thin TypeScript wrapper (ESM, with type declarations) over a native
 [napi-rs](https://napi.rs) binding to the FathomDB Rust engine. The compiled binary is **not** in
 this package: each host triple ships as its own package (for example
 `fathomdb-linux-x64-gnu` or `fathomdb-linux-arm64-gnu`), declared as an optional dependency and
-resolved automatically on a matching host. You install `fathomdb` and nothing else. The published
-0.8.26 release provides Linux x86_64 and Linux AArch64 glibc, macOS x64 and arm64, and Windows
+resolved automatically on a matching host. You install `fathomdb` and nothing else. The
+0.8.27 release provides Linux x86_64 and Linux AArch64 glibc, macOS x64 and arm64, and Windows
 x64 packages. Linux musl remains without an installable native package.
 
-Built and tested on Node.js 25.9.0. Other Node release lines are not part of
-the 0.8.26 compatibility contract.
+The documented compatibility line is Node.js 25.x; release checks use Node.js 25.9.0. See the
+[compatibility matrix](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/compatibility/index.md)
+for the release boundary.
 
 ## Quick start
 
@@ -83,8 +84,12 @@ nothing.
 
 ## Other SDKs
 
-The same engine is available as a Rust crate ([`fathomdb`](https://crates.io/crates/fathomdb)) and a
-Python package (`pip install fathomdb`).
+The same engine is available as a Python package (`pip install fathomdb`). The Rust
+application peer is `fathomdb-sdk` (import `fathomdb_sdk`), available in
+0.8.27; use the
+[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/install/rust.md).
+The [`fathomdb` crate](https://crates.io/crates/fathomdb) remains the
+separate lower-level engine facade.
 
 ## License
 

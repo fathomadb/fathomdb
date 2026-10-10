@@ -6,7 +6,7 @@ fresh engine has no embedder configured and vector writes fail with
 `EmbedderNotConfiguredError` until you either enable the default embedder or supply
 your own (Rust only, today).
 
-> Status: shipped; 0.8.26 is the current published release. The ANN-fidelity
+> Status: 0.8.27 release documentation. The ANN-fidelity
 > recall@10,
 > measured on the pre-fusion **vector stage** (the SUT the 0.90 floor gates), is
 > **0.896** (95% CI 0.864–0.925, N=7,667) and holds the **0.90 floor under the
@@ -171,7 +171,7 @@ regardless of where embedding or CE runs.
 This applies to a Node.js addon built with CUDA (`embed-cuda` or
 `rerank-cuda`) on an NVIDIA Jetson running Linux AArch64. That includes the
 `fathomdb-linux-arm64-gnu-tegra` package for a confirmed classic Jetson Orin,
-starting with 0.8.27 (not yet published). It is installed as an exact-version
+in 0.8.27. It is installed as an exact-version
 tarball from the Tegra Pages site, at the same version as `fathomdb`, after
 checking its published SHA-256; see
 [TypeScript install](install/typescript.md#classic-jetson-orin-with-cuda).

@@ -4,21 +4,17 @@ The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The published package selects a
 platform-tagged `.node` binary at load time.
 
-> **0.8.26 is published on npm's `latest` and `next` dist-tags.** It ships
+> **Release 0.8.27, pre-1.0 beta.** The release supplies
 > Linux x86_64/glibc, Linux AArch64/glibc, macOS x64/arm64, and Windows x64
 > native packages; other hosts must build from source.
 > FathomDB is pre-1.0 and the surface is **beta**.
 >
-> **TS SDK parity caveat.** Both bindings expose the same governed command
-> surface (`src/conformance/governed-surface-allowlist.json`) and the same
-> typed error taxonomy, but Python remains the more heavily exercised
-> binding. For production pilots, prefer Python. See
-> [SDK parity](../positions/sdk-parity.md).
+> See [SDK parity](../positions/sdk-parity.md) for language conventions.
 
 ## Requirements
 
 - Node **25.x** (release CI uses Node 25.9.0).
-- The published `0.8.26` npm package supports Linux
+- The `0.8.27` npm package supports Linux
   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, macOS
   `x86_64-apple-darwin` and `aarch64-apple-darwin`, and Windows
   `x86_64-pc-windows-msvc`. Other hosts must build from source.
@@ -27,10 +23,10 @@ platform-tagged `.node` binary at load time.
   [compatibility](../compatibility/index.md)).
 - SQLite + `sqlite-vec` (statically linked into the platform binary).
 
-## Install the published package
+## Install the package
 
 ```bash
-npm install fathomdb@next
+npm install --save-exact fathomdb@0.8.27
 ```
 
 On Linux AArch64 this installs the CPU-only `fathomdb-linux-arm64-gnu`
@@ -38,11 +34,6 @@ package, including on a Jetson. For CUDA on a classic Jetson Orin, see the
 next section.
 
 ## Classic Jetson Orin with CUDA
-
-> **Starts with 0.8.27, which is not yet published.** Until the 0.8.27 Tegra
-> Pages publication completes, the URL below returns 404. The placeholder
-> `<0.8.27-tarball-sha256>` stands for the SHA-256 that is published with the
-> tarball; it is not known yet.
 
 A CUDA-capable Node addon for **classic Jetson Orin** (JetPack 6 / L4T R36,
 CUDA 12.6) ships as the separately named package
@@ -54,29 +45,48 @@ site, beside the `+tegra` Python wheel:
 https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-<version>.tgz
 ```
 
-The digest-linked list of published tarballs is at
-<https://fathomadb.github.io/fathomdb/tegra/node/>.
+The [retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/scripts/release/tegra-pages-retained.json)
+records exact URLs and SHA-256 digests. The install below requires its
+`node-tarball` entry for 0.8.27; it stops if the entry is absent or the bytes
+do not match.
 
-Use it only on a confirmed classic Jetson Orin: `/etc/nv_tegra_release`
-exists and `nvidia-smi --query-gpu=name --format=csv,noheader` reports an
-`nvgpu` device. Thor, ARM64 SBSA servers and other AArch64 hosts are not
+Use it only on a confirmed classic Jetson Orin: the loader requires a Tegra
+family signal (device-tree compatibility containing `nvidia,tegra`, or
+`/etc/nv_tegra_release`) and an `nvgpu` device reported by
+`nvidia-smi --query-gpu=name --format=csv,noheader`. Thor, ARM64 SBSA servers and other AArch64 hosts are not
 supported by this package; use the generic package there.
 
-Check the published SHA-256, then add both packages at the same exact
-version:
+Fetch and verify the exact tarball against that manifest, then install:
 
 ```bash
-curl -fsSLO https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
-echo '<0.8.27-tarball-sha256>  fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz' | sha256sum --check --strict -
-npm install --save-exact fathomdb@0.8.27
-npm install --save-optional https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
-```
-
-The URL install downloads the tarball again. Compare its lockfile integrity
-with the tarball you checked above, so the saved dependency is bound to those
-verified bytes:
-
-```bash
+(
+set -e
+node --input-type=commonjs - <<'NODE'
+const fs = require('node:fs');
+const crypto = require('node:crypto');
+(async () => {
+  const manifestUrl = 'https://raw.githubusercontent.com/fathomadb/fathomdb/release/0.8.27/scripts/release/tegra-pages-retained.json';
+  const response = await fetch(manifestUrl);
+  if (!response.ok) throw new Error(`Manifest fetch failed: ${response.status}`);
+  const manifest = await response.json();
+  const entry = manifest.artifacts.find(item => item.kind === 'node-tarball' && item.version === '0.8.27');
+  const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz';
+  const url = `https://fathomadb.github.io/fathomdb/tegra/packages/${name}`;
+  if (!entry || entry.filename !== name || entry.url !== url || !/^[0-9a-f]{64}$/.test(entry.sha256)) {
+    throw new Error('Matching 0.8.27 Tegra artifact is missing from the retained manifest');
+  }
+  const tarball = await fetch(url);
+  if (!tarball.ok) throw new Error(`Tarball fetch failed: ${tarball.status}`);
+  const bytes = Buffer.from(await tarball.arrayBuffer());
+  if (crypto.createHash('sha256').update(bytes).digest('hex') !== entry.sha256) {
+    throw new Error('Tegra tarball SHA-256 differs from the retained manifest');
+  }
+  fs.writeFileSync(name, bytes);
+  console.log('Tegra tarball SHA-256 verified');
+})().catch(error => { console.error(error.message); process.exitCode = 1; });
+NODE
+npm install --save-exact --package-lock-only --ignore-scripts fathomdb@0.8.27
+npm install --save-optional --package-lock-only --ignore-scripts https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
 node --input-type=commonjs - <<'NODE'
 const fs = require('node:fs');
 const crypto = require('node:crypto');
@@ -87,7 +97,15 @@ const checked = 'sha512-' + crypto.createHash('sha512').update(fs.readFileSync(n
 if (installed !== checked) throw new Error('Tegra lockfile integrity differs from the checked tarball');
 console.log('Tegra lockfile integrity matches the checked tarball');
 NODE
+npm ci
+)
 ```
+
+The lock-only steps record dependencies without extracting packages or
+running lifecycle scripts. The SHA-512 comparison binds the remote URL's
+lockfile entry to the SHA-256-verified archive before `npm ci` installs
+anything. `npm ci` checks the pinned integrity before extracting the archive
+and running lifecycle scripts; a mismatch rejects the Tegra archive.
 
 The result is this `package.json` form. The Tegra tarball is an
 `optionalDependency`, so the same `package.json` and lockfile also install
@@ -134,7 +152,7 @@ How it behaves:
   cannot prevent the earlier probe. A missing driver never fails the import.
 - **No postinstall step.** Nothing is downloaded or built at install time.
 
-## Install (current path — build from source)
+## Build from source
 
 ```bash
 git clone https://github.com/fathomadb/fathomdb

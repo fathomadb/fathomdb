@@ -597,3 +597,85 @@ impl Engine {
         Ok(WriteReceipt { cursor, row_cursors: vec![cursor], dangling_edge_endpoints: 0 })
     }
 }
+
+#[test]
+fn the_internal_structural_row_writer_mints_no_logical_id() {
+    use crate::{IdSpace, RowKind};
+    use sha2::{Digest, Sha256};
+    use std::path::Path;
+    use tempfile::TempDir;
+    fn ro(path: &Path) -> rusqlite::Connection {
+        rusqlite::Connection::open_with_flags(
+            path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+        )
+        .expect("open read-only")
+    }
+
+    fn id_space_of(logical_id: Option<&str>, body: &str) -> IdSpace {
+        match logical_id {
+            Some(lid) if !lid.is_empty() => IdSpace::logical(lid),
+            _ => {
+                let mut hasher = Sha256::new();
+                hasher.update(body.as_bytes());
+                IdSpace::content(
+                    hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>(),
+                )
+            }
+        }
+    }
+
+    /// Every canonical node row's identity state, at rest, plus its DERIVED
+    /// prefixed id: `(write_cursor, logical_id, body, IdSpace::to_prefixed())`.
+    /// Ordered by `write_cursor` so the vec compares positionally.
+    type IdentitySnapshot = Vec<(i64, Option<String>, String, String)>;
+
+    fn snapshot(path: &Path) -> IdentitySnapshot {
+        let conn = ro(path);
+        let mut stmt = conn
+            .prepare(
+                "SELECT write_cursor, logical_id, body FROM canonical_nodes ORDER BY write_cursor",
+            )
+            .unwrap();
+        let rows: Vec<(i64, Option<String>, String)> = stmt
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        rows.into_iter()
+            .map(|(cursor, lid, body)| {
+                let prefixed = id_space_of(lid.as_deref(), &body).to_prefixed();
+                (cursor, lid, body, prefixed)
+            })
+            .collect()
+    }
+
+    fn spaces(snap: &IdentitySnapshot) -> (usize, usize) {
+        let content = snap.iter().filter(|(_, _, _, id)| id.starts_with("h:")).count();
+        let logical = snap.iter().filter(|(_, _, _, id)| id.starts_with("l:")).count();
+        (content, logical)
+    }
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("structural_rows.sqlite");
+    let opened = Engine::open(&path).expect("open");
+    let engine = &opened.engine;
+
+    engine
+        .write_canonical_row_with_kind_for_test("coverage", "a coverage row", RowKind::Coverage)
+        .expect("coverage row write");
+    engine
+        .write_canonical_row_with_kind_for_test("graph", "a graph row", RowKind::Graph)
+        .expect("graph row write");
+
+    let snap = snapshot(&path);
+    assert_eq!(snap.len(), 2, "both structural rows landed");
+    assert_eq!(
+        spaces(&snap),
+        (2, 0),
+        "an un-admitted, non-governed write path mints NOTHING — the rows stay `h:`"
+    );
+    assert!(
+        snap.iter().all(|(_, lid, _, _)| lid.is_none()),
+        "the structural writer binds a literal NULL logical_id"
+    );
+}

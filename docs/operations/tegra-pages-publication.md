@@ -1,14 +1,11 @@
 # Tegra Pages publication
 
-`fathomdb==0.8.27+tegra` and the `fathomdb-linux-arm64-gnu-tegra` 0.8.27 Node
-tarball are an unpublished classic Jetson Orin CUDA candidate. The
-exact-commit route below can publish both, from one Jetson run, to the
-first-party GitHub Pages site only after separate release authorization. The
-published `0.8.26` generic artifacts are historical. The `+tegra` wheel is
-not published to PyPI, and the Node tarball is not published to the npm
-registry. Generic Linux AArch64 wheels and
-npm packages, tags, and PyPI/npm/crates.io artifacts are outside this
-procedure.
+The 0.8.27 release delivers `fathomdb==0.8.27+tegra` and the matched-version
+`fathomdb-linux-arm64-gnu-tegra` Node tarball through first-party GitHub Pages
+for classic Jetson Orin. The wheel is not published to PyPI and the tarball is
+not published to npm. This exact-commit procedure performs that publication
+only after release authorization; it does not publish generic artifacts or
+registry packages.
 
 ## Retained artifacts
 
@@ -38,10 +35,10 @@ After deploying, each runs
 artifact, plus any the run added, from its public URL, checks each SHA-256,
 and checks that the index pages link each one.
 
-Today the list holds one artifact, the `fathomdb-0.8.26+tegra` wheel. No Node
-tarball has been published yet. After a publication, the script prints the
-new wheel and tarball entries; add them to the list before the next
-deployment.
+The list records previously published artifacts by exact URL and digest.
+After a publication, the script prints the new wheel and tarball entries; add
+them to the list before the next deployment. Do not add future artifacts to
+the retained list before their publication is verified.
 
 ## Publish
 

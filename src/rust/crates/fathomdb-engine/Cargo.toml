@@ -496,7 +496,6 @@ required-features = ["test-hooks"]
 
 [[test]]
 name = "slice20_dense_readiness"
-required-features = ["test-hooks"]
 
 [[test]]
 name = "slice20_graph_traversal"
@@ -532,7 +531,6 @@ required-features = ["test-hooks"]
 
 [[test]]
 name = "slice25_registration_identity_inert"
-required-features = ["test-hooks"]
 
 [[test]]
 name = "slice30_dependency_closure"

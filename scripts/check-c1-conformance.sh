@@ -967,7 +967,8 @@ ASSERTIONS = {
     ],
     "C1-Q6B-SURROGATE-GOVERNED-ONLY": [
         ("test_defined", T25, "registering_projections_never_alters_a_pre_existing_row_id_space"),
-        ("test_defined", T25, "the_internal_structural_row_writer_mints_no_logical_id"),
+        ("test_defined", "src/rust/crates/fathomdb-engine/src/write.rs",
+         "the_internal_structural_row_writer_mints_no_logical_id"),
     ],
     # ---- Apply atomicity -------------------------------------------------
     # fix-4 SWEEP: every "the named thing still exists" probe reads the

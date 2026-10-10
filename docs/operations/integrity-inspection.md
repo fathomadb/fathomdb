@@ -7,8 +7,8 @@ authority.
 ## Before you run it
 
 1. Install the exact CLI version paired with the store and confirm
-   `fathomdb --version`. For 0.8.26, use
-   `cargo install fathomdb-cli --version '=0.8.26' --locked` after the release
+   `fathomdb --version`. For 0.8.27, use
+   `cargo install fathomdb-cli --version '=0.8.27' --locked` after the release
    is published.
 2. Stop every FathomDB process using the database. The product `.lock` must
    exist and be acquirable. Raw external SQLite writers do not participate in

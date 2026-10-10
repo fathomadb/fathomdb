@@ -107,3 +107,56 @@ release checkout must run the unchanged full gate after landing the reviewed
 candidate. Independent Terra implementation verification, runnable package
 examples, final acceptance, and release-state closeout remain open. No tag
 or publication has occurred.
+
+## Full-gate follow-up and publication-facing documents
+
+The first prepared-release full gate at `16ede4130` reported stale historical
+root/WAL/projection/Windows owner assertions and two pinned default targets
+gated behind `test-hooks`. It later terminated with exit 143; it is not a
+passing full-gate receipt. Follow-up restores default proof coverage through
+production routes and relocates the structural writer proof to its unit
+owner, preserving raw assertions, contract obligation/category/hash, and
+anti-evaporation controls. The [design amendment](design.md#default-proof-preservation-and-release-documentation)
+received a subsequent `gpt-6-sol` high **APPROVE**, no P0/P1/P2; the
+read-only reviewer did not run tests. See [design-review.md](design-review.md).
+The parent owns final source
+review, Terra verification, integrated full-gate rerun, and release closeout.
+
+The user explicitly ruled that the README and public/package docs are
+publication-facing 0.8.27 documents. Their version labels, registry routes,
+Jetson Pages instructions, reference/compatibility/operations pages, release
+notes, and navigation now describe that release without transient candidate
+notices. This editorial intent does not claim registry or Pages publication.
+Current workspace/Python/TypeScript manifests remain 0.8.26 until Slice 160;
+the retained manifest still contains only the verified prior 0.8.26 Tegra
+wheel. 0.8.27 registry installs and live Tegra digest/download verification
+cannot be claimed before publication. The documented Node verifier requires
+an exact retained entry and matching SHA-256, fails closed when absent, and
+uses a scoped shell failure guard before installation. The exact Pages URL
+is recorded using `--package-lock-only --ignore-scripts`; the lockfile SHA-512
+must match verified bytes before `npm ci` may install. No unknown digest is
+invented and retention is unchanged. A local HTTP tarball fixture on release
+Node 25.9.0 confirmed lock-only neither extracts packages nor runs lifecycle
+scripts, preserves the exact URL, and records matching integrity; `npm ci`
+ran the fixture lifecycle only after that comparison. This proves npm route
+semantics, not the unpublished 0.8.27 artifact bytes.
+
+Focused follow-up evidence: default Slice 20 proofs 2/2; default Slice 25
+proofs and real raw-SQL negative control 7/7; relocated structural unit 1/1;
+explicit-hook Slice 20 8/8 and Slice 25 7/7; C1 mutation suite, governed pin,
+transcript hygiene, root reconciliation 8/8, 295-target coverage, focused
+engine clippy, and CLI version-help test 1/1 pass. Historical WAL owner 5/5
+and projection owner 4/4 were committed separately. The actual public
+`read_projection_status` remains ungated; its fixture-only private adapter
+uses the explicit unit/test-hooks route. The Windows scanner's new focused
+control proves actual `#[test]` functions excluded and unannotated/comment/
+string-decoy openers retained; the complete Windows suite passes **343/343**.
+Its external-module escape mutant removes both the module and built-in test
+function gates, then requires the original production-opener diagnostic.
+
+The SDK README's complete program compiled and ran in an external source-path
+application: one stored note and one text hit. This is source-package API
+proof, not a future 0.8.27 crates.io installation receipt. Root Python and
+Node package-route executions and strict site build remain assigned to the
+prepared release checkout. A refreshed hidden successor capture accounts
+for default-target restoration and the integration-to-unit proof path move.

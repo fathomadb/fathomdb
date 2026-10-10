@@ -1,9 +1,10 @@
 //! **FathomDB** — a local-first retrieval and graph-oriented data system for
 //! application and agent workloads.
 //!
-//! This is the crate to depend on from Rust. It is a thin facade that
+//! This is the lower-level Rust engine facade. It is a thin crate that
 //! re-exports the public surface of the `fathomdb-engine` runtime, so you get
-//! the supported API without depending on engine internals.
+//! the supported core API without depending on engine internals. For the
+//! Python/TypeScript peer application surface, use `fathomdb-sdk`.
 //!
 //! FathomDB embeds SQLite (FTS5 + `sqlite-vec`) in your process — there is no
 //! server and no sidecar. One `Engine` owns the writer thread, a reader pool,
@@ -18,7 +19,7 @@
 //!   nearest-neighbour index at very large scale: vector retrieval here is a
 //!   full scan, so latency grows with corpus size.
 //!
-//! Related crates: `fathomdb-cli` (the operator binary — `doctor` / `recover`),
+//! Related crates: `fathomdb-sdk` (the Rust application SDK), `fathomdb-cli` (the operator binary — `doctor` / `recover`),
 //! `fathomdb-embedder-api` (the semver-stable embedder trait, versioned
 //! independently), and `fathomdb-engine` (the runtime this crate re-exports;
 //! prefer this facade).

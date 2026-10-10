@@ -78,3 +78,25 @@ now records all completed before/after rows and exact retained test union.
 The independent hidden-diff review returned APPROVED with no findings.
 Terra verification and the prepared-checkout full gate remain pending. The targeted AC-050c checker passed at `10eb0bd44`:
 64 removals all documented.
+
+## Full-gate default-proof correction
+
+The first integrated full gate exposed default proof coverage lost by
+whole-target `test-hooks` gating. `slice20_dense_readiness` and
+`slice25_registration_identity_inert` are default targets again. Slice 20's
+pinned P1/P2 tests use public caller-embedder open and governed vector
+configuration; P1 pauses/releases the embedder deterministically with an
+unpause-on-drop guard. Raw vector and terminal assertions are preserved.
+Its six fixture-only sibling cases remain explicit item-level `test-hooks`.
+Slice 25 uses public open and a real raw SQLite negative-control writer.
+Its structural-writer proof moves, with the same name and oracle, to the
+engine's top-level unit test in `write.rs`. C1's evidence location follows
+that proof without changing any obligation/category or contract digest.
+The hidden successor must account for that test path relocation and the
+restored default-target/item-feature distribution.
+
+Historical root, WAL, projection-status, and Windows ownership assertions
+now distinguish the explicit fixture gate from always-on production reads.
+The managed-opener scanner removes real `#[test]` function spans from its
+production inventory. A real opener without that attribute, and comment or
+string decoys, stay visible to the strict production check.

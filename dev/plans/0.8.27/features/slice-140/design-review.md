@@ -52,3 +52,12 @@ qualified-but-unpublished Jetson boundary, Slice 160 publication ownership,
 the absence of human large-file approval, and the still-open implementation
 and verification work. Slice 140 implementation integrates that handoff at
 `f1d4571b1`; final code review and acceptance verification are separate.
+
+## Default-proof and publication-doc follow-up — 2026-10-10
+
+Independent `gpt-6-sol` high read-only review returned **APPROVE**, with no
+P0/P1/P2 findings. The reviewer checked default T20/T25 targets, the structural
+unit proof, unchanged C1 obligation/category/hash with evidence relocation and
+mutation controls, production-opener scanner controls, and 0.8.27 publication
+documentation with actual publication limits retained in internal status.
+The reviewer did not run tests; verification receipts remain separate.

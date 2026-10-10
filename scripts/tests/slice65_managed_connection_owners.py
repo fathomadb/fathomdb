@@ -6,6 +6,8 @@ from collections import Counter
 from pathlib import Path
 import re
 
+from rust_source_lex import braced_item_span, outer_attributes, rust_mask
+
 
 ROLES = ("Writer", "ReaderWorker", "ProjectionDispatcher", "ProjectionWorker", "RuntimeProbe")
 EXPECTED_CALLS = Counter({
@@ -46,6 +48,19 @@ EXPECTED_RAW_OPENS = Counter({
 
 def production(source: str) -> str:
     source = re.sub(r"(?ms)^#\[cfg\(test\)\]\s*\nmod \w+ \{.*?^}\s*\n?", "", source)
+    if not re.search(r"#\[\s*test\s*\]", source):
+        return re.sub(r"(?m)//[^\n]*", "", source)
+    code = rust_mask(source, literals=True)
+    test_spans = []
+    for match in FUNCTION.finditer(code):
+        if "#[test]" in outer_attributes(source, match.start()):
+            # Rust's built-in #[test] removes the function from ordinary builds.
+            # Comments/literals cannot impersonate this attribute or its braces.
+            start = list(re.finditer(r"#\[\s*test\s*\]", code[:match.start()]))[-1].start()
+            _, end = braced_item_span(source, match.start())
+            test_spans.append((start, end))
+    for start, end in reversed(test_spans):
+        source = source[:start] + "\n" * source[start:end].count("\n") + source[end:]
     return re.sub(r"(?m)//[^\n]*", "", source)
 
 

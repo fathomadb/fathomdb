@@ -103,6 +103,12 @@ pending_fixture
 mutate_state 0.8.27 schema_version 35
 expect_fail 'selected active target schema must be 34 independently of historical state' 'documentation target.*schema 34'
 pending_fixture
+mutate_state 0.8.26 schema_version 35
+expect_fail 'published schema guard remains independent of pending target' 'published release state.*schema 34'
+pending_fixture
+mutate_state 0.8.27 published '{"tag":"v0.8.27","tag_commit":"1111111111111111111111111111111111111111","published_on":"2026-10-10","npm_dist_tag":"latest"}'
+expect_pass 'publication receipt accepts unchanged publication-facing 0.8.27 docs'
+pending_fixture
 mutate_state 0.8.27 public_docs_target_release '"0.8.28"'
 expect_fail 'foreign documentation target fails closed' 'public_docs_target_release.*own release'
 pending_fixture
@@ -174,6 +180,13 @@ expect_fail 'unpublished claim for a published version remains rejected' 'README
 pending_fixture
 sed -i 's/| \*\*yes\*\* (manylinux 2_28) |/| no |/' "$FIXTURE/docs/compatibility/index.md"
 expect_fail 'published aarch64 manifest/platform proof remains required' 'aarch64-unknown-linux-gnu.*table row'
+pending_fixture
+python3 - "$FIXTURE/dev/platform-capabilities.json" <<'PY2'
+import json,sys
+from pathlib import Path
+p=Path(sys.argv[1]);m=json.loads(p.read_text());m['platforms'][0]['status']='unpublished';p.write_text(json.dumps(m))
+PY2
+expect_fail 'published native manifest proof remains required' 'five published native artifacts'
 pending_fixture
 sed -i 's/, macOS x64\/arm64//' "$FIXTURE/docs/index.md"
 expect_fail 'macOS boundary remains required' 'docs/index.md.*macOS'

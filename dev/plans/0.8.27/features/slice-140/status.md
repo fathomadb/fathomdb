@@ -207,3 +207,11 @@ and both maps use that branch. Package-version content remains neutral.
 The in-flight `b3416577f` hidden capture is diagnostic only; a successor will
 bind the final source after code-review fixes, with no old baseline promoted
 as that final candidate.
+
+The `5f7c39c8` source-link code-review follow-up passed, with no remaining
+P0/P1/P2 on that candidate. A later completeness check found that the
+contributor map also needs Python/TypeScript package roots. Plan/design now
+include their source-derived names and manifest paths, version-neutral
+output, source triggers and RED freshness controls. That bounded amendment
+awaits subsequent design review before implementation; final capture is
+paused and `b3416577f` remains diagnostic evidence only.

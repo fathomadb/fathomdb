@@ -101,9 +101,12 @@ files. Generated pages identify their source and regeneration command.
   explicitly an operation index: signatures, options, return shapes and
   error contracts remain in the linked maintained API reference pages.
 - `docs/generated/contributor-map.md` reads root `Cargo.toml` workspace
-  membership and member manifests, and the actual
+  membership and member manifests, Python package metadata from
+  `src/python/pyproject.toml`, TypeScript package metadata from
+  `src/ts/package.json`, and the actual
   `scripts/agent-{build,lint,typecheck,test,verify}.sh` entry points. It
-  enumerates package names/source paths and the typed verbs with source
+  enumerates Rust workspace packages and Python/TypeScript package names
+  with their manifest paths, plus the typed verbs with source
   links. Version fields are omitted so Slice 160 version bumps do not
   contradict 0.8.27 publication-facing prose. It does not execute scripts
   or infer undocumented behavior from arbitrary shell text.
@@ -119,8 +122,8 @@ registry versions, retained artifacts, or publication states change here.
 MkDocs. Both `docs-pages.yml` and the Jetson workflow already call this shared
 builder; each complete-site artifact therefore includes the generated
 pages and rejects stale output. docs-pages push filters include the
-generator, parity manifest, root/member Cargo manifests and typed script
-input families. Existing retained Tegra artifact/digest gates are preserved.
+generator, parity manifest, root/member Cargo manifests, Python/TypeScript
+package manifests and typed script input families. Existing retained Tegra artifact/digest gates are preserved.
 
 Generated freshness within one checkout does not establish publication
 currency. Both complete-site Pages prepare jobs must fetch current
@@ -151,9 +154,20 @@ and least-privilege permissions, and retain the shared Pages concurrency.
 
 TDD tests exercise deterministic generation and exact operation mapping,
 source edits changing output, stale/missing output rejection without writes,
-workspace/member/script input coverage, navigation, and the shared-builder
+workspace/member/Python/TypeScript package-name/script input coverage, navigation, and the shared-builder
 freshness gate. Focused Pages controls prove both callers retain the shared
 builder. Run Markdown/public-doc and workflow checks, then the integrated
 full gate because executable scripts change. Subsequent source review, Terra
 verification and three final independent reviews cover the complete
 candidate. Re-scan the large-file register without a human approval gate.
+
+### Contributor package coverage amendment
+
+The contributor map includes a small Python and TypeScript package section
+from each package's own manifest (`project.name` in Python TOML and `name`
+in TypeScript JSON). Display the language, name and manifest path; omit
+version fields. The exact manifest inputs join docs-pages trigger coverage.
+RED freshness tests mutate each package name independently and verify the
+corresponding output changes without package-version leakage. The
+contributor landing points readers to this three-language source map. This
+coverage amendment requires subsequent `gpt-6-sol` high review before code.

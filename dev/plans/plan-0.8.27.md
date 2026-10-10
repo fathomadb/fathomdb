@@ -1311,8 +1311,8 @@ above 3,500 and the five named original outliers. Re-scan the final candidate;
 do not make file size or human approval of the register a release gate.
 
 Generate a bounded SDK operation index from the governed parity manifest
-and a contributor map from actual workspace manifests and typed developer
-entry points. Keep detailed API contracts maintained manually and link them
+and a contributor map from actual Rust workspace and Python/TypeScript
+package manifests plus typed developer entry points. Keep detailed API contracts maintained manually and link them
 from the index. Add contributor navigation and fail-closed freshness checks
 in the shared complete-site Pages builder, with CI trigger coverage for all
 generation inputs. Public documents target the 0.8.27 release; internal

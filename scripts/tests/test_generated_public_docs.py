@@ -108,6 +108,23 @@ class GeneratedDocs(unittest.TestCase):
         self.assertNotEqual(self.run_generator('--write').returncode, 0)
         self.assertFalse((self.root / 'docs/generated').exists())
 
+    def test_missing_tomllib_has_actionable_runtime_diagnostic(self):
+        code = """import builtins, runpy, sys
+original = builtins.__import__
+def absent(name, *args, **kwargs):
+    if name == 'tomllib':
+        raise ModuleNotFoundError('No module named tomllib')
+    return original(name, *args, **kwargs)
+builtins.__import__ = absent
+sys.argv = [sys.argv[1], '--check']
+runpy.run_path(sys.argv[0], run_name='__main__')
+"""
+        result = subprocess.run([sys.executable, '-c', code, str(GENERATOR)], text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Python 3.11', result.stderr)
+        self.assertIn('.venv/bin/python', result.stderr)
+        self.assertNotIn('Traceback', result.stderr)
+
     def test_public_navigation_and_shared_pipeline(self):
         builder = (REPO / 'scripts/release/build-pages-site.sh').read_text()
         self.assertIn('generate-public-docs.py', builder)

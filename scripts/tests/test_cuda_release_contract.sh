@@ -1062,6 +1062,10 @@ mutate_tegra_napi "$TEGRA_NAPI" 'export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_TEGR
   'rejects a Tegra N-API build that selects the x86_64 compute capability'
 mutate_tegra_napi "$TEGRA_NAPI" '--features "$CUDA_TEGRA_NAPI_FEATURES"' '--features "$CUDA_NAPI_FEATURES"' \
   'rejects a Tegra N-API build that drops the reranker from its feature tuple'
+# @napi-rs/cli 2.x joins process.cwd() onto destDir for the type
+# definitions, so an absolute staging path aborts the build after compiling.
+mutate_tegra_napi "$TEGRA_NAPI" '"$NATIVE_DEST"' '"$NATIVE_DIR"' \
+  'rejects a Tegra N-API build that hands napi an absolute destination'
 mutate_tegra_napi "$TEGRA_NAPI" 'TEGRA_FLOOR="$(glibc_floor_for_family tegra)"' 'TEGRA_FLOOR="2.28"' \
   'rejects a Tegra N-API build that hard-codes its glibc floor'
 mutate_tegra_napi "$TEGRA_NAPI" 'bash "$SCRIPT_DIR/check-tegra-wheel-linkage.sh" "$NATIVE_BINARY"' 'true' \

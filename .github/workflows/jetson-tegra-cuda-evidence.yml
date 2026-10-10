@@ -405,7 +405,9 @@ jobs:
     permissions:
       contents: read
     outputs:
+      wheel_filename: ${{ steps.index.outputs.wheel_filename }}
       wheel_sha256: ${{ steps.index.outputs.wheel_sha256 }}
+      node_tarball_filename: ${{ steps.index.outputs.node_tarball_filename }}
       node_tarball_sha256: ${{ steps.index.outputs.node_tarball_sha256 }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -480,7 +482,9 @@ jobs:
             exit 1
           }
           {
+            printf 'wheel_filename=%s\n' "${wheel##*/}"
             printf 'wheel_sha256=%s\n' "$wheel_sha256"
+            printf 'node_tarball_filename=%s\n' "$tarball_name"
             printf 'node_tarball_sha256=%s\n' "$node_tarball_sha256"
             printf 'site_root=%s\n' "$site_root"
           } >> "$GITHUB_OUTPUT"
@@ -502,6 +506,12 @@ jobs:
       actions: read
       pages: write
       id-token: write
+    # The digests the site builder reported, passed on to the live verifier.
+    outputs:
+      wheel_filename: ${{ needs.prepare-tegra-pages.outputs.wheel_filename }}
+      wheel_sha256: ${{ needs.prepare-tegra-pages.outputs.wheel_sha256 }}
+      node_tarball_filename: ${{ needs.prepare-tegra-pages.outputs.node_tarball_filename }}
+      node_tarball_sha256: ${{ needs.prepare-tegra-pages.outputs.node_tarball_sha256 }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -509,3 +519,34 @@ jobs:
       - id: deployment
         name: Deploy combined artifact to GitHub Pages
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+  # The deployment is correct only if every retained artifact and the wheel
+  # and tarball this run added are served at their public URLs with their
+  # SHA-256 and linked from the index pages. Separate from the deploy job so
+  # that job keeps no contents permission.
+  verify-tegra-pages-live:
+    name: Verify the deployed Tegra artifacts from their public URLs
+    needs: deploy-tegra-pages
+    if: ${{ inputs.publish_to_pages == true && startsWith(github.ref, 'refs/heads/release/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      WHEEL_FILENAME: ${{ needs.deploy-tegra-pages.outputs.wheel_filename }}
+      WHEEL_SHA256: ${{ needs.deploy-tegra-pages.outputs.wheel_sha256 }}
+      NODE_TARBALL_FILENAME: ${{ needs.deploy-tegra-pages.outputs.node_tarball_filename }}
+      NODE_TARBALL_SHA256: ${{ needs.deploy-tegra-pages.outputs.node_tarball_sha256 }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify every retained and added Tegra artifact live
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/verify-tegra-pages-live.sh --manifest scripts/release/tegra-pages-retained.json \
+            --added "$WHEEL_FILENAME=$WHEEL_SHA256" \
+            --added "$NODE_TARBALL_FILENAME=$NODE_TARBALL_SHA256"

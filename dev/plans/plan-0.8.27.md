@@ -1180,6 +1180,15 @@ Slice 140 may consume a qualified, unpublished candidate while publication
 stays behind the release decision. Slice 150 owns full final-candidate
 qualification. No other slice currently depends on Slice 117.
 
+**Release task — retire main's dead Tegra Pages pin.** `main`'s
+`docs-pages.yml` still downloads the `0.8.24+tegra` wheel URL, which returns
+404 (owner-checked 2026-10-10). This release's retained list names only the
+published `0.8.26+tegra` wheel, and both Pages deployers now verify every
+retained artifact from its public URL after deploying
+(`scripts/release/verify-tegra-pages-live.sh`). After 0.8.27 merges to `main`,
+record a passing `docs-pages.yml` run on `main`, including its live
+verification job, as the receipt that retires the dead pin.
+
 ### Slice 120 — TypeScript SDK decomposition
 
 Consumes the complete, reviewed native substrate and installed-package

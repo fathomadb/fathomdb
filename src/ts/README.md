@@ -26,7 +26,7 @@ resolved automatically on a matching host. You install `fathomdb` and nothing el
 0.8.27 release provides Linux x86_64 and Linux AArch64 glibc, macOS x64 and arm64, and Windows
 x64 packages. Linux musl remains without an installable native package.
 
-The documented compatibility line is Node.js 25.x; release checks use Node.js 25.9.0. See the
+The documented compatibility line is Node.js 25.x. Built and tested on Node.js 25.9.0. See the
 [compatibility matrix](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/compatibility/index.md)
 for the release boundary.
 

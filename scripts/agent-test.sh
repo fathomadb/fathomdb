@@ -414,6 +414,9 @@ run_tier_suite fast test-tegra-wheel-linkage bash scripts/tests/test_tegra_wheel
 # publishes; its separately named platform package is never injected as an
 # optional dependency (ADR-0.8.27-jetson-tegra-node-addon-distribution).
 run_tier_suite fast test-tegra-napi-build-contract bash scripts/tests/test_tegra_napi_build_contract.sh
+# The installed Tegra Node package smoke never reports a skipped, missing or
+# CPU-fallback row as a pass; its verdict runs here against evidence fixtures.
+run_tier_suite fast test-tegra-node-package-smoke bash scripts/tests/test_tegra_node_package_smoke.sh
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 

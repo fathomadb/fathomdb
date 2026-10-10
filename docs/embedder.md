@@ -169,9 +169,18 @@ regardless of where embedding or CE runs.
 ### Node.js on Jetson: load fathomdb first
 
 This applies to a Node.js addon built with CUDA (`embed-cuda` or
-`rerank-cuda`) on an NVIDIA Jetson running Linux AArch64. The published Linux
-AArch64 npm package is CPU-only and does not need it, and Python is
-unaffected.
+`rerank-cuda`) on an NVIDIA Jetson running Linux AArch64. That includes the
+`fathomdb-linux-arm64-gnu-tegra` package for a confirmed classic Jetson Orin,
+starting with 0.8.27 (not yet published). It is installed as an exact-version
+tarball from the Tegra Pages site, at the same version as `fathomdb`, after
+checking its published SHA-256; see
+[TypeScript install](install/typescript.md#classic-jetson-orin-with-cuda).
+The generic Linux AArch64 npm package is CPU-only and does not need any of
+this, and Python is unaffected.
+
+Starting CUDA at import is an AArch64-only exception: the Linux x86_64 npm
+package never probes the CUDA driver at import. A missing driver never fails
+the import on either.
 
 On a Jetson, the CUDA driver must reserve one large range of the process's
 virtual address space when it starts. On the Jetson AGX Orin 64 GB that range

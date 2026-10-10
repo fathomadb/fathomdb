@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,6 +16,16 @@ UPLOAD_SHA = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def latest_published_release() -> str:
+    published_releases = [
+        tuple(int(part) for part in state["release"].split("."))
+        for path in (ROOT / "dev/plans").glob("release-state-*.json")
+        if (state := json.loads(path.read_text())).get("published") is not None
+    ]
+    require(bool(published_releases), "at least one published release state is required")
+    return ".".join(map(str, max(published_releases)))
 
 
 def check_dependency() -> None:
@@ -45,7 +57,7 @@ def check_action_comments() -> None:
 
 def check_platform_truth() -> None:
     manifest = json.loads((ROOT / "dev/platform-capabilities.json").read_text())
-    require(manifest["release"] == "0.8.26", "platform manifest must identify the published release")
+    require(manifest["release"] == latest_published_release(), "platform manifest must identify the published release")
     published = [item["triple"] for item in manifest["platforms"] if item["status"] == "published"]
     require(
         published
@@ -77,9 +89,22 @@ def check_planning_truth() -> None:
     ):
         require(stale not in detail, f"planning detail retains stale current label: {stale}")
     require("through Slice 65" in thin, "thin index must cover the completed 0.8.26 slice range")
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/release-current.py")],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    target = latest_published_release()
+    if result.stdout.strip():
+        release, _, state_path = result.stdout.strip().split("\t")
+        state = json.loads((ROOT / state_path).read_text())
+        target = state.get("public_docs_target_release", target)
+        require(target == release or target == latest_published_release(), "documentation target must be active or published")
     require(
-        thin.count("current-link banner names 0.8.26") == 3,
-        "historical release-note index rows must name the current 0.8.26 banner",
+        thin.count(f"current-link banner names {target}") == 3,
+        f"historical release-note index rows must name the {target} banner",
     )
 
 

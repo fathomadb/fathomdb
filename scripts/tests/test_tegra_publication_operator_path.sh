@@ -35,6 +35,11 @@ if [ -f "$PUBLISHER" ]; then
   require_text "$PUBLISHER" 'gh run watch' 'publisher waits for CI completion'
   require_text "$PUBLISHER" 'smoke-tegra-pages-wheel.sh' 'publisher performs the installed Pages-wheel smoke'
   require_absent "$PUBLISHER" '--event workflow_dispatch' 'publisher uses the supported gh run-list interface'
+  require_text "$PUBLISHER" 'smoke-tegra-node-package.sh' 'publisher performs the installed Pages Node smoke'
+  require_text "$PUBLISHER" '--source pages' 'publisher installs the Node tarball from Pages, not local bytes'
+  require_text "$PUBLISHER" 'node/SHA256SUMS' 'publisher binds the Node tarball to the Jetson build digest'
+  require_text "$PUBLISHER" 'tegra-pages-retained.json' 'publisher names the retained list the published artifacts join'
+  require_absent "$PUBLISHER" 'npm publish' 'publisher never publishes to the npm registry'
 fi
 if [ -f "$RUNBOOK" ]; then
   require_text "$RUNBOOK" 'publish-tegra-pages.sh' 'runbook names the one-command publisher'
@@ -63,6 +68,16 @@ cat > "$TMPROOT/bin/gh" <<'MOCK_GH'
 #!/usr/bin/env bash
 case "$1 $2" in
   'auth status'|'workflow run'|'run watch') exit 0 ;;
+  'run download')
+    dir=''
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --dir) dir="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    mkdir -p "$dir"
+    cp -R "$MOCK_EVIDENCE"/. "$dir/" ;;
   'run list')
     if [ ! -e "$MOCK_STATE" ]; then
       : > "$MOCK_STATE"
@@ -118,5 +133,113 @@ if [ "$unverified_rc" -ne 0 ] && grep -Fq 'CI did not succeed' "$TMPROOT/unverif
   printf 'PASS  unverified workflow result fails before publication claim\n'
 else
   printf 'FAIL  unverified workflow result was accepted\n' >&2
+  exit 1
+fi
+
+# --- Node tarball negative cases ------------------------------------------------
+# The publisher runs from a stand-in checkout whose smoke scripts record their
+# arguments, so these cases exercise the real publisher without a Jetson.
+FAKE_ROOT="$TMPROOT/checkout"
+mkdir -p "$FAKE_ROOT/scripts/release/smoke"
+cp "$PUBLISHER" "$FAKE_ROOT/scripts/release/publish-tegra-pages.sh"
+cat > "$FAKE_ROOT/scripts/release/smoke/smoke-tegra-pages-wheel.sh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "$MOCK_CALLS/wheel-smoke.args"
+exit "${MOCK_WHEEL_SMOKE_RC:-0}"
+STUB
+cat > "$FAKE_ROOT/scripts/release/smoke/smoke-tegra-node-package.sh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "$MOCK_CALLS/node-smoke.args"
+exit "${MOCK_NODE_SMOKE_RC:-0}"
+STUB
+WHEEL_DIGEST='1111111111111111111111111111111111111111111111111111111111111111'
+NODE_DIGEST='2222222222222222222222222222222222222222222222222222222222222222'
+make_evidence() {
+  local dir="$1" node_line="$2"
+  mkdir -p "$dir/wheel" "$dir/node"
+  printf '%s  %s\n' "$WHEEL_DIGEST" "$dir/wheel/fathomdb-0.8.27+tegra-cp310-abi3-linux_aarch64.whl" > "$dir/wheel.sha256"
+  : > "$dir/wheel/fathomdb-0.8.27+tegra-cp310-abi3-linux_aarch64.whl"
+  if [ -n "$node_line" ]; then
+    printf '%s\n' "$node_line" > "$dir/node/SHA256SUMS"
+  fi
+}
+run_publisher() {
+  local label="$1" evidence="$2"
+  shift 2
+  rm -rf "$TMPROOT/state" "$TMPROOT/calls"
+  mkdir -p "$TMPROOT/calls"
+  set +e
+  (cd "$FAKE_ROOT" && env MOCK_STATE="$TMPROOT/state" MOCK_EVIDENCE="$evidence" MOCK_CALLS="$TMPROOT/calls" \
+    PATH="$TMPROOT/bin:$PATH" "$@" bash scripts/release/publish-tegra-pages.sh \
+    --candidate-version 0.8.27 --candidate-sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) \
+    > "$TMPROOT/$label.out" 2>&1
+  local rc=$?
+  set -e
+  printf '%s\n' "$rc" > "$TMPROOT/$label.rc"
+}
+expect_not_published() {
+  local label="$1" needle="$2" description="$3" rc
+  rc="$(cat "$TMPROOT/$label.rc")"
+  if [ "$rc" -ne 0 ] && grep -Fq -- "$needle" "$TMPROOT/$label.out" \
+    && ! grep -Fq 'published and smoke-tested' "$TMPROOT/$label.out"; then
+    printf 'PASS  %s\n' "$description"
+  else
+    printf 'FAIL  %s (rc=%s)\n' "$description" "$rc" >&2
+    cat "$TMPROOT/$label.out" >&2
+    exit 1
+  fi
+}
+
+make_evidence "$TMPROOT/ev-no-node" ''
+run_publisher no-node "$TMPROOT/ev-no-node" env
+expect_not_published no-node 'no valid Node tarball SHA-256' \
+  'evidence without a Node tarball digest fails before any smoke'
+if [ -e "$TMPROOT/calls/wheel-smoke.args" ] || [ -e "$TMPROOT/calls/node-smoke.args" ]; then
+  printf 'FAIL  no smoke may run without both retained digests\n' >&2
+  exit 1
+fi
+printf 'PASS  no smoke runs without both retained digests\n'
+
+make_evidence "$TMPROOT/ev-bad-node" "not-a-digest  fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz"
+run_publisher bad-node "$TMPROOT/ev-bad-node" env
+expect_not_published bad-node 'no valid Node tarball SHA-256' 'a malformed Node tarball digest fails'
+
+make_evidence "$TMPROOT/ev-other-node" "$NODE_DIGEST  fathomdb-linux-arm64-gnu-tegra-0.8.26.tgz"
+run_publisher other-node "$TMPROOT/ev-other-node" env
+expect_not_published other-node 'no valid Node tarball SHA-256' \
+  'a digest for another version of the Node tarball is not accepted'
+
+make_evidence "$TMPROOT/ev-good" "$NODE_DIGEST  fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz"
+run_publisher node-fails "$TMPROOT/ev-good" env MOCK_NODE_SMOKE_RC=1
+expect_not_published node-fails 'INCOMPLETE' 'a failed Pages Node smoke reports INCOMPLETE, not publication'
+
+run_publisher wheel-fails "$TMPROOT/ev-good" env MOCK_WHEEL_SMOKE_RC=1
+expect_not_published wheel-fails 'INCOMPLETE' 'a failed Pages wheel smoke reports INCOMPLETE, not publication'
+
+run_publisher good "$TMPROOT/ev-good" env
+if [ "$(cat "$TMPROOT/good.rc")" -eq 0 ] && grep -Fq 'published and smoke-tested' "$TMPROOT/good.out"; then
+  printf 'PASS  both Pages smokes passing completes the publication check\n'
+else
+  printf 'FAIL  passing Pages smokes did not complete the publication check\n' >&2
+  cat "$TMPROOT/good.out" >&2
+  exit 1
+fi
+node_args="$(cat "$TMPROOT/calls/node-smoke.args")"
+for expected in '--source' 'pages' '--version' '0.8.27' \
+  'https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz' \
+  "$NODE_DIGEST" '--pages-run' '123' 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; do
+  if ! grep -Fxq -- "$expected" <<<"$node_args"; then
+    printf 'FAIL  Pages Node smoke must receive %s; got:\n%s\n' "$expected" "$node_args" >&2
+    exit 1
+  fi
+done
+printf 'PASS  Pages Node smoke receives the exact Pages URL, retained digest, run and candidate\n'
+if grep -Fq '"kind": "node-tarball"' "$TMPROOT/good.out" \
+  && grep -Fq "\"sha256\": \"$NODE_DIGEST\"" "$TMPROOT/good.out" \
+  && grep -Fq '"kind": "wheel"' "$TMPROOT/good.out"; then
+  printf 'PASS  publisher prints the retained-list entries for the published pair\n'
+else
+  printf 'FAIL  publisher must print retained-list entries for the published wheel and tarball\n' >&2
+  cat "$TMPROOT/good.out" >&2
   exit 1
 fi

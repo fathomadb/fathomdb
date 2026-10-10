@@ -1386,12 +1386,14 @@ and gating ruling must cover them at their new owners:
   `vector_phase1_sql_for_test`, `slice35_ranked_eligibility_sql_for_test`,
   and `take_slice71_search_statement_trace_for_test`.
 
-Slice 140's intended hidden-surface differences, including the test-seam
-gating, are captured at its reviewed integrated product-source commit in
-[successor baseline `01f4063f`](0.8.27/features/hidden-surface/baseline-01f4063f.json),
-with an [approved exact diff record](0.8.27/features/hidden-surface/baseline-01f4063f-diff.md)
-separating inherited changes and the immediate Slice 140 delta. Later receipt
-commits change documentation only. Slice 150 uses this reviewed successor.
+Slice 140's final reviewed product source is captured in
+[successor baseline `f327c28c`](0.8.27/features/hidden-surface/baseline-f327c28c.json),
+with its [approved exact diff record](0.8.27/features/hidden-surface/baseline-f327c28c-diff.md)
+recording default pinned-proof restoration and the sole qualified unit-proof
+relocation. All Rust API/probe rows match the [previous approved successor](0.8.27/features/hidden-surface/baseline-01f4063f-diff.md),
+which retains the original fixture-gating and inherited-change decisions.
+Later receipt commits change internal documentation only. Slice 150 uses
+this final reviewed successor.
 
 ### Slice 150 — integrated release qualification
 

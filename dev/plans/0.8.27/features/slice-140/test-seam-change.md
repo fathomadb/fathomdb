@@ -95,8 +95,9 @@ engine's top-level unit test in `write.rs`. C1's evidence location follows
 that proof without changing any obligation/category or contract digest.
 The [final successor](../hidden-surface/baseline-f327c28c-diff.md) records
 that test path relocation and restored default-target/item-feature
-distribution. Its exact artifact review is pending; all Rust API rows remain
-equal to the previous approved successor.
+distribution. Its independent exact artifact review returned APPROVE with
+no P0/P1/P2; all Rust API rows remain equal to the previous approved
+successor.
 
 Historical root, WAL, projection-status, and Windows ownership assertions
 now distinguish the explicit fixture gate from always-on production reads.

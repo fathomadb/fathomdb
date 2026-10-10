@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 hidden-surface successor f327c28c — diff record
-status: REVIEW_PENDING
+status: APPROVED
 target_release: 0.8.27
 previous_baseline: baseline-01f4063f.json
 capture_source: f327c28caa5f20c3342127fbc5fde3c6ea189c7b
@@ -51,7 +51,9 @@ The structural writer proof is a top-level engine unit test. C1 changes only
 its evidence locator; obligation, category and contract hash are unchanged.
 Focused anti-evaporation mutants cover its source/default execution route.
 There are zero newly ignored tests and zero lost proof identities after that
-explicit relocation. The full matrix has no `test-build` failure entries.
+explicit relocation. All 44 unique ignored tests and 321 ignored occurrences
+across matrix rows are unchanged. The full matrix has no `test-build` failure
+entries.
 
 Seven non-hook engine test rows gain ten default proofs: the relocated unit,
 two Slice 20 pinned proofs and seven Slice 25 tests. Each of eight hook-enabled
@@ -76,8 +78,12 @@ here names the final reviewed commit.
 ## Review and verification boundary
 
 Independent `gpt-6-sol` high final-source code review passed on `f327c28ca`,
-with no P0/P1/P2. Independent review of this exact capture/diff remains
-required before promotion; source review alone is not artifact approval.
+with no P0/P1/P2. Independent `gpt-6-sol` high review of this exact capture/diff returned
+**APPROVE**, no P0/P1/P2. It recomputed all 16 changed rows, exact artifact
+hashes, API/probe equality, 295 targets, two default-route restorations,
+the 1,924-entry union and recorded proof relocation, and all 321 ignored
+occurrences. Review was read-only and did not independently rerun the
+collector or test matrix. This approves promotion of the successor.
 Focused default/explicit-hook proofs, ownership mutations, generated-doc
 freshness, Pages pipeline/currency fixtures and scoped docs checks passed as
 recorded in [Slice 140 status](../slice-140/status.md). The final-source

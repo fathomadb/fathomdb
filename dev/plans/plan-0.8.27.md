@@ -387,7 +387,7 @@ user actually commissioned.
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 117** (`JETSON-NODE-CUDA`) — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline
 
-**Remaining ladder:** 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 117 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1170,8 +1170,9 @@ Slice 110's allocation fallback and early `cuInit`, and no memory pool
 pool options). Qualification of the new installed Jetson Node candidate
 repeats CPU, auto and forced-CUDA embedding and reranking, the GPU witness,
 heap-growth regression, loader selection and generic ARM64 non-interference.
-After authorized Pages publication, the downloaded artifact repeats
-forced-CUDA, witness and heap-growth checks before Slice 117 is COMPLETE.
+After authorized Pages publication, Slice 160 repeats forced-CUDA, witness
+and heap-growth checks on the downloaded artifact (AC27-117F); Slice 117 is
+COMPLETE once its qualified, reviewed, unpublished candidate reaches Slice 140.
 Slice 135's query measurements remain bound to its pinned product source;
 only a query or retrieval behavior change beyond loader and packaging work
 triggers the affected paired Slice 135 cells. The full code gate, exact
@@ -1179,15 +1180,6 @@ install docs and reviewed candidate surface precede the Slice 140 handoff.
 Slice 140 may consume a qualified, unpublished candidate while publication
 stays behind the release decision. Slice 150 owns full final-candidate
 qualification. No other slice currently depends on Slice 117.
-
-**Release task — retire main's dead Tegra Pages pin.** `main`'s
-`docs-pages.yml` still downloads the `0.8.24+tegra` wheel URL, which returns
-404 (owner-checked 2026-10-10). This release's retained list names only the
-published `0.8.26+tegra` wheel, and both Pages deployers now verify every
-retained artifact from its public URL after deploying
-(`scripts/release/verify-tegra-pages-live.sh`). After 0.8.27 merges to `main`,
-record a passing `docs-pages.yml` run on `main`, including its live
-verification job, as the receipt that retires the dead pin.
 
 ### Slice 120 — TypeScript SDK decomposition
 
@@ -1428,6 +1420,55 @@ removal-changelog gate stay. The retirement commit rewrites cadence step 4
 and this slice's text to say the oracle ran and was retired, citing the
 `status.md` digests. If the decomposition is abandoned or deferred, the same
 unwind runs at that decision.
+
+### Slice 160 — publication to every destination
+
+Depends on Slice 150 and on the `release-0.8.27-publication` ruling; nothing
+here runs before both. Slice 160 owns every publication action and every
+post-publication proof for 0.8.27, whatever the destination. It writes no
+product code: a publication defect returns to the owning slice with a new RED
+test, and the tag moves only after that fix is qualified.
+
+| Destination | Artifacts | Route | Proof |
+| --- | --- | --- | --- |
+| crates.io | Tiers T1–T7, including the first `fathomdb-sdk` publish | `release.yml` on the `v0.8.27` tag (`dev/design/release.md` § Tiered publish order) | `cargo install fathomdb-cli` then `doctor check-integrity --json` on a fresh fixture |
+| PyPI | `fathomdb` wheels for every platform in `dev/platform-capabilities.json`, CUDA on Linux x86_64 | `release.yml` | installed-wheel open, close and exit smoke |
+| npm | `fathomdb` and its five platform packages, CUDA on Linux x86_64 | `release.yml`, then `promote-npm-latest` | five-platform post-publish smokes |
+| GitHub Releases | release notes and attached assets | `release.yml` `github-release` | release exists at the tag |
+| Tegra Pages | `0.8.27+tegra` wheel and `fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz` | `jetson-tegra-cuda-evidence.yml` with `publish_to_pages=true` on the tagged commit | AC27-117F and the post-deploy live check |
+| Docs Pages | MkDocs site and retained Tegra artifacts | `docs-pages.yml` on `main` | live check of every retained artifact |
+
+Order:
+
+1. **Before the tag:** finish the pre-tag procedure (`dev/design/release.md`
+   § Pre-tag procedure), including the HITL token bootstrap for the new
+   `fathomdb-sdk` crate. Decide where the Tegra tarball's published SHA-256
+   comes from: either the Slice 150 tarball is the one published and the docs
+   carry its digest, or the docs drop the inline digest for a published
+   `SHA256SUMS`. A digest committed after the tarball was built must not
+   describe a different build.
+2. **Registries:** push the annotated tag; `release.yml` runs the tiered
+   publish, registry-visibility wait, post-publish smokes, co-tagging check,
+   npm `latest` promotion and GitHub Release. Partial-publish recovery follows
+   the idempotency contract in `dev/design/release.md`; a skipped tier is
+   never recorded as published.
+3. **Tegra Pages:** dispatch `jetson-tegra-cuda-evidence.yml` on the tagged
+   commit with `publish_to_pages=true`. Then run `publish-tegra-pages.sh`'s
+   Jetson smoke (AC27-117F, moved here from Slice 117): install
+   `fathomdb@0.8.27` from npm and the tarball from its Pages URL, check its
+   SHA-256, and repeat the forced-CUDA, witness and heap-growth rows; then
+   install `fathomdb==0.8.27+tegra` from the Pages index and repeat its smoke.
+   Add both artifacts to `scripts/release/tegra-pages-retained.json` with
+   their digests.
+4. **Docs Pages:** after 0.8.27 merges to `main`, record a passing
+   `docs-pages.yml` run, including its live verification job. That run
+   retires `main`'s dead `0.8.24+tegra` pin (404, owner-checked 2026-10-10)
+   because the retained list names only published artifacts and every
+   deployer verifies each one from its public URL.
+5. **Close:** record the `published` block in
+   `dev/plans/release-state-0.8.27.json` with the tag object, tag commit, each
+   run ID and every proof above. A missing or skipped proof leaves the release
+   INCOMPLETE; green CI alone does not close Slice 160.
 
 ## Structural slice cadence
 

@@ -73,7 +73,8 @@ Implementation (execution step 3 onward) starts only when all of these hold:
    *Met 2026-10-09: the owner accepted the distribution ADR as proposed,
    which rules every item (`slice-117-delivery-shape`).*
 
-AC27-117F additionally requires publication authorization.
+AC27-117F additionally requires publication authorization. By owner ruling
+(`slice-160-owns-publication`, 2026-10-10) Slice 160 runs it.
 
 ## Entry evidence
 
@@ -110,8 +111,9 @@ in [design](design.md) § 10). The acceptance below is planned on that ADR.
 
 These IDs are release-local; `dev/acceptance.md` remains locked. Until
 publication is authorized, the slice can reach a qualified, unpublished
-candidate for Slice 140 to consume. It is not COMPLETE until AC27-117F's
-post-publication smoke passes.
+candidate for Slice 140 to consume. It is COMPLETE once that reviewed,
+qualified, unpublished candidate is handed to Slice 140. AC27-117F's
+post-publication smoke stays a release requirement that Slice 160 runs.
 
 ## Execution order
 
@@ -134,11 +136,11 @@ post-publication smoke passes.
    full code verification gate and applicable scoped checks (AC27-117H), and
    obtain independent review. Hand the qualified, unpublished candidate to
    Slice 140 with its publication condition explicit.
-7. After publication authorization only: run the extended
+7. Slice 160, after publication authorization only: run the extended
    `publish-tegra-pages.sh` (AC27-117F). Install from Pages on the Jetson and
    repeat forced-CUDA embedding and reranking, GPU witness and heap-growth
    checks against those downloaded bytes.
-8. Close status with exact-source and post-publication receipts. If Slice 117
+8. Close status with exact-source receipts. If Slice 117
    changed query or retrieval behavior beyond the planned loader and package
    work, repeat the affected paired Slice 135 cells before the handoff;
    Slice 150 still qualifies the full final candidate.

@@ -121,15 +121,15 @@ selection and generic ARM64 non-interference. The full code gate, exact
 install docs and review precede the Slice 140 handoff. Slice 135's paired
 query cells repeat only if Slice 117 changes query or retrieval behavior;
 its prior measurements stay bound to its pinned source. After authorized
-Pages publication, the installed Pages artifact must pass forced-CUDA,
-witness and heap-growth checks before Slice 117 is COMPLETE. Slice 150 owns
-full final-candidate qualification.
+Pages publication, Slice 160 runs the installed Pages artifact's forced-CUDA,
+witness and heap-growth checks. Slice 150 owns full final-candidate
+qualification; Slice 160 owns every publication and post-publication proof.
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 117 (JETSON-NODE-CUDA)** — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline. **Remaining ladder:** 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 117 (JETSON-NODE-CUDA)** — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline. **Remaining ladder:** 117 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -366,5 +366,5 @@ grant/revert evidence.
   superseded for its scope, and its channel is ruled as Tegra Pages. The
   owner's x86_64 hold is met, and the delivery shape is ruled by the accepted
   distribution ADR (2026-10-09). Its reviewed, qualified, unpublished
-  candidate may be handed to Slice 140; the later Pages smoke is required
-  before Slice 117 is COMPLETE. No other slice currently depends on it.
+  candidate may be handed to Slice 140; Slice 160 runs the later Pages
+  smoke. No other slice currently depends on it.

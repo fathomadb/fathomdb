@@ -454,8 +454,8 @@ loader and packaging work triggers only the affected paired Slice 135 cells
 at the changed product source. The full `./scripts/agent-verify.sh` code gate,
 applicable route and docs checks, exact install guidance, and independent
 review precede the Slice 140 handoff. That handoff may be qualified but
-unpublished; the post-publication Node smoke is still required to complete
-Slice 117. Slice 150 qualifies the integrated final candidate.
+unpublished; Slice 160 runs the post-publication Node smoke. Slice 150
+qualifies the integrated final candidate.
 
 ## 8. Risks
 

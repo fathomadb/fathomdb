@@ -16,8 +16,11 @@ Every Pages deployment rebuilds the whole site, from both the docs deployer
 (`docs-pages.yml`) and this route. Each published Tegra artifact therefore
 stays online only while `scripts/release/tegra-pages-retained.json` names it
 with its URL and SHA-256. Both deployers download every listed artifact,
-check its digest, and republish it. Removing a published artifact needs a
-separate decision.
+check its digest, and republish it. After deploying, each runs
+`scripts/release/verify-tegra-pages-live.sh`. It downloads every listed
+artifact, plus any the run added, from its public URL, checks each SHA-256,
+and checks that the index pages link each one. Removing a published artifact
+needs a separate decision.
 
 Today the list holds one artifact, the `fathomdb-0.8.26+tegra` wheel. No Node
 tarball has been published yet. After a publication, the script prints the

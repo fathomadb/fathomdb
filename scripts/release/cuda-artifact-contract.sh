@@ -156,4 +156,4 @@ export CUDA_TEGRA_NAPI_TRIPLE='linux-arm64-gnu'
 # pin, independent of the x86_64 driverless smoke's. The tag must resolve to a
 # linux/arm64 image whose glibc meets the Tegra floor and which carries no
 # CUDA driver.
-export CUDA_TEGRA_DRIVERLESS_NODE_IMAGE='node:25-trixie-slim'
+export CUDA_TEGRA_DRIVERLESS_NODE_IMAGE='node:25.9.0-trixie-slim@sha256:aabbe39553d15ede8a97cc60c9e1a97034ff772afcf696ea42b94e7f5f2ec71b'

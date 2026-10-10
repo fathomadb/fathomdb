@@ -19,6 +19,8 @@ on:
       - src/conformance/governed-operation-parity.json
       - Cargo.toml
       - src/rust/crates/**/Cargo.toml
+      - src/python/pyproject.toml
+      - src/ts/package.json
       - scripts/agent-*.sh
       - scripts/release/check-pages-source.py
       - scripts/release/build-pages-site.sh

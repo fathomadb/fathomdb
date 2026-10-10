@@ -25,6 +25,13 @@ see [Contributing](../contributing/index.md). Package versions are omitted.
 | `fathomdb-sdk` | [src/rust/crates/fathomdb-sdk/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/src/rust/crates/fathomdb-sdk/Cargo.toml) |
 | `fathomdb-tc5-benchmark` | [src/rust/crates/fathomdb-tc5-benchmark/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/src/rust/crates/fathomdb-tc5-benchmark/Cargo.toml) |
 
+## Python and TypeScript packages
+
+| Language | Package | Manifest |
+| --- | --- | --- |
+| Python | `fathomdb` | [src/python/pyproject.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/src/python/pyproject.toml) |
+| TypeScript | `fathomdb` | [src/ts/package.json](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/src/ts/package.json) |
+
 ## Typed developer entry points
 
 | Verb | Script |

@@ -170,4 +170,5 @@ version fields. The exact manifest inputs join docs-pages trigger coverage.
 RED freshness tests mutate each package name independently and verify the
 corresponding output changes without package-version leakage. The
 contributor landing points readers to this three-language source map. This
-coverage amendment requires subsequent `gpt-6-sol` high review before code.
+coverage amendment received subsequent `gpt-6-sol` high approval at
+`78aced66d` before implementation.

@@ -1,7 +1,8 @@
 # Contributing
 
 Start with the [source map](../generated/contributor-map.md) for workspace
-owners and typed developer commands. The [SDK operation map](../generated/sdk-operation-map.md)
+Rust workspace owners, Python/TypeScript package roots, and typed developer
+commands. The [SDK operation map](../generated/sdk-operation-map.md)
 connects governed operations across Python, TypeScript, and Rust; detailed
 contracts remain in the language references.
 
@@ -37,7 +38,8 @@ candidate commit, result, and any environment limits in the review record.
 
 The tracked generated pages index source, rather than inventing API
 signatures. Refresh them after changing the governed parity manifest,
-workspace members/manifests, or typed developer entry points. The generator
+Rust workspace or Python/TypeScript package manifests, or typed developer
+entry points. The generator
 requires Python 3.11 or later for its standard-library TOML parser. On Jetson
 hosts with OS Python 3.10, use the configured `.venv/bin/python` interpreter
 from repository setup. With the appropriate interpreter active:

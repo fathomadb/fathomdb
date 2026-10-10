@@ -103,6 +103,18 @@ def contributor_index(root: Path) -> str:
             raise ValueError(f'duplicate workspace package: {name}')
         seen.add(name)
         lines.append(f'| `{name}` | {link(relative)} |')
+    lines += ['', '## Python and TypeScript packages', '',
+              '| Language | Package | Manifest |', '| --- | --- | --- |']
+    python_manifest = 'src/python/pyproject.toml'
+    python_metadata = tomllib.loads(source(root, python_manifest).read_text())
+    python_name = identifier(python_metadata.get('project', {}).get('name'), 'Python package name')
+    ts_manifest = 'src/ts/package.json'
+    ts_metadata = json.loads(source(root, ts_manifest).read_text())
+    ts_name = ts_metadata.get('name')
+    if not isinstance(ts_name, str) or not re.fullmatch(r'(?:@[a-zA-Z0-9_.-]+/)?[a-zA-Z0-9_.-]+', ts_name):
+        raise ValueError(f'invalid TypeScript package name: {ts_name!r}')
+    lines.append(f'| Python | `{python_name}` | {link(python_manifest)} |')
+    lines.append(f'| TypeScript | `{ts_name}` | {link(ts_manifest)} |')
     lines += ['', '## Typed developer entry points', '',
               '| Verb | Script |', '| --- | --- |']
     for verb in VERBS:

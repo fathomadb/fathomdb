@@ -191,7 +191,7 @@ contents token or publication privilege. Old queued candidates fail closed.
 The stale Python-preference caveats were replaced with the measured shared
 three-SDK operation/error surface.
 
-Focused receipts: generator **7/7**, real Git-history currency **5/5**,
+Focused receipts: generator **8/8**, real Git-history currency **5/5**,
 combined Pages **20/20**, Tegra publisher **43/43**, and Jetson workflow
 **90/90** pass; Ruff, Bash syntax, actionlint, scoped Markdown/public-doc
 checks, and strict MkDocs build pass. All three new pages exist in the built
@@ -213,5 +213,7 @@ P0/P1/P2 on that candidate. A later completeness check found that the
 contributor map also needs Python/TypeScript package roots. Plan/design now
 include their source-derived names and manifest paths, version-neutral
 output, source triggers and RED freshness controls. That bounded amendment
-awaits subsequent design review before implementation; final capture is
-paused and `b3416577f` remains diagnostic evidence only.
+received `gpt-6-sol` high approval at `78aced66d`, no P0/P1/P2. RED package
+coverage tests preceded the implementation, which adds the two package
+manifest inputs and their CI triggers. Final capture binds the complete
+reviewed source; `b3416577f` remains diagnostic evidence only.

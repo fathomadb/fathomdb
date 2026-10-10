@@ -75,7 +75,13 @@ npm install --save-optional https://fathomadb.github.io/fathomdb/tegra/packages/
 The result is this `package.json` form. The Tegra tarball is an
 `optionalDependency`, so the same `package.json` and lockfile also install
 on non-Jetson hosts: npm skips the tarball wherever its `linux`/`arm64`/`glibc`
-metadata does not match, and the lockfile pins its integrity.
+metadata does not match, and the lockfile pins its integrity. Other Linux
+AArch64 glibc hosts install it, but the loader ignores it there.
+
+The Tegra package path supports npm with a flat (hoisted) `node_modules` only.
+The loader resolves the Tegra package from `fathomdb`'s own install location,
+so a pnpm isolated layout or Yarn Plug'n'Play does not find it and silently
+loads the generic CPU binary instead.
 
 ```json
 {
@@ -96,9 +102,11 @@ How it behaves:
   undetermined one, it loads the generic package, which must also be
   installed. Without the Tegra package nothing changes.
 - **Exact version.** The tarball's version must equal the installed
-  `fathomdb` version. Otherwise import fails with
-  `PlatformPackageVersionMismatchError` before any native code loads.
-  Upgrade both together.
+  `fathomdb` version. On a confirmed classic Jetson Orin (both the Tegra
+  family signal and an `nvgpu` GPU name), a mismatch fails the import with
+  `PlatformPackageVersionMismatchError` before any native code loads. On
+  any other host the loader ignores the Tegra package, so no mismatch is
+  raised. Upgrade both together.
 - **CUDA starts at import (AArch64 only).** Unlike the Linux x86_64 package,
   which never probes the CUDA driver at import, this addon calls `cuInit`
   when it is loaded; see

@@ -57,8 +57,11 @@ npm install --save-exact fathomdb@0.8.27
 npm install --save-optional https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
 ```
 
-As an optional dependency it is skipped on non-Jetson hosts, and the loader
-selects it only on a confirmed classic Jetson Orin. Unlike Linux x86_64, this
+As an optional dependency it is skipped on hosts whose os, cpu or libc do
+not match. Other Linux AArch64 glibc hosts install it, but the loader ignores
+it there and selects it only on a confirmed classic Jetson Orin. The Tegra
+package path supports npm with a flat (hoisted) `node_modules` only. Unlike
+Linux x86_64, this
 addon calls `cuInit` at import unless `FATHOMDB_CUDA_EARLY_INIT=off`. The
 SHA-256 check and full guide are in `docs/install/typescript.md`.
 

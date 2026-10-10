@@ -4,8 +4,9 @@
 tarball are an unpublished classic Jetson Orin CUDA candidate. The
 exact-commit route below can publish both, from one Jetson run, to the
 first-party GitHub Pages site only after separate release authorization. The
-published `0.8.26` generic artifacts are historical. Neither Tegra artifact
-is published to PyPI or the npm registry. Generic Linux AArch64 wheels and
+published `0.8.26` generic artifacts are historical. The `+tegra` wheel is
+not published to PyPI, and the Node tarball is not published to the npm
+registry. Generic Linux AArch64 wheels and
 npm packages, tags, and PyPI/npm/crates.io artifacts are outside this
 procedure.
 

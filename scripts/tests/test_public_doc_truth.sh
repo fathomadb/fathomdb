@@ -125,6 +125,9 @@ p=Path(sys.argv[1]);p.write_text(p.read_text().replace('0.8.27', '0.8.25'))
 PY
 expect_fail 'missing target version in API landing fails' 'python-api.md.*documentation target'
 pending_fixture
+sed -i 's/Release 0.8.27/Release 0.8.25/' "$FIXTURE/docs/reference/python-api.md"
+expect_fail 'source-link version cannot mask a stale API release label' 'python-api.md.*documentation target'
+pending_fixture
 sed -i 's/npm install --save-exact fathomdb@0.8.27/npm install --save-exact fathomdb@0.8.25/' "$FIXTURE/docs/install/typescript.md"
 expect_fail 'pending target requires exact npm install route' 'typescript.md.*exact.*0.8.27'
 pending_fixture

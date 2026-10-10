@@ -25,6 +25,9 @@ its own installed candidate. It does not repeat Slice 135's full diagnostic
 matrix. If loader or packaging work changes query or retrieval behavior,
 repeat the affected paired Slice 135 cells at the changed product source.
 Slice 150 owns qualification of the integrated final candidate.
+The [Jetson agent handoff](jetson-agent-handoff.md) gives the host-specific
+run contract and separates checks that need another runner. Its planned
+commands become executable only after the Slice 117 scripts are implemented.
 
 ## Owner rulings (2026-10-05)
 

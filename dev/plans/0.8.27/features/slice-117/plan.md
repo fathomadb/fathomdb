@@ -70,6 +70,8 @@ Implementation (execution step 3 onward) starts only when all of these hold:
 3. The owner has ruled the remaining `slice-117-delivery-shape` items and
    accepted, revised or replaced the proposed distribution ADR. The channel
    is already ruled.
+   *Met 2026-10-09: the owner accepted the distribution ADR as proposed,
+   which rules every item (`slice-117-delivery-shape`).*
 
 AC27-117F additionally requires publication authorization.
 
@@ -84,17 +86,14 @@ AC27-117F additionally requires publication authorization.
 | No checked-in script builds a Tegra `.node`. `build-napi-cuda.sh` is x86_64-only, and the contract test rejects re-pointing its axis at Tegra. | `scripts/release/build-napi-cuda.sh`; `scripts/tests/test_cuda_release_contract.sh` |
 | Slice 110 built and qualified a host-native CUDA addon on the Jetson. Its allocation fallback and early `cuInit` stay in 0.8.27. | `dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`; branch `llm/slice110-tegra-allocator-fix` |
 
-## Open HITL decision
+## Delivery-shape ruling
 
 The channel is ruled (`slice-117-channel-tegra-pages`): the Tegra Pages
-route. The npm registry options are not chosen for 0.8.27. The acceptance
-below is planned on that channel.
-
-`slice-117-delivery-shape` (unruled) now covers the package name and whether
-to reserve it on the npm registry, loader policy, Pages retention, the
-aarch64 import-time `cuInit` contract, the driverless evidence bar, licence
-coverage, platform-capabilities representation, install form and ladder
-dependencies. The full list is in [design](design.md) § 10.
+route. The npm registry options are not chosen for 0.8.27. On 2026-10-09
+the owner accepted
+`dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` as proposed,
+which rules every remaining item of `slice-117-delivery-shape` (the list is
+in [design](design.md) § 10). The acceptance below is planned on that ADR.
 
 ## Requirements and acceptance
 

@@ -1141,7 +1141,7 @@ validating an incomplete Slice 90.
 
 ### Slice 117 — Jetson CUDA Node addon delivery
 
-**PLANNED; draft; channel ruled; remaining delivery-shape items open.** The
+**PLANNED; channel and delivery shape ruled; implementation authorized.** The
 published Linux AArch64 npm platform package is built on a hosted runner
 with the default embedder only, so Jetson users get GPU support under Node
 only from a locally built addon. Python already has a governed `+tegra` wheel
@@ -1153,17 +1153,17 @@ The owner ruled on 2026-10-05 (`slice-117-jetson-node-cuda-direction`,
 `slice-117-supersede-d-80-7-3-and-d-80-6-2`) to add this slice and supersede
 D-80.7-3 and D-80.6-2 for it. Its two earlier entry holds are met: Linux
 x86_64 was tested with the Slice 110 fixes at candidate `8b76f6115`, and Slice
-110 is complete on `release/0.8.27`. Implementation waits only on the
-remaining `slice-117-delivery-shape` rulings. The
+110 is complete on `release/0.8.27`. On 2026-10-09 the owner accepted the
+distribution ADR, ruling `slice-117-delivery-shape`. The
 [Slice 117 plan](0.8.27/features/slice-117/plan.md) defines AC27-117A–G. Its
 [design note](0.8.27/features/slice-117/design.md) extends that existing
 Tegra Pages route to a separately named Node package tarball. The owner ruled
 that channel for 0.8.27 (`slice-117-channel-tegra-pages`); the npm registry
 options are not chosen for 0.8.27, and a later registry publication would need
-its own ruling. Unruled `slice-117-delivery-shape` now covers the package name
-and npm name reservation, loader policy, Pages retention, the aarch64
-import-time `cuInit` contract and the other items in design § 10, with the
-proposed `ADR-0.8.27-jetson-tegra-node-addon-distribution`. The
+its own ruling. The accepted
+`ADR-0.8.27-jetson-tegra-node-addon-distribution` settles the package name,
+loader policy, Pages retention, the aarch64 import-time `cuInit` contract and
+the other items in design § 10. The
 artifact is built on the Jetson with `embed-cuda,rerank-cuda` and carries
 Slice 110's allocation fallback and early `cuInit`, and no memory pool
 (`tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`; 0.8.28 evaluates

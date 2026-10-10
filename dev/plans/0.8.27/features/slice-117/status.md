@@ -7,7 +7,8 @@ planning_baseline: 80246a567
 
 # Slice 117 status
 
-**PLANNED; draft; implementation waits on the delivery-shape rulings.**
+**PLANNED; implementation authorized 2026-10-09** (distribution ADR accepted;
+`slice-117-delivery-shape` ruled).
 Status refreshed 2026-10-09 after Slice 135 closeout. The
 [plan](plan.md),
 [design note](design.md) and proposed
@@ -60,12 +61,12 @@ Slice 150 owns final-candidate qualification.
   route. The npm registry options are not chosen for 0.8.27.
 - `tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`: no memory pool
   ships in 0.8.27; 0.8.28 evaluates an explicit or lazily created pool.
+- `slice-117-delivery-shape` (2026-10-09): the owner accepted
+  `dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` as proposed,
+  ruling every remaining delivery-shape item.
 
 ## Blockers
 
-- The remaining items of unruled `slice-117-delivery-shape`
-  ([design](design.md) § 10; the channel is ruled), and acceptance of the
-  proposed distribution ADR.
 - Publication, and therefore AC27-117F, remains behind the release's unruled
   `release-0.8.27-publication` decision.
 
@@ -73,7 +74,7 @@ Slice 150 owns final-candidate qualification.
 
 | Acceptance | Result |
 | --- | --- |
-| AC27-117A | Partial: the supersession ruling, its in-place notes and the channel ruling are recorded. The remaining delivery-shape items and ADR acceptance are pending. |
+| AC27-117A | Done: the supersession ruling and its in-place notes, the channel ruling (2026-10-05), and the delivery-shape ruling with the distribution ADR accepted (2026-10-09). |
 | AC27-117B–H | Not started. |
 
 ## Tracking
@@ -82,8 +83,7 @@ Slice 150 owns final-candidate qualification.
   and updated at seq 276 on `release/0.8.27`, replayed from the planning
   branch's seq 271 and 273; after Slice 110's seq-270 revisit todo).
 - Release state: Slice 117 `PLANNED`, `depends_on: [110]`, in
-  `dev/plans/release-state-0.8.27.json`, with the five ruled records above
-  and unruled `slice-117-delivery-shape`. Its remaining-ladder position is
+  `dev/plans/release-state-0.8.27.json`, with the six ruled records above. Its remaining-ladder position is
   after completed Slice 135 and before Slice 140.
 - Decision index: row 61 (proposed).
 - On completion, Slice 117 updates the platform-support statement in

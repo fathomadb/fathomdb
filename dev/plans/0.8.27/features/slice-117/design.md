@@ -528,5 +528,5 @@ loader detection with a clear version-mismatch error, retention of all
 published URLs, the aarch64 import-time probe exception, a measured
 driverless ARM64 import, licence/SBOM review, a separate capability variant,
 an optional dependency tested across hosts, and a qualified unpublished
-Slice 140 handoff. These are proposals until the owner rules them; they do
-not lift the implementation hold.
+Slice 140 handoff. The owner accepted the ADR as proposed on 2026-10-09,
+which rules all ten items and lifts the implementation hold.

@@ -41,16 +41,12 @@ wraps the existing engine through a closed export map. Its
 `ADR-0.8.27-rust-sdk-parity.md` with `dev/interfaces/rust-sdk.md` own the
 contract.
 
-Slice 117 depends on Slice 110, which is complete. It plans delivery of a
-CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release
-process, because the published `fathomdb-linux-arm64-gnu` npm package is
-CPU-only. On 2026-10-05 the owner added it to the ladder and superseded the
-0.8.23 Tegra npm exclusions for its scope. The owner's Linux x86_64 hold on the
-Slice 110 fixes is met. The owner ruled its channel: the existing Tegra Pages
-route, not the npm registry, for 0.8.27. The rest of its delivery shape
-remains a HITL decision, owned by its
-[`draft plan`](0.8.27/features/slice-117/plan.md); implementation waits only
-on that ruling. Slice 135 is complete, so Slice 117 is next.
+Slice 117 is complete on `release/0.8.27` as a qualified, unpublished Jetson
+Node delivery route. Its [status](0.8.27/features/slice-117/status.md) binds
+the installed candidate to the exact Jetson workflow and artifact hashes.
+The generic Linux AArch64 npm package remains CPU-only. The accepted
+distribution ADR governs the separately named Tegra Pages tarball. Slice 160
+owns its publication and post-publication smoke; Slice 140 is next.
 
 The shared structural vocabulary is:
 
@@ -385,9 +381,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 117** (`JETSON-NODE-CUDA`) — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline
+**IMMEDIATE NEXT: Slice 140** (`DOC-CONVERGENCE`) — documentation and structural convergence
 
-**Remaining ladder:** 117 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 140 → 150 → 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1141,7 +1137,7 @@ validating an incomplete Slice 90.
 
 ### Slice 117 — Jetson CUDA Node addon delivery
 
-**PLANNED; channel and delivery shape ruled; implementation authorized.** The
+**COMPLETE on the release branch; unpublished candidate.** The
 published Linux AArch64 npm platform package is built on a hosted runner
 with the default embedder only, so Jetson users get GPU support under Node
 only from a locally built addon. Python already has a governed `+tegra` wheel
@@ -1167,16 +1163,20 @@ the other items in design § 10. The
 artifact is built on the Jetson with `embed-cuda,rerank-cuda` and carries
 Slice 110's allocation fallback and early `cuInit`, and no memory pool
 (`tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`; 0.8.28 evaluates
-pool options). Qualification of the new installed Jetson Node candidate
-repeats CPU, auto and forced-CUDA embedding and reranking, the GPU witness,
-heap-growth regression, loader selection and generic ARM64 non-interference.
+pool options). The installed Jetson Node candidate at `663ed88cd` passed CPU,
+auto and forced-CUDA embedding and reranking, the GPU witness, heap-growth
+regression and loader selection in [run
+38075698749](https://github.com/fathomadb/fathomdb/actions/runs/38075698749).
 After authorized Pages publication, Slice 160 repeats forced-CUDA, witness
 and heap-growth checks on the downloaded artifact (AC27-117F); Slice 117 is
-COMPLETE once its qualified, reviewed, unpublished candidate reaches Slice 140.
+COMPLETE at its qualified, unpublished candidate by the owner's 2026-10-10
+direction. The [status](0.8.27/features/slice-117/status.md) records the
+verification receipt limit: no exact-candidate full `agent-verify` log was
+found in tracked evidence, so no full-workspace green is claimed here.
 Slice 135's query measurements remain bound to its pinned product source;
 only a query or retrieval behavior change beyond loader and packaging work
-triggers the affected paired Slice 135 cells. The full code gate, exact
-install docs and reviewed candidate surface precede the Slice 140 handoff.
+triggers the affected paired Slice 135 cells. The exact install docs and
+candidate surface are handed to Slice 140 for convergence.
 Slice 140 may consume a qualified, unpublished candidate while publication
 stays behind the release decision. Slice 150 owns full final-candidate
 qualification. No other slice currently depends on Slice 117.

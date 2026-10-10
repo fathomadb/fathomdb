@@ -108,11 +108,15 @@ with its post-publication smoke.
    fixture confirms that form.
 8. **Release handoff.** Slice 140 may consume the reviewed, qualified,
    unpublished candidate and its exact install documentation. The later
-   Pages-installed forced-CUDA, witness and heap-growth smoke is required
-   before Slice 117 is COMPLETE. Slice 150 owns integrated final-candidate
-   qualification. Slice 135's measurements remain bound to its pinned
-   source; repeat affected paired cells only if Slice 117 changes query or
-   retrieval behavior beyond loader and packaging work.
+   Pages-installed forced-CUDA, witness and heap-growth smoke remains required
+   for the release and is owned by Slice 160, after publication authorization.
+   By the owner's 2026-10-10 `slice-160-owns-publication` ruling, Slice 117
+   closes at the qualified, unpublished handoff; this supersedes the original
+   condition that held Slice 117 below COMPLETE until the Pages smoke. Slice
+   150 owns integrated final-candidate qualification. Slice 135's measurements
+   remain bound to its pinned source; repeat affected paired cells only if
+   Slice 117 changes query or retrieval behavior beyond loader and packaging
+   work.
 
 ## Consequences
 

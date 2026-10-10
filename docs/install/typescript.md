@@ -72,6 +72,23 @@ npm install --save-exact fathomdb@0.8.27
 npm install --save-optional https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
 ```
 
+The URL install downloads the tarball again. Compare its lockfile integrity
+with the tarball you checked above, so the saved dependency is bound to those
+verified bytes:
+
+```bash
+node --input-type=commonjs - <<'NODE'
+const fs = require('node:fs');
+const crypto = require('node:crypto');
+const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz';
+const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+const installed = lock.packages?.['node_modules/fathomdb-linux-arm64-gnu-tegra']?.integrity;
+const checked = 'sha512-' + crypto.createHash('sha512').update(fs.readFileSync(name)).digest('base64');
+if (installed !== checked) throw new Error('Tegra lockfile integrity differs from the checked tarball');
+console.log('Tegra lockfile integrity matches the checked tarball');
+NODE
+```
+
 The result is this `package.json` form. The Tegra tarball is an
 `optionalDependency`, so the same `package.json` and lockfile also install
 on non-Jetson hosts: npm skips the tarball wherever its `linux`/`arm64`/`glibc`

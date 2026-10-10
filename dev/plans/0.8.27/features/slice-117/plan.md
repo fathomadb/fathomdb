@@ -1,23 +1,21 @@
 ---
 title: FathomDB 0.8.27 Slice 117 — Jetson CUDA Node addon delivery
-status: PLANNED
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.27
 planning_baseline: 80246a567
 ---
 
 # Slice 117 — Jetson CUDA Node addon delivery
 
-This is a draft plan. It adds a slice so Jetson users can get a CUDA-capable
-Node addon without building one locally. It extends the existing Tegra
-build, packaging and distribution path from the 0.8.26 work instead of
-creating a parallel one. The owner ruled on 2026-10-05 to add the slice and to
-supersede the 0.8.23 Node exclusions for it. Implementation is **held** (see
-the entry criteria), and publication remains behind the release's unruled
-`release-0.8.27-publication` decision. The [design note](design.md) owns
-options, evidence and risks. The [status](status.md) records lifecycle. The
-proposed record of the recommendation is
-`dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md`. The todos ledger
-tracks the work as `TC-ffef2129-e5a6-4f8f-8cae-bdfe64792197`.
+**Closed 2026-10-10 at a qualified, unpublished candidate.** This plan is the
+acceptance record for the Jetson Node delivery route built on the existing
+Tegra Pages path. The owner accepted the distribution ADR on 2026-10-09 and
+later assigned every publication and post-publication proof, including
+AC27-117F, to Slice 160. Publication remains behind the unruled
+`release-0.8.27-publication` decision. The [design note](design.md) preserves
+the option analysis; the [status](status.md) records the exact source, run,
+artifact hashes and verification limit. The todos ledger tracks the work as
+`TC-ffef2129-e5a6-4f8f-8cae-bdfe64792197`.
 
 Slice 135's query measurements belong to its pinned product source. Slice 117
 qualifies a new Jetson Node delivery route and must produce fresh evidence for
@@ -25,9 +23,9 @@ its own installed candidate. It does not repeat Slice 135's full diagnostic
 matrix. If loader or packaging work changes query or retrieval behavior,
 repeat the affected paired Slice 135 cells at the changed product source.
 Slice 150 owns qualification of the integrated final candidate.
-The [Jetson agent handoff](jetson-agent-handoff.md) gives the host-specific
-run contract and separates checks that need another runner. Its planned
-commands become executable only after the Slice 117 scripts are implemented.
+The [Jetson agent handoff](jetson-agent-handoff.md) records the host-specific
+run contract and separates checks that need another runner. The exact-source
+installed-candidate run is linked from the [status](status.md).
 
 ## Owner rulings (2026-10-05)
 
@@ -63,7 +61,8 @@ Implementation (execution step 3 onward) starts only when all of these hold:
    the result is recorded. The Slice 110 branch did not compile x86_64; its
    off-target proxy test is not a substitute
    (`dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`).
-   *Met 2026-10-05 on candidate `8b76f6115`; see [status](status.md#hold).*
+   *Met 2026-10-05 on candidate `8b76f6115`; see the
+   [Slice 110 integration record](../slice-110/tegra-integration-pending.md).*
 2. Slice 110 has closed on `release/0.8.27` with the allocation fallback and
    early `cuInit` integrated and qualified.
    *Met: Slice 110 is complete on `release/0.8.27` at `a25d063cd`.*
@@ -94,7 +93,7 @@ route. The npm registry options are not chosen for 0.8.27. On 2026-10-09
 the owner accepted
 `dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` as proposed,
 which rules every remaining item of `slice-117-delivery-shape` (the list is
-in [design](design.md) § 10). The acceptance below is planned on that ADR.
+in [design](design.md) § 10). The acceptance below is governed by that ADR.
 
 ## Requirements and acceptance
 
@@ -167,9 +166,14 @@ because it decomposes the TypeScript facade and does not need the Tegra route.
 Slice 120 is now complete, so the loader change in this slice to
 `src/ts/src/platform.ts` builds on its final facade. In the remaining ladder
 (2026-10-09) Slice 117 follows completed Slice 135 and precedes Slice 140.
-At this plan's baseline, neither Slice 140 nor Slice 150 depends on
-Slice 117; whether they should is an open item ([design](design.md) § 10).
+At this plan's baseline, neither Slice 140 nor Slice 150 depended on
+Slice 117; whether they should was an open item later ruled by the accepted
+ADR ([design](design.md) § 10).
 Slice 140 can consume a reviewed, qualified, unpublished Slice 117 candidate.
 The release publication ruling controls the later Pages publication and
 post-publication completion check, while Slice 150 owns final-candidate
 qualification.
+
+As closed, Slice 117's qualified candidate is on `release/0.8.27` and Slice
+140 is next. The earlier dependency question is retained above as planning
+history; Slice 160 owns the post-publication check.

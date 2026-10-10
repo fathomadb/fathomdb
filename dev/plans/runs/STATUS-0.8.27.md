@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 117 (JETSON-NODE-CUDA), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) · 110 (`a25d063cd3e1642ad08dcc6aed3691b94445fe20`) · 114 (`25115902db8b9b5648c5ceca1823d3cc66fec8e8`) · 115 (`012e132920147396ac195f14af74444dd698f48e`) · 120 (`e05bfd5330beb737b7704300e2752d2b977bb5b8`) · 130 (`58b0bd192f6bc7cc87ea6e8099bfe1c52e68893f`) · 132 (`2996417f0cb78b2dbf5262de53798ae6a263469a`) · 135 (`a815584b3b907596be00c501eca3ec140c3c7c88`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 140 (DOC-CONVERGENCE), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) · 110 (`a25d063cd3e1642ad08dcc6aed3691b94445fe20`) · 114 (`25115902db8b9b5648c5ceca1823d3cc66fec8e8`) · 115 (`012e132920147396ac195f14af74444dd698f48e`) · 117 (`663ed88cdfedcf741504285ea1890663603115ad`) · 120 (`e05bfd5330beb737b7704300e2752d2b977bb5b8`) · 130 (`58b0bd192f6bc7cc87ea6e8099bfe1c52e68893f`) · 132 (`2996417f0cb78b2dbf5262de53798ae6a263469a`) · 135 (`a815584b3b907596be00c501eca3ec140c3c7c88`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -53,21 +53,19 @@ SDK with the Python/TypeScript surface, under
 `ADR-0.8.27-rust-sdk-parity.md`. The `fathomdb` facade is unchanged, and the
 provider/plugin crate posture remains a separate unruled decision.
 
-Slice 117 is planned. It will deliver a CUDA-capable Linux AArch64
-(Jetson/Tegra) Node addon through the release process, because the published
-`fathomdb-linux-arm64-gnu` npm package is CPU-only. On 2026-10-05 the owner
-added it to the ladder, superseded the 0.8.23 Tegra npm exclusions for its
-scope, ruled its channel as the existing Tegra Pages route (not the npm
-registry) for 0.8.27, and ruled that Slice 110 ships early `cuInit` with the
-aarch64-Linux allocation fallback. Its prerequisites are now met: Slice 110 is
-complete on `release/0.8.27`, and the owner's Linux x86_64 hold was met at
-Slice 110 candidate `8b76f6115` (recorded by `c761b9369`). On 2026-10-09 the
-owner accepted the distribution ADR, ruling `slice-117-delivery-shape`, so
-implementation is authorized. Slice 135 has
-since completed, so Slice 117 is next. Publication remains
-behind `release-0.8.27-publication`. The 0.8.27 allocator approach is the
-synchronous fallback with early `cuInit`; no memory pool ships in 0.8.27, and
-0.8.28 evaluates an explicit or lazily created pool.
+Slice 117 is complete as a qualified, unpublished Jetson Node delivery
+route. The generic `fathomdb-linux-arm64-gnu` npm package remains CPU-only.
+The owner accepted the distribution ADR on 2026-10-09 and moved every
+publication and post-publication proof to Slice 160 on 2026-10-10. The
+installed candidate at `663ed88cd` passed [Jetson run
+38075698749](https://github.com/fathomadb/fathomdb/actions/runs/38075698749),
+including CPU, auto and forced-CUDA Node embedding and reranking, the GPU
+witness, heap growth 3/3 and driverless ARM64 import. Its Tegra tarball
+SHA-256 is
+`3ede0e23de8c39b26a4a23c960774605ed360ebb2bd941ef9c1d8fa56097aa70`.
+The 0.8.27 allocator uses the synchronous fallback with early `cuInit`; no
+memory pool ships in this release. Publication remains behind
+`release-0.8.27-publication`.
 
 ### Off-ladder landings (recorded 2026-10-07)
 
@@ -112,25 +110,23 @@ worktree. The full workspace gate passed 186/186 suites after executable
 changes; final documentation received scoped checks. This diagnostic
 closeout does not qualify the final release or authorize publication.
 
-Slice 117 next qualifies a new installed Jetson Node delivery route. Its
-entry x86_64 check and Slice 110 closure are recorded and need no repeat to
-lift that hold. The delivery-shape ruling and the accepted distribution ADR
-(2026-10-09) authorize implementation. Candidate evidence must cover CPU, auto and
-forced-CUDA embedding and reranking, the GPU witness, heap growth, loader
-selection and generic ARM64 non-interference. The full code gate, exact
-install docs and review precede the Slice 140 handoff. Slice 135's paired
-query cells repeat only if Slice 117 changes query or retrieval behavior;
-its prior measurements stay bound to its pinned source. After authorized
-Pages publication, Slice 160 runs the installed Pages artifact's forced-CUDA,
-witness and heap-growth checks. Slice 150 owns full final-candidate
-qualification; Slice 160 owns every publication and post-publication proof.
+Slice 117's [closeout](../0.8.27/features/slice-117/status.md) binds its
+new Node delivery evidence to the installed candidate without relabeling
+Slice 135's pinned-source query measurements. Only loader and package product
+source changed, so no affected paired query cell is identified. The owner
+reports the code checks were done, but no exact-candidate full-gate receipt is
+in the tracked evidence; this is not a full-workspace green claim. Slice 140
+and Slice 150 retain their verification gates. After publication
+authorization, Slice 160 runs the Pages-installed forced-CUDA, witness and
+heap-growth checks and owns every other publication and post-publication
+proof.
 
 Slice 140 planning is approved at the pre-handoff `360bbe63e` baseline:
 [plan](../0.8.27/features/slice-140/plan.md),
 [design](../0.8.27/features/slice-140/design.md), and
 [planning status](../0.8.27/features/slice-140/status.md). Two independent
 design reviews closed the draft. Implementation and final documentation
-convergence wait for Slice 117's reviewed candidate handoff. The 39-file
+convergence consume Slice 117's qualified, unpublished handoff. The 39-file
 large-code register remains in the release record; its final-candidate
 coverage will be refreshed without a human sign-off gate.
 
@@ -138,7 +134,7 @@ coverage will be refreshed without a human sign-off gate.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 117 (JETSON-NODE-CUDA)** — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline. **Remaining ladder:** 117 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 140 (DOC-CONVERGENCE)** — documentation and structural convergence. **Remaining ladder:** 140 → 150 → 160.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -368,12 +364,9 @@ grant/revert evidence.
   and the parity checker covers it (44/44). Before the `v0.8.27` tag, its
   first crates.io publish needs a one-time HITL token bootstrap (ledger
   seq 273). Slice 135 is next.
-- [Slice 117](../0.8.27/features/slice-117/plan.md) depends on Slice 110,
-  which is complete, and is planned. It plans an opt-in CUDA-capable Jetson
-  Node addon built through the existing Jetson Tegra CUDA evidence workflow,
-  with installed and post-publication Jetson smokes. D-80.7-3 and D-80.6-2 are
-  superseded for its scope, and its channel is ruled as Tegra Pages. The
-  owner's x86_64 hold is met, and the delivery shape is ruled by the accepted
-  distribution ADR (2026-10-09). Its reviewed, qualified, unpublished
-  candidate may be handed to Slice 140; Slice 160 runs the later Pages
-  smoke. No other slice currently depends on it.
+- [Slice 117](../0.8.27/features/slice-117/status.md) is complete at its
+  qualified, unpublished Jetson Node candidate on `release/0.8.27`. The exact
+  installed-artifact run and hashes are in its closeout. Slice 140 consumes the
+  handoff; Slice 160 runs the later Pages-installed smoke after publication
+  authorization. The closeout records the missing tracked full-gate receipt
+  without claiming a full-workspace green.

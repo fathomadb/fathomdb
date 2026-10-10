@@ -466,6 +466,8 @@ run_tier_suite fast test-tegra-pages-publisher-ci-job bash scripts/tests/test_te
 run_tier_suite fast test-tegra-publication-operator-path bash scripts/tests/test_tegra_publication_operator_path.sh
 run_tier_suite fast test-tegra-pages-index bash scripts/tests/test_tegra_pages_index.sh
 run_tier_suite fast test-pages-site bash scripts/tests/test_pages_site.sh
+run_tier_suite fast test-generated-public-docs python3 scripts/tests/test_generated_public_docs.py
+run_tier_suite fast test-pages-source-currency python3 scripts/tests/test_pages_source_currency.py
 run_tier_suite fast test-tegra-pages-retention bash scripts/tests/test_tegra_pages_retention.sh
 run_tier_suite fast test-tegra-pages-live-verification bash scripts/tests/test_tegra_pages_live_verification.sh
 run_tier_suite fast test-tegra-pages-retention-live bash scripts/tests/test_tegra_pages_retention_live.sh

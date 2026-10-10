@@ -98,6 +98,11 @@ operating on a store. Application SDKs do not expose recovery or raw SQL.
 
 ## Develop and contribute
 
+Use the [SDK operation map](docs/generated/sdk-operation-map.md) to find
+matching governed names across the three languages.
+
+- [Contributor guide](docs/contributing/index.md) and generated
+  [source map](docs/generated/contributor-map.md): workflow and current owners.
 - [Public documentation](docs/index.md): installation, concepts, references,
   and operations; built with `mkdocs build --strict`.
 - [Engineering index](dev/README.md): requirements, architecture, accepted

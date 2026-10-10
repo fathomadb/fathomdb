@@ -116,6 +116,7 @@ trap cleanup EXIT
 
 bash "$INDEX_BUILDER" --out "$tegra_root" "${index_args[@]}" >&2
 cd "$REPO_ROOT"
+python3 "$REPO_ROOT/scripts/generate-public-docs.py" --check >&2
 mkdocs build --strict --site-dir "$out" >&2
 cp -R "$tegra_root/tegra" "$out/tegra"
 

@@ -83,7 +83,8 @@ The register is a source-SHA-bound navigation and disposition record, not a styl
 
 ## Source-derived library and contributor documentation
 
-This amendment is pending the required subsequent `gpt-6-sol` high review.
+This amendment received the required subsequent `gpt-6-sol` high approval
+at `2c1b12a0c`; see [design-review.md](design-review.md).
 
 A stdlib Python generator under `scripts/` produces two tracked Markdown
 pages. It resolves inputs relative to the repository root and supports

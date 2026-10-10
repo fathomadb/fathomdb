@@ -73,3 +73,11 @@ Independent `gpt-6-sol` high read-only review requested changes:
 
 The amendment remains pending subsequent `gpt-6-sol` high approval. No
 generated-doc implementation was added in response to this review.
+
+## Generated-doc follow-up review — approved
+
+Independent `gpt-6-sol` high review of `2c1b12a0c` returned **APPROVE**,
+with no open P0/P1. It checked the corrected Slice 140 scope and current-main
+ancestry guards in both prepare/deploy routes. Approval authorizes the
+planned TDD implementation; source and final verification reviews remain
+separate.

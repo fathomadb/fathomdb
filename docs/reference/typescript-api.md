@@ -5,9 +5,8 @@ Package: `fathomdb`. Authoritative spec:
 
 > **Release 0.8.27, pre-1.0 beta.**
 
-**TS SDK parity caveat.** The TS surface covers the same governed command set
-and the same error taxonomy as Python, but Python remains the more heavily
-exercised binding. Prefer Python for production pilots. See
+The TypeScript, Python, and Rust SDKs share the governed operation surface
+and error categories. Language calling conventions differ. See
 [SDK parity](../positions/sdk-parity.md).
 
 Governed Engine operations are Promise-returning. Process-start runtime

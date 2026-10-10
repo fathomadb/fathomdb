@@ -16,6 +16,7 @@ nav:
       - Rust: install/rust.md
   - Reference:
       - Overview: reference/index.md
+      - SDK Operation Map: generated/sdk-operation-map.md
       - Rust SDK: reference/rust-sdk.md
       - Rust API: reference/rust-api.md
       - Python API: reference/python-api.md
@@ -23,6 +24,9 @@ nav:
       - CLI: reference/cli.md
       - Errors: reference/errors.md
       - Config: reference/config.md
+  - Contributing:
+      - Overview: contributing/index.md
+      - Source Map: generated/contributor-map.md
   - Concepts: concepts/index.md
   - Default Embedder: embedder.md
   - Compatibility: compatibility/index.md

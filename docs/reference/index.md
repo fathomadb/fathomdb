@@ -33,3 +33,7 @@ These are documented gaps in the release surface:
   population source, so a `status=`-filtered query prunes every row.
 - Custom Python / TypeScript embedder implementations are not exposed;
   the binding choice is the built-in default embedder or none.
+
+The generated [SDK operation map](../generated/sdk-operation-map.md) indexes
+matching names and owners across the three languages. Detailed signatures,
+options, results and errors remain in the reference pages above.

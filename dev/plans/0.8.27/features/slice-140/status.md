@@ -178,3 +178,30 @@ a fresh-main ancestor guard before build/upload and deployment. The amended
 design preserves deploy privileges and defines focused ahead/equal/behind/
 diverged/error controls. Follow-up design approval is still pending; no
 generated-doc code or new baseline is claimed.
+
+## Generated documentation implemented — focused verification
+
+RED tests were committed at `c351edc04`; the Python runtime diagnostic
+regression was committed at `4c10d9dfa` before its fix. The subsequent
+`gpt-6-sol` high design review approved `2c1b12a0c`, with no open P0/P1.
+The implementation creates a deterministic 44-operation index and an
+11-package/five-entry-point contributor map, plus the maintained contributor
+landing. Script fingerprints are invisible HTML comments; displayed tables
+remain concise. The generator requires Python 3.11 or later and reports an
+actionable configured-interpreter diagnostic when `tomllib` is unavailable.
+
+The shared complete-site builder checks generated freshness; both workflows
+keep that builder and freshly verify current-main ancestry before prepare
+and deploy. Deployment uses anonymous public Git fetches and gains no
+contents token or publication privilege. Old queued candidates fail closed.
+The stale Python-preference caveats were replaced with the measured shared
+three-SDK operation/error surface.
+
+Focused receipts: generator **6/6**, real Git-history currency **5/5**,
+combined Pages **20/20**, Tegra publisher **43/43**, and Jetson workflow
+**90/90** pass; Ruff, Bash syntax, actionlint, scoped Markdown/public-doc
+checks, and strict MkDocs build pass. All three new pages exist in the built
+site. These are local source/pipeline proofs, not a live Pages publication.
+The complete amended candidate still needs refreshed hidden/test inventory,
+large-file register, final code review, Terra, three independent final
+reviews, and the integrated full gate owned by the parent.

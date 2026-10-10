@@ -180,9 +180,9 @@ attribution records.
 
 ## SDK maturity posture
 
-Both bindings expose the same governed command surface and the same
-typed error taxonomy. **Python is the more heavily exercised
-binding; prefer it for production pilots.** See
+Python, TypeScript, and the Rust SDK share the governed operation surface
+and error categories. Their runtime and package requirements differ; choose
+the language route that matches your application and deployment. See
 [SDK parity](../positions/sdk-parity.md).
 
 ## API surface gaps

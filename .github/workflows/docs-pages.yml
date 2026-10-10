@@ -15,6 +15,12 @@ on:
       - .github/workflows/docs-pages.yml
       - docs/**
       - mkdocs.yml
+      - scripts/generate-public-docs.py
+      - src/conformance/governed-operation-parity.json
+      - Cargo.toml
+      - src/rust/crates/**/Cargo.toml
+      - scripts/agent-*.sh
+      - scripts/release/check-pages-source.py
       - scripts/release/build-pages-site.sh
       - scripts/release/build-tegra-pages-index.sh
       - scripts/release/check-tegra-pages-retention-live.sh
@@ -40,8 +46,13 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
+      - name: Require current main before constructing the site
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: python3 scripts/release/check-pages-source.py --repo "$GITHUB_WORKSPACE" --candidate "$GITHUB_SHA"
       - name: Install the documentation builder
         run: python3 -m pip install --disable-pip-version-check mkdocs
       # Each deployment replaces the whole site, so every published Tegra
@@ -94,6 +105,18 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Require current main before deploying the site
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          source_checkout="$RUNNER_TEMP/fathomdb-pages-current-source"
+          git init --quiet "$source_checkout"
+          git -C "$source_checkout" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -C "$source_checkout" -c credential.helper= fetch --no-tags origin "$GITHUB_SHA"
+          git -C "$source_checkout" checkout --quiet --detach "$GITHUB_SHA"
+          python3 "$source_checkout/scripts/release/check-pages-source.py" --repo "$source_checkout" --candidate "$GITHUB_SHA"
       - id: deployment
         name: Deploy combined site to GitHub Pages
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

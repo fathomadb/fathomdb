@@ -418,8 +418,13 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
+      - name: Require current main before constructing the site
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: python3 scripts/release/check-pages-source.py --repo "$GITHUB_WORKSPACE" --candidate "$GITHUB_SHA"
       - name: Download only this run's Jetson evidence artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -538,6 +543,18 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Require current main before deploying the site
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          source_checkout="$RUNNER_TEMP/fathomdb-pages-current-source"
+          git init --quiet "$source_checkout"
+          git -C "$source_checkout" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -C "$source_checkout" -c credential.helper= fetch --no-tags origin "$GITHUB_SHA"
+          git -C "$source_checkout" checkout --quiet --detach "$GITHUB_SHA"
+          python3 "$source_checkout/scripts/release/check-pages-source.py" --repo "$source_checkout" --candidate "$GITHUB_SHA"
       - id: deployment
         name: Deploy combined artifact to GitHub Pages
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

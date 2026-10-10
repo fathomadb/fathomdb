@@ -1296,7 +1296,7 @@ The [reviewed Slice 140 plan](0.8.27/features/slice-140/plan.md),
 [approved design](0.8.27/features/slice-140/design.md), and
 [planning status](0.8.27/features/slice-140/status.md) reconcile this scope to
 the post-Slice-135 source. Its [large-file register](0.8.27/features/slice-140/large-file-review.md)
-contains recommendations; human owner verdicts remain required at slice
+records dispositions and requires no human review for slice or release
 closure. Slice 117's reviewed candidate handoff must be incorporated before
 final docs and code qualification.
 
@@ -1304,11 +1304,10 @@ Converge architecture, design, interfaces, examples, and source citations on
 the final taxonomy.
 
 Validate that source citations resolve, documented public paths import,
-examples compile or run, every file above 3,500 lines has an approved exception
-or follow-up, every 2,000–3,500-line review has a recorded human verdict, and
-the exception register covers every trigger. Do not make file size itself a
-blocking automated test. The five named outliers must no longer remain
-unexplained monoliths.
+examples compile or run, and the large-file register records a disposition
+for every tracked code-file trigger above 2,000 lines, including the files
+above 3,500 and the five named original outliers. Re-scan the final candidate;
+do not make file size or human approval of the register a release gate.
 
 Carried from Slice 70 (`features/slice-70/status.md`):
 

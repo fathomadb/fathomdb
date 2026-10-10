@@ -129,8 +129,9 @@ Slice 140 planning is approved at the pre-handoff `360bbe63e` baseline:
 [design](../0.8.27/features/slice-140/design.md), and
 [planning status](../0.8.27/features/slice-140/status.md). Two independent
 design reviews closed the draft. Implementation and final documentation
-convergence wait for Slice 117's reviewed candidate handoff; the 39-file
-large-code register still needs human owner verdicts at Slice 140 closure.
+convergence wait for Slice 117's reviewed candidate handoff. The 39-file
+large-code register remains in the release record; its final-candidate
+coverage will be refreshed without a human sign-off gate.
 
 ## Immediate next action
 

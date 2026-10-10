@@ -33,9 +33,9 @@ and Slice 140 remains `PLANNED`.
   `failed`/absent-physical row precedence over unenrolled-edge corruption.
 - The [large-file register](large-file-review.md) enumerates 39 tracked code
   triggers at the planning baseline, explains the five original outliers, and
-  proposes bounded dispositions. Human owner verdicts are still required for
-  first-party review-band files and the engine-root exception before AC27-140C
-  can be marked complete.
+  records bounded dispositions. A later owner ruling removed human review of
+  this register as a slice or release gate. AC27-140C still requires the
+  final-candidate re-scan and any new triggers to be recorded.
 
 ## Planning verification
 
@@ -62,8 +62,20 @@ Converge current architecture, interfaces, examples, links, and citations;
 run documented imports/examples in real package routes. Obtain the specified
 code review and independent Terra verification. Run scoped document checks
 and the full code verification gate on the final implementation candidate.
-Record exact receipts, human file verdicts, and final status before advancing
+Record exact receipts, the updated register, and final status before advancing
 the ladder to Slice 150.
+
+## Large-file register policy update — 2026-10-10
+
+The owner directed that the register remain in the release record without a
+human review requirement for slice or release closure. The plan, design,
+master plan, prework test approach, release board, and release-state ruling
+now reflect that instruction. The register's recorded dispositions stand as
+the baseline inventory; final-candidate coverage remains an ordinary Slice
+140 check. No size threshold or human sign-off is a release gate.
+An independent `gpt-6-sol` high review accepted the policy change with one
+wording fix in the prework test approach; that fix was applied and the scoped
+Markdown and release-state checks passed.
 
 No Slice 140 source/test implementation, code review, Terra verification,
 full-gate run, final acceptance claim, tag, or publication is recorded here.

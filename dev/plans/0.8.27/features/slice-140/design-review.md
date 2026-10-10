@@ -20,9 +20,9 @@ ADRs and interfaces. Verdict: **APPROVE WITH FIXES**, no P0/P1.
 The reviewer found the three-SDK taxonomy, Slice 117 concurrency boundary,
 Slice 137 exclusion, conditional ADR acceptance, historical-memo labels, and
 dense-state precedence edit consistent with the examined contracts. It also
-noted that a human owner verdict on each review-band file remains a Slice 140
-closure requirement; model review prepares the register but cannot supply
-that verdict.
+noted that the then-current plan required a human owner verdict for each
+review-band file. The owner removed that requirement after the review; see
+the policy update below.
 
 ## Follow-up review — `gpt-6-sol` high, 2026-10-10
 
@@ -32,5 +32,14 @@ recounted all 39 tracked code files in the threshold bands (19 first-party,
 19 vendored, one generated), including the CLI file, and checked the
 compile-negative controls against the hidden-oracle selection limit. The
 master carryovers, current seam owners, Slice 117 handoff condition, and Slice
-137 exclusion aligned. The human owner file verdicts remain pending for Slice
-140 implementation closure; the review did not mark AC27-140C complete.
+137 exclusion aligned. At review time, the human owner file verdicts remained
+pending. The later owner ruling removed that gate; the review did not mark
+final-candidate AC27-140C coverage complete.
+
+## Subsequent owner ruling — 2026-10-10
+
+Human review or approval of the large-file register is no longer required
+for Slice 140 or release closure. The register remains referenced in the
+release and is updated for final-candidate file coverage. This changes the
+acceptance policy after the reviews; it does not alter their historical
+findings on the original draft.

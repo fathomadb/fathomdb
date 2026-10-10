@@ -73,5 +73,8 @@ and compatibility guidance continues to label the Tegra candidate unpublished,
 with publication owned by Slice 160. The integrated external boundary and
 engine compilation passed again. The [public comparison](public-surface-comparison.md) records the intended
 reader-guard removal and inherited earlier-slice differences. Independent
-code review passed on `18ef03da9`; hidden comparison/successor baseline, Terra
-verification, and the prepared-checkout full gate remain pending.
+code review passed on `18ef03da9`; the [hidden successor record](../hidden-surface/baseline-01f4063f-diff.md)
+now records all completed before/after rows and exact retained test union.
+The independent hidden-diff review returned APPROVED with no findings.
+Terra verification and the prepared-checkout full gate remain pending. The targeted AC-050c checker passed at `10eb0bd44`:
+64 removals all documented.

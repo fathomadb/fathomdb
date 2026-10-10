@@ -1,15 +1,14 @@
 ---
-title: FathomDB 0.8.27 Slice 140 — planning status
-status: PLANNING_APPROVED
+title: FathomDB 0.8.27 Slice 140 — implementation status
+status: IMPLEMENTED_PENDING_VERIFICATION
 target_release: 0.8.27
 planning_baseline: 360bbe63e65aca93cb2200f6c8e27624f4042ea8
 ---
 
-# Slice 140 planning status — 2026-10-10
+# Slice 140 implementation status — 2026-10-10
 
 The [plan](plan.md) is reviewed and the [design](design.md) is approved for
-the `360bbe63e` release baseline. This is a **planning closeout**, not Slice
-140 implementation or release qualification. This planning review used the
+the `360bbe63e` release baseline. The historical planning review below used the
 pre-handoff `360bbe63e` baseline. Slice 117 has since closed on the release
 branch at its qualified, unpublished candidate; the current remaining ladder
 is `140 → 150 → 160`, with Slice 140 still `PLANNED`. Its final product and
@@ -95,8 +94,12 @@ from earlier slices. The [immediate public comparison](public-surface-comparison
 against the completed Slice 117 source isolates this slice to 31 intended
 reader-guard-derived removals in each default/operator engine row, with no SDK
 changes. Independent follow-up review accepted that delta and its documented
-contract correction. Hidden before/after capture and the reviewed successor
-record remain in progress. The scoped Markdown and public-document checks passed.
+contract correction. The [hidden successor](../hidden-surface/baseline-01f4063f-diff.md)
+completed 37 rows versus 35 before; 295 targets remain covered, both captures
+have no test-build failure, and the 1,924-entry aggregate test/ignore-status
+union is exactly preserved. Independent `gpt-6-sol` high hidden-diff review returned APPROVED with no
+P0/P1/P2. The review is static and does not replace execution receipts. The scoped Markdown and public-document checks passed; targeted AC-050c also
+passed with 64 removals documented.
 
 The implementation worktree's full verification attempt fails at preflight
 because no checkout-owned `.venv/bin/python` is installed. The prepared

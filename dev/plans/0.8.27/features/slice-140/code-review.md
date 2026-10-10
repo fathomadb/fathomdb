@@ -34,3 +34,15 @@ AC-050c checker also required explicit nested `AccumulatorHandle` and guard
 `wait_ready` removal names; both are now listed, along with guard `release`.
 These corrections change documentation only; the compiler controls remain
 unchanged.
+
+## Hidden successor review
+
+Independent `gpt-6-sol` high artifact/source review returned **APPROVED**
+with no P0/P1/P2 on the [successor record](../hidden-surface/baseline-01f4063f-diff.md).
+It matched the tracked manifests/diffs to capture bytes, confirmed the 101
+intentional API removals/gate changes, retained explicit-hook entries,
+unchanged facade, 295 targets and 134 hook-feature predicate additions, exact
+1,924-entry test/ignore union, justified row regrouping, inherited comparison,
+and the public reader-guard delta. It did not independently rerun rustdoc
+or tests. This closes the code/surface review requirements; full verification
+and independent Terra acceptance verification remain open.

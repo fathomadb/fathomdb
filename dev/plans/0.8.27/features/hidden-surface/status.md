@@ -805,3 +805,16 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
 The Slice 30 test previously failed only on its 100 GB free-space guard. Code
 review H-4 (`df9cbf9f`) pins `disk_usage` in that test's scratch-ownership
 checks, so it no longer depends on host disk. The Slice 30 tool is unchanged.
+
+## Slice 140 successor — 2026-10-10
+
+The current reviewed successor is [baseline-01f4063f.json](baseline-01f4063f.json),
+bound to integrated product source `01f4063f7ba19e4d9c38377c3d1956f35903ff9c`.
+Its [approved diff record](baseline-01f4063f-diff.md) preserves the completed
+Slice 117 before capture, inherited changes since `8e2afb29`, and exact
+Slice 140 fixture gating. Both captures have no test-build failure; all 295
+targets and the exact 1,924-entry test/ignore union remain represented through
+their required features. Independent `gpt-6-sol` high static review approved
+the record with no findings. Slice 140's full verification/acceptance and
+Slice 150's final qualification remain separate gates; Slice 150 consumes
+this successor and still owns oracle retirement.

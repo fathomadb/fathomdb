@@ -1376,8 +1376,11 @@ and gating ruling must cover them at their new owners:
   and `take_slice71_search_statement_trace_for_test`.
 
 Slice 140's intended hidden-surface differences, including the test-seam
-gating, are captured at its landing commit as a successor hidden baseline with
-a reviewed diff record against the previous baseline.
+gating, are captured at its reviewed integrated product-source commit in
+[successor baseline `01f4063f`](0.8.27/features/hidden-surface/baseline-01f4063f.json),
+with an [approved exact diff record](0.8.27/features/hidden-surface/baseline-01f4063f-diff.md)
+separating inherited changes and the immediate Slice 140 delta. Later receipt
+commits change documentation only. Slice 150 uses this reviewed successor.
 
 ### Slice 150 — integrated release qualification
 

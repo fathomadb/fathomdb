@@ -417,6 +417,9 @@ run_tier_suite fast test-tegra-napi-build-contract bash scripts/tests/test_tegra
 # The installed Tegra Node package smoke never reports a skipped, missing or
 # CPU-fallback row as a pass; its verdict runs here against evidence fixtures.
 run_tier_suite fast test-tegra-node-package-smoke bash scripts/tests/test_tegra_node_package_smoke.sh
+# The driverless ARM64 import of the Tegra Node package refuses any host but a
+# driverless non-Tegra AArch64 one; its verdict runs here against fixtures.
+run_tier_suite fast test-tegra-node-driverless-smoke bash scripts/tests/test_tegra_node_driverless_smoke.sh
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 

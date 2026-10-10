@@ -160,6 +160,58 @@ assert_absent 'npm publish' "workflow cannot publish npm artifacts"
 assert_absent 'cargo publish' "workflow cannot publish Rust artifacts"
 assert_absent 'gh release' "workflow cannot create a GitHub release"
 
+# A hosted, non-Tegra ARM64 runner without a CUDA driver installs and imports
+# this run's Tegra tarball and proves the loader ignores it there; Pages
+# publication waits for it (ADR-0.8.27-jetson-tegra-node-addon-distribution,
+# decisions 5 and 6).
+job_block() {
+  awk -v header="  $1:" '
+    $0 == header { in_job = 1; next }
+    in_job && /^  [A-Za-z0-9_-]+:$/ { exit }
+    in_job { print }
+  ' "$WORKFLOW"
+}
+driverless_job="$(job_block tegra-node-driverless-arm64)"
+pages_job="$(job_block prepare-tegra-pages)"
+assert_driverless() {
+  local needle="$1" description="$2"
+  if grep -Fq -- "$needle" <<<"$driverless_job"; then
+    pass "$description"
+  else
+    fail "$description (missing from tegra-node-driverless-arm64: $needle)"
+  fi
+}
+assert_driverless_absent() {
+  local needle="$1" description="$2"
+  if [ -n "$driverless_job" ] && ! grep -Fq -- "$needle" <<<"$driverless_job"; then
+    pass "$description"
+  else
+    fail "$description (unexpected or job absent in tegra-node-driverless-arm64: $needle)"
+  fi
+}
+assert_driverless 'runs-on: ubuntu-24.04-arm' "driverless import runs on a hosted ARM64 runner"
+assert_driverless_absent 'self-hosted' "driverless import never runs on the Jetson"
+assert_driverless 'needs: [validate-candidate, tegra-cuda-evidence]' "driverless import consumes this run's Jetson build"
+assert_driverless "if: startsWith(github.ref, 'refs/heads/release/')" "driverless import is restricted to release branches"
+assert_driverless $'    permissions:\n      contents: read' "driverless import holds only read-only contents"
+assert_driverless_absent ': write' "driverless import holds no write permission"
+assert_driverless 'timeout-minutes:' "driverless import has a bounded timeout"
+assert_driverless 'persist-credentials: false' "driverless checkout leaves no credential"
+assert_driverless "ref: \${{ github.sha }}" "driverless checkout uses the immutable dispatch SHA"
+assert_driverless 'name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}' "driverless import downloads only this run's Jetson artifact"
+assert_driverless 'SHA256SUMS' "driverless import checks the tarballs against the Jetson build digests"
+assert_driverless 'smoke-tegra-node-driverless.sh' "driverless import runs the driverless smoke"
+assert_driverless '--candidate-sha "$CANDIDATE_SHA"' "driverless smoke binds the validated candidate"
+assert_driverless 'fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz' "driverless smoke imports this run's Tegra tarball"
+assert_driverless 'name: tegra-node-driverless-arm64-${{ github.run_id }}-${{ github.run_attempt }}' "driverless evidence is retained"
+assert_driverless 'if: always()' "driverless evidence is retained after failure"
+assert_driverless_absent 'registry-url' "driverless import configures no npm registry authentication"
+if grep -Fq 'needs: [tegra-cuda-evidence, tegra-node-driverless-arm64]' <<<"$pages_job"; then
+  pass "Pages publication waits for the driverless ARM64 import"
+else
+  fail "Pages publication must need tegra-node-driverless-arm64"
+fi
+
 if [ "${JETSON_TEGRA_CI_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
   cleanup() {
@@ -224,6 +276,17 @@ if [ "${JETSON_TEGRA_CI_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves the installed Node smoke is load-bearing"
   else
     fail "Node-smoke mutation did not fail its assertion: $mutation_out"
+  fi
+
+  sed 's/needs: \[tegra-cuda-evidence, tegra-node-driverless-arm64\]/needs: tegra-cuda-evidence/' "$WORKFLOW" >"$MUTATED"
+  set +e
+  mutation_out="$(JETSON_TEGRA_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
+  mutation_rc=$?
+  set -e
+  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'Pages publication must need tegra-node-driverless-arm64' <<<"$mutation_out"; then
+    pass "mutation proves the driverless publication gate is load-bearing"
+  else
+    fail "driverless-gate mutation did not fail its assertion: $mutation_out"
   fi
 
   sed "s/startsWith(github.ref, 'refs\/heads\/release\/')/startsWith(github.ref, 'refs\/heads\/topic\/')/g" "$WORKFLOW" >"$MUTATED"

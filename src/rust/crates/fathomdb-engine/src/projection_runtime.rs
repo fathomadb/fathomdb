@@ -215,7 +215,7 @@ pub(crate) struct ProjectionRuntimeShared {
     /// ground truth in isolation (the quantization-FIDELITY axis the 0.90 floor
     /// is defined to measure), not the hybrid `search()` output.
     pub(crate) vector_stage_only_for_test: AtomicBool,
-    /// 0.7.2 PR-2b — debug-only fault injection: when set, `recompute_mean_in_tx`
+    /// 0.7.2 PR-2b — test-only fault injection: when set, `recompute_mean_in_tx`
     /// errors AFTER writing `mean_vec` but BEFORE finishing the re-quantize
     /// pass, so the crash-atomicity test can prove the whole recompute rolls
     /// back (no half-recentered corpus). One-shot (cleared on consume).

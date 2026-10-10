@@ -65,6 +65,8 @@ Focused checks passed on the implementation worktree:
 The full `./scripts/agent-verify.sh` attempt fails at preflight because this
 worktree has no checkout-owned `.venv/bin/python`. No shared environment was
 borrowed or repointed. The prepared release checkout must run the full gate
-on the reviewed integrated source. Hidden/public comparisons, the successor
-baseline, final Slice 117 documentation scan, independent code review, and
-Terra verification remain pending in this record.
+on the reviewed integrated source. The completed Slice 117 handoff is integrated at `f1d4571b1`; public install
+and compatibility guidance continues to label the Tegra candidate unpublished,
+with publication owned by Slice 160. The integrated external boundary and
+engine compilation passed again. Hidden/public comparisons, their successor
+baseline, independent code review, and Terra verification remain pending.

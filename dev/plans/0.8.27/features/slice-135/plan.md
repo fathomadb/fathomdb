@@ -86,7 +86,7 @@ qualifies them. Do not infer their safety from the green workspace gate.
 
 ### Earlier execution chronology (2026-10-07)
 
-**Earlier execution status:** the bounded [first inspectable results](results/2026-10-07-first-results/)
+**Earlier execution status:** the bounded first inspectable results (local-only `results/2026-10-07-first-results/`; see the [tracked Phase 1 summary](phase1-checkpoint-2026-10-08.md))
 exist for all four Phase 1 areas. The [E01–E12 paired engine subset](e12-comparison-protocol.json)
 and the Python and TypeScript S01 subsets have frozen protocols and audited
 paired runs. Integrated-candidate E01–E12, Python S01/S02 and TypeScript S01/S02 refreshes now
@@ -604,11 +604,11 @@ identified](baseline-qualification.md), and the provisional
 [Phase 1 receipt validator](../../../../../scripts/slice135_receipt.py)
 rejects mismatched identities, environment and semantic state with independent
 summary recomputation. The bounded engine-only
-[noise pilot](results/2026-10-07-mixed-noise-pilot/) and
-[four first results](results/2026-10-07-first-results/) are retained. The full
+noise pilot (local-only `results/2026-10-07-mixed-noise-pilot/`; see the [tracked Phase 1 summary](phase1-checkpoint-2026-10-08.md)) and
+four first results (local-only `results/2026-10-07-first-results/`; see the [tracked Phase 1 summary](phase1-checkpoint-2026-10-08.md)) are retained. The full
 protocol freeze, installed-SDK capability exercise, expanded four-area runs
 and Phase 1 checkpoint remain. The first-results edge FTS error was repaired
-with a [permanent regression test and verification record](results/2026-10-07-edge-fts-repair/);
+with a permanent regression test and verification record (local-only `results/2026-10-07-edge-fts-repair/`; see the [tracked Phase 1 summary](phase1-checkpoint-2026-10-08.md));
 the full gate still has two recorded unrelated failing suites. Phase 2 awaits
 the checkpoint. A candidate [installed Python wheel functional smoke](results/2026-10-07-python-wheel-qualification/README.md)
 now covers a narrow graph/evidence/dependency flow. It does not satisfy the

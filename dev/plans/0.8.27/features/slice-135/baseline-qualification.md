@@ -31,7 +31,7 @@ record exact source and built-artifact hashes.
 
 This snapshot established no sample count, percentile or performance
 comparison. Subsequent exact-source build qualification, the baseline-only
-[mixed noise pilot](results/2026-10-07-mixed-noise-pilot/) and the bounded
-[paired first results](results/2026-10-07-first-results/) record those later
+mixed noise pilot (local-only `results/2026-10-07-mixed-noise-pilot/`; see the [tracked Phase 1 summary](phase1-checkpoint-2026-10-08.md)) and the bounded
+paired first results (local-only `results/2026-10-07-first-results/`; see the [tracked Phase 1 summary](phase1-checkpoint-2026-10-08.md)) record those later
 measurements. Installed-artifact qualification remains for the full Phase 1
 campaign.

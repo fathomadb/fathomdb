@@ -187,7 +187,7 @@ pub(crate) enum ReaderRequest {
         respond: SyncSender<rusqlite::Result<Vec<String>>>,
     },
     Shutdown,
-    /// Pack 6.G G.1 — debug-only request that asks a worker to read its
+    /// Pack 6.G G.1 — test-only request that asks a worker to read its
     /// own connection's `SQLITE_DBSTATUS_LOOKASIDE_USED` and return the
     /// high-water mark (`hiwtr` out-param). Used solely by the integration
     /// test that asserts post-warmup lookaside slots were consumed; not
@@ -196,7 +196,7 @@ pub(crate) enum ReaderRequest {
     LookasideStatus {
         respond: SyncSender<i32>,
     },
-    /// Pack 6.G G.3.5 — debug-only request that asks a worker to read
+    /// Pack 6.G G.3.5 — test-only request that asks a worker to read
     /// `SQLITE_DBSTATUS_CACHE_HIT`, `_CACHE_MISS`, and `_CACHE_USED`
     /// off its own connection and return them as `(hit, miss, used_bytes)`.
     /// `snapshot_label` is opaque to the worker; the caller uses it to
@@ -206,7 +206,7 @@ pub(crate) enum ReaderRequest {
         snapshot_label: String,
         respond: SyncSender<(String, i32, i32, i32)>,
     },
-    /// OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — debug-only request
+    /// OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — test-only request
     /// that asks a worker to read its own connection's `PRAGMA secure_delete`
     /// and return it (`0`/`1`). Used solely by the gap-4 test that asserts the
     /// standing secure_delete flag is ON at EVERY open, not just the writer.
@@ -483,7 +483,7 @@ pub(crate) type ReaderResponse = Result<
 pub(crate) type EvidenceReaderResponse = Result<EvidenceSearchResultV1, SearchReaderError>;
 
 /// Pack 6.G G.3.5 — per-worker cache-pressure snapshot. Carried only on
-/// the debug-only `CacheStatus` broadcast path and the test accessor;
+/// the test-only `CacheStatus` broadcast path and the test accessor;
 /// not part of the public 0.6.0 surface.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
@@ -1337,7 +1337,7 @@ impl Engine {
         self.reader_pool.lookaside_used_per_worker()
     }
 
-    /// Pack 6.G G.3.5 — broadcast a debug-only `CacheStatus` request to
+    /// Pack 6.G G.3.5 — broadcast a test-only `CacheStatus` request to
     /// every reader worker and collect per-worker
     /// `SQLITE_DBSTATUS_CACHE_HIT` / `_CACHE_MISS` / `_CACHE_USED`
     /// values. Counters are monotonic (reset flag = 0); callers compute

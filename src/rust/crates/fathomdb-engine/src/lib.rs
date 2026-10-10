@@ -514,7 +514,7 @@ pub struct Engine {
     profile_contexts: Mutex<ProfileContexts>,
     /// Pack 6.G G.1 — `sqlite3_db_config(LOOKASIDE)` rc per reader
     /// worker, captured at open time before any PRAGMA / prepare ran
-    /// on the connection. Read only by the debug-only test accessor
+    /// on the connection. Read only by the test-only test accessor
     /// `reader_lookaside_config_rcs_for_test`; held in release builds
     /// too because the field is set unconditionally at open and a cfg
     /// gate would force two open-locked return shapes.

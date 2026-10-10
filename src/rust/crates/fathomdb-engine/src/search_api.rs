@@ -1459,7 +1459,7 @@ impl Engine {
     /// never set on any production path. This is NOT a `fusion_mode` knob:
     /// production RRF fusion stays unconditional and `fuse_rrf`/`rerank_fused`/
     /// recency are unchanged. Mirrors `set_recency_reweight_enabled_for_test`
-    /// (release-available, since eu7 runs in `--release`).
+    /// (available in release fixtures with explicit `test-hooks`).
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_vector_stage_only_for_test(&self, enabled: bool) {

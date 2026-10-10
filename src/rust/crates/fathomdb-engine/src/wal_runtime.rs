@@ -221,9 +221,6 @@ impl Engine {
         self.wal_attribution.checkpoints()
     }
 
-    // `test` added alongside `debug_assertions`/`test-hooks` so the crate's own
-    // `--release --tests` lib-test build (cfg(test) true, debug_assertions
-    // false) can still see this seam; it stays absent from any shipped build.
     #[cfg(any(test, feature = "test-hooks"))]
     #[allow(dead_code)]
     #[doc(hidden)]

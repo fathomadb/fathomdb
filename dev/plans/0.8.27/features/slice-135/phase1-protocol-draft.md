@@ -29,7 +29,7 @@ those omissions remain limitations of the recorded Phase 1 checkpoint.
 
 The bounded engine-only first-results subset is frozen separately in
 [first-results-protocol.json](first-results-protocol.json) after the
-[mixed-sequence baseline noise pilot](results/2026-10-07-mixed-noise-pilot/).
+mixed-sequence baseline noise pilot (local-only `results/2026-10-07-mixed-noise-pilot/`; see the [tracked Phase 1 summary](phase1-checkpoint-2026-10-08.md)).
 Its five alternating pairs, three cells and supported statistics govern the
 first comparison. This broader Phase 1 protocol remains a draft until the
 installed-SDK and remaining workload cells are qualified.
@@ -622,7 +622,7 @@ toolchain and profiler strings; zero named competing jobs; integer swap pages;
 and disk space at or above the protocol's `min_disk_free_bytes`. Stable
 identity fields must agree. The validator rejects child swap events using a
 hashed GNU Time resource report; host-only swap drift remains an exact
-warning, as justified by the [mixed pilot](results/2026-10-07-mixed-noise-pilot/).
+warning, as justified by the mixed pilot (local-only `results/2026-10-07-mixed-noise-pilot/`; see the [tracked Phase 1 summary](phase1-checkpoint-2026-10-08.md)).
 It rejects a declared invalidator. The producer must record truthful inventory
 and semantic observations; this validator does not collect them, prove that
 a feature was actually enabled, or produce a quality gold answer. Its
@@ -634,7 +634,7 @@ Freeze the **full** Phase 1 protocol as an executable, hashed protocol only afte
 adapter's negative fixtures pass, the baseline-only pilot fixes counts and
 uncertainty, exact assets and installed SDK methods are known, and a review
 confirms feasible disk/time budgets. The
-[dated first-results note](results/2026-10-07-first-results/) fulfills the
+dated first-results note (local-only `results/2026-10-07-first-results/`; see the [tracked Phase 1 summary](phase1-checkpoint-2026-10-08.md)) fulfills the
 bounded first-results milestone only. The full four-area expansion and
 independent recomputation required by the approved plan will constitute the
 Phase 1 checkpoint; this draft and baseline-only data do not cross it.

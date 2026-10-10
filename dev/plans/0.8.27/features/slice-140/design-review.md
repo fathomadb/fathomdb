@@ -108,3 +108,10 @@ SDK ADR: the signed 44-operation map includes root `rerank`, standalone
 the TypeScript resolution where the existing SDKs differ. Subsequent
 review confirmation remains parent-owned; this correction changes prose
 only and preserves the historical 0.8.26 profile.
+
+## Architecture follow-up confirmation — approved
+
+Independent `gpt-6-sol` high follow-up approved `1b2a0107a`, with no
+remaining P0/P1/P2. The signed operation-map and default-translation
+correction closes the addendum finding. Review was read-only; it did not
+run the verification matrix.

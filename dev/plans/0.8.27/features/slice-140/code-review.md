@@ -91,3 +91,10 @@ The Tegra guide describes its distribution route and retained-manifest
 verification rather than asserting delivery already occurred. The focused
 suite passes **38/38**; subsequent code review and full integrated
 verification remain parent-owned.
+
+## Documentation-target follow-up confirmation — passed
+
+Independent `gpt-6-sol` high follow-up passed `1b2a0107a`, with no remaining
+P0/P1/P2. Exact npm tokens, explicit pending-publication assertions and the
+38-control regression suite close the checker findings. Review was
+read-only; the integrated full gate and Terra remain separate.

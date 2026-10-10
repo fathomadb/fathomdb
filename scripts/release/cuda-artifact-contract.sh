@@ -152,3 +152,8 @@ export CUDA_TEGRA_NAPI_NPM_VERSION='11.12.1'
 # triple's `.node` file name.
 export CUDA_TEGRA_NAPI_PACKAGE='fathomdb-linux-arm64-gnu-tegra'
 export CUDA_TEGRA_NAPI_TRIPLE='linux-arm64-gnu'
+# The driverless ARM64 import of the Tegra Node package runs in its own image
+# pin, independent of the x86_64 driverless smoke's. The tag must resolve to a
+# linux/arm64 image whose glibc meets the Tegra floor and which carries no
+# CUDA driver.
+export CUDA_TEGRA_DRIVERLESS_NODE_IMAGE='node:25-trixie-slim'

@@ -98,11 +98,13 @@ expect_failure 'an absent tarball is refused' 'tarball is absent' \
 # driver, so every other host is refused before any container runs. The
 # expectation is derived here independently of the script.
 host_reason=''
-if [ "$(uname -s)" != Linux ] || [ "$(uname -m)" != aarch64 ]; then
+host_os="$(uname -s)"
+host_arch="$(uname -m)"
+if [ "$host_os" != Linux ] || [ "$host_arch" != aarch64 ]; then
   host_reason='not a Linux AArch64 host'
 elif grep -aqs 'nvidia,tegra' /proc/device-tree/compatible || [ -e /etc/nv_tegra_release ]; then
   host_reason='Tegra-family host'
-elif { ldconfig -p 2>/dev/null || true; } | grep -q 'libcuda\.so'; then
+elif ld_cache="$(ldconfig -p 2>/dev/null || true)" && [[ "$ld_cache" == *libcuda.so* ]]; then
   host_reason='CUDA driver library is present'
 fi
 if [ -n "$host_reason" ]; then
@@ -142,7 +144,8 @@ contains 'smoke hardens bash' 'set -euo pipefail' "$SMOKE"
 contains 'probe hardens bash' 'set -euo pipefail' "$PROBE"
 contains 'every probe install disables lifecycle scripts' '--ignore-scripts' "$PROBE"
 npm_install_lines="$(grep -nE '(^|[^_[:alnum:]])npm[[:space:]]+(install|ci|i)([[:space:]]|$)' "$PROBE" || true)"
-if [ -n "$npm_install_lines" ] && ! grep -v -- '--ignore-scripts' <<<"$npm_install_lines" | grep -q .; then
+unscripted="$(grep -v -- '--ignore-scripts' <<<"$npm_install_lines" || true)"
+if [ -n "$npm_install_lines" ] && [ -z "$unscripted" ]; then
   pass 'no probe npm install runs lifecycle scripts'
 else
   fail "probe npm installs must all pass --ignore-scripts: ${npm_install_lines:-none}"

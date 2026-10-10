@@ -341,13 +341,65 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+  # The Jetson cannot prove a driverless or non-Tegra import. A hosted ARM64
+  # runner without a CUDA driver installs this run's Tegra tarball in a
+  # network-less container, imports it, and proves the loader ignores it on a
+  # non-Tegra host. Publication waits for it.
+  tegra-node-driverless-arm64:
+    name: Import the Tegra Node package on a driverless non-Tegra ARM64 runner
+    needs: [validate-candidate, tegra-cuda-evidence]
+    if: startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      CANDIDATE_SHA: ${{ needs.validate-candidate.outputs.candidate_sha }}
+      CANDIDATE_VERSION: ${{ needs.validate-candidate.outputs.candidate_version }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Download only this run's Jetson evidence artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence
+      - name: Require the Jetson-built tarball bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd evidence/node
+          for name in "fathomdb-$CANDIDATE_VERSION.tgz" "fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz"; do
+            grep -F "  $name" SHA256SUMS | sha256sum --check --strict -
+          done
+      - name: Install and import the Tegra Node package without a CUDA driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/smoke/smoke-tegra-node-driverless.sh \
+            --main-tarball "evidence/node/fathomdb-$CANDIDATE_VERSION.tgz" \
+            --tegra-tarball "evidence/node/fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --evidence-dir "$RUNNER_TEMP/tegra-node-driverless"
+      - name: Upload driverless ARM64 import evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tegra-node-driverless-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/tegra-node-driverless
+          retention-days: 30
+          if-no-files-found: warn
+
   # The Jetson has no publication credential. This hosted job receives only
   # its retained artifact and constructs the public docs plus the interim,
   # exact-version PEP 503 site. It is deliberately opt-in for the matching
   # release branch.
   prepare-tegra-pages:
     name: Prepare docs and Tegra PEP 503 Pages artifact
-    needs: tegra-cuda-evidence
+    needs: [tegra-cuda-evidence, tegra-node-driverless-arm64]
     if: ${{ inputs.publish_to_pages == true && startsWith(github.ref, 'refs/heads/release/') }}
     runs-on: ubuntu-latest
     permissions:

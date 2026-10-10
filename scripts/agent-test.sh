@@ -420,6 +420,9 @@ run_tier_suite fast test-tegra-node-package-smoke bash scripts/tests/test_tegra_
 # The driverless ARM64 import of the Tegra Node package refuses any host but a
 # driverless non-Tegra AArch64 one; its verdict runs here against fixtures.
 run_tier_suite fast test-tegra-node-driverless-smoke bash scripts/tests/test_tegra_node_driverless_smoke.sh
+# The documented optionalDependency form for the Tegra Pages tarball installs
+# on every host and is selected only on a confirmed Jetson; offline fixtures.
+run_tier_suite fast test-tegra-node-optional-dependency-install bash scripts/tests/test_tegra_node_optional_dependency_install.sh
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 

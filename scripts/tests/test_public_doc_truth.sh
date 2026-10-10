@@ -130,6 +130,16 @@ expect_fail 'source-link version cannot mask a stale API release label' 'python-
 pending_fixture
 sed -i 's/npm install --save-exact fathomdb@0.8.27/npm install --save-exact fathomdb@0.8.25/' "$FIXTURE/docs/install/typescript.md"
 expect_fail 'pending target requires exact npm install route' 'typescript.md.*exact.*0.8.27'
+for suffix in rc.1 malicious; do
+  pending_fixture
+  sed -i "s/fathomdb@0.8.27/fathomdb@0.8.27-$suffix/g" "$FIXTURE/docs/install/typescript.md"
+  expect_fail "npm target suffix $suffix cannot pass as exact release" 'typescript.md.*exact.*0.8.27'
+done
+for claim in 'FathomDB 0.8.27 is available on PyPI now.' '0.8.27 tarball is published on Pages.' '0.8.27 wheels have shipped.'; do
+  pending_fixture
+  printf '\n%s\n' "$claim" >>"$FIXTURE/README.md"
+  expect_fail "pending publication claim: $claim" 'README.md.*unpublished.*published'
+done
 pending_fixture
 printf '\nFathomDB 0.8.27 is already published.\n' >>"$FIXTURE/README.md"
 expect_fail 'pending target cannot assert publication' 'README.md.*unpublished.*published'

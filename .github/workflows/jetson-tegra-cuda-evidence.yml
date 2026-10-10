@@ -2,7 +2,8 @@ name: Jetson Tegra CUDA evidence
 
 # Slice 80's real-hardware evidence route. It is deliberately independent of
 # release.yml: it builds and validates a host-native, nonpublishable Tegra
-# wheel on the dedicated Jetson runner and retains the resulting evidence.
+# wheel and Tegra Node packages on the dedicated Jetson runner and retains the
+# resulting evidence.
 on:
   workflow_dispatch:
     inputs:
@@ -15,7 +16,7 @@ on:
         required: true
         type: string
       publish_to_pages:
-        description: "After Jetson validation, publish the exact Tegra wheel to the interim GitHub Pages index"
+        description: "After Jetson validation, publish the exact Tegra wheel and Node tarball to the interim GitHub Pages site"
         required: false
         default: false
         type: boolean
@@ -74,7 +75,7 @@ jobs:
           printf 'candidate_version=%s\n' "$CANDIDATE_VERSION" >> "$GITHUB_OUTPUT"
 
   tegra-cuda-evidence:
-    name: Build and witness the Tegra CUDA wheel
+    name: Build and witness the Tegra CUDA wheel and Node packages
     needs: validate-candidate
     if: startsWith(github.ref, 'refs/heads/release/')
     runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
@@ -271,6 +272,65 @@ jobs:
             --witness "$EVIDENCE_DIR/tegra-gpu-allocation-witness.json" \
             --nvidia-smi \
             2>&1 | tee "$EVIDENCE_DIR/witness-verification.log"
+
+      # The Tegra Node addon is built, smoked and retained in this same run so
+      # the wheel and tarball a Pages dispatch publishes come from one
+      # validated candidate. Node is provisioned on the Jetson host itself;
+      # no registry authentication is configured and nothing is published.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "25.9.0"
+          package-manager-cache: false
+
+      - name: Require the contract Node toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          . scripts/release/cuda-artifact-contract.sh
+          node_version="$(node --version)"
+          npm_version="$(npm --version)"
+          [ "$node_version" = "v$CUDA_TEGRA_NAPI_NODE_VERSION" ] || {
+            printf 'node %s does not match the release contract v%s\n' "$node_version" "$CUDA_TEGRA_NAPI_NODE_VERSION" >&2
+            exit 1
+          }
+          [ "$npm_version" = "$CUDA_TEGRA_NAPI_NPM_VERSION" ] || {
+            printf 'npm %s does not match the release contract %s\n' "$npm_version" "$CUDA_TEGRA_NAPI_NPM_VERSION" >&2
+            exit 1
+          }
+          printf 'node=%s\nnpm=%s\n' "$node_version" "$npm_version" > "$EVIDENCE_DIR/node-toolchain.txt"
+
+      - name: Install the N-API build dependencies
+        working-directory: src/ts
+        shell: bash
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Assert the measured Tegra N-API build contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/build-napi-cuda-tegra.sh --base-version "$CANDIDATE_VERSION" --assert-only \
+            2>&1 | tee "$EVIDENCE_DIR/node-build-contract.log"
+
+      - name: Build and pack the nonpublishing Tegra Node packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/build-napi-cuda-tegra.sh \
+            --base-version "$CANDIDATE_VERSION" --out "$EVIDENCE_DIR/node" \
+            2>&1 | tee "$EVIDENCE_DIR/node-build.log"
+
+      - name: Smoke every policy from the installed Tegra Node packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/smoke/smoke-tegra-node-package.sh \
+            --source local \
+            --main-tarball "$EVIDENCE_DIR/node/fathomdb-$CANDIDATE_VERSION.tgz" \
+            --tegra-tarball "$EVIDENCE_DIR/node/fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --evidence-dir "$EVIDENCE_DIR/node-local-smoke" \
+            2>&1 | tee "$EVIDENCE_DIR/node-local-smoke.log"
 
       - name: Upload Jetson Tegra CUDA evidence
         if: always()

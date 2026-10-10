@@ -80,3 +80,52 @@ The register is a source-SHA-bound navigation and disposition record, not a styl
 - Documentation-only corrections: `scripts/agent-lint-md.sh`; `scripts/agent-lint-docs.sh` when public `docs/` changes; `scripts/check-release-state-views.sh` when state changes; clean-checkout link/source-anchor checks.
 - Test-seam code: failing-first focused compile/feature tests; `cargo check`/targeted Rust tests for default, explicit `test-hooks`, and affected other feature sets; comparator/hidden/test-inventory and AC-050c checks; then the required full `scripts/agent-verify.sh` candidate gate. A public import example must use the package's actual documented install/build route.
 - Material source change: independent `gpt-6-sol` high code review. The first design review uses `gpt-6.1-sol` high; later design reviews use `gpt-6-sol` high. Independent Terra verification checks the final acceptance matrix. Record any unavailable route precisely, without calling a scoped pass a full release pass.
+
+## Source-derived library and contributor documentation
+
+This amendment is pending the required subsequent `gpt-6-sol` high review.
+
+A stdlib Python generator under `scripts/` produces two tracked Markdown
+pages. It resolves inputs relative to the repository root and supports
+explicit `--write` and read-only `--check`. Output is deterministic,
+version-neutral and free of timestamps or checkout-specific absolute paths.
+Malformed or missing source inputs fail with an actionable diagnostic;
+`--check` reports stale/missing pages and exits nonzero without modifying
+files. Generated pages identify their source and regeneration command.
+
+- `docs/generated/sdk-operation-map.md` reads
+  `src/conformance/governed-operation-parity.json`. It includes each governed
+  operation exactly once with its ID/state and the Python, TypeScript and
+  Rust locator/spelling pairs. All 44 current operations are covered. It is
+  explicitly an operation index: signatures, options, return shapes and
+  error contracts remain in the linked maintained API reference pages.
+- `docs/generated/contributor-map.md` reads root `Cargo.toml` workspace
+  membership and member manifests, and the actual
+  `scripts/agent-{build,lint,typecheck,test,verify}.sh` entry points. It
+  enumerates package names/source paths and the typed verbs with source
+  links. Version fields are omitted so Slice 160 version bumps do not
+  contradict 0.8.27 publication-facing prose. It does not execute scripts
+  or infer undocumented behavior from arbitrary shell text.
+
+A short maintained contributor landing page explains TDD, worktree
+isolation, scoped documentation checks, full source/script verification,
+release-state ownership and regeneration. README and MkDocs navigation link
+the landing and generated indexes. Public release documents continue to
+present 0.8.27; actual prepublication facts stay in internal status. No
+registry versions, retained artifacts, or publication states change here.
+
+`scripts/release/build-pages-site.sh` invokes generator `--check` before
+MkDocs. Both `docs-pages.yml` and the Jetson workflow already call this shared
+builder; each complete-site artifact therefore includes the generated
+pages and rejects stale output. docs-pages push filters include the
+generator, parity manifest, root/member Cargo manifests and typed script
+input families. Existing retained Tegra artifact/digest gates are preserved.
+
+TDD tests exercise deterministic generation and exact operation mapping,
+source edits changing output, stale/missing output rejection without writes,
+workspace/member/script input coverage, navigation, and the shared-builder
+freshness gate. Focused Pages controls prove both callers retain the shared
+builder. Run Markdown/public-doc and workflow checks, then the integrated
+full gate because executable scripts change. Subsequent source review, Terra
+verification and three final independent reviews cover the complete
+candidate. Re-scan the large-file register without a human approval gate.

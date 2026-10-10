@@ -160,3 +160,14 @@ proof, not a future 0.8.27 crates.io installation receipt. Root Python and
 Node package-route executions and strict site build remain assigned to the
 prepared release checkout. A refreshed hidden successor capture accounts
 for default-target restoration and the integration-to-unit proof path move.
+
+## Generated-documentation amendment pending review
+
+Source/docs follow-up `bc555c7ee410ef2a22c92c10912efe66a3764b26` is
+committed with hooks and scoped verification. The user then added
+source-derived library/contributor documentation published by CI to Pages
+and three independent final subagent reviews. Plan/design/master scope now
+include that bounded work; implementation is pending a subsequent
+`gpt-6-sol` high design review. The current hidden successor and large-file
+record are historical until refreshed on the complete amended candidate.
+The slice remains open; no publication or final full-gate pass is claimed.

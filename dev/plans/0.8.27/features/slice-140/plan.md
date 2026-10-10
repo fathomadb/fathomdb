@@ -44,7 +44,8 @@ follow-ups. The decisions below supersede the draft's stale assumptions.
 | R27-140C | Large code files have an accountable, bounded disposition without a size or sign-off gate. | AC27-140C: a source-SHA-bound register enumerates every tracked code-file trigger above 3,500 lines or in the 2,000–3,500-line review band, records a disposition for each first-party file and provenance for vendored/generated files, and explains the original five outliers. Re-scan the final candidate and update the register for new triggers. Check completeness against the advisory scan; neither file size nor human approval of the register blocks release. |
 | R27-140D | Test-only Engine access is absent from default production builds without losing required test routes. | AC27-140D: a current-owner inventory records each always-compiled doc-hidden seam, callers, cfg and chosen gate. RED compile/feature tests precede gating. Isolated external-dependency compile-negative controls prove removed public paths absent in default dev and release builds, paired with positive explicit-feature controls; unit and `test-hooks` targets still exercise them. `CHANGELOG.md` has the Removed entry required by AC-050c. The public comparator, hidden/test-inventory comparison, and a reviewed successor hidden baseline explain every intended delta. |
 | R27-140E | Carried documentation decisions are truthful. | AC27-140E: the dual-runtime ADR and decision-index row receive a consistent HITL-ruled status; the two `UNREVIEWED` memos are reviewed or marked historical; the 0.8.25 Slice 40 table states that `failed` plus absent physical rows wins over unenrolled-edge corruption; and Slice 135 claims retain their stated limits and tracked citations. |
-| R27-140F | The slice is independently reviewed and verified. | AC27-140F: a first design review by `gpt-6.1-sol` high and any subsequent design review by `gpt-6-sol` high have no open P0/P1; material source edits receive `gpt-6-sol` high code review; an independent Terra verification checks the candidate and acceptance matrix. Run focused checks while resolving findings, scoped Markdown/public-doc/release-state gates for document edits, and the full `agent-verify` gate for executable or source edits. Record exact commands, statuses, source SHA, and limits. |
+| R27-140F | The slice is independently reviewed and verified. | AC27-140F: a first design review by `gpt-6.1-sol` high and any subsequent design review by `gpt-6-sol` high have no open P0/P1; material source edits receive `gpt-6-sol` high code review; an independent Terra verification checks the candidate and acceptance matrix. Run focused checks while resolving findings, scoped Markdown/public-doc/release-state gates for document edits, and the full `agent-verify` gate for executable or source edits. After all corrections, obtain the user-required three independent subagent reviews. Record exact commands, statuses, source SHA, and limits. |
+| R27-140G | Library users and contributors can navigate source-derived documentation on Pages. | AC27-140G: a deterministic stdlib Python generator supports `--write` and non-mutating `--check`; tracked generated pages enumerate all 44 governed operations with exact Python/TypeScript/Rust spellings and locators, and current workspace members and typed developer entry points. The operation map identifies itself as an index and links detailed manual API references. A contributor landing page explains TDD, scoped/full gates, worktrees, and release state; README and MkDocs navigation link these pages. The shared Pages builder rejects stale generated output before MkDocs, so both complete-site deployers include it; docs-pages path filters cover the generator and all input families. RED tests prove source changes change output and stale output fails, and focused pipeline/navigation checks prove both delivery routes. No package version or publication claim is generated from pre-bump manifests. |
 
 ## Execution after design approval
 
@@ -105,3 +106,36 @@ verification; keep source versions and retention unchanged.
   closed; do not turn that evidence into a publication claim. The unruled
   Slice 132 provider disposition remains with its owner. Documentation
   convergence cannot resolve that decision.
+
+## Generated-documentation amendment
+
+The user added source-derived library-user and contributor documentation,
+published through CI to Pages. Current manual SDK pages remain the detailed
+contract. The operation parity manifest already records 44 governed
+operations; the workspace manifests and typed developer scripts supply a
+bounded contributor index. Existing Pages deployments share
+`scripts/release/build-pages-site.sh` and replace the whole site, so the
+generation freshness gate belongs there.
+
+After a subsequent `gpt-6-sol` high design review approves this amendment:
+
+1. **RED:** commit narrow generator tests for the three SDK spellings/locators,
+   all operation rows, deterministic output, source-change propagation, stale
+   `--check` failure without mutation, workspace/member and script-input
+   changes, and Pages-builder/navigation integration.
+2. **GREEN:** implement a stdlib generator, tracked operation/contributor
+   maps, the short contributor landing, README/nav links, shared-builder
+   `--check`, and complete docs-pages trigger coverage. Keep output version
+   neutral; public manual pages target 0.8.27, while internal status records
+   that registries/Pages have not yet published it. Check remaining language
+   preference claims against actual three-SDK evidence.
+3. Run focused generator/Pages tests, scoped Markdown/public-doc checks and
+   workflow validation. Executable script changes require the integrated
+   full `agent-verify` gate; the parent owns this gate and final package
+   examples. Refresh hidden/test inventory and the large-file register on
+   the complete source candidate. Obtain code review, Terra verification
+   and the three final independent reviews before closing the slice.
+
+Generated pages are navigation indexes, not fabricated API signatures or a
+replacement for maintained contracts. The large-file register stays advisory
+and requires no human signoff.

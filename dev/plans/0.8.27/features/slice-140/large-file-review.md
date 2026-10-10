@@ -2,19 +2,21 @@
 title: FathomDB 0.8.27 Slice 140 — large code-file review
 status: BASELINE_RECORDED
 target_release: 0.8.27
-source_baseline: 01f4063f7ba19e4d9c38377c3d1956f35903ff9c
+source_baseline: f327c28caa5f20c3342127fbc5fde3c6ea189c7b
 ---
 
 # Large code-file review
 
 This is the Slice 140 review register on the integrated Slice 117 and Slice 140 code candidate
-`01f4063f7ba19e4d9c38377c3d1956f35903ff9c`. The scan counts
+`f327c28caa5f20c3342127fbc5fde3c6ea189c7b`. The scan counts
 physical lines in every Git-tracked `.rs`, `.py`, `.ts`, `.tsx`, `.js`, `.mjs`,
 `.c`, `.h`, and `.sh` file, including in-file tests. It found **39** files at or
 above 2,000 lines: 19 first-party owned, one generated fixture, and 19
 vendored files. The bands are advisory attention signals, not CI limits.
 The final source scan remains complete after Slice 117 integration and
-test-seam gating; it found no new triggering path. The [machine-readable scan](large-file-scan.json)
+test-seam gating, default-proof restoration and generated documentation; it
+found no new triggering path. The C1 checker and its mutation suite gained
+one and 29 physical lines respectively. The [machine-readable scan](large-file-scan.json)
 records every path and current physical count. This register requires no human review or approval for Slice
 140 or release closure.
 
@@ -33,8 +35,8 @@ records every path and current physical count. This register requires no human r
 | 2,016 | `src/rust/crates/fathomdb-engine/src/projection_generation.rs` | Generation/readiness classification with in-file tests. **Keep** as one invariant owner. |
 | 2,403 | `src/rust/crates/fathomdb-engine/tests/slice50_evidence.rs` | End-to-end evidence fixture and assertions. **Keep** as a test target; do not change its oracle to reduce size. |
 | 2,254 | `src/rust/crates/fathomdb-engine/tests/slice55_data_plane_integrity.rs` | Integrity end-to-end fixture and assertions. **Keep**; change only if a verified fixture-sharing need arises. |
-| 2,603 | `scripts/check-c1-conformance.sh` | Cross-language conformance scanner/check. **Keep** for Slice 140; any extraction needs its own RED mutation controls and is outside document convergence. |
-| 2,370 | `scripts/tests/test_check_c1_conformance.sh` | Scanner adversarial tests. **Keep** paired with the scanner. |
+| 2,604 | `scripts/check-c1-conformance.sh` | Cross-language conformance scanner/check. **Keep** for Slice 140; any extraction needs its own RED mutation controls and is outside document convergence. |
+| 2,399 | `scripts/tests/test_check_c1_conformance.sh` | Scanner adversarial tests. **Keep** paired with the scanner. |
 | 2,179 | `scripts/tests/test_check_release_state_views.sh` | Generated-view validation tests. **Keep**; neither release-state authority nor fixtures move in this slice. |
 | 2,332 | `scripts/tests/test_commission_manifest.sh` | Manifest-policy mutation tests. **Keep**; no production facade size pressure. |
 | 2,271 | `scripts/tests/test_worktree_consolidator.py` | Worktree consolidation test matrix. **Keep**; no related Slice 140 change. |

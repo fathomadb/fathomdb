@@ -68,9 +68,10 @@ Focused checks passed on the implementation worktree:
 The full `./scripts/agent-verify.sh` attempt fails at preflight because this
 worktree has no checkout-owned `.venv/bin/python`. No shared environment was
 borrowed or repointed. The prepared release checkout must run the full gate
-on the reviewed integrated source. The completed Slice 117 handoff is integrated at `f1d4571b1`; public install
-and compatibility guidance continues to label the Tegra candidate unpublished,
-with publication owned by Slice 160. The integrated external boundary and
+on the reviewed integrated source. The completed Slice 117 handoff is
+integrated at `f1d4571b1`. Public install and compatibility guidance targets
+0.8.27 publication; internal status records that publication remains owned
+by Slice 160 and has not occurred. The integrated external boundary and
 engine compilation passed again. The [public comparison](public-surface-comparison.md) records the intended
 reader-guard removal and inherited earlier-slice differences. Independent
 code review passed on `18ef03da9`; the [hidden successor record](../hidden-surface/baseline-01f4063f-diff.md)
@@ -92,8 +93,10 @@ Slice 25 uses public open and a real raw SQLite negative-control writer.
 Its structural-writer proof moves, with the same name and oracle, to the
 engine's top-level unit test in `write.rs`. C1's evidence location follows
 that proof without changing any obligation/category or contract digest.
-The hidden successor must account for that test path relocation and the
-restored default-target/item-feature distribution.
+The [final successor](../hidden-surface/baseline-f327c28c-diff.md) records
+that test path relocation and restored default-target/item-feature
+distribution. Its exact artifact review is pending; all Rust API rows remain
+equal to the previous approved successor.
 
 Historical root, WAL, projection-status, and Windows ownership assertions
 now distinguish the explicit fixture gate from always-on production reads.

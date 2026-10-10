@@ -1,5 +1,5 @@
 {
-  "source_sha": "01f4063f7ba19e4d9c38377c3d1956f35903ff9c",
+  "source_sha": "f327c28caa5f20c3342127fbc5fde3c6ea189c7b",
   "extensions": [
     ".c",
     ".h",
@@ -23,7 +23,7 @@
     },
     {
       "path": "scripts/check-c1-conformance.sh",
-      "lines": 2603
+      "lines": 2604
     },
     {
       "path": "scripts/tests/fixtures/dorny-paths-filter-v4/dist/index.js",
@@ -31,7 +31,7 @@
     },
     {
       "path": "scripts/tests/test_check_c1_conformance.sh",
-      "lines": 2370
+      "lines": 2399
     },
     {
       "path": "scripts/tests/test_check_release_state_views.sh",

@@ -1,0 +1,721 @@
+{
+  "equal": false,
+  "metadata_diffs": {},
+  "provenance": {
+    "baseline_capture_source_sha": "01f4063f7ba19e4d9c38377c3d1956f35903ff9c",
+    "candidate_capture_source_sha": "f327c28caa5f20c3342127fbc5fde3c6ea189c7b",
+    "same_source": false
+  },
+  "row_diffs": [
+    {
+      "added": [
+        {
+          "kind": "test-target",
+          "path": "fathomdb-engine::slice20_dense_readiness",
+          "signature": "{\"cfg\":null,\"required_features\":[],\"source\":\"tests/slice20_dense_readiness.rs\"}"
+        },
+        {
+          "kind": "test-target",
+          "path": "fathomdb-engine::slice25_registration_identity_inert",
+          "signature": "{\"cfg\":null,\"required_features\":[],\"source\":\"tests/slice25_registration_identity_inert.rs\"}"
+        }
+      ],
+      "changed": [
+        {
+          "after": {
+            "kind": "test-target",
+            "path": "fathomdb-engine::slice20_dense_readiness",
+            "signature": "{\"cfg\":null,\"required_features\":[],\"source\":\"tests/slice20_dense_readiness.rs\"}"
+          },
+          "before": {
+            "kind": "test-target",
+            "path": "fathomdb-engine::slice20_dense_readiness",
+            "signature": "{\"cfg\":null,\"required_features\":[\"test-hooks\"],\"source\":\"tests/slice20_dense_readiness.rs\"}"
+          },
+          "path": "fathomdb-engine::slice20_dense_readiness"
+        },
+        {
+          "after": {
+            "kind": "test-target",
+            "path": "fathomdb-engine::slice25_registration_identity_inert",
+            "signature": "{\"cfg\":null,\"required_features\":[],\"source\":\"tests/slice25_registration_identity_inert.rs\"}"
+          },
+          "before": {
+            "kind": "test-target",
+            "path": "fathomdb-engine::slice25_registration_identity_inert",
+            "signature": "{\"cfg\":null,\"required_features\":[\"test-hooks\"],\"source\":\"tests/slice25_registration_identity_inert.rs\"}"
+          },
+          "path": "fathomdb-engine::slice25_registration_identity_inert"
+        }
+      ],
+      "removed": [
+        {
+          "kind": "test-target",
+          "path": "fathomdb-engine::slice20_dense_readiness",
+          "signature": "{\"cfg\":null,\"required_features\":[\"test-hooks\"],\"source\":\"tests/slice20_dense_readiness.rs\"}"
+        },
+        {
+          "kind": "test-target",
+          "path": "fathomdb-engine::slice25_registration_identity_inert",
+          "signature": "{\"cfg\":null,\"required_features\":[\"test-hooks\"],\"source\":\"tests/slice25_registration_identity_inert.rs\"}"
+        }
+      ],
+      "row": "test-targets"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::an_anonymous_write_stays_anonymous_through_the_whole_durable_path",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::anonymous_and_governed_twins_both_stay_active_and_both_surface",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::live_search_hit_id_spaces_survive_registration",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::registering_projections_never_alters_a_pre_existing_row_id_space",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::supersession_reuses_the_write_time_logical_id_rather_than_re_deriving_one",
+          "signature": "run"
+        }
+      ],
+      "changed": [],
+      "removed": [],
+      "row": "tests-engine-default"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::an_anonymous_write_stays_anonymous_through_the_whole_durable_path",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::anonymous_and_governed_twins_both_stay_active_and_both_surface",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::live_search_hit_id_spaces_survive_registration",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::registering_projections_never_alters_a_pre_existing_row_id_space",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::supersession_reuses_the_write_time_logical_id_rather_than_re_deriving_one",
+          "signature": "run"
+        }
+      ],
+      "changed": [],
+      "removed": [],
+      "row": "tests-engine-migration-test-hooks"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "changed": [
+        {
+          "after": {
+            "kind": "test",
+            "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "before": {
+            "kind": "test",
+            "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id"
+        }
+      ],
+      "removed": [
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "row": "tests-engine-operator-test-hooks"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::an_anonymous_write_stays_anonymous_through_the_whole_durable_path",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::anonymous_and_governed_twins_both_stay_active_and_both_surface",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::live_search_hit_id_spaces_survive_registration",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::registering_projections_never_alters_a_pre_existing_row_id_space",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::supersession_reuses_the_write_time_logical_id_rather_than_re_deriving_one",
+          "signature": "run"
+        }
+      ],
+      "changed": [],
+      "removed": [],
+      "row": "tests-engine-slice72-test-hooks"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::an_anonymous_write_stays_anonymous_through_the_whole_durable_path",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::anonymous_and_governed_twins_both_stay_active_and_both_surface",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::live_search_hit_id_spaces_survive_registration",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::registering_projections_never_alters_a_pre_existing_row_id_space",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::supersession_reuses_the_write_time_logical_id_rather_than_re_deriving_one",
+          "signature": "run"
+        }
+      ],
+      "changed": [],
+      "removed": [],
+      "row": "tests-engine-tc5-benchmark"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "changed": [
+        {
+          "after": {
+            "kind": "test",
+            "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "before": {
+            "kind": "test",
+            "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id"
+        }
+      ],
+      "removed": [
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "row": "tests-engine-test-hooks"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::an_anonymous_write_stays_anonymous_through_the_whole_durable_path",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::anonymous_and_governed_twins_both_stay_active_and_both_surface",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::live_search_hit_id_spaces_survive_registration",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::registering_projections_never_alters_a_pre_existing_row_id_space",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::supersession_reuses_the_write_time_logical_id_rather_than_re_deriving_one",
+          "signature": "run"
+        }
+      ],
+      "changed": [],
+      "removed": [],
+      "row": "tests-req-fathomdb-engine--default-embedder"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "changed": [
+        {
+          "after": {
+            "kind": "test",
+            "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "before": {
+            "kind": "test",
+            "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id"
+        }
+      ],
+      "removed": [
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "row": "tests-req-fathomdb-engine--default-embedder+default-reranker+slice72-test-hooks+test-hooks"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "changed": [
+        {
+          "after": {
+            "kind": "test",
+            "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "before": {
+            "kind": "test",
+            "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id"
+        }
+      ],
+      "removed": [
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "row": "tests-req-fathomdb-engine--default-embedder+operator+test-hooks"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "changed": [
+        {
+          "after": {
+            "kind": "test",
+            "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "before": {
+            "kind": "test",
+            "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id"
+        }
+      ],
+      "removed": [
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "row": "tests-req-fathomdb-engine--default-embedder+test-hooks"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::an_anonymous_write_stays_anonymous_through_the_whole_durable_path",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::anonymous_and_governed_twins_both_stay_active_and_both_surface",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::live_search_hit_id_spaces_survive_registration",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::registering_projections_never_alters_a_pre_existing_row_id_space",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::supersession_reuses_the_write_time_logical_id_rather_than_re_deriving_one",
+          "signature": "run"
+        }
+      ],
+      "changed": [],
+      "removed": [],
+      "row": "tests-req-fathomdb-engine--default-reranker"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "changed": [
+        {
+          "after": {
+            "kind": "test",
+            "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "before": {
+            "kind": "test",
+            "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id"
+        }
+      ],
+      "removed": [
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "row": "tests-req-fathomdb-engine--migration-test-hooks+operator+test-hooks"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice20_dense_readiness::readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::an_anonymous_write_stays_anonymous_through_the_whole_durable_path",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::anonymous_and_governed_twins_both_stay_active_and_both_surface",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::live_search_hit_id_spaces_survive_registration",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::registering_projections_never_alters_a_pre_existing_row_id_space",
+          "signature": "run"
+        },
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::supersession_reuses_the_write_time_logical_id_rather_than_re_deriving_one",
+          "signature": "run"
+        }
+      ],
+      "changed": [],
+      "removed": [],
+      "row": "tests-req-fathomdb-engine--operator"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "changed": [
+        {
+          "after": {
+            "kind": "test",
+            "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "before": {
+            "kind": "test",
+            "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id"
+        }
+      ],
+      "removed": [
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "row": "tests-req-fathomdb-engine--slice72-gpu-tests+test-hooks"
+    },
+    {
+      "added": [
+        {
+          "kind": "test",
+          "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "changed": [
+        {
+          "after": {
+            "kind": "test",
+            "path": "lib::write::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "before": {
+            "kind": "test",
+            "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+            "signature": "run"
+          },
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id"
+        }
+      ],
+      "removed": [
+        {
+          "kind": "test",
+          "path": "slice25_registration_identity_inert::the_internal_structural_row_writer_mints_no_logical_id",
+          "signature": "run"
+        }
+      ],
+      "row": "tests-req-fathomdb-engine--tc5-benchmark+test-hooks"
+    }
+  ]
+}

@@ -9,8 +9,8 @@ planning_baseline: 360bbe63e65aca93cb2200f6c8e27624f4042ea8
 
 The [plan](plan.md) is reviewed and the [design](design.md) is approved,
 including the generated-documentation amendment. Source implementation and
-focused verification are complete at `b3416577f`; the refreshed hidden
-inventory, independent final reviews and integrated full gate remain open.
+focused verification and final hidden capture are complete at `f327c28ca`;
+independent artifact/final reviews and the integrated full gate remain open.
 The historical planning reviews used `360bbe63e`; implementation includes
 Slice 117's completed handoff at `1476d83e0`. The release ladder remains
 `140 → 150 → 160`. Slice 117 artifacts are qualified and unpublished, with
@@ -58,15 +58,11 @@ did not change, so this is not a public-doc or full-workspace gate claim.
 
 ## Work still required to close Slice 140
 
-Rebase on the integrated Slice 117 candidate and re-scan; gate the inventoried test
-seams with RED/GREEN controls, preserve the required feature test routes, and
-record a reviewed successor hidden baseline and `CHANGELOG.md` Removed entry.
-Converge current architecture, interfaces, examples, links, and citations;
-run documented imports/examples in real package routes. Obtain the specified
-code review and independent Terra verification. Run scoped document checks
-and the full code verification gate on the final implementation candidate.
-Record exact receipts, the updated register, and final status before advancing
-the ladder to Slice 150.
+Source implementation, integration with the completed Slice 117 handoff,
+focused controls, contract/document convergence and final-source large-file
+coverage are complete. Independent review of the final hidden successor, Terra verification, three independent final reviews, runnable
+prepared-package examples and integrated full gate must be recorded before
+acceptance. The parent owns release-state closeout and worktree cleanup.
 
 ## Large-file register policy update — 2026-10-10
 
@@ -196,17 +192,17 @@ combined Pages **20/20**, Tegra publisher **43/43**, and Jetson workflow
 **90/90** pass; Ruff, Bash syntax, actionlint, scoped Markdown/public-doc
 checks, and strict MkDocs build pass. All three new pages exist in the built
 site. These are local source/pipeline proofs, not a live Pages publication.
-The complete amended candidate still needs refreshed hidden/test inventory,
-large-file register, final code review, Terra, three independent final
-reviews, and the integrated full gate owned by the parent.
+The final source code review passed at `f327c28ca`, with no P0/P1/P2.
+Final-source large-file coverage remains 39 paths. The hidden/test successor is captured; its independent diff review, Terra,
+three independent final reviews and integrated full gate remain required
+for closeout.
 
 Generated-doc source-link review found that `blob/main` can lag the Pages
 publication candidate. A focused RED assertion now requires the existing
 `release/0.8.27` source branch for every generated source link; the generator
 and both maps use that branch. Package-version content remains neutral.
-The in-flight `b3416577f` hidden capture is diagnostic only; a successor will
-bind the final source after code-review fixes, with no old baseline promoted
-as that final candidate.
+The completed `b3416577f` hidden capture is diagnostic only; the final
+successor binds `f327c28ca` after source-link and package-root corrections.
 
 The `5f7c39c8` source-link code-review follow-up passed, with no remaining
 P0/P1/P2 on that candidate. A later completeness check found that the
@@ -217,3 +213,24 @@ received `gpt-6-sol` high approval at `78aced66d`, no P0/P1/P2. RED package
 coverage tests preceded the implementation, which adds the two package
 manifest inputs and their CI triggers. Final capture binds the complete
 reviewed source; `b3416577f` remains diagnostic evidence only.
+
+## Final-source capture and register
+
+The [final successor record](../hidden-surface/baseline-f327c28c-diff.md)
+binds source `f327c28caa5f20c3342127fbc5fde3c6ea189c7b`. The unchanged
+collector completed 37 rows with no test-build failures. Metadata and every
+Rust API/release-probe row match the approved `01f4063f` successor. All 295
+targets remain covered; the two pinned integration targets are default
+again. The 1,924-entry test/ignore union preserves every proof after the
+explicit integration-to-unit structural-proof relocation. Seven non-hook
+rows regain ten default proofs, and eight hook rows keep their counts.
+The earlier `b3416577f` diagnostic has equal comparable rows, but only final
+`f327c28ca` is proposed as the successor. Exact artifact review is pending.
+
+A fresh scan of every tracked code file at that final source confirms the
+39 paths and physical counts in the [register](large-file-review.md), with
+no new trigger and no human approval requirement. Source/CI/scripts are
+unchanged after capture; subsequent commits carry internal receipt records.
+The scoped Markdown check passes. This worktree has no full-workspace pass:
+prepared examples, independent Terra/final reviews, integrated full gate,
+release-state acceptance and cleanup remain parent-owned.

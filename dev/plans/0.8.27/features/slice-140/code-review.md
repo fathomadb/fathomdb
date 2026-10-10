@@ -46,3 +46,14 @@ unchanged facade, 295 targets and 134 hook-feature predicate additions, exact
 and the public reader-guard delta. It did not independently rerun rustdoc
 or tests. This closes the code/surface review requirements; full verification
 and independent Terra acceptance verification remain open.
+
+## Full-gate and generated-doc follow-up — `gpt-6-sol` high
+
+Independent read-only code review passed `5f7c39c8`, with no P0/P1/P2 after
+closing the generated-source link finding. Generated links now use the
+existing release publication source, rather than potentially older main.
+A further review passed `f327c28ca`, with no P0/P1/P2, covering the bounded
+Python/TypeScript contributor-package rows and source/CI trigger inputs.
+The reviewer did not run the verification matrix; focused tests and the
+final exact hidden capture are separate evidence. The three independent
+final reviews, Terra and the integrated full gate remain parent-owned.

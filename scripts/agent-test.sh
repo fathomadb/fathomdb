@@ -410,6 +410,10 @@ run_tier_suite fast test-release-contract-truth bash scripts/tests/test_release_
 # re-points an x86_64 selector at the Tegra axis.
 run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_release_contract.sh
 run_tier_suite fast test-tegra-wheel-linkage bash scripts/tests/test_tegra_wheel_linkage.sh
+# The Jetson Tegra N-API wrapper fails closed off its pinned host and never
+# publishes; its separately named platform package is never injected as an
+# optional dependency (ADR-0.8.27-jetson-tegra-node-addon-distribution).
+run_tier_suite fast test-tegra-napi-build-contract bash scripts/tests/test_tegra_napi_build_contract.sh
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 

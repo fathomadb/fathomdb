@@ -245,7 +245,7 @@ def run_verdict(evidence: Path) -> int:
     if context is not None:
         for consumer in sorted(context["consumers"]):
             name = f"{consumer}-select"
-            _row, problems = check_row(evidence, name, context, consumer)
+            problems = check_row(evidence, name, context, consumer)[1]
             verdict.record(name, problems, f"generic={context['consumers'][consumer].get('generic')}")
         primary = context["primary_consumer"]
         for component, policy, effective in POLICY_ROWS:

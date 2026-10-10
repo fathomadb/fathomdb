@@ -46,6 +46,7 @@ follow-ups. The decisions below supersede the draft's stale assumptions.
 | R27-140E | Carried documentation decisions are truthful. | AC27-140E: the dual-runtime ADR and decision-index row receive a consistent HITL-ruled status; the two `UNREVIEWED` memos are reviewed or marked historical; the 0.8.25 Slice 40 table states that `failed` plus absent physical rows wins over unenrolled-edge corruption; and Slice 135 claims retain their stated limits and tracked citations. |
 | R27-140F | The slice is independently reviewed and verified. | AC27-140F: a first design review by `gpt-6.1-sol` high and any subsequent design review by `gpt-6-sol` high have no open P0/P1; material source edits receive `gpt-6-sol` high code review; an independent Terra verification checks the candidate and acceptance matrix. Run focused checks while resolving findings, scoped Markdown/public-doc/release-state gates for document edits, and the full `agent-verify` gate for executable or source edits. After all corrections, obtain the user-required three independent subagent reviews. Record exact commands, statuses, source SHA, and limits. |
 | R27-140G | Library users and contributors can navigate source-derived documentation on Pages. | AC27-140G: a deterministic stdlib Python generator supports `--write` and non-mutating `--check`; tracked generated pages enumerate all 44 governed operations with exact Python/TypeScript/Rust spellings and locators, and current Rust workspace members, Python/TypeScript package names and manifest paths, and typed developer entry points. The operation map identifies itself as an index and links detailed manual API references. A contributor landing page explains TDD, scoped/full gates, worktrees, and release state; README and MkDocs navigation link these pages. The shared Pages builder rejects stale generated output before MkDocs, so both complete-site deployers include it; docs-pages path filters cover the generator and all input families. Both whole-site Pages routes freshly fetch current `origin/main` with complete ancestry and require `git merge-base --is-ancestor origin/main "$GITHUB_SHA"` before building/uploading and immediately before deployment; fail closed on stale or unavailable source history. RED tests prove source changes change output and stale output fails, and focused pipeline/navigation checks prove both delivery routes. No package version or publication claim is generated from pre-bump manifests. |
+| R27-140H | Publication-facing docs have an explicit release target without claiming publication. | AC27-140H: the active tracked release state may declare `public_docs_target_release` equal to its own release; otherwise public-doc truth falls back to the newest valid published receipt. The checker uses canonical active-release resolution, validates marker identity and publication receipts separately, requires target version/install guidance, rejects explicit false publication assertions for a pending target, and retains platform/schema/false-historical-publication controls. Workspace ownership is checked against the generated contributor map; optional README count claims must still be truthful. RED fixtures cover pending 0.8.27 target, historical published 0.8.26 fallback, malformed/foreign/untracked targets, missing target guidance and false publication claims. Public API examples document actual default-embedder and search options; compatibility links the digest-verified Tegra install procedure. |
 
 ## Execution after design approval
 
@@ -143,3 +144,16 @@ After a subsequent `gpt-6-sol` high design review approves this amendment:
 Generated pages are navigation indexes, not fabricated API signatures or a
 replacement for maintained contracts. The large-file register stays advisory
 and requires no human signoff.
+
+## Integrated-gate documentation-target correction
+
+The integrated gate at `1a462d036` exposed a checker that requires every
+landing page to call 0.8.26 current/published, requires an obsolete README
+count bullet and requires `npm@next`. Update that contract to the explicit
+0.8.27 publication-facing intent while preserving the historical publication
+receipt. Design review precedes code. Commit RED fixtures, then checker/state
+and focused documentation fixes; run public-doc truth/mutation tests,
+canonical release/current-view checks, scoped Markdown/public docs and
+workflow-safe generated freshness. The parent reruns the full gate and final
+reviews. Historical 0.8.26 notes remain history; no publication state,
+registry version, retained digest or human large-file gate changes.

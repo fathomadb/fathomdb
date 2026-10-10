@@ -1395,6 +1395,14 @@ which retains the original fixture-gating and inherited-change decisions.
 Later receipt commits change internal documentation only. Slice 150 uses
 this final reviewed successor.
 
+The public-doc truth gate follows an explicit documentation target on the
+active tracked release state (`public_docs_target_release`, equal to that
+state's release), falling back to the newest valid published record when
+absent. Targeting 0.8.27 does not assert publication: native/schema/receipt
+guards remain, and explicit pending-release publication claims fail. The
+Slice 140 amendment covers RED/GREEN checker controls and source-checked
+API/install guidance corrections.
+
 ### Slice 150 — integrated release qualification
 
 Write little or no new product test code. Re-run:

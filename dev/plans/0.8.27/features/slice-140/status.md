@@ -237,3 +237,13 @@ unchanged after capture; subsequent commits carry internal receipt records.
 The scoped Markdown check passes. This worktree has no full-workspace pass:
 prepared examples, independent Terra/final reviews, integrated full gate,
 release-state acceptance and cleanup remain parent-owned.
+
+## Integrated public-doc truth finding
+
+The integrated full gate at `1a462d036` failed lint in the public-doc checker
+which still enforces current/published 0.8.26 and obsolete README/npm prose.
+This is not a full pass. The new [design amendment](design.md#explicit-public-documentation-target)
+plans an explicit active-state documentation target with separate truthful
+publication receipts and preserved native/schema/false-publication controls.
+Subsequent `gpt-6-sol` high design approval is required before checker code.
+The parent owns the final gate and reviews after this correction.

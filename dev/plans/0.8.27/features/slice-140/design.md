@@ -172,3 +172,48 @@ corresponding output changes without package-version leakage. The
 contributor landing points readers to this three-language source map. This
 coverage amendment received subsequent `gpt-6-sol` high approval at
 `78aced66d` before implementation.
+
+## Explicit public-documentation target
+
+A publication-facing release branch must be able to describe its intended
+release before registries/Pages publish it. Add the optional state field
+`public_docs_target_release: "0.8.27"` to the active 0.8.27 canonical release
+state. It must equal that state's own release; it is a documentation target,
+not acceptance or a publication receipt. `published` and all package/retained
+artifact metadata remain unchanged.
+
+The public-doc checker first validates every tracked publication record as
+today, then resolves the active tracked state/board through
+`scripts/release-current.py`. Only that active state's explicit marker can
+override the newest valid published release. Absent a marker (including
+when all releases are historical), use the newest published record. Reject
+malformed/foreign markers and failed/ambiguous canonical resolution;
+untracked scratch states and historical markers cannot override the target.
+After publication, the existing valid receipt naturally supplies that same
+version without reinterpreting the marker as publication evidence.
+
+Public docs must identify the target release and its exact intended install
+route (the existing published fallback may use its recorded npm dist-tag).
+A pending target must not explicitly call that version already published;
+generic artifact/platform descriptions and dated historical release notes
+remain valid. Keep the checks rejecting an unpublished claim for a genuinely
+published version, malformed publication-complete lifecycle/receipts, missing
+native platform boundaries and schema-34/fresh-database constraints. Preserve
+the five native-artifact manifest assertions. Replace the obsolete mandatory
+README crate-count bullet with exact workspace manifest-path/count coverage
+in the generated contributor map, while rejecting false count claims if a
+README states one. No guard is dropped merely because prose was redesigned.
+
+RED fixtures construct tracked canonical state/board pairs and cover pending
+0.8.27 marker, 0.8.26 published fallback/historical notes, target mismatch,
+untracked override, ambiguous active state, missing/wrong install/version
+guidance, false pending publication assertions and preserved receipt/platform/
+schema/count mutations. GREEN changes the checker/state only after review.
+Focused API doc fixes source-check Python/TypeScript default-embedder options
+and Python `search` explain/view parameters. Compatibility links the safe
+Tegra digest/lock-first install procedure instead of an unchecked bare URL
+command; the board distinguishes historical 0.8.26 evidence from final
+0.8.27 release qualification routes. Subsequent source review and parent-owned
+full verification remain required. These script-only changes do not alter
+Rust API/test inventory; the existing exact f327 Rust capture remains the
+reviewed surface receipt with this follow-up scope stated explicitly.

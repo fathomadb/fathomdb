@@ -19,7 +19,8 @@ class GeneratedDocs(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix='slice140-generated-docs-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        inputs = ['Cargo.toml', 'src/conformance/governed-operation-parity.json']
+        inputs = ['Cargo.toml', 'src/conformance/governed-operation-parity.json',
+                  'src/python/pyproject.toml', 'src/ts/package.json']
         inputs += [p.relative_to(REPO).as_posix() for p in (REPO / 'src/rust/crates').glob('*/Cargo.toml')]
         inputs += [f'scripts/agent-{verb}.sh' for verb in VERBS]
         for name in inputs:
@@ -102,6 +103,28 @@ class GeneratedDocs(unittest.TestCase):
         extra.write_text(extra.read_text().replace('fixture-added-member', 'fixture-renamed-member'))
         self.assertNotEqual(self.run_generator('--check').returncode, 0)
 
+    def test_python_and_typescript_package_names_drive_contributor_map(self):
+        pages = self.generate()
+        text = pages[1].read_text()
+        self.assertIn('Python and TypeScript packages', text)
+        self.assertIn('src/python/pyproject.toml', text)
+        self.assertIn('src/ts/package.json', text)
+        for language in ('python', 'typescript'):
+            manifest = self.root / ('src/python/pyproject.toml' if language == 'python' else 'src/ts/package.json')
+            name = f'fixture-{language}-package'
+            if language == 'python':
+                before = manifest.read_text()
+                self.assertIn('name = "fathomdb"', before)
+                manifest.write_text(before.replace('name = "fathomdb"', f'name = "{name}"', 1))
+            else:
+                data = json.loads(manifest.read_text())
+                data['name'] = name
+                manifest.write_text(json.dumps(data))
+            self.assertNotEqual(self.run_generator('--check').returncode, 0)
+            self.generate()
+            self.assertIn(name, pages[1].read_text())
+            self.assertNotIn('0.8.26', pages[1].read_text())
+
     def test_invalid_or_missing_input_fails_without_partial_output(self):
         manifest = self.root / 'src/conformance/governed-operation-parity.json'
         data = json.loads(manifest.read_text())
@@ -143,7 +166,7 @@ runpy.run_path(sys.argv[0], run_name='__main__')
         self.assertIn('docs/contributing/index.md', readme)
         self.assertIn('docs/generated/sdk-operation-map.md', readme)
         docs_workflow = (REPO / '.github/workflows/docs-pages.yml').read_text()
-        for source in ('scripts/generate-public-docs.py', 'src/conformance/governed-operation-parity.json', 'Cargo.toml', 'src/rust/crates/**/Cargo.toml', 'scripts/agent-*.sh'):
+        for source in ('scripts/generate-public-docs.py', 'src/conformance/governed-operation-parity.json', 'Cargo.toml', 'src/rust/crates/**/Cargo.toml', 'scripts/agent-*.sh', 'src/python/pyproject.toml', 'src/ts/package.json'):
             self.assertIn(f'- {source}', docs_workflow)
         for workflow, prepare, deploy in (
             ('docs-pages.yml', 'prepare-pages', 'deploy-pages'),

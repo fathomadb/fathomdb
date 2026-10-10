@@ -34,7 +34,7 @@ root.
 ## Engineering reference
 
 - [`design/fathomdb-data-plane-architecture-v2.md`](design/fathomdb-data-plane-architecture-v2.md)
-  — the active 0.8.26 system and data-plane architecture
+  — the current system and data-plane architecture, including the 0.8.27 profile
 - [`architecture.md`](architecture.md) — the retained superseded 0.6.0
   architecture snapshot
 - `adr/` architectural decisions and their decision index

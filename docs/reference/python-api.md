@@ -1,7 +1,7 @@
 # Python API
 
 Module: `fathomdb`. Authoritative spec:
-[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/python.md).
+[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/python.md).
 
 > **Release 0.8.27, pre-1.0 beta.**
 
@@ -25,6 +25,7 @@ from fathomdb import (
     ProjectionRuntimeUnavailabilityReason,
     ProjectionSpec,
     ProjectionStatusDenseReadiness,
+    ReadView,
     SearchFilter,
     SearchHit,
     SearchResult,
@@ -41,13 +42,18 @@ from fathomdb import (
 
 ## `Engine`
 
-### `Engine.open(path, *, config=None, **engine_config) -> Engine`
+### `Engine.open(path, *, config=None, use_default_embedder=False, **engine_config) -> Engine`
 
 Open or create a FathomDB database at `path`. Returns the engine
 handle.
 
 - `path` (`str`) — path to the SQLite DB file.
 - `config` (`EngineConfig | None`) — pre-built config object.
+- `use_default_embedder` (`bool`, default `False`) — `True` enables the pinned
+  `fathomdb-bge-small-en-v1.5` embedder. First use can download weights into
+  `~/.cache/fathomdb/embedders/`. `False` opens without an embedder; vector
+  writes and `engine.embed` raise `EmbedderNotConfiguredError`. See the
+  [embedder guide](../embedder.md) for runtime policy and typed failures.
 - `**engine_config` — per-knob keyword arguments (see
   [config](config.md)). Mutually exclusive with `config`.
 
@@ -69,8 +75,8 @@ embedder telemetry fields (`embedder_download_ms`, `embedder_events`,
 
 ### `engine.write(batch=None) -> WriteReceipt`
 
-Enqueue a batch of canonical rows. Synchronous; blocks until the
-writer thread has accepted the batch.
+Write a batch of canonical rows synchronously through the primary writer
+connection; return its committed receipt.
 
 - `batch` (`list[Any] | None`) — caller-shaped canonical rows.
   Defaults to `[]` (a valid, item-less batch).
@@ -135,7 +141,7 @@ receipt = engine.write([
   pointing at a non-existent or superseded node — see
   [`WriteReceipt`](#writereceipt).
 
-### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, limit=10) -> SearchResult`
+### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, explain=False, view=None, limit=10) -> SearchResult`
 
 Run hybrid retrieval (FTS5 + vector) for `query`, ranked by **G9 RRF fusion**,
 with optional cross-encoder reranking (0.8.1 R1) and optional graph-BFS third
@@ -169,6 +175,13 @@ arm (0.8.1 R3).
   clamped to the hit count. `None` ⇒ `rerank_depth` (preserves the prior
   pool == depth semantics). Note `rerank_depth == 0` is still the identity gate,
   so `rerank_depth=0, pool_n=10` does **not** rerank.
+- `explain` (`bool`, default `False`) — `True` includes retrieval explanation
+  data in `SearchResult.explanation`; non-boolean values raise `TypeError`.
+- `view` (`ReadView | None`, default `None`) — controls validity at query time
+  or an explicit `valid_as_of` instant. `include_out_of_window=True` widens
+  validity windows. Search rejects `include_superseded` and
+  `include_inactive` with `InvalidArgumentError`; projection indexes cannot
+  answer those existence-history views. Use `read.list` for that history.
 - `limit` (`int`, default `10`) — maximum ranked hits returned. It must be in
   `1..=100`; zero, negative values, and values above 100 raise
   `InvalidArgumentError` and are never silently clamped.
@@ -822,4 +835,4 @@ and FathomDB provides no GPU reservation or hard memory cap.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/python.md)
+- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/python.md)

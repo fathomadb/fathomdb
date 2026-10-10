@@ -90,9 +90,10 @@ contains both and must cover them:
   (SHA-256 `728df862…`), and change the Python classic-Tegra warning,
   `fathomdb doctor gpu --help` and the public install docs (`172fc6599`) from
   the `0.8.24+tegra` command, which the live index no longer serves. The same
-  fix for `main` is PR #254. Slice 150's installed-artifact and Tegra route
-  smokes must use the 0.8.26 route, and the Tegra publication for 0.8.27
-  updates the pin again.
+  fix for `main` is PR #254. This is historical installed-artifact evidence
+  for 0.8.26. Slice 150 qualifies the exact 0.8.27 candidate; Slice 160
+  publishes 0.8.27, updates the retained pin/manifest and verifies its live
+  installed-artifact routes. Prior live 0.8.26 smokes do not qualify 0.8.27.
 
 ### Slice 135 closeout (2026-10-08)
 

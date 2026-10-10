@@ -10,6 +10,10 @@ documentation source for users, operators, and SDK consumers.
 > See [Install](install/python.md) and the
 > [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/CHANGELOG.md).
 
+Native Python and Node artifacts cover Linux x86_64/glibc, Linux
+AArch64/glibc, macOS x64/arm64, and Windows x64. See the
+[compatibility matrix](compatibility/index.md) for CPU/CUDA and Jetson routes.
+
 ## Start here
 
 - [Getting Started](getting-started/index.md) — pick your SDK + land

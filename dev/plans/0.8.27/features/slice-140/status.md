@@ -8,9 +8,9 @@ planning_baseline: 360bbe63e65aca93cb2200f6c8e27624f4042ea8
 # Slice 140 implementation status — 2026-10-10
 
 The [plan](plan.md) is reviewed and the [design](design.md) is approved,
-including the generated-documentation amendment. Source implementation and
-focused verification and final hidden capture are complete at `f327c28ca`;
-independent final reviews and the integrated full gate remain open.
+including the generated-documentation amendment. Rust implementation and final hidden capture are complete at `f327c28ca`;
+the documentation-target follow-up below also passes focused verification.
+Independent final reviews and the integrated full gate remain open.
 The historical planning reviews used `360bbe63e`; implementation includes
 Slice 117's completed handoff at `1476d83e0`. The release ladder remains
 `140 → 150 → 160`. Slice 117 artifacts are qualified and unpublished, with
@@ -245,5 +245,48 @@ which still enforces current/published 0.8.26 and obsolete README/npm prose.
 This is not a full pass. The new [design amendment](design.md#explicit-public-documentation-target)
 plans an explicit active-state documentation target with separate truthful
 publication receipts and preserved native/schema/false-publication controls.
-Subsequent `gpt-6-sol` high design approval is required before checker code.
+Subsequent `gpt-6-sol` high design review approved the amendment with a P2
+selected-target schema clarification, now implemented with a RED mutation.
 The parent owns the final gate and reviews after this correction.
+
+## Public-doc target correction — focused GREEN
+
+RED `0d21213f9` rejects the old checker's forced 0.8.26-current prose. The
+fixture correction `c3e08da9f` exercises the actual recorded historical npm
+tag (`latest`) while retaining the old-checker RED proof; `b42009d7c` adds
+RED independent published-schema and unchanged-post-publication controls.
+The active 0.8.27 state now declares its documentation target, with acceptance
+and `published` unchanged. The checker resolves the canonical active
+state/board, validates both published and selected-target schema 34, ignores
+untracked/historical overrides, rejects false pending publication claims and
+retains receipt/native-platform/schema/migration guards. Historical prose
+about another version cannot misattribute its unpublished status. A valid
+0.8.27 publication receipt accepts these same forward docs without requiring
+a later prose rewrite. Workspace path/count coverage follows the generated
+contributor map; optional README count claims still must match Cargo.
+
+All **32/32** focused public-doc controls pass, including the RED source-link
+masking case `57cb5e80f`: a source URL cannot substitute for a visible
+release label. Actual checkout public-doc
+truth, canonical release resolution, generated release-state views, Ruff,
+Bash syntax and generated-doc freshness pass. Scoped Markdown/public-doc
+checks and strict MkDocs pass. Source-checked API corrections document the
+Python/TypeScript default-embedder open options and Python search explain/view
+arguments. Landing pages retain explicit platform boundaries. Compatibility
+now links the digest/lock-first Tegra procedure without an unchecked tarball
+install; the board separates prior live 0.8.26 evidence from 0.8.27 final
+qualification/publication. Historical 0.8.26 notes are unchanged.
+
+This follow-up changes the documentation checker, state metadata, test
+fixtures and prose only; Rust source/manifests and test inventory remain
+byte-identical to reviewed capture `f327c28ca`. That Rust surface receipt
+remains scoped to its exact source. No new full-workspace pass is claimed.
+The parent owns final source reviews, Terra recheck, integrated full gate,
+package examples, acceptance and worktree cleanup.
+
+Current engineering indexes and lifecycle metadata now point at 0.8.27. The
+architecture preserves the true ten-member 0.8.26 historical snapshot and
+adds the current eleven-member workspace/Rust SDK peer ownership explicitly.
+Its existing approval/activation history remains intact. The parent obtains
+a subsequent `gpt-6-sol` high design review of that documentation correction
+before closeout.

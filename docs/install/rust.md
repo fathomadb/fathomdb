@@ -20,7 +20,7 @@ consumption routes:
 - SQLite headers + a system `sqlite-vec` build, or vendored equivalent
   (the workspace builds `sqlite-vec` from source by default).
 - A Rust-supported target and a working SQLite + `sqlite-vec` build. The
-  published Python and npm native-artifact boundary covers Linux x86_64
+  Python and npm native-artifact boundary covers Linux x86_64
   (`x86_64-unknown-linux-gnu`), Linux AArch64
   (`aarch64-unknown-linux-gnu`), macOS x64/arm64, and Windows x64; Rust crates
   compile from source.

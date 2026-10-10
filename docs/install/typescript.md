@@ -1,7 +1,7 @@
 # Install — TypeScript / Node.js
 
 The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
-over the native Rust runtime. The published package selects a
+over the native Rust runtime. The package selects a
 platform-tagged `.node` binary at load time.
 
 > **Release 0.8.27, pre-1.0 beta.** The release supplies

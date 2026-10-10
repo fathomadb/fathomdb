@@ -21,7 +21,8 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 ## Current position
 
-- **0.8.26 is published.** It is the latest published release.
+- **0.8.26 is the published predecessor.** Its retained state contains the
+  historical publication receipt.
 - **0.8.27 is the active implementation release** on `release/0.8.27`.
   Prework approved correction-safe erasure and a behavior-preserving semantic
   refactor. As of 2026-10-10, release state records Slice 135's bounded

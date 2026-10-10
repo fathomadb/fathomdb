@@ -1,7 +1,7 @@
 # TypeScript API
 
 Package: `fathomdb`. Authoritative spec:
-[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md).
+[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/typescript.md).
 
 > **Release 0.8.27, pre-1.0 beta.**
 
@@ -58,6 +58,11 @@ Open or create a FathomDB database at `path`.
 
 - `path` (`string`).
 - `options` (`EngineOpenOptions`):
+  - `useDefaultEmbedder` (`boolean`, default `false`) — `true` enables the
+    pinned `fathomdb-bge-small-en-v1.5` embedder. First use can download
+    weights into `~/.cache/fathomdb/embedders/`. Without an embedder, vector
+    writes and `engine.embed` reject with `EmbedderNotConfiguredError`.
+    See the [embedder guide](../embedder.md) for runtime policy.
   - `engineConfig` (`EngineConfig`) — engine knobs in camelCase.
     See [config](config.md).
 
@@ -145,7 +150,7 @@ const receipt = await engine.write([
 
 ### `engine.search(query, filter?, rerankDepth?, useGraphArm?, alpha?, poolN?, explain?, options?) -> Promise<SearchResult>`
 
-Run hybrid retrieval, ranked by **G9 RRF fusion**, with optional CPU
+Run hybrid retrieval, ranked by **G9 RRF fusion**, with optional
 cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
 
 - `query` (`string`).
@@ -818,5 +823,5 @@ and FathomDB provides no GPU reservation or hard memory cap.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md)
+- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/typescript.md)
 - TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)

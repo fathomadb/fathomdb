@@ -75,7 +75,7 @@ CPU/GPU policy, and typed failures.
 
 ## Platforms and operators
 
-Published Python and Node artifacts cover Linux x86_64/glibc, Linux
+Python and Node native artifacts cover Linux x86_64/glibc, Linux
 AArch64/glibc, macOS x64/arm64, and Windows x64. Linux x86_64 artifacts contain
 CPU and CUDA paths for embedding and reranking; generic Linux AArch64, macOS,
 and Windows artifacts are CPU-only. The default `auto` policy uses CPU when

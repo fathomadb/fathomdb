@@ -207,7 +207,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/design/0.8.20-slice-31-sbom-survey-tool.md` | Spec of record for `scripts/sbom-survey` — CycloneDX SBOM over tracked manifests, tiering, used-vs-published diff; 23 criteria | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3; no requirement id, TC-76) | 2026-07-29 |
 | `dev/design/chunking-strategy-and-test-guidance.md` | Verbatim chunking strategy and test guidance | performance experiments | 2026-08-15 |
 | `dev/design/fathomdb-data-plane-architecture-v1.md` | Superseded data-plane architecture retained as reviewed history | 0.8.25 history | 2026-09-02 |
-| `dev/design/fathomdb-data-plane-architecture-v2.md` | Active v2.2 architecture with as-built 0.8.25 and 0.8.26 profiles | 0.8.26 Slice 45 | 2026-09-15 |
+| `dev/design/fathomdb-data-plane-architecture-v2.md` | Active v2.2 architecture with historical 0.8.26 and current 0.8.27 SDK ownership profiles | 0.8.27 Slice 140 | 2026-10-10 |
 | `scripts/sbom-survey/README.md` | Operating note for the dependency-survey mini-project — how to run the suite, and why it is deliberately not CI-gating | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3) | 2026-07-29 |
 | `scripts/sbom-survey/smoke-install-run.sh` | TC-115 install-then-run smoke — installs the tool into a throwaway venv, invokes the INSTALLED console script, and asserts its artifacts are byte-identical to a source-tree run. Deliberately NOT CI-wired (`seq-172`) | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3) | 2026-07-29 |
 | `dev/plans/runs/0.8.20-slice-33-library-sweep-3-FINDINGS.md` | **Findings of record** for Library Sweep #3 — the ONLINE `sbom-survey` run at `29c2eae0`: 774 components, 28 direct outdated, per-dependency surgical verdicts, and the hand-off to 0.8.22. ASCERTAIN-ONLY; applied nothing | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3; no requirement id, TC-76) | 2026-07-29 |
@@ -332,38 +332,43 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `docs/index.md` | Docs home for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/getting-started/index.md` | Getting-started overview for 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/getting-started/quickstart.md` | Quickstart (five-operation contract) | 5/30 (new surface examples) | 2026-05-17 |
-| `docs/install/python.md` | Python install for five published 0.8.26 native targets | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/install/typescript.md` | TypeScript install for five published 0.8.26 native targets | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/install/rust.md` | Rust and exact-version CLI install for 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/reference/index.md` | API-reference overview for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/reference/python-api.md` | Python API reference for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/reference/typescript-api.md` | TypeScript API reference for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/reference/rust-api.md` | Rust facade reference for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/reference/cli.md` | CLI reference including the immutable 0.8.26 inspection boundary | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/index.md` | Docs home for the 0.8.27 three-SDK surface | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/getting-started/index.md` | Getting-started overview for the 0.8.27 SDKs | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/getting-started/quickstart.md` | 0.8.27 Python write/read quickstart and SDK navigation | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/install/python.md` | Python 0.8.27 native and digest-qualified Tegra install routes | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/install/typescript.md` | TypeScript 0.8.27 native and verified Tegra Pages install routes | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/install/rust.md` | Rust SDK, lower-level facade and exact-version CLI installation | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/reference/rust-sdk.md` | Rust application SDK shape, options, errors and shared governed operations | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/generated/sdk-operation-map.md` | Source-generated index of 44 Python, TypeScript and Rust governed operations | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/generated/contributor-map.md` | Source-generated Rust, Python, TypeScript and typed developer entry-point map | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/contributing/index.md` | Contributor setup, TDD, scoped/full verification and release-state workflow | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/release-notes/0.8.27.md` | 0.8.27 changes, three SDKs, Jetson delivery and release qualification limits | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/reference/index.md` | API-reference overview for the 0.8.27 surface | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/reference/python-api.md` | Python 0.8.27 API reference, including embedder and search-view options | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/reference/typescript-api.md` | TypeScript 0.8.27 API reference and default-embedder open options | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/reference/rust-api.md` | Lower-level Rust facade reference for 0.8.27 | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/reference/cli.md` | Operator CLI reference, including integrity and CUDA diagnostics | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/reference/errors.md` | Error reference (taxonomy) | 0.8.24 Slice 7 link correction | 2026-08-23 |
 | `docs/reference/config.md` | Config reference | 0.8.24 Slice 7 link correction | 2026-08-23 |
-| `docs/concepts/index.md` | Concepts overview for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/embedder.md` | Default embedder with current 0.8.26 framing | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/compatibility/index.md` | Five-platform and schema-34 compatibility boundary for 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/operations/index.md` | Operations guide for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/concepts/index.md` | Concepts overview for the current retrieval and graph surface | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/embedder.md` | Default embedder, opt-in configuration and runtime policy | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/compatibility/index.md` | 0.8.27 native platform, schema-34 and Tegra verification boundaries | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/operations/index.md` | Operations guide for the current release surface | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/operations/worktree-consolidation.md` | Worktree consolidation protocol overview | 0.8.24 Slice 7 link correction | 2026-08-23 |
 | `docs/operations/erasure.md` | Erasure boundary | 0.8.20 Slice 5d (R-20-E4/E8, design §4 item 12) | 2026-07-19 |
-| `docs/guides/index.md` | Guides hub for the published 0.8.23 surface | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/guides/index.md` | Guides hub for the current retrieval surface | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/guides/structured-search-hits.md` | Structured `SearchHit` usage guide (id/kind/body/score/branch; Py + TS) | 5 (G1); 10 (score → RRF) | 2026-06-03 |
 | `docs/guides/retrieve-by-id.md` | Retrieve-by-id guide — `read.get`/`read.get_many` point lookup by `logical_id` (active-only) +... | 30 (G2/G3) | 2026-06-04 |
 | `docs/guides/hybrid-search-filtering.md` | Hybrid-search guide — RRF plus Python/TS metadata and declared-projection attribute filters | 0.8.22 documentation correctness | 2026-08-08 |
 | `docs/positions/index.md` | Positions hub | — | 2026-05-01 |
-| `docs/positions/sdk-parity.md` | Position: SDK parity (guarantee carried forward by 25) | 25 | 2026-05-01 |
+| `docs/positions/sdk-parity.md` | Three-SDK operation, option and language-specific error parity | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/positions/recovery-surface.md` | Position: recovery surface (denylist, CLI-only) | preserved by 25/30 | 2026-05-01 |
 | `docs/positions/tokenizer-policy.md` | Position: tokenizer policy | 5 (FTS5 default upgrade) | 2026-05-01 |
-| `docs/release-notes/0.8.26.md` | Published 0.8.26 highlights, schema boundary, artifacts, and install routes | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/release-notes/0.8.26.md` | Historical 0.8.26 highlights, schema boundary, published artifacts and install routes | 0.8.27 Slice 10 | 2026-09-21 |
 | `docs/positions/embedder-identity.md` | Position: embedder identity | — | 2026-05-01 |
-| `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
-| `docs/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.27 | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.27 | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.27 | 0.8.27 Slice 140 | 2026-10-10 |
 | `dev/releases/0.8.0.md` | 0.8.0 internal release record | 40/GA-2 | 2026-06-08 |
 
 ## Corpus / eval expansion (out-of-band, owner-managed — integrated at Slice-5 push 2026-06-02)

@@ -745,7 +745,7 @@
       "topic": "actuation",
       "role": "design",
       "owner": "dev/design/actuation.md",
-      "release": "current:0.8.26",
+      "release": "current:0.8.27",
       "successor": null
     },
     {
@@ -1033,7 +1033,7 @@
       "topic": "data-plane",
       "role": "architecture",
       "owner": "dev/design/fathomdb-data-plane-architecture-v2.md",
-      "release": "current:0.8.26",
+      "release": "current:0.8.27",
       "successor": null
     },
     {

@@ -26,7 +26,7 @@ Node release lines is not part of the 0.8.27 contract.
 Rust **1.95.0**. This is the declared MSRV and the exact compiler used by CI
 and release jobs.
 
-## Prebuilt artifacts — five native targets published
+## Prebuilt artifacts — five native targets
 
 ⚠ **The 0.8.27 wheel and npm platform binaries support Linux
 `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc, macOS x64 and
@@ -37,8 +37,8 @@ architectures and the `linux-arm64-gnu` npm platform binary. As of Slice 80.1
 the `linux-arm64-gnu` npm binding is built inside the same digest-pinned
 `manylinux_2_28` container as the Python wheel (`scripts/release/
 Dockerfile.napi-manylinux`), rather than on the bare CI runner, so this
-number is enforced by `scripts/check-glibc-floor.sh` against the artifact
-actually published — not merely asserted here.
+number is enforced by `scripts/check-glibc-floor.sh` against the built artifact
+before publication.
 
 **Measured glibc floor (cuda-napi-host): 2.39**, for the
 `linux-x64-gnu` CUDA npm platform binary. It is built host-natively with the
@@ -48,8 +48,9 @@ contract.
 
 **Measured glibc floor (tegra): 2.35**, for the Jetson/Tegra CUDA Python
 wheel and, from 0.8.27, the `fathomdb-linux-arm64-gnu-tegra` Node addon.
-Neither is published to PyPI or the npm registry, and neither is covered by
-the table below; each is built host-natively on a Jetson Orin against JetPack's
+Both use the Tegra Pages distribution route; the table below covers the
+generic native packages. Each is built host-natively on a Jetson Orin against
+JetPack's
 CUDA 12.6 (`scripts/release/build-python-cuda-tegra.sh` and
 `scripts/release/build-napi-cuda-tegra.sh`), because the Tegra CUDA runtime
 is host-bound and no manylinux image carries it. Each therefore inherits JetPack's own glibc — Ubuntu 22.04's 2.35 — rather than the
@@ -82,10 +83,9 @@ exact-version tarball from the Tegra Pages site, never from the npm registry,
 and must match the `fathomdb` version exactly. Check its SHA-256 against the release's retained artifact manifest before
 installation; follow the [verification procedure](../install/typescript.md#classic-jetson-orin-with-cuda):
 
-```bash
-npm install --save-exact fathomdb@0.8.27
-npm install --save-optional https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
-```
+The install procedure verifies the retained digest, records the exact Pages
+URL as an optional dependency, compares lockfile integrity before execution,
+and then installs from the verified lockfile. Use that complete procedure.
 
 As an optional dependency it is skipped on hosts whose os, cpu or libc do not
 match, and the loader selects it only on a confirmed classic Jetson Orin;
@@ -95,7 +95,7 @@ is set to `cpu` at load time or `FATHOMDB_CUDA_EARLY_INIT=off`. See
 [TypeScript install](../install/typescript.md#classic-jetson-orin-with-cuda)
 for the SHA-256 check and the `package.json` form.
 
-| OS      | Architecture                | Published prebuilt? |
+| OS      | Architecture                | Prebuilt package? |
 | ------- | --------------------------- | ------------------- |
 | Linux   | `x86_64-unknown-linux-gnu`  | **yes** (CUDA host glibc 2.39) |
 | Linux   | `aarch64-unknown-linux-gnu` | **yes** (manylinux 2_28) |
@@ -103,8 +103,8 @@ for the SHA-256 check and the `package.json` form.
 | macOS   | `aarch64-apple-darwin`      | **yes** |
 | Windows | `x86_64-pc-windows-msvc`    | **yes** |
 
-Platforms outside these five native targets are unsupported for the published
-Python and npm packages in this release.
+Platforms outside these five native targets are unsupported for the generic
+Python and npm native packages in this release.
 
 ## SQLite + sqlite-vec
 
@@ -117,7 +117,7 @@ Python and npm packages in this release.
 
 ## On-disk schema
 
-The published 0.8.27 line sets `SCHEMA_VERSION` to **34**. A missing or
+The 0.8.27 line sets `SCHEMA_VERSION` to **34**. A missing or
 zero-length path bootstraps directly at schema 34. A non-empty database opens
 only when its effective committed `PRAGMA user_version` is exactly 34; older,
 future, and non-empty zero-version databases are rejected before product

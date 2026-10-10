@@ -1,7 +1,7 @@
 # Install — Python
 
 The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
-native Rust runtime. Published wheels are platform-tagged (no source build
+native Rust runtime. Wheels are platform-tagged (no source build
 required on supported platforms).
 
 > **Release 0.8.27, pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
@@ -67,7 +67,7 @@ warning if it can confirm that mismatch.
 
 ## Default embedder
 
-The published wheel already includes the default embedder; there is no
+The wheel includes the default embedder; there is no
 `default-embedder` Python extra. Opt in at `open`:
 
 ```python

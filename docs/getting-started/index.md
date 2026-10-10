@@ -3,6 +3,10 @@
 > **Release 0.8.27, pre-1.0 beta.** Choose Python, TypeScript, or the Rust
 > application SDK. Install the exact release version.
 
+Native Python and Node artifacts cover Linux x86_64/glibc, Linux
+AArch64/glibc, macOS x64/arm64, and Windows x64. See the
+[compatibility matrix](../compatibility/index.md) for CPU/CUDA and Jetson routes.
+
 ## Where to go
 
 - [Quickstart](quickstart.md) — install, open, write, search,

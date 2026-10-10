@@ -1,0 +1,50 @@
+---
+title: FathomDB 0.8.27 Slice 140 — convergence design
+status: APPROVED
+target_release: 0.8.27
+source_baseline: 360bbe63e65aca93cb2200f6c8e27624f4042ea8
+---
+
+# Slice 140 design
+
+## Authority and present state
+
+The accepted ADRs, `dev/interfaces/`, the [architecture v2](../../../../design/fathomdb-data-plane-architecture-v2.md), and the current source own behavior. The 0.8.27 master plan owns this slice's scope. Earlier versioned plans and reports remain evidence, not mutable current contracts. The production tree at `360bbe63e` has a dedicated Rust SDK, a separate lower-level Rust facade, Python and TypeScript SDKs, and one private-module engine. No new API, schema, wire, transaction, device-policy, or performance behavior is designed here.
+
+The original five-file count was a planning signal, not a target architecture. Current first-party production files above 2,000 lines are `fathomdb-engine/src/lib.rs` (3,905), `evidence.rs` (2,999), `actuation.rs` (2,719), `data_plane_integrity.rs` (2,487), `search.rs` (2,475), `projection_registry.rs` (2,358), `open.rs` (2,085), `projection_generation.rs` (2,016), and `fathomdb-cli/src/lib.rs` (2,792). All four non-engine original outliers are now below 2,000 lines. The wider tracked-code scan also finds owned test/tool files and vendored/generated files. Recompute this list after Slice 117 integrates; do not transpose historical line anchors onto moved files.
+
+## Documentation convergence
+
+| Surface | Source of truth and edit rule |
+| --- | --- |
+| Crate and SDK topology | The workspace manifests and `dev/interfaces/rust-sdk.md` show `fathomdb-sdk` as the Rust peer of Python/TypeScript. `fathomdb` remains a lower-level facade; `fathomdb-engine` remains implementation. Architecture, bindings design, README, docs install/reference pages, and interface indexes must agree. |
+| Engine internal ownership | Use the Slice 80/85/90 owner maps and actual modules. Keep source citations symbol-based where line numbers have moved. Label pre-move counts and paths historical rather than silently changing their measurements. |
+| Device/install support | Use accepted device ADRs and installed artifact evidence. Slice 117's Tegra Node draft or unpublished candidate is not a shipping claim. Check its reviewed handoff against README, TypeScript install, compatibility, embedder, and publication-operator docs before final edits. |
+| Performance/correctness | Cite tracked Slice 135 phase reports and status. The 611-query CPU–CUDA match is limited to its x86_64 installed candidate, frozen sample, and host. Neither raw local licensed archives nor Slice 150 final release qualification follow from it. |
+| Examples and references | Link checking runs from a clean release checkout. Source anchors resolve to tracked files and existing symbols. Public Rust examples use `fathomdb_sdk`; lower-level examples deliberately name `fathomdb` when exercising its distinct contract. Python and TypeScript examples import documented package paths, not build-tree internals. |
+
+The Slice 70 carryovers are editorially distinct. The dual-runtime ADR status is changed only after checking `seq:250`/`seq:252`, shipped policy, and the user's explicit acceptance-if-consistent ruling; update decision-index row 43 together. `embedder-decision.md` is a parameter history with later amendments, not a current implementation contract; `0.8.1-slice-10-reranker-design.md` is an implemented historical memo whose opening already supersedes its original crate placement. Mark each historical and point to active authority, without ratifying every old parameter as current. The 0.8.25 Slice 40 dense-state table gains a precedence note: `failed` with absent sidecar and vec0 is `failed` even for an unenrolled edge; the unenrolled-edge corruption row applies only after earlier specific rows fail.
+
+## Test-seam boundary
+
+Only test mechanisms whose default-compiled presence is unnecessary are gated. The inventory is source-derived, by **current owner**, including root `Engine` methods and wrappers; `reader_pool.rs` pool witnesses; `filter.rs` conversion witnesses; `search.rs` profile/route/plan witnesses; `graph_api.rs` graph `Engine` witnesses; `graph_expand/execution.rs` helpers and carriers; `graph_expand/types.rs`; and relocated projection, vector, embed, mean, WAL, and runtime seams. The Slice 80/90 maps are input checklists, not proof that every current item is still at the named line.
+
+Before each gate, record the declaration path, existing `cfg`, public or crate-private reachability, direct integration/unit callers, feature requirements, and whether runtime code calls the item. Distinguish three classes:
+
+1. Already gated `test-hooks`, `slice72-test-hooks`, migration, benchmark, or `cfg(test)` mechanisms: preserve their effective reachability unless a failing test proves a defect.
+2. Always-compiled `#[doc(hidden)]` public Engine/test wrappers and private witness plumbing: move to the narrowest `cfg(any(test, feature = "test-hooks"))` or a more specific existing feature. An external integration test requiring them declares the feature explicitly; `cfg(test)` alone does not apply to its library dependency.
+3. Production diagnostic or configuration paths that happen to carry a `for_test` name: preserve default reachability until caller analysis proves they are strictly test-only. Do not suppress a whole module because one witness is test-only.
+
+`execute_for_test` and the other root arbitrary-writer-SQL fixtures need special handling: `debug_assertions` currently makes some available in default dev builds. The removal objective includes **default dev dependencies** as well as release builds. The final gate must remove that default-dev route while retaining an explicit supported test route and preserving tests that exercise lifecycle, WAL, projection, and graph behavior. Isolated external-dependency compile-negative controls must name each removed public path in both default dev and release builds, paired with positive explicit-feature controls. The hidden oracle's release probe is supplementary: once a path is absent from the default rustdoc row, that probe no longer selects it and cannot alone prove removal. Method-name searches are not proof either. Document removed doc-hidden paths under the 0.8.27 `CHANGELOG.md` Removed heading and run AC-050c's removal checker.
+
+Run the Slice 30 public comparator unchanged. The hidden oracle captures the before and after manifests, tests and release probe. Unexpected differences block the batch. For intended removals, the successor `baseline-<sha>.json` is immutable and paired with a reviewed diff record listing each changed row/path, former and new gate, direct caller disposition, and test-inventory effect. Slice 150 consumes that baseline and retires the oracle only after final qualification. Do not edit the existing baselines.
+
+## Large-file exception register
+
+The register is a source-SHA-bound human review artifact, not a style gate. Scan every tracked code file, including first-party production, tests, tools, and checked-in vendor/generated code. Exclude documentation and result data from this code-cohesion review, not from link/source-citation checks. For each first-party 2,000–3,500-line file, a human owner reviews cohesion, navigation, known co-change pain, and test ownership, then records `keep` or a scoped follow-up. For first-party files above 3,500, record a specifically approved exception or a named follow-up with owner and trigger. Checked-in third-party/generated files receive an explicit provenance-bound exception rather than a hand rewrite. A scanner may check that every triggering path has a disposition, but cannot fail merely because a file crosses a threshold. The five original outliers must each have an explained current state.
+
+## Verification boundary
+
+- Documentation-only corrections: `scripts/agent-lint-md.sh`; `scripts/agent-lint-docs.sh` when public `docs/` changes; `scripts/check-release-state-views.sh` when state changes; clean-checkout link/source-anchor checks.
+- Test-seam code: failing-first focused compile/feature tests; `cargo check`/targeted Rust tests for default, explicit `test-hooks`, and affected other feature sets; comparator/hidden/test-inventory and AC-050c checks; then the required full `scripts/agent-verify.sh` candidate gate. A public import example must use the package's actual documented install/build route.
+- Material source change: independent `gpt-6-sol` high code review. The first design review uses `gpt-6.1-sol` high; later design reviews use `gpt-6-sol` high. Independent Terra verification checks the final acceptance matrix. Record any unavailable route precisely, without calling a scoped pass a full release pass.

@@ -124,7 +124,7 @@ Slice-0 gate before Slices 15 and 25 open.
 
 | # | Category | Candidate decision | HITL verdict | ADR file |
 | - | -------- | ------------------ | ------------ | -------- |
-| 43 | interface | Supported Linux x86_64 CUDA-capable artifacts provide one CPU/GPU runtime with typed `auto`/`cpu`/`cuda:N` policy and `doctor gpu`; forced CUDA never silently falls back | proposed under HITL `seq:250` | ADR-0.8.23-dual-runtime-device-policy.md |
+| 43 | interface | Supported Linux x86_64 CUDA-capable artifacts provide one CPU/GPU runtime with typed `auto`/`cpu`/`cuda:N` policy and `doctor gpu`; forced CUDA never silently falls back | accepted; HITL `seq:250`, `seq:252`, and 2026-10-10 status reconciliation | ADR-0.8.23-dual-runtime-device-policy.md |
 
 ## Phase 0.8.25 (data-plane boundary decisions)
 

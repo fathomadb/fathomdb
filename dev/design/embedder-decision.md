@@ -1,8 +1,14 @@
 ---
-status: UNREVIEWED
+status: COMPLETE
 ---
 
 # Default embedder — decision register
+
+> **Historical parameter register.** This records the decisions and evidence
+> available when the default embedder was selected, including later in-place
+> amendments. It is not current implementation authority. Use accepted ADRs,
+> [`embedder.md`](embedder.md), the current interfaces, and source for the
+> active contract; individual rows below retain their dated decision context.
 
 **Purpose.** Single-page index of every parameter decision behind the
 fathomdb default embedder. For each: what was considered, what was

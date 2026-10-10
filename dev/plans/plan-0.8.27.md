@@ -1292,6 +1292,14 @@ Nothing here is authorized until those rulings are recorded.
 
 ### Slice 140 — documentation and structural convergence
 
+The [reviewed Slice 140 plan](0.8.27/features/slice-140/plan.md),
+[approved design](0.8.27/features/slice-140/design.md), and
+[planning status](0.8.27/features/slice-140/status.md) reconcile this scope to
+the post-Slice-135 source. Its [large-file register](0.8.27/features/slice-140/large-file-review.md)
+contains recommendations; human owner verdicts remain required at slice
+closure. Slice 117's reviewed candidate handoff must be incorporated before
+final docs and code qualification.
+
 Converge architecture, design, interfaces, examples, and source citations on
 the final taxonomy.
 

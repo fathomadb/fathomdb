@@ -294,6 +294,7 @@ jobs:
       contents: read
     outputs:
       wheel_sha256: ${{ steps.index.outputs.wheel_sha256 }}
+      node_tarball_sha256: ${{ steps.index.outputs.node_tarball_sha256 }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -307,15 +308,19 @@ jobs:
           path: evidence
       - name: Install the documentation builder
         run: python3 -m pip install --disable-pip-version-check mkdocs
+      # The wheel and the Node tarball from this one Jetson run publish
+      # together, beside every artifact in the retained list that the docs
+      # deployer also rebuilds.
       - id: index
-        name: Verify wheel and construct the combined Pages site
+        name: Verify wheel and Node tarball and construct the combined Pages site
         shell: bash
         env:
           CANDIDATE_VERSION: ${{ inputs.candidate_version }}
         run: |
           set -euo pipefail
           bash scripts/release/require-tegra-pages-release-version.sh \
-            --manifest src/python/pyproject.toml --expected-version "$CANDIDATE_VERSION"
+            --manifest src/python/pyproject.toml \
+            --manifest src/ts/package.json --expected-version "$CANDIDATE_VERSION"
           expected_version="${CANDIDATE_VERSION}+tegra"
           mapfile -t wheels < <(find evidence/wheel -maxdepth 1 -type f \
             -name "fathomdb-${expected_version}-*-linux_aarch64.whl" -print)
@@ -325,16 +330,48 @@ jobs:
             exit 1
           }
           wheel="${wheels[0]}"
-          site_root="$RUNNER_TEMP/fathomdb-tegra-pages-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          index_result="$(bash scripts/release/build-pages-site.sh \
-            --wheel "$wheel" --out "$site_root" --version "$expected_version")"
-          wheel_sha256="${index_result#wheel_sha256=}"
-          [ "$wheel_sha256" != "$index_result" ] || {
-            printf 'Pages index builder did not return wheel_sha256\n' >&2
+          tarball_name="fathomdb-linux-arm64-gnu-tegra-${CANDIDATE_VERSION}.tgz"
+          tarball="evidence/node/$tarball_name"
+          [ -f "$tarball" ] || { printf 'retained evidence lacks %s\n' "$tarball_name" >&2; exit 1; }
+          built_sha256="$(awk -v name="$tarball_name" '$2 == name { print $1 }' evidence/node/SHA256SUMS)"
+          tarball_sha256="$(sha256sum "$tarball" | awk '{print $1}')"
+          [ -n "$built_sha256" ] && [ "$built_sha256" = "$tarball_sha256" ] || {
+            printf 'Node tarball SHA-256 %s differs from the Jetson build digest %s\n' \
+              "$tarball_sha256" "${built_sha256:-missing}" >&2
             exit 1
           }
-          printf 'wheel_sha256=%s\n' "$wheel_sha256" >> "$GITHUB_OUTPUT"
-          printf 'site_root=%s\n' "$site_root" >> "$GITHUB_OUTPUT"
+          python3 - evidence/node-local-smoke/summary.json "$tarball_sha256" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          context = json.loads((Path(sys.argv[1]).parent / "context.json").read_text(encoding="utf-8"))
+          if summary.get("outcome") != "PASS":
+              raise SystemExit("the installed Node smoke did not pass; refusing to publish the tarball")
+          if context.get("tegra_tarball_sha256") != sys.argv[2]:
+              raise SystemExit("the installed Node smoke did not test this tarball")
+          PY
+          retained_dir="$RUNNER_TEMP/fathomdb-retained-tegra-artifacts"
+          bash scripts/release/fetch-tegra-pages-retained.sh --manifest scripts/release/tegra-pages-retained.json \
+            --dest "$retained_dir"
+          site_root="$RUNNER_TEMP/fathomdb-tegra-pages-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          index_result="$(bash scripts/release/build-pages-site.sh \
+            --manifest scripts/release/tegra-pages-retained.json --artifact-dir "$retained_dir" \
+            --wheel "$wheel" --version "$expected_version" \
+            --node-tarball "$tarball" --node-version "$CANDIDATE_VERSION" \
+            --out "$site_root")"
+          wheel_sha256="$(sed -n 's/^wheel_sha256=//p' <<<"$index_result")"
+          node_tarball_sha256="$(sed -n 's/^node_tarball_sha256=//p' <<<"$index_result")"
+          [[ "$wheel_sha256" =~ ^[0-9a-f]{64}$ ]] && [ "$node_tarball_sha256" = "$tarball_sha256" ] || {
+            printf 'Pages site builder did not report the published wheel and tarball digests\n' >&2
+            exit 1
+          }
+          {
+            printf 'wheel_sha256=%s\n' "$wheel_sha256"
+            printf 'node_tarball_sha256=%s\n' "$node_tarball_sha256"
+            printf 'site_root=%s\n' "$site_root"
+          } >> "$GITHUB_OUTPUT"
       - name: Upload static Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:

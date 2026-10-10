@@ -11,6 +11,9 @@ on:
       - mkdocs.yml
       - scripts/release/build-pages-site.sh
       - scripts/release/build-tegra-pages-index.sh
+      - scripts/release/fetch-tegra-pages-retained.sh
+      - scripts/release/tegra-pages-retained.json
+      - scripts/release/tegra-pages-retained.py
 
 permissions:
   contents: read
@@ -25,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       site_root: ${{ steps.site.outputs.site_root }}
-      wheel_sha256: ${{ steps.site.outputs.wheel_sha256 }}
+      retained_artifacts: ${{ steps.site.outputs.retained_artifacts }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -33,37 +36,28 @@ jobs:
           persist-credentials: false
       - name: Install the documentation builder
         run: python3 -m pip install --disable-pip-version-check mkdocs
+      # Each deployment replaces the whole site, so every published Tegra
+      # wheel and Node tarball in the retained list is rebuilt from its
+      # pinned SHA-256; the Jetson Pages route consumes the same list.
       - id: site
         name: Build the combined Pages artifact
         shell: bash
-        env:
-          TEGRA_VERSION: 0.8.26+tegra
-          TEGRA_WHEEL_FILENAME: fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl
-          TEGRA_WHEEL_SHA256: 728df8628f45e12c0c04c0a971c174764ef5c988c7d05f0737794aa6f5c5d1fa
-          TEGRA_WHEEL_URL: https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl
         run: |
           set -euo pipefail
-          wheel_dir="$RUNNER_TEMP/fathomdb-retained-tegra-wheel"
-          mkdir -p "$wheel_dir"
-          wheel="$wheel_dir/$TEGRA_WHEEL_FILENAME"
-          curl --fail --location --proto '=https' --tlsv1.2 \
-            --retry 4 --retry-all-errors "$TEGRA_WHEEL_URL" --output "$wheel"
-          actual_sha256="$(sha256sum "$wheel" | awk '{print $1}')"
-          if [ "$actual_sha256" != "$TEGRA_WHEEL_SHA256" ]; then
-            printf 'retained Tegra wheel SHA-256 mismatch: expected %s, got %s\n' \
-              "$TEGRA_WHEEL_SHA256" "$actual_sha256" >&2
-            exit 1
-          fi
+          retained_dir="$RUNNER_TEMP/fathomdb-retained-tegra-artifacts"
+          bash scripts/release/fetch-tegra-pages-retained.sh --manifest scripts/release/tegra-pages-retained.json \
+            --dest "$retained_dir"
           site_root="$RUNNER_TEMP/fathomdb-pages-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           site_result="$(bash scripts/release/build-pages-site.sh \
-            --wheel "$wheel" --out "$site_root" --version "$TEGRA_VERSION")"
-          wheel_sha256="${site_result#wheel_sha256=}"
-          [ "$wheel_sha256" = "$TEGRA_WHEEL_SHA256" ] || {
-            printf 'combined site builder returned an unexpected wheel SHA-256\n' >&2
+            --manifest scripts/release/tegra-pages-retained.json --artifact-dir "$retained_dir" \
+            --out "$site_root")"
+          retained_artifacts="$(sed -n 's/^retained_artifacts=//p' <<<"$site_result")"
+          [[ "$retained_artifacts" =~ ^[1-9][0-9]*$ ]] || {
+            printf 'combined site builder retained no Tegra artifact: %s\n' "$site_result" >&2
             exit 1
           }
           printf 'site_root=%s\n' "$site_root" >> "$GITHUB_OUTPUT"
-          printf 'wheel_sha256=%s\n' "$wheel_sha256" >> "$GITHUB_OUTPUT"
+          printf 'retained_artifacts=%s\n' "$retained_artifacts" >> "$GITHUB_OUTPUT"
       - name: Upload combined Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:

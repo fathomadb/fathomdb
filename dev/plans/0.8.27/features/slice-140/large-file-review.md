@@ -2,19 +2,20 @@
 title: FathomDB 0.8.27 Slice 140 — large code-file review
 status: BASELINE_RECORDED
 target_release: 0.8.27
-source_baseline: f327c28caa5f20c3342127fbc5fde3c6ea189c7b
+source_baseline: 1b2a0107a05545c221f7a371cd5da744b2e1b10f
 ---
 
 # Large code-file review
 
 This is the Slice 140 review register on the integrated Slice 117 and Slice 140 code candidate
-`f327c28caa5f20c3342127fbc5fde3c6ea189c7b`. The scan counts
+`1b2a0107a05545c221f7a371cd5da744b2e1b10f`. The scan counts
 physical lines in every Git-tracked `.rs`, `.py`, `.ts`, `.tsx`, `.js`, `.mjs`,
 `.c`, `.h`, and `.sh` file, including in-file tests. It found **39** files at or
 above 2,000 lines: 19 first-party owned, one generated fixture, and 19
 vendored files. The bands are advisory attention signals, not CI limits.
 The final source scan remains complete after Slice 117 integration and
-test-seam gating, default-proof restoration and generated documentation; it
+test-seam gating, default-proof restoration, generated documentation and
+the documentation-target checker and review corrections; it
 found no new triggering path. The C1 checker and its mutation suite gained
 one and 29 physical lines respectively. The [machine-readable scan](large-file-scan.json)
 records every path and current physical count. This register requires no human review or approval for Slice

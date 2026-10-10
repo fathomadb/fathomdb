@@ -314,3 +314,11 @@ through the TypeScript contract. This addresses the design review's P2.
 Independent review confirmation, the integrated full gate, Terra and three
 final reviews remain parent-owned. Rust source and its f327 surface receipt
 are unchanged; the register will be rebound to this exact checker follow-up.
+
+The reviewed-findings implementation is `1b2a0107a`; the register re-scan
+binds to `1b2a0107a05545c221f7a371cd5da744b2e1b10f`. All 39
+triggering paths and physical line counts remain unchanged. This binding
+commit changes internal records only, with no human register approval gate.
+The 38-control focused suite and scoped Markdown/public-doc lint, strict
+MkDocs, actual truth checker, Ruff, Bash syntax and design lifecycle pass.
+Final source review confirmation and integrated verification remain open.

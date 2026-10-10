@@ -534,16 +534,6 @@ SQL/plan assertions where result-only tests could miss an ineligible row
 consuming a candidate window. Keep graph and evidence tests together until
 behavior proves independent seams.
 
-Generate a bounded SDK operation index from the governed parity manifest
-and a contributor map from actual workspace manifests and typed developer
-entry points. Keep detailed API contracts maintained manually and link them
-from the index. Add contributor navigation and fail-closed freshness checks
-in the shared complete-site Pages builder, with CI trigger coverage for all
-generation inputs. Public documents target the 0.8.27 release; internal
-status retains actual prepublication limits. Follow the reviewed amendment
-and TDD plan, verify both Pages routes, and obtain three independent final
-reviews after corrections.
-
 Carried from Slice 70 (`features/slice-70/status.md`):
 
 - **Search-owned runtime fields.** Decide the owner of the four search-owned
@@ -1319,6 +1309,17 @@ examples compile or run, and the large-file register records a disposition
 for every tracked code-file trigger above 2,000 lines, including the files
 above 3,500 and the five named original outliers. Re-scan the final candidate;
 do not make file size or human approval of the register a release gate.
+
+Generate a bounded SDK operation index from the governed parity manifest
+and a contributor map from actual workspace manifests and typed developer
+entry points. Keep detailed API contracts maintained manually and link them
+from the index. Add contributor navigation and fail-closed freshness checks
+in the shared complete-site Pages builder, with CI trigger coverage for all
+generation inputs. Public documents target the 0.8.27 release; internal
+status retains actual prepublication limits. Follow the reviewed amendment
+and TDD plan, reject stale publication sources against freshly fetched current
+main in both whole-site Pages routes, and obtain three independent final
+reviews after corrections.
 
 Carried from Slice 70 (`features/slice-70/status.md`):
 

@@ -171,3 +171,10 @@ include that bounded work; implementation is pending a subsequent
 `gpt-6-sol` high design review. The current hidden successor and large-file
 record are historical until refreshed on the complete amended candidate.
 The slice remains open; no publication or final full-gate pass is claimed.
+
+The generated-doc review requested changes: the master paragraph was moved
+from Slice 80 into Slice 140, and both complete-site publication routes gain
+a fresh-main ancestor guard before build/upload and deployment. The amended
+design preserves deploy privileges and defines focused ahead/equal/behind/
+diverged/error controls. Follow-up design approval is still pending; no
+generated-doc code or new baseline is claimed.

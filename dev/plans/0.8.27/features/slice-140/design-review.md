@@ -61,3 +61,15 @@ unit proof, unchanged C1 obligation/category/hash with evidence relocation and
 mutation controls, production-opener scanner controls, and 0.8.27 publication
 documentation with actual publication limits retained in internal status.
 The reviewer did not run tests; verification receipts remain separate.
+
+## Generated-doc amendment review — changes requested
+
+Independent `gpt-6-sol` high read-only review requested changes:
+
+| Finding | Response before implementation |
+| --- | --- |
+| P1: the generated-doc master-scope paragraph was accidentally inserted under Slice 80. | Moved the paragraph into the Slice 140 section. No generated block was edited. |
+| P2: checkout-local freshness cannot stop a dispatched Jetson candidate from overwriting newer main documentation. | Both whole-site Pages routes now require freshly fetched main to be an ancestor of the exact candidate before build/upload and repeat that check before deploy. Full ancestry, fail-closed errors, unchanged publication privileges, and focused Git-history/workflow tests are specified. The normal main route is covered too. |
+
+The amendment remains pending subsequent `gpt-6-sol` high approval. No
+generated-doc implementation was added in response to this review.

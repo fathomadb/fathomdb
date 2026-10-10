@@ -121,6 +121,33 @@ pages and rejects stale output. docs-pages push filters include the
 generator, parity manifest, root/member Cargo manifests and typed script
 input families. Existing retained Tegra artifact/digest gates are preserved.
 
+Generated freshness within one checkout does not establish publication
+currency. Both complete-site Pages prepare jobs must fetch current
+`origin/main` with full enough history and require
+`git merge-base --is-ancestor origin/main "$GITHUB_SHA"` before building or
+uploading the site. The guard uses the exact dispatched candidate commit,
+not an inferred current branch tip. A release branch that contains main and
+is ahead passes; an old main commit or release branch behind/diverged from
+current main fails. If main advances, incorporate it into the release branch
+and re-dispatch the new exact candidate. A small shared helper implements
+the guard with explicit fetch/ref/history diagnostics. Failed fetches or
+missing ancestry fail closed.
+
+Repeat the same fresh-main check immediately before each deploy action,
+inside the existing shared Pages concurrency boundary, so a site built
+before a newer main push cannot deploy from a stale queued source. Use
+read-only anonymous fetches of this public repository for the deploy guard;
+do not add publication credentials, checkout persistence, or contents-write
+permissions. Existing deploy jobs need no contents permission. This is a
+point-in-time currency check, not an atomic lock against future main pushes.
+The next serialized deployment repeats the check on its own candidate.
+
+Focused local Git-history tests prove equal/ahead accepted, behind/diverged
+rejected, and missing history/fetch failures rejected. Pipeline contract
+tests prove the guards run in both prepare jobs before the builder/upload
+and immediately before both deploy actions, preserve exact candidate SHA
+and least-privilege permissions, and retain the shared Pages concurrency.
+
 TDD tests exercise deterministic generation and exact operation mapping,
 source edits changing output, stale/missing output rejection without writes,
 workspace/member/script input coverage, navigation, and the shared-builder

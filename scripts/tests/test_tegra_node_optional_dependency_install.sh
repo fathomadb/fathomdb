@@ -85,7 +85,7 @@ stage_package() {
     fs.writeFileSync(out, JSON.stringify(pkg, null, 2) + "\n");
   ' "$source_manifest" "$dir/package.json" "$VERSION"
   printf 'fixture, never loaded\n' >"$dir/$main_file"
-  (cd "$dir" && npm pack --ignore-scripts --pack-destination "$WORK/tarballs" >/dev/null)
+  (cd "$dir" && npm pack --silent --ignore-scripts --pack-destination "$WORK/tarballs" >/dev/null)
 }
 mkdir -p "$WORK/tarballs" "$WORK/sources"
 stage_package "$TEGRA_SOURCE" "$WORK/sources/tegra" fathomdb.linux-arm64-gnu.node

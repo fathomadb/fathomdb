@@ -29,6 +29,7 @@ for e in a.value.elts:
     text += '\nNative platforms: Linux x86_64, Linux AArch64, macOS x64/arm64, and Windows x64.\n'
     if p.as_posix() == 'docs/install/typescript.md':
         text = text.replace('npm install --save-exact fathomdb@0.8.26', 'npm install fathomdb@next')
+        text += '\nRecorded published route: `npm install fathomdb@latest`.\n'
     if p.as_posix() == 'README.md':
         text += '\n- Eleven Rust workspace members\n'
     dest.write_text(text)
@@ -192,6 +193,6 @@ pending_fixture
 sed -i '/^| `fathomdb-sdk` |/d' "$FIXTURE/docs/generated/contributor-map.md"
 expect_fail 'generated contributor workspace coverage cannot lose a member' 'contributor-map.md.*workspace'
 make_fixture
-sed -i 's/npm install fathomdb@next/npm install fathomdb@0.8.23/' "$FIXTURE/docs/install/typescript.md"
-expect_fail 'published fallback requires exact version or recorded npm tag' 'typescript.md.*0.8.26.*next'
+sed -i -E 's/npm install fathomdb@(next|latest)/npm install fathomdb@0.8.23/g' "$FIXTURE/docs/install/typescript.md"
+expect_fail 'published fallback requires exact version or recorded npm tag' 'typescript.md.*0.8.26.*latest'
 printf '\nAll public-doc-truth tests passed\n'

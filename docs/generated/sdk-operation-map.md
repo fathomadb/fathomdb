@@ -3,7 +3,7 @@
 Generated from tracked source; do not edit this page by hand.
 Regenerate with `python3 scripts/generate-public-docs.py --write`.
 
-Sources: [src/conformance/governed-operation-parity.json](https://github.com/fathomadb/fathomdb/blob/main/src/conformance/governed-operation-parity.json).
+Sources: [src/conformance/governed-operation-parity.json](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/src/conformance/governed-operation-parity.json).
 
 This operation index lists governed names and owners. It does not specify
 signatures, options, return shapes, or error behavior. Use the maintained

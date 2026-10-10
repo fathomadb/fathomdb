@@ -7,12 +7,15 @@ planning_baseline: 360bbe63e65aca93cb2200f6c8e27624f4042ea8
 
 # Slice 140 implementation status — 2026-10-10
 
-The [plan](plan.md) is reviewed and the [design](design.md) is approved for
-the `360bbe63e` release baseline. The historical planning review below used the
-pre-handoff `360bbe63e` baseline. Slice 117 has since closed on the release
-branch at its qualified, unpublished candidate; the current remaining ladder
-is `140 → 150 → 160`, with Slice 140 still `PLANNED`. Its final product and
-documentation verification must use the integrated source.
+The [plan](plan.md) is reviewed and the [design](design.md) is approved,
+including the generated-documentation amendment. Source implementation and
+focused verification are complete at `b3416577f`; the refreshed hidden
+inventory, independent final reviews and integrated full gate remain open.
+The historical planning reviews used `360bbe63e`; implementation includes
+Slice 117's completed handoff at `1476d83e0`. The release ladder remains
+`140 → 150 → 160`. Slice 117 artifacts are qualified and unpublished, with
+Slice 160 owning publication. Slice 140 is not closed by this worktree
+record, and publication-facing documentation is not a publication receipt.
 
 ## Reviewed decisions and corrections
 
@@ -161,23 +164,14 @@ Node package-route executions and strict site build remain assigned to the
 prepared release checkout. A refreshed hidden successor capture accounts
 for default-target restoration and the integration-to-unit proof path move.
 
-## Generated-documentation amendment pending review
+## Generated-documentation decisions
 
-Source/docs follow-up `bc555c7ee410ef2a22c92c10912efe66a3764b26` is
-committed with hooks and scoped verification. The user then added
-source-derived library/contributor documentation published by CI to Pages
-and three independent final subagent reviews. Plan/design/master scope now
-include that bounded work; implementation is pending a subsequent
-`gpt-6-sol` high design review. The current hidden successor and large-file
-record are historical until refreshed on the complete amended candidate.
-The slice remains open; no publication or final full-gate pass is claimed.
-
-The generated-doc review requested changes: the master paragraph was moved
-from Slice 80 into Slice 140, and both complete-site publication routes gain
-a fresh-main ancestor guard before build/upload and deployment. The amended
-design preserves deploy privileges and defines focused ahead/equal/behind/
-diverged/error controls. Follow-up design approval is still pending; no
-generated-doc code or new baseline is claimed.
+After source/docs follow-up `bc555c7ee`, the user added source-derived
+library/contributor documentation published by CI to Pages and three
+independent final reviews. The initial amendment review found a misplaced
+master paragraph and missing publication currency checks. Both were
+corrected at `2c1b12a0c`, which received the required follow-up approval.
+The implementation and focused results follow.
 
 ## Generated documentation implemented — focused verification
 
@@ -197,7 +191,7 @@ contents token or publication privilege. Old queued candidates fail closed.
 The stale Python-preference caveats were replaced with the measured shared
 three-SDK operation/error surface.
 
-Focused receipts: generator **6/6**, real Git-history currency **5/5**,
+Focused receipts: generator **7/7**, real Git-history currency **5/5**,
 combined Pages **20/20**, Tegra publisher **43/43**, and Jetson workflow
 **90/90** pass; Ruff, Bash syntax, actionlint, scoped Markdown/public-doc
 checks, and strict MkDocs build pass. All three new pages exist in the built
@@ -205,3 +199,11 @@ site. These are local source/pipeline proofs, not a live Pages publication.
 The complete amended candidate still needs refreshed hidden/test inventory,
 large-file register, final code review, Terra, three independent final
 reviews, and the integrated full gate owned by the parent.
+
+Generated-doc source-link review found that `blob/main` can lag the Pages
+publication candidate. A focused RED assertion now requires the existing
+`release/0.8.27` source branch for every generated source link; the generator
+and both maps use that branch. Package-version content remains neutral.
+The in-flight `b3416577f` hidden capture is diagnostic only; a successor will
+bind the final source after code-review fixes, with no old baseline promoted
+as that final candidate.

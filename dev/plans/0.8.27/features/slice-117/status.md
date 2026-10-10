@@ -75,7 +75,25 @@ Slice 150 owns final-candidate qualification.
 | Acceptance | Result |
 | --- | --- |
 | AC27-117A | Done: the supersession ruling and its in-place notes, the channel ruling (2026-10-05), and the delivery-shape ruling with the distribution ADR accepted (2026-10-09). |
-| AC27-117B–H | Not started. |
+| AC27-117B | Implemented; awaiting the exact-SHA candidate run. `35f098d6e` red, `f704790fa` green (wrapper; `8a1c4a17d` mode bit; `4812c10df`/`9f3757fc8` napi destination fix). A dev build on the AGX Orin passed: tegra glibc floor (max GLIBC_2.34 of 2.35), no CUDA/NVIDIA `NEEDED`, installed import with CUDA search paths unset. |
+| AC27-117C | Implemented; awaiting the exact-SHA candidate run. Smoke `e74e37d77`/`8b002efba`. A dev-build run (not candidate evidence) passed every row: embed and rerank `cpu` on CPU, `auto` and `cuda:0` on CUDA; witness pass with `--nvidia-smi`; heap regression 3/3; the Tegra `.node` selected with and without a generic package installed. Driverless import: hosted job `f98019f1c`/`eba09e4a1` (contract-proven here; the real run is on the hosted ARM64 runner). |
+| AC27-117D | Implemented. Loader `aedcc2f32`/`1b86f37a4` (11 `LoaderSeams` cases); inject-script refusal and generic-package non-interference tests `35f098d6e`; cross-host install fixture `1ce25ce83`/`48da2036d`; platform-capabilities variant `2abc53474`/`e568c5574`. |
+| AC27-117E | Implemented; awaiting the exact-SHA workflow receipt. Retained list `5a8fc2fc0`/`98040492b`; Jetson run builds, smokes and retains wheel and tarballs `c0e96fc41`/`c6b1c5462` (timeout 180 min by owner ruling, `51b34677d`/`d5a88b3f6`); operator path `b148c6180`/`4b4185d97`; post-deploy live verification in both deployers `bd9675e06`/`f47122478`. |
+| AC27-117F | Implemented in `publish-tegra-pages.sh`; waits on `release-0.8.27-publication`. |
+| AC27-117G | Docs written with a placeholder 0.8.27 digest (`48da2036d`, `11bf12120`, `547b648ad`, `4e463af5a`); the publisher fills the digest. |
+| AC27-117H | Not started: full gate, independent review, candidate receipt. |
+
+## Pages retention finding (2026-10-10)
+
+The owner checked the live Pages URLs: the `0.8.24+tegra` wheel returns 404
+(encoded and literal `+` forms), and the `0.8.26+tegra` wheel returns 200
+(8,987,812 bytes). The 0.8.24 wheel was already unpublished before this
+ADR's retention rule, so the retained list holds only `0.8.26+tegra`; a dead
+entry would fail every deployment. `main`'s `docs-pages.yml` still fetches
+the dead 0.8.24 URL with `curl --fail`, so a Pages deploy from `main` fails
+until 0.8.27 merges. A release task in `dev/plans/plan-0.8.27.md` records a
+passing `docs-pages` run on `main`, including the new post-deploy live
+verification, after that merge.
 
 ## Tracking
 

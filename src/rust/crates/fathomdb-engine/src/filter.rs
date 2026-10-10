@@ -400,6 +400,7 @@ impl Filter {
     /// unification suite can pin the typed-rejection (RED→GREEN) and that a
     /// metadata-only Filter lowers losslessly. Returns the lowered
     /// [`SearchFilter`] (or `InvalidFilter` for a `Json` term).
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn to_search_filter_for_test(&self) -> Result<SearchFilter, EngineError> {
         self.to_search_filter()
@@ -408,6 +409,7 @@ impl Filter {
     /// 0.8.11 Slice 40 — test seam: expose the `read.list` backend lowering so
     /// the unification suite can pin total dispatch incl. the `SourceType`/`Kind`
     /// constant-folds. `Ok(None)` == constant-folded-empty.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn lower_for_read_list_for_test(
         &self,

@@ -209,6 +209,7 @@ run_tier_suite fast test-slice90-engine-config-owner python3 scripts/tests/test_
 run_tier_suite fast test-slice90-write-importance-owner python3 scripts/tests/test_slice90_write_importance_owner.py
 run_tier_suite fast test-slice90-read-importance-owner python3 scripts/tests/test_slice90_read_importance_owner.py
 run_tier_suite fast test-slice90-embed-timeout-owner python3 scripts/tests/test_slice90_embed_timeout_owner.py
+run_tier_suite heavy test-slice140-test-seam-boundary python3 scripts/tests/test_slice140_test_seam_boundary.py
 run_tier_suite fast test-slice90-mean-test-seams-owner python3 scripts/tests/test_slice90_mean_test_seams_owner.py
 run_tier_suite fast test-slice90-projection-runtime-test-seams-owner python3 scripts/tests/test_slice90_projection_runtime_test_seams_owner.py
 run_tier_suite fast test-slice90-search-api-test-seams-owner python3 scripts/tests/test_slice90_search_api_test_seams_owner.py

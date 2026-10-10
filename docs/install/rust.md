@@ -1,6 +1,8 @@
 # Install — Rust
 
-Two consumption paths for Rust users, plus the 0.8.27 application SDK:
+Rust application code uses `fathomdb-sdk`, the peer of the Python and
+TypeScript SDKs. The lower-level facade and operator CLI remain separate
+consumption routes:
 
 - **`fathomdb-sdk`** (0.8.27, not yet published) — the
   [Rust SDK](../reference/rust-sdk.md) with the Python/TypeScript surface.
@@ -26,10 +28,10 @@ Two consumption paths for Rust users, plus the 0.8.27 application SDK:
 
 ## Install the published crates
 
-Library:
+Published lower-level library (0.8.26):
 
 ```bash
-cargo add fathomdb
+cargo add fathomdb@=0.8.26
 ```
 
 CLI:
@@ -50,7 +52,36 @@ Public 0.8.26 opens bootstrap a missing or zero-length path directly at schema
 34 and accept a non-empty database only when its committed schema is exactly
 34. There is no public automatic-upgrade route.
 
-## Qualify a source candidate
+## Qualify the Rust application SDK candidate
+
+`fathomdb-sdk` is introduced in 0.8.27 and remains unpublished until the
+release's registry publication. From an application project beside a trusted
+checkout of the release candidate, add the actual SDK package:
+
+```bash
+cargo add fathomdb-sdk --path ../fathomdb/src/rust/crates/fathomdb-sdk
+```
+
+Use its documented import and option defaults in `src/main.rs`:
+
+```rust
+use fathomdb_sdk::{Engine, OpenOptions, SearchOptions};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let engine = Engine::open("./sdk-example.sqlite", OpenOptions::default())?;
+    let hits = engine.search("hello", SearchOptions::default())?;
+    assert!(hits.results.is_empty());
+    engine.close()?;
+    Ok(())
+}
+```
+
+Run `cargo run` in that application. This checks the source candidate's Rust
+SDK route; it does not claim an unpublished crates.io package is available.
+See the [Rust SDK reference](../reference/rust-sdk.md) for the peer operations.
+The lower-level example below deliberately imports `fathomdb`.
+
+## Qualify a source CLI candidate
 
 From a trusted FathomDB checkout, install into a clean root and invoke that
 exact binary:
@@ -143,6 +174,7 @@ WAL/rollback-journal sidecars, and performs no migration or repair. See the
 
 ## See also
 
+- [Reference — Rust SDK](../reference/rust-sdk.md)
 - [Reference — Rust API](../reference/rust-api.md)
 - [Reference — CLI](../reference/cli.md)
 - [Reference — errors](../reference/errors.md)

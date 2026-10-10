@@ -40,5 +40,6 @@ tokio = { version = "1", features = ["rt-multi-thread"] }
 napi-build = "2"
 
 [dev-dependencies]
+fathomdb-engine = { workspace = true, features = ["test-hooks"] }
 proptest = "1"
 tempfile = "3"

@@ -237,7 +237,7 @@ receipt/replay interpretation, or partial graph commit.
 machine-readable integrity route. It resolves the product database identity,
 requires quiescence, opens SQLite immutably, and performs no recovery or
 mutation. Doctor and recovery remain operator-only and absent from governed
-Python and TypeScript SDKs.
+Python, TypeScript, and Rust application SDKs.
 
 ### Preserved boundary and deferred destination
 

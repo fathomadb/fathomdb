@@ -14,6 +14,7 @@ use crate::reader_pool::ReaderRequest;
 use crate::temporal::{current_epoch_seconds, ReadView};
 #[cfg(feature = "test-hooks")]
 use crate::wal_runtime::ManagedConnectionCategory;
+#[cfg(any(test, feature = "test-hooks"))]
 use crate::write_types::RowKind;
 use crate::Engine;
 use rusqlite::{params, OptionalExtension};
@@ -313,6 +314,7 @@ impl Engine {
     /// EXP-S (0.8.14 Slice 5, D1) — select the active canonical rows carrying a
     /// given `row_kind`, returning their `write_cursor`s in cursor order. Proves
     /// the engine can query/select rows by the structural `row_kind` axis.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn canonical_rows_with_row_kind_for_test(
         &self,

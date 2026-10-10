@@ -818,6 +818,7 @@ impl SearchOriginCapture for EvidenceCapture {
         explanation: Option<Explanation>,
         _expanded: Option<SearchExpandResult>,
     ) -> Result<Self::Output, SearchReaderError> {
+        #[cfg(any(test, feature = "test-hooks"))]
         evidence_linearization_hooks::fire_before_sidecar();
         let search_result =
             SearchResult { projection_cursor: cursor, soft_fallback, results, explanation };
@@ -1360,6 +1361,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // BEFORE the deferred snapshot is pinned, so a test can commit a concurrent
     // `configure_projections` DROP in the exact race window. Disarmed (no-op) in
     // production and on every non-race test.
+    #[cfg(any(test, feature = "test-hooks"))]
     reader_search_hook::fire(attribution);
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
@@ -1381,6 +1383,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 field_path: "/token".to_string(),
             }));
         }
+        #[cfg(any(test, feature = "test-hooks"))]
         frozen_after_validation_hook::fire();
     }
     let owned_compiled;
@@ -2459,6 +2462,7 @@ use crate::structural_state::structural_dependency_state;
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::{current_epoch_seconds, edge_validity_sql_for_view, FrozenView, ReadView};
+#[cfg(any(test, feature = "test-hooks"))]
 use crate::test_hooks::{
     evidence_linearization_hooks, frozen_after_validation_hook, reader_search_hook,
 };

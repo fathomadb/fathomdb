@@ -163,7 +163,7 @@ pub(crate) fn commit_projection_outcomes(
             "transaction_opened",
         )
     });
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     if let Some((transaction_ready, release)) = shared
         .projection_worker_transaction_pause
         .lock()
@@ -432,7 +432,7 @@ pub(crate) fn commit_projection_outcomes(
     // mutates `mean_vec` after the initial pin.
 
     advance_projection_cursor(&tx)?;
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     match shared.force_projection_commit_failure.swap(0, Ordering::SeqCst) {
         1 => {
             return Err(rusqlite::Error::SqliteFailure(

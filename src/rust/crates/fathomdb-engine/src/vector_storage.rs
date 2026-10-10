@@ -640,6 +640,7 @@ pub(crate) fn kind_is_vector_committable(kind: &str) -> bool {
 }
 
 impl Engine {
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn write_vector_for_test(
         &self,
@@ -785,6 +786,7 @@ impl Engine {
         Ok(WriteReceipt { cursor, row_cursors: vec![cursor], dangling_edge_endpoints: 0 })
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn vector_row_count_for_test(&self) -> Result<u64, EngineError> {
         self.ensure_open()?;
@@ -798,6 +800,7 @@ impl Engine {
     /// Test-only distinction between a physical vec0 row and its terminal
     /// readiness record. Closure may terminalize an ineligible projection
     /// without publishing vector bytes, so readiness alone is not a row oracle.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn has_vector_row_for_cursor_for_test(&self, cursor: u64) -> Result<bool, EngineError> {
         self.ensure_open()?;
@@ -812,6 +815,7 @@ impl Engine {
             .map_err(|_| EngineError::Storage)
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn read_vector_blob_for_test(&self, rowid: i64) -> Result<Vec<u8>, EngineError> {
         self.ensure_open()?;
@@ -828,6 +832,7 @@ impl Engine {
     /// sign-quantized vector). Used to prove the non-destructive reshape copies the
     /// bits VERBATIM (condition #4): the pre-reshape and post-reshape bytes must be
     /// byte-identical.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn read_vector_bin_for_test(&self, rowid: i64) -> Result<Vec<u8>, EngineError> {
         self.ensure_open()?;

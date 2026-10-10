@@ -661,6 +661,7 @@ impl Engine {
         )
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn open_with_subscriber_for_test(
         path: impl Into<PathBuf>,
@@ -676,6 +677,7 @@ impl Engine {
         )
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn open_without_embedder_for_test(
         path: impl Into<PathBuf>,
@@ -690,6 +692,7 @@ impl Engine {
         )
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn open_with_embedder_for_test(
         path: impl Into<PathBuf>,
@@ -1014,11 +1017,11 @@ impl Engine {
                         dense_disabled: AtomicBool::new(veq.dense_disabled),
                         dense_disabled_reason: Mutex::new(veq.reason),
                         vector_equivalence_refusals: AtomicU64::new(0),
-                        #[cfg(debug_assertions)]
+                        #[cfg(any(test, feature = "test-hooks"))]
                         force_next_commit_failure: AtomicBool::new(false),
-                        #[cfg(debug_assertions)]
+                        #[cfg(any(test, feature = "test-hooks"))]
                         actuation_after_initial_lookup_delay_ms: AtomicU64::new(0),
-                        #[cfg(debug_assertions)]
+                        #[cfg(any(test, feature = "test-hooks"))]
                         actuation_failure_after_operation: AtomicUsize::new(usize::MAX),
                     },
                     report,
@@ -2075,6 +2078,7 @@ pub(crate) fn sqlite_uri(path: &Path, query: &str) -> String {
 }
 
 impl Engine {
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn default_embedder_profile_for_test(&self) -> Result<EmbedderIdentity, EngineError> {
         self.ensure_open()?;

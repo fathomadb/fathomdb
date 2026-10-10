@@ -132,6 +132,22 @@ provider directly and must not supply deadline, queue-bound, lock-order, or
 performance evidence. Production open, projection, search, frozen-search, and
 direct-embed paths have no such exception.
 
+### Explicit engine test fixtures (0.8.27 Slice 140)
+
+The engine's doc-hidden test fixtures require `fathomdb-engine/test-hooks`
+for external consumers, in both dev and release profiles. Crate unit tests
+also compile them under `cfg(test)`. `debug_assertions` grants no test access.
+This includes arbitrary writer SQL (`execute_for_test`, `query_i64_col_for_test`,
+`query_text_col_for_test`), injected failures, reader/projection pauses,
+fixture constructors and vector writes, search tuning, conversion witnesses,
+and mean/clock inspection. The [complete removal inventory](../plans/0.8.27/features/slice-140/test-seam-inventory.json)
+records public paths, current owners, former gates, and integration callers.
+Integration targets declare `required-features`; binding unit tests use a dev
+dependency with the feature. Production binding preflight
+`validate_frozen_read_context_for_binding`, BM25F, fusion, reranking, and
+operator diagnostics retain their production routes. This feature is absent
+from shipped SDK, addon, wheel, and CLI feature lists.
+
 ### Unstable binding-support items in `fathomdb-embedder` (0.8.27 Slice 110)
 
 `fathomdb-embedder` exports five `#[doc(hidden)]` items for the Node addon's
@@ -226,7 +242,7 @@ compile-time resolves-check plus this source-inspection-documented contract. See
 The Slice 27 type-only audit missed that the facade re-exports the engine's
 `Engine` **wholesale**, so its inherent **methods** — including
 `rebuild_projections`/`rebuild_vec0` (recovery-denylist names) and the
-debug-only raw-SQL `execute_for_test` — were reachable. Per the signed Option B
+then-debug-only raw-SQL `execute_for_test` — were reachable. Per the signed Option B
 (codex [P1], HITL 2026-06-05) the **operator/recovery seam is feature-gated**:
 
 - **Default `fathomdb` facade (operator OFF)** — the governed runtime surface:

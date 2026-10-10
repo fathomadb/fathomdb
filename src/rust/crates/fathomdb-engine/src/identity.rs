@@ -256,6 +256,7 @@ impl SourceId {
     /// Mint a reserved `_engine:*` provenance for an engine-derived row. Crate
     /// -internal by construction: the reserved namespace is exactly what
     /// [`SourceId::new`] refuses, so a caller cannot reach this spelling.
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn engine_derived(role: &str) -> Self {
         Self(format!("{}{role}", Self::ENGINE_PREFIX))
     }

@@ -254,6 +254,7 @@ impl FrozenView {
 /// 0.8.20 Slice 15b fix-3 (F2) — how many times [`current_epoch_seconds`] has
 /// been called in this process. Test-only observation; see
 /// [`clock_reads_for_test`].
+#[cfg(any(test, feature = "test-hooks"))]
 static CLOCK_READS: AtomicU64 = AtomicU64::new(0);
 
 /// Test seam — the process-wide count of wall-clock reads on the validity path.
@@ -265,6 +266,7 @@ static CLOCK_READS: AtomicU64 = AtomicU64::new(0);
 /// lock that excludes every other clock-reading test in its binary (test
 /// binaries are separate processes, so only intra-binary contention matters).
 /// `slice15b_search_validity_recall.rs` does this with a file-local mutex.
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 #[must_use]
 pub fn clock_reads_for_test() -> u64 {
@@ -284,6 +286,7 @@ pub(crate) fn current_epoch_seconds() -> i64 {
     // the property testable WITHOUT racing the clock, and keeps failing for any
     // arm added later that re-reads it. `Relaxed` is sufficient: the counter is
     // an observation, never a synchronization point.
+    #[cfg(any(test, feature = "test-hooks"))]
     CLOCK_READS.fetch_add(1, Ordering::Relaxed);
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

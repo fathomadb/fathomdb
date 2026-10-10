@@ -1025,7 +1025,7 @@ fn enforce_provenance_retention(connection: &Connection, cap: u64) -> rusqlite::
 }
 
 impl Engine {
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn force_next_commit_failure_for_test(&self) {
         self.force_next_commit_failure.store(true, Ordering::SeqCst);

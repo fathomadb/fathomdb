@@ -32,16 +32,28 @@ class EngineTestSeamBoundary(unittest.TestCase):
             environment = dict(os.environ)
             environment["CARGO_TARGET_DIR"] = str(ROOT / "target/slice140-consumers")
             for release in (False, True):
-                command = ["cargo", "check", "--offline", "--manifest-path", str(consumer / "Cargo.toml")]
+                command = ["cargo", "check", "--message-format=json", "--offline", "--manifest-path", str(consumer / "Cargo.toml")]
                 if release:
                     command.append("--release")
                 positive = subprocess.run(command + ["--features", "hooks"], env=environment, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 self.assertEqual(positive.returncode, 0, positive.stdout)
                 negative = subprocess.run(command, env=environment, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 self.assertNotEqual(negative.returncode, 0, "Default consumer unexpectedly compiled every test path")
-                for row in paths:
-                    name = row["path"].rsplit("::", 1)[-1]
-                    self.assertIn(name, negative.stdout, f'{row["path"]} was not rejected:\n{negative.stdout}')
+                rejected_lines = set()
+                for line in negative.stdout.splitlines():
+                    if not line.startswith("{"):
+                        continue
+                    message = json.loads(line)
+                    if message.get("reason") != "compiler-message":
+                        continue
+                    diagnostic = message["message"]
+                    if diagnostic["level"] != "error":
+                        continue
+                    for span in diagnostic["spans"]:
+                        if span["is_primary"] and span["file_name"].endswith("main.rs"):
+                            rejected_lines.add(span["line_start"])
+                for line_number, row in enumerate(paths, start=2):
+                    self.assertIn(line_number, rejected_lines, f'{row["path"]} was not rejected at its own source line:\n{negative.stdout}')
 
 
 if __name__ == "__main__":

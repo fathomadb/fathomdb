@@ -256,9 +256,9 @@ pub mod governed_surface_method_absence_proof {}
 
 /// AC-074 no-raw-SQL release-surface pin: the shipped (release) facade exposes
 /// no raw-SQL method. The **canonical** guarantee is the engine's
-/// `Engine::execute_for_test` gate — `#[cfg(debug_assertions)] #[doc(hidden)]`,
-/// so the symbol is absent from release builds (verified: it is not present in
-/// `target/release/libfathomdb_engine.rlib`). This `#[cfg(not(debug_assertions))]`
+/// `Engine::execute_for_test` gate — `cfg(any(test, feature = "test-hooks"))`,
+/// so ordinary dev and release consumers cannot resolve it. The engine feature
+/// is an explicit test dependency opt-in and is absent from shipped artifacts. This `#[cfg(not(debug_assertions))]`
 /// module is the release-surface pin in the best-effort `no_recovery_surface.rs`
 /// style; it is compiled out of debug builds, and a true no-debug-assertions doc
 /// build runs the `compile_fail` below. (Plain `cargo test --release` may not

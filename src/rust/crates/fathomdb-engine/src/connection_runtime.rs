@@ -465,7 +465,7 @@ impl Engine {
     /// captured for each reader worker at open time, in worker index
     /// order. SQLITE_OK (= 0) means the lookaside was configured
     /// before any allocation happened on the connection.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn reader_lookaside_config_rcs_for_test(&self) -> Vec<i32> {
         self.reader_lookaside_rcs.clone()
@@ -475,6 +475,7 @@ impl Engine {
     /// `PRAGMA secure_delete` (design §3 gap-4). `true` iff the standing
     /// connection-open PRAGMA is in effect, so `purge` freelist erasure is
     /// complete without a per-purge `VACUUM`.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
         self.ensure_open()?;
@@ -490,6 +491,7 @@ impl Engine {
     /// opened projection/runtime connection (`open_runtime_connection`) reports
     /// `PRAGMA secure_delete = ON`. The runtime connection performs the
     /// vector-rewrite/projection DELETEs, so its freed pages must be scrubbed too.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn runtime_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
         self.ensure_open()?;

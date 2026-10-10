@@ -227,6 +227,7 @@ impl Engine {
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let result = evidence::resolve(&tx, request)?;
+        #[cfg(any(test, feature = "test-hooks"))]
         evidence_linearization_hooks::fire_before_resolve_return();
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
@@ -1357,10 +1358,12 @@ use crate::evidence::{
     GraphEvidenceArtifactV1, GraphEvidenceResolveRequestV1, ResolvedEvidenceV1,
     ResolvedGraphEvidenceV1,
 };
+#[cfg(any(test, feature = "test-hooks"))]
 use crate::filter::{
     append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
-    build_vector_phase1_sql, edge_fts_rank_sql, property_fts_rank_sql, Filter, SearchFilter,
+    build_vector_phase1_sql, edge_fts_rank_sql, property_fts_rank_sql,
 };
+use crate::filter::{Filter, SearchFilter};
 use crate::frozen_read::{
     self, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1,
 };
@@ -1374,13 +1377,16 @@ use crate::record_lifecycle::LifecycleState;
 #[cfg(feature = "test-hooks")]
 use crate::search::slice71_search_statement_trace;
 use crate::search::{bm25f_search_inner, FrozenQueryRuntime, SearchReaderError, SearchReaderWork};
+#[cfg(any(test, feature = "test-hooks"))]
+use crate::search_types::SEARCH_RERANK_LIMIT;
 use crate::search_types::{
     validate_search_result_limit, Bm25fQueryPlan, GraphFrontierStats, SearchResult,
-    DEFAULT_SEARCH_RESULT_LIMIT, SEARCH_RERANK_LIMIT,
+    DEFAULT_SEARCH_RESULT_LIMIT,
 };
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::ReadView;
+#[cfg(any(test, feature = "test-hooks"))]
 use crate::test_hooks::evidence_linearization_hooks;
 use crate::Engine;
 use fathomdb_query::compile_text_query;
@@ -1419,6 +1425,7 @@ impl Engine {
     /// This does not alter the caller-requested final result limit or the
     /// caller-visible result cardinality. Production uses the default and
     /// never consults an environment variable.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_search_limit_for_test(&self, limit: usize) {
         self.projection_runtime.shared.search_limit_override.store(limit, Ordering::SeqCst);
@@ -1427,6 +1434,7 @@ impl Engine {
     /// Slice 10 / G12-recency test seam — flip the dedicated recency-reweight
     /// flag (off by default). The reweight runs AFTER bit-KNN on the fused hits;
     /// it is never a vec0 predicate and is NOT `fusion_mode`.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_recency_reweight_enabled_for_test(&self, enabled: bool) {
         self.projection_runtime.shared.recency_reweight_enabled.store(enabled, Ordering::SeqCst);
@@ -1437,6 +1445,7 @@ impl Engine {
     /// the fused hits (multiplicative-on-fused, `NULL ⇒ neutral`); it is never a
     /// vec0 predicate and is NOT `fusion_mode`. Mirrors
     /// `set_recency_reweight_enabled_for_test`.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_importance_reweight_enabled_for_test(&self, enabled: bool) {
         self.projection_runtime.shared.importance_reweight_enabled.store(enabled, Ordering::SeqCst);
@@ -1451,6 +1460,7 @@ impl Engine {
     /// production RRF fusion stays unconditional and `fuse_rrf`/`rerank_fused`/
     /// recency are unchanged. Mirrors `set_recency_reweight_enabled_for_test`
     /// (release-available, since eu7 runs in `--release`).
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_vector_stage_only_for_test(&self, enabled: bool) {
         self.projection_runtime.shared.vector_stage_only_for_test.store(enabled, Ordering::SeqCst);
@@ -1460,6 +1470,7 @@ impl Engine {
 /// Test seam — exposes [`build_vector_phase1_sql`] at the production
 /// `SEARCH_RERANK_LIMIT` so `pr_g10_filtered_knn.rs` can pin the `filter=None`
 /// byte-identity and the appended predicates.
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 #[must_use]
 pub fn vector_phase1_sql_for_test(filter: Option<&SearchFilter>) -> String {
@@ -1468,6 +1479,7 @@ pub fn vector_phase1_sql_for_test(filter: Option<&SearchFilter>) -> String {
 
 /// Test seam pinning production ranked SQL around the shared eligibility
 /// compiler. Eligibility must precede ranking and any SQL candidate limit.
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 #[must_use]
 pub fn slice35_ranked_eligibility_sql_for_test(

@@ -62,7 +62,7 @@ def owner_errors(root: str, owner: str, modules: dict[str, str]) -> list[str]:
     module = list(re.finditer(r"^pub mod mean_centering_internals_for_test \{", owner, re.M))
     if len(module) != 1 or MODULE_FAMILY.findall(owner).count(MODULE) != 1:
         errors.append("mean lacks one public internals module")
-    elif cfg_attrs(owner, module[0].start()) or "#[doc(hidden)]" not in prelude(owner, module[0].start()):
+    elif cfg_attrs(owner, module[0].start()) != ['#[cfg(any(test, feature = "test-hooks"))]'] or "#[doc(hidden)]" not in prelude(owner, module[0].start()):
         errors.append("mean changes internals module attrs")
     if module:
         module_end = re.search(r"^}\s*$", owner[module[0].end() :], re.M)
@@ -70,7 +70,7 @@ def owner_errors(root: str, owner: str, modules: dict[str, str]) -> list[str]:
         if re.search(r"(?m)^[ \t]*#!\[\s*cfg(?:_attr)?\b", body):
             errors.append("mean gates internals module body")
     reexport = list(re.finditer(r"^" + re.escape(REEXPORT) + r"$", root, re.M))
-    if len(reexport) != 1 or cfg_attrs(root, reexport[0].start()) or "#[doc(hidden)]" not in prelude(root, reexport[0].start()):
+    if len(reexport) != 1 or cfg_attrs(root, reexport[0].start()) != ['#[cfg(any(test, feature = "test-hooks"))]'] or "#[doc(hidden)]" not in prelude(root, reexport[0].start()):
         errors.append("root loses hidden ungated internals path")
     for marker in API:
         if marker not in owner:
@@ -93,7 +93,7 @@ def owner_errors(root: str, owner: str, modules: dict[str, str]) -> list[str]:
         if not impls or cfg_attrs(owner, impls[-1].start()):
             errors.append("mean gates Engine impl")
         attrs = prelude(owner, method[0].start())
-        if "#[cfg(debug_assertions)]" not in attrs or "#[doc(hidden)]" not in attrs or cfg_attrs(owner, method[0].start()) != ["#[cfg(debug_assertions)]"]:
+        if "#[cfg(any(test, feature = \"test-hooks\"))]" not in attrs or "#[doc(hidden)]" not in attrs or cfg_attrs(owner, method[0].start()) != ["#[cfg(any(test, feature = \"test-hooks\"))]"]:
             errors.append("mean changes recompute fault hook attrs")
         if "self.projection_runtime.shared.force_recompute_failure.store(true, Ordering::SeqCst);" not in owner[method[0].start() :]:
             errors.append("mean changes recompute fault hook body")
@@ -112,7 +112,7 @@ class MeanTestSeamsOwnerTest(unittest.TestCase):
             root = root[: block.start()] + root[block.end() :]
         method = re.search(r"(?ms)^    pub fn force_next_recompute_failure_for_test\(&self\) \{.*?^    }\n", root)
         if method:
-            owner = owner.replace("impl Engine {", "impl Engine {\n    #[doc(hidden)]\n    #[cfg(debug_assertions)]\n" + method.group(), 1)
+            owner = owner.replace("impl Engine {", "impl Engine {\n    #[doc(hidden)]\n    #[cfg(any(test, feature = \"test-hooks\"))]\n" + method.group(), 1)
             root = root[: method.start()] + root[method.end() :]
         if REEXPORT not in root:
             root += "\n#[doc(hidden)]\n" + REEXPORT
@@ -147,7 +147,7 @@ class MeanTestSeamsOwnerTest(unittest.TestCase):
             self.assertIn("mean gates internals accumulator_add", owner_errors(root, changed, modules))
             changed = owner.replace("pub mod mean_centering_internals_for_test {", "pub mod mean_centering_internals_for_test {\n    #!" + attr[1:], 1)
             self.assertIn("mean gates internals module body", owner_errors(root, changed, modules))
-        changed = owner.replace("#[cfg(debug_assertions)]\n    pub fn force_next_recompute_failure_for_test(", "    pub fn force_next_recompute_failure_for_test(", 1)
+        changed = owner.replace("#[cfg(any(test, feature = \"test-hooks\"))]\n    pub fn force_next_recompute_failure_for_test(", "    pub fn force_next_recompute_failure_for_test(", 1)
         self.assertIn("mean changes recompute fault hook attrs", owner_errors(root, changed, modules))
         changed = root.replace("#[doc(hidden)]\n" + REEXPORT, REEXPORT, 1)
         self.assertIn("root loses hidden ungated internals path", owner_errors(changed, owner, modules))

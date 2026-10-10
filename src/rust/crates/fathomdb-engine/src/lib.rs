@@ -98,11 +98,13 @@ mod runtime_configuration;
 mod runtime_lifecycle;
 mod search;
 mod search_api;
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub use search_api::slice35_ranked_eligibility_sql_for_test;
 #[cfg(feature = "test-hooks")]
 #[doc(hidden)]
 pub use search_api::take_slice71_search_statement_trace_for_test;
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub use search_api::vector_phase1_sql_for_test;
 mod search_types;
@@ -166,6 +168,7 @@ pub use dependency_trace::{
 #[cfg(feature = "test-hooks")]
 pub use embed_dispatch::d27_observation::D27Observation;
 use embed_dispatch::{DispatchError, EmbedDispatcher, EmbedOutput, EmbedReply};
+#[cfg(any(test, feature = "test-hooks"))]
 use embedding::map_runtime_embedder_error;
 pub use embedding::{
     EmbedderRequired, EmbeddingOperation, EmbeddingReadiness, EmbeddingReadinessState,
@@ -226,6 +229,7 @@ use index_projector::{
     search_index_tokenizer_reproject_complete, SEARCH_INDEX_TOKENIZER_SCHEMA_VERSION,
 };
 pub use ingest::{ExtractDocument, IngestWithExtractorReceipt};
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub use mean::mean_centering_internals_for_test;
 use mean::{
@@ -245,9 +249,11 @@ pub use operator::{
 #[cfg(feature = "operator")]
 pub use operator::{CompleteErasuresReport, PendingErasure};
 pub use pagination::{PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1};
+#[cfg(any(test, feature = "test-hooks"))]
+use projection_commit::terminal_state_for_cursor;
 use projection_commit::{
     advance_projection_cursor, commit_projection_outcomes, load_projection_cursor,
-    record_projection_terminal, store_projection_cursor, terminal_state_for_cursor,
+    record_projection_terminal, store_projection_cursor,
 };
 use projection_generation::derive_dense_readiness;
 pub use projection_generation::{
@@ -286,7 +292,7 @@ pub use provenance::{
 };
 pub(crate) use provider::{ProviderSession, ProviderTask};
 pub use read::{NodeRecord, OpStoreRow, OperationalStateRecordV1};
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 pub use reader_pool::CacheStatusReply;
 pub(crate) use reader_pool::ReaderWorkerPool;
 pub use record_lifecycle::{InitialState, LifecycleState};
@@ -312,6 +318,7 @@ pub use search_types::{
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, DEFAULT_SEARCH_RESULT_LIMIT,
     MAX_SEARCH_RESULT_LIMIT, SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
 };
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub use temporal::clock_reads_for_test;
 pub(crate) use temporal::{
@@ -324,7 +331,7 @@ pub(crate) use test_hooks::slice15_erasure_lock_hook;
 #[cfg(feature = "slice72-test-hooks")]
 #[doc(hidden)]
 pub use test_hooks::slice72_test_hooks;
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) use test_hooks::PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT;
 #[cfg(feature = "test-hooks")]
 pub use test_hooks::{
@@ -332,20 +339,23 @@ pub use test_hooks::{
     arm_explanation_after_telemetry_lock_hook_for_test,
     arm_explanation_before_telemetry_lock_hook_for_test,
 };
+#[cfg(any(test, feature = "test-hooks"))]
 pub use test_hooks::{
     arm_evidence_before_resolve_return_hook_for_test, arm_evidence_before_sidecar_hook_for_test,
     arm_frozen_after_validation_hook_for_test, arm_page_after_validation_hook_for_test,
     arm_reader_search_hook_for_test, ReaderSearchPauseForTest,
 };
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 pub use test_hooks::{ProjectionWorkerPauseReadyError, ProjectionWorkerTransactionPauseForTest};
 use vector_equivalence::{run_vector_equivalence_probe, usable_dense_runtime};
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
+use vector_storage::load_default_profile;
 use vector_storage::{
     actual_vector_attr_columns, decode_attr_vec0_column, decode_vector_blob,
     default_profile_dimension, delete_vector_partition_row, encode_vector_blob,
     ensure_vector_partition, hamming_bytes, kind_is_vector_committable, kind_is_vector_indexed,
-    load_default_profile, quantize_binary_via_sql, reconcile_vector_attr_columns,
-    refresh_vector_attr_values, refresh_vector_attr_values_for_row, resolve_source_type,
+    quantize_binary_via_sql, reconcile_vector_attr_columns, refresh_vector_attr_values,
+    refresh_vector_attr_values_for_row, resolve_source_type,
     VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES,
 };
 pub(crate) use write::storage_write_shape;
@@ -394,10 +404,10 @@ use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-#[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+#[cfg(any(test, feature = "test-hooks"))]
 use std::sync::mpsc::SyncSender;
 use std::sync::mpsc::{self, Receiver};
-#[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+#[cfg(any(test, feature = "test-hooks"))]
 use std::sync::Barrier;
 use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::thread::{self, JoinHandle};
@@ -537,11 +547,11 @@ pub struct Engine {
     /// refusals raised because the engine opened in the `dense_disabled` state.
     /// Observable pre/post-query via `vector_equivalence_refusal_count`.
     vector_equivalence_refusals: AtomicU64,
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     force_next_commit_failure: AtomicBool,
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     actuation_after_initial_lookup_delay_ms: AtomicU64,
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     actuation_failure_after_operation: AtomicUsize,
 }
 
@@ -604,12 +614,9 @@ impl Engine {
     /// the same wall-clock + slow-detect path as `write` / `search`.
     ///
     /// Test-only helper for the deterministic-slow-cte fixture used by
-    /// AC-007a / AC-007b. Not part of the public 0.6.0 surface; gated on
-    /// `debug_assertions` so release builds do not expose it.
-    // `test` added alongside `debug_assertions`/`test-hooks` so the crate's own
-    // `--release --tests` lib-test build (cfg(test) true, debug_assertions
-    // false) can still see this seam; it stays absent from any shipped build.
-    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+    /// AC-007a / AC-007b. Available only to crate unit tests and consumers
+    /// that explicitly enable `test-hooks`.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn execute_for_test(&self, sql: &str) -> Result<(), EngineError> {
         self.ensure_open()?;
@@ -633,8 +640,8 @@ impl Engine {
     /// `last_error_chain` is `[EngineError::stable_code(),
     /// engine_error.to_string()]` per the lifecycle § Stress-failure
     /// context payload contract.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
-    #[cfg(debug_assertions)]
     pub fn run_one_thread_poison_for_test(&self) -> Result<(), EngineError> {
         self.ensure_open()?;
 
@@ -719,6 +726,7 @@ impl Engine {
     /// and collect column 0 as `i64`. DML with `RETURNING` may mutate the
     /// database. A test can run a phase-1-style KNN `MATCH ... {attr clause}`
     /// and observe which `rowid`s survive the pre-KNN filter.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn query_i64_col_for_test(&self, sql: &str) -> Result<Vec<i64>, EngineError> {
         self.ensure_open()?;
@@ -734,6 +742,7 @@ impl Engine {
     /// as [`query_i64_col_for_test`] and collect column 0 as `String` (e.g. an
     /// `attr_<hex>` metadata column's stored value). DML with `RETURNING` may
     /// mutate the database.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn query_text_col_for_test(&self, sql: &str) -> Result<Vec<String>, EngineError> {
         self.ensure_open()?;
@@ -2974,10 +2983,7 @@ mod tests {
     /// Slice 65 projection-worker witness: preserve the original typed
     /// refusal, then observe post-finish connection state without retrying
     /// that erasure.
-    // Exercises `pause_projection_worker_after_wal_transaction_for_test`, a
-    // debug-build-only hook; gated so the release-profile lib-test build
-    // (cfg(test) true, debug_assertions false) does not need it widened.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[test]
     fn wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded() {
         let dir = TempDir::new().expect("temp dir");
@@ -3096,10 +3102,7 @@ mod tests {
         );
     }
 
-    // Exercises `pause_projection_worker_after_wal_transaction_for_test`, a
-    // debug-build-only hook; gated so the release-profile lib-test build
-    // (cfg(test) true, debug_assertions false) does not need it widened.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[test]
     fn projection_transaction_pause_ready_timeout_cancels_before_worker_arrival() {
         let dir = TempDir::new().expect("temp dir");
@@ -3140,10 +3143,7 @@ mod tests {
         opened.engine.close().expect("cancelled pause cannot strand Engine close");
     }
 
-    // Exercises `pause_projection_worker_after_wal_transaction_for_test`, a
-    // debug-build-only hook; gated so the release-profile lib-test build
-    // (cfg(test) true, debug_assertions false) does not need it widened.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[test]
     fn projection_transaction_pause_drop_releases_worker_after_ready() {
         let dir = TempDir::new().expect("temp dir");

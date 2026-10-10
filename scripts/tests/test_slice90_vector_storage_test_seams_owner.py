@@ -63,7 +63,7 @@ def owner_errors(root: str, modules: dict[str, str]) -> list[str]:
                 continue
             match, impl = found[0]
             attrs = prelude(impl.group(), match.start())
-            if any(CFG.match(attr) for attr in attrs) or "#[doc(hidden)]" not in attrs:
+            if [attr for attr in attrs if CFG.match(attr)] != ['#[cfg(any(test, feature = "test-hooks"))]'] or "#[doc(hidden)]" not in attrs:
                 errors.append(f"{path} changes Engine::{name} attrs")
             if names.count(name) != 1:
                 errors.append(f"{path} duplicates Engine::{name}")

@@ -9,8 +9,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
 HOOKS = '#[cfg(feature = "test-hooks")]'
-DEBUG = "#[cfg(debug_assertions)]"
-DEBUG_OR_HOOKS = '#[cfg(any(debug_assertions, feature = "test-hooks"))]'
+DEBUG = "#[cfg(any(test, feature = \"test-hooks\"))]"
+DEBUG_OR_HOOKS = '#[cfg(any(test, feature = "test-hooks"))]'
 OWNERS = {
     "projection_generation.rs": {
         "transition_projection_generation_for_test": HOOKS,
@@ -19,7 +19,7 @@ OWNERS = {
     },
     "projection_commit.rs": {"publish_projection_success_for_test": HOOKS},
     "projection_registry.rs": {
-        "configure_vector_kind_for_test": None,
+        "configure_vector_kind_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
         "set_legacy_projection_vector_declared_for_test": DEBUG,
         "set_legacy_projection_search_subobjects_for_test": DEBUG_OR_HOOKS,
     },

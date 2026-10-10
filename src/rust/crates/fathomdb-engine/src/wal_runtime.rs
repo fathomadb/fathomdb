@@ -224,7 +224,7 @@ impl Engine {
     // `test` added alongside `debug_assertions`/`test-hooks` so the crate's own
     // `--release --tests` lib-test build (cfg(test) true, debug_assertions
     // false) can still see this seam; it stays absent from any shipped build.
-    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[allow(dead_code)]
     #[doc(hidden)]
     pub fn pause_reader_after_wal_snapshot_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
@@ -237,7 +237,7 @@ impl Engine {
 
     /// Pause worker zero on a real snapshot with cancellation-safe bounded
     /// release. Dropping the returned sender releases the worker immediately.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn pause_reader_with_timeout_for_test(&self) -> (Receiver<usize>, SyncSender<()>) {
         let (snapshot_ready_tx, snapshot_ready_rx) = mpsc::sync_channel(1);

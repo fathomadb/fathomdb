@@ -2277,6 +2277,7 @@ fn projection_registry_cache_snapshot(
 }
 
 impl Engine {
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn configure_vector_kind_for_test(&self, kind: &str) -> Result<(), EngineError> {
         self.ensure_open()?;
@@ -2297,7 +2298,7 @@ impl Engine {
     /// The mutation and a matching projection-generation transition are atomic,
     /// so tests can exercise legacy reconciliation without manufacturing the
     /// declaration-digest corruption that Slice 40 must reject.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_legacy_projection_vector_declared_for_test(
         &self,
@@ -2328,7 +2329,7 @@ impl Engine {
     /// registry mutation and matching generation transition are atomic, so the
     /// fixture exercises inert-shape handling without bypassing current
     /// projection-generation authority.
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_legacy_projection_search_subobjects_for_test(
         &self,

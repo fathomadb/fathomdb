@@ -397,6 +397,7 @@ impl Engine {
     /// [`reenqueue_stranded_vector_rows`] is idempotent, so the read-only pre-pass
     /// that chose `kinds` does not need re-validating under the write lock: the
     /// worst a stale decision costs is one no-op `MIN` probe.
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn enrol_and_unstrand(
         &self,
         connection: &Connection,
@@ -442,7 +443,7 @@ impl Engine {
         // provenance checks have succeeded.
         let vector_kinds_to_enrol = self.batch_vector_kinds_needing_enrolment(connection, batch)?;
         let projection_jobs = collect_projection_jobs(connection, batch)?;
-        #[cfg(debug_assertions)]
+        #[cfg(any(test, feature = "test-hooks"))]
         if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
             return Err(EngineError::Storage);
         }
@@ -516,6 +517,7 @@ impl Engine {
     /// the `rowid == write_cursor == cursor` determinism identity. When the row
     /// projects into an async vector index, the worker pool is notified so the
     /// embed is scheduled exactly as for a normal write.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn write_canonical_row_with_kind_for_test(
         &self,

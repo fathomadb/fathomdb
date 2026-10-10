@@ -22,7 +22,7 @@ operator CLI.
   with atomic caller-decided actuation and dependency-aware closure.
 - Authenticated frozen reads, stable pagination, source evidence, dependency
   tracing, and constrained graph expansion across the Python and TypeScript
-  SDKs and Rust facade.
+  SDKs, with a separate lower-level Rust facade.
 - Optional in-process default embedder (`bge-small-en-v1.5`, pure Rust).
 
 **Status: 0.8.26, pre-1.0 beta.** The surface may change between micro

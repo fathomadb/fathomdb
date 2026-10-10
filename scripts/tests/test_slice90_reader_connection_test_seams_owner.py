@@ -8,7 +8,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
-DEBUG = "#[cfg(debug_assertions)]"
+DEBUG = "#[cfg(any(test, feature = \"test-hooks\"))]"
 OWNERS = {
     "reader_pool.rs": {
         "reader_worker_count_for_test": DEBUG,
@@ -20,8 +20,8 @@ OWNERS = {
     },
     "connection_runtime.rs": {
         "reader_lookaside_config_rcs_for_test": DEBUG,
-        "secure_delete_enabled_for_test": None,
-        "runtime_secure_delete_enabled_for_test": None,
+        "secure_delete_enabled_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
+        "runtime_secure_delete_enabled_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
     },
 }
 FAMILY_NAME = (
@@ -141,7 +141,7 @@ class ReaderConnectionTestSeamsOwnerTest(unittest.TestCase):
                 self.assertIn(f"root gates {path} owner module", owner_errors(changed, modules))
                 self.assertIn(f"{path} gates whole owner module", owner_errors(root, modules | {path: "#!" + attr[1:] + "\n" + owner}))
         owner = modules["reader_pool.rs"]
-        changed = owner.replace("    #[cfg(debug_assertions)]\n    #[doc(hidden)]\n    pub fn reader_worker_count_for_test(", "    #[doc(hidden)]\n    pub fn reader_worker_count_for_test(", 1)
+        changed = owner.replace("    #[cfg(any(test, feature = \"test-hooks\"))]\n    #[doc(hidden)]\n    pub fn reader_worker_count_for_test(", "    #[doc(hidden)]\n    pub fn reader_worker_count_for_test(", 1)
         self.assertIn("reader_pool.rs changes Engine::reader_worker_count_for_test attrs", owner_errors(root, modules | {"reader_pool.rs": changed}))
 
     def test_fast_registration(self) -> None:

@@ -494,7 +494,7 @@ pub(crate) fn projection_worker_loop(
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 report_projection_commit_failure(&shared, &err);
             }));
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             if let Some((reported, release)) = shared
                 .projection_commit_failure_pause
                 .lock()

@@ -169,7 +169,7 @@ impl SubscriberRegistry {
         self.notify_each(|sub| sub.on_slow_statement(signal));
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn dispatch_stress_failure(&self, context: &StressFailureContext) {
         self.notify_each(|sub| sub.on_stress_failure(context));
     }

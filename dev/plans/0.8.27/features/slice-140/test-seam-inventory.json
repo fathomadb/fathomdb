@@ -1,0 +1,1063 @@
+{
+  "source_sha": "815aa83386342d33729de16f5131e577fe6cb6a3",
+  "removed_default_paths": [
+    {
+      "path": "fathomdb_engine::Engine::acknowledge_projection_stop_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::acknowledge_projection_stop_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::cache_status_per_worker_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/reader_pool.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::cache_status_per_worker_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/perf_gates.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::canonical_rows_with_row_kind_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/read_api.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::canonical_rows_with_row_kind_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/exp_s_substrate.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::configure_vector_kind_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_registry.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::configure_vector_kind_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice135_vector_row_error.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc90_transition_write_race.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g12_recency.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu5a2_machinery.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice30_embedding_readiness.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_quant_pack1.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_frozen_read.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice50_evidence.rs",
+        "src/rust/crates/fathomdb-engine/tests/perf_gates.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc68_probe_fingerprint_cache.rs",
+        "src/rust/crates/fathomdb-engine/tests/opp12_lifecycle_verbs.rs",
+        "src/rust/crates/fathomdb-engine/tests/gen_cross_backend_mean_fixture.rs",
+        "src/rust/crates/fathomdb-engine/tests/excise_source.rs",
+        "src/rust/crates/fathomdb-engine/tests/telemetry_capture.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice45_pagination.rs",
+        "src/rust/crates/fathomdb-engine/tests/rebuild_projections.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_embed_serialization.rs",
+        "src/rust/crates/fathomdb-engine/tests/exp_s_substrate.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_foreground_dispatch.rs",
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc57_worker_commit_pressure.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc33_fix6_edge_vector_prune.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice18_retrieval_result_limits.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_actuation_spike.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15_byo_llm_ingest.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_equivalence_probe.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice21_projection_runtime_state.rs",
+        "src/rust/crates/fathomdb-engine/tests/erasure_projection_registry.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_dispatch.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice20_dense_readiness.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu5a1_plumbing.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_embed_watchdog.rs",
+        "src/rust/crates/fathomdb-engine/tests/batch_write_per_row_cursor.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice30_dependency_closure.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_contracts.rs",
+        "src/rust/crates/fathomdb-engine/tests/erasure_drain_ordering.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15b_search_validity_recall.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu7_real_corpus_ac.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_runtime_matrix.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice20c_flush_barrier.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc5_vector_stage.rs",
+        "src/rust/crates/fathomdb-engine/tests/ir_c_fusion_experiment.rs",
+        "src/rust/crates/fathomdb-engine/tests/ir_c_recall_run.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g1_search_hits.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g10_filtered_knn.rs",
+        "src/rust/crates/fathomdb-engine/tests/corpus_vector.rs",
+        "src/rust/crates/fathomdb-engine/tests/ir_c_cdf_run.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g9_rrf_fusion.rs",
+        "src/rust/crates/fathomdb-engine/tests/exp_obs_explain.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc76_vec0_long_metadata_delete.rs",
+        "src/rust/crates/fathomdb-engine/tests/f9_importance_ranking.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_vector_hydration_error.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc31_source_id_on_every_hit.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc57_governed_write_race.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_persistent_provider.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr2b_mean_recompute.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_filter_unification.rs",
+        "src/rust/crates/fathomdb-engine/tests/rebuild_report.rs",
+        "src/rust/crates/fathomdb-engine/tests/cursors.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_schema26_upgrade.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu5b_lockflip.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_capacity.rs",
+        "src/rust/crates/fathomdb-engine/tests/rebuild_vec0.rs",
+        "src/rust/crates/fathomdb-engine/tests/opp12_existence_axis.rs",
+        "src/rust/crates/fathomdb-engine/tests/ga2_vector_stage_seam.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice60_graph_expand.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_feature_interactions.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice70_projection_commit_residue.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc71_fix1_inert_enrolment_reconcile.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice71_search_statement_trace.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice55_data_plane_integrity.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_remaining_arm_matrix.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc91_duplicate_embeds_and_silent_commit_loss.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15e_prekn_filterable.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_concurrent_embed.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_generation.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu8_ir_validation.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu5f_production_pin.rs",
+        "src/rust/crates/fathomdb-engine/tests/dump_profile.rs",
+        "src/rust/crates/fathomdb-engine/tests/support/corpus_subset.rs",
+        "src/rust/crates/fathomdb-engine/tests/support/corpus_harness.rs",
+        "src/rust/crates/fathomdb-engine/tests/support/slice72_gpu_telemetry.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::default_embedder_profile_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/open.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::default_embedder_profile_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/vector_contracts.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::drain_mean_centering_events_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/embedding.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::drain_mean_centering_events_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu5b_lockflip.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu5f_production_pin.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::execute_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/lib.rs",
+      "former_cfg": "any(debug_assertions, feature = \"test-hooks\", test)",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::execute_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb/tests/governed_surface.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_engine_configuration.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice55_explanation.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_robustness_first.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice60_fix5_provenance.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice20_graph_evidence.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_after_validation_races.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice55_dependency_trace.rs",
+        "src/rust/crates/fathomdb-engine/tests/write_boundary_atomicity.rs",
+        "src/rust/crates/fathomdb-engine/tests/lifecycle_observability.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice25_registration_identity_inert.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_importance_explanation_row_error.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g10_filtered_knn.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_node_fts_missing_canonical.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice60_fix4_dependency.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_feature_interactions.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice55_data_plane_integrity.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_remaining_arm_matrix.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_edge_fts_missing_table.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::explain_graph_expand_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/graph_api.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::explain_graph_expand_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice60_graph_expand.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice60_fix2_runtime.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::explain_graph_neighbors_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/graph_api.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::explain_graph_neighbors_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice20_graph_traversal.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::force_actuation_failure_after_operation_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/actuation.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::force_actuation_failure_after_operation_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice35_actuation_spike.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice25_fix1_red.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::force_next_commit_failure_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/write_commit.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::force_next_commit_failure_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice135_robustness_first.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_actuation_spike.rs",
+        "src/rust/crates/fathomdb-engine/tests/write_boundary_atomicity.rs",
+        "src/rust/crates/fathomdb-engine/tests/cursors.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice25_fix1_red.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice25_actuation_verification.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::force_next_projection_commit_failure_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::force_next_projection_commit_failure_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice35_actuation_spike.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice70_projection_commit_residue.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::force_next_projection_storage_failure_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::force_next_projection_storage_failure_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::force_next_recompute_failure_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/mean.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::force_next_recompute_failure_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/pr2b_mean_recompute.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::has_vector_for_cursor_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::has_vector_for_cursor_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/rebuild_projections.rs",
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_actuation_spike.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_dispatch.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_embed_watchdog.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_runtime_matrix.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_generation_races.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_persistent_provider.rs",
+        "src/rust/crates/fathomdb-engine/tests/cursors.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_capacity.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice70_projection_commit_residue.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::has_vector_row_for_cursor_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/vector_storage.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::has_vector_row_for_cursor_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice30_dependency_closure.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_schema26_upgrade.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::live_reader_worker_count_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/reader_pool.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::live_reader_worker_count_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/reader_pool.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::next_reader_worker_index_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/reader_pool.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::next_reader_worker_index_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice80_reader_transaction_release.rs",
+        "src/rust/crates/fathomdb-engine/tests/reader_pool.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::oldest_provenance_record_key_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/provenance.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::oldest_provenance_record_key_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice90_engine_configuration.rs",
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::open_with_embedder_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/open.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "|p: std::path::PathBuf, e: std::sync::Arc<dyn fathomdb_embedder_api::Embedder>| fathomdb_engine::Engine::open_with_embedder_for_test(p, e)",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice135_vector_row_error.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc90_transition_write_race.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g12_recency.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice30_embedding_readiness.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_quant_pack1.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_frozen_read.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice50_evidence.rs",
+        "src/rust/crates/fathomdb-engine/tests/perf_gates.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc68_probe_fingerprint_cache.rs",
+        "src/rust/crates/fathomdb-engine/tests/opp12_lifecycle_verbs.rs",
+        "src/rust/crates/fathomdb-engine/tests/excise_source.rs",
+        "src/rust/crates/fathomdb-engine/tests/telemetry_capture.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice45_pagination.rs",
+        "src/rust/crates/fathomdb-engine/tests/search_result_shape.rs",
+        "src/rust/crates/fathomdb-engine/tests/rebuild_projections.rs",
+        "src/rust/crates/fathomdb-engine/tests/exp_s_substrate.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_mutation_projection_status.rs",
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice20_graph_evidence.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc57_worker_commit_pressure.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc33_fix6_edge_vector_prune.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice18_retrieval_result_limits.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_actuation_spike.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15_byo_llm_ingest.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_equivalence_probe.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice21_projection_runtime_state.rs",
+        "src/rust/crates/fathomdb-engine/tests/erasure_projection_registry.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_dispatch.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice20_dense_readiness.rs",
+        "src/rust/crates/fathomdb-engine/tests/write_boundary_atomicity.rs",
+        "src/rust/crates/fathomdb-engine/tests/f5_bm25f.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_deferred_text_identity_error.rs",
+        "src/rust/crates/fathomdb-engine/tests/batch_write_per_row_cursor.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice30_dependency_closure.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_contracts.rs",
+        "src/rust/crates/fathomdb-engine/tests/erasure_drain_ordering.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_soft_fallback_probe_error.rs",
+        "src/rust/crates/fathomdb-engine/tests/verify_embedder.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15b_search_validity_recall.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice20c_flush_barrier.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc5_vector_stage.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice21c_vector_role_gate.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g1_search_hits.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g10_filtered_knn.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g9_rrf_fusion.rs",
+        "src/rust/crates/fathomdb-engine/tests/exp_obs_explain.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_generation_races.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc76_vec0_long_metadata_delete.rs",
+        "src/rust/crates/fathomdb-engine/tests/f9_importance_ranking.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_vector_hydration_error.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc31_source_id_on_every_hit.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc57_governed_write_race.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_completion.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_persistent_provider.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_filter_unification.rs",
+        "src/rust/crates/fathomdb-engine/tests/rebuild_report.rs",
+        "src/rust/crates/fathomdb-engine/tests/cursors.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_schema26_upgrade.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice22_projection_status.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice25_fix1_red.rs",
+        "src/rust/crates/fathomdb-engine/tests/rebuild_vec0.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc67_unsupported_vector_kind_report.rs",
+        "src/rust/crates/fathomdb-engine/tests/opp12_existence_axis.rs",
+        "src/rust/crates/fathomdb-engine/tests/ga2_vector_stage_seam.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice60_graph_expand.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_feature_interactions.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice70_projection_commit_residue.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc71_fix1_inert_enrolment_reconcile.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice71_search_statement_trace.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15_identity_provenance.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_remaining_arm_matrix.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc91_duplicate_embeds_and_silent_commit_loss.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15e_prekn_filterable.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_generation.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc45_supersession_terminal.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_status_performance.rs",
+        "src/rust/crates/fathomdb-engine/tests/dump_profile.rs",
+        "src/rust/crates/fathomdb-engine/tests/support/corpus_subset.rs",
+        "src/rust/crates/fathomdb-engine/tests/support/corpus_harness.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::open_with_subscriber_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/open.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "|p: std::path::PathBuf, s: std::sync::Arc<dyn fathomdb_engine::lifecycle::Subscriber>| fathomdb_engine::Engine::open_with_subscriber_for_test(p, s)",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/lifecycle_observability.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::open_without_embedder_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/open.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "|p: std::path::PathBuf| fathomdb_engine::Engine::open_without_embedder_for_test(p)",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/provenance_mandatory.rs",
+        "src/rust/crates/fathomdb-engine/tests/elps_conformance_golden.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc33_edge_temporal_epoch.rs",
+        "src/rust/crates/fathomdb-engine/tests/perf_gates.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15_byo_llm_ingest.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice5_provider_seam.rs",
+        "src/rust/crates/fathomdb-engine/tests/consolidation_value_test.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_contracts.rs",
+        "src/rust/crates/fathomdb-engine/tests/erasure_drain_ordering.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice25_registration_identity_inert.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g1_search_hits.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g9_rrf_fusion.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc47_timestamp_round_trip.rs",
+        "src/rust/crates/fathomdb-engine/tests/consolidate_provider.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc33_fix3_consolidation_timestamp_taxonomy.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc31_source_id_on_every_hit.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_node_fts_missing_canonical.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc33_fix5_iso8601_shape_gate.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc8_idspace_swap.rs",
+        "src/rust/crates/fathomdb-engine/tests/qd_envelope_deserialize.rs",
+        "src/rust/crates/fathomdb-engine/tests/multidoc_extractor_provenance.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::pause_projection_commit_failure_cleanup_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::pause_projection_commit_failure_cleanup_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_completion.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice70_projection_commit_residue.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::pause_projection_worker_after_wal_transaction_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::pause_projection_worker_after_wal_transaction_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice30_dependency_closure.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_generation_races.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_completion.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::pause_reader_after_wal_snapshot_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/wal_runtime.rs",
+      "former_cfg": "any(debug_assertions, feature = \"test-hooks\", test)",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::pause_reader_after_wal_snapshot_for_test",
+      "integration_callers": []
+    },
+    {
+      "path": "fathomdb_engine::Engine::pause_reader_with_timeout_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/wal_runtime.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::pause_reader_with_timeout_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/reader_pool.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::projection_failure_count_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::projection_failure_count_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/rebuild_projections.rs",
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_actuation_spike.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_embed_watchdog.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_persistent_provider.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_capacity.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice70_projection_commit_residue.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::projection_scheduler_pending_scan_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::projection_scheduler_pending_scan_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_completion.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice22_projection_status.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::projection_status_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::projection_status_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/rebuild_projections.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_embed_serialization.rs",
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_dispatch.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_embed_watchdog.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_persistent_provider.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_schema26_upgrade.rs",
+        "src/rust/crates/fathomdb-engine/tests/rebuild_vec0.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_concurrent_embed.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::provenance_row_count_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/provenance.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::provenance_row_count_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice90_engine_configuration.rs",
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs",
+        "src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::query_i64_col_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/lib.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::query_i64_col_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice135_robustness_first.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice30_dependency_closure.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc76_vec0_long_metadata_delete.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_node_fts_missing_canonical.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_schema26_upgrade.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_feature_interactions.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15e_prekn_filterable.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::query_text_col_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/lib.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::query_text_col_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/tc76_vec0_long_metadata_delete.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15e_prekn_filterable.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::read_vector_bin_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/vector_storage.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::read_vector_bin_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice15e_prekn_filterable.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::read_vector_blob_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/vector_storage.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::read_vector_blob_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/eu5a2_machinery.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_contracts.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_capacity.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_concurrent_embed.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::reader_lookaside_config_rcs_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/connection_runtime.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::reader_lookaside_config_rcs_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/reader_pool.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::reader_lookaside_used_per_worker_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/reader_pool.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::reader_lookaside_used_per_worker_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/reader_pool.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::reader_secure_delete_enabled_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/reader_pool.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::reader_secure_delete_enabled_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/opp12_lifecycle_verbs.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::reader_worker_count_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/reader_pool.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::reader_worker_count_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice80_reader_transaction_release.rs",
+        "src/rust/crates/fathomdb-engine/tests/perf_gates.rs",
+        "src/rust/crates/fathomdb-engine/tests/reader_pool.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::run_one_thread_poison_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/lib.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::run_one_thread_poison_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/lifecycle_observability.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::runtime_secure_delete_enabled_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/connection_runtime.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::runtime_secure_delete_enabled_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/opp12_lifecycle_verbs.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::secure_delete_enabled_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/connection_runtime.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::secure_delete_enabled_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/opp12_lifecycle_verbs.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_actuation_after_initial_lookup_delay_ms_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/actuation.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_actuation_after_initial_lookup_delay_ms_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice25_fix1_red.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_embed_timeout_ms_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_embed_timeout_ms_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_capacity.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_importance_reweight_enabled_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/search_api.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_importance_reweight_enabled_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/f9_importance_ranking.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_legacy_projection_search_subobjects_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_registry.rs",
+      "former_cfg": "any(debug_assertions, feature = \"test-hooks\")",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_legacy_projection_search_subobjects_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice23_spec_validation_reject.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_legacy_projection_vector_declared_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_registry.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_legacy_projection_vector_declared_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice21c_vector_role_gate.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice22_projection_status.rs",
+        "src/rust/crates/fathomdb-engine/tests/tc71_fix1_inert_enrolment_reconcile.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_projection_retry_delays_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_projection_retry_delays_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice30_embedding_readiness.rs",
+        "src/rust/crates/fathomdb-engine/tests/rebuild_projections.rs",
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_dispatch.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice20_dense_readiness.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_embed_watchdog.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice20c_flush_barrier.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice135_persistent_provider.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_capacity.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice70_projection_commit_residue.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_projection_scheduler_frozen_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/projection_runtime.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_projection_scheduler_frozen_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice40_mutation_projection_status.rs",
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_dispatch.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice20_dense_readiness.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice30_dependency_closure.rs",
+        "src/rust/crates/fathomdb-engine/tests/ir_c_fusion_experiment.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr_g9_rrf_fusion.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_generation_races.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_projection_completion.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice22_projection_status.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice90_projection_capacity.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_feature_interactions.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice40_status_performance.rs",
+        "src/rust/crates/fathomdb-engine/tests/ir_c_gold_diagnostics.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_provenance_row_cap_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/provenance.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_provenance_row_cap_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/projection_runtime.rs",
+        "src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_recency_reweight_enabled_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/search_api.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_recency_reweight_enabled_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/pr_g12_recency.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_search_limit_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/search_api.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_search_limit_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/eu7_real_corpus_ac.rs",
+        "src/rust/crates/fathomdb-engine/tests/ir_c_fusion_experiment.rs",
+        "src/rust/crates/fathomdb-engine/tests/ir_c_cdf_run.rs",
+        "src/rust/crates/fathomdb-engine/tests/support/ir_eval.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::set_vector_stage_only_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/search_api.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::set_vector_stage_only_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice50_evidence.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15b_search_validity_recall.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu7_real_corpus_ac.rs",
+        "src/rust/crates/fathomdb-engine/tests/ir_c_fusion_experiment.rs",
+        "src/rust/crates/fathomdb-engine/tests/ir_c_cdf_run.rs",
+        "src/rust/crates/fathomdb-engine/tests/ga2_vector_stage_seam.rs",
+        "src/rust/crates/fathomdb-engine/tests/support/ir_eval.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::vector_row_count_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/vector_storage.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::vector_row_count_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/perf_gates.rs",
+        "src/rust/crates/fathomdb-engine/tests/batch_write_per_row_cursor.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice30_dependency_closure.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_contracts.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu7_real_corpus_ac.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr2b_mean_recompute.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_schema26_upgrade.rs",
+        "src/rust/crates/fathomdb-engine/tests/rebuild_vec0.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice75_feature_interactions.rs",
+        "src/rust/crates/fathomdb-engine/tests/pr9_concurrent_embed.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::write_canonical_row_with_kind_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/write.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::write_canonical_row_with_kind_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/provenance_mandatory.rs",
+        "src/rust/crates/fathomdb-engine/tests/exp_s_substrate.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice25_registration_identity_inert.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Engine::write_vector_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/vector_storage.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Engine::write_vector_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/eu5a2_machinery.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_quant_pack1.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu5a1_plumbing.rs",
+        "src/rust/crates/fathomdb-engine/tests/vector_contracts.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_virtual_mutation_manifest.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu5b_lockflip.rs",
+        "src/rust/crates/fathomdb-engine/tests/eu5f_production_pin.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::Filter::lower_for_read_list_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/filter.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Filter::lower_for_read_list_for_test",
+      "integration_callers": []
+    },
+    {
+      "path": "fathomdb_engine::Filter::to_search_filter_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/filter.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::Filter::to_search_filter_for_test",
+      "integration_callers": []
+    },
+    {
+      "path": "fathomdb_engine::arm_evidence_before_resolve_return_hook_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/test_hooks.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::arm_evidence_before_resolve_return_hook_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice50_evidence.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::arm_evidence_before_sidecar_hook_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/test_hooks.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::arm_evidence_before_sidecar_hook_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice50_evidence.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::arm_frozen_after_validation_hook_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/test_hooks.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::arm_frozen_after_validation_hook_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice50_evidence.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice35_after_validation_races.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::arm_page_after_validation_hook_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/test_hooks.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::arm_page_after_validation_hook_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice45_pagination.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::arm_reader_search_hook_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/test_hooks.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::arm_reader_search_hook_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice35_frozen_read_races.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice50_evidence.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15e_prekn_filterable.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::clock_reads_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/temporal.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::clock_reads_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice15b_search_validity_recall.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::mean_centering_internals_for_test::accumulator_add",
+      "owner": "src/rust/crates/fathomdb-engine/src/mean.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::mean_centering_internals_for_test::accumulator_add",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/eu5a2_machinery.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::mean_centering_internals_for_test::accumulator_count",
+      "owner": "src/rust/crates/fathomdb-engine/src/mean.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::mean_centering_internals_for_test::accumulator_count",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/eu5a2_machinery.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::mean_centering_internals_for_test::accumulator_materialize",
+      "owner": "src/rust/crates/fathomdb-engine/src/mean.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::mean_centering_internals_for_test::accumulator_materialize",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/eu5a2_machinery.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::mean_centering_internals_for_test::new_mean_accumulator",
+      "owner": "src/rust/crates/fathomdb-engine/src/mean.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::mean_centering_internals_for_test::new_mean_accumulator",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/eu5a2_machinery.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::mean_centering_internals_for_test::run_requantize_pass",
+      "owner": "src/rust/crates/fathomdb-engine/src/mean.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::mean_centering_internals_for_test::run_requantize_pass",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/eu5a2_machinery.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::slice35_ranked_eligibility_sql_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/search_api.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::slice35_ranked_eligibility_sql_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/slice35_eligibility_pretruncation.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::vector_phase1_sql_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/search_api.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::vector_phase1_sql_for_test",
+      "integration_callers": [
+        "src/rust/crates/fathomdb-engine/tests/pr_g10_filtered_knn.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice15e_prekn_filterable.rs"
+      ]
+    },
+    {
+      "path": "fathomdb_engine::mean_centering_internals_for_test",
+      "owner": "src/rust/crates/fathomdb-engine/src/mean.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "fathomdb_engine::mean_centering_internals_for_test::new_mean_accumulator",
+      "integration_callers": []
+    },
+    {
+      "path": "fathomdb_engine::CacheStatusReply",
+      "owner": "src/rust/crates/fathomdb-engine/src/reader_pool.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "std::mem::size_of::<fathomdb_engine::CacheStatusReply>",
+      "integration_callers": []
+    },
+    {
+      "path": "fathomdb_engine::ProjectionWorkerPauseReadyError",
+      "owner": "src/rust/crates/fathomdb-engine/src/test_hooks.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "std::mem::size_of::<fathomdb_engine::ProjectionWorkerPauseReadyError>",
+      "integration_callers": []
+    },
+    {
+      "path": "fathomdb_engine::ProjectionWorkerTransactionPauseForTest",
+      "owner": "src/rust/crates/fathomdb-engine/src/test_hooks.rs",
+      "former_cfg": "debug_assertions",
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "std::mem::size_of::<fathomdb_engine::ProjectionWorkerTransactionPauseForTest>",
+      "integration_callers": []
+    },
+    {
+      "path": "fathomdb_engine::ReaderSearchPauseForTest",
+      "owner": "src/rust/crates/fathomdb-engine/src/test_hooks.rs",
+      "former_cfg": null,
+      "new_cfg": "any(test, feature = \"test-hooks\")",
+      "expression": "std::mem::size_of::<fathomdb_engine::ReaderSearchPauseForTest>",
+      "integration_callers": []
+    }
+  ],
+  "preserved_default_paths": [
+    "Engine::validate_frozen_read_context_for_binding",
+    "Engine::bm25f_search",
+    "fuse_rrf",
+    "fuse_three_arms",
+    "apply_recency_reweight",
+    "rerank_fused",
+    "try_rerank_fused",
+    "Engine::_graph_frontier_stats_for_test"
+  ],
+  "already_gated": "Existing test-hooks, migration-test-hooks, tc5-benchmark, slice72-test-hooks and cfg(test) paths retain their gate."
+}

@@ -445,6 +445,18 @@ SHA and artifact SHA-256 values.
    § "Post-publish smoke" make this a completion condition. Green CI is not
    done.
 
+These rows qualify the new installed Jetson Node artifact, not Slice 135's
+pinned product source and installed artifacts. The x86_64 test of Slice 110 fixes and
+Slice 110 closure already satisfy their entry criteria; neither is repeated
+solely to lift the Slice 117 hold. Slice 117 does not rerun Slice 135's full
+diagnostic matrix. A query or retrieval behavior change beyond the planned
+loader and packaging work triggers only the affected paired Slice 135 cells
+at the changed product source. The full `./scripts/agent-verify.sh` code gate,
+applicable route and docs checks, exact install guidance, and independent
+review precede the Slice 140 handoff. That handoff may be qualified but
+unpublished; the post-publication Node smoke is still required to complete
+Slice 117. Slice 150 qualifies the integrated final candidate.
+
 ## 8. Risks
 
 | Risk | Detail | Mitigation (proposal) |
@@ -509,3 +521,12 @@ The items below make up unruled `slice-117-delivery-shape`:
    revision's baseline they do not.
 10. **ADR:** accept, revise or reject
     `dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` (proposed).
+
+The proposed ADR now gives concrete recommended answers to all ten items:
+the named Pages tarball without an npm reservation, two-tier classic-Orin
+loader detection with a clear version-mismatch error, retention of all
+published URLs, the aarch64 import-time probe exception, a measured
+driverless ARM64 import, licence/SBOM review, a separate capability variant,
+an optional dependency tested across hosts, and a qualified unpublished
+Slice 140 handoff. These are proposals until the owner rules them; they do
+not lift the implementation hold.

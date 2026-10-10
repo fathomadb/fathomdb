@@ -50,7 +50,7 @@ Slice 110 fixes is met. The owner ruled its channel: the existing Tegra Pages
 route, not the npm registry, for 0.8.27. The rest of its delivery shape
 remains a HITL decision, owned by its
 [`draft plan`](0.8.27/features/slice-117/plan.md); implementation waits only
-on that ruling, so it follows Slice 135 in the remaining ladder.
+on that ruling. Slice 135 is complete, so Slice 117 is next.
 
 The shared structural vocabulary is:
 
@@ -1167,11 +1167,18 @@ proposed `ADR-0.8.27-jetson-tegra-node-addon-distribution`. The
 artifact is built on the Jetson with `embed-cuda,rerank-cuda` and carries
 Slice 110's allocation fallback and early `cuInit`, and no memory pool
 (`tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`; 0.8.28 evaluates
-pool options). Qualification repeats
-installed forced-CUDA, allocation-witness and heap-growth checks on the Jetson
-before and after publication. On completion it updates `README.md` and the
-public install pages. Publication stays behind the release publication
-decision. No other slice depends on it.
+pool options). Qualification of the new installed Jetson Node candidate
+repeats CPU, auto and forced-CUDA embedding and reranking, the GPU witness,
+heap-growth regression, loader selection and generic ARM64 non-interference.
+After authorized Pages publication, the downloaded artifact repeats
+forced-CUDA, witness and heap-growth checks before Slice 117 is COMPLETE.
+Slice 135's query measurements remain bound to its pinned product source;
+only a query or retrieval behavior change beyond loader and packaging work
+triggers the affected paired Slice 135 cells. The full code gate, exact
+install docs and reviewed candidate surface precede the Slice 140 handoff.
+Slice 140 may consume a qualified, unpublished candidate while publication
+stays behind the release decision. Slice 150 owns full final-candidate
+qualification. No other slice currently depends on Slice 117.
 
 ### Slice 120 — TypeScript SDK decomposition
 

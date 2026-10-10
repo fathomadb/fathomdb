@@ -19,6 +19,13 @@ proposed record of the recommendation is
 `dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md`. The todos ledger
 tracks the work as `TC-ffef2129-e5a6-4f8f-8cae-bdfe64792197`.
 
+Slice 135's query measurements belong to its pinned product source. Slice 117
+qualifies a new Jetson Node delivery route and must produce fresh evidence for
+its own installed candidate. It does not repeat Slice 135's full diagnostic
+matrix. If loader or packaging work changes query or retrieval behavior,
+repeat the affected paired Slice 135 cells at the changed product source.
+Slice 150 owns qualification of the integrated final candidate.
+
 ## Owner rulings (2026-10-05)
 
 Recorded in `dev/plans/release-state-0.8.27.json` `decisions.ruled`:
@@ -97,10 +104,12 @@ dependencies. The full list is in [design](design.md) § 10.
 | R27-117E | The existing Tegra route builds, retains and publishes the artifact without widening trust. | AC27-117E: `jetson-tegra-cuda-evidence.yml` builds and retains the wheel and the tarball in one run. The Jetson job still holds only `contents: read`. The version guard checks `src/ts/package.json` as well as `pyproject.toml`. The site builder publishes both artifacts. One retained-artifact list feeds both `docs-pages.yml` and the Jetson route, and a test proves neither drops a listed artifact. `test_tegra_publication_operator_path.sh` gains negative cases for the tarball. `actionlint` passes. Nothing publishes to npm. |
 | R27-117F | The published artifact is verified on the Jetson before the release is called done. | AC27-117F: after authorized publication, `publish-tegra-pages.sh` runs a Node smoke on the Jetson. It installs `fathomdb@<version>` from npm and the tarball from the Pages URL, checks the tarball SHA-256, and repeats AC27-117C's forced-CUDA, witness and heap-growth rows. Skipping the smoke reports INCOMPLETE. Green CI alone does not satisfy it. |
 | R27-117G | Public documentation states Jetson Node GPU support truthfully. | AC27-117G: `README.md`, `docs/install/typescript.md`, `docs/compatibility/index.md` (with `check-glibc-floor-doc-truth.sh` green), the Jetson section of `docs/embedder.md`, `src/ts/npm/README.md`, `docs/operations/tegra-pages-publication.md` and the release's Tegra publication handoff give the exact install command. They give it only for a confirmed classic Jetson Orin, replacing the README's "CPU-only; build from source" statement. |
+| R27-117H | The code and handoff are verified before Slice 140 consumes them. | AC27-117H: run the full `./scripts/agent-verify.sh` gate for Slice 117's source, test and executable-script changes, plus applicable artifact, workflow, docs and release-state checks. Record the exact candidate SHA, command results, review and installed-artifact hashes. Give Slice 140 the reviewed install surface and candidate limitations; do not describe Slice 135's pinned-source measurements as Slice 117 results. |
 
 These IDs are release-local; `dev/acceptance.md` remains locked. Until
 publication is authorized, the slice can reach a qualified, unpublished
-candidate.
+candidate for Slice 140 to consume. It is not COMPLETE until AC27-117F's
+post-publication smoke passes.
 
 ## Execution order
 
@@ -114,11 +123,23 @@ candidate.
 4. RED/GREEN the Pages retention list, the version guard and the site-builder
    changes. Then extend the Jetson workflow and the operator script, with
    `actionlint` and the operator-path negative tests.
-5. Build and qualify on the Jetson through the workflow without publishing
-   (AC27-117B–E), with independent review.
-6. After publication authorization only: run the extended
-   `publish-tegra-pages.sh` (AC27-117F).
-7. Update public documentation (AC27-117G) and close status with receipts.
+5. Build and qualify the exact installed candidate on the Jetson through the
+   workflow without publishing (AC27-117B–E). Repeat CPU, auto and forced-CUDA
+   embedding and reranking, the GPU witness and heap-growth regression.
+   Check loader selection and generic ARM64 non-interference. Bind results to
+   the candidate and artifact hashes; do not substitute Slice 110 receipts.
+6. Update exact install and compatibility documentation (AC27-117G), run the
+   full code verification gate and applicable scoped checks (AC27-117H), and
+   obtain independent review. Hand the qualified, unpublished candidate to
+   Slice 140 with its publication condition explicit.
+7. After publication authorization only: run the extended
+   `publish-tegra-pages.sh` (AC27-117F). Install from Pages on the Jetson and
+   repeat forced-CUDA embedding and reranking, GPU witness and heap-growth
+   checks against those downloaded bytes.
+8. Close status with exact-source and post-publication receipts. If Slice 117
+   changed query or retrieval behavior beyond the planned loader and package
+   work, repeat the affected paired Slice 135 cells before the handoff;
+   Slice 150 still qualifies the full final candidate.
 
 ## Boundaries
 
@@ -141,6 +162,10 @@ Slice 117 depends on Slice 110. Slice 120 kept its dependency on Slice 115,
 because it decomposes the TypeScript facade and does not need the Tegra route.
 Slice 120 is now complete, so the loader change in this slice to
 `src/ts/src/platform.ts` builds on its final facade. In the remaining ladder
-(2026-10-07) Slice 117 follows Slice 135 and precedes Slice 140, and Slice 135
-stays next. At this plan's baseline, neither Slice 140 nor Slice 150 depends on
+(2026-10-09) Slice 117 follows completed Slice 135 and precedes Slice 140.
+At this plan's baseline, neither Slice 140 nor Slice 150 depends on
 Slice 117; whether they should is an open item ([design](design.md) § 10).
+Slice 140 can consume a reviewed, qualified, unpublished Slice 117 candidate.
+The release publication ruling controls the later Pages publication and
+post-publication completion check, while Slice 150 owns final-candidate
+qualification.

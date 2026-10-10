@@ -8,7 +8,7 @@ planning_baseline: 80246a567
 # Slice 117 status
 
 **PLANNED; draft; implementation waits on the delivery-shape rulings.**
-Status refreshed 2026-10-07 after merging onto `release/0.8.27`. The
+Status refreshed 2026-10-09 after Slice 135 closeout. The
 [plan](plan.md),
 [design note](design.md) and proposed
 `dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` are drafts for
@@ -34,6 +34,16 @@ forced-CUDA embed and rerank on an RTX 3090 passed; the full `agent-verify`
 was not run there. Plan entry criterion 2 is also met: Slice 110 is complete
 on `release/0.8.27` at `a25d063cd`. Implementation waits only for entry
 criterion 3 (remaining delivery-shape items ruled).
+
+Slice 135 is complete for its pinned product source. Slice 117 will produce
+fresh installed Jetson Node candidate evidence for CPU, auto and forced-CUDA
+embedding and reranking, the GPU witness, heap growth, loader selection and
+generic ARM64 non-interference. It does not inherit Slice 135 measurements or
+repeat its full diagnostic matrix. Query or retrieval changes beyond loader
+and packaging work require the affected paired Slice 135 cells to be repeated.
+The full code gate, exact install docs and independent review precede the
+Slice 140 handoff. Post-publication smoke remains a separate completion gate;
+Slice 150 owns final-candidate qualification.
 
 ## Rulings recorded
 
@@ -64,7 +74,7 @@ criterion 3 (remaining delivery-shape items ruled).
 | Acceptance | Result |
 | --- | --- |
 | AC27-117A | Partial: the supersession ruling, its in-place notes and the channel ruling are recorded. The remaining delivery-shape items and ADR acceptance are pending. |
-| AC27-117B–G | Not started. |
+| AC27-117B–H | Not started. |
 
 ## Tracking
 
@@ -74,7 +84,7 @@ criterion 3 (remaining delivery-shape items ruled).
 - Release state: Slice 117 `PLANNED`, `depends_on: [110]`, in
   `dev/plans/release-state-0.8.27.json`, with the five ruled records above
   and unruled `slice-117-delivery-shape`. Its remaining-ladder position is
-  after Slice 135 and before Slice 140; Slice 135 stays next.
+  after completed Slice 135 and before Slice 140.
 - Decision index: row 61 (proposed).
 - On completion, Slice 117 updates the platform-support statement in
   `README.md`, which at this plan's baseline says the Linux AArch64 npm package

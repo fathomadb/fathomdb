@@ -62,8 +62,8 @@ registry) for 0.8.27, and ruled that Slice 110 ships early `cuInit` with the
 aarch64-Linux allocation fallback. Its prerequisites are now met: Slice 110 is
 complete on `release/0.8.27`, and the owner's Linux x86_64 hold was met at
 Slice 110 candidate `8b76f6115` (recorded by `c761b9369`). Implementation now
-waits only on the unruled `slice-117-delivery-shape` items, so Slice 135 stays
-next and Slice 117 follows it in the remaining ladder. Publication remains
+waits only on the unruled `slice-117-delivery-shape` items. Slice 135 has
+since completed, so Slice 117 is next. Publication remains
 behind `release-0.8.27-publication`. The 0.8.27 allocator approach is the
 synchronous fallback with early `cuInit`; no memory pool ships in 0.8.27, and
 0.8.28 evaluates an explicit or lazily created pool.
@@ -110,6 +110,19 @@ archives were verified in the local evaluation store outside the feature
 worktree. The full workspace gate passed 186/186 suites after executable
 changes; final documentation received scoped checks. This diagnostic
 closeout does not qualify the final release or authorize publication.
+
+Slice 117 next qualifies a new installed Jetson Node delivery route. Its
+entry x86_64 check and Slice 110 closure are recorded and need no repeat to
+lift that hold. The remaining delivery-shape ruling and distribution ADR
+still hold implementation. Candidate evidence must cover CPU, auto and
+forced-CUDA embedding and reranking, the GPU witness, heap growth, loader
+selection and generic ARM64 non-interference. The full code gate, exact
+install docs and review precede the Slice 140 handoff. Slice 135's paired
+query cells repeat only if Slice 117 changes query or retrieval behavior;
+its prior measurements stay bound to its pinned source. After authorized
+Pages publication, the installed Pages artifact must pass forced-CUDA,
+witness and heap-growth checks before Slice 117 is COMPLETE. Slice 150 owns
+full final-candidate qualification.
 
 ## Immediate next action
 
@@ -357,4 +370,6 @@ grant/revert evidence.
   with installed and post-publication Jetson smokes. D-80.7-3 and D-80.6-2 are
   superseded for its scope, and its channel is ruled as Tegra Pages. The
   owner's x86_64 hold is met; implementation waits only on the remaining
-  `slice-117-delivery-shape` rulings. No other slice depends on it.
+  `slice-117-delivery-shape` rulings. Its reviewed, qualified, unpublished
+  candidate may be handed to Slice 140; the later Pages smoke is required
+  before Slice 117 is COMPLETE. No other slice currently depends on it.

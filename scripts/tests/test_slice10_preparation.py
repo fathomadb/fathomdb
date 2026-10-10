@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import runpy
 import subprocess
 import sys
+import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,14 +20,30 @@ def require(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
-def latest_published_release() -> str:
-    published_releases = [
-        tuple(int(part) for part in state["release"].split("."))
-        for path in (ROOT / "dev/plans").glob("release-state-*.json")
-        if (state := json.loads(path.read_text())).get("published") is not None
-    ]
-    require(bool(published_releases), "at least one published release state is required")
-    return ".".join(map(str, max(published_releases)))
+def latest_published_release(root: Path = ROOT) -> str:
+    checker = runpy.run_path(str(ROOT / "scripts/check-public-doc-truth.py"))
+    return checker["current_published_state"](root)["release"]
+
+
+def check_published_lookup() -> None:
+    with tempfile.TemporaryDirectory(prefix="slice10-release-state-") as directory:
+        root = Path(directory)
+        state_dir = root / "dev/plans"
+        state_dir.mkdir(parents=True)
+        tracked = state_dir / "release-state-0.8.26.json"
+        tracked.write_text(json.dumps({
+            "release": "0.8.26",
+            "published": {
+                "tag": "v0.8.26",
+                "tag_commit": "a" * 40,
+                "published_on": "2026-09-19",
+                "npm_dist_tag": "latest",
+            },
+        }))
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        subprocess.run(["git", "-C", str(root), "add", "--", "dev/plans/release-state-0.8.26.json"], check=True)
+        (state_dir / "release-state-9.9.9.json").write_text(json.dumps({"release": "9.9.9", "published": {}}))
+        require(latest_published_release(root) == "0.8.26", "untracked scratch must not change the published release")
 
 
 def check_dependency() -> None:
@@ -111,6 +129,7 @@ def check_planning_truth() -> None:
 def main() -> None:
     check_dependency()
     check_action_comments()
+    check_published_lookup()
     check_platform_truth()
     check_slice30_prerequisites()
     check_planning_truth()

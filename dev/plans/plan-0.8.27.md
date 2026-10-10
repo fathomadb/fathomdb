@@ -387,7 +387,7 @@ user actually commissioned.
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 117** (`JETSON-NODE-CUDA`) — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline
 
-**Remaining ladder:** 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 117 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1141,7 +1141,7 @@ validating an incomplete Slice 90.
 
 ### Slice 117 — Jetson CUDA Node addon delivery
 
-**PLANNED; draft; channel ruled; remaining delivery-shape items open.** The
+**PLANNED; channel and delivery shape ruled; implementation authorized.** The
 published Linux AArch64 npm platform package is built on a hosted runner
 with the default embedder only, so Jetson users get GPU support under Node
 only from a locally built addon. Python already has a governed `+tegra` wheel
@@ -1153,25 +1153,26 @@ The owner ruled on 2026-10-05 (`slice-117-jetson-node-cuda-direction`,
 `slice-117-supersede-d-80-7-3-and-d-80-6-2`) to add this slice and supersede
 D-80.7-3 and D-80.6-2 for it. Its two earlier entry holds are met: Linux
 x86_64 was tested with the Slice 110 fixes at candidate `8b76f6115`, and Slice
-110 is complete on `release/0.8.27`. Implementation waits only on the
-remaining `slice-117-delivery-shape` rulings. The
+110 is complete on `release/0.8.27`. On 2026-10-09 the owner accepted the
+distribution ADR, ruling `slice-117-delivery-shape`. The
 [Slice 117 plan](0.8.27/features/slice-117/plan.md) defines AC27-117A–G. Its
 [design note](0.8.27/features/slice-117/design.md) extends that existing
 Tegra Pages route to a separately named Node package tarball. The owner ruled
 that channel for 0.8.27 (`slice-117-channel-tegra-pages`); the npm registry
 options are not chosen for 0.8.27, and a later registry publication would need
-its own ruling. Unruled `slice-117-delivery-shape` now covers the package name
-and npm name reservation, loader policy, Pages retention, the aarch64
-import-time `cuInit` contract and the other items in design § 10, with the
-proposed `ADR-0.8.27-jetson-tegra-node-addon-distribution`. The
+its own ruling. The accepted
+`ADR-0.8.27-jetson-tegra-node-addon-distribution` settles the package name,
+loader policy, Pages retention, the aarch64 import-time `cuInit` contract and
+the other items in design § 10. The
 artifact is built on the Jetson with `embed-cuda,rerank-cuda` and carries
 Slice 110's allocation fallback and early `cuInit`, and no memory pool
 (`tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`; 0.8.28 evaluates
 pool options). Qualification of the new installed Jetson Node candidate
 repeats CPU, auto and forced-CUDA embedding and reranking, the GPU witness,
 heap-growth regression, loader selection and generic ARM64 non-interference.
-After authorized Pages publication, the downloaded artifact repeats
-forced-CUDA, witness and heap-growth checks before Slice 117 is COMPLETE.
+After authorized Pages publication, Slice 160 repeats forced-CUDA, witness
+and heap-growth checks on the downloaded artifact (AC27-117F); Slice 117 is
+COMPLETE once its qualified, reviewed, unpublished candidate reaches Slice 140.
 Slice 135's query measurements remain bound to its pinned product source;
 only a query or retrieval behavior change beyond loader and packaging work
 triggers the affected paired Slice 135 cells. The full code gate, exact
@@ -1426,6 +1427,55 @@ removal-changelog gate stay. The retirement commit rewrites cadence step 4
 and this slice's text to say the oracle ran and was retired, citing the
 `status.md` digests. If the decomposition is abandoned or deferred, the same
 unwind runs at that decision.
+
+### Slice 160 — publication to every destination
+
+Depends on Slice 150 and on the `release-0.8.27-publication` ruling; nothing
+here runs before both. Slice 160 owns every publication action and every
+post-publication proof for 0.8.27, whatever the destination. It writes no
+product code: a publication defect returns to the owning slice with a new RED
+test, and the tag moves only after that fix is qualified.
+
+| Destination | Artifacts | Route | Proof |
+| --- | --- | --- | --- |
+| crates.io | Tiers T1–T7, including the first `fathomdb-sdk` publish | `release.yml` on the `v0.8.27` tag (`dev/design/release.md` § Tiered publish order) | `cargo install fathomdb-cli` then `doctor check-integrity --json` on a fresh fixture |
+| PyPI | `fathomdb` wheels for every platform in `dev/platform-capabilities.json`, CUDA on Linux x86_64 | `release.yml` | installed-wheel open, close and exit smoke |
+| npm | `fathomdb` and its five platform packages, CUDA on Linux x86_64 | `release.yml`, then `promote-npm-latest` | five-platform post-publish smokes |
+| GitHub Releases | release notes and attached assets | `release.yml` `github-release` | release exists at the tag |
+| Tegra Pages | `0.8.27+tegra` wheel and `fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz` | `jetson-tegra-cuda-evidence.yml` with `publish_to_pages=true` on the tagged commit | AC27-117F and the post-deploy live check |
+| Docs Pages | MkDocs site and retained Tegra artifacts | `docs-pages.yml` on `main` | live check of every retained artifact |
+
+Order:
+
+1. **Before the tag:** finish the pre-tag procedure (`dev/design/release.md`
+   § Pre-tag procedure), including the HITL token bootstrap for the new
+   `fathomdb-sdk` crate. Decide where the Tegra tarball's published SHA-256
+   comes from: either the Slice 150 tarball is the one published and the docs
+   carry its digest, or the docs drop the inline digest for a published
+   `SHA256SUMS`. A digest committed after the tarball was built must not
+   describe a different build.
+2. **Registries:** push the annotated tag; `release.yml` runs the tiered
+   publish, registry-visibility wait, post-publish smokes, co-tagging check,
+   npm `latest` promotion and GitHub Release. Partial-publish recovery follows
+   the idempotency contract in `dev/design/release.md`; a skipped tier is
+   never recorded as published.
+3. **Tegra Pages:** dispatch `jetson-tegra-cuda-evidence.yml` on the tagged
+   commit with `publish_to_pages=true`. Then run `publish-tegra-pages.sh`'s
+   Jetson smoke (AC27-117F, moved here from Slice 117): install
+   `fathomdb@0.8.27` from npm and the tarball from its Pages URL, check its
+   SHA-256, and repeat the forced-CUDA, witness and heap-growth rows; then
+   install `fathomdb==0.8.27+tegra` from the Pages index and repeat its smoke.
+   Add both artifacts to `scripts/release/tegra-pages-retained.json` with
+   their digests.
+4. **Docs Pages:** after 0.8.27 merges to `main`, record a passing
+   `docs-pages.yml` run, including its live verification job. That run
+   retires `main`'s dead `0.8.24+tegra` pin (404, owner-checked 2026-10-10)
+   because the retained list names only published artifacts and every
+   deployer verifies each one from its public URL.
+5. **Close:** record the `published` block in
+   `dev/plans/release-state-0.8.27.json` with the tag object, tag commit, each
+   run ID and every proof above. A missing or skipped proof leaves the release
+   INCOMPLETE; green CI alone does not close Slice 160.
 
 ## Structural slice cadence
 

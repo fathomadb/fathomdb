@@ -47,11 +47,12 @@ and its higher ABI floor is therefore a distinct, checked publication
 contract.
 
 **Measured glibc floor (tegra): 2.35**, for the Jetson/Tegra CUDA Python
-wheel only. That artifact is **not published to PyPI** and is not covered by
-the table below; it is built host-natively on a Jetson Orin against JetPack's
-CUDA 12.6 (`scripts/release/build-python-cuda-tegra.sh`), because the Tegra
-CUDA runtime is host-bound and no manylinux image carries it. It therefore
-inherits JetPack's own glibc — Ubuntu 22.04's 2.35 — rather than the
+wheel and, from 0.8.27, the `fathomdb-linux-arm64-gnu-tegra` Node addon.
+Neither is published to PyPI or the npm registry, and neither is covered by
+the table below; each is built host-natively on a Jetson Orin against JetPack's
+CUDA 12.6 (`scripts/release/build-python-cuda-tegra.sh` and
+`scripts/release/build-napi-cuda-tegra.sh`), because the Tegra CUDA runtime
+is host-bound and no manylinux image carries it. Each therefore inherits JetPack's own glibc — Ubuntu 22.04's 2.35 — rather than the
 `manylinux_2_28` floor. This higher floor is *declared and asserted* by the
 same gate, not exempted from it: both numbers come from
 `scripts/release/glibc-floor-contract.sh`, and
@@ -72,6 +73,27 @@ sets and does not prioritize indexes. The Pages route is interim 0.8.26
 hosting, not a durable multi-version distribution decision. Use
 `fathomdb doctor platform --json` to distinguish classic Tegra from ARM64 SBSA
 before diagnosing an incompatible CUDA provider.
+
+For Node.js, the generic `linux-arm64-gnu` npm package stays CPU-only on every
+AArch64 host, including Jetson. Starting with 0.8.27 (not yet published), a
+confirmed classic Jetson Orin can add the CUDA-capable
+`fathomdb-linux-arm64-gnu-tegra` package. It is distributed only as an
+exact-version tarball from the Tegra Pages site, never from the npm registry,
+and must match the `fathomdb` version exactly. After checking the tarball's
+published SHA-256 (the 0.8.27 digest is published with the tarball):
+
+```bash
+npm install --save-exact fathomdb@0.8.27
+npm install --save-optional https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
+```
+
+As an optional dependency it is skipped on hosts whose os, cpu or libc do not
+match, and the loader selects it only on a confirmed classic Jetson Orin;
+Thor and SBSA hosts keep the generic package. Unlike the Linux x86_64
+package, this addon calls `cuInit` at import unless every CUDA-built component
+is set to `cpu` at load time or `FATHOMDB_CUDA_EARLY_INIT=off`. See
+[TypeScript install](../install/typescript.md#classic-jetson-orin-with-cuda)
+for the SHA-256 check and the `package.json` form.
 
 | OS      | Architecture                | Published prebuilt? |
 | ------- | --------------------------- | ------------------- |

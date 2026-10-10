@@ -4,18 +4,18 @@ date: 2026-10-05
 target_release: 0.8.27
 desc: Distribute a CUDA-capable Node addon for classic Jetson Orin through the existing Tegra Pages route
 blast_radius: TypeScript loader; Jetson Tegra CUDA evidence workflow; Tegra Pages site builders and publisher; CUDA artifact and glibc-floor contracts; Tegra platform reference; public install and compatibility docs
-status: proposed
+status: accepted
 ---
 
 # ADR — Jetson (classic Tegra) CUDA Node addon distribution
 
-**Status: PROPOSED (draft for HITL review; not accepted).** Nothing in this
-record authorizes implementation or publication. It records the
-recommendation of the Slice 117 design
-(`dev/plans/0.8.27/features/slice-117/design.md`) for the open release-state
-decision `slice-117-delivery-shape`. One part is already ruled: the channel
-(decision 2, `slice-117-channel-tegra-pages`, 2026-10-05). The record as a
-whole stays proposed until the remaining items are ruled and it is accepted.
+**Status: ACCEPTED (repository owner, 2026-10-09).** The owner accepted this
+record as proposed, which rules every remaining item of release-state
+decision `slice-117-delivery-shape`. The channel (decision 2) was ruled
+earlier, on 2026-10-05, by `slice-117-channel-tegra-pages`. Acceptance lifts
+the Slice 117 implementation hold. It does not authorize publication, which
+stays behind `release-0.8.27-publication`. The recommendation came from the
+Slice 117 design (`dev/plans/0.8.27/features/slice-117/design.md`).
 
 ## Context
 
@@ -52,7 +52,7 @@ host-native `scripts/release/build-python-cuda-tegra.sh`, the fail-closed
 and the exact-SHA operator script `scripts/release/publish-tegra-pages.sh`
 with its post-publication smoke.
 
-## Decision (proposed)
+## Decision
 
 1. **Package shape.** The Tegra addon is the separately named, unscoped
    `fathomdb-linux-arm64-gnu-tegra` platform package carrying a dual-runtime

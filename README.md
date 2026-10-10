@@ -46,12 +46,26 @@ policy when no GPU is usable; "CPU-only" artifacts never use a GPU.
 | npm | `fathomdb` + `fathomdb-darwin-x64`, `fathomdb-darwin-arm64`, `fathomdb-native-win32-x64-msvc` | macOS x64/arm64, Windows x64 | CPU-only |
 | crates.io | `fathomdb` library, `fathomdb-cli` | Built from source | CPU by default; CUDA via the opt-in `embed-cuda` / `rerank-cuda` features |
 
-The Linux AArch64 npm package is CPU-only, so GPU acceleration under Node.js on
-a Jetson currently requires building the CUDA addon from source on the device
-(the `build:native:cuda` npm script targets Linux x86_64 only). Planned
-0.8.27 Slice 117 (`dev/plans/0.8.27/features/slice-117/plan.md`) will update
-this statement when it ships a Jetson CUDA Node addon. No prebuilt CLI binary
-is published; install it with `cargo install`. Details:
+The generic Linux AArch64 npm package stays CPU-only. Starting with 0.8.27
+(not yet published), a confirmed classic Jetson Orin (JetPack 6, CUDA 12.6)
+can add the CUDA-capable `fathomdb-linux-arm64-gnu-tegra` package. It is not
+on the npm registry: install the exact-version tarball from the Tegra Pages
+site after checking its published SHA-256, at the same version as `fathomdb`:
+
+```bash
+npm install --save-exact fathomdb@0.8.27
+npm install --save-optional https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
+```
+
+As an optional dependency it is skipped on hosts whose os, cpu or libc do
+not match. Other Linux AArch64 glibc hosts install it, but the loader ignores
+it there and selects it only on a confirmed classic Jetson Orin. The Tegra
+package path supports npm with a flat (hoisted) `node_modules` only. Unlike
+Linux x86_64, this
+addon calls `cuInit` at import unless `FATHOMDB_CUDA_EARLY_INIT=off`. The
+SHA-256 check and full guide are in `docs/install/typescript.md`.
+
+No prebuilt CLI binary is published; install it with `cargo install`. Details:
 `docs/compatibility/index.md`, `docs/install/` and `docs/embedder.md`.
 
 Public documentation: `docs/` (built with `mkdocs build --strict`).

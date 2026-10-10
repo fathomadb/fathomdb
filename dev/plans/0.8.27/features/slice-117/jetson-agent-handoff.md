@@ -114,8 +114,9 @@ The operator uses `scripts/release/publish-tegra-pages.sh` only after the
 separate release publication ruling. The extended script must install the
 main package from npm and the Tegra tarball from its exact Pages URL in a
 fresh Jetson consumer, compare the downloaded SHA-256 with retained candidate
-evidence, then repeat forced-CUDA embedding and reranking, the GPU witness
-and the installed-package heap test. Retain the Pages deployment run, URL,
+evidence, then repeat forced-CUDA embedding with its GPU allocation witness,
+forced-CUDA reranking (open-time device resolution and finite scores; it has
+no witness) and the installed-package heap test. Retain the Pages deployment run, URL,
 downloaded hash, smoke logs and witness. A skipped or failed post-publication
 smoke leaves Slice 117 INCOMPLETE.
 

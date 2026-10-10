@@ -2,10 +2,9 @@
 # Build the Jetson/Tegra CUDA Python wheel host-natively from the release
 # contract (0.8.23 Slice 80.6, D-80.6-1/2/4).
 #
-# Scope, deliberately narrow (D-80.6-2): the Python wheel ONLY. Not the npm
-# N-API binding, not the CLI tarball. Python is the primary SDK surface and the
-# one the x86_64 CUDA lane already proves most thoroughly; a second consumer can
-# be added later without redoing any of this sub-slice's proof.
+# Scope: the Python wheel only. The Jetson N-API `.node` has its own wrapper,
+# scripts/release/build-napi-cuda-tegra.sh, from the same contract pins
+# (ADR-0.8.27-jetson-tegra-node-addon-distribution); the CLI tarball has none.
 #
 # Host-native, not containerized (§ 7 80.6 D-1): the Tegra CUDA runtime is
 # host-bound, `sbsa-linux` ships no SASS/PTX slices for Tegra iGPUs, and no

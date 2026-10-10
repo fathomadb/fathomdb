@@ -61,8 +61,9 @@ scope, ruled its channel as the existing Tegra Pages route (not the npm
 registry) for 0.8.27, and ruled that Slice 110 ships early `cuInit` with the
 aarch64-Linux allocation fallback. Its prerequisites are now met: Slice 110 is
 complete on `release/0.8.27`, and the owner's Linux x86_64 hold was met at
-Slice 110 candidate `8b76f6115` (recorded by `c761b9369`). Implementation now
-waits only on the unruled `slice-117-delivery-shape` items. Slice 135 has
+Slice 110 candidate `8b76f6115` (recorded by `c761b9369`). On 2026-10-09 the
+owner accepted the distribution ADR, ruling `slice-117-delivery-shape`, so
+implementation is authorized. Slice 135 has
 since completed, so Slice 117 is next. Publication remains
 behind `release-0.8.27-publication`. The 0.8.27 allocator approach is the
 synchronous fallback with early `cuInit`; no memory pool ships in 0.8.27, and
@@ -113,16 +114,16 @@ closeout does not qualify the final release or authorize publication.
 
 Slice 117 next qualifies a new installed Jetson Node delivery route. Its
 entry x86_64 check and Slice 110 closure are recorded and need no repeat to
-lift that hold. The remaining delivery-shape ruling and distribution ADR
-still hold implementation. Candidate evidence must cover CPU, auto and
+lift that hold. The delivery-shape ruling and the accepted distribution ADR
+(2026-10-09) authorize implementation. Candidate evidence must cover CPU, auto and
 forced-CUDA embedding and reranking, the GPU witness, heap growth, loader
 selection and generic ARM64 non-interference. The full code gate, exact
 install docs and review precede the Slice 140 handoff. Slice 135's paired
 query cells repeat only if Slice 117 changes query or retrieval behavior;
 its prior measurements stay bound to its pinned source. After authorized
-Pages publication, the installed Pages artifact must pass forced-CUDA,
-witness and heap-growth checks before Slice 117 is COMPLETE. Slice 150 owns
-full final-candidate qualification.
+Pages publication, Slice 160 runs the installed Pages artifact's forced-CUDA,
+witness and heap-growth checks. Slice 150 owns full final-candidate
+qualification; Slice 160 owns every publication and post-publication proof.
 
 Slice 140 planning is approved at the pre-handoff `360bbe63e` baseline:
 [plan](../0.8.27/features/slice-140/plan.md),
@@ -137,22 +138,16 @@ coverage will be refreshed without a human sign-off gate.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 117 (JETSON-NODE-CUDA)** — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline. **Remaining ladder:** 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 117 (JETSON-NODE-CUDA)** — CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release pipeline. **Remaining ladder:** 117 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
-There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->THREE<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
+There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TWO<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
 
 - authorize tagging/publication only after the complete ladder and release
   qualification pass.
 - `slice-132-external-provider-disposition`: decide whether the published
   provider/plugin contract remains a supported extension boundary.
-- `slice-117-delivery-shape`: settle the Jetson Node package name and npm
-  name reservation, loader policy, Pages retention, aarch64 import-time
-  `cuInit` contract and the other items in the
-  [Slice 117 design](../0.8.27/features/slice-117/design.md) § 10. The channel
-  is ruled (`slice-117-channel-tegra-pages`): the existing Tegra Pages route;
-  the npm registry options are not chosen for 0.8.27.
 
 `D27-runtime-topology` is ruled as Option B by HITL decision `seq-293`. That
 ruling selected the architectural direction. `seq-295` accepted the reviewed
@@ -378,7 +373,7 @@ grant/revert evidence.
   Node addon built through the existing Jetson Tegra CUDA evidence workflow,
   with installed and post-publication Jetson smokes. D-80.7-3 and D-80.6-2 are
   superseded for its scope, and its channel is ruled as Tegra Pages. The
-  owner's x86_64 hold is met; implementation waits only on the remaining
-  `slice-117-delivery-shape` rulings. Its reviewed, qualified, unpublished
-  candidate may be handed to Slice 140; the later Pages smoke is required
-  before Slice 117 is COMPLETE. No other slice currently depends on it.
+  owner's x86_64 hold is met, and the delivery shape is ruled by the accepted
+  distribution ADR (2026-10-09). Its reviewed, qualified, unpublished
+  candidate may be handed to Slice 140; Slice 160 runs the later Pages
+  smoke. No other slice currently depends on it.

@@ -33,6 +33,90 @@ platform-tagged `.node` binary at load time.
 npm install fathomdb@next
 ```
 
+On Linux AArch64 this installs the CPU-only `fathomdb-linux-arm64-gnu`
+package, including on a Jetson. For CUDA on a classic Jetson Orin, see the
+next section.
+
+## Classic Jetson Orin with CUDA
+
+> **Starts with 0.8.27, which is not yet published.** Until the 0.8.27 Tegra
+> Pages publication completes, the URL below returns 404. The placeholder
+> `<0.8.27-tarball-sha256>` stands for the SHA-256 that is published with the
+> tarball; it is not known yet.
+
+A CUDA-capable Node addon for **classic Jetson Orin** (JetPack 6 / L4T R36,
+CUDA 12.6) ships as the separately named package
+`fathomdb-linux-arm64-gnu-tegra`. It is not on the npm registry. It is
+published only as an exact-version tarball on the first-party Tegra Pages
+site, beside the `+tegra` Python wheel:
+
+```text
+https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-<version>.tgz
+```
+
+The digest-linked list of published tarballs is at
+<https://fathomadb.github.io/fathomdb/tegra/node/>.
+
+Use it only on a confirmed classic Jetson Orin: `/etc/nv_tegra_release`
+exists and `nvidia-smi --query-gpu=name --format=csv,noheader` reports an
+`nvgpu` device. Thor, ARM64 SBSA servers and other AArch64 hosts are not
+supported by this package; use the generic package there.
+
+Check the published SHA-256, then add both packages at the same exact
+version:
+
+```bash
+curl -fsSLO https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
+echo '<0.8.27-tarball-sha256>  fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz' | sha256sum --check --strict -
+npm install --save-exact fathomdb@0.8.27
+npm install --save-optional https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
+```
+
+The result is this `package.json` form. The Tegra tarball is an
+`optionalDependency`, so the same `package.json` and lockfile also install
+on non-Jetson hosts: npm skips the tarball wherever its `linux`/`arm64`/`glibc`
+metadata does not match, and the lockfile pins its integrity. Other Linux
+AArch64 glibc hosts install it, but the loader ignores it there.
+
+The Tegra package path supports npm with a flat (hoisted) `node_modules` only.
+The loader resolves the Tegra package from `fathomdb`'s own install location,
+so a pnpm isolated layout or Yarn Plug'n'Play does not find it and silently
+loads the generic CPU binary instead.
+
+```json
+{
+  "dependencies": {
+    "fathomdb": "0.8.27"
+  },
+  "optionalDependencies": {
+    "fathomdb-linux-arm64-gnu-tegra": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz"
+  }
+}
+```
+
+How it behaves:
+
+- **Selection.** The loader uses the Tegra package only when it is installed
+  and the host is confirmed as a classic Jetson Orin (the Tegra family signal,
+  then an `nvgpu` GPU name). On any other host, including a Thor-like or
+  undetermined one, it loads the generic package, which must also be
+  installed. Without the Tegra package nothing changes.
+- **Exact version.** The tarball's version must equal the installed
+  `fathomdb` version. On a confirmed classic Jetson Orin (both the Tegra
+  family signal and an `nvgpu` GPU name), a mismatch fails the import with
+  `PlatformPackageVersionMismatchError` before any native code loads. On
+  any other host the loader ignores the Tegra package, so no mismatch is
+  raised. Upgrade both together.
+- **CUDA starts at import (AArch64 only).** Unlike the Linux x86_64 package,
+  which never probes the CUDA driver at import, this addon calls `cuInit`
+  when it is loaded; see
+  [Node.js on Jetson](../embedder.md#nodejs-on-jetson-load-fathomdb-first).
+  It does not when every CUDA-built component is set to `cpu`
+  (`FATHOMDB_EMBED_DEVICE`, `FATHOMDB_RERANK_DEVICE`) at load time, or when
+  `FATHOMDB_CUDA_EARLY_INIT=off`. A `cpu` option passed only later at open
+  cannot prevent the earlier probe. A missing driver never fails the import.
+- **No postinstall step.** Nothing is downloaded or built at install time.
+
 ## Install (current path — build from source)
 
 ```bash

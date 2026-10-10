@@ -70,8 +70,11 @@ Implementation (execution step 3 onward) starts only when all of these hold:
 3. The owner has ruled the remaining `slice-117-delivery-shape` items and
    accepted, revised or replaced the proposed distribution ADR. The channel
    is already ruled.
+   *Met 2026-10-09: the owner accepted the distribution ADR as proposed,
+   which rules every item (`slice-117-delivery-shape`).*
 
-AC27-117F additionally requires publication authorization.
+AC27-117F additionally requires publication authorization. By owner ruling
+(`slice-160-owns-publication`, 2026-10-10) Slice 160 runs it.
 
 ## Entry evidence
 
@@ -84,17 +87,14 @@ AC27-117F additionally requires publication authorization.
 | No checked-in script builds a Tegra `.node`. `build-napi-cuda.sh` is x86_64-only, and the contract test rejects re-pointing its axis at Tegra. | `scripts/release/build-napi-cuda.sh`; `scripts/tests/test_cuda_release_contract.sh` |
 | Slice 110 built and qualified a host-native CUDA addon on the Jetson. Its allocation fallback and early `cuInit` stay in 0.8.27. | `dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`; branch `llm/slice110-tegra-allocator-fix` |
 
-## Open HITL decision
+## Delivery-shape ruling
 
 The channel is ruled (`slice-117-channel-tegra-pages`): the Tegra Pages
-route. The npm registry options are not chosen for 0.8.27. The acceptance
-below is planned on that channel.
-
-`slice-117-delivery-shape` (unruled) now covers the package name and whether
-to reserve it on the npm registry, loader policy, Pages retention, the
-aarch64 import-time `cuInit` contract, the driverless evidence bar, licence
-coverage, platform-capabilities representation, install form and ladder
-dependencies. The full list is in [design](design.md) § 10.
+route. The npm registry options are not chosen for 0.8.27. On 2026-10-09
+the owner accepted
+`dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` as proposed,
+which rules every remaining item of `slice-117-delivery-shape` (the list is
+in [design](design.md) § 10). The acceptance below is planned on that ADR.
 
 ## Requirements and acceptance
 
@@ -111,8 +111,9 @@ dependencies. The full list is in [design](design.md) § 10.
 
 These IDs are release-local; `dev/acceptance.md` remains locked. Until
 publication is authorized, the slice can reach a qualified, unpublished
-candidate for Slice 140 to consume. It is not COMPLETE until AC27-117F's
-post-publication smoke passes.
+candidate for Slice 140 to consume. It is COMPLETE once that reviewed,
+qualified, unpublished candidate is handed to Slice 140. AC27-117F's
+post-publication smoke stays a release requirement that Slice 160 runs.
 
 ## Execution order
 
@@ -135,11 +136,11 @@ post-publication smoke passes.
    full code verification gate and applicable scoped checks (AC27-117H), and
    obtain independent review. Hand the qualified, unpublished candidate to
    Slice 140 with its publication condition explicit.
-7. After publication authorization only: run the extended
+7. Slice 160, after publication authorization only: run the extended
    `publish-tegra-pages.sh` (AC27-117F). Install from Pages on the Jetson and
    repeat forced-CUDA embedding and reranking, GPU witness and heap-growth
    checks against those downloaded bytes.
-8. Close status with exact-source and post-publication receipts. If Slice 117
+8. Close status with exact-source receipts. If Slice 117
    changed query or retrieval behavior beyond the planned loader and package
    work, repeat the affected paired Slice 135 cells before the handoff;
    Slice 150 still qualifies the full final candidate.

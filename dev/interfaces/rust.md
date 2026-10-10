@@ -1387,7 +1387,11 @@ unavailable linked source only after global target-and-edge authorization.
 `fathomdb_engine::arm_reader_search_hook_for_test(&Engine)` returns a
 `ReaderSearchPauseForTest` guard for that Engine's next reader search before
 its snapshot is pinned. This replaces the process-global closure and clear
-functions. It remains a hidden test seam and is not exported by the SDK facade.
+functions. The arm function, guard type, and guard methods are compiled only
+for crate unit tests (`cfg(test)`) or the explicit `fathomdb-engine/test-hooks`
+integration-fixture feature. Default dev and release dependency builds omit
+them, including when `operator` is enabled. It remains a hidden test seam and
+is not exported by the SDK facade.
 `wait_ready(Duration)` cancels on timeout/disconnection and clamps readiness waits
 to fifteen seconds; the worker release wait has the same upper bound. `release()`
 is idempotent, and guard destruction releases a parked reader and disarms an

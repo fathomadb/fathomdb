@@ -11,8 +11,11 @@ The [inventory](test-seam-inventory.json) records 75 formerly default-dev
 public paths, their current declaration owners, previous effective gates,
 and direct integration-test references. Nested mean helpers inherit their
 module gate. The intended new gate is `any(test, feature = "test-hooks")`.
-Existing feature-only hooks retain their existing gate. The default public
-comparator remains unchanged.
+Existing feature-only hooks retain their existing gate. The module/type
+negative witnesses transitively cover the nested `AccumulatorHandle` type
+and reader-guard methods; the Removed changelog lists these explicit names
+alongside their parent paths. The public
+comparator tool and immutable baseline remain unchanged.
 
 ## Removed fixture routes
 
@@ -68,5 +71,7 @@ borrowed or repointed. The prepared release checkout must run the full gate
 on the reviewed integrated source. The completed Slice 117 handoff is integrated at `f1d4571b1`; public install
 and compatibility guidance continues to label the Tegra candidate unpublished,
 with publication owned by Slice 160. The integrated external boundary and
-engine compilation passed again. Hidden/public comparisons, their successor
-baseline, independent code review, and Terra verification remain pending.
+engine compilation passed again. The [public comparison](public-surface-comparison.md) records the intended
+reader-guard removal and inherited earlier-slice differences. Independent
+code review passed on `18ef03da9`; hidden comparison/successor baseline, Terra
+verification, and the prepared-checkout full gate remain pending.

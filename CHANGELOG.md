@@ -27,7 +27,7 @@ AC-050c) gates merges against this invariant.
 
 ### Removed
 
-- Default dev and release builds no longer expose the following doc-hidden
+- Default dev and release builds no longer expose the following
   engine test fixtures. Crate unit tests retain them; external fixtures must
   explicitly enable `fathomdb-engine/test-hooks`:
   - `fathomdb_engine::Engine::acknowledge_projection_stop_for_test`
@@ -101,10 +101,13 @@ AC-050c) gates merges against this invariant.
   - `fathomdb_engine::slice35_ranked_eligibility_sql_for_test`
   - `fathomdb_engine::vector_phase1_sql_for_test`
   - `fathomdb_engine::mean_centering_internals_for_test`
+  - `fathomdb_engine::mean_centering_internals_for_test::AccumulatorHandle`
   - `fathomdb_engine::CacheStatusReply`
   - `fathomdb_engine::ProjectionWorkerPauseReadyError`
   - `fathomdb_engine::ProjectionWorkerTransactionPauseForTest`
   - `fathomdb_engine::ReaderSearchPauseForTest`
+  - `fathomdb_engine::ReaderSearchPauseForTest::wait_ready`
+  - `fathomdb_engine::ReaderSearchPauseForTest::release`
 
 - `AttachSubscriberOptions` from the native and TypeScript binding surfaces;
   the inert heartbeat option has no replacement.

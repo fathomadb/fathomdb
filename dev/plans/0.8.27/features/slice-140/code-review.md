@@ -23,3 +23,14 @@ remain separate requirements.
 A later source-comment-only cleanup removes an obsolete historical claim
 about the former `debug_assertions` gate in `ReaderRequest`. It changes no
 predicate, path, or behavior from the reviewed candidate.
+
+## Exact public comparison follow-up
+
+The `gpt-6-sol` high reviewer confirmed that the immediate public diff's 31
+removals in each default/operator engine row belong solely to the gated
+`ReaderSearchPauseForTest` type and derived impls. Its requested explicit Rust
+interface route and broader changelog wording are applied. The targeted
+AC-050c checker also required explicit nested `AccumulatorHandle` and guard
+`wait_ready` removal names; both are now listed, along with guard `release`.
+These corrections change documentation only; the compiler controls remain
+unchanged.

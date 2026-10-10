@@ -91,9 +91,12 @@ large-file scan still enumerates 39 triggers.
 
 Public capture completed 13 rows against `18ef03da9`. The immutable Slice 30
 baseline remains unchanged; its comparison reports inherited public changes
-from earlier slices, which require a recorded review rather than an equal
-claim. Hidden before/after capture and the reviewed successor record remain
-in progress. The scoped Markdown and public-document checks passed.
+from earlier slices. The [immediate public comparison](public-surface-comparison.md)
+against the completed Slice 117 source isolates this slice to 31 intended
+reader-guard-derived removals in each default/operator engine row, with no SDK
+changes. Independent follow-up review accepted that delta and its documented
+contract correction. Hidden before/after capture and the reviewed successor
+record remain in progress. The scoped Markdown and public-document checks passed.
 
 The implementation worktree's full verification attempt fails at preflight
 because no checkout-owned `.venv/bin/python` is installed. The prepared

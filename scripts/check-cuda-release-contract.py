@@ -563,6 +563,9 @@ def require_tegra_napi_route(contract: str) -> None:
             fail(f"{label} must assert {fragment!r} before the --assert-only exit")
     for fragment in (
         '--features "$CUDA_TEGRA_NAPI_FEATURES"',
+        # @napi-rs/cli 2.x resolves the type-definition path against cwd.
+        'NATIVE_DEST="$(realpath --relative-to="$TS_DIR" "$NATIVE_DIR")"',
+        '  "$NATIVE_DEST"\n',
         "glibc-floor-contract.sh",
         'TEGRA_FLOOR="$(glibc_floor_for_family tegra)"',
         'check-glibc-floor.sh" --floor "$TEGRA_FLOOR" "$NATIVE_BINARY"',

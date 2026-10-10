@@ -208,12 +208,15 @@ mkdir -p "$NATIVE_DIR"
 
 # napi writes into an explicit staging directory so the CUDA `.node` never
 # lands in src/ts, where the loader's local-binary probe would pick it up.
+# @napi-rs/cli 2.x joins process.cwd() onto destDir for the type definitions,
+# so the destination must be relative to src/ts.
+NATIVE_DEST="$(realpath --relative-to="$TS_DIR" "$NATIVE_DIR")"
 cd "$TS_DIR"
 npm exec --offline -- napi build --platform --release \
   --cargo-cwd ../rust/crates/fathomdb-napi \
   --features "$CUDA_TEGRA_NAPI_FEATURES" \
   --js false \
-  "$NATIVE_DIR"
+  "$NATIVE_DEST"
 NATIVE_BINARY="$NATIVE_DIR/fathomdb.$CUDA_TEGRA_NAPI_TRIPLE.node"
 if [ ! -f "$NATIVE_BINARY" ]; then
   fail "the Tegra N-API build did not produce $NATIVE_BINARY"

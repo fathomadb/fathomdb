@@ -88,20 +88,26 @@ entry() { printf '{"kind":"%s","version":"%s","filename":"%s","sha256":"%s","url
 wheel_entry="$(entry wheel 0.8.26+tegra "$W" "$D" "$PAGES_BASE/$W")"
 expect_invalid 'wrong schema is rejected' 'schema' \
   "{\"schema\":\"other\",\"artifacts\":[$wheel_entry]}"
+bad_entry_1="$(entry wheel 0.8.26+tegra "$W" abc "$PAGES_BASE/$W")"
 expect_invalid 'a malformed digest is rejected' 'sha256' \
-  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$(entry wheel 0.8.26+tegra "$W" abc "$PAGES_BASE/$W")]}"
+  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$bad_entry_1]}"
 expect_invalid 'a duplicate filename is rejected' 'duplicate' \
   "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$wheel_entry,$wheel_entry]}"
+bad_entry_2="$(entry wheel 0.8.26+tegra "$W" "$D" "https://example.invalid/$W")"
 expect_invalid 'a URL other than its first-party Pages location is rejected' 'url' \
-  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$(entry wheel 0.8.26+tegra "$W" "$D" "https://example.invalid/$W")]}"
+  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$bad_entry_2]}"
+bad_entry_3="$(entry sdist 0.8.26+tegra "$W" "$D" "$PAGES_BASE/$W")"
 expect_invalid 'an unknown artifact kind is rejected' 'kind' \
-  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$(entry sdist 0.8.26+tegra "$W" "$D" "$PAGES_BASE/$W")]}"
+  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$bad_entry_3]}"
+bad_entry_4="$(entry wheel 0.8.27+tegra "$W" "$D" "$PAGES_BASE/$W")"
 expect_invalid 'a wheel filename must carry its +tegra version' 'filename' \
-  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$(entry wheel 0.8.27+tegra "$W" "$D" "$PAGES_BASE/$W")]}"
+  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$bad_entry_4]}"
+bad_entry_5="$(entry node-tarball 0.8.28 "$T" "$D" "$PAGES_BASE/$T")"
 expect_invalid 'a Node tarball filename must name the Tegra package and version' 'filename' \
-  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$(entry node-tarball 0.8.28 "$T" "$D" "$PAGES_BASE/$T")]}"
+  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$bad_entry_5]}"
+bad_entry_6="$(entry node-tarball 0.8.27 "../$T" "$D" "$PAGES_BASE/../$T")"
 expect_invalid 'a path-bearing filename is rejected' 'filename' \
-  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$(entry node-tarball 0.8.27 "../$T" "$D" "$PAGES_BASE/../$T")]}"
+  "{\"schema\":\"fathomdb.tegra-pages-retained/v1\",\"artifacts\":[$bad_entry_6]}"
 
 # --- Both deployers consume the one list through the same scripts ------------
 job_block() {
@@ -338,8 +344,10 @@ if [ "$node_ok" -eq 1 ]; then
 else
   fail "Node tarball page must link every tarball with its SHA-256"
 fi
-if grep -Fxq "node_tarball_sha256=$(digest "$NEW_TGZ")" <<<"$site_out" \
-  && grep -Fxq "wheel_sha256=$(digest "$NEW_WHEEL")" <<<"$site_out"; then
+new_tgz_digest="$(digest "$NEW_TGZ")"
+new_wheel_digest="$(digest "$NEW_WHEEL")"
+if grep -Fxq "node_tarball_sha256=$new_tgz_digest" <<<"$site_out" \
+  && grep -Fxq "wheel_sha256=$new_wheel_digest" <<<"$site_out"; then
   pass "site builder reports the new wheel and tarball digests"
 else
   fail "site builder must report wheel_sha256= and node_tarball_sha256=: $site_out"

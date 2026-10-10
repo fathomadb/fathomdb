@@ -217,7 +217,8 @@ run_publisher wheel-fails "$TMPROOT/ev-good" env MOCK_WHEEL_SMOKE_RC=1
 expect_not_published wheel-fails 'INCOMPLETE' 'a failed Pages wheel smoke reports INCOMPLETE, not publication'
 
 run_publisher good "$TMPROOT/ev-good" env
-if [ "$(cat "$TMPROOT/good.rc")" -eq 0 ] && grep -Fq 'published and smoke-tested' "$TMPROOT/good.out"; then
+good_rc="$(cat "$TMPROOT/good.rc")"
+if [ "$good_rc" -eq 0 ] && grep -Fq 'published and smoke-tested' "$TMPROOT/good.out"; then
   printf 'PASS  both Pages smokes passing completes the publication check\n'
 else
   printf 'FAIL  passing Pages smokes did not complete the publication check\n' >&2

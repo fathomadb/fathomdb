@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — goal
-status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 8 and the two fork plans)
+status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 9 and fork plan revisions 2)
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -19,7 +19,7 @@ index first. Read the plan with
 `git show origin/release/0.8.28:dev/plans/0.8.28/features/slice-31/plan.md`
 or from a slice worktree; never switch branches in the primary checkout
 (/home/coreyt/projects/fathomdb). If the committed plan is older than
-revision 8, stop and report. Fork work is governed by each fork's own
+revision 9, stop and report. Fork work is governed by each fork's own
 plan: coreyt/cudarc branch fathomdb/0.19.10, fathomdb/plan.md (clone
 /home/coreyt/projects/fathomdb-forks/cudarc) and coreyt/candle-fathomdb
 branch fathomdb/0.8.28-cudarc-fork, fathomdb/plan.md (clone
@@ -79,9 +79,12 @@ Rules:
 - Forks (plan § 3.1): both are GitHub forks, so NEVER run gh pr create,
   gh issue create or gh repo set-default in a fork clone and never open a
   PR from the web UI (the base defaults to upstream). Upstream push URLs
-  stay disabled. Every commit carries a Fork-Class trailer; engineering
-  records are D commits touching only fathomdb/. Pins name qualified code
-  commits; receipts follow as D commits naming them.
+  stay disabled. Every commit on a fathomdb/* branch carries a Fork-Class
+  trailer (U, L, P, W, D; none on proposal/*); engineering records are D
+  commits touching only fathomdb/. Pins name qualified code commits, using
+  the identical URL and full 40-character rev in Candle and FathomDB;
+  receipts follow as D commits naming them. Publish from the qualified
+  commits (cudarc from C, Candle from the re-qualified K8).
 - TDD for all code: the failing test first (RED), then the code (GREEN),
   then refactor. Test files are read-only during fix-to-spec.
 - Cite primary CUDA release notes and Driver API docs for every CUDA-version

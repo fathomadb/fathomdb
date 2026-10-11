@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 8 — fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans); W0 merge-forward done at 9fa71e93a
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -50,6 +50,7 @@ Nothing in this slice writes to `release/0.8.27`.
 | I-16 | Excellence; this is a memory pool | cudarc fork plan § 5–6; § 6; § 7 |
 | I-17 | Fork work is planned, performed, reviewed, tested and coded from within each fork, and tracked by Slice 31 | § 3.1; § 9 W4, W5; REQ31-14; both fork plans |
 | I-18 | FathomDB need not run cudarc's own tests (including the driver-only 13.x builds); the fork must | § 7; cudarc fork plan § 6.2 G3; REQ31-03 |
+| Q7 | Fork work is planned and run in each fork (I-17, I-18) | § 15 Q7 |
 | Q4 | Never install the R615 driver; it would disable `windchill3` | § 1; § 2.2; § 9 W0 step 4 guard; § 15; fork plans § 1.6 |
 | Q5 | Tegra on CUDA 13 is UNMEASURED in Slice 31; propose doing it before the 0.8.28 release | REQ31-04; § 15; § 16 follow-up |
 | Q6 | Build against CUDA 13.0 without changing `windchill3`'s primary CUDA 12.6; find why 12.x was chosen | § 2.2; § 9 W0 step 4; T-CUDA; § 15 Q6 |
@@ -101,7 +102,9 @@ Nothing in this slice writes to `release/0.8.27`.
 | **Forks (revision 8):** both are GitHub forks, so a PR opened from them defaults to the upstream base; Actions are enabled on both; cudarc's upstream workflows trigger only on `pull_request` | `gh api repos/coreyt/{cudarc,candle-fathomdb}` |
 | Fork clones `../fathomdb-forks/cudarc` and `../fathomdb-forks/candle-fathomdb` exist, with `upstream` remotes whose push URL is disabled; branches `fathomdb/0.19.10` (from `ec1cac71`) and `fathomdb/0.8.28-cudarc-fork` (from `859b8ea1`) carry the fork plans | `git remote -v`; fork plans |
 | `coreyt/cudarc` `main` = upstream tag `v0.19.10` (`ec1cac71`); 19 CUDA features `cuda-11040`…`13040`; driver functions resolve lazily per function, so a newer-binding build runs on driver 580 until it calls a missing function | cudarc fork plan § 2 |
-| Candle fork: upstream tag `0.10.2` (`7c7a8c57`) + 10 fork commits (10 files, +139/−41); upstream `main` is 0.11.0 on cudarc 0.19.8 | Candle fork plan § 2 |
+| Candle fork: upstream tag `0.10.2` (`7c7a8c57`) + 10 fork commits (10 files, +139/−41); upstream `main` is 0.11.0 on cudarc 0.19.10 (`e6838306`, #3998) | Candle fork plan § 2 |
+| FathomDB's private-pool path compiles only on aarch64 Linux with `tegra-pool`: the embedder's cudarc dependency is aarch64-Linux-only, `cuda_pool_policy.rs` selects `fallback_only` elsewhere, and `tests/tegra_fragmented_va_cuda.rs` is aarch64-gated; on x86 `doctor cuda-allocator` reports `not_built` | `src/rust/crates/fathomdb-embedder/Cargo.toml:66-72`; `cuda_pool_policy.rs:139,165,1255-1340`; test file line 35 |
+| `cudarc-fathomdb` is unclaimed on crates.io (2026-10-11, API 404) | crates.io API |
 
 ### 2.1 Evaluation of v0.19.7 → v0.19.10
 
@@ -131,7 +134,7 @@ Verified in a scratch clone unless marked [I].
 | --- | --- | --- | --- |
 | `windchill3` (x86_64, this host) | 2× RTX 3090 (sm_86), Quadro K620 (sm_50) | 580.178.04 — **never changed** (Q4) | Primary toolkit `/usr/local/cuda` → 12.6 — **never changed** (Q6). CUDA 13.0 runtime/NVRTC/cuBLAS libraries only in pip wheels (`.venv/.../nvidia/cu13/`); no CUDA 13 `nvcc` yet. |
 | Jetson AGX Orin 64 GB, `10.83.10.13` (`coreyt`; ssh/scp approved) | Orin iGPU (sm_87) | 540.5.0 | L4T R36.5.2 (JetPack 6), `/usr/local/cuda-12.6`; JetPack 6 cannot run CUDA 13 |
-| `win-vm` | — | — | Windows `cargo check` |
+| `win-vm` | — | — | not used by Slice 31 (the cudarc fork's hosted CI covers Windows) |
 
 **CUDA 13.0 on `windchill3` without touching the driver or primary CUDA
 (Q6).** The NVIDIA runfile installs only the toolkit with `--toolkit`, and a
@@ -235,18 +238,25 @@ candle-core-fathomdb 0.10.4 ──(cudarc = { package = "cudarc-fathomdb" })─�
 | Item table (ships with the crate for cudarc) | `FATHOMDB.md` | `FATHOMDB.md` |
 | Proposal | `proposal/mem-pool` branch; drafts in `fathomdb/proposal/` | none |
 | Local clone (one writer at a time) | `../fathomdb-forks/cudarc`; proposal worktree `../fathomdb-forks/cudarc-proposal` | `../fathomdb-forks/candle-fathomdb` |
-| CI | fork-only workflow on push (`fathomdb-ci.yaml`): upstream's 19-feature × {Linux, Windows} × {default, `no-std`} check matrix, plus clippy, fmt and publish dry run | none hosted (CUDA needs a GPU runner); local GPU cells |
+| CI | fork-only workflow on push (`fathomdb-ci.yaml`, class `W`): upstream's 19-feature × {Linux, Windows} × {default, `no-std`} check matrix, aarch64 Linux check and clippy, a hosted `fathomdb_` test job (also with FathomDB's lock), fmt and a publish dry run; CI receipts in `fathomdb/qualification/` | none hosted (CUDA needs a GPU runner); local GPU cells |
 
 Rules shared by both forks, which their plans state in full:
 
 - **No PR or issue objects.** Never `gh pr create`, `gh issue create`,
   `gh repo set-default` or a web-UI PR from a fork. Upstream push URLs are
   disabled in every clone.
-- **Commit classes** `U`, `L`, `P`, `C`, `D` (`Fork-Class:` trailer).
-  Engineering records are `D` commits and touch only `fathomdb/` (and
-  `FATHOMDB.md` in the Candle fork).
+- **Commit classes** `U`, `L`, `P`, `W` (fork CI), `D` (`Fork-Class:`
+  trailer on `fathomdb/*` branches; none on `proposal/*`). Engineering
+  records are `D` commits and touch only `fathomdb/` (and `FATHOMDB.md` in
+  the Candle fork; in the cudarc fork `FATHOMDB.md` ships in the crate, so
+  it is `P`).
 - **Pins name qualified code commits.** Receipts follow as `D` commits
-  naming them.
+  naming them. Every pin of `cudarc-fathomdb` (Candle's and FathomDB's)
+  uses the identical URL string `https://github.com/coreyt/cudarc.git` and
+  the full 40-character `rev`, so Cargo sees one source.
+- **Publication from the qualified commits.** `cudarc-fathomdb` is
+  published from `C` itself; the Candle crates from `K8`, which is
+  re-qualified (Candle CK-AC-07).
 - **The pin chain.** cudarc commit `C` passes R-FC-VERIFY. The Candle fork
   pins `C`, giving Candle commit `K`, which passes R-FK-VERIFY. FathomDB
   then pins `C` and `K` together, each pin passing R-PIN. Any later cudarc
@@ -256,7 +266,8 @@ Rules shared by both forks, which their plans state in full:
 - **Fork branches are never rewritten or force-pushed.** The main thread
   pushes explicit refs after verifying from git.
 
-What FathomDB records (`status.md`, `review.md`), and R-VERIFY checks (AC31-14):
+What FathomDB records (`status.md`, `review.md`, linking fork records by
+permalink at the receipt commit's sha), and R-VERIFY checks (AC31-14):
 
 - each fork's plan sha and review verdicts (R-FC-PLAN … R-FC-VERIFY,
   R-FK-PLAN … R-FK-VERIFY), each with no open finding;
@@ -292,19 +303,19 @@ it and no open finding. FathomDB does not re-run the fork's tests.
 | Requirement | Acceptance criteria |
 | --- | --- |
 | **REQ31-01 Fork base.** `fathomdb/0.19.10` is cut from upstream `v0.19.10` (`ec1cac71`; no tag pushed to the fork); the delta is small upstream-style commits. | **AC31-01 (fork-backed):** cudarc CF-AC-01 at `C`. |
-| **REQ31-02 Pool correctness.** The private pool never touches the default or current pool; frees are stream-ordered; `CudaSlice`-owned allocations never outlive the pool; leaked pointers are a documented precondition and the `upgrade_device_ptr` doc is corrected; `maxSize`, threshold and trim behave; zero length works; `Send`/`Sync` justified; multi-stream correct. Candle devices built from a private-pool context use it. | **AC31-02 (fork-backed + product):** cudarc CF-AC-02 and CF-AC-03 at `C`; Candle CK-AC-02 at `K`; FathomDB's private-pool GPU tests (T-POOL-PRODUCT) pass on RTX 3090 (12.6) and Orin (12.6) against `C`/`K`. |
+| **REQ31-02 Pool correctness.** The private pool never touches the default or current pool; frees are stream-ordered; `CudaSlice`-owned allocations never outlive the pool; leaked pointers are a documented precondition and the `upgrade_device_ptr` doc is corrected; `maxSize`, threshold and trim behave; zero length works; `Send`/`Sync` justified; multi-stream correct. Candle devices built from a private-pool context use it. | **AC31-02 (fork-backed + product):** cudarc CF-AC-02 and CF-AC-03 at `C`; Candle CK-AC-02 at `K` (this is the x86 runtime evidence of a private-pool context driven through Candle, on RTX 3090); FathomDB's private-pool GPU tests (T-POOL-PRODUCT) pass on the Orin (12.6) against `C`/`K`. FathomDB's pool path is not built on x86 (§ 2), so on RTX 3090 FathomDB asserts only the default allocator path and `doctor cuda-allocator` reporting `not_built` (T-CUDA). |
 | **REQ31-03 CUDA compatibility.** cudarc compiles for all 19 features with default and `no-std` feature sets on Linux and Windows and runs its GPU tests on driver 580 for 12.6, 13.0, 13.2 and 13.4 bindings; Candle and the FathomDB workspace build and run with the 12.6 toolkit and, if approved, the 13.0 toolkit; no removed or deprecated Driver API. | **AC31-03a (fork-backed):** cudarc CF-AC-04a and CF-AC-04b at `C` (G3 is the only runtime evidence for the 13.2+ `CUmemLocation` union path; FathomDB does not run it, I-18). **AC31-03b (fork-backed + product):** Candle CK-AC-05 at `K`; FathomDB T-WS-BUILD and T-CUDA cells for 12.6 and, if the owner approves the CUDA 13.0 download (W0 step 4), 13.0; if declined, the 13.0 toolkit cells are UNMEASURED by owner decision. Workspace runtime for 13.1–13.4 is UNMEASURED by owner ruling Q4. |
-| **REQ31-04 Jetson Tegra.** Every Slice 30 gate holds on the Orin (JetPack 6, CUDA 12.6) on the new base. Tegra on CUDA 13 is UNMEASURED in Slice 31 (Q5). | **AC31-04:** cudarc CF-AC-05b and Candle K-G3 at `C`/`K` (fork-backed); `qualification.md` re-runs the Slice 30 gate rows on the Orin; `doctor cuda-allocator` reports `private`, 3 GiB; the Tegra/CUDA 13 row reads UNMEASURED citing Q5 and todo `TC-b267d940`. |
+| **REQ31-04 Jetson Tegra.** Every Slice 30 gate holds on the Orin (JetPack 6, CUDA 12.6) on the new base. Tegra on CUDA 13 is UNMEASURED in Slice 31 (Q5). | **AC31-04:** cudarc CF-AC-05b and Candle CK-AC-05 (its Orin cell) at `C`/`K` (fork-backed); `qualification.md` re-runs the Slice 30 gate rows on the Orin; `doctor cuda-allocator` reports `private`, 3 GiB; the Tegra/CUDA 13 row reads UNMEASURED citing Q5 and todo `TC-b267d940`. |
 | **REQ31-05 Fallback.** Items 1–4 act only on aarch64 Linux. | **AC31-05 (fork-backed):** cudarc CF-AC-05 at `C`. |
 | **REQ31-06 Vendor excellence.** Upstream APIs used (result-layer `mem_pool`, #544) instead of new bindings; minimal fork deltas; every item has upstream status and removal path in each fork's `FATHOMDB.md`; fork revs never rewritten after a pin; library allocations outside the pool are known (D-14). | **AC31-06:** cudarc CF-AC-06 and Candle CK-AC-03, CK-AC-06 (fork-backed); R-DES records D-10 and D-14; pinned-override gate passes. |
-| **REQ31-07 One cudarc.** | **AC31-07:** the guard passes; a test introducing registry `cudarc 0.19.*` turns it red; Candle CK-AC-01 at `K`. |
-| **REQ31-08 crates.io.** | **AC31-08 (post-publication):** `scripts/check-tegra-pool-registry-build.sh` with no patch table builds `tegra-pool` and passes the Orin GPU smoke; the published `cudarc-fathomdb` `.cargo_vcs_info.json` sha equals the R-FC-PUB commit. |
+| **REQ31-07 One cudarc.** | **AC31-07:** the guard passes; tests that introduce a registry `cudarc 0.19.*` node, or a second `cudarc-fathomdb` source (a different URL string or `rev`), each turn it red; Candle CK-AC-01 at `K`. |
+| **REQ31-08 crates.io.** | **AC31-08 (post-publication):** `scripts/check-tegra-pool-registry-build.sh` with no patch table builds `tegra-pool` and passes the Orin GPU smoke; the published `cudarc-fathomdb` `.cargo_vcs_info.json` sha equals `C`, and the published Candle crates' equals `K8` (re-qualified, Candle CK-AC-07). |
 | **REQ31-09 Proposal.** Pool primitive only, on `proposal/mem-pool` from upstream `main`, upstream CI clean, tests skip without a device, docs, example and benchmark, issue and PR drafts, coexists with #594. Not posted. | **AC31-09 (post-merge, fork-backed):** cudarc CF-AC-08; R-PROP approves. |
-| **REQ31-10 FathomDB product.** `tegra-pool`, typed errors (`cuda_pool_exhausted`, `cuda_context_lost`), `doctor cuda-allocator`, early-`cuInit` contract unchanged; ADR amended for 2b and for fork-held evidence; docs and changelog; no reference to the vendored tree or its test script remains. | **AC31-10:** full `./scripts/agent-verify.sh` green in the slice worktree with its own `.venv` (§ 9 W0 step 6); Slice 30 product tests unchanged; `git grep -l -e third_party/cudarc -e test_vendored_cudarc -- . ':!dev/plans' ':!dev/todos-and-considerations-ledger.jsonl'` is empty; ADR amendment and changelog present. |
+| **REQ31-10 FathomDB product.** `tegra-pool`, typed errors (`cuda_pool_exhausted`, `cuda_context_lost`), `doctor cuda-allocator`, early-`cuInit` contract unchanged; ADR amended for 2b and for fork-held evidence; docs and changelog; no reference to the vendored tree or its test script remains. | **AC31-10:** full `./scripts/agent-verify.sh` green in the slice worktree with its own `.venv` (§ 9 W0 step 6); Slice 30 product tests unchanged; `git grep -il -e third_party/cudarc -e test_vendored_cudarc -e 'vendored cudarc' -e 'cudarc 0.19.7' -- . ':!dev/plans' ':!dev/adr' ':!dev/todos-and-considerations-ledger.jsonl' ':!CHANGELOG.md'` is empty (plans, ADRs, the ledger and the changelog are history; the ADR amendment marks every vendored-tree statement, including `blast_radius`, as superseded); ADR amendment and changelog present. |
 | **REQ31-11 Process.** | **AC31-11:** `status.md` lists red and green shas per FathomDB step, each red re-run by the reviewer; `review.md` records every FathomDB review with model `opus` and every fork review by link; fork CF-AC-09 and CK-AC-08 pass. |
 | **REQ31-12 Scope safety.** | **AC31-12:** no upstream issue, comment, PR or push; no PR or issue object on either fork; no commit from this slice on `release/0.8.27`; `windchill3` driver and `/usr/local/cuda` unchanged in every guard log, FathomDB and fork. |
 | **REQ31-13 Performance.** No regression from the rebase. | **AC31-13:** Slice 30 gate G9 in full (`slice-30/plan.md` § 4.2) re-run on the Orin against the Slice 30 product: Node ratio ≤ 1.05 per measure with bootstrap 95 % CIs (CI upper > 1.10 → double N once), speed-up over synchronous > 1.5 (CI lower bound), import ≤ S + 5 ms, RSS ≤ S + 32 MiB; Python P / S ≤ 1.15; RTX 3090: median ratio new/0.19.7 ≤ 1.05 for embed steady state. The proposal benchmark is the cudarc fork's T-PERF. |
-| **REQ31-14 Fork management.** Fork work is planned, coded, reviewed and qualified in each fork per § 3.1; FathomDB pins only qualified code commits; the pin chain is consistent; published crates contain no fork engineering records. | **AC31-14:** both fork plans reviewed (R-FC-PLAN, R-FK-PLAN) and every fork review recorded with no open finding; `C` is the cudarc commit pinned by both the Candle fork at `K` and FathomDB; `git diff C <cudarc tip> -- . ':(exclude)fathomdb'` and the Candle equivalent are empty or the tips were re-qualified; § 1.3 commit-class checks pass in both forks; the `cargo package --list` receipts show no `fathomdb/` path. |
+| **REQ31-14 Fork management.** Fork work is planned, coded, reviewed and qualified in each fork per § 3.1; FathomDB pins only qualified code commits; the pin chain is consistent; published crates contain no fork engineering records. | **AC31-14:** both fork plans reviewed (R-FC-PLAN, R-FK-PLAN) and every fork review recorded with no open finding; `C` is the cudarc commit pinned by both the Candle fork at `K` and FathomDB; `git diff C <cudarc tip> -- . ':(exclude)fathomdb'` and the Candle equivalent are empty or the tips were re-qualified; the commit-class checks pass (cudarc fork plan § 1.3 over `ec1cac71..`, Candle fork plan § 1 over `859b8ea1..`); cudarc CF-AC-07a at `C` shows no `fathomdb/` path in the package; a fork CI receipt has `head_sha` = `C`. |
 
 **AC sets.** R-VERIFY before merge checks AC31-01…07, 10, 11, 12 (so far),
 13 and 14. AC31-09 is checked at R-PROP after merge. AC31-08 and AC31-12
@@ -334,14 +345,41 @@ covers:
   cuda-allocator`, and the early-`cuInit` contract on the new base.
 - **D-14 Allocations outside the pool.** cuBLAS/cuBLASLt workspaces,
   static CUDART internals and module loads, measured in the product. Takes
-  input from the cudarc fork's D-2/D-7 and Candle's DK-4.
+  input from the cudarc fork's D-2, D-7 and D-F3 (upstream PR #595, a
+  retained caller-owned cuBLAS workspace) and Candle's DK-4, so R-DES
+  follows R-FK-PLAN.
 - **D-15 Teardown and process lifecycle (product).** A lost context or
   device reset before drop (Slice 30 saw SIGSEGV in `cublasDestroy_v2`),
   pools in statics at exit, and fork after init (H-1).
-- **D-16 Fork evidence and re-qualification.** Which FathomDB checks and
-  § 7 cells re-run when `C` or `K` moves. How R-PIN confirms the pin chain.
-  Why deleting `test_vendored_cudarc.sh` loses no coverage: the same tests
-  run in the fork's CI and GPU cells G1/G6, with receipts at `C`.
+- **D-16 Fork evidence and re-qualification.**
+  - **When pins move:** which FathomDB checks and § 7 cells re-run when `C`
+    or `K` moves, and how R-PIN confirms the pin chain.
+  - **What deleting `test_vendored_cudarc.sh` changes:** today it runs the
+    `fathomdb_` tests in FathomDB's hosted CI (`ci.yml` fast tier) against
+    FathomDB's own `Cargo.lock`. After the slice the cudarc fork's hosted
+    test job runs them (x86_64 and aarch64, once with FathomDB's lock), and
+    GPU cells G1/G6 run them on hardware, with receipts at `C`.
+  - **The remaining gap is lock drift.** A FathomDB `Cargo.lock` change to
+    `cudarc-fathomdb`'s resolved dependencies (for example a Dependabot
+    bump of `libloading` or `half`) is not exercised by the fork until the
+    fork re-runs with the new lock.
+  - **D-16 decides how to close it, either way:**
+    - (a) a FathomDB fast-tier check that runs only the fork's pure
+      `fathomdb_` tests against FathomDB's lock (hosted, no GPU), or
+    - (b) a FathomDB guard that fails when the lock changes that set until
+      the fork records a re-run with the new lock (cudarc fork plan § 8).
+
+    Recommendation: (b), which keeps the owner's direction that FathomDB
+    does not run cudarc's own tests. The owner is told the choice.
+- **D-17 Product adaptation to the fork API.**
+  - **Error mapping:** map cudarc's `DriverError` from the private pool to
+    FathomDB's typed `cuda_pool_exhausted` and `cuda_context_lost`.
+  - **Reporting:** what `doctor cuda-allocator` and the product's pool
+    counters (`pool_counters`) report, given the fork's typed and raw
+    attribute reads (cudarc D-7, D-8).
+  - **Close:** `trim_to` and release at engine close (formerly D-5's "after
+    close").
+  - **Rename:** any rename the fork's D-1 API choice forces on the embedder.
 
 ## 7. Test plan topics (`test-plan.md` expands each, traced to AC31)
 
@@ -355,14 +393,17 @@ plan § 6). FathomDB runs:
   `CUDARC_CUDA_VERSION=12060` with the 12.6 toolkit; `13000` with the
   user-local 13.0 toolkit (W0 step 4). Workspace cells needing a 13.1+
   `nvcc` are out of scope (Q4/Q6).
-- **T-POOL-PRODUCT** FathomDB's private-pool GPU tests (the four Slice 30
-  tests) and the Slice 30 product tests, against pins `C`/`K`.
+- **T-POOL-PRODUCT** (Orin only: the pool path is built only on aarch64
+  Linux with `tegra-pool`, § 2) FathomDB's private-pool GPU tests (the four
+  Slice 30 tests in `tests/tegra_fragmented_va_cuda.rs`) and the Slice 30
+  product tests, against pins `C`/`K`. A receipt must list each test by
+  name with a nonzero run count, never just a pass summary.
 - **T-CUDA** product runtime cells:
 
   | Host / toolkit | Needs | Must pass |
   | --- | --- | --- |
-  | RTX 3090, driver 580, 12.6 toolkit | present | T-POOL-PRODUCT, embed and rerank end to end, full gate |
-  | RTX 3090, driver 580, user-local 13.0 toolkit | W0 step 4 | T-WS-BUILD (13000), T-POOL-PRODUCT, embed end to end |
+  | RTX 3090, driver 580, 12.6 toolkit | present | embed and rerank end to end on the default allocator path; `doctor cuda-allocator` reports `not_built`; full gate |
+  | RTX 3090, driver 580, user-local 13.0 toolkit | W0 step 4 | T-WS-BUILD (13000), embed end to end, `doctor cuda-allocator` reports `not_built` |
   | RTX 3090, 13.1–13.4 builds | R615 driver (never — Q4) | UNMEASURED |
   | Orin, JetPack 6, 12.6 | present | T-POOL-PRODUCT, T-ORIN |
   | Orin, JetPack 7.2.x, 13.2/13.4 | reflash | UNMEASURED (Q5) |
@@ -373,23 +414,26 @@ plan § 6). FathomDB runs:
   then green; the `git grep` check of AC31-10.
 - **T-ORIN** Slice 30 gate rows; `doctor cuda-allocator`; one
   Node/V8-fragmented end-to-end run (private pool selected, fallback works).
+- **T-TEARDOWN-PRODUCT** (D-15) on the Orin: engine close and process exit
+  with the pool alive; a lost context before drop reports
+  `cuda_context_lost` without SIGSEGV; behaviour of a child forked after
+  init is documented and tested to the extent D-15 decides.
 - **T-PERF** AC31-13 measurements.
 - **T-FORK-EVIDENCE** (R-VERIFY, no code): for `C` and `K`, the receipts
-  named by AC31-01…07 and 14 exist, name that commit, and show unchanged
-  host guards; the pin-chain diffs are empty.
+  named by AC31-01…07 and 14 exist, name that commit, record a lockfile
+  SHA-256, and show unchanged host guards; the CI receipt's `head_sha` is
+  `C`; the pin-chain diffs are empty; both pins use the identical URL and
+  full `rev`.
 - **T-REGISTRY** registry-consumer check after publication (AC31-08).
 
 ## 8. Order of the whole slice
 
 ```text
-R0 … R0-rev8 (rev8 includes R-FC-PLAN and R-FK-PLAN part 1)
+R0 … R0-rev8 (done; rev8 also served as R-FC-PLAN and R-FK-PLAN part 1)
 → W0
-→ cudarc FC1 → R-FC-REQ → FC2 → R-FC-DES → FC3 → R-FC-TEST
-  ∥ Candle FK1 → R-FK-PLAN            (FK1 after R-FC-DES: it uses the pool API)
-  ∥ FathomDB W1 → R-REQ → W2 → R-DES → W3 → R-TEST   (W1 after R-FC-REQ)
-→ cudarc FC4–FC7 → R-FC-CODE → FC8 → R-FC-VERIFY
-→ Candle FK2 → R-FK-CODE → FK3 → R-FK-VERIFY
-→ W6 (R-PIN for C and K) → merge-forward → qualification
+→ cudarc FC1 → R-FC-REQ → FC2 → R-FC-DES → FC3 → R-FC-TEST → FC4–FC7 → R-FC-CODE → FC8 → R-FC-VERIFY
+→ Candle FK2 → R-FK-CODE → FK3 → R-FK-VERIFY        (FK2 needs R-FC-VERIFY and R-FK-PLAN)
+→ W6 (R-PIN for C and K; needs R-TEST too) → merge-forward → qualification
 → R-CODE-3 + R-VERIFY → merge
 → cudarc FC9 → R-PROP          (FC9 may start once R-FC-CODE approves)
 → cudarc FC10 → R-FC-PUB → owner R-PUB → owner publishes cudarc-fathomdb
@@ -397,8 +441,15 @@ R0 … R0-rev8 (rev8 includes R-FC-PLAN and R-FK-PLAN part 1)
 → W8 step 3 → R-CODE-4 → merge
 ```
 
-`∥` means the tracks may interleave. The main thread writes documents one
-checkout at a time and never two writers in one checkout. Owner-gated steps
+Side tracks, each joining only where its gate says:
+
+- Candle FK1 → R-FK-PLAN may start after R-FC-DES (it uses the pool API); it
+  gates only FK2.
+- FathomDB W1 → R-REQ (after R-FC-REQ) → W2 → R-DES (after R-FK-PLAN, for
+  D-14) → W3 → R-TEST; it gates only W6. FC4 waits only for R-FC-TEST.
+
+The main thread writes documents one checkout at a time and never two
+writers in one checkout. Owner-gated steps
 (the W0 step 4 download, R-PIN, R-PUB, publication) block only what depends
 on them.
 
@@ -406,9 +457,13 @@ on them.
 
 ### W0. Prerequisites (main thread)
 
-1. Done: plan revisions 6–7, `GOAL.md` and the
-   [merge-forward plan](merge-forward-plan.md) committed on `release/0.8.28`.
-   Revision 8 and both fork plans are reviewed by R0-rev8 before execution.
+1. Done: plan revisions 6–9, `GOAL.md` and the
+   [merge-forward plan](merge-forward-plan.md) committed on `release/0.8.28`;
+   revision 8 and both fork plans reviewed by R0-rev8 (APPROVE-WITH-FIXES),
+   fixed in revision 9 and fork plan revisions 2. The temporary docs
+   worktree `../fathomdb-worktrees/release-0.8.28-plan` was removed after
+   pushing revision 9, keeping the branch; no checkout of `release/0.8.28`
+   remains.
 2. Done: merge-forward at `9fa71e93a`; todo `TC-d71a9e36` closed. Repeat
    before R-CODE-3/R-VERIFY if 0.8.27 advances, per the merge-forward plan,
    in a temporary worktree of `release/0.8.28` (§ 13). Then, with no
@@ -417,16 +472,20 @@ on them.
 3. `scripts/preflight.sh`; create worktree
    `../fathomdb-worktrees/slice-0.8.28-31` on `slice/0.8.28-31-cudarc-fork`
    from `origin/release/0.8.28`; start `status.md` on the slice branch with
-   the plan and fork-plan shas. The fork clones and branches already exist
-   (revision 8); push both fork branches if not yet pushed, and add the
-   proposal worktree only at FC9.
+   the plan and fork-plan shas, and copy the R0-rev8 summary into
+   `review.md` (its fork dispositions are in each fork's
+   `fathomdb/review.md`). The fork clones and branches already exist and are
+   pushed; add the proposal worktree only at FC9.
 4. Toolchains, searched outside PATH. Record the guard (driver 580.178.04,
    `readlink -f /usr/local/cuda` → 12.6). **Owner approval:** download the
    CUDA 13.0 runfile; install toolkit-only, user-local, no sudo (§ 2.2).
    Never install or update a driver on `windchill3`; never run the runfile
    with sudo or without `--toolkit`; never install apt `cuda`/driver
    packages. Re-check the guard. The download serves cudarc G4, Candle K-G2
-   and FathomDB T-CUDA alike.
+   and FathomDB T-CUDA alike; if it is declined, cudarc G4 can still use
+   the cu13 PyPI wheels in a scratch virtual environment (cudarc fork plan
+   G4), and the toolkit cells (K-G2, T-WS-BUILD 13000) are UNMEASURED by
+   owner decision.
 5. Orin check over ssh (`10.83.10.13`): disk, GPU lock, toolchain, a clone
    location for the fork tests (`~/fathomdb-forks/`).
 6. Python gate environment: create a `.venv` owned by the slice worktree
@@ -445,9 +504,12 @@ and the fork CF/CK criteria (after R-FC-REQ, so the IDs are stable).
 
 ### W2. Design → R-DES
 
-`design.md` answering § 6 with citations; ADR amendment draft (2b
-consumption; evidence for the cudarc primitive now held in the fork rather
-than in `test_vendored_cudarc.sh`); records § 15 Q6's finding.
+`design.md` answering § 6 (D-8W, D-10, D-11, D-12, D-14 … D-17) with
+citations. ADR amendment draft: 2b consumption; evidence for the cudarc
+primitive now held in the fork rather than in `test_vendored_cudarc.sh`;
+every vendored-tree statement, including `blast_radius`
+(`ADR-0.8.28-tegra-private-cuda-pool.md:6, 101, 142`), marked superseded.
+Records § 15 Q6's finding and D-16's lock-drift choice for the owner.
 
 ### W3. Test plan → R-TEST
 
@@ -478,12 +540,17 @@ Same duties for R-FK-PLAN, R-FK-CODE, R-FK-VERIFY and R-FK-PUB.
    guard and the CUDA release contract each expect fork sources, no
    vendored tree and no `test_vendored_cudarc.sh` tier entry.
 2. **GREEN** (each pin commit gets R-PIN):
-   - **Pins and dependency:** pin `C` and `K`; set the embedder dependency
-     to `package = "cudarc-fathomdb"`.
+   - **Pins and dependency:** pin `C` and `K`, with the identical URL
+     `https://github.com/coreyt/cudarc.git` and full 40-character `rev`
+     that Candle uses; set the embedder dependency to
+     `package = "cudarc-fathomdb"`; regenerate `Cargo.lock`.
    - **Deletions:** delete `third_party/cudarc-0.19.7`; delete
-     `scripts/tests/test_vendored_cudarc.sh` and its tier entry
-     (`scripts/agent-test.sh:326`). D-16 explains why no coverage is lost.
-   - **References to update:** `.gitattributes`,
+     `scripts/tests/test_vendored_cudarc.sh` and its tier entry and comment
+     (`scripts/agent-test.sh:323-326`); add D-16's lock-drift guard.
+   - **Contract docs:** `dev/interfaces/rust.md:1240` and
+     `dev/interfaces/rust-sdk.md:392` (both say "the vendored cudarc").
+   - **References to update:** the embedder `Cargo.toml` comments (lines
+     59-65 and 143-147), `.gitattributes`,
      `.markdownlint-cli2.jsonc`, root `Cargo.toml`,
      `dev/tegra-platform-reference.md`, `scripts/agent-lint-md.sh`,
      `scripts/check-pinned-override-rot.py`,
@@ -510,10 +577,12 @@ superseded pointer to `slice-30/upstream-cudarc-package.md`. Not posted.
 
 ### W8. Publication (owner) → R-FC-PUB, R-FK-PUB, R-PUB, R-CODE-4
 
-1. cudarc fork FC10: dry runs at the code commit FathomDB qualified →
-   R-FC-PUB → owner R-PUB → owner publishes `cudarc-fathomdb` 0.19.10.
-2. Candle fork FK5: registry `cudarc-fathomdb`, 0.10.4 → R-FK-PUB → owner
-   R-PUB → owner publishes the three Candle crates.
+1. cudarc fork FC10: dry runs from a detached checkout of `C` (CF-AC-07b;
+   crates.io token for the new crate name first) → R-FC-PUB → owner R-PUB →
+   owner publishes `cudarc-fathomdb` 0.19.10 from `C`.
+2. Candle fork FK5: `K8` (registry `cudarc-fathomdb`, 0.10.4), re-qualified
+   per Candle CK-AC-07 → R-FK-PUB → owner R-PUB → owner publishes the three
+   Candle crates from `K8`.
 3. Implementer on `slice/0.8.28-31-post`:
    - RED then GREEN `scripts/check-tegra-pool-registry-build.sh`. Today it
      asserts that `tegra-pool` fails to resolve against registry cudarc
@@ -568,7 +637,7 @@ fails.
 | --- | --- | --- | --- | --- |
 | R0 (owner) | FathomDB | done 2026-10-11 | plan revision 3 | — |
 | R0-rev4, R0-rev5 | FathomDB | done 2026-10-11 | revisions 4 and 5 + GOAL (fixes in revisions 5 and 6) | — |
-| R0-rev8 | FathomDB + forks | before W0 step 3 | plan revision 8, GOAL, and both fork plans; serves as R-FC-PLAN and R-FK-PLAN part 1 | execution |
+| R0-rev8 | FathomDB + forks | done 2026-10-11 | plan revision 8, GOAL and both fork plans (APPROVE-WITH-FIXES: H1–H2, M1–M12, L1–L14; all fixed in revision 9 and fork plan revisions 2); served as R-FC-PLAN and R-FK-PLAN part 1, recorded in each fork's `fathomdb/review.md` | — |
 | R-FC-REQ | cudarc | end of FC1 | `requirements.md`: coverage, testability | FC2; FathomDB W1 |
 | R-FC-DES | cudarc | end of FC2 | `design.md`, citations checked | FC3; FK1 |
 | R-FC-TEST | cudarc | end of FC3 | `test-plan.md`: every CF-AC covered, D-F1 accounting, commands | FC4 |
@@ -584,8 +653,8 @@ fails.
 | R-CODE-3 | FathomDB | end of W6 | the slice branch | merge |
 | R-VERIFY | FathomDB | with R-CODE-3 | pre-merge AC set incl. T-FORK-EVIDENCE, `qualification.md`, `status.md` | merge |
 | R-PROP | cudarc | end of FC9 | proposal branch and drafts (CF-AC-08) | owner sign-off (later) |
-| R-FC-PUB | cudarc | FC10 | package list and dry run at the qualified commit | owner R-PUB |
-| R-FK-PUB | Candle | FK5 | publication commit and dry runs (formerly R-CODE-2b) | owner R-PUB |
+| R-FC-PUB | cudarc | FC10 | package list and dry run at `C` (CF-AC-07b equals 07a) | owner R-PUB |
+| R-FK-PUB | Candle | FK5 | `K8`, its re-qualification receipts and dry runs (CK-AC-07; formerly R-CODE-2b) | owner R-PUB |
 | R-PUB (owner) | forks | before each `cargo publish` | dry-run output, packaged file list | each publish |
 | R-CODE-4 | FathomDB | W8 step 3 | patch-drop follow-up, T-REGISTRY, AC31-08, AC31-12 final | merge |
 
@@ -600,7 +669,7 @@ FathomDB's `review.md` carries one line per fork review.
 | `coreyt/cudarc` | `main` | upstream mirror | none (fast-forward to upstream only) | — |
 | `coreyt/cudarc` | `fathomdb/0.19.10` | `ec1cac71` (tag `v0.19.10`; no tag pushed) | main thread (docs) or one implementer, `../fathomdb-forks/cudarc` | stays; pinned, then published |
 | `coreyt/cudarc` | `proposal/mem-pool` | `upstream/main` | implementer, worktree `../fathomdb-forks/cudarc-proposal` | stays; posted later only with owner sign-off |
-| `coreyt/cudarc` | `ci/proposal-mem-pool` | `proposal/mem-pool` + the fork-CI commit | main thread | deleted after each CI run |
+| `coreyt/cudarc` | `ci/proposal-mem-pool`, `ci/qualify-<sha>` | proposal + the fork-CI (`W`) commit; or the qualified commit `C` | main thread | deleted after each CI run and receipt |
 | `coreyt/candle-fathomdb` | `fathomdb/0.8.28-cudarc-fork` | `859b8ea1` | main thread (docs) or one implementer, `../fathomdb-forks/candle-fathomdb` | stays; publishes 0.10.4 |
 | `fathomadb/fathomdb` | `release/0.8.28` | existing branch | main thread, temporary worktree per merge | holds merges |
 | `fathomadb/fathomdb` | `slice/0.8.28-31-cudarc-fork` | `origin/release/0.8.28` | implementer and main thread, serialized; worktree `../fathomdb-worktrees/slice-0.8.28-31` | R-CODE-3 + R-VERIFY |
@@ -623,14 +692,20 @@ FathomDB's `review.md` carries one line per fork review.
 - **Evidence drift between fork and FathomDB:** a pin naming a commit the
   receipts do not cover. Pins name qualified code commits; T-FORK-EVIDENCE
   and AC31-14 check the chain.
-- **Upstream PR #594** overlaps items 1–3 and 5 (cudarc D-9, FC9).
+- **Upstream PR #594** overlaps items 1–3 and 5 (cudarc D-9, FC9); **PR
+  #595** (retained caller-owned cuBLAS workspace) bears on D-14, cudarc
+  D-F3 and Candle DK-4.
+- **Vacuous product evidence on x86:** the pool path is not built there;
+  T-POOL-PRODUCT is Orin-only and receipts name each test with a run count.
+- **Lock drift after `test_vendored_cudarc.sh` is retired** (D-16).
 - **`windchill3` safety:** a driver change would disable the host (Q4). Only
   toolkit-only, user-local installs; every guard stops the slice on change.
 - **CUDA 13.1+ runtime** cannot be measured on driver 580 for PTX builds;
   the cudarc fork's driver-only 13.2/13.4 cells cover the binding layouts
   (with per-test RUN/UNMEASURED accounting); the rest is UNMEASURED.
 - **Tegra on CUDA 13** UNMEASURED (Q5); follow-up proposed (§ 16).
-- **Candle upstream drift** (0.11.0): Candle DK-1.
+- **Candle upstream drift** (0.11.0, already on cudarc 0.19.10): Candle DK-1.
+- **First publish of a new crate name:** crates.io token bootstrap (FC10).
 - **Licensing:** cudarc MIT/Apache-2.0; attribution kept.
 
 ## 15. Questions and rulings
@@ -674,13 +749,16 @@ FathomDB's `review.md` carries one line per fork review.
 - At W0 step 7: record the 2026-10-11 directions (I-17, I-18) and rulings
   Q4–Q6 with `ledgerwrite`. Set `FATHOMDB-PATCH.md` item 5 to "on fork,
   not posted" until W6 deletes the file.
-- If Candle DK-1 defers a rebase onto upstream 0.11.x, open a todo for it at
-  FK1.
+- At FK1, open a todo for whichever Candle DK-1 path is not taken (a rebase
+  onto upstream 0.11.x, which already uses cudarc 0.19.10, or staying on
+  0.10.x).
 - **Proposed follow-up (Q5):** before the 0.8.28 release, qualify Tegra on
   CUDA 13:
   - reflash the Orin to JetPack 7.2.x (CUDA 13.2, then 13.4 via
     `cuda-compat-orin-13-4`);
-  - re-measure whether the default-pool failure persists;
+  - re-measure whether the default-pool failure persists, bounding
+    exhaustion tests per NVIDIA known issue 5699079 (a large allocation may
+    reboot an L4T 39.2 device);
   - run the cudarc fork's G7 cells and FathomDB's T-ORIN;
   - restore JetPack 6 for the shipping target.
 

@@ -25,7 +25,7 @@ one Jetson AGX Orin 64 GB (L4T R36.5.2, driver 540.5.0, CUDA 12.6.68). Statement
 ## Status (2026-10-07)
 
 **This branch's copies of the protocol and the plan are the record.** The study branch is
-`llm/0.8.28-tegra-pool-study`. An older copy of the study plan, dated
+`archive/0.8.28-tegra-pool-study-2026-10-07`. An older copy of the study plan, dated
 2026-10-05, is being merged onto `release/0.8.27` with a status header
 pointing here. Where they differ, this branch governs.
 

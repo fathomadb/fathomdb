@@ -73,7 +73,7 @@ Nothing else is added.
 
 ## 1. Sources
 
-All study sources are as of `b045489d2` on `llm/0.8.28-tegra-pool-study`.
+All study sources are as of `b045489d2` on `archive/0.8.28-tegra-pool-study-2026-10-07`.
 
 | Source | Role |
 | --- | --- |

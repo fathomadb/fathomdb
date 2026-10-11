@@ -130,7 +130,7 @@ CUDA allocation fallback with early `cuInit` and no memory pool, and that
 0.8.28 evaluates a pool against it. The
 [study plan](plans/0.8.28/prework/tegra-cuda-memory-pool-study.md) defines the
 evidence. As of 2026-10-07, Phases 0–4 are complete on branch
-`llm/0.8.28-tegra-pool-study`. On the AGX Orin 64 GB the private pool created
+`archive/0.8.28-tegra-pool-study-2026-10-07`. On the AGX Orin 64 GB the private pool created
 at first use passed the allocation, release, cap and performance gates (steady
 embed 0.986 of the default pool; 1.93× faster than the synchronous path).
 A spot check on the corrected embedder-close fix (now on `release/0.8.27`)

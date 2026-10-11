@@ -16,7 +16,7 @@ change. Shipping any option needs its own 0.8.28 ruling.
 ## Status (2026-10-08)
 
 **The `release/0.8.28` copy is the record.** It was brought over from
-the study branch `llm/0.8.28-tegra-pool-study` at `b045489d2` on
+the study branch `archive/0.8.28-tegra-pool-study-2026-10-07` at `b045489d2` on
 2026-10-07, together with the protocol, the cudarc upstream notes and
 the whole evidence directory `dev/plans/runs/0.8.28-pool-study/`
 (harness, matrices, summaries, samples, patches). The harness's shell

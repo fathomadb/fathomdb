@@ -20,7 +20,7 @@ Raw logs stay on the host under `<scratch>/pool-study/logs/<phase>/<series>/`
 (protocol § 9.2). This directory holds the harness, matrices, summaries
 (`summaries/*.txt`, produced by `harness/analyze.py`), samples and this file.
 This directory was brought onto `release/0.8.28` from
-`llm/0.8.28-tegra-pool-study` at `b045489d2` (Slice 30 plan § 7), except
+`archive/0.8.28-tegra-pool-study-2026-10-07` at `b045489d2` (Slice 30 plan § 7), except
 the harness's shell scripts, which are still only on that branch.
 
 ## 1. Environment and artifacts (table 1)

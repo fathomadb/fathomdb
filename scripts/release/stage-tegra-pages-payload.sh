@@ -25,8 +25,9 @@ done
 }
 [ ! -e "$out" ] || { printf 'payload destination already exists: %s\n' "$out" >&2; exit 1; }
 
-mapfile -t wheels < <(find "$evidence/wheel" -maxdepth 1 -type f \
-  -name "fathomdb-${version}+tegra-*-linux_aarch64.whl" -print)
+shopt -s nullglob
+wheel_prefix="$evidence/wheel/fathomdb-$version+tegra-"
+wheels=("$wheel_prefix"*-linux_aarch64.whl)
 [ "${#wheels[@]}" -eq 1 ] || {
   printf 'expected exactly one %s+tegra wheel, found %s\n' "$version" "${#wheels[@]}" >&2
   exit 1

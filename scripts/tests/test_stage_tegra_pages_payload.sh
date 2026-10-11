@@ -26,7 +26,9 @@ printf '{"source":"local","candidate_sha":"%s","version":"0.8.27","tegra_tarball
 
 bash "$root/scripts/release/stage-tegra-pages-payload.sh" \
   --evidence-dir "$evidence" --version 0.8.27 --candidate-sha "$candidate_sha" --out "$work/payload"
-mapfile -t actual < <(cd "$work/payload" && find . -type f -printf '%P\n' | sort)
+find "$work/payload" -type f -printf '%P\n' > "$work/actual-files"
+sort -o "$work/actual-files" "$work/actual-files"
+mapfile -t actual < "$work/actual-files"
 expected=(
   "node/$main"
   "node/$tegra"
@@ -34,7 +36,9 @@ expected=(
   "wheel/$wheel"
   'wheel.sha256'
 )
-mapfile -t expected < <(printf '%s\n' "${expected[@]}" | sort)
+printf '%s\n' "${expected[@]}" > "$work/expected-files"
+sort -o "$work/expected-files" "$work/expected-files"
+mapfile -t expected < "$work/expected-files"
 [ "${actual[*]}" = "${expected[*]}" ] || {
   printf 'payload contains unexpected files: %s\n' "${actual[*]}" >&2
   exit 1

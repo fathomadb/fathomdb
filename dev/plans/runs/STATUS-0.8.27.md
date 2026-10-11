@@ -116,8 +116,9 @@ new Node delivery evidence to the installed candidate without relabeling
 Slice 135's pinned-source query measurements. Only loader and package product
 source changed, so no affected paired query cell is identified. The owner
 reports the code checks were done, but no exact-candidate full-gate receipt is
-in the tracked evidence; this is not a full-workspace green claim. Slice 140
-and Slice 150 retain their verification gates. After publication
+in the tracked evidence; this is not a full-workspace green claim. Slice 140's
+full gate passed at its closeout; Slice 150 retains final-candidate
+qualification. After publication
 authorization, Slice 160 runs the Pages-installed forced-CUDA, witness and
 heap-growth checks and owns every other publication and post-publication
 proof.
@@ -367,10 +368,10 @@ grant/revert evidence.
   `2996417f0`. `fathomdb-sdk` reproduces the Python/TypeScript surface in Rust,
   and the parity checker covers it (44/44). Before the `v0.8.27` tag, its
   first crates.io publish needs a one-time HITL token bootstrap (ledger
-  seq 273). Slice 135 is next.
+  seq 273). Slice 135 followed.
 - [Slice 117](../0.8.27/features/slice-117/status.md) is complete at its
   qualified, unpublished Jetson Node candidate on `release/0.8.27`. The exact
-  installed-artifact run and hashes are in its closeout. Slice 140 consumes the
+  installed-artifact run and hashes are in its closeout. Slice 140 consumed the
   handoff; Slice 160 runs the later Pages-installed smoke after publication
   authorization. The closeout records the missing tracked full-gate receipt
   without claiming a full-workspace green.

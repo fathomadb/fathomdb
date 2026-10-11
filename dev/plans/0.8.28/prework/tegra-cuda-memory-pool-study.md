@@ -8,7 +8,7 @@ observed_on: 2026-10-05
 # Tegra CUDA memory-pool study plan (0.8.28)
 
 > **Status, 2026-10-07.** Phases 0–4 of this study are complete on branch
-> `llm/0.8.28-tegra-pool-study`. The results of record are
+> `archive/0.8.28-tegra-pool-study-2026-10-07`. The results of record are
 > `dev/plans/runs/0.8.28-pool-study/results.md` § 12 at commit `936926ba0` on
 > that branch. On the Jetson AGX Orin 64 GB, the private pool created at
 > first use (P-first-use) passed the allocation, release, cap and performance

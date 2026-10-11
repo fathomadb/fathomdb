@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 12 — second cudarc proposal (built-major library loading, FC9b, R-PROP2), production loaded-library check (D-18), cloud test venue research pending (Q13); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -43,7 +43,7 @@ Nothing in this slice writes to `release/0.8.27`.
 | I-12 | Code is reviewed | § 12 R-FC-CODE, R-FK-CODE, R-FK-PUB, R-CODE-3, R-CODE-4, R-PROP |
 | I-13a | Implement a memory pool | REQ31-02, REQ31-13; cudarc fork plan |
 | I-13b | Vendor libraries and forks used with excellence | REQ31-06, REQ31-14; § 3.1; D-10 |
-| I-13c | A tidy cudarc memory-pool proposal | REQ31-09; cudarc fork plan FC9, R-PROP |
+| I-13c | A tidy cudarc memory-pool proposal | REQ31-09; cudarc fork plan FC9, R-PROP; second proposal (built-major library loading) FC9b, R-PROP2 |
 | I-13d | FathomDB 0.8.28 with excellence and pool support, including Jetson Tegra | REQ31-04, REQ31-10, REQ31-13; § 9 W6; T-ORIN |
 | I-14 | Orin `10.83.10.13`, ssh/scp approved; a Claude agent may run there | § 2.2; § 11 |
 | I-15 | Check outside PATH for libraries | § 2.2; § 9 W0 step 4; GOAL.md |
@@ -55,6 +55,7 @@ Nothing in this slice writes to `release/0.8.27`.
 | Q9 | The published cudarc fork is named `cudarc-fathomdb` | § 3.1; § 9 W8; § 15 Q9 |
 | Q10 | CUDA version importance and actions accepted; the floor is CUDA 12.x libraries; CUDA usage and importance are re-reviewed every release | REQ31-15; § 9 W6; § 15 Q10; `ADR-0.8.28-cuda-version-support-policy.md`; `dev/design/cuda-version-support-review.md` |
 | Q11 | `windchill3`'s Quadro K620 must keep its driver support: no driver branch after R580 | § 1; § 2.2; T-CUDA; § 15 Q11 |
+| Q13 | Where CUDA compatibility is tested: `windchill3` Docker passthrough is acceptable; cloud options (GCP first) and cloud Jetson are evaluated; the Docker Hub image pull is held until then | T-CUDA-COMPAT C3; § 15 Q13 |
 | Q12 | Check the 12.6 driver floor and a CUDA-13-libraries-only environment, with web evidence on compatibility | REQ31-15; T-CUDA-COMPAT; § 15 Q12 |
 | Q4 | Never install the R615 driver; it would disable `windchill3` | § 1; § 2.2; § 9 W0 step 4 guard; § 15; fork plans § 1.6 |
 | Q5 | Tegra on CUDA 13 is UNMEASURED in Slice 31; propose doing it before the 0.8.28 release | REQ31-04; § 15; § 16 follow-up |
@@ -316,16 +317,16 @@ it and no open finding. FathomDB does not re-run the fork's tests.
 | **REQ31-06 Vendor excellence.** Upstream APIs used (result-layer `mem_pool`, #544) instead of new bindings; minimal fork deltas; every item has upstream status and removal path in each fork's `FATHOMDB.md`; fork revs never rewritten after a pin; library allocations outside the pool are known (D-14). | **AC31-06:** cudarc CF-AC-06 and Candle CK-AC-03, CK-AC-06 (fork-backed); R-DES records D-10 and D-14; pinned-override gate passes. |
 | **REQ31-07 One cudarc.** | **AC31-07:** the guard passes; tests that introduce a registry `cudarc 0.19.*` node, or a second `cudarc-fathomdb` source (a different URL string or `rev`), each turn it red; Candle CK-AC-01 at `K`. |
 | **REQ31-08 crates.io.** | **AC31-08 (post-publication):** `scripts/check-tegra-pool-registry-build.sh` with no patch table builds `tegra-pool` and passes the Orin GPU smoke; the published `cudarc-fathomdb` `.cargo_vcs_info.json` sha equals `C`, and the published Candle crates' equals `K8` (re-qualified, Candle CK-AC-07). |
-| **REQ31-09 Proposal.** Pool primitive only, on `proposal/mem-pool` from upstream `main`, upstream CI clean, tests skip without a device, docs, example and benchmark, issue and PR drafts, coexists with #594. Not posted. | **AC31-09 (post-merge, fork-backed):** cudarc CF-AC-08; R-PROP approves. |
+| **REQ31-09 Proposals.** (1) Pool primitive only, on `proposal/mem-pool` from upstream `main`, upstream CI clean, tests skip without a device, docs, example and benchmark, issue and PR drafts, coexists with #594. (2) Built-major library loading with the loaded-library report, on `proposal/lib-major` from upstream `main`, independent of (1). Neither is posted. | **AC31-09 (post-merge, fork-backed):** cudarc CF-AC-08 and CF-AC-08b; R-PROP and R-PROP2 approve. |
 | **REQ31-10 FathomDB product.** `tegra-pool`, typed errors (`cuda_pool_exhausted`, `cuda_context_lost`), `doctor cuda-allocator`, early-`cuInit` contract unchanged; ADR amended for 2b and for fork-held evidence; docs and changelog; no reference to the vendored tree or its test script remains. | **AC31-10:** full `./scripts/agent-verify.sh` green in the slice worktree with its own `.venv` (§ 9 W0 step 6); Slice 30 product tests unchanged; `git grep -il -e third_party/cudarc -e test_vendored_cudarc -e 'vendored cudarc' -e 'cudarc 0.19.7' -- . ':!dev/plans' ':!dev/adr' ':!dev/todos-and-considerations-ledger.jsonl' ':!CHANGELOG.md'` is empty (plans, ADRs, the ledger and the changelog are history; the ADR amendment marks every vendored-tree statement, including `blast_radius`, as superseded); ADR amendment and changelog present. |
 | **REQ31-11 Process.** | **AC31-11:** `status.md` lists red and green shas per FathomDB step, each red re-run by the reviewer; `review.md` records every FathomDB review with model `opus` and every fork review by link; fork CF-AC-09 and CK-AC-08 pass. |
 | **REQ31-12 Scope safety.** | **AC31-12:** no upstream issue, comment, PR or push; no PR or issue object on either fork; no commit from this slice on `release/0.8.27`; `windchill3` driver and `/usr/local/cuda` unchanged in every guard log, FathomDB and fork. |
 | **REQ31-13 Performance.** No regression from the rebase. | **AC31-13:** Slice 30 gate G9 in full (`slice-30/plan.md` § 4.2) re-run on the Orin against the Slice 30 product: Node ratio ≤ 1.05 per measure with bootstrap 95 % CIs (CI upper > 1.10 → double N once), speed-up over synchronous > 1.5 (CI lower bound), import ≤ S + 5 ms, RSS ≤ S + 32 MiB; Python P / S ≤ 1.15; RTX 3090: median ratio new/0.19.7 ≤ 1.05 for embed steady state. The proposal benchmark is the cudarc fork's T-PERF. |
-| **REQ31-15 CUDA version support** (`ADR-0.8.28-cuda-version-support-policy.md`). The 12.6 artifact works with any CUDA 12.x cuBLAS from 12.1 to 12.9 on driver 560 or later and Turing or newer GPUs; it never loads a cuBLAS of another major; an environment with no CUDA 12 cuBLAS, or an unsupported GPU, gets a typed, plain error; the user docs state the floors. | **AC31-15:** T-CUDA-COMPAT C1–C5 pass or are UNMEASURED by owner decision; cudarc CF-REQ-11 (built-major library loading) at `C`; `docs/embedder.md` states the CUDA library floor (12.x), the driver floor (560.28.03 for the 12.6 artifact) and the GPU floor (Turing, compute capability 7.5, on x86; Orin on Jetson). |
+| **REQ31-15 CUDA version support** (`ADR-0.8.28-cuda-version-support-policy.md`). The 12.6 artifact works with any CUDA 12.x cuBLAS from 12.1 to 12.9 on driver 560 or later and Turing or newer GPUs; it never loads a cuBLAS of another major; an environment with no CUDA 12 cuBLAS, or an unsupported GPU, gets a typed, plain error; the user docs state the floors. | **AC31-15:** T-CUDA-COMPAT C1–C5 pass or are UNMEASURED by owner decision; cudarc CF-REQ-11 (built-major library loading) at `C`; D-18's production check and report pass their RED-first tests; `docs/embedder.md` states the CUDA library floor (12.x), the driver floor (560.28.03 for the 12.6 artifact) and the GPU floor (Turing, compute capability 7.5, on x86; Orin on Jetson). |
 | **REQ31-14 Fork management.** Fork work is planned, coded, reviewed and qualified in each fork per § 3.1; FathomDB pins only qualified code commits; the pin chain is consistent; published crates contain no fork engineering records. | **AC31-14:** both fork plans reviewed (R-FC-PLAN, R-FK-PLAN) and every fork review recorded with no open finding; `C` is the cudarc commit pinned by both the Candle fork at `K` and FathomDB; `git diff C <cudarc tip> -- . ':(exclude)fathomdb'` and the Candle equivalent are empty or the tips were re-qualified; the commit-class checks pass (cudarc fork plan § 1.3 over `ec1cac71..`, Candle fork plan § 1 over `859b8ea1..`); cudarc CF-AC-07a at `C` shows no `fathomdb/` path in the package; a fork CI receipt has `head_sha` = `C`. |
 
 **AC sets.** R-VERIFY before merge checks AC31-01…07, 10, 11, 12 (so far),
-13, 14 and 15. AC31-09 is checked at R-PROP after merge. AC31-08 and AC31-12
+13, 14 and 15. AC31-09 is checked at R-PROP and R-PROP2 after merge. AC31-08 and AC31-12
 (final) are checked at R-CODE-4 after publication.
 
 ## 6. Design topics (`design.md` answers each with citations)
@@ -390,6 +391,20 @@ covers:
   - **Close:** `trim_to` and release at engine close (formerly D-5's "after
     close").
   - **Rename:** any rename the fork's D-1 API choice forces on the embedder.
+- **D-18 Loaded-library check in production (REQ31-15).** When CUDA is
+  selected, the embedder reads the fork's loaded-library report (cudarc
+  D-F4) for every CUDA library it uses (cuBLAS, cuBLASLt, NVRTC if used).
+  - **Check:** a library whose reported major differs from the build's is
+    refused with a typed error naming the file, its version and the major
+    needed, before any GPU work. It is never used.
+  - **Report:** the resolved file path and version of each library are
+    recorded in the CUDA device report and shown by `doctor` (which verb,
+    and the field names, are decided here). This is public surface:
+    `dev/interfaces/` and `docs/reference/` are updated in the same change.
+  - **Logging:** one structured line per process at CUDA selection, with
+    no new egress.
+  - **Tests:** RED first, with a decoy wrong-major library (fixture), the
+    CUDA-13-only container (T-CUDA-COMPAT C3) and the receipts of C2.
 
 ## 7. Test plan topics (`test-plan.md` expands each, traced to AC31)
 
@@ -425,7 +440,7 @@ plan § 6). FathomDB runs:
   | Cell | Where | Must show |
   | --- | --- | --- |
   | C1 PTX driver floor | fast tier, no GPU | every PTX module in the 12.6 build declares `.version` ≤ 8.5 and `.target sm_75` (x86) or `sm_87` (Orin). A release build measured `.version 8.5`, `.target sm_75` on 2026-10-11. NVIDIA lists driver 560.28.03 for CUDA 12.6, which the docs state as the floor. PTX 8.5 maps to the CUDA 12.5 driver (555.42.02) on secondary evidence, untested and not promised. Older drivers cannot be installed on `windchill3`, so no older-driver runtime cell exists |
-  | C2 older and newer 12.x cuBLAS | RTX 3090; scratch venv with `nvidia-cublas-cu12` 12.1.x, 12.4.x and 12.9.x (PyPI), reached by `LD_LIBRARY_PATH` | embed and rerank end to end; the receipt names the cuBLAS file actually loaded (from `/proc/self/maps`) and its reported version, because the system's 12.6 `libcublas.so` is on the loader cache and could be picked silently. A missing symbol in an older cuBLAS is a typed error, recorded as a known gap, never a crash |
+  | C2 older and newer 12.x cuBLAS | RTX 3090; scratch venv with `nvidia-cublas-cu12` 12.1.x, 12.4.x and 12.9.x (PyPI), reached by `LD_LIBRARY_PATH` | embed and rerank end to end; the receipt names the cuBLAS file actually loaded, from FathomDB's own D-18 report and cross-checked against `/proc/self/maps`, and its reported version, because the system's 12.6 `libcublas.so` is on the loader cache and could be picked silently. A missing symbol in an older cuBLAS is a typed error, recorded as a known gap, never a crash |
   | C3 CUDA 13 libraries only | `windchill3` Docker with the NVIDIA CDI devices (present). Images `nvidia/cuda:13.0.x-runtime-ubuntu24.04` (no CUDA 12 libraries) and `-devel` (adds an unversioned `libcublas.so` → `.so.13`); pulling them needs owner approval | the 12.6 build never loads a 13.x cuBLAS. It fails with a typed error that names the missing CUDA 12 cuBLAS and the remedy (`pip install nvidia-cublas-cu12`, or the 13.0 artifact once it ships). UNMEASURED if the pull is declined; cudarc CF-REQ-11's unit tests still cover the loader logic |
   | C4 below the GPU floor | `windchill3` Quadro K620 (sm_50, ordinal 2) | characterize `cuda:2` and `auto` with all devices visible. `auto` must not select the K620, and an explicit request must give a typed error, not a crash or an untyped PTX load failure. If today's behaviour differs, R-DES decides the fix; a new error is public surface and updates `docs/reference/errors.md` and the interface docs |
   | C5 13.0 build, 13.0 libraries | RTX 3090; the user-local 13.0 toolkit or the cu13 scratch venv | the T-CUDA 13.0 row, plus the loaded-library check of C2 |
@@ -470,6 +485,7 @@ R0 … R0-rev8 (done; rev8 also served as R-FC-PLAN and R-FK-PLAN part 1)
 → W6 (R-PIN for C and K; needs R-TEST too) → merge-forward → qualification
 → R-CODE-3 + R-VERIFY → merge
 → cudarc FC9 → R-PROP          (FC9 may start once R-FC-CODE approves)
+→ cudarc FC9b → R-PROP2        (after FC9, same proposal worktree)
 → cudarc FC10 → R-FC-PUB → owner R-PUB → owner publishes cudarc-fathomdb
 → Candle FK5 → R-FK-PUB → owner R-PUB → owner publishes the Candle crates
 → W8 step 3 → R-CODE-4 → merge
@@ -544,7 +560,7 @@ and the fork CF/CK criteria (after R-FC-REQ, so the IDs are stable).
 
 ### W2. Design → R-DES
 
-`design.md` answering § 6 (D-8W, D-10, D-11, D-12, D-14 … D-17) with
+`design.md` answering § 6 (D-8W, D-10, D-11, D-12, D-14 … D-18) with
 citations. ADR amendment draft: 2b consumption; evidence for the cudarc
 primitive now held in the fork rather than in `test_vendored_cudarc.sh`;
 every vendored-tree statement, including `blast_radius`
@@ -620,7 +636,9 @@ Same duties for R-FK-PLAN, R-FK-CODE, R-FK-VERIFY and R-FK-PUB.
 
 Performed in the fork (`proposal/mem-pool`, drafts in `fathomdb/proposal/`).
 On `slice/0.8.28-31-post` the main thread records R-PROP and adds the
-superseded pointer to `slice-30/upstream-cudarc-package.md`. Not posted.
+superseded pointer to `slice-30/upstream-cudarc-package.md`. Then FC9b
+(`proposal/lib-major`, drafts in `fathomdb/proposal-lib-major/`) and
+R-PROP2. Neither proposal is posted.
 
 ### W8. Publication (owner) → R-FC-PUB, R-FK-PUB, R-PUB, R-CODE-4
 
@@ -700,6 +718,7 @@ fails.
 | R-CODE-3 | FathomDB | end of W6 | the slice branch | merge |
 | R-VERIFY | FathomDB | with R-CODE-3 | pre-merge AC set incl. T-FORK-EVIDENCE, `qualification.md`, `status.md` | merge |
 | R-PROP | cudarc | end of FC9 | proposal branch and drafts (CF-AC-08) | owner sign-off (later) |
+| R-PROP2 | cudarc | end of FC9b | second proposal branch and drafts (CF-AC-08b) | owner sign-off (later) |
 | R-FC-PUB | cudarc | FC10 | package list and dry run at `C` (CF-AC-07b equals 07a) | owner R-PUB |
 | R-FK-PUB | Candle | FK5 | `K8`, its re-qualification receipts and dry runs (CK-AC-07; formerly R-CODE-2b) | owner R-PUB |
 | R-PUB (owner) | forks | before each `cargo publish` | dry-run output, packaged file list | each publish |
@@ -816,6 +835,13 @@ FathomDB's `review.md` carries one line per fork review.
   - **CUDA-13-only environment:** a 12.6 build needs a CUDA 12 cuBLAS.
     cudarc's cross-major library names are a defect, fixed in the fork
     (CF-REQ-11) and tested by C2 and C3.
+- **Q13.** Test venue for CUDA compatibility — open (owner, 2026-10-11):
+  - `windchill3` Docker with GPU passthrough is acceptable.
+  - Cloud options are being evaluated: GCP first, including whether an MCP
+    server exists; x86 and arm64 NVIDIA; driver-branch control for the
+    12-on-13 and 13-on-12 runs; cloud Jetson.
+  - The research goes to `research/cloud-gpu-test-options.md`.
+  - The Docker Hub pull for C3 is held until the owner rules.
 
 ## 16. Ledger and follow-ups
 

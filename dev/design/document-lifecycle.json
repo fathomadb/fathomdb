@@ -857,6 +857,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/cuda-version-support-review.md",
+      "class": "reference",
+      "topic": "cuda-version-support-review",
+      "role": "method",
+      "owner": "dev/design/cuda-version-support-review.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
       "path": "dev/design/dedicated-checkout-per-orchestration-guard-proposal.md",
       "class": "reference",
       "topic": "dedicated-checkout-per-orchestration-guard-proposal",

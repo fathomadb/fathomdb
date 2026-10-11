@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -51,6 +51,8 @@ Nothing in this slice writes to `release/0.8.27`.
 | I-17 | Fork work is planned, performed, reviewed, tested and coded from within each fork, and tracked by Slice 31 | § 3.1; § 9 W4, W5; REQ31-14; both fork plans |
 | I-18 | FathomDB need not run cudarc's own tests (including the driver-only 13.x builds); the fork must | § 7; cudarc fork plan § 6.2 G3; REQ31-03 |
 | Q7 | Fork work is planned and run in each fork (I-17, I-18) | § 15 Q7 |
+| Q8 | Close lock drift with D-16 option (b): a FathomDB guard that fails until the fork re-runs with the new lock | § 6 D-16; § 9 W6; § 15 Q8 |
+| Q9 | The published cudarc fork is named `cudarc-fathomdb` | § 3.1; § 9 W8; § 15 Q9 |
 | Q4 | Never install the R615 driver; it would disable `windchill3` | § 1; § 2.2; § 9 W0 step 4 guard; § 15; fork plans § 1.6 |
 | Q5 | Tegra on CUDA 13 is UNMEASURED in Slice 31; propose doing it before the 0.8.28 release | REQ31-04; § 15; § 16 follow-up |
 | Q6 | Build against CUDA 13.0 without changing `windchill3`'s primary CUDA 12.6; find why 12.x was chosen | § 2.2; § 9 W0 step 4; T-CUDA; § 15 Q6 |
@@ -369,8 +371,11 @@ covers:
     - (b) a FathomDB guard that fails when the lock changes that set until
       the fork records a re-run with the new lock (cudarc fork plan § 8).
 
-    Recommendation: (b), which keeps the owner's direction that FathomDB
-    does not run cudarc's own tests. The owner is told the choice.
+    **Ruled (owner, 2026-10-11, Q8): (b).** FathomDB does not run cudarc's
+    own tests (I-18); the design specifies the guard's inputs (the
+    resolved dependency set of `cudarc-fathomdb` in `Cargo.lock`), where
+    the fork records the re-run, and the guard's tests (RED on a changed
+    set with no matching fork record).
 - **D-17 Product adaptation to the fork API.**
   - **Error mapping:** map cudarc's `DriverError` from the private pool to
     FathomDB's typed `cuda_pool_exhausted` and `cuda_context_lost`.
@@ -485,7 +490,13 @@ on them.
    and FathomDB T-CUDA alike; if it is declined, cudarc G4 can still use
    the cu13 PyPI wheels in a scratch virtual environment (cudarc fork plan
    G4), and the toolkit cells (K-G2, T-WS-BUILD 13000) are UNMEASURED by
-   owner decision.
+   owner decision. The wheels are pinned to 13.0.x (for example
+   `nvidia-cuda-runtime==13.0.96`, `nvidia-cuda-nvrtc==13.0.88`,
+   `nvidia-cublas==13.0.2.14`), matching the 13.0 driver, and installed
+   only into that scratch environment; the primary `.venv`'s `nvidia/cu13`
+   libraries (cuBLAS 13.1.1) are never used. PyPI also carries
+   `nvidia-cuda-nvcc==13.0.88`; whether it can build Candle's kernels in
+   place of the runfile is unmeasured and is not relied on.
 5. Orin check over ssh (`10.83.10.13`): disk, GPU lock, toolchain, a clone
    location for the fork tests (`~/fathomdb-forks/`).
 6. Python gate environment: create a `.venv` owned by the slice worktree
@@ -494,7 +505,7 @@ on them.
    primary checkout's `.venv` (`agent-worktree-stale-base-trap.md`). The
    full gate must be green there; the Python parity oracle of
    `0.8.27-slice132-rust-sdk-lessons.md` only supplements it.
-7. Ledger: record the 2026-10-11 directions (I-17, I-18) and rulings Q4–Q6
+7. Ledger: record the 2026-10-11 directions (I-17, I-18) and rulings Q4–Q9
    with `ledgerwrite`.
 
 ### W1. Requirements and acceptance criteria → R-REQ
@@ -509,7 +520,7 @@ citations. ADR amendment draft: 2b consumption; evidence for the cudarc
 primitive now held in the fork rather than in `test_vendored_cudarc.sh`;
 every vendored-tree statement, including `blast_radius`
 (`ADR-0.8.28-tegra-private-cuda-pool.md:6, 101, 142`), marked superseded.
-Records § 15 Q6's finding and D-16's lock-drift choice for the owner.
+Records § 15 Q6's finding and the D-16 lock-drift guard (Q8, option (b)).
 
 ### W3. Test plan → R-TEST
 
@@ -697,7 +708,8 @@ FathomDB's `review.md` carries one line per fork review.
   D-F3 and Candle DK-4.
 - **Vacuous product evidence on x86:** the pool path is not built there;
   T-POOL-PRODUCT is Orin-only and receipts name each test with a run count.
-- **Lock drift after `test_vendored_cudarc.sh` is retired** (D-16).
+- **Lock drift after `test_vendored_cudarc.sh` is retired:** closed by the
+  D-16 guard (Q8, option (b)).
 - **`windchill3` safety:** a driver change would disable the host (Q4). Only
   toolkit-only, user-local installs; every guard stops the slice on change.
 - **CUDA 13.1+ runtime** cannot be measured on driver 580 for PTX builds;
@@ -740,6 +752,13 @@ FathomDB's `review.md` carries one line per fork review.
 - **Q7.** Where fork work is planned and run — ruled (owner, 2026-10-11): in
   each fork, tracked by Slice 31 (I-17); FathomDB need not run cudarc's own
   tests (I-18).
+- **Q8.** Lock drift after `test_vendored_cudarc.sh` is retired — ruled
+  (owner, 2026-10-11): D-16 option (b), a FathomDB guard that fails when
+  the lock changes `cudarc-fathomdb`'s resolved dependencies until the fork
+  records a re-run with the new lock.
+- **Q9.** Crate name — ruled (owner, 2026-10-11): `cudarc-fathomdb`
+  (unclaimed on crates.io, 2026-10-11; first publish needs the token
+  bootstrap).
 
 ## 16. Ledger and follow-ups
 
@@ -747,7 +766,7 @@ FathomDB's `review.md` carries one line per fork review.
 - Todo `TC-b267d940-1add-4d08-a596-a7669ae4a500`: the Q5 Tegra/CUDA 13
   follow-up below.
 - At W0 step 7: record the 2026-10-11 directions (I-17, I-18) and rulings
-  Q4–Q6 with `ledgerwrite`. Set `FATHOMDB-PATCH.md` item 5 to "on fork,
+  Q4–Q9 with `ledgerwrite`. Set `FATHOMDB-PATCH.md` item 5 to "on fork,
   not posted" until W6 deletes the file.
 - At FK1, open a todo for whichever Candle DK-1 path is not taken (a rebase
   onto upstream 0.11.x, which already uses cudarc 0.19.10, or staying on

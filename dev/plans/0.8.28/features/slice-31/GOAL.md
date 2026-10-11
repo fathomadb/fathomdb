@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — goal
-status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 9 and fork plan revisions 2)
+status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 10 and fork plan revisions 2)
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -19,7 +19,7 @@ index first. Read the plan with
 `git show origin/release/0.8.28:dev/plans/0.8.28/features/slice-31/plan.md`
 or from a slice worktree; never switch branches in the primary checkout
 (/home/coreyt/projects/fathomdb). If the committed plan is older than
-revision 9, stop and report. Fork work is governed by each fork's own
+revision 10, stop and report. Fork work is governed by each fork's own
 plan: coreyt/cudarc branch fathomdb/0.19.10, fathomdb/plan.md (clone
 /home/coreyt/projects/fathomdb-forks/cudarc) and coreyt/candle-fathomdb
 branch fathomdb/0.8.28-cudarc-fork, fathomdb/plan.md (clone

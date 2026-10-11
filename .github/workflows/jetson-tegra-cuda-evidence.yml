@@ -459,11 +459,11 @@ jobs:
           [ -f "$tarball" ] || { printf 'retained evidence lacks %s\n' "$tarball_name" >&2; exit 1; }
           built_sha256="$(awk -v name="$tarball_name" '$2 == name { print $1 }' evidence/node/SHA256SUMS)"
           tarball_sha256="$(sha256sum "$tarball" | awk '{print $1}')"
-          [ -n "$built_sha256" ] && [ "$built_sha256" = "$tarball_sha256" ] || {
+          if [ -z "$built_sha256" ] || [ "$built_sha256" != "$tarball_sha256" ]; then
             printf 'Node tarball SHA-256 %s differs from the Jetson build digest %s\n' \
               "$tarball_sha256" "${built_sha256:-missing}" >&2
             exit 1
-          }
+          fi
           python3 - evidence/node-local-smoke/summary.json "$tarball_sha256" <<'PY'
           import json
           import sys
@@ -487,10 +487,10 @@ jobs:
             --out "$site_root")"
           wheel_sha256="$(sed -n 's/^wheel_sha256=//p' <<<"$index_result")"
           node_tarball_sha256="$(sed -n 's/^node_tarball_sha256=//p' <<<"$index_result")"
-          [[ "$wheel_sha256" =~ ^[0-9a-f]{64}$ ]] && [ "$node_tarball_sha256" = "$tarball_sha256" ] || {
+          if [[ ! "$wheel_sha256" =~ ^[0-9a-f]{64}$ ]] || [ "$node_tarball_sha256" != "$tarball_sha256" ]; then
             printf 'Pages site builder did not report the published wheel and tarball digests\n' >&2
             exit 1
-          }
+          fi
           {
             printf 'wheel_filename=%s\n' "${wheel##*/}"
             printf 'wheel_sha256=%s\n' "$wheel_sha256"

@@ -382,9 +382,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 150** (`QUALIFICATION`) — integrated release qualification
+**IMMEDIATE NEXT: Slice 160** (`PUBLISH`) — publication to every registry and Pages destination with post-publication proofs
 
-**Remaining ladder:** 150 → 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 

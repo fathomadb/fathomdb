@@ -86,6 +86,11 @@ wheel and matched-version Node Pages tarball; generic ARM64 remains CPU-only.
 See [Python installation](docs/install/python.md#jetson--tegra-cuda) and
 [Node installation](docs/install/typescript.md#classic-jetson-orin-with-cuda).
 
+On CUDA-capable artifacts, `FATHOMDB_EMBED_DEVICE` and
+`FATHOMDB_RERANK_DEVICE` independently accept `auto`, `cpu`, or `cuda:N`
+(for example, `cuda:0`). The [embedder guide](docs/embedder.md) describes
+device selection and shared-GPU limits.
+
 The operator CLI is installed from source; no prebuilt CLI binary is published:
 
 ```bash

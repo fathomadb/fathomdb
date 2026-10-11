@@ -1504,11 +1504,13 @@ Order:
    and reviewed. Partial-publish recovery follows the idempotency contract in
    `dev/design/release.md`; a skipped tier is never recorded as published.
 3. **Tegra Pages:** while the remote release branch still points at `C` and
-   current `main` remains its ancestor, run `publish-tegra-pages.sh` once with
-   `--candidate-sha C`. The helper dispatches
-   `jetson-tegra-cuda-evidence.yml` with `publish_to_pages=true`, verifies the
-   deployed bytes and runs the Jetson smokes (AC27-117F, moved here from Slice
-   117): install `fathomdb@0.8.27` from npm and the tarball from its Pages URL,
+   current `main` remains its ancestor, dispatch
+   `jetson-tegra-cuda-evidence.yml` on `release/0.8.27` with
+   `candidate_sha=C`, `candidate_version=0.8.27` and
+   `publish_to_pages=true`. Its hosted verifier checks the deployed bytes and
+   its `post-publish-smoke-jetson` job
+   runs AC27-117F (moved here from Slice 117): install `fathomdb@0.8.27` from
+   npm and the tarball from its Pages URL,
    check its SHA-256, and repeat the forced-CUDA, witness and heap-growth rows;
    then
    install `fathomdb==0.8.27+tegra` from the Pages index and repeat its smoke.

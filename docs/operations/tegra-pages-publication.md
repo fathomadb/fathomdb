@@ -43,9 +43,13 @@ the retained list before their publication is verified.
 ## Publish
 
 Publication is deliberately manual: it requires an exact reviewed commit on
-`release/0.8.27`, then uses the dedicated Jetson workflow. From a clean
-checkout on the classic Jetson host with authenticated `gh`, run only after
-publication is authorized:
+`release/0.8.27`, then uses the dedicated Jetson workflow. Dispatch the
+workflow from an authenticated operator host with the exact remote branch
+head, `candidate_version=0.8.27` and `publish_to_pages=true`; its
+`post-publish-smoke-jetson` job runs the installed public-artifact proof.
+Alternatively, from a clean checkout on the classic Jetson host with
+authenticated `gh`, the operator helper dispatches the same workflow and
+repeats the public-artifact smokes locally:
 
 ```bash
 scripts/release/publish-tegra-pages.sh \
@@ -79,7 +83,9 @@ https://fathomadb.github.io/fathomdb/tegra/node/
 https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
 ```
 
-The script then runs two post-publication smokes on the Jetson:
+The workflow's `post-publish-smoke-jetson` job runs two post-publication
+smokes on the Jetson. The operator script also runs these smokes when invoked
+from the Jetson host:
 
 - the installed Pages-wheel forced-CUDA smoke;
 - a Node smoke that installs `fathomdb@0.8.27` from npm and the tarball from

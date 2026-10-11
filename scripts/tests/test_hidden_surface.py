@@ -1036,8 +1036,14 @@ def test_rows_and_wiring(tool: ModuleType) -> None:
         "engine-tc5-benchmark",
         "facade-default",
         "facade-operator",
+        "sdk-default",
     ]
     features = {row["id"]: row["features"] for row in tool.ROWS}
+    assert next(row for row in tool.ROWS if row["id"] == "sdk-default") == {
+        "id": "sdk-default",
+        "crate": "fathomdb-sdk",
+        "features": [],
+    }
     assert features["engine-operator-test-hooks"] == ["operator", "test-hooks"]
     assert features["engine-default"] == [] and features["facade-operator"] == [
         "operator"
@@ -1083,6 +1089,7 @@ def test_rows_and_wiring(tool: ModuleType) -> None:
     )
     assert identities["tests-req-x--a+b"]["features"] == ["a", "b"]
     assert identities["tests-req-x--a+b"]["profile"] == "test"
+    assert identities["tests-sdk-default"]["crate"] == "fathomdb-sdk"
     agent_test = (ROOT / "scripts" / "agent-test.sh").read_text()
     assert (
         "run_tier_suite fast test-hidden-surface python3 scripts/tests/test_hidden_surface.py"

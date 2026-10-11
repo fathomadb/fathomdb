@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 scope: post-0.8.26
-updated: 2026-10-07
+updated: 2026-10-09
 ---
 
 # FathomDB roadmap after 0.8.26
@@ -10,6 +10,10 @@ Start here for future work. This document consolidates the active release
 schedule, draft scopes, experimental review checkpoints, and explicitly
 preserved backlog into one readable map.
 
+The [product hygiene roadmap](hygeine-roadmap.md) tracks cross-release
+correctness, quality, performance and qualification risks separately from
+this release schedule.
+
 This is a roadmap, not implementation authority. Release placement is owned by
 [`plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md`](plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md).
 A release becomes executable only when it has an approved plan, release-state
@@ -17,16 +21,17 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 ## Current position
 
-- **0.8.26 is published.** It is the latest published release.
+- **0.8.26 is the published predecessor.** Its retained state contains the
+  historical publication receipt.
 - **0.8.27 is the active implementation release** on `release/0.8.27`.
   Prework approved correction-safe erasure and a behavior-preserving semantic
-  refactor. As of 2026-10-07, release state records Slices 0–132 complete on
-  the release branch, including the erasure fix (Slice 20) and the NAPI,
-  TypeScript, Python and Rust SDK slices (110–132). Slice 135 (performance
-  qualification) is next, then planned Slice 117 (Jetson CUDA Node addon via
-  the Tegra Pages route, gated on an unruled delivery-shape decision), then
-  140 and 150. Its plan, state, and board are the execution authority;
-  publication remains separately gated.
+  refactor. As of 2026-10-10, release state records Slice 135's bounded
+  system qualification and Slice 117's qualified, unpublished Jetson Node
+  delivery route complete alongside the erasure fix (Slice 20) and the
+  NAPI, TypeScript, Python and Rust SDK slices (110–132). Slice 140 is next,
+  followed by final-candidate qualification (150) and publication (160).
+  Its plan, state, and board are the execution authority; publication remains
+  separately gated.
 - An open todo does not automatically become roadmap scope. This file includes
   work only when a current schedule, draft scope, or explicit backlog/proposal
   record preserves it.
@@ -45,8 +50,8 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 | Release | Status | Theme |
 | --- | --- | --- |
-| **0.8.27** | **Active implementation; Slices 0–132 complete, 135 next** | Correction-safe source erasure after supersession, followed by behavior-preserving semantic decomposition of five selected monolithic engine, binding, and SDK facades; planned Slice 117 adds a Jetson CUDA Node addon through the Tegra Pages route. |
-| **0.8.28** | **Proposed release scope** | Manually selected advanced retrieval plus deferred snapshot/cursor continuity, graph/state continuation, and persisted evidence replay. Prework: the Tegra CUDA memory-pool study. |
+| **0.8.27** | **Active implementation; Slice 117 complete, 140 next** | Correction-safe source erasure, semantic decomposition, bounded system qualification, and the qualified, unpublished Jetson CUDA Node route are recorded. Slice 160 owns publication and post-publication proof. |
+| **0.8.28** | **Proposed release scope** | Advanced retrieval and continuation, Tegra CUDA memory-pool adoption, plus four owner-placed Slice 135 fault, quality, artifact and latency follow-ups. |
 | **0.8.29** | **Review checkpoint** | Candidate-selection experiments. |
 | **0.8.30** | Backlog | Explicit release of the process-lifetime module-level CUDA models. |
 | **0.8.31** | **Review checkpoint** | Associative retrieval and automatic profile-routing experiments. |
@@ -108,9 +113,12 @@ Constraints:
 ## 0.8.28 proposed scope
 
 The source of record is
-[`plans/0.8.28-draft-scope.md`](plans/0.8.28-draft-scope.md). These are
-caller-selected advanced reads; automatic routing and default changes are not
-part of this scope.
+[`plans/0.8.28-draft-scope.md`](plans/0.8.28-draft-scope.md). D28-01 to D28-07
+are caller-selected advanced reads. D28-08 is owner-placed Tegra pool work;
+D28-09 to D28-12 are the four owner-placed items from the
+[product hygiene roadmap](hygeine-roadmap.md#open-risk-register).
+Automatic routing is outside this scope; default changes require their own
+reviewed contracts and gates.
 
 | ID | Candidate work | Proof required before promotion |
 | --- | --- | --- |
@@ -122,6 +130,10 @@ part of this scope.
 | **D28-06** | Fully request/snapshot/projection/ordering-bound cursors. | A duplicate, omission, or authorization failure is demonstrated under minimal continuation. |
 | **D28-07** | Persisted source-complete evidence replay. | A caller needs resolution beyond compact-reference lifetime without weaker authorization. |
 | **D28-08** | **Owner-placed (2026-10-07):** adopt the Tegra private CUDA memory pool as the aarch64-Linux integrated-GPU default, with C7 context-reset instrumentation and an upstream cudarc pool primitive. | Requirements, acceptance criteria, ADR, TDD and an AGX Orin qualification against the study's gates, allocation correctness and release first. |
+| **D28-09** | **Owner-placed (2026-10-09, Slice 135 rank 1):** qualify in-transaction erasure and WAL interruption; repair any confirmed contract violation. | Controlled fault positions, independent reopened-state and erasure oracles, truthful status and recovery. |
+| **D28-10** | **Owner-placed (2026-10-09, Slice 135 rank 2):** improve qualified multi-hop evidence reachability. | Held-out support-set gain by hop count without correctness, provenance or lifecycle regression. |
+| **D28-11** | **Owner-placed (2026-10-09, Slice 135 rank 3):** qualify installed CPU–CUDA and Jetson retrieval parity on 0.8.28 release artifacts. | Frozen same-query audit on real hardware; preserve 0.8.27 Slice 117/150 gates. |
+| **D28-12** | **Owner-placed (2026-10-09, Slice 135 rank 7):** attribute and conditionally remediate engine vector, hybrid and populated-open latency leads. | Matched stage/CPU/queue and whole-call boundaries; rerun affected cells after a product change. |
 
 ### Prework: Tegra CUDA memory-pool study
 

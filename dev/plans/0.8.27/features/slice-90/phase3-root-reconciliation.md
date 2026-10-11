@@ -1,13 +1,16 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: ab6a3da00b4cf2239633a523f1642ab376e896ec
+lib_rs_blob: 0875d2b8486941649d87e3895a0f29d5d00f3993
 ---
 
 # Slice 90 Phase 3 root reconciliation
 
 This inventory is derived from the engine `lib.rs` blob named above after the
-approved structural moves and the query-helper doc correction. The accepted
+approved structural moves and the query-helper doc correction. Slice 140
+refreshes this inventory after gating the four retained test fixtures behind
+`any(test, feature = "test-hooks")`; the prior Slice 90 blob was
+`9afaec4a6a42eed8415f531b3e22047a9bf7e242`. The accepted
 [design](design.md) and its reviewed test-seam owner amendment govern the
 owner decisions.
 The fast-tier `test-slice90-root-reconciliation` guard checks the root item
@@ -21,9 +24,10 @@ to `e395a9b0e75928bcdea6528c71bba65c091050de`. Later Windows-only tests
 and a Slice 114 stale-comment removal changed the whole-file blob to
 `4417d3ad27122c38a1668ca746968af344418905`. The embedder-close fix then made
 `runtime_embedder` a weak reference, changing the blob to
-`9afaec4a6a42eed8415f531b3e22047a9bf7e242`. 0.8.28 Slice 30 added the
-public `RerankPassagesError` re-export beside `rerank_passages`, changing
-the blob to the value above. The 43 root storage fields and approved
+`9afaec4a6a42eed8415f531b3e22047a9bf7e242`. Slice 140 then gated the
+retained fixtures, producing `0226b8836c929a30793b8913461f5abf341123c2`.
+0.8.28 Slice 30 added the public `RerankPassagesError` re-export beside
+`rerank_passages`, producing the merged blob above. The 43 root storage fields and approved
 root method inventory remain unchanged.
 
 ## Remaining root declarations
@@ -33,9 +37,9 @@ root method inventory remain unchanged.
 | `Engine` and its 43 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
 | `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |
 | `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |
-| `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, debug_assertions, test-hooks)`, public and doc-hidden. |
-| `Engine::run_one_thread_poison_for_test` | Approved Slice 140 composite write/search/lifecycle fixture; `debug_assertions`, public and doc-hidden. |
-| `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved ungated, public, doc-hidden arbitrary writer-SQL column fixtures. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
+| `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
+| `Engine::run_one_thread_poison_for_test` | Approved Slice 140 composite write/search/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
+| `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved public, doc-hidden arbitrary writer-SQL column fixtures under `any(test, test-hooks)`. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
 | `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |
 
 The exact 43 storage fields are grouped here to prevent a generic

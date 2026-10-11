@@ -28,9 +28,11 @@ export CUDA_HOST_CXX_X86_64='/usr/bin/g++-13'
 export CUDA_HOST_GCC_VERSION_TEGRA_ORIN='11.4.0'
 export CUDA_HOST_CC_TEGRA_ORIN='/usr/bin/gcc'
 export CUDA_HOST_CXX_TEGRA_ORIN='/usr/bin/g++'
-# The N-API host-toolchain names keep their meaning and their values; they now
+# The N-API host-toolchain names keep their meaning and their values; they
 # select the x86_64 axis, because that is the only target build-napi-cuda.sh
-# and cuda-preflight.sh build for (D-80.6-2 scopes Tegra to the Python wheel).
+# and cuda-preflight.sh build for. The Jetson Tegra .node is built by its own
+# wrapper (build-napi-cuda-tegra.sh) from the CUDA_*_TEGRA_* names below and
+# never through these selectors.
 export CUDA_NAPI_HOST_GCC_VERSION="$CUDA_HOST_GCC_VERSION_X86_64"
 export CUDA_NAPI_HOST_CC="$CUDA_HOST_CC_X86_64"
 export CUDA_NAPI_HOST_CXX="$CUDA_HOST_CXX_X86_64"
@@ -76,8 +78,8 @@ export CUDA_COMPUTE_CAP_TEGRA_ORIN='87'
 export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_X86_64"
 export CUDA_NAPI_FEATURES='embed-cuda'
 export CUDA_PYTHON_FEATURES='pyo3/extension-module,embed-cuda'
-# The Tegra wheel alone carries `tegra-pool` (0.8.28 Slice 30), with the same
-# `rerank-cuda` as the Tegra Node addon. The private
+# The Tegra Python wheel and Tegra Node addon carry `tegra-pool`, with the same
+# `rerank-cuda` tuple. The private
 # CUDA pool and the import-time early cuInit hook exist only for aarch64
 # Linux integrated GPUs. check-cuda-release-contract.py refuses the feature
 # in every other set.
@@ -140,3 +142,24 @@ export CUDA_DEFAULT_EMBEDDER_MODEL_SHA256='3c9f31665447c8911517620762200d2245a25
 export CUDA_RERANKER_CONFIG_SHA256='2144195e107cd7ea61556478e7add12986ebfbc3085f924fc0b90c2410604879'
 export CUDA_RERANKER_TOKENIZER_SHA256='d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66'
 export CUDA_RERANKER_MODEL_SHA256='a0e7364ddf91ff7028f1102e1b91ac7a72e3db4061241bd84efe45c72c9af03a'
+# Jetson Tegra N-API build inputs (ADR-0.8.27-jetson-tegra-node-addon-
+# distribution, which supersedes D-80.6-2's wheel-only Tegra scope for this
+# artifact). The Tegra feature tuple includes the private pool; x86_64 keeps
+# its separate rerank tuple. The toolchain remains shared with the release
+# Rust pin. Node and npm match the release Node toolchain and src/ts's
+# packageManager; the Jetson runner provisions them host-natively.
+export CUDA_TEGRA_NAPI_FEATURES='embed-cuda,rerank-cuda,tegra-pool'
+export CUDA_TEGRA_NAPI_RUST_VERSION="$CUDA_RUST_VERSION"
+export CUDA_TEGRA_NAPI_NODE_VERSION='25.9.0'
+export CUDA_TEGRA_NAPI_NPM_VERSION='11.12.1'
+# The package is unscoped and separately named so npm never selects it from
+# `(os, cpu, libc)`; the main package never lists it as an optional
+# dependency. It is the linux-arm64-gnu triple's binary, so it keeps that
+# triple's `.node` file name.
+export CUDA_TEGRA_NAPI_PACKAGE='fathomdb-linux-arm64-gnu-tegra'
+export CUDA_TEGRA_NAPI_TRIPLE='linux-arm64-gnu'
+# The driverless ARM64 import of the Tegra Node package runs in its own image
+# pin, independent of the x86_64 driverless smoke's. The tag must resolve to a
+# linux/arm64 image whose glibc meets the Tegra floor and which carries no
+# CUDA driver.
+export CUDA_TEGRA_DRIVERLESS_NODE_IMAGE='node:25.9.0-trixie-slim@sha256:aabbe39553d15ede8a97cc60c9e1a97034ff772afcf696ea42b94e7f5f2ec71b'

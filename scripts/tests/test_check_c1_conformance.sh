@@ -1634,6 +1634,34 @@ expect_rc 1 "a proof behind #[cfg(feature = ..)] HARD-fails the clause it carrie
 expect_out 'C1-Q6B-H-TERMINAL-NOT-LIFECYCLE-ADDRESSABLE' "the cfg-gated-proof failure NAMES the clause id"
 expect_out 'CONDITIONALLY COMPILED' "the cfg-gated-proof failure says the proof is conditionally compiled"
 
+# The relocated structural writer is a default engine unit proof. Its function
+# stays top-level with #[test], so the same anti-evaporation probes apply.
+for UNIT_MUTATION in deleted no-test ignored feature nested; do
+  UNIT_PROOF_ROOT="$(make_root "unit-proof-$UNIT_MUTATION")"
+  python3 - "$UNIT_PROOF_ROOT/src/rust/crates/fathomdb-engine/src/write.rs" "$UNIT_MUTATION" <<'PY_UNIT'
+from pathlib import Path
+import sys
+owner, mutation = Path(sys.argv[1]), sys.argv[2]
+source = owner.read_text()
+anchor = '#[test]\nfn the_internal_structural_row_writer_mints_no_logical_id('
+assert source.count(anchor) == 1
+if mutation == 'deleted':
+    source = source.replace(anchor, '#[test]\nfn removed_proof(', 1)
+elif mutation == 'no-test':
+    source = source.replace(anchor, anchor.replace('#[test]\n', ''), 1)
+elif mutation == 'ignored':
+    source = source.replace(anchor, '#[ignore]\n' + anchor, 1)
+elif mutation == 'feature':
+    source = source.replace(anchor, '#[cfg(feature="test-hooks")]\n' + anchor, 1)
+elif mutation == 'nested':
+    source = source.replace(anchor, 'mod nested {\n' + anchor, 1) + '\n}\n'
+owner.write_text(source)
+PY_UNIT
+  run_checker --contract "$CLEAN_CONTRACT" --pin "$REAL_PIN" --root "$UNIT_PROOF_ROOT"
+  expect_rc 1 "relocated structural unit proof $UNIT_MUTATION HARD-fails"
+  expect_out 'C1-Q6B-SURROGATE-GOVERNED-ONLY' "relocated proof $UNIT_MUTATION names its unchanged clause"
+done
+
 # 12ag-4 — THE COMPLETENESS ARM. Every one of the FOURTEEN named proofs across
 # T15/T20/T25 loses its `#[test]` at once, so all TEN behavioural clauses must
 # fail. This is what distinguishes "the class was swept" from "the one probe
@@ -1642,7 +1670,8 @@ expect_out 'CONDITIONALLY COMPILED' "the cfg-gated-proof failure says the proof 
 ALL_PROOFS_ROOT="$(make_root every-proof-disabled)"
 python3 - "$ALL_PROOFS_ROOT/src/rust/crates/fathomdb-engine/tests/slice15d_projection_registry.rs" \
           "$ALL_PROOFS_ROOT/src/rust/crates/fathomdb-engine/tests/slice20_dense_readiness.rs" \
-          "$ALL_PROOFS_ROOT/src/rust/crates/fathomdb-engine/tests/slice25_registration_identity_inert.rs" <<'PY'
+          "$ALL_PROOFS_ROOT/src/rust/crates/fathomdb-engine/tests/slice25_registration_identity_inert.rs" \
+          "$ALL_PROOFS_ROOT/src/rust/crates/fathomdb-engine/src/write.rs" <<'PY'
 import sys
 NAMES = [
     "destructive_change_requires_explicit_drop",

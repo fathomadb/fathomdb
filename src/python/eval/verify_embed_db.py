@@ -31,10 +31,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Optional, Sequence
 
 DEFAULT_EMBEDDER = "fathomdb-bge-small-en-v1.5"
@@ -242,11 +244,18 @@ from eval.verify_embed_db import _inspect_embed_db_local
 report = _inspect_embed_db_local(**json.loads(sys.argv[1]))
 print(json.dumps(report.to_dict()))
 """
+    child_env = os.environ.copy()
+    package_root = str(Path(__file__).resolve().parent.parent)
+    inherited_path = child_env.get("PYTHONPATH")
+    child_env["PYTHONPATH"] = os.pathsep.join(
+        [package_root, inherited_path] if inherited_path else [package_root]
+    )
     result = subprocess.run(
         [sys.executable, "-c", source, payload],
         check=False,
         capture_output=True,
         text=True,
+        env=child_env,
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "embed DB inspection child failed")

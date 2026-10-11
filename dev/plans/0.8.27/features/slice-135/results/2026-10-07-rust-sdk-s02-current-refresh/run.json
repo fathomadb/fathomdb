@@ -1,0 +1,15 @@
+{
+  "build_command": "CARGO_TARGET_DIR=<Slice135 worktree>/target cargo build --offline --locked --release --manifest-path /tmp/slice135-rust-sdk-consumer/Cargo.toml",
+  "build_exit_code": 0,
+  "checkout_head_at_run": "5e433c3a4",
+  "consumer_binary_sha256": "09984ef5b66a14b6404e6d512cfe1bd56f670ed55aeb50bd428ecd6a32aa10ab",
+  "consumer_source_sha256": "dd885f029f003635726c494cd69f565ef2241a5e3e7a432c2722fd0a16879075",
+  "external_manifest_sha256": "782b26607f9c83382da3a07b75627a04ab3fedfb3815c17dc721f1756d2bba40",
+  "paired_0_8_26_rust_sdk": false,
+  "product_source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+  "published_crate_install": false,
+  "run_command": "/usr/bin/time -v -o resource.txt timeout 120s <Slice135 worktree>/target/release/slice135-rust-sdk-consumer consumer.sqlite",
+  "run_exit_code": 0,
+  "rust_tree_matches_product_source": true,
+  "schema_version": 1
+}

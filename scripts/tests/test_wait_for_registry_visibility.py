@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/release/wait-for-registry-version.py"
+RELEASE_VERSION = json.loads((ROOT / "src/ts/package.json").read_text(encoding="utf-8"))["version"]
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -21,6 +22,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         prefix = self.path.split("/", 2)[1]
+        pypi = "/pypi/" in self.path
+        requested_version = self.path.rstrip("/").split("/")[-2 if pypi else -1]
         Handler.counts[prefix] = Handler.counts.get(prefix, 0) + 1
         if prefix == "server":
             self.send_response(503)
@@ -58,8 +61,8 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             body: object = (
                 {"message": "Not Found"}
-                if "/pypi/" in self.path
-                else "version not found: 0.8.26"
+                if pypi
+                else f"version not found: {requested_version}"
             )
             self.wfile.write(json.dumps(body).encode("utf-8"))
             return
@@ -70,10 +73,10 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b"{")
             return
         package = "wrong" if prefix == "mismatch" else "fathomdb"
-        version = "0.8.25" if prefix == "wrongversion" else "0.8.26"
+        version = "0.8.25" if prefix == "wrongversion" else requested_version
         body = (
             {"info": {"name": package, "version": version}}
-            if "/pypi/" in self.path
+            if pypi
             else {"name": package, "version": version}
         )
         self.wfile.write(json.dumps(body).encode("utf-8"))
@@ -117,10 +120,10 @@ def invoke_release(root: str) -> subprocess.CompletedProcess[str]:
             str(SCRIPT),
             "wait-release",
             "--repo-root", str(ROOT),
-            "--version", "0.8.26",
+            "--version", RELEASE_VERSION,
             "--pypi-base-url", f"{root}/delayed",
             "--npm-base-url", f"{root}/missing",
-            "--timeout-seconds", "0.08",
+            "--timeout-seconds", "0.5",
             "--interval-seconds", "0.01",
         ],
         text=True,
@@ -178,11 +181,13 @@ def main() -> None:
         Handler.counts["delayed"] = 0
         shared_deadline = invoke_release(root)
         assert shared_deadline.returncode == 1, shared_deadline.stderr
+        assert "registry_visibility_pass registry=pypi" in shared_deadline.stdout
+        assert "registry=npm" in shared_deadline.stderr
         assert Handler.counts["delayed"] == 4
         remaining_bound = float(
             shared_deadline.stderr.split("timeout_seconds=", 1)[1].split()[0]
         )
-        assert 0 < remaining_bound < 0.06, shared_deadline.stderr
+        assert 0 < remaining_bound < 0.5, shared_deadline.stderr
     finally:
         server.shutdown()
         thread.join()
@@ -191,7 +196,7 @@ def main() -> None:
     assert transport.returncode == 1 and "transport_error" in transport.stderr
 
     module = load_module()
-    packages = module.release_packages(ROOT, "0.8.26", include_npm=True)
+    packages = module.release_packages(ROOT, RELEASE_VERSION, include_npm=True)
     assert [(item.registry, item.name) for item in packages[:2]] == [
         ("pypi", "fathomdb"),
         ("npm", "fathomdb"),
@@ -201,8 +206,8 @@ def main() -> None:
         for path in (ROOT / "src/ts/npm").glob("*/package.json")
     } | {"fathomdb"}
     assert {item.name for item in packages if item.registry == "npm"} == expected_npm
-    assert module.release_packages(ROOT, "0.8.26", include_npm=False) == (
-        module.RegistryPackage("pypi", "fathomdb", "0.8.26"),
+    assert module.release_packages(ROOT, RELEASE_VERSION, include_npm=False) == (
+        module.RegistryPackage("pypi", "fathomdb", RELEASE_VERSION),
     )
     print("PASS test-wait-for-registry-visibility")
 

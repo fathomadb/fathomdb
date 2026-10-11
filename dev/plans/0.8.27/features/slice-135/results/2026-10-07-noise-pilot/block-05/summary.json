@@ -1,0 +1,36 @@
+{
+  "artifact_sha256": {
+    "build/Cargo.lock": "5f3a19d59c095886bb2e96572005bebf4e7375cc8f50e18fbb770b26b5f2370d",
+    "corpus.txt": "3490cb46178d1016388d9ee56ae6a9035a9f0e8658512e5f62801c000f3147b4",
+    "slice135_pilot_workload": "c6d2133640535ce49846e328ccceac91a96997306377bd83a998d99825574db1"
+  },
+  "cells": {
+    "close_fresh": {
+      "invalid_attempts": 0,
+      "kind": "lifecycle",
+      "maximum_ns": 14294423,
+      "p50_ns": 5254334,
+      "p95_ns": 5777052,
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "text": {
+      "invalid_attempts": 0,
+      "kind": "query",
+      "maximum_ns": 759967,
+      "p50_ns": 186803,
+      "p95_ns": 598552,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    }
+  },
+  "protocol_sha256": "2b647b0fa87e82c0c6afa83a2c7074ea2f8eeb2ec8f76898ddad051559b75e7b",
+  "raw_sha256": "89ef339e35575ec0c0ed6a4d511e72b9a5bbea8744088bd1ce352866f4043177",
+  "runner_sha256": "1c86910bfddba6d77b15937435f2e2da3180c7e1abf91a63253bc45adeb89397",
+  "schema_version": 1,
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "validator_sha256": "bd3f57492a8d5b1506adc401262eb89d6989cc61f112c230ea61f44a5db5ffa7"
+}

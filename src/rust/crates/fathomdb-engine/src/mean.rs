@@ -28,6 +28,7 @@ pub const MEAN_VEC_PIN_THRESHOLD: u64 = 256;
 /// EU-5a2 — test-visible re-exports of the mean-centering internals.
 /// Per the handoff RED tests; the production accumulator and re-quantize
 /// pass are otherwise crate-private.
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub mod mean_centering_internals_for_test {
     use super::MeanAccumulator;
@@ -221,6 +222,7 @@ pub(crate) fn run_pin_and_requantize_pass(
 /// EU-5a2 — back-compat test-only count+emit helper. Preserved so the
 /// EU-5a2 machinery test stays green; the EU-5b production path uses
 /// `run_pin_and_requantize_pass`.
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) fn run_requantize_pass(
     rows: &[(i64, Vec<u8>)],
     mean: &[f32],
@@ -389,8 +391,8 @@ impl Engine {
     /// 0.7.2 PR-2b test seam — arm a one-shot fault inside the NEXT
     /// `recompute_mean` so it errors after the `mean_vec` UPDATE but before
     /// the re-quantize completes. Proves the recompute tx rolls back whole.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
-    #[cfg(debug_assertions)]
     pub fn force_next_recompute_failure_for_test(&self) {
         self.projection_runtime.shared.force_recompute_failure.store(true, Ordering::SeqCst);
     }
@@ -431,13 +433,13 @@ impl Engine {
                 .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
                 .map_err(|_| EngineError::Storage)?;
             dependency_closure::guard_no_pending_physical(&tx)?;
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             let fail = self
                 .projection_runtime
                 .shared
                 .force_recompute_failure
                 .swap(false, Ordering::SeqCst);
-            #[cfg(not(debug_assertions))]
+            #[cfg(not(any(test, feature = "test-hooks")))]
             let fail = false;
             let report = recompute_mean_in_tx_inner(&tx, &identity, fail)?;
             tx.commit().map_err(|_| EngineError::Storage)?;

@@ -365,13 +365,13 @@ The three are published in the worker transaction. The normative classifier is:
 | node only: `up_to_date` + no sidecar + no vec0 + not enrolled | legitimate-stranded | A usable open/configuration graft enrolls the kind, deletes the terminal, rewinds the old scheduler cursor, and notifies. Absent/refused runtime is blocked/deferred. |
 | no terminal + no sidecar + no vec0 + not enrolled | corrupt | A current-generation member must either be enrolled for dispatch or carry the accepted node stranded marker. |
 | `up_to_date` + no sidecar + no vec0 + enrolled | corrupt | Enrolled work cannot use the no-runtime stranded marker. |
-| `failed` + no sidecar + no vec0 | failed | Generation is degraded; only governed rebuild retries it. |
+| `failed` + no sidecar + no vec0, including an unenrolled edge | failed | Generation is degraded; only governed rebuild retries it. This row precedes the unenrolled-edge corruption rule below. |
 | `up_to_date` with exactly one physical row | corrupt | No automatic repair; typed corruption. |
 | no terminal with either physical row | corrupt | No automatic repair; typed corruption. |
 | `failed` with either physical row | corrupt | No automatic repair; typed corruption. |
 | matching terminal/sidecar with wrong kind, source type, or row identity | corrupt | No automatic repair; typed corruption. |
 | node only: complete physical triple + not enrolled | complete | Enrolment is scheduler state, not physical-completion authority; this is legal after drop/re-add or equivalent state maintenance. |
-| edge member not enrolled, or usable-runtime node still legitimate-stranded after boot graft | corrupt | Required enrolment/graft did not complete before publication. |
+| edge member not enrolled after no earlier specific row matched, or usable-runtime node still legitimate-stranded after boot graft | corrupt | Required enrolment/graft did not complete before publication. |
 
 Every other combination of membership, enrolment, terminal state, sidecar,
 vec0 row, kind, source type, and row identity is typed corruption. The state

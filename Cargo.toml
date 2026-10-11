@@ -27,7 +27,7 @@ resolver = "2"
 # plus embedder-api at `0.6.0`. Post-GA, axis-E is independent —
 # embedder-api bumps on its own cadence when the trait surface changes,
 # decoupled from axis-W bumps.
-version = "0.8.26"
+version = "0.8.27"
 edition = "2021"
 # 0.8.20 Slice 39 (R-20-DOC, HITL seq-193): the project is MIT. The repo-root
 # `LICENSE` is authoritative; this SPDX field and every other publishable
@@ -55,13 +55,13 @@ internal_docs = ["dev"]
 # Axis E (fathomdb-embedder-api) carries its independent version per
 # dev/design/release.md § Version axes.
 [workspace.dependencies]
-fathomdb              = { path = "src/rust/crates/fathomdb",              version = "0.8.26" }
-fathomdb-embedder     = { path = "src/rust/crates/fathomdb-embedder",     version = "0.8.26" }
+fathomdb              = { path = "src/rust/crates/fathomdb",              version = "0.8.27" }
+fathomdb-embedder     = { path = "src/rust/crates/fathomdb-embedder",     version = "0.8.27" }
 fathomdb-embedder-api = { path = "src/rust/crates/fathomdb-embedder-api", version = "0.7.0" }
-fathomdb-engine       = { path = "src/rust/crates/fathomdb-engine",       version = "0.8.26" }
-fathomdb-query        = { path = "src/rust/crates/fathomdb-query",        version = "0.8.26" }
-fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       version = "0.8.26" }
-fathomdb-sdk          = { path = "src/rust/crates/fathomdb-sdk",          version = "0.8.26" }
+fathomdb-engine       = { path = "src/rust/crates/fathomdb-engine",       version = "0.8.27" }
+fathomdb-query        = { path = "src/rust/crates/fathomdb-query",        version = "0.8.27" }
+fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       version = "0.8.27" }
+fathomdb-sdk          = { path = "src/rust/crates/fathomdb-sdk",          version = "0.8.27" }
 
 # Every entry here is governed by scripts/check-pinned-override-rot.py, which
 # authenticates its exact source; see scripts/pinned-override-rot.json.

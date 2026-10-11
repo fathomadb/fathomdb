@@ -1,0 +1,80 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import time
+import tomllib
+
+root = Path('/home/coreyt/projects/fathomdb-worktrees')
+source = root / 'release-0.8.27-slice-135/scripts/slice115_workload.rs'
+for version, checkout in (
+    ('baseline', root / 'release-0.8.26-slice-135-baseline'),
+    ('candidate', root / 'release-0.8.27-slice-135'),
+):
+    output = Path('/tmp/slice135-e12-feasibility') / version
+    output.mkdir(parents=True, exist_ok=False)
+    sha = subprocess.check_output(['git','rev-parse','HEAD'],cwd=checkout,text=True).strip()
+    status = subprocess.check_output(['git','status','--short','--','src/rust/crates','Cargo.lock'],cwd=checkout,text=True).strip()
+    if status:
+        raise RuntimeError(f'{version}: dirty measured source: {status}')
+    root_manifest = tomllib.loads((checkout/'Cargo.toml').read_text())
+    patches = []
+    for name, spec in root_manifest.get('patch',{}).get('crates-io',{}).items():
+        bound = {key: str((checkout/value).resolve()) if key == 'path' else value for key,value in spec.items()}
+        props = ', '.join(f'{key} = {json.dumps(value)}' for key,value in bound.items())
+        patches.append(f'{name} = {{ {props} }}')
+    crate = output/'build'
+    crate.mkdir()
+    manifest = crate/'Cargo.toml'
+    manifest.write_text(
+        '[package]\nname = "slice135-e12-feasibility"\nversion = "0.1.0"\nedition = "2021"\n'
+        '[dependencies]\n'
+        f'fathomdb-engine = {{ path = "{checkout}/src/rust/crates/fathomdb-engine", features = ["test-hooks", "default-embedder"] }}\n'
+        f'fathomdb-embedder-api = {{ path = "{checkout}/src/rust/crates/fathomdb-embedder-api" }}\n'
+        'serde_json = "1"\nsha2 = "0.11"\ntempfile = "3"\n'
+        '[[test]]\nname = "slice115_workload"\n'
+        f'path = "{source}"\n'
+        '[patch.crates-io]\n' + '\n'.join(patches) + '\n'
+    )
+    shutil.copy2(checkout/'Cargo.lock',crate/'Cargo.lock')
+    env={**os.environ,'CARGO_TARGET_DIR':str(checkout/'target'),'FATHOMDB_EMBED_DEVICE':'cpu'}
+    build=['cargo','test','--offline','--release','--no-run','--message-format=json','--manifest-path',str(manifest)]
+    (output/'build-command.json').write_text(json.dumps(build,indent=2)+'\n')
+    print(f'{version}: build {sha}',flush=True)
+    result=subprocess.run(build,text=True,capture_output=True,env=env,timeout=900)
+    (output/'build.stdout.log').write_text(result.stdout)
+    (output/'build.stderr.log').write_text(result.stderr)
+    if result.returncode:
+        raise RuntimeError(f'{version}: build exit {result.returncode}: {result.stderr[-3000:]}')
+    binaries=[]
+    for line in result.stdout.splitlines():
+        try: message=json.loads(line)
+        except json.JSONDecodeError: continue
+        if message.get('target',{}).get('name')=='slice115_workload' and message.get('executable'):
+            binaries.append(Path(message['executable']))
+    if len(binaries)!=1: raise RuntimeError(f'{version}: binaries {binaries}')
+    binary=output/'slice115_workload'
+    shutil.copy2(binaries[0],binary)
+    raw=output/'raw.json'
+    env.update({
+        'SLICE115_RAW_PATH':str(raw),
+        'SLICE115_SOURCE_SHA':sha,
+        'SLICE115_PROTOCOL_SHA256':hashlib.sha256(source.read_bytes()).hexdigest(),
+        'SLICE115_RUNNER_SHA256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        'SLICE115_BINARY_SHA256':hashlib.sha256(binary.read_bytes()).hexdigest(),
+    })
+    command=['/usr/bin/time','-v','timeout','600s',str(binary),'--ignored','--exact','slice115_measurement','--nocapture']
+    (output/'run-command.json').write_text(json.dumps(command,indent=2)+'\n')
+    print(f'{version}: run',flush=True)
+    start=time.time()
+    result=subprocess.run(command,text=True,capture_output=True,env=env,timeout=630)
+    (output/'run.stdout.log').write_text(result.stdout)
+    (output/'run.stderr.log').write_text(result.stderr)
+    (output/'run-result.json').write_text(json.dumps({'exit':result.returncode,'wall_s':time.time()-start,'source_sha':sha,'binary_sha256':env['SLICE115_BINARY_SHA256'],'raw_present':raw.exists()},indent=2)+'\n')
+    if result.returncode:
+        raise RuntimeError(f'{version}: run exit {result.returncode}: {result.stderr[-3000:]}')
+    data=json.loads(raw.read_text())
+    print(f'{version}: {len(data["cells"])} cells; counts '+str({k:len(v) for k,v in data['cells'].items()}),flush=True)

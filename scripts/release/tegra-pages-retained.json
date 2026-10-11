@@ -1,0 +1,12 @@
+{
+  "schema": "fathomdb.tegra-pages-retained/v1",
+  "artifacts": [
+    {
+      "kind": "wheel",
+      "version": "0.8.26+tegra",
+      "filename": "fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl",
+      "sha256": "728df8628f45e12c0c04c0a971c174764ef5c988c7d05f0737794aa6f5c5d1fa",
+      "url": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl"
+    }
+  ]
+}

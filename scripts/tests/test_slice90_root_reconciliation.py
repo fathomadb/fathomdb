@@ -23,10 +23,10 @@ VISIBILITY = r"(?:pub(?:\([^)]*\))?\s+)?"
 METHOD_ATTRIBUTES = {
     "path": {"#[must_use]"},
     "ensure_open": set(),
-    "execute_for_test": {"#[doc(hidden)]", "#[cfg(any(test,debug_assertions,feature=\"test-hooks\"))]"},
-    "run_one_thread_poison_for_test": {"#[doc(hidden)]", "#[cfg(debug_assertions)]"},
-    "query_i64_col_for_test": {"#[doc(hidden)]"},
-    "query_text_col_for_test": {"#[doc(hidden)]"},
+    "execute_for_test": {"#[doc(hidden)]", "#[cfg(any(test,feature=\"test-hooks\"))]"},
+    "run_one_thread_poison_for_test": {"#[doc(hidden)]", "#[cfg(any(test,feature=\"test-hooks\"))]"},
+    "query_i64_col_for_test": {"#[doc(hidden)]", "#[cfg(any(test,feature=\"test-hooks\"))]"},
+    "query_text_col_for_test": {"#[doc(hidden)]", "#[cfg(any(test,feature=\"test-hooks\"))]"},
 }
 
 

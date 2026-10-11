@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "VALID_S02_PAIRED_BLOCK",
+  "role": "baseline",
+  "comparison_protocol_sha256": "8aa493bfe49426fc8253672692f22268224dbc88074133ba1fde79a0451cbce1",
+  "invalidators": [],
+  "warnings": [],
+  "manifest_sha256": "c6fb7c130dd99ea8de1861280e2c8c5d2e95a685772bc7ef1828dfc686c3020a",
+  "environment_sha256": "68dd7f46f456cff3ea38f1ca773d29052186458a2113f1b32173cbd64fee4175",
+  "attempts_sha256": "ffe02f5f1d0959c22957ace2b72a01723327c0dc1b08f2696358207a02bd4a38",
+  "valid_samples": 20,
+  "median_product_ns": 5404604984,
+  "min_product_ns": 5331001567,
+  "max_product_ns": 5470789889
+}

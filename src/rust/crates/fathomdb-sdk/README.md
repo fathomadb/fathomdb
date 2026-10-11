@@ -9,48 +9,59 @@ packages:
 - an `Engine` with the governed engine operations;
 - the `read`, `graph`, and `admin` namespaces;
 - the standalone `rerank` and `embed_batch_cls` operations;
-- the same option defaults and the same error classes.
+- the same option defaults and error categories through `Error` / `ErrorKind`.
 
 If you are writing a Rust application against FathomDB, depend on this crate.
 
 ## Status: pre-1.0, beta
 
-The 0.8.x line is under active development. The public surface can change
-between minor releases.
+This is the Rust application SDK for FathomDB 0.8.27. Public contracts may
+change between micro releases.
 
 ## Install
 
 ```bash
-cargo add fathomdb-sdk
-# Match the shipped Python wheel and npm package (pinned default embedder):
-cargo add fathomdb-sdk --features default-embedder
+cargo add fathomdb-sdk@=0.8.27
 ```
+
+To enable the pinned default embedder, add `--features default-embedder` to
+that command. Model use can download weights; the example below requires no
+model feature. See the
+[Rust install guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/install/rust.md).
 
 ## Example
 
+Save this complete program as `src/main.rs`, then run `cargo run` in the
+application project:
+
 ```rust
-use fathomdb_sdk::{graph, read, Engine, InitialState, NeighborsOptions, OpenOptions,
-    PreparedWrite, SearchOptions, SourceId};
+use fathomdb_sdk::{read, Engine, InitialState, OpenOptions, PreparedWrite,
+    SourceId, TextSearchOptions};
 
-let engine = Engine::open("./app.sqlite", OpenOptions::default())?;
-engine.write(&[PreparedWrite::Node {
-    kind: "note".into(),
-    body: "the quick brown fox".into(),
-    // Provenance is mandatory: `erase_source` erases by `source_id`.
-    source_id: SourceId::new("import-2026-10").expect("valid source id"),
-    logical_id: Some("note:1".into()),
-    state: InitialState::Active,
-    reason: None,
-    valid_from: None,
-    valid_until: None,
-}])?;
+fn main() -> fathomdb_sdk::Result<()> {
+    let engine = Engine::open("./app.sqlite", OpenOptions::default())?;
+    engine.write(&[PreparedWrite::Node {
+        kind: "note".into(),
+        body: "the quick brown fox".into(),
+        source_id: SourceId::new("demo-source").expect("valid source id"),
+        logical_id: Some("note:1".into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    }])?;
 
-let note = read::get(&engine, "note:1", None)?;
-let hits = engine.search("brown fox", SearchOptions::default())?;
-let near = graph::neighbors(&engine, "note:1", 1, NeighborsOptions::default())?;
-engine.close()?;
-# Ok::<(), fathomdb_sdk::Error>(())
+    let note = read::get(&engine, "note:1", None)?;
+    let hits = engine.search_text_only("brown fox", TextSearchOptions::default())?;
+    println!("note: {note:?}; matches: {}", hits.results.len());
+    engine.close()?;
+    Ok(())
+}
 ```
+
+`source_id` is mandatory provenance: `erase_source` removes records by that
+identity. See the [SDK reference](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/reference/rust-sdk.md)
+for hybrid search, graph operations, and option defaults.
 
 ## How it maps to Python and TypeScript
 

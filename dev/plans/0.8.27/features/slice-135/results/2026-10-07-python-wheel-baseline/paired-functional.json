@@ -1,0 +1,18 @@
+{
+  "baseline_matrix_sha256": "72adb67e4795f35db43161be61cadbcb9d9b0e585e58382f2389f54ef88a01d5",
+  "baseline_source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "candidate_matrix_sha256": "ceec02243b1b7e436c3f92d585e14deb0b30b145f04f02076e15be353963cf83",
+  "candidate_source_sha": "b2ac8081e79a6e626d01f5f97331be331f1cc16d",
+  "compared_rows": 24,
+  "compared_semantic_fields": 15,
+  "excluded_opaque_reference_fields": [
+    "target_ref",
+    "terminal_ref"
+  ],
+  "negative_control": "candidate row 0 resolved_target_revision changed to wrong-revision",
+  "negative_control_rejected": true,
+  "opaque_reference_fields_valid_format": true,
+  "schema_33_refusal_equal": true,
+  "schema_version": 1,
+  "semantic_rows_equal": true
+}

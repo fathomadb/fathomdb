@@ -243,6 +243,32 @@ expect_failure() {
   pass "$description"
 }
 
+# Ignored benchmark copies contain historical Cargo patches. They are not
+# source inputs, while a new nonignored manifest must still be inspected.
+python3 - "$REPO_ROOT/scripts/check-pinned-override-rot.py" "$WORK" <<'PY'
+from pathlib import Path
+import runpy
+import subprocess
+import sys
+
+checker = runpy.run_path(sys.argv[1])
+root = Path(sys.argv[2]) / "ignored-manifest-scope"
+(root / "data/benchmark").mkdir(parents=True)
+(root / "extra").mkdir()
+(root / ".gitignore").write_text("/data/\n", encoding="utf-8")
+(root / "Cargo.toml").write_text("[workspace]\n", encoding="utf-8")
+(root / "data/benchmark/Cargo.toml").write_text(
+    '[patch.crates-io]\nold = { git = "https://example.invalid/old" }\n', encoding="utf-8"
+)
+subprocess.run(["git", "init", "-q", str(root)], check=True)
+assert checker["cargo_governed_pins"](root) == [], "ignored benchmark manifest reached the gate"
+(root / "extra/Cargo.toml").write_text(
+    '[dependencies]\nnew = { git = "https://example.invalid/new" }\n', encoding="utf-8"
+)
+assert checker["cargo_governed_pins"](root), "nonignored new manifest escaped the gate"
+PY
+pass "Cargo override scan excludes ignored benchmark copies but sees new source"
+
 # R1 exact historical regression: 4.2.0 was the old js-yaml override and is
 # inside GHSA-52cp-r559-cp3m's >=4.0.0,<4.3.0 range.
 make_and_run_fixture vulnerable vulnerable

@@ -1,0 +1,173 @@
+{
+  "source_sha": "3a69eef82e0381641e5bfbf7dcd8ed25141d97ff",
+  "extensions": [
+    ".c",
+    ".h",
+    ".js",
+    ".mjs",
+    ".py",
+    ".rs",
+    ".sh",
+    ".ts",
+    ".tsx"
+  ],
+  "threshold": 2000,
+  "files": [
+    {
+      "path": "dev/tools/hidden_surface.py",
+      "lines": 2105
+    },
+    {
+      "path": "experiments/measurement_classification.py",
+      "lines": 2446
+    },
+    {
+      "path": "scripts/check-c1-conformance.sh",
+      "lines": 2604
+    },
+    {
+      "path": "scripts/tests/fixtures/dorny-paths-filter-v4/dist/index.js",
+      "lines": 39117
+    },
+    {
+      "path": "scripts/tests/test_check_c1_conformance.sh",
+      "lines": 2399
+    },
+    {
+      "path": "scripts/tests/test_check_release_state_views.sh",
+      "lines": 2179
+    },
+    {
+      "path": "scripts/tests/test_commission_manifest.sh",
+      "lines": 2332
+    },
+    {
+      "path": "scripts/tests/test_worktree_consolidator.py",
+      "lines": 2271
+    },
+    {
+      "path": "scripts/worktree-consolidator.py",
+      "lines": 2114
+    },
+    {
+      "path": "src/rust/crates/fathomdb-cli/src/lib.rs",
+      "lines": 2792
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/src/actuation.rs",
+      "lines": 2719
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/src/data_plane_integrity.rs",
+      "lines": 2487
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/src/evidence.rs",
+      "lines": 2999
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/src/lib.rs",
+      "lines": 3905
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/src/open.rs",
+      "lines": 2089
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/src/projection_generation.rs",
+      "lines": 2016
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/src/projection_registry.rs",
+      "lines": 2359
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/src/search.rs",
+      "lines": 2479
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/tests/slice50_evidence.rs",
+      "lines": 2403
+    },
+    {
+      "path": "src/rust/crates/fathomdb-engine/tests/slice55_data_plane_integrity.rs",
+      "lines": 2254
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/cublas/sys/mod.rs",
+      "lines": 8804
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/cublaslt/sys/mod.rs",
+      "lines": 3560
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/cudnn/sys/mod.rs",
+      "lines": 6846
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/cufile/sys/mod.rs",
+      "lines": 2671
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/cupti/sys/mod.rs",
+      "lines": 34817
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/cusolver/sys/mod.rs",
+      "lines": 8511
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/cusparse/sys/mod.rs",
+      "lines": 9805
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/driver/safe/core.rs",
+      "lines": 3371
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/driver/sys/mod.rs",
+      "lines": 15464
+    },
+    {
+      "path": "third_party/cudarc-0.19.7/src/runtime/sys/mod.rs",
+      "lines": 12768
+    },
+    {
+      "path": "third_party/libsqlite3-sys-0.38.1/bindgen-bindings/bindgen_3.34.1.rs",
+      "lines": 3218
+    },
+    {
+      "path": "third_party/libsqlite3-sys-0.38.1/bindgen-bindings/bindgen_3.34.1_ext.rs",
+      "lines": 7107
+    },
+    {
+      "path": "third_party/libsqlite3-sys-0.38.1/sqlcipher/bindgen_bundled_version.rs",
+      "lines": 3622
+    },
+    {
+      "path": "third_party/libsqlite3-sys-0.38.1/sqlcipher/sqlite3.c",
+      "lines": 271671
+    },
+    {
+      "path": "third_party/libsqlite3-sys-0.38.1/sqlcipher/sqlite3.h",
+      "lines": 14028
+    },
+    {
+      "path": "third_party/libsqlite3-sys-0.38.1/sqlite3/bindgen_bundled_version.rs",
+      "lines": 3677
+    },
+    {
+      "path": "third_party/libsqlite3-sys-0.38.1/sqlite3/bindgen_bundled_version_ext.rs",
+      "lines": 7950
+    },
+    {
+      "path": "third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c",
+      "lines": 269385
+    },
+    {
+      "path": "third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.h",
+      "lines": 14347
+    }
+  ]
+}

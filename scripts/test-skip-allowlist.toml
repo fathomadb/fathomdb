@@ -99,16 +99,6 @@ class = "ignored-by-design"
 reason = "#[ignore] measurement-only harness; writes raw JSON when FATHOMDB_SLICE19_MEASUREMENT_OUTPUT is set."
 
 [[entry]]
-id = "fathomdb-engine::slice40_status_performance::measure_generation_and_mutation_status_at_50k"
-class = "ignored-by-design"
-reason = "#[ignore] preregistered Slice 40 50k status measurement, run explicitly for its evidence."
-
-[[entry]]
-id = "fathomdb-engine::slice45_pagination_performance::measure_slice45_pagination_overhead"
-class = "ignored-by-design"
-reason = "#[ignore] preregistered Slice 45 10k/50k latency and RSS measurement, run explicitly for its evidence."
-
-[[entry]]
 id = "fathomdb-engine::slice72_concurrent_gpu::slice72_private_stress_watchdog_child_entrypoint"
 class = "ignored-by-design"
 reason = "Slice 72 watchdog child entry point: must never run directly; only the stress parent spawns it over a one-time socket capability."
@@ -135,8 +125,3 @@ id = "fathomdb-engine::ir_c_pooling_floor_gate::ir_c_pooling_floor_gate"
 class = "opt-in-experiment"
 exclude = true
 reason = "IR-C pooling floor gate: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
-
-[[entry]]
-id = "fathomdb-engine::slice55_dependency_trace::slice55_trace_hidden_dependents_performance_ceiling"
-class = "ignored-by-design"
-reason = "#[ignore] release-mode hidden-row performance ceiling; item-gated on test-hooks and run explicitly in release for its evidence."

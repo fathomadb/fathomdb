@@ -1,0 +1,6 @@
+{
+  "interleaved_sqlite_inside_timer": "interleaved SQLite validation entered product timer",
+  "shortened_idle_gap": "TypeScript S02 idle gap too short: pair-01-candidate",
+  "surviving_erased_source": "after_reopen source_absent failed",
+  "swapped_block_order": "TypeScript S02 block order changed"
+}

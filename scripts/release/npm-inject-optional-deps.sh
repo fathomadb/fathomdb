@@ -40,6 +40,7 @@ node -e '
   const path = require("path");
   const mainPkgPath = process.argv[1];
   const platformDir = process.argv[2];
+  const tegraPackage = "fathomdb-linux-arm64-gnu-tegra";
 
   const pkg = JSON.parse(fs.readFileSync(mainPkgPath, "utf8"));
   const version = pkg.version;
@@ -51,6 +52,16 @@ node -e '
       const platPkgPath = path.join(platformDir, entry.name, "package.json");
       if (!fs.existsSync(platPkgPath)) continue;
       const platPkg = JSON.parse(fs.readFileSync(platPkgPath, "utf8"));
+      // The Jetson Tegra package shares the linux-arm64-gnu (os, cpu, libc)
+      // tuple, so listing it would make npm install a Tegra-linked binary on
+      // every AArch64 glibc host. It is distributed only by exact Pages URL.
+      if (platPkg.name === tegraPackage) {
+        console.error(
+          "npm-inject-optional-deps: refusing to inject " + tegraPackage +
+            " from " + platPkgPath + "; it must never be an optionalDependency",
+        );
+        process.exit(1);
+      }
       optional[platPkg.name] = version;
     }
   }

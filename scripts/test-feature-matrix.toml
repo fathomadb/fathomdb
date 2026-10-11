@@ -50,11 +50,15 @@ features = ["default-embedder"]
 
 [[entry]]
 crate = "fathomdb-engine"
-features = ["default-embedder", "default-reranker", "slice72-test-hooks"]
+features = ["default-embedder", "default-reranker", "slice72-test-hooks", "test-hooks"]
 
 [[entry]]
 crate = "fathomdb-engine"
-features = ["default-embedder", "operator"]
+features = ["default-embedder", "operator", "test-hooks"]
+
+[[entry]]
+crate = "fathomdb-engine"
+features = ["default-embedder", "test-hooks"]
 
 [[entry]]
 crate = "fathomdb-engine"
@@ -78,11 +82,11 @@ features = ["operator", "test-hooks"]
 
 [[entry]]
 crate = "fathomdb-engine"
-features = ["slice72-gpu-tests"]
+features = ["slice72-gpu-tests", "test-hooks"]
 
 [[entry]]
 crate = "fathomdb-engine"
-features = ["tc5-benchmark"]
+features = ["tc5-benchmark", "test-hooks"]
 
 [[entry]]
 crate = "fathomdb-engine"

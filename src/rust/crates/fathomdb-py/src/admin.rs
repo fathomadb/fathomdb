@@ -143,7 +143,7 @@ pub(super) fn erase_source(
     engine: &PyEngine,
     source_id: &Bound<'_, PyAny>,
 ) -> PyResult<PyEraseReport> {
-    let source_id = extract_validated_str(source_id)?;
+    let source_id = extract_source_id_str(source_id)?;
     let inner = Arc::clone(&engine.inner);
     let report = call_engine(py, move || inner.erase_source(&source_id))?;
     Ok(PyEraseReport::from_rust(report))

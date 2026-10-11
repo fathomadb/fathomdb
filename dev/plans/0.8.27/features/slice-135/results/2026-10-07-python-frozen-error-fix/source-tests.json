@@ -1,0 +1,6 @@
+{
+  "test_slice135_frozen_context_error.py": "aa174d444a40381f06e2b2e8c5353cbac094aac77e02fccc85155084a3387a3b",
+  "test_slice35_frozen_read.py": "dc3f40c61ae8dba64ffb5d5626bed71e2f39f54a0c24a206ca45ef5de39049a1",
+  "test_slice35_frozen_binding_parity.py": "87e42c47d3ca6db5ff17c49fb1dbb41b096fe6f40b2982041b19a735f1b5f9a1",
+  "test_slice35_frozen_validation.py": "acbe42cea36f65ac8707cda4755a76a294770ea883ef04e8a1bff91b52593ed4"
+}

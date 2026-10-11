@@ -1,0 +1,141 @@
+{
+  "cells": {
+    "canonical_write": {
+      "invalid_attempts": 0,
+      "maximum_ns": 680577,
+      "p50_ns": 517259,
+      "p95_ns": 595346,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "close": {
+      "invalid_attempts": 0,
+      "maximum_ns": 5054894,
+      "p50_ns": 4384667,
+      "p95_ns": 4770897,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "erasure": {
+      "invalid_attempts": 0,
+      "maximum_ns": 21168532,
+      "p50_ns": 13033560,
+      "p95_ns": 13685132,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "graph_evidence": {
+      "invalid_attempts": 0,
+      "maximum_ns": 411658,
+      "p50_ns": 280401,
+      "p95_ns": 326798,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "graph_expand": {
+      "invalid_attempts": 0,
+      "maximum_ns": 1054304,
+      "p50_ns": 755189,
+      "p95_ns": 870557,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "hybrid": {
+      "invalid_attempts": 0,
+      "maximum_ns": 992577,
+      "p50_ns": 442738,
+      "p95_ns": 504574,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "model_cpu": {
+      "invalid_attempts": 0,
+      "maximum_ns": 207980141,
+      "p50_ns": 184641671,
+      "p95_ns": 191145087,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "open_fresh": {
+      "invalid_attempts": 0,
+      "maximum_ns": 23460880,
+      "p50_ns": 21512874,
+      "p95_ns": 22584582,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "open_populated": {
+      "invalid_attempts": 0,
+      "maximum_ns": 15471824,
+      "p50_ns": 13968559,
+      "p95_ns": 14764455,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "projection": {
+      "invalid_attempts": 0,
+      "maximum_ns": 6856723,
+      "p50_ns": 6129828,
+      "p95_ns": 6587835,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "text": {
+      "invalid_attempts": 0,
+      "maximum_ns": 561513,
+      "p50_ns": 226438,
+      "p95_ns": 274890,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "vector_stage": {
+      "invalid_attempts": 0,
+      "maximum_ns": 1096775,
+      "p50_ns": 441164,
+      "p95_ns": 506568,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    }
+  },
+  "protocol_sha256": "9c25e2c86b4717f74077a34b8a25ee3e792e5cfd78d32608aa4fb4b2215bf4bf",
+  "raw_sha256": "daf807571868b22d2c7945618270a01312007f7d5ac8ed5d0ff615a474c72ae7",
+  "schema_version": 1,
+  "source_sha": "d22fa9eefa0e75e9acdb9cb3d8a7bbdd13bdbca0",
+  "validator_sha256": "4c74d2bc91ac5cd2d1499848fe44b72f52957423f7753d6b0618cf82b292e54e"
+}

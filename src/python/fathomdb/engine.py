@@ -373,12 +373,14 @@ class Engine:
         rerank_depth: int = 0,
         use_graph_arm: bool = False,
         alpha: float = 0.3,
-        pool_n: int = 0,
+        pool_n: int | None = None,
         explain: bool = False,
         limit: int = 10,
     ) -> SearchResult:
         """Search under an Engine-authenticated frozen context.
 
+        ``pool_n=None`` uses ``rerank_depth``; this changes the former frozen
+        default of zero to match ordinary search and the other SDKs.
         ``explain=True`` returns a finalized non-empty correlation identity.
         """
         return _sdk_search.search_frozen(

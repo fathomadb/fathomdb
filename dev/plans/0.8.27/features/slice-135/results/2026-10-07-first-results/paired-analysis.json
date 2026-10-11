@@ -1,0 +1,632 @@
+{
+  "comparison": {
+    "close_fresh": {
+      "p50_ns": {
+        "baseline_block_stats_ns": [
+          5317202,
+          5302564,
+          5302012,
+          5338591,
+          5201633
+        ],
+        "bootstrap_95_percent_interval": [
+          -0.2715337878831714,
+          3.7017798064569396
+        ],
+        "candidate_block_stats_ns": [
+          5302764,
+          5419314,
+          5349593,
+          5377875,
+          5394186
+        ],
+        "median_pair_delta_percent": 0.8974140382933982,
+        "pair_deltas_percent": [
+          -0.2715337878831714,
+          2.2017650329161587,
+          0.8974140382933982,
+          0.7358495902757944,
+          3.7017798064569396
+        ]
+      },
+      "p95_ns": {
+        "baseline_block_stats_ns": [
+          5802279,
+          5840901,
+          5837074,
+          5885405,
+          5768644
+        ],
+        "bootstrap_95_percent_interval": [
+          -1.7808382645074783,
+          2.9476241007052595
+        ],
+        "candidate_block_stats_ns": [
+          5923417,
+          5736884,
+          6009129,
+          5864986,
+          5934719
+        ],
+        "median_pair_delta_percent": 2.08776585889785,
+        "pair_deltas_percent": [
+          2.08776585889785,
+          -1.7808382645074783,
+          2.9476241007052595,
+          -0.3469429886303499,
+          2.8789261393145527
+        ]
+      }
+    },
+    "mixed_sequence": {
+      "p50_ns": {
+        "baseline_block_stats_ns": [
+          39204931,
+          38884324,
+          38976948,
+          39422990,
+          38807346
+        ],
+        "bootstrap_95_percent_interval": [
+          -0.9796905394375055,
+          0.5836516535558056
+        ],
+        "candidate_block_stats_ns": [
+          38820844,
+          39111273,
+          39061798,
+          39101703,
+          38808508
+        ],
+        "median_pair_delta_percent": 0.0029942784544045864,
+        "pair_deltas_percent": [
+          -0.9796905394375055,
+          0.5836516535558056,
+          0.21769277574015256,
+          -0.814973699356647,
+          0.0029942784544045864
+        ]
+      },
+      "p95_ns": {
+        "baseline_block_stats_ns": [
+          40970769,
+          40604435,
+          40224276,
+          40712968,
+          40310878
+        ],
+        "bootstrap_95_percent_interval": [
+          0.7159481864919881,
+          1.47315469606637
+        ],
+        "candidate_block_stats_ns": [
+          41332031,
+          41023809,
+          40518301,
+          41312733,
+          40599483
+        ],
+        "median_pair_delta_percent": 0.8817554779115833,
+        "pair_deltas_percent": [
+          0.8817554779115833,
+          1.0328280642249998,
+          0.730964057625294,
+          1.47315469606637,
+          0.7159481864919881
+        ]
+      }
+    },
+    "text": {
+      "p50_ns": {
+        "baseline_block_stats_ns": [
+          185982,
+          175732,
+          176264,
+          175722,
+          183738
+        ],
+        "bootstrap_95_percent_interval": [
+          -7.041003968125947,
+          1.1005394578107675
+        ],
+        "candidate_block_stats_ns": [
+          172887,
+          177666,
+          167917,
+          170813,
+          179740
+        ],
+        "median_pair_delta_percent": -2.7936171907899987,
+        "pair_deltas_percent": [
+          -7.041003968125947,
+          1.1005394578107675,
+          -4.735510370807427,
+          -2.7936171907899987,
+          -2.1759244141113965
+        ]
+      },
+      "p95_ns": {
+        "baseline_block_stats_ns": [
+          578844,
+          635731,
+          519462,
+          513861,
+          566891
+        ],
+        "bootstrap_95_percent_interval": [
+          -14.754039051108093,
+          2.3767127686280975
+        ],
+        "candidate_block_stats_ns": [
+          531425,
+          541935,
+          505045,
+          526074,
+          560108
+        ],
+        "median_pair_delta_percent": -2.775371441991903,
+        "pair_deltas_percent": [
+          -8.19201719288789,
+          -14.754039051108093,
+          -2.775371441991903,
+          2.3767127686280975,
+          -1.1965263163465245
+        ]
+      }
+    }
+  },
+  "pairs": [
+    {
+      "baseline": {
+        "binary_sha256": "3eccc98816fa39d93ef7c3a560c091133d34e62de65038b9463214c0bd8c20db",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 6158712,
+            "p50_ns": 5317202,
+            "p95_ns": 5802279,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 42022547,
+            "p50_ns": 39204931,
+            "p95_ns": 40970769,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 865767,
+            "p50_ns": 185982,
+            "p95_ns": 578844,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:44:48Z",
+        "raw_sha256": "0b37a8b1aacbe5e83c9967106a6274f9ec7fdffcd503231d6486d1a48335c34f",
+        "resources": {
+          "fs_inputs": 8,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 21316,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.96,
+          "unsupported": [],
+          "user_cpu_s": 9.58
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+        "start_utc": "2026-10-07T03:44:40Z",
+        "warnings": []
+      },
+      "candidate": {
+        "binary_sha256": "1c5857ce8623279b9ec017b2d398ef3a3795f4bb41fd211a280f3f8b7d1c2cf6",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 6369881,
+            "p50_ns": 5302764,
+            "p95_ns": 5923417,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 46660734,
+            "p50_ns": 38820844,
+            "p95_ns": 41332031,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 780696,
+            "p50_ns": 172887,
+            "p95_ns": 531425,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:45:16Z",
+        "raw_sha256": "25e7b5679f06fde0b14c93ace7ba9b412cf2ea2d2ef28fb224b50882150ddaf9",
+        "resources": {
+          "fs_inputs": 0,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 21560,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.99,
+          "unsupported": [],
+          "user_cpu_s": 9.38
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+        "start_utc": "2026-10-07T03:45:08Z",
+        "warnings": [
+          "host swap drift: 1 pages; child swap events: 0"
+        ]
+      },
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "pair": 1
+    },
+    {
+      "baseline": {
+        "binary_sha256": "3eccc98816fa39d93ef7c3a560c091133d34e62de65038b9463214c0bd8c20db",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 5982559,
+            "p50_ns": 5302564,
+            "p95_ns": 5840901,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 48482867,
+            "p50_ns": 38884324,
+            "p95_ns": 40604435,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 731132,
+            "p50_ns": 175732,
+            "p95_ns": 635731,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:46:12Z",
+        "raw_sha256": "cbe909469adfc60fda4928572e9d941d947ea670995626a20c2ed5a964247414",
+        "resources": {
+          "fs_inputs": 32,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 21336,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.86,
+          "unsupported": [],
+          "user_cpu_s": 9.54
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+        "start_utc": "2026-10-07T03:46:04Z",
+        "warnings": []
+      },
+      "candidate": {
+        "binary_sha256": "1c5857ce8623279b9ec017b2d398ef3a3795f4bb41fd211a280f3f8b7d1c2cf6",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 6367407,
+            "p50_ns": 5419314,
+            "p95_ns": 5736884,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 47745544,
+            "p50_ns": 39111273,
+            "p95_ns": 41023809,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 746802,
+            "p50_ns": 177666,
+            "p95_ns": 541935,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:45:44Z",
+        "raw_sha256": "2c69d509ae0f4acc2429cc3a8b45db173859c9806d267458921f96c0d1db7e2c",
+        "resources": {
+          "fs_inputs": 0,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 21524,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.95,
+          "unsupported": [],
+          "user_cpu_s": 9.54
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+        "start_utc": "2026-10-07T03:45:36Z",
+        "warnings": []
+      },
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "pair": 2
+    },
+    {
+      "baseline": {
+        "binary_sha256": "3eccc98816fa39d93ef7c3a560c091133d34e62de65038b9463214c0bd8c20db",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 6003899,
+            "p50_ns": 5302012,
+            "p95_ns": 5837074,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 41705596,
+            "p50_ns": 38976948,
+            "p95_ns": 40224276,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 662643,
+            "p50_ns": 176264,
+            "p95_ns": 519462,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:46:40Z",
+        "raw_sha256": "240e4b18c39ba120101e87ea66263bf54555a14308e84ccb7223fc687a68d246",
+        "resources": {
+          "fs_inputs": 0,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 20752,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.94,
+          "unsupported": [],
+          "user_cpu_s": 9.47
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+        "start_utc": "2026-10-07T03:46:33Z",
+        "warnings": []
+      },
+      "candidate": {
+        "binary_sha256": "1c5857ce8623279b9ec017b2d398ef3a3795f4bb41fd211a280f3f8b7d1c2cf6",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 13855651,
+            "p50_ns": 5349593,
+            "p95_ns": 6009129,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 41227492,
+            "p50_ns": 39061798,
+            "p95_ns": 40518301,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 747343,
+            "p50_ns": 167917,
+            "p95_ns": 505045,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:47:09Z",
+        "raw_sha256": "0edd0ab4efa621140a67a17341bc336f4a9c8ced50450cbb95306244bb29d4dc",
+        "resources": {
+          "fs_inputs": 0,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 21688,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.9,
+          "unsupported": [],
+          "user_cpu_s": 9.52
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+        "start_utc": "2026-10-07T03:47:01Z",
+        "warnings": []
+      },
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "pair": 3
+    },
+    {
+      "baseline": {
+        "binary_sha256": "3eccc98816fa39d93ef7c3a560c091133d34e62de65038b9463214c0bd8c20db",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 6539231,
+            "p50_ns": 5338591,
+            "p95_ns": 5885405,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 41387664,
+            "p50_ns": 39422990,
+            "p95_ns": 40712968,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 705844,
+            "p50_ns": 175722,
+            "p95_ns": 513861,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:48:05Z",
+        "raw_sha256": "d0e353567a49c231cc679e8a2373a8581be5b8ca73ad220aa51568fafe52e9b4",
+        "resources": {
+          "fs_inputs": 0,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 21036,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.98,
+          "unsupported": [],
+          "user_cpu_s": 9.41
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+        "start_utc": "2026-10-07T03:47:57Z",
+        "warnings": [
+          "host swap drift: 1 pages; child swap events: 0"
+        ]
+      },
+      "candidate": {
+        "binary_sha256": "1c5857ce8623279b9ec017b2d398ef3a3795f4bb41fd211a280f3f8b7d1c2cf6",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 6330287,
+            "p50_ns": 5377875,
+            "p95_ns": 5864986,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 45495068,
+            "p50_ns": 39101703,
+            "p95_ns": 41312733,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 652574,
+            "p50_ns": 170813,
+            "p95_ns": 526074,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:47:37Z",
+        "raw_sha256": "76908dfe8952ea29bd8d1d865f3090f3e4adfe91428cde5e0ffade06b261cccf",
+        "resources": {
+          "fs_inputs": 0,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 21508,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.85,
+          "unsupported": [],
+          "user_cpu_s": 9.49
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+        "start_utc": "2026-10-07T03:47:29Z",
+        "warnings": []
+      },
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "pair": 4
+    },
+    {
+      "baseline": {
+        "binary_sha256": "3eccc98816fa39d93ef7c3a560c091133d34e62de65038b9463214c0bd8c20db",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 6102947,
+            "p50_ns": 5201633,
+            "p95_ns": 5768644,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 40946900,
+            "p50_ns": 38807346,
+            "p95_ns": 40310878,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 730090,
+            "p50_ns": 183738,
+            "p95_ns": 566891,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:48:33Z",
+        "raw_sha256": "dccaf47f0cb3af51a78990eba1e2ac2fec1698e82d887d8af1a71e7d8a7be48d",
+        "resources": {
+          "fs_inputs": 0,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 21256,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.89,
+          "unsupported": [],
+          "user_cpu_s": 9.51
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+        "start_utc": "2026-10-07T03:48:25Z",
+        "warnings": [
+          "host swap drift: 6 pages; child swap events: 0"
+        ]
+      },
+      "candidate": {
+        "binary_sha256": "1c5857ce8623279b9ec017b2d398ef3a3795f4bb41fd211a280f3f8b7d1c2cf6",
+        "cells": {
+          "close_fresh": {
+            "max_ns": 6085754,
+            "p50_ns": 5394186,
+            "p95_ns": 5934719,
+            "valid_samples": 100
+          },
+          "mixed_sequence": {
+            "max_ns": 46932895,
+            "p50_ns": 38808508,
+            "p95_ns": 40599483,
+            "valid_samples": 100
+          },
+          "text": {
+            "max_ns": 733317,
+            "p50_ns": 179740,
+            "p95_ns": 560108,
+            "valid_samples": 100
+          }
+        },
+        "end_utc": "2026-10-07T03:49:01Z",
+        "raw_sha256": "cbfd91fce670bca6e4b77afe6759b31fd5b5de6bb6865f0301eb4309d0ef02e9",
+        "resources": {
+          "fs_inputs": 8,
+          "fs_outputs": 742848,
+          "major_faults": 0,
+          "method": "gnu-time",
+          "peak_rss_kib": 21224,
+          "scope": "measured-workload-child-process",
+          "swap_events": 0,
+          "system_cpu_s": 1.96,
+          "unsupported": [],
+          "user_cpu_s": 9.42
+        },
+        "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+        "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+        "start_utc": "2026-10-07T03:48:53Z",
+        "warnings": []
+      },
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "pair": 5
+    }
+  ],
+  "protocol_sha256": "d835c8e7c03bd82627440161cd04ae58a43749a9ed2c826574cdc1a15ede13fb"
+}

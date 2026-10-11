@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "started_utc": "2026-10-07T20:53:32.454859+00:00",
+  "block_runner_sha256": "07801efe491e43b260d8f3a5e8494ef5f3611502d94da543f44d6de12755b982",
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "blocks": 5,
+  "warmup_per_block": 1,
+  "measured_per_block": 3,
+  "role": "baseline",
+  "inter_block_idle_seconds": 5
+}

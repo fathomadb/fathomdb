@@ -143,11 +143,15 @@ not part of `scripts/agent-verify.sh`.
 ### New-crate first publish (0.8.27 `fathomdb-sdk`)
 
 crates.io trusted publishing (`crates-io-auth-action`) is configured per
-existing crate, so it cannot create a crate that does not exist yet. Before
-the first tag that carries a new crate, the HITL publishes it once with an API
-token and then registers its trusted publisher. Otherwise the T6 job fails,
-and T7 `fathomdb-cli` and every later stage are skipped. For 0.8.27 this
-applies to `fathomdb-sdk`.
+existing crate, so it cannot create a crate that does not exist yet. For
+`v0.8.27`, the `fathomdb-sdk` first publish must occur in T6, after its
+`fathomdb-engine@0.8.27` dependency has reached crates.io in T5. The SDK
+step alone uses the repository's `CARGO_REGISTRY_TOKEN` API-token secret for
+that first publish; the other Rust publishes continue using temporary OIDC
+tokens. The operator must verify the secret is present before tagging and
+register the SDK's trusted publisher after its first version appears. Later
+SDK versions use OIDC. Without the first-publish credential, T6 fails and T7
+`fathomdb-cli` and every later dependent stage are skipped.
 
 ### Dependent-crate dry-run limitation (WF-FIX-2, 2026-05-25)
 

@@ -818,6 +818,7 @@ impl SearchOriginCapture for EvidenceCapture {
         explanation: Option<Explanation>,
         _expanded: Option<SearchExpandResult>,
     ) -> Result<Self::Output, SearchReaderError> {
+        #[cfg(any(test, feature = "test-hooks"))]
         evidence_linearization_hooks::fire_before_sidecar();
         let search_result =
             SearchResult { projection_cursor: cursor, soft_fallback, results, explanation };
@@ -1243,7 +1244,8 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                         row.get::<_, i64>(4)? as u64,
                     ))
                 })?;
-            rows.flatten()
+            rows.collect::<rusqlite::Result<Vec<_>>>()?
+                .into_iter()
                 .map(|(from_id, to_id, source_id, confidence, edge_cursor)| {
                     let neighbor = if from_id == lid { to_id } else { from_id };
                     (neighbor, source_id, confidence, edge_cursor)
@@ -1359,6 +1361,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // BEFORE the deferred snapshot is pinned, so a test can commit a concurrent
     // `configure_projections` DROP in the exact race window. Disarmed (no-op) in
     // production and on every non-race test.
+    #[cfg(any(test, feature = "test-hooks"))]
     reader_search_hook::fire(attribution);
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
@@ -1380,6 +1383,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 field_path: "/token".to_string(),
             }));
         }
+        #[cfg(any(test, feature = "test-hooks"))]
         frozen_after_validation_hook::fire();
     }
     let owned_compiled;
@@ -1538,8 +1542,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
             })?;
-            for row in rows.flatten() {
-                rowids.push(row);
+            for row in rows {
+                rowids.push(row?);
             }
         }
         // G1: carry the canonical row's `write_cursor` (interim id), `kind`,
@@ -1635,8 +1639,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             if results.len() >= final_limit {
                 break;
             }
-            if let Ok((kind, body, logical_id, source_id)) =
-                node_stmt.query_row(rusqlite::params_from_iter(node_params(rowid)), |row| {
+            if let Some((kind, body, logical_id, source_id)) = node_stmt
+                .query_row(rusqlite::params_from_iter(node_params(rowid)), |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, String>(1)?,
@@ -1644,6 +1648,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         row.get::<_, Option<String>>(3)?,
                     ))
                 })
+                .optional()?
             {
                 let id = derive_stable_id(logical_id.as_deref(), &body);
                 results.push(SearchHit {
@@ -1658,14 +1663,15 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     source_id,
                     ce_score: None,
                 });
-            } else if let Ok((body, logical_id, source_id)) =
-                edge_stmt.query_row(rusqlite::params![rowid, view.edge_now()], |row| {
+            } else if let Some((body, logical_id, source_id)) = edge_stmt
+                .query_row(rusqlite::params![rowid, view.edge_now()], |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, Option<String>>(1)?,
                         row.get::<_, Option<String>>(2)?,
                     ))
                 })
+                .optional()?
             {
                 let id = derive_stable_id(logical_id.as_deref(), &body);
                 results.push(SearchHit {
@@ -1702,7 +1708,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             [compiled.match_expression.as_str()],
             |_row| Ok(SoftFallback { branch: SoftFallbackBranch::Vector }),
         )
-        .ok()
+        .optional()?
     } else {
         None
     };
@@ -1941,7 +1947,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         ce_score: None,
                     })
                 })?;
-            rows.flatten().collect()
+            rows.collect::<rusqlite::Result<Vec<_>>>()?
         } else {
             // No `superseded_at IS NULL` filter here (and none is possible): this
             // fallback fires only on pre-step-12 schemas whose `canonical_nodes`
@@ -2053,75 +2059,70 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
         let edge_eligibility = format!("{edge_dependency}{edge_filter}");
         let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_eligibility);
-        // search_index_edges may not exist on very old DBs not yet at step-14;
-        // ignore the error gracefully (returns empty slice).
-        if let Ok(mut stmt) = prepare_search_statement(&tx, &edge_sql) {
-            if let Ok(rows) =
-                stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
-                    let body = row.get::<_, String>(0)?;
-                    let logical_id = row.get::<_, Option<String>>(4)?;
-                    Ok(SearchHit {
-                        id: derive_stable_id(logical_id.as_deref(), &body),
-                        body,
-                        kind: row.get::<_, String>(1)?,
-                        write_cursor: row.get::<_, i64>(2)? as u64,
-                        score: row.get::<_, f64>(3)?,
-                        branch: SoftFallbackBranch::TextEdge,
-                        // TC-31: the EDGE's own provenance.
-                        source_id: row.get::<_, Option<String>>(5)?,
-                        ce_score: None,
-                    })
-                })
-            {
-                rows.flatten().collect()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        }
+        let mut stmt = prepare_search_statement(&tx, &edge_sql)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
+            let body = row.get::<_, String>(0)?;
+            let logical_id = row.get::<_, Option<String>>(4)?;
+            Ok(SearchHit {
+                id: derive_stable_id(logical_id.as_deref(), &body),
+                body,
+                kind: row.get::<_, String>(1)?,
+                write_cursor: row.get::<_, i64>(2)? as u64,
+                score: row.get::<_, f64>(3)?,
+                branch: SoftFallbackBranch::TextEdge,
+                // TC-31: the EDGE's own provenance.
+                source_id: row.get::<_, Option<String>>(5)?,
+                ce_score: None,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
     };
     // Attribute predicates intentionally apply only to node projections. Count
     // edge-FTS candidates that would otherwise pass when the caller requested
     // the opt-in explanation, without adding work to the default search path.
-    let dropped_edge_hits = if explain
-        && filter.is_some_and(|active_filter| !active_filter.attributes.is_empty())
-    {
-        let mut non_attribute_filter = filter.cloned().unwrap_or_default();
-        non_attribute_filter.attributes.clear();
-        let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
-        let mut params = vec![
-            rusqlite::types::Value::Text(compiled.match_expression.clone()),
-            rusqlite::types::Value::Integer(view.edge_now()),
-        ];
-        let eligibility =
-            append_edge_eligibility_sql(Some(&non_attribute_filter), "ce", &mut params);
-        let sql = format!(
-            "SELECT ce.write_cursor FROM search_index_edges sei \
+    let dropped_edge_hits =
+        if explain && filter.is_some_and(|active_filter| !active_filter.attributes.is_empty()) {
+            let mut non_attribute_filter = filter.cloned().unwrap_or_default();
+            non_attribute_filter.attributes.clear();
+            let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
+            let mut params = vec![
+                rusqlite::types::Value::Text(compiled.match_expression.clone()),
+                rusqlite::types::Value::Integer(view.edge_now()),
+            ];
+            let eligibility =
+                append_edge_eligibility_sql(Some(&non_attribute_filter), "ce", &mut params);
+            #[cfg(feature = "test-hooks")]
+            let cursor_column =
+                if std::env::var_os("FATHOMDB_EDGE_EXPLANATION_BAD_CURSOR_FOR_TEST").is_some() {
+                    "CAST(ce.write_cursor AS BLOB)"
+                } else {
+                    "ce.write_cursor"
+                };
+            #[cfg(not(feature = "test-hooks"))]
+            let cursor_column = "ce.write_cursor";
+            let sql = format!(
+                "SELECT {cursor_column} FROM search_index_edges sei \
              JOIN canonical_edges ce ON ce.write_cursor=sei.write_cursor \
              WHERE search_index_edges MATCH ?1 AND ce.superseded_at IS NULL\
              {edge_validity}{eligibility}"
-        );
-        let mut dropped = 0_u32;
-        if let Ok(mut statement) = tx.prepare(&sql) {
-            if let Ok(rows) = statement
-                .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get::<_, i64>(0))
-            {
-                for cursor in rows.flatten() {
-                    if !hit_attributes_pass_filter(
-                        &tx,
-                        cursor as u64,
-                        filter.expect("attribute filter checked above"),
-                    )? {
-                        dropped = dropped.saturating_add(1);
-                    }
+            );
+            let mut dropped = 0_u32;
+            let mut statement = tx.prepare(&sql)?;
+            let rows = statement
+                .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get::<_, i64>(0))?;
+            for cursor in rows {
+                if !hit_attributes_pass_filter(
+                    &tx,
+                    cursor? as u64,
+                    filter.expect("attribute filter checked above"),
+                )? {
+                    dropped = dropped.saturating_add(1);
                 }
             }
-        }
-        dropped
-    } else {
-        0
-    };
+            dropped
+        } else {
+            0
+        };
     text_results.extend(edge_candidates);
     // GA-2 / Slice-40 (◆ B-1) measurement seam: when `vector_stage_only` is set
     // (only ever by the eu7 recall harness via `set_vector_stage_only_for_test`,
@@ -2211,7 +2212,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // F9 — importance (node) / confidence (edge) reweight, OFF by default.
         // Order: AFTER recency (consistent placement), BEFORE the CE rerank seam.
         let (imp_map, mut conf_map) = if importance_enabled || explain {
-            build_importance_confidence_maps(&tx, &fused).unwrap_or_default()
+            build_importance_confidence_maps(&tx, &fused)?
         } else {
             (HashMap::new(), HashMap::new())
         };
@@ -2244,7 +2245,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // F9 — importance (node) / confidence (edge) reweight, OFF by default.
         // Same placement as the graph-arm branch: after recency, before CE rerank.
         let (imp_map, conf_map) = if importance_enabled || explain {
-            build_importance_confidence_maps(&tx, &fused).unwrap_or_default()
+            build_importance_confidence_maps(&tx, &fused)?
         } else {
             (HashMap::new(), HashMap::new())
         };
@@ -2268,10 +2269,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             if hit.branch != SoftFallbackBranch::Text {
                 continue;
             }
-            if let Ok((logical_id, source_id)) = identity_stmt
+            if let Some((logical_id, source_id)) = identity_stmt
                 .query_row([hit.write_cursor], |row| {
                     Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?))
                 })
+                .optional()?
             {
                 hit.id = derive_stable_id(logical_id.as_deref(), &hit.body);
                 hit.source_id = source_id;
@@ -2457,6 +2459,7 @@ use crate::structural_state::structural_dependency_state;
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::{current_epoch_seconds, edge_validity_sql_for_view, FrozenView, ReadView};
+#[cfg(any(test, feature = "test-hooks"))]
 use crate::test_hooks::{
     evidence_linearization_hooks, frozen_after_validation_hook, reader_search_hook,
 };

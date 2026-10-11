@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_E01_E12_PAIRED_SUBSET",
+  "scope": "Twelve unchanged Slice 115 engine paths refrozen for repaired exact 0.8.27 source 224e44c59 after vector hydration, deferred text identity and soft-fallback probe error repairs; this subset does not freeze the complete Phase 1 protocol or installed SDK cells",
+  "freeze_date_utc": "2026-10-08",
+  "baseline_noise_evidence": "results/2026-10-07-e12-adapter-pilot/README.md",
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "pilot_binary_sha256": "401d2375c66c0cd72c81ba8767f777cf79c9ce609c52eb4ceccf2405b4bcb251",
+    "pilot_receipt": "results/2026-10-07-e12-adapter-pilot/README.md; compatible 97aa85540f35 workload binary retained at /tmp/slice135-e12-baseline-smoke/binary"
+  },
+  "candidate_product_snapshot": {
+    "source_sha_before_protocol_commit": "224e44c593c13d86ece648adabe445723db04070",
+    "rust_crates_git_tree": "997b041d87852323a6da18cf824ec18bdc64fec8",
+    "cargo_lock_git_blob": "dbd5b98f621aa0fc8e9bccdd053a56be61ced471",
+    "rule": "Record the full exact source SHA and binary hash for each block. A change to Rust crate tree or Cargo.lock after this freeze requires new candidate builds and affected-cell reruns; if workload semantics change, revise and refreeze this subset before timing."
+  },
+  "runner_sources": {
+    "adapter_sha256": "9b2e450b7e7b5475c79619e8012bacf24c46eb9c657c3ab0e9de273efca98cb1",
+    "workload_sha256": "97aa85540f35aa00352862d76c62d5b351c7e3550607cf89c0fb6bcb08a38c97",
+    "expected_checks_sha256": "60c9af8f1f749a8a8b66927c9e7bdf0fbe463f3f0954cfca82ead01fb7f76baa",
+    "campaign_sha256": "ea865e0043f2e1d6aaa2baa297567601ac4a55e6e71e58eb2b28b70bcf6a687b"
+  },
+  "workload": {
+    "corpus_rows": 32,
+    "corpus_sha256": "c4bbde04fc7415ea321d24a29338a5d56beabca2d04677797de6b14503d3cde0",
+    "model": "BAAI/bge-small-en-v1.5 local CPU assets",
+    "model_asset_sha256": {
+      "config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+      "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad"
+    },
+    "tokenizer_sha256_binding": "The exact tokenizer.json checksum is pinned in scripts/slice135_e12_adapter.py at adapter_sha256 above and is checked against disk before timing; the retained pilot protocol.json files record the same checksum.",
+    "query_cells": [
+      "text",
+      "vector_stage",
+      "hybrid",
+      "graph_expand",
+      "graph_evidence"
+    ],
+    "lifecycle_cells": [
+      "open_fresh",
+      "open_populated",
+      "close",
+      "canonical_write",
+      "projection",
+      "model_cpu",
+      "erasure"
+    ],
+    "query_samples_per_block": 1000,
+    "lifecycle_samples_per_block": 100,
+    "warmup_per_cell": 1,
+    "pair_count": 5,
+    "pair_order": [
+      [
+        "baseline",
+        "candidate"
+      ],
+      [
+        "candidate",
+        "baseline"
+      ],
+      [
+        "baseline",
+        "candidate"
+      ],
+      [
+        "candidate",
+        "baseline"
+      ],
+      [
+        "baseline",
+        "candidate"
+      ]
+    ],
+    "minimum_idle_seconds_between_blocks": 20,
+    "measurement_boundary": "Engine call entry through materialized result or completed named lifecycle transition; seed/setup, warmup and independent verification excluded from each timer",
+    "state_and_output_rule": "Every valid attempt must match e12-expected-checks.json exactly; retain ordered query IDs and branches plus named lifecycle, graph, evidence and erasure states",
+    "negative_control_rule": "The independent audit must reject altered source, artifact, sample count, state and ordered output before any paired conclusion"
+  },
+  "analysis": {
+    "query_statistics": [
+      "nearest_rank_p50",
+      "nearest_rank_p95",
+      "nearest_rank_p99"
+    ],
+    "lifecycle_statistics": [
+      "nearest_rank_p50",
+      "nearest_rank_p95"
+    ],
+    "pair_delta_formula": "100*(candidate_percentile_ns-baseline_percentile_ns)/baseline_percentile_ns",
+    "pair_summary_rule": "Report every pair's delta, median and full observed range for each cell and supported percentile; report raw per-block values and noisy/inconclusive cells without a significance or regression-threshold claim from five pairs",
+    "resource_rule": "Record measured-child GNU Time user/system CPU, peak RSS, filesystem I/O, major faults, swap and whole-block wall time; do not attribute whole-block resources to individual calls",
+    "cold_rule": "The warm-up and first session access are not evidence of a cold OS/model-cache percentile. Report named open_fresh/open_populated cells separately."
+  },
+  "validity": {
+    "minimum_disk_free_bytes": 2000000000,
+    "invalidate_on": [
+      "wrong source or artifact bytes",
+      "wrong model or corpus",
+      "missing/changed expected state or output",
+      "insufficient valid samples",
+      "changed host/kernel/CPU/storage/governor/toolchain",
+      "competing build or profiler",
+      "measured-child swap",
+      "disk pressure",
+      "nonzero runner exit"
+    ],
+    "host_only_swap_counter_drift": "Retain and flag; report sensitivity with warning-free pairs rather than silently discarding or treating it as measured-child swap",
+    "attempt_rule": "Preserve every attempt, invalid reason and slow valid sample. Do not replace a valid slow sample."
+  },
+  "interpretation": "This is a paired engine diagnostic under one fixed 32-row CPU workload. It is not installed-SDK system latency, a competitor verdict, gold correctness or a release gate.",
+  "replaces": "e12-current-comparison-protocol-v2.json after candidate Rust crate changes; previous exact-source timing remains historical",
+  "candidate_feasibility": {
+    "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+    "evidence_retention": "results/2026-10-08-e12-224e-smoke/README.md; raw archive retained locally pending end-of-phase retention",
+    "raw_sha256": "2352d6ba0b0e90229b5bff1f2fa1aaae1f016b68927729769622f45ff77b5d5b",
+    "audit_sha256": "1edd2c640a34f8ce5f35d41280f982286b6b30d2aa1b2331dd4d02c2e17851c1",
+    "binary_sha256": "9809af9e7687711d536fc4cc621185f2107854b4604e9d7031915152a29d358e",
+    "negative_controls_sha256": "bbb17187b34c21370ad2d9bec3104393b18dddf291c215c244785a43dcc4f358",
+    "observation": "All twelve unchanged paths passed 100 observations each; an independent audit and wrong-source/ordered-output negative controls passed before this paired freeze."
+  },
+  "invalid_preflight": "results/2026-10-08-e12-current-invalid-preflight/README.md",
+  "superseded_protocol_sha256": "f354ac7025181c29bb7aa4c37fa6fccb3a114631c7de6f74484d3ec8df26e869"
+}

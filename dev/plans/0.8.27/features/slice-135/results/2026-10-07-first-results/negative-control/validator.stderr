@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_receipt.py", line 292, in <module>
+    main()
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_receipt.py", line 273, in main
+    result = validate(
+             ^^^^^^^^^
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_receipt.py", line 205, in validate
+    raise ValueError(f"{name}: attempt {position} observed checks mismatch")
+ValueError: mixed_sequence: attempt 0 observed checks mismatch

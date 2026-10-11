@@ -11,6 +11,7 @@ Required fills:
   {{RELEASE}}      e.g. 0.8.6
   {{THEME}}        one line: what this release is FOR
   {{GOAL}}         2-5 bullets: the deliverables this release lands
+  {{QUALITY_REVIEW}} how the quality testing roadmap applies or is deferred
   {{REQS}}         the R-* requirement rows + their acceptance signals
   {{LADDER}}       the mod-5 slice rows (number, title, work-type, depends-on)
   {{OVERRIDE_REG}} verified file:line sources that diverge (or "none found")
@@ -49,6 +50,9 @@ discovers mid-release.)
   [ ] Footprint stated: where does each piece run (in-library CPU-only vs
       caller-side BYO-LLM vs CI), and is the library query path still
       deterministic/CPU-only? (header).
+  [ ] Read `dev/notes/fathomdb-quality-testing-roadmap.md` and record which
+      recommendations fit this release, which are deferred, and what new
+      evidence changes the assessment (§ 1). Consultation adds no gate.
 ========================================================================
 -->
 
@@ -76,6 +80,12 @@ discovers mid-release.)
 
 **Out of scope (deferred):** {{what is explicitly NOT in this release, and the
 release/slice it is deferred to. Deferral is a deliberate decision, not "too hard".}}
+
+**Quality strategy review.** {{QUALITY_REVIEW — after reading
+`dev/notes/fathomdb-quality-testing-roadmap.md`, name the testing practices
+this release adopts, defers, or revises, with reasons tied to its change rate,
+owned failure modes and available capacity. Do not turn recommendations into
+automatic release gates.}}
 
 ---
 

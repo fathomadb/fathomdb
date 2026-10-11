@@ -1,0 +1,28 @@
+{
+  "status": "PASS_EXACT_SOURCE_ERASURE_REPLAY",
+  "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+  "tests_passed": 3,
+  "tests_failed": 0,
+  "reopened_state": {
+    "case": "pending_telemetry_redaction_survives_engine_reopen",
+    "control_in_restored_sink_after_retry": true,
+    "control_rows_after_retry": 1,
+    "fault_point": "telemetry sink rotated after search and before excise",
+    "first_error": "ErasureIncomplete:telemetry_redaction",
+    "integrity_check": "ok",
+    "pending_after_failure": 1,
+    "pending_after_reopen": 1,
+    "pending_after_retry": 0,
+    "retry_without_sink_error": "ErasureIncomplete:telemetry_redaction",
+    "victim_in_restored_sink_after_retry": false,
+    "victim_in_rotated_sink_before_restore": true,
+    "victim_rows_after_failure": 0,
+    "victim_rows_after_retry": 0
+  },
+  "files_sha256": {
+    "correction.stderr": "5e0691ffd95c71610a5ac1fcd1c370a771c296eae8e07a83536bb55ff43d4f32",
+    "reopen.stderr": "3254aea542cd10006ebbe79a0ace28a1f7e6f7caa0af2587e0fd9c9958eda2ae",
+    "reopen.stdout": "1c3dabfbf9b4d4a60981ff9c01f7a08b799325344c103d162fa98720e2cdcc7c",
+    "correction.stdout": "796845760971b02a78132e95bbbb44cad7a3ba339ba563477b79f8ec29910c64"
+  }
+}

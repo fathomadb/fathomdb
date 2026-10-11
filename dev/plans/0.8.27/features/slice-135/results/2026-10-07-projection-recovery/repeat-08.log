@@ -1,0 +1,18 @@
+
+running 6 tests
+test tc91_panic_terminal_commit_failure_is_reported_and_redispatched ... ok
+test tc91_projection_commit_busy_is_reported_and_redispatched ... ok
+test tc91_projection_commit_failure_at_mean_pin_is_rollback_safe ... ok
+test tc91_projection_commit_failure_survives_stop_and_reopen ... ok
+test tc91_projection_commit_storage_error_is_reported_and_redispatched ... ok
+test tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+
+
+thread 'fathomdb-embed-4' (854) panicked at src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs:66:9:
+intentional first projection panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'fathomdb-projection-worker-0' (958) panicked at src/rust/crates/fathomdb-engine/tests/tc91_projection_commit_hardening.rs:33:13:
+intentional subscriber panic after projection commit failure

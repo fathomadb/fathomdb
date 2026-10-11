@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_TS_S02_PAIRED",
+  "scope": "Installed TypeScript S02 whole sequence: unchanged paired workload against 0.8.26 and exact post-Slice-132 0.8.27 source; subset of the broader Phase 1 protocol",
+  "freeze_date_utc": "2026-10-08",
+  "baseline_noise_evidence": "results/2026-10-07-ts-s02-baseline-controlled/independent-audit.json",
+  "baseline_noise_audit_sha256": "f152b4cfbf93c25d44149579f0747cae1ab43c8da579137c88aed104e0b8e783",
+  "baseline_noise_negative_controls_sha256": "53fcf89fc206b9ec7d0481f6a092f21742726c662f6398bcbee2c034e6bd46c9",
+  "baseline_noise_observation": "Five baseline-only blocks, one fresh-process warm-up plus three measured sequences per block, 15 independently audited measurements, no host warnings, 114.934 ms block-median spread (2.324% of median). The pilot cannot qualify p95/p99 or an equivalence threshold. The refreeze changes only candidate source and npm archive identities, campaign runner binding, and product snapshot; schedule, corpus, call boundary, and sample design are unchanged. The exact-source refreeze changes candidate source and package identities only; the same three-sequence S02 candidate smoke passed before timing.",
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "main_archive_sha256": "90363762405041b11e6dd654da9cb6347695399eb37b81c5c09fde91296ac336",
+    "platform_archive_sha256": "b59b1862b11b8ed3edcdc2e5ee86f9db142268bb5e14571054f6245718fc28f6"
+  },
+  "candidate": {
+    "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+    "main_archive_sha256": "8c8a97fbe26c541cddadfec7f9faef518102307f927ce6b4b095e5da721ca49d",
+    "platform_archive_sha256": "8ce9b8e57b8f8ddf9adb3035822f14d61a4465a6da1e4ad7897d25c892998d6c"
+  },
+  "timed_runner_sha256": "18c24b13e98d234922d5ed499d3a59b333b16bf11402465144f4d623922e7005",
+  "s01_helper_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+  "block_runner_sha256": "5a0c27ea1bc74c4fecbdc61e624515298cbc9fd752ba1f7194f39eacb73c74bc",
+  "campaign_runner_sha256": "0b6d73c50e53a20648f745972b81c9d7aafeee61dacf8be9d304b79768bda898",
+  "independent_auditor_sha256": "c7984d4c2ed9af12ac566946ea994bb6b133bf6eb3154cf9aba205e9f9edbe67",
+  "paired_auditor_sha256": "7019498c07f69dcba9611464de7af19d6ee731c8dc3ce954f9b1e1fb6c8f0676",
+  "pilot_helper_sha256": "e8fde3e7caab5c5b6a43069562c7b0d29825d9ac9766539a94ccf7050b0a866d",
+  "corpus_sha256": "e01c7b7772a925ab9c3a80ffb1d20ae1f9338c4fb0501fa16fcc844b871338dd",
+  "graph_records_sha256": "4e1ba86fc32c6b18fcd5b2d0c41e68add3d1d081677731b43d07e945a47d85bf",
+  "node_version": "v25.9.0",
+  "model": "fathomdb-bge-small-en-v1.5 default embedder",
+  "embed_device": "cpu",
+  "rows": 32,
+  "warmup_per_block": 1,
+  "samples_per_block": 20,
+  "pairs": 5,
+  "total_valid_samples_per_version": 100,
+  "pair_order": [
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ]
+  ],
+  "minimum_idle_seconds_between_blocks": 20,
+  "timing_boundary": "One fresh-process installed TypeScript async SDK sequence, Engine.open through reopened Engine.close, including SDK post-state reads and materialized results; fixture construction precedes the timer, and direct SQLite canonical-row verification follows it",
+  "primary_mode": "unprofiled",
+  "primary_statistics": [
+    "pooled_nearest_rank_p50",
+    "pooled_nearest_rank_p95",
+    "all_five_pair_p50_deltas_and_range"
+  ],
+  "p99": "unsupported_below_1000_valid_samples_per_version",
+  "pair_delta_formula": "100*(candidate_percentile_ns-baseline_percentile_ns)/baseline_percentile_ns",
+  "interpretation_rule": "Keep all valid slow samples and report every paired p50 delta, its median and range, pooled p50/p95, host-warning sensitivity and per-block resource totals. Five pairs are descriptive only; no equivalence, significance or release regression threshold is inferred.",
+  "invalid_block_rule": "Preserve every attempted block. Require clean exact source checkout, retained npm archive and installed byte agreement, exact runner/helper and protocol hashes, one successful warm-up and 20 valid measured sequences, materialized semantic and reopened-state checks, no interleaved direct SQLite verification, stable host/CPU/storage/governor and Node version, no competing build/profiler, at least 1 GiB disk free and zero measured-child swap. Host-only paging drift is a warning with sensitivity analysis.",
+  "resource_rule": "Record GNU Time child user/system CPU, peak RSS, filesystem I/O, major faults and swap for every fresh process. Do not attribute whole-worker resources to a single stage.",
+  "candidate_verdict_rule": "Diagnostic whole-product latency comparison only; contrast with engine E01-E12 and Python S02 at their own boundaries and investigate differences. Do not infer data correctness from version agreement.",
+  "phase1_limit": "This vector-repaired TypeScript S02 subset does not close Rust S02, contention, S03, C01, Pareto coverage, robustness or logic/exception matrices.",
+  "candidate_product_snapshot": {
+    "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+    "rust_crates_tree": "997b041d87852323a6da18cf824ec18bdc64fec8",
+    "cargo_lock_blob": "dbd5b98f621aa0fc8e9bccdd053a56be61ced471",
+    "native_sha256": "5073e7ecc7dfef733da97cc5ff92be0f128f61741e1bc6ad05093d9d913b5aa2",
+    "module_sha256": "cc0ea0b2ae641aa5162a223985d9afb5ba1233b073899e66a2847f92f36bf432"
+  },
+  "replaces": "s02-ts-vector-repaired-comparison-protocol.json",
+  "superseded_protocol_sha256": "7113ed86675b8437a482e14c85df626c75af4aed059e62d4627e6d0f91b1d9b8",
+  "candidate_smoke_sha256": "b2d29bda9537447df0e701be053f009ccbfd5b7f3322ddf533385a41c1131e38"
+}

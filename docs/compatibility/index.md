@@ -1,7 +1,7 @@
 # Compatibility
 
 Supported platforms, toolchains, and version-alignment policy for the
-published **0.8.26** release.
+**0.8.27** release.
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
 > change between micro releases; consult the
@@ -19,16 +19,16 @@ targets those three interpreters explicitly.
 
 Node **25.x**. CI, development, and the release build use exact Node **25.9.0**.
 The package declares `engines.node = ">=25 <26"`. Compatibility with other
-Node release lines is not part of the 0.8.26 contract.
+Node release lines is not part of the 0.8.27 contract.
 
 ## Supported Rust toolchain
 
 Rust **1.95.0**. This is the declared MSRV and the exact compiler used by CI
 and release jobs.
 
-## Prebuilt artifacts — five native targets published
+## Prebuilt artifacts — five native targets
 
-⚠ **The published 0.8.26 wheel and npm platform binaries support Linux
+⚠ **The 0.8.27 wheel and npm platform binaries support Linux
 `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc, macOS x64 and
 arm64, and Windows x64.** Linux musl and other targets remain source-build-only.
 
@@ -37,8 +37,8 @@ architectures and the `linux-arm64-gnu` npm platform binary. As of Slice 80.1
 the `linux-arm64-gnu` npm binding is built inside the same digest-pinned
 `manylinux_2_28` container as the Python wheel (`scripts/release/
 Dockerfile.napi-manylinux`), rather than on the bare CI runner, so this
-number is enforced by `scripts/check-glibc-floor.sh` against the artifact
-actually published — not merely asserted here.
+number is enforced by `scripts/check-glibc-floor.sh` against the built artifact
+before publication.
 
 **Measured glibc floor (cuda-napi-host): 2.39**, for the
 `linux-x64-gnu` CUDA npm platform binary. It is built host-natively with the
@@ -47,33 +47,57 @@ and its higher ABI floor is therefore a distinct, checked publication
 contract.
 
 **Measured glibc floor (tegra): 2.35**, for the Jetson/Tegra CUDA Python
-wheel only. That artifact is **not published to PyPI** and is not covered by
-the table below; it is built host-natively on a Jetson Orin against JetPack's
-CUDA 12.6 (`scripts/release/build-python-cuda-tegra.sh`), because the Tegra
-CUDA runtime is host-bound and no manylinux image carries it. It therefore
-inherits JetPack's own glibc — Ubuntu 22.04's 2.35 — rather than the
+wheel and, from 0.8.27, the `fathomdb-linux-arm64-gnu-tegra` Node addon.
+Both use the Tegra Pages distribution route; the table below covers the
+generic native packages. Each is built host-natively on a Jetson Orin against
+JetPack's
+CUDA 12.6 (`scripts/release/build-python-cuda-tegra.sh` and
+`scripts/release/build-napi-cuda-tegra.sh`), because the Tegra CUDA runtime
+is host-bound and no manylinux image carries it. Each therefore inherits JetPack's own glibc — Ubuntu 22.04's 2.35 — rather than the
 `manylinux_2_28` floor. This higher floor is *declared and asserted* by the
 same gate, not exempted from it: both numbers come from
 `scripts/release/glibc-floor-contract.sh`, and
 `scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
 drifts from it.
 
-For a confirmed classic Jetson Orin only, 0.8.26 serves the exact
-`fathomdb==0.8.26+tegra` wheel from the interim first-party PEP 503 index:
+For a confirmed classic Jetson Orin only, the 0.8.27 distribution route for
+the exact `fathomdb==0.8.27+tegra` wheel is the interim first-party PEP 503
+index. Install it only after the retained manifest lists the exact wheel and
+digest:
 
 ```bash
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.26+tegra'
+  'fathomdb==0.8.27+tegra'
 ```
 
 Do not use a floating requirement or `--extra-index-url`: pip merges candidate
-sets and does not prioritize indexes. The Pages route is interim 0.8.26
+sets and does not prioritize indexes. The Pages route is interim 0.8.27
 hosting, not a durable multi-version distribution decision. Use
 `fathomdb doctor platform --json` to distinguish classic Tegra from ARM64 SBSA
 before diagnosing an incompatible CUDA provider.
 
-| OS      | Architecture                | Published prebuilt? |
+For Node.js, the generic `linux-arm64-gnu` npm package stays CPU-only on every
+AArch64 host, including Jetson. In 0.8.27, a
+confirmed classic Jetson Orin can add the CUDA-capable
+`fathomdb-linux-arm64-gnu-tegra` package. It is distributed only as an
+exact-version tarball from the Tegra Pages site, never from the npm registry,
+and must match the `fathomdb` version exactly. Check its SHA-256 against the release's retained artifact manifest before
+installation; follow the [verification procedure](../install/typescript.md#classic-jetson-orin-with-cuda):
+
+The install procedure verifies the retained digest, records the exact Pages
+URL as an optional dependency, compares lockfile integrity before execution,
+and then installs from the verified lockfile. Use that complete procedure.
+
+As an optional dependency it is skipped on hosts whose os, cpu or libc do not
+match, and the loader selects it only on a confirmed classic Jetson Orin;
+Thor and SBSA hosts keep the generic package. Unlike the Linux x86_64
+package, this addon calls `cuInit` at import unless every CUDA-built component
+is set to `cpu` at load time or `FATHOMDB_CUDA_EARLY_INIT=off`. See
+[TypeScript install](../install/typescript.md#classic-jetson-orin-with-cuda)
+for the SHA-256 check and the `package.json` form.
+
+| OS      | Architecture                | Prebuilt package? |
 | ------- | --------------------------- | ------------------- |
 | Linux   | `x86_64-unknown-linux-gnu`  | **yes** (CUDA host glibc 2.39) |
 | Linux   | `aarch64-unknown-linux-gnu` | **yes** (manylinux 2_28) |
@@ -81,8 +105,8 @@ before diagnosing an incompatible CUDA provider.
 | macOS   | `aarch64-apple-darwin`      | **yes** |
 | Windows | `x86_64-pc-windows-msvc`    | **yes** |
 
-Platforms outside these five native targets are unsupported for the published
-Python and npm packages in this release.
+Platforms outside these five native targets are unsupported for the generic
+Python and npm native packages in this release.
 
 ## SQLite + sqlite-vec
 
@@ -95,7 +119,7 @@ Python and npm packages in this release.
 
 ## On-disk schema
 
-The published 0.8.26 line sets `SCHEMA_VERSION` to **34**. A missing or
+The 0.8.27 line sets `SCHEMA_VERSION` to **34**. A missing or
 zero-length path bootstraps directly at schema 34. A non-empty database opens
 only when its effective committed `PRAGMA user_version` is exactly 34; older,
 future, and non-empty zero-version databases are rejected before product
@@ -103,7 +127,7 @@ mutation. There is no public automatic migration or compatibility reader.
 
 ## Versioning — two axes
 
-0.8.26 follows two-axis versioning:
+0.8.27 follows two-axis versioning:
 
 - **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
   plus the Python and TypeScript packages all carry the same workspace
@@ -125,20 +149,20 @@ This decouples embedder-protocol stability from binding cadence.
 | Search results are ordered by **RRF fusion**, not union-dedup | re-baseline any pinned result ordering |
 | `valid_from >= valid_until` is refused with a **message-less** `WriteValidationError` (was `InvalidArgumentError` carrying both bounds) | validate the pair before calling |
 | A projection spec with `fts` / `vector` but no `searchable` role is refused | add the role, or name the projection in `drop` |
-| Public open does not upgrade older non-empty databases | create a fresh 0.8.26 database and re-ingest through the public write surface |
+| Public open does not upgrade older non-empty databases | create a fresh 0.8.27 database and re-ingest through the public write surface |
 
 The [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
 is the authoritative list.
 
 ## 0.5.x / 0.6.x compatibility
 
-**No 0.5.x compatibility shims or public migrations.** Do not point 0.8.26
+**No 0.5.x compatibility shims or public migrations.** Do not point 0.8.27
 binaries at an older non-empty database. Create a fresh schema-34 database and
 re-ingest through the public write surface.
 
 ## Performance posture
 
-The 0.8.26 release acceptance is complete. Its measurements are validation
+The preceding 0.8.26 release acceptance is historical evidence. Its measurements are validation
 evidence for the tested workloads and machines, not a general latency SLA.
 The historical AC-020 scaling-ratio gate was explicitly retired and replaced
 by independent absolute sequential, concurrent, and reader-independence
@@ -158,9 +182,9 @@ attribution records.
 
 ## SDK maturity posture
 
-Both bindings expose the same governed command surface and the same
-typed error taxonomy. **Python is the more heavily exercised
-binding; prefer it for production pilots.** See
+Python, TypeScript, and the Rust SDK share the governed operation surface
+and error categories. Their runtime and package requirements differ; choose
+the language route that matches your application and deployment. See
 [SDK parity](../positions/sdk-parity.md).
 
 ## API surface gaps

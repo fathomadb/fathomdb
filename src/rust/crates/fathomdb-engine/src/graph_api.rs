@@ -10,10 +10,11 @@ use rusqlite::params;
 use crate::dependency_closure::{self, ClosureCauseV1};
 use crate::errors::EngineError;
 use crate::frozen_read;
+#[cfg(any(test, feature = "test-hooks"))]
 use crate::graph_expand::execution::{
-    explain_graph_expand_incident_query, graph_error, graph_expand_incident_query,
-    validate_semantics,
+    explain_graph_expand_incident_query, graph_expand_incident_query,
 };
+use crate::graph_expand::execution::{graph_error, validate_semantics};
 #[cfg(feature = "test-hooks")]
 use crate::graph_expand::execution::{
     GraphExpandCurrentRssSampleForTest, GraphExpandIsolatedProcessRssSampleForTest,
@@ -370,6 +371,7 @@ impl Engine {
 impl Engine {
     /// Slice 20 test seam — run `EXPLAIN QUERY PLAN` on the BFS CTE SQL and
     /// return the plan detail lines. Used by `explain_plan_uses_indexes`.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn explain_graph_neighbors_for_test(
         &self,
@@ -460,8 +462,8 @@ impl Engine {
         Ok((result, GRAPH_EXPAND_SQL_STATEMENTS.load(AtomicOrdering::SeqCst)))
     }
 
-    #[doc(hidden)]
     #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
     pub fn graph_expand_with_projection_generation_for_test(
         &self,
         request: &GraphExpandRequestV1,
@@ -577,6 +579,7 @@ impl Engine {
     }
 
     /// Return endpoint-index query plans used by graph expansion.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn explain_graph_expand_for_test(
         &self,

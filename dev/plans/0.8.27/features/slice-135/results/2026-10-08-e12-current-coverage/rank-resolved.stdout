@@ -1,0 +1,8 @@
+
+running 3 tests
+test edges_are_ineligible_and_malformed_full_sort_rows_fail_closed ... ok
+test eligible_stream_preserves_public_limit_prefixes_and_full_sort_equivalence ... ok
+test production_stream_matches_full_sort_across_strict_tie_and_rank_override ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+

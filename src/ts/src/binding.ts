@@ -1,13 +1,15 @@
 // Native-binding loader. Resolves the running host to a napi-rs triple, then
 // loads the compiled binding from either a local dev build
-// (`fathomdb.<triple>.node`, produced by `napi build --platform`) or the
-// published platform package selected by `platformPackageName`. When neither is
+// (`fathomdb.<triple>.node`, produced by `napi build --platform`), the
+// installed Jetson Tegra package on a confirmed classic Jetson Orin, or the
+// published platform package selected by `platformPackageName`. When none is
 // present, `loadPlatformBinding` throws a clear "unsupported platform" error
 // (R-REL-4f) — never a silent runtime segfault. The platform-resolution logic
 // lives in `./platform.ts` (side-effect-free, unit-tested independently of a
 // built binding).
 
-import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { accessSync, constants as fsConstants, existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,6 +51,76 @@ function loadLocal(triple: string): unknown | null {
   return null;
 }
 
+function readPackageVersion(file: string): string | null {
+  const version = (JSON.parse(readFileSync(file, "utf8")) as { version?: unknown }).version;
+  return typeof version === "string" ? version : null;
+}
+
+// Resolves only the package manifest, never its `.node`, so a mismatched or
+// non-selected platform package is never loaded.
+function installedPackageVersion(pkg: string): string | null {
+  try {
+    return readPackageVersion(require.resolve(`${pkg}/package.json`));
+  } catch {
+    return null;
+  }
+}
+
+function mainPackageVersion(): string {
+  for (const root of [join(here, ".."), join(here, "..", "..")]) {
+    const file = join(root, "package.json");
+    try {
+      const manifest = JSON.parse(readFileSync(file, "utf8")) as { name?: unknown; version?: unknown };
+      if (manifest.name === "fathomdb" && typeof manifest.version === "string") {
+        return manifest.version;
+      }
+    } catch {
+      // Not this directory; keep walking toward the package root.
+    }
+  }
+  return "unknown";
+}
+
+function tegraFamilySignal(): boolean {
+  try {
+    if (readFileSync("/proc/device-tree/compatible", "latin1").includes("nvidia,tegra")) {
+      return true;
+    }
+  } catch {
+    // Absent on hosts without a device tree; the L4T release file still counts.
+  }
+  return existsSync("/etc/nv_tegra_release");
+}
+
+// Same approved absolute paths and timeout as the Python co-install probe and
+// the Jetson workflow preflight; PATH is never consulted.
+const NVIDIA_SMI_CANDIDATES = ["/usr/bin/nvidia-smi", "/usr/sbin/nvidia-smi", "/usr/local/bin/nvidia-smi"];
+const NVIDIA_SMI_TIMEOUT_MS = 2000;
+
+function tegraGpuName(): string | null {
+  const candidate = NVIDIA_SMI_CANDIDATES.find((path) => {
+    try {
+      accessSync(path, fsConstants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (candidate === undefined) {
+    return null;
+  }
+  const result = spawnSync(candidate, ["--query-gpu=name", "--format=csv,noheader"], {
+    encoding: "utf8",
+    timeout: NVIDIA_SMI_TIMEOUT_MS,
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  // A failed or timed-out probe is indeterminate, never a Tegra confirmation.
+  if (result.error !== undefined || result.status !== 0) {
+    return null;
+  }
+  return result.stdout;
+}
+
 function loadNative(): unknown {
   return loadPlatformBinding({
     platform: process.platform,
@@ -56,6 +128,10 @@ function loadNative(): unknown {
     isMusl: hostIsMusl(),
     loadLocal,
     requirePackage: (pkg: string) => require(pkg),
+    installedPackageVersion,
+    mainPackageVersion,
+    tegraFamilySignal,
+    tegraGpuName,
   });
 }
 

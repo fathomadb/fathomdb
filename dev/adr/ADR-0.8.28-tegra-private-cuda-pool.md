@@ -141,10 +141,12 @@ makes; `doctor gpu` v1 is unchanged.
    CLI crates. It is supported only in repository and artifact builds, which
    carry the vendored cudarc; against registry cudarc it fails at
    resolution with the marker message
-   (`scripts/check-tegra-pool-registry-build.sh`). Only the Tegra Python
-   wheel's feature set (`CUDA_PYTHON_FEATURES_TEGRA`) and the manual Tegra
-   Node addon recipe carry it, and `scripts/check-cuda-release-contract.py`
-   refuses it in every x86_64 and CPU set.
+   (`scripts/check-tegra-pool-registry-build.sh`). Both the Tegra Python
+   wheel's feature set (`CUDA_PYTHON_FEATURES_TEGRA`) and the governed Tegra
+   Node addon feature set (`CUDA_TEGRA_NAPI_FEATURES`) carry it. The 0.8.27
+   Tegra Node artifact did not include this 0.8.28 feature; the 0.8.28
+   artifact build does. `scripts/check-cuda-release-contract.py` refuses it
+   in every x86_64, generic arm64 and CPU set.
 
 ### Amendment of ADR-0.6.0-embedder-protocol (SD-9, DQ-3)
 

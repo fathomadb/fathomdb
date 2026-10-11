@@ -1,12 +1,12 @@
 # Rust SDK
 
-Crate: `fathomdb-sdk` (import `fathomdb_sdk`), introduced in 0.8.27 and not
-yet published. It has the same surface as the Python and TypeScript SDKs:
+Crate: `fathomdb-sdk` (import `fathomdb_sdk`), introduced in 0.8.27. It has the same surface as the Python and TypeScript SDKs:
 
 - an `Engine` with the same operations;
 - the `read`, `graph`, and `admin` namespaces;
 - the standalone `rerank` and `embed_batch_cls` operations;
-- the same option defaults and error classes.
+- the same option defaults and error categories, represented by one Rust
+  `Error` type and its `ErrorKind`.
 
 The repository check that verifies Python and TypeScript membership also
 verifies the Rust SDK: 44 of 44 governed operations.
@@ -14,17 +14,27 @@ verifies the Rust SDK: 44 of 44 governed operations.
 ## Shape
 
 ```rust
-use fathomdb_sdk::{admin, graph, read, Engine, ErrorKind, NeighborsOptions, OpenOptions,
-    SearchOptions};
+use fathomdb_sdk::{read, Engine, InitialState, OpenOptions, PreparedWrite,
+    SourceId, TextSearchOptions};
 
-let engine = Engine::open("./app.sqlite", OpenOptions::default())?;
-let hits = engine.search("brown fox", SearchOptions { rerank_depth: 3, ..Default::default() })?;
-let note = read::get(&engine, "note:1", None)?;
-let near = graph::neighbors(&engine, "note:1", 1, NeighborsOptions::default())?;
-admin::configure(&engine, "settings", r#"{"type":"object"}"#)?;
-match engine.close() {
-    Err(err) if err.kind() == ErrorKind::Closing => {}
-    other => other?,
+fn main() -> fathomdb_sdk::Result<()> {
+    let engine = Engine::open("./app.sqlite", OpenOptions::default())?;
+    engine.write(&[PreparedWrite::Node {
+        kind: "note".into(),
+        body: "the quick brown fox".into(),
+        source_id: SourceId::new("demo-source").expect("valid source id"),
+        logical_id: Some("note:1".into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    }])?;
+
+    let note = read::get(&engine, "note:1", None)?;
+    let hits = engine.search_text_only("brown fox", TextSearchOptions::default())?;
+    println!("note: {note:?}; matches: {}", hits.results.len());
+    engine.close()?;
+    Ok(())
 }
 ```
 

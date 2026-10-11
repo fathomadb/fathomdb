@@ -1,0 +1,29 @@
+{
+  "status": "REJECTED_FOUR_CORRUPTIONS",
+  "controls": [
+    {
+      "control": "changed_protocol",
+      "rejected": true,
+      "exception": "ValueError",
+      "reason": "frozen protocol changed"
+    },
+    {
+      "control": "reordered_blocks",
+      "rejected": true,
+      "exception": "ValueError",
+      "reason": "S02-L paired block order changed"
+    },
+    {
+      "control": "false_close_sample",
+      "rejected": true,
+      "exception": "ValueError",
+      "reason": "sample-001 raw hash changed"
+    },
+    {
+      "control": "false_reopen_state",
+      "rejected": true,
+      "exception": "ValueError",
+      "reason": "sample-001 raw hash changed"
+    }
+  ]
+}

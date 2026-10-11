@@ -1,0 +1,82 @@
+{
+  "coverage_mode": "-C instrument-coverage -Z coverage-options=branch",
+  "historical_gap_disposition": {
+    "src/rust/crates/fathomdb-engine/src/embedding.rs": {
+      "covered_by_supplemental": [
+        159,
+        160,
+        161,
+        170
+      ],
+      "remaining_after_supplemental": [],
+      "selected_gap_lines": [
+        159,
+        160,
+        161,
+        170
+      ]
+    },
+    "src/rust/crates/fathomdb-engine/src/lib.rs": {
+      "covered_by_supplemental": [
+        738,
+        739,
+        740,
+        741,
+        742,
+        743,
+        744,
+        745,
+        746
+      ],
+      "remaining_after_supplemental": [],
+      "selected_gap_lines": [
+        738,
+        739,
+        740,
+        741,
+        742,
+        743,
+        744,
+        745,
+        746
+      ]
+    }
+  },
+  "negative_control": {
+    "mutated_file": "src/rust/crates/fathomdb-engine/src/search_api.rs",
+    "workload_only_branch_detected": true,
+    "zeroed_test_branch": [
+      16,
+      0,
+      1
+    ]
+  },
+  "selected_overlay": {
+    "mapped_workload_hit_branches": 888,
+    "test_hit_workload_branches": 888,
+    "test_hit_workload_lines": 8121,
+    "workload_hit_branches": 888,
+    "workload_hit_lines": 8134
+  },
+  "selected_tests": {
+    "binaries": 20,
+    "ignored": 6,
+    "passed": 128
+  },
+  "sha256": {
+    "overlay.json": "b59ac8474aeac6efd418609bb6b6270c44a5605084175010902d76d5dd87877c",
+    "supplemental-manifest.json": "ca68fe104ce7c67ea3d511a4980b854970157d6b83e403654647f4b5a80227dd",
+    "supplemental-overlay.json": "2b72ad2a7a29d909fe602c9597b302d952d9c62597c6b10a6bcc9bcc77938b6e",
+    "supplemental.lcov": "2745aeda36cbde4fae4e5cd000f127966777165ecc54db5e43b6acbaf5a7b475",
+    "test-runs/manifest.json": "6dfa42b7384c3b55dd0fcdb9a638a6e5bbc15f49b5d5ba0a400b9d70a31fcef4",
+    "tests.lcov": "456368eb1e4f4d174f039645277244f501c3dd40c342c7cb0a6fe622002eb8bf",
+    "workload.json": "abfc6d5ac9b2eff5c8f21aea1a0fbf400a26672c8d6e95fab7369008fcfcaddb",
+    "workload.lcov": "d7e3b4302b31f584590a1686c3a8ea0f93f274d979cb2fe5350d3d176eb9fbc2"
+  },
+  "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+  "supplemental_tests": {
+    "binaries": 2,
+    "ignored": 0,
+    "passed": 23
+  }
+}

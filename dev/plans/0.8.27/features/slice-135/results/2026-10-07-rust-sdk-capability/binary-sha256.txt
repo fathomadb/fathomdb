@@ -1,0 +1,1 @@
+99fc2b7d446aaaa5fea58189cba5bf2c565e21200bcf47f0e704165c11201130  /tmp/slice135-rust-sdk-capability-target/debug/slice135-rust-sdk-capability

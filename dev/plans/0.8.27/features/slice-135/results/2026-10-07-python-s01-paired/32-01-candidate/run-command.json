@@ -1,0 +1,21 @@
+[
+  "/usr/bin/time",
+  "-o",
+  "/tmp/slice135-s01-paired-v2-32-01-candidate/resource.txt",
+  "-f",
+  "user_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nfs_inputs=%I\nfs_outputs=%O\nmajor_faults=%F\nswap_events=%W\n",
+  "/tmp/slice135-python-venv-candidate-b2ac808/bin/python",
+  "/tmp/slice135-s01-paired-v2-32-01-candidate/runner.py",
+  "--rows",
+  "32",
+  "--samples",
+  "1000",
+  "--wheel",
+  "/tmp/slice135-python-wheel-candidate-b2ac808/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl",
+  "--wheel-sha256",
+  "6713ade54d62cc1e067fcaf1982a539c1fb8bd3d45d3db18e41155badd0c12e8",
+  "--source-sha",
+  "b2ac8081e79a6e626d01f5f97331be331f1cc16d",
+  "--output",
+  "/tmp/slice135-s01-paired-v2-32-01-candidate/raw.json"
+]

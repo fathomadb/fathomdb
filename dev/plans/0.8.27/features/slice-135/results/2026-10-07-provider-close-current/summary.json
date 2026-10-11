@@ -1,0 +1,31 @@
+{
+  "projection_capacity": {
+    "passed": 4,
+    "tests": [
+      "close_interrupts_long_provider_retry_wait_and_preserves_pending_row",
+      "projection_wait_cancels_on_close_and_reopen_recovers_pending_row",
+      "provider_retry_delay_uses_one_absolute_deadline_during_wake_storm",
+      "timed_out_provider_keeps_slot_and_later_work_durable_until_return"
+    ],
+    "swaps": 0,
+    "peak_rss_kib": 27512
+  },
+  "foreground_dispatch": {
+    "passed": 10,
+    "tests": [
+      "close_cancels_started_direct_embed_waiter",
+      "direct_embed_saturation_and_queued_expiry_are_overloaded",
+      "direct_embed_started_error_and_panic_preserve_error_contract_and_worker_reuse",
+      "direct_embed_started_timeout_uses_engine_dispatch_deadline",
+      "eight_reader_burst_keeps_vector_only_search_results",
+      "frozen_search_provider_panic_unwinds_reader_owner_boundary",
+      "frozen_sparse_fallback_keeps_reader_snapshot_across_provider_wait",
+      "ordinary_and_frozen_search_keep_sparse_fallback_on_provider_error",
+      "ordinary_search_provider_panic_reaches_caller_boundary",
+      "ordinary_search_uses_sparse_fallback_after_started_provider_timeout"
+    ],
+    "swaps": 0,
+    "peak_rss_kib": 31808
+  },
+  "expected_provider_panics_logged": 3
+}

@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "status": "DESCRIPTIVE_STAGE_DIAGNOSTIC",
+  "sample_count_per_version": 100,
+  "note": "Stage percentiles are marginal and nonadditive; product latency is measured by the independent whole_product_ns timer. This diagnostic is not an attribution proof.",
+  "stages": {
+    "close": {
+      "baseline_p50_ns": 2921219,
+      "candidate_p50_ns": 10664378,
+      "baseline_p95_ns": 3354048,
+      "candidate_p95_ns": 12114928,
+      "p50_delta_ns": 7743159
+    },
+    "configure_projection": {
+      "baseline_p50_ns": 1229142,
+      "candidate_p50_ns": 1223672,
+      "baseline_p95_ns": 1456571,
+      "candidate_p95_ns": 1299205,
+      "p50_delta_ns": -5470
+    },
+    "drain": {
+      "baseline_p50_ns": 705412254,
+      "candidate_p50_ns": 697743694,
+      "baseline_p95_ns": 724494898,
+      "candidate_p95_ns": 734617484,
+      "p50_delta_ns": -7668560
+    },
+    "erase": {
+      "baseline_p50_ns": 6843558,
+      "candidate_p50_ns": 6906047,
+      "baseline_p95_ns": 7212544,
+      "candidate_p95_ns": 7351475,
+      "p50_delta_ns": 62489
+    },
+    "erase_again": {
+      "baseline_p50_ns": 1999337,
+      "candidate_p50_ns": 2025606,
+      "baseline_p95_ns": 2123152,
+      "candidate_p95_ns": 2308772,
+      "p50_delta_ns": 26269
+    },
+    "evidence_resolve": {
+      "baseline_p50_ns": 595665,
+      "candidate_p50_ns": 627967,
+      "baseline_p95_ns": 717365,
+      "candidate_p95_ns": 707938,
+      "p50_delta_ns": 32302
+    },
+    "evidence_search": {
+      "baseline_p50_ns": 19907840,
+      "candidate_p50_ns": 20166610,
+      "baseline_p95_ns": 21765515,
+      "candidate_p95_ns": 22787524,
+      "p50_delta_ns": 258770
+    },
+    "graph_edge_resolve": {
+      "baseline_p50_ns": 385859,
+      "candidate_p50_ns": 383175,
+      "baseline_p95_ns": 503501,
+      "candidate_p95_ns": 515293,
+      "p50_delta_ns": -2684
+    },
+    "graph_expand": {
+      "baseline_p50_ns": 1666849,
+      "candidate_p50_ns": 1624971,
+      "baseline_p95_ns": 1830678,
+      "candidate_p95_ns": 1790281,
+      "p50_delta_ns": -41878
+    },
+    "graph_target_resolve": {
+      "baseline_p50_ns": 490276,
+      "candidate_p50_ns": 489695,
+      "baseline_p95_ns": 612597,
+      "candidate_p95_ns": 626073,
+      "p50_delta_ns": -581
+    },
+    "hybrid": {
+      "baseline_p50_ns": 9238015,
+      "candidate_p50_ns": 10059478,
+      "baseline_p95_ns": 10629069,
+      "candidate_p95_ns": 11718892,
+      "p50_delta_ns": 821463
+    },
+    "hybrid_lexical_control": {
+      "baseline_p50_ns": 556170,
+      "candidate_p50_ns": 557604,
+      "baseline_p95_ns": 638246,
+      "candidate_p95_ns": 684303,
+      "p50_delta_ns": 1434
+    },
+    "open": {
+      "baseline_p50_ns": 201463837,
+      "candidate_p50_ns": 202844480,
+      "baseline_p95_ns": 204677121,
+      "candidate_p95_ns": 208536619,
+      "p50_delta_ns": 1380643
+    },
+    "reopen": {
+      "baseline_p50_ns": 4418482679,
+      "candidate_p50_ns": 4449783736,
+      "baseline_p95_ns": 4503432917,
+      "candidate_p95_ns": 4527196006,
+      "p50_delta_ns": 31301057
+    },
+    "reopened_close": {
+      "baseline_p50_ns": 8487866,
+      "candidate_p50_ns": 15743178,
+      "baseline_p95_ns": 8890415,
+      "candidate_p95_ns": 17338224,
+      "p50_delta_ns": 7255312
+    },
+    "text": {
+      "baseline_p50_ns": 604723,
+      "candidate_p50_ns": 618208,
+      "baseline_p95_ns": 676428,
+      "candidate_p95_ns": 705213,
+      "p50_delta_ns": 13485
+    },
+    "vector": {
+      "baseline_p50_ns": 11078943,
+      "candidate_p50_ns": 11531466,
+      "baseline_p95_ns": 12369746,
+      "candidate_p95_ns": 13501539,
+      "p50_delta_ns": 452523
+    },
+    "write": {
+      "baseline_p50_ns": 1909397,
+      "candidate_p50_ns": 1935718,
+      "baseline_p95_ns": 2088194,
+      "candidate_p95_ns": 2234230,
+      "p50_delta_ns": 26321
+    }
+  }
+}

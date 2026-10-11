@@ -1,0 +1,85 @@
+{
+  "source_sha": "b723791975ec8c5170b7ddb33b7df0e7c84a209a",
+  "target_runs": [
+    {
+      "expected_provider_panics": 3,
+      "ordinal": 1,
+      "passed_cases": 10,
+      "peak_rss_kib": 36280,
+      "swaps": 0,
+      "target": "foreground"
+    },
+    {
+      "expected_provider_panics": 3,
+      "ordinal": 2,
+      "passed_cases": 10,
+      "peak_rss_kib": 35920,
+      "swaps": 0,
+      "target": "foreground"
+    },
+    {
+      "expected_provider_panics": 3,
+      "ordinal": 3,
+      "passed_cases": 10,
+      "peak_rss_kib": 36284,
+      "swaps": 0,
+      "target": "foreground"
+    },
+    {
+      "expected_provider_panics": 3,
+      "ordinal": 4,
+      "passed_cases": 10,
+      "peak_rss_kib": 37136,
+      "swaps": 0,
+      "target": "foreground"
+    },
+    {
+      "expected_provider_panics": 3,
+      "ordinal": 5,
+      "passed_cases": 10,
+      "peak_rss_kib": 36308,
+      "swaps": 0,
+      "target": "foreground"
+    },
+    {
+      "expected_provider_panics": 0,
+      "ordinal": 1,
+      "passed_cases": 4,
+      "peak_rss_kib": 31880,
+      "swaps": 0,
+      "target": "projection"
+    },
+    {
+      "expected_provider_panics": 0,
+      "ordinal": 2,
+      "passed_cases": 4,
+      "peak_rss_kib": 33004,
+      "swaps": 0,
+      "target": "projection"
+    },
+    {
+      "expected_provider_panics": 0,
+      "ordinal": 3,
+      "passed_cases": 4,
+      "peak_rss_kib": 33184,
+      "swaps": 0,
+      "target": "projection"
+    },
+    {
+      "expected_provider_panics": 0,
+      "ordinal": 4,
+      "passed_cases": 4,
+      "peak_rss_kib": 32072,
+      "swaps": 0,
+      "target": "projection"
+    },
+    {
+      "expected_provider_panics": 0,
+      "ordinal": 5,
+      "passed_cases": 4,
+      "peak_rss_kib": 32300,
+      "swaps": 0,
+      "target": "projection"
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 # Quickstart
 
 End-to-end walkthrough: install, open a fresh DB, write rows, search,
-inspect counters, close, exit cleanly. Python is the primary language
-(the more heavily exercised binding — see
-[SDK parity](../positions/sdk-parity.md)); TS snippets sit alongside.
+inspect counters, close, exit cleanly. Python and TypeScript examples use the
+0.8.27 SDKs. The Rust application SDK has its own
+[runnable example](../install/rust.md#install-the-application-sdk).
 
 This page covers the same five operations in the same order as the
 post-publish smoke `scripts/release/smoke/smoke-pypi-wheel.sh`
@@ -32,8 +32,8 @@ python -c "from fathomdb import Engine; print(Engine)"
 ## 2. Open a fresh DB
 
 `Engine.open(path)` opens (or creates) a local-first SQLite database
-at `path`. The handle owns the writer thread, the reader pool, and
-the scheduler.
+at `path`. The handle owns the primary SQLite connection, the reader pool,
+and the projection scheduler.
 
 Python:
 

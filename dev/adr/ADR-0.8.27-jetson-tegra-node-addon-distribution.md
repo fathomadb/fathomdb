@@ -4,18 +4,18 @@ date: 2026-10-05
 target_release: 0.8.27
 desc: Distribute a CUDA-capable Node addon for classic Jetson Orin through the existing Tegra Pages route
 blast_radius: TypeScript loader; Jetson Tegra CUDA evidence workflow; Tegra Pages site builders and publisher; CUDA artifact and glibc-floor contracts; Tegra platform reference; public install and compatibility docs
-status: proposed
+status: accepted
 ---
 
 # ADR — Jetson (classic Tegra) CUDA Node addon distribution
 
-**Status: PROPOSED (draft for HITL review; not accepted).** Nothing in this
-record authorizes implementation or publication. It records the
-recommendation of the Slice 117 design
-(`dev/plans/0.8.27/features/slice-117/design.md`) for the open release-state
-decision `slice-117-delivery-shape`. One part is already ruled: the channel
-(decision 2, `slice-117-channel-tegra-pages`, 2026-10-05). The record as a
-whole stays proposed until the remaining items are ruled and it is accepted.
+**Status: ACCEPTED (repository owner, 2026-10-09).** The owner accepted this
+record as proposed, which rules every remaining item of release-state
+decision `slice-117-delivery-shape`. The channel (decision 2) was ruled
+earlier, on 2026-10-05, by `slice-117-channel-tegra-pages`. Acceptance lifts
+the Slice 117 implementation hold. It does not authorize publication, which
+stays behind `release-0.8.27-publication`. The recommendation came from the
+Slice 117 design (`dev/plans/0.8.27/features/slice-117/design.md`).
 
 ## Context
 
@@ -52,14 +52,15 @@ host-native `scripts/release/build-python-cuda-tegra.sh`, the fail-closed
 and the exact-SHA operator script `scripts/release/publish-tegra-pages.sh`
 with its post-publication smoke.
 
-## Decision (proposed)
+## Decision
 
-1. **Package shape.** The Tegra addon is a separately named, unscoped
-   platform package (name open; for example
-   `fathomdb-linux-arm64-gnu-tegra`, per ADR-0.8.20) carrying a dual-runtime
+1. **Package shape.** The Tegra addon is the separately named, unscoped
+   `fathomdb-linux-arm64-gnu-tegra` platform package carrying a dual-runtime
    `embed-cuda,rerank-cuda` `.node`. The main package never lists it in
-   `optionalDependencies`, so npm never selects it automatically. This is the
-   shape D-80.7-3 named as the only safe one.
+   `optionalDependencies`, so npm never selects it automatically. Do not
+   reserve the name through an npm publication in 0.8.27; installation
+   guidance always uses the exact Pages URL and published SHA-256. This is
+   the shape D-80.7-3 named as the only safe one.
 2. **Channel (ruled 2026-10-05, `slice-117-channel-tegra-pages`).** In
    0.8.27 the package's exact-version tarball is distributed only through the
    existing first-party Tegra Pages route, beside the `+tegra` wheel: built
@@ -72,22 +73,50 @@ with its post-publication smoke.
    sidestep that. The owner chose the Pages route, which reuses the tested
    Tegra workflow, candidate guard, linkage check and post-publication proof.
 3. **Loader.** The loader considers the Tegra package only on the
-   `linux-arm64-gnu` triple, only when it is installed, and only on a host
-   that passes the classic-Tegra detection the release workflow uses. It
-   requires the package version to equal the main package version. Otherwise
-   it loads the generic package. The detection tier and the mismatch
-   behavior remain open in `slice-117-delivery-shape`.
+   `linux-arm64-gnu` triple when installed and when both classic-Tegra tiers
+   are confirmed: the device-tree or `/etc/nv_tegra_release` family signal,
+   then the `nvgpu` GPU-name signal. The second probe runs only for this
+   installed package on a Tier-1 host, so generic imports do not pay for it.
+   A Thor-like or indeterminate result selects the generic package. Without
+   the Tegra package, the loader selects the generic package without an
+   import-time warning; the exact URL is in Jetson install guidance. A Tegra
+   package version mismatch fails with a clear install error before loading
+   either addon; it never silently selects mismatched bytes.
 4. **Linkage.** ADR-0.8.25's linkage rules apply to this artifact although that
    ADR is scoped to x86_64: no CUDA or NVIDIA `NEEDED` entry, no shipped CUDA
    or NVIDIA shared library, static CUDA runtime, and lazy driver loading
    through cudarc. The existing Tegra linkage checker enforces this.
-5. **Driver probe at load (open).** On aarch64 Linux the addon calls `cuInit`
-   during module registration (Slice 110). This record must state, before
-   acceptance, whether R80-11 ("`cpu` never initializes CUDA") holds only for
-   a `cpu` policy visible at load, or is amended for this artifact. As of the
-   Slice 110 branch, the call is skipped only when every CUDA-built
-   component's open-time policy is exactly `cpu`, or when
-   `FATHOMDB_CUDA_EARLY_INIT=off`.
+5. **Driver probe at load.** On aarch64 Linux the addon calls `cuInit` during
+   module registration (Slice 110). For this artifact, R80-11's "`cpu` never
+   initializes CUDA" promise applies when every CUDA-built component's
+   `cpu` policy is visible at module registration, or when
+   `FATHOMDB_CUDA_EARLY_INIT=off`. A `cpu` option supplied only at a later
+   open cannot prevent the earlier probe. A missing driver never fails module
+   registration. This is an explicit aarch64 exception to ADR-0.8.25's
+   x86_64 import-time no-probe contract and must be stated in public guidance.
+6. **Qualification and retention.** Require an installed, driverless AArch64
+   import in addition to the linkage check. Retain every published Tegra
+   wheel and tarball with a digest-pinned manifest consumed by both Pages
+   deployers; removing a published URL requires a separate decision. Publish
+   matching wheel and tarball in one Jetson dispatch. Confirm CUDA
+   redistribution, licence and SBOM coverage for the `.node` before release.
+7. **Capability and install representation.** Represent the Tegra Pages
+   package as a separate variant of `linux-arm64-gnu` in
+   `dev/platform-capabilities.json`, leaving the generic package's record
+   intact. Document the exact-version Pages tarball as an optional dependency
+   for lockfiles shared with non-Jetson hosts, after a cross-host install
+   fixture confirms that form.
+8. **Release handoff.** Slice 140 may consume the reviewed, qualified,
+   unpublished candidate and its exact install documentation. The later
+   Pages-installed forced-CUDA, witness and heap-growth smoke remains required
+   for the release and is owned by Slice 160, after publication authorization.
+   By the owner's 2026-10-10 `slice-160-owns-publication` ruling, Slice 117
+   closes at the qualified, unpublished handoff; this supersedes the original
+   condition that held Slice 117 below COMPLETE until the Pages smoke. Slice
+   150 owns integrated final-candidate qualification. Slice 135's measurements
+   remain bound to its pinned source; repeat affected paired cells only if
+   Slice 117 changes query or retrieval behavior beyond loader and packaging
+   work.
 
 ## Consequences
 

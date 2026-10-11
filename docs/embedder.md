@@ -6,7 +6,7 @@ fresh engine has no embedder configured and vector writes fail with
 `EmbedderNotConfiguredError` until you either enable the default embedder or supply
 your own (Rust only, today).
 
-> Status: shipped; 0.8.26 is the current published release. The ANN-fidelity
+> Status: 0.8.27 release documentation. The ANN-fidelity
 > recall@10,
 > measured on the pre-fusion **vector stage** (the SUT the 0.90 floor gates), is
 > **0.896** (95% CI 0.864–0.925, N=7,667) and holds the **0.90 floor under the
@@ -169,9 +169,24 @@ regardless of where embedding or CE runs.
 ### Node.js on Jetson: load fathomdb first
 
 This applies to a Node.js addon built with CUDA (`embed-cuda` or
-`rerank-cuda`) on an NVIDIA Jetson running Linux AArch64. The published Linux
-AArch64 npm package is CPU-only and does not need it. Python's Tegra wheel
-starts CUDA at import instead; see "Jetson: private CUDA memory pool" below.
+`rerank-cuda`) on an NVIDIA Jetson running Linux AArch64. That includes the
+`fathomdb-linux-arm64-gnu-tegra` package for a confirmed classic Jetson Orin,
+introduced in 0.8.27. It is installed as an exact-version tarball from the
+Tegra Pages site, at the same version as `fathomdb`, after
+checking its published SHA-256; see
+[TypeScript install](install/typescript.md#classic-jetson-orin-with-cuda).
+The generic Linux AArch64 npm package is CPU-only and does not need any of
+this. Python's Tegra wheel starts CUDA at import instead; see "Jetson: private
+CUDA memory pool" below.
+
+The 0.8.28 Tegra Node addon build includes `tegra-pool`, creating a private
+pool at first CUDA device use when its Tegra checks pass. The 0.8.27 Tegra
+addon did not include the private pool. The generic arm64 npm package remains
+CPU-only.
+
+Starting CUDA at import is an AArch64-only exception: the Linux x86_64 npm
+package never probes the CUDA driver at import. A missing driver never fails
+the import on either.
 
 On a Jetson, the CUDA driver must reserve one large range of the process's
 virtual address space when it starts. On the Jetson AGX Orin 64 GB that range

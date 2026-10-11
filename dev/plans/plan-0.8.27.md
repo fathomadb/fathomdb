@@ -41,16 +41,13 @@ wraps the existing engine through a closed export map. Its
 `ADR-0.8.27-rust-sdk-parity.md` with `dev/interfaces/rust-sdk.md` own the
 contract.
 
-Slice 117 depends on Slice 110, which is complete. It plans delivery of a
-CUDA-capable Linux AArch64 (Jetson/Tegra) Node addon through the release
-process, because the published `fathomdb-linux-arm64-gnu` npm package is
-CPU-only. On 2026-10-05 the owner added it to the ladder and superseded the
-0.8.23 Tegra npm exclusions for its scope. The owner's Linux x86_64 hold on the
-Slice 110 fixes is met. The owner ruled its channel: the existing Tegra Pages
-route, not the npm registry, for 0.8.27. The rest of its delivery shape
-remains a HITL decision, owned by its
-[`draft plan`](0.8.27/features/slice-117/plan.md); implementation waits only
-on that ruling, so it follows Slice 135 in the remaining ladder.
+Slice 117 is complete on `release/0.8.27` as a qualified, unpublished Jetson
+Node delivery route. Its [status](0.8.27/features/slice-117/status.md) binds
+the installed candidate to the exact Jetson workflow and artifact hashes.
+The generic Linux AArch64 npm package remains CPU-only. The accepted
+distribution ADR governs the separately named Tegra Pages tarball. Slice 160
+owns its publication and post-publication smoke. Slice 140 is complete;
+Slice 150 is next.
 
 The shared structural vocabulary is:
 
@@ -385,9 +382,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 135** (`PERFORMANCE-BASELINE`) — 0.8.26 performance preservation and improvement qualification
+**IMMEDIATE NEXT: Slice 160** (`PUBLISH`) — publication to every registry and Pages destination with post-publication proofs
 
-**Remaining ladder:** 135 → 117 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1141,7 +1138,7 @@ validating an incomplete Slice 90.
 
 ### Slice 117 — Jetson CUDA Node addon delivery
 
-**PLANNED; draft; channel ruled; remaining delivery-shape items open.** The
+**COMPLETE on the release branch; unpublished candidate.** The
 published Linux AArch64 npm platform package is built on a hosted runner
 with the default embedder only, so Jetson users get GPU support under Node
 only from a locally built addon. Python already has a governed `+tegra` wheel
@@ -1153,25 +1150,37 @@ The owner ruled on 2026-10-05 (`slice-117-jetson-node-cuda-direction`,
 `slice-117-supersede-d-80-7-3-and-d-80-6-2`) to add this slice and supersede
 D-80.7-3 and D-80.6-2 for it. Its two earlier entry holds are met: Linux
 x86_64 was tested with the Slice 110 fixes at candidate `8b76f6115`, and Slice
-110 is complete on `release/0.8.27`. Implementation waits only on the
-remaining `slice-117-delivery-shape` rulings. The
+110 is complete on `release/0.8.27`. On 2026-10-09 the owner accepted the
+distribution ADR, ruling `slice-117-delivery-shape`. The
 [Slice 117 plan](0.8.27/features/slice-117/plan.md) defines AC27-117A–G. Its
 [design note](0.8.27/features/slice-117/design.md) extends that existing
 Tegra Pages route to a separately named Node package tarball. The owner ruled
 that channel for 0.8.27 (`slice-117-channel-tegra-pages`); the npm registry
 options are not chosen for 0.8.27, and a later registry publication would need
-its own ruling. Unruled `slice-117-delivery-shape` now covers the package name
-and npm name reservation, loader policy, Pages retention, the aarch64
-import-time `cuInit` contract and the other items in design § 10, with the
-proposed `ADR-0.8.27-jetson-tegra-node-addon-distribution`. The
+its own ruling. The accepted
+`ADR-0.8.27-jetson-tegra-node-addon-distribution` settles the package name,
+loader policy, Pages retention, the aarch64 import-time `cuInit` contract and
+the other items in design § 10. The
 artifact is built on the Jetson with `embed-cuda,rerank-cuda` and carries
 Slice 110's allocation fallback and early `cuInit`, and no memory pool
 (`tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`; 0.8.28 evaluates
-pool options). Qualification repeats
-installed forced-CUDA, allocation-witness and heap-growth checks on the Jetson
-before and after publication. On completion it updates `README.md` and the
-public install pages. Publication stays behind the release publication
-decision. No other slice depends on it.
+pool options). The installed Jetson Node candidate at `663ed88cd` passed CPU,
+auto and forced-CUDA embedding and reranking, the GPU witness, heap-growth
+regression and loader selection in [run
+38075698749](https://github.com/fathomadb/fathomdb/actions/runs/38075698749).
+After authorized Pages publication, Slice 160 repeats forced-CUDA, witness
+and heap-growth checks on the downloaded artifact (AC27-117F); Slice 117 is
+COMPLETE at its qualified, unpublished candidate by the owner's 2026-10-10
+direction. The [status](0.8.27/features/slice-117/status.md) records the
+verification receipt limit: no exact-candidate full `agent-verify` log was
+found in tracked evidence, so no full-workspace green is claimed here.
+Slice 135's query measurements remain bound to its pinned product source;
+only a query or retrieval behavior change beyond loader and packaging work
+triggers the affected paired Slice 135 cells. The exact install docs and
+candidate surface are handed to Slice 140 for convergence.
+Slice 140 may consume a qualified, unpublished candidate while publication
+stays behind the release decision. Slice 150 owns full final-candidate
+qualification. No other slice currently depends on Slice 117.
 
 ### Slice 120 — TypeScript SDK decomposition
 
@@ -1219,21 +1228,32 @@ and refuses core-engine leaks. See the
 
 ### Slice 135 — 0.8.26 performance preservation and improvement qualification
 
-**PLANNED; uncommissioned.** Compare the completed 0.8.27 candidate against
-0.8.26 using a fixed, representative workload and the Slice 115 collection
-method. Verify that performance matches or improves on 0.8.26 without reducing
-any supported feature or function. Hold workload, dataset, feature set,
-configuration, hardware, software environment, warm-up, and repetition policy
-constant unless the comparison explicitly documents and justifies a difference.
+**COMPLETE ON THE RELEASE BRANCH WITH EXPLICIT LIMITATIONS.** The
+[final Slice 135 disposition](0.8.27/features/slice-135/status.md) records
+the five-area diagnostic inquiry, the independent scoped closeout review,
+and the archived raw receipts. The owner approved the Slice 135 plan and
+authorized preparation in parallel with Slice 132 on 2026-10-06. The
+[Slice 135 measurement plan](0.8.27/features/slice-135/plan.md) covers five
+aspects: what matters/Pareto path, system latency, system robustness, logic
+and exception handling, and correct results. The first four must yield
+substantial final-candidate results and a recorded Phase 1 checkpoint before
+dedicated correct-results work starts. Final 0.8.27 comparison and closeout
+require the completed Slice 132 candidate. Compare that candidate against
+published 0.8.26 using fixed representative workloads, extending the Slice
+115 collection method to installed-SDK and mixed-system boundaries. Preserve
+accepted features and functions. Hold workload, dataset, configuration,
+hardware, software environment, warm-up and repetition policy constant
+unless a difference is documented and justified.
 
-Pre-register the metrics, tolerances, and decision rule before the comparison.
-Publish reproducible receipts and an explicit feature/function parity inventory.
-Any regression, inconclusive result, or attempted feature trade-off blocks
-closeout until a separately reviewed resolution preserves the release contract.
-This final comparison supplements, and never substitutes for, Slice 90's D27
-runtime qualification. Keep the accepted D27 defaults and topology fixed unless
-a formally reviewed successor changes them; a regression attributable to D27
-still blocks release and requires reviewed remediation.
+Pre-register the metrics and reporting rule before comparison. Publish raw,
+reproducible receipts, uncertainty and an explicit feature/function inventory.
+The five Slice 135 measurement families are diagnostic: a slower or
+inconclusive comparison alone is reported and analyzed, not a new numerical
+release gate. Confirmed product defects receive test-first fixes and
+verification before Slice 135 closeout; accepted release gates remain in
+force. This comparison supplements Slice 90's D27 runtime qualification.
+Keep the accepted D27 defaults and topology fixed unless a formally reviewed
+successor changes them; the existing D27 gate continues to govern release.
 
 **Off-ladder landings to include (recorded 2026-10-07).** The candidate must
 contain the embedder-close fix (`c816b8653`, merged at `96796fe04` with
@@ -1247,7 +1267,7 @@ open/close cycles in the workload so memory after close is compared against
 
 ### Slice 137 — Rust crate consolidation and embedder lockdown (proposed)
 
-**PROPOSED; not on the ladder; awaiting HITL rulings.** With `fathomdb-sdk`
+**PROPOSED; not on the ladder; remaining design rulings deferred.** With `fathomdb-sdk`
 shipped by Slice 132, the existing `fathomdb` facade's remaining external role
 is the wholesale engine re-export, and its only in-repo dependent is
 `fathomdb-cli`. External embedder injection also stays reachable through the
@@ -1264,7 +1284,8 @@ parts:
 
 Approval needs four rulings:
 
-- the unruled `slice-132-external-provider-disposition` decision;
+- the ruled `slice-132-external-provider-disposition` decision (`seq-301`):
+  deprecate the external Rust provider/plugin contract for future retirement;
 - crate naming;
 - the fate of the opt-in ONNX embedder;
 - sequencing. The proposal is after Slice 135 and before Slice 140, or
@@ -1274,15 +1295,33 @@ Nothing here is authorized until those rulings are recorded.
 
 ### Slice 140 — documentation and structural convergence
 
+The [reviewed Slice 140 plan](0.8.27/features/slice-140/plan.md),
+[approved design](0.8.27/features/slice-140/design.md), and
+[planning status](0.8.27/features/slice-140/status.md) reconcile this scope to
+the post-Slice-135 source. Its [large-file register](0.8.27/features/slice-140/large-file-review.md)
+records dispositions and requires no human review for slice or release
+closure. Slice 117's reviewed candidate handoff must be incorporated before
+final docs and code qualification.
+
 Converge architecture, design, interfaces, examples, and source citations on
 the final taxonomy.
 
 Validate that source citations resolve, documented public paths import,
-examples compile or run, every file above 3,500 lines has an approved exception
-or follow-up, every 2,000–3,500-line review has a recorded human verdict, and
-the exception register covers every trigger. Do not make file size itself a
-blocking automated test. The five named outliers must no longer remain
-unexplained monoliths.
+examples compile or run, and the large-file register records a disposition
+for every tracked code-file trigger above 2,000 lines, including the files
+above 3,500 and the five named original outliers. Re-scan the final candidate;
+do not make file size or human approval of the register a release gate.
+
+Generate a bounded SDK operation index from the governed parity manifest
+and a contributor map from actual Rust workspace and Python/TypeScript
+package manifests plus typed developer entry points. Keep detailed API contracts maintained manually and link them
+from the index. Add contributor navigation and fail-closed freshness checks
+in the shared complete-site Pages builder, with CI trigger coverage for all
+generation inputs. Public documents target the 0.8.27 release; internal
+status retains actual prepublication limits. Follow the reviewed amendment
+and TDD plan, reject stale publication sources against freshly fetched current
+main in both whole-site Pages routes, and obtain three independent final
+reviews after corrections.
 
 Carried from Slice 70 (`features/slice-70/status.md`):
 
@@ -1349,9 +1388,24 @@ and gating ruling must cover them at their new owners:
   `vector_phase1_sql_for_test`, `slice35_ranked_eligibility_sql_for_test`,
   and `take_slice71_search_statement_trace_for_test`.
 
-Slice 140's intended hidden-surface differences, including the test-seam
-gating, are captured at its landing commit as a successor hidden baseline with
-a reviewed diff record against the previous baseline.
+Slice 140's final reviewed product source was captured in the retired
+`f327c28c` successor baseline, with its
+[approved exact diff record](0.8.27/features/hidden-surface/baseline-f327c28c-diff.md)
+recording default pinned-proof restoration and the sole qualified unit-proof
+relocation. All Rust API/probe rows match the [previous approved successor](0.8.27/features/hidden-surface/baseline-01f4063f-diff.md),
+which retains the original fixture-gating and inherited-change decisions.
+Later receipt commits changed internal documentation only. Slice 150 compared
+against this final reviewed successor before retiring the oracle; the
+[hidden-surface status](0.8.27/features/hidden-surface/status.md) records the
+final manifest and comparison digests. Git history retains the baseline.
+
+The public-doc truth gate follows an explicit documentation target on the
+active tracked release state (`public_docs_target_release`, equal to that
+state's release), falling back to the newest valid published record when
+absent. Targeting 0.8.27 does not assert publication: native/schema/receipt
+guards remain, and explicit pending-release publication claims fail. The
+Slice 140 amendment covers RED/GREEN checker controls and source-checked
+API/install guidance corrections.
 
 ### Slice 150 — integrated release qualification
 
@@ -1363,8 +1417,9 @@ Write little or no new product test code. Re-run:
 - full `agent-verify`;
 - full-workspace clippy and check;
 - applicable feature combinations;
-- package builds;
-- isolated installed-artifact smokes;
+- fresh Python and Node package builds and isolated installed-artifact smokes;
+- a candidate-bound Rust source archive with an external path-dependency
+  consumer smoke; registry-resolved Rust `.crate` packaging waits for Slice 160;
 - required native CPU/platform routes;
 - warranted CUDA routes; and
 - Memex's unchanged exact test against the candidate artifact.
@@ -1388,19 +1443,89 @@ Bind the candidate manifest to the reviewed commit, platforms, feature sets,
 commands, test counts, and artifact hashes. A qualification defect returns to
 the owning slice with a new RED test; never weaken a qualification test.
 
-As its last step, after qualification fully passes, Slice 150 retires the
-0.8.27 hidden-surface oracle (RH-12 in
-`dev/plans/0.8.27/features/hidden-surface/plan.md`): record the final hidden and
-test-inventory comparisons with manifest digests in that unit's `status.md`,
-run `hidden_surface.py prune`, then delete `dev/tools/hidden_surface.py`, its
-self-tests, fixtures, fast-tier line, and committed `baseline-*.json` files.
-The feature-complete gate, the test-target coverage check, their shared
-`scripts/lib/test_targets.py`, the committed feature matrix and skip
-allowlist, the warning-free test-build gates, the dead-code lint, and the
-removal-changelog gate stay. The retirement commit rewrites cadence step 4
-and this slice's text to say the oracle ran and was retired, citing the
-`status.md` digests. If the decomposition is abandoned or deferred, the same
-unwind runs at that decision.
+Slice 150 compared the final hidden surface and test inventory against the
+reviewed successor, recording the manifest and comparison digests in the
+[hidden-surface status](0.8.27/features/hidden-surface/status.md), then
+retired the temporary oracle under RH-12. It pruned owned scratch and removed
+the collector, its self-tests, oracle-only fixtures, fast-tier call, and
+committed baseline JSON files. The fixture crate and inventory sample used by
+the permanent test-target coverage self-tests moved to `test-targets/`.
+The feature-complete gate, test-target coverage check, shared
+`scripts/lib/test_targets.py`, feature matrix and skip allowlist,
+warning-free test-build gates, dead-code lint and removal-changelog gate
+remain. Git history retains the retired oracle and baselines.
+
+### Slice 160 — publication to every destination
+
+Depends on Slice 150 and on the `release-0.8.27-publication` ruling; nothing
+here runs before both. Slice 160 owns every publication action and every
+post-publication proof for 0.8.27, whatever the destination. It writes no
+product code: a publication defect returns to the owning slice with a new RED
+test, and the tag moves only after that fix is qualified.
+
+| Destination | Artifacts | Route | Proof |
+| --- | --- | --- | --- |
+| crates.io | Tiers T1–T7, including the first `fathomdb-sdk` publish | `release.yml` on the `v0.8.27` tag (`dev/design/release.md` § Tiered publish order) | `cargo install fathomdb-cli` then `doctor check-integrity --json` on a fresh fixture |
+| PyPI | `fathomdb` wheels for every platform in `dev/platform-capabilities.json`, CUDA on Linux x86_64 | `release.yml` | installed-wheel open, close and exit smoke |
+| npm | `fathomdb` and its five platform packages, CUDA on Linux x86_64 | `release.yml`, then `promote-npm-latest` | five-platform post-publish smokes |
+| GitHub Releases | release notes and attached assets | `release.yml` `github-release` | release exists at the tag |
+| Tegra Pages | `0.8.27+tegra` wheel and `fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz` | `jetson-tegra-cuda-evidence.yml` with `publish_to_pages=true` on the tagged commit | AC27-117F and the post-deploy live check |
+| Docs Pages | MkDocs site and retained Tegra artifacts | `docs-pages.yml` on `main` | live check of every retained artifact |
+
+Order:
+
+1. **Before the tag:** prepare the version bump on `release/0.8.27`, then
+   merge it to `main` as required by `verify-release-gates.sh` for a GA tag.
+   Fast-forward the remote release branch to the same reviewed commit `C` on
+   `main`. Run the scoped release-path checks and the immutable-candidate
+   `release.yml` dry-run at `C`; the owner has restored build permission.
+   The annotated `v0.8.27` tag must
+   target `C`. Verify both remote branch heads equal `C` and hold them fixed
+   through the Tegra Pages dispatch: the GA gate requires `C` on `main`,
+   `publish-tegra-pages.sh` requires `C` at the release-branch head, and
+   `check-pages-source.py` requires current `main` to be an ancestor of `C`.
+   An early docs Pages run triggered by the `main` merge is not the final
+   retained-artifact proof. Prepare and validate a one-time
+   API-token path for `fathomdb-sdk` in T6 of `release.yml` without publishing
+   it yet. Its 0.8.27 package depends on the unpublished 0.8.27 engine, so it
+   cannot be bootstrapped before T5. The Tegra tarball's published SHA-256
+   comes from the exact Jetson publication run's `node/SHA256SUMS` artifact;
+   retain that run's digest in `tegra-pages-retained.json` after its public
+   URL passes the live check. Documentation reads the retained manifest, so
+   it must not claim the Slice 150 candidate tarball's digest as published.
+2. **Registries:** push the annotated tag targeting `C`; `release.yml` runs
+   T1–T5 first. After T5 and its registry-visibility wait, T6 publishes the
+   existing facade through its normal credential and first-publishes
+   `fathomdb-sdk@0.8.27` with the prepared API token. Register the SDK's
+   trusted publisher after that first publication. T7, PyPI, npm,
+   registry-visibility wait, post-publish smokes, co-tagging check, npm
+   `latest` promotion and GitHub Release run according to their existing
+   workflow dependencies. Do not tag until the first-publish path is wired
+   and reviewed. Partial-publish recovery follows the idempotency contract in
+   `dev/design/release.md`; a skipped tier is never recorded as published.
+3. **Tegra Pages:** while the remote release branch still points at `C` and
+   current `main` remains its ancestor, dispatch
+   `jetson-tegra-cuda-evidence.yml` on `release/0.8.27` with
+   `candidate_sha=C`, `candidate_version=0.8.27` and
+   `publish_to_pages=true`. Its hosted verifier checks the deployed bytes and
+   its `post-publish-smoke-jetson` job
+   runs AC27-117F (moved here from Slice 117): install `fathomdb@0.8.27` from
+   npm and the tarball from its Pages URL,
+   check its SHA-256, and repeat the forced-CUDA, witness and heap-growth rows;
+   then
+   install `fathomdb==0.8.27+tegra` from the Pages index and repeat its smoke.
+   Add both artifacts to `scripts/release/tegra-pages-retained.json` with
+   their digests.
+4. **Docs Pages:** after committing the newly published Tegra artifacts and
+   their digests to the retained manifest on `main`, record a passing
+   `docs-pages.yml` run, including its live verification job. That run
+   retires `main`'s dead `0.8.24+tegra` pin (404, owner-checked 2026-10-10)
+   because the retained list names only published artifacts and every
+   deployer verifies each one from its public URL.
+5. **Close:** record the `published` block in
+   `dev/plans/release-state-0.8.27.json` with the tag object, tag commit, each
+   run ID and every proof above. A missing or skipped proof leaves the release
+   INCOMPLETE; green CI alone does not close Slice 160.
 
 ## Structural slice cadence
 
@@ -1410,19 +1535,17 @@ Slices 40–130 use this cadence:
 2. Add missing characterization coverage and prove it non-vacuous through
    temporary defect injection.
 3. Make one mechanical move.
-4. Run focused tests, the surface comparator, and the hidden-surface and
-   test-inventory comparison against the current hidden baseline.
+4. Run focused tests and the public surface comparator. During Slices 40–150,
+   also run the temporary hidden-surface and test-inventory comparison; its
+   final digests are in the hidden-surface status, and Slice 150 retired it.
 5. Refactor inside the new boundary, adding RED tests for new logic.
 6. Run `agent-verify` and full workspace checks before closing the slice.
 7. Preserve exact evidence and exclude unrelated cleanup.
 
-The hidden-surface and test-inventory comparison is
-`python3 dev/tools/hidden_surface.py compare`, run on a fresh capture of the
-slice head against the `baseline-<sha>.json` under
-`dev/plans/0.8.27/features/hidden-surface/` whose capture commit is the most
-recent ancestor of `HEAD`. An unexpected hidden-surface difference blocks the
-batch. An intended one is recorded as a successor `baseline-<sha>.json`
-beside a reviewed `baseline-<sha>-diff.md`; no baseline file is rewritten.
+The temporary hidden comparison ran against each slice's reviewed successor
+baseline through Slice 150. Its tool and baselines are retained in Git
+history; the final capture and comparison hashes are in
+[hidden-surface status](0.8.27/features/hidden-surface/status.md).
 
 Test-inventory policy: a removed or newly ignored test, or a test target that
 no longer builds, blocks the batch unless the slice status names it with its

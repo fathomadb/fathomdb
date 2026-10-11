@@ -7,6 +7,7 @@ use crate::frozen_read::{self, FrozenReadContextV1, FrozenReadError};
 use crate::pagination::{self, PageErrorReason, PageRequestV1, PageV1};
 use crate::reader_transaction::begin_attributed_reader_tx;
 use crate::temporal::ReadView;
+#[cfg(any(test, feature = "test-hooks"))]
 use crate::test_hooks::frozen_after_validation_hook;
 use crate::wal_attribution::WalAttributionCollector;
 use rusqlite::{params, Connection, OptionalExtension};
@@ -292,6 +293,7 @@ pub(crate) fn read_canonical_page_in_tx(
         page,
     )?;
     frozen_read::validate_snapshot(&tx, &binding)?;
+    #[cfg(any(test, feature = "test-hooks"))]
     frozen_after_validation_hook::fire();
     validate_filter_attributes_on_snapshot(&tx, &frozen.context.eligibility)
         .map_err(page_filter_error)?;
@@ -432,6 +434,7 @@ pub(crate) fn read_operational_state_in_tx(
     if let Some(frozen) = frozen {
         let binding = frozen_read::authenticate(&tx, frozen)?;
         frozen_read::validate_snapshot(&tx, &binding)?;
+        #[cfg(any(test, feature = "test-hooks"))]
         frozen_after_validation_hook::fire();
         validate_operational_context(frozen)?;
     }
@@ -471,6 +474,7 @@ pub(crate) fn read_operational_state_page_in_tx(
         page,
     )?;
     frozen_read::validate_snapshot(&tx, &binding)?;
+    #[cfg(any(test, feature = "test-hooks"))]
     frozen_after_validation_hook::fire();
     validate_operational_context(frozen)?;
     validate_operational_collection(&tx, collection)?;

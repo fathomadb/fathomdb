@@ -502,6 +502,7 @@ pub(crate) fn graph_expand_incident_query(
     }
 }
 
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) fn explain_graph_expand_incident_query(
     connection: &Connection,
     query: &GraphExpandIncidentQuery,

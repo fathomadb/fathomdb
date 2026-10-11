@@ -216,6 +216,7 @@ impl Engine {
     /// projection-commit pin transaction since the last drain. Production
     /// callers consume these via `OpenReport.embedder_events`; this seam
     /// exists so the EU-5b RED test can observe the live emission.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn drain_mean_centering_events_for_test(&self) -> Result<Vec<EmbedderEvent>, EngineError> {
         self.ensure_open()?;

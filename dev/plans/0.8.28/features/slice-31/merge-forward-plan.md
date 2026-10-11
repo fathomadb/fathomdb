@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 to 0.8.28 merge-forward plan
-status: ADVERSARIALLY REVIEWED (gpt-6.1-sol high; FIX-1 and FIX-2 closed); merge held for owner approval
+status: APPROVED FOR MERGE (owner, 2026-10-11); adversarial plan review FIX-1 and FIX-2 closed; scoped execution record below
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -10,8 +10,8 @@ observed_on: 2026-10-11
 ## Boundary and evidence
 
 This is the execution plan for Slice 31 W0 step 2, separate from the cudarc
-fork implementation. Stop after planning and review; **do not start the merge
-without the owner's next approval**. During the merge, do not write to
+fork implementation. The owner approved beginning the merge on 2026-10-11.
+During the merge, do not write to
 `release/0.8.27`, publish, tag, install drivers/toolkits, or run the full
 workspace test/verify gates. Focused checks below establish a reviewed merge
 candidate, **not** a full-workspace or release green claim. Slice 31's later
@@ -146,5 +146,36 @@ either actual targeted receipts or plainly marked pending; and no source
 claim calls a scoped pass a full release gate. The prior Slice 30 Orin
 qualification was on the pre-forward branch, so it cannot certify the merged
 Node addon. Slice 31's later T-ORIN, qualification, independent code review
-and full gate remain required by its own plan. Stop this task before step 2
-until the owner approves beginning the merge.
+and full gate remain required by its own plan.
+
+## Execution record (2026-10-11)
+
+- Merge parents: target plan commit `91e190a6531c87b9d99f25c52269110ee48a6324`;
+  source `c82faa95d4e3dc19fe4e8da753ec6576ebcc458c`. The source worktree
+  was clean and matched the recorded `origin/release/0.8.27` ref. GitHub DNS
+  was unavailable, so a fresh remote-head check could not run.
+- Resolution: preserve axis-W `0.8.27` and axis-E `0.7.0`; keep the vendored
+  SQLite patch, Candle pin and pool code. Give the Tegra Node addon its own
+  `tegra-pool` tuple, preserve ordinary provider fallback and typed pool
+  errors, carry both sets of ledger updates, and remove the duplicate D28-13
+  plan. Review the merged ADR, interface and public docs against those choices.
+- Focused checks: production engine builds without test hooks and with the
+  default embedder/reranker; changed Rust bindings and SDKs build; 14 Slice 30
+  CUDA-kind and three Slice 135 fail-closed unit tests pass. CUDA release
+  contract RED then GREEN, Node package/Pages contracts, generated docs,
+  all eight focused generator tests, ledger integrity, version axes, pinned
+  overrides, Markdown/docs, Rust fmt, TypeScript typecheck and Tegra platform
+  selection pass. The Windows WAL attribution guard passed 343 checks,
+  including mutation checks for the close boundary. This is not a full
+  workspace test or release gate.
+- Adversarial review found and closed two contract gaps: the generator test's
+  stale 0.8.27 source-link expectation and the Rust SDK CLS table's omission
+  of typed CUDA pool errors. The reviewer found no remaining production merge
+  blocker across the Windows WAL, provider fallback, and pool overlaps.
+- Environment limits: this worktree has no checkout-owned Python `.venv` or
+  native extension, so Python native unit tests were not run. A source/stub
+  boundary check passed without importing that extension. Windows WAL CI
+  source guards passed, but Windows runtime and Orin installed-artifact pool
+  behavior remain unmeasured on this Linux host. Node 26 ran TypeScript checks
+  although the package declares Node 25; that is a type and pure-selection
+  signal, not a supported-runtime qualification.

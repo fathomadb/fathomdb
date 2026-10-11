@@ -1,0 +1,2009 @@
+{
+  "schema_version": "fathomdb.slice135-python-capabilities/v1",
+  "status": "INTERIM_INSTALLED_WHEEL_CAPABILITY_EXERCISE",
+  "finished_utc": "2026-10-07T19:25:45.498331+00:00",
+  "product_source_sha": "87d8659f18260a19b9f2932f412a42f50f71a692",
+  "product_rust_tree": "302aabd3b5c843ad7d25006a5ef48ebdb2659656",
+  "cargo_lock_sha256": "9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe",
+  "runner_sha256": "c6bfb1363fe87830046207d07e786d1427dc0f5389e89385840f5a3ae020731f",
+  "operation_map_sha256": "da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17",
+  "artifact": {
+    "wheel": "/tmp/slice135-capability-wheel-87d8659/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl",
+    "wheel_sha256": "83b6c184fff27696dce329d5c2ae40e89290c86c3687e762488366c8a22ad34a",
+    "native": "/tmp/slice135-capability-venv-87d8659/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+    "native_sha256": "c3405f3e7b37a42a1d677668ce4894ea5de9cc49a0a4bef47f879eb699f802cb",
+    "module": "/tmp/slice135-capability-venv-87d8659/lib/python3.12/site-packages/fathomdb/__init__.py",
+    "verified_members": [
+      "fathomdb/__init__.py",
+      "fathomdb/_coinstall.py",
+      "fathomdb/_fathomdb.abi3.so",
+      "fathomdb/_fathomdb.pyi",
+      "fathomdb/_sdk_evidence.py",
+      "fathomdb/_sdk_graph.py",
+      "fathomdb/_sdk_instrumentation.py",
+      "fathomdb/_sdk_open.py",
+      "fathomdb/_sdk_projection.py",
+      "fathomdb/_sdk_search.py",
+      "fathomdb/_sdk_write.py",
+      "fathomdb/admin.py",
+      "fathomdb/config.py",
+      "fathomdb/engine.py",
+      "fathomdb/errors.py",
+      "fathomdb/filter.py",
+      "fathomdb/graph.py",
+      "fathomdb/read.py",
+      "fathomdb/types.py"
+    ],
+    "distribution_version": "0.8.26",
+    "direct_url": {
+      "archive_info": {
+        "hash": "sha256=83b6c184fff27696dce329d5c2ae40e89290c86c3687e762488366c8a22ad34a",
+        "hashes": {
+          "sha256": "83b6c184fff27696dce329d5c2ae40e89290c86c3687e762488366c8a22ad34a"
+        }
+      },
+      "url": "file:///tmp/slice135-capability-wheel-87d8659/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl"
+    },
+    "python_executable": "/tmp/slice135-capability-venv-87d8659/bin/python",
+    "python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39"
+  },
+  "counts": {
+    "supported": 44,
+    "executed": 28,
+    "failed": 13,
+    "unavailable": 3,
+    "gap": 0,
+    "unexecuted": 3
+  },
+  "operations": {
+    "engine.open": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "admin.configure": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.write": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.actuate": {
+      "status": "executed",
+      "positive": {
+        "case": "actuation"
+      },
+      "negative": {
+        "case": "actuation_error"
+      },
+      "reopen": {
+        "case": "actuation",
+        "checks": [
+          {
+            "canonical_operational_sha256": "506706d2903217cfedd50892f8a099cc5f067047e4db9c382986d36bab03b036",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 1,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 1,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.register_source_dependency": {
+      "status": "executed",
+      "positive": {
+        "case": "dependency"
+      },
+      "negative": {
+        "case": "dependency_errors"
+      },
+      "reopen": {
+        "case": "dependency",
+        "checks": [
+          {
+            "canonical_operational_sha256": "5bf396dd50de3ae9346f504056f6b5d4b4be4643650f3c8b2d45cddc5179f058",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.dependencies_for_source": {
+      "status": "executed",
+      "positive": {
+        "case": "dependency"
+      },
+      "negative": {
+        "case": "dependency_errors"
+      },
+      "reopen": {
+        "case": "dependency",
+        "checks": [
+          {
+            "canonical_operational_sha256": "5bf396dd50de3ae9346f504056f6b5d4b4be4643650f3c8b2d45cddc5179f058",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.dependency_for_derived": {
+      "status": "executed",
+      "positive": {
+        "case": "dependency"
+      },
+      "negative": {
+        "case": "dependency_errors"
+      },
+      "reopen": {
+        "case": "dependency",
+        "checks": [
+          {
+            "canonical_operational_sha256": "5bf396dd50de3ae9346f504056f6b5d4b4be4643650f3c8b2d45cddc5179f058",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.read_dependency_closure": {
+      "status": "executed",
+      "positive": {
+        "case": "closure"
+      },
+      "negative": {
+        "case": "closure"
+      },
+      "reopen": {
+        "case": "closure",
+        "checks": [
+          {
+            "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.transition": {
+      "status": "executed",
+      "positive": {
+        "case": "lifecycle"
+      },
+      "negative": {
+        "case": "lifecycle_error"
+      },
+      "reopen": {
+        "case": "lifecycle",
+        "checks": [
+          {
+            "canonical_operational_sha256": "ed950b48dc4a7d10f46cbadfc0902d36248ef53c447e3de7412fc6bc566b176d",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.purge": {
+      "status": "executed",
+      "positive": {
+        "case": "purge"
+      },
+      "negative": {
+        "case": "purge"
+      },
+      "reopen": {
+        "case": "purge",
+        "checks": [
+          {
+            "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.erase_source": {
+      "status": "executed",
+      "positive": {
+        "case": "erasure"
+      },
+      "negative": {
+        "case": "erasure"
+      },
+      "reopen": {
+        "case": "erasure",
+        "checks": [
+          {
+            "canonical_operational_sha256": "a6e951b13560a3a25467542a31af4fdf32e8c35a7e78c755927cf93d243319e8",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 2,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.search": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.freeze_read_context": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.search_frozen": {
+      "status": "executed",
+      "positive": {
+        "case": "frozen"
+      },
+      "negative": {
+        "case": "frozen_error"
+      },
+      "reopen": {
+        "case": "frozen",
+        "checks": [
+          {
+            "canonical_operational_sha256": "c92ced5c866e6612022d1e92dfa8441c7ac87e5232181bed1a091afa15682c07",
+            "table_counts": {
+              "canonical_attributes": 2,
+              "canonical_edges": 0,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.search_expand_frozen": {
+      "status": "executed",
+      "positive": {
+        "case": "frozen_expand"
+      },
+      "negative": {
+        "case": "frozen_error"
+      },
+      "reopen": {
+        "case": "frozen_expand",
+        "checks": [
+          {
+            "canonical_operational_sha256": "57c7e4c18b53bcc455bcb3be504ebe2d7c9926407db073989bc50ef161a9fb6b",
+            "table_counts": {
+              "canonical_attributes": 1,
+              "canonical_edges": 0,
+              "canonical_nodes": 1,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 1,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.search_text_only": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.search_projected_text": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.search_with_evidence": {
+      "status": "executed",
+      "positive": {
+        "case": "evidence"
+      },
+      "negative": {
+        "case": "evidence_error"
+      },
+      "reopen": {
+        "case": "evidence",
+        "checks": [
+          {
+            "canonical_operational_sha256": "5c1b16d2439fa26418315073dc95678ea10ad2930201ee65ea2a2d728fabe2c1",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.resolve_evidence": {
+      "status": "executed",
+      "positive": {
+        "case": "evidence"
+      },
+      "negative": {
+        "case": "evidence_refusals"
+      },
+      "reopen": {
+        "case": "evidence",
+        "checks": [
+          {
+            "canonical_operational_sha256": "5c1b16d2439fa26418315073dc95678ea10ad2930201ee65ea2a2d728fabe2c1",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.resolve_graph_evidence": {
+      "status": "executed",
+      "positive": {
+        "case": "graph_evidence"
+      },
+      "negative": {
+        "case": "evidence_refusals"
+      },
+      "reopen": {
+        "case": "graph_evidence",
+        "checks": [
+          {
+            "canonical_operational_sha256": "1f471aaa21f36eb9b34b035751960d8c8f9c58327584d748d38a1724f198a5cf",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 1,
+              "canonical_nodes": 3,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 3,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.trace_dependency": {
+      "status": "executed",
+      "positive": {
+        "case": "trace"
+      },
+      "negative": {
+        "case": "trace"
+      },
+      "reopen": {
+        "case": "trace",
+        "checks": [
+          {
+            "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 1,
+              "canonical_nodes": 3,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 3,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.close": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.get": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.get_many": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.collection": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.mutations": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.list": {
+      "status": "executed",
+      "positive": {
+        "case": "list"
+      },
+      "negative": {
+        "case": "list_error"
+      },
+      "reopen": {
+        "case": "list",
+        "checks": [
+          {
+            "canonical_operational_sha256": "d9f03b2d72f1af94e356a23c406edbad2b859a12d85d837fec8bad75be47ea77",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 3,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 3,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "graph.expand": {
+      "status": "executed",
+      "positive": {
+        "case": "graph_evidence"
+      },
+      "negative": {
+        "case": "graph_refusals"
+      },
+      "reopen": {
+        "case": "graph_evidence",
+        "checks": [
+          {
+            "canonical_operational_sha256": "1f471aaa21f36eb9b34b035751960d8c8f9c58327584d748d38a1724f198a5cf",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 1,
+              "canonical_nodes": 3,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 3,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "graph.neighbors": {
+      "status": "executed",
+      "positive": {
+        "case": "neighbors"
+      },
+      "negative": {
+        "case": "neighbors_error"
+      },
+      "reopen": {
+        "case": "neighbors",
+        "checks": [
+          {
+            "canonical_operational_sha256": "c51ebee5f3efd99be3f572f63beef4a5c39cadeb49d489e81406ed69d31f0bf8",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 3,
+              "canonical_nodes": 4,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 4,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "graph.search_expand": {
+      "status": "executed",
+      "positive": {
+        "case": "graph_search"
+      },
+      "negative": {
+        "case": "graph_refusals"
+      },
+      "reopen": {
+        "case": "graph_search",
+        "checks": [
+          {
+            "canonical_operational_sha256": "00ea529871d68e241523e0ef4623fdd79955e09dd3ac9b159d5eea772cda4ce7",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 1,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.embed": {
+      "status": "executed",
+      "positive": {
+        "case": "embed"
+      },
+      "negative": {
+        "case": "embed_error"
+      },
+      "reopen": {
+        "case": "embed",
+        "checks": [
+          {
+            "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.crossed_boundary_since": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.configure_projections": {
+      "status": "executed",
+      "positive": {
+        "case": "projection"
+      },
+      "negative": {
+        "case": "projection_error"
+      },
+      "reopen": {
+        "case": "projection",
+        "checks": [
+          {
+            "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.projections": {
+      "status": "executed",
+      "positive": {
+        "case": "projection"
+      },
+      "negative": {
+        "case": "closed_reads"
+      },
+      "reopen": {
+        "case": "projection",
+        "checks": [
+          {
+            "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.projection_status": {
+      "status": "executed",
+      "positive": {
+        "case": "projection_status"
+      },
+      "negative": {
+        "case": "closed_reads"
+      },
+      "reopen": {
+        "case": "projection_status",
+        "checks": [
+          {
+            "canonical_operational_sha256": "8a9220489b8aa497d167b734ce490eb535a040262aa2a8268e64e481a9739fe9",
+            "table_counts": {
+              "canonical_attributes": 8,
+              "canonical_edges": 0,
+              "canonical_nodes": 4,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 4,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.embedding_readiness": {
+      "status": "executed",
+      "positive": {
+        "case": "readiness"
+      },
+      "negative": {
+        "case": "closed_reads"
+      },
+      "reopen": {
+        "case": "readiness",
+        "checks": [
+          {
+            "canonical_operational_sha256": "1cc6c29936f81331f17f1e623f5d3838ba7be47ad2de262164992032e845b7e8",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 1,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.projection_generation_status": {
+      "status": "executed",
+      "positive": {
+        "case": "generation"
+      },
+      "negative": {
+        "case": "closed_reads"
+      },
+      "reopen": {
+        "case": "generation",
+        "checks": [
+          {
+            "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.mutation_projection_status": {
+      "status": "executed",
+      "positive": {
+        "case": "mutation_status"
+      },
+      "negative": {
+        "case": "projection_status_error"
+      },
+      "reopen": {
+        "case": "mutation_status",
+        "checks": [
+          {
+            "canonical_operational_sha256": "4d84686fde9fdb9c58b0bc65601586140cd4b93d9b09c4474657bc3df3b53406",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.canonical_page": {
+      "status": "executed",
+      "positive": {
+        "case": "pages"
+      },
+      "negative": {
+        "case": "pages_error"
+      },
+      "reopen": {
+        "case": "pages",
+        "checks": [
+          {
+            "canonical_operational_sha256": "8c598f3a16599d4224f4080ad2aed56afdaceed0d20d673c4b0fe2dc8e7302b5",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 3,
+              "operational_collections": 2,
+              "operational_mutations": 0,
+              "operational_state": 3
+            },
+            "active_bodies_checked": 3,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.operational_state": {
+      "status": "executed",
+      "positive": {
+        "case": "pages"
+      },
+      "negative": {
+        "case": "operational_errors"
+      },
+      "reopen": {
+        "case": "pages",
+        "checks": [
+          {
+            "canonical_operational_sha256": "8c598f3a16599d4224f4080ad2aed56afdaceed0d20d673c4b0fe2dc8e7302b5",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 3,
+              "operational_collections": 2,
+              "operational_mutations": 0,
+              "operational_state": 3
+            },
+            "active_bodies_checked": 3,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.operational_state_page": {
+      "status": "executed",
+      "positive": {
+        "case": "pages"
+      },
+      "negative": {
+        "case": "operational_errors"
+      },
+      "reopen": {
+        "case": "pages",
+        "checks": [
+          {
+            "canonical_operational_sha256": "8c598f3a16599d4224f4080ad2aed56afdaceed0d20d673c4b0fe2dc8e7302b5",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 3,
+              "operational_collections": 2,
+              "operational_mutations": 0,
+              "operational_state": 3
+            },
+            "active_bodies_checked": 3,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.ingest_with_extractor": {
+      "status": "unavailable",
+      "boundary": "provider",
+      "reason": "No independently qualified extraction provider/command or credentials supplied; fake provider output is not a provider qualification.",
+      "owner": "Slice 135 provider exercise"
+    },
+    "engine.consolidate_with_provider": {
+      "status": "unavailable",
+      "boundary": "provider",
+      "reason": "No independently qualified consolidation provider/command or credentials supplied; deterministic fabricated LLM output would not qualify real-provider behavior.",
+      "owner": "Slice 135 provider exercise"
+    },
+    "rerank": {
+      "status": "unavailable",
+      "boundary": "standalone_model",
+      "reason": "Standalone cross-encoder model identity and offline availability are not qualified by this wheel exercise; no database boundary exists.",
+      "owner": "Slice 135 standalone reranker qualification"
+    }
+  },
+  "cases": {
+    "actuation": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice25_actuation.py::test_actuation_round_trip_replay_and_decimal_boundaries",
+      "test_sha256": "f58102dc1694bd14b894928240242932f0ad0d47b3045ffd8acc833a85d6165d",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "506706d2903217cfedd50892f8a099cc5f067047e4db9c382986d36bab03b036",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 1,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 1,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "actuation_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice25_actuation.py::test_actuation_rejects_unknown_top_level_field_before_engine_call",
+      "test_sha256": "f58102dc1694bd14b894928240242932f0ad0d47b3045ffd8acc833a85d6165d",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "admin": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_retrieve.py::test_admin_configure_path_exercised",
+      "test_sha256": "aaa9ed413b834d4a4cf179769233637097268afb91f1e275363067e34f1717b7",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "a9c52f9bd0216ebef4feace2bfe4746874985fe258a7ff63004997a497e4b155",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 2,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "boundary": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice15b_node_validity_write.py::test_crossed_boundary_since_works_on_authored_windows",
+      "test_sha256": "4636f9bd354ca70580243d1521faf9a23d1dad2847c6cdca8e406d7eaa7f22e8",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "61ddf70d3864c4686cbeba5cd7d1ace53b134f7aa0d23cdb446ab078f83b4326",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 5,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 5,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "boundary_errors": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 123, in refusal\n    call()\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 248, in <lambda>\n    observed[\"engine.freeze_read_context\"] = refusal(lambda: engine.freeze_read_context(f.ReadContextV1(schema_version=2)), f.errors.FrozenReadError, reason=\"unsupported_schema_version\")\n                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/slice135-capability-venv-87d8659/lib/python3.12/site-packages/fathomdb/engine.py\", line 362, in freeze_read_context\n    return _sdk_search.freeze_read_context(self, context)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/slice135-capability-venv-87d8659/lib/python3.12/site-packages/fathomdb/_sdk_search.py\", line 490, in freeze_read_context\n    native = self._native.freeze_read_context(_to_native_read_context(context))\n                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/slice135-capability-venv-87d8659/lib/python3.12/site-packages/fathomdb/_sdk_search.py\", line 78, in _to_native_read_context\n    return _NativeReadContextV1(\n           ^^^^^^^^^^^^^^^^^^^^^\n_fathomdb.FrozenReadError: unsupported_schema_version at /schemaVersion\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 328, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 248, in _extra_case\n    observed[\"engine.freeze_read_context\"] = refusal(lambda: engine.freeze_read_context(f.ReadContextV1(schema_version=2)), f.errors.FrozenReadError, reason=\"unsupported_schema_version\")\n                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 126, in refusal\n    raise AssertionError(\"refusal reason differs\") from error\nAssertionError: refusal reason differs\n",
+      "output": ""
+    },
+    "closed_reads": {
+      "status": "passed",
+      "assertions": {
+        "read.projections": {
+          "type": "ClosingError",
+          "reason": null,
+          "field_path": null,
+          "message": "engine is closing"
+        },
+        "read.projection_status": {
+          "type": "ClosingError",
+          "reason": null,
+          "field_path": null,
+          "message": "engine is closing"
+        },
+        "read.embedding_readiness": {
+          "type": "ClosingError",
+          "reason": null,
+          "field_path": null,
+          "message": "engine is closing"
+        },
+        "read.projection_generation_status": {
+          "type": "ClosingError",
+          "reason": null,
+          "field_path": null,
+          "message": "engine is closing"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "closure": {
+      "status": "passed",
+      "assertions": {
+        "engine.read_dependency_closure": {
+          "absent_closure": null,
+          "refusal": {
+            "type": "DependencyClosureError",
+            "reason": "unsupported_schema_version",
+            "field_path": "/schemaVersion",
+            "message": "dependency closure unsupported_schema_version at /schemaVersion"
+          },
+          "scope": "absence only; existing committed-closure result remains a contract gap"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "dependency": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice20_source_dependencies.py::test_dependency_round_trip_and_decimal_generation",
+      "test_sha256": "85cfb9bc06497ecbcfea1a108c339621f847cfac246b7905422068fd1ff9ba1c",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "5bf396dd50de3ae9346f504056f6b5d4b4be4643650f3c8b2d45cddc5179f058",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 2,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 2,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "dependency_errors": {
+      "status": "passed",
+      "assertions": {
+        "engine.register_source_dependency": {
+          "type": "DependencyError",
+          "reason": "unsupported_schema_version",
+          "field_path": "/schemaVersion",
+          "message": "dependency unsupported_schema_version at /schemaVersion"
+        },
+        "engine.dependencies_for_source": {
+          "type": "DependencyError",
+          "reason": "unsupported_schema_version",
+          "field_path": "/schemaVersion",
+          "message": "dependency unsupported_schema_version at /schemaVersion"
+        },
+        "engine.dependency_for_derived": {
+          "type": "DependencyError",
+          "reason": "unsupported_schema_version",
+          "field_path": "/schemaVersion",
+          "message": "dependency unsupported_schema_version at /schemaVersion"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "embed": {
+      "status": "passed",
+      "test": "src/python/tests/test_embed.py::test_embed_returns_fixed_dim_float_vector",
+      "test_sha256": "09f2a93740f59a4f7b9b2e8e0db9ed8e88a52b857bd7442c39efebf46b9b988d",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "embed_determinism": {
+      "status": "passed",
+      "test": "src/python/tests/test_embed.py::test_embed_is_deterministic",
+      "test_sha256": "09f2a93740f59a4f7b9b2e8e0db9ed8e88a52b857bd7442c39efebf46b9b988d",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "embed_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_embed.py::test_embed_without_embedder_raises",
+      "test_sha256": "09f2a93740f59a4f7b9b2e8e0db9ed8e88a52b857bd7442c39efebf46b9b988d",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "erasure": {
+      "status": "passed",
+      "assertions": {
+        "engine.erase_source": {
+          "nodes_excised": 3,
+          "edges_excised": 1,
+          "retry_counts": [
+            0,
+            0
+          ],
+          "refusal": {
+            "type": "WriteValidationError",
+            "reason": null,
+            "field_path": null,
+            "message": "write validation error"
+          }
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "a6e951b13560a3a25467542a31af4fdf32e8c35a7e78c755927cf93d243319e8",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 2,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "evidence": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice50_evidence.py::test_search_and_resolve_exact_source_evidence",
+      "test_sha256": "94ed485fcccfd056035ff577dee96a5f32d1211817589ae38ccbc1fc25e38a63",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "5c1b16d2439fa26418315073dc95678ea10ad2930201ee65ea2a2d728fabe2c1",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 2,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 2,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "evidence_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice50_evidence.py::test_unsupported_evidence_schema_is_typed",
+      "test_sha256": "94ed485fcccfd056035ff577dee96a5f32d1211817589ae38ccbc1fc25e38a63",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "evidence_refusals": {
+      "status": "passed",
+      "assertions": {
+        "engine.resolve_evidence": {
+          "type": "EvidenceError",
+          "reason": "evidence_unavailable",
+          "field_path": "/evidenceRef",
+          "message": "evidence_unavailable at /evidenceRef"
+        },
+        "engine.resolve_graph_evidence": {
+          "type": "EvidenceError",
+          "reason": "evidence_unavailable",
+          "field_path": "/evidenceRef",
+          "message": "evidence_unavailable at /evidenceRef"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "frozen": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice35_frozen_read.py::test_frozen_search_preserves_context_and_filters_before_ranking",
+      "test_sha256": "dc3f40c61ae8dba64ffb5d5626bed71e2f39f54a0c24a206ca45ef5de39049a1",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "c92ced5c866e6612022d1e92dfa8441c7ac87e5232181bed1a091afa15682c07",
+          "table_counts": {
+            "canonical_attributes": 2,
+            "canonical_edges": 0,
+            "canonical_nodes": 2,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 2,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "frozen_drift": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice35_frozen_read.py::test_frozen_context_rejects_state_drift",
+      "test_sha256": "dc3f40c61ae8dba64ffb5d5626bed71e2f39f54a0c24a206ca45ef5de39049a1",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "cc864f721839081f61cc09b24608b1430b794cebe79af6df8117ba2f36a1b4b9",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 2,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 2,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "frozen_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice35_frozen_read.py::test_frozen_authentication_precedes_query_and_range_validation",
+      "test_sha256": "dc3f40c61ae8dba64ffb5d5626bed71e2f39f54a0c24a206ca45ef5de39049a1",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "frozen_expand": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice35_frozen_read.py::test_frozen_search_expand_uses_the_same_context",
+      "test_sha256": "dc3f40c61ae8dba64ffb5d5626bed71e2f39f54a0c24a206ca45ef5de39049a1",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "57c7e4c18b53bcc455bcb3be504ebe2d7c9926407db073989bc50ef161a9fb6b",
+          "table_counts": {
+            "canonical_attributes": 1,
+            "canonical_edges": 0,
+            "canonical_nodes": 1,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 1,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "generation": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice40_projection_generation.py::test_fresh_generation_status_is_typed_and_stable",
+      "test_sha256": "a4ff6878497d0fd1df462db0623e6dbbd795694e4621edd5bf85e161f7c1b63a",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "graph_evidence": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice20_graph_evidence.py::test_real_engine_resolves_exact_target_and_terminal_edge",
+      "test_sha256": "9459eab60ed07052c84830061627c67013607591adc88e9927b672a7264ce497",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "1f471aaa21f36eb9b34b035751960d8c8f9c58327584d748d38a1724f198a5cf",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "graph_refusals": {
+      "status": "passed",
+      "assertions": {
+        "graph.search_expand": {
+          "type": "InvalidArgumentError",
+          "reason": null,
+          "field_path": null,
+          "message": "traversal depth 4 exceeds the SDK ceiling of 3"
+        },
+        "graph.expand": {
+          "type": "GraphExpansionError",
+          "reason": "unsupported_schema_version",
+          "field_path": "/schemaVersion",
+          "message": "unsupported_schema_version at /schemaVersion"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "graph_search": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_graph.py::test_search_expand_expanded_contains_neighbor",
+      "test_sha256": "5ae2f237c3269747c46b326b259e78c53f2733a7d3755b0a98a5cd02adb18c59",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "00ea529871d68e241523e0ef4623fdd79955e09dd3ac9b159d5eea772cda4ce7",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 2,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 2,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "lifecycle": {
+      "status": "passed",
+      "test": "src/python/tests/test_opp12_lifecycle_verbs.py::test_legal_transitions_and_reason_semantics",
+      "test_sha256": "af809e27d7b37645faa563728e82a685e1bbca72dc1abfc2baa67fda30c2c500",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "ed950b48dc4a7d10f46cbadfc0902d36248ef53c447e3de7412fc6bc566b176d",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 2,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 2,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "lifecycle_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_opp12_lifecycle_verbs.py::test_illegal_transition_is_typed_with_fields",
+      "test_sha256": "af809e27d7b37645faa563728e82a685e1bbca72dc1abfc2baa67fda30c2c500",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "147615e83266322f34fa066ae0e4bd8353de202fc4ea38b15c9c7989a24f9802",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 1,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 1,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "list": {
+      "status": "passed",
+      "test": "src/python/tests/test_read_list.py::test_read_list_and_composition",
+      "test_sha256": "d89fc75e6275b718c2d8acc5d9d4be6e607d6541449123a06bc207ce0e0dbff1",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "d9f03b2d72f1af94e356a23c406edbad2b859a12d85d837fec8bad75be47ea77",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "list_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_read_list.py::test_read_list_non_allowlisted_path_raises_invalid_filter",
+      "test_sha256": "d89fc75e6275b718c2d8acc5d9d4be6e607d6541449123a06bc207ce0e0dbff1",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "d9f03b2d72f1af94e356a23c406edbad2b859a12d85d837fec8bad75be47ea77",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "log": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_retrieve.py::test_read_collection_and_mutations_honor_cursor_and_limit",
+      "test_sha256": "aaa9ed413b834d4a4cf179769233637097268afb91f1e275363067e34f1717b7",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "356e18aeb2aeb49a3d82425902854dcbe0f2f53adc15418d84f015b86d6b9eea",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 4,
+            "operational_collections": 2,
+            "operational_mutations": 5,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "many": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_retrieve.py::test_read_get_many_preserves_order_with_none",
+      "test_sha256": "aaa9ed413b834d4a4cf179769233637097268afb91f1e275363067e34f1717b7",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "356e18aeb2aeb49a3d82425902854dcbe0f2f53adc15418d84f015b86d6b9eea",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 4,
+            "operational_collections": 2,
+            "operational_mutations": 5,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "mutation_status": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice40_projection_generation.py::test_receipt_keyed_mutation_status_round_trips_through_python",
+      "test_sha256": "a4ff6878497d0fd1df462db0623e6dbbd795694e4621edd5bf85e161f7c1b63a",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "4d84686fde9fdb9c58b0bc65601586140cd4b93d9b09c4474657bc3df3b53406",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 2,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 2,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "neighbors": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_graph.py::test_graph_neighbors_depth1_outgoing",
+      "test_sha256": "5ae2f237c3269747c46b326b259e78c53f2733a7d3755b0a98a5cd02adb18c59",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "c51ebee5f3efd99be3f572f63beef4a5c39cadeb49d489e81406ed69d31f0bf8",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 3,
+            "canonical_nodes": 4,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 4,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "neighbors_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_graph.py::test_graph_neighbors_depth_gt3_raises_invalid_argument",
+      "test_sha256": "5ae2f237c3269747c46b326b259e78c53f2733a7d3755b0a98a5cd02adb18c59",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "8435af3c554148d67bbb7df06cc398a499d0471d1a5aa4afc39ea1e2c00b14d4",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 1,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 1,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "operational_errors": {
+      "status": "passed",
+      "assertions": {
+        "read.operational_state": {
+          "type": "PageError",
+          "reason": "collection_not_found",
+          "field_path": "/collection",
+          "message": "collection_not_found at /collection"
+        },
+        "read.operational_state_page": {
+          "type": "PageError",
+          "reason": "invalid_page_limit",
+          "field_path": "/limit",
+          "message": "invalid_page_limit at /limit"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "pages": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice45_pagination.py::test_canonical_and_operational_pages_share_frozen_authority",
+      "test_sha256": "3f046737971bbd9e8ada6b7b7ac447500fb05d0c54b94da84e6170bbeef3fbfd",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "8c598f3a16599d4224f4080ad2aed56afdaceed0d20d673c4b0fe2dc8e7302b5",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 3,
+            "operational_collections": 2,
+            "operational_mutations": 0,
+            "operational_state": 3
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "pages_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice45_pagination.py::test_page_request_refusals_retain_page_error_reason_and_path",
+      "test_sha256": "3f046737971bbd9e8ada6b7b7ac447500fb05d0c54b94da84e6170bbeef3fbfd",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "projected": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice45_nested_source_projections.py::test_nested_projection_type_collapsed_equality_and_projected_search",
+      "test_sha256": "9eb0c04d98c99fe4aff3369d6e4334a5cb94c782a4ede3d9a06db086e5f6d85d",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "029998b48bcd372bda3af6374fa30f74edac6e05b6fb07121729ab46cded43e3",
+          "table_counts": {
+            "canonical_attributes": 3,
+            "canonical_edges": 0,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "projection": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice15d_projection_registry.py::test_configure_and_read_projections_round_trip",
+      "test_sha256": "704f55a01dfe0354add0df1c582ab770e58e6bd170a2bb2189368dcbfeb79a32",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "projection_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice15d_projection_registry.py::test_destructive_change_requires_explicit_drop",
+      "test_sha256": "704f55a01dfe0354add0df1c582ab770e58e6bd170a2bb2189368dcbfeb79a32",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "da072040ac0962afdeb4246252b90d5c9415b37eaa19970b6b29a59a01d9bad5",
+          "table_counts": {
+            "canonical_attributes": 1,
+            "canonical_edges": 0,
+            "canonical_nodes": 1,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 1,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "projection_status": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice22_projection_status.py::test_projection_status_is_a_frozen_typed_current_read",
+      "test_sha256": "7858d1d5aa0a097a3da374fd60bcd7905c9584003396351e239c5e755af47131",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "8a9220489b8aa497d167b734ce490eb535a040262aa2a8268e64e481a9739fe9",
+          "table_counts": {
+            "canonical_attributes": 8,
+            "canonical_edges": 0,
+            "canonical_nodes": 4,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 4,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "projection_status_error": {
+      "status": "passed",
+      "assertions": {
+        "read.mutation_projection_status": {
+          "type": "ProjectionGenerationError",
+          "reason": "unsupported_schema_version",
+          "field_path": "/schemaVersion",
+          "message": "projection generation unsupported_schema_version at /schemaVersion"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "purge": {
+      "status": "passed",
+      "test": "src/python/tests/test_opp12_lifecycle_verbs.py::test_purge_requires_deleted_first_and_is_idempotent",
+      "test_sha256": "af809e27d7b37645faa563728e82a685e1bbca72dc1abfc2baa67fda30c2c500",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "readiness": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice30_embedding_readiness.py::test_embedding_readiness_and_immediate_error_are_typed_and_body_private",
+      "test_sha256": "d8622de66d5ddf62e83c469e1c1fe5f025a90141b96b9e1584ac4edbf9b7f943",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "1cc6c29936f81331f17f1e623f5d3838ba7be47ad2de262164992032e845b7e8",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "retrieve": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_retrieve.py::test_read_get_returns_active_node_by_id",
+      "test_sha256": "aaa9ed413b834d4a4cf179769233637097268afb91f1e275363067e34f1717b7",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "356e18aeb2aeb49a3d82425902854dcbe0f2f53adc15418d84f015b86d6b9eea",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 4,
+            "operational_collections": 2,
+            "operational_mutations": 5,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "search_text": {
+      "status": "passed",
+      "assertions": {
+        "engine.search_text_only": {
+          "ids": [
+            "s02-claim"
+          ],
+          "branches": [
+            "text"
+          ]
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "trace": {
+      "status": "passed",
+      "assertions": {
+        "engine.trace_dependency": {
+          "dependency_edges": [
+            "trace-dependency"
+          ],
+          "complete": true,
+          "refusal": {
+            "type": "DependencyTraceError",
+            "reason": "trace_limit_invalid",
+            "field_path": "/maxRelations",
+            "message": "trace_limit_invalid at /maxRelations"
+          }
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    }
+  },
+  "contract_gaps": [
+    "This is a selected operation exercise, not complete contract qualification.",
+    "read_dependency_closure exercises valid absence, not a stored committed closure.",
+    "Generic reopen checks compare canonical/operational SQLite rows and active SDK read bodies; they do not replay every original operation after restart.",
+    "No platform beyond this recorded Linux wheel, no provider success or standalone reranker, no concurrent/cancellation matrix.",
+    "Search positive cases exercise lexical and projected paths; qualified vector/hybrid S01 and S02 receipts remain separate."
+  ]
+}

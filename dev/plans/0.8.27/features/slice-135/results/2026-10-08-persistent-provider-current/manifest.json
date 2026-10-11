@@ -1,0 +1,61 @@
+{
+  "binary_sha256": "0957d1081a32550e61b0f2f681498d7cdd23ca85095383c89ef1aad9d6f165b1",
+  "cargo_lock_sha256": "9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe",
+  "cargo_toml_sha256": "e7365ed1abc2031160d3752f8215e83b27c868246dcdc4c5051b7a5d92f39580",
+  "command": [
+    "/usr/bin/time",
+    "-v",
+    "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/target/debug/deps/slice135_persistent_provider-e45c8dabc95ac5ae",
+    "--exact",
+    "persistent_provider_failure_stays_truthful_until_explicit_rebuild",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "features": [
+    "operator",
+    "test-hooks",
+    "default-embedder"
+  ],
+  "host": "windchill3",
+  "invalid_pilot": "run-01 used pre-rustfmt binary be9894d3 despite source claim; excluded",
+  "kernel": "7.0.0-38-generic",
+  "runs": [
+    {
+      "db_sha256": "b47d354570beeb0709c9d15d0e6c0681230ed103128e16d8a2c40339c662fc67",
+      "name": "measured-01",
+      "returncode": 0,
+      "stderr_sha256": "994facd68ed5231aef34123d84d4d51e4560e5801a03be1acb0d4dc92f807d4d",
+      "stdout_sha256": "e9fd50622a90e837afc0cf55d84a58380cd6a82c670f62daa792017138594ce8"
+    },
+    {
+      "db_sha256": "add510aba0b6ca0af17ad4ef205b7d613c5d0c4b6656aa531f572ece41f977e5",
+      "name": "measured-02",
+      "returncode": 0,
+      "stderr_sha256": "db237186edc1f3ae2a7cf53412184f281c84851ad43096e358c7cba4407aa9b5",
+      "stdout_sha256": "e9fd50622a90e837afc0cf55d84a58380cd6a82c670f62daa792017138594ce8"
+    },
+    {
+      "db_sha256": "4d6f681ea39f3f5ab12aa8f390872009da1a1429f9ac13fbec132527c91180ae",
+      "name": "measured-03",
+      "returncode": 0,
+      "stderr_sha256": "6fad7dcaff20c85806744cad1b686da37bfcdf8bd689b26b92e2b464519414ef",
+      "stdout_sha256": "e9fd50622a90e837afc0cf55d84a58380cd6a82c670f62daa792017138594ce8"
+    },
+    {
+      "db_sha256": "2d8fdb10690dab3903d112a964a9ea84de8dbf362d93586a5004264bad2b5eec",
+      "name": "measured-04",
+      "returncode": 0,
+      "stderr_sha256": "e265798cc2f21511d7ec4dacfc790a7294c363aa2147ea951dd5b5050d1af5c6",
+      "stdout_sha256": "e9fd50622a90e837afc0cf55d84a58380cd6a82c670f62daa792017138594ce8"
+    },
+    {
+      "db_sha256": "78fb453ba4aab356283d4637c0a98f45c0e42498c4835bb22433b2e6c452d35e",
+      "name": "measured-05",
+      "returncode": 0,
+      "stderr_sha256": "ed3c44ab533521a022f288b263ec79c8205c72fa9deccfac6a922a8dd5891f2e",
+      "stdout_sha256": "e9fd50622a90e837afc0cf55d84a58380cd6a82c670f62daa792017138594ce8"
+    }
+  ],
+  "source_sha": "6d7521cc7d606d5ebcebf25d8054178ad710dd3c",
+  "test_sha256": "f1fd062354182eae31dbb76f9a679a94347b20c51685305bd405c15ecdec968d"
+}

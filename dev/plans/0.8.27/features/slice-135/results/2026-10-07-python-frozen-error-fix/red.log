@@ -1,0 +1,120 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_unsupported_read_context_schema_retains_reason_and_path[native_constructor-0] _
+
+tmp_path = PosixPath('/tmp/pytest-of-coreyt/pytest-1222/test_unsupported_read_context_0')
+schema_version = 0, boundary = 'native_constructor'
+
+    @pytest.mark.parametrize("schema_version", [0, 2])
+    @pytest.mark.parametrize("boundary", ["native_constructor", "engine_freeze"])
+    def test_unsupported_read_context_schema_retains_reason_and_path(
+        tmp_path: Path, schema_version: int, boundary: str
+    ) -> None:
+        database = str(tmp_path / "frozen-refusal.sqlite")
+        engine = fathomdb.Engine.open(database, use_default_embedder=False)
+        try:
+            engine.write([{"kind": "doc", "body": "retained bytes", "logical_id": "retained", "source_id": "frozen-refusal"}])
+            with pytest.raises(fathomdb.FrozenReadError, match="unsupported_schema_version at /schemaVersion") as refused:
+                if boundary == "native_constructor":
+                    native.ReadContextV1(schema_version=schema_version)
+                else:
+                    engine.freeze_read_context(fathomdb.ReadContextV1(schema_version=schema_version))
+>           assert (refused.value.reason, refused.value.field_path) == (
+                "unsupported_schema_version", "/schemaVersion"
+            )
+E           AssertionError: assert (None, None) == ('unsupported...chemaVersion')
+E             
+E             At index 0 diff: None != 'unsupported_schema_version'
+E             Use -v to get more diff
+
+src/python/tests/test_slice135_frozen_context_error.py:25: AssertionError
+_ test_unsupported_read_context_schema_retains_reason_and_path[native_constructor-2] _
+
+tmp_path = PosixPath('/tmp/pytest-of-coreyt/pytest-1222/test_unsupported_read_context_1')
+schema_version = 2, boundary = 'native_constructor'
+
+    @pytest.mark.parametrize("schema_version", [0, 2])
+    @pytest.mark.parametrize("boundary", ["native_constructor", "engine_freeze"])
+    def test_unsupported_read_context_schema_retains_reason_and_path(
+        tmp_path: Path, schema_version: int, boundary: str
+    ) -> None:
+        database = str(tmp_path / "frozen-refusal.sqlite")
+        engine = fathomdb.Engine.open(database, use_default_embedder=False)
+        try:
+            engine.write([{"kind": "doc", "body": "retained bytes", "logical_id": "retained", "source_id": "frozen-refusal"}])
+            with pytest.raises(fathomdb.FrozenReadError, match="unsupported_schema_version at /schemaVersion") as refused:
+                if boundary == "native_constructor":
+                    native.ReadContextV1(schema_version=schema_version)
+                else:
+                    engine.freeze_read_context(fathomdb.ReadContextV1(schema_version=schema_version))
+>           assert (refused.value.reason, refused.value.field_path) == (
+                "unsupported_schema_version", "/schemaVersion"
+            )
+E           AssertionError: assert (None, None) == ('unsupported...chemaVersion')
+E             
+E             At index 0 diff: None != 'unsupported_schema_version'
+E             Use -v to get more diff
+
+src/python/tests/test_slice135_frozen_context_error.py:25: AssertionError
+_ test_unsupported_read_context_schema_retains_reason_and_path[engine_freeze-0] _
+
+tmp_path = PosixPath('/tmp/pytest-of-coreyt/pytest-1222/test_unsupported_read_context_2')
+schema_version = 0, boundary = 'engine_freeze'
+
+    @pytest.mark.parametrize("schema_version", [0, 2])
+    @pytest.mark.parametrize("boundary", ["native_constructor", "engine_freeze"])
+    def test_unsupported_read_context_schema_retains_reason_and_path(
+        tmp_path: Path, schema_version: int, boundary: str
+    ) -> None:
+        database = str(tmp_path / "frozen-refusal.sqlite")
+        engine = fathomdb.Engine.open(database, use_default_embedder=False)
+        try:
+            engine.write([{"kind": "doc", "body": "retained bytes", "logical_id": "retained", "source_id": "frozen-refusal"}])
+            with pytest.raises(fathomdb.FrozenReadError, match="unsupported_schema_version at /schemaVersion") as refused:
+                if boundary == "native_constructor":
+                    native.ReadContextV1(schema_version=schema_version)
+                else:
+                    engine.freeze_read_context(fathomdb.ReadContextV1(schema_version=schema_version))
+>           assert (refused.value.reason, refused.value.field_path) == (
+                "unsupported_schema_version", "/schemaVersion"
+            )
+E           AssertionError: assert (None, None) == ('unsupported...chemaVersion')
+E             
+E             At index 0 diff: None != 'unsupported_schema_version'
+E             Use -v to get more diff
+
+src/python/tests/test_slice135_frozen_context_error.py:25: AssertionError
+_ test_unsupported_read_context_schema_retains_reason_and_path[engine_freeze-2] _
+
+tmp_path = PosixPath('/tmp/pytest-of-coreyt/pytest-1222/test_unsupported_read_context_3')
+schema_version = 2, boundary = 'engine_freeze'
+
+    @pytest.mark.parametrize("schema_version", [0, 2])
+    @pytest.mark.parametrize("boundary", ["native_constructor", "engine_freeze"])
+    def test_unsupported_read_context_schema_retains_reason_and_path(
+        tmp_path: Path, schema_version: int, boundary: str
+    ) -> None:
+        database = str(tmp_path / "frozen-refusal.sqlite")
+        engine = fathomdb.Engine.open(database, use_default_embedder=False)
+        try:
+            engine.write([{"kind": "doc", "body": "retained bytes", "logical_id": "retained", "source_id": "frozen-refusal"}])
+            with pytest.raises(fathomdb.FrozenReadError, match="unsupported_schema_version at /schemaVersion") as refused:
+                if boundary == "native_constructor":
+                    native.ReadContextV1(schema_version=schema_version)
+                else:
+                    engine.freeze_read_context(fathomdb.ReadContextV1(schema_version=schema_version))
+>           assert (refused.value.reason, refused.value.field_path) == (
+                "unsupported_schema_version", "/schemaVersion"
+            )
+E           AssertionError: assert (None, None) == ('unsupported...chemaVersion')
+E             
+E             At index 0 diff: None != 'unsupported_schema_version'
+E             Use -v to get more diff
+
+src/python/tests/test_slice135_frozen_context_error.py:25: AssertionError
+=========================== short test summary info ============================
+FAILED src/python/tests/test_slice135_frozen_context_error.py::test_unsupported_read_context_schema_retains_reason_and_path[native_constructor-0]
+FAILED src/python/tests/test_slice135_frozen_context_error.py::test_unsupported_read_context_schema_retains_reason_and_path[native_constructor-2]
+FAILED src/python/tests/test_slice135_frozen_context_error.py::test_unsupported_read_context_schema_retains_reason_and_path[engine_freeze-0]
+FAILED src/python/tests/test_slice135_frozen_context_error.py::test_unsupported_read_context_schema_retains_reason_and_path[engine_freeze-2]
+4 failed in 0.21s

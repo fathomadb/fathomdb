@@ -1,0 +1,11 @@
+[
+  "/usr/bin/time",
+  "-v",
+  "timeout",
+  "600s",
+  "/tmp/slice135-e12-feasibility/candidate/slice115_workload",
+  "--ignored",
+  "--exact",
+  "slice115_measurement",
+  "--nocapture"
+]

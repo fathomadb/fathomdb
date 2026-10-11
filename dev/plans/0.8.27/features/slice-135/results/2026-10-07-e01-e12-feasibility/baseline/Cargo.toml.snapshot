@@ -1,0 +1,18 @@
+[package]
+name = "slice135-e12-feasibility"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+fathomdb-engine = { path = "/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline/src/rust/crates/fathomdb-engine", features = ["test-hooks", "default-embedder"] }
+fathomdb-embedder-api = { path = "/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline/src/rust/crates/fathomdb-embedder-api" }
+serde_json = "1"
+sha2 = "0.11"
+tempfile = "3"
+[[test]]
+name = "slice115_workload"
+path = "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice115_workload.rs"
+[patch.crates-io]
+candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }
+candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }
+candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }
+candle-transformers-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "status": "FULL_CAMPAIGN_COMPLETE",
+  "protocol_sha256": "b9ee6b30be3e4353adcbdca99484d3be21ae9e796d066eb26f0164b9a26b7aae",
+  "started_utc": "2026-10-07T21:10:11.088204+00:00",
+  "pair_order": [
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ]
+  ],
+  "samples_per_block": 20,
+  "finished_utc": "2026-10-07T21:14:14.784837+00:00",
+  "last_complete_pair": 5,
+  "updated_utc": "2026-10-07T21:33:24.991811+00:00"
+}

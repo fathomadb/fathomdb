@@ -16,6 +16,7 @@ nav:
       - Rust: install/rust.md
   - Reference:
       - Overview: reference/index.md
+      - SDK Operation Map: generated/sdk-operation-map.md
       - Rust SDK: reference/rust-sdk.md
       - Rust API: reference/rust-api.md
       - Python API: reference/python-api.md
@@ -23,6 +24,9 @@ nav:
       - CLI: reference/cli.md
       - Errors: reference/errors.md
       - Config: reference/config.md
+  - Contributing:
+      - Overview: contributing/index.md
+      - Source Map: generated/contributor-map.md
   - Concepts: concepts/index.md
   - Default Embedder: embedder.md
   - Compatibility: compatibility/index.md
@@ -39,6 +43,7 @@ nav:
       - Retrieve by Id: guides/retrieve-by-id.md
       - Frozen Evidence: guides/frozen-evidence.md
   - Release Notes:
+      - 0.8.27: release-notes/0.8.27.md
       - 0.8.26: release-notes/0.8.26.md
       - 0.8.25: release-notes/0.8.25.md
       - 0.6.0: release-notes/0.6.0.md

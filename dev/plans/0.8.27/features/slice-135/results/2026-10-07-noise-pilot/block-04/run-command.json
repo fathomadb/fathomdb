@@ -1,0 +1,7 @@
+[
+  "/tmp/slice135-noise-pilot-2026-10-07-block-04/slice135_pilot_workload",
+  "--ignored",
+  "--exact",
+  "slice135_pilot",
+  "--nocapture"
+]

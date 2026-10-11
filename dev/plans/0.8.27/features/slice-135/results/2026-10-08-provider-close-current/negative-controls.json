@@ -1,0 +1,10 @@
+[
+  {
+    "mutation": "missing_named_case",
+    "rejected_with": "ValueError: foreground-01: executed case set mismatch"
+  },
+  {
+    "mutation": "panic_count",
+    "rejected_with": "ValueError: foreground-01: injected panic count mismatch"
+  }
+]

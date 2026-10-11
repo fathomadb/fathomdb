@@ -1,0 +1,20 @@
+{
+  "baseline": {
+    "blocks": 10,
+    "cargo_lock_sha256": "ffebda90ad6bae977a63cdb7d4c8edbce88632c2d353d5251247410040a16022",
+    "python_project_sha256": "f5c338d4a0f0699661da2408814a2e39fdd81229caa5952d88397eccf80458ae",
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "status": "independently_checked_source_wheel_native_and_command",
+    "wheel_native_sha256": "269fafc1c696244d05f2eabea19b23cfba6de79f5041b1123fe10589c46c51dc",
+    "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+  },
+  "candidate": {
+    "blocks": 10,
+    "cargo_lock_sha256": "9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe",
+    "python_project_sha256": "d659b879774a461c3736d61c8c89928c2f5129ac94dde8d607264934feae38ca",
+    "source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+    "status": "independently_checked_source_wheel_native_and_command",
+    "wheel_native_sha256": "e228ac248b581846e988e7be761d47163b91f803cc3687d41870d4914bb6dcb1",
+    "wheel_sha256": "39d4af3060ca4b72d7ad16211fa0ba44a8992feef87040f3513a262cbdc359a4"
+  }
+}

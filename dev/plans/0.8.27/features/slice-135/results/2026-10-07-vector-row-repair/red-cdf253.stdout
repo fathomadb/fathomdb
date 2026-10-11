@@ -1,0 +1,11 @@
+
+running 1 test
+test malformed_vector_rerank_value_must_fail_instead_of_omitting_a_hit ... FAILED
+
+failures:
+
+failures:
+    malformed_vector_rerank_value_must_fail_instead_of_omitting_a_hit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+

@@ -138,19 +138,53 @@ def current_published_state(root: Path) -> dict:
     return max(candidates, key=lambda item: item[0])[1]
 
 
+def documentation_target_state(root: Path, published_state: dict) -> dict:
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts/release-current.py")],
+        cwd=root,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode:
+        fail(f"cannot resolve canonical active release: {result.stderr.strip()}")
+    if not result.stdout.strip():
+        return published_state
+    fields = result.stdout.strip().split("\t")
+    if len(fields) != 3:
+        fail("canonical active release did not return a release/board/state tuple")
+    version, _, state_path = fields
+    state = load_json(root, Path(state_path))
+    if "public_docs_target_release" not in state:
+        return published_state
+    target = state["public_docs_target_release"]
+    if not isinstance(target, str) or target != version or target != state.get("release"):
+        fail(f"{state_path} public_docs_target_release must equal its own release {version}")
+    return state
+
+
+def asserts_published_version(text: str, version: str) -> bool:
+    normalized = text.replace("**", "").replace("`", "")
+    v = rf"v?{re.escape(version)}(?![\w+-]|\.[\w])"
+    subject = r"(?:(?:release|CLI|packages?|artifacts?|tarballs?|wheels?)\s+)?"
+    assertion = (
+        r"(?:(?:is|are|was|were|has\s+been|have\s+been)\s+(?:(?:already|now|currently)\s+)?published\b"
+        r"|(?:has|have)\s+(?:(?:already|now|currently)\s+)?shipped\b"
+        r"|(?:is|are)\s+(?:(?:already|now|currently)\s+)?available\s+(?:now\s+)?"
+        r"(?:on|from)\s+(?:PyPI|npm|crates\.io|Pages)\b)"
+    )
+    return bool(
+        re.search(rf"(?i)\bpublished\s+(?:FathomDB\s+)?{v}", normalized)
+        or re.search(rf"(?i)\b{v}\s+{subject}{assertion}", normalized)
+    )
+
+
 def workspace_member_count(cargo_toml: str) -> int:
     match = re.search(r"(?ms)^members\s*=\s*\[(.*?)^\]", cargo_toml)
     if not match:
         fail("Cargo.toml has no workspace members list")
     return len(re.findall(r'^\s*"[^"]+"\s*,?\s*$', match.group(1), re.MULTILINE))
-
-
-def mentions_published_version(text: str, version: str) -> bool:
-    normalized = text.replace("**", "").replace("`", "")
-    return bool(
-        re.search(rf"(?is)\bv?{re.escape(version)}\b.{{0,100}}\bpublished\b", normalized)
-        or re.search(rf"(?is)\bpublished\b.{{0,100}}\bv?{re.escape(version)}\b", normalized)
-    )
 
 
 def missing_platform_boundaries(text: str) -> list[str]:
@@ -167,10 +201,13 @@ def missing_platform_boundaries(text: str) -> list[str]:
 
 def main() -> None:
     root = repo_root()
-    state = current_published_state(root)
+    published_state = current_published_state(root)
+    if published_state.get("schema_version") != 34:
+        fail("current published release state must declare schema 34")
+    state = documentation_target_state(root, published_state)
     version = state.get("release")
     if not isinstance(version, str):
-        fail("current published release-state must declare release")
+        fail("documentation target state must declare release")
 
     manifest = load_json(root, Path("dev/platform-capabilities.json"))
     published_triples = [
@@ -187,11 +224,11 @@ def main() -> None:
     ]
     if published_triples != expected_published:
         fail(
-            "manifest must declare the five published 0.8.26 native artifacts, "
+            "manifest must declare the five published native artifacts, "
             f"got {published_triples}"
         )
     if state.get("schema_version") != 34:
-        fail("current published release state must declare schema 34")
+        fail("documentation target state must declare schema 34")
 
     docs: dict[Path, str] = {}
     for relative in PUBLIC_DOCS:
@@ -200,16 +237,25 @@ def main() -> None:
         except OSError as exc:
             fail(f"cannot read public document {relative}: {exc}")
 
+    published_version = published_state["release"]
     unpublished = re.compile(
-        rf"(?is)\bv?{re.escape(version)}\b.{{0,120}}\b(?:is\s+not|has\s+not|not\s+yet)\s+published\b"
+        rf"(?is)\bv?{re.escape(published_version)}\b"
+        r"(?:(?!\bv?\d+\.\d+\.\d+\b).){0,120}"
+        r"\b(?:is\s+not|has\s+not|not\s+yet)\s+published\b"
     )
+    pending = state.get("published") is None
     for relative, text in docs.items():
-        if unpublished.search(text.replace("**", "").replace("`", "")):
-            fail(f"{relative} says published {version} is unpublished")
+        normalized = text.replace("**", "").replace("`", "")
+        if unpublished.search(normalized):
+            fail(f"{relative} says published {published_version} is unpublished")
+        if pending and asserts_published_version(text, version):
+            fail(f"{relative} says unpublished documentation target {version} is published")
 
     for relative in CURRENT_RELEASE_DOCS:
-        if not mentions_published_version(docs[relative], version):
-            fail(f"{relative} lacks a current published {version} statement")
+        text = re.sub(r"\]\([^)]*\)", "]", docs[relative])
+        text = re.sub(r"https?://\S+|<!--.*?-->", "", text, flags=re.DOTALL)
+        if not re.search(rf"\bv?{re.escape(version)}\b", text):
+            fail(f"{relative} lacks documentation target {version}")
 
     for relative in PLATFORM_BOUNDARY_DOCS:
         missing = missing_platform_boundaries(docs[relative])
@@ -231,24 +277,42 @@ def main() -> None:
         fail("docs/compatibility/index.md lacks the schema-34 fresh-database boundary")
 
     ts_install = docs[Path("docs/install/typescript.md")]
-    if "npm install fathomdb@next" not in ts_install:
-        fail("docs/install/typescript.md lacks `npm install fathomdb@next`")
+    exact_commands = (f"npm install --save-exact fathomdb@{version}", f"npm install fathomdb@{version}")
+    dist_tag = state.get("published", {}).get("npm_dist_tag") if not pending else None
+    if not any(re.search(re.escape(command) + r"(?![\w.+-])", ts_install) for command in exact_commands):
+        if pending or not dist_tag or not re.search(
+            re.escape(f"npm install fathomdb@{dist_tag}") + r"(?![\w.+-])", ts_install
+        ):
+            fail(f"docs/install/typescript.md lacks exact {version} install or recorded tag {dist_tag}")
 
-    expected_count = workspace_member_count((root / "Cargo.toml").read_text())
+    cargo_toml = (root / "Cargo.toml").read_text()
+    expected_count = workspace_member_count(cargo_toml)
+    members_match = re.search(r"(?ms)^members\s*=\s*\[(.*?)^\]", cargo_toml)
+    assert members_match is not None
+    expected_paths = {
+        f"{member}/Cargo.toml"
+        for member in re.findall(r'^\s*"([^"]+)"\s*,?\s*$', members_match.group(1), re.MULTILINE)
+    }
+    try:
+        contributor_map = (root / "docs/generated/contributor-map.md").read_text()
+    except OSError as exc:
+        fail(f"cannot read docs/generated/contributor-map.md: {exc}")
+    section = re.search(r"(?ms)^## Rust workspace\n(.*?)(?=^## |\Z)", contributor_map)
+    paths = re.findall(r"\[([^\]]+/Cargo.toml)\]\(", section.group(1) if section else "")
+    if len(paths) != expected_count or set(paths) != expected_paths:
+        fail("docs/generated/contributor-map.md does not match Cargo.toml workspace members")
+
     readme = docs[Path("README.md")]
-    count_match = re.search(
-        r"(?im)^[-*]\s+([A-Za-z]+|\d+)\s+Rust workspace members\b", readme
-    )
-    if not count_match:
-        fail("README.md lacks a Rust workspace member count")
-    claimed = count_match.group(1).lower()
-    claimed_count = NUMBER_WORDS.get(claimed, int(claimed) if claimed.isdigit() else None)
-    if claimed_count != expected_count:
-        fail(f"README.md claims {claimed_count} Rust workspace members; Cargo.toml has {expected_count}")
+    for count_match in re.finditer(r"(?im)^[-*]\s+([A-Za-z]+|\d+)\s+Rust workspace members\b", readme):
+        claimed = count_match.group(1).lower()
+        claimed_count = NUMBER_WORDS.get(claimed, int(claimed) if claimed.isdigit() else None)
+        if claimed_count != expected_count:
+            fail(f"README.md claims {claimed_count} Rust workspace members; Cargo.toml has {expected_count}")
 
     print(
-        f"ok    public-doc-truth: {version} published; "
-        f"published native artifacts are {', '.join(published_triples)}"
+        f"ok    public-doc-truth: documentation target {version}; "
+        f"newest published receipt {published_version}; "
+        f"native artifacts are {', '.join(published_triples)}"
     )
 
 

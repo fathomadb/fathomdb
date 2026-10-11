@@ -33,6 +33,9 @@ WORKFLOW = ROOT / ".github/workflows/release.yml"
 CUDA_CONTRACT = ROOT / "scripts/release/cuda-artifact-contract.sh"
 CUDA_NAPI_BUILD = ROOT / "scripts/release/build-napi-cuda.sh"
 CUDA_TEGRA_PYTHON_BUILD = ROOT / "scripts/release/build-python-cuda-tegra.sh"
+CUDA_TEGRA_NAPI_BUILD = ROOT / "scripts/release/build-napi-cuda-tegra.sh"
+TEGRA_NAPI_PACKAGE_JSON = ROOT / "src/ts/npm-tegra/linux-arm64-gnu-tegra/package.json"
+GENERIC_ARM64_PACKAGE_JSON = ROOT / "src/ts/npm/linux-arm64-gnu/package.json"
 CUDA_PREFLIGHT = ROOT / "scripts/release/cuda-preflight.sh"
 CUDA_ARTIFACT_INSPECTOR = ROOT / "scripts/release/inspect-cuda-artifacts.py"
 CUDA_MANYLINUX_DOCKERFILE = ROOT / "scripts/release/Dockerfile.cuda-manylinux"
@@ -56,9 +59,15 @@ NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
 PYTHON_CUDA_FEATURES = "pyo3/extension-module,embed-cuda"
 PYTHON_CUDA_FEATURES_TEGRA = "pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool"
+TEGRA_NAPI_FEATURES = "embed-cuda,rerank-cuda,tegra-pool"
 TEGRA_POOL_FEATURE = "tegra-pool"
-# A reference to a Tegra-only feature set (`CUDA_PYTHON_FEATURES_TEGRA`).
-TEGRA_FEATURE_SET_REF = re.compile(r"CUDA_\w*FEATURES_TEGRA\b")
+# References to either approved Tegra-only feature set.
+TEGRA_FEATURE_SET_REF = re.compile(r"CUDA_(?:\w*FEATURES_TEGRA|TEGRA_NAPI_FEATURES)\b")
+CUDA_RERANK_NAPI_FEATURES = "embed-cuda,rerank-cuda"
+CUDA_TEGRA_NAPI_NODE_VERSION = "25.9.0"
+CUDA_TEGRA_NAPI_NPM_VERSION = "11.12.1"
+TEGRA_NAPI_PACKAGE_NAME = "fathomdb-linux-arm64-gnu-tegra"
+TEGRA_NAPI_TRIPLE = "linux-arm64-gnu"
 RUNNER_LABELS = ("self-hosted", "Linux", "X64", "gpu", "cuda-12")
 CUDA_GPU_UUID_ENV = "env:\n      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}"
 CUDA_MANYLINUX_BASE_IMAGE = (
@@ -107,6 +116,7 @@ CUDA_X64_HOST_CUDART_LIBRARY_DIR = (
 CUDA_TEGRA_HOST_CUDART_LIB = "/usr/local/cuda-12.6/targets/aarch64-linux/lib"
 CUDA_TEGRA_HOST_DRIVER_LIB = "/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+UPLOAD_RETRY_ACTION = ROOT / ".github/actions/upload-artifact-retry/action.yml"
 CANDLE_GIT_URL = "https://github.com/coreyt/candle-fathomdb.git"
 CANDLE_GIT_REV = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
 CANDLE_PACKAGES = (
@@ -183,6 +193,12 @@ def require_fragment(block: str, fragment: str, label: str) -> None:
         fail(f"{label} is missing {fragment!r}")
 
 
+def require_upload_retry_action() -> None:
+    action = read_text(UPLOAD_RETRY_ACTION)
+    if action.count(f"uses: {UPLOAD_ARTIFACT_ACTION}") != 3:
+        fail("artifact retry action must pin all three attempts to the reviewed full action SHA")
+
+
 def forbid_fragment(block: str, fragment: str, label: str, why: str) -> None:
     if fragment in block:
         fail(f"{label} must not contain {fragment!r}: {why}")
@@ -254,12 +270,13 @@ def require_unmerged_workflow_route() -> None:
         "${{ github.workflow_sha }}",
         "${{ github.run_id }}",
         "${{ github.run_attempt }}",
-        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "uses: ./.github/actions/upload-artifact-retry",
         "cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}",
     ):
         require_fragment(trusted_route, fragment, "GitHub-hosted unmerged CUDA route")
     for forbidden in (
-        "ref: ${{ inputs.candidate_commit }}", "RELEASE_CHECKOUT_REF", "npm ", "cargo ", "pip ", "uses: ./",
+        "ref: ${{ inputs.candidate_commit }}", "RELEASE_CHECKOUT_REF", "npm ", "cargo ", "pip ",
+        "uses: ./candidate", "uses: actions/upload-artifact@",
         "run: ./candidate", "run: bash candidate", "uses: owner/action@ref",
     ):
         if forbidden in trusted_route:
@@ -501,22 +518,28 @@ def require_cuda_package_rehearsal() -> None:
 
 
 def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
-    """0.8.28 Slice 30 (R30-07): `tegra-pool` ships only in the Tegra wheel.
+    """`tegra-pool` ships only in the two Tegra artifacts.
 
     The private CUDA pool and the import-time early cuInit hook are for
     aarch64 Linux integrated GPUs. Every x86_64 CUDA set and every CPU build
-    must refuse the feature, and the Tegra wheel must carry it alongside
-    `rerank-cuda`, matching the Tegra Node addon.
+    must refuse the feature; both Tegra tuples carry it with `rerank-cuda`.
     """
     require_fragment(
         contract,
         f"CUDA_PYTHON_FEATURES_TEGRA='{PYTHON_CUDA_FEATURES_TEGRA}'",
         "CUDA artifact contract",
     )
+    require_fragment(
+        contract,
+        f"CUDA_TEGRA_NAPI_FEATURES='{TEGRA_NAPI_FEATURES}'",
+        "CUDA artifact contract",
+    )
     # Every non-comment line of the contract that names the feature or the
     # Tegra set, in any quoting and whether literal or composed, must be the
     # Tegra set's own assignment.
-    tegra_set = re.compile(r"^(?:export\s+)?CUDA_\w*FEATURES_TEGRA\+?=")
+    tegra_set = re.compile(
+        r"^(?:export\s+)?(?:CUDA_PYTHON_FEATURES_TEGRA|CUDA_TEGRA_NAPI_FEATURES)="
+    )
     for line in contract.splitlines():
         stripped = line.strip()
         if stripped.startswith("#"):
@@ -526,7 +549,7 @@ def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
         if not tegra_set.match(stripped):
             fail(
                 "CUDA artifact contract may carry "
-                f"{TEGRA_POOL_FEATURE!r} only in a *_TEGRA feature set; got {stripped!r}"
+                f"{TEGRA_POOL_FEATURE!r} only in an approved Tegra feature set; got {stripped!r}"
             )
     non_tegra_builds = [CUDA_NAPI_BUILD, CUDA_PREFLIGHT, TS_PACKAGE, PYTHON_PYPROJECT]
     non_tegra_builds += sorted((ROOT / ".github/workflows").glob("*.y*ml"))
@@ -542,7 +565,7 @@ def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
             text,
             TEGRA_POOL_FEATURE,
             label,
-            "tegra-pool belongs only to the Tegra CUDA Python wheel (R30-07)",
+            "tegra-pool belongs only to Tegra CUDA artifacts (R30-07)",
         )
         if TEGRA_FEATURE_SET_REF.search(text):
             fail(f"{label} must not use the Tegra feature set; it belongs to the Tegra build only")
@@ -551,6 +574,125 @@ def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
         for name, members in features.items():
             if name != TEGRA_POOL_FEATURE and TEGRA_POOL_FEATURE in (members or []):
                 fail(f"fathomdb-napi feature {name!r} must not enable {TEGRA_POOL_FEATURE!r}")
+def require_tegra_napi_route(contract: str) -> None:
+    """Require the Jetson Tegra N-API build to stay on its own contract axis.
+
+    ADR-0.8.27-jetson-tegra-node-addon-distribution: the wrapper asserts every
+    pin before its --assert-only exit, builds the dual-runtime tuple, proves
+    the tegra glibc floor and CUDA linkage on the `.node`, records digests and
+    publishes nothing. The x86_64 N-API wrapper and the generic
+    linux-arm64-gnu package must not absorb any Tegra identity.
+    """
+    for fragment in (
+        f"CUDA_RERANK_NAPI_FEATURES='{CUDA_RERANK_NAPI_FEATURES}'",
+        f"CUDA_TEGRA_NAPI_FEATURES='{TEGRA_NAPI_FEATURES}'",
+        'CUDA_TEGRA_NAPI_RUST_VERSION="$CUDA_RUST_VERSION"',
+        f"CUDA_TEGRA_NAPI_NODE_VERSION='{CUDA_TEGRA_NAPI_NODE_VERSION}'",
+        f"CUDA_TEGRA_NAPI_NPM_VERSION='{CUDA_TEGRA_NAPI_NPM_VERSION}'",
+        f"CUDA_TEGRA_NAPI_PACKAGE='{TEGRA_NAPI_PACKAGE_NAME}'",
+        f"CUDA_TEGRA_NAPI_TRIPLE='{TEGRA_NAPI_TRIPLE}'",
+    ):
+        require_fragment(contract, fragment, "CUDA artifact contract")
+    if contract.count("CUDA_TEGRA_NAPI_RUST_VERSION=") != 1:
+        fail("the Tegra N-API Rust pin must be shared with CUDA_RUST_VERSION by reference")
+    ts_package = load_json(TS_PACKAGE)
+    if ts_package.get("packageManager") != f"npm@{CUDA_TEGRA_NAPI_NPM_VERSION}":
+        fail("src/ts packageManager must match the Tegra N-API npm pin")
+
+    wrapper = read_text(CUDA_TEGRA_NAPI_BUILD)
+    label = "Tegra CUDA N-API build wrapper"
+    assertions = (
+        '"$CUDA_TEGRA_HOST_ARCH"',
+        '"$CUDA_TEGRA_HOST_TOOLKIT_ROOT/bin/nvcc" --version | grep -F "$CUDA_TEGRA_HOST_NVCC_VERSION"',
+        '"$CUDA_HOST_CC_TEGRA_ORIN" --version | grep -F "$CUDA_HOST_GCC_VERSION_TEGRA_ORIN"',
+        '"$CUDA_HOST_CXX_TEGRA_ORIN" --version | grep -F "$CUDA_HOST_GCC_VERSION_TEGRA_ORIN"',
+        '"$CUDA_TEGRA_HOST_CUDART_LIB/libcudart.so"',
+        '"$CUDA_TEGRA_HOST_DRIVER_LIB"',
+        '"rustc $CUDA_TEGRA_NAPI_RUST_VERSION "*)',
+        '"v$CUDA_TEGRA_NAPI_NODE_VERSION"',
+        '"$CUDA_TEGRA_NAPI_NPM_VERSION"',
+        '"$CUDA_TEGRA_NAPI_PACKAGE"',
+        'export CUDA_PATH="$CUDA_TEGRA_HOST_TOOLKIT_ROOT"',
+        'export CUDACXX="$CUDA_TEGRA_HOST_TOOLKIT_ROOT/bin/nvcc"',
+        'export CC="$CUDA_HOST_CC_TEGRA_ORIN"',
+        'export CXX="$CUDA_HOST_CXX_TEGRA_ORIN"',
+        'export CUDAHOSTCXX="$CUDA_HOST_CXX_TEGRA_ORIN"',
+        'export NVCC_CCBIN="$CUDA_HOST_CXX_TEGRA_ORIN"',
+        'export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_TEGRA_ORIN"',
+        'export LIBRARY_PATH="$CUDA_TEGRA_HOST_CUDART_LIB${LIBRARY_PATH:+:$LIBRARY_PATH}"',
+        'export PATH="$CUDA_TEGRA_HOST_TOOLKIT_ROOT/bin:$PATH"',
+    )
+    assert_only_exit = 'if [ "$ASSERT_ONLY" -eq 1 ]; then'
+    build_command = "napi build --platform --release"
+    for fragment in (*assertions, assert_only_exit, build_command):
+        require_fragment(wrapper, fragment, label)
+    exit_at = wrapper.index(assert_only_exit)
+    if wrapper.index(build_command) < exit_at:
+        fail(f"{label} must exit its --assert-only arm before building")
+    for fragment in assertions:
+        if wrapper.index(fragment) > exit_at:
+            fail(f"{label} must assert {fragment!r} before the --assert-only exit")
+    for fragment in (
+        '--features "$CUDA_TEGRA_NAPI_FEATURES"',
+        # @napi-rs/cli 2.x resolves the type-definition path against cwd.
+        'NATIVE_DEST="$(realpath --relative-to="$TS_DIR" "$NATIVE_DIR")"',
+        '  "$NATIVE_DEST"\n',
+        "glibc-floor-contract.sh",
+        'TEGRA_FLOOR="$(glibc_floor_for_family tegra)"',
+        'check-glibc-floor.sh" --floor "$TEGRA_FLOOR" "$NATIVE_BINARY"',
+        'bash "$SCRIPT_DIR/check-tegra-wheel-linkage.sh" "$NATIVE_BINARY"',
+        "npm pack --ignore-scripts",
+        "sha256sum --",
+        "SHA256SUMS",
+        "env -u LD_LIBRARY_PATH -u LIBRARY_PATH",
+    ):
+        require_fragment(wrapper, fragment, label)
+    for forbidden, why in (
+        ("npm publish", "the Tegra tarball is distributed only through the Tegra Pages route"),
+        ("twine", "the wrapper publishes nothing"),
+        ("cargo publish", "the wrapper publishes nothing"),
+        ("maturin publish", "the wrapper publishes nothing"),
+        ("maturin upload", "the wrapper publishes nothing"),
+        ("git push", "only the hosted Pages job publishes"),
+        ("gh workflow", "only the operator route dispatches publication"),
+        ("gh release", "the wrapper publishes nothing"),
+        ("gh api", "the wrapper publishes nothing"),
+        ("gh-pages", "only the hosted Pages job publishes"),
+        ("deploy-pages", "only the hosted Pages job publishes"),
+        ("NODE_AUTH_TOKEN", "the Jetson build holds no publication credential"),
+        ("NPM_TOKEN", "the Jetson build holds no publication credential"),
+        ("src/ts/npm/", "the generic platform packages are not this wrapper's to touch"),
+        ("CUDA_NAPI_HOST_", "the Tegra build never consumes the x86_64 N-API host axis"),
+        ("CUDA_COMPUTE_CAP_X86_64", "Tegra is SM_87 only"),
+        ("CUDA_NAPI_FEATURES", "the Tegra tuple is CUDA_TEGRA_NAPI_FEATURES"),
+    ):
+        forbid_fragment(wrapper, forbidden, label, why)
+
+    x64_wrapper = read_text(CUDA_NAPI_BUILD)
+    if "tegra" in x64_wrapper.lower():
+        fail("the x86_64 CUDA N-API build wrapper must not consume the Tegra axis")
+
+    tegra_package = load_json(TEGRA_NAPI_PACKAGE_JSON)
+    binary = f"fathomdb.{TEGRA_NAPI_TRIPLE}.node"
+    expected = {
+        "name": TEGRA_NAPI_PACKAGE_NAME,
+        "os": ["linux"],
+        "cpu": ["arm64"],
+        "libc": ["glibc"],
+        "main": binary,
+        "files": [binary],
+    }
+    for key, value in expected.items():
+        if tegra_package.get(key) != value:
+            fail(f"Tegra platform package {key!r} must be {value!r}; got {tegra_package.get(key)!r}")
+    if "version" in tegra_package:
+        fail("Tegra platform package version is stamped at build time, never committed")
+    generic_package = load_json(GENERIC_ARM64_PACKAGE_JSON)
+    if generic_package.get("name") != "fathomdb-linux-arm64-gnu" or generic_package.get("main") != binary:
+        fail("the generic linux-arm64-gnu package must keep its name and binary")
+    generic_text = json.dumps(generic_package).lower()
+    if "tegra" in generic_text or "cuda" in generic_text:
+        fail("the generic linux-arm64-gnu package must carry no Tegra or CUDA identity")
 
 
 def main() -> None:
@@ -905,6 +1047,7 @@ def main() -> None:
             "Tegra CUDA Python build wrapper",
             "Slice 80.6 builds and proves the Tegra artifact but publishes nothing (D-80.6-1)",
         )
+    require_tegra_napi_route(contract)
     preflight = read_text(CUDA_PREFLIGHT)
     inspector = read_text(CUDA_ARTIFACT_INSPECTOR)
     selection = read_text(CUDA_GPU_SELECTION)
@@ -1140,6 +1283,7 @@ def main() -> None:
     ):
         require_fragment(read_text(PACKAGE_REHEARSAL_SMOKE), fragment, "CUDA reranker v3 rehearsal smoke")
 
+    require_upload_retry_action()
     require_unmerged_candidate_control_plane()
     require_unmerged_workflow_route()
 
@@ -1198,7 +1342,7 @@ def main() -> None:
     require_fragment(job, "bash scripts/release/cuda-preflight.sh", "cuda-contract-preflight")
     require_x64_cuda_toolkit_environment(job, "cuda-contract-preflight")
     require_fragment(job, "${{ env.RELEASE_CHECKOUT_REF }}", "cuda-contract-preflight checkout")
-    require_fragment(job, UPLOAD_ARTIFACT_ACTION, "cuda-contract-preflight witness upload")
+    require_fragment(job, "uses: ./control-plane/.github/actions/upload-artifact-retry", "cuda-contract-preflight witness upload")
     require_fragment(job, "name: cuda-preflight-witness", "cuda-contract-preflight witness upload")
     require_fragment(job, "${{ github.workspace }}/cuda-preflight-witness", "cuda-contract-preflight witness path")
 

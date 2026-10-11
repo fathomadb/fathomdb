@@ -83,6 +83,7 @@ pub struct ProjectionRuntimeStatus {
     pub vector_unsupported_kinds: Vec<String>,
 }
 
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) fn projection_status(
     connection: &Connection,
     kind: &str,
@@ -214,27 +215,27 @@ pub(crate) struct ProjectionRuntimeShared {
     /// ground truth in isolation (the quantization-FIDELITY axis the 0.90 floor
     /// is defined to measure), not the hybrid `search()` output.
     pub(crate) vector_stage_only_for_test: AtomicBool,
-    /// 0.7.2 PR-2b — debug-only fault injection: when set, `recompute_mean_in_tx`
+    /// 0.7.2 PR-2b — test-only fault injection: when set, `recompute_mean_in_tx`
     /// errors AFTER writing `mean_vec` but BEFORE finishing the re-quantize
     /// pass, so the crash-atomicity test can prove the whole recompute rolls
     /// back (no half-recentered corpus). One-shot (cleared on consume).
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) force_recompute_failure: AtomicBool,
     /// TC-91 — one-shot worker-commit fault seam. `0` is disabled, `1`
     /// requests a synthetic SQLite busy error, and `2` a rusqlite-layer
     /// storage error immediately before commit.
     /// Kept entirely in the runtime and compiled only for tests.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) force_projection_commit_failure: AtomicUsize,
     /// TC-91 test-only rendezvous after error reporting and before worker
     /// cleanup. It proves a stop in that window leaves canonical pending work
     /// for the next open rather than relying on an in-memory retry queue.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) projection_commit_failure_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     /// Slice 65: test-only rendezvous after a projection worker acquires its
     /// real `BEGIN IMMEDIATE` transaction. It must not report queued work as a
     /// live transaction.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) projection_worker_transaction_pause: Mutex<Option<(mpsc::Sender<()>, Receiver<()>)>>,
     /// Slice 40: one-shot rendezvous after dispatch has queued a captured-
     /// generation job and before any worker removes it from the queue.
@@ -247,7 +248,7 @@ pub(crate) struct ProjectionRuntimeShared {
         Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     /// TC-91 test-only acknowledgement after `stopping` is set and before a
     /// close joins workers, used with `projection_commit_failure_pause`.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     projection_stop_ack: Mutex<Option<Arc<Barrier>>>,
 }
 
@@ -464,19 +465,19 @@ impl ProjectionRuntime {
             recency_reweight_enabled: AtomicBool::new(false),
             importance_reweight_enabled: AtomicBool::new(false),
             vector_stage_only_for_test: AtomicBool::new(false),
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             force_recompute_failure: AtomicBool::new(false),
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             force_projection_commit_failure: AtomicUsize::new(0),
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             projection_commit_failure_pause: Mutex::new(None),
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             projection_worker_transaction_pause: Mutex::new(None),
             #[cfg(feature = "test-hooks")]
             projection_worker_queued_pause: Mutex::new(None),
             #[cfg(feature = "test-hooks")]
             projection_worker_before_write_lock_pause: Mutex::new(None),
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             projection_stop_ack: Mutex::new(None),
         });
 
@@ -757,6 +758,7 @@ impl ProjectionRuntime {
         }
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn pending_scan_for_test(&self) -> bool {
         self.shared.state.lock().map(|state| state.pending_scan).unwrap_or(true)
     }
@@ -827,23 +829,24 @@ impl ProjectionRuntime {
         }
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn set_retry_delays_for_test(&self, delays_ms: &[u64]) {
         if let Ok(mut delays) = self.shared.retry_delays_ms.lock() {
             *delays = delays_ms.to_vec();
         }
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn force_next_projection_commit_failure_for_test(&self) {
         self.shared.force_projection_commit_failure.store(1, Ordering::SeqCst);
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn force_next_projection_storage_failure_for_test(&self) {
         self.shared.force_projection_commit_failure.store(2, Ordering::SeqCst);
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn pause_projection_commit_failure_cleanup_for_test(
         &self,
         reported: Arc<Barrier>,
@@ -856,7 +859,7 @@ impl ProjectionRuntime {
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some((reported, release));
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[allow(dead_code)]
     pub(crate) fn pause_projection_worker_after_wal_transaction_for_test(
         &self,
@@ -906,12 +909,13 @@ impl ProjectionRuntime {
         (waiting, release)
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn acknowledge_projection_stop_for_test(&self, acknowledged: Arc<Barrier>) {
         *self.shared.projection_stop_ack.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) =
             Some(acknowledged);
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn set_embed_timeout_ms_for_test(&self, timeout_ms: u64) {
         self.shared.embed_dispatch.set_timeout_ms_for_test(timeout_ms);
     }
@@ -926,7 +930,7 @@ impl ProjectionRuntime {
             self.shared.state_cvar.notify_all();
         }
         self.shared.embed_dispatch.close();
-        #[cfg(debug_assertions)]
+        #[cfg(any(test, feature = "test-hooks"))]
         if let Some(acknowledged) = self
             .shared
             .projection_stop_ack
@@ -955,7 +959,7 @@ impl ProjectionRuntime {
 }
 
 impl Engine {
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[allow(dead_code)]
     #[doc(hidden)]
     pub fn pause_projection_worker_after_wal_transaction_for_test(
@@ -983,7 +987,7 @@ impl Engine {
     /// Force the next background projection terminal commit to fail with a
     /// synthetic SQLite busy error. Test-only seam for TC-91 rollback and
     /// redispatch coverage; it does not affect the caller's write transaction.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn force_next_projection_commit_failure_for_test(&self) {
         self.projection_runtime.force_next_projection_commit_failure_for_test();
@@ -991,7 +995,7 @@ impl Engine {
 
     /// Force the next background projection terminal commit to fail with a
     /// rusqlite-layer storage error. Test-only TC-91 diagnostic classifier seam.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn force_next_projection_storage_failure_for_test(&self) {
         self.projection_runtime.force_next_projection_storage_failure_for_test();
@@ -999,7 +1003,7 @@ impl Engine {
 
     /// Pause a worker after a forced projection-commit error was reported and
     /// before its state cleanup. TC-91 test-only shutdown/reopen rendezvous.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn pause_projection_commit_failure_cleanup_for_test(
         &self,
@@ -1011,12 +1015,13 @@ impl Engine {
 
     /// Acknowledge after `Engine::close` marks the projection runtime stopping
     /// and before it joins workers. TC-91 test-only shutdown rendezvous.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn acknowledge_projection_stop_for_test(&self, acknowledged: Arc<Barrier>) {
         self.projection_runtime.acknowledge_projection_stop_for_test(acknowledged);
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_projection_scheduler_frozen_for_test(&self, frozen: bool) {
         self.projection_runtime.set_frozen(frozen);
@@ -1026,11 +1031,13 @@ impl Engine {
     ///
     /// This exists to prove pure observers do not notify the scheduler. It is
     /// deliberately narrower than a scheduler control or diagnostic surface.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn projection_scheduler_pending_scan_for_test(&self) -> bool {
         self.projection_runtime.pending_scan_for_test()
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_projection_retry_delays_for_test(&self, delays_ms: &[u64]) {
         self.projection_runtime.set_retry_delays_for_test(delays_ms);
@@ -1038,11 +1045,13 @@ impl Engine {
 
     /// Set the provider dispatch deadline for projection tests; production
     /// requests use the validated engine-open configuration.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_embed_timeout_ms_for_test(&self, timeout_ms: u64) {
         self.projection_runtime.set_embed_timeout_ms_for_test(timeout_ms);
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn projection_status_for_test(
         &self,
@@ -1054,6 +1063,7 @@ impl Engine {
         projection_status(connection, kind)
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn has_vector_for_cursor_for_test(&self, cursor: u64) -> Result<bool, EngineError> {
         self.ensure_open()?;
@@ -1064,6 +1074,7 @@ impl Engine {
             .map_err(|_| EngineError::Storage)
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn projection_failure_count_for_test(&self, cursor: u64) -> Result<u64, EngineError> {
         self.ensure_open()?;

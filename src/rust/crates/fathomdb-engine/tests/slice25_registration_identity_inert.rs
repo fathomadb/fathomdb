@@ -26,7 +26,8 @@
 //! It also carries **D4**: the write-time admission audit found NO gap, and the
 //! two paths that audit turns on — the internal structural-row writer (the only
 //! writer that bypasses `PreparedWrite`) and an anonymous `PreparedWrite` going
-//! through `commit_batch` — are pinned to mint nothing.
+//! through `commit_batch` — are pinned to mint nothing. The structural-writer proof is an engine unit
+//! test in `write.rs`, where the private writer is compiled under `cfg(test)`.
 //!
 //! **"Registration"** is the projection registry (Slice 15d, R-20-PR):
 //! `configure_projections` (add / re-register / drop) plus the boot re-derive
@@ -42,7 +43,7 @@
 
 use fathomdb_engine::{
     Engine, ExtractDocument, IdSpace, IdSpaceKind, InitialState, PreparedWrite, ProjectionFts,
-    ProjectionRole, ProjectionSpec, RowKind, SourceId,
+    ProjectionRole, ProjectionSpec, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -208,7 +209,7 @@ fn registering_projections_never_alters_a_pre_existing_row_id_space() {
     let path = db_path(&dir, "registration_inert");
 
     let baseline = {
-        let opened = Engine::open_without_embedder_for_test(&path).expect("open");
+        let opened = Engine::open(&path).expect("open");
         let minted = seed_mixed_corpus(&opened.engine);
 
         let baseline = snapshot(&path);
@@ -257,7 +258,7 @@ fn registering_projections_never_alters_a_pre_existing_row_id_space() {
     };
 
     // --- BOOT RE-DERIVE: close, re-open, re-drive from the durable registry ---
-    let reopened = Engine::open_without_embedder_for_test(&path).expect("re-open");
+    let reopened = Engine::open(&path).expect("re-open");
     let after_boot = snapshot(&path);
     assert_eq!(
         after_boot, baseline,
@@ -289,13 +290,11 @@ fn registering_projections_never_alters_a_pre_existing_row_id_space() {
 /// the writer connection. Both the at-rest snapshot AND the derived id-space
 /// must flip. This is what makes the green above falsifiable rather than
 /// decorative.
-// Uses `Engine::execute_for_test`, a debug-build-only hook.
-#[cfg(debug_assertions)]
 #[test]
 fn a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "negative_control");
-    let opened = Engine::open_without_embedder_for_test(&path).expect("open");
+    let opened = Engine::open(&path).expect("open");
     opened
         .engine
         .write(&[anonymous("src:doc-a", r#"{"status":"open","title":"anonymous body"}"#)])
@@ -304,11 +303,12 @@ fn a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned() {
     let before = snapshot(&path);
     assert_eq!(spaces(&before), (1, 0), "one anonymous row, `h:` space");
 
-    opened
-        .engine
-        .execute_for_test(
+    rusqlite::Connection::open(&path)
+        .expect("raw negative-control writer")
+        .execute(
             "UPDATE canonical_nodes SET logical_id = 'minted-' || write_cursor \
              WHERE logical_id IS NULL",
+            [],
         )
         .expect("the rogue backfill runs (nothing in SQLite stops it — the guard is the point)");
 
@@ -327,7 +327,7 @@ fn a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned() {
 fn live_search_hit_id_spaces_survive_registration() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "live_hits");
-    let opened = Engine::open_without_embedder_for_test(&path).expect("open");
+    let opened = Engine::open(&path).expect("open");
     let engine = &opened.engine;
 
     engine
@@ -387,7 +387,7 @@ fn live_search_hit_id_spaces_survive_registration() {
 fn anonymous_and_governed_twins_both_stay_active_and_both_surface() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "twins");
-    let opened = Engine::open_without_embedder_for_test(&path).expect("open");
+    let opened = Engine::open(&path).expect("open");
     let engine = &opened.engine;
 
     engine
@@ -435,7 +435,7 @@ fn anonymous_and_governed_twins_both_stay_active_and_both_surface() {
 fn identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "identical_twins");
-    let opened = Engine::open_without_embedder_for_test(&path).expect("open");
+    let opened = Engine::open(&path).expect("open");
     let engine = &opened.engine;
 
     let body = r#"{"title":"peculiar wombat telemetry"}"#;
@@ -463,7 +463,7 @@ fn identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist() {
 fn supersession_reuses_the_write_time_logical_id_rather_than_re_deriving_one() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "supersede");
-    let opened = Engine::open_without_embedder_for_test(&path).expect("open");
+    let opened = Engine::open(&path).expect("open");
     let engine = &opened.engine;
 
     engine.write(&[governed("ent-zephyr", "src:1", r#"{"status":"open"}"#)]).unwrap();
@@ -496,36 +496,6 @@ fn supersession_reuses_the_write_time_logical_id_rather_than_re_deriving_one() {
 /// `PreparedWrite` entirely is the internal structural-row writer
 /// (`write_canonical_row_with_kind_for_test`, the `coverage`/`graph` `RowKind`s
 /// from EXP-S — rows with NO public SDK surface at all). It binds a literal
-/// `NULL` `logical_id`. That is the un-admitted, non-governed write path, and
-/// this test pins that it mints nothing: a structural row stays in the `h:`
-/// content space forever, exactly like a doc-seeded one.
-#[test]
-fn the_internal_structural_row_writer_mints_no_logical_id() {
-    let dir = TempDir::new().unwrap();
-    let path = db_path(&dir, "structural_rows");
-    let opened = Engine::open_without_embedder_for_test(&path).expect("open");
-    let engine = &opened.engine;
-
-    engine
-        .write_canonical_row_with_kind_for_test("coverage", "a coverage row", RowKind::Coverage)
-        .expect("coverage row write");
-    engine
-        .write_canonical_row_with_kind_for_test("graph", "a graph row", RowKind::Graph)
-        .expect("graph row write");
-
-    let snap = snapshot(&path);
-    assert_eq!(snap.len(), 2, "both structural rows landed");
-    assert_eq!(
-        spaces(&snap),
-        (2, 0),
-        "an un-admitted, non-governed write path mints NOTHING — the rows stay `h:`"
-    );
-    assert!(
-        snap.iter().all(|(_, lid, _, _)| lid.is_none()),
-        "the structural writer binds a literal NULL logical_id"
-    );
-}
-
 /// The mirror of the audit's other half: an ANONYMOUS `PreparedWrite::Node`
 /// (`logical_id: None`) survives the full durable write path — validation,
 /// `commit_batch`, projection — still NULL. `commit_batch` is a pure
@@ -535,7 +505,7 @@ fn the_internal_structural_row_writer_mints_no_logical_id() {
 fn an_anonymous_write_stays_anonymous_through_the_whole_durable_path() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "anonymous_stays");
-    let opened = Engine::open_without_embedder_for_test(&path).expect("open");
+    let opened = Engine::open(&path).expect("open");
     let engine = &opened.engine;
 
     engine.write(&[anonymous("src:doc-a", r#"{"status":"open","title":"a doc chunk"}"#)]).unwrap();

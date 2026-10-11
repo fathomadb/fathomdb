@@ -1,0 +1,131 @@
+{
+  "cases": [
+    {
+      "after": {
+        "hits": [
+          {
+            "body": "alpha structured retrieval document",
+            "branch": "text",
+            "id_space": "logical",
+            "id_value": "phase2-matrix-0",
+            "kind": "note",
+            "source_id": "phase2-matrix-source"
+          }
+        ],
+        "kind": "success"
+      },
+      "before": {
+        "hits": [
+          {
+            "body": "alpha structured retrieval document",
+            "branch": "text",
+            "id_space": "logical",
+            "id_value": "phase2-matrix-0",
+            "kind": "note",
+            "source_id": "phase2-matrix-source"
+          }
+        ],
+        "kind": "success"
+      },
+      "id": "filter_note"
+    },
+    {
+      "after": {
+        "hits": [],
+        "kind": "success"
+      },
+      "before": {
+        "hits": [],
+        "kind": "success"
+      },
+      "id": "empty_status"
+    },
+    {
+      "after": {
+        "kind": "success",
+        "pages": [
+          {
+            "has_more": true,
+            "items": [
+              {
+                "body": "alpha structured retrieval document",
+                "kind": "note",
+                "logical_id": "phase2-matrix-0"
+              }
+            ]
+          },
+          {
+            "has_more": false,
+            "items": [
+              {
+                "body": "beta structured search payload",
+                "kind": "note",
+                "logical_id": "phase2-matrix-1"
+              }
+            ]
+          }
+        ]
+      },
+      "before": {
+        "kind": "success",
+        "pages": [
+          {
+            "has_more": true,
+            "items": [
+              {
+                "body": "alpha structured retrieval document",
+                "kind": "note",
+                "logical_id": "phase2-matrix-0"
+              }
+            ]
+          },
+          {
+            "has_more": false,
+            "items": [
+              {
+                "body": "beta structured search payload",
+                "kind": "note",
+                "logical_id": "phase2-matrix-1"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "page_note"
+    },
+    {
+      "after": {
+        "error_type": "PageError",
+        "field_path": "/limit",
+        "kind": "error",
+        "reason": "invalid_page_limit"
+      },
+      "before": {
+        "error_type": "PageError",
+        "field_path": "/limit",
+        "kind": "error",
+        "reason": "invalid_page_limit"
+      },
+      "id": "invalid_page"
+    }
+  ],
+  "database_sha256": "d24c0db87228a51b24b86ed569b76f629500621f7a67fee35e9d130b94940034",
+  "environment": {
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "python_executable": "/usr/bin/python3.12",
+    "python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]"
+  },
+  "fixture_sha256": "3f216e6b4fa1ed2aa8ac44eb67cb07ce38d10437b0603ecd3ca9d9b088d045a2",
+  "identity": {
+    "module_path": "/tmp/slice135-python-venv-baseline-f99e002/lib/python3.12/site-packages/fathomdb/__init__.py",
+    "native_path": "/tmp/slice135-python-venv-baseline-f99e002/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so"
+  },
+  "native_sha256": "269fafc1c696244d05f2eabea19b23cfba6de79f5041b1123fe10589c46c51dc",
+  "protocol_sha256": "e6b8502882b8d310b5f18b60147c629ae2d0573a522365709d732c40521b1212",
+  "runner_sha256": "58ec086bb94ff6bc36d5a0b9a9ffd1655b0b44fbdd38155a7318c86540899fbc",
+  "schema_version": 1,
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "sqlite_integrity_check": "ok",
+  "version": "baseline",
+  "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+}

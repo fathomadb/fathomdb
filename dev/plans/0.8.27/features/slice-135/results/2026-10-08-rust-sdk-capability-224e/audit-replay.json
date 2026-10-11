@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "source_bound_external_consumer": true,
+  "published_crate_install": false,
+  "candidate_source_commit": "224e44c593c13d86ece648adabe445723db04070",
+  "canonical_operation_map_sha256": "da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17",
+  "sdk_source_sha256": {
+    "src/rust/crates/fathomdb-sdk/src/admin.rs": "485b3104a8d6a133eb95ade7c626c0955ec03325ccc6f4f41cc10ed4b0eeb111",
+    "src/rust/crates/fathomdb-sdk/src/engine.rs": "0cca48d1a62cb5417dfb7286358ef5a50baf6ff50627a2a29584cb2d1e5f5843",
+    "src/rust/crates/fathomdb-sdk/src/error.rs": "22f1bf63a600309f34fcb90b4a5b983b359b610f22a5188686bda90baaa99eb0",
+    "src/rust/crates/fathomdb-sdk/src/graph.rs": "a1b865d4d550aa2acbf6134bb29e4e3f6323ca5af3757b7995fa9a170d430e20",
+    "src/rust/crates/fathomdb-sdk/src/guard.rs": "c9d87643c6273d04876ef609ddd37aa5cd0e75d03ba5e75e71194f80922a48fe",
+    "src/rust/crates/fathomdb-sdk/src/lib.rs": "7e6f0851478415cd20c7e575e5f61e6c175fc2c4fb2fab31922adea62ed6844b",
+    "src/rust/crates/fathomdb-sdk/src/options.rs": "db69348b7a950e0ba6375d15e5ce87141c576c7ab89a6ce67f693004309224ed",
+    "src/rust/crates/fathomdb-sdk/src/read.rs": "5e97fd6253af06b545b8d4a64ec0c57abca389e825d25adb52b53125d08c43ba",
+    "src/rust/crates/fathomdb-sdk/src/standalone.rs": "07068da067898c406de288b36160d8f912de38fd585b68d4393f5a1a7a94183a"
+  },
+  "dependencies": {
+    "Cargo.toml.snapshot": "19756d13a65e6929d2ca46ef94e3dda47d76cf2c74a362af20ba94d763f6cbce",
+    "Cargo.lock": "d745962805be8ceb1a4d8abdc48fbab031ae280164061c3fc661141ea9d4aefd",
+    "cargo-tree.txt": "02423c3b279c74a93227a62584d3945a5f62e734a77b6e0006aad8b9efbcf832"
+  },
+  "files": {
+    "main.rs": "442628b1e8d29f97e742e42484f6c9b38a3b59d829c742c2aef0210e7e64302e",
+    "Cargo.toml.snapshot": "19756d13a65e6929d2ca46ef94e3dda47d76cf2c74a362af20ba94d763f6cbce",
+    "Cargo.lock": "d745962805be8ceb1a4d8abdc48fbab031ae280164061c3fc661141ea9d4aefd",
+    "stdout.log": "8ee109a3c257fce4db88b037d16cb2168d7529b82a7dc1406913f5d5577ed431",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "consumer.sqlite": "18dc1463d0a3ea7a158b6e3a19d1b5750ff2756cdcf587a78bcbdc6a506e03c7",
+    "cargo-tree.txt": "02423c3b279c74a93227a62584d3945a5f62e734a77b6e0006aad8b9efbcf832",
+    "operations.json": "72b1396c1652d33cef158e908207e8a4cd2b19fd9f912d6141714748525e203e",
+    "build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build.stderr": "e1eb625ddf57a51b262eaf7a75a105a6b21f7ce156eb89bda7d3f68ff637b4d3",
+    "rustc-version.txt": "f4d034f5660bb49f22bfcba3f3445be67e25b704c193ff421b53863b4faee148",
+    "source-commit.txt": "22eb5bfa982e9bcb646480133976a6da30c68f9f35d95fcca17e1a3f4fae90e6",
+    "binary-sha256.txt": "8050ce6df639edd3914a2f69f43364bc2e900f8b829a9b79e39bb3b26aa97d87"
+  },
+  "counts": {
+    "executed": 42,
+    "gap": 0,
+    "unavailable": 2
+  },
+  "sqlite_state": {
+    "corpus_nodes": 32,
+    "graph_nodes": 0,
+    "graph_edges": 0,
+    "actuation_nodes": 1,
+    "refused_nodes": 0,
+    "lifecycle_nodes": 0,
+    "closure_nodes": 2,
+    "events_mutations": 2,
+    "settings_state": 2
+  },
+  "negative_control_rejected": "persisted state differs: {'corpus_nodes': 32, 'graph_nodes': 0, 'graph_edges': 1, 'actuation_nodes': 1, 'refused_nodes': 0, 'lifecycle_nodes': 0, 'closure_nodes': 2, 'events_mutations': 2, 'settings_state': 2}"
+}

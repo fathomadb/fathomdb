@@ -289,6 +289,7 @@ __all__ = [
     "ProvenanceError",
     "DependencyError",
     "DependencyClosureError",
+    "DependencyTraceError",
     "SchedulerError",
     "SchemaValidationError",
     "StorageError",

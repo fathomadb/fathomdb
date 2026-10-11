@@ -139,27 +139,42 @@ resolve_local_version() {
 }
 
 # Returns 0 if $version appears anywhere in versions[].num for $crate
-# at the configured registry, 1 if absent, 2 if the registry query
-# itself failed (network / 5xx / non-JSON body). Yanked versions are
+# at the configured registry, 1 if absent (including HTTP 404 for a crate
+# never published), 2 if the registry query itself failed (network / other
+# HTTP errors / malformed response). Yanked versions are
 # still treated as "already published" because cargo publish refuses
 # to republish a yanked version number.
 registry_has_version() {
   local crate="$1" version="$2"
   local base="${CARGO_PUBLISH_IF_NEW_REGISTRY:-https://crates.io}"
   local url="${base}/api/v1/crates/${crate}"
-  local body
-  if ! body="$(curl --silent --show-error --fail --max-time 30 \
+  local response body http_status
+  if ! response="$(curl --silent --show-error --max-time 30 \
+        --write-out '\n%{http_code}' \
         -H "User-Agent: fathomdb-release-publish-guard (https://github.com/coreyt/fathomdb)" \
         "$url" 2>&1)"; then
     printf 'cargo-publish-if-new: registry query failed for %s — %s\n' \
-      "$crate" "$body" >&2
+      "$crate" "$response" >&2
     return 2
   fi
+  http_status="${response##*$'\n'}"
+  body="${response%$'\n'*}"
+  if [ "$http_status" = "404" ]; then
+    return 1
+  fi
+  case "$http_status" in
+    2??) ;;
+    *)
+      printf 'cargo-publish-if-new: registry query failed for %s — HTTP %s\n' \
+        "$crate" "$http_status" >&2
+      return 2
+      ;;
+  esac
   # Fail-closed: validate the body is parseable JSON before inspecting it.
   # A malformed/truncated 200 response would otherwise silently fall through
   # as "version not found" (return 1) and trigger an unnecessary publish attempt.
-  if ! printf '%s' "$body" | jq . >/dev/null 2>&1; then
-    printf 'cargo-publish-if-new: registry returned malformed JSON for %s\n' \
+  if ! printf '%s' "$body" | jq -e '.versions | type == "array"' >/dev/null 2>&1; then
+    printf 'cargo-publish-if-new: registry returned malformed response for %s\n' \
       "$crate" >&2
     return 2
   fi

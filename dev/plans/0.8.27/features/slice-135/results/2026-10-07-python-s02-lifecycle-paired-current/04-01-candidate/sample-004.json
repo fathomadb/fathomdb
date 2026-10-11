@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "status": "S02_LIFECYCLE_MEMORY_DIAGNOSTIC",
+  "source_sha": "cdf253cd223a82e954591db532397a3d78a2027a",
+  "runner_sha256": "d6071b49fce7d87ce4395504c480b07e35d59abbc603d79c38a634b7092bc9d9",
+  "artifact": {
+    "wheel_sha256": "c33987023754fee2d85f887bfbbd17c68889f287603d3df06844d06a240a60a0",
+    "native_sha256": "79fd863733d1a97de308b445a5c45b2434e27a1317048376dbfdb76502ff0ae9",
+    "installed_module": "/tmp/slice135-integrated-venv-clean-v1/lib/python3.12/site-packages/fathomdb/__init__.py",
+    "installed_native": "/tmp/slice135-integrated-venv-clean-v1/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so"
+  },
+  "host": {
+    "uname": [
+      "Linux",
+      "windchill3",
+      "7.0.0-38-generic",
+      "#38~24.04.4-Ubuntu SMP PREEMPT_DYNAMIC Mon Sep 14 16:37:11 UTC 2",
+      "x86_64"
+    ],
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "embed_device": "cpu"
+  },
+  "embedder": {
+    "name": "fathomdb-bge-small-en-v1.5",
+    "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "dimension": 384
+  },
+  "vector_dimension": 384,
+  "vector_nonzero": true,
+  "vector_sha256": "510bc9226dac08ee2213281ef5af9d3e73ead063749516f02549b3495109e0be",
+  "semantic_ok": true,
+  "reopen_ok": true,
+  "before": {
+    "rss_kib": 45700,
+    "pss_kib": 36688,
+    "private_kib": 35248
+  },
+  "opened": {
+    "rss_kib": 184836,
+    "pss_kib": 175760,
+    "private_kib": 174320
+  },
+  "closed": {
+    "rss_kib": 139236,
+    "pss_kib": 130041,
+    "private_kib": 128600
+  },
+  "closed_idle": {
+    "rss_kib": 139236,
+    "pss_kib": 130041,
+    "private_kib": 128600
+  },
+  "dropped": {
+    "rss_kib": 139300,
+    "pss_kib": 130105,
+    "private_kib": 128664
+  },
+  "open_embed_ns": 229855031,
+  "close_ns": 12225515,
+  "resource": {
+    "peak_rss_kib": 294932,
+    "user_cpu_s": 0.44345799999999996,
+    "system_cpu_s": 0.215583,
+    "major_faults": 0,
+    "swap_events": 0
+  }
+}

@@ -1,13 +1,12 @@
 # TypeScript API
 
 Package: `fathomdb`. Authoritative spec:
-[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md).
+[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/typescript.md).
 
-> **Release state.** 0.8.26 is the current published release.
+> **Release 0.8.27, pre-1.0 beta.**
 
-**TS SDK parity caveat.** The TS surface covers the same governed command set
-and the same error taxonomy as Python, but Python remains the more heavily
-exercised binding. Prefer Python for production pilots. See
+The TypeScript, Python, and Rust SDKs share the governed operation surface
+and error categories. Language calling conventions differ. See
 [SDK parity](../positions/sdk-parity.md).
 
 Governed Engine operations are Promise-returning. Process-start runtime
@@ -33,6 +32,7 @@ import {
   type SearchHit,
   type SearchResult,
   type SearchFilter,
+  type Filter,
   type SoftFallback,
   type SoftFallbackBranch,
   type CounterSnapshot,
@@ -59,6 +59,11 @@ Open or create a FathomDB database at `path`.
 
 - `path` (`string`).
 - `options` (`EngineOpenOptions`):
+  - `useDefaultEmbedder` (`boolean`, default `false`) — `true` enables the
+    pinned `fathomdb-bge-small-en-v1.5` embedder. First use can download
+    weights into `~/.cache/fathomdb/embedders/`. Without an embedder, vector
+    writes and `engine.embed` reject with `EmbedderNotConfiguredError`.
+    See the [embedder guide](../embedder.md) for runtime policy.
   - `engineConfig` (`EngineConfig`) — engine knobs in camelCase.
     See [config](config.md).
 
@@ -146,12 +151,15 @@ const receipt = await engine.write([
 
 ### `engine.search(query, filter?, rerankDepth?, useGraphArm?, alpha?, poolN?, explain?, options?) -> Promise<SearchResult>`
 
-Run hybrid retrieval, ranked by **G9 RRF fusion**, with optional CPU
+Run hybrid retrieval, ranked by **G9 RRF fusion**, with optional
 cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
 
 - `query` (`string`).
-- `filter` ([`SearchFilter`](#searchfilter), optional) — closed metadata filter;
-  omitted (or all-`undefined`) is the unfiltered path.
+- `filter` ([`SearchFilter`](#searchfilter) | `Filter`, optional) — closed
+  metadata filter. `Filter` accepts the unified metadata terms and lowers to
+  `SearchFilter`; a `json` term throws `InvalidFilterError` because search must
+  not apply a JSON predicate after vector candidate selection. Omitted (or
+  all-`undefined`) is the unfiltered path.
 - `rerankDepth` (`number`, optional, default `undefined`/`0`) — 0.8.1 R1 opt-in.
   `0` or omitted uses the identity / soft-fallback path: byte-identical to the
   pre-0.8.1 fused order. `N > 0` applies a cross-encoder (TinyBERT-L-2,
@@ -275,6 +283,8 @@ Rejects with `WriteValidationError` for an empty, whitespace-only, or
 reachable only through `fathomdb recover --excise-source`. Rejects with
 `ErasureIncompleteError` (carrying `stage` and `detail`) rather than reporting
 success if the erasure could not be completed at rest.
+The same source identity accepted by a write can be erased, including one with
+an embedded NUL; the call matches the full identity exactly.
 
 Resolves to an `EraseReport` with `sourceRef`, `nodesExcised`, `edgesExcised`,
 and `projectionsInvalidated`. Mirror of the Python
@@ -817,5 +827,5 @@ and FathomDB provides no GPU reservation or hard memory cap.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md)
+- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/typescript.md)
 - TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)

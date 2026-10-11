@@ -306,11 +306,13 @@ impl Engine {
 }
 
 impl Engine {
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_provenance_row_cap_for_test(&self, cap: Option<u64>) {
         self.provenance_row_cap.store(cap.unwrap_or(0), Ordering::Relaxed);
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn provenance_row_count_for_test(&self) -> Result<u64, EngineError> {
         self.ensure_open()?;
@@ -321,6 +323,7 @@ impl Engine {
             .map_err(|_| EngineError::Storage)
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn oldest_provenance_record_key_for_test(
         &self,

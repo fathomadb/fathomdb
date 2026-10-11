@@ -110,7 +110,7 @@ def owner_errors(root: str, owner: str) -> list[str]:
         if len(re.findall(pattern, owner, re.M)) != 1:
             errors.append(f"WAL owner lacks cfg({predicate}) {declaration}")
     cfg_methods = (
-        ('any(test, debug_assertions, feature = "test-hooks")', "pause_reader_after_wal_snapshot_for_test"),
+        ('any(test, feature = "test-hooks")', "pause_reader_after_wal_snapshot_for_test"),
         ('any(test, feature = "test-hooks")', "arm_actual_checkpoint_observation_for_test"),
         ('feature = "test-hooks"', "native_raw_wal_checkpoint_for_test"),
     )
@@ -180,9 +180,14 @@ class WalRuntimeOwnerTest(unittest.TestCase):
                 'WAL owner lacks cfg(any(test, feature = "test-hooks")) struct RuntimeNativeStateRequest',
             ),
             (
-                '    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]',
-                '    #[cfg(feature = "test-hooks")]',
-                'WAL owner lacks cfg(any(test, debug_assertions, feature = "test-hooks")) Engine::pause_reader_after_wal_snapshot_for_test',
+                '    #[cfg(any(test, feature = "test-hooks"))]\n    #[allow(dead_code)]\n    #[doc(hidden)]\n    pub fn pause_reader_after_wal_snapshot_for_test',
+                '    #[cfg(feature = "test-hooks")]\n    #[allow(dead_code)]\n    #[doc(hidden)]\n    pub fn pause_reader_after_wal_snapshot_for_test',
+                'WAL owner lacks cfg(any(test, feature = "test-hooks")) Engine::pause_reader_after_wal_snapshot_for_test',
+            ),
+            (
+                '    #[cfg(any(test, feature = "test-hooks"))]\n    #[allow(dead_code)]\n    #[doc(hidden)]\n    pub fn pause_reader_after_wal_snapshot_for_test',
+                '    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]\n    #[allow(dead_code)]\n    #[doc(hidden)]\n    pub fn pause_reader_after_wal_snapshot_for_test',
+                'WAL owner lacks cfg(any(test, feature = "test-hooks")) Engine::pause_reader_after_wal_snapshot_for_test',
             ),
         ):
             with self.subTest(expected=expected):

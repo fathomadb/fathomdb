@@ -365,6 +365,8 @@ ID permanently unusable without retaining its prior receipt content.
 `sourceId` follows the Engine `SourceId` grammar rather than the generic
 content-string FFI guard, so an embedded NUL is preserved exactly; body, kind,
 and other content/control strings retain the REQ-064 rejection.
+`eraseSource(sourceId)` uses this same identity grammar and can erase a row
+whose source ID contains an embedded NUL.
 
 ## Dependency lifecycle closure (0.8.25 Slice 30)
 
@@ -844,10 +846,11 @@ fathomdb first".
 
 ### Tegra private CUDA memory pool (0.8.28 Slice 30)
 
-An addon built with the `tegra-pool` Cargo feature (the manual Tegra recipe
-in `scripts/tests/test_tegra_node_early_cuinit.sh`; no published npm package
-carries it) gives FathomDB a private CUDA memory pool on the Jetson AGX Orin
-64 GB. The rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
+The governed 0.8.28 Tegra addon build uses `CUDA_TEGRA_NAPI_FEATURES` with
+`tegra-pool`, giving FathomDB a private CUDA memory pool on the Jetson AGX
+Orin 64 GB. The 0.8.27 Tegra addon lacked this feature; generic arm64 and
+x86_64 packages still lack it. The rule is
+`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
 
 - The registration-time `cuInit` above is recorded; the pool is created at
   the first CUDA device build only if it ran. If it was opted out, skipped or
@@ -1130,7 +1133,10 @@ string `"1"` and number `1` both match `"1"`. `searchFilterToFilter` throws
 For a search invoked with its `explain` argument set to `true` and attribute predicates,
 `result.explanation.trace.droppedEdgeHits` reports edge-FTS candidates rejected
 solely by the node-scoped attribute rule. The default non-explain path does not
-collect this count.
+collect this count. If the count query or its row decoding fails, search throws
+`StorageError` rather than returning a plausible zero.
+Stored importance/confidence lookup failures also throw `StorageError`
+instead of yielding a neutral ranking or explanation value.
 
 `engine.searchProjectedText(query, name, filter?, view?)` searches only the
 named declared `"searchable"` property-FTS projection, applying metadata,

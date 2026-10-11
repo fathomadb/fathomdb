@@ -53,7 +53,7 @@ def test_candidate_sources_are_from_this_checkout() -> None:
     assert Path(inspect.getfile(fathomdb.Engine)).resolve().is_relative_to(checkout)
 
 
-def test_all_python_declarations_match_pre_move_baseline() -> None:
+def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> None:
     checkout = Path(__file__).resolve().parents[3]
     package = checkout / "src/python/fathomdb"
     spec = importlib.util.spec_from_file_location(
@@ -70,12 +70,48 @@ def test_all_python_declarations_match_pre_move_baseline() -> None:
     additions = json.loads(ADDITIONS.read_text())
     declared = [entry["declaration"] for entry in additions["additions"]]
     declarations = comparator.parse_python_wrappers(sources)
-    assert len(baseline["python_wrapper_declarations"]) == 1131
-    assert len(declarations) == 1131 + len(declared)
-    added = [d for d in declarations if d not in baseline["python_wrapper_declarations"]]
-    assert added == declared
-    assert [d for d in declarations if d not in declared] == baseline["python_wrapper_declarations"]
-    assert (
-        hashlib.sha256((package / "_fathomdb.pyi").read_bytes()).hexdigest()
-        == additions["native_stub_sha256"]
+    baseline_declarations = baseline["python_wrapper_declarations"]
+    expected = {row["path"]: row for row in baseline_declarations}
+    assert len(baseline_declarations) == len(expected) == 1131
+
+    # The frozen baseline is historical; each release delta stays explicit.
+    for path_name in ("fathomdb.Engine.search_frozen", "fathomdb.engine.Engine.search_frozen"):
+        old = expected[path_name]
+        assert "pool_n: int=0" in old["signature"]
+        expected[path_name] = {
+            **old,
+            "signature": old["signature"].replace("pool_n: int=0", "pool_n: int | None=None"),
+        }
+    expected["fathomdb.errors.DependencyTraceError"] = {
+        "kind": "python-value",
+        "path": "fathomdb.errors.DependencyTraceError",
+        "signature": "DependencyTraceError = _DependencyTraceError",
+    }
+    version_row = expected["fathomdb.__version__"]
+    assert version_row["signature"] == "__version__ = '0.8.26'"
+    release_version = json.loads((checkout / "src/ts/package.json").read_text())["version"]
+    expected["fathomdb.__version__"] = {
+        **version_row,
+        "signature": f"__version__ = {release_version!r}",
+    }
+    for declaration in declared:
+        assert declaration["path"] not in expected
+        expected[declaration["path"]] = declaration
+    observed = {row["path"]: row for row in declarations}
+    assert len(declarations) == len(observed) == len(expected) == 1132 + len(declared)
+    assert observed == expected
+
+    stub = (package / "_fathomdb.pyi").read_text()
+    prefix, marker, tail = stub.partition("    def search_frozen(\n")
+    assert marker and "    def search_frozen(\n" not in tail
+    frozen, suffix = tail.split("    ) -> SearchResult: ...\n", 1)
+    approved = "pool_n: int | None = ..."
+    assert frozen.count(approved) == 1
+    pre_027_delta_stub = (
+        prefix
+        + marker
+        + frozen.replace(approved, "pool_n: int = ...", 1)
+        + "    ) -> SearchResult: ...\n"
+        + suffix
     )
+    assert hashlib.sha256(pre_027_delta_stub.encode()).hexdigest() == additions["native_stub_sha256"]

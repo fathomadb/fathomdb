@@ -9,20 +9,20 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
 GATES = {
-    "pause_projection_worker_after_wal_transaction_for_test": "#[cfg(debug_assertions)]",
+    "pause_projection_worker_after_wal_transaction_for_test": "#[cfg(any(test, feature = \"test-hooks\"))]",
     "pause_projection_worker_while_queued_for_test": '#[cfg(feature = "test-hooks")]',
     "pause_projection_worker_before_write_lock_for_test": '#[cfg(feature = "test-hooks")]',
-    "force_next_projection_commit_failure_for_test": "#[cfg(debug_assertions)]",
-    "force_next_projection_storage_failure_for_test": "#[cfg(debug_assertions)]",
-    "pause_projection_commit_failure_cleanup_for_test": "#[cfg(debug_assertions)]",
-    "acknowledge_projection_stop_for_test": "#[cfg(debug_assertions)]",
-    "set_projection_scheduler_frozen_for_test": None,
-    "projection_scheduler_pending_scan_for_test": None,
-    "set_projection_retry_delays_for_test": None,
-    "set_embed_timeout_ms_for_test": None,
-    "projection_status_for_test": None,
-    "has_vector_for_cursor_for_test": None,
-    "projection_failure_count_for_test": None,
+    "force_next_projection_commit_failure_for_test": "#[cfg(any(test, feature = \"test-hooks\"))]",
+    "force_next_projection_storage_failure_for_test": "#[cfg(any(test, feature = \"test-hooks\"))]",
+    "pause_projection_commit_failure_cleanup_for_test": "#[cfg(any(test, feature = \"test-hooks\"))]",
+    "acknowledge_projection_stop_for_test": "#[cfg(any(test, feature = \"test-hooks\"))]",
+    "set_projection_scheduler_frozen_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
+    "projection_scheduler_pending_scan_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
+    "set_projection_retry_delays_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
+    "set_embed_timeout_ms_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
+    "projection_status_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
+    "has_vector_for_cursor_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
+    "projection_failure_count_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
 }
 FAMILY_NAME = (
     r"(?:pause_projection_worker_|force_next_projection_|"
@@ -141,7 +141,7 @@ class ProjectionRuntimeTestSeamsOwnerTest(unittest.TestCase):
             self.assertIn("root gates projection runtime module", owner_errors(changed, owner, other))
             inner = "#!" + attr[1:]
             self.assertIn("projection runtime gates whole owner module", owner_errors(root, inner + "\n" + owner, other))
-        changed = owner.replace("    #[cfg(debug_assertions)]\n    #[doc(hidden)]\n    pub fn force_next_projection_commit_failure_for_test(", "    #[doc(hidden)]\n    pub fn force_next_projection_commit_failure_for_test(", 1)
+        changed = owner.replace("    #[cfg(any(test, feature = \"test-hooks\"))]\n    #[doc(hidden)]\n    pub fn force_next_projection_commit_failure_for_test(", "    #[doc(hidden)]\n    pub fn force_next_projection_commit_failure_for_test(", 1)
         self.assertIn("projection runtime changes attrs force_next_projection_commit_failure_for_test", owner_errors(root, changed, other))
 
     def test_fast_registration(self) -> None:

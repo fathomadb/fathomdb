@@ -5,6 +5,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import runpy
+import subprocess
+import sys
+import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,6 +18,32 @@ UPLOAD_SHA = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def latest_published_release(root: Path = ROOT) -> str:
+    checker = runpy.run_path(str(ROOT / "scripts/check-public-doc-truth.py"))
+    return checker["current_published_state"](root)["release"]
+
+
+def check_published_lookup() -> None:
+    with tempfile.TemporaryDirectory(prefix="slice10-release-state-") as directory:
+        root = Path(directory)
+        state_dir = root / "dev/plans"
+        state_dir.mkdir(parents=True)
+        tracked = state_dir / "release-state-0.8.26.json"
+        tracked.write_text(json.dumps({
+            "release": "0.8.26",
+            "published": {
+                "tag": "v0.8.26",
+                "tag_commit": "a" * 40,
+                "published_on": "2026-09-19",
+                "npm_dist_tag": "latest",
+            },
+        }))
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        subprocess.run(["git", "-C", str(root), "add", "--", "dev/plans/release-state-0.8.26.json"], check=True)
+        (state_dir / "release-state-9.9.9.json").write_text(json.dumps({"release": "9.9.9", "published": {}}))
+        require(latest_published_release(root) == "0.8.26", "untracked scratch must not change the published release")
 
 
 def check_dependency() -> None:
@@ -45,7 +75,7 @@ def check_action_comments() -> None:
 
 def check_platform_truth() -> None:
     manifest = json.loads((ROOT / "dev/platform-capabilities.json").read_text())
-    require(manifest["release"] == "0.8.26", "platform manifest must identify the published release")
+    require(manifest["release"] == latest_published_release(), "platform manifest must identify the published release")
     published = [item["triple"] for item in manifest["platforms"] if item["status"] == "published"]
     require(
         published
@@ -77,15 +107,29 @@ def check_planning_truth() -> None:
     ):
         require(stale not in detail, f"planning detail retains stale current label: {stale}")
     require("through Slice 65" in thin, "thin index must cover the completed 0.8.26 slice range")
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/release-current.py")],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    target = latest_published_release()
+    if result.stdout.strip():
+        release, _, state_path = result.stdout.strip().split("\t")
+        state = json.loads((ROOT / state_path).read_text())
+        target = state.get("public_docs_target_release", target)
+        require(target == release or target == latest_published_release(), "documentation target must be active or published")
     require(
-        thin.count("current-link banner names 0.8.26") == 3,
-        "historical release-note index rows must name the current 0.8.26 banner",
+        thin.count(f"current-link banner names {target}") == 3,
+        f"historical release-note index rows must name the {target} banner",
     )
 
 
 def main() -> None:
     check_dependency()
     check_action_comments()
+    check_published_lookup()
     check_platform_truth()
     check_slice30_prerequisites()
     check_planning_truth()

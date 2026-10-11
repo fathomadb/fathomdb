@@ -1,0 +1,62 @@
+{
+  "audit": {
+    "argv": [
+      "python3",
+      "scripts/slice135_phase2_vector_campaign_audit.py",
+      "--protocol",
+      "dev/plans/0.8.27/features/slice-135/phase2-vector-fidelity-protocol-v2.json",
+      "--runner",
+      "scripts/slice135_phase2_vector_runner.py",
+      "--source-root",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/raw",
+      "--baseline-wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/baseline.whl",
+      "--candidate-wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/candidate.whl",
+      "--baseline-dir",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-vector-fidelity-v2/raw-baseline",
+      "--candidate-dir",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-vector-fidelity-v2/raw-candidate"
+    ],
+    "exit_code": 0,
+    "stdout": "audit.json"
+  },
+  "baseline": {
+    "argv": [
+      "/tmp/slice135-python-venv-baseline-f99e002/bin/python",
+      "scripts/slice135_phase2_vector_runner.py",
+      "--protocol",
+      "dev/plans/0.8.27/features/slice-135/phase2-vector-fidelity-protocol-v2.json",
+      "--source-root",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/raw",
+      "--wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/baseline.whl",
+      "--version",
+      "baseline",
+      "--output",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-vector-fidelity-v2/raw-baseline"
+    ],
+    "exit_code": 0,
+    "stderr": "baseline.stderr",
+    "stdout": "baseline.stdout"
+  },
+  "candidate": {
+    "argv": [
+      "/tmp/slice135-current-venv-224e44/bin/python",
+      "scripts/slice135_phase2_vector_runner.py",
+      "--protocol",
+      "dev/plans/0.8.27/features/slice-135/phase2-vector-fidelity-protocol-v2.json",
+      "--source-root",
+      "/home/coreyt/projects/fathomdb/data/corpus-data/raw",
+      "--wheel",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive/candidate.whl",
+      "--version",
+      "candidate",
+      "--output",
+      "dev/plans/0.8.27/features/slice-135/results/2026-10-08-phase2-vector-fidelity-v2/raw-candidate"
+    ],
+    "exit_code": 0,
+    "stderr": "candidate.stderr",
+    "stdout": "candidate.stdout"
+  }
+}

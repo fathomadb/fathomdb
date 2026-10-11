@@ -1,0 +1,13 @@
+
+running 8 tests
+test runtime_configuration_child ... ok
+test diagnostics_preserves_memory_controls ... ok
+test prior_sqlite_initialization_is_rejected_without_shutdown ... ok
+test repeated_and_conflicting_configuration_is_deterministic ... ok
+test default_open_selects_performance_mode ... ok
+test post_open_repeat_succeeds_and_conflict_fails ... ok
+test concurrent_configuration_and_open_have_one_winner ... ok
+test configured_mode_survives_multiple_engine_lifetimes ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+

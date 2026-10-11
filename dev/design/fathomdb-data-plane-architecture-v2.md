@@ -2,14 +2,14 @@
 title: FathomDB data-plane architecture v2
 status: ACTIVE
 architecture_version: 2.2
-implementation_status: active authority; 0.8.26 source-candidate profile implemented through Slice 40
-target_release: 0.8.26
+implementation_status: active authority; historical 0.8.26 profile with current 0.8.27 ownership addenda
+target_release: 0.8.27
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
-last_reconciled: 2026-09-15 by 0.8.26 Slice 45
+last_reconciled: 2026-10-10 by 0.8.27 Slice 140
 ---
 
 # FathomDB data-plane architecture v2
@@ -62,18 +62,19 @@ Designs deferred beyond that profile are inventoried in
 An active 0.8.25 slice design must not expose a deferred destination type or
 behavior merely because it appears later in this document.
 
-## As-built 0.8.26 profile
+## As-built 0.8.26 profile — historical baseline
 
-Version 2.2 records the current 0.8.26 source candidate after Slice 40. It
-applies the accepted 0.8.26 decisions to the v2 model; it does not introduce a
-new decision or claim publication. Detailed field/error contracts remain in
+Version 2.2 recorded the 0.8.26 source candidate after Slice 40. This
+historical profile applies its accepted decisions to the v2 model and is the
+baseline for the current 0.8.27 addenda below. It does not introduce a new
+decision or claim publication. Detailed field/error contracts remain in
 [`dev/interfaces/`](../interfaces/README.md), accepted decisions remain in the
 [`ADR index`](../adr/ADR-0.6.0-decision-index.md), and topic implementation
 detail remains under [`dev/design/`](README.md).
 
 ### Workspace and ownership
 
-The Rust workspace has ten members:
+The 0.8.26 Rust workspace had ten members:
 
 - the thin public `fathomdb` facade;
 - `fathomdb-engine`, which owns runtime, reader/writer coordination,
@@ -89,12 +90,37 @@ The Rust workspace has ten members:
 the native crates. Only documented facade/binding APIs are public contracts;
 engine module/file boundaries remain internal and may change.
 
+## Current 0.8.27 profile
+
+### Workspace and application SDK ownership
+
+The current Rust workspace has **eleven** members: the ten retained owners
+listed in the historical 0.8.26 profile plus `fathomdb-sdk`. The dedicated
+Rust application SDK is a peer of the Python and TypeScript SDKs, with the
+44 governed operations across `Engine`, `read`, `graph`, `admin` and
+root-level `rerank`. The standalone `embed_batch_cls` operation remains
+outside that signed map. Arguments and defaults follow the accepted
+[Rust SDK translations](../adr/ADR-0.8.27-rust-sdk-parity.md), including the
+TypeScript resolution where Python and TypeScript differ. Calls are
+synchronous and return `Result`, with one `Error` type and `ErrorKind`
+categories. Its source owner is
+`src/rust/crates/fathomdb-sdk/`; Python and TypeScript package owners remain
+`src/python/` and `src/ts/`, over `fathomdb-py` and `fathomdb-napi`.
+
+The `fathomdb` crate remains the lower-level facade and `fathomdb-cli` the
+operator boundary. SDKs do not expose raw SQL, recovery or test hooks.
+The [Rust SDK contract](../interfaces/rust-sdk.md) and
+[generated contributor map](../../docs/generated/contributor-map.md) give
+current operation and package paths. Rust engine file/module boundaries are
+internal implementation ownership, not SDK contracts. The following addenda
+record implemented 0.8.27 boundaries without rewriting the historical model.
+
 ### 0.8.27 Python diagnostic transport addendum
 
 This addendum records the Slice 100 implementation under the accepted
 [`ADR-0.8.27-python-subscriber-delivery`](../adr/ADR-0.8.27-python-subscriber-delivery.md).
-The v2.2 approval and reconciliation dates in this document's header apply to
-the earlier data-plane profile; the subscriber successor was separately
+The v2.2 approval and activation dates in this document's header apply to
+the earlier data-plane model; the subscriber successor was separately
 accepted on 2026-10-03 after review of this addendum.
 
 FathomDB is a local, SQLite-backed data plane. Observability must not put
@@ -237,7 +263,7 @@ receipt/replay interpretation, or partial graph commit.
 machine-readable integrity route. It resolves the product database identity,
 requires quiescence, opens SQLite immutably, and performs no recovery or
 mutation. Doctor and recovery remain operator-only and absent from governed
-Python and TypeScript SDKs.
+Python, TypeScript, and Rust application SDKs.
 
 ### Preserved boundary and deferred destination
 
@@ -426,7 +452,12 @@ reuses, amends, or supersedes them.
 
 ## Release allocation
 
-The current 0.8.26 profile is allocated by
+The current 0.8.27 work is allocated by
+[`plan-0.8.27.md`](../plans/plan-0.8.27.md); Slice 140 reconciles current
+SDK/owner documentation, Slice 150 owns final qualification and Slice 160
+owns publication.
+
+The historical 0.8.26 profile was allocated by
 [`plan-0.8.26.md`](../plans/plan-0.8.26.md). Its implemented public boundaries
 are recorded in the maintained interface documents and its as-built
 requirements/evidence in Slices 10, 20, 30, 35, and 40. Slice 45 reconciles

@@ -1,0 +1,13 @@
+🍹 Building a mixed python/rust project
+🐍 Found CPython 3.12 at /usr/bin/python3.12
+🔗 Found pyo3 bindings with abi3-py3.10 support
+    Finished `release` profile [optimized] target(s) in 0.13s
+📦 Built wheel for abi3 Python ≥ 3.10 to /tmp/slice135-integrated-wheel-clean-v1/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl
+wheel bytecode hygiene: ok (24 members)
+Processing /tmp/slice135-integrated-wheel-clean-v1/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl
+Installing collected packages: fathomdb
+Successfully installed fathomdb-0.8.26
+frozen evidence wheel profile: ok
+c33987023754fee2d85f887bfbbd17c68889f287603d3df06844d06a240a60a0  /tmp/slice135-integrated-wheel-clean-v1/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/slice135-integrated-venv-clean-v1/lib/python3.12/site-packages/fathomdb/__init__.py
+native=/tmp/slice135-integrated-venv-clean-v1/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so

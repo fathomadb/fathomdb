@@ -15,7 +15,7 @@ and scale/stability guarantees are staged for 0.9.x and later.
 ## Install
 
 ```bash
-pip install fathomdb
+pip install fathomdb==0.8.27
 ```
 
 Requires Python 3.10 or newer. Wheels are `abi3`, so one wheel per platform serves every supported
@@ -86,8 +86,12 @@ interrupted erasure obligation can simply be retried.
 
 ## Other SDKs
 
-The same engine is available as a Rust crate ([`fathomdb`](https://crates.io/crates/fathomdb)) and
-a Node.js package (`npm install fathomdb`).
+The same engine is available as a Node.js package (`npm install fathomdb`). The Rust
+application peer is `fathomdb-sdk` (import `fathomdb_sdk`), available in
+0.8.27; use the
+[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/install/rust.md).
+The [`fathomdb` crate](https://crates.io/crates/fathomdb) remains the
+separate lower-level engine facade.
 
 ## Building from source
 

@@ -1,0 +1,210 @@
+{
+  "binary_sha256": "857d661d436207eae15c1675eeb82e879b24deff80093b3d4f24dd16ab333ec4",
+  "manifest_sha256": "9f869ff06cca48f92b50d7f37e542da822abce77e0d32cb235490e69d9e8673d",
+  "results": [
+    {
+      "index": 1,
+      "resource_sha256": "9569f1185c576f47b6c9acceaa675cb0a69bc5d5ff5bad138541f729d7a71562",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 33740,
+        "swap_events": 0
+      },
+      "stderr_sha256": "bac0c1c52b88e29d3f9bd73b78c604d9986f5d12dca6fbddb63d399f7d7c79d2",
+      "stdout_sha256": "b04cd5edfcaa9f61f7517cf46613f8d1d865aecd66053fd48d4bcef9079cf2c9",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    },
+    {
+      "index": 2,
+      "resource_sha256": "082048ac3a9979909bfccc3626c3dfc5c014ea210647b00c80bc02410a1d8539",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 34608,
+        "swap_events": 0
+      },
+      "stderr_sha256": "f13db9ea9fba7b5936252809a1908136a0bc9079301b974aca9a981c62ca70a8",
+      "stdout_sha256": "1d545a819d8bd22d2f218c811aa60895e100573226b7911926c4357cfaaeb094",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    },
+    {
+      "index": 3,
+      "resource_sha256": "114f43b6a41314bd6da1fff4ae54d65e785210f5666130f0ab2a310518ba0dd9",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 32500,
+        "swap_events": 0
+      },
+      "stderr_sha256": "24a56b5d37d4849b8826982c7321f830d3aa23392712cb7cf029bd6dd02ec3a8",
+      "stdout_sha256": "1d545a819d8bd22d2f218c811aa60895e100573226b7911926c4357cfaaeb094",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    },
+    {
+      "index": 4,
+      "resource_sha256": "356f047fcc95f795edd8c9aca1b2148f1c51c10f138321047534004f2dd166e2",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 33248,
+        "swap_events": 0
+      },
+      "stderr_sha256": "933a76b959e692186bfd04759ad0bf148976a6d2827768e53f93b93d8a94723b",
+      "stdout_sha256": "1d545a819d8bd22d2f218c811aa60895e100573226b7911926c4357cfaaeb094",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    },
+    {
+      "index": 5,
+      "resource_sha256": "c9a00925eeb00ad45edfa7adc65b7eab47cf0967c61cec46d81c7bcc614b9b3c",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 34788,
+        "swap_events": 0
+      },
+      "stderr_sha256": "806037f87a355fdd0ddcafc7dd8507126842cc8cd36725f2c03141e29d2d9479",
+      "stdout_sha256": "1d545a819d8bd22d2f218c811aa60895e100573226b7911926c4357cfaaeb094",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    },
+    {
+      "index": 6,
+      "resource_sha256": "27e80322d07c5f159ecdc454e78509dd017eb7a5894a1e7229b181b5b8e0d668",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 32004,
+        "swap_events": 0
+      },
+      "stderr_sha256": "4dc447315fabcaf6bcae9a58dcd4a3bfa0420ba669401fdc86f72f0842a4eee8",
+      "stdout_sha256": "1d545a819d8bd22d2f218c811aa60895e100573226b7911926c4357cfaaeb094",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    },
+    {
+      "index": 7,
+      "resource_sha256": "54c3ec915f67df847f3f87b79418b49af22a246a5280f8501bc55ac36f7fe781",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 34856,
+        "swap_events": 0
+      },
+      "stderr_sha256": "f88347280f19bcbb33d91ae23d9fedb9f29061a0710408326702f61ac003d73b",
+      "stdout_sha256": "1d545a819d8bd22d2f218c811aa60895e100573226b7911926c4357cfaaeb094",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    },
+    {
+      "index": 8,
+      "resource_sha256": "26f44ae6c6eaa1c0a92b0532d9c21e322fb8d21db5e06a2782cfdedd190b362d",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 31948,
+        "swap_events": 0
+      },
+      "stderr_sha256": "ad67eba5b6529c1944dca082c386f4aa04948750295b3007f6aa253f32135822",
+      "stdout_sha256": "b04cd5edfcaa9f61f7517cf46613f8d1d865aecd66053fd48d4bcef9079cf2c9",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    },
+    {
+      "index": 9,
+      "resource_sha256": "7757edb806f758e7d0a3074ed9ab2f4a0ae7fe943e7a84929116219b702d4828",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 33876,
+        "swap_events": 0
+      },
+      "stderr_sha256": "4f7a39f9c1e7fde1607e4e848a30fb0f19f27e86816d5cf626c1141b5e4669a7",
+      "stdout_sha256": "b04cd5edfcaa9f61f7517cf46613f8d1d865aecd66053fd48d4bcef9079cf2c9",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    },
+    {
+      "index": 10,
+      "resource_sha256": "b5ff9d3b8ea393598336984d27414217f737afc551c50d3004a6661d23453892",
+      "resources": {
+        "exit_status": 0,
+        "major_faults": 0,
+        "peak_rss_kib": 31748,
+        "swap_events": 0
+      },
+      "stderr_sha256": "bc578d441efe877991b45de82752382df851d88921e03dd36ce77904cdfdef45",
+      "stdout_sha256": "1d545a819d8bd22d2f218c811aa60895e100573226b7911926c4357cfaaeb094",
+      "tests": [
+        "tc91_panic_terminal_commit_failure_is_reported_and_redispatched",
+        "tc91_projection_commit_busy_is_reported_and_redispatched",
+        "tc91_projection_commit_failure_at_mean_pin_is_rollback_safe",
+        "tc91_projection_commit_failure_survives_stop_and_reopen",
+        "tc91_projection_commit_storage_error_is_reported_and_redispatched",
+        "tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch"
+      ]
+    }
+  ],
+  "run_count": 10,
+  "source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+  "status": "AUDITED_TC91_EXACT_CANDIDATE_FAULT_CAMPAIGN",
+  "test_source_sha256": "49236d66b3c3c9d98bd076dea47711ed0e9a0b48503c40088e643c50d1f92cb0"
+}

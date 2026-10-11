@@ -10,14 +10,14 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
 METHODS = {
     "_graph_frontier_stats_for_test": (None, False),
-    "set_search_limit_for_test": (None, True),
-    "set_recency_reweight_enabled_for_test": (None, True),
-    "set_importance_reweight_enabled_for_test": (None, True),
-    "set_vector_stage_only_for_test": (None, True),
+    "set_search_limit_for_test": ('#[cfg(any(test, feature = "test-hooks"))]', True),
+    "set_recency_reweight_enabled_for_test": ('#[cfg(any(test, feature = "test-hooks"))]', True),
+    "set_importance_reweight_enabled_for_test": ('#[cfg(any(test, feature = "test-hooks"))]', True),
+    "set_vector_stage_only_for_test": ('#[cfg(any(test, feature = "test-hooks"))]', True),
 }
 FREE = {
-    "vector_phase1_sql_for_test": (None, True),
-    "slice35_ranked_eligibility_sql_for_test": (None, True),
+    "vector_phase1_sql_for_test": ('#[cfg(any(test, feature = "test-hooks"))]', True),
+    "slice35_ranked_eligibility_sql_for_test": ('#[cfg(any(test, feature = "test-hooks"))]', True),
     "take_slice71_search_statement_trace_for_test": ('#[cfg(feature = "test-hooks")]', True),
 }
 FAMILY_NAME = (

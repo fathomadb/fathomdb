@@ -1,0 +1,101 @@
+PASS  baseline fixture — complete briefing (exit 0)
+PASS  baseline fixture — payload is 1..5120 bytes (910)
+PASS  baseline fixture — section present: REPO 
+PASS  baseline fixture — section present: WORKTREES
+PASS  baseline fixture — section present: RELEASE 0.9.0
+PASS  baseline fixture — section present: NEXT ACTION
+PASS  baseline fixture — section present: LEDGER
+PASS  baseline fixture — section present: TODOS
+PASS  baseline fixture — section present: PR
+PASS  baseline fixture — section present: HANDOFF
+PASS  the board's next-action cell is reproduced verbatim (markup included)
+PASS  landed slices + SHAs + SCHEMA are read from the release-state file
+PASS  the CLOSED release's stale state file is NOT read
+PASS  release is derived from the LIVE board filename (0.9.0), not hardcoded
+PASS  the briefing names the live board it read
+PASS  state-owned next action maps IN_PROGRESS to Continue Slice
+PASS  arm 8 fixture really places the CLOSED banner at line 6-15 (line 9)
+PASS  a CLOSED board (banner at line 6-15) is skipped -> zero live boards HARD-fails
+PASS  scripts/lib/board-closed.sh holds the head -n 15 predicate
+PASS  check-board-currency.sh sources the shared board-CLOSED predicate
+PASS  check-board-currency.sh has no inline CLOSED-window reimplementation
+PASS  steward-orient delegates current-release selection to the resolver
+PASS  arm 7 fixture plants orphan dirs only in the raw sibling worktrees path
+PASS  orphan checkout dirs in the SIBLING <root>-worktrees/ are found and named
+PASS  the child-path decoy is NOT enumerated (resolution is a sibling, not a child)
+PASS  the briefing prints the resolved worktrees dir in its HOME-compacted display form
+PASS  bounded-worktree fixture produces a complete briefing
+PASS  worktree summary reports each exception count, shown rows, omitted rows, and the on-demand command
+PASS  actionable worktree identity survives: WT current path=/tmp/tmp.PSJyoPAsH0/parent/proj branch=main sha=62ed35a5
+PASS  actionable worktree identity survives: WT locked path=/tmp/tmp.PSJyoPAsH0/parent/proj-worktrees/fixture-locked branch=fixture-locked sha=62ed35a5
+PASS  actionable worktree identity survives: WT detached path=/tmp/tmp.PSJyoPAsH0/parent/proj-worktrees/fixture-detached-a branch=DETACHED sha=62ed35a5
+PASS  ordinary and over-limit exception rows are omitted explicitly, not silently truncated
+PASS  zero landed slices -> HARD fail, and the message names the section
+PASS  a state-backed newly activated release may orient with no landed slices
+PASS  a malformed initial state still HARD-fails orientation
+PASS  a non-first initial next_slice still HARD-fails orientation
+PASS  a flat landed claim does not qualify for initial-release orientation
+PASS  a ladder landed claim absent from landed still HARD-fails orientation
+PASS  zero steward-ledger entries -> HARD fail, and the message names the section
+PASS  a todos ledger that folds to zero ids -> HARD fail
+PASS  no STEWARD-SESSION-HANDOFF-* found -> HARD fail, and the message names it
+PASS  the NEWEST hand-off is reported (dated filename order), not an older one
+PASS  a board whose next-action row moved -> HARD fail, never a silent omission
+PASS  a live board with no matching release-state file -> HARD fail naming the path
+PASS  a briefing over the 5120-byte cap HARD-fails and names the budget
+PASS  arm 1 fixture really produced an over-cap payload (6865 bytes)
+PASS  arm 2 precondition: the briefing really ran (rc=0, 910 bytes)
+PASS  writes no file — the fixture tree is byte-identical before/after
+PASS  writes no file — the run's entire TMPDIR is empty afterwards
+PASS  writes no file — no default .ledgerwatch cursor dir is created in the repo
+PASS  arm 2b witness: the stat cache really is stale — a plain `git status` rewrites .git/index
+PASS  arm 2b precondition: the briefing still completes on a stat-stale checkout (rc=0)
+PASS  writes no file — .git/index is BYTE-IDENTICAL across a run with a deliberately staled stat cache
+PASS  writes no file — .git/index size+mtime are unchanged too (NANOSECOND mtime: it was not even reopened)
+PASS  writes no file — no .git/index.lock is left behind
+PASS  a concurrently HELD .git/index.lock does not abort the briefing (rc=0)
+PASS  a held index lock run still leaves .git/index byte-identical
+PASS  the other process's .git/index.lock is still there — the briefing never touched it
+PASS  arm 2d precondition: the briefing really does shell out to git (7 call sites)
+PASS  every git call site (7/7) passes --no-optional-locks
+PASS  GIT_OPTIONAL_LOCKS=0 is exported, so git in CHILD processes (gh, python3) cannot lock either
+FAIL  arm 10 (real repo green): rc=1 err=steward-orient: BUDGET EXCEEDED — 4341 bytes on stdout, cap is 4096. The cap is a promise to the reader's context budget. out=ORIENT 2026-10-07T03:31Z RO
+REPO branch=llm/0.8.27-slice-135 head=50eaa503 dirty=136
+WORKTREES 11 registered; locked=0 detached=2 shown=2 omitted=9; details: git worktree list
+  WT detached path=~/.codex/worktrees/slice135-logic-first/fathomdb branch=DETACHED sha=964b84d1
+  WT current path=~/projects/fathomdb-worktrees/release-0.8.27-slice-135 branch=llm/0.8.27-slice-135 sha=50eaa503
+ORPHANS ~/projects/fathomdb-worktrees: pre-work prework qualification-evidence
+RELEASE 0.8.27  SCHEMA 34  board=STATUS-0.8.27.md
+  COMPLETE 0(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 1(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 2(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 3(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 4(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 5(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 6(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 7(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 8(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 9(a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1) 10(3097d191511d81a221b038ccd2e14f074dcafa6d) 20(b455bb73fb2b04c91f50e6e5dbdc16752325453b) 30(6ba3be95cd043570da1deafbe4e2f78c878d8a87) 40(fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae) 50(1f5b8614813b5a363ec5f81fcb580d48da4a4e8f) 60(d5a5bd39b3ee8a04bd080df451204564c6849bd1) 70(36fc2352cf243e022315ea302368d9424096aebd) 80(b7403958a3839d371c1672335c517fa762a451cf) 85(7a2f9bf90783f545603516502bac0016d4b93a14) 90(1398c821dd26b7945bb2f6fbfa02b68cd4daa8af) 100(731130c22a40bfed3f50e9f205500d5080022cc7) 103(c2e80ff7683fe856a4cf372a088897c3450b0b9a) 110(a25d063cd3e1642ad08dcc6aed3691b94445fe20) 114(25115902db8b9b5648c5ceca1823d3cc66fec8e8) 115(012e132920147396ac195f14af74444dd698f48e) 120(e05bfd5330beb737b7704300e2752d2b977bb5b8) 130(58b0bd192f6bc7cc87ea6e8099bfe1c52e68893f) 132(2996417f0cb78b2dbf5262de53798ae6a263469a)
+  NEXT   slice 135 PERFORMANCE-BASELINE — 0.8.26 performance preservation and improvement qualification
+  REMAIN 135, 140, 150
+NEXT ACTION (verbatim)
+  <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 135 (PERFORMANCE-BASELINE)** — 0.8.26 performance preservation and improvement qualification. **Remaining ladder:** 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action -->
+LEDGER last 5 of 300
+  296 decision: TC-961e1413-3acf-49bb-8fbf-99c698542e8f HITL rul
+  297 decision: TC-416ea263-6a03-43c0-98b4-b4bad3075e90 HITL rul
+  298 decision: HITL supersedes seq-296: the newly installed NVI
+  299 decision: For Slice 90, test higher default embed worker c
+  300 decision: For the final Slice 90 candidate, use and test w
+TODOS  167 ids folded from 275 entries · no-id 17 · malformed 0
+  open(104) TC-2..6,9,16,20..26,28..30,33..43,47,50..52,55,56,58..66,69,70,72..78,80,81,83,87..90,93..98,101..104,106,110,111,114,116..132,143 TC-3bda074d-71f4-4f06-a15f-a1b17bafb2b0 TC-4c1c89bc-7a78-47cb-85f1-393977486bbe TC-50845d9a-f2b7-4e28-bd06-37d40b407f1f TC-54aecaa0-ba2d-45e7-a8f5-cab60fefbe3c TC-6c29783d-c165-4c1a-82c3-cb5b6d4e289a TC-7fed8d8d-4c13-47d6-a280-0a0436553e4d TC-8ccd1cf1-8e7d-4b7c-8efa-176663aed553 TC-91568e24-f36b-4dde-8425-f0a619ed49c0 TC-93ef9590-5770-437b-aa73-750e3f6d6fa9 TC-9fef1b7c-4442-4c77-b925-992f338c9aac TC-a0f90fa0-dd49-49fc-869d-b500727baa24 TC-b602d87a-c6eb-4c54-8dcd-9c128914a6df TC-be5dcd1a-b309-4d48-8652-9884902c652a
+  resolved(19) TC-7,27,31,44,46,53,82,84,85,92,100,105,107..109,112,113,115,136
+  done(15) TC-144 TC-3e54ed95-c565-4a05-9d6f-a1668312aa8e TC-416ea263-6a03-43c0-98b4-b4bad3075e90 TC-4a6418d1-a9d9-4e32-92dd-e9c470cb656e TC-4b86f788-3c13-4999-8fea-91fb354fa30 TC-52910b98-a33c-46d4-a6f7-7fa043cb2820 TC-639a91b6-e43b-41cc-a2f6-3f08dbf34a72 TC-6acb0013-bba8-4fee-ac18-27c64442908a TC-75677a47-9cf1-44a9-b016-91d92ca0fc88 TC-7d0abddc-f1ec-43b0-877b-42ab2dd3119 TC-961e1413-3acf-49bb-8fbf-99c698542e8f TC-96f405aa-cce4-4de0-982f-ea20f383f81c TC-a0fb71fa-8dbf-4a21-8c9b-2ee57cc4c439 TC-aa4bea08-f281-47eb-8022-d63250d1daac TC-d0e9c5c9-1f4a-4cee-b175-286fd77efc42
+  placed(12) OOS-18 TC-45,91,133..135,137..142
+  closed(11) TC-48,49,54,57,67,68,71,79,86 TC-99-VEC0 TC-ac020-successor-825
+  watching(4) TC-1 TC-83883483-1094-47a1-a096-16854f3bcbae TC-ac385b3e-ec84-4972-8359-a60f3e1bb03a TC-fea1bcce-f0ab-47a9-bf96-ba473f886696
+  accepted(1) TC-32
+  build-authorized(1) TC-8
+PRs 2 open · HANDOFF dev/plans/runs/STEWARD-SESSION-HANDOFF-2026-08-03-A.md
+PASS  the real checkout's briefing is within the 5120-byte cap (4341 bytes)
+PASS  the real checkout's worktree section is a bounded actionable summary
+PASS  the real checkout's porcelain status is unchanged by the briefing
+PASS  the real-repo run leaves no TMPDIR residue either
+PASS  ci.yml defines a steward-orient job
+PASS  the CI job runs THIS suite (not a reimplementation)
+PASS  the steward-orient job is always-on (no if:, no needs:, not docs_only-gated)
+PASS  the script header records the zero-result exemptions explicitly
+PASS  ledger reads go through ledgerwatch with an explicit --state-dir + peek semantics
+PASS  the todos fold uses ledgerwatch --project (not a hand-rolled fold)
+
+1 test(s) failed

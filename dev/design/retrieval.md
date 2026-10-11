@@ -59,8 +59,10 @@ text participates only through the registered projection grammar. Direct
 node-only fast path reads the hidden-rank stream through the complete score
 group crossing its fixed candidate boundary, restores stable
 `(bm25 score, write_cursor)` order, and then applies the public limit. Filters,
-edge-bearing workspaces, unsupported shapes, and statement/row failures use the
-full stable-sort path. The optimization does not change public ordering.
+edge-bearing workspaces, unsupported shapes, and statement/stream-row failures
+use the full stable-sort path. A row decoding failure on that path propagates
+`EngineError::Storage`; it must not return a partial result. The optimization
+does not change public ordering.
 
 ### Vector collection and fusion
 
@@ -74,6 +76,9 @@ reciprocal-rank fusion. There is no public `fusion_mode` switch. Vector-first
 tiebreaking and stable cursor ordering make equal-score output deterministic.
 Recency and importance/confidence reweights are separate, default-off
 mechanisms; they do not redefine the base fusion contract.
+Absent stored importance or confidence remains neutral. When ranking or an
+opt-in explanation reads those values, a statement or row-decoding failure
+returns `EngineError::Storage` rather than treating the failed lookup as absent.
 
 Dense-equivalence failure disables vector-dependent work without disabling the
 text-only path. Device selection for the embedder and cross-encoder is

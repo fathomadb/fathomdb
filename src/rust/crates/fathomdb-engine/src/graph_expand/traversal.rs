@@ -497,6 +497,7 @@ pub(crate) fn search_expand_on_snapshot(
 /// Slice 20 test seam — run `EXPLAIN QUERY PLAN` on the BFS CTE SQL and return
 /// the plan `detail` column (column index 3) for each row. Used by
 /// `explain_plan_uses_indexes` to assert index usage.
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) fn explain_graph_neighbors_in_tx(
     reader: &mut Connection,
     root_logical_id: &str,

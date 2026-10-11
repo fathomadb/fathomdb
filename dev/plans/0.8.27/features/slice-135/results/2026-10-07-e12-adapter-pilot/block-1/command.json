@@ -1,0 +1,9 @@
+[
+  "/usr/bin/time",
+  "-v",
+  "/tmp/slice135-e12-pilot-block-1/binary",
+  "--ignored",
+  "--exact",
+  "slice135_e12_measurement",
+  "--nocapture"
+]

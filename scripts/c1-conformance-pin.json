@@ -324,7 +324,7 @@
       "obligation": "Q6(b) AS AMENDED: a surrogate serves ONLY registry-admitted GOVERNED entities (R-20-SUR) — the anonymous leg is CANCELLED, not deferred; registration never mints an id for a pre-existing anonymous row.",
       "evidence": [
         "src/rust/crates/fathomdb-engine/tests/slice25_registration_identity_inert.rs:205 (registering_projections_never_alters_a_pre_existing_row_id_space)",
-        "src/rust/crates/fathomdb-engine/tests/slice25_registration_identity_inert.rs:500 (the_internal_structural_row_writer_mints_no_logical_id)"
+        "src/rust/crates/fathomdb-engine/src/write.rs:606 (the_internal_structural_row_writer_mints_no_logical_id)"
       ]
     },
     {

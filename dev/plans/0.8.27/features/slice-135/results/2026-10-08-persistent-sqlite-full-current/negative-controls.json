@@ -1,0 +1,12 @@
+[
+  {
+    "mutation": "reopened_result",
+    "rejected_with": "ValueError: run 1: reopened state mismatch",
+    "returncode": 1
+  },
+  {
+    "mutation": "child_swap",
+    "rejected_with": "ValueError: run 1: child swaps",
+    "returncode": 1
+  }
+]

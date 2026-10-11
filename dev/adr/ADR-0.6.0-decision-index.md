@@ -124,7 +124,7 @@ Slice-0 gate before Slices 15 and 25 open.
 
 | # | Category | Candidate decision | HITL verdict | ADR file |
 | - | -------- | ------------------ | ------------ | -------- |
-| 43 | interface | Supported Linux x86_64 CUDA-capable artifacts provide one CPU/GPU runtime with typed `auto`/`cpu`/`cuda:N` policy and `doctor gpu`; forced CUDA never silently falls back | proposed under HITL `seq:250` | ADR-0.8.23-dual-runtime-device-policy.md |
+| 43 | interface | Supported Linux x86_64 CUDA-capable artifacts provide one CPU/GPU runtime with typed `auto`/`cpu`/`cuda:N` policy and `doctor gpu`; forced CUDA never silently falls back | accepted; HITL `seq:250`, `seq:252`, and 2026-10-10 status reconciliation | ADR-0.8.23-dual-runtime-device-policy.md |
 
 ## Phase 0.8.25 (data-plane boundary decisions)
 
@@ -157,7 +157,7 @@ Slice-0 gate before Slices 15 and 25 open.
 | 58 | interface | Deliver Python engine diagnostics through a bounded, nonblocking logger adapter; remove the inert Python heartbeat interval and add no binding-generated operation IDs | accepted by repository-owner 2026-10-03 direction conditioned on reviewed active architecture and design updates | ADR-0.8.27-python-subscriber-delivery.md |
 | 59 | interface | Diagnose owed physical erasures in doctor and complete proven WAL obligations through one offline recover connection, preserving telemetry obligations without the original sink | accepted by repository-owner 2026-10-03 Slice 103 direction | ADR-0.8.27-offline-physical-erasure-completion.md |
 | 60 | interface | Add a dedicated `fathomdb-sdk` Rust crate carrying the 44 governed Python/TypeScript operations, namespaces, defaults and error categories under fixed translation rules; check it in the operation map; amend (not supersede) BIND-RUST | accepted by repository-owner 2026-10-06 direction, conditioned on the reviewed Slice 132 design | ADR-0.8.27-rust-sdk-parity.md |
-| 61 | release | Distribute a separately named, dual-runtime CUDA Node addon for classic Jetson Orin as an exact-version tarball through the existing Tegra Pages route, not the npm registry, in 0.8.27; loader selects it only on detected Tegra with an exact version match | proposed (draft; channel ruled 2026-10-05 by `slice-117-channel-tegra-pages`; remaining HITL decision `slice-117-delivery-shape` pending; follows 2026-10-05 supersession of D-80.7-3/D-80.6-2) | ADR-0.8.27-jetson-tegra-node-addon-distribution.md |
+| 61 | release | Distribute a separately named, dual-runtime CUDA Node addon for classic Jetson Orin as an exact-version tarball through the existing Tegra Pages route, not the npm registry, in 0.8.27; loader selects it only on detected Tegra with an exact version match | accepted by repository-owner 2026-10-09 (`slice-117-delivery-shape`; channel ruled 2026-10-05 by `slice-117-channel-tegra-pages`; follows 2026-10-05 supersession of D-80.7-3/D-80.6-2) | ADR-0.8.27-jetson-tegra-node-addon-distribution.md |
 
 ## Phase 0.8.28 (Tegra private CUDA memory pool)
 

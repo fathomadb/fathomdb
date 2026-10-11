@@ -1,0 +1,14 @@
+{
+  "open_fresh": {"database_exists": true, "canonical_rows": 0},
+  "open_populated": {"reopened": true, "state": {"canonical_rows": 32, "projection_rows": 32, "source_ids": ["slice115:corpus"], "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16"}},
+  "close": {"reopened": true, "state": {"canonical_rows": 32, "projection_rows": 32, "source_ids": ["slice115:corpus"], "digest": "bcc3bf46cb3c652a91ca7f27c3a46caf9afb26782de82f027708f50d0b2c4b16"}},
+  "canonical_write": {"prestate": {"canonical_rows": 0, "projection_rows": 0, "source_ids": [], "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"}, "poststate": {"canonical_rows": 1, "projection_rows": 1, "source_ids": ["slice115:mutation"], "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa"}},
+  "projection": {"prestate": {"canonical_rows": 0, "projection_rows": 0, "source_ids": [], "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"}, "poststate": {"canonical_rows": 1, "projection_rows": 1, "source_ids": ["slice115:mutation"], "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa"}},
+  "model_cpu": {"dimensions": 384, "projection_rows": 1, "repeat_equal": true},
+  "text": {"ordered_ids": ["l:doc-0", "l:doc-1", "l:doc-2", "l:doc-3", "l:doc-4", "l:doc-5", "l:doc-6", "l:doc-7", "l:doc-8", "l:doc-9"], "ordered_branches": ["Text", "Text", "Text", "Text", "Text", "Text", "Text", "Text", "Text", "Text"]},
+  "vector_stage": {"ordered_ids": ["l:doc-0", "l:doc-1", "l:doc-2", "l:doc-3", "l:doc-4", "l:doc-5", "l:doc-6", "l:doc-7", "l:doc-8", "l:doc-9"], "ordered_branches": ["Vector", "Vector", "Vector", "Vector", "Vector", "Vector", "Vector", "Vector", "Vector", "Vector"]},
+  "hybrid": {"ordered_ids": ["l:doc-0", "l:doc-1", "l:doc-2", "l:doc-3", "l:doc-4", "l:doc-5", "l:doc-6", "l:doc-7", "l:doc-8", "l:doc-9"], "ordered_branches": ["Vector", "Vector", "Vector", "Vector", "Vector", "Vector", "Vector", "Vector", "Vector", "Vector"]},
+  "graph_expand": {"ordered_targets": ["graph-target"], "complete": true, "evidence_entries": 1, "canonical_source_body": "canonical graph source bytes"},
+  "graph_evidence": {"ordered_targets": ["graph-target"], "complete": true, "evidence_entries": 1, "canonical_source_body": "canonical graph source bytes"},
+  "erasure": {"prestate": {"canonical_rows": 1, "projection_rows": 1, "source_ids": ["slice115:erase"], "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa"}, "poststate": {"canonical_rows": 0, "projection_rows": 0, "source_ids": [], "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"}}
+}

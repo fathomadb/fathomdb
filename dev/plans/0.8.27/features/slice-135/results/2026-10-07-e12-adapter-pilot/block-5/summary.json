@@ -1,0 +1,31 @@
+{
+  "cells": {
+    "close": {
+      "invalid_attempts": 0,
+      "maximum_ns": 4703561,
+      "p50_ns": 4115689,
+      "p95_ns": 4496910,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    },
+    "text": {
+      "invalid_attempts": 0,
+      "maximum_ns": 564328,
+      "p50_ns": 224976,
+      "p95_ns": 261666,
+      "unsupported_statistics": [
+        "p99"
+      ],
+      "valid_attempt_fraction": 1.0,
+      "valid_samples": 100
+    }
+  },
+  "protocol_sha256": "fd759bde2391b18540a8cbece79cc0b6d225d732da71a41e25f2aef8db74f053",
+  "raw_sha256": "0d9e94c5b7338cb0df2d3c167cb9a13fcdb48e191af1cc4f7825f3afde9dc7cf",
+  "schema_version": 1,
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "validator_sha256": "e9e90f185fb1d7b793d7a6cef485583fe480fbbb0a8ea40c1ee21523f8e7166c"
+}

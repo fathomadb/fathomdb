@@ -1,0 +1,9 @@
+
+running 4 tests
+test close_interrupts_long_provider_retry_wait_and_preserves_pending_row ... ok
+test projection_wait_cancels_on_close_and_reopen_recovers_pending_row ... ok
+test provider_retry_delay_uses_one_absolute_deadline_during_wake_storm ... ok
+test timed_out_provider_keeps_slot_and_later_work_durable_until_return ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s
+

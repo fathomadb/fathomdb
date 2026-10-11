@@ -1,91 +1,125 @@
 # FathomDB
 
-FathomDB is a local-first retrieval and graph-oriented data system for
-application and agent workloads. It embeds SQLite (FTS5 + `sqlite-vec`) and
-ships one engine behind three SDKs — Python, TypeScript and Rust — plus an
-operator CLI.
+FathomDB is an embedded retrieval and graph data system for applications and
+agents. It combines SQLite, FTS5, and `sqlite-vec` in your process: open a
+local database file, write records with provenance, and retrieve them through
+the Python, TypeScript, or Rust application SDK.
 
-- Hybrid retrieval: a vector branch and an FTS5 branch fused by Reciprocal Rank
-  Fusion, with an optional cross-encoder rerank and an optional graph-BFS third
-  arm. On a CUDA-capable artifact, BGE embedding and cross-encoder reranking
-  can independently select `FATHOMDB_EMBED_DEVICE` and
-  `FATHOMDB_RERANK_DEVICE` (`auto`, `cpu`, or `cuda:N`), including the same GPU.
-  Retrieval, FTS, fusion, graph, and SQLite vector stages remain CPU-only.
-- Governed, allowlisted command surface with a single typed error taxonomy
-  shared 1:1 across the bindings.
-- Bitemporal-ish record model: transaction-time supersession, a world-time
-  validity window on nodes, and edge `t_valid` / `t_invalid`.
-- Lifecycle and erasure verbs in the SDK — `transition`, `purge`,
-  `erase_source` — so a consumer with no CLI on `PATH` can still discharge a
-  deletion obligation.
-- Versioned source provenance and immutable source-to-derived dependencies,
-  with atomic caller-decided actuation and dependency-aware closure.
-- Authenticated frozen reads, stable pagination, source evidence, dependency
-  tracing, and constrained graph expansion across the Python and TypeScript
-  SDKs and Rust facade.
-- Optional in-process default embedder (`bge-small-en-v1.5`, pure Rust).
+## Release 0.8.27
 
-**Status: 0.8.26, pre-1.0 beta.** The surface may change between micro
-releases. **v0.8.26 is published** to crates.io, PyPI, and npm; native Python
-and npm artifacts cover Linux x86_64/glibc, Linux AArch64/glibc, macOS x64,
-macOS arm64, and Windows x64. The main npm package is on both the `latest` and
-`next` dist-tags.
-Licensed **MIT** (see `LICENSE`).
+FathomDB is pre-1.0 beta; public contracts can change between micro releases.
+0.8.27 provides three application SDKs and classic Jetson Orin CUDA delivery
+for Python and Node.js. See the [release notes](docs/release-notes/0.8.27.md)
+and [changelog](CHANGELOG.md).
 
-Platform support for the published 0.8.26 artifacts. "CUDA-capable" artifacts
-contain both CPU and CUDA paths and fall back to CPU under the default `auto`
-policy when no GPU is usable; "CPU-only" artifacts never use a GPU.
+## What you can build
 
-| Channel | Artifact | Platforms | GPU |
+- **Retrieval:** full-text and vector search fused with Reciprocal Rank Fusion,
+  optional cross-encoder reranking, filters, and graph-assisted retrieval.
+- **Governed records:** stable identities, lifecycle transitions, validity
+  windows, and source-based erasure across records and their derived indexes.
+- **Provenance and dependencies:** versioned sources, immutable dependency
+  edges, bounded dependency tracing, and atomic caller-decided actuation.
+- **Consistent reads:** authenticated frozen contexts, stable pagination,
+  source evidence resolution, and constrained graph expansion.
+- **Derived projections:** declarative text, vector, filter, and ranking
+  configuration with readiness and runtime diagnostics.
+- **Operations:** a separate CLI for integrity inspection and explicit recovery.
+
+The three application SDKs share governed operations and option defaults with
+language-specific naming, calling conventions, and error handling. Rust uses
+one `Error` type with `ErrorKind` categories; Python and TypeScript expose
+error classes. See [SDK parity](docs/positions/sdk-parity.md).
+
+## Choose an SDK
+
+| Language | Package and installation | Import | Documentation |
 | --- | --- | --- | --- |
-| PyPI | `fathomdb` wheel | Linux x86_64/glibc | CUDA-capable (embedding and reranking) |
-| PyPI | `fathomdb` wheel | Linux AArch64/glibc, macOS x64/arm64, Windows x64 | CPU-only |
-| Tegra index | `fathomdb==0.8.26+tegra` wheel | Classic Jetson Orin (JetPack 6, CUDA 12.6) | CUDA-capable (embedding); exact 0.8.26 only, not on PyPI |
-| npm | `fathomdb` + `fathomdb-linux-x64-gnu` | Linux x86_64/glibc | CUDA-capable (embedding and reranking) |
-| npm | `fathomdb` + `fathomdb-linux-arm64-gnu` | Linux AArch64/glibc, including Jetson | CPU-only |
-| npm | `fathomdb` + `fathomdb-darwin-x64`, `fathomdb-darwin-arm64`, `fathomdb-native-win32-x64-msvc` | macOS x64/arm64, Windows x64 | CPU-only |
-| crates.io | `fathomdb` library, `fathomdb-cli` | Built from source | CPU by default; CUDA via the opt-in `embed-cuda` / `rerank-cuda` features |
+| Python | `python -m pip install fathomdb==0.8.27` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
+| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.27` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
+| Rust application SDK | `cargo add fathomdb-sdk@=0.8.27` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
 
-The Linux AArch64 npm package is CPU-only, so GPU acceleration under Node.js on
-a Jetson currently requires building the CUDA addon from source on the device
-(the `build:native:cuda` npm script targets Linux x86_64 only). Planned
-0.8.27 Slice 117 (`dev/plans/0.8.27/features/slice-117/plan.md`) will update
-this statement when it ships a Jetson CUDA Node addon. No prebuilt CLI binary
-is published; install it with `cargo install`. Details:
-`docs/compatibility/index.md`, `docs/install/` and `docs/embedder.md`.
+The [`fathomdb` Rust crate](docs/reference/rust-api.md) is the
+lower-level engine facade. The application SDK is `fathomdb-sdk`.
 
-Public documentation: `docs/` (built with `mkdocs build --strict`).
-Changes since 0.8.9: `CHANGELOG.md`.
+## Quickstart: write and retrieve a note
 
-Repository layout:
+Install the Python SDK, save this as `quickstart.py`, and run
+`python quickstart.py`. It uses a fresh temporary database and full-text
+retrieval, so no model download is needed.
 
-- `docs/` contains public MkDocs source and client-facing technical positions.
-- `dev/` contains internal engineering material: requirements, architecture,
-  ADRs, subsystem design, interface contracts, and planning notes.
-- `src/` contains implementation roots and unit-test-adjacent code.
-- `test/` contains cross-language, smoke, fixture, and performance assets that
-  are not package-local unit tests.
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from fathomdb import Engine
 
-Implementation roots:
+with TemporaryDirectory() as directory:
+    engine = Engine.open(str(Path(directory) / "notes.sqlite"))
+    try:
+        engine.write([{
+            "kind": "note",
+            "body": "The quick brown fox crosses the river.",
+            "source_id": "demo-source",
+            "logical_id": "note:1",
+        }])
+        for hit in engine.search_text_only("brown fox").results:
+            print(hit.id, hit.body)
+    finally:
+        engine.close()
+```
 
-- Eleven Rust workspace members live under `src/rust/crates/`
-- Python package root lives under `src/python/`
-- TypeScript package root lives under `src/ts/`
+For hybrid retrieval, enable the pinned default embedder and configure vector
+projections for your data. The [quickstart](docs/getting-started/quickstart.md)
+and [embedder guide](docs/embedder.md) explain the options, model cache,
+CPU/GPU policy, and typed failures.
 
-Start here:
+## Platforms and operators
 
-- Agent instructions: `AGENTS.md` — the canonical operating manual for AI
-  coding agents; read it first if you are one
-- Public docs: `docs/index.md`
-- Internal docs index: `dev/README.md` — and from there the release
-  schedule-of-record and the live board under `dev/plans/`
-- Workspace checks: `scripts/check.sh`
+Python and Node native artifacts cover Linux x86_64/glibc, Linux
+AArch64/glibc, macOS x64/arm64, and Windows x64. Linux x86_64 artifacts contain
+CPU and CUDA paths for embedding and reranking; generic Linux AArch64, macOS,
+and Windows artifacts are CPU-only. The default `auto` policy uses CPU when
+no usable GPU is available. Retrieval, fusion, graph traversal, and SQLite
+vector stages run on CPU. See the [compatibility matrix](docs/compatibility/index.md)
+for exact versions. Classic Jetson Orin uses the separate Python `+tegra`
+wheel and matched-version Node Pages tarball; generic ARM64 remains CPU-only.
+See [Python installation](docs/install/python.md#jetson--tegra-cuda) and
+[Node installation](docs/install/typescript.md#classic-jetson-orin-with-cuda).
 
-Common commands:
+On CUDA-capable artifacts, `FATHOMDB_EMBED_DEVICE` and
+`FATHOMDB_RERANK_DEVICE` independently accept `auto`, `cpu`, or `cuda:N`
+(for example, `cuda:0`). The [embedder guide](docs/embedder.md) describes
+device selection and shared-GPU limits.
+
+The operator CLI is installed from source; no prebuilt CLI binary is published:
 
 ```bash
-cargo check --workspace
-pip install -e src/python/
-cd src/ts && npm install
-mkdocs build --strict
+cargo install fathomdb-cli --version '=0.8.27' --locked
 ```
+
+Use the [CLI reference](docs/reference/cli.md) and
+[integrity inspection guide](docs/operations/integrity-inspection.md) before
+operating on a store. Application SDKs do not expose recovery or raw SQL.
+
+## Develop and contribute
+
+Use the [SDK operation map](docs/generated/sdk-operation-map.md) to find
+matching governed names across the three languages.
+
+- [Contributor guide](docs/contributing/index.md) and generated
+  [source map](docs/generated/contributor-map.md): workflow and current owners.
+- [Public documentation](docs/index.md): installation, concepts, references,
+  and operations; built with `mkdocs build --strict`.
+- [Engineering index](dev/README.md): requirements, architecture, accepted
+  ADRs, interface contracts, and release plans.
+- [Agent/contributor instructions](AGENTS.md): setup, TDD, isolated worktrees,
+  and required verification. Find the live release with
+  `python3 scripts/release-current.py`.
+- Implementation: [Rust workspace](src/rust/crates/), [Python SDK](src/python/),
+  [TypeScript SDK](src/ts/). [Cross-language fixtures](test/) complement
+  package-local tests.
+
+After setup, use `./scripts/agent-verify.sh` for the developer gate;
+`./scripts/check.sh` adds the broader checks and documentation build.
+
+Licensed [MIT](LICENSE).

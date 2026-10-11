@@ -1,0 +1,21 @@
+[package]
+name = "slice135-rust-sdk-capability"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[[bin]]
+name = "slice135-rust-sdk-capability"
+path = "main.rs"
+
+[dependencies]
+fathomdb-sdk = { path = "../../../../../../../src/rust/crates/fathomdb-sdk", features = ["default-embedder"] }
+sha2 = "0.10.9"
+
+[patch.crates-io]
+fathomdb-embedder = { path = "../../../../../../../src/rust/crates/fathomdb-embedder" }
+fathomdb-embedder-api = { path = "../../../../../../../src/rust/crates/fathomdb-embedder-api" }
+fathomdb-engine = { path = "../../../../../../../src/rust/crates/fathomdb-engine" }
+fathomdb-query = { path = "../../../../../../../src/rust/crates/fathomdb-query" }
+fathomdb-schema = { path = "../../../../../../../src/rust/crates/fathomdb-schema" }

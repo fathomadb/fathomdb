@@ -14,11 +14,13 @@ pub(super) use execution::{count_graph_expand_sql_statement, GraphExpandReaderCo
 pub use execution::{
     GraphExpandMeasurementForTest, GraphExpandProjectionStateForTest, GraphExpandRendezvousForTest,
 };
+#[cfg(any(test, feature = "test-hooks"))]
+pub(super) use traversal::explain_graph_neighbors_in_tx;
 pub(crate) use traversal::SearchExpandHandlerError;
 pub use traversal::SearchExpandResult;
 pub(super) use traversal::{
-    crossed_boundary_since_in_tx, explain_graph_neighbors_in_tx, graph_neighbors_in_tx,
-    search_expand_in_tx, search_expand_on_snapshot,
+    crossed_boundary_since_in_tx, graph_neighbors_in_tx, search_expand_in_tx,
+    search_expand_on_snapshot,
 };
 #[cfg(feature = "test-hooks")]
 pub use types::graph_expansion_degradation_codes_for_test;

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import test from "node:test";
@@ -27,6 +28,58 @@ function malformedRequest(overrides: Record<string, unknown>): DependencyTraceRe
     ...overrides,
   } as DependencyTraceRequestV1;
 }
+
+test("slice55 installed trace returns a committed dependency edge", async () => {
+  const databasePath = freshDbPath();
+  const engine = await Engine.open(databasePath, { useDefaultEmbedder: false });
+  const body = "trace source body";
+  try {
+    await engine.write([
+      {
+        kind: "doc", body, sourceId: "trace-source", logicalId: "source",
+        provenance: {
+          schemaVersion: 1, role: "canonical", artifactRevisionId: "source-r1",
+          sourceVersionId: "source-v1",
+        },
+      },
+      {
+        kind: "fact", body: "derived body", sourceId: "trace-source", logicalId: "derived",
+        provenance: {
+          schemaVersion: 1, role: "derived", artifactRevisionId: "derived-r1",
+          sourceVersionId: "source-v1", sourceRevisionId: "source-r1",
+          sourceLocator: { kind: "whole_body" },
+          canonicalSourceHash: {
+            algorithm: "sha256", digestHex: createHash("sha256").update(body).digest("hex"),
+          },
+        },
+      },
+    ]);
+    const registered = await engine.registerSourceDependency({
+      schemaVersion: 1, dependencyId: "trace-dependency",
+      sourceRevisionId: "source-r1", derivedRevisionId: "derived-r1",
+    });
+    const context = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    const result = await engine.traceDependency({
+      schemaVersion: 1, rootRevisionId: "source-r1", direction: "to_dependents", context,
+    });
+    assert.equal(result.complete, true);
+    assert.deepEqual(result.dependencyEdges.map((edge) => [
+      edge.dependencyId, edge.sourceRevisionId, edge.derivedRevisionId,
+    ]), [[registered.dependencyId, "source-r1", "derived-r1"]]);
+  } finally {
+    await engine.close();
+  }
+  const reopened = await Engine.open(databasePath, { useDefaultEmbedder: false });
+  try {
+    const context = await reopened.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    const result = await reopened.traceDependency({
+      schemaVersion: 1, rootRevisionId: "source-r1", direction: "to_dependents", context,
+    });
+    assert.equal(result.dependencyEdges[0]?.dependencyId, "trace-dependency");
+  } finally {
+    await reopened.close();
+  }
+});
 
 test("slice55 request validation rejects schema before semantic fields", async () => {
   const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });

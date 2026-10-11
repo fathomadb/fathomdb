@@ -14,8 +14,8 @@ HOOKS = '#[cfg(feature = "test-hooks")]'
 HOOKS_NORMALIZED = '#[cfg(feature="test-hooks")]'
 OWNERS = {
     "evidence.rs": {"explain_graph_evidence_preflights_for_test": (HOOKS, True)},
-    "embedding.rs": {"drain_mean_centering_events_for_test": (None, True)},
-    "open.rs": {"default_embedder_profile_for_test": (None, True)},
+    "embedding.rs": {"drain_mean_centering_events_for_test": ('#[cfg(any(test, feature = "test-hooks"))]', True)},
+    "open.rs": {"default_embedder_profile_for_test": ('#[cfg(any(test, feature = "test-hooks"))]', True)},
     "operator.rs": {"schema_objects_for_test": (HOOKS, False)},
 }
 FREE_OWNER = "connection_runtime.rs"
@@ -73,7 +73,7 @@ def owner_errors(root: str, modules: dict[str, str]) -> list[str]:
                 continue
             match, impl = found[0]
             attrs = prelude(impl.group(), match.start())
-            expected_gate = [HOOKS_NORMALIZED] if gate else []
+            expected_gate = [gate.replace(" ", "")] if gate else []
             if [attr for attr in attrs if CFG.match(attr)] != expected_gate or ("#[doc(hidden)]" in attrs) != hidden:
                 errors.append(f"{path} changes Engine::{name} attrs")
             if names.count(name) != 1:

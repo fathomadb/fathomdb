@@ -10,9 +10,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
 HOOKS = '#[cfg(feature = "test-hooks")]'
 OWNERS = {
-    "write.rs": {"write_canonical_row_with_kind_for_test": None},
+    "write.rs": {"write_canonical_row_with_kind_for_test": '#[cfg(any(test, feature = "test-hooks"))]'},
     "read_api.rs": {
-        "canonical_rows_with_row_kind_for_test": None,
+        "canonical_rows_with_row_kind_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
         "slice45_page_query_plans_for_test": HOOKS,
     },
 }

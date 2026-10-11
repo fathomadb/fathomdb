@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "status": "VALID_S02_L_BLOCK",
+  "role": "baseline",
+  "invalidators": [],
+  "warnings": [],
+  "manifest_sha256": "94e06190bef69d02a1b61e8b1bb27424412d080c70fa282615b2a4834d24b37d",
+  "environment_sha256": "ceb602c63548069cc27e3d7980b4b46f5c612c9b35d44fe60753c6e2b34863bb",
+  "attempts_sha256": "47394834327a09aa22b50f4551d09fd00d62c8b44c28005c625cf5d1f7984739",
+  "valid_samples": 20,
+  "p50_close_ns": 5147017,
+  "p95_close_ns": 6149361,
+  "p50_pss_release_kib": -33,
+  "min_pss_release_kib": -33,
+  "max_pss_release_kib": -18
+}

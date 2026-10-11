@@ -1,4 +1,4 @@
-#[cfg(any(debug_assertions, feature = "test-hooks"))]
+#[cfg(any(test, feature = "test-hooks"))]
 use super::*;
 
 /// Slice 72's private trusted-runner rendezvous. This is compiled only by the
@@ -325,12 +325,12 @@ pub mod slice72_test_hooks {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) const PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT: Duration =
     Duration::from_secs(30);
 
 /// Failure to observe an armed projection-worker transaction pause.
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[doc(hidden)]
 pub enum ProjectionWorkerPauseReadyError {
@@ -340,7 +340,7 @@ pub enum ProjectionWorkerPauseReadyError {
     WorkerDisconnected,
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 impl Display for ProjectionWorkerPauseReadyError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -356,11 +356,11 @@ impl Display for ProjectionWorkerPauseReadyError {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 impl Error for ProjectionWorkerPauseReadyError {}
 
 /// Cancellation-safe handle for the test-only projection transaction pause.
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct ProjectionWorkerTransactionPauseForTest {
@@ -369,7 +369,7 @@ pub struct ProjectionWorkerTransactionPauseForTest {
     pub(crate) ready_observed: bool,
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 impl ProjectionWorkerTransactionPauseForTest {
     /// Wait at most `timeout` for the worker to acquire its WAL transaction.
     /// A timeout or disconnected worker cancels the pause before returning.
@@ -409,7 +409,7 @@ impl ProjectionWorkerTransactionPauseForTest {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 impl Drop for ProjectionWorkerTransactionPauseForTest {
     fn drop(&mut self) {
         self.release();
@@ -417,6 +417,7 @@ impl Drop for ProjectionWorkerTransactionPauseForTest {
 }
 
 /// Engine-owned, one-shot pause before the reader pins its deferred snapshot.
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) mod reader_search_hook {
     use crate::wal_attribution::WalAttributionCollector;
     use crate::Engine;
@@ -529,6 +530,7 @@ pub(crate) mod reader_search_hook {
     }
 }
 
+#[cfg(any(test, feature = "test-hooks"))]
 pub use reader_search_hook::ReaderSearchPauseForTest;
 
 /// Arm a one-shot pre-snapshot reader-search pause for `engine`.
@@ -536,6 +538,7 @@ pub use reader_search_hook::ReaderSearchPauseForTest;
 /// Retain the returned guard through the concurrent mutation and call `release`
 /// afterward. Guard destruction also releases/disarms the pause. Panics if this
 /// Engine already has an unconsumed pause; another Engine's pause is independent.
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub fn arm_reader_search_hook_for_test(engine: &crate::Engine) -> ReaderSearchPauseForTest {
     reader_search_hook::arm(engine)
@@ -547,6 +550,7 @@ pub fn arm_reader_search_hook_for_test(engine: &crate::Engine) -> ReaderSearchPa
 /// This hook proves that a visibility mutation committed after validation
 /// cannot alter the already-linearized operation. It is never armed by
 /// production code and remains outside the governed API surface.
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) mod frozen_after_validation_hook {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
@@ -571,12 +575,14 @@ pub(crate) mod frozen_after_validation_hook {
 }
 
 /// Arm the Slice-35 post-validation rendezvous for one frozen read.
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub fn arm_frozen_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
     frozen_after_validation_hook::arm(hook);
 }
 
 /// Arm the same post-validation rendezvous specifically for one frozen page.
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub fn arm_page_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
     frozen_after_validation_hook::arm(hook);
@@ -585,6 +591,7 @@ pub fn arm_page_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
 // Slice 50 one-shot rendezvous for the exact evidence transaction seams. Both
 // hooks are dormant on production paths and fire only when explicitly armed by
 // an integration test.
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) mod evidence_linearization_hooks {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
@@ -636,12 +643,14 @@ pub(crate) mod evidence_linearization_hooks {
 }
 
 /// Arm the Slice-50 post-ranking, pre-sidecar rendezvous for one evidence search.
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub fn arm_evidence_before_sidecar_hook_for_test(hook: Box<dyn Fn() + Send>) {
     evidence_linearization_hooks::arm_before_sidecar(hook);
 }
 
 /// Arm the Slice-50 post-resolution, pre-return rendezvous for one evidence read.
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub fn arm_evidence_before_resolve_return_hook_for_test(hook: Box<dyn Fn() + Send>) {
     evidence_linearization_hooks::arm_before_resolve_return(hook);

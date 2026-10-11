@@ -1,0 +1,35 @@
+{
+  "all_checked_reopened_states_expected": true,
+  "all_integrity_checks_ok": true,
+  "concurrency": {
+    "fd_delta": 0,
+    "reads": 194,
+    "reads_while_writer_active": 191,
+    "writes": 16
+  },
+  "crash": {
+    "power_loss_simulated": false,
+    "victim_exit_statuses": [
+      "ExitStatus(unix_wait_status(9))",
+      "ExitStatus(unix_wait_status(9))"
+    ]
+  },
+  "negative_control_detected_missing_row": true,
+  "positive_cases": [
+    "bounded_sqlite_full_write",
+    "concurrent_read_write",
+    "injected_pretransaction_refusal",
+    "process_kill_at_write_boundary"
+  ],
+  "positive_count": 4,
+  "refusal": {
+    "error": "Storage",
+    "fd_delta": 0
+  },
+  "sqlite_full": {
+    "error": "Storage",
+    "max_page_count": 129,
+    "page_count": 128,
+    "physical_canonical_rows": 2
+  }
+}

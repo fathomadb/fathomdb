@@ -1,0 +1,18 @@
+warning: patch `candle-kernels v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd00)` was not used in the crate graph
+warning: patch `cudarc v0.19.7 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135-e12-adapter/third_party/cudarc-0.19.7)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling libsqlite3-sys v0.38.1 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135-e12-adapter/third_party/libsqlite3-sys-0.38.1)
+   Compiling fathomdb-embedder-api v0.6.1 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135-e12-adapter/src/rust/crates/fathomdb-embedder-api)
+   Compiling fathomdb-query v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135-e12-adapter/src/rust/crates/fathomdb-query)
+   Compiling candle-core-fathomdb v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd00)
+   Compiling candle-nn-fathomdb v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd00)
+   Compiling candle-transformers-fathomdb v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd00)
+   Compiling fathomdb-embedder v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135-e12-adapter/src/rust/crates/fathomdb-embedder)
+   Compiling rusqlite v0.40.1
+   Compiling fathomdb-schema v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135-e12-adapter/src/rust/crates/fathomdb-schema)
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135-e12-adapter/src/rust/crates/fathomdb-engine)
+   Compiling slice135-e12 v0.1.0 (/tmp/slice135-e12-candidate-all/build)
+    Finished `release` profile [optimized] target(s) in 44.34s

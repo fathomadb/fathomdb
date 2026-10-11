@@ -1,0 +1,335 @@
+{
+  "equal": false,
+  "metadata_diffs": {},
+  "provenance": {
+    "baseline_capture_source_sha": "1476d83e06b45feefbadabd995eb265f2c9217ea",
+    "candidate_capture_source_sha": "18ef03da9a5ee5769f1ac49083bd1ab20902c375",
+    "same_source": false
+  },
+  "row_diffs": [
+    {
+      "added": [],
+      "changed": [],
+      "removed": [
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::borrow",
+          "signature": "impl<T> core::borrow::Borrow<T> for fathomdb_engine::ReaderSearchPauseForTest where T: ?core::marker::Sized => pub fn fathomdb_engine::ReaderSearchPauseForTest::borrow(&self) -> &T"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::borrow_mut",
+          "signature": "impl<T> core::borrow::BorrowMut<T> for fathomdb_engine::ReaderSearchPauseForTest where T: ?core::marker::Sized => pub fn fathomdb_engine::ReaderSearchPauseForTest::borrow_mut(&mut self) -> &mut T"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::drop",
+          "signature": "impl core::ops::drop::Drop for fathomdb_engine::ReaderSearchPauseForTest => pub fn fathomdb_engine::ReaderSearchPauseForTest::drop(&mut self)"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::from",
+          "signature": "impl<T> core::convert::From<T> for fathomdb_engine::ReaderSearchPauseForTest => pub fn fathomdb_engine::ReaderSearchPauseForTest::from(T) -> T"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::into",
+          "signature": "impl<T, U> core::convert::Into<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::From<T> => pub fn fathomdb_engine::ReaderSearchPauseForTest::into(self) -> U"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::release",
+          "signature": "impl fathomdb_engine::ReaderSearchPauseForTest => pub fn fathomdb_engine::ReaderSearchPauseForTest::release(&self)"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::try_from",
+          "signature": "impl<T, U> core::convert::TryFrom<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::Into<T> => pub fn fathomdb_engine::ReaderSearchPauseForTest::try_from(U) -> core::result::Result<T, <T as core::convert::TryFrom<U>>::Error>"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::try_into",
+          "signature": "impl<T, U> core::convert::TryInto<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::TryFrom<T> => pub fn fathomdb_engine::ReaderSearchPauseForTest::try_into(self) -> core::result::Result<U, <U as core::convert::TryFrom<T>>::Error>"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::type_id",
+          "signature": "impl<T> core::any::Any for fathomdb_engine::ReaderSearchPauseForTest where T: 'static + ?core::marker::Sized => pub fn fathomdb_engine::ReaderSearchPauseForTest::type_id(&self) -> core::any::TypeId"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::wait_ready",
+          "signature": "impl fathomdb_engine::ReaderSearchPauseForTest => pub fn fathomdb_engine::ReaderSearchPauseForTest::wait_ready(&self, core::time::Duration) -> core::result::Result<(), std::sync::mpsc::RecvTimeoutError>"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:066ec42c0328689b",
+          "signature": "impl<T> core::borrow::BorrowMut<T> for fathomdb_engine::ReaderSearchPauseForTest where T: ?core::marker::Sized"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:153acd2f682ac833",
+          "signature": "impl<T, U> core::convert::TryInto<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::TryFrom<T>"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:2c59060253809cb7",
+          "signature": "impl<T> core::borrow::Borrow<T> for fathomdb_engine::ReaderSearchPauseForTest where T: ?core::marker::Sized"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:2fc9aba2f56641ec",
+          "signature": "impl<T, U> core::convert::TryFrom<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::Into<T>"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:4289d8e1de1b4f30",
+          "signature": "impl<T, U> core::convert::Into<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::From<T>"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:4748f82e5dc24583",
+          "signature": "impl<T> core::convert::From<T> for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:4bd89d6c6ace6eeb",
+          "signature": "impl core::panic::unwind_safe::RefUnwindSafe for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:5fb2513feb71c930",
+          "signature": "impl core::marker::UnsafeUnpin for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:68c98cb7a34f60de",
+          "signature": "impl core::ops::drop::Drop for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:6b980376604f9a35",
+          "signature": "impl core::panic::unwind_safe::UnwindSafe for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:7972ce1678dd505b",
+          "signature": "impl core::marker::Send for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:a3e727840825ea49",
+          "signature": "impl<T> typenum::type_operators::Same for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:bebb8735ecbdf1c9",
+          "signature": "impl !core::marker::Sync for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:d4b3592696b2210d",
+          "signature": "impl fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:de528deafb10c5ed",
+          "signature": "impl<T> core::any::Any for fathomdb_engine::ReaderSearchPauseForTest where T: 'static + ?core::marker::Sized"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:e7243b988ff7bf5f",
+          "signature": "impl core::marker::Unpin for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:ee3ece8a6da5c667",
+          "signature": "impl core::marker::Freeze for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "struct",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest",
+          "signature": "pub struct fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "type",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::Error",
+          "signature": "impl<T, U> core::convert::TryFrom<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::Into<T> => pub type fathomdb_engine::ReaderSearchPauseForTest::Error = core::convert::Infallible"
+        },
+        {
+          "kind": "type",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::Error",
+          "signature": "impl<T, U> core::convert::TryInto<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::TryFrom<T> => pub type fathomdb_engine::ReaderSearchPauseForTest::Error = <U as core::convert::TryFrom<T>>::Error"
+        },
+        {
+          "kind": "type",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::Output",
+          "signature": "impl<T> typenum::type_operators::Same for fathomdb_engine::ReaderSearchPauseForTest => pub type fathomdb_engine::ReaderSearchPauseForTest::Output = T"
+        }
+      ],
+      "row": "rust-engine-default"
+    },
+    {
+      "added": [],
+      "changed": [],
+      "removed": [
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::borrow",
+          "signature": "impl<T> core::borrow::Borrow<T> for fathomdb_engine::ReaderSearchPauseForTest where T: ?core::marker::Sized => pub fn fathomdb_engine::ReaderSearchPauseForTest::borrow(&self) -> &T"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::borrow_mut",
+          "signature": "impl<T> core::borrow::BorrowMut<T> for fathomdb_engine::ReaderSearchPauseForTest where T: ?core::marker::Sized => pub fn fathomdb_engine::ReaderSearchPauseForTest::borrow_mut(&mut self) -> &mut T"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::drop",
+          "signature": "impl core::ops::drop::Drop for fathomdb_engine::ReaderSearchPauseForTest => pub fn fathomdb_engine::ReaderSearchPauseForTest::drop(&mut self)"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::from",
+          "signature": "impl<T> core::convert::From<T> for fathomdb_engine::ReaderSearchPauseForTest => pub fn fathomdb_engine::ReaderSearchPauseForTest::from(T) -> T"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::into",
+          "signature": "impl<T, U> core::convert::Into<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::From<T> => pub fn fathomdb_engine::ReaderSearchPauseForTest::into(self) -> U"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::release",
+          "signature": "impl fathomdb_engine::ReaderSearchPauseForTest => pub fn fathomdb_engine::ReaderSearchPauseForTest::release(&self)"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::try_from",
+          "signature": "impl<T, U> core::convert::TryFrom<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::Into<T> => pub fn fathomdb_engine::ReaderSearchPauseForTest::try_from(U) -> core::result::Result<T, <T as core::convert::TryFrom<U>>::Error>"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::try_into",
+          "signature": "impl<T, U> core::convert::TryInto<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::TryFrom<T> => pub fn fathomdb_engine::ReaderSearchPauseForTest::try_into(self) -> core::result::Result<U, <U as core::convert::TryFrom<T>>::Error>"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::type_id",
+          "signature": "impl<T> core::any::Any for fathomdb_engine::ReaderSearchPauseForTest where T: 'static + ?core::marker::Sized => pub fn fathomdb_engine::ReaderSearchPauseForTest::type_id(&self) -> core::any::TypeId"
+        },
+        {
+          "kind": "fn",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::wait_ready",
+          "signature": "impl fathomdb_engine::ReaderSearchPauseForTest => pub fn fathomdb_engine::ReaderSearchPauseForTest::wait_ready(&self, core::time::Duration) -> core::result::Result<(), std::sync::mpsc::RecvTimeoutError>"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:066ec42c0328689b",
+          "signature": "impl<T> core::borrow::BorrowMut<T> for fathomdb_engine::ReaderSearchPauseForTest where T: ?core::marker::Sized"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:153acd2f682ac833",
+          "signature": "impl<T, U> core::convert::TryInto<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::TryFrom<T>"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:2c59060253809cb7",
+          "signature": "impl<T> core::borrow::Borrow<T> for fathomdb_engine::ReaderSearchPauseForTest where T: ?core::marker::Sized"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:2fc9aba2f56641ec",
+          "signature": "impl<T, U> core::convert::TryFrom<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::Into<T>"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:4289d8e1de1b4f30",
+          "signature": "impl<T, U> core::convert::Into<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::From<T>"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:4748f82e5dc24583",
+          "signature": "impl<T> core::convert::From<T> for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:4bd89d6c6ace6eeb",
+          "signature": "impl core::panic::unwind_safe::RefUnwindSafe for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:5fb2513feb71c930",
+          "signature": "impl core::marker::UnsafeUnpin for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:68c98cb7a34f60de",
+          "signature": "impl core::ops::drop::Drop for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:6b980376604f9a35",
+          "signature": "impl core::panic::unwind_safe::UnwindSafe for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:7972ce1678dd505b",
+          "signature": "impl core::marker::Send for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:a3e727840825ea49",
+          "signature": "impl<T> typenum::type_operators::Same for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:bebb8735ecbdf1c9",
+          "signature": "impl !core::marker::Sync for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:d4b3592696b2210d",
+          "signature": "impl fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:de528deafb10c5ed",
+          "signature": "impl<T> core::any::Any for fathomdb_engine::ReaderSearchPauseForTest where T: 'static + ?core::marker::Sized"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:e7243b988ff7bf5f",
+          "signature": "impl core::marker::Unpin for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "rust-item",
+          "path": "line:ee3ece8a6da5c667",
+          "signature": "impl core::marker::Freeze for fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "struct",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest",
+          "signature": "pub struct fathomdb_engine::ReaderSearchPauseForTest"
+        },
+        {
+          "kind": "type",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::Error",
+          "signature": "impl<T, U> core::convert::TryFrom<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::Into<T> => pub type fathomdb_engine::ReaderSearchPauseForTest::Error = core::convert::Infallible"
+        },
+        {
+          "kind": "type",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::Error",
+          "signature": "impl<T, U> core::convert::TryInto<U> for fathomdb_engine::ReaderSearchPauseForTest where U: core::convert::TryFrom<T> => pub type fathomdb_engine::ReaderSearchPauseForTest::Error = <U as core::convert::TryFrom<T>>::Error"
+        },
+        {
+          "kind": "type",
+          "path": "fathomdb_engine::ReaderSearchPauseForTest::Output",
+          "signature": "impl<T> typenum::type_operators::Same for fathomdb_engine::ReaderSearchPauseForTest => pub type fathomdb_engine::ReaderSearchPauseForTest::Output = T"
+        }
+      ],
+      "row": "rust-engine-operator"
+    }
+  ]
+}

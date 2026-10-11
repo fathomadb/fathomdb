@@ -8,12 +8,12 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
-DEBUG = "#[cfg(debug_assertions)]"
+DEBUG = "#[cfg(any(test, feature = \"test-hooks\"))]"
 OWNERS = {
     "provenance.rs": {
-        "set_provenance_row_cap_for_test": None,
-        "provenance_row_count_for_test": None,
-        "oldest_provenance_record_key_for_test": None,
+        "set_provenance_row_cap_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
+        "provenance_row_count_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
+        "oldest_provenance_record_key_for_test": '#[cfg(any(test, feature = "test-hooks"))]',
     },
     "write_commit.rs": {"force_next_commit_failure_for_test": DEBUG},
     "actuation.rs": {

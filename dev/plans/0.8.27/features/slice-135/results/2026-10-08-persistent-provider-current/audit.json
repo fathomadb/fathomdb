@@ -1,0 +1,403 @@
+{
+  "audited_runs": 5,
+  "binary_sha256": "0957d1081a32550e61b0f2f681498d7cdd23ca85095383c89ef1aad9d6f165b1",
+  "runs": [
+    {
+      "database": {
+        "canonical": [
+          [
+            1,
+            "doc",
+            "provider-fault",
+            "persistent provider fault body"
+          ]
+        ],
+        "failures": [
+          [
+            "1",
+            {
+              "failure_code": "EmbedderError",
+              "recorded_at": 0,
+              "write_cursor": 1
+            }
+          ]
+        ],
+        "foreign_key_errors": [],
+        "integrity": [
+          "ok"
+        ],
+        "terminal": [
+          [
+            1,
+            "up_to_date"
+          ]
+        ],
+        "vectors": [
+          [
+            "doc",
+            1
+          ]
+        ]
+      },
+      "event": {
+        "case": "persistent_provider_failure_and_explicit_rebuild",
+        "cursor": 1,
+        "failed": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "status": "Failed"
+        },
+        "failure_body_calls": 4,
+        "failure_calls": 4,
+        "fault_point": "all provider calls fail through configured projection retry budget",
+        "final_reopen": {
+          "body": "persistent provider fault body",
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "integrity_check": "ok",
+        "physical_canonical_rows": 1,
+        "recovered": {
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "reopened_before_rebuild": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "projection_body_calls": 4,
+          "provider_calls": 94,
+          "status": "Failed"
+        }
+      },
+      "name": "measured-01",
+      "resources": {
+        "exit_status": 0,
+        "fs_inputs": 0,
+        "fs_outputs": 4896,
+        "major_faults": 0,
+        "peak_rss_kib": 24980,
+        "swap_events": 0
+      }
+    },
+    {
+      "database": {
+        "canonical": [
+          [
+            1,
+            "doc",
+            "provider-fault",
+            "persistent provider fault body"
+          ]
+        ],
+        "failures": [
+          [
+            "1",
+            {
+              "failure_code": "EmbedderError",
+              "recorded_at": 0,
+              "write_cursor": 1
+            }
+          ]
+        ],
+        "foreign_key_errors": [],
+        "integrity": [
+          "ok"
+        ],
+        "terminal": [
+          [
+            1,
+            "up_to_date"
+          ]
+        ],
+        "vectors": [
+          [
+            "doc",
+            1
+          ]
+        ]
+      },
+      "event": {
+        "case": "persistent_provider_failure_and_explicit_rebuild",
+        "cursor": 1,
+        "failed": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "status": "Failed"
+        },
+        "failure_body_calls": 4,
+        "failure_calls": 4,
+        "fault_point": "all provider calls fail through configured projection retry budget",
+        "final_reopen": {
+          "body": "persistent provider fault body",
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "integrity_check": "ok",
+        "physical_canonical_rows": 1,
+        "recovered": {
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "reopened_before_rebuild": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "projection_body_calls": 4,
+          "provider_calls": 94,
+          "status": "Failed"
+        }
+      },
+      "name": "measured-02",
+      "resources": {
+        "exit_status": 0,
+        "fs_inputs": 0,
+        "fs_outputs": 4896,
+        "major_faults": 0,
+        "peak_rss_kib": 24348,
+        "swap_events": 0
+      }
+    },
+    {
+      "database": {
+        "canonical": [
+          [
+            1,
+            "doc",
+            "provider-fault",
+            "persistent provider fault body"
+          ]
+        ],
+        "failures": [
+          [
+            "1",
+            {
+              "failure_code": "EmbedderError",
+              "recorded_at": 0,
+              "write_cursor": 1
+            }
+          ]
+        ],
+        "foreign_key_errors": [],
+        "integrity": [
+          "ok"
+        ],
+        "terminal": [
+          [
+            1,
+            "up_to_date"
+          ]
+        ],
+        "vectors": [
+          [
+            "doc",
+            1
+          ]
+        ]
+      },
+      "event": {
+        "case": "persistent_provider_failure_and_explicit_rebuild",
+        "cursor": 1,
+        "failed": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "status": "Failed"
+        },
+        "failure_body_calls": 4,
+        "failure_calls": 4,
+        "fault_point": "all provider calls fail through configured projection retry budget",
+        "final_reopen": {
+          "body": "persistent provider fault body",
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "integrity_check": "ok",
+        "physical_canonical_rows": 1,
+        "recovered": {
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "reopened_before_rebuild": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "projection_body_calls": 4,
+          "provider_calls": 94,
+          "status": "Failed"
+        }
+      },
+      "name": "measured-03",
+      "resources": {
+        "exit_status": 0,
+        "fs_inputs": 8,
+        "fs_outputs": 4896,
+        "major_faults": 0,
+        "peak_rss_kib": 25428,
+        "swap_events": 0
+      }
+    },
+    {
+      "database": {
+        "canonical": [
+          [
+            1,
+            "doc",
+            "provider-fault",
+            "persistent provider fault body"
+          ]
+        ],
+        "failures": [
+          [
+            "1",
+            {
+              "failure_code": "EmbedderError",
+              "recorded_at": 0,
+              "write_cursor": 1
+            }
+          ]
+        ],
+        "foreign_key_errors": [],
+        "integrity": [
+          "ok"
+        ],
+        "terminal": [
+          [
+            1,
+            "up_to_date"
+          ]
+        ],
+        "vectors": [
+          [
+            "doc",
+            1
+          ]
+        ]
+      },
+      "event": {
+        "case": "persistent_provider_failure_and_explicit_rebuild",
+        "cursor": 1,
+        "failed": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "status": "Failed"
+        },
+        "failure_body_calls": 4,
+        "failure_calls": 4,
+        "fault_point": "all provider calls fail through configured projection retry budget",
+        "final_reopen": {
+          "body": "persistent provider fault body",
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "integrity_check": "ok",
+        "physical_canonical_rows": 1,
+        "recovered": {
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "reopened_before_rebuild": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "projection_body_calls": 4,
+          "provider_calls": 94,
+          "status": "Failed"
+        }
+      },
+      "name": "measured-04",
+      "resources": {
+        "exit_status": 0,
+        "fs_inputs": 8,
+        "fs_outputs": 4896,
+        "major_faults": 0,
+        "peak_rss_kib": 24904,
+        "swap_events": 0
+      }
+    },
+    {
+      "database": {
+        "canonical": [
+          [
+            1,
+            "doc",
+            "provider-fault",
+            "persistent provider fault body"
+          ]
+        ],
+        "failures": [
+          [
+            "1",
+            {
+              "failure_code": "EmbedderError",
+              "recorded_at": 0,
+              "write_cursor": 1
+            }
+          ]
+        ],
+        "foreign_key_errors": [],
+        "integrity": [
+          "ok"
+        ],
+        "terminal": [
+          [
+            1,
+            "up_to_date"
+          ]
+        ],
+        "vectors": [
+          [
+            "doc",
+            1
+          ]
+        ]
+      },
+      "event": {
+        "case": "persistent_provider_failure_and_explicit_rebuild",
+        "cursor": 1,
+        "failed": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "status": "Failed"
+        },
+        "failure_body_calls": 4,
+        "failure_calls": 4,
+        "fault_point": "all provider calls fail through configured projection retry budget",
+        "final_reopen": {
+          "body": "persistent provider fault body",
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "integrity_check": "ok",
+        "physical_canonical_rows": 1,
+        "recovered": {
+          "has_vector": true,
+          "status": "UpToDate"
+        },
+        "reopened_before_rebuild": {
+          "body": "persistent provider fault body",
+          "failure_audit_rows": 1,
+          "has_vector": false,
+          "projection_body_calls": 4,
+          "provider_calls": 94,
+          "status": "Failed"
+        }
+      },
+      "name": "measured-05",
+      "resources": {
+        "exit_status": 0,
+        "fs_inputs": 0,
+        "fs_outputs": 4896,
+        "major_faults": 0,
+        "peak_rss_kib": 23712,
+        "swap_events": 0
+      }
+    }
+  ],
+  "source_sha": "6d7521cc7d606d5ebcebf25d8054178ad710dd3c",
+  "status": "PASS"
+}

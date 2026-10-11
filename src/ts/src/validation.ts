@@ -11,6 +11,11 @@ export function validateFfiString(value: string): void {
   validateFfiStringEncoding(value, false);
 }
 
+/** Source identities retain NUL but still reject lossy UTF-16 encodings. */
+export function validateSourceIdFfiString(value: string): void {
+  validateFfiStringEncoding(value, true);
+}
+
 function validateFfiStringEncoding(value: string, allowNul: boolean): void {
   for (let i = 0; i < value.length; i++) {
     const code = value.charCodeAt(i);

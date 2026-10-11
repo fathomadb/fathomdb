@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — goal
-status: ACTIVE (owner approved Slice 31 on 2026-10-11; aligned with plan revision 7; merge-forward awaits owner approval)
+status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 7)
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -21,7 +21,7 @@ or from a slice worktree; never switch branches in the primary checkout
 (/home/coreyt/projects/fathomdb). If the committed plan is older than
 revision 7, stop and report. The merge-forward plan in
 dev/plans/0.8.28/features/slice-31/merge-forward-plan.md governs W0 step 2;
-do not begin that merge until the owner gives the next approval. Resume from status.md
+the owner approved that merge on 2026-10-11. Resume from status.md
 (dev/plans/0.8.28/features/slice-31/status.md): before the slice merges it
 is on branch slice/0.8.28-31-cudarc-fork in worktree
 /home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31; after the merge,

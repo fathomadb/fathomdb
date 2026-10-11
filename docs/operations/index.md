@@ -1,9 +1,9 @@
 # Operations
 
-Operations docs cover the published 0.8.26 surface.
+Operations docs cover the 0.8.27 release surface.
 
 - [Tegra Pages publication](tegra-pages-publication.md) — the separately
-  authorized, exact-commit route for an unpublished 0.8.27 Tegra candidate.
+  authorized, exact-commit route for the 0.8.27 Tegra publication.
 - [Erasure](erasure.md) — what `erase_source` / `purge` guarantee, what they
   do not, the erasure-audit record, the non-PII `source_id` rule, and
   `fathomdb doctor orphan-provenance`.

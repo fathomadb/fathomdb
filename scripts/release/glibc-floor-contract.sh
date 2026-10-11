@@ -23,8 +23,9 @@ export GLIBC_FLOOR_FAMILIES='manylinux tegra cuda-napi-host'
 # linux-arm64-gnu napi binding (build-napi).
 export GLIBC_FLOOR_MANYLINUX='2.28'
 
-# tegra: the host-native Jetson Orin CUDA Python wheel
-# (scripts/release/build-python-cuda-tegra.sh, D-80.6-2 — the wheel only).
+# tegra: the host-native Jetson Orin CUDA artifacts — the Python wheel
+# (scripts/release/build-python-cuda-tegra.sh) and the
+# fathomdb-linux-arm64-gnu-tegra `.node` (scripts/release/build-napi-cuda-tegra.sh).
 # Measured on the Jetson Orin AGX: Ubuntu GLIBC 2.35-0ubuntu3.14.
 export GLIBC_FLOOR_TEGRA='2.35'
 

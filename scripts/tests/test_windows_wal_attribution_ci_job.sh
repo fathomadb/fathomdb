@@ -8,6 +8,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
+SLICE20_FIX1_SOURCE="${SLICE20_FIX1_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/slice20_fix1_tests.rs}"
 WAL_RUNTIME_SOURCE="${WAL_RUNTIME_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/wal_runtime.rs}"
 CONNECTION_SOURCE="${CONNECTION_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/connection_runtime.rs}"
 OPEN_SOURCE="${OPEN_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/open.rs}"
@@ -334,9 +335,26 @@ assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
   'test-hooks = []' \
   "engine reader rendezvous is a non-default test feature"
 assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
-  '#[cfg(any(test, debug_assertions, feature = "test-hooks"))]' \
+  '#[cfg(any(test, feature = "test-hooks"))]' \
   'pub fn pause_reader_after_wal_snapshot_for_test' \
   "managed-reader hook is unavailable from shipped production builds"
+if managed_reader_gate_out="$(python3 - "$SCRIPT_DIR" "$WAL_RUNTIME_SOURCE" <<'PY_GATE'
+from pathlib import Path
+import re
+import sys
+sys.path.insert(0, sys.argv[1])
+from rust_source_lex import outer_attributes
+source = Path(sys.argv[2]).read_text()
+match = re.search(r"(?m)^    pub fn pause_reader_after_wal_snapshot_for_test\(", source)
+assert match is not None, "managed-reader hook missing"
+gates = [a for a in outer_attributes(source, match.start() + 4) if a.startswith("#[cfg")]
+assert gates == ['#[cfg(any(test,feature="test-hooks"))]'], gates
+PY_GATE
+)"; then
+  pass "managed-reader hook cfg requires unit tests or explicit test-hooks"
+else
+  fail "managed-reader hook cfg requires unit tests or explicit test-hooks ($managed_reader_gate_out)"
+fi
 assert_contains "$(<"$READER_POOL_SOURCE")" \
   'wal_attribution.fire_reader_completion_pause(connection.is_autocommit())' \
   "reader pool retains the private completion-pause seam"
@@ -389,6 +407,7 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
 if managed_owner_out="$(python3 "$SCRIPT_DIR/slice65_managed_connection_owners.py" \
   "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" \
   --override "lib.rs=$ENGINE_SOURCE" \
+  --override "slice20_fix1_tests.rs=$SLICE20_FIX1_SOURCE" \
   --override "wal_runtime.rs=$WAL_RUNTIME_SOURCE" \
   --override "connection_runtime.rs=$CONNECTION_SOURCE" \
   --override "open.rs=$OPEN_SOURCE" \
@@ -399,6 +418,20 @@ if managed_owner_out="$(python3 "$SCRIPT_DIR/slice65_managed_connection_owners.p
   pass "source classifies every Engine-managed SQLite open"
 else
   fail "source classifies every Engine-managed SQLite open ($managed_owner_out)"
+fi
+if unit_production_mask_out="$(python3 - "$SCRIPT_DIR" <<'PY_UNIT_MASK'
+import sys
+sys.path.insert(0, sys.argv[1])
+from slice65_managed_connection_owners import production
+body = 'fn sample() { let connection = rusqlite::Connection::open("sample.sqlite"); }\n'
+assert 'Connection::open' not in production('#[test]\n' + body)
+for ordinary in (body, '// #[test]\n' + body, 'const DECOY: &str = "#[test]";\n' + body):
+    assert 'Connection::open' in production(ordinary), ordinary
+PY_UNIT_MASK
+)"; then
+  pass "production opener inventory excludes actual unit tests and retains ordinary opener mutants"
+else
+  fail "production opener inventory excludes actual unit tests and retains ordinary opener mutants ($unit_production_mask_out)"
 fi
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' \
@@ -733,6 +766,24 @@ done
 
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
+  MANAGED_READER_DEBUG_MUTATED="$TMPROOT/wal-with-default-debug-hook.rs"
+  python3 - "$WAL_RUNTIME_SOURCE" "$MANAGED_READER_DEBUG_MUTATED" <<'PY_GATE'
+from pathlib import Path
+import sys
+source = Path(sys.argv[1]).read_text()
+anchor = '#[cfg(any(test, feature = "test-hooks"))]\n    #[allow(dead_code)]\n    #[doc(hidden)]\n    pub fn pause_reader_after_wal_snapshot_for_test('
+assert source.count(anchor) == 1
+Path(sys.argv[2]).write_text(source.replace(anchor, anchor.replace('any(test, feature', 'any(test, debug_assertions, feature'), 1))
+PY_GATE
+  set +e
+  managed_reader_debug_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 WAL_RUNTIME_SOURCE="$MANAGED_READER_DEBUG_MUTATED" bash "$0" 2>&1)"
+  managed_reader_debug_rc=$?
+  set -e
+  if [ "$managed_reader_debug_rc" -ne 0 ] && grep -Fq 'FAIL  managed-reader hook cfg requires unit tests or explicit test-hooks' <<<"$managed_reader_debug_out"; then
+    pass "mutation rejects managed-reader cfg widened to default debug builds"
+  else
+    fail "mutation did not reject managed-reader debug cfg widening: $managed_reader_debug_out"
+  fi
   trap 'rm -rf "$TMPROOT"' EXIT
 
   WRONG_ENGINE_OWNER="$TMPROOT/erasure-as-engine-owner.rs"
@@ -934,24 +985,28 @@ PY
   fi
 
   UNGATED_TEST_MODULE="$TMPROOT/lib-with-ungated-slice20-tests.rs"
-  python3 - "$ENGINE_SOURCE" "$UNGATED_TEST_MODULE" <<'PY'
+  UNGATED_TEST_FUNCTIONS="$TMPROOT/slice20-with-production-functions.rs"
+  python3 - "$ENGINE_SOURCE" "$UNGATED_TEST_MODULE" "$SLICE20_FIX1_SOURCE" "$UNGATED_TEST_FUNCTIONS" <<'PY'
 from pathlib import Path
 import sys
 
-source, output = map(Path, sys.argv[1:])
+source, output, test_source, test_output = map(Path, sys.argv[1:])
 text = source.read_text()
 original = "#[cfg(test)]\nmod slice20_fix1_tests;"
 assert text.count(original) == 1
 output.write_text(text.replace(original, "mod slice20_fix1_tests;", 1))
+test_text = test_source.read_text()
+assert "#[test]" in test_text
+test_output.write_text(test_text.replace("#[test]", ""))
 PY
   set +e
-  ungated_test_module_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$UNGATED_TEST_MODULE" bash "$0" 2>&1)"
+  ungated_test_module_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$UNGATED_TEST_MODULE" SLICE20_FIX1_SOURCE="$UNGATED_TEST_FUNCTIONS" bash "$0" 2>&1)"
   ungated_test_module_rc=$?
   set -e
   if [ "$ungated_test_module_rc" -ne 0 ] \
     && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$ungated_test_module_out" \
     && grep -Fq 'slice20_fix1_tests.rs' <<<"$ungated_test_module_out"; then
-    pass "mutation includes an external test module when its root cfg(test) gate is removed"
+    pass "mutation rejects external test openers after module and function test gates are removed"
   else
     fail "mutation missed an ungated external test module: $ungated_test_module_out"
   fi

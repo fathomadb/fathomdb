@@ -6,7 +6,8 @@ engine built on SQLite.
 This is a **tool, not a library API**. It exists so an operator holding a FathomDB database file can
 inspect it, verify it and repair it without writing code. It is deliberately *not* a query client:
 there is no `search`, no `get`, no `list`. Application access goes through the
-[`fathomdb`](https://crates.io/crates/fathomdb) crate or the Python / Node.js SDKs.
+Rust application `fathomdb-sdk` crate or the Python / Node.js SDKs. The
+separate `fathomdb` crate provides the lower-level facade.
 
 ## Status: pre-1.0, beta
 
@@ -16,7 +17,7 @@ releases.
 ## Install
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.26' --locked
+cargo install fathomdb-cli --version '=0.8.27' --locked
 fathomdb --version
 ```
 

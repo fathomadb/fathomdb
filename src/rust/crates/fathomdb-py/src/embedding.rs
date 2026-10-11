@@ -72,6 +72,9 @@ pub(super) fn rerank(
     let query = query.to_string();
     // 0.8.5 (D4): resolve the binding-side defaults — α=0.3, pool_n=rerank_depth.
     let alpha = alpha.unwrap_or(0.3);
+    if !alpha.is_finite() {
+        return Err(PyValueError::new_err("alpha must be finite"));
+    }
     let pool_n = pool_n.unwrap_or(rerank_depth);
     // The helper is pure CPU (no engine handle); it may perform a one-time gated
     // model load on a cold cache, so release the GIL for the duration.

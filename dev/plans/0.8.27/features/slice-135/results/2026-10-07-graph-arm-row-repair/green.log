@@ -1,0 +1,29 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/pr_c1_graph_seeding.rs (target/debug/deps/pr_c1_graph_seeding-f09ca4b09cda6976)
+
+running 5 tests
+test test_graph_arm_emits_reachable_hit_from_entity_seed ... ok
+test test_edge_only_match_emits_endpoint_entities_with_source ... ok
+test test_seed_excludes_temporal_fallback_and_expired_edges ... ok
+test test_seed_from_edge_fact_fts_flips_rate_zero_to_one ... ok
+test test_seed_dedup_and_deterministic ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/slice135_graph_arm_row_error.rs (target/debug/deps/slice135_graph_arm_row_error-c620222d1c7a662f)
+
+running 1 test
+test malformed_graph_edge_source_must_not_silently_drop_reachable_node ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/slice30_graph_arm.rs (target/debug/deps/slice30_graph_arm-4a572a1e45d867b2)
+
+running 4 tests
+test graph_arm_factoid_recall_cdf_artifact_pinned ... ok
+test graph_arm_drops_invalidated_edges ... ok
+test graph_arm_temporal_fallback_excluded_or_downweighted ... ok
+test graph_arm_disabled_is_byte_identical_to_baseline ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+

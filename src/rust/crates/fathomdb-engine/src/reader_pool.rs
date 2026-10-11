@@ -178,6 +178,7 @@ pub(crate) enum ReaderRequest {
     },
     /// Slice 20 test seam — run `EXPLAIN QUERY PLAN` on the BFS CTE SQL for
     /// the given root/depth/direction and return the plan detail lines.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     ExplainGraphNeighbors {
         root_logical_id: String,
@@ -186,30 +187,30 @@ pub(crate) enum ReaderRequest {
         respond: SyncSender<rusqlite::Result<Vec<String>>>,
     },
     Shutdown,
-    /// Pack 6.G G.1 — debug-only request that asks a worker to read its
+    /// Pack 6.G G.1 — test-only request that asks a worker to read its
     /// own connection's `SQLITE_DBSTATUS_LOOKASIDE_USED` and return the
     /// high-water mark (`hiwtr` out-param). Used solely by the integration
     /// test that asserts post-warmup lookaside slots were consumed; not
     /// on any production path.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     LookasideStatus {
         respond: SyncSender<i32>,
     },
-    /// Pack 6.G G.3.5 — debug-only request that asks a worker to read
+    /// Pack 6.G G.3.5 — test-only request that asks a worker to read
     /// `SQLITE_DBSTATUS_CACHE_HIT`, `_CACHE_MISS`, and `_CACHE_USED`
     /// off its own connection and return them as `(hit, miss, used_bytes)`.
     /// `snapshot_label` is opaque to the worker; the caller uses it to
     /// distinguish pre/post snapshots in its own bookkeeping.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     CacheStatus {
         snapshot_label: String,
         respond: SyncSender<(String, i32, i32, i32)>,
     },
-    /// OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — debug-only request
+    /// OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — test-only request
     /// that asks a worker to read its own connection's `PRAGMA secure_delete`
     /// and return it (`0`/`1`). Used solely by the gap-4 test that asserts the
     /// standing secure_delete flag is ON at EVERY open, not just the writer.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     SecureDeleteStatus {
         respond: SyncSender<i64>,
     },
@@ -217,10 +218,7 @@ pub(crate) enum ReaderRequest {
     /// transaction, executes a query to acquire its WAL snapshot, reports the
     /// rendezvous, and holds the snapshot until released. It is never compiled
     /// into a release SDK artifact.
-    // `test` added alongside `debug_assertions`/`test-hooks` so the crate's own
-    // `--release --tests` lib-test build (cfg(test) true, debug_assertions
-    // false) can still see this variant; it stays absent from any shipped build.
-    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[allow(dead_code)]
     HoldWalSnapshot {
         snapshot_ready: Arc<Barrier>,
@@ -228,7 +226,7 @@ pub(crate) enum ReaderRequest {
     },
     /// Slice 80 test-only variant with bounded/disconnect-safe release. The
     /// sender dropping is cancellation, so a failed test cannot strand close.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     HoldWalSnapshotBounded {
         snapshot_ready: SyncSender<usize>,
         release: Receiver<()>,
@@ -447,6 +445,7 @@ impl ReaderRequest {
         }
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn explain_graph_neighbors(
         root_logical_id: String,
         depth: u32,
@@ -481,9 +480,9 @@ pub(crate) type ReaderResponse = Result<
 pub(crate) type EvidenceReaderResponse = Result<EvidenceSearchResultV1, SearchReaderError>;
 
 /// Pack 6.G G.3.5 — per-worker cache-pressure snapshot. Carried only on
-/// the debug-only `CacheStatus` broadcast path and the test accessor;
+/// the test-only `CacheStatus` broadcast path and the test accessor;
 /// not part of the public 0.6.0 surface.
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub struct CacheStatusReply {
@@ -745,6 +744,7 @@ fn reader_worker_loop(
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
+            #[cfg(any(test, feature = "test-hooks"))]
             ReaderRequest::ExplainGraphNeighbors { root_logical_id, depth, direction, respond } => {
                 let result = explain_graph_neighbors_in_tx(
                     &mut connection,
@@ -757,22 +757,22 @@ fn reader_worker_loop(
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             ReaderRequest::LookasideStatus { respond } => {
                 let _ = respond.send(read_lookaside_used_hiwtr(&connection));
             }
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             ReaderRequest::CacheStatus { snapshot_label, respond } => {
                 let (hit, miss, used) = read_cache_status(&connection);
                 let _ = respond.send((snapshot_label, hit, miss, used));
             }
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             ReaderRequest::SecureDeleteStatus { respond } => {
                 let value: i64 =
                     connection.query_row("PRAGMA secure_delete", [], |r| r.get(0)).unwrap_or(-1);
                 let _ = respond.send(value);
             }
-            #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+            #[cfg(any(test, feature = "test-hooks"))]
             ReaderRequest::HoldWalSnapshot { snapshot_ready, release } => {
                 connection.execute_batch("BEGIN DEFERRED").expect("begin reader transaction");
                 let _: i64 = connection
@@ -789,7 +789,7 @@ fn reader_worker_loop(
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
             }
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             ReaderRequest::HoldWalSnapshotBounded { snapshot_ready, release } => {
                 connection.execute_batch("BEGIN DEFERRED").expect("begin reader transaction");
                 let _: i64 = connection
@@ -868,7 +868,7 @@ fn finish_reader_request(
 /// observed `current` value since the last reset and is the right
 /// signal that lookaside was honored at any point on this connection.
 /// Reset flag is `0` so reading does not clear the high-water mark.
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 fn read_lookaside_used_hiwtr(connection: &Connection) -> std::os::raw::c_int {
     let mut current: std::os::raw::c_int = 0;
     let mut hiwtr: std::os::raw::c_int = 0;
@@ -892,7 +892,7 @@ fn read_lookaside_used_hiwtr(connection: &Connection) -> std::os::raw::c_int {
 /// monotonic counters (reset flag = 0 here); used_bytes is the live
 /// page-cache memory footprint at call time. The caller is expected to
 /// take pre/post snapshots and do delta arithmetic explicitly.
-#[cfg(debug_assertions)]
+#[cfg(any(test, feature = "test-hooks"))]
 fn read_cache_status(
     connection: &Connection,
 ) -> (std::os::raw::c_int, std::os::raw::c_int, std::os::raw::c_int) {
@@ -991,12 +991,12 @@ impl ReaderWorkerPool {
         }
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn worker_count(&self) -> usize {
         self.senders.len()
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn live_count(&self) -> usize {
         self.live_workers.load(Ordering::SeqCst)
     }
@@ -1006,14 +1006,14 @@ impl ReaderWorkerPool {
         Arc::clone(&self.live_workers)
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn next_worker_index(&self) -> usize {
         let worker_count = self.senders.len();
         assert!(worker_count > 0, "reader pool must have workers");
         self.next.load(Ordering::Relaxed) % worker_count
     }
 
-    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn hold_worker_zero_wal_snapshot(
         &self,
         snapshot_ready: Arc<Barrier>,
@@ -1024,7 +1024,7 @@ impl ReaderWorkerPool {
             .expect("reader worker must be live for WAL attribution control");
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn hold_worker_zero_wal_snapshot_bounded(
         &self,
         snapshot_ready: SyncSender<usize>,
@@ -1134,7 +1134,7 @@ impl ReaderWorkerPool {
     /// worker (not round-robin) and collect each worker's
     /// `SQLITE_DBSTATUS_LOOKASIDE_USED`. Used only by the debug
     /// integration test for post-warmup lookaside-slot consumption.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn lookaside_used_per_worker(&self) -> Vec<i32> {
         let mut results = Vec::with_capacity(self.senders.len());
         for sender in &self.senders {
@@ -1153,7 +1153,7 @@ impl ReaderWorkerPool {
     /// cache_used_bytes)` triple. Same broadcast pattern as G.1's
     /// `lookaside_used_per_worker`. Returns one `CacheStatusReply` per
     /// worker in worker-index order.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn cache_status_per_worker(&self, snapshot_label: &str) -> Vec<CacheStatusReply> {
         let mut results = Vec::with_capacity(self.senders.len());
         for (idx, sender) in self.senders.iter().enumerate() {
@@ -1190,7 +1190,7 @@ impl ReaderWorkerPool {
     /// `PRAGMA secure_delete` value. Same broadcast pattern as G.1's
     /// `lookaside_used_per_worker`. Proves the standing secure_delete flag is ON
     /// on the reader-pool connections, not just the writer.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn secure_delete_per_worker(&self) -> Vec<i64> {
         let mut results = Vec::with_capacity(self.senders.len());
         for sender in &self.senders {
@@ -1257,10 +1257,11 @@ use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{Predicate, SearchFilter};
 use crate::frozen_read::{self, FrozenReadContextV1};
+#[cfg(any(test, feature = "test-hooks"))]
+use crate::graph_expand::explain_graph_neighbors_in_tx;
 use crate::graph_expand::{
-    self, crossed_boundary_since_in_tx, explain_graph_neighbors_in_tx, graph_neighbors_in_tx,
-    search_expand_in_tx, GraphExpandRequestV1, GraphExpandResultV1, SearchExpandResult,
-    TraversalDirection,
+    self, crossed_boundary_since_in_tx, graph_neighbors_in_tx, search_expand_in_tx,
+    GraphExpandRequestV1, GraphExpandResultV1, SearchExpandResult, TraversalDirection,
 };
 use crate::pagination::{PageRequestV1, PageV1};
 use crate::projection_generation::ProjectionRuntimeStateV1;
@@ -1292,23 +1293,23 @@ use rusqlite::Connection;
 use std::fmt::Formatter;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
-#[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+#[cfg(any(test, feature = "test-hooks"))]
 use std::sync::Barrier;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-#[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+#[cfg(any(test, feature = "test-hooks"))]
 use std::time::Duration;
 #[cfg(any(test, feature = "test-hooks"))]
 use std::time::Instant;
 
 impl Engine {
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn reader_worker_count_for_test(&self) -> usize {
         self.reader_pool.worker_count()
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn live_reader_worker_count_for_test(&self) -> usize {
         self.reader_pool.live_count()
@@ -1316,7 +1317,7 @@ impl Engine {
 
     /// Return the worker index that the next round-robin read dispatch will use.
     /// This test-only witness does not mutate scheduling state.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn next_reader_worker_index_for_test(&self) -> usize {
         self.reader_pool.next_worker_index()
@@ -1327,18 +1328,18 @@ impl Engine {
     /// least one allocation was satisfied from the per-connection
     /// lookaside arena (proof the configuration was honored before the
     /// first prepare).
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn reader_lookaside_used_per_worker_for_test(&self) -> Vec<i32> {
         self.reader_pool.lookaside_used_per_worker()
     }
 
-    /// Pack 6.G G.3.5 — broadcast a debug-only `CacheStatus` request to
+    /// Pack 6.G G.3.5 — broadcast a test-only `CacheStatus` request to
     /// every reader worker and collect per-worker
     /// `SQLITE_DBSTATUS_CACHE_HIT` / `_CACHE_MISS` / `_CACHE_USED`
     /// values. Counters are monotonic (reset flag = 0); callers compute
     /// pre/post deltas explicitly.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn cache_status_per_worker_for_test(&self, label: &str) -> Vec<CacheStatusReply> {
         self.reader_pool.cache_status_per_worker(label)
@@ -1349,7 +1350,7 @@ impl Engine {
     /// per-worker probe; proves the standing flag is set on the non-writer
     /// connections (which perform projection/vector-rewrite DELETEs), closing
     /// the GDPR-erasure leak codex flagged.
-    #[cfg(debug_assertions)]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn reader_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
         self.ensure_open()?;

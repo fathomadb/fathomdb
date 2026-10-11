@@ -1,0 +1,31 @@
+{
+  "auditor": "scripts/slice135_phase2_contract_audit.py",
+  "controls": [
+    {
+      "mutation": "wrong_id",
+      "reason": "structured before: id mismatch",
+      "rejected": true
+    },
+    {
+      "mutation": "wrong_order",
+      "reason": "retrieval after: order mismatch",
+      "rejected": true
+    },
+    {
+      "mutation": "missing_case",
+      "reason": "cases missing or changed",
+      "rejected": true
+    },
+    {
+      "mutation": "wheel_identity",
+      "reason": "wheel_sha256 mismatch",
+      "rejected": true
+    },
+    {
+      "mutation": "persisted_body",
+      "reason": "persisted canonical rows differ from authored fixture",
+      "rejected": true
+    }
+  ],
+  "source": "copies of exact candidate raw archive; originals unchanged"
+}

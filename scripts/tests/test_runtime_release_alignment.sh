@@ -254,7 +254,7 @@ if grep -Fq 'needs.publish-rust-t7-cli.result == '\''success'\''' <<<"$visibilit
   && grep -Fq "$candidate_free_expr" <<<"$smoke_block" \
   && grep -Fq "$recovery_dispatch_expr) || needs.publish-npm.result == 'success'" <<<"$visibility_block" \
   && grep -Fq "needs.wait-for-package-registry-visibility.result == 'success'" <<<"$smoke_block" \
-  && grep -Fq "fromJSON(($recovery_dispatch_expr) && '[\"crates-cli\",\"pypi-wheel\"]' || '[\"crates-cli\",\"pypi-wheel\",\"npm-package\"]')" <<<"$smoke_block"; then
+  && grep -Fq "fromJSON(($recovery_dispatch_expr) && '[\"crates-cli\",\"pypi-wheel\"]' || '[\"crates-cli\",\"crates-sdk\",\"pypi-wheel\",\"npm-package\"]')" <<<"$smoke_block"; then
   pass "recovery keeps crates and PyPI smokes while omitting npm smoke"
 else
   fail "recovery dispatch must not let skipped npm block crates/PyPI smoke"

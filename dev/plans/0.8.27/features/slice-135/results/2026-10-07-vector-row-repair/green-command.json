@@ -1,0 +1,18 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "fathomdb-engine",
+    "--test",
+    "slice135_vector_row_error",
+    "--",
+    "--nocapture"
+  ],
+  "source_branch": "llm/0.8.27-slice-135",
+  "test_sha256": "6ce45d28aafcd922870a0e398b6223967ad25b48b93ee2b31cba621e52708a93",
+  "search_rs_sha256": "9670e142e7c3097b431500108be99e2296e9e63fccc3fc362644685c557ca142",
+  "exit_code": 0,
+  "cargo_target_dir": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/target",
+  "fresh_engine_compile": true
+}

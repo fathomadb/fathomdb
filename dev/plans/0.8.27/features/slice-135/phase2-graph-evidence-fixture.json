@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "gold_origin": "Repository-authored Python graph, evidence, erasure and source-provenance tests; fixed synthetic values specified before paired runs",
+  "license_boundary": "Synthetic repository fixture; no external corpus payload",
+  "writes": [
+    {"kind": "doc", "body": "Root node alpha unique", "logical_id": "A", "source_id": "graph-source"},
+    {"kind": "doc", "body": "Neighbor node B beta", "logical_id": "B", "source_id": "graph-source"},
+    {"kind": "doc", "body": "Hop-2 node C gamma", "logical_id": "C", "source_id": "graph-source"},
+    {"kind": "doc", "body": "Direct leaf D delta", "logical_id": "D", "source_id": "graph-source"},
+    {"edge": {"kind": "link", "from": "A", "to": "B", "logical_id": "E-AB", "source_id": "graph-source"}},
+    {"edge": {"kind": "link", "from": "B", "to": "C", "logical_id": "E-BC", "source_id": "graph-source"}},
+    {"edge": {"kind": "link", "from": "A", "to": "D", "logical_id": "E-AD", "source_id": "graph-source"}},
+    {
+      "kind": "document",
+      "body": "canonical evidence bytes",
+      "source_id": "evidence-source",
+      "logical_id": "evidence-source-node",
+      "provenance": {
+        "schema_version": 1,
+        "role": "canonical",
+        "artifact_revision_id": "evidence-source-r1",
+        "source_version_id": "evidence-version-r1"
+      }
+    },
+    {
+      "kind": "fact",
+      "body": "pythonevidenceneedle",
+      "source_id": "evidence-source",
+      "logical_id": "evidence-claim",
+      "provenance": {
+        "schema_version": 1,
+        "role": "derived",
+        "artifact_revision_id": "evidence-claim-r1",
+        "source_version_id": "evidence-version-r1",
+        "source_revision_id": "evidence-source-r1",
+        "source_locator": {"kind": "whole_body"},
+        "canonical_source_hash": {
+          "algorithm": "sha256",
+          "digest_hex": "1f92bcf1090ac8006da3314fde7d0b3dd1f220792f847496007bdc9ba523c067"
+        }
+      }
+    },
+    {"kind": "doc", "body": "retained control record", "logical_id": "R", "source_id": "control-source"}
+  ],
+  "graph_root": "A",
+  "evidence_query": "pythonevidenceneedle",
+  "erase_source": "evidence-source",
+  "gold": {
+    "before": {
+      "graph_depth1": [
+        {"logical_id": "B", "kind": "doc", "body": "Neighbor node B beta"},
+        {"logical_id": "D", "kind": "doc", "body": "Direct leaf D delta"}
+      ],
+      "graph_depth2": [
+        {"logical_id": "B", "kind": "doc", "body": "Neighbor node B beta"},
+        {"logical_id": "C", "kind": "doc", "body": "Hop-2 node C gamma"},
+        {"logical_id": "D", "kind": "doc", "body": "Direct leaf D delta"}
+      ],
+      "evidence_hits": [
+        {
+          "id_space": "logical",
+          "id_value": "evidence-claim",
+          "kind": "fact",
+          "body": "pythonevidenceneedle",
+          "branch": "text",
+          "source_id": "evidence-source"
+        }
+      ],
+      "evidence_refs": [{"result_index": 0, "artifact_revision_id": "evidence-claim-r1"}],
+      "resolved": {
+        "canonical_source_body": "canonical evidence bytes",
+        "evidence_text": "canonical evidence bytes",
+        "source_revision_id": "evidence-source-r1",
+        "representative_arm": "text"
+      }
+    },
+    "erase": {"source_ref": "evidence-source", "nodes_excised": 2, "edges_excised": 0},
+    "after_erase": {
+      "graph_depth2": [
+        {"logical_id": "B", "kind": "doc", "body": "Neighbor node B beta"},
+        {"logical_id": "C", "kind": "doc", "body": "Hop-2 node C gamma"},
+        {"logical_id": "D", "kind": "doc", "body": "Direct leaf D delta"}
+      ],
+      "evidence_hits": []
+    },
+    "after_reopen": {
+      "graph_depth2": [
+        {"logical_id": "B", "kind": "doc", "body": "Neighbor node B beta"},
+        {"logical_id": "C", "kind": "doc", "body": "Hop-2 node C gamma"},
+        {"logical_id": "D", "kind": "doc", "body": "Direct leaf D delta"}
+      ],
+      "evidence_hits": []
+    },
+    "persisted": {
+      "canonical_nodes": [
+        ["A", "doc", "Root node alpha unique", "graph-source"],
+        ["B", "doc", "Neighbor node B beta", "graph-source"],
+        ["C", "doc", "Hop-2 node C gamma", "graph-source"],
+        ["D", "doc", "Direct leaf D delta", "graph-source"],
+        ["R", "doc", "retained control record", "control-source"]
+      ],
+      "canonical_edges": [
+        ["E-AB", "A", "B", "graph-source"],
+        ["E-AD", "A", "D", "graph-source"],
+        ["E-BC", "B", "C", "graph-source"]
+      ],
+      "evidence_fts_residue": 0,
+      "integrity": "ok"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+[
+  "cargo",
+  "test",
+  "--offline",
+  "--release",
+  "--no-run",
+  "--message-format=json",
+  "--manifest-path",
+  "/tmp/slice135-pilot-final-build-smoke/build/Cargo.toml",
+  "--target-dir",
+  "/tmp/slice135-pilot-final-build-smoke/target"
+]

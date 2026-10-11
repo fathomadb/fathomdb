@@ -805,3 +805,36 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
 The Slice 30 test previously failed only on its 100 GB free-space guard. Code
 review H-4 (`df9cbf9f`) pins `disk_usage` in that test's scratch-ownership
 checks, so it no longer depends on host disk. The Slice 30 tool is unchanged.
+
+## Slice 140 successor — 2026-10-10
+
+The then-current reviewed successor was `baseline-01f4063f.json` (retired in
+Slice 150 and recoverable from Git history),
+bound to integrated product source `01f4063f7ba19e4d9c38377c3d1956f35903ff9c`.
+Its [approved diff record](baseline-01f4063f-diff.md) preserves the completed
+Slice 117 before capture, inherited changes since `8e2afb29`, and exact
+Slice 140 fixture gating. Both captures have no test-build failure; all 295
+targets and the exact 1,924-entry test/ignore union remain represented through
+their required features. Independent `gpt-6-sol` high static review approved
+the record with no findings. Slice 140's full verification/acceptance and
+Slice 150's final qualification remain separate gates; Slice 150 consumes
+this successor and still owns oracle retirement.
+
+## Slice 150 final comparison and retirement
+
+The final candidate capture at `c3239879e760bf8881f376a61e512a77703676e8`
+has SHA-256 `2531c44d7dd2531f21c093cee8c1d8a8017f2fc23f8a5edc1846b96859f04428`.
+The reviewed successor baseline has SHA-256
+`e42c87f0684ee45e3cc5e51c30f82592999654ed62087cc213260595cd5b7109`;
+their saved comparison has SHA-256
+`87c9d1b0d10bccd33c7d7695477830b2a78809e18448d1c11616b60a494d8d29`.
+All 36 shared legacy rows have identical entries and identities. The prior
+`tests-req-fathomdb-sdk--none` and new `tests-sdk-default` inventory rows
+list the same 38 tests in the same order; `sdk-default` adds the 439-entry
+Slice 132-assigned Rust SDK rustdoc surface. No other hidden or test-inventory
+difference remains. [Slice 150's comparison record](../slice-150/surface-comparison.md)
+contains the public-surface result and independent review. Rust product
+source remained identical through the pre-retirement qualification commit.
+The manifests and comparison remain under the host-local
+`qualification-evidence/slice-150/` directory; the retired collector and
+committed baselines remain recoverable from Git history.

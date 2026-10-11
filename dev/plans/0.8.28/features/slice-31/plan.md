@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 7 — W0 merge-forward plan added, merge awaits owner approval; revision 6 owner rulings and review fixes retained
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 7 — W0 merge-forward approved, scoped execution recorded; revision 6 owner rulings and review fixes retained
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---

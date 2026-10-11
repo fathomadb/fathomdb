@@ -1,0 +1,5490 @@
+{
+  "artifact_sha256": {
+    "build/Cargo.lock": "153dfe483854fc8af3dfb6a6d42909b61e2f75ab7bd512a2dcf949eacf3ad6ae",
+    "corpus.txt": "3490cb46178d1016388d9ee56ae6a9035a9f0e8658512e5f62801c000f3147b4",
+    "operation-manifest.json": "ae1ccf2f738d4b4eea7f25ca45216835f736d50348bea498f648fa312823ef3c",
+    "slice135_pilot_workload": "1c5857ce8623279b9ec017b2d398ef3a3795f4bb41fd211a280f3f8b7d1c2cf6"
+  },
+  "cells": {
+    "close_fresh": {
+      "attempts": [
+        {
+          "latency_ns": 5507401,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5411790,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5508953,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4937173,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5798631,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6055326,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5404786,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5587372,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5536345,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5352718,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5430254,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4943815,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5737505,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5626776,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5208305,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5516388,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5776479,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5025639,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4609433,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5033644,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5757343,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5394507,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4978571,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5460331,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5306240,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5405407,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5351997,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5208745,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5510496,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5578224,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5439883,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5165444,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5197414,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5914330,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5285211,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5015310,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5601337,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5620153,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5432669,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5460171,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5345615,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5892088,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5819470,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5269230,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5611897,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5458438,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4403564,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4917445,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4879373,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4975625,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5889392,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4253199,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5704212,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5110019,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5405428,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4943695,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4830801,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5596449,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5637056,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5514264,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5602671,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4893860,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4683572,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5727036,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5724390,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5435324,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5186254,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5327650,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5439742,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5273979,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5098367,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5432349,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5367806,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5310047,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5652354,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 6730402,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5436246,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5389918,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5113305,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5299718,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5668655,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5288446,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5203646,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5214728,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5330216,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5229916,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5993880,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5409625,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5014458,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5252579,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5276785,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5394076,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5481060,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5320698,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5124777,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5406049,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5291422,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5190752,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 4849596,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 5830992,
+          "observed_checks": {
+            "canonical_rows": [
+              0
+            ],
+            "reopen_ok": true,
+            "second_close_ok": true
+          },
+          "semantic_ok": true,
+          "valid": true
+        }
+      ],
+      "boundary": "close-call-to-return"
+    },
+    "mixed_sequence": {
+      "attempts": [
+        {
+          "latency_ns": 39324442,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2724580,
+            "erasure": 3587261,
+            "governed_write": 499604,
+            "open": 19812029,
+            "projection_drain": 157829,
+            "reclose": 2824409,
+            "reopen": 8772021,
+            "text_after_erase": 408001,
+            "text_before_erase": 424222
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38795332,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2514463,
+            "erasure": 3603972,
+            "governed_write": 549469,
+            "open": 20064817,
+            "projection_drain": 177826,
+            "reclose": 2937873,
+            "reopen": 7993700,
+            "text_after_erase": 380529,
+            "text_before_erase": 451955
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38518950,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2518050,
+            "erasure": 3460972,
+            "governed_write": 509563,
+            "open": 20219740,
+            "projection_drain": 160534,
+            "reclose": 2530183,
+            "reopen": 8153002,
+            "text_after_erase": 363066,
+            "text_before_erase": 498212
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40142117,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2888751,
+            "erasure": 3398604,
+            "governed_write": 511437,
+            "open": 20543812,
+            "projection_drain": 158439,
+            "reclose": 2247658,
+            "reopen": 9390891,
+            "text_after_erase": 450031,
+            "text_before_erase": 423821
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39996693,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2880715,
+            "erasure": 3524332,
+            "governed_write": 496198,
+            "open": 21242694,
+            "projection_drain": 168167,
+            "reclose": 2469858,
+            "reopen": 8264692,
+            "text_after_erase": 426947,
+            "text_before_erase": 451754
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40661790,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2965415,
+            "erasure": 3534271,
+            "governed_write": 496909,
+            "open": 21326201,
+            "projection_drain": 172025,
+            "reclose": 2777360,
+            "reopen": 8492673,
+            "text_after_erase": 363718,
+            "text_before_erase": 419714
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39917643,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2862731,
+            "erasure": 3575669,
+            "governed_write": 619581,
+            "open": 20575803,
+            "projection_drain": 161004,
+            "reclose": 2763925,
+            "reopen": 8440504,
+            "text_after_erase": 431706,
+            "text_before_erase": 413672
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38282733,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2582311,
+            "erasure": 3530613,
+            "governed_write": 498462,
+            "open": 20256038,
+            "projection_drain": 168609,
+            "reclose": 2670458,
+            "reopen": 7721696,
+            "text_after_erase": 366102,
+            "text_before_erase": 399115
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40387141,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 3003678,
+            "erasure": 3432168,
+            "governed_write": 497260,
+            "open": 21004122,
+            "projection_drain": 163960,
+            "reclose": 2842463,
+            "reopen": 8505197,
+            "text_after_erase": 466872,
+            "text_before_erase": 402862
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39470578,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2572102,
+            "erasure": 3422670,
+            "governed_write": 515735,
+            "open": 21219960,
+            "projection_drain": 165563,
+            "reclose": 2777710,
+            "reopen": 7802989,
+            "text_after_erase": 495206,
+            "text_before_erase": 433890
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39211669,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2740190,
+            "erasure": 3503944,
+            "governed_write": 618980,
+            "open": 20476626,
+            "projection_drain": 189679,
+            "reclose": 2817005,
+            "reopen": 7739189,
+            "text_after_erase": 462824,
+            "text_before_erase": 592219
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 41114246,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2764375,
+            "erasure": 3944456,
+            "governed_write": 734007,
+            "open": 21084304,
+            "projection_drain": 187073,
+            "reclose": 2404405,
+            "reopen": 8977710,
+            "text_after_erase": 399114,
+            "text_before_erase": 481971
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40015007,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 3080462,
+            "erasure": 3411258,
+            "governed_write": 552204,
+            "open": 20306223,
+            "projection_drain": 175492,
+            "reclose": 2417810,
+            "reopen": 9069994,
+            "text_after_erase": 505986,
+            "text_before_erase": 411839
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39777919,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2476882,
+            "erasure": 3477573,
+            "governed_write": 617397,
+            "open": 21278401,
+            "projection_drain": 222310,
+            "reclose": 2868262,
+            "reopen": 7873172,
+            "text_after_erase": 379538,
+            "text_before_erase": 482912
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38715171,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2520434,
+            "erasure": 3732526,
+            "governed_write": 636142,
+            "open": 20443122,
+            "projection_drain": 210037,
+            "reclose": 2288295,
+            "reopen": 7780377,
+            "text_after_erase": 501367,
+            "text_before_erase": 486840
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39283515,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2825070,
+            "erasure": 3503352,
+            "governed_write": 486439,
+            "open": 19739332,
+            "projection_drain": 158860,
+            "reclose": 2892127,
+            "reopen": 8711116,
+            "text_after_erase": 314995,
+            "text_before_erase": 520854
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39122220,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2618910,
+            "erasure": 3476010,
+            "governed_write": 563374,
+            "open": 20681252,
+            "projection_drain": 173679,
+            "reclose": 2771239,
+            "reopen": 7903901,
+            "text_after_erase": 367535,
+            "text_before_erase": 495336
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40000180,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2853043,
+            "erasure": 3523741,
+            "governed_write": 489045,
+            "open": 20691993,
+            "projection_drain": 155825,
+            "reclose": 2842633,
+            "reopen": 8517500,
+            "text_after_erase": 367535,
+            "text_before_erase": 485077
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39101952,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2694383,
+            "erasure": 3392934,
+            "governed_write": 610584,
+            "open": 20411883,
+            "projection_drain": 203335,
+            "reclose": 2674415,
+            "reopen": 8156648,
+            "text_after_erase": 413221,
+            "text_before_erase": 454369
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39615934,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2766460,
+            "erasure": 3511477,
+            "governed_write": 512619,
+            "open": 20534225,
+            "projection_drain": 160073,
+            "reclose": 2409525,
+            "reopen": 8835832,
+            "text_after_erase": 389637,
+            "text_before_erase": 375480
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39138380,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2517228,
+            "erasure": 3379068,
+            "governed_write": 527497,
+            "open": 20226252,
+            "projection_drain": 164962,
+            "reclose": 2902606,
+            "reopen": 8442067,
+            "text_after_erase": 389917,
+            "text_before_erase": 521556
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38051126,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2290479,
+            "erasure": 3379929,
+            "governed_write": 497180,
+            "open": 20209180,
+            "projection_drain": 171545,
+            "reclose": 2571591,
+            "reopen": 7956099,
+            "text_after_erase": 316258,
+            "text_before_erase": 571851
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38714990,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2894010,
+            "erasure": 3465561,
+            "governed_write": 499394,
+            "open": 20085767,
+            "projection_drain": 159091,
+            "reclose": 2420806,
+            "reopen": 8015842,
+            "text_after_erase": 510445,
+            "text_before_erase": 558786
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 37836320,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2749427,
+            "erasure": 3364219,
+            "governed_write": 489244,
+            "open": 20027547,
+            "projection_drain": 156777,
+            "reclose": 2239674,
+            "reopen": 7884914,
+            "text_after_erase": 419443,
+            "text_before_erase": 416267
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39434821,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2824549,
+            "erasure": 3543698,
+            "governed_write": 580116,
+            "open": 19981409,
+            "projection_drain": 172947,
+            "reclose": 2458637,
+            "reopen": 9035339,
+            "text_after_erase": 359450,
+            "text_before_erase": 353809
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39493963,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2882990,
+            "erasure": 3366533,
+            "governed_write": 516677,
+            "open": 20833380,
+            "projection_drain": 163539,
+            "reclose": 2735280,
+            "reopen": 8027384,
+            "text_after_erase": 375941,
+            "text_before_erase": 510354
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39393823,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2563446,
+            "erasure": 3404315,
+            "governed_write": 507589,
+            "open": 20574851,
+            "projection_drain": 164671,
+            "reclose": 2854416,
+            "reopen": 8350574,
+            "text_after_erase": 406970,
+            "text_before_erase": 450511
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39527356,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2950007,
+            "erasure": 3424713,
+            "governed_write": 605825,
+            "open": 20368061,
+            "projection_drain": 202021,
+            "reclose": 2709722,
+            "reopen": 8405307,
+            "text_after_erase": 333019,
+            "text_before_erase": 454379
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39714119,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2922294,
+            "erasure": 3366343,
+            "governed_write": 636052,
+            "open": 20262351,
+            "projection_drain": 211249,
+            "reclose": 2661080,
+            "reopen": 8611367,
+            "text_after_erase": 529150,
+            "text_before_erase": 420585
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 37907073,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2761180,
+            "erasure": 3588934,
+            "governed_write": 633137,
+            "open": 20016506,
+            "projection_drain": 205398,
+            "reclose": 1950426,
+            "reopen": 7837966,
+            "text_after_erase": 360151,
+            "text_before_erase": 434120
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 37507117,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2491109,
+            "erasure": 3433239,
+            "governed_write": 593101,
+            "open": 19345127,
+            "projection_drain": 195780,
+            "reclose": 2169421,
+            "reopen": 8199249,
+            "text_after_erase": 429512,
+            "text_before_erase": 544028
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40511476,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2714361,
+            "erasure": 3685336,
+            "governed_write": 521406,
+            "open": 21647569,
+            "projection_drain": 174880,
+            "reclose": 2853654,
+            "reopen": 7992408,
+            "text_after_erase": 437327,
+            "text_before_erase": 412871
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39204486,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2888861,
+            "erasure": 3444612,
+            "governed_write": 595245,
+            "open": 19688867,
+            "projection_drain": 160403,
+            "reclose": 2770997,
+            "reopen": 8783583,
+            "text_after_erase": 330465,
+            "text_before_erase": 462123
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40661900,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2984051,
+            "erasure": 3456003,
+            "governed_write": 522358,
+            "open": 20898964,
+            "projection_drain": 166054,
+            "reclose": 2761720,
+            "reopen": 8924589,
+            "text_after_erase": 379758,
+            "text_before_erase": 499895
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40170001,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2729710,
+            "erasure": 3408473,
+            "governed_write": 536204,
+            "open": 20909925,
+            "projection_drain": 171755,
+            "reclose": 2647525,
+            "reopen": 8677894,
+            "text_after_erase": 506908,
+            "text_before_erase": 493092
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39707416,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2292623,
+            "erasure": 3436015,
+            "governed_write": 527878,
+            "open": 20489249,
+            "projection_drain": 170232,
+            "reclose": 2673233,
+            "reopen": 9247500,
+            "text_after_erase": 346715,
+            "text_before_erase": 412359
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39065533,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2787038,
+            "erasure": 3391471,
+            "governed_write": 501638,
+            "open": 20260186,
+            "projection_drain": 175221,
+            "reclose": 2584084,
+            "reopen": 8433361,
+            "text_after_erase": 449509,
+            "text_before_erase": 411328
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38797967,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2589545,
+            "erasure": 3331767,
+            "governed_write": 497491,
+            "open": 19772464,
+            "projection_drain": 162237,
+            "reclose": 2769805,
+            "reopen": 8517510,
+            "text_after_erase": 511207,
+            "text_before_erase": 586910
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39713567,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2604012,
+            "erasure": 3429873,
+            "governed_write": 494865,
+            "open": 20619625,
+            "projection_drain": 170693,
+            "reclose": 2734128,
+            "reopen": 8610405,
+            "text_after_erase": 468867,
+            "text_before_erase": 510856
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39340131,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2572543,
+            "erasure": 3422980,
+            "governed_write": 519071,
+            "open": 20741466,
+            "projection_drain": 172416,
+            "reclose": 2441034,
+            "reopen": 8640262,
+            "text_after_erase": 369999,
+            "text_before_erase": 383094
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38692958,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2487592,
+            "erasure": 3428591,
+            "governed_write": 571310,
+            "open": 20480873,
+            "projection_drain": 171123,
+            "reclose": 2719581,
+            "reopen": 7904582,
+            "text_after_erase": 478554,
+            "text_before_erase": 383175
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40132339,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2842042,
+            "erasure": 3446425,
+            "governed_write": 488844,
+            "open": 21150549,
+            "projection_drain": 167466,
+            "reclose": 2629370,
+            "reopen": 8546485,
+            "text_after_erase": 334483,
+            "text_before_erase": 414523
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39165542,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2803129,
+            "erasure": 3388355,
+            "governed_write": 515965,
+            "open": 20646026,
+            "projection_drain": 162768,
+            "reclose": 2714621,
+            "reopen": 8051981,
+            "text_after_erase": 398964,
+            "text_before_erase": 420335
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 37788879,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2527227,
+            "erasure": 3417189,
+            "governed_write": 488363,
+            "open": 19555714,
+            "projection_drain": 180210,
+            "reclose": 2744748,
+            "reopen": 7976116,
+            "text_after_erase": 362576,
+            "text_before_erase": 415856
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39202983,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2471912,
+            "erasure": 3463496,
+            "governed_write": 550110,
+            "open": 19928951,
+            "projection_drain": 165954,
+            "reclose": 2464038,
+            "reopen": 9066107,
+            "text_after_erase": 455401,
+            "text_before_erase": 510395
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40762471,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2867530,
+            "erasure": 3633267,
+            "governed_write": 706295,
+            "open": 20646226,
+            "projection_drain": 218853,
+            "reclose": 2818037,
+            "reopen": 8884183,
+            "text_after_erase": 354310,
+            "text_before_erase": 490797
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39271632,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2637746,
+            "erasure": 3456964,
+            "governed_write": 500847,
+            "open": 20930694,
+            "projection_drain": 173188,
+            "reclose": 2869664,
+            "reopen": 7873583,
+            "text_after_erase": 369248,
+            "text_before_erase": 385669
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40181562,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2865205,
+            "erasure": 3514333,
+            "governed_write": 517899,
+            "open": 21245178,
+            "projection_drain": 162698,
+            "reclose": 2851409,
+            "reopen": 8018116,
+            "text_after_erase": 450011,
+            "text_before_erase": 497110
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38269508,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2603341,
+            "erasure": 3392813,
+            "governed_write": 497580,
+            "open": 19987561,
+            "projection_drain": 169110,
+            "reclose": 2612438,
+            "reopen": 8080895,
+            "text_after_erase": 438478,
+            "text_before_erase": 401259
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38596537,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2695034,
+            "erasure": 3602279,
+            "governed_write": 650980,
+            "open": 20188461,
+            "projection_drain": 184809,
+            "reclose": 2233432,
+            "reopen": 8106884,
+            "text_after_erase": 346305,
+            "text_before_erase": 510816
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39823846,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2538228,
+            "erasure": 3451614,
+            "governed_write": 522428,
+            "open": 21023800,
+            "projection_drain": 182545,
+            "reclose": 2773132,
+            "reopen": 8352708,
+            "text_after_erase": 410175,
+            "text_before_erase": 493883
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38923635,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2519692,
+            "erasure": 3398264,
+            "governed_write": 493333,
+            "open": 20467619,
+            "projection_drain": 174370,
+            "reclose": 2695455,
+            "reopen": 8170464,
+            "text_after_erase": 485268,
+            "text_before_erase": 403212
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38715922,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2745570,
+            "erasure": 3406650,
+            "governed_write": 530042,
+            "open": 20093652,
+            "projection_drain": 162657,
+            "reclose": 2756290,
+            "reopen": 8183930,
+            "text_after_erase": 329924,
+            "text_before_erase": 427027
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40625010,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2922364,
+            "erasure": 3461222,
+            "governed_write": 512188,
+            "open": 21426952,
+            "projection_drain": 171394,
+            "reclose": 2690746,
+            "reopen": 8495168,
+            "text_after_erase": 381721,
+            "text_before_erase": 493663
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38582951,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2540261,
+            "erasure": 3491951,
+            "governed_write": 502510,
+            "open": 20240630,
+            "projection_drain": 167356,
+            "reclose": 2665308,
+            "reopen": 7908098,
+            "text_after_erase": 447556,
+            "text_before_erase": 505336
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 37677409,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2354010,
+            "erasure": 3417830,
+            "governed_write": 500987,
+            "open": 20081058,
+            "projection_drain": 169540,
+            "reclose": 2540172,
+            "reopen": 7758916,
+            "text_after_erase": 339262,
+            "text_before_erase": 405737
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38160963,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2521917,
+            "erasure": 3415997,
+            "governed_write": 499304,
+            "open": 20050751,
+            "projection_drain": 159361,
+            "reclose": 2803119,
+            "reopen": 7790486,
+            "text_after_erase": 452755,
+            "text_before_erase": 402391
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39187524,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2845749,
+            "erasure": 3467705,
+            "governed_write": 483544,
+            "open": 20182249,
+            "projection_drain": 154372,
+            "reclose": 2510676,
+            "reopen": 8613852,
+            "text_after_erase": 400867,
+            "text_before_erase": 409765
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39268767,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2924468,
+            "erasure": 3435995,
+            "governed_write": 501007,
+            "open": 20477117,
+            "projection_drain": 165052,
+            "reclose": 2114987,
+            "reopen": 8666862,
+            "text_after_erase": 438278,
+            "text_before_erase": 424693
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39628467,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2804722,
+            "erasure": 3495097,
+            "governed_write": 514623,
+            "open": 20459974,
+            "projection_drain": 186532,
+            "reclose": 2750129,
+            "reopen": 8598924,
+            "text_after_erase": 328822,
+            "text_before_erase": 370350
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 37935016,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2457545,
+            "erasure": 3412611,
+            "governed_write": 509433,
+            "open": 19870440,
+            "projection_drain": 164682,
+            "reclose": 2669356,
+            "reopen": 7868413,
+            "text_after_erase": 460210,
+            "text_before_erase": 406969
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 37956296,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2503392,
+            "erasure": 3396680,
+            "governed_write": 504764,
+            "open": 19767335,
+            "projection_drain": 165944,
+            "reclose": 2390839,
+            "reopen": 8344223,
+            "text_after_erase": 413542,
+            "text_before_erase": 400176
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40842291,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2879332,
+            "erasure": 3543658,
+            "governed_write": 521706,
+            "open": 20846194,
+            "projection_drain": 161395,
+            "reclose": 2835980,
+            "reopen": 9010863,
+            "text_after_erase": 377994,
+            "text_before_erase": 534010
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40419412,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2944426,
+            "erasure": 3406239,
+            "governed_write": 509754,
+            "open": 21842637,
+            "projection_drain": 181684,
+            "reclose": 2510907,
+            "reopen": 8037152,
+            "text_after_erase": 413983,
+            "text_before_erase": 449460
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 37907273,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2514473,
+            "erasure": 3417380,
+            "governed_write": 506217,
+            "open": 19812320,
+            "projection_drain": 168068,
+            "reclose": 2824509,
+            "reopen": 7768334,
+            "text_after_erase": 453697,
+            "text_before_erase": 378616
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38897064,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2992917,
+            "erasure": 3455412,
+            "governed_write": 485909,
+            "open": 19838550,
+            "projection_drain": 155474,
+            "reclose": 2643567,
+            "reopen": 8388547,
+            "text_after_erase": 436845,
+            "text_before_erase": 431786
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39008985,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2815272,
+            "erasure": 3402873,
+            "governed_write": 506498,
+            "open": 20424276,
+            "projection_drain": 164812,
+            "reclose": 2894271,
+            "reopen": 7792069,
+            "text_after_erase": 343609,
+            "text_before_erase": 552184
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38249530,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2379989,
+            "erasure": 3475019,
+            "governed_write": 500796,
+            "open": 20151321,
+            "projection_drain": 167296,
+            "reclose": 2671028,
+            "reopen": 7810354,
+            "text_after_erase": 461342,
+            "text_before_erase": 522327
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39200658,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2757352,
+            "erasure": 3456503,
+            "governed_write": 487561,
+            "open": 19919382,
+            "projection_drain": 157668,
+            "reclose": 2817817,
+            "reopen": 8625745,
+            "text_after_erase": 481270,
+            "text_before_erase": 428951
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 37856618,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2795594,
+            "erasure": 3429633,
+            "governed_write": 501227,
+            "open": 19632149,
+            "projection_drain": 173538,
+            "reclose": 2559288,
+            "reopen": 7733107,
+            "text_after_erase": 411709,
+            "text_before_erase": 502880
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38037360,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2434312,
+            "erasure": 3444621,
+            "governed_write": 513030,
+            "open": 19961733,
+            "projection_drain": 167196,
+            "reclose": 2764556,
+            "reopen": 7834399,
+            "text_after_erase": 399004,
+            "text_before_erase": 452155
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39185119,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2988309,
+            "erasure": 3451084,
+            "governed_write": 482863,
+            "open": 20181477,
+            "projection_drain": 163259,
+            "reclose": 2765537,
+            "reopen": 8164463,
+            "text_after_erase": 375089,
+            "text_before_erase": 497931
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39922002,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2962370,
+            "erasure": 3501349,
+            "governed_write": 577722,
+            "open": 20479270,
+            "projection_drain": 196051,
+            "reclose": 2825009,
+            "reopen": 8500999,
+            "text_after_erase": 372344,
+            "text_before_erase": 389496
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40157998,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2906965,
+            "erasure": 3539791,
+            "governed_write": 558807,
+            "open": 20997971,
+            "projection_drain": 171744,
+            "reclose": 2645230,
+            "reopen": 8403835,
+            "text_after_erase": 462334,
+            "text_before_erase": 411338
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39550009,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2991825,
+            "erasure": 3560881,
+            "governed_write": 490898,
+            "open": 20368842,
+            "projection_drain": 169270,
+            "reclose": 2307361,
+            "reopen": 8606919,
+            "text_after_erase": 498472,
+            "text_before_erase": 417279
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38774102,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2592601,
+            "erasure": 3711887,
+            "governed_write": 580437,
+            "open": 20198420,
+            "projection_drain": 207612,
+            "reclose": 2384938,
+            "reopen": 8010602,
+            "text_after_erase": 455060,
+            "text_before_erase": 558124
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39919958,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2831703,
+            "erasure": 3793992,
+            "governed_write": 495637,
+            "open": 19571094,
+            "projection_drain": 155464,
+            "reclose": 2870015,
+            "reopen": 9138224,
+            "text_after_erase": 446965,
+            "text_before_erase": 547545
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 41864423,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 3139514,
+            "erasure": 3711045,
+            "governed_write": 702728,
+            "open": 21426511,
+            "projection_drain": 181403,
+            "reclose": 2542656,
+            "reopen": 9033074,
+            "text_after_erase": 498482,
+            "text_before_erase": 497450
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39340603,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2502901,
+            "erasure": 3647635,
+            "governed_write": 541905,
+            "open": 21343494,
+            "projection_drain": 180311,
+            "reclose": 2333470,
+            "reopen": 7929839,
+            "text_after_erase": 373777,
+            "text_before_erase": 413472
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39883579,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2844467,
+            "erasure": 3649940,
+            "governed_write": 542856,
+            "open": 20290734,
+            "projection_drain": 191923,
+            "reclose": 2855187,
+            "reopen": 8517931,
+            "text_after_erase": 465981,
+            "text_before_erase": 450040
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40176052,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2954695,
+            "erasure": 3602720,
+            "governed_write": 488984,
+            "open": 20827279,
+            "projection_drain": 162838,
+            "reclose": 2524572,
+            "reopen": 8587783,
+            "text_after_erase": 454970,
+            "text_before_erase": 461162
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39383814,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2672041,
+            "erasure": 3670337,
+            "governed_write": 584845,
+            "open": 19959518,
+            "projection_drain": 204867,
+            "reclose": 2707418,
+            "reopen": 8539922,
+            "text_after_erase": 446344,
+            "text_before_erase": 484045
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40624409,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2763294,
+            "erasure": 3673834,
+            "governed_write": 610293,
+            "open": 21006397,
+            "projection_drain": 166605,
+            "reclose": 2753434,
+            "reopen": 8542397,
+            "text_after_erase": 482632,
+            "text_before_erase": 502270
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39005549,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2422218,
+            "erasure": 3584516,
+            "governed_write": 503532,
+            "open": 20918070,
+            "projection_drain": 168729,
+            "reclose": 2700936,
+            "reopen": 7758445,
+            "text_after_erase": 368096,
+            "text_before_erase": 462444
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39455099,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2664256,
+            "erasure": 3692991,
+            "governed_write": 484846,
+            "open": 20721508,
+            "projection_drain": 162507,
+            "reclose": 2193396,
+            "reopen": 8655541,
+            "text_after_erase": 330745,
+            "text_before_erase": 483354
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 64522773,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2277275,
+            "erasure": 27544986,
+            "governed_write": 614221,
+            "open": 21212848,
+            "projection_drain": 174270,
+            "reclose": 2578093,
+            "reopen": 9149885,
+            "text_after_erase": 427478,
+            "text_before_erase": 419493
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39285980,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2921072,
+            "erasure": 3860387,
+            "governed_write": 633999,
+            "open": 19920004,
+            "projection_drain": 165793,
+            "reclose": 2866738,
+            "reopen": 7903389,
+            "text_after_erase": 392802,
+            "text_before_erase": 519863
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 41194227,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2606507,
+            "erasure": 3644970,
+            "governed_write": 589685,
+            "open": 21429707,
+            "projection_drain": 170562,
+            "reclose": 2792959,
+            "reopen": 9085474,
+            "text_after_erase": 370670,
+            "text_before_erase": 432678
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39569896,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2797518,
+            "erasure": 3924458,
+            "governed_write": 643517,
+            "open": 20201736,
+            "projection_drain": 176393,
+            "reclose": 2311960,
+            "reopen": 8452618,
+            "text_after_erase": 386701,
+            "text_before_erase": 556122
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38969531,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2580408,
+            "erasure": 3495678,
+            "governed_write": 525663,
+            "open": 20903141,
+            "projection_drain": 181042,
+            "reclose": 2459038,
+            "reopen": 7856601,
+            "text_after_erase": 463937,
+            "text_before_erase": 433178
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38305957,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2843645,
+            "erasure": 3415125,
+            "governed_write": 498663,
+            "open": 19580492,
+            "projection_drain": 160463,
+            "reclose": 2842283,
+            "reopen": 8012385,
+            "text_after_erase": 461132,
+            "text_before_erase": 423460
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39106750,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2814690,
+            "erasure": 3418592,
+            "governed_write": 516617,
+            "open": 20090686,
+            "projection_drain": 175893,
+            "reclose": 2796376,
+            "reopen": 8317472,
+            "text_after_erase": 427508,
+            "text_before_erase": 431245
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39242127,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2878360,
+            "erasure": 3362045,
+            "governed_write": 480348,
+            "open": 20557008,
+            "projection_drain": 186933,
+            "reclose": 2341666,
+            "reopen": 8508213,
+            "text_after_erase": 452235,
+            "text_before_erase": 409765
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39023694,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2951309,
+            "erasure": 3344572,
+            "governed_write": 496128,
+            "open": 19944540,
+            "projection_drain": 174790,
+            "reclose": 2698030,
+            "reopen": 8508233,
+            "text_after_erase": 368146,
+            "text_before_erase": 414624
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38631131,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2824659,
+            "erasure": 3407401,
+            "governed_write": 490718,
+            "open": 19696951,
+            "projection_drain": 180010,
+            "reclose": 2450332,
+            "reopen": 8710825,
+            "text_after_erase": 420795,
+            "text_before_erase": 377583
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38858011,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 3193116,
+            "erasure": 3380800,
+            "governed_write": 596047,
+            "open": 19725236,
+            "projection_drain": 176023,
+            "reclose": 2608410,
+            "reopen": 8293386,
+            "text_after_erase": 424943,
+            "text_before_erase": 386831
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 40500075,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2701567,
+            "erasure": 3448940,
+            "governed_write": 537386,
+            "open": 21355998,
+            "projection_drain": 177215,
+            "reclose": 2547215,
+            "reopen": 8813610,
+            "text_after_erase": 380519,
+            "text_before_erase": 432568
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38752460,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2732665,
+            "erasure": 3429373,
+            "governed_write": 617177,
+            "open": 19993602,
+            "projection_drain": 159692,
+            "reclose": 2718017,
+            "reopen": 8258320,
+            "text_after_erase": 361774,
+            "text_before_erase": 415706
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 39994458,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2880996,
+            "erasure": 3442306,
+            "governed_write": 492671,
+            "open": 20348072,
+            "projection_drain": 192454,
+            "reclose": 2635030,
+            "reopen": 9117394,
+            "text_after_erase": 362996,
+            "text_before_erase": 440072
+          },
+          "valid": true
+        },
+        {
+          "latency_ns": 38306398,
+          "observed_checks": {
+            "fresh_rows": [
+              0
+            ],
+            "post_erase_rows": [
+              0
+            ],
+            "post_reopen_hits": 0,
+            "pre_erase_body_match": true,
+            "pre_erase_hits": 1,
+            "reopened_rows": [
+              0
+            ],
+            "written_rows": [
+              1
+            ]
+          },
+          "semantic_ok": true,
+          "stages_ns": {
+            "close": 2419834,
+            "erasure": 3616937,
+            "governed_write": 598101,
+            "open": 20341781,
+            "projection_drain": 202202,
+            "reclose": 2095751,
+            "reopen": 7969875,
+            "text_after_erase": 362796,
+            "text_before_erase": 629740
+          },
+          "valid": true
+        }
+      ],
+      "boundary": "fresh-open-through-reopened-materialized-check"
+    },
+    "text": {
+      "attempts": [
+        {
+          "latency_ns": 746380,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 655249,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 685987,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 614632,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 647704,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 618579,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 539780,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 186974,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 258028,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 240475,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 246015,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 206651,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 241897,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 214746,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 190080,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 214355,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 262166,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 191332,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 196912,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 196702,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 209546,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 206831,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 181784,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 168398,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 220297,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 215017,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 171855,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 186052,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 168388,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 168939,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 195990,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 203294,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 205688,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172847,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172827,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 178457,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 163359,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 167076,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 189028,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 163699,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 213964,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172476,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 170883,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 203054,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 163709,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 161214,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 176704,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 171163,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 207863,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 170653,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 181834,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 191532,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 163289,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 161215,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 185440,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 168629,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 203675,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 208494,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 182855,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 187965,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 165383,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 161786,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 178948,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 166705,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 188686,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 171374,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172816,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 175531,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 162597,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 162417,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 196872,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 165282,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 177776,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 202633,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 206189,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 190079,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 164591,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 162036,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 193616,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 198074,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 173137,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 183777,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 169891,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 202813,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 197353,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 196141,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 182635,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 162557,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 174359,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 206851,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 205088,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 215468,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 164471,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 160684,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 174700,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 198034,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 183577,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 172356,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 168268,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        },
+        {
+          "latency_ns": 207833,
+          "observed_checks": {
+            "all_bodies_match": true,
+            "record_count": 10
+          },
+          "semantic_ok": true,
+          "valid": true
+        }
+      ],
+      "boundary": "engine-call-to-materialized-output"
+    }
+  },
+  "environment": {
+    "end": {
+      "competing_jobs": [],
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "disk_free_bytes": 1766735872,
+      "governor": "performance",
+      "host": "windchill3",
+      "kernel": "7.0.0-38-generic",
+      "profiler": "none",
+      "resource_tool": "time (GNU Time) UNKNOWN",
+      "storage": "66305",
+      "swap_pages": 6125006,
+      "time_utc": "2026-10-07T03:50:14Z",
+      "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+    },
+    "invalidators": [],
+    "start": {
+      "competing_jobs": [],
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "disk_free_bytes": 1766834176,
+      "governor": "performance",
+      "host": "windchill3",
+      "kernel": "7.0.0-38-generic",
+      "profiler": "none",
+      "resource_tool": "time (GNU Time) UNKNOWN",
+      "storage": "66305",
+      "swap_pages": 6125006,
+      "time_utc": "2026-10-07T03:50:06Z",
+      "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+    },
+    "warnings": []
+  },
+  "features": {
+    "embedder": "none",
+    "paging_policy": "child_swap_invalid_host_swap_warning_v1",
+    "profile_build": false,
+    "query": "text_only",
+    "resource_method": "gnu-time",
+    "timing_mode": "attribution"
+  },
+  "protocol_sha256": "6188c8dd296886b37439a2f27cabfc949480607cafdc5ffac84c8e7244b14a7d",
+  "resource_file_sha256": "68f998e9c0ff2a3107d8d266e002e12f4dae5fc50afbe7c93175b87d8d1addb2",
+  "resources": {
+    "fs_inputs": 0,
+    "fs_outputs": 742848,
+    "major_faults": 0,
+    "method": "gnu-time",
+    "peak_rss_kib": 21040,
+    "scope": "measured-workload-child-process",
+    "swap_events": 0,
+    "system_cpu_s": 1.93,
+    "unsupported": [],
+    "user_cpu_s": 9.61
+  },
+  "runner_sha256": "ffe180144a94894e25815e97ed16255d303bef8803199978f9870503c2cb4018",
+  "schema_version": 1,
+  "settings": {
+    "concurrency": 1,
+    "query": "needle",
+    "samples_per_cell": 100,
+    "seed_records": 32,
+    "warmup_per_cell": 1
+  },
+  "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+  "source_tree_sha256": "e690c113374c8d5676f6acc00f65050216738bb6789f5029c61d793f8dc47ece"
+}

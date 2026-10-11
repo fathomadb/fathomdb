@@ -121,7 +121,7 @@ function in every row.
 | `engine.trace_dependency` | `trace_dependency(&self, DependencyTraceRequestV1) -> Result<DependencyTraceResultV1>` | same |
 | `engine.transition` | `transition(&self, logical_id: &str, to_state: LifecycleState, reason: Option<&str>) -> Result<()>` | same |
 | `engine.purge` | `purge(&self, logical_id: &str) -> Result<()>` | same |
-| `engine.erase_source` | `erase_source(&self, source_id: &str) -> Result<EraseReport>` | `erase_source` |
+| `engine.erase_source` | `erase_source(&self, source_id: &str) -> Result<EraseReport>` | `erase_source`; accepts every Engine-valid `SourceId`, including embedded NUL |
 | `engine.configure_projections` | `configure_projections(&self, specs: &[ProjectionSpec], drop: &[String]) -> Result<ProjectionDelta>` | same |
 | `engine.search` | `search(&self, query: &str, options: SearchOptions) -> Result<SearchResult>` | `search_reranked_view_with_limit` |
 | `engine.search_text_only` | `search_text_only(&self, query: &str, options: TextSearchOptions) -> Result<SearchResult>` | `search_text_only_view_with_limit` |
@@ -135,6 +135,11 @@ function in every row.
 | `engine.ingest_with_extractor` | `ingest_with_extractor(&self, cmd: &[&str], documents: &[ExtractDocument]) -> Result<IngestWithExtractorReceipt>` | same |
 | `engine.consolidate_with_provider` | `consolidate_with_provider(&self, cmd: &[&str], axes: &[ConsolidateAxis]) -> Result<ConsolidateReceipt>` | same |
 | `engine.embed` | `embed(&self, text: &str) -> Result<Vec<f32>>` | `embed_text` |
+
+Search through the engine's maintained FTS index returns `Storage` when a
+persisted FTS row cannot be decoded. The rank-stream optimization may retry
+through full stable sort, but a decoding failure there does not return a
+partial successful result. See [retrieval](../design/retrieval.md).
 
 Shared non-command members are reproduced with core semantics:
 
@@ -218,7 +223,7 @@ impls for both. `Unified` is lowered through the public
 | `admin.configure` | `admin::configure(engine, name: &str, body: &str) -> Result<WriteReceipt>` | `write(&[PreparedWrite::AdminSchema { name, kind: "latest_state", schema_json: body, retention_json: "{}" }])` |
 | — | `admin::configure_runtime(sqlite_mode: RuntimeSqliteMode) -> Result<RuntimeConfiguration>` | `fathomdb_engine::configure_runtime` |
 | `rerank` | `rerank(query: &str, passages: &[RerankPassage], rerank_depth: usize, options: RerankOptions) -> Result<Vec<RerankResult>>`. Takes `RerankPassage { id: u64, body: String, score: f64 }` and returns `RerankResult { id: u64, score: f64, ce_score: Option<f64> }`. A non-finite `alpha` is `InvalidArgument`, matching TypeScript. A non-finite passage `score` is `WriteValidation`, following Python and napi; a reranker refusal from the core's `RerankPassagesError` keeps its typed kind (`RerankerDevicePolicy` or a CUDA pool kind). This is a deliberate exception to rule 6, because the TypeScript wrapper's `RangeError` is a host-side check. | `fathomdb_engine::rerank_passages` |
-| — | `embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>>`. With `default-embedder`: empty input returns `[]`; the embedder is a process singleton cached only on success; a load failure is `EmbedderNotConfigured`, and an embed failure is `Embedder`. Without the feature, every call, including one with empty input, returns `EmbedderNotConfigured`. | `CandleBgeEmbedder::new()?.with_pooling(Pooling::Cls)` then `Embedder::embed_batch` |
+| — | `embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>>`. With `default-embedder`: empty input returns `[]`; the embedder is a process singleton cached only on success. CUDA pool failures during load or embedding retain their typed CUDA kinds and details; other load failures are `EmbedderNotConfigured`, and other embedding failures are `Embedder`. Without the feature, every call, including one with empty input, returns `EmbedderNotConfigured`. | `CandleBgeEmbedder::new()?.with_pooling(Pooling::Cls)` then `Embedder::embed_batch` |
 
 The namespace functions take `&Engine` first, as the Python and TypeScript
 namespace functions take the engine.

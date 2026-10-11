@@ -270,6 +270,24 @@ else
   fail "latest promotion must wait for every platform smoke and co-tagging"
 fi
 
+# An artifact-service DNS failure must retry the upload from the same runner,
+# retaining the already-built bytes. All release uploads use the same bounded
+# helper, and its final result must require an artifact ID from GitHub.
+UPLOAD_ACTION="$REPO_ROOT/.github/actions/upload-artifact-retry/action.yml"
+JETSON_WF="$REPO_ROOT/.github/workflows/jetson-tegra-cuda-evidence.yml"
+if [ -f "$UPLOAD_ACTION" ] \
+   && ! grep -q 'uses: actions/upload-artifact@' "$WF" \
+   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$WF")" -eq 13 ] \
+   && ! grep -q 'uses: actions/upload-artifact@' "$JETSON_WF" \
+   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$JETSON_WF")" -eq 1 ] \
+   && [ "$(grep -c 'uses: actions/upload-artifact@' "$UPLOAD_ACTION")" -eq 3 ] \
+   && grep -q 'overwrite: true' "$UPLOAD_ACTION" \
+   && grep -q 'artifact-id' "$UPLOAD_ACTION"; then
+  pass "release uploads and the single Jetson package upload retry in-place"
+else
+  fail "all 13 release uploads and the single Jetson package upload must use bounded retries"
+fi
+
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILED" >&2
   exit 1

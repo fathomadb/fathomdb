@@ -1,0 +1,18 @@
+
+running 1 test
+test malformed_importance_must_not_produce_neutral_explanation ... FAILED
+
+failures:
+
+---- malformed_importance_must_not_produce_neutral_explanation stdout ----
+
+thread 'malformed_importance_must_not_produce_neutral_explanation' (19) panicked at src/rust/crates/fathomdb-engine/tests/slice135_importance_explanation_row_error.rs:53:5:
+a failed importance decode must not produce a neutral explanation
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    malformed_importance_must_not_produce_neutral_explanation
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+

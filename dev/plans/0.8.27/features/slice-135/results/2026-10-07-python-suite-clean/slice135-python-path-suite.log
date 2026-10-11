@@ -1,0 +1,49 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+...............................s........................................ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+............................................................sss.s....... [ 35%]
+........................................................................ [ 40%]
+................s....................................................... [ 44%]
+.............................................................s.......... [ 49%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 62%]
+.............................ss....................s............ssss.... [ 66%]
+...................................................F.................... [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 80%]
+...........................sss.ssss.s................................... [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+...................................s.................................... [ 98%]
+.....s..sss....................                                          [100%]
+=================================== FAILURES ===================================
+_____________ test_all_python_declarations_match_pre_move_baseline _____________
+
+    def test_all_python_declarations_match_pre_move_baseline() -> None:
+        checkout = Path(__file__).resolve().parents[3]
+        package = checkout / "src/python/fathomdb"
+        spec = importlib.util.spec_from_file_location(
+            "slice130_surface_comparator", checkout / "dev/tools/surface_comparator.py"
+        )
+        assert spec is not None and spec.loader is not None
+        comparator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(comparator)
+    
+        sources = {
+            path.relative_to(package).as_posix(): path.read_text() for path in package.rglob("*.py")
+        }
+        baseline = json.loads(BASELINE.read_text())
+        declarations = comparator.parse_python_wrappers(sources)
+>       assert len(declarations) == 1131
+E       AssertionError: assert 1132 == 1131
+E        +  where 1132 = len([{'path': 'fathomdb.ActuationBatchV1', 'kind': 'python-class', 'signature': 'class ActuationBatchV1(_ActuationBatchReq...eiptV1.affected_revision_ids', 'kind': 'python-attribute', 'signature': 'affected_revision_ids: tuple[str, ...]'}, ...])
+
+src/python/tests/test_slice130_package_boundary.py:68: AssertionError
+=========================== short test summary info ============================
+FAILED src/python/tests/test_slice130_package_boundary.py::test_all_python_declarations_match_pre_move_baseline
+1 failed, 1587 passed, 27 skipped in 31.24s

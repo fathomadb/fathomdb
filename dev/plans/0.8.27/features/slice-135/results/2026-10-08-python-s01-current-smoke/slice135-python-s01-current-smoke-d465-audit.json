@@ -1,0 +1,76 @@
+{
+  "negative_controls": {
+    "256": {
+      "error": "text: unknown id or malformed result",
+      "rejected": true
+    },
+    "32": {
+      "error": "text: unknown id or malformed result",
+      "rejected": true
+    }
+  },
+  "sizes": {
+    "256": {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 11896657,
+          "warm_count": 10,
+          "warm_max_ns": 12465864,
+          "warm_p50_ns": 10844910,
+          "warm_p95_ns": 12465864
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 523720,
+          "warm_count": 10,
+          "warm_max_ns": 469688,
+          "warm_p50_ns": 341866,
+          "warm_p95_ns": 469688
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 12453160,
+          "warm_count": 10,
+          "warm_max_ns": 12756633,
+          "warm_p50_ns": 11806347,
+          "warm_p95_ns": 12756633
+        }
+      },
+      "checked_attempts": 36,
+      "raw_sha256": "60ceae60f6a93ead65e19386ea4e3cf601c6ad1c09f8a7a4bcf6d86cec6c1fdf"
+    },
+    "32": {
+      "cells": {
+        "hybrid": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 9692701,
+          "warm_count": 10,
+          "warm_max_ns": 9345596,
+          "warm_p50_ns": 8651494,
+          "warm_p95_ns": 9345596
+        },
+        "text": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 492581,
+          "warm_count": 10,
+          "warm_max_ns": 556773,
+          "warm_p50_ns": 343690,
+          "warm_p95_ns": 556773
+        },
+        "vector": {
+          "p99": "unsupported_below_1000_samples",
+          "session_cold_ns": 10711457,
+          "warm_count": 10,
+          "warm_max_ns": 11104350,
+          "warm_p50_ns": 10163652,
+          "warm_p95_ns": 11104350
+        }
+      },
+      "checked_attempts": 36,
+      "raw_sha256": "4998177f2f039a9ea7ece4abc9e56c540c6edbc749430b03c785d0302b77f7c8"
+    }
+  },
+  "source_sha": "d465cd56d2e863f900ea9a9da8bc372ca6a077c5",
+  "wheel_sha256": "33d37be7c80183b063788889954da698ea959997fc13b61e356006a3c26c8894"
+}

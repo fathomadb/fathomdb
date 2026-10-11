@@ -8,9 +8,9 @@
 //! Two falsifiable properties, both asserted on RAW TABLES rather than on a
 //! derived status:
 //!
-//! - **P1** — with the projection scheduler frozen and a vector-kind row
+//! - **P1** — with the caller embedder paused and a vector-kind row
 //!   written, `read.projections` reports `dense_readiness = embedding` AND the
-//!   raw `_fathomdb_vector_rows` / `vector_default` rows are absent. Unfreeze,
+//!   raw `_fathomdb_vector_rows` / `vector_default` rows are absent. Resume embedding,
 //!   drain, and it flips to `ready` WITH the raw vector row present.
 //! - **P2** — under a CONCURRENT writer there is no interleaving in which
 //!   readiness reads `ready` while a vector row is absent. The forbidden torn
@@ -31,14 +31,14 @@
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    DenseReadiness, Engine, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec,
-    ProjectionVector, SourceId,
+    DenseReadiness, EmbedderChoice, Engine, EngineConfig, InitialState, PreparedWrite,
+    ProjectionRole, ProjectionSpec, ProjectionVector, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
@@ -54,17 +54,32 @@ struct DelayEmbedder {
     identity: EmbedderIdentity,
     delay: Duration,
     fail: bool,
+    paused: Arc<(Mutex<bool>, Condvar)>,
 }
 
 impl DelayEmbedder {
     fn new(delay: Duration) -> Self {
-        Self { identity: EmbedderIdentity::new("deterministic", "rev-a", 384), delay, fail: false }
+        Self {
+            identity: EmbedderIdentity::new("deterministic", "rev-a", 384),
+            delay,
+            fail: false,
+            paused: Arc::new((Mutex::new(false), Condvar::new())),
+        }
     }
 
     /// Always errors — drives rows to the `failed` projection terminal, which
     /// records NO vector row. Used by the non-vacuity guard below.
+    #[cfg(feature = "test-hooks")]
     fn failing() -> Self {
         Self { fail: true, ..Self::new(Duration::ZERO) }
+    }
+}
+
+impl DelayEmbedder {
+    fn pause(&self, paused: bool) {
+        let (lock, ready) = &*self.paused;
+        *lock.lock().unwrap() = paused;
+        ready.notify_all();
     }
 }
 
@@ -74,6 +89,12 @@ impl Embedder for DelayEmbedder {
     }
 
     fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+        let (lock, ready) = &*self.paused;
+        let mut paused = lock.lock().unwrap();
+        while *paused {
+            paused = ready.wait(paused).unwrap();
+        }
+        drop(paused);
         if !self.delay.is_zero() {
             thread::sleep(self.delay);
         }
@@ -243,6 +264,7 @@ fn terminals_missing_vectors(conn: &rusqlite::Connection) -> i64 {
 /// non-zero count (the `failed` terminals do exactly that), proving the join
 /// shape genuinely finds terminal-without-vector rows and that the zero the
 /// atomicity assertion sees is a real zero, not a query that can never match.
+#[cfg(feature = "test-hooks")]
 fn any_terminal_missing_vectors(conn: &rusqlite::Connection) -> i64 {
     conn.query_row(
         "SELECT COUNT(*)
@@ -283,21 +305,24 @@ fn max_node_cursor(conn: &rusqlite::Connection) -> i64 {
 // P1 — "readiness never reports ready with pending embeds"
 // ===========================================================================
 
-/// Freeze the scheduler, write a vector-kind row, and readiness must read
-/// `embedding` WHILE the raw vector tables are empty for that cursor. Unfreeze
+/// Pause the caller embedder, write a vector-kind row, and readiness must read
+/// `embedding` WHILE the raw vector tables are empty for that cursor. Resume embedding
 /// + drain and it flips to `ready` WITH both raw vector rows present.
 #[test]
 fn readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "readiness_p1");
-    let opened =
-        Engine::open_with_embedder_for_test(&path, Arc::new(DelayEmbedder::new(Duration::ZERO)))
-            .expect("open");
+    let embedder = Arc::new(DelayEmbedder::new(Duration::ZERO));
+    let opened = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(embedder.clone()),
+        EngineConfig::default(),
+    )
+    .expect("open");
     let engine = &opened.engine;
-    engine.configure_vector_kind_for_test("doc").expect("vector kind");
 
     // Declare the projection BEFORE any pending work exists: `configure_projections`
-    // drains first, so declaring it under a frozen scheduler with outstanding
+    // drains first, so declaring it with a paused embedder and outstanding
     // work would (correctly) time out.
     engine.configure_projections(&[vector_spec("summary")], &[]).expect("configure");
 
@@ -308,9 +333,17 @@ fn readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready() 
         "an empty corpus has no outstanding embeds"
     );
 
-    // Freeze the async projection scheduler, then write a vector-kind row. The
+    // Pause the caller embedder, then write a vector-kind row. The
     // row is committed and FTS-retrievable; its embedding is outstanding.
-    engine.set_projection_scheduler_frozen_for_test(true);
+    struct ResumeOnDrop(Arc<DelayEmbedder>);
+    impl Drop for ResumeOnDrop {
+        fn drop(&mut self) {
+            self.0.pause(false);
+        }
+    }
+    embedder.pause(true);
+    // Release the worker before Engine teardown even when an assertion panics.
+    let _resume_on_drop = ResumeOnDrop(embedder.clone());
     engine.write(&[node("N1", r#"{"summary":"a dense meaning"}"#)]).expect("write");
 
     let conn = ro(&path);
@@ -319,7 +352,7 @@ fn readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready() 
     // RAW oracle first — the vector genuinely is not there yet.
     assert!(
         !vector_row_exists(&conn, cursor),
-        "precondition: the vector row must be absent while the scheduler is frozen"
+        "precondition: the vector row must be absent while the caller embedder is paused"
     );
     assert!(!vec0_row_exists(&conn, cursor), "precondition: the vec0 row must be absent too");
 
@@ -331,7 +364,7 @@ fn readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready() 
     );
 
     // Let the worker finish, then the flip.
-    engine.set_projection_scheduler_frozen_for_test(false);
+    embedder.pause(false);
     engine.drain(30_000).expect("drain");
 
     assert_eq!(
@@ -372,13 +405,13 @@ fn readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready() 
 fn atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "readiness_p2");
-    let opened = Engine::open_with_embedder_for_test(
+    let opened = Engine::open_with_choice_and_config(
         &path,
-        Arc::new(DelayEmbedder::new(Duration::from_millis(1))),
+        EmbedderChoice::Caller(Arc::new(DelayEmbedder::new(Duration::from_millis(1)))),
+        EngineConfig::default(),
     )
     .expect("open");
     let engine = &opened.engine;
-    engine.configure_vector_kind_for_test("doc").expect("vector kind");
     engine.configure_projections(&[vector_spec("summary")], &[]).expect("configure");
 
     const WRITES: usize = 300;
@@ -493,6 +526,7 @@ fn atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write() {
 /// `ready` even though that row has no vector. Reporting `embedding` forever
 /// would be a lie (the row will never embed); the failure stays observable
 /// through the `projection_failures` collection.
+#[cfg(feature = "test-hooks")]
 #[test]
 fn a_failed_embed_is_not_a_torn_write_and_the_detector_is_not_vacuous() {
     let dir = TempDir::new().unwrap();
@@ -532,6 +566,7 @@ fn a_failed_embed_is_not_a_torn_write_and_the_detector_is_not_vacuous() {
 
 /// Raw: is `kind` registered as a vector kind? The fixture below depends on
 /// `edge_fact` being ABSENT, so the precondition is asserted, not assumed.
+#[cfg(feature = "test-hooks")]
 fn vector_kind_registered(conn: &rusqlite::Connection, kind: &str) -> bool {
     conn.query_row("SELECT COUNT(*) FROM _fathomdb_vector_kinds WHERE kind = ?1", [kind], |r| {
         r.get::<_, i64>(0)
@@ -561,6 +596,7 @@ fn vector_kind_registered(conn: &rusqlite::Connection, kind: &str) -> bool {
 /// forward by migration. `_fathomdb_vector_kinds` has no delete path, so the
 /// fixture is built the way the sibling TC-33 edge tests build theirs: a second
 /// connection to the live file inserts the canonical row directly.
+#[cfg(feature = "test-hooks")]
 #[test]
 fn readiness_is_ready_when_a_live_edge_body_can_never_be_scheduled() {
     let dir = TempDir::new().unwrap();
@@ -630,6 +666,7 @@ fn readiness_is_ready_when_a_live_edge_body_can_never_be_scheduled() {
 /// `ready` while a genuinely schedulable edge embed is outstanding. Same fixture
 /// shape, one difference: `edge_fact` IS registered, so the scheduler WILL pick
 /// the row up. Readiness must read `embedding` until it lands.
+#[cfg(feature = "test-hooks")]
 #[test]
 fn readiness_still_reports_embedding_for_a_schedulable_edge_body() {
     let dir = TempDir::new().unwrap();
@@ -679,6 +716,7 @@ fn readiness_still_reports_embedding_for_a_schedulable_edge_body() {
 /// honours nothing, and always reports the DERIVED truth. Asserted the
 /// falsifiable way round — declare `Ready` while an embed is genuinely
 /// outstanding and the engine must still say `Embedding`.
+#[cfg(feature = "test-hooks")]
 #[test]
 fn caller_supplied_dense_readiness_is_inert_engine_reports_derived_truth() {
     let dir = TempDir::new().unwrap();
@@ -723,6 +761,7 @@ fn caller_supplied_dense_readiness_is_inert_engine_reports_derived_truth() {
 /// Readiness is NOT part of the declaration, so supplying it cannot make an
 /// otherwise-identical re-apply look like a change (it must still diff to a
 /// no-op) and cannot be mistaken for a destructive delta.
+#[cfg(feature = "test-hooks")]
 #[test]
 fn readiness_is_not_part_of_the_declaration_reapply_is_a_no_op() {
     let dir = TempDir::new().unwrap();
@@ -756,6 +795,7 @@ fn readiness_is_not_part_of_the_declaration_reapply_is_a_no_op() {
 /// A caller who never declares a vector projection sees IDENTICAL behaviour:
 /// no readiness field is produced anywhere, the same rows are embedded, and no
 /// No Slice 20 schema step was needed (readiness is derived).
+#[cfg(feature = "test-hooks")]
 #[test]
 fn default_path_is_unchanged_when_no_vector_projection_is_declared() {
     let dir = TempDir::new().unwrap();

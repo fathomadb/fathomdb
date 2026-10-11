@@ -1,0 +1,31 @@
+{
+  "protocol_sha256": "49a848abab6e87d139cc24aee0468900cf3004654b60bf0c071538f2e85bb74f",
+  "versions": {
+    "baseline": {
+      "erased_nodes": 2,
+      "evidence_refs": 1,
+      "graph_depth1_nodes": 2,
+      "graph_depth2_nodes": 3,
+      "persisted": {
+        "canonical_edges": 3,
+        "canonical_nodes": 5,
+        "evidence_fts_residue": 0,
+        "integrity": "ok"
+      },
+      "phases": 4
+    },
+    "candidate": {
+      "erased_nodes": 2,
+      "evidence_refs": 1,
+      "graph_depth1_nodes": 2,
+      "graph_depth2_nodes": 3,
+      "persisted": {
+        "canonical_edges": 3,
+        "canonical_nodes": 5,
+        "evidence_fts_residue": 0,
+        "integrity": "ok"
+      },
+      "phases": 4
+    }
+  }
+}

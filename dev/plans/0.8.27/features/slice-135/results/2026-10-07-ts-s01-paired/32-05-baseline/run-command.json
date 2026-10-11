@@ -1,0 +1,21 @@
+[
+  "/usr/bin/time",
+  "-o",
+  "/tmp/slice135-ts-paired/32-05-baseline/resource.txt",
+  "-f",
+  "user_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nfs_inputs=%I\nfs_outputs=%O\nmajor_faults=%F\nswap_events=%W\n",
+  "/home/coreyt/.local/actions-runner/fathomdb-gpu/_work/_tool/node/25.9.0/x64/bin/node",
+  "/tmp/slice135-ts-paired/32-05-baseline/runner.mjs",
+  "--rows",
+  "32",
+  "--samples",
+  "1000",
+  "--install-root",
+  "/tmp/slice135-ts-artifacts/baseline/consumer",
+  "--source-sha",
+  "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "--expected-native-sha256",
+  "4a3aef2833060cde858faad689e4c734de31dc70e9dab13a00a6594f694c60ca",
+  "--output",
+  "/tmp/slice135-ts-paired/32-05-baseline/raw.json"
+]

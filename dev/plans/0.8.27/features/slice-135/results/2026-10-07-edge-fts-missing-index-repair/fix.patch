@@ -1,0 +1,130 @@
+commit 55f8120f5fff44414f8ee57ef987d40b9f4306ff
+Author:     Corey Thompson <coreyt@gmail.com>
+AuthorDate: Wed Oct 7 13:07:52 2026 -0500
+Commit:     Corey Thompson <coreyt@gmail.com>
+CommitDate: Wed Oct 7 13:07:52 2026 -0500
+
+    Fail closed when current edge FTS index is missing
+
+diff --git a/src/rust/crates/fathomdb-engine/src/search.rs b/src/rust/crates/fathomdb-engine/src/search.rs
+index dfca1109c..c3e355ffa 100644
+--- a/src/rust/crates/fathomdb-engine/src/search.rs
++++ b/src/rust/crates/fathomdb-engine/src/search.rs
+@@ -2057,33 +2057,23 @@ fn read_search_in_tx<C: SearchOriginCapture>(
+         let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
+         let edge_eligibility = format!("{edge_dependency}{edge_filter}");
+         let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_eligibility);
+-        // search_index_edges may not exist on very old DBs not yet at step-14;
+-        // ignore the error gracefully (returns empty slice).
+-        if let Ok(mut stmt) = prepare_search_statement(&tx, &edge_sql) {
+-            if let Ok(rows) =
+-                stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
+-                    let body = row.get::<_, String>(0)?;
+-                    let logical_id = row.get::<_, Option<String>>(4)?;
+-                    Ok(SearchHit {
+-                        id: derive_stable_id(logical_id.as_deref(), &body),
+-                        body,
+-                        kind: row.get::<_, String>(1)?,
+-                        write_cursor: row.get::<_, i64>(2)? as u64,
+-                        score: row.get::<_, f64>(3)?,
+-                        branch: SoftFallbackBranch::TextEdge,
+-                        // TC-31: the EDGE's own provenance.
+-                        source_id: row.get::<_, Option<String>>(5)?,
+-                        ce_score: None,
+-                    })
+-                })
+-            {
+-                rows.collect::<rusqlite::Result<Vec<_>>>()?
+-            } else {
+-                Vec::new()
+-            }
+-        } else {
+-            Vec::new()
+-        }
++        let mut stmt = prepare_search_statement(&tx, &edge_sql)?;
++        let rows = stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
++            let body = row.get::<_, String>(0)?;
++            let logical_id = row.get::<_, Option<String>>(4)?;
++            Ok(SearchHit {
++                id: derive_stable_id(logical_id.as_deref(), &body),
++                body,
++                kind: row.get::<_, String>(1)?,
++                write_cursor: row.get::<_, i64>(2)? as u64,
++                score: row.get::<_, f64>(3)?,
++                branch: SoftFallbackBranch::TextEdge,
++                // TC-31: the EDGE's own provenance.
++                source_id: row.get::<_, Option<String>>(5)?,
++                ce_score: None,
++            })
++        })?;
++        rows.collect::<rusqlite::Result<Vec<_>>>()?
+     };
+     // Attribute predicates intentionally apply only to node projections. Count
+     // edge-FTS candidates that would otherwise pass when the caller requested
+diff --git a/src/rust/crates/fathomdb-engine/tests/slice135_edge_fts_missing_table.rs b/src/rust/crates/fathomdb-engine/tests/slice135_edge_fts_missing_table.rs
+new file mode 100644
+index 000000000..f3e48e979
+--- /dev/null
++++ b/src/rust/crates/fathomdb-engine/tests/slice135_edge_fts_missing_table.rs
+@@ -0,0 +1,61 @@
++//! A damaged current-schema edge index must not produce a successful partial search.
++
++use std::sync::Arc;
++
++use fathomdb_embedder::NoopEmbedder;
++use fathomdb_engine::{EmbedderChoice, Engine, EngineError, InitialState, PreparedWrite, SourceId};
++use fathomdb_schema::SQLITE_SUFFIX;
++use tempfile::TempDir;
++
++fn node(id: &str) -> PreparedWrite {
++    PreparedWrite::Node {
++        kind: "doc".into(),
++        body: format!("endpoint {id}"),
++        source_id: SourceId::new("slice135:edge-index-fault").unwrap(),
++        logical_id: Some(id.into()),
++        state: InitialState::Active,
++        reason: None,
++        valid_from: None,
++        valid_until: None,
++    }
++}
++
++#[test]
++fn missing_current_schema_edge_index_must_report_storage_error() {
++    let directory = TempDir::new().unwrap();
++    let path = directory.path().join(format!("edge-index-fault{SQLITE_SUFFIX}"));
++    let engine =
++        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
++            .unwrap()
++            .engine;
++    engine
++        .write(&[
++            node("from"),
++            node("to"),
++            PreparedWrite::Edge {
++                kind: "supports".into(),
++                from: "from".into(),
++                to: "to".into(),
++                source_id: SourceId::new("slice135:edge-index-fault").unwrap(),
++                logical_id: Some("edge".into()),
++                body: Some("slice135edgeindexsentinel".into()),
++                t_valid: None,
++                t_invalid: None,
++                confidence: None,
++                extractor_model_id: None,
++                temporal_fallback: None,
++            },
++        ])
++        .unwrap();
++    engine.drain(10_000).unwrap();
++    let control = engine.search_text_only("slice135edgeindexsentinel").unwrap();
++    assert_eq!(control.results.len(), 1);
++    assert_eq!(control.results[0].body, "slice135edgeindexsentinel");
++
++    engine.execute_for_test("DROP TABLE search_index_edges").unwrap();
++    let result = engine.search_text_only("slice135edgeindexsentinel");
++    assert!(
++        matches!(result, Err(EngineError::Storage)),
++        "missing current-schema edge index must fail closed: {result:?}"
++    );
++}

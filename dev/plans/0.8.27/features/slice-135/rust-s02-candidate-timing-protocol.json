@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_CANDIDATE_ONLY",
+  "cell": "S02 Rust SDK mixed real-database sequence",
+  "boundary": "external Cargo consumer to materialized SDK result and reopened close",
+  "product_source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+  "product_rust_crates_tree": "c8eaaa19a0e0e876326b778733ace354cc7e21e8",
+  "version_comparison": "unsupported: no 0.8.26 Rust SDK peer",
+  "pilot": {
+    "separate_blocks": 5,
+    "measured_sequences_per_block": 3,
+    "block_median_ms": [5747.423, 5782.089, 5777.502, 5782.857, 5739.864],
+    "block_median_spread_ms": 42.993,
+    "host_only_swap_warning_blocks": 2,
+    "child_swap_event_blocks": 0,
+    "summary_sha256": [
+      "25c162b16bf22f5e9f79fcfed6744e30fdc55ff8395c87ecc514b3605e737b6b",
+      "26ba56ecabb225795f6bd2a59a6fcce212f9144198385e4523a542604f932d0e",
+      "eff4dc5059aa66f2b6176387798236c71120e7b4cb66a5b59c1d410e4977b64b",
+      "720086f77fd69cdb98e7ac70359dd0125eb566c3dedb7c98c10e80f570ddce0e",
+      "1f303fdd4f3eb45a3155f3e4d27b465b502bdfd8e2c9d1d6c7c8a06eebb4bc82"
+    ]
+  },
+  "campaign": {
+    "separate_blocks": 5,
+    "warmup_fresh_processes_per_block": 1,
+    "measured_fresh_processes_per_block": 20,
+    "fresh_database_per_process": true,
+    "concurrency": 1,
+    "order": "serial blocks, no rebuild or competing workload",
+    "timeout_seconds_per_process": 120,
+    "sample_rule": "retain every attempt; reject a block with a failed semantic or reopened-state check; never replace a slow valid sample",
+    "environment_rule": "same host, kernel, CPU, storage, governor, toolchain and profiler; no competing jobs; at least 1 GiB free; no measured-child swap; retain and flag host-only paging drift",
+    "minimum_valid_measured_sequences": 100,
+    "statistics": "nearest-rank p50/p95 for whole product and named stages, five block medians, min/max, CPU and peak RSS; no p99 or equivalence inference"
+  },
+  "instrumentation": {
+    "whole_timer": "Instant before Engine::open through reopened Engine::close; fixture construction outside timer; assertions and reads after reopen inside whole timer",
+    "stage_timers": 19,
+    "profiler": "none during primary timing",
+    "resource_tool": "GNU Time child process",
+    "independent_oracle": "fresh SQLite connection, canonical counts, PRAGMA integrity_check, exact raw/resource/identity hashes"
+  },
+  "frozen_artifact_sha256": {
+    "consumer_source": "634078ca1fe070e0847c38a7d6e9f190a6de5cc1b446fa0443c211a7544e7246",
+    "block_runner": "da321b039a92d63ff317a27eaabce23dc6e11d596b66e49356e86c9e68d80b5f",
+    "independent_auditor": "f03f2582d164a588a169727c5f655ac843b401c52933c553137e52072fc84282",
+    "external_manifest": "54cab8cd51ed01c40d8416dc5026b7b96c3ad8c18978e352830ef53a2e969f99",
+    "external_lock": "f2fe17fc82ba9806169c0332d08f1139b183bcb2318e9caecdacfa3576baf65a",
+    "compiled_binary": "91e790efafdebced773e8c3374ff9530519f438d2b5ddf25d560e933e1fc2352"
+  }
+}

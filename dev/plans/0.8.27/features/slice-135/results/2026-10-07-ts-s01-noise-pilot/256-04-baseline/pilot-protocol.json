@@ -1,0 +1,22 @@
+{
+  "corpus_sha256": "ebbd94f16b40cad184526af3bc2d725b2f433e00683e508adf530d7a925860fb",
+  "corpus_size": 256,
+  "main_archive_sha256": "90363762405041b11e6dd654da9cb6347695399eb37b81c5c09fde91296ac336",
+  "minimum_disk_free_bytes": 1073741824,
+  "model": "fathomdb-bge-small-en-v1.5 default embedder",
+  "module_sha256": "9d86c756e481ee09581ff8c687fd74de8cefbf2ad825a582015cb7b703ea4dc7",
+  "native_sha256": "4a3aef2833060cde858faad689e4c734de31dc70e9dab13a00a6594f694c60ca",
+  "node_version": "v25.9.0",
+  "platform_archive_sha256": "b59b1862b11b8ed3edcdc2e5ee86f9db142268bb5e14571054f6245718fc28f6",
+  "queries": {
+    "hybrid": "harbor ferry",
+    "text": "brightblue",
+    "vector": "boat schedule across water"
+  },
+  "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+  "schema_version": 1,
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "status": "BASELINE_TS_S01_NOISE_PILOT_NOT_FROZEN_COMPARISON",
+  "timing_boundary": "installed TypeScript async call through materialized SearchResult",
+  "warm_samples_per_cell": 100
+}

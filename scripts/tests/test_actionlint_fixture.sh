@@ -170,7 +170,8 @@ if [ "$TIER_FAILED" -eq 0 ]; then
 fi
 
 # Every real cargo publish tier must exchange the GitHub OIDC identity for a
-# short-lived crates.io token. Keep this as a structural shell assertion:
+# short-lived crates.io token, except the one-time v0.8.27 SDK first publish.
+# Keep this as a structural shell assertion:
 # actionlint remains the workflow YAML validator (AGENTS.md forbids generic
 # YAML parsers as one). A workflow can parse cleanly while silently
 # regressing to a long-lived secret, omitting auth in one tier, or widening a
@@ -233,13 +234,26 @@ for tier in \
     printf 'FAIL  %s must pass the crates.io OIDC output to cargo-publish-if-new\n' "$tier" >&2
     CRATES_OIDC_FAILED=$((CRATES_OIDC_FAILED + 1))
   fi
-  if grep -Fq 'secrets.CARGO_REGISTRY_TOKEN' <<<"$tier_block"; then
+  if [ "$tier" = publish-rust-t6-facade ]; then
+    sdk_step="$(printf '%s\n' "$tier_block" | awk '
+      /^      - name: cargo publish fathomdb-sdk$/ { in_step = 1 }
+      in_step && /^      - / && $0 !~ /^      - name: cargo publish fathomdb-sdk$/ { exit }
+      in_step { print }
+    ')"
+    bootstrap_line='          CARGO_REGISTRY_TOKEN: ${{ env.RELEASE_TAG == '\''v0.8.27'\'' && secrets.CARGO_REGISTRY_TOKEN || steps.crates_io_auth.outputs.token }}'
+    bootstrap_occurrences="$(awk 'index($0, "secrets.CARGO_REGISTRY_TOKEN") { n++ } END { print n+0 }' <<<"$tier_block")"
+    if ! grep -Fqx "$bootstrap_line" <<<"$sdk_step" \
+      || [ "$bootstrap_occurrences" -ne 1 ]; then
+      printf 'FAIL  T6 must confine the API-token bootstrap to the v0.8.27 SDK step\n' >&2
+      CRATES_OIDC_FAILED=$((CRATES_OIDC_FAILED + 1))
+    fi
+  elif grep -Fq 'secrets.CARGO_REGISTRY_TOKEN' <<<"$tier_block"; then
     printf 'FAIL  %s must not use the legacy CARGO_REGISTRY_TOKEN secret\n' "$tier" >&2
     CRATES_OIDC_FAILED=$((CRATES_OIDC_FAILED + 1))
   fi
 done
 if [ "$CRATES_OIDC_FAILED" -eq 0 ]; then
-  printf 'PASS  all cargo publish tiers use pinned crates.io OIDC with least-privilege job permissions\n'
+  printf 'PASS  cargo publish tiers use pinned OIDC with one scoped SDK bootstrap exception\n'
 fi
 
 # Node's exact version is part of the release test environment: npm and native

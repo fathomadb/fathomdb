@@ -1,0 +1,118 @@
+{
+  "schema_version": "fathomdb.slice135-python-capability-manifest/v1",
+  "status": "INTERIM_WITH_ONE_BOUNDARY_CONTRACT_FAILURE",
+  "product_source_sha": "87d8659f18260a19b9f2932f412a42f50f71a692",
+  "product_rust_tree": "302aabd3b5c843ad7d25006a5ef48ebdb2659656",
+  "product_python_tree": "1eb8c8d53d0f5a6ed072c6af778e7c30b73fd44e",
+  "cargo_lock_sha256": "9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe",
+  "wheel_source_binding": "Built in this isolated checkout by the unchanged verify-release-python-wheel.sh. Product Rust/Python source and Cargo.lock still match product_source_sha; only harness/tests/receipts changed.",
+  "build_argv": [
+    "./scripts/verify-release-python-wheel.sh",
+    "--python",
+    "/usr/bin/python3.12",
+    "--wheel-dir",
+    "/tmp/slice135-capability-wheel-87d8659",
+    "--venv-dir",
+    "/tmp/slice135-capability-venv-87d8659"
+  ],
+  "build_exit_code": 0,
+  "build_features": [
+    "pyo3/extension-module",
+    "default-embedder"
+  ],
+  "builder_sha256": "9dc09cedc3b7d8d8cec8a1b158c5f2eec196b563c3087e8b2cae124d39083840",
+  "run_argv": [
+    "env",
+    "-u",
+    "PYTHONPATH",
+    "-u",
+    "VIRTUAL_ENV",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "timeout",
+    "240s",
+    "/tmp/slice135-capability-venv-87d8659/bin/python",
+    "scripts/slice135_python_capabilities.py",
+    "--repo",
+    ".",
+    "--wheel",
+    "/tmp/slice135-capability-wheel-87d8659/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl",
+    "--wheel-sha256",
+    "83b6c184fff27696dce329d5c2ae40e89290c86c3687e762488366c8a22ad34a",
+    "--source-sha",
+    "87d8659f18260a19b9f2932f412a42f50f71a692",
+    "--output",
+    "/tmp/slice135-python-capability-qualified.json"
+  ],
+  "run_exit_code": 1,
+  "expected_run_exit_explanation": "The stable reason/path assertion for an unsupported ReadContextV1 schema stays failing. Success would falsely qualify the boundary. No product fix is included.",
+  "counts": {
+    "supported": 44,
+    "executed": 39,
+    "failed": 1,
+    "unavailable": 3,
+    "gap": 1,
+    "unexecuted": 4
+  },
+  "harness": {
+    "path": "scripts/slice135_python_capabilities.py",
+    "sha256": "d9b5f35d31818a870a677ac5c4f8e7343a108994694dd95f3b6a2be60734f0be",
+    "contract_test_count": 7,
+    "contract_test_exit_code": 0,
+    "ruff_exit_code": 0
+  },
+  "full_gate": {
+    "argv": [
+      "./scripts/agent-verify.sh"
+    ],
+    "exit_code": 1,
+    "phase": "preflight",
+    "reason": "Checkout-owned .venv missing; no broad build/test ran. Focused checks used the isolated wheel venv and no shared editable SDK."
+  },
+  "excluded_attempts": {
+    "attempt1": "Harness/environment failure: pytest missing after sandbox network failure; invalid config/error/graph constructor names. Not a product or performance receipt.",
+    "attempt2": "All existing selected tests passed; boundary-errors case incorrectly attributed one error-field failure to all operations sharing that case. Kept raw; superseded by per-operation accounting.",
+    "final": "Same case assertions and outcomes as candidate, before adding human-owned fixture/helper hashes; superseded metadata only."
+  },
+  "limits": [
+    "This is a selected operation exercise, not complete contract qualification.",
+    "read_dependency_closure exercises valid absence, not a stored committed closure.",
+    "Generic reopen checks compare canonical/operational SQLite rows and active SDK read bodies; they do not replay every original operation after restart.",
+    "No platform beyond this recorded Linux wheel, no provider success or standalone reranker, no concurrent/cancellation matrix.",
+    "Search positive cases exercise lexical and projected paths; qualified vector/hybrid S01 and S02 receipts remain separate."
+  ],
+  "phase1_checkpoint_complete": false,
+  "paired_baseline": false,
+  "timing_qualification": false,
+  "measured_engine_cells_changed": false,
+  "operation_register_update": "Parent reviewer owns integration of this receipt into the live capability register; no main checkout/shared release state was edited.",
+  "independent_audit": "independent-audit.json",
+  "minimal_field_repro": "frozen-error-repro.json",
+  "standalone_model_availability": "standalone-reranker-feature.json",
+  "unavailable_reranker_reason": "Wheel build explicitly selected pyo3/extension-module,default-embedder; default-reranker is a separate unselected feature. Installed depth-one call has null CE score and unchanged input score. Real standalone CE model execution is unavailable in this artifact; local cache availability does not enable an unbuilt feature.",
+  "case_counts": {
+    "total": 47,
+    "passed": 46,
+    "partial_failed": 1,
+    "failed": 0
+  },
+  "focused_validation_commands": [
+    [
+      "ruff",
+      "check",
+      "--no-cache",
+      "scripts/slice135_python_capabilities.py",
+      "scripts/tests/test_slice135_python_capabilities.py",
+      "scripts/tests/test_slice135_python_capability_isolation.py"
+    ],
+    [
+      "/tmp/slice135-capability-venv-87d8659/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "scripts/tests/test_slice135_python_capabilities.py",
+      "scripts/tests/test_slice135_python_capability_isolation.py"
+    ]
+  ]
+}

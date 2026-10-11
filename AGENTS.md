@@ -11,7 +11,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 - **Retrieval layer** — grep / glob / read / LSP / tree-sitter map on demand. No local vector index.
 - **Execution layer** — typed dev-loop verbs under `scripts/agent-*.sh` emit structured JSON. Tests are oracle.
 - **Persistence layer** — the per-release board `dev/plans/runs/STATUS-<version>.md`, its single writer `dev/plans/release-state-<version>.json`, the append-only JSONL ledgers, and ADR supersession. Compaction-safe. Concrete files: § 9. `dev/progress/` is **historical** — frozen at 0.6.x; read for history, never write.
-- **Permission layer** — three-tier sandbox + worktree-per-task + egress allowlist (`.claude/settings.json`).
+- **Permission layer** — conduct tiers (§ 11; harness config is local, not tracked) + worktree-per-task + egress limits.
 - **Topology layer** — main thread orchestrates; implementer (worktree) + the codex review gate fan out at clean seams; single-agent for shared-state edits; **one writer per checkout** — concurrent file-mutating sessions/agents each get their own worktree, or are serialized.
 
 ---
@@ -23,6 +23,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 - **TDD is mandatory.** Failing test first; red → green → refactor. Mechanical version bumps and renames are the only exception. Discipline: § 5.
 - **Stale > missing.** A wrong comment, doc, or ADR is more harmful than its absence. If you cannot maintain something, delete it.
 - **Public surface is contract.** Anything in `dev/interfaces/` or `pub` Rust APIs is a contract; changes need an ADR or interface-doc update in the same PR.
+- **Quality analysis at release planning.** Before drafting each new release plan, read `dev/notes/fathomdb-quality-testing-roadmap.md`. Record which recommendations apply, which are deferred, and what new evidence changes the assessment. The analysis guides scope; it does not create automatic gates.
 
 ## 2. Repo shape
 
@@ -46,14 +47,21 @@ Use the typed dev-loop verbs (Phase 2). Each emits **concise output on pass, str
 
 Markdown lint covers **every `**/*.md`** except the ignore list in `.markdownlint-cli2.jsonc` (build output, `dev/archive/`, `dev/plans/runs/`, `dev/plans/prompts/`, `dev/experiments/`, `.claude/`, `docs/`). `docs/` is linted separately by `scripts/agent-lint-docs.sh`. `scripts/agent-lint-md.sh` also runs the plans/design/findings/anchor linters and `scripts/check-release-state-views.sh`. Auto-fix: **`npm run format:md` only** — it wraps `markdownlint-cli2 --fix` in the CommonMark-AST neutrality guard (`dev/tools/md_neutrality_guard.py`). ⛔ **Never run `prettier` on markdown, and never run `markdownlint-cli2 --fix` unguarded** — both are documented corruptors (prettier rewrites `*` → `_`; raw `--fix` mangles `#`-prefixed prose and schemeless hosts). See `dev/tools/md-fix-corruption-ledger.md`.
 
-- After each meaningful edit, run checks that match the changed files:
-  - for Markdown-only changes, run `./scripts/agent-lint-md.sh`; public `docs/` changes also run `./scripts/agent-lint-docs.sh`;
-  - for other non-code-only changes, including release-state metadata, configuration, manifests, and workflows, run their applicable scoped validators; do not run the full verifier solely because these files changed;
-  - for source, test, or executable-script changes, or a mixture containing them, run the full `./scripts/agent-verify.sh`;
-  - run the full gate when an explicit release qualification or full-green claim requires it. Do not ship a PR with its applicable checks failing.
-- A scoped pass is evidence for the changed files, not a full-worktree green claim.
-- AC-036 in the full verifier uses `strace` and therefore needs a ptrace-capable executor; if a sandbox denies `PTRACE_TRACEME`, rerun the unchanged strict gate unconfined rather than disabling it.
-- Full verification preflights a checkout-owned `.venv` with pip and pinned developer tools. Run it from the target checkout; never borrow another checkout's virtual environment. If a worktree lacks its own setup, report the preflight failure rather than running later tests under system Python.
+Run checks that match the changed files. For non-code-only edits, including
+documentation, plans, and release-state metadata, run the relevant scoped
+validators; do not run the full `./scripts/agent-verify.sh` solely because
+these files changed. Markdown changes use `./scripts/agent-lint-md.sh`; public
+`docs/` changes also use `./scripts/agent-lint-docs.sh`. Release-state changes
+use `./scripts/check-release-state-views.sh`. Validate other non-code files
+with their applicable checks. Run the full `./scripts/agent-verify.sh` for
+source, test, or executable-script changes and when an explicit release gate
+requires it. A scoped pass is not a full-workspace green claim. AC-036 in the
+full gate uses `strace` and needs a ptrace-capable executor; if a sandbox denies
+`PTRACE_TRACEME`, rerun the unchanged strict gate unconfined.
+Full verification preflights a checkout-owned `.venv` with pip and pinned
+developer tools. Run it from the target checkout; never borrow another
+checkout's virtual environment. If a worktree lacks its own setup, report the
+preflight failure rather than running later tests under system Python.
 
 The broader CI gate is `./scripts/check.sh` (adds mkdocs build); the agent-loop gate is `scripts/agent-verify.sh`. Long-run test variants (e.g. AC-021 60 s window, AC-059b ~1000-iteration cursor-race fixture) are exercised only via `scripts/check.sh` with `AGENT_LONG=1`; `scripts/agent-verify.sh` skips them for runtime budget.
 
@@ -127,6 +135,7 @@ Do not paraphrase, summarize, or shorten compiler diagnostics — pass them thro
 - **Plan / slice templates:** `dev/plans/prompts/PLAN-TEMPLATE.md` (per-release plan + authoring checklist) · `dev/plans/prompts/0.8.0-SLICE-TEMPLATE.md` (per-slice prompt)
 - **Plans:** `dev/plans/`
 - **Research:** `dev/notes/context-research-agentic-best-practices.md` (the best-practices synthesis this file operationalizes)
+- **Quality planning:** `dev/notes/fathomdb-quality-testing-roadmap.md` (testing maturity, SQLite-method fit, and release-line recommendations; consult for every new release plan)
 - **Memory:** `MEMORY.md` in the out-of-repo memory store (§ 1) — index of the kebab-case topic entries; auto-loaded at Claude Code session start.
 
 ### Release state — where the current release actually lives
@@ -157,11 +166,12 @@ Hard-won from prior incidents. Violations are correctness bugs, not style prefer
 
 ## 11. Permission model (for the Claude Code harness)
 
-`.claude/settings.json` enforces a 3-tier model:
+No tracked file enforces permissions: `.claude/settings.json` and `.claude/settings.local.json` are gitignored (`.gitignore`), so prompts and allow/deny lists are each operator's local harness config. The conduct below holds whatever that config says:
 
-- **read-only** (auto-allowed): `Read`, `Grep`, `Glob`, plus `Bash` for the agent-loop verbs and read-only git/cargo/uv operations.
-- **workspace-write** (auto-allowed): `Edit`, `Write` within the repo; `git add`, `git commit`, `git restore`.
-- **escalated** (denied or asked): destructive ops (`rm`, `mv`, `git reset --hard`, `git clean`); network beyond the package registries (`curl`, `wget`); `git push` requires confirmation.
+- **read-only** (no confirmation): `Read`, `Grep`, `Glob`, the agent-loop verbs, read-only git/cargo/uv operations.
+- **workspace-write** (no confirmation): `Edit`, `Write` within the repo or your worktree; `git add`, `git commit`, `git restore`.
+- **push** (no per-push confirmation, owner 2026-10-11): branch pushes to this repo and to the owner's forks `coreyt/cudarc` and `coreyt/candle-fathomdb`. Never force-push. A `v*` tag push fires the real multi-registry publish (§ 10). Never push to Memex or any other repository, and never to upstream third-party repositories.
+- **escalated** (surface to the user first): destructive ops (`rm`, `mv`, `git reset --hard`, `git clean`); network beyond the package registries and the repositories above (`curl`, `wget`).
 
 If the agent needs an op outside this model, surface it to the user; do not look for workarounds.
 

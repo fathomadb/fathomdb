@@ -1,0 +1,129 @@
+{
+  "archives": [
+    {
+      "all_findings_exact_public_tokenizer_digest": true,
+      "archive": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-e12-224e-paired/raw-archive",
+      "external_symlinks": 60,
+      "gitleaks_exit": 1,
+      "gitleaks_filenames": {
+        "protocol.json": 20,
+        "raw.json": 20
+      },
+      "gitleaks_findings": 40,
+      "gitleaks_rules": {
+        "generic-api-key": 40
+      },
+      "manifest_check_passed": true,
+      "manifest_entries": 323,
+      "manifest_sha256": "db89cf20de42a8313fe1806b0685de7b7690b600e2c043e94aa835715635bd1d",
+      "symlinks": 60
+    },
+    {
+      "all_findings_exact_public_tokenizer_digest": true,
+      "archive": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-e12-224e-smoke/raw-archive",
+      "external_symlinks": 3,
+      "gitleaks_exit": 1,
+      "gitleaks_filenames": {
+        "protocol.json": 1,
+        "raw.json": 1
+      },
+      "gitleaks_findings": 2,
+      "gitleaks_rules": {
+        "generic-api-key": 2
+      },
+      "manifest_check_passed": true,
+      "manifest_entries": 17,
+      "manifest_sha256": "502d68c8c3c9bbbe783267c5a79173bbe0b55e3e5b0cd5e70e1517940ede7f96",
+      "symlinks": 3
+    },
+    {
+      "all_findings_exact_public_tokenizer_digest": null,
+      "archive": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s01-224e-paired/raw-archive",
+      "external_symlinks": 0,
+      "gitleaks_exit": 0,
+      "gitleaks_filenames": {},
+      "gitleaks_findings": 0,
+      "gitleaks_rules": {},
+      "manifest_check_passed": true,
+      "manifest_entries": 248,
+      "manifest_sha256": "3c5d7658544fab0d05956f851215498c7d9732a8259aaa1d57bc70e45c8cd49a",
+      "symlinks": 0
+    },
+    {
+      "all_findings_exact_public_tokenizer_digest": null,
+      "archive": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s02-224e-paired/raw-archive",
+      "external_symlinks": 0,
+      "gitleaks_exit": 0,
+      "gitleaks_filenames": {},
+      "gitleaks_findings": 0,
+      "gitleaks_rules": {},
+      "manifest_check_passed": true,
+      "manifest_entries": 1167,
+      "manifest_sha256": "8c3a4a2cb2395560465fee43d2de675816297c648286c98ec5f15398d3a8d5e4",
+      "symlinks": 0
+    },
+    {
+      "all_findings_exact_public_tokenizer_digest": null,
+      "archive": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s02l-224e-paired/raw-archive",
+      "external_symlinks": 0,
+      "gitleaks_exit": 0,
+      "gitleaks_filenames": {},
+      "gitleaks_findings": 0,
+      "gitleaks_rules": {},
+      "manifest_check_passed": true,
+      "manifest_entries": 1124,
+      "manifest_sha256": "22dba02e0279caaa7112948593fe5f7b577cb473a449dc7f96eb13c081c9f85c",
+      "symlinks": 0
+    },
+    {
+      "all_findings_exact_public_tokenizer_digest": null,
+      "archive": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-python-s03-224e-paired/raw-archive",
+      "external_symlinks": 0,
+      "gitleaks_exit": 0,
+      "gitleaks_filenames": {},
+      "gitleaks_findings": 0,
+      "gitleaks_rules": {},
+      "manifest_check_passed": true,
+      "manifest_entries": 305,
+      "manifest_sha256": "a08cc52bf8ac707b6907d9d6779643405816ca0f684b7d946f371e867aa9902f",
+      "symlinks": 0
+    },
+    {
+      "all_findings_exact_public_tokenizer_digest": null,
+      "archive": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-ts-s01-224e-paired/raw-archive",
+      "external_symlinks": 0,
+      "gitleaks_exit": 0,
+      "gitleaks_filenames": {},
+      "gitleaks_findings": 0,
+      "gitleaks_rules": {},
+      "manifest_check_passed": true,
+      "manifest_entries": 271,
+      "manifest_sha256": "e2e797430b0db39fb758ecae9a855ca503d423c29383f3af936aacd00d74f044",
+      "symlinks": 0
+    },
+    {
+      "all_findings_exact_public_tokenizer_digest": null,
+      "archive": "dev/plans/0.8.27/features/slice-135/results/2026-10-08-ts-s02-224e-paired/raw-archive",
+      "external_symlinks": 0,
+      "gitleaks_exit": 0,
+      "gitleaks_filenames": {},
+      "gitleaks_findings": 0,
+      "gitleaks_rules": {},
+      "manifest_check_passed": true,
+      "manifest_entries": 1122,
+      "manifest_sha256": "bef3056ceda8c4a84a995392b80a949da0c01c2221611bfd43196577a951822e",
+      "symlinks": 0
+    }
+  ],
+  "candidate_source": "224e44c593c13d86ece648adabe445723db04070",
+  "local_bundle": {
+    "all_63_symlinks_internal_and_resolved": true,
+    "all_eight_extracted_manifests_passed": true,
+    "bundle_index_sha256": "82cdf7850ec43f9647c39dcd8e94f09c9de09405413c43d80ddbbf2f0f2e73ba",
+    "bytes": 126514223,
+    "extraction_verified": true,
+    "file": "phase1-exact-raw.tar.zst",
+    "sha256": "9674227303546aa9a7bffb9152ebc2c25fa4dfeaad6ec89469d455ad2c15ea8e"
+  },
+  "scanner_config_sha256": "53fc3399d4b05146e639a0f45e1bf807265ecc42a3c160a7a7da5035921b77f0"
+}

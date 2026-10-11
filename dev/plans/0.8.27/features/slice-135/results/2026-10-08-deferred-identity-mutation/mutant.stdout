@@ -1,0 +1,11 @@
+
+running 1 test
+test malformed_deferred_source_must_fail_instead_of_erasing_hit_provenance ... FAILED
+
+failures:
+
+failures:
+    malformed_deferred_source_must_fail_instead_of_erasing_hit_provenance
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+

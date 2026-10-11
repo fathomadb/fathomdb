@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/slice135_robustness_first.rs (target/debug/deps/slice135_robustness_first-c357a6263a4a7fa4)
+
+running 1 test
+SLICE135_ROBUSTNESS {"case":"negative_missing_row","expected":["slice135robust body absent"],"observed":[null]}
+
+thread 'slice135_negative_missing_record_must_fail' (4141668) panicked at src/rust/crates/fathomdb-engine/tests/slice135_robustness_first.rs:74:5:
+assertion `left == right` failed: negative control must detect missing record
+  left: [None]
+ right: [Some("slice135robust body absent")]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test slice135_negative_missing_record_must_fail ... FAILED
+
+failures:
+
+failures:
+    slice135_negative_missing_record_must_fail
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p fathomdb-engine --test slice135_robustness_first`

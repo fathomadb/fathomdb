@@ -22,6 +22,7 @@ SQL access.
 from __future__ import annotations
 
 import hashlib
+import sqlite3
 
 import pytest
 
@@ -53,6 +54,28 @@ def test_erase_source_erases_anonymous_content_without_cli(db_path: str) -> None
         # tenant-b's row still existed after the first call.
         second = engine.erase_source("tenant-b")
         assert second.nodes_excised == 1, "the first erasure must not have touched tenant-b"
+    finally:
+        engine.close()
+
+
+def test_erase_source_addresses_embedded_nul_source_id(db_path: str) -> None:
+    source_id = "tenant\0a"
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write([
+            _anonymous_node("nul source payload", source_id),
+            _anonymous_node("other source payload", "tenant-a"),
+        ])
+        report = engine.erase_source(source_id)
+        assert report.source_ref == source_id
+        assert report.nodes_excised == 1
+        with sqlite3.connect(db_path) as conn:
+            rows = conn.execute(
+                "SELECT source_id, COUNT(*) FROM canonical_nodes GROUP BY source_id"
+            ).fetchall()
+        assert rows == [("tenant-a", 1)], "the exact NUL bucket is gone; the other remains"
+        assert engine.erase_source(source_id).nodes_excised == 0
+        assert engine.erase_source("tenant-a").nodes_excised == 1
     finally:
         engine.close()
 

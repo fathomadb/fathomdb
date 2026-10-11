@@ -109,6 +109,15 @@ jobs:
           sudo mv actionlint /usr/local/bin/actionlint
       - name: Validate workflow YAML
         run: actionlint -config-file .github/actionlint.yaml .github/workflows/*.yml
+      - name: Require first-publish SDK API token before any release tier
+        if: ${{ env.RELEASE_TAG == 'v0.8.27' && (github.event_name != 'workflow_dispatch' || inputs.dry_run != true) }}
+        env:
+          SDK_FIRST_PUBLISH_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$SDK_FIRST_PUBLISH_TOKEN" ]; then
+            echo 'CARGO_REGISTRY_TOKEN is required for the first fathomdb-sdk publish' >&2
+            exit 1
+          fi
       - name: Run release gates
         # Runs on push (tag-format + version-axis enforced) and dispatch.
         # Dry runs require and verify the selected full candidate SHA; non-dry
@@ -134,6 +143,14 @@ jobs:
         # --no-verify, so this guard is what makes that case fail pre-tag.
         # Queries crates.io directly (read-only, fail-closed on any error).
         run: bash scripts/release/verify-embedder-api-no-drift.sh
+      # Exercise artifact transport and the local retry action before starting
+      # the expensive wheel, N-API, and CUDA build matrix.
+      - name: Preflight release artifact upload transport
+        uses: ./.github/actions/upload-artifact-retry
+        with:
+          name: release-artifact-transport-preflight-${{ github.run_attempt }}
+          path: Cargo.toml
+          retention-days: 1
 
   # Slice 10: this job decides CUDA runner eligibility without executing any
   # candidate script. It is intentionally hosted; the self-hosted preflight
@@ -318,14 +335,14 @@ jobs:
             --github-output "$GITHUB_OUTPUT"
       - name: Upload unmerged-candidate route receipt
         if: ${{ github.event_name == 'retired' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
           path: cuda-unmerged-route-receipt.json
           if-no-files-found: error
       - name: Upload main-candidate route receipt
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true && success() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
           path: cuda-unmerged-route-receipt.json
@@ -401,28 +418,28 @@ jobs:
         run: bash scripts/release/cuda-preflight.sh "$CUDA_RERANK_PREFLIGHT_WITNESS_DIR" --rerank-cuda
       - name: Upload CUDA preflight witness
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-preflight-witness
           path: ${{ env.CUDA_PREFLIGHT_WITNESS_DIR }}
           if-no-files-found: error
       - name: Upload CUDA preflight package bytes
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-preflight-packages
           path: ${{ env.CUDA_PREFLIGHT_WITNESS_DIR }}.packages
           if-no-files-found: error
       - name: Upload CUDA reranker v3 preflight witness
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-rerank-preflight-witness
           path: ${{ env.CUDA_RERANK_PREFLIGHT_WITNESS_DIR }}
           if-no-files-found: error
       - name: Upload CUDA reranker v3 package bytes
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-rerank-preflight-packages
           path: ${{ env.CUDA_RERANK_PREFLIGHT_WITNESS_DIR }}.packages
@@ -485,7 +502,7 @@ jobs:
           args: --release --out dist --features pyo3/extension-module,default-embedder -i ${{ matrix.interpreters || 'python3.10 python3.11 python3.12' }}
           manylinux: ${{ matrix.manylinux || 'auto' }}
           working-directory: src/python
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./.github/actions/upload-artifact-retry
         with:
           name: python-dist-${{ matrix.target }}
           path: src/python/dist/*
@@ -586,7 +603,7 @@ jobs:
         run: |
           . scripts/release/glibc-floor-contract.sh
           bash scripts/check-glibc-floor.sh --floor "$GLIBC_FLOOR" "src/ts/fathomdb.${{ matrix.label }}.node"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./.github/actions/upload-artifact-retry
         with:
           name: napi-${{ matrix.label }}
           path: src/ts/fathomdb.${{ matrix.label }}.node
@@ -602,6 +619,7 @@ jobs:
     environment: cuda-unmerged-preflight
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+      PREFLIGHT_PACKAGES_DIR: preflight-packages-${{ github.run_id }}-${{ github.run_attempt }}
       CUDA_HOME: /usr/local/cuda-12.6
       CUDA_PATH: /usr/local/cuda-12.6
       LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
@@ -629,7 +647,7 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: cuda-preflight-packages
-          path: preflight-packages
+          path: ${{ env.PREFLIGHT_PACKAGES_DIR }}
       - name: Verify same-run receipt and preflight witness before candidate checkout
         shell: bash
         run: |
@@ -692,11 +710,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find ../preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
-          npm_main="$(find ../preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
-          napi_platform="$(find ../preflight-packages -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
-          cli_archive="$(find . -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
-          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
+          version="$(python3 -c 'import json; print(json.load(open("src/ts/package.json"))["version"])')"
+          . ../control-plane/scripts/release/select-cuda-rehearsal-packages.sh
+          select_cuda_rehearsal_packages "../$PREFLIGHT_PACKAGES_DIR" "$version"
+          cli_archive="fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          test -f "$cli_archive" && test ! -L "$cli_archive"
           bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh \
             --python-wheel "$wheel" \
             --npm-main "$npm_main" \
@@ -709,10 +727,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
-          npm_main="$(find preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
-          napi_platform="$(find preflight-packages -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
-          cli_archive="$(find candidate -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
+          version="$(python3 -c 'import json; print(json.load(open("candidate/src/ts/package.json"))["version"])')"
+          . control-plane/scripts/release/select-cuda-rehearsal-packages.sh
+          select_cuda_rehearsal_packages "$PREFLIGHT_PACKAGES_DIR" "$version"
+          cli_archive="candidate/fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          test -f "$cli_archive" && test ! -L "$cli_archive"
           bash control-plane/scripts/release/cuda-package-rehearsal.sh \
             --candidate-sha '${{ inputs.candidate_commit }}' \
             --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
@@ -730,7 +749,7 @@ jobs:
             --run-id '${{ github.run_id }}' \
             --run-attempt '${{ github.run_attempt }}'
       - name: Upload verified package rehearsal bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-package-rehearsal
           path: candidate/cuda-package-rehearsal
@@ -745,6 +764,7 @@ jobs:
     environment: cuda-unmerged-preflight
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+      RERANK_PREFLIGHT_PACKAGES_DIR: rerank-preflight-packages-${{ github.run_id }}-${{ github.run_attempt }}
       CUDA_HOME: /usr/local/cuda-12.6
       CUDA_PATH: /usr/local/cuda-12.6
       LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
@@ -769,7 +789,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: cuda-rerank-preflight-packages
-          path: rerank-preflight-packages
+          path: ${{ env.RERANK_PREFLIGHT_PACKAGES_DIR }}
       - name: Verify candidate binding and v3 witness
         shell: bash
         run: |
@@ -810,14 +830,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find rerank-preflight-packages -name 'fathomdb-*.whl' -print -quit)"
-          npm_main="$(find rerank-preflight-packages -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
-          napi_platform="$(find rerank-preflight-packages -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
-          cli_archive="$(find candidate -maxdepth 1 -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
-          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
+          version="$(python3 -c 'import json; print(json.load(open("candidate/src/ts/package.json"))["version"])')"
+          . control-plane/scripts/release/select-cuda-rehearsal-packages.sh
+          select_cuda_rehearsal_packages "$RERANK_PREFLIGHT_PACKAGES_DIR" "$version"
+          cli_archive="candidate/fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          test -f "$cli_archive" && test ! -L "$cli_archive"
           bash control-plane/scripts/release/cuda-package-rehearsal-smoke.sh --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --model-cache-manifest rerank-preflight-witness/model-cache-manifest.json --reranker-cache-manifest rerank-preflight-witness/reranker-cache-manifest.json --reranker-cache-root "${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}}" --hf-home "${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}" --smoke-dir candidate/cuda-rerank-package-smoke
           bash control-plane/scripts/release/cuda-package-rehearsal.sh --candidate-sha '${{ inputs.candidate_commit }}' --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json --route-manifest control-plane/dev/release/cuda-unmerged-candidates.json --preflight-witness-dir rerank-preflight-witness --build-input candidate/cuda-rerank-package-build-input.json --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --smoke-dir candidate/cuda-rerank-package-smoke --output-dir candidate/cuda-rerank-package-rehearsal --workflow-ref '${{ github.workflow_ref }}' --workflow-sha '${{ github.workflow_sha }}' --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-rerank-package-rehearsal
           path: candidate/cuda-rerank-package-rehearsal
@@ -914,12 +934,12 @@ jobs:
           node_binary=(cuda-canonical-artifacts/napi/fathomdb.linux-x64-gnu.node)
           test "${#node_binary[@]}" = 1
           test -s "${node_binary[0]}"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./.github/actions/upload-artifact-retry
         with:
           name: python-dist-x86_64-unknown-linux-gnu
           path: cuda-canonical-artifacts/python/*.whl
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./.github/actions/upload-artifact-retry
         with:
           name: napi-linux-x64-gnu
           path: cuda-canonical-artifacts/napi/fathomdb.linux-x64-gnu.node
@@ -1152,6 +1172,9 @@ jobs:
         run: bash scripts/release/wait-for-crate-version.sh fathomdb
       - name: cargo publish fathomdb-sdk
         # The Rust application SDK depends on fathomdb-engine (T5), like the facade.
+        # Its first publish at v0.8.27 cannot use trusted publishing because
+        # the crate does not exist yet. The repository API token is used only
+        # for that release; later versions use the temporary OIDC token.
         run: |
           if [ "${DRY_RUN}" = "true" ]; then
             bash scripts/release/cargo-publish-if-new.sh --dry-run fathomdb-sdk
@@ -1159,7 +1182,7 @@ jobs:
             bash scripts/release/cargo-publish-if-new.sh fathomdb-sdk
           fi
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.crates_io_auth.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ env.RELEASE_TAG == 'v0.8.27' && secrets.CARGO_REGISTRY_TOKEN || steps.crates_io_auth.outputs.token }}
       - name: Wait for fathomdb-sdk crates.io index propagation (poll, not sleep)
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
         run: bash scripts/release/wait-for-crate-version.sh fathomdb-sdk
@@ -1504,7 +1527,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        smoke: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && '["crates-cli","pypi-wheel"]' || '["crates-cli","pypi-wheel","npm-package"]') }}
+        smoke: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && '["crates-cli","pypi-wheel"]' || '["crates-cli","crates-sdk","pypi-wheel","npm-package"]') }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
@@ -1518,7 +1541,7 @@ jobs:
         with:
           node-version: "25.9.0"
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
-        if: matrix.smoke == 'crates-cli'
+        if: matrix.smoke == 'crates-cli' || matrix.smoke == 'crates-sdk'
         with:
           toolchain: "1.95.0"
       - name: Resolve tag version

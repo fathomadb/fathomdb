@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "status": "VALID_BASELINE_S02_PILOT_BLOCK",
+  "invalidators": [],
+  "warnings": [],
+  "manifest_sha256": "028eab8b7adcace19e436517605ae7d3e59e84565c7af33261d0ae9af1d8e054",
+  "environment_sha256": "7e5a1fff925c322c65916df0a1a80587898ecc1284820b58d2841a7f7012c873",
+  "attempts_sha256": "0ec715c7c4a607429f846dae167d3013fbce55da9cd8f801c1fb0a0dbf03b376",
+  "valid_samples": 3,
+  "median_product_ns": 5401976674,
+  "min_product_ns": 5319930474,
+  "max_product_ns": 5417747637
+}

@@ -1,0 +1,11 @@
+{
+  "branch_id": [
+    16,
+    0,
+    1
+  ],
+  "file": "src/rust/crates/fathomdb-engine/src/search_api.rs",
+  "mutant": "zero one test-hit workload branch count",
+  "observation": "the modified profile creates one workload-only branch ID",
+  "rejected": true
+}

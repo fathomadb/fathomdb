@@ -618,8 +618,8 @@ jobs:
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
     environment: cuda-unmerged-preflight
     env:
-      PREFLIGHT_PACKAGES_DIR: preflight-packages-${{ github.run_id }}-${{ github.run_attempt }}
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+      PREFLIGHT_PACKAGES_DIR: preflight-packages-${{ github.run_id }}-${{ github.run_attempt }}
       CUDA_HOME: /usr/local/cuda-12.6
       CUDA_PATH: /usr/local/cuda-12.6
       LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
@@ -763,8 +763,8 @@ jobs:
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
     environment: cuda-unmerged-preflight
     env:
-      RERANK_PREFLIGHT_PACKAGES_DIR: rerank-preflight-packages-${{ github.run_id }}-${{ github.run_attempt }}
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+      RERANK_PREFLIGHT_PACKAGES_DIR: rerank-preflight-packages-${{ github.run_id }}-${{ github.run_attempt }}
       CUDA_HOME: /usr/local/cuda-12.6
       CUDA_PATH: /usr/local/cuda-12.6
       LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib

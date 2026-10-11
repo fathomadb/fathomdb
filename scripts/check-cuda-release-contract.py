@@ -110,6 +110,7 @@ CUDA_X64_HOST_CUDART_LIBRARY_DIR = (
 CUDA_TEGRA_HOST_CUDART_LIB = "/usr/local/cuda-12.6/targets/aarch64-linux/lib"
 CUDA_TEGRA_HOST_DRIVER_LIB = "/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+UPLOAD_RETRY_ACTION = ROOT / ".github/actions/upload-artifact-retry/action.yml"
 CANDLE_GIT_URL = "https://github.com/coreyt/candle-fathomdb.git"
 CANDLE_GIT_REV = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 CANDLE_PACKAGES = (
@@ -186,6 +187,12 @@ def require_fragment(block: str, fragment: str, label: str) -> None:
         fail(f"{label} is missing {fragment!r}")
 
 
+def require_upload_retry_action() -> None:
+    action = read_text(UPLOAD_RETRY_ACTION)
+    if action.count(f"uses: {UPLOAD_ARTIFACT_ACTION}") != 3:
+        fail("artifact retry action must pin all three attempts to the reviewed full action SHA")
+
+
 def forbid_fragment(block: str, fragment: str, label: str, why: str) -> None:
     if fragment in block:
         fail(f"{label} must not contain {fragment!r}: {why}")
@@ -257,12 +264,13 @@ def require_unmerged_workflow_route() -> None:
         "${{ github.workflow_sha }}",
         "${{ github.run_id }}",
         "${{ github.run_attempt }}",
-        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "uses: ./.github/actions/upload-artifact-retry",
         "cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}",
     ):
         require_fragment(trusted_route, fragment, "GitHub-hosted unmerged CUDA route")
     for forbidden in (
-        "ref: ${{ inputs.candidate_commit }}", "RELEASE_CHECKOUT_REF", "npm ", "cargo ", "pip ", "uses: ./",
+        "ref: ${{ inputs.candidate_commit }}", "RELEASE_CHECKOUT_REF", "npm ", "cargo ", "pip ",
+        "uses: ./candidate", "uses: actions/upload-artifact@",
         "run: ./candidate", "run: bash candidate", "uses: owner/action@ref",
     ):
         if forbidden in trusted_route:
@@ -1211,6 +1219,7 @@ def main() -> None:
     ):
         require_fragment(read_text(PACKAGE_REHEARSAL_SMOKE), fragment, "CUDA reranker v3 rehearsal smoke")
 
+    require_upload_retry_action()
     require_unmerged_candidate_control_plane()
     require_unmerged_workflow_route()
 
@@ -1269,7 +1278,7 @@ def main() -> None:
     require_fragment(job, "bash scripts/release/cuda-preflight.sh", "cuda-contract-preflight")
     require_x64_cuda_toolkit_environment(job, "cuda-contract-preflight")
     require_fragment(job, "${{ env.RELEASE_CHECKOUT_REF }}", "cuda-contract-preflight checkout")
-    require_fragment(job, UPLOAD_ARTIFACT_ACTION, "cuda-contract-preflight witness upload")
+    require_fragment(job, "uses: ./control-plane/.github/actions/upload-artifact-retry", "cuda-contract-preflight witness upload")
     require_fragment(job, "name: cuda-preflight-witness", "cuda-contract-preflight witness upload")
     require_fragment(job, "${{ github.workspace }}/cuda-preflight-witness", "cuda-contract-preflight witness path")
 

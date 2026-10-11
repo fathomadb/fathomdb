@@ -11,9 +11,10 @@ trap 'rm -rf "$TMPROOT"' EXIT
 
 make_fixture() {
   local root="$1"
-  mkdir -p "$root/.github/workflows" "$root/scripts/lib" "$root/scripts/release" "$root/src/rust/crates/fathomdb-napi" "$root/src/ts" "$root/dev/release"
+  mkdir -p "$root/.github/workflows" "$root/.github/actions/upload-artifact-retry" "$root/scripts/lib" "$root/scripts/release" "$root/src/rust/crates/fathomdb-napi" "$root/src/ts" "$root/dev/release"
   cp "$REPO_ROOT/Cargo.toml" "$REPO_ROOT/Cargo.lock" "$root/"
   cp "$REPO_ROOT/.github/workflows/release.yml" "$root/.github/workflows/"
+  cp "$REPO_ROOT/.github/actions/upload-artifact-retry/action.yml" "$root/.github/actions/upload-artifact-retry/"
   cp "$REPO_ROOT/scripts/verify-release-gates.sh" "$root/scripts/"
   cp "$REPO_ROOT/scripts/release/cuda-artifact-contract.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/build-napi-cuda.sh" "$root/scripts/release/"
@@ -138,7 +139,7 @@ if node is None or "package-manager-cache: false\n" not in node.group("with"):
     raise SystemExit("canonical CUDA build must disable setup-node package-manager cache saves")
 
 uploads = re.findall(
-    r"uses: actions/upload-artifact@[^\n]*\n        with:\n(?P<with>(?:          [^\n]*\n)+)",
+    r"uses: \./\.github/actions/upload-artifact-retry\n        with:\n(?P<with>(?:          [^\n]*\n)+)",
     body,
 )
 expected = {
@@ -848,15 +849,15 @@ PY
 expect_fail "$FIXTURE" 'rejects CUDA preflight permissions broader than read-only'
 
 make_fixture "$FIXTURE"
-python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+python3 - "$FIXTURE/.github/actions/upload-artifact-retry/action.yml" <<'PY'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
-if text.count(needle) != 12:
-    raise SystemExit("fixture CUDA artifact uploads must use the reviewed full action SHA")
+if text.count(needle) != 3:
+    raise SystemExit("retry action must pin all three upload attempts")
 path.write_text(text.replace(needle, needle[:-1], 2))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA witness uploader with a shortened action SHA'

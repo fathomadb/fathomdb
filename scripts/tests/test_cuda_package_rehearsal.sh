@@ -438,4 +438,38 @@ if "$REHEARSE" --candidate-sha "$CANDIDATE" --output-dir "$TMPROOT/no-inputs" >/
 fi
 pass 'helper requires Slice 10 receipt and witness before output'
 
+# The self-hosted GPU runner retains workspaces across jobs. A prior release's
+# package must never win a `find -print -quit` search over this run's package.
+SELECT_PACKAGES="$REPO_ROOT/scripts/release/select-cuda-rehearsal-packages.sh"
+mkdir -p "$TMPROOT/downloaded-packages"
+printf 'wheel\n' > "$TMPROOT/downloaded-packages/fathomdb-$VERSION-cp310-abi3-manylinux_2_28_x86_64.whl"
+printf 'main\n' > "$TMPROOT/downloaded-packages/fathomdb-$VERSION.tgz"
+printf 'platform\n' > "$TMPROOT/downloaded-packages/fathomdb-linux-x64-gnu-$VERSION.tgz"
+if ! bash -c '. "$1"; select_cuda_rehearsal_packages "$2" "$3"; test "$(basename "$wheel")" = "fathomdb-$3-cp310-abi3-manylinux_2_28_x86_64.whl"' \
+  _ "$SELECT_PACKAGES" "$TMPROOT/downloaded-packages" "$VERSION"; then
+  fail 'candidate package inventory should select exact-version package bytes'
+fi
+pass 'candidate package inventory selects exact-version package bytes'
+printf 'stale\n' > "$TMPROOT/downloaded-packages/fathomdb-0.8.26-cp310-abi3-manylinux_2_28_x86_64.whl"
+if bash -c '. "$1"; select_cuda_rehearsal_packages "$2" "$3"' \
+  _ "$SELECT_PACKAGES" "$TMPROOT/downloaded-packages" "$VERSION" >/dev/null 2>&1; then
+  fail 'stale prior-release wheel must reject package inventory'
+fi
+pass 'stale prior-release wheel rejects package inventory'
+rm "$TMPROOT/downloaded-packages/fathomdb-0.8.26-cp310-abi3-manylinux_2_28_x86_64.whl"
+ln -s "fathomdb-$VERSION.tgz" "$TMPROOT/downloaded-packages/alias.tgz"
+if bash -c '. "$1"; select_cuda_rehearsal_packages "$2" "$3"' \
+  _ "$SELECT_PACKAGES" "$TMPROOT/downloaded-packages" "$VERSION" >/dev/null 2>&1; then
+  fail 'unexpected symlink must reject package inventory'
+fi
+pass 'unexpected symlink rejects package inventory'
+
+workflow="$(cat "$REPO_ROOT/.github/workflows/release.yml")"
+selection_calls="$(grep -c 'select_cuda_rehearsal_packages ' <<<"$workflow")"
+if [ "$selection_calls" -ne 3 ] \
+  || grep -Eq 'find (\.\./)?(rerank-)?preflight-packages' <<<"$workflow"; then
+  fail 'both CUDA rehearsal jobs must use exact package selection in all three steps'
+fi
+pass 'both CUDA rehearsal jobs use exact package selection'
+
 printf '\nCUDA package rehearsal tests passed\n'

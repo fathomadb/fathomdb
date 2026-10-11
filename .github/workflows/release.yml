@@ -618,6 +618,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
     environment: cuda-unmerged-preflight
     env:
+      PREFLIGHT_PACKAGES_DIR: preflight-packages-${{ github.run_id }}-${{ github.run_attempt }}
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
       CUDA_HOME: /usr/local/cuda-12.6
       CUDA_PATH: /usr/local/cuda-12.6
@@ -646,7 +647,7 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: cuda-preflight-packages
-          path: preflight-packages
+          path: ${{ env.PREFLIGHT_PACKAGES_DIR }}
       - name: Verify same-run receipt and preflight witness before candidate checkout
         shell: bash
         run: |
@@ -709,11 +710,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find ../preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
-          npm_main="$(find ../preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
-          napi_platform="$(find ../preflight-packages -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
-          cli_archive="$(find . -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
-          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
+          version="$(python3 -c 'import json; print(json.load(open("src/ts/package.json"))["version"])')"
+          . ../control-plane/scripts/release/select-cuda-rehearsal-packages.sh
+          select_cuda_rehearsal_packages "../$PREFLIGHT_PACKAGES_DIR" "$version"
+          cli_archive="fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          test -f "$cli_archive" && test ! -L "$cli_archive"
           bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh \
             --python-wheel "$wheel" \
             --npm-main "$npm_main" \
@@ -726,10 +727,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
-          npm_main="$(find preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
-          napi_platform="$(find preflight-packages -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
-          cli_archive="$(find candidate -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
+          version="$(python3 -c 'import json; print(json.load(open("candidate/src/ts/package.json"))["version"])')"
+          . control-plane/scripts/release/select-cuda-rehearsal-packages.sh
+          select_cuda_rehearsal_packages "$PREFLIGHT_PACKAGES_DIR" "$version"
+          cli_archive="candidate/fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          test -f "$cli_archive" && test ! -L "$cli_archive"
           bash control-plane/scripts/release/cuda-package-rehearsal.sh \
             --candidate-sha '${{ inputs.candidate_commit }}' \
             --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
@@ -761,6 +763,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
     environment: cuda-unmerged-preflight
     env:
+      RERANK_PREFLIGHT_PACKAGES_DIR: rerank-preflight-packages-${{ github.run_id }}-${{ github.run_attempt }}
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
       CUDA_HOME: /usr/local/cuda-12.6
       CUDA_PATH: /usr/local/cuda-12.6
@@ -786,7 +789,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: cuda-rerank-preflight-packages
-          path: rerank-preflight-packages
+          path: ${{ env.RERANK_PREFLIGHT_PACKAGES_DIR }}
       - name: Verify candidate binding and v3 witness
         shell: bash
         run: |
@@ -827,11 +830,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find rerank-preflight-packages -name 'fathomdb-*.whl' -print -quit)"
-          npm_main="$(find rerank-preflight-packages -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
-          napi_platform="$(find rerank-preflight-packages -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
-          cli_archive="$(find candidate -maxdepth 1 -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
-          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
+          version="$(python3 -c 'import json; print(json.load(open("candidate/src/ts/package.json"))["version"])')"
+          . control-plane/scripts/release/select-cuda-rehearsal-packages.sh
+          select_cuda_rehearsal_packages "$RERANK_PREFLIGHT_PACKAGES_DIR" "$version"
+          cli_archive="candidate/fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          test -f "$cli_archive" && test ! -L "$cli_archive"
           bash control-plane/scripts/release/cuda-package-rehearsal-smoke.sh --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --model-cache-manifest rerank-preflight-witness/model-cache-manifest.json --reranker-cache-manifest rerank-preflight-witness/reranker-cache-manifest.json --reranker-cache-root "${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}}" --hf-home "${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}" --smoke-dir candidate/cuda-rerank-package-smoke
           bash control-plane/scripts/release/cuda-package-rehearsal.sh --candidate-sha '${{ inputs.candidate_commit }}' --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json --route-manifest control-plane/dev/release/cuda-unmerged-candidates.json --preflight-witness-dir rerank-preflight-witness --build-input candidate/cuda-rerank-package-build-input.json --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --smoke-dir candidate/cuda-rerank-package-smoke --output-dir candidate/cuda-rerank-package-rehearsal --workflow-ref '${{ github.workflow_ref }}' --workflow-sha '${{ github.workflow_sha }}' --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
       - uses: ./control-plane/.github/actions/upload-artifact-retry

@@ -83,7 +83,7 @@ contains both and must cover them:
   drops. Module-level embedding and reranking models still live until process
   exit (0.8.30 backlog B30-01). Focused tests: `projection_runtime` and the
   Slice 90 close tests. The 0.8.28 study rerun on this fix is
-  `llm/0.8.28-tegra-pool-study` at `901455d16`.
+  `archive/0.8.28-tegra-pool-study-2026-10-07` at `901455d16`.
 - **Tegra install route points at the published `0.8.26+tegra` wheel.**
   `5ceab8624` (RED) and `c23e2d23f` pin `docs-pages.yml` to the
   `0.8.26+tegra` wheel that run 37141909082 published to Pages on 2026-10-03

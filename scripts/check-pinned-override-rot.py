@@ -8,6 +8,7 @@ from datetime import date
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -375,7 +376,22 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
     """Identify every Cargo override source so unsupported forms cannot hide."""
     tomllib = _import_tomllib("inspect Cargo override scope")
     found: list[dict[str, str | None]] = []
-    for manifest in sorted(root.glob("**/Cargo.toml")):
+    git_root = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=root,
+        capture_output=True, text=True, check=False,
+    )
+    if git_root.returncode == 0 and Path(git_root.stdout.strip()).resolve() == root.resolve():
+        listed = subprocess.run(
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--",
+             "Cargo.toml", ":(glob)**/Cargo.toml"],
+            cwd=root, capture_output=True, check=False,
+        )
+        if listed.returncode != 0:
+            raise Unverified("cannot enumerate nonignored Cargo manifests")
+        manifests = sorted(root / Path(name.decode("utf-8")) for name in listed.stdout.split(b"\0") if name)
+    else:
+        manifests = sorted(root.glob("**/Cargo.toml"))
+    for manifest in manifests:
         if any(part in {"target", ".git"} for part in manifest.parts):
             continue
         try:

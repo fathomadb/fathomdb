@@ -1267,7 +1267,7 @@ open/close cycles in the workload so memory after close is compared against
 
 ### Slice 137 — Rust crate consolidation and embedder lockdown (proposed)
 
-**PROPOSED; not on the ladder; awaiting HITL rulings.** With `fathomdb-sdk`
+**PROPOSED; not on the ladder; remaining design rulings deferred.** With `fathomdb-sdk`
 shipped by Slice 132, the existing `fathomdb` facade's remaining external role
 is the wholesale engine re-export, and its only in-repo dependent is
 `fathomdb-cli`. External embedder injection also stays reachable through the
@@ -1284,7 +1284,8 @@ parts:
 
 Approval needs four rulings:
 
-- the unruled `slice-132-external-provider-disposition` decision;
+- the ruled `slice-132-external-provider-disposition` decision (`seq-301`):
+  deprecate the external Rust provider/plugin contract for future retirement;
 - crate naming;
 - the fate of the opt-in ONNX embedder;
 - sequencing. The proposal is after Slice 135 and before Slice 140, or
@@ -1473,27 +1474,48 @@ test, and the tag moves only after that fix is qualified.
 
 Order:
 
-1. **Before the tag:** finish the pre-tag procedure (`dev/design/release.md`
-   § Pre-tag procedure), including the HITL token bootstrap for the new
-   `fathomdb-sdk` crate. Decide where the Tegra tarball's published SHA-256
-   comes from: either the Slice 150 tarball is the one published and the docs
-   carry its digest, or the docs drop the inline digest for a published
-   `SHA256SUMS`. A digest committed after the tarball was built must not
-   describe a different build.
-2. **Registries:** push the annotated tag; `release.yml` runs the tiered
-   publish, registry-visibility wait, post-publish smokes, co-tagging check,
-   npm `latest` promotion and GitHub Release. Partial-publish recovery follows
-   the idempotency contract in `dev/design/release.md`; a skipped tier is
-   never recorded as published.
-3. **Tegra Pages:** dispatch `jetson-tegra-cuda-evidence.yml` on the tagged
-   commit with `publish_to_pages=true`. Then run `publish-tegra-pages.sh`'s
-   Jetson smoke (AC27-117F, moved here from Slice 117): install
-   `fathomdb@0.8.27` from npm and the tarball from its Pages URL, check its
-   SHA-256, and repeat the forced-CUDA, witness and heap-growth rows; then
+1. **Before the tag:** prepare the version bump on `release/0.8.27`, then
+   merge it to `main` as required by `verify-release-gates.sh` for a GA tag.
+   Fast-forward the remote release branch to the same reviewed commit `C` on
+   `main`. Run the immutable-candidate `release.yml` dry-run at `C`; the
+   owner's no-local-rebuild direction replaces the local dry-run in
+   `dev/design/release.md` for this release. The annotated `v0.8.27` tag must
+   target `C`. Verify both remote branch heads equal `C` and hold them fixed
+   through the Tegra Pages dispatch: the GA gate requires `C` on `main`,
+   `publish-tegra-pages.sh` requires `C` at the release-branch head, and
+   `check-pages-source.py` requires current `main` to be an ancestor of `C`.
+   An early docs Pages run triggered by the `main` merge is not the final
+   retained-artifact proof. Prepare and validate a one-time
+   API-token path for `fathomdb-sdk` in T6 of `release.yml` without publishing
+   it yet. Its 0.8.27 package depends on the unpublished 0.8.27 engine, so it
+   cannot be bootstrapped before T5. The Tegra tarball's published SHA-256
+   comes from the exact Jetson publication run's `node/SHA256SUMS` artifact;
+   retain that run's digest in `tegra-pages-retained.json` after its public
+   URL passes the live check. Documentation reads the retained manifest, so
+   it must not claim the Slice 150 candidate tarball's digest as published.
+2. **Registries:** push the annotated tag targeting `C`; `release.yml` runs
+   T1–T5 first. After T5 and its registry-visibility wait, T6 publishes the
+   existing facade through its normal credential and first-publishes
+   `fathomdb-sdk@0.8.27` with the prepared API token. Register the SDK's
+   trusted publisher after that first publication. T7, PyPI, npm,
+   registry-visibility wait, post-publish smokes, co-tagging check, npm
+   `latest` promotion and GitHub Release run according to their existing
+   workflow dependencies. Do not tag until the first-publish path is wired
+   and reviewed. Partial-publish recovery follows the idempotency contract in
+   `dev/design/release.md`; a skipped tier is never recorded as published.
+3. **Tegra Pages:** while the remote release branch still points at `C` and
+   current `main` remains its ancestor, run `publish-tegra-pages.sh` once with
+   `--candidate-sha C`. The helper dispatches
+   `jetson-tegra-cuda-evidence.yml` with `publish_to_pages=true`, verifies the
+   deployed bytes and runs the Jetson smokes (AC27-117F, moved here from Slice
+   117): install `fathomdb@0.8.27` from npm and the tarball from its Pages URL,
+   check its SHA-256, and repeat the forced-CUDA, witness and heap-growth rows;
+   then
    install `fathomdb==0.8.27+tegra` from the Pages index and repeat its smoke.
    Add both artifacts to `scripts/release/tegra-pages-retained.json` with
    their digests.
-4. **Docs Pages:** after 0.8.27 merges to `main`, record a passing
+4. **Docs Pages:** after committing the newly published Tegra artifacts and
+   their digests to the retained manifest on `main`, record a passing
    `docs-pages.yml` run, including its live verification job. That run
    retires `main`'s dead `0.8.24+tegra` pin (404, owner-checked 2026-10-10)
    because the retained list names only published artifacts and every

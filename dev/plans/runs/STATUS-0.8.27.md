@@ -143,12 +143,11 @@ qualification; Slice 160 owns publication and installed-artifact proof.
 
 ## Open decisions
 
-There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TWO<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
+There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ZERO<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
 
-- authorize tagging/publication only after the complete ladder and release
-  qualification pass.
-- `slice-132-external-provider-disposition`: decide whether the published
-  provider/plugin contract remains a supported extension boundary.
+Publication is authorized after required release gates pass (`seq-302`). The
+external Rust embedder provider/plugin contract is deprecated for future
+retirement, without removal in 0.8.27 (`seq-301`).
 
 `D27-runtime-topology` is ruled as Option B by HITL decision `seq-293`. That
 ruling selected the architectural direction. `seq-295` accepted the reviewed

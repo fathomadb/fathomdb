@@ -8,7 +8,7 @@ released section MUST list every removed public symbol under a `### Removed` hea
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
-## 0.8.27 — unreleased
+## 0.8.27 — 2026-10-10
 
 **Publication status: pending.** This release has not been tagged or published.
 

@@ -109,6 +109,15 @@ jobs:
           sudo mv actionlint /usr/local/bin/actionlint
       - name: Validate workflow YAML
         run: actionlint -config-file .github/actionlint.yaml .github/workflows/*.yml
+      - name: Require first-publish SDK API token before any release tier
+        if: ${{ env.RELEASE_TAG == 'v0.8.27' && (github.event_name != 'workflow_dispatch' || inputs.dry_run != true) }}
+        env:
+          SDK_FIRST_PUBLISH_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$SDK_FIRST_PUBLISH_TOKEN" ]; then
+            echo 'CARGO_REGISTRY_TOKEN is required for the first fathomdb-sdk publish' >&2
+            exit 1
+          fi
       - name: Run release gates
         # Runs on push (tag-format + version-axis enforced) and dispatch.
         # Dry runs require and verify the selected full candidate SHA; non-dry
@@ -1152,6 +1161,9 @@ jobs:
         run: bash scripts/release/wait-for-crate-version.sh fathomdb
       - name: cargo publish fathomdb-sdk
         # The Rust application SDK depends on fathomdb-engine (T5), like the facade.
+        # Its first publish at v0.8.27 cannot use trusted publishing because
+        # the crate does not exist yet. The repository API token is used only
+        # for that release; later versions use the temporary OIDC token.
         run: |
           if [ "${DRY_RUN}" = "true" ]; then
             bash scripts/release/cargo-publish-if-new.sh --dry-run fathomdb-sdk
@@ -1159,7 +1171,7 @@ jobs:
             bash scripts/release/cargo-publish-if-new.sh fathomdb-sdk
           fi
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.crates_io_auth.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ env.RELEASE_TAG == 'v0.8.27' && secrets.CARGO_REGISTRY_TOKEN || steps.crates_io_auth.outputs.token }}
       - name: Wait for fathomdb-sdk crates.io index propagation (poll, not sleep)
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
         run: bash scripts/release/wait-for-crate-version.sh fathomdb-sdk
@@ -1504,7 +1516,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        smoke: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && '["crates-cli","pypi-wheel"]' || '["crates-cli","pypi-wheel","npm-package"]') }}
+        smoke: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && '["crates-cli","pypi-wheel"]' || '["crates-cli","crates-sdk","pypi-wheel","npm-package"]') }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
@@ -1518,7 +1530,7 @@ jobs:
         with:
           node-version: "25.9.0"
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
-        if: matrix.smoke == 'crates-cli'
+        if: matrix.smoke == 'crates-cli' || matrix.smoke == 'crates-sdk'
         with:
           toolchain: "1.95.0"
       - name: Resolve tag version

@@ -903,7 +903,7 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
 name = "fathomdb"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "fathomdb-engine",
  "tempfile",
@@ -912,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-cli"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "clap",
  "fathomdb",
@@ -925,7 +925,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-embedder"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "candle-core-fathomdb",
  "candle-nn-fathomdb",
@@ -949,7 +949,7 @@ version = "0.6.1"
 
 [[package]]
 name = "fathomdb-engine"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "dirs",
  "dunce",
@@ -971,7 +971,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-napi"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",
@@ -989,7 +989,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-py"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",
@@ -1002,14 +1002,14 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-query"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "proptest",
 ]
 
 [[package]]
 name = "fathomdb-schema"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "proptest",
  "rusqlite",
@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-sdk"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",
@@ -1030,7 +1030,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-tc5-benchmark"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",

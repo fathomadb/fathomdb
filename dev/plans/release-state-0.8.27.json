@@ -1,10 +1,10 @@
 {
   "release": "0.8.27",
   "public_docs_target_release": "0.8.27",
-  "release_kind": "active implementation release; current work selected by next_slice and remaining_ladder",
+  "release_kind": "released; publication complete",
   "board": "dev/plans/runs/STATUS-0.8.27.md",
   "plan": "dev/plans/plan-0.8.27.md",
-  "active_ref": "refs/heads/release/0.8.27",
+  "active_ref": null,
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
   "schema_version": 34,
   "origin_main_schema_version": 34,
@@ -49,11 +49,11 @@
     {"slice": 135, "short": "PERFORMANCE-BASELINE", "title": "0.8.26 performance preservation and improvement qualification", "depends_on": [132], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-135/plan.md", "dev/plans/0.8.27/features/slice-135/phase1-checkpoint-2026-10-08.md", "dev/plans/0.8.27/features/slice-135/phase2-query-correctness-report-2026-10-08.md", "dev/plans/0.8.27/features/slice-135/phase2-gpu-sample-2026-10-08.md", "dev/plans/0.8.27/features/slice-135/closeout-review-2026-10-08.md", "dev/plans/0.8.27/features/slice-135/status.md"], "sha": "a815584b3b907596be00c501eca3ec140c3c7c88", "evidence": "Five-area diagnostic inquiry complete at product source 224e44c59 versus 0.8.26 f99e002f0. Phase 1 has exact-source paired engine and installed-SDK measurements, robustness/logic probes and explicit omissions. Phase 2 has audited deterministic, vector, judged retrieval, evidence and memory cells; generated answers unsupported. Candidate CPU-CUDA 10% query sample matched 611/611 ordered hit lists and gold scores. No confirmed candidate-specific deterministic wrong result; performance leads, vector-state differences, absolute evidence gaps and unsupported platform/fault cells are documented for follow-up. Independent scoped closeout review approved the bounded disposition. Three raw archives were verified and copied outside the worktree; full workspace gate passed 186/186 suites after executable changes. This is not final release qualification."},
     {"slice": 140, "short": "DOC-CONVERGENCE", "title": "documentation and structural convergence", "depends_on": [135], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-140/plan.md", "dev/plans/0.8.27/features/slice-140/design.md", "dev/plans/0.8.27/features/slice-140/design-review.md", "dev/plans/0.8.27/features/slice-140/large-file-review.md", "dev/plans/0.8.27/features/slice-140/status.md"], "sha": "3a69eef82e0381641e5bfbf7dcd8ed25141d97ff", "evidence": "0.8.27 documentation and SDK/contributor Pages source generation complete. TDD and independent design/code, three final documentation reviews, and Terra verification found no product defect. The final candidate's 39-file register matches tracked paths and line counts without a human approval gate; the approved hidden capture remains valid for unchanged Rust source. Full agent verification passed 196/196 suites with no skips or exclusions and strict security 0/0/0. Local package examples passed; 0.8.27 registries and Pages publication remain Slice 160 work. Slice 150 owns exact-final-candidate release qualification."},
     {"slice": 150, "short": "QUALIFICATION", "title": "integrated release qualification", "depends_on": [140], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-150/plan.md", "dev/plans/0.8.27/features/slice-150/design.md", "dev/plans/0.8.27/features/slice-150/design-review.md", "dev/plans/0.8.27/features/slice-150/code-review.md", "dev/plans/0.8.27/features/slice-150/surface-comparison.md", "dev/plans/0.8.27/features/slice-150/retention-survey.md", "dev/plans/0.8.27/features/slice-150/status.md"], "sha": "737d8b5737b0c827b457405076ec319d0aef081e", "evidence": "Owner-directed scoped closeout after Slice 140: public/hidden captures, Rust SDK 44/44 parity, fresh Rust source/Python wheel/Node package consumer proofs and frozen Memex oracle, plus retention survey and independent Sol review. Full agent-verify passed 196/196 at a5f7dd833. Subsequent README/feature-gate changes passed affected checks and the complete feature gate (136 passed, 5 documented ignores); temporary oracle retirement passed focused coverage, syntax and Markdown checks. The retired commit passed live strict security with 0 violations/blockers/downgrades. A post-retirement full verifier was interrupted at owner direction after security; no post-retirement full-gate pass is claimed. Windows, Jetson, registry-installed Rust, installed CUDA and publication proofs remain outside this local qualification; Slice 160 owns publication and post-publication checks."},
-    {"slice": 160, "short": "PUBLISH", "title": "publication to every registry and Pages destination with post-publication proofs", "depends_on": [150], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/design/release.md", "docs/operations/tegra-pages-publication.md"], "sha": null}
+    {"slice": 160, "short": "PUBLISH", "title": "publication to every registry and Pages destination with post-publication proofs", "depends_on": [150], "status": "LANDED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/design/release.md", "docs/operations/tegra-pages-publication.md"], "sha": "7ff7912e09d39fa6d1bd6447fd9eac28dd838613", "evidence": "Tagged candidate c82faa95 was published through release.yml run 38157785075: all seven Rust crates, PyPI and npm packages, five platform installed smokes, co-tagging and registry visibility passed. OIDC recovery run 38161349293 promoted fathomdb@0.8.27 to latest and created the public GitHub Release with five wheels. Jetson run 38159880956 published and smoke-tested the exact 0.8.27+tegra wheel and Tegra Node tarball on Pages; docs run 38160904316 preserved them and verified public bytes."}
   ],
-  "landed": [],
-  "next_slice": 160,
-  "remaining_ladder": [160],
+  "landed": [0,1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,85,90,100,103,110,114,115,117,120,130,132,135,140,150,160],
+  "next_slice": null,
+  "remaining_ladder": [],
   "decisions": {
     "unruled": [],
     "ruled": [
@@ -101,11 +101,8 @@
     ]
   },
   "release_readiness": null,
-  "published": null,
+  "published": {"tag": "v0.8.27", "tag_commit": "c82faa95d4e3dc19fe4e8da753ec6576ebcc458c", "published_on": "2026-10-11", "npm_dist_tag": "latest", "evidence": "Production release.yml run 38157785075 published crates.io, PyPI and npm packages with all required installed-package and co-tagging jobs green; its overall failure was the expired npm token and a non-gating Gitleaks advisory. OIDC recovery run 38161349293 promoted npm latest and created https://github.com/fathomadb/fathomdb/releases/tag/v0.8.27 with five platform wheels. Jetson Pages run 38159880956 passed the public wheel and Node tarball smokes. Docs Pages run 38160904316 passed live retained-artifact verification. Public npm latest resolves to 0.8.27."},
   "generated_views": [
-    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.27.md", "location": "Open decisions", "renders": "the count of unruled decisions"},
-    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.27.md", "location": "Immediate next slice", "renders": "the next slice and remaining ladder"},
-    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.27.md", "location": "Current state", "renders": "the next slice and release-branch completion set"},
-    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.27.md", "location": "Immediate next action", "renders": "the lifecycle-aware next action"}
+    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.27.md", "location": "Open decisions", "renders": "the count of unruled decisions"}
   ]
 }

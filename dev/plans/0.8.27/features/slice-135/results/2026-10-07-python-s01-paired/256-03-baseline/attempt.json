@@ -1,0 +1,11 @@
+{
+  "comparison_protocol_sha256": "899b357a43b487d63c633fe1bc06086212293e81a331fd2a8ae5bd03412f2064",
+  "invalidators": [],
+  "protocol_sha256": "48bb4e6fbbade083a2c3c11f2a6cf3420018489b0bed354a5d4f81c46ae894af",
+  "role": "baseline",
+  "runner_sha256": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "status": "VALID_S01_PAIRED_BLOCK",
+  "summary_sha256": "0fa61d086440580a801f99dc64a80ad43fe4e07b75ac6fc82c59cb94809ccf9b",
+  "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+}

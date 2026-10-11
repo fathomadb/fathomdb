@@ -1,0 +1,195 @@
+
+## B-early-a0-fallback-h1000k  pass 0/15
+   node=v25.9.0 arm=0 mode=fallback order=early heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:16:05Z
+   early-init: {'cuInit=none': 15}
+   alloc paths: {'ctx=0 ': 15}   first-ctx default_pool: {}
+   heapUsedMiB 161..161  before-open window: maps 318..351 largest_hole_GiB 1.8..3.26 max_resv_GiB 0..0
+   ms median: import 19.2 open - embed1 - embedSteady - rerank1 - interleaved - exit-after-last-js 49.0 wall 346.0
+   import delta: rss MiB 9.0 vsz MiB 820.0
+   FAIL x15: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## B-early-a0-fallback-h200k  pass 5/5
+   node=v25.9.0 arm=0 mode=fallback order=early heap=200000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:16:11Z
+   early-init: {'cuInit=none': 5}
+   alloc paths: {'ctx=9 sync/-': 5}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 5}
+   heapUsedMiB 37..37  before-open window: maps 88..106 largest_hole_GiB 5.57..7.1 max_resv_GiB 0..0
+   ms median: import 19.2 open 1374.3 embed1 53.8 embedSteady 25.7 rerank1 100.7 interleaved - exit-after-last-js 141.0 wall 2105.0
+   import delta: rss MiB 9.0 vsz MiB 820.0
+
+## B-early-a0-fallback-h4000k  pass 0/5
+   node=v25.9.0 arm=0 mode=fallback order=early heap=4000000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:16:22Z
+   early-init: {'cuInit=none': 5}
+   alloc paths: {'ctx=0 ': 5}   first-ctx default_pool: {}
+   heapUsedMiB 614..639  before-open window: maps 1174..1249 largest_hole_GiB 0.63..1.16 max_resv_GiB 0..0
+   ms median: import 18.9 open - embed1 - embedSteady - rerank1 - interleaved - exit-after-last-js 118.0 wall 1184.0
+   import delta: rss MiB 9.0 vsz MiB 820.0
+   FAIL x5: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## B-early-a0-fallback-h400k  pass 9/15
+   node=v25.9.0 arm=0 mode=fallback order=early heap=400000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:15:41Z
+   early-init: {'cuInit=none': 15}
+   alloc paths: {'ctx=9 sync/-': 9, 'ctx=0 ': 6}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 9}
+   heapUsedMiB 73..74  before-open window: maps 132..164 largest_hole_GiB 3.18..6.72 max_resv_GiB 0..0
+   ms median: import 20.2 open 1389.3 embed1 55.1 embedSteady 26.0 rerank1 120.3 interleaved - exit-after-last-js 137.0 wall 1933.0
+   import delta: rss MiB 8.0 vsz MiB 820.0
+   FAIL x6: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## B-early-a1-fallback-h1000k  pass 15/15
+   node=v25.9.0 arm=1 mode=fallback order=early heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:17:00Z
+   early-init: {'cuInit=CUDA_SUCCESS': 15}
+   alloc paths: {'ctx=9 sync/-': 11, 'ctx=9 async/-': 4}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 11, 'CUDA_SUCCESS': 4}
+   heapUsedMiB 161..168  before-open window: maps 161..192 largest_hole_GiB 1.32..2.65 max_resv_GiB 7.67..38.35
+   ms median: import 31.1 open 1352.6 embed1 54.1 embedSteady 24.9 rerank1 153.8 interleaved - exit-after-last-js 222.0 wall 2261.0
+   import delta: rss MiB 11.0 vsz MiB 63787.0
+
+## B-early-a1-fallback-h200k  pass 5/5
+   node=v25.9.0 arm=1 mode=fallback order=early heap=200000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:17:34Z
+   early-init: {'cuInit=CUDA_SUCCESS': 5}
+   alloc paths: {'ctx=9 sync/-': 5}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 5}
+   heapUsedMiB 37..37  before-open window: maps 58..70 largest_hole_GiB 3.2..5.55 max_resv_GiB 15.34..23.01
+   ms median: import 31.0 open 1363.1 embed1 59.5 embedSteady 25.4 rerank1 131.4 interleaved - exit-after-last-js 174.0 wall 2172.0
+   import delta: rss MiB 11.0 vsz MiB 63787.0
+
+## B-early-a1-fallback-h4000k  pass 5/5
+   node=v25.9.0 arm=1 mode=fallback order=early heap=4000000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:17:46Z
+   early-init: {'cuInit=CUDA_SUCCESS': 5}
+   alloc paths: {'ctx=9 sync/-': 4, 'ctx=9 async/-': 1}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 4, 'CUDA_SUCCESS': 1}
+   heapUsedMiB 613..639  before-open window: maps 590..647 largest_hole_GiB 0.5..0.62 max_resv_GiB 15.34..30.68
+   ms median: import 30.5 open 1221.8 embed1 51.0 embedSteady 26.0 rerank1 149.2 interleaved - exit-after-last-js 277.0 wall 3071.0
+   import delta: rss MiB 11.0 vsz MiB 63787.0
+
+## B-early-a1-fallback-h400k  pass 15/15
+   node=v25.9.0 arm=1 mode=fallback order=early heap=400000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:16:28Z
+   early-init: {'cuInit=CUDA_SUCCESS': 15}
+   alloc paths: {'ctx=9 sync/-': 11, 'ctx=9 async/-': 4}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 11, 'CUDA_SUCCESS': 4}
+   heapUsedMiB 73..73  before-open window: maps 75..99 largest_hole_GiB 2.45..6.43 max_resv_GiB 15.34..38.35
+   ms median: import 30.8 open 1078.3 embed1 54.0 embedSteady 24.6 rerank1 146.1 interleaved - exit-after-last-js 175.0 wall 1996.0
+   import delta: rss MiB 13.0 vsz MiB 63787.0
+
+## B-early-a2-fallback-h1000k  pass 15/15
+   node=v25.9.0 arm=2 mode=fallback order=early heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:18:36Z
+   early-init: {'cuInit=CUDA_SUCCESS': 15}
+   alloc paths: {'ctx=9 sync/-': 11, 'ctx=9 async/-': 4}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 11, 'CUDA_SUCCESS': 4}
+   heapUsedMiB 161..165  before-open window: maps 186..224 largest_hole_GiB 1.47..2.48 max_resv_GiB 15.3..30.64
+   ms median: import 82.6 open 1304.2 embed1 53.5 embedSteady 25.3 rerank1 132.5 interleaved - exit-after-last-js 218.0 wall 2335.0
+   import delta: rss MiB 110.0 vsz MiB 63877.0
+
+## B-early-a2-fallback-h200k  pass 5/5
+   node=v25.9.0 arm=2 mode=fallback order=early heap=200000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:19:13Z
+   early-init: {'cuInit=CUDA_SUCCESS': 5}
+   alloc paths: {'ctx=9 sync/-': 2, 'ctx=9 async/-': 3}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 2, 'CUDA_SUCCESS': 3}
+   heapUsedMiB 37..37  before-open window: maps 79..93 largest_hole_GiB 3.91..7.29 max_resv_GiB 15.3..30.64
+   ms median: import 81.2 open 1299.8 embed1 47.1 embedSteady 14.9 rerank1 143.6 interleaved - exit-after-last-js 171.0 wall 2129.0
+   import delta: rss MiB 112.0 vsz MiB 63877.0
+
+## B-early-a2-fallback-h4000k  pass 5/5
+   node=v25.9.0 arm=2 mode=fallback order=early heap=4000000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:19:24Z
+   early-init: {'cuInit=CUDA_SUCCESS': 5}
+   alloc paths: {'ctx=9 sync/-': 5}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 5}
+   heapUsedMiB 616..639  before-open window: maps 641..667 largest_hole_GiB 0.53..0.74 max_resv_GiB 15.34..22.97
+   ms median: import 79.5 open 1040.5 embed1 53.6 embedSteady 24.9 rerank1 150.0 interleaved - exit-after-last-js 257.0 wall 2942.0
+   import delta: rss MiB 111.0 vsz MiB 63877.0
+
+## B-early-a2-fallback-h400k  pass 15/15
+   node=v25.9.0 arm=2 mode=fallback order=early heap=400000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:18:02Z
+   early-init: {'cuInit=CUDA_SUCCESS': 15}
+   alloc paths: {'ctx=9 sync/-': 12, 'ctx=9 async/-': 3}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 12, 'CUDA_SUCCESS': 3}
+   heapUsedMiB 73..73  before-open window: maps 96..127 largest_hole_GiB 2.61..4.22 max_resv_GiB 7.67..30.64
+   ms median: import 83.9 open 1292.3 embed1 54.1 embedSteady 25.1 rerank1 145.4 interleaved - exit-after-last-js 183.0 wall 2190.0
+   import delta: rss MiB 112.0 vsz MiB 63877.0
+
+## B-early-a2-pool-h1000k  pass 15/15
+   node=v25.9.0 arm=2 mode=pool order=early heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:23:31Z
+   early-init: {'cuInit=CUDA_SUCCESS': 15}
+   alloc paths: {'ctx=9 async/explicit-created,async/explicit-reused': 11, 'ctx=9 async/default': 4}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 11, 'CUDA_SUCCESS': 4}
+   heapUsedMiB 161..165  before-open window: maps 186..224 largest_hole_GiB 1.27..2.95 max_resv_GiB 15.34..30.68
+   ms median: import 75.9 open 1286.1 embed1 43.9 embedSteady 11.5 rerank1 144.6 interleaved - exit-after-last-js 218.0 wall 2245.0
+   import delta: rss MiB 112.0 vsz MiB 63877.0
+
+## B-early-a2-pool-h200k  pass 5/5
+   node=v25.9.0 arm=2 mode=pool order=early heap=200000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:24:06Z
+   early-init: {'cuInit=CUDA_SUCCESS': 5}
+   alloc paths: {'ctx=9 async/default': 3, 'ctx=9 async/explicit-created,async/explicit-reused': 2}   first-ctx default_pool: {'CUDA_SUCCESS': 3, 'CUDA_ERROR_OUT_OF_MEMORY': 2}
+   heapUsedMiB 37..37  before-open window: maps 81..88 largest_hole_GiB 3.71..6.6 max_resv_GiB 15.34..53.65
+   ms median: import 74.2 open 1313.0 embed1 42.7 embedSteady 10.3 rerank1 133.7 interleaved - exit-after-last-js 183.0 wall 2045.0
+   import delta: rss MiB 112.0 vsz MiB 63877.0
+
+## B-early-a2-pool-h4000k  pass 5/5
+   node=v25.9.0 arm=2 mode=pool order=early heap=4000000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:24:18Z
+   early-init: {'cuInit=CUDA_SUCCESS': 5}
+   alloc paths: {'ctx=9 async/default': 1, 'ctx=9 async/explicit-created,async/explicit-reused': 4}   first-ctx default_pool: {'CUDA_SUCCESS': 1, 'CUDA_ERROR_OUT_OF_MEMORY': 4}
+   heapUsedMiB 614..637  before-open window: maps 624..657 largest_hole_GiB 0.55..0.7 max_resv_GiB 15.3..30.64
+   ms median: import 75.2 open 1292.4 embed1 44.5 embedSteady 10.2 rerank1 121.8 interleaved - exit-after-last-js 253.0 wall 2940.0
+   import delta: rss MiB 112.0 vsz MiB 63877.0
+
+## B-early-a2-pool-h400k  pass 15/15
+   node=v25.9.0 arm=2 mode=pool order=early heap=400000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:22:58Z
+   early-init: {'cuInit=CUDA_SUCCESS': 15}
+   alloc paths: {'ctx=9 async/explicit-created,async/explicit-reused': 12, 'ctx=9 async/default': 3}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 12, 'CUDA_SUCCESS': 3}
+   heapUsedMiB 73..73  before-open window: maps 105..135 largest_hole_GiB 2.1..4.17 max_resv_GiB 15.3..30.64
+   ms median: import 77.3 open 1300.7 embed1 44.3 embedSteady 11.3 rerank1 155.0 interleaved - exit-after-last-js 187.0 wall 2117.0
+   import delta: rss MiB 110.0 vsz MiB 63877.0
+
+## B-early-a3-fallback-h1000k  pass 15/15
+   node=v25.9.0 arm=3 mode=fallback order=early heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:20:13Z
+   early-init: {'cuInit=CUDA_SUCCESS defpool=CUDA_SUCCESS': 4, 'cuInit=CUDA_SUCCESS defpool=CUDA_ERROR_OUT_OF_MEMORY': 11}
+   alloc paths: {'ctx=9 async/-': 4, 'ctx=9 sync/-': 11}   first-ctx default_pool: {'CUDA_SUCCESS': 4, 'CUDA_ERROR_OUT_OF_MEMORY': 11}
+   heapUsedMiB 161..168  before-open window: maps 188..221 largest_hole_GiB 1.34..3.38 max_resv_GiB 15.3..23.01
+   ms median: import 83.0 open 1294.9 embed1 56.0 embedSteady 24.9 rerank1 152.7 interleaved - exit-after-last-js 199.0 wall 2324.0
+   import delta: rss MiB 112.0 vsz MiB 63877.0
+
+## B-early-a3-fallback-h200k  pass 5/5
+   node=v25.9.0 arm=3 mode=fallback order=early heap=200000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:20:50Z
+   early-init: {'cuInit=CUDA_SUCCESS defpool=CUDA_ERROR_OUT_OF_MEMORY': 4, 'cuInit=CUDA_SUCCESS defpool=CUDA_SUCCESS': 1}
+   alloc paths: {'ctx=9 sync/-': 4, 'ctx=9 async/-': 1}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 4, 'CUDA_SUCCESS': 1}
+   heapUsedMiB 37..37  before-open window: maps 84..100 largest_hole_GiB 3.43..4.42 max_resv_GiB 15.3..23.01
+   ms median: import 82.7 open 1301.8 embed1 57.4 embedSteady 24.5 rerank1 155.4 interleaved - exit-after-last-js 199.0 wall 2208.0
+   import delta: rss MiB 111.0 vsz MiB 63878.0
+
+## B-early-a3-fallback-h4000k  pass 5/5
+   node=v25.9.0 arm=3 mode=fallback order=early heap=4000000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:21:01Z
+   early-init: {'cuInit=CUDA_SUCCESS defpool=CUDA_ERROR_OUT_OF_MEMORY': 4, 'cuInit=CUDA_SUCCESS defpool=CUDA_SUCCESS': 1}
+   alloc paths: {'ctx=9 sync/-': 4, 'ctx=9 async/-': 1}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 4, 'CUDA_SUCCESS': 1}
+   heapUsedMiB 613..638  before-open window: maps 648..674 largest_hole_GiB 0.55..0.75 max_resv_GiB 15.3..20.51
+   ms median: import 85.1 open 1309.2 embed1 55.1 embedSteady 26.3 rerank1 138.6 interleaved - exit-after-last-js 260.0 wall 3230.0
+   import delta: rss MiB 112.0 vsz MiB 64216.0
+
+## B-early-a3-fallback-h400k  pass 15/15
+   node=v25.9.0 arm=3 mode=fallback order=early heap=400000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:19:40Z
+   early-init: {'cuInit=CUDA_SUCCESS defpool=CUDA_ERROR_OUT_OF_MEMORY': 10, 'cuInit=CUDA_SUCCESS defpool=CUDA_SUCCESS': 5}
+   alloc paths: {'ctx=9 sync/-': 10, 'ctx=9 async/-': 5}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 10, 'CUDA_SUCCESS': 5}
+   heapUsedMiB 73..73  before-open window: maps 108..128 largest_hole_GiB 2.33..6.74 max_resv_GiB 15.3..23.01
+   ms median: import 85.0 open 1273.0 embed1 52.8 embedSteady 24.5 rerank1 135.4 interleaved - exit-after-last-js 173.0 wall 2062.0
+   import delta: rss MiB 114.0 vsz MiB 63878.0
+
+## B-early-a4-pool-h1000k  pass 15/15
+   node=v25.9.0 arm=4 mode=pool order=early heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:21:55Z
+   early-init: {'cuInit=CUDA_SUCCESS explicit_ok=true': 15}
+   alloc paths: {'ctx=9 async/explicit-reused': 15}   first-ctx default_pool: {'CUDA_ERROR_NOT_PERMITTED': 15}
+   heapUsedMiB 161..165  before-open window: maps 200..233 largest_hole_GiB 1.57..2.06 max_resv_GiB 14.25..29.59
+   ms median: import 93.3 open 1281.5 embed1 44.4 embedSteady 13.6 rerank1 154.0 interleaved - exit-after-last-js 225.0 wall 2243.0
+   import delta: rss MiB 120.0 vsz MiB 63886.0
+
+## B-early-a4-pool-h200k  pass 5/5
+   node=v25.9.0 arm=4 mode=pool order=early heap=200000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:22:31Z
+   early-init: {'cuInit=CUDA_SUCCESS explicit_ok=true': 5}
+   alloc paths: {'ctx=9 async/explicit-reused': 5}   first-ctx default_pool: {'CUDA_ERROR_NOT_PERMITTED': 5}
+   heapUsedMiB 37..37  before-open window: maps 84..98 largest_hole_GiB 3.58..6.18 max_resv_GiB 15.34..23.01
+   ms median: import 94.6 open 1282.0 embed1 41.6 embedSteady 12.3 rerank1 143.3 interleaved - exit-after-last-js 197.0 wall 2029.0
+   import delta: rss MiB 121.0 vsz MiB 63886.0
+
+## B-early-a4-pool-h4000k  pass 5/5
+   node=v25.9.0 arm=4 mode=pool order=early heap=4000000 count=5 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:22:42Z
+   early-init: {'cuInit=CUDA_SUCCESS explicit_ok=true': 5}
+   alloc paths: {'ctx=9 async/explicit-reused': 5}   first-ctx default_pool: {'CUDA_ERROR_NOT_PERMITTED': 5}
+   heapUsedMiB 613..658  before-open window: maps 616..674 largest_hole_GiB 0.63..0.89 max_resv_GiB 14.25..29.59
+   ms median: import 91.6 open 1292.0 embed1 44.9 embedSteady 14.5 rerank1 151.7 interleaved - exit-after-last-js 270.0 wall 3022.0
+   import delta: rss MiB 120.0 vsz MiB 63886.0
+
+## B-early-a4-pool-h400k  pass 15/15
+   node=v25.9.0 arm=4 mode=pool order=early heap=400000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:21:18Z
+   early-init: {'cuInit=CUDA_SUCCESS explicit_ok=true': 15}
+   alloc paths: {'ctx=9 async/explicit-reused': 15}   first-ctx default_pool: {'CUDA_ERROR_NOT_PERMITTED': 15}
+   heapUsedMiB 73..73  before-open window: maps 106..137 largest_hole_GiB 2.21..5.69 max_resv_GiB 7.67..29.59
+   ms median: import 95.5 open 1840.1 embed1 46.2 embedSteady 10.8 rerank1 127.6 interleaved - exit-after-last-js 201.0 wall 2607.0
+   import delta: rss MiB 120.0 vsz MiB 63886.0

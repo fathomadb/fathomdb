@@ -1,0 +1,401 @@
+[
+  {
+    "label": "warmup",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5517896859,
+    "raw_sha256": "6b986e5ab7a24981f3451f184734a28f27428310d2c8bf723519b33f60a5d37a",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.04,
+      "system_cpu_s": 10.3,
+      "peak_rss_kib": 314976,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-001",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5436709678,
+    "raw_sha256": "f2d5cf04d39ac0d899eaa366b7ef75be935266383d8f0c230b970be0feaa81bd",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.92,
+      "system_cpu_s": 10.27,
+      "peak_rss_kib": 314452,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-002",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5399617557,
+    "raw_sha256": "6c66d67a9912a208cbb28367aa02e78a71d95bda6705d95e186ff003df1c0ecd",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.87,
+      "system_cpu_s": 10.48,
+      "peak_rss_kib": 313868,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-003",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5454226613,
+    "raw_sha256": "e78afa6f27086e732cffc3218552e46420b8338c2191a900a469e7fa96ca96c1",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.97,
+      "system_cpu_s": 10.7,
+      "peak_rss_kib": 313356,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-004",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5455940139,
+    "raw_sha256": "0c22222a5755072b095a1276cce2c4bc6c8df45217db852c393a8240ceacf108",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.95,
+      "system_cpu_s": 10.64,
+      "peak_rss_kib": 313808,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-005",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5395791621,
+    "raw_sha256": "8f541248addb1f8c4e181fc624523a7356919c4a34a42efcbc5c2996440e32ed",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.75,
+      "system_cpu_s": 10.48,
+      "peak_rss_kib": 315416,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-006",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5334742993,
+    "raw_sha256": "8f20e5ca39181ff22203c37b5a0e931ba3dae1723af2b5cdc42a795274d296c7",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.07,
+      "system_cpu_s": 10.01,
+      "peak_rss_kib": 314816,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-007",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5353376584,
+    "raw_sha256": "5f3fc4d63a3e8a6ad31240e5713fa41310962e79fb708220ca866918ffc329bc",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.1,
+      "system_cpu_s": 10.22,
+      "peak_rss_kib": 313852,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-008",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5385739182,
+    "raw_sha256": "bc296118c4d8152609abe045fd15517c0f296f7523654c8c657850a8e4feee87",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.1,
+      "system_cpu_s": 10.35,
+      "peak_rss_kib": 315664,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-009",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5456780529,
+    "raw_sha256": "26bae28bf1b50e6cf6da68305e29d3efe4ab25fed3353e7afb3ad9ca12bad344",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.44,
+      "system_cpu_s": 10.58,
+      "peak_rss_kib": 315072,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-010",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5449975734,
+    "raw_sha256": "a0917646d183fd5d803ba8295cec1cd7aabbe2076b80d30917631a469587b7da",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.17,
+      "system_cpu_s": 10.08,
+      "peak_rss_kib": 314636,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-011",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5429273351,
+    "raw_sha256": "27a92120cc93e97ff90f172006a76d11842fa7bf768911dc7184e0a0e175815d",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.66,
+      "system_cpu_s": 10.6,
+      "peak_rss_kib": 314460,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-012",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5390797286,
+    "raw_sha256": "81e29ea3076812ebbaeb3a531240b532722db0a6a7748e544357a1490461f5f5",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.93,
+      "system_cpu_s": 10.29,
+      "peak_rss_kib": 314396,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-013",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5448979761,
+    "raw_sha256": "747b09ae11c95aa38dfd509cdbddc56ef7f27f33aa0c45d46ec73f7945420a51",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.88,
+      "system_cpu_s": 10.36,
+      "peak_rss_kib": 315288,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-014",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5428927817,
+    "raw_sha256": "736f4280c4ee06d3f118f4512c9cbb44fae0f79ced848da64dd385e8aaefb042",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.49,
+      "system_cpu_s": 10.08,
+      "peak_rss_kib": 314056,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-015",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5394783101,
+    "raw_sha256": "e5425744fa26718a64c799a402cc74876ba5767c2b3b81ed541fbc098e73b746",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.07,
+      "system_cpu_s": 10.59,
+      "peak_rss_kib": 314104,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-016",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5479195593,
+    "raw_sha256": "2452bf142ed8a6fc23c5ef024fa9068eac3f4d9e5d16378ffb0be802cc59b57c",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.93,
+      "system_cpu_s": 10.49,
+      "peak_rss_kib": 314708,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-017",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5573829445,
+    "raw_sha256": "526b74ad02f970025cec5e7f38054b9329d3850f9aa208efaebc134f6bd592ce",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.76,
+      "system_cpu_s": 10.81,
+      "peak_rss_kib": 314672,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-018",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5496636817,
+    "raw_sha256": "176532a764b8f97bad0054e51243a6c5b05097f87b87c19590d15bd097cf2a6e",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.06,
+      "system_cpu_s": 10.78,
+      "peak_rss_kib": 314812,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-019",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5530415930,
+    "raw_sha256": "664bfb63e45718254623563e3078e805f8ce3f408d049164f43b12bcff876e02",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 29.14,
+      "system_cpu_s": 10.83,
+      "peak_rss_kib": 315168,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  },
+  {
+    "label": "sample-020",
+    "valid": true,
+    "invalidators": [],
+    "whole_product_ns": 5451097665,
+    "raw_sha256": "b2da15dabbf5a626eb5f25e997db2559789c95b50fce00ea7c372c6b8a6c52e7",
+    "resource": {
+      "scope": "measured-workload-child-process",
+      "method": "gnu-time",
+      "user_cpu_s": 28.74,
+      "system_cpu_s": 10.44,
+      "peak_rss_kib": 315560,
+      "fs_inputs": 0,
+      "fs_outputs": 11608,
+      "major_faults": 0,
+      "swap_events": 0,
+      "unsupported": []
+    }
+  }
+]

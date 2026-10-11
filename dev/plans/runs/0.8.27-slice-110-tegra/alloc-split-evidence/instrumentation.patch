@@ -1,0 +1,281 @@
+diff --git a/src/rust/crates/fathomdb-embedder/src/candle_bge.rs b/src/rust/crates/fathomdb-embedder/src/candle_bge.rs
+index 8a4ebc6af..478f024af 100644
+--- a/src/rust/crates/fathomdb-embedder/src/candle_bge.rs
++++ b/src/rust/crates/fathomdb-embedder/src/candle_bge.rs
+@@ -246,7 +246,20 @@ impl CudaProvider for CandleCudaProvider {
+         #[cfg(feature = "embed-cuda")]
+         {
+             let device = Device::new_cuda(ordinal).map_err(classify_candle_cuda_error)?;
+-            Tensor::zeros(1, DType::F32, &device).map_err(classify_candle_cuda_error)?;
++            // SLICE110-ALLOC-SPLIT TEMP DIAGNOSTIC BEGIN
++            let slice110_diag = std::env::var_os("FATHOMDB_SLICE110_ALLOC_SPLIT").is_some();
++            if slice110_diag {
++                slice110_alloc_split_diag(&device, ordinal);
++            }
++            let slice110_zeros = Tensor::zeros(1, DType::F32, &device);
++            if slice110_diag {
++                match &slice110_zeros {
++                    Ok(_) => eprintln!("slice110-alloc-split S5b_tensor_zeros_f32_1: ok"),
++                    Err(e) => eprintln!("slice110-alloc-split S5b_tensor_zeros_f32_1: ERR {e:?}"),
++                }
++            }
++            slice110_zeros.map_err(classify_candle_cuda_error)?;
++            // SLICE110-ALLOC-SPLIT TEMP DIAGNOSTIC END
+             let visible = self
+                 .enumerate_visible_cuda_devices()?
+                 .into_iter()
+@@ -272,6 +285,254 @@ impl CudaProvider for CandleCudaProvider {
+     }
+ }
+ 
++// SLICE110-ALLOC-SPLIT TEMP DIAGNOSTIC BEGIN
++#[cfg(feature = "embed-cuda")]
++#[allow(clippy::too_many_lines, clippy::print_stderr)]
++fn slice110_alloc_split_diag(device: &Device, ordinal: usize) {
++    use candle_core::cuda::cudarc::driver::sys;
++    macro_rules! out {
++        ($($t:tt)*) => { eprintln!("slice110-alloc-split {}", format!($($t)*)) };
++    }
++    let pid = std::process::id();
++    let tid = std::fs::read_link("/proc/thread-self")
++        .ok()
++        .and_then(|p| p.file_name().map(|s| s.to_string_lossy().into_owned()))
++        .unwrap_or_default();
++    let tname = std::thread::current().name().map(str::to_owned);
++    out!("P0_thread pid={pid} tid={tid} is_main={} thread_name={tname:?}", tid == pid.to_string());
++    if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
++        let keep: Vec<&str> = status
++            .lines()
++            .filter(|l| {
++                ["VmPeak", "VmSize", "VmRSS", "Threads"]
++                    .iter()
++                    .any(|k| l.starts_with(k))
++            })
++            .collect();
++        out!("P0_status {}", keep.join(" | ").split_whitespace().collect::<Vec<_>>().join(" "));
++    }
++    let dump_maps = |tag: &str| {
++        let Ok(maps) = std::fs::read_to_string("/proc/self/maps") else {
++            return;
++        };
++        let mut n = 0usize;
++        let mut total: u64 = 0;
++        let mut hi: u64 = 0;
++        let mut biggest: Vec<(u64, u64, String)> = Vec::new();
++        for line in maps.lines() {
++            let mut parts = line.split_whitespace();
++            let Some(range) = parts.next() else { continue };
++            let Some((a, b)) = range.split_once('-') else { continue };
++            let (Ok(a), Ok(b)) = (u64::from_str_radix(a, 16), u64::from_str_radix(b, 16)) else {
++                continue;
++            };
++            let name = parts.nth(4).unwrap_or("").to_owned();
++            n += 1;
++            total += b - a;
++            hi = hi.max(b);
++            biggest.push((b - a, a, name));
++        }
++        biggest.sort_by(|x, y| y.0.cmp(&x.0));
++        let top: Vec<String> = biggest
++            .iter()
++            .take(4)
++            .map(|(s, a, nm)| format!("{:#x}+{}MiB{}", a, s >> 20, if nm.is_empty() { String::new() } else { format!("({nm})") }))
++            .collect();
++        out!("P0_maps_{tag} n={n} total_va_mib={} highest_end={hi:#x} top4=[{}]", total >> 20, top.join(","));
++        if let Some(dir) = std::env::var_os("FATHOMDB_SLICE110_MAPS_DIR") {
++            let path = std::path::Path::new(&dir).join(format!("maps-{pid}-{tag}.txt"));
++            let _ = std::fs::write(path, maps);
++        }
++    };
++    dump_maps("start");
++
++    let Ok(cuda) = device.as_cuda_device() else {
++        out!("P0 not a cuda device");
++        return;
++    };
++    let stream = cuda.cuda_stream();
++    let ctx = stream.context().clone();
++    let cu_stream = stream.cu_stream();
++    let mut cur_ctx: sys::CUcontext = std::ptr::null_mut();
++    let r_cur = unsafe { sys::cuCtxGetCurrent(&mut cur_ctx) };
++    let mut flags: std::ffi::c_uint = 0;
++    let r_flags = unsafe { sys::cuCtxGetFlags(&mut flags) };
++    out!(
++        "P0_ctx ordinal={ordinal} cudarc_ctx={:p} current_ctx={:?}/{:p} ctx_flags={:?}/{flags:#x} stream={:p} event_tracking={} multi_stream={}",
++        ctx.cu_ctx(), r_cur, cur_ctx, r_flags, cu_stream, ctx.is_event_tracking(), ctx.is_in_multi_stream_mode()
++    );
++    let mem_info = |tag: &str| {
++        let (mut free, mut total) = (0usize, 0usize);
++        let r = unsafe { sys::cuMemGetInfo_v2(&mut free, &mut total) };
++        out!("P0_meminfo_{tag} {r:?} free={free} total={total}");
++    };
++    mem_info("start");
++
++    // S0: pending stored (swallowed) error in cudarc context; restored so later steps see it.
++    match ctx.check_err() {
++        Ok(()) => out!("S0_pending_stored_err: none"),
++        Err(e) => {
++            out!("S0_pending_stored_err: {e:?}");
++            ctx.record_err::<()>(Err(e));
++        }
++    }
++
++    // S1: memory-pool attribute cudarc consults.
++    let attr = ctx.attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED);
++    out!(
++        "S1_memory_pools_supported attr={attr:?} cudarc_has_async_alloc={} => path={}",
++        ctx.has_async_alloc(),
++        if ctx.has_async_alloc() { "cuMemAllocAsync/cuMemFreeAsync" } else { "cuMemAlloc_v2/cuMemFree_v2" }
++    );
++    let mut def_pool: sys::CUmemoryPool = std::ptr::null_mut();
++    let r_dp = unsafe { sys::cuDeviceGetDefaultMemPool(&mut def_pool, ctx.cu_device()) };
++    let mut cur_pool: sys::CUmemoryPool = std::ptr::null_mut();
++    let r_cp = unsafe { sys::cuDeviceGetMemPool(&mut cur_pool, ctx.cu_device()) };
++    let pool_attrs = |tag: &str, pool: sys::CUmemoryPool| {
++        let mut vals = Vec::new();
++        for (name, a) in [
++            ("release_threshold", sys::CUmemPool_attribute_enum::CU_MEMPOOL_ATTR_RELEASE_THRESHOLD),
++            ("reserved_cur", sys::CUmemPool_attribute_enum::CU_MEMPOOL_ATTR_RESERVED_MEM_CURRENT),
++            ("reserved_high", sys::CUmemPool_attribute_enum::CU_MEMPOOL_ATTR_RESERVED_MEM_HIGH),
++            ("used_cur", sys::CUmemPool_attribute_enum::CU_MEMPOOL_ATTR_USED_MEM_CURRENT),
++        ] {
++            let mut v: u64 = 0;
++            let r = unsafe { sys::cuMemPoolGetAttribute(pool, a, (&mut v as *mut u64).cast()) };
++            vals.push(format!("{name}={r:?}/{v}"));
++        }
++        out!("P0_pool_{tag} {}", vals.join(" "));
++    };
++    out!("P0_pools default={r_dp:?}/{def_pool:p} current={r_cp:?}/{cur_pool:p}");
++    if !def_pool.is_null() {
++        pool_attrs("default_before", def_pool);
++    }
++    let check_stored = |tag: &str| {
++        if let Err(e) = ctx.check_err() {
++            out!("{tag}_stored_err_after: {e:?} (cleared)");
++        }
++    };
++
++    // S2: synchronous allocation.
++    let mut p: sys::CUdeviceptr = 0;
++    let r = unsafe { sys::cuMemAlloc_v2(&mut p, 4) };
++    out!("S2_cuMemAlloc_v2_4: {r:?} ptr={p:#x}");
++    if r == sys::CUresult::CUDA_SUCCESS {
++        let r = unsafe { sys::cuMemFree_v2(p) };
++        out!("S2_cuMemFree_v2: {r:?}");
++    }
++    check_stored("S2");
++
++    // S3: cudarc CudaStream::alloc::<u8>(4) alone (bind_to_thread, cuMemAllocAsync, cuEventCreate x2).
++    let s3 = unsafe { stream.alloc::<u8>(4) };
++    let mut s3_slice = match s3 {
++        Ok(s) => {
++            use candle_core::cuda::cudarc::driver::DevicePtr;
++            {
++                let (ptr, _g) = s.device_ptr(&stream);
++                out!("S3_stream_alloc_u8_4: ok ptr={ptr:#x}");
++            }
++            Some(s)
++        }
++        Err(e) => {
++            out!("S3_stream_alloc_u8_4: ERR {e:?}");
++            None
++        }
++    };
++    check_stored("S3");
++    // S3 raw decomposition on the same stream.
++    let mut p: sys::CUdeviceptr = 0;
++    let r = unsafe { sys::cuMemAllocAsync(&mut p, 4, cu_stream) };
++    out!("S3r_cuMemAllocAsync_4_raw: {r:?} ({}) ptr={p:#x}", r as u32);
++    if r == sys::CUresult::CUDA_SUCCESS {
++        let r2 = unsafe { sys::cuMemFreeAsync(p, cu_stream) };
++        let r3 = unsafe { sys::cuStreamSynchronize(cu_stream) };
++        out!("S3r_cuMemFreeAsync: {r2:?} sync={r3:?}");
++    }
++    let mut ev: sys::CUevent = std::ptr::null_mut();
++    let r = unsafe { sys::cuEventCreate(&mut ev, 0x2) };
++    out!("S3r_cuEventCreate_disable_timing: {r:?}");
++    if r == sys::CUresult::CUDA_SUCCESS {
++        unsafe { sys::cuEventDestroy_v2(ev) };
++    }
++    if !def_pool.is_null() {
++        let mut p: sys::CUdeviceptr = 0;
++        let r = unsafe { sys::cuMemAllocFromPoolAsync(&mut p, 4, def_pool, cu_stream) };
++        out!("S3r_cuMemAllocFromPoolAsync_default_4: {r:?} ({}) ptr={p:#x}", r as u32);
++        if r == sys::CUresult::CUDA_SUCCESS {
++            let r2 = unsafe { sys::cuMemFreeAsync(p, cu_stream) };
++            let r3 = unsafe { sys::cuStreamSynchronize(cu_stream) };
++            out!("S3r_cuMemFreeAsync_pool: {r2:?} sync={r3:?}");
++        }
++        pool_attrs("default_after_raw", def_pool);
++    }
++    // Fresh explicit pool.
++    unsafe {
++        let mut props: sys::CUmemPoolProps = std::mem::zeroed();
++        props.allocType = sys::CUmemAllocationType_enum::CU_MEM_ALLOCATION_TYPE_PINNED;
++        props.handleTypes = sys::CUmemAllocationHandleType_enum::CU_MEM_HANDLE_TYPE_NONE;
++        props.location.type_ = sys::CUmemLocationType_enum::CU_MEM_LOCATION_TYPE_DEVICE;
++        props.location.id = ordinal as i32;
++        let mut pool: sys::CUmemoryPool = std::ptr::null_mut();
++        let r = sys::cuMemPoolCreate(&mut pool, &props);
++        out!("S3r_cuMemPoolCreate: {r:?}");
++        if r == sys::CUresult::CUDA_SUCCESS {
++            let mut p: sys::CUdeviceptr = 0;
++            let r = sys::cuMemAllocFromPoolAsync(&mut p, 4, pool, cu_stream);
++            out!("S3r_cuMemAllocFromPoolAsync_newpool_4: {r:?} ({}) ptr={p:#x}", r as u32);
++            if r == sys::CUresult::CUDA_SUCCESS {
++                let _ = sys::cuMemFreeAsync(p, cu_stream);
++                let _ = sys::cuStreamSynchronize(cu_stream);
++            }
++            let _ = sys::cuMemPoolDestroy(pool);
++        }
++    }
++    // Virtual address reservation (VMM) at several sizes.
++    for size in [2usize << 20, 64 << 20, 1 << 30, 32 << 30] {
++        let mut va: sys::CUdeviceptr = 0;
++        let r = unsafe { sys::cuMemAddressReserve(&mut va, size, 0, 0, 0) };
++        out!("S3v_cuMemAddressReserve_{}MiB: {r:?} va={va:#x}", size >> 20);
++        if r == sys::CUresult::CUDA_SUCCESS {
++            unsafe { sys::cuMemAddressFree(va, size) };
++        }
++    }
++    check_stored("S3r");
++
++    // S4: memset_zeros on the S3 allocation, then stream synchronize.
++    if let Some(slice) = s3_slice.as_mut() {
++        let r = stream.memset_zeros(slice);
++        out!("S4_memset_zeros: {r:?}");
++        check_stored("S4_memset");
++        let r = stream.synchronize();
++        out!("S4_stream_synchronize: {r:?}");
++        check_stored("S4_sync");
++    } else {
++        out!("S4_memset_zeros: skipped (S3 failed)");
++    }
++    drop(s3_slice);
++    let r = stream.synchronize();
++    out!("S4_drop_sync: {r:?}");
++    check_stored("S4_drop");
++
++    // S5a: combined control.
++    match stream.alloc_zeros::<u8>(4) {
++        Ok(s) => {
++            use candle_core::cuda::cudarc::driver::DevicePtr;
++            let (ptr, _g) = s.device_ptr(&stream);
++            out!("S5a_alloc_zeros_u8_4: ok ptr={ptr:#x}");
++        }
++        Err(e) => out!("S5a_alloc_zeros_u8_4: ERR {e:?}"),
++    }
++    let r = stream.synchronize();
++    out!("S5a_sync: {r:?}");
++    check_stored("S5a");
++    if !def_pool.is_null() {
++        pool_attrs("default_end", def_pool);
++    }
++    mem_info("end");
++    dump_maps("end");
++}
++// SLICE110-ALLOC-SPLIT TEMP DIAGNOSTIC END
++
+ #[cfg(feature = "embed-cuda")]
+ fn classify_cuda_driver_presence(driver_present: bool) -> Result<(), CudaProbeError> {
+     driver_present.then_some(()).ok_or(CudaProbeError::NoVisibleDevice)

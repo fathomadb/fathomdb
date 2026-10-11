@@ -1,0 +1,15 @@
+{
+  "native_sha256": "23a22d30b3ad700acd602000b0c26200ce3878a080895348546448ea79eb74d9",
+  "negative_reopened_edge_rejected": "after_reopen canonical state changed",
+  "raw_sha256": "0b3c1d59850fa42aa11217ef979c1aca74932f92abad32b729eecd2e6372f965",
+  "reopened_canonical_counts": {
+    "corpus_nodes": 32,
+    "graph_edges": 0,
+    "graph_nodes": 0
+  },
+  "source_sha": "d465cd56d2e863f900ea9a9da8bc372ca6a077c5",
+  "stage_count": 18,
+  "status": "CURRENT_PYTHON_S02_FUNCTIONAL_PASS",
+  "timing_qualified": false,
+  "wheel_sha256": "33d37be7c80183b063788889954da698ea959997fc13b61e356006a3c26c8894"
+}

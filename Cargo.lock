@@ -278,7 +278,7 @@ dependencies = [
 [[package]]
 name = "candle-core-fathomdb"
 version = "0.10.2"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
+source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 dependencies = [
  "byteorder",
  "candle-kernels",
@@ -307,7 +307,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.10.2"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
+source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 dependencies = [
  "cudaforge",
 ]
@@ -330,7 +330,7 @@ dependencies = [
 [[package]]
 name = "candle-nn-fathomdb"
 version = "0.10.2"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
+source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 dependencies = [
  "candle-core-fathomdb",
  "candle-metal-kernels",
@@ -347,7 +347,7 @@ dependencies = [
 [[package]]
 name = "candle-transformers-fathomdb"
 version = "0.10.2"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
+source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 dependencies = [
  "byteorder",
  "candle-core-fathomdb",
@@ -620,8 +620,6 @@ dependencies = [
 [[package]]
 name = "cudarc"
 version = "0.19.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc"
 dependencies = [
  "float8",
  "half",
@@ -776,6 +774,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dunce"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
+
+[[package]]
 name = "dyn-stack"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -828,7 +832,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -899,7 +903,7 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
 name = "fathomdb"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "fathomdb-engine",
  "tempfile",
@@ -908,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-cli"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "clap",
  "fathomdb",
@@ -921,7 +925,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-embedder"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "candle-core-fathomdb",
  "candle-nn-fathomdb",
@@ -945,8 +949,10 @@ version = "0.6.1"
 
 [[package]]
 name = "fathomdb-engine"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
+ "dirs",
+ "dunce",
  "fathomdb-embedder",
  "fathomdb-embedder-api",
  "fathomdb-query",
@@ -965,7 +971,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-napi"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",
@@ -983,7 +989,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-py"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",
@@ -996,14 +1002,14 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-query"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "proptest",
 ]
 
 [[package]]
 name = "fathomdb-schema"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "proptest",
  "rusqlite",
@@ -1012,8 +1018,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "fathomdb-sdk"
+version = "0.8.27"
+dependencies = [
+ "fathomdb-embedder",
+ "fathomdb-embedder-api",
+ "fathomdb-engine",
+ "fathomdb-schema",
+ "tempfile",
+]
+
+[[package]]
 name = "fathomdb-tc5-benchmark"
-version = "0.8.26"
+version = "0.8.27"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",
@@ -1971,8 +1988,6 @@ dependencies = [
 [[package]]
 name = "libsqlite3-sys"
 version = "0.38.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6c19a05435c21ac299d71b6a9c13db3e3f47c520517d58990a462a1397a61db"
 dependencies = [
  "cc",
  "pkg-config",
@@ -2931,7 +2946,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3325,7 +3340,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3969,7 +3984,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

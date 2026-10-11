@@ -1,0 +1,125 @@
+BEGIN attempt=1 utc=2026-10-04T21:59:54Z
+MemFree:        47042200 kB
+MemAvailable:   52900320 kB
+CmaFree:          256060 kB
+slice110-allocator-probe tensor_zeros: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+slice110-allocator-probe malloc_sync_4: ok
+slice110-allocator-probe free_sync_4: ok
+slice110-allocator-probe stream_alloc_zeros_4: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362
+            return new EmbedDevicePolicyError(envelope.message, {
+                   ^
+
+EmbedDevicePolicyError: cuda:0 requested but unavailable: CudaProbeFailed
+    at build (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362:20)
+    at rethrowTyped (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:485:19)
+    at intercept (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1212:9)
+    at async Engine.open (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1257:23)
+    at async file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/[eval1]:1:143 {
+  code: 'FDB_EMBED_DEVICE_POLICY',
+  kind: 'cuda_probe_failed',
+  ordinal: 0
+}
+
+Node.js v25.9.0
+END attempt=1 status=fail
+BEGIN attempt=2 utc=2026-10-04T21:59:55Z
+MemFree:        47050188 kB
+MemAvailable:   52908236 kB
+CmaFree:          256060 kB
+slice110-allocator-probe tensor_zeros: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+slice110-allocator-probe malloc_sync_4: ok
+slice110-allocator-probe free_sync_4: ok
+slice110-allocator-probe stream_alloc_zeros_4: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362
+            return new EmbedDevicePolicyError(envelope.message, {
+                   ^
+
+EmbedDevicePolicyError: cuda:0 requested but unavailable: CudaProbeFailed
+    at build (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362:20)
+    at rethrowTyped (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:485:19)
+    at intercept (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1212:9)
+    at async Engine.open (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1257:23)
+    at async file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/[eval1]:1:143 {
+  code: 'FDB_EMBED_DEVICE_POLICY',
+  kind: 'cuda_probe_failed',
+  ordinal: 0
+}
+
+Node.js v25.9.0
+END attempt=2 status=fail
+BEGIN attempt=3 utc=2026-10-04T21:59:55Z
+MemFree:        47062044 kB
+MemAvailable:   52920052 kB
+CmaFree:          256060 kB
+slice110-allocator-probe tensor_zeros: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+slice110-allocator-probe malloc_sync_4: ok
+slice110-allocator-probe free_sync_4: ok
+slice110-allocator-probe stream_alloc_zeros_4: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362
+            return new EmbedDevicePolicyError(envelope.message, {
+                   ^
+
+EmbedDevicePolicyError: cuda:0 requested but unavailable: CudaProbeFailed
+    at build (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362:20)
+    at rethrowTyped (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:485:19)
+    at intercept (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1212:9)
+    at async Engine.open (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1257:23)
+    at async file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/[eval1]:1:143 {
+  code: 'FDB_EMBED_DEVICE_POLICY',
+  kind: 'cuda_probe_failed',
+  ordinal: 0
+}
+
+Node.js v25.9.0
+END attempt=3 status=fail
+BEGIN attempt=4 utc=2026-10-04T21:59:55Z
+MemFree:        47052292 kB
+MemAvailable:   52910352 kB
+CmaFree:          256060 kB
+slice110-allocator-probe tensor_zeros: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+slice110-allocator-probe malloc_sync_4: ok
+slice110-allocator-probe free_sync_4: ok
+slice110-allocator-probe stream_alloc_zeros_4: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362
+            return new EmbedDevicePolicyError(envelope.message, {
+                   ^
+
+EmbedDevicePolicyError: cuda:0 requested but unavailable: CudaProbeFailed
+    at build (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362:20)
+    at rethrowTyped (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:485:19)
+    at intercept (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1212:9)
+    at async Engine.open (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1257:23)
+    at async file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/[eval1]:1:143 {
+  code: 'FDB_EMBED_DEVICE_POLICY',
+  kind: 'cuda_probe_failed',
+  ordinal: 0
+}
+
+Node.js v25.9.0
+END attempt=4 status=fail
+BEGIN attempt=5 utc=2026-10-04T21:59:55Z
+MemFree:        47058360 kB
+MemAvailable:   52916416 kB
+CmaFree:          256060 kB
+slice110-allocator-probe tensor_zeros: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+slice110-allocator-probe malloc_sync_4: ok
+slice110-allocator-probe free_sync_4: ok
+slice110-allocator-probe stream_alloc_zeros_4: DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")
+file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362
+            return new EmbedDevicePolicyError(envelope.message, {
+                   ^
+
+EmbedDevicePolicyError: cuda:0 requested but unavailable: CudaProbeFailed
+    at build (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362:20)
+    at rethrowTyped (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:485:19)
+    at intercept (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1212:9)
+    at async Engine.open (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1257:23)
+    at async file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/[eval1]:1:143 {
+  code: 'FDB_EMBED_DEVICE_POLICY',
+  kind: 'cuda_probe_failed',
+  ordinal: 0
+}
+
+Node.js v25.9.0
+END attempt=5 status=fail

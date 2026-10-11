@@ -1,0 +1,6 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.19s
+     Running tests/f9_importance_ranking.rs (/tmp/slice135-current-tc91-target/debug/deps/f9_importance_ranking-c09dc13f306ea6bd)
+     Running tests/slice135_edge_explanation_row_error.rs (/tmp/slice135-current-tc91-target/debug/deps/slice135_edge_explanation_row_error-245a92b818d0c9a6)
+     Running tests/slice135_importance_explanation_row_error.rs (/tmp/slice135-current-tc91-target/debug/deps/slice135_importance_explanation_row_error-2d7264d267593a71)
+     Running tests/slice20_fts_rank_stream.rs (/tmp/slice135-current-tc91-target/debug/deps/slice20_fts_rank_stream-a8bc35374214d5d2)

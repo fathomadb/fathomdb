@@ -38,11 +38,11 @@
 #       Grading a packaging change by re-reading the change is the failure mode
 #       this whole slice exists to correct.
 #
-# COVERAGE HONESTY — which of the ten published units are checked how:
+# COVERAGE HONESTY — which of the eleven published units are checked how:
 #
 #   | unit                              | how (default run)                    |
 #   |-----------------------------------|--------------------------------------|
-#   | 7 publishable crates              | REAL `cargo package --list`          |
+#   | 8 publishable crates              | REAL `cargo package --list`          |
 #   | npm `fathomdb`                    | REAL `npm pack --dry-run --json`     |
 #   | npm `fathomdb-<triple>` | REAL `npm pack --dry-run --json`     |
 #   | the PyPI wheel                    | MECHANISM PROXY (see below)          |
@@ -117,7 +117,7 @@ Usage: scripts/$SELF [--root <dir>] [--only cargo,python,npm]
 Fails when the repo-root LICENSE's type disagrees with any publishable
 manifest, or when a packaging tool's own file list does not carry the license
 text. See the header of this script for the full predicate and for exactly
-which of the ten published units are covered by real packaging output.
+which of the eleven published units are covered by real packaging output.
 
   --root <dir>      tree to check (default: git toplevel)
   --only <legs>     comma list from {cargo,python,npm} (default: all)

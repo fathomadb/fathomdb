@@ -50,17 +50,17 @@ try {
 | `DependencyClosureError`           | A keyed dependency-closure status request is malformed                        | `reason`, `field_path` / `fieldPath` | correct the closure operation identifier |
 | `ActuationError`                   | An actuation envelope is malformed, conflicts, or reuses an erased operation ID | `reason`, `field_path` / `fieldPath` | correct the batch; domain refusals are receipts, not exceptions |
 | `VectorError`                      | `sqlite-vec` fault                                                            | —                                                                        | run `doctor check-integrity`; recover with `--rebuild-vec0` |
-| `EmbedderError`                    | Embedder call failed                                                          | —                                                                        | check embedder process / timeout; see `embedder_call_timeout_ms` |
+| `EmbedderError`                    | A started provider call failed or timed out on a direct embed path            | —                                                                        | check the provider and `embedder_call_timeout_ms` |
 | `EmbedderNotConfiguredError`       | Vector op attempted with no embedder configured                               | —                                                                        | configure an embedder via `admin.configure` |
 | `EmbedDevicePolicyError`           | Requested embedder device is invalid, unavailable, or incompatible            | `kind`, `ordinal`                                                        | use `cpu`, `auto`, or an available compatible CUDA device |
 | `RerankerDevicePolicyError`        | Requested cross-encoder device is invalid, unavailable, or incompatible       | `kind`, `ordinal`                                                        | use `cpu`, `auto`, or an available compatible CUDA device |
 | `EmbedderRequiredError`            | An operation requires an embedder but the runtime cannot provide one          | `code`, `operation`, `state`, `remediations`, `documentation_url` / camelCase | follow a listed remediation or use a text-only route |
 | `KindNotVectorIndexedError`        | Vector op attempted on a kind that has no vector projection                   | —                                                                        | add vector projection in schema |
-| `SchedulerError`                   | Background scheduler fault                                                    | —                                                                        | retry; on persistent failure, restart process |
+| `SchedulerError`                   | Projection scheduler fault or incomplete provider-only drain at close        | —                                                                        | inspect pending work or wait for the provider to return, then close again |
 | `OpStoreError`                     | Op-store (write log) fault                                                    | —                                                                        | run `doctor check-integrity --full` |
 | `WriteValidationError`             | A caller-supplied **shape** failed validation: a missing/empty/reserved `source_id`, an unsatisfiable `valid_from >= valid_until` window, a non-integer temporal bound, or a projection spec carrying `fts`/`vector` without the `searchable` role | — (message-less; see below) | fix the batch or spec before calling |
 | `SchemaValidationError`            | Admin schema configuration failed validation                                  | —                                                                        | fix the schema |
-| `OverloadedError`                  | Backpressure: queue full                                                      | —                                                                        | slow producers; raise `embedder_pool_size` or `scheduler_runtime_threads` |
+| `OverloadedError`                  | Direct embed request found a full queue or expired before provider start     | —                                                                        | slow producers or adjust `embedder_pool_size` |
 | `ClosingError`                     | Operation issued while engine is closing                                      | —                                                                        | do not reuse a closed engine |
 | `DatabaseLockedError`              | On-disk lock held by another process                                          | `holder_pid` / `holderPid`                                               | wait for holder to release, or kill it |
 | `CorruptionError`                  | Open-time integrity failure                                                   | `kind`, `stage`, `recovery_hint_code` / camelCase + `doc_anchor`         | follow `recovery_hint_code`; see `doctor` + `recover` |
@@ -71,7 +71,7 @@ try {
 | `EmbedderDimensionMismatchError`   | Configured embedder dimension differs from stored                             | `stored`, `supplied`                                                     | restore prior dimension OR re-embed |
 | `ExtractorError`                   | BYO-LLM extraction harness protocol error (`ingest_with_extractor`)          | —                                                                        | check extractor command + stderr |
 | `ConsolidatorError`                | BYO-LLM consolidation provider protocol error (`consolidate_with_provider`)  | —                                                                        | check provider command + advertised tasks |
-| `InvalidArgumentError`             | Invalid argument — e.g. `depth > 3` in `graph.neighbors`, a ranked-search limit outside `1..=100`, an unrecognised enum spelling, or a `ReadView` existence flag on the search path | —                          | fix the call argument |
+| `InvalidArgumentError`             | Invalid argument, including native per-engine configuration range/capacity; also `depth > 3` in `graph.neighbors`, a ranked-search limit outside `1..=100`, or an unrecognised enum spelling | — | fix the call argument |
 | `InvalidFilterError`               | Invalid filter predicate — e.g. non-allowlisted `json_path` in `read.list`   | —                                                                        | use an allowlisted path (`$.status`, `$.priority`, `$.tags`, `$.kind`, `$.created_at`) |
 | `VectorEquivalenceMismatchError`   | Open-time vector-equivalence self-check found a divergence, so vector-dependent arms refuse at query time | `reason`                                     | use `search_text_only` / `searchTextOnly`; re-embed under the current backend |
 | `IllegalTransitionError`           | `transition` asked for a lifecycle move the state machine forbids            | `from_state`, `to_state`, `legal` / `fromState`, `toState`, `legal`      | pick a target from `legal` |
@@ -83,6 +83,22 @@ try {
 | `EvidenceError`                    | Evidence search or resolution cannot authenticate or disclose the requested source | `reason`, `field_path` / `fieldPath` | preserve the frozen context; treat `evidence_unavailable` as nondisclosure |
 | `DependencyTraceError`             | A bounded dependency trace request is malformed or exceeds its contract       | `reason`, `field_path` / `fieldPath` | correct the root, direction, context, or bounds |
 | `GraphExpansionError`              | A constrained graph request or native response violates its closed contract   | `reason`, `field_path` / `fieldPath` | correct seeds, read context, filters, or work bounds |
+
+Per-engine configuration errors are separate from process-start SQLite mode
+errors: Rust returns `EngineOpenError::EngineConfiguration`, which maps to
+`InvalidArgumentError` in Python and TypeScript. Python can raise `TypeError`
+or `ValueError` and TypeScript can raise `TypeError` or `RangeError` during
+early input validation, before native open. `RuntimeConfigurationError`
+continues to cover only the process-wide SQLite mode.
+
+The embed queue and provider have different outcomes. A direct `embed_text`
+request gets `OverloadedError` for a full queue or expiry before provider
+start, and `EmbedderError` for a started failure or timeout. Ordinary and
+frozen hybrid search can fall back to sparse results from the same snapshot.
+Projection capacity waits leave durable work pending without spending a
+provider retry; started failures/timeouts use the fixed retry ladder and may
+record a failed terminal. Closing cancels queued work; a provider still
+running after the shared 30-second drain budget yields `SchedulerError`.
 
 ## `WriteValidationError` carries no payload (breaking in 0.8.20)
 

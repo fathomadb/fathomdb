@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_python_capabilities.py", line 400, in <module>
+    main()
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_python_capabilities.py", line 392, in main
+    result = run(args.repo.resolve(), args.wheel.resolve(), args.wheel_sha256, args.source_sha)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_python_capabilities.py", line 345, in run
+    identity = _identity(wheel, wheel_sha256)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/scripts/slice135_python_capabilities.py", line 190, in _identity
+    raise ValueError(f"installed file differs from wheel: {member}")
+ValueError: installed file differs from wheel: fathomdb/__pycache__/__init__.cpython-312.pyc

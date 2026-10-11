@@ -11,6 +11,7 @@ HISTORY_GUARD="$REPO_ROOT/scripts/security/gitleaks-history.sh"
 CURRENT_GUARD="$REPO_ROOT/scripts/security/gitleaks-current.sh"
 CURRENT_CONFIG="$REPO_ROOT/scripts/security/gitleaks-current.toml"
 CURRENT_CONFIG_CHECK="$REPO_ROOT/scripts/security/check-gitleaks-current-config.py"
+PERFORMANCE_DIGEST_AUTHORITY="$REPO_ROOT/scripts/security/performance-digest-allowlist.json"
 PRE_COMMIT="$REPO_ROOT/scripts/hooks/pre-commit"
 CI="$REPO_ROOT/.github/workflows/ci.yml"
 INSTALLER="$REPO_ROOT/scripts/install-gitleaks.sh"
@@ -51,6 +52,7 @@ expect_zero() {
 [ -x "$HISTORY_GUARD" ] || fail "history Gitleaks guard exists and is executable"
 [ -x "$CURRENT_GUARD" ] || fail "current-tree Gitleaks guard exists and is executable"
 [ -x "$INSTALLER" ] || fail "pinned Gitleaks installer exists and is executable"
+[ -f "$PERFORMANCE_DIGEST_AUTHORITY" ] || fail "performance digest exception has one data authority"
 
 if ! command -v gitleaks >/dev/null 2>&1; then
   fail "Gitleaks is installed for guard regression coverage"
@@ -72,6 +74,12 @@ if "$CURRENT_CONFIG_CHECK" "$CURRENT_CONFIG" >/dev/null 2>&1; then
   pass "current-tree policy admits only the reviewed exceptions"
 else
   fail "current-tree policy admits only the reviewed exceptions"
+fi
+
+if "$CURRENT_CONFIG_CHECK" "$CURRENT_CONFIG" "$PERFORMANCE_DIGEST_AUTHORITY" >/dev/null 2>&1; then
+  pass "performance digest authority reproduces its exact policy entry"
+else
+  fail "performance digest authority reproduces its exact policy entry"
 fi
 
 if python3 - "$CURRENT_GUARD" <<'PY'
@@ -114,6 +122,34 @@ fi
 
 TMPROOT="$(mktemp -d)"
 trap 'rm -rf "$TMPROOT"' EXIT
+
+for mutation in duplicate-path wrong-key wrong-value arbitrary-path; do
+  python3 - "$PERFORMANCE_DIGEST_AUTHORITY" "$TMPROOT/performance-$mutation.json" "$mutation" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+source = Path(sys.argv[1])
+target = Path(sys.argv[2])
+mutation = sys.argv[3]
+value = json.loads(source.read_text())
+if mutation == "duplicate-path":
+    value["paths"].append(value["paths"][0])
+elif mutation == "wrong-key":
+    value["key"] = "api_key"
+elif mutation == "wrong-value":
+    value["sha256"] = "0" * 64
+elif mutation == "arbitrary-path":
+    value["paths"][0] = "dev/**/*.json"
+target.write_text(json.dumps(value, indent=2) + "\n")
+PY
+  set +e
+  "$CURRENT_CONFIG_CHECK" "$CURRENT_CONFIG" "$TMPROOT/performance-$mutation.json" >/dev/null 2>&1
+  authority_mutation_rc=$?
+  set -e
+  expect_nonzero "$authority_mutation_rc" "performance digest authority rejects $mutation mutation"
+done
+
 FIXTURE="$TMPROOT/repo"
 mkdir -p "$FIXTURE"
 git -C "$FIXTURE" init -q
@@ -204,6 +240,27 @@ if [[ "$current_fixture_secret_out" == *"$token"* ]]; then
   fail "current-tree policy redacts synthetic key in an allowed path"
 else
   pass "current-tree policy redacts synthetic key in an allowed path"
+fi
+
+PERFORMANCE_FIXTURE="$TMPROOT/performance-fixture"
+performance_path='experiments/configs/graph-retrieval-01/musique-native-expand.v1.json'
+mkdir -p "$PERFORMANCE_FIXTURE/$(dirname "$performance_path")"
+git -C "$PERFORMANCE_FIXTURE" init -q
+git -C "$PERFORMANCE_FIXTURE" config user.email gitleaks-performance-test@example.invalid
+git -C "$PERFORMANCE_FIXTURE" config user.name 'Gitleaks Performance Test'
+printf '{"tokenizer.json": "%s", "credential": "%s"}\n' \
+  'd241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66' \
+  "$token" >"$PERFORMANCE_FIXTURE/$performance_path"
+git -C "$PERFORMANCE_FIXTURE" add "$performance_path"
+set +e
+performance_secret_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$PERFORMANCE_FIXTURE" 2>&1)"
+performance_secret_rc=$?
+set -e
+expect_nonzero "$performance_secret_rc" "performance digest exception rejects a synthetic credential in an allowed path"
+if [[ "$performance_secret_out" == *"$token"* ]]; then
+  fail "performance digest exception redacts a synthetic credential"
+else
+  pass "performance digest exception redacts a synthetic credential"
 fi
 
 ENUM_FIXTURE="$TMPROOT/current-enumeration-fixture"

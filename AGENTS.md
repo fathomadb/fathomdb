@@ -23,10 +23,11 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 - **TDD is mandatory.** Failing test first; red → green → refactor. Mechanical version bumps and renames are the only exception. Discipline: § 5.
 - **Stale > missing.** A wrong comment, doc, or ADR is more harmful than its absence. If you cannot maintain something, delete it.
 - **Public surface is contract.** Anything in `dev/interfaces/` or `pub` Rust APIs is a contract; changes need an ADR or interface-doc update in the same PR.
+- **Quality analysis at release planning.** Before drafting each new release plan, read `dev/notes/fathomdb-quality-testing-roadmap.md`. Record which recommendations apply, which are deferred, and what new evidence changes the assessment. The analysis guides scope; it does not create automatic gates.
 
 ## 2. Repo shape
 
-- **Rust workspace** under `src/rust/crates/` — 10 crates: `fathomdb`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-napi`, `fathomdb-py`, and `fathomdb-tc5-benchmark`.
+- **Rust workspace** under `src/rust/crates/` — 11 crates: `fathomdb`, `fathomdb-sdk`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-napi`, `fathomdb-py`, and `fathomdb-tc5-benchmark`.
 - **Python bindings** under `src/python/` (package: `fathomdb`).
 - **TypeScript bindings** under `src/ts/`.
 - **Public docs** under `docs/` (MkDocs-built).
@@ -39,10 +40,10 @@ Use the typed dev-loop verbs (Phase 2). Each emits **concise output on pass, str
 | Verb      | Script                         | Purpose                                                           |
 | --------- | ------------------------------ | ----------------------------------------------------------------- |
 | build     | `./scripts/agent-build.sh`     | Compile workspace (Rust + Python install + TS build if installed) |
-| lint      | `./scripts/agent-lint.sh`      | clippy + rustfmt + migration policy + ruff + actionlint + md + lychee |
+| lint      | `./scripts/agent-lint.sh`      | module boundaries + clippy + rustfmt + migration policy + ruff + actionlint + md + lychee |
 | typecheck | `./scripts/agent-typecheck.sh` | cargo check + pyright + tsc --noEmit                              |
 | test      | `./scripts/agent-test.sh`      | cargo test + pytest                                               |
-| verify    | `./scripts/agent-verify.sh`    | lint → typecheck → test (short-circuits on first fail)            |
+| verify    | `./scripts/agent-verify.sh`    | full gate by default; `--scope=markdown` runs the Markdown gate   |
 
 Markdown lint covers **every `**/*.md`** except the ignore list in `.markdownlint-cli2.jsonc` (build output, `dev/archive/`, `dev/plans/runs/`, `dev/plans/prompts/`, `dev/experiments/`, `.claude/`, `docs/`). `docs/` is linted separately by `scripts/agent-lint-docs.sh`. `scripts/agent-lint-md.sh` also runs the plans/design/findings/anchor linters and `scripts/check-release-state-views.sh`. Auto-fix: **`npm run format:md` only** — it wraps `markdownlint-cli2 --fix` in the CommonMark-AST neutrality guard (`dev/tools/md_neutrality_guard.py`). ⛔ **Never run `prettier` on markdown, and never run `markdownlint-cli2 --fix` unguarded** — both are documented corruptors (prettier rewrites `*` → `_`; raw `--fix` mangles `#`-prefixed prose and schemeless hosts). See `dev/tools/md-fix-corruption-ledger.md`.
 
@@ -57,6 +58,10 @@ source, test, or executable-script changes and when an explicit release gate
 requires it. A scoped pass is not a full-workspace green claim. AC-036 in the
 full gate uses `strace` and needs a ptrace-capable executor; if a sandbox denies
 `PTRACE_TRACEME`, rerun the unchanged strict gate unconfined.
+Full verification preflights a checkout-owned `.venv` with pip and pinned
+developer tools. Run it from the target checkout; never borrow another
+checkout's virtual environment. If a worktree lacks its own setup, report the
+preflight failure rather than running later tests under system Python.
 
 The broader CI gate is `./scripts/check.sh` (adds mkdocs build); the agent-loop gate is `scripts/agent-verify.sh`. Long-run test variants (e.g. AC-021 60 s window, AC-059b ~1000-iteration cursor-race fixture) are exercised only via `scripts/check.sh` with `AGENT_LONG=1`; `scripts/agent-verify.sh` skips them for runtime budget.
 
@@ -130,6 +135,7 @@ Do not paraphrase, summarize, or shorten compiler diagnostics — pass them thro
 - **Plan / slice templates:** `dev/plans/prompts/PLAN-TEMPLATE.md` (per-release plan + authoring checklist) · `dev/plans/prompts/0.8.0-SLICE-TEMPLATE.md` (per-slice prompt)
 - **Plans:** `dev/plans/`
 - **Research:** `dev/notes/context-research-agentic-best-practices.md` (the best-practices synthesis this file operationalizes)
+- **Quality planning:** `dev/notes/fathomdb-quality-testing-roadmap.md` (testing maturity, SQLite-method fit, and release-line recommendations; consult for every new release plan)
 - **Memory:** `MEMORY.md` in the out-of-repo memory store (§ 1) — index of the kebab-case topic entries; auto-loaded at Claude Code session start.
 
 ### Release state — where the current release actually lives

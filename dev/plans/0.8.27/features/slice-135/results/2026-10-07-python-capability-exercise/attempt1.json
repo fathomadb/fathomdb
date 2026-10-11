@@ -1,0 +1,947 @@
+{
+  "schema_version": "fathomdb.slice135-python-capabilities/v1",
+  "status": "INTERIM_INSTALLED_WHEEL_CAPABILITY_EXERCISE",
+  "finished_utc": "2026-10-07T19:23:56.074709+00:00",
+  "product_source_sha": "87d8659f18260a19b9f2932f412a42f50f71a692",
+  "product_rust_tree": "302aabd3b5c843ad7d25006a5ef48ebdb2659656",
+  "cargo_lock_sha256": "9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe",
+  "runner_sha256": "0c5e5374636440542a582ca7585ee213e97db46fb6ba1e981fb4a5f697f63e87",
+  "operation_map_sha256": "da673d3de1c7962e6ccd1c0d2d2c552cf3941338b5e4cd67f13b7ad87ab9bb17",
+  "artifact": {
+    "wheel": "/tmp/slice135-capability-wheel-87d8659/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl",
+    "wheel_sha256": "83b6c184fff27696dce329d5c2ae40e89290c86c3687e762488366c8a22ad34a",
+    "native": "/tmp/slice135-capability-venv-87d8659/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+    "native_sha256": "c3405f3e7b37a42a1d677668ce4894ea5de9cc49a0a4bef47f879eb699f802cb",
+    "module": "/tmp/slice135-capability-venv-87d8659/lib/python3.12/site-packages/fathomdb/__init__.py",
+    "verified_members": [
+      "fathomdb/__init__.py",
+      "fathomdb/_coinstall.py",
+      "fathomdb/_fathomdb.abi3.so",
+      "fathomdb/_fathomdb.pyi",
+      "fathomdb/_sdk_evidence.py",
+      "fathomdb/_sdk_graph.py",
+      "fathomdb/_sdk_instrumentation.py",
+      "fathomdb/_sdk_open.py",
+      "fathomdb/_sdk_projection.py",
+      "fathomdb/_sdk_search.py",
+      "fathomdb/_sdk_write.py",
+      "fathomdb/admin.py",
+      "fathomdb/config.py",
+      "fathomdb/engine.py",
+      "fathomdb/errors.py",
+      "fathomdb/filter.py",
+      "fathomdb/graph.py",
+      "fathomdb/read.py",
+      "fathomdb/types.py"
+    ],
+    "distribution_version": "0.8.26",
+    "direct_url": {
+      "archive_info": {
+        "hash": "sha256=83b6c184fff27696dce329d5c2ae40e89290c86c3687e762488366c8a22ad34a",
+        "hashes": {
+          "sha256": "83b6c184fff27696dce329d5c2ae40e89290c86c3687e762488366c8a22ad34a"
+        }
+      },
+      "url": "file:///tmp/slice135-capability-wheel-87d8659/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl"
+    },
+    "python_executable": "/tmp/slice135-capability-venv-87d8659/bin/python",
+    "python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39"
+  },
+  "counts": {
+    "supported": 44,
+    "executed": 5,
+    "failed": 36,
+    "unavailable": 3,
+    "gap": 0,
+    "unexecuted": 3
+  },
+  "operations": {
+    "engine.open": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "admin.configure": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.write": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.actuate": {
+      "status": "executed",
+      "positive": {
+        "case": "actuation"
+      },
+      "negative": {
+        "case": "actuation_error"
+      },
+      "reopen": {
+        "case": "actuation",
+        "checks": [
+          {
+            "canonical_operational_sha256": "506706d2903217cfedd50892f8a099cc5f067047e4db9c382986d36bab03b036",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 1,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 1,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.register_source_dependency": {
+      "status": "failed",
+      "error": "case failures: dependency"
+    },
+    "engine.dependencies_for_source": {
+      "status": "failed",
+      "error": "case failures: dependency"
+    },
+    "engine.dependency_for_derived": {
+      "status": "failed",
+      "error": "case failures: dependency"
+    },
+    "engine.read_dependency_closure": {
+      "status": "executed",
+      "positive": {
+        "case": "closure"
+      },
+      "negative": {
+        "case": "closure"
+      },
+      "reopen": {
+        "case": "closure",
+        "checks": [
+          {
+            "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.transition": {
+      "status": "failed",
+      "error": "case failures: lifecycle, lifecycle_error"
+    },
+    "engine.purge": {
+      "status": "failed",
+      "error": "case failures: purge, purge"
+    },
+    "engine.erase_source": {
+      "status": "executed",
+      "positive": {
+        "case": "erasure"
+      },
+      "negative": {
+        "case": "erasure"
+      },
+      "reopen": {
+        "case": "erasure",
+        "checks": [
+          {
+            "canonical_operational_sha256": "70fa7539bb33970f60c7110a7a20df9f4f50aa7d5596b3a5acaf07aef013fae3",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 0,
+              "operational_collections": 1,
+              "operational_mutations": 2,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 0,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.search": {
+      "status": "failed",
+      "error": "case failures: projected, boundary_errors"
+    },
+    "engine.freeze_read_context": {
+      "status": "failed",
+      "error": "case failures: frozen, boundary_errors"
+    },
+    "engine.search_frozen": {
+      "status": "failed",
+      "error": "case failures: frozen, frozen_error"
+    },
+    "engine.search_expand_frozen": {
+      "status": "failed",
+      "error": "case failures: frozen_expand, frozen_error"
+    },
+    "engine.search_text_only": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "engine.search_projected_text": {
+      "status": "failed",
+      "error": "case failures: projected, boundary_errors"
+    },
+    "engine.search_with_evidence": {
+      "status": "failed",
+      "error": "case failures: evidence, evidence_error"
+    },
+    "engine.resolve_evidence": {
+      "status": "failed",
+      "error": "case failures: evidence, evidence_error"
+    },
+    "engine.resolve_graph_evidence": {
+      "status": "failed",
+      "error": "case failures: graph_evidence"
+    },
+    "engine.trace_dependency": {
+      "status": "executed",
+      "positive": {
+        "case": "trace"
+      },
+      "negative": {
+        "case": "trace"
+      },
+      "reopen": {
+        "case": "trace",
+        "checks": [
+          {
+            "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 1,
+              "canonical_nodes": 3,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 3,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "engine.close": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.get": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.get_many": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.collection": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.mutations": {
+      "status": "failed",
+      "error": "case failures: boundary_errors"
+    },
+    "read.list": {
+      "status": "failed",
+      "error": "case failures: list, list_error"
+    },
+    "graph.expand": {
+      "status": "failed",
+      "error": "case failures: graph_evidence, graph_refusals"
+    },
+    "graph.neighbors": {
+      "status": "failed",
+      "error": "case failures: neighbors, neighbors_error"
+    },
+    "graph.search_expand": {
+      "status": "failed",
+      "error": "case failures: graph_search, graph_refusals"
+    },
+    "engine.embed": {
+      "status": "failed",
+      "error": "case failures: embed, embed_error"
+    },
+    "read.crossed_boundary_since": {
+      "status": "failed",
+      "error": "case failures: boundary, boundary_errors"
+    },
+    "engine.configure_projections": {
+      "status": "failed",
+      "error": "case failures: projection, projection_error"
+    },
+    "read.projections": {
+      "status": "failed",
+      "error": "case failures: projection, closed_reads"
+    },
+    "read.projection_status": {
+      "status": "failed",
+      "error": "case failures: projection_status, closed_reads"
+    },
+    "read.embedding_readiness": {
+      "status": "failed",
+      "error": "case failures: readiness, closed_reads"
+    },
+    "read.projection_generation_status": {
+      "status": "failed",
+      "error": "case failures: closed_reads"
+    },
+    "read.mutation_projection_status": {
+      "status": "executed",
+      "positive": {
+        "case": "mutation_status"
+      },
+      "negative": {
+        "case": "projection_status_error"
+      },
+      "reopen": {
+        "case": "mutation_status",
+        "checks": [
+          {
+            "canonical_operational_sha256": "4d84686fde9fdb9c58b0bc65601586140cd4b93d9b09c4474657bc3df3b53406",
+            "table_counts": {
+              "canonical_attributes": 0,
+              "canonical_edges": 0,
+              "canonical_nodes": 2,
+              "operational_collections": 1,
+              "operational_mutations": 0,
+              "operational_state": 0
+            },
+            "active_bodies_checked": 2,
+            "missing_id": null
+          }
+        ]
+      }
+    },
+    "read.canonical_page": {
+      "status": "failed",
+      "error": "case failures: pages, pages_error"
+    },
+    "read.operational_state": {
+      "status": "failed",
+      "error": "case failures: pages"
+    },
+    "read.operational_state_page": {
+      "status": "failed",
+      "error": "case failures: pages"
+    },
+    "engine.ingest_with_extractor": {
+      "status": "unavailable",
+      "boundary": "provider",
+      "reason": "No independently qualified extraction provider/command or credentials supplied; fake provider output is not a provider qualification.",
+      "owner": "Slice 135 provider exercise"
+    },
+    "engine.consolidate_with_provider": {
+      "status": "unavailable",
+      "boundary": "provider",
+      "reason": "No independently qualified consolidation provider/command or credentials supplied; deterministic fabricated LLM output would not qualify real-provider behavior.",
+      "owner": "Slice 135 provider exercise"
+    },
+    "rerank": {
+      "status": "unavailable",
+      "boundary": "standalone_model",
+      "reason": "Standalone cross-encoder model identity and offline availability are not qualified by this wheel exercise; no database boundary exists.",
+      "owner": "Slice 135 standalone reranker qualification"
+    }
+  },
+  "cases": {
+    "actuation": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice25_actuation.py::test_actuation_round_trip_replay_and_decimal_boundaries",
+      "test_sha256": "f58102dc1694bd14b894928240242932f0ad0d47b3045ffd8acc833a85d6165d",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "506706d2903217cfedd50892f8a099cc5f067047e4db9c382986d36bab03b036",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 1,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 1,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "actuation_error": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice25_actuation.py::test_actuation_rejects_unknown_top_level_field_before_engine_call",
+      "test_sha256": "f58102dc1694bd14b894928240242932f0ad0d47b3045ffd8acc833a85d6165d",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "admin": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_retrieve.py::test_admin_configure_path_exercised",
+      "test_sha256": "aaa9ed413b834d4a4cf179769233637097268afb91f1e275363067e34f1717b7",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "a9c52f9bd0216ebef4feace2bfe4746874985fe258a7ff63004997a497e4b155",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 2,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "boundary": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice15b_node_validity_write.py\", line 39, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "boundary_errors": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 237, in _extra_case\n    observed[\"engine.open\"] = refusal(lambda: f.Engine.open(str(temporary / \"refused.sqlite\"), config=f.EngineConfig(query_cache_capacity=-1)), ValueError)\n                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 123, in refusal\n    call()\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 237, in <lambda>\n    observed[\"engine.open\"] = refusal(lambda: f.Engine.open(str(temporary / \"refused.sqlite\"), config=f.EngineConfig(query_cache_capacity=-1)), ValueError)\n                                                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: EngineConfig.__init__() got an unexpected keyword argument 'query_cache_capacity'\n",
+      "output": ""
+    },
+    "closed_reads": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 256, in _extra_case\n    observed[\"read.\" + op] = refusal(lambda op=op: getattr(f.read, op)(engine), f.errors.EngineClosedError)\n                                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: module 'fathomdb.errors' has no attribute 'EngineClosedError'\n",
+      "output": ""
+    },
+    "closure": {
+      "status": "passed",
+      "assertions": {
+        "engine.read_dependency_closure": {
+          "absent_closure": null,
+          "refusal": {
+            "type": "DependencyClosureError",
+            "reason": "unsupported_schema_version",
+            "field_path": "/schemaVersion",
+            "message": "dependency closure unsupported_schema_version at /schemaVersion"
+          },
+          "scope": "absence only; existing committed-closure result remains a contract gap"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "dependency": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice20_source_dependencies.py\", line 10, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "dependency_errors": {
+      "status": "passed",
+      "assertions": {
+        "engine.register_source_dependency": {
+          "type": "DependencyError",
+          "reason": "unsupported_schema_version",
+          "field_path": "/schemaVersion",
+          "message": "dependency unsupported_schema_version at /schemaVersion"
+        },
+        "engine.dependencies_for_source": {
+          "type": "DependencyError",
+          "reason": "unsupported_schema_version",
+          "field_path": "/schemaVersion",
+          "message": "dependency unsupported_schema_version at /schemaVersion"
+        },
+        "engine.dependency_for_derived": {
+          "type": "DependencyError",
+          "reason": "unsupported_schema_version",
+          "field_path": "/schemaVersion",
+          "message": "dependency unsupported_schema_version at /schemaVersion"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "embed": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_embed.py\", line 17, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "embed_determinism": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_embed.py\", line 17, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "embed_error": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_embed.py\", line 17, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "erasure": {
+      "status": "passed",
+      "assertions": {
+        "engine.erase_source": {
+          "nodes_excised": 3,
+          "edges_excised": 1,
+          "retry_counts": [
+            0,
+            0
+          ],
+          "refusal": {
+            "type": "WriteValidationError",
+            "reason": null,
+            "field_path": null,
+            "message": "write validation error"
+          }
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "70fa7539bb33970f60c7110a7a20df9f4f50aa7d5596b3a5acaf07aef013fae3",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 2,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "evidence": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice50_evidence.py\", line 10, in <module>\n    import pytest  # pyright: ignore[reportMissingImports]\n    ^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "evidence_error": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice50_evidence.py\", line 10, in <module>\n    import pytest  # pyright: ignore[reportMissingImports]\n    ^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "evidence_refusals": {
+      "status": "passed",
+      "assertions": {
+        "engine.resolve_graph_evidence": {
+          "type": "EvidenceError",
+          "reason": "evidence_unavailable",
+          "field_path": "/evidenceRef",
+          "message": "evidence_unavailable at /evidenceRef"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "frozen": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice35_frozen_read.py\", line 7, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "frozen_drift": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice35_frozen_read.py\", line 7, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "frozen_error": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice35_frozen_read.py\", line 7, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "frozen_expand": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice35_frozen_read.py\", line 7, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "generation": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice40_projection_generation.py::test_fresh_generation_status_is_typed_and_stable",
+      "test_sha256": "a4ff6878497d0fd1df462db0623e6dbbd795694e4621edd5bf85e161f7c1b63a",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "graph_evidence": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice20_graph_evidence.py\", line 7, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "graph_refusals": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 277, in _extra_case\n    request = f.GraphExpandRequestV1(seed=f.GraphExplicitSeedV1(logical_ids=(f.IdSpace(space=\"logical\", value=\"s02-root\"),)), context=f.FrozenGraphReadContextV1(context=context), max_depth=0)\n                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: GraphExplicitSeedV1.__init__() missing 2 required positional arguments: 'schema_version' and 'type'\n",
+      "output": ""
+    },
+    "graph_search": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_functional_graph.py\", line 15, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "lifecycle": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_opp12_lifecycle_verbs.py\", line 22, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "lifecycle_error": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_opp12_lifecycle_verbs.py\", line 22, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "list": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_read_list.py\", line 21, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "list_error": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_read_list.py\", line 21, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "log": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_retrieve.py::test_read_collection_and_mutations_honor_cursor_and_limit",
+      "test_sha256": "aaa9ed413b834d4a4cf179769233637097268afb91f1e275363067e34f1717b7",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "356e18aeb2aeb49a3d82425902854dcbe0f2f53adc15418d84f015b86d6b9eea",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 4,
+            "operational_collections": 2,
+            "operational_mutations": 5,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "many": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_retrieve.py::test_read_get_many_preserves_order_with_none",
+      "test_sha256": "aaa9ed413b834d4a4cf179769233637097268afb91f1e275363067e34f1717b7",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "356e18aeb2aeb49a3d82425902854dcbe0f2f53adc15418d84f015b86d6b9eea",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 4,
+            "operational_collections": 2,
+            "operational_mutations": 5,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "mutation_status": {
+      "status": "passed",
+      "test": "src/python/tests/test_slice40_projection_generation.py::test_receipt_keyed_mutation_status_round_trips_through_python",
+      "test_sha256": "a4ff6878497d0fd1df462db0623e6dbbd795694e4621edd5bf85e161f7c1b63a",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "4d84686fde9fdb9c58b0bc65601586140cd4b93d9b09c4474657bc3df3b53406",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 2,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 2,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "neighbors": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_functional_graph.py\", line 15, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "neighbors_error": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_functional_graph.py\", line 15, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "operational_errors": {
+      "status": "passed",
+      "assertions": {
+        "read.operational_state": {
+          "type": "PageError",
+          "reason": "collection_not_found",
+          "field_path": "/collection",
+          "message": "collection_not_found at /collection"
+        },
+        "read.operational_state_page": {
+          "type": "PageError",
+          "reason": "invalid_page_limit",
+          "field_path": "/limit",
+          "message": "invalid_page_limit at /limit"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "pages": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice45_pagination.py\", line 8, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "pages_error": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice45_pagination.py\", line 8, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "projected": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice45_nested_source_projections.py\", line 8, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "projection": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice15d_projection_registry.py\", line 18, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "projection_error": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice15d_projection_registry.py\", line 18, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "projection_status": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice22_projection_status.py\", line 7, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "projection_status_error": {
+      "status": "passed",
+      "assertions": {
+        "read.mutation_projection_status": {
+          "type": "ProjectionGenerationError",
+          "reason": "unsupported_schema_version",
+          "field_path": "/schemaVersion",
+          "message": "projection generation unsupported_schema_version at /schemaVersion"
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "0b95fa2201897900621a68aca73670a5eef72f81bc4505cdbca32f3a008a4658",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 0,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 0,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "purge": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_opp12_lifecycle_verbs.py\", line 22, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "readiness": {
+      "status": "failed",
+      "error": "Traceback (most recent call last):\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 321, in run\n    value = _existing_case(repo, name, Path(directory)) if name in CASES else _extra_case(name, Path(directory))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/scripts/slice135_python_capabilities.py\", line 215, in _existing_case\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 995, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/home/coreyt/.codex/worktrees/slice135-python-capability/fathomdb/src/python/tests/test_slice30_embedding_readiness.py\", line 8, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n",
+      "output": ""
+    },
+    "retrieve": {
+      "status": "passed",
+      "test": "src/python/tests/test_functional_retrieve.py::test_read_get_returns_active_node_by_id",
+      "test_sha256": "aaa9ed413b834d4a4cf179769233637097268afb91f1e275363067e34f1717b7",
+      "assertions": "unchanged inspected source assertions passed",
+      "reopen": [
+        {
+          "canonical_operational_sha256": "356e18aeb2aeb49a3d82425902854dcbe0f2f53adc15418d84f015b86d6b9eea",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 0,
+            "canonical_nodes": 4,
+            "operational_collections": 2,
+            "operational_mutations": 5,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "search_text": {
+      "status": "passed",
+      "assertions": {
+        "engine.search_text_only": {
+          "ids": [
+            "s02-claim"
+          ],
+          "branches": [
+            "text"
+          ]
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    },
+    "trace": {
+      "status": "passed",
+      "assertions": {
+        "engine.trace_dependency": {
+          "dependency_edges": [
+            "trace-dependency"
+          ],
+          "complete": true,
+          "refusal": {
+            "type": "DependencyTraceError",
+            "reason": "trace_limit_invalid",
+            "field_path": "/maxRelations",
+            "message": "trace_limit_invalid at /maxRelations"
+          }
+        }
+      },
+      "reopen": [
+        {
+          "canonical_operational_sha256": "fdd73f809bbe1ab5880ea00d5a2a202b91f09f16774604d201b52515c4838568",
+          "table_counts": {
+            "canonical_attributes": 0,
+            "canonical_edges": 1,
+            "canonical_nodes": 3,
+            "operational_collections": 1,
+            "operational_mutations": 0,
+            "operational_state": 0
+          },
+          "active_bodies_checked": 3,
+          "missing_id": null
+        }
+      ],
+      "output": ""
+    }
+  },
+  "contract_gaps": [
+    "This is a selected operation exercise, not complete contract qualification.",
+    "read_dependency_closure exercises valid absence, not a stored committed closure.",
+    "Generic reopen checks compare canonical/operational SQLite rows and active SDK read bodies; they do not replay every original operation after restart.",
+    "No platform beyond this recorded Linux wheel, no provider success or standalone reranker, no concurrent/cancellation matrix.",
+    "Search positive cases exercise lexical and projected paths; qualified vector/hybrid S01 and S02 receipts remain separate."
+  ]
+}

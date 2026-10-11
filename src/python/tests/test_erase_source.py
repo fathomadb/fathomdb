@@ -21,10 +21,13 @@ SQL access.
 
 from __future__ import annotations
 
+import hashlib
+import sqlite3
+
 import pytest
 
 from fathomdb import Engine
-from fathomdb.errors import WriteValidationError
+from fathomdb.errors import ErasureIncompleteError, WriteValidationError
 
 
 def _anonymous_node(body: str, source_id: str) -> dict:
@@ -55,6 +58,28 @@ def test_erase_source_erases_anonymous_content_without_cli(db_path: str) -> None
         engine.close()
 
 
+def test_erase_source_addresses_embedded_nul_source_id(db_path: str) -> None:
+    source_id = "tenant\0a"
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write([
+            _anonymous_node("nul source payload", source_id),
+            _anonymous_node("other source payload", "tenant-a"),
+        ])
+        report = engine.erase_source(source_id)
+        assert report.source_ref == source_id
+        assert report.nodes_excised == 1
+        with sqlite3.connect(db_path) as conn:
+            rows = conn.execute(
+                "SELECT source_id, COUNT(*) FROM canonical_nodes GROUP BY source_id"
+            ).fetchall()
+        assert rows == [("tenant-a", 1)], "the exact NUL bucket is gone; the other remains"
+        assert engine.erase_source(source_id).nodes_excised == 0
+        assert engine.erase_source("tenant-a").nodes_excised == 1
+    finally:
+        engine.close()
+
+
 def test_erase_source_is_idempotent(db_path: str) -> None:
     engine = Engine.open(db_path)
     try:
@@ -63,6 +88,118 @@ def test_erase_source_is_idempotent(db_path: str) -> None:
         # Retrying an interrupted erasure obligation must not raise.
         assert engine.erase_source("tenant-a").nodes_excised == 0
         assert engine.erase_source("never-written").nodes_excised == 0
+    finally:
+        engine.close()
+
+
+def test_erase_source_after_correction_keeps_requested_bucket_counts(db_path: str) -> None:
+    engine = Engine.open(db_path)
+    try:
+        engine.actuate(
+            {
+                "schema_version": 1,
+                "operation_id": "erase-correction-seed",
+                "operations": [
+                    {
+                        "type": "put_canonical_node",
+                        "record": {
+                            "kind": "doc",
+                            "body": "correction original body",
+                            "source_id": "correction-bucket",
+                            "logical_id": "correction-source",
+                            "provenance": {
+                                "schema_version": 1,
+                                "role": "canonical",
+                                "artifact_revision_id": "correction-source-r1",
+                                "source_version_id": "correction-source-v1",
+                            },
+                        },
+                    }
+                ],
+            }
+        )
+        # A registered derived dependent makes the correction admit completed
+        # closures that the correction receipt references; without it the
+        # erasure ordering defect is unreachable.
+        engine.write(
+            [
+                {
+                    "kind": "fact",
+                    "body": "correction derived body",
+                    "source_id": "correction-bucket",
+                    "logical_id": "correction-derived",
+                    "provenance": {
+                        "schema_version": 1,
+                        "role": "derived",
+                        "artifact_revision_id": "correction-derived-r1",
+                        "source_version_id": "correction-source-v1",
+                        "source_revision_id": "correction-source-r1",
+                        "source_locator": {"kind": "whole_body"},
+                        "canonical_source_hash": {
+                            "algorithm": "sha256",
+                            "digest_hex": hashlib.sha256(b"correction original body").hexdigest(),
+                        },
+                    },
+                }
+            ]
+        )
+        engine.register_source_dependency(
+            {
+                "schema_version": 1,
+                "dependency_id": "correction-dependency",
+                "source_revision_id": "correction-source-r1",
+                "derived_revision_id": "correction-derived-r1",
+            }
+        )
+        receipt = engine.actuate(
+            {
+                "schema_version": 1,
+                "operation_id": "erase-correction-replace",
+                "operations": [
+                    {
+                        "type": "transition_lifecycle",
+                        "logical_id": "correction-source",
+                        "expected_current_revision_id": "correction-source-r1",
+                        "to_state": "deleted",
+                        "reason": "corrected",
+                    },
+                    {
+                        "type": "put_canonical_node",
+                        "record": {
+                            "kind": "doc",
+                            "body": "correction replacement body",
+                            "source_id": "correction-bucket",
+                            "logical_id": "correction-source",
+                            "provenance": {
+                                "schema_version": 1,
+                                "role": "canonical",
+                                "artifact_revision_id": "correction-source-r2",
+                                "source_version_id": "correction-source-v2",
+                            },
+                        },
+                    },
+                ],
+            }
+        )
+        assert receipt.closure_operation_ids
+        report = engine.erase_source("correction-bucket")
+        assert report.source_ref == "correction-bucket"
+        assert report.nodes_excised == 3
+    finally:
+        engine.close()
+
+
+def test_erase_source_maps_postcommit_incomplete_result(db_path: str, tmp_path) -> None:
+    sink = tmp_path / "erasure-telemetry.jsonl"
+    engine = Engine.open(db_path)
+    try:
+        engine.enable_telemetry(str(sink))
+        engine.write([{"kind": "doc", "body": "mapped incomplete body", "source_id": "mapped"}])
+        engine.search("mapped incomplete")
+        sink.unlink()
+        with pytest.raises(ErasureIncompleteError) as excinfo:
+            engine.erase_source("mapped")
+        assert excinfo.value.stage == "telemetry_redaction"
     finally:
         engine.close()
 

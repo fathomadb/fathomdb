@@ -1,0 +1,23 @@
+{
+  "name": "fathomdb-linux-arm64-gnu-tegra",
+  "//version": "Deliberately absent. scripts/release/build-napi-cuda-tegra.sh stamps the main fathomdb package's version into a staged copy, so a packed Tegra tarball always matches the main package it was built with. The loader refuses a mismatched pair.",
+  "description": "CUDA-capable FathomDB native binding for classic NVIDIA Jetson Orin (JetPack 6 / L4T R36, CUDA 12.6). Distributed only as an exact-version tarball from the FathomDB Tegra Pages site; never an optional dependency of the `fathomdb` package.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fathomadb/fathomdb"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "main": "fathomdb.linux-arm64-gnu.node",
+  "files": [
+    "fathomdb.linux-arm64-gnu.node"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "cells": {
+    "hybrid": {
+      "p99": "unsupported_below_1000_samples",
+      "session_cold_ns": 9951142,
+      "warm_count": 100,
+      "warm_max_ns": 30206666,
+      "warm_p50_ns": 8867794,
+      "warm_p95_ns": 9804776
+    },
+    "text": {
+      "p99": "unsupported_below_1000_samples",
+      "session_cold_ns": 844697,
+      "warm_count": 100,
+      "warm_max_ns": 647475,
+      "warm_p50_ns": 115348,
+      "warm_p95_ns": 531665
+    },
+    "vector": {
+      "p99": "unsupported_below_1000_samples",
+      "session_cold_ns": 10921428,
+      "warm_count": 100,
+      "warm_max_ns": 16336230,
+      "warm_p50_ns": 10295453,
+      "warm_p95_ns": 11740327
+    }
+  },
+  "checked_attempts": 306,
+  "raw_sha256": "6a8d25c5577b59212391d7a27b762e5898ce12dd0abbee88f65c6138d27403af",
+  "resource_sha256": "bef98ba4b9929e30e4accb14731c03f0ae9939d11e75d39b21a9c5873613430c",
+  "runner_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d"
+}

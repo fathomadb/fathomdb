@@ -1,22 +1,4 @@
-//! PR-9 item 1 — engine-side embed serialization.
-//!
-//! The projection pool runs `PROJECTION_WORKERS` (2) workers. PR-9 serializes
-//! the embed *call* engine-side so the shared `Arc<dyn Embedder>` is invoked
-//! by at most one worker at a time, while commit/IO stays parallel.
-//!
-//! Rationale is SAFETY, not throughput: the engine accepts arbitrary
-//! caller-supplied embedders (pyo3 / napi bridges) that are `Sync` only by
-//! contract and may not be truly concurrency-safe; serializing engine-side
-//! makes the projection robust to them. (Throughput is ~neutral — candle
-//! fans every forward onto one process-wide rayon pool, so concurrent
-//! forwards share it rather than getting 2x; the PR-9 pre-flight also
-//! confirmed concurrent CandleBge embeds neither wedge nor corrupt.)
-//!
-//! This test proves serialization mechanically with a fast mock embedder
-//! that records the maximum number of `embed()` calls in flight at once.
-//!
-//! RED (no guard): two workers embed concurrently → max in flight == 2.
-//! GREEN (guard):  embeds run one at a time   → max in flight == 1.
+//! The configured provider pool bounds projection inference concurrency.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -25,7 +7,7 @@ use std::time::Duration;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::ProjectionStatus;
-use fathomdb_engine::{Engine, PreparedWrite};
+use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, PreparedWrite};
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -79,17 +61,19 @@ fn fixture_path(name: &str) -> (TempDir, std::path::PathBuf) {
     (dir, path)
 }
 
-/// Item 1: the production projection path must embed one-at-a-time. With two
-/// projection workers and a deliberately-slow embed, an unserialized engine
-/// would show two concurrent `embed()` calls; the engine-side guard pins the
-/// peak at exactly one.
+/// A configured one-slot provider pool serializes two projection workers.
 #[test]
-fn embeds_are_serialized_engine_side() {
+fn one_slot_provider_pool_has_one_active_call() {
     let (_dir, path) = fixture_path("pr9_serialize");
     let max_in_flight = Arc::new(AtomicUsize::new(0));
     let embedder =
         Arc::new(ConcurrencyProbeEmbedder::new(max_in_flight.clone(), Duration::from_millis(50)));
-    let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
+    let opened = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(embedder),
+        EngineConfig { embedder_pool_size: Some(1), ..EngineConfig::default() },
+    )
+    .expect("open");
     let engine = opened.engine;
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
 

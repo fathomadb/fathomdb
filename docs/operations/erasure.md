@@ -17,6 +17,9 @@ binary on `PATH` could not delete **anonymous content** — rows written without
 
 ## What `erase_source` guarantees
 
+The argument follows the write-side `SourceId` grammar. Embedded NUL is valid
+in a source identity and remains addressable by an exact matching erase call.
+
 For every canonical row whose `source_id` matches, `erase_source` deletes:
 
 1. the **canonical rows** themselves (`canonical_nodes`, `canonical_edges`) —
@@ -31,6 +34,15 @@ For every canonical row whose `source_id` matches, `erase_source` deletes:
    Without this the content stays `grep`-able in `<db>-wal` even though every
    table row is gone: the `DELETE` appends new frames rather than rewriting old
    ones.
+
+Correction does not make a source bucket uneraseable. After one source has
+been superseded by another, either bucket may be erased first. Completed
+direct-dependent closure rows are removed with their source, while receipt
+redaction is validated before those closure records disappear. The returned
+counts describe only rows and projections owned by the requested source; the
+operation does not recursively erase the replacement bucket. The same holds for
+`purge`: a corrected logical id can be purged once deleted, and its completed
+correction closures are removed only after receipt redaction.
 
 The call **does not report success on a partial erasure.** If the WAL checkpoint
 cannot complete — typically a concurrent reader pinning a snapshot — the verb

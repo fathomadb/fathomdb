@@ -1,0 +1,74 @@
+diff --git a/src/rust/crates/example/src/engine.rs b/src/rust/crates/example/src/engine.rs
+new file mode 100644
+index 0000000..fe4f920
+--- /dev/null
++++ b/src/rust/crates/example/src/engine.rs
+@@ -0,0 +1,26 @@
++/// The engine.
++#[derive(Debug)]
++pub struct Engine {
++    path: String,
++}
++
++impl Engine {
++    /// Open.
++    pub fn open(path: &str) -> Self {
++        Self { path: path.to_owned() }
++    }
++
++    pub fn close(&self) {}
++
++    pub(crate) fn internal(&self) {}
++}
++
++impl Drop for Engine {
++    fn drop(&mut self) {}
++}
++
++pub fn version() -> &'static str {
++    "1"
++}
++
++pub const MAX: usize = 3;
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+index 69a0d2d..4e0fb20 100644
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,35 +1,11 @@
+ //! Engine.
++mod engine;
+ mod util;
+ 
+-/// The engine.
+-#[derive(Debug)]
+-pub struct Engine {
+-    path: String,
+-}
+-
+-impl Engine {
+-    /// Open.
+-    pub fn open(path: &str) -> Self {
+-        Self { path: path.to_owned() }
+-    }
+-
+-    pub fn close(&self) {}
+-
+-    pub(crate) fn internal(&self) {}
+-}
+-
+-impl Drop for Engine {
+-    fn drop(&mut self) {}
+-}
+-
+-pub fn version() -> &'static str {
+-    "1"
+-}
+-
+-pub const MAX: usize = 3;
++pub use engine::{version, Engine, MAX};
+ 
+ #[cfg(test)]
+ mod tests {
+     #[test]
+     fn t() {}
+ }

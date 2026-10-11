@@ -1,0 +1,13 @@
+# n=3 equally spaced 4 KiB blockers (fails on main thread) and control, CUDA on a pthread
+n3-mainthread --size 4K --at 0x980000000,0x1100000000,0x1880000000
+n3-pthread --size 4K --at 0x980000000,0x1100000000,0x1880000000 --thread
+control-pthread --thread
+# explicit cuMemPoolCreate with maxSize in the failing n=3 layout (driver units 15.34 GiB, largest free gap 14.66 GiB)
+n3-maxsize-32M --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 32M
+n3-maxsize-1G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 1G
+n3-maxsize-8G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 8G
+n3-maxsize-14G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 14G
+n3-maxsize-15G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 15G
+n3-maxsize-16G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 16G
+n3-maxsize-20G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 20G
+control-maxsize-1G --pool-maxsize 1G

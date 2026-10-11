@@ -4,12 +4,16 @@ date: 2026-04-27
 target_release: 0.6.0
 desc: Push (eager) projection model; scheduler dispatches post-commit
 blast_radius: design/scheduler.md; design/vector.md; design/projections.md; ADR-0.6.0-async-surface Invariant A; ADR-0.6.0-projection-freshness-sli; ADR-0.6.0-scheduler-shape
-status: accepted
+status: accepted; admission and rediscovery details partially superseded by ADR-0.8.27-engine-owned-runtime-topology
 ---
 
 # ADR-0.6.0 — Projection model: push (eager)
 
 **Status:** accepted (HITL 2026-04-27).
+Scheduler-entry granularity, unbounded-queue/adapter-shedding and cursor-only
+rediscovery details are partially superseded by
+[`ADR-0.8.27-engine-owned-runtime-topology`](ADR-0.8.27-engine-owned-runtime-topology.md);
+push dispatch, retry policy and terminal cursor authority remain.
 
 Phase 2 #16 design ADR. Central design question of the rewrite: when does projection computation happen relative to the originating write?
 

@@ -1,0 +1,12 @@
+{
+  "schema": "fathomdb.performance-digest-allowlist.v1",
+  "description": "Performance gauntlet tokenizer digests are artifact-integrity metadata",
+  "key": "tokenizer.json",
+  "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+  "paths": [
+    "experiments/configs/graph-retrieval-01/musique-native-expand.v1.json",
+    "scripts/perf-experiments/gauntlet_cells.py",
+    "tests/experiments/test_perf_gauntlet_cells.py",
+    "dev/performance-benchmarking/gauntlet-v1.2/results/graph-retrieval-01-historical-300-0.8.26.record.json"
+  ]
+}

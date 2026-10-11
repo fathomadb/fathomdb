@@ -1,0 +1,100 @@
+{
+  "candidate_source_sha": "224e44c593c13d86ece648adabe445723db04070",
+  "datasets": {
+    "ir-relevance": {
+      "canonical_docs": 2050,
+      "cpu_db_sha256": "7a311c5f76025254aea320a22c7fcaf9b447a44bafde65d012890bf149be39d6",
+      "cpu_raw_sha256": "b5738bfdd4ddeaa810eab910cdfa29d465124f3efffc3e20690b76c57c8c0727",
+      "gpu_db_sha256": "676c541a363976c961a208cb32e2ec902715270e0b9750ec8c2ffa837f4c5f7d",
+      "gpu_result_sha256": "7ba46901610d03dbfba38d6f542cc3ffae01b6bd63240584d3df5bdf79aca881",
+      "metrics": {
+        "by_class": {
+          "exact_fact": {
+            "mrr_at_10_cpu": 0.6889218432471027,
+            "mrr_at_10_gpu": 0.6889218432471027,
+            "queries": 289,
+            "required_in_top10_cpu": 256,
+            "required_in_top10_gpu": 256
+          },
+          "exploratory": {
+            "mrr_at_10_cpu": 0.13556861563190678,
+            "mrr_at_10_gpu": 0.13556861563190678,
+            "queries": 158,
+            "required_in_top10_cpu": 60,
+            "required_in_top10_gpu": 60
+          }
+        }
+      },
+      "population": 4472,
+      "query_count": 447,
+      "top_k_lists_identical": 447
+    },
+    "locomo-memory": {
+      "canonical_docs": 272,
+      "cpu_db_sha256": "e1e8420f7d79fe1941e36bf23449a955a86fc89c478d8161a55b21abedc2f356",
+      "cpu_raw_sha256": "a4901f000095b14208174a9c1e6ec59c1e6347fe3bfa23c0bb18064cf5418b9a",
+      "gpu_db_sha256": "a05e485d9d42ec810a1bf5dfe60449e05f9720f8575b0287885ae52656c3e512",
+      "gpu_result_sha256": "562291e94bab8105fc8e6a29aab895f3e2f4b41785849b96f536d04aa4741aa5",
+      "metrics": {
+        "complete_at_10_cpu": 119,
+        "complete_at_10_gpu": 119,
+        "complete_at_20_cpu": 138,
+        "complete_at_20_gpu": 138,
+        "strict_multi_session": {
+          "complete_at_20_cpu": 22,
+          "complete_at_20_gpu": 22,
+          "queries": 27
+        }
+      },
+      "population": 1443,
+      "query_count": 144,
+      "top_k_lists_identical": 144
+    },
+    "musique-support": {
+      "canonical_docs": 1669,
+      "cpu_db_sha256": "4ab6dcf4f9ff6c20c2b62b02e99845bb2ab82d7bd6c5e7381f1771d07274f879",
+      "cpu_raw_sha256": "da37fe7adb6c18a4f292047aa64c8e8ac2139cbd40cf3e2370122dbdafeaf67a",
+      "gpu_db_sha256": "1198caacc2a41a96a527d9957b448afe4a115c5d98c9e811922f582c1e97a578",
+      "gpu_result_sha256": "111c63ef3e5fe73397a404dd9748cf359c19bf47819d9717cc568adfd5d5a1b7",
+      "metrics": {
+        "complete_at_10_cpu": 3,
+        "complete_at_10_gpu": 3,
+        "complete_at_20_cpu": 3,
+        "complete_at_20_gpu": 3
+      },
+      "population": 100,
+      "query_count": 10,
+      "top_k_lists_identical": 10
+    },
+    "vector-fidelity-v2": {
+      "canonical_docs": 1000,
+      "cpu_db_sha256": "a39f6269fa20260fdb3711bbf0454a0dd6a1b12b161f46373a54c4d3374106ed",
+      "cpu_raw_sha256": "f690569dca0cba9e8fd498bb632f5f8b0f9c64a780563976d9ece11358b5b050",
+      "gpu_db_sha256": "b8cd2a2156ac8a60091758104c178b66bd99a57594219b3d5b474e3da51de603",
+      "gpu_result_sha256": "e56c570efec3d03f00329e3d04b814d4dd9ab7c3c8548cf7e6f55e3c90e1fe37",
+      "metrics": {
+        "corrected_result_limit": 15,
+        "full_diagnostic_per_query_equal": 100,
+        "full_diagnostic_recall_at_10_cpu": 0.9309999999999999,
+        "full_diagnostic_recall_at_10_gpu": 0.9309999999999999,
+        "invalid_first_result_limit": 10,
+        "sample_per_query_equal": 10,
+        "sample_recall_at_10_cpu": 0.9800000000000001,
+        "sample_recall_at_10_gpu": 0.9800000000000001
+      },
+      "population": 100,
+      "query_count": 10,
+      "top_k_lists_identical": 10
+    }
+  },
+  "device": {
+    "name": "NVIDIA GeForce RTX 3090",
+    "ordinal": 0,
+    "uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b"
+  },
+  "gpu_wheel_sha256": "116ff91cd5afd51660a17faff69cb30ccfcf82730c3fe14567ee1e78c6e7e46a",
+  "manifest_sha256": "e224d6627a82fa111a2fa5e514c39ab1e40f63d14276e8cfd86926e3dab9252b",
+  "schema_version": 1,
+  "total_population_queries": 6115,
+  "total_sample_queries": 611
+}

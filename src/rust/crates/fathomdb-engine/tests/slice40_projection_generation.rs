@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+#[cfg(feature = "migration-test-hooks")]
+use fathomdb_engine::{configure_runtime, RuntimeSqliteMode};
 use fathomdb_engine::{
     Engine, EngineError, InitialState, PreparedWrite, ProjectionFts,
     ProjectionGenerationErrorReason, ProjectionGenerationOriginV1, ProjectionReadinessV1,
@@ -145,6 +147,8 @@ fn each_operator_rebuild_mints_a_distinct_generation() {
 fn upgraded_nonempty_database_bootstraps_as_legacy_degraded() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("legacy{SQLITE_SUFFIX}"));
+    // A raw connection initializes SQLite; the runtime must be configured first.
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
     let connection = Connection::open(&path).unwrap();
     migrate_with_steps(&connection, &MIGRATIONS[..31]).unwrap();
     connection

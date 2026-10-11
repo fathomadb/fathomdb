@@ -1,0 +1,990 @@
+{
+  "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+  "cells": {
+    "canonical_write": [
+      {
+        "correctness_count": 1,
+        "latency_ns": 502400,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "profile_ref": "profiles/canonical_write.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 496889,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "profile_ref": "profiles/canonical_write.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 501268,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "profile_ref": "profiles/canonical_write.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 506347,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "profile_ref": "profiles/canonical_write.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 495447,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "profile_ref": "profiles/canonical_write.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 553106,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "profile_ref": "profiles/canonical_write.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 496389,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "profile_ref": "profiles/canonical_write.txt",
+        "valid": true
+      }
+    ],
+    "close": [
+      {
+        "correctness_count": 32,
+        "latency_ns": 4456539,
+        "profile_ref": "profiles/close.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 3629144,
+        "profile_ref": "profiles/close.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 5059679,
+        "profile_ref": "profiles/close.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4983786,
+        "profile_ref": "profiles/close.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4451198,
+        "profile_ref": "profiles/close.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4999154,
+        "profile_ref": "profiles/close.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 4346850,
+        "profile_ref": "profiles/close.txt",
+        "valid": true
+      }
+    ],
+    "erasure": [
+      {
+        "correctness_count": 1,
+        "latency_ns": 12343153,
+        "poststate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "prestate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:erase"
+          ]
+        },
+        "profile_ref": "profiles/erasure.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 12462068,
+        "poststate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "prestate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:erase"
+          ]
+        },
+        "profile_ref": "profiles/erasure.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 12755724,
+        "poststate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "prestate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:erase"
+          ]
+        },
+        "profile_ref": "profiles/erasure.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 12477227,
+        "poststate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "prestate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:erase"
+          ]
+        },
+        "profile_ref": "profiles/erasure.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 13294592,
+        "poststate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "prestate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:erase"
+          ]
+        },
+        "profile_ref": "profiles/erasure.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 12946063,
+        "poststate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "prestate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:erase"
+          ]
+        },
+        "profile_ref": "profiles/erasure.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 13092611,
+        "poststate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "prestate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:erase"
+          ]
+        },
+        "profile_ref": "profiles/erasure.txt",
+        "valid": true
+      }
+    ],
+    "graph_evidence": [
+      {
+        "correctness_count": 1,
+        "latency_ns": 291461,
+        "profile_ref": "profiles/graph_evidence.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 280721,
+        "profile_ref": "profiles/graph_evidence.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 275410,
+        "profile_ref": "profiles/graph_evidence.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 272997,
+        "profile_ref": "profiles/graph_evidence.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 273267,
+        "profile_ref": "profiles/graph_evidence.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 272215,
+        "profile_ref": "profiles/graph_evidence.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 281262,
+        "profile_ref": "profiles/graph_evidence.txt",
+        "valid": true
+      }
+    ],
+    "graph_expand": [
+      {
+        "correctness_count": 1,
+        "latency_ns": 880305,
+        "profile_ref": "profiles/graph_expand.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 939477,
+        "profile_ref": "profiles/graph_expand.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 890013,
+        "profile_ref": "profiles/graph_expand.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 766660,
+        "profile_ref": "profiles/graph_expand.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 769566,
+        "profile_ref": "profiles/graph_expand.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 668374,
+        "profile_ref": "profiles/graph_expand.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 857762,
+        "profile_ref": "profiles/graph_expand.txt",
+        "valid": true
+      }
+    ],
+    "hybrid": [
+      {
+        "correctness_count": 10,
+        "latency_ns": 1040037,
+        "stage": "provider",
+        "stage_ns": 281,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 1069302,
+        "stage": "provider",
+        "stage_ns": 472,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 803750,
+        "stage": "provider",
+        "stage_ns": 271,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 392963,
+        "stage": "provider",
+        "stage_ns": 442,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 363859,
+        "stage": "provider",
+        "stage_ns": 532,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 664076,
+        "stage": "provider",
+        "stage_ns": 282,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 454089,
+        "stage": "provider",
+        "stage_ns": 241,
+        "valid": true
+      }
+    ],
+    "model_cpu": [
+      {
+        "correctness_count": 384,
+        "latency_ns": 210102893,
+        "model_load_ns": 195610294,
+        "stage": "inference",
+        "stage_ns": 14492599,
+        "valid": true
+      },
+      {
+        "correctness_count": 384,
+        "latency_ns": 177712166,
+        "model_load_ns": 165225371,
+        "stage": "inference",
+        "stage_ns": 12486795,
+        "valid": true
+      },
+      {
+        "correctness_count": 384,
+        "latency_ns": 179829941,
+        "model_load_ns": 165747068,
+        "stage": "inference",
+        "stage_ns": 14082873,
+        "valid": true
+      },
+      {
+        "correctness_count": 384,
+        "latency_ns": 182347232,
+        "model_load_ns": 171049115,
+        "stage": "inference",
+        "stage_ns": 11298117,
+        "valid": true
+      },
+      {
+        "correctness_count": 384,
+        "latency_ns": 179073731,
+        "model_load_ns": 166562219,
+        "stage": "inference",
+        "stage_ns": 12511512,
+        "valid": true
+      },
+      {
+        "correctness_count": 384,
+        "latency_ns": 186469398,
+        "model_load_ns": 173245098,
+        "stage": "inference",
+        "stage_ns": 13224300,
+        "valid": true
+      },
+      {
+        "correctness_count": 384,
+        "latency_ns": 184759213,
+        "model_load_ns": 171448751,
+        "stage": "inference",
+        "stage_ns": 13310462,
+        "valid": true
+      }
+    ],
+    "open_fresh": [
+      {
+        "correctness_count": 1,
+        "latency_ns": 26994381,
+        "profile_ref": "profiles/open_fresh.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 21862275,
+        "profile_ref": "profiles/open_fresh.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 22581145,
+        "profile_ref": "profiles/open_fresh.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 21735606,
+        "profile_ref": "profiles/open_fresh.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 22196537,
+        "profile_ref": "profiles/open_fresh.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 22622975,
+        "profile_ref": "profiles/open_fresh.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 22058427,
+        "profile_ref": "profiles/open_fresh.txt",
+        "valid": true
+      }
+    ],
+    "open_populated": [
+      {
+        "correctness_count": 32,
+        "latency_ns": 13479993,
+        "profile_ref": "profiles/open_populated.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 15144541,
+        "profile_ref": "profiles/open_populated.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 13812172,
+        "profile_ref": "profiles/open_populated.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 14045643,
+        "profile_ref": "profiles/open_populated.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 12924913,
+        "profile_ref": "profiles/open_populated.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 13957325,
+        "profile_ref": "profiles/open_populated.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 32,
+        "latency_ns": 12406583,
+        "profile_ref": "profiles/open_populated.txt",
+        "valid": true
+      }
+    ],
+    "projection": [
+      {
+        "correctness_count": 1,
+        "latency_ns": 6557602,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "stage": "provider",
+        "stage_ns": 1153,
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 5565465,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "stage": "provider",
+        "stage_ns": 97585,
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 6302049,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "stage": "provider",
+        "stage_ns": 1964,
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 5596024,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "stage": "provider",
+        "stage_ns": 111963,
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 5674501,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "stage": "provider",
+        "stage_ns": 112934,
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 5983646,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "stage": "provider",
+        "stage_ns": 123365,
+        "valid": true
+      },
+      {
+        "correctness_count": 1,
+        "latency_ns": 5875061,
+        "poststate": {
+          "canonical_rows": 1,
+          "digest": "473cb1339ef9a2ff5a2a9c9003a852413e09bb65f1986e482bd43f84d41b8eaa",
+          "projection_rows": 1,
+          "source_ids": [
+            "slice115:mutation"
+          ]
+        },
+        "prestate": {
+          "canonical_rows": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "projection_rows": 0,
+          "source_ids": []
+        },
+        "stage": "provider",
+        "stage_ns": 1134,
+        "valid": true
+      }
+    ],
+    "text": [
+      {
+        "correctness_count": 10,
+        "latency_ns": 600195,
+        "profile_ref": "profiles/text.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 245654,
+        "profile_ref": "profiles/text.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 254781,
+        "profile_ref": "profiles/text.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 293626,
+        "profile_ref": "profiles/text.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 270622,
+        "profile_ref": "profiles/text.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 276213,
+        "profile_ref": "profiles/text.txt",
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 228703,
+        "profile_ref": "profiles/text.txt",
+        "valid": true
+      }
+    ],
+    "vector_stage": [
+      {
+        "correctness_count": 10,
+        "latency_ns": 865487,
+        "stage": "provider",
+        "stage_ns": 482,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 1109598,
+        "stage": "provider",
+        "stage_ns": 262,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 439090,
+        "stage": "provider",
+        "stage_ns": 442,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 437157,
+        "stage": "provider",
+        "stage_ns": 291,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 640933,
+        "stage": "provider",
+        "stage_ns": 252,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 422850,
+        "stage": "provider",
+        "stage_ns": 261,
+        "valid": true
+      },
+      {
+        "correctness_count": 10,
+        "latency_ns": 453407,
+        "stage": "provider",
+        "stage_ns": 432,
+        "valid": true
+      }
+    ]
+  },
+  "corpus_sha256": "c4bbde04fc7415ea321d24a29338a5d56beabca2d04677797de6b14503d3cde0",
+  "environment_valid": true,
+  "profiles": {
+    "canonical_write": {
+      "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+      "control_operations": null,
+      "control_vs_profile_throughput_ratio": null,
+      "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+      "method": "gdb-interrupt-stack",
+      "operation_samples": 15,
+      "path": "canonical_write",
+      "profile_loop_seconds": 6,
+      "profiled_operations": 1771,
+      "requested_samples": 16,
+      "sampling_interval_seconds": 0.08,
+      "sha256": "3c6a69a4913b5e210859b194834191589766ce44087a584eb979ae39377eabe2",
+      "total_samples": 16
+    },
+    "close": {
+      "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+      "control_operations": null,
+      "control_vs_profile_throughput_ratio": null,
+      "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+      "method": "gdb-interrupt-stack",
+      "operation_samples": 4,
+      "path": "close",
+      "profile_loop_seconds": 6,
+      "profiled_operations": 101,
+      "requested_samples": 16,
+      "sampling_interval_seconds": 0.08,
+      "sha256": "c6dea5e27057f7ff60d33e3eb265d2bd0e5a923358ab8518d044f716272f90e7",
+      "total_samples": 16
+    },
+    "erasure": {
+      "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+      "control_operations": null,
+      "control_vs_profile_throughput_ratio": null,
+      "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+      "method": "gdb-interrupt-stack",
+      "operation_samples": 9,
+      "path": "erasure",
+      "profile_loop_seconds": 12,
+      "profiled_operations": 247,
+      "requested_samples": 48,
+      "sampling_interval_seconds": 0.08,
+      "sha256": "cee0f93cf839160cca9a4aa9da30900823e3a858603890e96b8f2af7ce21966a",
+      "total_samples": 48
+    },
+    "graph_evidence": {
+      "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+      "control_operations": 62426,
+      "control_vs_profile_throughput_ratio": 0.9370614807932592,
+      "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+      "method": "gdb-interrupt-stack",
+      "operation_samples": 18,
+      "path": "graph_evidence",
+      "profile_loop_seconds": 15,
+      "profiled_operations": 58497,
+      "requested_samples": 20,
+      "sampling_interval_seconds": 0.08,
+      "sha256": "d2875bbc5a5c92aa9c6e872c835fb48d3def762472c68ea567c701cdcac434a9",
+      "total_samples": 20
+    },
+    "graph_expand": {
+      "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+      "control_operations": null,
+      "control_vs_profile_throughput_ratio": null,
+      "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+      "method": "gdb-interrupt-stack",
+      "operation_samples": 12,
+      "path": "graph_expand",
+      "profile_loop_seconds": 6,
+      "profiled_operations": 8280,
+      "requested_samples": 12,
+      "sampling_interval_seconds": 0.08,
+      "sha256": "d5262d9838adb9320a933341dffef8eb28e339757b6744f2d512b379e5857351",
+      "total_samples": 12
+    },
+    "open_fresh": {
+      "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+      "control_operations": 461,
+      "control_vs_profile_throughput_ratio": 1.1496746203904555,
+      "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+      "method": "gdb-interrupt-stack",
+      "operation_samples": 11,
+      "path": "open_fresh",
+      "profile_loop_seconds": 15,
+      "profiled_operations": 530,
+      "requested_samples": 20,
+      "sampling_interval_seconds": 0.08,
+      "sha256": "17c771c94e4d951419f09705d9b90b810d945885cddc38ac8ae329f511e2f67e",
+      "total_samples": 20
+    },
+    "open_populated": {
+      "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+      "control_operations": 268,
+      "control_vs_profile_throughput_ratio": 0.9514925373134329,
+      "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+      "method": "gdb-interrupt-stack",
+      "operation_samples": 10,
+      "path": "open_populated",
+      "profile_loop_seconds": 15,
+      "profiled_operations": 255,
+      "requested_samples": 20,
+      "sampling_interval_seconds": 0.08,
+      "sha256": "81585192a4a1edfd58b76230d2e12b07d5b828f3ebaad2fea0351867103f0abc",
+      "total_samples": 20
+    },
+    "text": {
+      "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+      "control_operations": null,
+      "control_vs_profile_throughput_ratio": null,
+      "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+      "method": "gdb-interrupt-stack",
+      "operation_samples": 12,
+      "path": "text",
+      "profile_loop_seconds": 6,
+      "profiled_operations": 34127,
+      "requested_samples": 12,
+      "sampling_interval_seconds": 0.08,
+      "sha256": "5760ce282c901d3d7328b007674e3398528d53def299198c0d9b6658613f635f",
+      "total_samples": 12
+    }
+  },
+  "protocol_sha256": "0c4aa0059b5454f9b78a79b71abee9384deb6ae92a4537d39f861e6601e90778",
+  "runner_sha256": "2ac03b46e77b7ef00fbda464b64f8a5bce5d0135f4bd0df1675d81388d731df5",
+  "source_sha": "4ca09d443d7bcc24072e39fb3c683905a9134f27",
+  "strict_prestate": true
+}

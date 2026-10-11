@@ -1,0 +1,180 @@
+installed-node24-cuda    run-01.log  pass sync  steady=24.9   va_piece=15.34  va_hole=10.58  rule=no-fit    witness_delta=145788928
+installed-node24-cuda    run-02.log  pass sync  steady=25.1   va_piece=15.34  va_hole=11.03  rule=no-fit    witness_delta=146305024
+installed-node24-cuda    run-03.log  pass sync  steady=29.6   va_piece=15.34  va_hole=10.25  rule=no-fit    witness_delta=150355968
+installed-node24-cuda    run-04.log  pass async steady=14.3   va_piece=20.51  va_hole=14.66  rule=no-fit    witness_delta=144121856
+installed-node24-cuda    run-05.log  pass sync  steady=27.2   va_piece=22.96  va_hole=6.91   rule=no-fit    witness_delta=146694144
+installed-node24-cuda    run-06.log  pass sync  steady=25.5   va_piece=15.34  va_hole=10.85  rule=no-fit    witness_delta=146436096
+installed-node24-cuda    run-07.log  pass sync  steady=31.4   va_piece=22.96  va_hole=7.59   rule=no-fit    witness_delta=146305024
+installed-node24-cuda    run-08.log  pass async steady=10.2   va_piece=23.01  va_hole=7.47   rule=no-fit    witness_delta=111149056
+installed-node24-cuda    run-09.log  pass sync  steady=26.3   va_piece=15.34  va_hole=10.31  rule=no-fit    witness_delta=146309120
+installed-node24-cuda    run-10.log  pass async steady=14.0   va_piece=25.45  va_hole=15.6   rule=no-fit    witness_delta=111149056
+installed-node25-cpu     run-1.log   pass -     steady=32.2   va_piece=0      va_hole=25.39  rule=pool-fits witness_delta=-
+installed-node25-cpu     run-2.log   pass -     steady=26.8   va_piece=0      va_hole=26.96  rule=pool-fits witness_delta=-
+installed-node25-cpu     run-3.log   pass -     steady=41.5   va_piece=0      va_hole=34.87  rule=pool-fits witness_delta=-
+installed-node25-cuda    run-01.log  pass async steady=10.9   va_piece=25.45  va_hole=10.65  rule=no-fit    witness_delta=114130944
+installed-node25-cuda    run-02.log  pass async steady=14.1   va_piece=30.68  va_hole=24.1   rule=pool-fits witness_delta=115077120
+installed-node25-cuda    run-03.log  pass sync  steady=32.7   va_piece=15.34  va_hole=12.47  rule=no-fit    witness_delta=149245952
+installed-node25-cuda    run-04.log  pass sync  steady=27.5   va_piece=15.34  va_hole=8.32   rule=no-fit    witness_delta=146661376
+installed-node25-cuda    run-05.log  pass sync  steady=25.0   va_piece=22.96  va_hole=10.79  rule=no-fit    witness_delta=146694144
+installed-node25-cuda    run-06.log  pass async steady=10.9   va_piece=20.51  va_hole=11.41  rule=no-fit    witness_delta=110891008
+installed-node25-cuda    run-07.log  pass sync  steady=26.2   va_piece=23.01  va_hole=10.66  rule=no-fit    witness_delta=146694144
+installed-node25-cuda    run-08.log  pass sync  steady=24.5   va_piece=22.96  va_hole=10.25  rule=no-fit    witness_delta=146694144
+installed-node25-cuda    run-09.log  pass sync  steady=25.8   va_piece=23.01  va_hole=8      rule=no-fit    witness_delta=146620416
+installed-node25-cuda    run-10.log  pass sync  steady=25.6   va_piece=23.01  va_hole=8.31   rule=no-fit    witness_delta=146239488
+installed-node25-cuda    run-11.log  pass async steady=12.7   va_piece=20.51  va_hole=11.51  rule=no-fit    witness_delta=143622144
+installed-node25-cuda    run-12.log  pass sync  steady=25.3   va_piece=23.01  va_hole=10.56  rule=no-fit    witness_delta=137146368
+installed-node25-cuda    run-13.log  pass async steady=12.0   va_piece=23.01  va_hole=10.27  rule=no-fit    witness_delta=111661056
+installed-node25-cuda    run-14.log  pass async steady=13.5   va_piece=20.51  va_hole=17.89  rule=no-fit    witness_delta=111403008
+installed-node25-cuda    run-15.log  pass sync  steady=26.0   va_piece=15.34  va_hole=10.73  rule=no-fit    witness_delta=146939904
+installed-node25-cuda    run-16.log  pass sync  steady=24.8   va_piece=23.01  va_hole=12.74  rule=no-fit    witness_delta=146673664
+installed-node25-cuda    run-17.log  pass sync  steady=24.8   va_piece=15.29  va_hole=6.91   rule=no-fit    witness_delta=146685952
+installed-node25-cuda    run-18.log  pass async steady=17.3   va_piece=20.51  va_hole=12.08  rule=no-fit    witness_delta=143101952
+installed-node25-cuda    run-19.log  pass sync  steady=25.1   va_piece=15.34  va_hole=13.06  rule=no-fit    witness_delta=146694144
+installed-node25-cuda    run-20.log  pass sync  steady=25.8   va_piece=22.96  va_hole=7.64   rule=no-fit    witness_delta=146436096
+installed-node25-cuda    run-21.log  pass async steady=11.7   va_piece=20.51  va_hole=12.73  rule=no-fit    witness_delta=110100480
+installed-node25-cuda    run-22.log  pass sync  steady=28.6   va_piece=22.96  va_hole=11.71  rule=no-fit    witness_delta=150355968
+installed-node25-cuda    run-23.log  pass sync  steady=26.6   va_piece=15.34  va_hole=10.28  rule=no-fit    witness_delta=147836928
+installed-node25-cuda    run-24.log  pass async steady=11.0   va_piece=20.51  va_hole=11.16  rule=no-fit    witness_delta=143876096
+installed-node25-cuda    run-25.log  pass sync  steady=25.9   va_piece=22.96  va_hole=10.58  rule=no-fit    witness_delta=146694144
+installed-node25-cuda    run-26.log  pass sync  steady=25.2   va_piece=15.34  va_hole=15.27  rule=no-fit    witness_delta=146436096
+installed-node25-cuda    run-27.log  pass sync  steady=24.7   va_piece=22.96  va_hole=6.84   rule=no-fit    witness_delta=146305024
+installed-node25-cuda    run-28.log  pass async steady=9.8    va_piece=20.51  va_hole=13.07  rule=no-fit    witness_delta=143622144
+installed-node25-cuda    run-29.log  pass async steady=14.5   va_piece=20.51  va_hole=18.08  rule=no-fit    witness_delta=111144960
+installed-node25-cuda    run-30.log  pass sync  steady=24.9   va_piece=23.01  va_hole=11.72  rule=no-fit    witness_delta=146694144
+installed-node26-cuda    run-01.log  pass sync  steady=24.5   va_piece=15.29  va_hole=6.79   rule=no-fit    witness_delta=146755584
+installed-node26-cuda    run-02.log  pass async steady=9.7    va_piece=20.51  va_hole=11.01  rule=no-fit    witness_delta=110100480
+installed-node26-cuda    run-03.log  pass async steady=14.2   va_piece=20.51  va_hole=10.21  rule=no-fit    witness_delta=110067712
+installed-node26-cuda    run-04.log  pass sync  steady=24.5   va_piece=26.96  va_hole=6.75   rule=no-fit    witness_delta=146796544
+installed-node26-cuda    run-05.log  pass sync  steady=26.4   va_piece=15.34  va_hole=8.08   rule=no-fit    witness_delta=150355968
+installed-node26-cuda    run-06.log  pass async steady=15.9   va_piece=25.45  va_hole=9.27   rule=no-fit    witness_delta=143622144
+installed-node26-cuda    run-07.log  pass async steady=11.4   va_piece=20.51  va_hole=8.29   rule=no-fit    witness_delta=111136768
+installed-node26-cuda    run-08.log  pass sync  steady=26.8   va_piece=23.01  va_hole=7.22   rule=no-fit    witness_delta=146563072
+installed-node26-cuda    run-09.log  pass sync  steady=25.2   va_piece=15.29  va_hole=13.52  rule=no-fit    witness_delta=146952192
+installed-node26-cuda    run-10.log  pass sync  steady=31.8   va_piece=15.34  va_hole=6.42   rule=no-fit    witness_delta=146563072
+intree-node24-cuda       run-01.log  pass sync  steady=25.4   va_piece=15.29  va_hole=7.35   rule=no-fit    witness_delta=145399808
+intree-node24-cuda       run-02.log  pass sync  steady=26.6   va_piece=23.01  va_hole=7.46   rule=no-fit    witness_delta=146436096
+intree-node24-cuda       run-03.log  pass sync  steady=24.6   va_piece=22.96  va_hole=9.18   rule=no-fit    witness_delta=148496384
+intree-node24-cuda       run-04.log  pass sync  steady=27.9   va_piece=22.96  va_hole=8.92   rule=no-fit    witness_delta=146173952
+intree-node24-cuda       run-05.log  pass sync  steady=28.9   va_piece=22.96  va_hole=9.72   rule=no-fit    witness_delta=154173440
+intree-node24-cuda       run-06.log  pass sync  steady=28.0   va_piece=15.34  va_hole=7.07   rule=no-fit    witness_delta=146694144
+intree-node24-cuda       run-07.log  pass sync  steady=26.2   va_piece=19.29  va_hole=7.44   rule=no-fit    witness_delta=146563072
+intree-node24-cuda       run-08.log  pass sync  steady=25.4   va_piece=15.34  va_hole=7.15   rule=no-fit    witness_delta=146694144
+intree-node24-cuda       run-09.log  pass async steady=14.6   va_piece=25.45  va_hole=10.33  rule=no-fit    witness_delta=111702016
+intree-node24-cuda       run-10.log  pass sync  steady=25.7   va_piece=22.96  va_hole=7.43   rule=no-fit    witness_delta=148652032
+intree-node25-cpu        run-1.log   pass -     steady=47.4   va_piece=0      va_hole=30.12  rule=pool-fits witness_delta=-
+intree-node25-cpu        run-2.log   pass -     steady=31.7   va_piece=0      va_hole=16.72  rule=no-fit    witness_delta=-
+intree-node25-cpu        run-3.log   pass -     steady=30.1   va_piece=0      va_hole=39.52  rule=pool-fits witness_delta=-
+intree-node25-cuda       run-01.log  pass sync  steady=25.1   va_piece=22.96  va_hole=12.21  rule=no-fit    witness_delta=150855680
+intree-node25-cuda       run-02.log  pass sync  steady=26.6   va_piece=15.34  va_hole=12.29  rule=no-fit    witness_delta=146808832
+intree-node25-cuda       run-03.log  pass sync  steady=25.4   va_piece=15.34  va_hole=13.03  rule=no-fit    witness_delta=159277056
+intree-node25-cuda       run-04.log  pass sync  steady=26.9   va_piece=15.34  va_hole=13.87  rule=no-fit    witness_delta=146935808
+intree-node25-cuda       run-05.log  pass sync  steady=27.9   va_piece=23.01  va_hole=9.73   rule=no-fit    witness_delta=117592064
+intree-node25-cuda       run-06.log  pass async steady=11.6   va_piece=20.51  va_hole=12.74  rule=no-fit    witness_delta=110100480
+intree-node25-cuda       run-07.log  pass sync  steady=26.8   va_piece=23.01  va_hole=14.48  rule=no-fit    witness_delta=146948096
+intree-node25-cuda       run-08.log  pass async steady=8.8    va_piece=20.51  va_hole=10.54  rule=no-fit    witness_delta=137428992
+intree-node25-cuda       run-09.log  pass sync  steady=25.4   va_piece=15.34  va_hole=10.25  rule=no-fit    witness_delta=144814080
+intree-node25-cuda       run-10.log  pass async steady=9.8    va_piece=20.51  va_hole=10.08  rule=no-fit    witness_delta=110100480
+intree-node25-cuda       run-11.log  pass sync  steady=24.7   va_piece=15.34  va_hole=13.03  rule=no-fit    witness_delta=145661952
+intree-node25-cuda       run-12.log  pass sync  steady=25.2   va_piece=22.96  va_hole=7.37   rule=no-fit    witness_delta=146952192
+intree-node25-cuda       run-13.log  pass sync  steady=30.3   va_piece=22.96  va_hole=7.45   rule=no-fit    witness_delta=146567168
+intree-node25-cuda       run-14.log  pass sync  steady=24.9   va_piece=15.34  va_hole=13.58  rule=no-fit    witness_delta=146665472
+intree-node25-cuda       run-15.log  pass sync  steady=26.2   va_piece=22.96  va_hole=8.32   rule=no-fit    witness_delta=146243584
+intree-node25-cuda       run-16.log  pass async steady=13.1   va_piece=20.51  va_hole=13     rule=no-fit    witness_delta=124948480
+intree-node25-cuda       run-17.log  pass sync  steady=25.6   va_piece=22.96  va_hole=8.55   rule=no-fit    witness_delta=148221952
+intree-node25-cuda       run-18.log  pass sync  steady=24.8   va_piece=23.01  va_hole=11.62  rule=no-fit    witness_delta=149139456
+intree-node25-cuda       run-19.log  pass sync  steady=24.8   va_piece=11.67  va_hole=7.5    rule=no-fit    witness_delta=171622400
+intree-node25-cuda       run-20.log  pass sync  steady=29.8   va_piece=15.34  va_hole=15.32  rule=no-fit    witness_delta=145186816
+intree-node25-cuda       run-21.log  pass sync  steady=25.7   va_piece=15.29  va_hole=6.62   rule=no-fit    witness_delta=146567168
+intree-node25-cuda       run-22.log  pass sync  steady=29.1   va_piece=15.34  va_hole=14.17  rule=no-fit    witness_delta=146284544
+intree-node25-cuda       run-23.log  pass async steady=15.2   va_piece=25.45  va_hole=9.48   rule=no-fit    witness_delta=144392192
+intree-node25-cuda       run-24.log  pass sync  steady=25.3   va_piece=15.34  va_hole=10.01  rule=no-fit    witness_delta=146948096
+intree-node25-cuda       run-25.log  pass sync  steady=25.8   va_piece=15.34  va_hole=8.45   rule=no-fit    witness_delta=146690048
+intree-node25-cuda       run-26.log  pass sync  steady=29.6   va_piece=15.34  va_hole=12.28  rule=no-fit    witness_delta=146305024
+intree-node25-cuda       run-27.log  pass async steady=9.4    va_piece=20.51  va_hole=7.25   rule=no-fit    witness_delta=115994624
+intree-node25-cuda       run-28.log  pass async steady=11.0   va_piece=20.51  va_hole=12.71  rule=no-fit    witness_delta=112197632
+intree-node25-cuda       run-29.log  pass sync  steady=26.4   va_piece=15.34  va_hole=8.15   rule=no-fit    witness_delta=146948096
+intree-node25-cuda       run-30.log  pass sync  steady=31.5   va_piece=23.01  va_hole=10.39  rule=no-fit    witness_delta=113893376
+intree-node26-cuda       run-01.log  pass sync  steady=24.8   va_piece=15.34  va_hole=8.07   rule=no-fit    witness_delta=146362368
+intree-node26-cuda       run-02.log  pass sync  steady=25.2   va_piece=22.96  va_hole=7.52   rule=no-fit    witness_delta=146763776
+intree-node26-cuda       run-03.log  pass sync  steady=24.7   va_piece=15.29  va_hole=6.83   rule=no-fit    witness_delta=146776064
+intree-node26-cuda       run-04.log  pass sync  steady=28.8   va_piece=15.34  va_hole=12.75  rule=no-fit    witness_delta=146313216
+intree-node26-cuda       run-05.log  pass sync  steady=25.0   va_piece=11.67  va_hole=6.25   rule=no-fit    witness_delta=149786624
+intree-node26-cuda       run-06.log  pass sync  steady=25.2   va_piece=15.34  va_hole=12.96  rule=no-fit    witness_delta=147337216
+intree-node26-cuda       run-07.log  pass async steady=10.7   va_piece=20.51  va_hole=8.67   rule=no-fit    witness_delta=112275456
+intree-node26-cuda       run-08.log  pass sync  steady=25.2   va_piece=15.34  va_hole=8.01   rule=no-fit    witness_delta=146288640
+intree-node26-cuda       run-09.log  pass async steady=10.2   va_piece=20.51  va_hole=11.49  rule=no-fit    witness_delta=112353280
+intree-node26-cuda       run-10.log  pass sync  steady=27.5   va_piece=23.01  va_hole=7.54   rule=no-fit    witness_delta=131731456
+smoke                    run-1.log   pass sync  steady=27.6   va_piece=22.96  va_hole=12.27  rule=no-fit    witness_delta=146944000
+
+# failures
+none
+
+# counts per series/outcome/inferred path
+  ('installed-node24-cuda', 'pass', 'async'): 3
+  ('installed-node24-cuda', 'pass', 'sync'): 7
+  ('installed-node25-cpu', 'pass', '-'): 3
+  ('installed-node25-cuda', 'pass', 'async'): 11
+  ('installed-node25-cuda', 'pass', 'sync'): 19
+  ('installed-node26-cuda', 'pass', 'async'): 4
+  ('installed-node26-cuda', 'pass', 'sync'): 6
+  ('intree-node24-cuda', 'pass', 'async'): 1
+  ('intree-node24-cuda', 'pass', 'sync'): 9
+  ('intree-node25-cpu', 'pass', '-'): 3
+  ('intree-node25-cuda', 'pass', 'async'): 7
+  ('intree-node25-cuda', 'pass', 'sync'): 23
+  ('intree-node26-cuda', 'pass', 'async'): 2
+  ('intree-node26-cuda', 'pass', 'sync'): 8
+  ('smoke', 'pass', 'sync'): 1
+
+# distinct embedding heads (first three values) per device
+  cpu: 1 distinct: [(-0.09787368774414062, 0.008655775338411331, -0.012781920842826366)]
+  cuda: 1 distinct: [(-0.09787368774414062, 0.008655762299895287, -0.012781928293406963)]
+
+# timing (ms) for passing runs by series prefix, device, inferred path
+('installed', 'cpu', '-')
+  open               n= 3 median=   286.9 min=   286.8 max=   292.6
+  embedFirst         n= 3 median=    30.9 min=    30.2 max=    32.3
+  embedSteadyMedian  n= 3 median=    32.2 min=    26.8 max=    41.5
+  rerankFirst        n= 3 median=    91.2 min=    86.4 max=    92.2
+  rerankSecond       n= 3 median=     7.0 min=     6.3 max=     8.6
+('installed', 'cuda', 'async')
+  open               n=18 median=  1398.2 min=  1367.6 max=  1982.5
+  embedFirst         n=18 median=    46.8 min=    42.0 max=    67.2
+  embedSteadyMedian  n=18 median=    12.4 min=     9.7 max=    17.3
+  rerankFirst        n=18 median=   149.3 min=   116.1 max=   156.9
+  rerankSecond       n=18 median=     8.0 min=     6.7 max=     8.6
+  witnessDeltaMiB    n=18 median=   106.4 min=   105.0 max=   137.4
+('installed', 'cuda', 'sync')
+  open               n=32 median=  1392.7 min=  1367.2 max=  1522.6
+  embedFirst         n=32 median=    62.3 min=    52.6 max=    86.0
+  embedSteadyMedian  n=32 median=    25.7 min=    24.5 max=    32.7
+  rerankFirst        n=32 median=   155.6 min=   105.8 max=   160.9
+  rerankSecond       n=32 median=    11.9 min=     8.6 max=    12.6
+  witnessDeltaMiB    n=32 median=   139.9 min=   130.8 max=   143.4
+('intree', 'cpu', '-')
+  open               n= 3 median=   285.7 min=   284.2 max=   289.9
+  embedFirst         n= 3 median=    34.2 min=    31.2 max=    61.4
+  embedSteadyMedian  n= 3 median=    31.7 min=    30.1 max=    47.4
+  rerankFirst        n= 3 median=    68.6 min=    64.4 max=    93.2
+  rerankSecond       n= 3 median=     4.4 min=     4.2 max=     6.7
+('intree', 'cuda', 'async')
+  open               n=10 median=  1405.0 min=  1106.2 max=  1984.5
+  embedFirst         n=10 median=    46.9 min=    42.2 max=    53.1
+  embedSteadyMedian  n=10 median=    10.9 min=     8.8 max=    15.2
+  rerankFirst        n=10 median=   149.9 min=   142.8 max=   157.2
+  rerankSecond       n=10 median=     7.9 min=     6.8 max=     8.5
+  witnessDeltaMiB    n=10 median=   107.1 min=   105.0 max=   137.7
+('intree', 'cuda', 'sync')
+  open               n=40 median=  1405.3 min=  1083.8 max=  1962.1
+  embedFirst         n=40 median=    59.0 min=    53.2 max=    86.3
+  embedSteadyMedian  n=40 median=    25.7 min=    24.6 max=    31.5
+  rerankFirst        n=40 median=   149.6 min=    99.2 max=   161.8
+  rerankSecond       n=40 median=    11.3 min=     9.3 max=    13.2
+  witnessDeltaMiB    n=40 median=   139.9 min=   108.6 max=   163.7
+('smoke', 'cuda', 'sync')
+  open               n= 1 median=  1528.7 min=  1528.7 max=  1528.7
+  embedFirst         n= 1 median=    55.8 min=    55.8 max=    55.8
+  embedSteadyMedian  n= 1 median=    27.6 min=    27.6 max=    27.6
+  rerankFirst        n= 1 median=   124.8 min=   124.8 max=   124.8
+  rerankSecond       n= 1 median=     9.8 min=     9.8 max=     9.8
+  witnessDeltaMiB    n= 1 median=   140.1 min=   140.1 max=   140.1

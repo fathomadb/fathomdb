@@ -1,0 +1,3 @@
+Processing ./target/tegra-python-dist/fathomdb-0.8.27+tegra-cp310-abi3-linux_aarch64.whl
+Installing collected packages: fathomdb
+Successfully installed fathomdb-0.8.27+tegra

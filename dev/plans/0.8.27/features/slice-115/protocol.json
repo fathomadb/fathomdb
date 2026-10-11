@@ -1,0 +1,36 @@
+{
+  "protocol_id": "slice115-candidate-v1",
+  "engine_source_sha": "4ca09d443d7bcc24072e39fb3c683905a9134f27",
+  "engine_source_policy": "No src/rust/crates changes relative to engine_source_sha; measurement harness changes are bound by runner digest",
+  "cargo_lock_sha256": "03a88a539f59196833523ee86c16553df06ab429e45e4d649bd4a10ba95b21ab",
+  "profile": "release",
+  "features": ["test-hooks", "default-embedder"],
+  "model_assets_sha256": {
+    "config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+    "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
+    "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+  },
+  "settings": {
+    "scheduler_runtime_threads": 2,
+    "embedder_pool_size": 5,
+    "embedder_call_timeout_ms": 30000,
+    "provenance_row_cap": 1000000,
+    "slow_threshold_ms": 100
+  },
+  "corpus": {
+    "seed": 115,
+    "description": "32 fixed doc rows and one canonical graph source with two derived claims and a supported edge",
+    "model_probe_text": "slice115 small cpu compatibility"
+  },
+  "samples": {"warmup_per_path": 1, "timed_per_path": 7},
+  "order": "path order in workload source; query order alternates in successive repetitions",
+  "cache": "warm read cache in one process; new temporary database for every mutating sample",
+  "concurrency": "one foreground caller, background projection workers at the accepted 2/5 defaults",
+  "region": "single engine call except projection write-to-ready and bounded model compatibility; setup, semantic validation, and close are outside the timed region except the named open/close cells",
+  "percentiles": "nearest rank on sorted raw nanoseconds; p50, p90, p99, maximum",
+  "attribution": "transparent provider elapsed/count where available; independently sampled gdb stacks for remaining paths; no setup time counted as an internal stage",
+  "deep_profile_selection": "two highest valid non-model p90 paths, tie broken by path order; also graph_evidence",
+  "environment_invalidators": ["source or artifact hash mismatch", "semantic failure", "fewer than seven valid samples", "competing heavy job", "CPU governor change", "swap activity", "storage change", "profile substituted for latency sample"],
+  "decision_rule": "Existing gates remain separate; comparable breach blocks; exploratory hotspot receives owner follow-up; no tuning from one sample",
+  "gpu_policy": "CPU default-model cell is small compatibility/repeatability probe only; substantial model embedding needs verified RTX 3090 CUDA engagement and a separate receipt"
+}

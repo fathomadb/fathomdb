@@ -1,0 +1,8 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,1 +1,4 @@
+-pub fn Foo() {}
++#[cfg(feature = "x")]
++pub fn Bar() {}
++pub use m::Foo;

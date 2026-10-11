@@ -1,0 +1,8 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,2 +1,4 @@
+-pub fn Foo() {}
++mod test_hooks;
++#[cfg(feature = "test-hooks")]
++pub use test_hooks::Foo;

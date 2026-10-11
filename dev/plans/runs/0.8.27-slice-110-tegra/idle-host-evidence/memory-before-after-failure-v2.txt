@@ -1,0 +1,41 @@
+BEFORE_MEM
+MemFree:        47017264 kB
+MemAvailable:   52874636 kB
+Cached:          5268508 kB
+AnonPages:       1488192 kB
+Shmem:             67108 kB
+Slab:             550236 kB
+SReclaimable:     390484 kB
+CmaTotal:         524288 kB
+CmaFree:          256060 kB
+BEFORE_CUDA
+cuMemGetInfo=0 free=53818724352 total=65879896064
+file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362
+            return new EmbedDevicePolicyError(envelope.message, {
+                   ^
+
+EmbedDevicePolicyError: cuda:0 requested but unavailable: CudaProbeFailed
+    at build (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362:20)
+    at rethrowTyped (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:485:19)
+    at intercept (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1212:9)
+    at async Engine.open (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1257:23)
+    at async file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/[eval1]:1:143 {
+  code: 'FDB_EMBED_DEVICE_POLICY',
+  kind: 'cuda_probe_failed',
+  ordinal: 0
+}
+
+Node.js v25.9.0
+AFTER_MEM
+MemFree:        47031088 kB
+MemAvailable:   52888468 kB
+Cached:          5268516 kB
+AnonPages:       1488344 kB
+Shmem:             67108 kB
+Slab:             550116 kB
+SReclaimable:     390484 kB
+CmaTotal:         524288 kB
+CmaFree:          256060 kB
+AFTER_CUDA
+cuMemGetInfo=0 free=53831561216 total=65879896064
+status=fail

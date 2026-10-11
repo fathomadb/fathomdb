@@ -1,12 +1,116 @@
 # Changelog
 
-Release notes for the FathomDB engine, Python SDK, and TypeScript SDK.
+Release notes for the FathomDB engine and the Python, TypeScript, and Rust SDKs.
 Cuts normally follow the version tagged on `0.6.0-rewrite`. A final release
 heading may be prepared immediately before its tag so the release gate can
 verify it; it must state when registry publication remains pending. Each
 released section MUST list every removed public symbol under a `### Removed` heading;
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
+
+## 0.8.27 — 2026-10-10
+
+**Publication status: pending.** This release has not been tagged or published.
+
+### Added
+
+- `fathomdb-sdk`, a Rust application SDK. It exposes the 44 governed Python and
+  TypeScript operations through `Engine`, `read`, `graph`, and `admin`, plus
+  standalone `rerank` and `embed_batch_cls`. Option structs default to the
+  Python/TypeScript values, and errors carry an `ErrorKind` per shared error
+  class. The operation-parity check now covers Rust.
+
+### Changed
+
+- The TypeScript native subscriber delivers bounded engine diagnostics to its
+  callback and detaches during replacement and close.
+
+### Removed
+
+- Default dev and release builds no longer expose the following
+  engine test fixtures. Crate unit tests retain them; external fixtures must
+  explicitly enable `fathomdb-engine/test-hooks`:
+  - `fathomdb_engine::Engine::acknowledge_projection_stop_for_test`
+  - `fathomdb_engine::Engine::cache_status_per_worker_for_test`
+  - `fathomdb_engine::Engine::canonical_rows_with_row_kind_for_test`
+  - `fathomdb_engine::Engine::configure_vector_kind_for_test`
+  - `fathomdb_engine::Engine::default_embedder_profile_for_test`
+  - `fathomdb_engine::Engine::drain_mean_centering_events_for_test`
+  - `fathomdb_engine::Engine::execute_for_test`
+  - `fathomdb_engine::Engine::explain_graph_expand_for_test`
+  - `fathomdb_engine::Engine::explain_graph_neighbors_for_test`
+  - `fathomdb_engine::Engine::force_actuation_failure_after_operation_for_test`
+  - `fathomdb_engine::Engine::force_next_commit_failure_for_test`
+  - `fathomdb_engine::Engine::force_next_projection_commit_failure_for_test`
+  - `fathomdb_engine::Engine::force_next_projection_storage_failure_for_test`
+  - `fathomdb_engine::Engine::force_next_recompute_failure_for_test`
+  - `fathomdb_engine::Engine::has_vector_for_cursor_for_test`
+  - `fathomdb_engine::Engine::has_vector_row_for_cursor_for_test`
+  - `fathomdb_engine::Engine::live_reader_worker_count_for_test`
+  - `fathomdb_engine::Engine::next_reader_worker_index_for_test`
+  - `fathomdb_engine::Engine::oldest_provenance_record_key_for_test`
+  - `fathomdb_engine::Engine::open_with_embedder_for_test`
+  - `fathomdb_engine::Engine::open_with_subscriber_for_test`
+  - `fathomdb_engine::Engine::open_without_embedder_for_test`
+  - `fathomdb_engine::Engine::pause_projection_commit_failure_cleanup_for_test`
+  - `fathomdb_engine::Engine::pause_projection_worker_after_wal_transaction_for_test`
+  - `fathomdb_engine::Engine::pause_reader_after_wal_snapshot_for_test`
+  - `fathomdb_engine::Engine::pause_reader_with_timeout_for_test`
+  - `fathomdb_engine::Engine::projection_failure_count_for_test`
+  - `fathomdb_engine::Engine::projection_scheduler_pending_scan_for_test`
+  - `fathomdb_engine::Engine::projection_status_for_test`
+  - `fathomdb_engine::Engine::provenance_row_count_for_test`
+  - `fathomdb_engine::Engine::query_i64_col_for_test`
+  - `fathomdb_engine::Engine::query_text_col_for_test`
+  - `fathomdb_engine::Engine::read_vector_bin_for_test`
+  - `fathomdb_engine::Engine::read_vector_blob_for_test`
+  - `fathomdb_engine::Engine::reader_lookaside_config_rcs_for_test`
+  - `fathomdb_engine::Engine::reader_lookaside_used_per_worker_for_test`
+  - `fathomdb_engine::Engine::reader_secure_delete_enabled_for_test`
+  - `fathomdb_engine::Engine::reader_worker_count_for_test`
+  - `fathomdb_engine::Engine::run_one_thread_poison_for_test`
+  - `fathomdb_engine::Engine::runtime_secure_delete_enabled_for_test`
+  - `fathomdb_engine::Engine::secure_delete_enabled_for_test`
+  - `fathomdb_engine::Engine::set_actuation_after_initial_lookup_delay_ms_for_test`
+  - `fathomdb_engine::Engine::set_embed_timeout_ms_for_test`
+  - `fathomdb_engine::Engine::set_importance_reweight_enabled_for_test`
+  - `fathomdb_engine::Engine::set_legacy_projection_search_subobjects_for_test`
+  - `fathomdb_engine::Engine::set_legacy_projection_vector_declared_for_test`
+  - `fathomdb_engine::Engine::set_projection_retry_delays_for_test`
+  - `fathomdb_engine::Engine::set_projection_scheduler_frozen_for_test`
+  - `fathomdb_engine::Engine::set_provenance_row_cap_for_test`
+  - `fathomdb_engine::Engine::set_recency_reweight_enabled_for_test`
+  - `fathomdb_engine::Engine::set_search_limit_for_test`
+  - `fathomdb_engine::Engine::set_vector_stage_only_for_test`
+  - `fathomdb_engine::Engine::vector_row_count_for_test`
+  - `fathomdb_engine::Engine::write_canonical_row_with_kind_for_test`
+  - `fathomdb_engine::Engine::write_vector_for_test`
+  - `fathomdb_engine::Filter::lower_for_read_list_for_test`
+  - `fathomdb_engine::Filter::to_search_filter_for_test`
+  - `fathomdb_engine::arm_evidence_before_resolve_return_hook_for_test`
+  - `fathomdb_engine::arm_evidence_before_sidecar_hook_for_test`
+  - `fathomdb_engine::arm_frozen_after_validation_hook_for_test`
+  - `fathomdb_engine::arm_page_after_validation_hook_for_test`
+  - `fathomdb_engine::arm_reader_search_hook_for_test`
+  - `fathomdb_engine::clock_reads_for_test`
+  - `fathomdb_engine::mean_centering_internals_for_test::accumulator_add`
+  - `fathomdb_engine::mean_centering_internals_for_test::accumulator_count`
+  - `fathomdb_engine::mean_centering_internals_for_test::accumulator_materialize`
+  - `fathomdb_engine::mean_centering_internals_for_test::new_mean_accumulator`
+  - `fathomdb_engine::mean_centering_internals_for_test::run_requantize_pass`
+  - `fathomdb_engine::slice35_ranked_eligibility_sql_for_test`
+  - `fathomdb_engine::vector_phase1_sql_for_test`
+  - `fathomdb_engine::mean_centering_internals_for_test`
+  - `fathomdb_engine::mean_centering_internals_for_test::AccumulatorHandle`
+  - `fathomdb_engine::CacheStatusReply`
+  - `fathomdb_engine::ProjectionWorkerPauseReadyError`
+  - `fathomdb_engine::ProjectionWorkerTransactionPauseForTest`
+  - `fathomdb_engine::ReaderSearchPauseForTest`
+  - `fathomdb_engine::ReaderSearchPauseForTest::wait_ready`
+  - `fathomdb_engine::ReaderSearchPauseForTest::release`
+
+- `AttachSubscriberOptions` from the native and TypeScript binding surfaces;
+  the inert heartbeat option has no replacement.
 
 ## 0.8.26 — 2026-09-19
 
@@ -1194,7 +1298,19 @@ Agent-memory enablement (G0–G12). See `docs/release-notes/0.8.0.md` (user) and
 
 ### Removed
 
-(none yet)
+- **Rust facade, default build only:** the operator-seam re-exports
+  `CheckIntegrityOpts`, `DumpProfileReport`, `DumpRowCountsReport`,
+  `DumpSchemaReport`, `Finding`, `IntegrityReport`, `RebuildKind`,
+  `RebuildReport`, `SafeExportArtifact`, `SchemaObject`, `Section`,
+  `TableRowCount`, `TraceEvent`, `TraceReport`, `TruncateWalReport`,
+  `TruncateWalStatus`, `VerifyEmbedderReport`, and `VerifyEmbedderStatus` are
+  no longer exported without `--features operator` (see the operator-seam entry
+  under Changed; enabling the feature restores them unchanged).
+- **Rust engine, default build only:** the `Engine` methods `check_integrity`,
+  `dump_profile`, `dump_row_counts`, `dump_schema`, `excise_source`,
+  `rebuild_projections`, `rebuild_vec0`, `safe_export`, `trace_source_ref`,
+  `truncate_wal`, and `verify_embedder` are compiled only with
+  `--features operator` (same operator-seam gating as above).
 
 ## 0.7.2 - 2026-06-01
 

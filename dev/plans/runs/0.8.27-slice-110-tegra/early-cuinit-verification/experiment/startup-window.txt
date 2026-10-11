@@ -1,0 +1,4 @@
+B early-init arms 1-4, n=200 processes
+process start (before import): mappings in [8,128) GiB median=12.0 min=6 max=18; largest hole GiB median=27.555 min=16.56 max=66.04
+right after early cuInit: reservation VMAs (>=1 GiB ---p) median=5.0 min=2 max=11; largest reservation VMA GiB median=19.34 min=7.67 max=53.65
+runs whose largest reservation VMA >= 30.6 GiB (default pool possible): 30/200

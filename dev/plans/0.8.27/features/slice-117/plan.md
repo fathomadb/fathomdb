@@ -1,0 +1,179 @@
+---
+title: FathomDB 0.8.27 Slice 117 — Jetson CUDA Node addon delivery
+status: COMPLETE_ON_RELEASE_BRANCH
+target_release: 0.8.27
+planning_baseline: 80246a567
+---
+
+# Slice 117 — Jetson CUDA Node addon delivery
+
+**Closed 2026-10-10 at a qualified, unpublished candidate.** This plan is the
+acceptance record for the Jetson Node delivery route built on the existing
+Tegra Pages path. The owner accepted the distribution ADR on 2026-10-09 and
+later assigned every publication and post-publication proof, including
+AC27-117F, to Slice 160. Publication remains behind the unruled
+`release-0.8.27-publication` decision. The [design note](design.md) preserves
+the option analysis; the [status](status.md) records the exact source, run,
+artifact hashes and verification limit. The todos ledger tracks the work as
+`TC-ffef2129-e5a6-4f8f-8cae-bdfe64792197`.
+
+Slice 135's query measurements belong to its pinned product source. Slice 117
+qualifies a new Jetson Node delivery route and must produce fresh evidence for
+its own installed candidate. It does not repeat Slice 135's full diagnostic
+matrix. If loader or packaging work changes query or retrieval behavior,
+repeat the affected paired Slice 135 cells at the changed product source.
+Slice 150 owns qualification of the integrated final candidate.
+The [Jetson agent handoff](jetson-agent-handoff.md) records the host-specific
+run contract and separates checks that need another runner. The exact-source
+installed-candidate run is linked from the [status](status.md).
+
+## Owner rulings (2026-10-05)
+
+Recorded in `dev/plans/release-state-0.8.27.json` `decisions.ruled`:
+
+- `slice-117-jetson-node-cuda-direction`: add Slice 117 after Slice 110 and
+  authorize the work it needs. Do not begin implementation until Linux
+  x86_64 has been tested with the Slice 110 fixes.
+- `slice-117-supersede-d-80-7-3-and-d-80-6-2`: for Slice 117's scope, D-80.7-3
+  and D-80.6-2 are superseded.
+- `slice-110-early-cuinit-with-allocator-fallback`: Slice 110 ships early
+  `cuInit` at addon load with the aarch64-Linux synchronous allocation
+  fallback.
+- `slice-117-channel-tegra-pages`: the channel is the existing first-party
+  Tegra Pages route (design Option B). The addon is not published to the npm
+  registry in 0.8.27, and a later registry publication needs its own ruling.
+  npm ignores semver build metadata, so `X.Y.Z+tegra` cannot coexist with
+  `X.Y.Z` under one package name. A separately named registry package could
+  avoid that, but the owner chose the Pages route, which reuses the tested
+  Tegra workflow, candidate guard, linkage check and post-publication proof.
+- `tegra-allocator-0.8.27-sync-fallback-pool-study-0.8.28`: the 0.8.27
+  allocator approach is the synchronous fallback with early `cuInit`; no
+  memory pool ships in 0.8.27. 0.8.28 evaluates an explicit or lazily created
+  pool
+  ([study plan](../../../0.8.28/prework/tegra-cuda-memory-pool-study.md)).
+
+## Entry criteria
+
+Implementation (execution step 3 onward) starts only when all of these hold:
+
+1. **x86_64 hold (owner, 2026-10-05).** Linux x86_64 (amd64) has been built and
+   tested with the Slice 110 fixes on `llm/slice110-tegra-allocator-fix`, and
+   the result is recorded. The Slice 110 branch did not compile x86_64; its
+   off-target proxy test is not a substitute
+   (`dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`).
+   *Met 2026-10-05 on candidate `8b76f6115`; see the
+   [Slice 110 integration record](../slice-110/tegra-integration-pending.md).*
+2. Slice 110 has closed on `release/0.8.27` with the allocation fallback and
+   early `cuInit` integrated and qualified.
+   *Met: Slice 110 is complete on `release/0.8.27` at `a25d063cd`.*
+3. The owner has ruled the remaining `slice-117-delivery-shape` items and
+   accepted, revised or replaced the proposed distribution ADR. The channel
+   is already ruled.
+   *Met 2026-10-09: the owner accepted the distribution ADR as proposed,
+   which rules every item (`slice-117-delivery-shape`).*
+
+AC27-117F additionally requires publication authorization. By owner ruling
+(`slice-160-owns-publication`, 2026-10-10) Slice 160 runs it.
+
+## Entry evidence
+
+| Finding | Source |
+| --- | --- |
+| The published `fathomdb-linux-arm64-gnu` npm package is CPU-only: it is built on hosted `ubuntu-24.04-arm` in `manylinux_2_28` with `default-embedder` only. | `.github/workflows/release.yml`; `src/ts/package.json`; `src/ts/scripts/build-native.mjs` |
+| The Linux x86_64 npm package and wheel are CUDA-capable (`embed-cuda,rerank-cuda`). | `release.yml` job `build-cuda-linux-x64-gnu`; `scripts/release/cuda-artifact-contract.sh` |
+| A governed Tegra route already exists for the `+tegra` wheel. It has a manual, release-branch-only Jetson workflow with exact-SHA and version guards, a host preflight, a host-native contract-pinned build, a fail-closed linkage check, an installed three-policy smoke with witness, a credential-free Jetson with a hosted Pages publish job, and an operator script with a post-publication smoke. Slice 103 carried the 0.8.26 hardening into 0.8.27. | `.github/workflows/jetson-tegra-cuda-evidence.yml`; `scripts/release/build-python-cuda-tegra.sh`; `check-tegra-wheel-linkage.sh`; `publish-tegra-pages.sh`; `docs/operations/tegra-pages-publication.md`; `origin/release/0.8.26` `1a131e780`..`8c4fdfa9b`; `dev/plans/runs/0.8.27-slice-103-tegra/receipt.md` |
+| That route publishes exactly one Tegra wheel per Pages deployment. `docs-pages.yml` redeploys one fixed retained wheel on every qualifying `main` push (`0.8.24+tegra` on `main`; `0.8.26+tegra` on `release/0.8.27` since 2026-10-07), so the two deployers overwrite each other. | `scripts/release/build-tegra-pages-index.sh`; `.github/workflows/docs-pages.yml` |
+| No checked-in script builds a Tegra `.node`. `build-napi-cuda.sh` is x86_64-only, and the contract test rejects re-pointing its axis at Tegra. | `scripts/release/build-napi-cuda.sh`; `scripts/tests/test_cuda_release_contract.sh` |
+| Slice 110 built and qualified a host-native CUDA addon on the Jetson. Its allocation fallback and early `cuInit` stay in 0.8.27. | `dev/plans/0.8.27/features/slice-110/tegra-integration-pending.md`; branch `llm/slice110-tegra-allocator-fix` |
+
+## Delivery-shape ruling
+
+The channel is ruled (`slice-117-channel-tegra-pages`): the Tegra Pages
+route. The npm registry options are not chosen for 0.8.27. On 2026-10-09
+the owner accepted
+`dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md` as proposed,
+which rules every remaining item of `slice-117-delivery-shape` (the list is
+in [design](design.md) § 10). The acceptance below is governed by that ADR.
+
+## Requirements and acceptance
+
+| ID | Requirement | Falsifiable acceptance |
+| --- | --- | --- |
+| R27-117A | Tegra Node distribution is governed before it is built. | AC27-117A: the supersession of D-80.7-3/D-80.6-2 is a recorded ruling with in-place notes in the 0.8.23 design and the platform reference (**done at planning**). The channel is ruled (**done at planning**, `slice-117-channel-tegra-pages`). The remaining `slice-117-delivery-shape` items are ruled. The distribution ADR is accepted and states the aarch64 driver-probe contract relative to ADR-0.8.25 and R80-11. No build, workflow or loader change lands first. |
+| R27-117B | The artifact is built reproducibly from the release contract on the Jetson. | AC27-117B: `build-napi-cuda-tegra.sh` asserts every Tegra pin in `cuda-artifact-contract.sh` and has an `--assert-only` arm. It builds with `embed-cuda,rerank-cuda`, passes the `tegra` glibc floor and `check-tegra-wheel-linkage.sh` on the `.node`, contains no publication command, and records digests. RED contract tests (assertion arm, publication rejection, x86_64-axis non-interference) precede it. |
+| R27-117C | The installed artifact behaves per the dual-runtime contract on the Jetson. | AC27-117C: inside `jetson-tegra-cuda-evidence.yml`, a fresh external consumer of the locally packed packages passes `cpu`, `auto` and `cuda:0` for embedding and reranking. Forced CUDA yields a witness accepted by `verify-tegra-gpu-witness.py --nvidia-smi`, and Slice 110's heap-growth regression passes. Driverless loadability meets the bar ruled under `slice-117-delivery-shape`. Inherited Slice 110 receipts are not a pass. |
+| R27-117D | Generic Linux AArch64 users are unaffected, and the loader is safe. | AC27-117D: the generic package's features, floor and hosted build are unchanged. A contract test proves `npm-inject-optional-deps.sh` never injects the Tegra package. `LoaderSeams` unit tests cover Tegra with and without the package, version mismatch, a non-Tegra host with the package, and a Thor-like signal. The loader change is in the main package before the main 0.8.27 npm publication. |
+| R27-117E | The existing Tegra route builds, retains and publishes the artifact without widening trust. | AC27-117E: `jetson-tegra-cuda-evidence.yml` builds and retains the wheel and the tarball in one run. The Jetson job still holds only `contents: read`. The version guard checks `src/ts/package.json` as well as `pyproject.toml`. The site builder publishes both artifacts. One retained-artifact list feeds both `docs-pages.yml` and the Jetson route, and a test proves neither drops a listed artifact. `test_tegra_publication_operator_path.sh` gains negative cases for the tarball. `actionlint` passes. Nothing publishes to npm. |
+| R27-117F | The published artifact is verified on the Jetson before the release is called done. | AC27-117F: after authorized publication, `publish-tegra-pages.sh` runs a Node smoke on the Jetson. It installs `fathomdb@<version>` from npm and the tarball from the Pages URL, checks the tarball SHA-256, and repeats AC27-117C's forced-CUDA, witness and heap-growth rows. Skipping the smoke reports INCOMPLETE. Green CI alone does not satisfy it. |
+| R27-117G | Public documentation states Jetson Node GPU support truthfully. | AC27-117G: `README.md`, `docs/install/typescript.md`, `docs/compatibility/index.md` (with `check-glibc-floor-doc-truth.sh` green), the Jetson section of `docs/embedder.md`, `src/ts/npm/README.md`, `docs/operations/tegra-pages-publication.md` and the release's Tegra publication handoff give the exact install command. They give it only for a confirmed classic Jetson Orin, replacing the README's "CPU-only; build from source" statement. |
+| R27-117H | The code and handoff are verified before Slice 140 consumes them. | AC27-117H: run the full `./scripts/agent-verify.sh` gate for Slice 117's source, test and executable-script changes, plus applicable artifact, workflow, docs and release-state checks. Record the exact candidate SHA, command results, review and installed-artifact hashes. Give Slice 140 the reviewed install surface and candidate limitations; do not describe Slice 135's pinned-source measurements as Slice 117 results. |
+
+These IDs are release-local; `dev/acceptance.md` remains locked. Until
+publication is authorized, the slice can reach a qualified, unpublished
+candidate for Slice 140 to consume. It is COMPLETE once that reviewed,
+qualified, unpublished candidate is handed to Slice 140. AC27-117F's
+post-publication smoke stays a release requirement that Slice 160 runs.
+
+## Execution order
+
+1. Hold until entry criteria 1 and 2 are met: the x86_64 test of the Slice 110
+   fixes, then Slice 110 closure on `release/0.8.27`.
+2. Present the remaining `slice-117-delivery-shape` items and the proposed
+   ADR for ruling. Record the result in release state and the ADR.
+3. RED/GREEN the build wrapper's assertion arm, the publication rejection and
+   the `.node` linkage check. Then do the loader change and its `LoaderSeams`
+   tests, which must land before the main npm publication.
+4. RED/GREEN the Pages retention list, the version guard and the site-builder
+   changes. Then extend the Jetson workflow and the operator script, with
+   `actionlint` and the operator-path negative tests.
+5. Build and qualify the exact installed candidate on the Jetson through the
+   workflow without publishing (AC27-117B–E). Repeat CPU, auto and forced-CUDA
+   embedding and reranking, the GPU witness and heap-growth regression.
+   Check loader selection and generic ARM64 non-interference. Bind results to
+   the candidate and artifact hashes; do not substitute Slice 110 receipts.
+6. Update exact install and compatibility documentation (AC27-117G), run the
+   full code verification gate and applicable scoped checks (AC27-117H), and
+   obtain independent review. Hand the qualified, unpublished candidate to
+   Slice 140 with its publication condition explicit.
+7. Slice 160, after publication authorization only: run the extended
+   `publish-tegra-pages.sh` (AC27-117F). Install from Pages on the Jetson and
+   repeat forced-CUDA embedding and reranking, GPU witness and heap-growth
+   checks against those downloaded bytes.
+8. Close status with exact-source receipts. If Slice 117
+   changed query or retrieval behavior beyond the planned loader and package
+   work, repeat the affected paired Slice 135 cells before the handoff;
+   Slice 150 still qualifies the full final candidate.
+
+## Boundaries
+
+- Do not change the generic `fathomdb-linux-arm64-gnu` package's features,
+  floor or build location.
+- Do not add npm registry publication to the Tegra route or to
+  `release.yml`. The 0.8.27 channel is ruled as Tegra Pages; a registry
+  publication would need its own ruling.
+- Do not change device-policy semantics, error kinds or the no-CPU-fallback
+  contract for forced CUDA.
+- Do not edit Slice 110's documents or evidence; consume its closed result.
+- Do not add a postinstall fetch or source build (R80-10).
+- Async-allocation recovery, a Tegra wheel reranker, other Jetson modules and
+  JetPack 7/CUDA 13 are out of scope. Memory-pool recovery of
+  stream-ordered allocation is evaluated in 0.8.28, not here.
+
+## Ladder placement
+
+Slice 117 depends on Slice 110. Slice 120 kept its dependency on Slice 115,
+because it decomposes the TypeScript facade and does not need the Tegra route.
+Slice 120 is now complete, so the loader change in this slice to
+`src/ts/src/platform.ts` builds on its final facade. In the remaining ladder
+(2026-10-09) Slice 117 follows completed Slice 135 and precedes Slice 140.
+At this plan's baseline, neither Slice 140 nor Slice 150 depended on
+Slice 117; whether they should was an open item later ruled by the accepted
+ADR ([design](design.md) § 10).
+Slice 140 can consume a reviewed, qualified, unpublished Slice 117 candidate.
+The release publication ruling controls the later Pages publication and
+post-publication completion check, while Slice 150 owns final-candidate
+qualification.
+
+As closed, Slice 117's qualified candidate is on `release/0.8.27` and Slice
+140 is next. The earlier dependency question is retained above as planning
+history; Slice 160 owns the post-publication check.

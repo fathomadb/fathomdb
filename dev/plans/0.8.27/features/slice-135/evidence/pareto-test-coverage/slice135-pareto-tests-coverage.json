@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "kind": "bounded_existing_test_coverage",
+  "measurement_utc_date": "2026-10-07",
+  "source_commit": "8cbd330c8f83f35ef46d538ea23811c08af8066b",
+  "measurement_checkout_commit": "172c724cd921726f7b2679ee51fdb703be823db4",
+  "source_file": "src/rust/crates/fathomdb-engine/src/search.rs",
+  "source_file_sha256": "4122b0f7df03b96763d5fed020b2a17a963fad8b04f364c661cb77c2d0ae8e5f",
+  "cargo_lock_sha256": "9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe",
+  "features": [
+    "operator"
+  ],
+  "rustc": "1.95.0 (59807616e 2026-04-14)",
+  "instrumentation": {
+    "RUSTC_BOOTSTRAP": "1",
+    "RUSTFLAGS": "-C instrument-coverage -Z coverage-options=branch",
+    "status": "unstable diagnostic only"
+  },
+  "tests": [
+    {
+      "target": "slice23_text_limit_prefix_stability",
+      "filter": "all",
+      "count": 2,
+      "binary_sha256": "bb9be77bd2ef0ecc6daf91ec6ee6976f5c448f8486bccf21d9dd5872417a394e"
+    },
+    {
+      "target": "tc33_fix2_edge_validity_on_search",
+      "filter": "tc33_fix2_expired_edge_is_excluded_from_search_valid_edges_survive --exact",
+      "count": 1,
+      "binary_sha256": "b4e7a6bac9af9445eedc0e0fbf07fa0a0dc12e49f89bd1101f30cbfabaef60ec"
+    },
+    {
+      "target": "slice15b_search_validity",
+      "filter": "text_only_search_also_hides_out_of_window_nodes --exact",
+      "count": 1,
+      "binary_sha256": "590cd07ab499407a1970a685e0ac0409858dd90247ec9dd4dc5f844c178c72be"
+    }
+  ],
+  "search_rs_totals": {
+    "executable_lines": 1500,
+    "covered_lines": 371,
+    "branches": 236,
+    "covered_branches": 39
+  },
+  "search_rs_ranges": {
+    "edge_fts_decode": {
+      "line_range": [
+        2050,
+        2085
+      ],
+      "executable_lines": 25,
+      "covered_lines": 23,
+      "branches": 4,
+      "covered_branches": 2
+    },
+    "node_fts_selection": {
+      "line_range": [
+        1830,
+        2010
+      ],
+      "executable_lines": 96,
+      "covered_lines": 39,
+      "branches": 14,
+      "covered_branches": 9
+    },
+    "edge_explanation": {
+      "line_range": [
+        2100,
+        2120
+      ],
+      "executable_lines": 15,
+      "covered_lines": 0,
+      "branches": 6,
+      "covered_branches": 0
+    }
+  },
+  "notable_execution_counts": {
+    "1947": 967,
+    "1986": 0,
+    "2010": 0,
+    "2061": 969,
+    "2062": 969,
+    "2069": 1930,
+    "2070": 1930,
+    "2079": 969,
+    "2113": 0
+  },
+  "normalization": "Only SF absolute checkout prefix replaced by repository-relative path; all DA/BRDA lines preserved.",
+  "count_caveat": "Test execution counts include repeated polling and are not production path frequencies.",
+  "environment_note": "Run overlapped a baseline noise pilot invalidated by swap activity; coverage presence is observed, but timing and execution counts cannot be used as production frequency or release-grade overlap without quiet rerun."
+}

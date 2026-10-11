@@ -1,0 +1,9 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,4 +1,1 @@
+-pub use m::{
+-    Foo,
+     Bar,
+-};
++// pub use m::{ Foo, Bar } removed; Bar re-exported directly below

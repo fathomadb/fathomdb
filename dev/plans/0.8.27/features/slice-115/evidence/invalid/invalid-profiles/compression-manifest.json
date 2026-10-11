@@ -1,0 +1,23 @@
+{
+  "format": "gzip",
+  "entries": [
+    {
+      "path": "graph_evidence.txt.gz",
+      "uncompressed_sha256": "0d8ff467c007853c1df572d25d40f4285e7829009beabaaeea2e616ad14d2cf8",
+      "compressed_sha256": "379764bf5e1b30599967bb54e530cd64377cd3ec0977a7afc539ddb2e978d294",
+      "uncompressed_bytes": 315761
+    },
+    {
+      "path": "open_fresh.txt.gz",
+      "uncompressed_sha256": "c1d23ea6cde7a7aa503bdb6c6360c1a0f031303befafe2e4b5c94177d1fd9626",
+      "compressed_sha256": "0c4ae3756ff63e41d0ef5f528aae6caf7258f2c7d31012178c39eabc51ebca1b",
+      "uncompressed_bytes": 1840845
+    },
+    {
+      "path": "open_populated.txt.gz",
+      "uncompressed_sha256": "bd29635692e896782dd8378cdb8b477effc21fde2b2f6b3a9410934e8ada49ef",
+      "compressed_sha256": "1472874a4578682321470bff4f7e55d56fa6c33bffc1d8b03c0913cd5a2c9c35",
+      "uncompressed_bytes": 1187911
+    }
+  ]
+}

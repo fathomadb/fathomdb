@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/tmp/slice135-e12-cov-target/debug/deps/slice135_e12_workload-a9a58992cd3a720f",
+    "--ignored",
+    "--exact",
+    "slice135_e12_measurement",
+    "--nocapture"
+  ],
+  "source_sha": "8c2455b6ccf1d06d5bf87fc4278aecc631014da0",
+  "binary_sha256": "c54f9b21e442d0e1e6390d97ecefb8954261474a536562f046c3090be236fa71",
+  "returncode": 0,
+  "instrumentation": "-C instrument-coverage -Z coverage-options=branch"
+}

@@ -1,0 +1,106 @@
+
+## D-late-a0-fallback-h1000k  pass 0/15
+   node=v25.9.0 arm=0 mode=fallback order=late heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:32:46Z
+   early-init: {'cuInit=none': 15}
+   alloc paths: {'ctx=0 ': 15}   first-ctx default_pool: {}
+   heapUsedMiB 163..167  before-open window: maps 306..373 largest_hole_GiB 1.56..2.92 max_resv_GiB 0..0
+   ms median: import 16.8 open - embed1 - embedSteady - rerank1 - interleaved - exit-after-last-js 49.0 wall 417.0
+   import delta: rss MiB 7.0 vsz MiB 820.0
+   FAIL x15: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## D-late-a0-fallback-h4000k  pass 0/10
+   node=v25.9.0 arm=0 mode=fallback order=late heap=4000000 count=10 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:32:53Z
+   early-init: {'cuInit=none': 10}
+   alloc paths: {'ctx=0 ': 10}   first-ctx default_pool: {}
+   heapUsedMiB 634..654  before-open window: maps 1222..1334 largest_hole_GiB 0.57..0.9 max_resv_GiB 0..0
+   ms median: import 17.0 open - embed1 - embedSteady - rerank1 - interleaved - exit-after-last-js 131.5 wall 1299.5
+   import delta: rss MiB 7.0 vsz MiB 820.0
+   FAIL x10: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## D-late-a0-fallback-h400k  pass 7/15
+   node=v25.9.0 arm=0 mode=fallback order=late heap=400000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:32:26Z
+   early-init: {'cuInit=none': 15}
+   alloc paths: {'ctx=9 sync/-': 7, 'ctx=0 ': 8}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 7}
+   heapUsedMiB 74..74  before-open window: maps 151..172 largest_hole_GiB 3.11..6.67 max_resv_GiB 0..0
+   ms median: import 16.7 open 1363.8 embed1 53.1 embedSteady 25.1 rerank1 153.8 interleaved - exit-after-last-js 33.0 wall 312.0
+   import delta: rss MiB 7.0 vsz MiB 820.0
+   FAIL x8: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## D-late-a2-fallback-h1000k  pass 0/15
+   node=v25.9.0 arm=2 mode=fallback order=late heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:32:05Z
+   early-init: {'cuInit=CUDA_ERROR_OUT_OF_MEMORY': 15}
+   alloc paths: {'ctx=0 ': 15}   first-ctx default_pool: {}
+   heapUsedMiB 163..164  before-open window: maps 327..358 largest_hole_GiB 1.63..3.07 max_resv_GiB 0..0
+   ms median: import 31.2 open - embed1 - embedSteady - rerank1 - interleaved - exit-after-last-js 49.0 wall 415.0
+   import delta: rss MiB 10.0 vsz MiB 862.0
+   FAIL x15: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## D-late-a2-fallback-h4000k  pass 0/10
+   node=v25.9.0 arm=2 mode=fallback order=late heap=4000000 count=10 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:32:12Z
+   early-init: {'cuInit=CUDA_ERROR_OUT_OF_MEMORY': 10}
+   alloc paths: {'ctx=0 ': 10}   first-ctx default_pool: {}
+   heapUsedMiB 622..645  before-open window: maps 1244..1306 largest_hole_GiB 0.53..0.9 max_resv_GiB 0..0
+   ms median: import 148.3 open - embed1 - embedSteady - rerank1 - interleaved - exit-after-last-js 128.0 wall 1288.5
+   import delta: rss MiB 9.0 vsz MiB 862.0
+   FAIL x10: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## D-late-a2-fallback-h400k  pass 6/15
+   node=v25.9.0 arm=2 mode=fallback order=late heap=400000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:31:48Z
+   early-init: {'cuInit=CUDA_ERROR_OUT_OF_MEMORY': 9, 'cuInit=CUDA_SUCCESS': 6}
+   alloc paths: {'ctx=0 ': 9, 'ctx=9 sync/-': 6}   first-ctx default_pool: {'CUDA_ERROR_OUT_OF_MEMORY': 6}
+   heapUsedMiB 74..74  before-open window: maps 140..210 largest_hole_GiB 2.72..3.99 max_resv_GiB 0..4
+   ms median: import 30.6 open 1291.9 embed1 55.2 embedSteady 24.9 rerank1 152.0 interleaved - exit-after-last-js 33.0 wall 316.0
+   import delta: rss MiB 9.0 vsz MiB 862.0
+   FAIL x9: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## D-late-a4-pool-h1000k  pass 0/15
+   node=v25.9.0 arm=4 mode=pool order=late heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:31:27Z
+   early-init: {'cuInit=CUDA_ERROR_OUT_OF_MEMORY': 15}
+   alloc paths: {'ctx=0 ': 15}   first-ctx default_pool: {}
+   heapUsedMiB 163..164  before-open window: maps 319..357 largest_hole_GiB 1.59..3.09 max_resv_GiB 0..0
+   ms median: import 31.2 open - embed1 - embedSteady - rerank1 - interleaved - exit-after-last-js 49.0 wall 416.0
+   import delta: rss MiB 10.0 vsz MiB 862.0
+   FAIL x15: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## D-late-a4-pool-h1000k-preload  pass 15/15
+   node=v25.9.0 arm=4 mode=pool order=late heap=1000000 count=15 health=0 grow=0x0 pre_gc=0 flags=--import file://<experiment-worktree>/src/ts/dist/index.js native_sha=56488e2282f6e286 start=2026-10-05T04:33:28Z
+   early-init: {'cuInit=CUDA_SUCCESS explicit_ok=true': 15}
+   alloc paths: {'ctx=9 async/explicit-reused': 15}   first-ctx default_pool: {'CUDA_ERROR_NOT_PERMITTED': 15}
+   heapUsedMiB 163..163  before-open window: maps 192..225 largest_hole_GiB 1.31..3.03 max_resv_GiB 14.25..60.27
+   ms median: import 0.5 open 1271.1 embed1 41.7 embedSteady 11.3 rerank1 152.6 interleaved - exit-after-last-js 201.0 wall 2227.0
+   import delta: rss MiB 0.0 vsz MiB 0.0
+
+## D-late-a4-pool-h4000k  pass 0/10
+   node=v25.9.0 arm=4 mode=pool order=late heap=4000000 count=10 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:31:34Z
+   early-init: {'cuInit=CUDA_ERROR_OUT_OF_MEMORY': 10}
+   alloc paths: {'ctx=0 ': 10}   first-ctx default_pool: {}
+   heapUsedMiB 641..655  before-open window: maps 1231..1340 largest_hole_GiB 0.68..0.98 max_resv_GiB 0..0
+   ms median: import 152.6 open - embed1 - embedSteady - rerank1 - interleaved - exit-after-last-js 133.0 wall 1300.5
+   import delta: rss MiB 9.0 vsz MiB 861.5
+   FAIL x10: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## D-late-a4-pool-h4000k-preload  pass 10/10
+   node=v25.9.0 arm=4 mode=pool order=late heap=4000000 count=10 health=0 grow=0x0 pre_gc=0 flags=--import file://<experiment-worktree>/src/ts/dist/index.js native_sha=56488e2282f6e286 start=2026-10-05T04:34:02Z
+   early-init: {'cuInit=CUDA_SUCCESS explicit_ok=true': 10}
+   alloc paths: {'ctx=9 async/explicit-reused': 10}   first-ctx default_pool: {'CUDA_ERROR_NOT_PERMITTED': 10}
+   heapUsedMiB 628..644  before-open window: maps 628..696 largest_hole_GiB 0.54..0.84 max_resv_GiB 7.67..29.59
+   ms median: import 0.5 open 1290.3 embed1 43.3 embedSteady 11.8 rerank1 147.6 interleaved - exit-after-last-js 264.0 wall 2977.0
+   import delta: rss MiB 0.0 vsz MiB 0.0
+
+## D-late-a4-pool-h400k  pass 8/15
+   node=v25.9.0 arm=4 mode=pool order=late heap=400000 count=15 health=0 grow=0x0 pre_gc=0 flags= native_sha=56488e2282f6e286 start=2026-10-05T04:31:07Z
+   early-init: {'cuInit=CUDA_SUCCESS explicit_ok=true': 8, 'cuInit=CUDA_ERROR_OUT_OF_MEMORY': 7}
+   alloc paths: {'ctx=9 async/explicit-reused': 8, 'ctx=0 ': 7}   first-ctx default_pool: {'CUDA_ERROR_NOT_PERMITTED': 8}
+   heapUsedMiB 74..74  before-open window: maps 154..215 largest_hole_GiB 2.62..3.98 max_resv_GiB 0..4
+   ms median: import 83.3 open 1270.4 embed1 41.8 embedSteady 13.9 rerank1 142.5 interleaved - exit-after-last-js 167.0 wall 2039.0
+   import delta: rss MiB 117.0 vsz MiB 5153.0
+   FAIL x7: step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+## D-late-a4-pool-h400k-pregc  pass 7/15
+   node=v25.9.0 arm=4 mode=pool order=late heap=400000 count=15 health=0 grow=0x0 pre_gc=1 flags=--expose-gc native_sha=56488e2282f6e286 start=2026-10-05T04:33:07Z
+   early-init: {'cuInit=CUDA_ERROR_OUT_OF_MEMORY': 8, 'cuInit=CUDA_SUCCESS explicit_ok=true': 7}
+   alloc paths: {'ctx=0 ': 8, 'ctx=9 async/explicit-reused': 7}   first-ctx default_pool: {'CUDA_ERROR_NOT_PERMITTED': 7}
+   heapUsedMiB 66..66  before-open window: maps 152..220 largest_hole_GiB 3.08..3.97 max_resv_GiB 0..2.91
+   ms median: import 85.5 open 1282.3 embed1 43.3 embedSteady 14.1 rerank1 152.5 interleaved - exit-after-last-js 41.0 wall 518.0
+   import delta: rss MiB 8.0 vsz MiB 862.0
+   FAIL x8: step=open: cuda:0 requested but unavailable: CudaProbeFailed

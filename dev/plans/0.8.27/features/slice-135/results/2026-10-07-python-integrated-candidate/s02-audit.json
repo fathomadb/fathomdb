@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "source_sha": "cdf253cd223a82e954591db532397a3d78a2027a",
+  "wheel_sha256": "c33987023754fee2d85f887bfbbd17c68889f287603d3df06844d06a240a60a0",
+  "native_sha256": "79fd863733d1a97de308b445a5c45b2434e27a1317048376dbfdb76502ff0ae9",
+  "raw_sha256": "1f4038093cd7333c2498567d931771974efe0e628619af96f8e76882aff225f0",
+  "stage_count": 18,
+  "negative_control_rejected": "after_reopen canonical state changed",
+  "whole_sequence_including_checks_ns": 5371099732
+}

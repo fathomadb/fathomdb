@@ -450,12 +450,19 @@ def test_supported_entries_carry_a_call_path_and_witness() -> None:
             assert entry.reason, entry.name
 
 
-def test_slow_threshold_ms_is_supported_not_unsupported() -> None:
-    """An EngineConfig field Engine.open never forwards, yet independently
-    supported — the case that breaks a dataclass-membership-keyed catalog."""
-    entry = next(e for e in CATALOG if e.name == "slow_threshold_ms")
-    assert entry.classification is KnobClass.RUNTIME
-    assert entry.call_path == "Engine.set_slow_threshold_ms"
+def test_engine_config_knobs_have_native_open_paths() -> None:
+    """The catalog follows the implemented open boundary for all five knobs."""
+    for name in (
+        "embedder_pool_size",
+        "scheduler_runtime_threads",
+        "provenance_row_cap",
+        "embedder_call_timeout_ms",
+        "slow_threshold_ms",
+    ):
+        entry = next(e for e in CATALOG if e.name == name)
+        assert entry.classification is KnobClass.RUNTIME
+        assert entry.call_path == f"Engine.open(config=).{name}"
+        assert entry.witness
 
 
 def test_catalog_covers_the_search_signatures() -> None:

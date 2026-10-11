@@ -2,10 +2,9 @@
 # Build the Jetson/Tegra CUDA Python wheel host-natively from the release
 # contract (0.8.23 Slice 80.6, D-80.6-1/2/4).
 #
-# Scope, deliberately narrow (D-80.6-2): the Python wheel ONLY. Not the npm
-# N-API binding, not the CLI tarball. Python is the primary SDK surface and the
-# one the x86_64 CUDA lane already proves most thoroughly; a second consumer can
-# be added later without redoing any of this sub-slice's proof.
+# Scope: the Python wheel only. The Jetson N-API `.node` has its own wrapper,
+# scripts/release/build-napi-cuda-tegra.sh, from the same contract pins
+# (ADR-0.8.27-jetson-tegra-node-addon-distribution); the CLI tarball has none.
 #
 # Host-native, not containerized (§ 7 80.6 D-1): the Tegra CUDA runtime is
 # host-bound, `sbsa-linux` ships no SASS/PTX slices for Tegra iGPUs, and no
@@ -240,6 +239,21 @@ fi
 bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$TEGRA_FLOOR" "$EXTENSION"
 printf 'build-python-cuda-tegra: %s is within the declared tegra glibc floor %s\n' \
   "$(basename "$EXTENSION")" "$TEGRA_FLOOR"
+# Inspect the unpacked wheel, including CUDA registration symbols. The
+# checker fails closed if either tool cannot inspect the extension.
+bash "$SCRIPT_DIR/check-tegra-wheel-linkage.sh" "$EXTENSION"
+
+RUNTIME_VENV="$STAGING_ROOT/runtime-venv"
+"$INTERPRETER" -m venv "$RUNTIME_VENV"
+"$RUNTIME_VENV/bin/python" -m pip install --disable-pip-version-check --no-deps "$WHEEL"
+# The staged source package is the current directory after Maturin builds; move
+# out of it so this import proves the installed wheel rather than that source.
+cd "$RUNTIME_VENV"
+if ! env -u LD_LIBRARY_PATH -u LIBRARY_PATH "$RUNTIME_VENV/bin/python" -c 'import fathomdb'; then
+  fail 'the installed Tegra wheel must import without CUDA library search paths'
+fi
+printf 'build-python-cuda-tegra: installed wheel imports without CUDA library search paths\n'
+
 # The abstract form is `python -m pip install $WHEEL`; render the concrete
 # wheel argument with Bash's reversible shell quoting for `--out` paths that
 # contain spaces or shell metacharacters.

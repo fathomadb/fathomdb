@@ -1,0 +1,12 @@
+C-strace-a2-fallback-h1000k-grow4x500k/strace-1.txt {'pre_init': 14, 'cuInit_reservation_pieces': 1, 'NEW_large_PROT_NONE': 6, 'fixed_inside_existing(fd)': 25, 'anon_hinted(V8-like)': 417}
+C-strace-a2-fallback-h1000k-grow4x500k/strace-2.txt {'pre_init': 13, 'cuInit_reservation_pieces': 1, 'NEW_large_PROT_NONE': 2, 'fixed_inside_existing(fd)': 27, 'anon_hinted(V8-like)': 418}
+C-strace-a2-fallback-h1000k-grow4x500k/strace-3.txt {'pre_init': 10, 'cuInit_reservation_pieces': 1, 'NEW_large_PROT_NONE': 5, 'fixed_inside_existing(fd)': 25, 'anon_hinted(V8-like)': 438}
+C-strace-a4-pool-h1000k-grow4x500k/strace-1.txt {'pre_init': 14, 'cuInit_reservation_pieces': 1, 'NEW_large_PROT_NONE': 4, 'fixed_inside_existing(fd)': 27, 'anon_hinted(V8-like)': 422}
+C-strace-a4-pool-h1000k-grow4x500k/strace-2.txt {'pre_init': 13, 'cuInit_reservation_pieces': 1, 'NEW_large_PROT_NONE': 4, 'fixed_inside_existing(fd)': 27, 'anon_hinted(V8-like)': 416}
+C-strace-a4-pool-h1000k-grow4x500k/strace-3.txt {'pre_init': 13, 'cuInit_reservation_pieces': 1, 'NEW_large_PROT_NONE': 4, 'fixed_inside_existing(fd)': 27, 'anon_hinted(V8-like)': 407}
+C-strace-a2-fallback-h1000k-grow4x500k/strace-1.txt: reservation_pieces=7 burst_ms=2.4 tids=1 | after init, in window: fixed_inside_reservation=25 (threads=2) nonfixed_fd_backed=0 large_PROT_NONE=0
+C-strace-a2-fallback-h1000k-grow4x500k/strace-2.txt: reservation_pieces=3 burst_ms=1.0 tids=1 | after init, in window: fixed_inside_reservation=27 (threads=2) nonfixed_fd_backed=0 large_PROT_NONE=0
+C-strace-a2-fallback-h1000k-grow4x500k/strace-3.txt: reservation_pieces=6 burst_ms=1.6 tids=1 | after init, in window: fixed_inside_reservation=25 (threads=2) nonfixed_fd_backed=0 large_PROT_NONE=0
+C-strace-a4-pool-h1000k-grow4x500k/strace-1.txt: reservation_pieces=5 burst_ms=2.0 tids=1 | after init, in window: fixed_inside_reservation=27 (threads=2) nonfixed_fd_backed=0 large_PROT_NONE=0
+C-strace-a4-pool-h1000k-grow4x500k/strace-2.txt: reservation_pieces=5 burst_ms=1.6 tids=1 | after init, in window: fixed_inside_reservation=27 (threads=2) nonfixed_fd_backed=0 large_PROT_NONE=0
+C-strace-a4-pool-h1000k-grow4x500k/strace-3.txt: reservation_pieces=5 burst_ms=1.6 tids=1 | after init, in window: fixed_inside_reservation=27 (threads=2) nonfixed_fd_backed=0 large_PROT_NONE=0

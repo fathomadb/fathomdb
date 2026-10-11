@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_S01_PYTHON_PAIRED",
+  "scope": "Installed Python S01 text/vector-bearing/hybrid subset on exact source 224e44c59 post-Slice-132 product bytes after edge-explanation and importance-lookup repairs; not the full Phase 1 protocol",
+  "freeze_date_utc": "2026-10-08",
+  "freeze_revision": 4,
+  "superseded_protocol_sha256": "93022d39a795706c017d4200781ab8f29a22517876dba28f8f3a4ef3926c9b27",
+  "revision_reason": "Refreeze the unchanged measured workload, counts, order and analysis after three test-first engine row-error repairs. Candidate source 224e44c59 and rebuilt installed wheel supersede the prior d465cd56d timing for this checkpoint.",
+  "baseline_noise_evidence": "results/2026-10-07-python-s01-noise-pilot/independent-audit.json",
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+  },
+  "candidate": {
+    "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+    "wheel_sha256": "ee8b402f76377956034f900ef69f9e3c0296d79ea30d6728dc1283040266f85a"
+  },
+  "candidate_artifact_note": "Non-editable wheel from clean detached 224e44c59 source passed 72 installed S01 calls at 32/256 rows, three seeded query shapes, and independent result/byte audit. Wheel metadata remains 0.8.26 before release bump.",
+  "workload_runner_sha256": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+  "block_runner_sha256": "dd545dfecda957dc21d035d8ea2845948aeb28386f96fa31083dc965f9bb248d",
+  "rows": [
+    32,
+    256
+  ],
+  "corpus_sha256_by_size": {
+    "32": "e01c7b7772a925ab9c3a80ffb1d20ae1f9338c4fb0501fa16fcc844b871338dd",
+    "256": "ebbd94f16b40cad184526af3bc2d725b2f433e00683e508adf530d7a925860fb"
+  },
+  "model": "fathomdb-bge-small-en-v1.5 default embedder",
+  "embed_device": "cpu",
+  "queries": {
+    "text": "brightblue",
+    "vector": "boat schedule across water",
+    "hybrid": "harbor ferry"
+  },
+  "timing_boundary": "Installed Python method invocation through materialized SearchResult; corpus setup, model loading and semantic verification excluded",
+  "session_first_per_cell": 1,
+  "warmup_per_cell": 1,
+  "warm_samples_per_cell": 1000,
+  "pairs_per_size": 5,
+  "pair_order_each_size": [
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ]
+  ],
+  "minimum_idle_seconds_between_blocks": 20,
+  "primary_mode": "unprofiled",
+  "primary_statistics": [
+    "nearest_rank_p50",
+    "nearest_rank_p95",
+    "nearest_rank_p99"
+  ],
+  "p99_minimum_valid_samples": 1000,
+  "pair_delta_formula": "100*(candidate_percentile_ns-baseline_percentile_ns)/baseline_percentile_ns",
+  "pair_summary_rule": "Report all five per-pair deltas, their median and full observed range for every size/query/statistic; no significance claim or regression threshold from five pairs",
+  "resource_rule": "Report GNU Time child user/system CPU, peak RSS, filesystem block I/O, major faults and swap per block; do not attribute whole-worker resources to an individual query",
+  "cold_rule": "Report each session-first observation as a diagnostic; do not call it cold OS/model cache or calculate a cold percentile",
+  "invalid_block_rule": "Preserve every attempt. Require clean source checkout, installed wheel byte match, exact protocol and runner hashes, semantic checks on every result, 1000 valid warm observations per cell, stable host/CPU/storage/governor, no competing build/profiler, at least 1 GiB free and zero measured-child swap events. Host-only swap drift is a recorded warning with sensitivity analysis.",
+  "candidate_verdict_rule": "Diagnostic latency comparison only. Report regressions, improvements and uncertainty separately from accepted release gates; do not infer correctness from version agreement.",
+  "phase1_limit": "This S01 Python subset cannot close the complete installed-SDK functional exercise, S02, E01-E12, Pareto, robustness or logic/exception matrices.",
+  "candidate_product_snapshot": {
+    "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+    "rust_crates_git_tree": "997b041d87852323a6da18cf824ec18bdc64fec8",
+    "engine_src_git_tree": "fbd4ad40954188ddc56baf03d3a0f42c38674d85",
+    "python_package_git_tree": "8faa843fd061ba3524dadacb8238571ddbbf88ef",
+    "cargo_lock_git_blob": "dbd5b98f621aa0fc8e9bccdd053a56be61ced471",
+    "runtime_equivalent_branch_sha_at_freeze": "224e44c593c13d86ece648adabe445723db04070",
+    "rule": "A change to installed wheel bytes, engine source tree, Python package tree or Cargo.lock requires a new candidate artifact and affected-cell reruns; documentation and test-only commits do not alter this measured product snapshot."
+  },
+  "campaign_runner_sha256": "2462163bb6a24c192feac10704b08113946b264a0fb6135f3090fdd62e1f5367",
+  "candidate_smoke_sha256_by_size": {
+    "32": "41c2e564a9286e44065acf0b338c04d61c18e212fae5aa888343cac55939b1ce",
+    "256": "7889f9e32e4bfaeaa5c1300a52dcec60e14232ca78eec5c1e050b47b7b08203c"
+  },
+  "candidate_smoke_independent_audit_sha256": "b47ccc59dd4f934139394abadf79a3241b6f9cef4943cbac9b2c0dcb3bf51fc4",
+  "candidate_smoke_evidence": "results/2026-10-08-python-224e-functional-smoke/"
+}

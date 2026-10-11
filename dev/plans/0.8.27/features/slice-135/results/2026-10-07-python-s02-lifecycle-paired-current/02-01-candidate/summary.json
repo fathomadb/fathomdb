@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "status": "VALID_S02_L_BLOCK",
+  "role": "candidate",
+  "invalidators": [],
+  "warnings": [],
+  "manifest_sha256": "0770c769cceb729a9c2f0b7c9af9f56054b467913d479c854b09fd9924b6ff9b",
+  "environment_sha256": "c73f8078efe40f89628447b4c7b17849b6f24d1586fa54e292c4bf4844b033e8",
+  "attempts_sha256": "a2ed3cb9534ca5e0c3dac1bd8b9406cf81b8999611d11f652210eb6c0184e64d",
+  "valid_samples": 20,
+  "p50_close_ns": 12757529,
+  "p95_close_ns": 15494151,
+  "p50_pss_release_kib": 45719,
+  "min_pss_release_kib": 45719,
+  "max_pss_release_kib": 45719
+}

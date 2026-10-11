@@ -1196,7 +1196,7 @@ class DefaultEmbedderDownloadEvent(TypedDict):
     """`embedder_events` entry emitted when the loader downloads a weight
     file from HuggingFace. Per `dev/design/0.7.1-EU-6-FIX-2-design.md`
     §2.1. Mirrors the Rust emitter at
-    `src/rust/crates/fathomdb-py/src/lib.rs:417-432`."""
+    `embedder_event_to_py` in `src/rust/crates/fathomdb-py/src/types.rs`."""
 
     kind: Literal["DefaultEmbedderDownload"]
     file: str

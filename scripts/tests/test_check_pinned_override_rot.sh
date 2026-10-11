@@ -93,7 +93,7 @@ metadata.write_text(json.dumps(data), encoding="utf-8")
     }}}
 }), encoding="utf-8")
 candle_git = "https://github.com/coreyt/candle-fathomdb.git"
-candle_rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
+candle_rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 candle_packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
 (root / "Cargo.toml").write_text(
     "[workspace]\nresolver = '2'\n\n[patch.crates-io]\n"
@@ -115,8 +115,70 @@ PY
   printf '%s' "$fixture"
 }
 
+seed_sqlite_fixture() {
+  local fixture="$1"
+  if [ "$fixture" = "$REPO_ROOT" ] || [ -e "$fixture/.omit-sqlite-patch" ]; then
+    return
+  fi
+  mkdir -p "$fixture/third_party/libsqlite3-sys-0.38.1"
+  if [ ! -e "$fixture/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c" ]; then
+    cp -a "$REPO_ROOT/third_party/libsqlite3-sys-0.38.1/." \
+      "$fixture/third_party/libsqlite3-sys-0.38.1/"
+  fi
+  python3 - "$fixture" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+manifest = root / "Cargo.toml"
+if manifest.exists():
+    text = manifest.read_text(encoding="utf-8")
+    patch = 'libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }\n'
+    if 'libsqlite3-sys = ' not in text and "[patch.crates-io]\n" in text:
+        text = text.replace("[patch.crates-io]\n", "[patch.crates-io]\n" + patch, 1)
+        manifest.write_text(text, encoding="utf-8")
+lock = root / "Cargo.lock"
+if lock.exists():
+    text = lock.read_text(encoding="utf-8")
+    if 'name = "libsqlite3-sys"' not in text:
+        lock.write_text(text + '\n[[package]]\nname = "libsqlite3-sys"\nversion = "0.38.1"\n', encoding="utf-8")
+PY
+}
+
+seed_cudarc_fixture() {
+  local fixture="$1"
+  if [ "$fixture" = "$REPO_ROOT" ] || [ -e "$fixture/.omit-cudarc-patch" ]; then
+    return
+  fi
+  mkdir -p "$fixture/third_party/cudarc-0.19.7"
+  if [ ! -e "$fixture/third_party/cudarc-0.19.7/Cargo.toml" ]; then
+    cp -a "$REPO_ROOT/third_party/cudarc-0.19.7/." \
+      "$fixture/third_party/cudarc-0.19.7/"
+  fi
+  python3 - "$fixture" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+manifest = root / "Cargo.toml"
+if manifest.exists():
+    text = manifest.read_text(encoding="utf-8")
+    patch = 'cudarc = { path = "third_party/cudarc-0.19.7" }\n'
+    if 'cudarc = ' not in text and "[patch.crates-io]\n" in text:
+        text = text.replace("[patch.crates-io]\n", "[patch.crates-io]\n" + patch, 1)
+        manifest.write_text(text, encoding="utf-8")
+lock = root / "Cargo.lock"
+if lock.exists():
+    text = lock.read_text(encoding="utf-8")
+    if 'name = "cudarc"' not in text:
+        lock.write_text(text + '\n[[package]]\nname = "cudarc"\nversion = "0.19.7"\n', encoding="utf-8")
+PY
+}
+
 run_fixture() {
   local fixture="$1"
+  seed_sqlite_fixture "$fixture"
+  seed_cudarc_fixture "$fixture"
   set +e
   OUT="$(bash "$CHECKER" --root "$fixture" 2>&1)"
   RC=$?
@@ -134,6 +196,8 @@ make_and_run_fixture() {
 # with the fixture's digest; ordinary fixtures always use the real anchor.
 run_fixture_with_reanchored_snapshot() {
   local fixture="$1"
+  seed_sqlite_fixture "$fixture"
+  seed_cudarc_fixture "$fixture"
   local fixture_checker="$fixture/check-pinned-override-rot.py"
   python3 - "$REPO_ROOT/scripts/check-pinned-override-rot.py" "$fixture" "$fixture_checker" <<'PY'
 import hashlib
@@ -357,7 +421,7 @@ from pathlib import Path
 root = Path(sys.argv[1])
 mode = sys.argv[2]
 git = "https://github.com/coreyt/candle-fathomdb.git"
-rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
+rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
 manifest_packages = packages.copy()
 manifest_revs = {package: rev for package in packages}
@@ -422,6 +486,105 @@ if [ "$RC" -ne 0 ]; then
   fail "approved Candle patch cohort must pass, got rc=$RC output=$OUT"
 fi
 pass 'approved FathomDB Candle patch cohort passes'
+
+sqlite_missing="$(make_candle_fixture sqlite-missing approved)"
+touch "$sqlite_missing/.omit-sqlite-patch"
+run_fixture "$sqlite_missing"
+expect_failure 'missing approved SQLite patch libsqlite3-sys' \
+  'missing local SQLite backport is rejected'
+
+sqlite_drift="$(make_candle_fixture sqlite-drift approved)"
+run_fixture "$sqlite_drift"
+if [ "$RC" -ne 0 ]; then
+  fail "exact local SQLite backport must pass, got rc=$RC output=$OUT"
+fi
+printf '\n' >>"$sqlite_drift/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c"
+run_fixture "$sqlite_drift"
+expect_failure 'SQLite vendored amalgamation SHA-256 drift' \
+  'modified local SQLite amalgamation is rejected'
+
+sqlite_build="$(make_candle_fixture sqlite-build approved)"
+run_fixture "$sqlite_build"
+if [ "$RC" -ne 0 ]; then
+  fail "exact local SQLite vendor tree must pass, got rc=$RC output=$OUT"
+fi
+printf '\n' >>"$sqlite_build/third_party/libsqlite3-sys-0.38.1/build.rs"
+run_fixture "$sqlite_build"
+expect_failure 'SQLite vendor tree SHA-256 drift' \
+  'modified SQLite build script is rejected'
+
+sqlite_path="$(make_candle_fixture sqlite-path approved)"
+run_fixture "$sqlite_path"
+if [ "$RC" -ne 0 ]; then
+  fail "exact local SQLite path must pass, got rc=$RC output=$OUT"
+fi
+python3 - "$sqlite_path/Cargo.toml" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text().replace(
+    'libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }',
+    'libsqlite3-sys = { path = "third_party/unreviewed-sqlite" }',
+))
+PY
+run_fixture "$sqlite_path"
+expect_failure 'SQLite patch is not the approved local path source' \
+  'SQLite patch path drift is rejected'
+
+# The vendored cudarc carries the Tegra allocator fallback. Its exact tree,
+# local path, licenses, patch note, and local lock entry are all governed.
+cudarc_missing="$(make_candle_fixture cudarc-missing approved)"
+touch "$cudarc_missing/.omit-cudarc-patch"
+run_fixture "$cudarc_missing"
+expect_failure 'missing approved cudarc patch cudarc' \
+  'missing local cudarc allocator patch is rejected'
+
+cudarc_tree="$(make_candle_fixture cudarc-tree approved)"
+run_fixture "$cudarc_tree"
+if [ "$RC" -ne 0 ]; then
+  fail "exact local cudarc vendor tree must pass, got rc=$RC output=$OUT"
+fi
+printf '\n' >>"$cudarc_tree/third_party/cudarc-0.19.7/src/driver/safe/core.rs"
+run_fixture "$cudarc_tree"
+expect_failure 'cudarc vendor tree SHA-256 drift' \
+  'modified vendored cudarc source is rejected'
+
+cudarc_path="$(make_candle_fixture cudarc-path approved)"
+run_fixture "$cudarc_path"
+python3 - "$cudarc_path/Cargo.toml" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text().replace(
+    'cudarc = { path = "third_party/cudarc-0.19.7" }',
+    'cudarc = { path = "third_party/unreviewed-cudarc" }',
+))
+PY
+run_fixture "$cudarc_path"
+expect_failure 'cudarc patch is not the approved local path source' \
+  'cudarc patch path drift is rejected'
+
+cudarc_lock="$(make_candle_fixture cudarc-lock approved)"
+run_fixture "$cudarc_lock"
+python3 - "$cudarc_lock/Cargo.lock" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text().replace(
+    'name = "cudarc"\nversion = "0.19.7"\n',
+    'name = "cudarc"\nversion = "0.19.7"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\n',
+))
+PY
+run_fixture "$cudarc_lock"
+expect_failure 'cudarc patch has no matching local Cargo.lock package' \
+  'registry cudarc 0.19.7 in Cargo.lock is rejected'
+
+cudarc_license="$(make_candle_fixture cudarc-license approved)"
+run_fixture "$cudarc_license"
+rm "$cudarc_license/third_party/cudarc-0.19.7/LICENSE-APACHE"
+run_fixture "$cudarc_license"
+expect_failure 'cudarc vendor license is missing' \
+  'vendored cudarc without its upstream licenses is rejected'
 
 make_and_run_candle_fixture missing missing
 if [ "$RC" -ne 1 ]; then

@@ -1,0 +1,10 @@
+
+thread 'fathomdb-embed-2' (422) panicked at src/rust/crates/fathomdb-engine/tests/slice90_foreground_dispatch.rs:59:33:
+injected provider panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'fathomdb-embed-4' (483) panicked at src/rust/crates/fathomdb-engine/tests/slice90_foreground_dispatch.rs:59:33:
+injected provider panic
+
+thread 'fathomdb-embed-4' (535) panicked at src/rust/crates/fathomdb-engine/tests/slice90_foreground_dispatch.rs:59:33:
+injected provider panic

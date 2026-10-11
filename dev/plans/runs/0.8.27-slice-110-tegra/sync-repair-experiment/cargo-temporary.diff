@@ -1,0 +1,25 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 290c5e94f..058410398 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -620,8 +620,6 @@ dependencies = [
+ [[package]]
+ name = "cudarc"
+ version = "0.19.7"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc"
+ dependencies = [
+  "float8",
+  "half",
+diff --git a/Cargo.toml b/Cargo.toml
+index b7cb0a1cc..9a93d8d02 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -69,6 +69,7 @@ fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       versio
+ # can map on a host without libcudart.
+ [patch.crates-io]
+ libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }
++cudarc = { path = "<scratch>/repair/cudarc-0.19.7" }
+ candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+ candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+ candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }

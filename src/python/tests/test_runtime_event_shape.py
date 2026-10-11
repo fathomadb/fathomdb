@@ -23,7 +23,7 @@ from fathomdb import Engine
 
 # Expected key set per `kind`. Sourced from
 # `dev/design/0.7.1-EU-6-FIX-2-design.md` §2.1 (verified against the
-# Rust emitter at `fathomdb-py/src/lib.rs:417-444`).
+# Rust `embedder_event_to_py` in `fathomdb-py/src/types.rs`).
 _VARIANT_KEYS: dict[str, set[str]] = {
     "DefaultEmbedderDownload": {
         "kind",

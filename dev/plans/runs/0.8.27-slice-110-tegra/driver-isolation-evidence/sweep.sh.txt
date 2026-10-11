@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# sweep.sh NAME REPEATS "OFFSETS_GIB" ARGS...
+# For each offset (GiB, may be fractional) place ONE blocker at 8 GiB + offset
+# (aligned down by the program to the blocker size) and run REPEATS fresh
+# processes. Extra ARGS are passed through (e.g. --size 4K). RESULT lines go to
+# logs/NAME/results.txt with tag NAME@<offset>#<rep>.
+# The caller wraps the whole sweep in `flock <gpu.lock>`.
+set -u
+here=$(cd "$(dirname "$0")" && pwd)
+name=$1; reps=$2; offsets=$3; shift 3
+dir="$here/logs/$name"; mkdir -p "$dir/maps"
+: > "$dir/results.txt"
+{ echo "sweep=$name reps=$reps offsets_gib=$offsets args=$*"; date -u +%FT%TZ; } > "$dir/series-header.txt"
+for off in $offsets; do
+  addr=$(python3 -c "print(hex(int((8 + $off) * 2**30) & ~0xfff))")
+  for r in $(seq 1 "$reps"); do
+    log="$dir/run-$off-$r.log"
+    "$here/pool_va_repro" --maps-dir "$dir/maps" --tag "$name@$off#$r" --at "$addr" "$@" > "$log" 2>&1
+    echo "exit=$?" >> "$log"
+    grep '^RESULT' "$log" >> "$dir/results.txt" || echo "RESULT tag=$name@$off#$r outcome=NORESULT" >> "$dir/results.txt"
+  done
+done
+grep -o 'outcome=[A-Za-z]*' "$dir/results.txt" | sort | uniq -c | sed "s|^|$name |"

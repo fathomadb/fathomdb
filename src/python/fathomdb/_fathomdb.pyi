@@ -418,7 +418,11 @@ class OpenReport:
 
 class Engine:
     @staticmethod
-    def open(path: str, use_default_embedder: bool = ...) -> "Engine": ...
+    def open(
+        path: str,
+        use_default_embedder: bool = ...,
+        config: dict[str, int | None] | None = ...,
+    ) -> "Engine": ...
     # NOTE: `_configure_vector_kind_for_test`, `_write_vector_for_test`, and
     # `_set_legacy_projection_search_subobjects_for_test`
     # are intentionally NOT declared here. They only exist on the binary
@@ -448,7 +452,7 @@ class Engine:
         rerank_depth: int = ...,
         use_graph_arm: bool = ...,
         alpha: float = ...,
-        pool_n: int = ...,
+        pool_n: int | None = ...,
         explain: bool = ...,
         limit: int = ...,
     ) -> SearchResult: ...
@@ -591,7 +595,6 @@ class Engine:
     def attach_logging_subscriber(
         self,
         logger: Any,
-        heartbeat_interval_ms: int | None = ...,
     ) -> None: ...
 
 # Slice 20 (G5/G6) — graph traversal result types.

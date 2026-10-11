@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::sync::{Arc, Barrier};
 use std::thread;
+use std::time::Duration;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
@@ -1585,19 +1586,12 @@ fn evidence_search_races_are_snapshot_atomic_or_wholly_refused() {
     let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
 
     let frozen = freeze_stable(&engine, &context);
-    let ready = Arc::new(Barrier::new(2));
-    let release = Arc::new(Barrier::new(2));
-    let hook_ready = Arc::clone(&ready);
-    let hook_release = Arc::clone(&release);
-    arm_reader_search_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    let pause = arm_reader_search_hook_for_test(&engine);
     let worker = {
         let engine = Arc::clone(&engine);
         thread::spawn(move || engine.search_with_evidence(&request("race", frozen)))
     };
-    ready.wait();
+    pause.wait_ready(Duration::from_secs(15)).unwrap();
     engine
         .write(&[canonical_named(
             "race-later-1",
@@ -1607,7 +1601,7 @@ fn evidence_search_races_are_snapshot_atomic_or_wholly_refused() {
             "later",
         )])
         .unwrap();
-    release.wait();
+    pause.release();
     assert!(matches!(
         worker.join().unwrap(),
         Err(EngineError::Evidence(ref error))

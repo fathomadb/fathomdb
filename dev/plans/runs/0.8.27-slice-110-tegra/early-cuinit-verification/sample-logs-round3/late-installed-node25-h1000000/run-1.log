@@ -1,0 +1,4 @@
+BEGIN run=1 node=v25.9.0
+{"outcome":"fail","failedStep":"open","error":{"name":"EmbedDevicePolicyError","code":"FDB_EMBED_DEVICE_POLICY","kind":"cuda_probe_failed","message":"cuda:0 requested but unavailable: CudaProbeFailed; cuInit returned CUDA_ERROR_OUT_OF_MEMORY: the CUDA driver could not reserve its range of the process address space, which is usually fragmented by a large JavaScript heap; import fathomdb before building large in-memory data (at the top of the entry module), or start Node with --import fathomdb"},"node":"v25.9.0","order":"late","preloaded":false,"timingsMs":{"import":140.153279},"mem":{"startVszMiB":1116,"importRssDeltaMiB":10,"importVszDeltaMiB":863,"endVszMiB":2232},"heapObjects":1000000,"heapUsedMiB":174,"keepAlive":1000000}
+STDERR lines=0
+END run=1 exit=1 wall_ms=558

@@ -22,27 +22,55 @@
 //!     max-abs Δ / raw-sign flips / **mean-centered** flips (using a REAL
 //!     engine-pinned `mean_vec` fixture — mean=0 is raw-sign ONLY, not a proxy)
 //!     / P2 un-centered L2.
-//!   * **R-CAL-4 — durable results regardless of outcome:** writes
-//!     `dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md`.
+//!   * **R-CAL-4 — durable results regardless of outcome:** renders the
+//!     record `dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md`.
+//!     A run writes the committed file only with
+//!     `FATHOMDB_WRITE_CALIBRATION_RECORD=1`; otherwise the render goes to
+//!     `CARGO_TARGET_TMPDIR`, which later runs overwrite freely. A render
+//!     without measured candle-CUDA rows refuses to replace a tracked record
+//!     that has them.
 //!
-//! **Build/run discipline (worktree):** ONLY the CPU legs run here (pure
-//! `cargo test` on CPU). The candle-CUDA leg + the ONNX-GPU-EP leg are gated to
-//! SKIP cleanly and are selectable by env so the orchestrator can run just that
-//! leg on the MAIN tree (`--features …,embed-cuda`, `FATHOMDB_EMBED_DEVICE=auto`).
-//! This harness NEVER builds or runs `embed-cuda`.
+//! **Build/run discipline:** a build without `embed-cuda` runs the CPU legs
+//! only and records the candle-CUDA rows PENDING. The candle-CUDA leg runs
+//! under `--features …,embed-cuda` with `FATHOMDB_EMBED_DEVICE=auto` on a CUDA
+//! host (the feature-complete gate builds that set); add
+//! `FATHOMDB_WRITE_CALIBRATION_RECORD=1` to refresh the committed record.
+//! ONNX runs on CPU only: ONNX Runtime GPU execution providers are not a
+//! supported FathomDB configuration, so there is no ONNX GPU leg.
+//!
+//!   * **R-CAL-5 — `calibration_candle_cuda_leg_measures_on_gpu` (item-level
+//!     `#[cfg(feature = "embed-cuda")]`, gate-only).** A host that DOES build
+//!     `embed-cuda` (e.g. the feature-complete gate) must
+//!     actually MEASURE the candle-CUDA leg, not silently record it PENDING:
+//!     this test hard-fails (`live::require_live_or_skip` under
+//!     `FATHOMDB_REQUIRE_LIVE=1`) when the `auto` policy does not select
+//!     `cuda`, and otherwise asserts sane CPU↔CUDA and CUDA↔ONNX-CPU
+//!     calibration bounds. `calibration_reports_p1_flips_and_p2_l2`'s own
+//!     CUDA-leg fallback goes through the same live check when `embed-cuda`
+//!     is compiled in (CPU-only builds keep the plain PENDING eprintln).
 //!
 //! ENV-GATED like the baseline: set `ORT_DYLIB_PATH`, `FATHOMDB_ONNX_MODEL_PATH`,
 //! `FATHOMDB_ONNX_TOKENIZER_PATH` (and warm the candle HF cache) to run the ONNX
 //! legs; unset ⇒ ONNX legs skip cleanly, candle-only paths still run.
 //!
 //! ```sh
+//! # CPU legs; renders to CARGO_TARGET_TMPDIR:
 //! cargo test -p fathomdb-embedder --features default-embedder,onnx-embedder \
+//!     --test cross_backend_calibration -- --nocapture
+//!
+//! # Refresh the committed record, CUDA rows included (CUDA host):
+//! FATHOMDB_WRITE_CALIBRATION_RECORD=1 FATHOMDB_EMBED_DEVICE=auto \
+//!     cargo test -p fathomdb-embedder \
+//!     --features default-embedder,onnx-embedder,embed-cuda \
 //!     --test cross_backend_calibration -- --nocapture
 //! ```
 //!
 //! Compiles to nothing unless BOTH features are on, so the default
 //! `cargo clippy/check --workspace --all-targets` sees an empty test crate.
 #![cfg(all(feature = "default-embedder", feature = "onnx-embedder"))]
+
+#[path = "support/live.rs"]
+mod live;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -436,7 +464,7 @@ fn compare_pair(a: &[Vec<f32>], b: &[Vec<f32>], mean: &[f32]) -> PairMetrics {
 }
 
 /// Measured candle-CUDA leg-pairs (present only when the CUDA leg actually ran
-/// on the GPU — i.e. the MAIN-tree `embed-cuda` build). Absent in the worktree.
+/// on the GPU — i.e. an `embed-cuda` build on a CUDA host). Absent otherwise.
 struct GpuPairs {
     effective: String,
     cpu_vs_cuda: PairMetrics,
@@ -465,7 +493,7 @@ fn measured_row(label: &str, m: &PairMetrics) -> String {
 #[test]
 fn cpu_legs_reproduce_0816_baseline() {
     if onnx_env().is_none() {
-        eprintln!(
+        live::require_live_or_skip(
             "SKIP cpu_legs_reproduce_0816_baseline: ONNX asset env unset — set ORT_DYLIB_PATH + \
              FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH (and warm the candle HF cache)"
         );
@@ -524,7 +552,7 @@ fn harness_skips_unavailable_backends_cleanly() {
 
     // Candle GPU leg. `auto` has two valid strict-policy outcomes: CPU when CUDA
     // is unavailable and CUDA when it is compatible. A forced `cuda:N` probe
-    // would instead return an open error on the CPU-only worktree.
+    // would instead return an open error in a CPU-only build.
     let gpu = run_leg("candle", "auto");
     let gpu_backend = backend_of(&gpu.effective_device);
     assert!(
@@ -554,9 +582,10 @@ fn harness_skips_unavailable_backends_cleanly() {
         );
     }
 
-    // ONNX-GPU-EP leg: only when the ONNX asset env is present. `auto` records
-    // a CPU outcome when CUDA is unavailable; a CUDA provider that engages is a
-    // valid GPU measurement. `effective_provider()` reports the truth.
+    // ONNX `auto` leg: only when the ONNX asset env is present. ONNX GPU
+    // providers are unsupported, so the pinned CPU runtime resolves to CPU;
+    // should a CUDA provider engage, `effective_provider()` must still report
+    // it truthfully rather than as a skip or fallback.
     if onnx_env().is_some() {
         let ogpu = run_leg("onnx", "auto");
         if backend_of(&ogpu.effective_device) == "cuda" {
@@ -573,7 +602,16 @@ fn harness_skips_unavailable_backends_cleanly() {
                 ogpu.effective_device
             );
         } else {
-            // CPU is the valid `auto` outcome; construction errors remain skips.
+            // CPU is the valid `auto` outcome; construction errors remain skips
+            // unless the gate provisioned the ONNX assets, where a construction
+            // skip would hide a broken provider behind a passing test.
+            if ogpu.skipped && ogpu.effective_device == "n/a" {
+                live::require_live_or_skip(&format!(
+                    "SKIP harness_skips_unavailable_backends_cleanly: ONNX auto leg could not be \
+                     constructed: {}",
+                    ogpu.reason
+                ));
+            }
             assert!(
                 !ogpu.skipped || ogpu.effective_device == "n/a",
                 "an ONNX auto CPU outcome must be a successful policy result; only construction \
@@ -581,6 +619,11 @@ fn harness_skips_unavailable_backends_cleanly() {
                 ogpu.effective_device
             );
         }
+    } else {
+        live::require_live_or_skip(
+            "SKIP harness_skips_unavailable_backends_cleanly ONNX leg: ONNX asset env unset — set \
+             ORT_DYLIB_PATH + FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH",
+        );
     }
 }
 
@@ -590,12 +633,48 @@ fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../..").canonicalize().expect("repo root")
 }
 
+/// R-CAL-3 assertions on the candle-CPU ↔ ONNX-CPU pair; returns ‖mean‖₂.
+fn assert_cpu_baseline_components(mean: &[f32], m: &PairMetrics) -> f64 {
+    // The mean-centering must be exercised with the REAL pinned mean (non-zero):
+    // assert the fixture is actually a non-degenerate mean, so this is not a
+    // vacuous m=0 raw-sign measurement mislabeled as centered.
+    let mean_l2: f64 = mean.iter().map(|x| f64::from(*x) * f64::from(*x)).sum::<f64>().sqrt();
+    assert!(mean_l2 > 1e-3, "pinned mean fixture must be non-degenerate (‖mean‖₂={mean_l2:.6})");
+
+    // Both D4 floor components are emitted (P1 flip counts + P2 L2). For the
+    // CPU baseline both flip counts are 0 and P2 L2 is sub-1e-5.
+    assert_eq!(m.raw_flips_total, 0, "CPU baseline raw flips must be 0");
+    assert_eq!(m.mean_centered_flips_total, 0, "CPU baseline mean-centered flips must be 0");
+    assert!(m.p2_l2_max < 1e-4, "CPU baseline P2 L2 max {:.3e} unexpectedly large", m.p2_l2_max);
+    mean_l2
+}
+
+/// R-CAL-3 as a check: the calibration's CPU-baseline assertions, without
+/// writing the durable record (`calibration_reports_p1_flips_and_p2_l2` does).
+#[test]
+fn calibration_cpu_baseline_components_hold() {
+    if onnx_env().is_none() {
+        live::require_live_or_skip(
+            "SKIP calibration_cpu_baseline_components_hold: ONNX asset env unset — set \
+             ORT_DYLIB_PATH + FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH",
+        );
+        return;
+    }
+
+    let mean = pinned_mean();
+    let candle_cpu = run_leg("candle", "cpu");
+    let onnx_cpu = run_leg("onnx", "cpu");
+    assert!(!candle_cpu.skipped && !onnx_cpu.skipped, "CPU legs must run for the calibration");
+    let m = compare_pair(&candle_cpu.vectors, &onnx_cpu.vectors, &mean);
+    assert_cpu_baseline_components(&mean, &m);
+}
+
 #[test]
 fn calibration_reports_p1_flips_and_p2_l2() {
     if onnx_env().is_none() {
-        eprintln!(
+        live::require_live_or_skip(
             "SKIP calibration_reports_p1_flips_and_p2_l2: ONNX asset env unset — the durable doc \
-             is written by a run WITH the ONNX assets provisioned (see module docs)"
+             is written by a run WITH the ONNX assets provisioned (see module docs)",
         );
         return;
     }
@@ -622,20 +701,10 @@ fn calibration_reports_p1_flips_and_p2_l2() {
         m.mean_centered_flips_total,
         m.p2_l2_mean,
     );
-    // The mean-centering must be exercised with the REAL pinned mean (non-zero):
-    // assert the fixture is actually a non-degenerate mean, so this is not a
-    // vacuous m=0 raw-sign measurement mislabeled as centered.
-    let mean_l2: f64 = mean.iter().map(|x| f64::from(*x) * f64::from(*x)).sum::<f64>().sqrt();
-    assert!(mean_l2 > 1e-3, "pinned mean fixture must be non-degenerate (‖mean‖₂={mean_l2:.6})");
-
-    // Both D4 floor components are emitted (P1 flip counts + P2 L2). For the
-    // CPU baseline both flip counts are 0 and P2 L2 is sub-1e-5.
-    assert_eq!(m.raw_flips_total, 0, "CPU baseline raw flips must be 0");
-    assert_eq!(m.mean_centered_flips_total, 0, "CPU baseline mean-centered flips must be 0");
-    assert!(m.p2_l2_max < 1e-4, "CPU baseline P2 L2 max {:.3e} unexpectedly large", m.p2_l2_max);
+    let mean_l2 = assert_cpu_baseline_components(&mean, &m);
 
     // R-CAL-4 candle-CUDA refresh: attempt the auto policy through the SAME
-    // harness. In the worktree it resolves to CPU; on MAIN with `embed-cuda` it
+    // harness. Without `embed-cuda` it resolves to CPU; with `embed-cuda` it
     // may select GPU and BOTH candle-CUDA leg-pairs are measured + written into
     // the doc. This is a CALIBRATION read, never a gate: no assertion is placed
     // on the GPU deltas.
@@ -661,14 +730,197 @@ fn calibration_reports_p1_flips_and_p2_l2() {
             cuda_vs_onnx,
         })
     } else {
+        // R-CAL-5: on a host that built `embed-cuda` the `auto` policy is
+        // expected to select `cuda` (the gate runs on two CUDA-visible RTX
+        // 3090s); a fallback there must be loud, not a silent PENDING record.
+        // A build without `embed-cuda` cannot reach this arm
+        // under that feature at all (see `#[cfg]` below), so its PENDING
+        // eprintln is unchanged.
+        #[cfg(feature = "embed-cuda")]
+        live::require_live_or_skip(&format!(
+            "SKIP calibration_reports_p1_flips_and_p2_l2 candle-CUDA leg: embed-cuda is built but \
+             the auto policy selected {:?} instead of cuda (skipped={}) — GPU must be measured on \
+             this host, not silently recorded PENDING",
+            candle_cuda.effective_device, candle_cuda.skipped
+        ));
         eprintln!(
-            "R-CAL-4 candle-CUDA leg gated-to-skip (effective={}) — recorded PENDING (run on MAIN)",
+            "R-CAL-4 candle-CUDA leg gated-to-skip (effective={}) — recorded PENDING (run with `embed-cuda` on a CUDA host)",
             candle_cuda.effective_device
         );
         None
     };
 
+    // `write_durable_doc`, with the opt-in unset, targets the same literal
+    // scratch path `calibration_default_run_write_path_never_touches_tracked_record`
+    // and `calibration_record_default_run_writes_scratch_and_leaves_tracked_record`
+    // use — guard against a concurrent test-thread race on that shared file.
+    let _guard = lock_default_scratch_record();
     write_durable_doc(&candle_cpu, &onnx_cpu, &m, mean_l2, gpu.as_ref());
+}
+
+// ── R-CAL-5: the candle-CUDA leg must be MEASURED, not silently PENDING ────
+
+/// Gate-only (`embed-cuda` compiled in): the `auto` policy must select `cuda`
+/// on a host that built the CUDA backend (the feature-complete gate runs on
+/// two CUDA-visible RTX 3090s), and the two resulting leg-pairs must be sane.
+/// Writes no record — `calibration_reports_p1_flips_and_p2_l2` (its ONNX-gated
+/// sibling) is the harness's one durable-doc writer.
+#[cfg(feature = "embed-cuda")]
+#[test]
+fn calibration_candle_cuda_leg_measures_on_gpu() {
+    if onnx_env().is_none() {
+        live::require_live_or_skip(
+            "SKIP calibration_candle_cuda_leg_measures_on_gpu: ONNX asset env unset — set \
+             ORT_DYLIB_PATH + FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH",
+        );
+        return;
+    }
+
+    let mean = pinned_mean();
+    let candle_cpu = run_leg("candle", "cpu");
+    let onnx_cpu = run_leg("onnx", "cpu");
+    assert!(!candle_cpu.skipped && !onnx_cpu.skipped, "CPU legs must run for the calibration");
+
+    let candle_cuda = run_leg("candle", "auto");
+    if candle_cuda.skipped || backend_of(&candle_cuda.effective_device) != "cuda" {
+        // A host that built `embed-cuda` (this test only compiles there) but
+        // whose `auto` policy did not select `cuda` is not covering the GPU
+        // leg — the user requires it measured, not silently skipped.
+        live::require_live_or_skip(&format!(
+            "SKIP calibration_candle_cuda_leg_measures_on_gpu: embed-cuda is built but the auto \
+             policy selected {:?} instead of cuda (skipped={}) — GPU must be measured on this \
+             host, not silently skipped",
+            candle_cuda.effective_device, candle_cuda.skipped
+        ));
+        return;
+    }
+    assert!(
+        !candle_cuda.skipped && !candle_cuda.fallback,
+        "a measured candle CUDA leg must not be classified skip/fallback (effective={})",
+        candle_cuda.effective_device
+    );
+    assert_eq!(candle_cuda.vectors.len(), 45, "a measured candle CUDA leg must produce 45 vectors");
+
+    let cpu_vs_cuda = compare_pair(&candle_cpu.vectors, &candle_cuda.vectors, &mean);
+    let cuda_vs_onnx = compare_pair(&candle_cuda.vectors, &onnx_cpu.vectors, &mean);
+
+    eprintln!(
+        "R-CAL-4 candle-CUDA leg MEASURED on {}: CPU↔CUDA cosine_mean={:.9} cosine_min={:.9} \
+         l2_mean={:.3e} l2_max={:.3e} raw_flips={} mc_flips={}; CUDA↔ONNX-CPU cosine_mean={:.9} \
+         cosine_min={:.9} l2_mean={:.3e} l2_max={:.3e} raw_flips={} mc_flips={}",
+        candle_cuda.effective_device,
+        cpu_vs_cuda.cosine_mean,
+        cpu_vs_cuda.cosine_min,
+        cpu_vs_cuda.p2_l2_mean,
+        cpu_vs_cuda.p2_l2_max,
+        cpu_vs_cuda.raw_flips_total,
+        cpu_vs_cuda.mean_centered_flips_total,
+        cuda_vs_onnx.cosine_mean,
+        cuda_vs_onnx.cosine_min,
+        cuda_vs_onnx.p2_l2_mean,
+        cuda_vs_onnx.p2_l2_max,
+        cuda_vs_onnx.raw_flips_total,
+        cuda_vs_onnx.mean_centered_flips_total,
+    );
+
+    // Bounds rationale: both pairs share the SAME pinned BAAI/bge-small-en-v1.5
+    // weights and CLS pooling; CPU↔CUDA differs only in numeric backend (the
+    // CPU gemm kernel vs cuBLAS on the same candle model), and CUDA↔ONNX-CPU is
+    // the same cross-vendor comparison R-CAL-2 hard-asserts >= 0.99 cosine for
+    // on CPU. This is a CALIBRATION read (not the durable doc's assertion-free
+    // measurement), so it checks the metrics are real numbers and close to the
+    // R-CAL-2 baseline, without inventing a tighter oracle than anything
+    // measured so far: 0.95 is generously below the ~1.0 either pair is
+    // expected at, while still catching a genuinely broken CUDA path.
+    for (label, m) in [("CPU\u{2194}CUDA", &cpu_vs_cuda), ("CUDA\u{2194}ONNX-CPU", &cuda_vs_onnx)] {
+        assert!(
+            m.cosine_mean.is_finite(),
+            "{label} cosine_mean must be finite, got {}",
+            m.cosine_mean
+        );
+        assert!(
+            m.cosine_min.is_finite(),
+            "{label} cosine_min must be finite, got {}",
+            m.cosine_min
+        );
+        assert!(
+            m.p2_l2_mean.is_finite() && m.p2_l2_max.is_finite(),
+            "{label} P2 L2 must be finite, got mean={} max={}",
+            m.p2_l2_mean,
+            m.p2_l2_max
+        );
+        assert!(
+            m.cosine_mean >= 0.95,
+            "{label} cosine_mean {:.9} is far from 1 for a same-weights cross-backend/vendor pair",
+            m.cosine_mean
+        );
+    }
+}
+
+const RECORD_NAME: &str = "0.8.18-slice-0-cross-backend-calibration.md";
+
+fn tracked_record_path() -> PathBuf {
+    repo_root().join("dev/plans/runs").join(RECORD_NAME)
+}
+
+/// `FATHOMDB_WRITE_CALIBRATION_RECORD=1` is the only value that lets a run
+/// replace the committed record; anything else renders to scratch.
+fn record_write_opted_in(value: Option<&str>) -> bool {
+    value == Some("1")
+}
+
+/// Where a run with `FATHOMDB_WRITE_CALIBRATION_RECORD` set to `value` renders.
+fn destination_from_env(value: Option<&str>) -> PathBuf {
+    record_destination(record_write_opted_in(value))
+}
+
+fn record_destination(opted_in: bool) -> PathBuf {
+    if opted_in {
+        tracked_record_path()
+    } else {
+        Path::new(env!("CARGO_TARGET_TMPDIR")).join(RECORD_NAME)
+    }
+}
+
+fn cuda_rows_measured(doc: &str) -> bool {
+    doc.contains("**candle-CUDA legs: MEASURED")
+}
+
+/// The CUDA rows can only be measured on a host that builds `embed-cuda`, so a
+/// render from any other host must never replace the tracked record's measured
+/// rows with pending ones.
+fn check_no_cuda_downgrade(existing: Option<&str>, rendered: &str) -> Result<(), String> {
+    match existing {
+        Some(existing) if cuda_rows_measured(existing) && !cuda_rows_measured(rendered) => {
+            Err("the existing record has MEASURED candle-CUDA rows and this render has none \
+                 (run on a host with `embed-cuda` and CUDA to refresh them)"
+                .to_string())
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Only the tracked record is guarded: a scratch render is disposable, and a
+/// documented CUDA refresh without the opt-in leaves MEASURED rows there that
+/// later CPU-only runs must still replace.
+fn guards_cuda_rows(path: &Path) -> bool {
+    path == tracked_record_path()
+}
+
+fn persist_durable_doc(path: &Path, doc: &str) {
+    write_record(path, doc, guards_cuda_rows(path));
+}
+
+fn write_record(path: &Path, doc: &str, refuse_cuda_downgrade: bool) {
+    if refuse_cuda_downgrade {
+        let existing = std::fs::read_to_string(path).ok();
+        if let Err(refusal) = check_no_cuda_downgrade(existing.as_deref(), doc) {
+            panic!("refusing to write {}: {refusal}", path.display());
+        }
+    }
+    std::fs::write(path, doc)
+        .unwrap_or_else(|e| panic!("write durable doc {}: {e}", path.display()));
+    eprintln!("R-CAL-4 wrote durable results doc: {}", path.display());
 }
 
 /// R-CAL-4: write the durable results doc (mirrors the Slice-15 doc's shape).
@@ -679,23 +931,34 @@ fn write_durable_doc(
     mean_l2: f64,
     gpu: Option<&GpuPairs>,
 ) {
-    let path = repo_root().join("dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md");
-    // candle-CUDA rows: measured when the GPU leg ran (MAIN tree), else pending.
+    let doc = render_durable_doc(candle, onnx, m, mean_l2, gpu);
+    let value = std::env::var("FATHOMDB_WRITE_CALIBRATION_RECORD").ok();
+    persist_durable_doc(&destination_from_env(value.as_deref()), &doc);
+}
+
+fn render_durable_doc(
+    candle: &LegResult,
+    onnx: &LegResult,
+    m: &PairMetrics,
+    mean_l2: f64,
+    gpu: Option<&GpuPairs>,
+) -> String {
+    // candle-CUDA rows: measured when the GPU leg ran (`embed-cuda` build), else pending.
     let (cpu_vs_cuda_row, cuda_vs_onnx_row, gpu_status) = match gpu {
         Some(g) => (
             measured_row("candle-CPU ↔ candle-CUDA", &g.cpu_vs_cuda),
             measured_row("candle-CUDA ↔ ONNX-CPU", &g.cuda_vs_onnx),
-            format!("MEASURED on `{}` (MAIN tree)", g.effective),
+            format!("MEASURED on `{}`", g.effective),
         ),
         None => (
-            "| candle-CPU ↔ candle-CUDA | — | pending (MAIN tree; `embed-cuda`, \
+            "| candle-CPU ↔ candle-CUDA | — | pending (`embed-cuda`, \
              `FATHOMDB_EMBED_DEVICE=auto`) | | | | | | |"
                 .to_string(),
-            "| candle-CUDA ↔ ONNX-CPU | — | pending (MAIN tree) | | | | | | |".to_string(),
-            "PENDING (worktree runs CPU legs only; run on MAIN with `embed-cuda`)".to_string(),
+            "| candle-CUDA ↔ ONNX-CPU | — | pending (`embed-cuda`) | | | | | | |".to_string(),
+            "PENDING (this build has no `embed-cuda`; CPU legs only)".to_string(),
         ),
     };
-    let doc = format!(
+    format!(
         r#"# 0.8.18 Slice 0 U3 — cross-backend vector-equivalence CALIBRATION (R-CAL-1..R-CAL-4)
 
 Status: **MEASURED + RECORDED** (calibration instrument — measures, does NOT
@@ -754,7 +1017,6 @@ un-centered L2 (`vec_distance_l2`).
 | candle-CPU ↔ ONNX-CPU | {n} | {cos_mean:.9} | {cos_min:.9} | {l2_mean:.3e} | {l2_max:.3e} | {maxabs:.3e} | **{raw} / {bits}** | **{mc} / {bits}** |
 {cpu_vs_cuda_row}
 {cuda_vs_onnx_row}
-| ONNX-GPU-EP (D3/U4/L3) | — | pending OOB (CUDA `libonnxruntime.so`) | | | | | | |
 
 **candle-CUDA legs: {gpu_status}.**
 
@@ -768,21 +1030,20 @@ could push a component across a quantization threshold and flip a bit. Both P1
 flip counts and the P2 L2 are emitted so the 0.8.18 #5 **D4 floor** can be set on
 BOTH components after the GPU legs land.
 
-## Remaining legs (MAIN tree only — GPU discipline)
+## GPU legs
 
-The candle-CUDA + ONNX-GPU-EP legs are gated-to-skip in the worktree (which never
-builds `embed-cuda`) and are run by the orchestrator on the MAIN tree via the
-SAME harness:
+The candle-CUDA legs are measured by a build with `embed-cuda` on a CUDA host
+(the feature-complete gate builds that set); a build without it records them
+PENDING. ONNX runs on CPU only: ONNX Runtime GPU execution providers are not a
+supported FathomDB configuration, so there is no ONNX GPU leg.
 
 ```sh
-# candle-CUDA leg (MAIN tree; nvcc on PATH, CUDA_HOME set):
-FATHOMDB_EMBED_DEVICE=auto cargo test -p fathomdb-embedder \
+# Refresh this record (nvcc on PATH, CUDA_PATH set, ONNX asset env set). Without
+# FATHOMDB_WRITE_CALIBRATION_RECORD=1 the render goes to CARGO_TARGET_TMPDIR:
+FATHOMDB_WRITE_CALIBRATION_RECORD=1 FATHOMDB_EMBED_DEVICE=auto \
+    cargo test -p fathomdb-embedder \
     --features default-embedder,onnx-embedder,embed-cuda \
     --test cross_backend_calibration -- --nocapture
-
-# ONNX-GPU-EP leg (U4/L3, OOB): point ORT_DYLIB_PATH at a CUDA-enabled
-# libonnxruntime.so and set FATHOMDB_EMBED_DEVICE=auto — effective_provider()
-# records whether the CUDA EP actually engaged; CPU is the typed `auto` outcome.
 ```
 "#,
         c_req = candle.requested_device,
@@ -802,8 +1063,208 @@ FATHOMDB_EMBED_DEVICE=auto cargo test -p fathomdb-embedder \
         cpu_vs_cuda_row = cpu_vs_cuda_row,
         cuda_vs_onnx_row = cuda_vs_onnx_row,
         gpu_status = gpu_status,
+    )
+}
+
+// ── durable-record destination + no-downgrade guard ─────────────────────────
+
+fn synthetic_leg(device: &str) -> LegResult {
+    LegResult {
+        skipped: false,
+        fallback: false,
+        reason: String::new(),
+        requested_device: device.to_string(),
+        effective_device: device.to_string(),
+        vectors: vec![vec![0.5; DIM]],
+    }
+}
+
+fn synthetic_render(gpu_measured: bool) -> String {
+    let mean = pinned_mean();
+    let leg = synthetic_leg("cpu");
+    let m = compare_pair(&leg.vectors, &leg.vectors, &mean);
+    let gpu = gpu_measured.then(|| GpuPairs {
+        effective: "cuda:0".to_string(),
+        cpu_vs_cuda: compare_pair(&leg.vectors, &leg.vectors, &mean),
+        cuda_vs_onnx: compare_pair(&leg.vectors, &leg.vectors, &mean),
+    });
+    render_durable_doc(&leg, &leg, &m, 1.0, gpu.as_ref())
+}
+
+/// Guards tests that write to the literal DEFAULT scratch destination
+/// (`record_destination(false)` / `destination_from_env(None)` ==
+/// `CARGO_TARGET_TMPDIR`/`RECORD_NAME`) — that path is a production choice,
+/// not a test-chosen unique name (unlike `scratch_file`), so two such tests
+/// running concurrently (the default `cargo test` thread pool) would race on
+/// the same file.
+static DEFAULT_SCRATCH_RECORD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn lock_default_scratch_record() -> std::sync::MutexGuard<'static, ()> {
+    DEFAULT_SCRATCH_RECORD_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+fn scratch_file(name: &str) -> PathBuf {
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!(
+        "{}-{}-{name}",
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    ))
+}
+
+#[test]
+fn calibration_record_write_needs_exact_opt_in() {
+    assert!(!record_write_opted_in(None));
+    assert!(!record_write_opted_in(Some("")));
+    assert!(!record_write_opted_in(Some("0")));
+    assert!(!record_write_opted_in(Some("true")));
+    assert!(record_write_opted_in(Some("1")));
+    assert_eq!(record_destination(true), tracked_record_path());
+}
+
+#[test]
+fn calibration_record_default_run_writes_scratch_and_leaves_tracked_record() {
+    let _guard = lock_default_scratch_record();
+    let tracked = tracked_record_path();
+    let before = std::fs::read(&tracked).expect("read tracked calibration record");
+    let dest = record_destination(false);
+    // Checked before any write, so a wrong destination never reaches the record.
+    assert_ne!(dest, tracked, "a default run must not target the tracked record");
+    assert!(
+        dest.starts_with(env!("CARGO_TARGET_TMPDIR")),
+        "a default run must write under CARGO_TARGET_TMPDIR, got {}",
+        dest.display()
     );
-    std::fs::write(&path, doc)
-        .unwrap_or_else(|e| panic!("write durable doc {}: {e}", path.display()));
-    eprintln!("R-CAL-4 wrote durable results doc: {}", path.display());
+    let doc = synthetic_render(false);
+    persist_durable_doc(&dest, &doc);
+    assert_eq!(std::fs::read_to_string(&dest).expect("read scratch record"), doc);
+    assert_eq!(
+        std::fs::read(&tracked).expect("re-read tracked calibration record"),
+        before,
+        "a default run changed the tracked record"
+    );
+}
+
+#[test]
+fn calibration_record_refuses_pending_cuda_rows_over_measured() {
+    let measured = synthetic_render(true);
+    let pending = synthetic_render(false);
+    assert!(check_no_cuda_downgrade(None, &pending).is_ok());
+    assert!(check_no_cuda_downgrade(Some(&pending), &pending).is_ok());
+    assert!(check_no_cuda_downgrade(Some(&pending), &measured).is_ok());
+    assert!(check_no_cuda_downgrade(Some(&measured), &measured).is_ok());
+    assert!(check_no_cuda_downgrade(Some(&measured), &pending).is_err());
+
+    // The committed record carries MEASURED CUDA rows; a CPU-only render must
+    // not replace them. Exercised on a copy so the tracked file is never at risk.
+    let committed =
+        std::fs::read_to_string(tracked_record_path()).expect("read tracked calibration record");
+    assert!(check_no_cuda_downgrade(Some(&committed), &pending).is_err());
+    assert!(guards_cuda_rows(&tracked_record_path()), "the tracked record must be guarded");
+    let copy = scratch_file("committed-record-copy.md");
+    std::fs::write(&copy, &committed).expect("write record copy");
+    let refused = std::panic::catch_unwind(|| write_record(&copy, &pending, true));
+    let after = std::fs::read_to_string(&copy).expect("re-read record copy");
+    std::fs::remove_file(&copy).expect("remove record copy");
+    assert!(refused.is_err(), "persisting a PENDING render over MEASURED rows must panic");
+    assert_eq!(after, committed);
+}
+
+#[test]
+fn calibration_scratch_render_overwrites_measured_cuda_rows() {
+    // A documented CUDA refresh without the opt-in leaves MEASURED rows in the
+    // scratch render; later CPU-only runs must still be able to replace it.
+    let measured = synthetic_render(true);
+    let pending = synthetic_render(false);
+    let scratch = scratch_file("measured-scratch-render.md");
+    assert!(!guards_cuda_rows(&scratch), "a scratch render must not be guarded");
+    std::fs::write(&scratch, &measured).expect("write measured scratch render");
+    let written = std::panic::catch_unwind(|| persist_durable_doc(&scratch, &pending));
+    let after = std::fs::read_to_string(&scratch).expect("re-read scratch render");
+    std::fs::remove_file(&scratch).expect("remove scratch render");
+    assert!(written.is_ok(), "a PENDING render must overwrite a MEASURED scratch render");
+    assert_eq!(after, pending);
+}
+
+#[test]
+fn calibration_record_destination_follows_exact_opt_in() {
+    let scratch = Path::new(env!("CARGO_TARGET_TMPDIR")).join(RECORD_NAME);
+    for value in [None, Some(""), Some("0"), Some("1 "), Some(" 1"), Some("true")] {
+        assert_eq!(destination_from_env(value), scratch, "value {value:?} must render to scratch");
+    }
+    assert_eq!(destination_from_env(Some("1")), tracked_record_path());
+}
+
+/// Code review FIX-7 R-1: `calibration_record_default_run_writes_scratch_and_leaves_tracked_record`
+/// and `calibration_record_destination_follows_exact_opt_in` each pin one half
+/// of the default write path (`record_destination`/`destination_from_env`), not
+/// `write_durable_doc` itself — the ONE entry point the only caller
+/// (`calibration_reports_p1_flips_and_p2_l2`, ONNX-gated) actually invokes. A
+/// mutation making `write_durable_doc` always target `tracked_record_path()`
+/// is today caught only because the tracked record holds MEASURED CUDA rows,
+/// so `guards_cuda_rows`'s no-downgrade check panics first; a PENDING record,
+/// or a bypassed guard, would let the mutation through unnoticed.
+///
+/// This drives `write_durable_doc` directly (no ONNX needed — its inputs are
+/// plain structs), with synthetic CUDA-row measuredness matched to whatever
+/// the TRACKED record currently holds. Matching that state means the
+/// no-downgrade guard never fires either way, so it is the byte comparison
+/// below — not a guard panic — that decides pass/fail, catching the mutation
+/// whether the tracked record is MEASURED or PENDING, and whether or not the
+/// guard itself is intact.
+#[test]
+fn calibration_default_run_write_path_never_touches_tracked_record() {
+    let _guard = lock_default_scratch_record();
+    if let Ok(v) = std::env::var("FATHOMDB_WRITE_CALIBRATION_RECORD") {
+        assert_ne!(
+            v, "1",
+            "refusing to run with FATHOMDB_WRITE_CALIBRATION_RECORD=1 already set in the \
+             process env — this test must observe the default (opt-in-unset) write path"
+        );
+    }
+
+    let tracked = tracked_record_path();
+    let before = std::fs::read(&tracked).expect("read tracked calibration record");
+    let before_text =
+        String::from_utf8(before.clone()).expect("tracked calibration record must be UTF-8");
+    // Match the render's CUDA-row measuredness to the tracked record's current
+    // state so `guards_cuda_rows`'s no-downgrade check cannot short-circuit
+    // this test with a panic before the write path is exercised.
+    let existing_measured = cuda_rows_measured(&before_text);
+
+    let mean = pinned_mean();
+    let leg = synthetic_leg("cpu");
+    let m = compare_pair(&leg.vectors, &leg.vectors, &mean);
+    let gpu = existing_measured.then(|| GpuPairs {
+        effective: "cuda:0".to_string(),
+        cpu_vs_cuda: compare_pair(&leg.vectors, &leg.vectors, &mean),
+        cuda_vs_onnx: compare_pair(&leg.vectors, &leg.vectors, &mean),
+    });
+
+    let scratch_dest = destination_from_env(None);
+    assert_ne!(
+        scratch_dest, tracked,
+        "sanity: the default (opt-in-unset) destination must not be the tracked path"
+    );
+    let _ = std::fs::remove_file(&scratch_dest);
+
+    // The SAME entry point `calibration_reports_p1_flips_and_p2_l2` calls in
+    // production, with the opt-in env var not set to "1" (verified above).
+    write_durable_doc(&leg, &leg, &m, 1.0, gpu.as_ref());
+
+    let after = std::fs::read(&tracked).expect("re-read tracked calibration record");
+    if after != before {
+        // A mutation reached the tracked file — restore it before failing so
+        // this test can never itself corrupt the committed record.
+        std::fs::write(&tracked, &before).expect("restore tracked calibration record");
+        panic!(
+            "write_durable_doc modified the TRACKED calibration record on a default \
+             (opt-in-unset) run — original bytes restored before failing"
+        );
+    }
+
+    let scratch_doc =
+        std::fs::read_to_string(&scratch_dest).expect("the default write path must write scratch");
+    assert!(!scratch_doc.is_empty(), "the scratch render must be non-empty");
+    let _ = std::fs::remove_file(&scratch_dest);
 }

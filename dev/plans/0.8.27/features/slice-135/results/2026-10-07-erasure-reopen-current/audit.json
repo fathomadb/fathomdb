@@ -1,0 +1,20 @@
+{
+  "log_sha256": "08a6ed5cbe11245a405f3da40e16c7b128fe5a51c7542af39c041db7f76585f7",
+  "observed": {
+    "case": "pending_telemetry_redaction_survives_engine_reopen",
+    "control_in_restored_sink_after_retry": true,
+    "control_rows_after_retry": 1,
+    "fault_point": "telemetry sink rotated after search and before excise",
+    "first_error": "ErasureIncomplete:telemetry_redaction",
+    "integrity_check": "ok",
+    "pending_after_failure": 1,
+    "pending_after_reopen": 1,
+    "pending_after_retry": 0,
+    "retry_without_sink_error": "ErasureIncomplete:telemetry_redaction",
+    "victim_in_restored_sink_after_retry": false,
+    "victim_in_rotated_sink_before_restore": true,
+    "victim_rows_after_failure": 0,
+    "victim_rows_after_retry": 0
+  },
+  "status": "PASS"
+}

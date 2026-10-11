@@ -1,0 +1,15 @@
+diff --git a/src/rust/crates/example/src/engine.rs b/src/rust/crates/example/src/engine.rs
+new file mode 100644
+index 0000000..3b59601
+--- /dev/null
++++ b/src/rust/crates/example/src/engine.rs
+@@ -0,0 +1 @@
++pub fn version() {}
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+index 3b59601..807da8f 100644
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1 +1,2 @@
+-pub fn version() {}
++mod engine;
++pub use engine::*;

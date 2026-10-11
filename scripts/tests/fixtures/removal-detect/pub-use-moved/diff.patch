@@ -1,0 +1,8 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,2 +1,2 @@
+-mod old_errors;
+-pub use old_errors::EngineError;
++mod errors;
++pub use errors::EngineError;

@@ -1,0 +1,7 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,2 +1,2 @@
+ mod m;
+-pub use m::Foo;
++pub struct Foo;

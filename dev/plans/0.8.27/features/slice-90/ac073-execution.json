@@ -1,0 +1,16 @@
+{
+  "binary_relative_path": "target/release/deps/eu7_real_corpus_ac-7330e27ac1709bed",
+  "binary_sha256": "f7289d90f3a31fa9842535d21bbdee04bffc36335e43da9c5f52d07b612b6c64",
+  "bundle_dir": "/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/ac073-2e94aaf4f",
+  "candidate_sha": "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd",
+  "command": "env CARGO_TARGET_DIR=/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/ac073-2e94aaf4f/target AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 FATHOMDB_EU7_OUTPUT=/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/ac073-2e94aaf4f/eu7.json cargo test --release -p fathomdb-engine --features operator,embed-cuda --test eu7_real_corpus_ac eu7_real_corpus_ac_validation -- --exact --ignored --nocapture --test-threads=1",
+  "executed_binary_path": "/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/ac073-2e94aaf4f/target/release/deps/eu7_real_corpus_ac-7330e27ac1709bed",
+  "post_clean": true,
+  "post_source_sha": "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd",
+  "pre_clean": true,
+  "pre_source_sha": "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd",
+  "raw_log_sha256": "81570e2feb6495a2bda199479779ba53d20b2850b5da0226893189a39df4ca9c",
+  "schema_version": "fathomdb.slice90-ac073-execution/v1",
+  "selector_exit": 101,
+  "source_receipt_sha256": "9ee1d409f773bab376187686b64ab4f8d279f2a8aaa02be5380e88cb94d0cc78"
+}

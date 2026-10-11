@@ -5,7 +5,7 @@ application-surface verbs like `search`, `get`, or `list`. Use the SDK
 for those.
 
 Authoritative spec:
-[`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/cli.md);
+[`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/cli.md);
 recovery semantics owned by `dev/design/recovery.md`.
 
 ## Roots
@@ -38,6 +38,7 @@ recovery semantics owned by `dev/design/recovery.md`.
 | `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `0` / `65` / `70` / `71` |
 | `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `0` / `65` / `70` / `71` |
 | `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `0` / `65` / `70`        |
+| `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]` | `0` / `65` / `70` |
 | `platform`        | `fathomdb doctor platform [--json]`                                            | `0` / `70`               |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0` / `70` / `71` |
 | `orphan-provenance` | `fathomdb doctor orphan-provenance [--json] <db_path>`                        | `0` / `65` / `70` / `71` |
@@ -46,6 +47,15 @@ recovery semantics owned by `dev/design/recovery.md`.
 
 `check-integrity --full` may emit doctor-only finding codes such as
 `E_CORRUPT_INTEGRITY_CHECK`.
+
+### Reranker device diagnostic
+
+`doctor reranker-gpu` resolves `FATHOMDB_RERANK_DEVICE` without opening a
+database or loading model weights. Its JSON schema is
+`fathomdb.doctor.reranker-gpu.v1`; it reports the requested policy, compiled
+CUDA support, available devices, and effective device. An invalid CUDA
+ordinal returns 65; an unavailable runtime or a build without
+`default-reranker` returns 70.
 
 ### Data-plane integrity
 
@@ -80,17 +90,16 @@ Inspection failures use `inspection_unavailable`, `inspection_lock_missing`,
 `database_schema_mismatch`, or `integrity_corrupt` without exposing raw SQLite
 diagnostics.
 
-For the 0.8.26 boundary, install the exact CLI version and confirm its identity:
+Install the 0.8.27 CLI at the exact version and confirm its identity:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.26' --locked
+cargo install fathomdb-cli --version '=0.8.27' --locked
 fathomdb --version
 ```
 
-That registry command is valid only after 0.8.26 is published. During source
-qualification, use the [Rust install procedure](../install/rust.md). The
-published 0.8.25 binary has the same schema version but does not implement this
-immutable process boundary.
+During source qualification, use the [Rust install procedure](../install/rust.md).
+Public 0.8.27 opens require a fresh or already-current schema-34 database; an
+older non-empty database is rejected before product mutation.
 
 ### GPU and platform diagnostics
 
@@ -111,7 +120,7 @@ uses filesystem Tier 1 plus an ordered absolute `nvidia-smi` Tier 2 probe; an
 unavailable, timed-out, or nonzero Tier 2 result is `unknown` and exits `70`.
 
 For a confirmed classic Jetson/Tegra CUDA host, `fathomdb doctor gpu --help`
-prints the exact interim 0.8.24 command: `fathomdb==0.8.24+tegra` from
+prints the exact interim 0.8.27 command: `fathomdb==0.8.27+tegra` from
 `https://fathomadb.github.io/fathomdb/tegra/simple/`. It uses one index and an
 exact version; do not use a floating requirement or `--extra-index-url`.
 Unsupported targets have no supported Tegra CUDA route.
@@ -256,4 +265,4 @@ See [Python API](python-api.md) / [TypeScript API](typescript-api.md).
 
 - [Errors](errors.md)
 - [Install — Rust / CLI](../install/rust.md)
-- Locked spec: [`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/cli.md)
+- Locked spec: [`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/cli.md)

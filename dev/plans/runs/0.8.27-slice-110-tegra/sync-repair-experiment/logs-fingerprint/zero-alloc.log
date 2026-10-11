@@ -1,0 +1,28 @@
+default_pool=CUDA_SUCCESS
+cuMemAlloc(0)=CUDA_ERROR_INVALID_VALUE ptr=0
+cuMemFree(0)=CUDA_SUCCESS
+cuMemAllocAsync(0)=CUDA_SUCCESS ptr=0
+cuMemFreeAsync(ptr)=CUDA_SUCCESS
+sync=CUDA_SUCCESS
+--
+default_pool=CUDA_SUCCESS
+cuMemAlloc(0)=CUDA_ERROR_INVALID_VALUE ptr=0
+cuMemFree(0)=CUDA_SUCCESS
+cuMemAllocAsync(0)=CUDA_SUCCESS ptr=0
+cuMemFreeAsync(ptr)=CUDA_SUCCESS
+sync=CUDA_SUCCESS
+--
+default_pool=CUDA_SUCCESS
+cuMemAlloc(0)=CUDA_ERROR_INVALID_VALUE ptr=0
+cuMemFree(0)=CUDA_SUCCESS
+cuMemAllocAsync(0)=CUDA_SUCCESS ptr=0
+cuMemFreeAsync(ptr)=CUDA_SUCCESS
+sync=CUDA_SUCCESS
+--
+default_pool=CUDA_SUCCESS
+cuMemAlloc(0)=CUDA_ERROR_INVALID_VALUE ptr=0
+cuMemFree(0)=CUDA_SUCCESS
+cuMemAllocAsync(0)=CUDA_SUCCESS ptr=0
+cuMemFreeAsync(ptr)=CUDA_SUCCESS
+sync=CUDA_SUCCESS
+--

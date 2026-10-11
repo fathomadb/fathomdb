@@ -1,0 +1,4 @@
+/tmp/slice135-frozen-field-fixed-venv/lib/python3.12/site-packages/fathomdb/__init__.py
+/tmp/slice135-frozen-field-fixed-venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+false
+frozen-evidence-profile-v1

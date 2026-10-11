@@ -1,0 +1,164 @@
+{
+  "coverage": {
+    "connection_runtime": {
+      "common_workload_hit_branches": 6,
+      "common_workload_hit_test_hit_branches": 6,
+      "source_sha256": "439cb710aa4fa99abf8a68ef789a4fbcfb40154d107289dfddc63f29a1508734",
+      "test_totals": {
+        "BRF": 24,
+        "BRH": 6,
+        "LF": 189,
+        "LH": 99
+      },
+      "workload_hit_test_missed_branches": [],
+      "workload_hit_test_missed_lines": [],
+      "workload_hit_unmapped_branches": [
+        [
+          528,
+          "0",
+          "0"
+        ]
+      ],
+      "workload_totals": {
+        "BRF": 26,
+        "BRH": 7,
+        "LF": 214,
+        "LH": 120
+      }
+    },
+    "open": {
+      "common_workload_hit_branches": 40,
+      "common_workload_hit_test_hit_branches": 40,
+      "source_sha256": "d7a78777ae6d978092ab821ec88ecb12174e617031666d26a654e38def5a6157",
+      "test_totals": {
+        "BRF": 108,
+        "BRH": 50,
+        "LF": 1108,
+        "LH": 690
+      },
+      "workload_hit_test_missed_branches": [],
+      "workload_hit_test_missed_lines": [
+        680,
+        681,
+        682,
+        683,
+        684,
+        685,
+        686,
+        687,
+        688,
+        689,
+        691
+      ],
+      "workload_hit_unmapped_branches": [],
+      "workload_totals": {
+        "BRF": 108,
+        "BRH": 40,
+        "LF": 1122,
+        "LH": 634
+      }
+    }
+  },
+  "fixed_mix_observations_per_cell": 100,
+  "limitations": [
+    "fixed synthetic engine-only operation mix is not production frequency",
+    "stage timers are diagnostic and do not enter unprofiled latency comparison",
+    "selected existing tests are not the entire suite",
+    "test-hooks and operator features differ; branch identities absent in one build are unmapped"
+  ],
+  "minimum_80_percent_set": [
+    "open",
+    "reopen",
+    "close_fresh_cell",
+    "erasure"
+  ],
+  "profile": {
+    "control_operations": 374,
+    "matching_engine_samples": 14,
+    "method": "gdb-interrupt-stack",
+    "profiled_operations": 344,
+    "requested_samples": 16,
+    "total_samples": 16
+  },
+  "ranked_operations": [
+    {
+      "aggregate_ns": 2043794082,
+      "cost_fraction": 0.4536873293511897,
+      "cumulative_fraction": 0.4536873293511897,
+      "invocations": 100,
+      "operation": "open"
+    },
+    {
+      "aggregate_ns": 835305624,
+      "cost_fraction": 0.18542356154282524,
+      "cumulative_fraction": 0.639110890894015,
+      "invocations": 100,
+      "operation": "reopen"
+    },
+    {
+      "aggregate_ns": 536447122,
+      "cost_fraction": 0.11908208574522716,
+      "cumulative_fraction": 0.7581929766392421,
+      "invocations": 100,
+      "operation": "close_fresh_cell"
+    },
+    {
+      "aggregate_ns": 373826123,
+      "cost_fraction": 0.08298300542078747,
+      "cumulative_fraction": 0.8411759820600296,
+      "invocations": 100,
+      "operation": "erasure"
+    },
+    {
+      "aggregate_ns": 272515591,
+      "cost_fraction": 0.060493800122154925,
+      "cumulative_fraction": 0.9016697821821845,
+      "invocations": 100,
+      "operation": "close"
+    },
+    {
+      "aggregate_ns": 262827979,
+      "cost_fraction": 0.05834331595411703,
+      "cumulative_fraction": 0.9600130981363015,
+      "invocations": 100,
+      "operation": "reclose"
+    },
+    {
+      "aggregate_ns": 53889325,
+      "cost_fraction": 0.011962508432289463,
+      "cumulative_fraction": 0.971975606568591,
+      "invocations": 100,
+      "operation": "governed_write"
+    },
+    {
+      "aggregate_ns": 45639272,
+      "cost_fraction": 0.010131137774383932,
+      "cumulative_fraction": 0.982106744342975,
+      "invocations": 100,
+      "operation": "text_before_erase"
+    },
+    {
+      "aggregate_ns": 41236827,
+      "cost_fraction": 0.009153870283369885,
+      "cumulative_fraction": 0.9912606146263448,
+      "invocations": 100,
+      "operation": "text_after_erase"
+    },
+    {
+      "aggregate_ns": 21974011,
+      "cost_fraction": 0.004877854600678732,
+      "cumulative_fraction": 0.9961384692270235,
+      "invocations": 100,
+      "operation": "text_cell_search"
+    },
+    {
+      "aggregate_ns": 17395623,
+      "cost_fraction": 0.0038615307729764387,
+      "cumulative_fraction": 1.0,
+      "invocations": 100,
+      "operation": "projection_drain"
+    }
+  ],
+  "source_sha": "50eaa5035b9a79ce2723251853846e6cc96ea7f7",
+  "total_attributed_cost_ns": 4504851579
+}

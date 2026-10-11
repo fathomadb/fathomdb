@@ -1,0 +1,541 @@
+kind,symbol,line,source
+mod,actuation,47,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,consolidation,48,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,data_plane_integrity,50,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,dependency,51,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,dependency_closure,52,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,dependency_trace,53,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,embedding,54,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,erasure,55,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,errors,56,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,evidence,57,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,filter,58,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,frozen_read,59,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,fusion,60,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,graph_api,61,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,graph_expand,62,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,identity,63,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,ingest,64,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,lifecycle,65,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,mean,66,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,pagination,67,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,projection_commit,68,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,projection_generation,69,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,projection_rebuild,71,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,projection_registry,72,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,projection_runtime,73,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,projection_worker,74,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,provenance,75,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,provider,76,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,read,77,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,read_api,78,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,reader_pool,79,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,reader_transaction,80,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,record_lifecycle,81,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,rerank,82,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,search,83,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,search_api,84,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,search_types,85,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,structural_state,86,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,tc5_benchmark,88,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,telemetry,89,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,temporal,90,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,test_hooks,91,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,vector_equivalence,92,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,vector_storage,93,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,wal_attribution,94,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,write,95,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,write_commit,96,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,write_validation,97,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,actuation,99,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,consolidation,103,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,data_plane_integrity,105,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,dependency,111,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,dependency,118,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,dependency_closure,122,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,dependency_trace,126,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,dependency_trace,134,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,embedding,137,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,erasure,138,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,errors,139,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,evidence,143,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,filter,152,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,filter,157,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,frozen_read,158,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,fusion,159,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,graph_expand,163,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,graph_expand,173,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,identity,177,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,identity,178,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,ingest,182,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,mean,183,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,pagination,187,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,projection_commit,188,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,projection_generation::derive_dense_readiness,192,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,projection_generation,193,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,projection_registry,198,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,projection_registry,209,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,projection_runtime::ProjectionRuntimeStartupFaultForTest,213,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,projection_runtime,214,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,projection_worker,218,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,provenance::ProvenanceRole,222,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,provenance,223,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,provider,227,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,read,229,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,read,232,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,reader_pool::CacheStatusReply,234,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,reader_pool::ReaderWorkerPool,235,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,record_lifecycle,236,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,rerank::rerank_passages,237,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,rerank,239,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,search::retain_complete_rank_boundary_candidates,241,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,search,243,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,search,247,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,search_types,248,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,temporal::clock_reads_for_test,256,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,temporal,257,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,temporal,261,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,test_hooks::slice15_erasure_lock_hook,263,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,test_hooks::slice72_test_hooks,266,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,test_hooks::PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT,268,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,test_hooks,270,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,test_hooks,275,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,test_hooks,281,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,vector_equivalence,282,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,vector_storage,283,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,write::storage_write_shape,291,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,write,292,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,write_commit,293,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,write_validation,298,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::collections,303,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::error::Error,304,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::fmt,305,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::fs,306,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::hash::BuildHasher,307,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::io,308,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::path,309,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::process,310,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::sync::atomic,311,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::sync::mpsc::SyncSender,313,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::sync::mpsc,314,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::sync::Barrier,316,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::sync::Once,317,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::sync,318,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::thread,319,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::time,320,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,fathomdb_embedder,322,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,fathomdb_embedder::MeanRecomputeTrigger,328,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,fathomdb_embedder_api,329,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,fathomdb_schema,330,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,fathomdb_schema::CANONICAL_TABLES,336,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,jsonschema::JSONSchema,337,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,rusqlite::OpenFlags,339,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,rusqlite,340,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,serde_json::Value,341,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,sha2::Digest,345,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,sha2::Digest as _,347,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,sha2::Sha256,348,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,sqlite_vec::sqlite3_vec_init,349,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,std::os::unix::fs::OpenOptionsExt,352,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_EMBEDDER_NAME,359,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_EMBEDDER_REVISION,360,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_EMBEDDER_DIMENSION,361,src/rust/crates/fathomdb-engine/src/lib.rs
+const,BGE_SMALL_EMBEDDER_NAME,372,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_SLOW_THRESHOLD_MS,376,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_VECTOR_PROFILE,377,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_VECTOR_PARTITION,378,src/rust/crates/fathomdb-engine/src/lib.rs
+const,VECTOR_EQUIVALENCE_PROBE_FIXTURE,384,src/rust/crates/fathomdb-engine/src/lib.rs
+const,VECTOR_EQUIVALENCE_L2_EPSILON,393,src/rust/crates/fathomdb-engine/src/lib.rs
+const,VECTOR_EQUIVALENCE_P1_FLIP_FLOOR,398,src/rust/crates/fathomdb-engine/src/lib.rs
+const,VECTOR_EQUIVALENCE_VERDICT_CACHE_KEY,412,src/rust/crates/fathomdb-engine/src/lib.rs
+const,VECTOR_EQUIVALENCE_FINGERPRINT_RECIPE,419,src/rust/crates/fathomdb-engine/src/lib.rs
+const,REBUILD_DRAIN_TIMEOUT_MS,426,src/rust/crates/fathomdb-engine/src/lib.rs
+const,LIFECYCLE_DRAIN_TIMEOUT_MS,431,src/rust/crates/fathomdb-engine/src/lib.rs
+const,SEARCH_INDEX_TOKENIZER_SCHEMA_VERSION,439,src/rust/crates/fathomdb-engine/src/lib.rs
+const,SEARCH_INDEX_TOKENIZER_REPROJECT_MARKER_KEY,450,src/rust/crates/fathomdb-engine/src/lib.rs
+const,EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION,459,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEPENDENCY_GENERATION_KEY,461,src/rust/crates/fathomdb-engine/src/lib.rs
+const,SOURCE_DEPENDENCY_SCHEMA_VERSION,462,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEPENDENCY_LOOKUP_LIMIT,463,src/rust/crates/fathomdb-engine/src/lib.rs
+const,EDGE_VECTOR_PRUNE_MARKER_KEY,476,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_PROVENANCE_ROW_CAP,477,src/rust/crates/fathomdb-engine/src/lib.rs
+const,ERASURE_WAL_TRUNCATE_ATTEMPTS,483,src/rust/crates/fathomdb-engine/src/lib.rs
+const,ERASURE_WAL_TRUNCATE_BACKOFF_MS,486,src/rust/crates/fathomdb-engine/src/lib.rs
+const,REDACTED_STABLE_ID,491,src/rust/crates/fathomdb-engine/src/lib.rs
+const,ERASURE_AUDIT_COLLECTIONS,509,src/rust/crates/fathomdb-engine/src/lib.rs
+const,ERASURE_PENDING_REDACTION_COLLECTION,516,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,is_erasure_bookkeeping_collection,557,src/rust/crates/fathomdb-engine/src/lib.rs
+const,PROJECTION_CURSOR_KEY,561,src/rust/crates/fathomdb-engine/src/lib.rs
+const,PROJECTION_WORKERS,562,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_EMBED_TIMEOUT_MS,568,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_EMBED_CIRCUIT_THRESHOLD,576,src/rust/crates/fathomdb-engine/src/lib.rs
+const,PROJECTION_COMMIT_BATCH,577,src/rust/crates/fathomdb-engine/src/lib.rs
+const,PROJECTION_INFLIGHT_LIMIT,581,src/rust/crates/fathomdb-engine/src/lib.rs
+const,PROJECTION_SCAN_FETCH,584,src/rust/crates/fathomdb-engine/src/lib.rs
+const,PROJECTION_TEMPORAL_WAKE_POLL,585,src/rust/crates/fathomdb-engine/src/lib.rs
+const,DEFAULT_PROJECTION_RETRY_DELAYS_MS,586,src/rust/crates/fathomdb-engine/src/lib.rs
+const,EDGE_FACT_KIND,593,src/rust/crates/fathomdb-engine/src/lib.rs
+const,READER_POOL_SIZE,598,src/rust/crates/fathomdb-engine/src/lib.rs
+const,READER_LOOKASIDE_SLOT_SIZE,607,src/rust/crates/fathomdb-engine/src/lib.rs
+const,READER_LOOKASIDE_SLOT_COUNT,613,src/rust/crates/fathomdb-engine/src/lib.rs
+static,EXPLANATION_OPEN_NONCE_SEQUENCE,615,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,mint_explanation_open_nonce,617,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,process_current_rss_bytes,624,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,process_current_rss_bytes,639,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,process_peak_rss_bytes,644,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,process_peak_rss_bytes,657,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,Engine,661,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,path,662,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,next_cursor,663,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,read_visibility_generation,664,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,projection_generation_status_full_owner_scan_count,670,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,graph_expand_rss_baseline_bytes,672,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,graph_expand_rss_delta_bytes,674,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,graph_evidence_before_resolve_return_hook,676,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,erasure_before_primary_lock_hook,678,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,closed,679,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,lock,680,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,connection,681,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,reader_pool,682,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,counters,683,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,subscribers,684,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,profiling_enabled,685,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,slow_threshold_ms,686,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,runtime_embedder,687,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,runtime_embedder_identity,688,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,projection_runtime,689,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,wal_attribution,692,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,managed_connections,696,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,writer_connection_registration,698,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,actual_checkpoint_observations,703,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,binding_native_state_observations,708,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,provenance_row_cap,709,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,profile_contexts,722,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,reader_lookaside_rcs,730,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,telemetry,734,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,telemetry_enabled,740,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,explanation_open_nonce,741,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,explanation_sequence,742,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,dense_disabled,749,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,dense_disabled_reason,753,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,vector_equivalence_refusals,757,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,force_next_commit_failure,759,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,actuation_after_initial_lookup_delay_ms,761,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine field,actuation_failure_after_operation,763,src/rust/crates/fathomdb-engine/src/lib.rs
+const,PROJECTION_RUNTIME_STARTUP_TIMEOUT,766,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ManagedConnectionRegistry,774,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,ManagedConnectionCategory,783,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ManagedConnectionRegistration,792,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,RuntimeProbeLifecycle,804,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,RuntimeProbeRegistration,811,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,RuntimeProbeConnection,817,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl ManagedConnectionRegistry,823,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl Drop for ManagedConnectionRegistration,877,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl RuntimeProbeRegistration,886,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl Drop for RuntimeProbeRegistration,899,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl RuntimeProbeConnection,911,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,RuntimeConnectionInventoryRequest,933,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,RuntimeNativeStateRequest,939,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl std::fmt::Debug for Engine,944,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProfileContext,963,src/rust/crates/fathomdb-engine/src/lib.rs
+type,ProfileContexts,972,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProfileContexts,975,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl From<Vec<Box<ProfileContext>>> for ProfileContexts,983,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProfileReleaseObserver,990,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProfileReleaseFact,1000,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl ProfileContexts,1007,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl Drop for ProfileContexts,1025,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,wal_attribution::*,1031,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,OpenReport,1034,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,OpenedEngine,1124,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl OpenedEngine,1129,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,RuntimeSqliteMode,1138,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,RuntimeConfiguration,1149,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,RuntimeConfigurationError,1155,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl Display for RuntimeConfigurationError,1164,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl Error for RuntimeConfigurationError,1179,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,RuntimeState,1182,src/rust/crates/fathomdb-engine/src/lib.rs
+static,SQLITE_RUNTIME_STATE,1188,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,configure_runtime,1196,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,configure_runtime_for_open,1202,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,AdmissionLockedHookForTest,1207,src/rust/crates/fathomdb-engine/src/lib.rs
+static,ADMISSION_LOCKED_HOOK_FOR_TEST,1213,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,install_admission_locked_hook_for_test,1216,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,run_admission_locked_hook_for_test,1222,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,data_plane_inspection_error,1239,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,data_plane_sidecar_path,1247,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,immutable_sqlite_uri,1254,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,recover_truncate_wal,1280,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,validate_recovery_database_file,1380,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,validate_effective_recovery_schema,1393,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,validate_recovery_schema_invariants,1430,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,recovery_schema_corruption,1442,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,read_only_sqlite_uri,1454,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,sqlite_uri,1458,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,inspect_data_plane_integrity,1498,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,configure_runtime_locked,1612,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,effective_runtime_configuration,1659,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,LoaderInfo,1671,src/rust/crates/fathomdb-engine/src/lib.rs
+const,ENV_GPU_ALLOCATION_WITNESS,1694,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,parse_gpu_allocation_witness_opt_in,1699,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,witness_gpu_allocation_if_requested,1721,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,gpu_allocation_witness_refusal,1737,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,run_requested_gpu_allocation_witness,1747,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,run_requested_gpu_allocation_witness,1770,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,gpu_allocation_witness_opt_in_tests,1780,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,Slice45FrozenStageTiming,1814,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,DependencyTraceMeasurement,1824,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,Slice45MintStageTiming,1836,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,RowKind,1857,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl RowKind,1863,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,is_legal_transition_move,1882,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,CounterSnapshot,1898,src/rust/crates/fathomdb-engine/src/lib.rs
+import/re-export,lifecycle::Subscription,1908,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,EmbedderChoice,1913,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,CheckIntegrityOpts,1948,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,Section,1958,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,Finding,1967,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,IntegrityReport,1978,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,SafeExportArtifact,1989,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,TraceReport,1999,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,TraceEvent,2007,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,RebuildKind,2018,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,RebuildReport,2030,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,ProjectionRole,2043,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl ProjectionRole,2056,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProjectionFts,2079,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,DenseReadiness,2103,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl DenseReadiness,2121,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,ProjectionRuntimeUnavailabilityReason,2150,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl ProjectionRuntimeUnavailabilityReason,2159,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,ProjectionStatusDenseReadiness,2176,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl ProjectionStatusDenseReadiness,2187,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProjectionRuntimeStatusEntry,2201,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProjectionRuntimeStatus,2216,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,EmbeddingReadinessState,2229,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl EmbeddingReadinessState,2240,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,EmbeddingOperation,2255,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl EmbeddingOperation,2262,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,EmbedderRequired,2275,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,EmbeddingReadiness,2290,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,embedder_required_for,2303,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProjectionVector,2332,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProjectionSpec,2368,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ProjectionDelta,2383,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,VerifyEmbedderStatus,2448,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,VerifyEmbedderReport,2459,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,SchemaObject,2469,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,DumpSchemaReport,2479,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,TableRowCount,2487,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,DumpRowCountsReport,2496,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,OrphanProvenanceSource,2504,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,OrphanProvenanceReport,2536,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,DumpProfileReport,2551,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,MeanRecomputeReport,2565,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,TruncateWalStatus,2578,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,TruncateWalReport,2587,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl Drop for Engine,2597,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl Engine,2603,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,explain_graph_evidence_preflights_for_test,2606,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,usable_dense_runtime,2613,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open,2620,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_with_choice,2639,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_default_embedder,2690,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_default_embedder,2736,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_with_migration_event_sink,2743,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_with_migrations_for_test,2759,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_with_subscriber_for_test,2776,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_without_embedder_for_test,2791,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_with_embedder_for_test,2805,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_with_embedder_and_subscriber,2820,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_with_migrations,2839,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,open_locked,3093,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,path,3406,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,wal_attribution_snapshot,3411,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,wal_attribution_checkpoints_for_test,3416,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,pause_reader_after_wal_snapshot_for_test,3426,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,pause_reader_with_timeout_for_test,3438,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,post_commit_ack_for_test,3446,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,arm_next_reader_snapshot_pause_for_test,3460,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,arm_next_reader_completion_pause_for_test,3474,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,pause_next_reader_handoff_for_test,3484,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,wal_attribution_checkpoint_records_for_test,3490,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,wal_attribution_idle_for_test,3512,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,arm_actual_checkpoint_observation_for_test,3520,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,actual_checkpoint_observation_for_test,3526,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,actual_checkpoint_direct_inventory_for_test,3572,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,take_actual_checkpoint_observations_for_test,3642,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,arm_python_serial_actual_checkpoint_observation_for_test,3684,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,drain_actual_checkpoint_observations_for_test,3690,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,arm_binding_native_state_observation_for_test,3699,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,binding_native_state_observation_for_test,3705,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,drain_binding_native_state_observations_for_test,3722,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,native_state_inventory_for_test,3741,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,binding_native_state_inventory_for_test,3814,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,binding_connection_inventory_for_test,3828,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,checkpoint_at_rest_for_test,3885,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,native_raw_wal_checkpoint_for_test,3922,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,pause_projection_worker_after_wal_transaction_for_test,3941,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,pause_projection_worker_while_queued_for_test,3950,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,pause_projection_worker_before_write_lock_for_test,3957,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,detect_slow,3963,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,emit_event,3978,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,emit_sqlite_internal_error,3995,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,_graph_frontier_stats_for_test,4014,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,measure_slice45_frozen_stages_for_test,4035,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,measure_slice45_mint_stages_for_test,4062,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,slice45_page_query_plans_for_test,4082,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,close,4132,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,drain,4167,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,drain_for_non_embedding_mutation,4212,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,counters,4223,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_profiling,4232,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_slow_threshold_ms,4242,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,subscribe,4253,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,reader_worker_count_for_test,4259,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,live_reader_worker_count_for_test,4265,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,next_reader_worker_index_for_test,4273,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,reader_lookaside_config_rcs_for_test,4283,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,reader_lookaside_used_per_worker_for_test,4294,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,cache_status_per_worker_for_test,4305,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,force_next_commit_failure_for_test,4311,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_actuation_after_initial_lookup_delay_ms_for_test,4317,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,force_actuation_failure_after_operation_for_test,4323,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,force_next_projection_commit_failure_for_test,4332,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,force_next_projection_storage_failure_for_test,4340,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,pause_projection_commit_failure_cleanup_for_test,4348,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,acknowledge_projection_stop_for_test,4360,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,execute_for_test,4375,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,run_one_thread_poison_for_test,4399,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_projection_scheduler_frozen_for_test,4479,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,transition_projection_generation_for_test,4489,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,projection_generation_status_full_owner_scan_count_for_test,4511,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,projection_generation_status_query_plans_for_test,4518,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,publish_projection_success_for_test,4530,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,projection_scheduler_pending_scan_for_test,4562,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_projection_retry_delays_for_test,4567,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_embed_timeout_ms_for_test,4574,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_embed_circuit_threshold_for_test,4581,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,embed_circuit_open_for_test,4587,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,projection_status_for_test,4592,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,has_vector_for_cursor_for_test,4603,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,projection_failure_count_for_test,4613,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_provenance_row_cap_for_test,4629,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,provenance_row_count_for_test,4634,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,oldest_provenance_record_key_for_test,4644,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,configure_vector_kind_for_test,4668,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_legacy_projection_vector_declared_for_test,4689,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_legacy_projection_search_subobjects_for_test,4720,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,secure_delete_enabled_for_test,4751,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,reader_secure_delete_enabled_for_test,4768,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,runtime_secure_delete_enabled_for_test,4782,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,write_canonical_row_with_kind_for_test,4809,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,canonical_rows_with_row_kind_for_test,4891,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,write_vector_for_test,4914,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,drain_mean_centering_events_for_test,5060,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,drain_embedder_events,5079,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_search_limit_for_test,5096,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_recency_reweight_enabled_for_test,5104,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_importance_reweight_enabled_for_test,5114,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,write_node_importance,5130,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,node_importance,5159,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,set_vector_stage_only_for_test,5189,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,force_next_recompute_failure_for_test,5198,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,vector_row_count_for_test,5203,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,has_vector_row_for_cursor_for_test,5216,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,read_vector_blob_for_test,5230,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,read_vector_bin_for_test,5246,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,query_i64_col_for_test,5265,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,query_text_col_for_test,5278,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,default_embedder_profile_for_test,5289,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,check_integrity,5300,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,safe_export,5319,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,trace_source_ref,5357,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,trace_dependency,5411,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,dependency_trace_query_plans_for_test,5423,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,dependency_trace_candidate_queries_for_test,5488,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,data_plane_integrity_query_plans_for_test,5494,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,data_plane_integrity_candidate_queries_for_test,5518,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,measure_dependency_trace_for_test,5524,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,seed_hidden_dependency_trace_fixture_for_test,5578,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,check_data_plane_integrity,5639,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,schema_objects_for_test,5651,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,verify_embedder,5675,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,dump_schema,5707,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,dump_row_counts,5722,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,orphan_provenance,5757,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,dump_profile,5843,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,truncate_wal,5870,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,wal_checkpoint_truncate_once,5893,src/rust/crates/fathomdb-engine/src/lib.rs
+Engine method,ensure_open,5934,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,restore_registered_derived_projections,5943,src/rust/crates/fathomdb-engine/src/lib.rs
+const,MEAN_VEC_PIN_THRESHOLD,6081,src/rust/crates/fathomdb-engine/src/lib.rs
+mod,mean_centering_internals_for_test,6087,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,vector_phase1_sql_for_test,6122,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,slice35_ranked_eligibility_sql_for_test,6130,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,take_slice71_search_statement_trace_for_test,6155,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,record_writer_pragma_witness_for_test,6163,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,report_runtime_connection_inventory_for_test,6185,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,report_runtime_native_state_inventory_for_test,6211,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,CanonicalNodeRow,6236,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,reproject_search_index_after_tokenizer_upgrade,6265,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,search_index_tokenizer_reproject_complete,6321,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,edge_vector_prune_complete,6349,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,prune_orphaned_edge_vectors,6383,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,canonical_node_rows,6429,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,row_kind_from_column,6458,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,hex_encode,6466,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,hex_nibble,6475,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,physical_section,6484,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,logical_section,6515,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,semantic_section,6552,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,collect_integrity_check_findings,6573,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,locator_from_rusqlite_error,6596,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,open_managed_connection,6601,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,open_runtime_connection,6611,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,digest_record_identity,6640,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,projection_status,6648,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,DatabaseAdmission,6684,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,DatabaseOpenPlan,6690,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,ShmSnapshot,6695,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl ShmSnapshot,6700,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,read_effective_schema_version,6734,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,admit_current_database,6753,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,canonical_database_path,6780,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,PendingDatabaseLock,6821,src/rust/crates/fathomdb-engine/src/lib.rs
+impl,impl PendingDatabaseLock,6825,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,acquire_lock_without_metadata_mutation,6842,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,lock_path,6878,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,read_holder_pid,6884,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,map_migration_error,6888,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,register_sqlite_vec_extension,6904,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,probe_open_integrity,6916,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,probe_database_header,6927,src/rust/crates/fathomdb-engine/src/lib.rs
+enum,WalSidecarHeader,6941,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,classify_wal_sidecar,6947,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,probe_wal_sidecar,6998,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,reject_legacy_shape,7013,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,validate_dependency_generation_on_open,7026,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,table_exists,7065,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,read_schema_objects,7076,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,order_canonical_first,7100,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,default_embedder_identity,7111,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,check_embedder_profile,7119,src/rust/crates/fathomdb-engine/src/lib.rs
+struct,IndexTargetSet,7265,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,index_targets_for_row_kind,7286,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,project_canonical_node_row,7310,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,project_canonical_edge_row,7415,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,legacy_revision_id,7465,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,projection_batch_has_no_custom_triggers,7492,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,load_next_cursor,7521,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,reserved_write_cursor,7549,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,max_cursor,7561,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,sqlite_extended_code_name,7597,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,sqlite_extended_code_name_from_int,7626,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,map_open_sqlite_error,7653,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,emit_open_error_event,7695,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,install_profile_callback,7728,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,uninstall_profile_callback,7768,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,apply_perf_experiment_writer_pragmas,7821,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,apply_perf_experiment_reader_pragmas,7858,src/rust/crates/fathomdb-engine/src/lib.rs
+fn,configure_reader_lookaside,7893,src/rust/crates/fathomdb-engine/src/lib.rs

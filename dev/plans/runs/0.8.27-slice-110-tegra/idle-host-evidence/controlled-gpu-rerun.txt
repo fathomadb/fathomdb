@@ -1,0 +1,111 @@
+start=2026-10-04T21:56:07Z
+BEGIN attempt=1 utc=2026-10-04T21:56:07Z
+               total        used        free      shared  buff/cache   available
+Mem:            61Gi       4.8Gi        50Gi        65Mi       6.3Gi        55Gi
+Swap:           30Gi          0B        30Gi
+MemFree:        52756428 kB
+MemAvailable:   58611468 kB
+SwapFree:       32167872 kB
+CmaTotal:         524288 kB
+CmaFree:          256060 kB
+[N/A], [N/A], [N/A]
+{"outcome":"pass","nativePath":"/tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node","dimension":384,"witness":{"schema":"fathomdb.tegra-gpu-allocation-witness/v1","soleGpuConsumerPrecondition":"the witness run must be the sole GPU consumer: cuMemGetInfo reports a shared, system-wide counter on an integrated GPU","deviceOrdinalRequested":0,"deviceOrdinalActual":0,"deviceUuid":"GPU-bbbe9f37-7028-556a-930b-54e5f3b67a82","deviceName":"Orin","computeCapability":"8.7","freeBeforeBytes":57481207808,"freeAfterBytes":57337585664,"totalBytes":65879896064,"deltaBytes":143622144,"deltaFloorBytes":67108864,"controlAllocationRequestBytes":1073741824,"controlBlockCount":4,"controlFreeBeforeBytes":58558517248,"controlFreeAfterBytes":57481207808,"controlDeltaBytes":1077309440,"embeddedVectorDim":384},"rerankScores":[0.000018480921148579213,0.000020519094643548723]}
+TEGRastats
+10-04-2026 16:56:10 RAM 7355/62828MB (lfb 49x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.437C soc2@44.406C soc0@44.5C gpu@43.562C tj@47.437C soc1@44.187C VDD_GPU_SOC 3617mW/3893mW VDD_CPU_CV 401mW/1854mW VIN_SYS_5V0 4428mW/4981mW
+10-04-2026 16:56:10 RAM 7355/62828MB (lfb 49x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.281C soc2@44.437C soc0@44.531C gpu@43.437C tj@47.281C soc1@44.343C VDD_GPU_SOC 3215mW/3868mW VDD_CPU_CV 402mW/1800mW VIN_SYS_5V0 4428mW/4961mW
+10-04-2026 16:56:10 RAM 7355/62828MB (lfb 49x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,9%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.312C soc2@44.281C soc0@44.625C gpu@43.343C tj@47.312C soc1@44.062C VDD_GPU_SOC 3215mW/3844mW VDD_CPU_CV 402mW/1750mW VIN_SYS_5V0 4428mW/4942mW
+END attempt=1 status=pass utc=2026-10-04T21:56:10Z
+BEGIN attempt=2 utc=2026-10-04T21:56:10Z
+               total        used        free      shared  buff/cache   available
+Mem:            61Gi       6.8Gi        48Gi        65Mi       6.3Gi        53Gi
+Swap:           30Gi          0B        30Gi
+MemFree:        50602088 kB
+MemAvailable:   56457812 kB
+SwapFree:       32167872 kB
+CmaTotal:         524288 kB
+CmaFree:          256060 kB
+[N/A], [N/A], [N/A]
+{"outcome":"pass","nativePath":"/tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node","dimension":384,"witness":{"schema":"fathomdb.tegra-gpu-allocation-witness/v1","soleGpuConsumerPrecondition":"the witness run must be the sole GPU consumer: cuMemGetInfo reports a shared, system-wide counter on an integrated GPU","deviceOrdinalRequested":0,"deviceOrdinalActual":0,"deviceUuid":"GPU-bbbe9f37-7028-556a-930b-54e5f3b67a82","deviceName":"Orin","computeCapability":"8.7","freeBeforeBytes":55335452672,"freeAfterBytes":55191601152,"totalBytes":65879896064,"deltaBytes":143851520,"deltaFloorBytes":67108864,"controlAllocationRequestBytes":1073741824,"controlBlockCount":6,"controlFreeBeforeBytes":56412758016,"controlFreeAfterBytes":55335452672,"controlDeltaBytes":1077305344,"embeddedVectorDim":384},"rerankScores":[0.000018480921148579213,0.000020519094643548723]}
+TEGRastats
+10-04-2026 16:56:13 RAM 9401/62828MB (lfb 48x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.375C soc2@44.468C soc0@44.625C gpu@43.5C tj@47.375C soc1@44.187C VDD_GPU_SOC 3615mW/3908mW VDD_CPU_CV 1205mW/2070mW VIN_SYS_5V0 4730mW/5144mW
+10-04-2026 16:56:13 RAM 9401/62828MB (lfb 48x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,9%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.281C soc2@44.468C soc0@44.625C gpu@43.437C tj@47.281C soc1@44.218C VDD_GPU_SOC 3617mW/3897mW VDD_CPU_CV 803mW/2023mW VIN_SYS_5V0 4629mW/5125mW
+10-04-2026 16:56:13 RAM 9401/62828MB (lfb 48x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.531C soc2@44.343C soc0@44.625C gpu@43.312C tj@47.531C soc1@44.125C VDD_GPU_SOC 3617mW/3887mW VDD_CPU_CV 803mW/1979mW VIN_SYS_5V0 4528mW/5103mW
+END attempt=2 status=pass utc=2026-10-04T21:56:13Z
+BEGIN attempt=3 utc=2026-10-04T21:56:13Z
+               total        used        free      shared  buff/cache   available
+Mem:            61Gi       8.8Gi        46Gi        65Mi       6.3Gi        51Gi
+Swap:           30Gi          0B        30Gi
+MemFree:        48504192 kB
+MemAvailable:   54360580 kB
+SwapFree:       32167872 kB
+CmaTotal:         524288 kB
+CmaFree:          256060 kB
+[N/A], [N/A], [N/A]
+{"outcome":"pass","nativePath":"/tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node","dimension":384,"witness":{"schema":"fathomdb.tegra-gpu-allocation-witness/v1","soleGpuConsumerPrecondition":"the witness run must be the sole GPU consumer: cuMemGetInfo reports a shared, system-wide counter on an integrated GPU","deviceOrdinalRequested":0,"deviceOrdinalActual":0,"deviceUuid":"GPU-bbbe9f37-7028-556a-930b-54e5f3b67a82","deviceName":"Orin","computeCapability":"8.7","freeBeforeBytes":53176627200,"freeAfterBytes":53033005056,"totalBytes":65879896064,"deltaBytes":143622144,"deltaFloorBytes":67108864,"controlAllocationRequestBytes":1073741824,"controlBlockCount":8,"controlFreeBeforeBytes":54254190592,"controlFreeAfterBytes":53176627200,"controlDeltaBytes":1077563392,"embeddedVectorDim":384},"rerankScores":[0.000018480921148579213,0.000020519094643548723]}
+TEGRastats
+10-04-2026 16:56:16 RAM 10834/62828MB (lfb 54x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,90%@2201,0%@2201,0%@2201,0%@2201] GR3D_FREQ 0% cpu@48.031C soc2@44.468C soc0@44.531C gpu@43.218C tj@48.031C soc1@44.187C VDD_GPU_SOC 3614mW/4000mW VDD_CPU_CV 2008mW/2240mW VIN_SYS_5V0 5233mW/5225mW
+10-04-2026 16:56:16 RAM 10834/62828MB (lfb 54x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.406C soc2@44.5C soc0@44.593C gpu@43.25C tj@47.406C soc1@44.281C VDD_GPU_SOC 3615mW/3986mW VDD_CPU_CV 1607mW/2216mW VIN_SYS_5V0 5032mW/5218mW
+10-04-2026 16:56:16 RAM 10834/62828MB (lfb 54x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.562C soc2@44.406C soc0@44.625C gpu@43.531C tj@47.562C soc1@44.062C VDD_GPU_SOC 3615mW/3973mW VDD_CPU_CV 1205mW/2180mW VIN_SYS_5V0 4830mW/5204mW
+END attempt=3 status=pass utc=2026-10-04T21:56:16Z
+BEGIN attempt=4 utc=2026-10-04T21:56:16Z
+               total        used        free      shared  buff/cache   available
+Mem:            61Gi        10Gi        44Gi        65Mi       6.3Gi        50Gi
+Swap:           30Gi          0B        30Gi
+MemFree:        47036260 kB
+MemAvailable:   52893240 kB
+SwapFree:       32167872 kB
+CmaTotal:         524288 kB
+CmaFree:          256060 kB
+[N/A], [N/A], [N/A]
+file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362
+            return new EmbedDevicePolicyError(envelope.message, {
+                   ^
+
+EmbedDevicePolicyError: cuda:0 requested but unavailable: CudaProbeFailed
+    at build (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362:20)
+    at rethrowTyped (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:485:19)
+    at intercept (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1212:9)
+    at async Engine.open (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1257:23)
+    at async file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/[eval1]:1:559 {
+  code: 'FDB_EMBED_DEVICE_POLICY',
+  kind: 'cuda_probe_failed',
+  ordinal: 0
+}
+
+Node.js v25.9.0
+TEGRastats
+10-04-2026 16:56:19 RAM 10836/62828MB (lfb 54x4MB) SWAP 0/31414MB (cached 0MB) CPU [8%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,8%@729,0%@729] GR3D_FREQ 0% cpu@47.218C soc2@44.406C soc0@44.468C gpu@43.312C tj@47.218C soc1@44.218C VDD_GPU_SOC 3216mW/3360mW VDD_CPU_CV 402mW/643mW VIN_SYS_5V0 4320mW/4426mW
+10-04-2026 16:56:19 RAM 10836/62828MB (lfb 54x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,9%@729,0%@729] GR3D_FREQ 0% cpu@47.343C soc2@44.343C soc0@44.593C gpu@43.125C tj@47.343C soc1@44.062C VDD_GPU_SOC 3216mW/3354mW VDD_CPU_CV 402mW/634mW VIN_SYS_5V0 4327mW/4422mW
+10-04-2026 16:56:19 RAM 10836/62828MB (lfb 54x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.468C soc2@44.281C soc0@44.5C gpu@43.437C tj@47.468C soc1@44.125C VDD_GPU_SOC 3216mW/3349mW VDD_CPU_CV 402mW/625mW VIN_SYS_5V0 4320mW/4418mW
+END attempt=4 status=fail utc=2026-10-04T21:56:19Z
+BEGIN attempt=5 utc=2026-10-04T21:56:19Z
+               total        used        free      shared  buff/cache   available
+Mem:            61Gi        10Gi        44Gi        65Mi       6.3Gi        50Gi
+Swap:           30Gi          0B        30Gi
+MemFree:        47034460 kB
+MemAvailable:   52891520 kB
+SwapFree:       32167872 kB
+CmaTotal:         524288 kB
+CmaFree:          256060 kB
+[N/A], [N/A], [N/A]
+file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362
+            return new EmbedDevicePolicyError(envelope.message, {
+                   ^
+
+EmbedDevicePolicyError: cuda:0 requested but unavailable: CudaProbeFailed
+    at build (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:362:20)
+    at rethrowTyped (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/errors.js:485:19)
+    at intercept (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1212:9)
+    at async Engine.open (file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/node_modules/fathomdb/dist/index.js:1257:23)
+    at async file:///tmp/fathomdb-slice110-memory-rerun/consumer-cuda/[eval1]:1:559 {
+  code: 'FDB_EMBED_DEVICE_POLICY',
+  kind: 'cuda_probe_failed',
+  ordinal: 0
+}
+
+Node.js v25.9.0
+TEGRastats
+10-04-2026 16:56:22 RAM 10843/62828MB (lfb 54x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.093C soc2@44.312C soc0@44.437C gpu@43.156C tj@47.093C soc1@44.093C VDD_GPU_SOC 3216mW/3339mW VDD_CPU_CV 402mW/479mW VIN_SYS_5V0 4320mW/4368mW
+10-04-2026 16:56:22 RAM 10843/62828MB (lfb 54x4MB) SWAP 0/31414MB (cached 0MB) CPU [9%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.125C soc2@44.343C soc0@44.468C gpu@43.437C tj@47.125C soc1@44C VDD_GPU_SOC 3216mW/3334mW VDD_CPU_CV 402mW/476mW VIN_SYS_5V0 4327mW/4366mW
+10-04-2026 16:56:22 RAM 10843/62828MB (lfb 54x4MB) SWAP 0/31414MB (cached 0MB) CPU [0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729,0%@729] GR3D_FREQ 0% cpu@47.312C soc2@44.218C soc0@44.562C gpu@43.375C tj@47.312C soc1@44.031C VDD_GPU_SOC 3216mW/3330mW VDD_CPU_CV 402mW/474mW VIN_SYS_5V0 4320mW/4365mW
+END attempt=5 status=fail utc=2026-10-04T21:56:22Z

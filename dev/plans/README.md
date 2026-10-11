@@ -71,7 +71,8 @@ details may be STALE.** For distilled experiment results, read
 | 0.8.23 | shipped/closed | Retained in place; resolve live work through the release-state lookup rule. |
 | 0.8.24 | shipped/closed | Retained in place; `v0.8.24` is historical release evidence. |
 | 0.8.25 | shipped/closed | Retained in place; publication completed on 2026-09-12. |
-| 0.8.26 | active | Resolve live work through the tracked release-state lookup rule above. |
+| 0.8.26 | shipped/closed | Retained in place; publication completed on 2026-09-19. |
+| 0.8.27 | active | Resolve live work through the tracked release-state lookup rule above. |
 
 Transient per-run artifacts (raw `*-output.json`, codex `*-review-*` logs, `.log`,
 checkpoints) under `runs/` were pruned by the ledger-prune (`scripts/repo-prune/prompts/prune-docs.md`) and are

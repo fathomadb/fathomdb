@@ -282,54 +282,72 @@ def validate_engine_tree(
 
 
 PRODUCTION_INVENTORY = [
-    MutationSite("lib.rs", function, verb, table)
+    MutationSite("index_projector.rs", function, verb, table)
     for function, verb, table in [
-        ("clear_attribute_projection", "DELETE FROM", "property_search_index"),
-        ("commit_projection_outcomes", "INSERT OR IGNORE INTO", "vector_default"),
-        ("commit_projection_outcomes", "INSERT OR IGNORE INTO", "vector_default"),
-        ("delete_row_owned_projection", "DELETE FROM", "<allowlisted>"),
+        ("project_canonical_edge_row", "INSERT INTO", "search_index_edges"),
+        ("project_canonical_node_row", "INSERT INTO", "search_index"),
+        ("project_canonical_node_row", "INSERT INTO", "search_index_v2"),
+    ]
+] + [
+    MutationSite(
+        "consolidation.rs", "prune_edge_projection_shadows", "DELETE FROM", "search_index_edges"
+    )
+] + [
+    MutationSite("vector_storage.rs", function, verb, table)
+    for function, verb, table in [
+        ("write_vector_for_test", "INSERT INTO", "vector_default"),
         ("delete_vector_partition_row", "DELETE FROM", "vector_default"),
         ("migrate_vector_partition_pack1_to_pack2", "DROP TABLE", "vector_default"),
         ("migrate_vector_partition_pack1_to_pack2", "INSERT INTO", "vector_default"),
         ("migrate_vector_partition_to_pack1", "DROP TABLE", "vector_default"),
         ("migrate_vector_partition_to_pack1", "INSERT INTO", "vector_default"),
-        ("project_canonical_edge_row", "INSERT INTO", "search_index_edges"),
-        ("prune_edge_projection_shadows", "DELETE FROM", "search_index_edges"),
-        ("project_canonical_node_row", "INSERT INTO", "search_index"),
-        ("project_canonical_node_row", "INSERT INTO", "search_index_v2"),
-        ("project_one_attribute", "INSERT INTO", "property_search_index"),
         ("refresh_vector_attr_values_for_row", "UPDATE", "vector_default"),
         ("reshape_vector_partition_nondestructive", "DROP TABLE", "vector_default"),
         ("reshape_vector_partition_nondestructive", "INSERT INTO", "vector_default"),
-        ("run_pin_and_requantize_pass", "INSERT INTO", "vector_default"),
-        ("truncate_row_projections_in", "DELETE FROM", "<allowlisted>"),
         ("vector_partition_create_sql", "CREATE VIRTUAL TABLE", "vector_default"),
-        ("write_vector_for_test", "INSERT INTO", "vector_default"),
+    ]
+] + [
+    MutationSite("mean.rs", function, verb, table)
+    for function, verb, table in [
+        ("run_pin_and_requantize_pass", "INSERT INTO", "vector_default"),
+    ]
+] + [
+    MutationSite("projection_registry.rs", function, verb, table)
+    for function, verb, table in [
+        ("clear_attribute_projection", "DELETE FROM", "property_search_index"),
+        ("delete_row_owned_projection", "DELETE FROM", "<allowlisted>"),
+        ("project_one_attribute", "INSERT INTO", "property_search_index"),
+        ("truncate_row_projections_in", "DELETE FROM", "<allowlisted>"),
+    ]
+] + [
+    MutationSite("projection_commit.rs", function, verb, table)
+    for function, verb, table in [
+        ("commit_projection_outcomes", "INSERT INTO", "vector_default"),
+        ("commit_projection_outcomes", "INSERT INTO", "vector_default"),
     ]
 ]
 
 PRODUCTION_HELPER_CALLERS = {
     "delete_vector_partition_row": Counter(
         {
-            ("lib.rs", "apply_batch_in_transaction"): 2,
-            ("lib.rs", "prune_edge_projection_shadows"): 1,
-            ("lib.rs", "run_pin_and_requantize_pass"): 1,
-            ("lib.rs", "prune_orphaned_edge_vectors"): 1,
-            ("lib.rs", "commit_projection_outcomes"): 1,
-            ("lib.rs", "delete_row_owned_projection"): 1,
+            ("write_commit.rs", "apply_batch_in_transaction"): 2,
+            ("consolidation.rs", "prune_edge_projection_shadows"): 1,
+            ("mean.rs", "run_pin_and_requantize_pass"): 1,
+            ("open.rs", "prune_orphaned_edge_vectors"): 1,
+            ("projection_registry.rs", "delete_row_owned_projection"): 1,
         }
     ),
     "delete_row_owned_projection": Counter(
         {
-            ("lib.rs", "erase_row_projections"): 1,
-            ("lib.rs", "purge_row_projections_for_cursor_in"): 1,
+            ("projection_registry.rs", "erase_row_projections"): 1,
+            ("projection_registry.rs", "purge_row_projections_for_cursor_in"): 1,
         }
     ),
     "truncate_row_projections_in": Counter(
         {
-            ("lib.rs", "rebuild_shadow_state"): 1,
-            ("lib.rs", "reproject_search_index_after_tokenizer_upgrade"): 1,
-            ("lib.rs", "truncate_all_row_projections"): 1,
+            ("projection_rebuild.rs", "rebuild_shadow_state"): 1,
+            ("index_projector.rs", "reproject_search_index_after_tokenizer_upgrade"): 1,
+            ("projection_registry.rs", "truncate_all_row_projections"): 1,
         }
     ),
 }

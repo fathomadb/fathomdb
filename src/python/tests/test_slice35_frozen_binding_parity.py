@@ -9,6 +9,19 @@ import pytest
 import fathomdb
 
 
+def test_frozen_search_defaults_pool_to_rerank_depth(db_path: str) -> None:
+    engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write([{"kind": "doc", "body": "frozen ranking", "source_id": "frozen-pool"}])
+        frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
+        result = engine.search_frozen("ranking", frozen, rerank_depth=3, explain=True)
+        assert result.explanation is not None
+        assert result.explanation.trace.rerank_depth == 3
+        assert result.explanation.trace.pool_n == 3
+    finally:
+        engine.close()
+
+
 def _malformed_context(engine: fathomdb.Engine) -> fathomdb.FrozenReadContextV1:
     frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
     return fathomdb.FrozenReadContextV1(

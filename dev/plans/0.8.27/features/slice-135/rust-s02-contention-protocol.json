@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_RUST_S02_CONTENTION",
+  "cell": "candidate-only external Rust SDK shared-engine S02 contention",
+  "boundary": "external Cargo consumer through reopened Engine::close; independent SQLite verification after product timer",
+  "product_source_sha": "3f29d649d0213e595c0dab251a449d92fd625792",
+  "product_rust_tree": "c8eaaa19a0e0e876326b778733ace354cc7e21e8",
+  "version_comparison": "unsupported: 0.8.26 has no Rust SDK peer",
+  "measured_processes": 10,
+  "fresh_database_per_process": true,
+  "writer_calls_per_process": 8,
+  "reader_cycles_per_process": 8,
+  "timeout_seconds_per_process": 120,
+  "minimum_actual_overlap_cycles": 1,
+  "sample_rule": "retain every attempted process, stop on the first invalid receipt, never replace a failed or slow attempt",
+  "statistics": "functional success and overlap counts; descriptive whole-sequence median and range only; no paired latency, p95, p99 or equivalence claim",
+  "environment_rule": "same host, kernel, CPU, storage, governor, toolchain and profiler; at least 1 GiB free; no competing jobs or measured-child swap; retain host-only paging as warning",
+  "independent_oracle": "timeline recomputation, exact semantic claims, retained anchor body and canonical row counts through fresh SQLite connection, PRAGMA integrity_check",
+  "frozen_sha256": {
+    "consumer_source": "bd7b296aae00e89c1058e1327d7e2fd29690138c7a919bfce3d422bbdce319e8",
+    "auditor": "255e84f808914802ba0429dcb47ac4e8ba41c136040d6c6c2dbf30a6c671127a",
+    "campaign_runner": "4c264b3496ea1c09220b0902e63a6ce114da43ac7be20d304e4cfed637183ce2",
+    "external_manifest": "bd4b81d4cd708256364aaf747983f49b77da7a13674e93992f1cb4d2234c1c60",
+    "external_lock": "f2fe17fc82ba9806169c0332d08f1139b183bcb2318e9caecdacfa3576baf65a",
+    "compiled_binary": "32469a85e24d46192c2b8476fa87a1023b5a4e66474c8da14ec425f45cff5a7c"
+  }
+}

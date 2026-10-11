@@ -1,35 +1,35 @@
 # SDK Parity
 
-FathomDB aims for a shared high-level SDK shape across Python and TypeScript,
-while keeping the CLI as a distinct operator surface. Public docs should
-describe parity at the behavior level rather than exposing internal planning
-artifacts.
+Python, TypeScript, and Rust (`fathomdb-sdk`) share the high-level application
+operation surface in 0.8.27. The CLI remains a separate operator surface.
 
-## What parity means, concretely (0.8.25)
+## Shared behavior
 
-Parity is **enforced**, not aspirational. A single governed-surface allowlist
-(`src/conformance/governed-surface-allowlist.json`) is loaded by both the
-Python and the TypeScript conformance suites, so the two bindings cannot carry
-divergent copies. Each suite introspects its live command surface and asserts
-it is a subset of that allowlist, and that the core verbs are present.
+The governed-surface allowlist is shared by the Python and TypeScript
+conformance suites. The Rust SDK operation map also checks its 44-operation
+membership against that allowlist.
 
-Both bindings therefore expose:
+The SDKs provide:
 
-- the same governed commands, in each language's idiomatic spelling
-  (`read.get_many` / `read.getMany`, `erase_source` / `eraseSource`);
-- the same 41-class error taxonomy under a single catch-all root
-  (`EngineError` in Python, `FathomDbError` in TypeScript), with the same
-  typed payload fields in snake_case / camelCase;
-- the same result shapes, including the typed `SearchHit.id`.
+- equivalent governed commands in idiomatic spelling, such as
+  `read.get_many` / `read.getMany` and `erase_source` / `eraseSource`;
+- equivalent error categories and structured payloads: Python uses
+  `EngineError` subclasses, TypeScript uses `FathomDbError` subclasses, and
+  Rust uses one `Error` with an `ErrorKind` for each category;
+- equivalent result shapes, including typed `SearchHit.id`.
 
-## What parity does *not* mean
+## Language conventions and boundaries
 
-- **Not equal maturity.** Python is the more heavily exercised binding and is
-  the recommended choice for production pilots.
-- **Not identical ergonomics.** `drain` takes **seconds** in Python and
-  **milliseconds** in TypeScript; TypeScript is Promise-returning throughout;
-  TypeScript accepts both camelCase and snake_case for dual-spelled write keys.
-- **Not identical to the Rust facade.** Rust is a *different consumer
-  contract* — a set of re-exported types plus inherent `Engine` methods, not a
-  verb namespace — so it is governed by its own allowlist and is not asserted
-  membership-equal to the binding verb set.
+Python calls are synchronous; TypeScript returns Promises; Rust returns
+synchronous `Result` values. Optional Rust arguments become option structs.
+`drain` takes seconds in Python and milliseconds in TypeScript and Rust.
+TypeScript accepts camelCase and snake_case for dual-spelled write keys.
+
+The three SDKs share operation semantics and option defaults; parity does not
+imply equal deployment history or performance on every host. Qualify the
+chosen package and workload on the intended hardware.
+
+The separate `fathomdb` crate is the lower-level Rust engine facade. Its
+inherent methods and re-exported carriers have their own surface contract.
+Use the [Rust installation guide](../install/rust.md) to distinguish the
+lower-level facade from the application SDK.

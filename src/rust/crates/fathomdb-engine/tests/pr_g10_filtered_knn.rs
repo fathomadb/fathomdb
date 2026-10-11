@@ -16,6 +16,9 @@ use fathomdb_engine::{
     TOP_K_BIT_CANDIDATES,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
+// Only used by `sentinel_backfills_status_on_simulated_pack1_db`, gated
+// `#[cfg(debug_assertions)]` below for its `Engine::execute_for_test` hook.
+#[cfg(debug_assertions)]
 use rusqlite::Connection;
 use tempfile::TempDir;
 
@@ -186,6 +189,8 @@ fn status_filter_prunes_all_because_population_is_null_only() {
 /// (`+status`) column: an auxiliary column cannot appear in a KNN `WHERE`
 /// (sqlite-vec hard-errors), so a filtered KNN over an aux `status` fails. A
 /// plain metadata `TEXT` column is constrainable under the `MATCH ... WHERE`.
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn aux_status_column_hard_errors_under_knn_where() {
     let (_dir, path) = fixture("g10_aux_regression");
@@ -219,6 +224,8 @@ fn aux_status_column_hard_errors_under_knn_where() {
 /// 3-way shape-sentinel: an existing **Pack-1** `vector_default` (has
 /// `embedding_bin`, lacks `status`) must be staged + recreated + back-filled so
 /// `status` lands on reopen — the no-op-on-`embedding_bin` bug is fixed.
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn sentinel_backfills_status_on_simulated_pack1_db() {
     let (_dir, path) = fixture("g10_pack1_sentinel");

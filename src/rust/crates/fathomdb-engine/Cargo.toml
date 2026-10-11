@@ -25,6 +25,9 @@ libc = { version = "0.2", optional = true }
 sha2 = "0.11"
 sqlite-vec = "=0.1.9"
 
+[target.'cfg(windows)'.dependencies]
+dunce = "=1.0.5"
+
 [features]
 default = []
 # Private TC-5 reader-worker route. This is intentionally not forwarded by the
@@ -138,7 +141,7 @@ required-features = ["test-hooks"]
 
 [[test]]
 name = "dump_profile"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
 
 [[test]]
 name = "dump_row_counts"
@@ -150,19 +153,19 @@ required-features = ["operator"]
 
 [[test]]
 name = "eu7_real_corpus_ac"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
 
 [[test]]
 name = "erasure_projection_registry"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
 
 [[test]]
 name = "erasure_completeness"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
 
 [[test]]
 name = "provenance_mandatory"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
 
 [[test]]
 name = "slice75_schema26_upgrade"
@@ -170,19 +173,23 @@ required-features = ["operator", "test-hooks", "migration-test-hooks"]
 
 [[test]]
 name = "excise_source"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
 
 [[test]]
 name = "rebuild_projections"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
+
+[[test]]
+name = "slice135_persistent_provider"
+required-features = ["operator", "test-hooks"]
 
 [[test]]
 name = "rebuild_report"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
 
 [[test]]
 name = "rebuild_vec0"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
 
 [[test]]
 name = "safe_export"
@@ -198,7 +205,7 @@ required-features = ["operator"]
 
 [[test]]
 name = "verify_embedder"
-required-features = ["operator"]
+required-features = ["operator", "test-hooks"]
 
 # 0.8.2 Slice E1: the CE-reorders test exercises the real reranker, so the whole
 # target only compiles/runs under `--features default-reranker`. The default
@@ -225,15 +232,15 @@ required-features = ["default-reranker"]
 
 [[test]]
 name = "slice72_concurrent_gpu"
-required-features = ["slice72-gpu-tests"]
+required-features = ["slice72-gpu-tests", "test-hooks"]
 
 [[test]]
 name = "slice72_telemetry_contract"
-required-features = ["default-embedder", "default-reranker", "slice72-test-hooks"]
+required-features = ["default-embedder", "default-reranker", "slice72-test-hooks", "test-hooks"]
 
 [[test]]
 name = "slice72_review_contract"
-required-features = ["default-embedder", "default-reranker", "slice72-test-hooks"]
+required-features = ["default-embedder", "default-reranker", "slice72-test-hooks", "test-hooks"]
 
 # 0.8.2 Slice E2 fix-1 [P2]: is_finite guard tests — no feature gate because the
 # guard fires before the CE model path (depth/feature state irrelevant).
@@ -248,7 +255,7 @@ required-features = ["default-embedder"]
 
 [[test]]
 name = "tc5_vector_stage"
-required-features = ["tc5-benchmark"]
+required-features = ["tc5-benchmark", "test-hooks"]
 
 [[test]]
 name = "slice20_fts_rank_stream"
@@ -278,7 +285,490 @@ required-features = ["migration-test-hooks"]
 name = "slice19_measurement"
 required-features = ["migration-test-hooks"]
 
+
+[[test]]
+name = "batch_write_per_row_cursor"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "consolidate_provider"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "consolidation_value_test"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "corpus_vector"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "cursors"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "elps_conformance_golden"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "erasure_drain_ordering"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "eu5a1_plumbing"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "eu5a2_machinery"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "eu5b_lockflip"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "eu5f_production_pin"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "eu8_ir_validation"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "exp_obs_explain"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "exp_s_substrate"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "f5_bm25f"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "f9_importance_ranking"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ga2_vector_stage_seam"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "gen_cross_backend_mean_fixture"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ir_c_cdf_run"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ir_c_fusion_experiment"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ir_c_gold_diagnostics"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ir_c_recall_run"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "lifecycle_observability"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "multidoc_extractor_provenance"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "opp12_existence_axis"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "opp12_lifecycle_verbs"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "perf_gates"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "pr2b_mean_recompute"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "pr9_concurrent_embed"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "pr9_embed_serialization"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "pr9_embed_watchdog"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "pr_g10_filtered_knn"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "pr_g12_recency"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "pr_g1_search_hits"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "pr_g9_rrf_fusion"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "projection_runtime"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "qd_envelope_deserialize"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "reader_pool"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "search_result_shape"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_deferred_text_identity_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_edge_fts_missing_table"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_importance_explanation_row_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_node_fts_missing_canonical"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_robustness_first"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_soft_fallback_probe_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_vector_hydration_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_vector_row_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice15_byo_llm_ingest"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice15_identity_provenance"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice15b_search_validity_recall"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice15e_prekn_filterable"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice18_retrieval_result_limits"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice20_dense_readiness"
+
+[[test]]
+name = "slice20_graph_traversal"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice20c_flush_barrier"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice21_projection_runtime_state"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice21c_vector_role_gate"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice22_projection_status"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice23_spec_validation_reject"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice25_actuation_verification"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice25_fix1_red"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice25_registration_identity_inert"
+
+[[test]]
+name = "slice30_dependency_closure"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice30_embedding_readiness"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice35_actuation_spike"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice35_after_validation_races"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice35_eligibility_pretruncation"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice35_frozen_read"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice35_frozen_read_races"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice35_remaining_arm_matrix"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice35_virtual_mutation_manifest"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice40_filter_unification"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice40_mutation_projection_status"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice40_projection_completion"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice40_projection_generation"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice40_projection_generation_races"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice40_status_performance"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice45_pagination"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice50_evidence"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice55_dependency_trace"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice5_provider_seam"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice60_fix5_provenance"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice70_projection_commit_residue"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice71_search_statement_trace"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice75_feature_interactions"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice80_reader_transaction_release"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice90_engine_configuration"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice90_foreground_dispatch"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice90_projection_capacity"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice90_projection_dispatch"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice90_runtime_matrix"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc31_source_id_on_every_hit"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc33_edge_temporal_epoch"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc33_fix3_consolidation_timestamp_taxonomy"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc33_fix5_iso8601_shape_gate"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc33_fix6_edge_vector_prune"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc45_supersession_terminal"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc47_timestamp_round_trip"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc57_governed_write_race"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc57_worker_commit_pressure"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc67_unsupported_vector_kind_report"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc68_probe_fingerprint_cache"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc71_fix1_inert_enrolment_reconcile"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc76_vec0_long_metadata_delete"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc8_idspace_swap"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc90_transition_write_race"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc91_duplicate_embeds_and_silent_commit_loss"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "tc91_projection_commit_hardening"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "telemetry_capture"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "vector_contracts"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "vector_equivalence_probe"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "vector_quant_pack1"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "write_boundary_atomicity"
+required-features = ["test-hooks"]
+
+
+[[test]]
+name = "corpus_fts"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "corpus_graph"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "corpus_harness"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ir_c_pooling_floor_gate"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ir_gold_resolved"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ir_recall_eval"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "perf_gates_devloop"
+required-features = ["test-hooks"]
+
 [dev-dependencies]
+# `dirs::cache_dir()` is the root the embedder loader uses for pinned weights
+# (`<cache>/fathomdb/embedders/`); `nomic_smoke` locates its weights there.
+dirs = "5"
 libc = "0.2"
 proptest = "1"
 rusqlite = { version = "0.40", features = ["bundled", "fallible_uint", "hooks"] }

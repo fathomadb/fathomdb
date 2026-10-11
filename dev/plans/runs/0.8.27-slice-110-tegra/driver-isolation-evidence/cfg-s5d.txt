@@ -1,0 +1,11 @@
+# maxSize upper limit: control vs failing n=3 layout
+control-maxsize-40G --pool-maxsize 40G
+n3-maxsize-40G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 40G
+control-maxsize-42G --pool-maxsize 42G
+n3-maxsize-42G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 42G
+control-maxsize-44G --pool-maxsize 44G
+n3-maxsize-44G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 44G
+control-maxsize-46G --pool-maxsize 46G
+n3-maxsize-46G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 46G
+control-maxsize-48G --pool-maxsize 48G
+n3-maxsize-48G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 48G

@@ -3,7 +3,9 @@
 The Rust facade crate for **FathomDB** — a local-first, embedded retrieval engine for application
 and agent workloads, built on SQLite.
 
-If you are writing a Rust application against FathomDB, this is the crate to depend on. It is a thin
+For the application surface shared with the Python and TypeScript SDKs
+(`Engine`, `read`, `graph`, `admin`, and the same option defaults and error
+categories), use `fathomdb-sdk` 0.8.27; follow the [SDK installation route](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/install/rust.md#install-the-application-sdk). This crate remains the lower-level engine facade. It is a thin
 re-export of the public surface of [`fathomdb-engine`](https://crates.io/crates/fathomdb-engine), so
 you get one dependency and one import path instead of the workspace's internal crate split.
 
@@ -16,7 +18,7 @@ maturity of the 0.8.x publish pipeline as an API stability promise.
 ## Install
 
 ```bash
-cargo add fathomdb
+cargo add fathomdb@=0.8.27
 ```
 
 ## Example
@@ -24,28 +26,30 @@ cargo add fathomdb
 ```rust
 use fathomdb::{Engine, InitialState, PreparedWrite, SourceId};
 
-let opened = Engine::open("./app.sqlite").expect("open");
-let engine = opened.engine;
+fn main() {
+    let opened = Engine::open("./app.sqlite").expect("open");
+    let engine = opened.engine;
 
-engine
-    .write(&[PreparedWrite::Node {
-        kind: "doc".to_string(),
-        body: "the quick brown fox".to_string(),
-        // Provenance is MANDATORY on every canonical row: `source_id` is the
-        // axis `erase_source` erases on, so a row without one is unerasable.
-        source_id: SourceId::new("import-2026-07").expect("valid source id"),
-        logical_id: None,
-        state: InitialState::Active,
-        reason: None,
-        valid_from: None,
-        valid_until: None,
-    }])
-    .expect("write");
+    engine
+        .write(&[PreparedWrite::Node {
+            kind: "doc".to_string(),
+            body: "the quick brown fox".to_string(),
+            // Provenance is MANDATORY on every canonical row: `source_id` is the
+            // axis `erase_source` erases on, so a row without one is unerasable.
+            source_id: SourceId::new("import-2026-07").expect("valid source id"),
+            logical_id: None,
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .expect("write");
 
-let result = engine.search("brown fox").expect("search");
-println!("{} hit(s)", result.results.len());
+    let result = engine.search_text_only("brown fox").expect("search");
+    println!("{} hit(s)", result.results.len());
 
-engine.close().expect("close");
+    engine.close().expect("close");
+}
 ```
 
 ## What the default surface gives you
@@ -69,10 +73,10 @@ The default build is deliberately free of recovery-named and raw-SQL methods.
 | --- | --- |
 | `operator` | Adds the operator / recovery seam (`rebuild_*`, `excise_source`, `dump_*`, `trace_source_ref`, `truncate_wal`, `verify_embedder`, `check_integrity`, `safe_export`, `recompute_mean`) and its report types. This is a gate, not a behaviour switch — the engine behaves identically either way. [`fathomdb-cli`](https://crates.io/crates/fathomdb-cli) enables it; applications normally should not. |
 
-Embedder and GPU features (`default-embedder`, `embed-cuda`, `embed-metal`, `default-reranker`,
-`rerank-cuda`, `rerank-metal`) live on
-[`fathomdb-engine`](https://crates.io/crates/fathomdb-engine) and are not forwarded through this
-facade.
+The facade forwards `default-embedder`, `embed-cuda`, `default-reranker`, and
+`rerank-cuda` to the engine. CUDA builds retain the CPU path; device policy is
+selected at runtime. Metal feature selection remains a lower-level
+`fathomdb-engine` route.
 
 ## Related crates
 

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_S02_PYTHON_PAIRED",
+  "role": "candidate",
+  "comparison_protocol_sha256": "b9ee6b30be3e4353adcbdca99484d3be21ae9e796d066eb26f0164b9a26b7aae",
+  "source_sha": "8587b0571f4e6477045e60ddd341b0cd28f5a3cb",
+  "wheel_sha256": "813255e452a5a001fca5a0943412309a277fff67d6128544cfb8850d87dffe38",
+  "native_sha256": "79fd863733d1a97de308b445a5c45b2434e27a1317048376dbfdb76502ff0ae9",
+  "runner_sha256": "9d4c63335127807daf3d1561b7aeff2c4d6f658d153dd54c08558500ff0c966d",
+  "s01_helper_sha256": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+  "s02_helper_sha256": "75424eb9b939530e4ac039d0e1e4ac5d112ea0fa084cc406688f68c10fac550d",
+  "pilot_helper_sha256": "e8fde3e7caab5c5b6a43069562c7b0d29825d9ac9766539a94ccf7050b0a866d",
+  "corpus_sha256": "77c89858630fd30f5b4ce68748f309047908213e6cbb834b3d812ad87f2be051",
+  "graph_records_sha256": "f62b7379f2d7fa61a6ac20a16d4e4bb4a21462a6ff5a6900aee65e6fd8ed8c4f",
+  "warmups": 1,
+  "samples": 20,
+  "timing_boundary": "installed SDK open through materialized reopened close; independent SQLite verification excluded",
+  "source_checkout": "/tmp/slice135-python-s02-candidate-8587"
+}

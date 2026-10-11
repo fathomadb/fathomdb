@@ -159,26 +159,85 @@ public knob requires all supported bindings in the same slice. Configuration
 does not select a legacy schema, enable automatic recovery, supply vector
 identity strings, or expose raw SQL.
 
+The five open-time settings resolve and validate before filesystem, lock,
+provider, SQLite or worker work. Rust owns the effective defaults and final
+range/capacity checks; the SDKs may reject malformed input earlier without
+changing the accepted values. `EngineOpenError::EngineConfiguration` reports
+invalid values or native-width derived-capacity overflow. Process-wide SQLite
+mode failures remain `EngineOpenError::RuntimeConfiguration`.
+
+| Setting | Accepted values; default | Consuming effect |
+| --- | --- | --- |
+| `scheduler_runtime_threads` | `1..=64`; `2` | Exact projection worker and worker-owned connection count; active plus queued projection rows and each scan are bounded by `64 * workers`. |
+| `embedder_pool_size` | `1..=64`; `5` | Exact provider worker count and simultaneous-call ceiling; waiting queue holds `4 * workers`. Without a provider there is no embed worker or queue. |
+| `embedder_call_timeout_ms` | `1..=u32::MAX`; `30_000` ms | One absolute queue-plus-service deadline per call or batch across all production inference routes. |
+| `provenance_row_cap` | `0..=2^53-1`; `1_000_000` rows | Bounds retained provenance after write and actuation commits; zero disables retention. |
+| `slow_threshold_ms` | `0..=2^53-1`; `100` ms | Operation and SQLite-statement slow signals when elapsed time is strictly greater than the threshold. Zero accepts every positive duration. |
+
+The reader pool remains eight dedicated workers and is not controlled by
+either executor setting. The primary writer and projection `commit_gate`
+ownership remain as described above. Embed admission and route outcomes are
+owned by [`embedder.md`](embedder.md) and [`errors.md`](errors.md).
+
+The exposed configuration value is the immutable requested-open snapshot, not
+a live effective-value view. The existing slow-threshold control may change
+the effective threshold after open without rewriting that snapshot. Bindings
+must prevent caller alias mutation; TypeScript therefore clones and freezes
+the supplied object and exposes readonly fields.
+
 ## Close path
 
-`Engine.close` is explicit, idempotent, and bounded. Its order is:
+`Engine.close` is explicit and idempotent. It has two phases; database
+quiescence waits for active SQLite operations to reach a safe boundary, so
+total close time is not bounded. Its order is:
 
 1. mark the engine closed so new operations observe the typed closing state;
-2. stop and join the projection runtime;
-3. shut down and join reader workers after they uninstall their profile
-   callbacks and release their connections;
+2. cancel queued and pending embed replies, then stop and join the projection
+   runtime;
+3. shut down and join reader workers after their active operation finishes;
+   queued requests are discarded, and each worker uninstalls its profile
+   callback and releases its connection;
 4. uninstall the primary profile callback and release the primary connection;
 5. release test-only connection registration and clear profile callback
-   contexts; and
-6. release the sidecar admission lock last.
+   contexts;
+6. release the sidecar admission lock after every SQLite owner has exited; and
+7. drain embed-only workers against one absolute 30-second deadline that begins
+   after database quiescence, then release the engine-owned embedder reference
+   when those workers have exited.
 
 Step 6 is load-bearing: readers drain before the primary writer connection so
 SQLite's last-handle checkpointer runs on that connection, and the admission
 lock remains held until every owned SQLite resource is gone.
 
+Each `sqlite3_profile` callback holds a pointer to a stable, engine-owned
+context. Reader workers uninstall their callbacks before releasing their
+connections; the primary callback is uninstalled before the primary
+connection closes; only then are the contexts freed. The Python logging
+adapter's delivery worker is binding-owned, not an engine worker. Explicit
+`PyEngine.close()` disables and detaches its subscription before native close;
+native close does not wait for an arbitrary Python handler. On implicit
+`PyEngine` destruction, Rust field drop order may release the native engine
+before the logging slot detaches. The Python adapter's profile callback in
+that path can only enqueue a record; the logging slot then disables and
+detaches it when dropped. The callback transport and reentry rules are owned by
+[`bindings.md`](bindings.md) § 8; the engine subscriber's panic boundary is
+owned by [`lifecycle.md`](lifecycle.md).
+
+An unfinished provider worker owns no SQLite state. `close` returns
+`EngineError::Scheduler` while one remains, and a later call succeeds after it
+exits. Concurrent calls share the teardown and deadline; repeated close and
+Drop do not start another budget. Worker-owned accounting continues to count a
+provider after the engine is dropped.
+
 Drop/finalizer paths are best-effort safety nets and must not panic. Bindings
-preserve bounded process exit even when application code omits an explicit
+preserve a bounded provider drain even when application code omits an explicit
 close; explicit close remains the only path that can report shutdown failure.
+
+During open, the post-probe startup guard owns the writer, unopened reader
+connections, projection runtime, profile contexts, and admission lock until the
+engine takes them. A startup error stops the runtime, uninstalls callbacks,
+releases SQLite owners and the lock, then drains provider-only workers under
+the same one-deadline rule. Cleanup does not replace the original open error.
 
 Historical dedicated-writer-thread, caller `row_id`, per-kind vector-table,
 single-cursor-per-batch, restore, and public migration-on-open descriptions are

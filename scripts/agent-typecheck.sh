@@ -10,6 +10,28 @@ cd_repo_root
 # Rust: cargo check is the type-only gate (clippy already does this in lint, but check is cheaper).
 run_capped typecheck-rust cargo check --workspace --quiet
 
+# `cargo check --workspace` above checks only lib+bins and unifies features
+# across the workspace, so it misses engine test targets whose cfg drifts from
+# a debug-only or feature-gated `Engine` hook. Pin the default-feature debug
+# test build and the release-profile (debug_assertions off) test build.
+# RUSTFLAGS appends to the caller's flags rather than overwriting them, so an
+# invoking harness's own -D/-A flags survive.
+run_capped typecheck-rust-engine-default-tests \
+  env RUSTFLAGS="${RUSTFLAGS:-} -Dwarnings" cargo check -p fathomdb-engine --all-targets
+
+run_capped typecheck-rust-engine-release-tests \
+  env RUSTFLAGS="${RUSTFLAGS:-} -Dwarnings" cargo check --release -p fathomdb-engine --lib --tests
+
+# The release-profile check above uses default features, which misses
+# debug-only `Engine::*_for_test` hooks that a `test-hooks`/`operator`-gated
+# test file calls unconditionally (C-4: slice40_projection_completion.rs,
+# slice40_projection_generation_races.rs, pr2b_mean_recompute.rs all failed
+# this exact way — debug_assertions is off under --release, so the hook
+# disappears but the calling test cfg didn't require it). Pin the combined
+# feature set that surfaced the break.
+run_capped typecheck-rust-engine-release-test-hooks-tests \
+  env RUSTFLAGS="${RUSTFLAGS:-} -Dwarnings" cargo check --release -p fathomdb-engine --lib --tests --features test-hooks,operator
+
 # Python preflight: use the project's exact pinned version, so local prework
 # cannot report a false green from version drift or an absent type checker.
 readonly PYRIGHT_VERSION="1.1.410"

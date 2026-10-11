@@ -197,6 +197,7 @@ PUBLISHABLE_CRATES=(
   fathomdb-engine
   fathomdb-query
   fathomdb-schema
+  fathomdb-sdk
 )
 
 # Read the [package] block until next [section] and check field presence.

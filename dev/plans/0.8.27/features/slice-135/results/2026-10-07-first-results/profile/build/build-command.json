@@ -1,0 +1,19 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--offline",
+    "--release",
+    "--no-run",
+    "--message-format=json",
+    "--manifest-path",
+    "/tmp/slice135-candidate-profile-build-valid/build/Cargo.toml",
+    "--target-dir",
+    "/tmp/slice135-candidate-profile-build-valid/target"
+  ],
+  "profile_build": true,
+  "profile_overrides": {
+    "CARGO_PROFILE_RELEASE_DEBUG": "1",
+    "CARGO_PROFILE_RELEASE_STRIP": "none"
+  }
+}

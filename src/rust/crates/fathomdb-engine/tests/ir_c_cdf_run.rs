@@ -36,6 +36,8 @@ mod corpus_subset;
 mod ir_eval;
 #[path = "support/ir_retrieval.rs"]
 mod ir_retrieval;
+#[path = "support/live.rs"]
+mod live;
 
 use std::collections::HashSet;
 
@@ -293,7 +295,9 @@ mod cdf_runner_impl {
             return;
         }
         if std::env::var_os("FATHOMDB_SKIP_NETWORK_TESTS").is_some() {
-            eprintln!("[skip] FATHOMDB_SKIP_NETWORK_TESTS set; embedder weights unavailable");
+            crate::live::require_live_or_skip(
+                "[skip] FATHOMDB_SKIP_NETWORK_TESTS set; embedder weights unavailable",
+            );
             return;
         }
 

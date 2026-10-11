@@ -1,0 +1,465 @@
+179:fn typed_error(code: &'static str, message: impl Into<String>, payload: JsonValue) -> Error {
+197:pub fn validate_ffi_string(value: &str) -> std::result::Result<(), String> {
+210:fn validate_ffi_string_napi(value: &str) -> Result<()> {
+219:fn checked_ids_napi(name: &str, ids: &[i64]) -> Result<Vec<u64>> {
+239:fn engine_error_to_napi(err: RustEngineError) -> Error {
+422:fn graph_expansion_error_to_napi(error: &fathomdb_engine::GraphExpansionErrorV1) -> Error {
+433:fn corruption_kind_str(kind: CorruptionKind) -> &'static str {
+443:fn open_stage_str(stage: OpenStage) -> &'static str {
+453:fn corruption_to_napi(detail: CorruptionDetail) -> Error {
+470:fn embed_device_policy_error_to_napi(error: fathomdb_embedder::EmbedDevicePolicyError) -> Error {
+479:fn reranker_device_policy_error_to_napi(
+490:fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
+562:fn runtime_configuration_error_to_napi(error: RustRuntimeConfigurationError) -> Error {
+590:fn panic_error() -> Error {
+600:async fn call_engine<R, F>(f: F) -> Result<R>
+621:fn call_engine_sync<R, F>(f: F) -> Result<R>
+637:fn cls_embedder_singleton() -> std::result::Result<
+657:#[napi(js_name = "embedBatchCls")]
+658:pub async fn embed_batch_cls(texts: Vec<String>) -> Result<Vec<Vec<f64>>> {
+666:#[napi(object)]
+667:pub struct RerankPassageInput {
+674:#[napi(object)]
+675:pub struct RerankResult {
+685:#[napi(js_name = "rerank")]
+686:pub async fn rerank(
+750:async fn embed_batch_cls_impl(texts: Vec<String>) -> Result<Vec<Vec<f64>>> {
+788:async fn embed_batch_cls_impl(_texts: Vec<String>) -> Result<Vec<Vec<f64>>> {
+798:#[napi(object)]
+799:pub struct WriteReceipt {
+812:impl WriteReceipt {
+813:    fn from_rust(r: RustWriteReceipt) -> Self {
+822:#[napi(object)]
+823:pub struct SourceDependencyV1 {
+831:impl From<RustSourceDependencyV1> for SourceDependencyV1 {
+832:    fn from(value: RustSourceDependencyV1) -> Self {
+843:#[napi(object)]
+844:pub struct ActuationReceiptV1 {
+860:impl TryFrom<RustActuationReceiptV1> for ActuationReceiptV1 {
+863:    fn try_from(value: RustActuationReceiptV1) -> Result<Self> {
+907:#[napi(object)]
+908:pub struct ProjectionGenerationStatusV1 {
+923:impl From<RustProjectionGenerationStatusV1> for ProjectionGenerationStatusV1 {
+924:    fn from(value: RustProjectionGenerationStatusV1) -> Self {
+942:#[napi(object)]
+943:pub struct MutationProjectionStatusV1 {
+957:impl From<RustMutationProjectionStatusV1> for MutationProjectionStatusV1 {
+958:    fn from(value: RustMutationProjectionStatusV1) -> Self {
+975:fn translate_mutation_projection_status_request(
+1052:#[napi(object)]
+1053:pub struct DependencyListV1 {
+1058:impl From<RustDependencyListV1> for DependencyListV1 {
+1059:    fn from(value: RustDependencyListV1) -> Self {
+1070:#[napi(object)]
+1071:pub struct EraseReport {
+1080:impl EraseReport {
+1081:    fn from_rust(r: RustExciseReport) -> Self {
+1095:#[napi(object)]
+1096:pub struct ProjectionSpec {
+1114:impl ProjectionSpec {
+1115:    fn from_rust(s: &RustProjectionSpec) -> Self {
+1132:    fn to_rust(&self) -> Result<RustProjectionSpec> {
+1280:#[napi(object)]
+1281:pub struct ProjectionDelta {
+1293:impl ProjectionDelta {
+1294:    fn from_rust(d: &RustProjectionDelta) -> Self {
+1306:#[napi(object)]
+1307:pub struct ProjectionRuntimeStatusEntry {
+1313:impl ProjectionRuntimeStatusEntry {
+1314:    fn from_rust(entry: &RustProjectionRuntimeStatusEntry) -> Self {
+1323:#[napi(object)]
+1324:pub struct ProjectionRuntimeStatus {
+1332:impl ProjectionRuntimeStatus {
+1333:    fn from_rust(status: &RustProjectionRuntimeStatus) -> Self {
+1350:#[napi(object)]
+1351:pub struct EmbeddingReadiness {
+1362:impl EmbeddingReadiness {
+1363:    fn from_rust(readiness: &RustEmbeddingReadiness) -> Self {
+1381:#[napi(object)]
+1382:pub struct IngestWithExtractorReceipt {
+1388:impl IngestWithExtractorReceipt {
+1389:    fn from_rust(r: RustIngestWithExtractorReceipt) -> Self {
+1399:#[napi(object)]
+1400:pub struct ConsolidateReceipt {
+1408:impl ConsolidateReceipt {
+1409:    fn from_rust(r: RustConsolidateReceipt) -> Self {
+1420:#[napi(object)]
+1421:pub struct SoftFallback {
+1431:#[napi(object)]
+1432:pub struct IdSpace {
+1439:impl IdSpace {
+1440:    fn from_rust(id: &RustIdSpace) -> Self {
+1445:#[napi(object)]
+1446:pub struct SearchHit {
+1475:impl SearchHit {
+1476:    fn from_rust(h: &RustSearchHit) -> Self {
+1497:#[napi(object)]
+1498:pub struct NodeRecord {
+1505:impl NodeRecord {
+1506:    fn from_rust(r: &RustNodeRecord) -> Self {
+1519:#[napi(object)]
+1520:pub struct OpStoreRow {
+1530:impl OpStoreRow {
+1531:    fn from_rust(r: &RustOpStoreRow) -> Self {
+1544:#[napi(object)]
+1545:pub struct OperationalStateRecordV1 {
+1554:impl OperationalStateRecordV1 {
+1555:    fn from_rust(record: &RustOperationalStateRecordV1) -> Self {
+1567:#[napi(object)]
+1568:pub struct PageRequestV1 {
+1574:impl PageRequestV1 {
+1575:    fn into_rust(self) -> Result<RustPageRequestV1> {
+1587:#[napi(object)]
+1588:pub struct NodePageV1 {
+1594:impl NodePageV1 {
+1595:    fn from_rust(page: RustPageV1<RustNodeRecord>) -> Self {
+1604:#[napi(object)]
+1605:pub struct OperationalStatePageV1 {
+1611:impl OperationalStatePageV1 {
+1612:    fn from_rust(page: RustPageV1<RustOperationalStateRecordV1>) -> Self {
+1625:#[napi(object)]
+1626:pub struct SearchFilterInput {
+1635:fn search_filter_input_to_rust(
+1676:#[napi(object)]
+1677:pub struct SearchResult {
+1687:impl SearchResult {
+1688:    fn from_rust(r: RustSearchResult) -> Self {
+1705:#[napi(object)]
+1706:pub struct EvidenceSidecarEntryV1 {
+1713:impl From<&RustEvidenceSidecarEntryV1> for EvidenceSidecarEntryV1 {
+1714:    fn from(value: &RustEvidenceSidecarEntryV1) -> Self {
+1724:#[napi(object)]
+1725:pub struct EvidenceSearchResultV1 {
+1731:impl From<RustEvidenceSearchResultV1> for EvidenceSearchResultV1 {
+1732:    fn from(value: RustEvidenceSearchResultV1) -> Self {
+1741:#[napi(object)]
+1742:pub struct EvidenceContributionV1 {
+1754:impl From<RustEvidenceContributionV1> for EvidenceContributionV1 {
+1755:    fn from(value: RustEvidenceContributionV1) -> Self {
+1770:#[napi(object)]
+1771:pub struct EvidenceGraphOriginV1 {
+1777:#[napi(object)]
+1778:pub struct EvidenceProjectionOriginV1 {
+1786:impl From<RustEvidenceProjectionOriginV1> for EvidenceProjectionOriginV1 {
+1787:    fn from(value: RustEvidenceProjectionOriginV1) -> Self {
+1814:#[napi(object)]
+1815:pub struct EvidenceLocatorV1 {
+1821:#[napi(object)]
+1822:pub struct EvidenceArtifactLifecycleV1 {
+1829:#[napi(object)]
+1830:pub struct ResolvedEvidenceV1 {
+1849:impl From<RustResolvedEvidenceV1> for ResolvedEvidenceV1 {
+1850:    fn from(value: RustResolvedEvidenceV1) -> Self {
+1905:#[napi(object)]
+1906:pub struct QueryTrace {
+1922:impl QueryTrace {
+1923:    fn from_rust(t: &RustQueryTrace) -> Self {
+1949:#[napi(object)]
+1950:pub struct PerHitExplain {
+1964:    pub structural: StructuralInclusionV1,
+1967:#[napi(object)]
+1968:pub struct StructuralInclusionV1 {
+1977:impl StructuralInclusionV1 {
+1978:    fn from_rust(value: &RustStructuralInclusionV1) -> Self {
+2032:impl PerHitExplain {
+2033:    fn from_rust(p: &RustPerHitExplain) -> Self {
+2056:mod per_hit_explain_tests {
+2068:    fn from_rust_copies_f9_importance_and_confidence() {
+2141:#[napi(object)]
+2142:pub struct Explanation {
+2148:impl Explanation {
+2149:    fn from_rust(e: &RustExplanation) -> Self {
+2158:#[napi(object)]
+2159:pub struct MigrationStepReport {
+2165:impl MigrationStepReport {
+2166:    fn from_rust(r: &RustMigrationStepReport) -> Self {
+2171:#[napi(object)]
+2172:pub struct EmbedderIdentity {
+2178:impl EmbedderIdentity {
+2179:    fn from_rust(id: &RustEmbedderIdentity) -> Self {
+2191:#[napi(object)]
+2192:pub struct EmbedderEvent {
+2210:impl EmbedderEvent {
+2211:    fn from_rust(ev: &RustEmbedderEvent) -> Self {
+2277:#[napi(object)]
+2278:pub struct CudaDeviceInfo {
+2287:impl CudaDeviceInfo {
+2288:    fn from_rust(info: &RustCudaDeviceInfo) -> Self {
+2301:#[napi(object)]
+2302:pub struct CudaVisibleDevice {
+2309:impl CudaVisibleDevice {
+2310:    fn from_rust(device: &RustCudaVisibleDevice) -> Self {
+2321:#[napi(object)]
+2322:pub struct EffectiveEmbedDevice {
+2329:impl EffectiveEmbedDevice {
+2330:    fn from_rust(device: &RustEffectiveEmbedDevice) -> Self {
+2342:#[napi(object)]
+2343:pub struct EmbedderDeviceResolution {
+2352:impl EmbedderDeviceResolution {
+2353:    fn from_rust(resolution: &RustDeviceResolution) -> Self {
+2373:    fn from_reranker(resolution: &RustRerankerDeviceResolution) -> Self {
+2413:#[napi(object)]
+2414:pub struct GpuAllocationWitness {
+2437:impl GpuAllocationWitness {
+2438:    fn from_rust(witness: &RustGpuAllocationWitness) -> Self {
+2473:fn clamp_witness_bytes(value: i128) -> i64 {
+2477:#[napi(object)]
+2478:pub struct OpenReport {
+2512:impl OpenReport {
+2513:    fn from_rust(r: &RustOpenReport) -> Self {
+2543:#[napi(object)]
+2544:pub struct CounterSnapshot {
+2553:#[napi(object)]
+2554:pub struct AttachSubscriberOptions {
+2558:#[napi(object)]
+2559:pub struct EngineConfig {
+2567:fn checked_config_number(
+2592:impl EngineConfig {
+2593:    fn into_rust(self) -> Result<RustEngineConfig> {
+2630:#[napi(object)]
+2631:pub struct EngineOpenOptions {
+2642:#[napi(object)]
+2643:pub struct AdminConfigureOptions {
+2648:#[napi(object)]
+2649:pub struct RuntimeConfigureOptions {
+2653:#[napi(object)]
+2654:pub struct RuntimeConfiguration {
+2660:#[napi]
+2661:pub struct Engine {
+2666:#[napi]
+2667:impl Engine {
+2670:    #[napi(factory)]
+2671:    pub async fn open(path: String, options: Option<EngineOpenOptions>) -> Result<Engine> {
+2714:    #[napi]
+2715:    pub fn open_report(&self) -> Result<OpenReport> {
+2720:    #[napi]
+2721:    pub async fn write(&self, batch: Vec<JsonValue>) -> Result<WriteReceipt> {
+2728:    #[napi]
+2729:    pub async fn actuate(&self, request: JsonValue) -> Result<ActuationReceiptV1> {
+2735:    #[napi]
+2736:    pub async fn register_source_dependency(
+2745:    #[napi]
+2746:    pub async fn dependencies_for_source(&self, request: JsonValue) -> Result<DependencyListV1> {
+2752:    #[napi]
+2753:    pub async fn dependency_for_derived(
+2765:    #[napi]
+2766:    pub async fn read_dependency_closure(&self, request: JsonValue) -> Result<Option<JsonValue>> {
+2779:    #[napi]
+2780:    pub async fn transition(
+2811:    #[napi]
+2812:    pub async fn purge(&self, logical_id: String) -> Result<()> {
+2831:    #[napi]
+2832:    pub async fn erase_source(&self, source_id: String) -> Result<EraseReport> {
+2844:    #[napi]
+2845:    pub async fn configure_projections(
+2865:    #[napi]
+2866:    pub async fn read_projections(&self) -> Result<Vec<ProjectionSpec>> {
+2877:    #[napi]
+2878:    pub async fn read_projection_status(&self) -> Result<ProjectionRuntimeStatus> {
+2884:    #[napi]
+2885:    pub async fn read_projection_generation_status(&self) -> Result<ProjectionGenerationStatusV1> {
+2890:    #[napi]
+2891:    pub async fn read_mutation_projection_status(
+2900:    #[napi]
+2901:    pub async fn read_embedding_readiness(&self) -> Result<EmbeddingReadiness> {
+2908:    #[napi]
+2909:    pub async fn freeze_read_context(&self, context: ReadContextV1) -> Result<FrozenReadContextV1> {
+2917:    #[napi]
+2918:    pub async fn validate_frozen_read_context(&self, context: FrozenReadContextV1) -> Result<()> {
+2925:    #[napi]
+2926:    pub async fn graph_expand(&self, request_json: String) -> Result<String> {
+2944:    #[napi]
+2945:    pub async fn trace_dependency(
+2983:    #[napi]
+2985:    pub async fn search_frozen(
+3013:    #[napi]
+3015:    pub async fn search_with_evidence(
+3057:    #[napi]
+3058:    pub async fn resolve_evidence(
+3074:    #[napi]
+3075:    pub async fn resolve_graph_evidence(
+3095:    #[napi]
+3096:    pub async fn search_expand_frozen(
+3113:    #[napi]
+3115:    pub async fn search(
+3186:    #[napi]
+3187:    pub async fn search_projected_text(
+3214:    #[napi]
+3217:    pub async fn search_text_only(
+3243:    #[napi]
+3244:    pub fn dense_disabled(&self) -> bool {
+3250:    #[napi]
+3251:    pub fn dense_disabled_reason(&self) -> Option<String> {
+3257:    #[napi]
+3258:    pub fn vector_equivalence_refusal_count(&self) -> i64 {
+3262:    #[napi]
+3263:    pub async fn close(&self) -> Result<()> {
+3268:    #[napi]
+3269:    pub async fn drain(&self, timeout_ms: u32) -> Result<()> {
+3277:    #[napi]
+3278:    pub async fn enable_telemetry(&self, sink_path: String) -> Result<()> {
+3286:    #[napi]
+3287:    pub fn last_telemetry_query_id(&self) -> Option<String> {
+3295:    #[napi]
+3296:    pub async fn record_feedback(
+3318:    #[napi]
+3319:    pub async fn ingest_with_extractor(
+3369:    #[napi]
+3370:    pub async fn consolidate_with_provider(
+3422:    #[napi]
+3423:    pub async fn embed(&self, text: String) -> Result<Vec<f64>> {
+3429:    #[napi]
+3430:    pub fn counters(&self) -> Result<CounterSnapshot> {
+3445:    #[napi]
+3446:    pub fn set_profiling(&self, enabled: bool) -> Result<()> {
+3451:    #[napi]
+3452:    pub fn set_slow_threshold_ms(&self, value: u32) -> Result<()> {
+3462:    #[napi]
+3463:    pub fn attach_subscriber(
+3476:#[napi(js_name = "adminConfigureRuntime")]
+3477:pub fn admin_configure_runtime(options: RuntimeConfigureOptions) -> Result<RuntimeConfiguration> {
+3499:#[napi(js_name = "adminConfigure")]
+3500:pub async fn admin_configure(
+3548:#[napi(object)]
+3549:pub struct ReadViewInput {
+3561:#[napi(object)]
+3562:pub struct ReadContextV1 {
+3569:#[napi(object)]
+3570:pub struct FrozenReadContextV1 {
+3577:fn search_filter_from_required_input(input: SearchFilterInput) -> Result<RustSearchFilter> {
+3581:fn read_context_to_rust(input: ReadContextV1) -> Result<RustReadContextV1> {
+3594:fn read_context_from_rust(context: &RustReadContextV1) -> ReadContextV1 {
+3620:fn frozen_context_to_rust(input: FrozenReadContextV1) -> Result<RustFrozenReadContextV1> {
+3650:fn frozen_context_from_rust(context: RustFrozenReadContextV1) -> FrozenReadContextV1 {
+3660:fn read_view_or_default(view: Option<ReadViewInput>) -> RustReadView {
+3673:#[napi(object)]
+3674:pub struct BoundaryCrossing {
+3683:impl BoundaryCrossing {
+3684:    fn from_rust(c: &RustBoundaryCrossing) -> Self {
+3693:#[napi(object)]
+3694:pub struct ReadCollectionOptions {
+3699:#[napi(js_name = "readGet")]
+3700:pub async fn read_get(
+3712:#[napi(js_name = "readGetMany")]
+3713:pub async fn read_get_many(
+3727:#[napi(js_name = "readCollection")]
+3728:pub async fn read_collection(
+3736:#[napi(js_name = "readMutations")]
+3737:pub async fn read_mutations(
+3745:async fn read_collection_impl(
+3765:#[napi(object)]
+3766:pub struct PredicateInput {
+3779:fn napi_predicate_to_rust(pred: PredicateInput) -> Result<RustPredicate> {
+3812:#[napi(js_name = "readList")]
+3813:pub async fn read_list(
+3837:#[napi(object)]
+3838:pub struct FilterTermInput {
+3849:fn napi_filter_term_to_rust(term: FilterTermInput) -> Result<RustFilterTerm> {
+3880:#[napi(js_name = "readListFilter")]
+3881:pub async fn read_list_filter(
+3903:#[napi(js_name = "readCanonicalPage")]
+3904:pub async fn read_canonical_page(
+3919:#[napi(js_name = "readOperationalState")]
+3920:pub async fn read_operational_state(
+3937:#[napi(js_name = "readOperationalStatePage")]
+3938:pub async fn read_operational_state_page(
+3961:#[napi(object)]
+3962:pub struct ExpandedNode {
+3973:#[napi(object)]
+3974:pub struct SearchExpandResult {
+3980:impl SearchExpandResult {
+3981:    fn from_rust(r: RustSearchExpandResult) -> Self {
+3997:fn parse_direction_napi(direction: &str) -> Result<RustTraversalDirection> {
+4016:#[napi(js_name = "graphNeighbors")]
+4017:pub async fn graph_neighbors(
+4034:#[napi(js_name = "crossedBoundarySince")]
+4035:pub async fn crossed_boundary_since(
+4051:#[napi(js_name = "searchExpand")]
+4053:pub async fn search_expand(
+4097:fn translate_batch(batch: Vec<JsonValue>) -> Result<Vec<PreparedWrite>> {
+4101:fn json_get<'a>(v: &'a JsonValue, key: &str) -> Option<&'a JsonValue> {
+4105:fn json_str(v: &JsonValue, key: &str) -> Result<Option<String>> {
+4120:fn json_str_required(v: &JsonValue, key: &str) -> Result<String> {
+4130:fn json_serialised(v: &JsonValue, key: &str) -> Result<Option<String>> {
+4151:fn json_serialised_required(v: &JsonValue, key: &str) -> Result<String> {
+4161:fn translate_write_item(item: JsonValue) -> Result<PreparedWrite> {
+4188:fn json_str_alt(item: &JsonValue, camel: &str, snake: &str) -> Result<Option<String>> {
+4195:fn json_str_alt_required(item: &JsonValue, camel: &str, snake: &str) -> Result<String> {
+4214:fn source_id_write_error(message: String, field_path: Option<&str>) -> Error {
+4219:fn json_source_id_required_at(
+4247:fn json_source_id_required(item: &JsonValue, kind: &str) -> Result<SourceId> {
+4251:fn provenance_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
+4260:fn escape_json_pointer_token(token: &str) -> String {
+4264:fn dependency_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
+4273:fn actuation_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
+4282:fn nested_actuation_napi_error(error: Error, root: &str) -> Error {
+4292:fn strict_actuation_object<'a>(
+4308:fn actuation_required_string(
+4320:fn valid_actuation_caller_identity(value: &str) -> bool {
+4324:fn translate_actuation_request(value: &JsonValue) -> Result<ActuationBatchV1> {
+4389:fn translate_actuation_operation(value: &JsonValue, index: usize) -> Result<ActuationOperationV1> {
+4517:fn dependency_request_object<'a>(
+4536:fn dependency_string(
+4547:fn translate_dependency_registration(value: &JsonValue) -> Result<SourceDependencyRegistrationV1> {
+4560:fn translate_dependency_source_lookup(value: &JsonValue) -> Result<DependencySourceLookupV1> {
+4570:fn translate_dependency_derived_lookup(value: &JsonValue) -> Result<DependencyDerivedLookupV1> {
+4580:fn dependency_closure_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
+4589:fn translate_closure_lookup(value: &JsonValue) -> Result<ClosureLookupV1> {
+4619:fn closure_status_json(value: RustClosureStatusV1) -> JsonValue {
+4660:fn strict_json_keys(value: &JsonValue, allowed: &[&str], base_path: &str) -> Result<()> {
+4672:fn provenance_string(value: &JsonValue, key: &str, reason: &str) -> Result<String> {
+4679:fn decimal_json_offset(value: &JsonValue, key: &str) -> Result<u64> {
+4701:fn translate_json_locator(value: &JsonValue) -> Result<SourceLocator> {
+4728:fn translate_json_hash(value: &JsonValue) -> Result<CanonicalHash> {
+4742:fn translate_json_provenance(value: &JsonValue) -> Result<WriteProvenanceV1> {
+4834:fn json_serialised_alt(item: &JsonValue, camel: &str, snake: &str) -> Result<Option<String>> {
+4841:fn json_serialised_alt_required(item: &JsonValue, camel: &str, snake: &str) -> Result<String> {
+4851:fn translate_node_at(
+4914:fn translate_node(item: &JsonValue) -> Result<PreparedWrite> {
+4925:fn json_i64(v: &JsonValue, key: &str) -> Result<Option<i64>> {
+4946:fn json_i64_alt(item: &JsonValue, camel: &str, snake: &str) -> Result<Option<i64>> {
+4953:fn translate_edge(item: &JsonValue) -> Result<PreparedWrite> {
+5009:fn translate_op_store(item: &JsonValue) -> Result<PreparedWrite> {
+5017:fn translate_admin_schema(item: &JsonValue) -> Result<PreparedWrite> {
+5037:#[napi]
+5038:impl Engine {
+5039:    #[napi]
+5040:    pub fn requested_engine_config_for_test(&self) -> Result<EngineConfig> {
+5058:    #[napi]
+5059:    pub async fn configure_vector_kind_for_test(&self, kind: String) -> Result<()> {
+5065:    #[napi]
+5066:    pub async fn write_vector_for_test(&self, kind: String, text: String) -> Result<()> {
+5075:#[napi]
+5076:impl Engine {
+5078:    #[napi]
+5079:    pub async fn binding_connection_inventory_for_test(&self) -> Result<String> {
+5086:#[napi]
+5087:impl Engine {
+5088:    #[napi]
+5089:    pub async fn set_legacy_projection_search_subobjects_for_test(
+5103:#[napi(js_name = "forcePanicForTest")]
+5104:pub fn force_panic_for_test() -> Result<()> {
+5113:#[napi(js_name = "forcePanicInAccessorForTest")]
+5114:pub fn force_panic_in_accessor_for_test() -> Result<()> {
+5121:fn call_panicking_engine_for_test() -> Result<()> {
+5138:mod tests {
+5142:    fn rewrite_schema_header(path: &std::path::Path, version: u32) {
+5148:    fn derived_edge_actuation_request() -> JsonValue {
+5181:    fn derived_edge_actuation_translation_preserves_current_v1_shape() {
+5191:    fn assert_actuation_input_error(request: &JsonValue, reason: &str, path: &str) {
+5198:    fn malformed_edge_actuation_request() -> JsonValue {
+5205:    fn malformed_edge_preserves_every_earlier_top_level_precedence_family() {
+5260:        fn mutation_projection_cursor_canonical_decimal_round_trips(write_cursor in 1_u64..) {
+5273:    fn mutation_projection_request_preserves_u64_max() {
+5285:    fn mutation_projection_request_rejects_noncanonical_cursor() {
+5299:    fn mutation_projection_request_checks_schema_before_unknown_fields() {
+5308:    fn validate_ffi_string_accepts_plain_ascii() {
+5313:    fn validate_ffi_string_accepts_non_ascii_utf8() {
+5318:    fn validate_ffi_string_rejects_embedded_nul() {
+5324:    fn validate_ffi_string_accepts_replacement_codepoint() {
+5334:    fn embed_device_policy_open_error_uses_a_typed_napi_envelope() {
+5348:    fn napi_open_maps_schema_33_refusal_to_the_typed_envelope() {
+5367:    fn reranker_device_policy_open_error_uses_a_typed_napi_envelope() {
+5379:    fn reranker_device_policy_query_error_uses_the_same_typed_napi_envelope() {
+5394:    fn open_report_preserves_caller_device_resolution() {
+5457:    fn gpu_allocation_witness_crosses_the_napi_boundary_intact() {

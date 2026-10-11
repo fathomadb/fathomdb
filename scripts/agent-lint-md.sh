@@ -71,6 +71,7 @@ run_capped check-track-runner "$SCRIPT_DIR/check-track-runner.sh" --quiet
 # nothing checking the copies agreed; one reconciliation commit touched 7 files.)
 # Pure bash + python3, and python3 absent is a hard failure, not a skip (TC-37).
 run_capped check-release-state-views "$SCRIPT_DIR/check-release-state-views.sh" --quiet
+run_capped check-runtime-checkpoints "$SCRIPT_DIR/check-runtime-checkpoints.py"
 run_capped check-traceability-contracts "$SCRIPT_DIR/check-traceability-contracts.py" --root .
 run_capped check-architecture-authority "$SCRIPT_DIR/check-architecture-authority.py"
 run_capped check-design-lifecycle "$SCRIPT_DIR/check-design-lifecycle.py"
@@ -101,10 +102,17 @@ run_capped lint-md-docs "$SCRIPT_DIR/agent-lint-docs.sh"
 # offline modality already signals partial, best-effort coverage. Revisit if a lychee-only
 # vacuous-green incident is ever observed.
 if command -v lychee >/dev/null 2>&1; then
+  # Keep upstream crate prose byte-identical; our FathomDB patch note remains
+  # in scope. The same files are excluded by markdownlint-cli2.
+  vendor_link_excludes=(
+    --exclude-path third_party/libsqlite3-sys-0.38.1/README.md
+    --exclude-path third_party/libsqlite3-sys-0.38.1/Upgrade.md
+    --exclude-path third_party/cudarc-0.19.7/README.md
+  )
   if [ "${AGENT_LINK_CHECK:-offline}" = "online" ]; then
-    run_capped lint-md-links lychee --offline=false --no-progress '**/*.md'
+    run_capped lint-md-links lychee --offline=false --no-progress "${vendor_link_excludes[@]}" '**/*.md'
   else
-    run_capped lint-md-links lychee --offline --no-progress '**/*.md'
+    run_capped lint-md-links lychee --offline --no-progress "${vendor_link_excludes[@]}" '**/*.md'
   fi
 else
   skip_notice lint-md-links "lychee not installed (run scripts/bootstrap.sh)"

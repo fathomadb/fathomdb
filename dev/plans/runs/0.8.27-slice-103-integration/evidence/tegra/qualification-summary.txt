@@ -1,0 +1,31 @@
+Slice 103 final Tegra qualification
+Source SHA: c2e80ff7683fe856a4cf372a088897c3450b0b9a
+Host: classic Jetson Orin, Linux aarch64, 10.83.10.13
+Bundle SHA-256: 6a0e06fc5510b1d57354a25b3c04dfe59074a7151171ce1aae65a817a25174ac
+Staged wheel version: 0.8.27+tegra (--base-version 0.8.27; source pyproject remains 0.8.26)
+Wheel: fathomdb-0.8.27+tegra-cp310-abi3-linux_aarch64.whl
+Wheel SHA-256: 91bed0411962741b9443afb4bd7df5506893d1c2fc06dae8ca1d2afaeb4c3ffb
+Wheel size: 9,063,350 bytes
+Host-native wrapper, glibc 2.35, nm, readelf, fail-closed linkage: exit 0
+Installed import from fresh runtime venv outside source, with LD_LIBRARY_PATH,
+LIBRARY_PATH, and PYTHONPATH removed: exit 0; see installed-import-provenance.log.
+CPU smoke: effective CPU, 384 dimensions, no witness, exit 0.
+Auto smoke: effective CUDA, 384 dimensions, no witness, exit 0.
+Forced cuda:0 smoke: effective CUDA, 384 dimensions, allocation witness, exit 0.
+Witness SHA-256: a59c47181abc36bc28b847b910663ac87fcd99d78cb3665d565404e7e3e78d41
+Witness delta: 143,622,144 bytes; floor: 67,108,864 bytes.
+Witness verifier with nvidia-smi UUID correlation: exit 0.
+Local independent wheel extraction, linkage recheck, witness recheck, and raw
+nm/readelf byte comparison: exit 0; see independent-check.log.
+No Pages workflow or registry publication occurred.
+The two approved new Jetson scratch paths were removed after the wheel and
+raw evidence were retained locally; remote-cleanup-proof.log records the
+read-only absence check and remote-cleanup-proof.exit is 0.
+Limits: the host has a CUDA driver; driverless loadability was supported by
+static dependency inspection and import with CUDA search paths removed, not
+measured on a driverless Jetson. nvidia-smi reports compute apps as N/A on
+this iGPU, so the witness's sole-GPU-consumer precondition is not independently
+attested by a PID list.
+Sequencing: first build lacked Cargo in noninteractive SSH PATH; first focused
+import used incorrect shell quoting. Both failed before the successful runs,
+and their exact logs and exits are retained.

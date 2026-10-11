@@ -1,0 +1,7 @@
+
+running 2 tests
+test correction_erasure_postcommit_incomplete_retry_is_truthful_and_audit_idempotent ... ok
+test correction_erasure_precommit_proof_failure_rolls_back_every_primary_plane ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.15s
+

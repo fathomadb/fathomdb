@@ -1,0 +1,151 @@
+{
+  "schema_version": "fathomdb.slice135-python-frozen-error-fix/v1",
+  "status": "INSTALLED_BOUNDARY_FIX_VERIFIED",
+  "red_test_commit": "5b67cf03f",
+  "fix_source_commit": "8587b0571f4e6477045e60ddd341b0cd28f5a3cb",
+  "change": "PyReadContextV1 constructor routes unsupported schemas through the existing frozen_read_error_to_py mapper. Error class/message remain identical; reason and field_path now carry the documented stable values.",
+  "before": {
+    "source_commit": "87d8659f18260a19b9f2932f412a42f50f71a692",
+    "wheel_sha256": "83b6c184fff27696dce329d5c2ae40e89290c86c3687e762488366c8a22ad34a",
+    "native_sha256": "c3405f3e7b37a42a1d677668ce4894ea5de9cc49a0a4bef47f879eb699f802cb",
+    "wheel_receipt": "../2026-10-07-python-capability-exercise/manifest.json",
+    "reason": null,
+    "field_path": null,
+    "regression_cases_failed": 4
+  },
+  "after": {
+    "wheel_sha256": "813255e452a5a001fca5a0943412309a277fff67d6128544cfb8850d87dffe38",
+    "native_sha256": "79fd863733d1a97de308b445a5c45b2434e27a1317048376dbfdb76502ff0ae9",
+    "reason": "unsupported_schema_version",
+    "field_path": "/schemaVersion",
+    "installed_cases_passed": 36,
+    "capability_counts": {
+      "supported": 44,
+      "executed": 40,
+      "failed": 0,
+      "unavailable": 3,
+      "gap": 1,
+      "unexecuted": 4
+    }
+  },
+  "product_rust_tree": "ff72dd25866c8383c3f4693fb9868c3e1ff3a8c3",
+  "cargo_lock_sha256": "9e9d7b5e82184a0bddfbe96de28fa0615ef4443fc84639b271c1cff29600ccfe",
+  "engine_source_tree": "c33993528e643d6df626d9af30425084b34bc375",
+  "engine_query_schema_sources_unchanged": true,
+  "commands": {
+    "red": [
+      "env",
+      "-u",
+      "PYTHONPATH",
+      "-u",
+      "VIRTUAL_ENV",
+      "PYTHONDONTWRITEBYTECODE=1",
+      "/tmp/slice135-capability-venv-87d8659/bin/python",
+      "-m",
+      "pytest",
+      "--noconftest",
+      "--import-mode=importlib",
+      "-o",
+      "pythonpath=",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "src/python/tests/test_slice135_frozen_context_error.py"
+    ],
+    "clippy": [
+      "cargo",
+      "clippy",
+      "-p",
+      "fathomdb-py",
+      "--release",
+      "--features",
+      "pyo3/extension-module,default-embedder",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "fmt": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "ruff": [
+      "ruff",
+      "check",
+      "--no-cache",
+      "src/python/tests/test_slice135_frozen_context_error.py"
+    ],
+    "build": [
+      "./scripts/verify-release-python-wheel.sh",
+      "--python",
+      "/usr/bin/python3.12",
+      "--wheel-dir",
+      "/tmp/slice135-frozen-field-fixed-wheel",
+      "--venv-dir",
+      "/tmp/slice135-frozen-field-fixed-venv"
+    ],
+    "installed_tests": [
+      "env",
+      "-u",
+      "PYTHONPATH",
+      "-u",
+      "VIRTUAL_ENV",
+      "PYTHONDONTWRITEBYTECODE=1",
+      "/tmp/slice135-frozen-field-fixed-venv/bin/python",
+      "-m",
+      "pytest",
+      "-c",
+      "/dev/null",
+      "--rootdir=/tmp/slice135-frozen-field-installed-tests",
+      "--import-mode=importlib",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "/tmp/slice135-frozen-field-installed-tests/test_slice135_frozen_context_error.py",
+      "/tmp/slice135-frozen-field-installed-tests/test_slice35_frozen_read.py",
+      "/tmp/slice135-frozen-field-installed-tests/test_slice35_frozen_binding_parity.py",
+      "/tmp/slice135-frozen-field-installed-tests/test_slice35_frozen_validation.py::test_valid_token_rejects_invalid_query_and_ranking_controls"
+    ],
+    "capabilities": [
+      "env",
+      "-u",
+      "PYTHONPATH",
+      "-u",
+      "VIRTUAL_ENV",
+      "PYTHONDONTWRITEBYTECODE=1",
+      "timeout",
+      "240s",
+      "/tmp/slice135-frozen-field-fixed-venv/bin/python",
+      "scripts/slice135_python_capabilities.py",
+      "--repo",
+      ".",
+      "--wheel",
+      "/tmp/slice135-frozen-field-fixed-wheel/fathomdb-0.8.26-cp310-abi3-manylinux_2_39_x86_64.whl",
+      "--wheel-sha256",
+      "813255e452a5a001fca5a0943412309a277fff67d6128544cfb8850d87dffe38",
+      "--source-sha",
+      "8587b0571f4e6477045e60ddd341b0cd28f5a3cb",
+      "--output",
+      "/tmp/slice135-frozen-field-after-capabilities.json"
+    ]
+  },
+  "exit_codes": {
+    "red": 1,
+    "clippy": 0,
+    "fmt": 0,
+    "ruff": 0,
+    "build": 0,
+    "installed_tests": 0,
+    "capabilities": 0
+  },
+  "installed_test_setup": "Copy the four unmodified source test files named in source-tests.json to a new /tmp directory; verify their SHA256s; place installed-test-fixture.txt there as conftest.py. The only added fixture supplies a real temporary SQLite path. Use /dev/null pytest config and importlib mode to exclude source SDK imports. pytest 8.4.2 was installed in the wheel-owned environment.",
+  "test_source_unchanged_after_red_commit": true,
+  "scope_limits": [
+    "This wheel filename retains the existing 0.8.26 package version; exact source/hash identify the candidate.",
+    "No full agent-verify rerun or broader release qualification claim; scoped checks and exact installed behavior passed.",
+    "The remaining stored-closure/provider/reranker gaps and broader timing/platform/contention qualification are unchanged."
+  ],
+  "before_after_audit": "Fields, disjoint capability counts, unchanged engine/query/schema source, immutable red test bytes, and wheel/native hash binding independently checked while writing this manifest."
+}

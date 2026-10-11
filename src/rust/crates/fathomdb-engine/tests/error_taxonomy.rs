@@ -92,26 +92,50 @@ fn engine_open_error_variants_exist() {
     }
 }
 
+fn assert_open_stage_is_exhaustive(stage: OpenStage) {
+    match stage {
+        OpenStage::WalReplay
+        | OpenStage::HeaderProbe
+        | OpenStage::SchemaProbe
+        | OpenStage::EmbedderIdentity
+        | OpenStage::ProjectionGeneration => {}
+    }
+}
+
 #[test]
-fn open_stage_enum_is_exactly_four_members() {
+fn open_stage_enum_is_exactly_five_members() {
     let members = [
         OpenStage::WalReplay,
         OpenStage::HeaderProbe,
         OpenStage::SchemaProbe,
         OpenStage::EmbedderIdentity,
+        OpenStage::ProjectionGeneration,
     ];
-    assert_eq!(members.len(), 4);
+    members.into_iter().for_each(assert_open_stage_is_exhaustive);
+    assert_eq!(members.len(), 5);
+}
+
+fn assert_corruption_kind_is_exhaustive(kind: CorruptionKind) {
+    match kind {
+        CorruptionKind::WalReplayFailure
+        | CorruptionKind::HeaderMalformed
+        | CorruptionKind::SchemaInconsistent
+        | CorruptionKind::EmbedderIdentityDrift
+        | CorruptionKind::ProjectionGenerationDrift => {}
+    }
 }
 
 #[test]
-fn corruption_kind_enum_is_exactly_four_members() {
+fn corruption_kind_enum_is_exactly_five_members() {
     let members = [
         CorruptionKind::WalReplayFailure,
         CorruptionKind::HeaderMalformed,
         CorruptionKind::SchemaInconsistent,
         CorruptionKind::EmbedderIdentityDrift,
+        CorruptionKind::ProjectionGenerationDrift,
     ];
-    assert_eq!(members.len(), 4);
+    members.into_iter().for_each(assert_corruption_kind_is_exhaustive);
+    assert_eq!(members.len(), 5);
 }
 
 #[test]

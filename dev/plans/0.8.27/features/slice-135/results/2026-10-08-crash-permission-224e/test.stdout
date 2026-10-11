@@ -1,0 +1,9 @@
+
+running 4 tests
+test failed_commit_cleanup_victim ... ignored, victim controlled by parent
+test persistent_connection_readonly_write_refusal_reopens ... ok
+test process_kill_after_commit_failure_before_queue_cleanup_reopens ... ok
+test persistent_sqlite_busy_refusal_reopens ... ok
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 15.10s
+

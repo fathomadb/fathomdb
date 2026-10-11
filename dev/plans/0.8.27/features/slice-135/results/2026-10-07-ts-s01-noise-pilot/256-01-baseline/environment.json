@@ -1,0 +1,36 @@
+{
+  "end": {
+    "competing_jobs": [],
+    "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+    "disk_free_bytes": 24241922048,
+    "governor": "performance",
+    "host": "windchill3",
+    "kernel": "7.0.0-38-generic",
+    "node_version": "v25.9.0",
+    "profiler": "none",
+    "resource_tool": "time (GNU Time) UNKNOWN",
+    "storage": "66305",
+    "swap_pages": 6234470,
+    "time_utc": "2026-10-07T15:43:50Z",
+    "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+  },
+  "invalidators": [],
+  "start": {
+    "competing_jobs": [],
+    "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+    "disk_free_bytes": 24242126848,
+    "governor": "performance",
+    "host": "windchill3",
+    "kernel": "7.0.0-38-generic",
+    "node_version": "v25.9.0",
+    "profiler": "none",
+    "resource_tool": "time (GNU Time) UNKNOWN",
+    "storage": "66305",
+    "swap_pages": 6234455,
+    "time_utc": "2026-10-07T15:43:39Z",
+    "toolchain": "rustc 1.95.0 (59807616e 2026-04-14)"
+  },
+  "warnings": [
+    "host swap drift: 15 pages; child swap events: 0"
+  ]
+}

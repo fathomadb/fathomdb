@@ -1,15 +1,15 @@
 ---
 title: CLI Public Interface
 date: 2026-09-14
-target_release: 0.8.26
-desc: Public CLI surface for 0.8.26
+target_release: 0.8.27
+desc: Public CLI surface through 0.8.27 Slice 103
 blast_radius: src/rust/crates/fathomdb-cli/src/lib.rs; design/recovery.md; design/errors.md
 status: locked
 ---
 
 # CLI Interface
 
-Public CLI surface for the 0.8.26 operator binary. The canonical verb table and
+Public CLI surface for the 0.8.27 operator binary. The canonical verb table and
 recovery semantics are owned by `design/recovery.md`; this file owns concrete
 flag spelling, root command paths, and exit-code classes.
 
@@ -35,6 +35,8 @@ see that ADR's 2026-06-06 amendment).
 - `doctor check-integrity` emits a single JSON object.
 - `doctor check-integrity --full` may emit doctor-only finding codes such as
   `E_CORRUPT_INTEGRITY_CHECK`.
+- `doctor check-integrity` emits `E_ERASURE_INCOMPLETE` per owed physical
+  closure in the logical section. The source identity is redacted.
 - Each selected `recover` action emits one JSON object, owned by
   `design/recovery.md`; current recovery output is not an NDJSON progress
   stream.
@@ -241,6 +243,7 @@ CLI-only; no SDK parity.
 ```text
 fathomdb recover --accept-data-loss
   [--truncate-wal]
+  [--complete-erasures]
   [--rebuild-vec0]
   [--rebuild-projections]
   [--excise-source <id>]
@@ -281,6 +284,18 @@ empty, effectively noncurrent, counterfeit-current, main-corrupt,
 rollback-journal-blocked, or malformed-WAL-plus-noncurrent-standalone-main
 inputs exit `70`. Normal open continues to refuse the malformed WAL before
 returning an Engine.
+
+`--complete-erasures` uses the same admission checks and canonical lock, then
+one recovery-only read-write connection. It validates every owed physical
+closure's current zero proof and checks telemetry obligations before
+checkpointing. Since the original telemetry sink path is not recorded, an
+outstanding telemetry obligation is refused with exit `70` and remains owed.
+Checkpoint BUSY exits `71`, preserving the closure; completed recovery exits
+`64`. No owed closure is a no-op and exits `0`, leaving unrelated WAL bytes
+untouched. Its JSON object contains `verb: "complete-erasures"`, `status:
+"clean|done|busy"`, `closure_ids` (opaque ids considered), `closures` (one
+`closure_id` and `status` entry per owed closure), and the SQLite `busy`,
+`log_frames`, and `checkpointed_frames` counters.
 
 Malformed-header `doctor safe-export` is also fail-closed: it exits `70` with
 the stable `E_CORRUPT_HEADER` code, does not write an artifact or manifest, and

@@ -23,7 +23,13 @@ while [ "$#" -gt 0 ]; do
 done
 if [ "${FAKE_NO_WHEEL:-0}" != 1 ]; then
   mkdir -p "$out"
-  : >"$out/fathomdb-0.8.26-cp312-abi3-linux_x86_64.whl"
+  python3 - "$out/fathomdb-0.8.26-cp312-abi3-linux_x86_64.whl" <<'PY'
+import sys
+from zipfile import ZipFile
+
+with ZipFile(sys.argv[1], "w") as wheel:
+    wheel.writestr("fathomdb/__init__.py", "")
+PY
 fi
 SH
 chmod +x "$TMP/bin/maturin"

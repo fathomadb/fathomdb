@@ -1,0 +1,3 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.14s
+     Running tests/slice15e_prekn_filterable.rs (/tmp/slice135-current-tc91-target/debug/deps/slice15e_prekn_filterable-4a7b184ac8d5b765)

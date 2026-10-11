@@ -1,0 +1,68 @@
+{
+  "artifact_sha256": {
+    "build/Cargo.lock": "5f3a19d59c095886bb2e96572005bebf4e7375cc8f50e18fbb770b26b5f2370d",
+    "corpus.txt": "3490cb46178d1016388d9ee56ae6a9035a9f0e8658512e5f62801c000f3147b4",
+    "operation-manifest.json": "ae1ccf2f738d4b4eea7f25ca45216835f736d50348bea498f648fa312823ef3c",
+    "slice135_pilot_workload": "3eccc98816fa39d93ef7c3a560c091133d34e62de65038b9463214c0bd8c20db"
+  },
+  "cells": {
+    "close_fresh": {
+      "boundary": "close-call-to-return",
+      "expected_checks": {
+        "canonical_rows": [
+          0
+        ],
+        "reopen_ok": true,
+        "second_close_ok": true
+      },
+      "kind": "lifecycle"
+    },
+    "mixed_sequence": {
+      "boundary": "fresh-open-through-reopened-materialized-check",
+      "expected_checks": {
+        "fresh_rows": [
+          0
+        ],
+        "post_erase_rows": [
+          0
+        ],
+        "post_reopen_hits": 0,
+        "pre_erase_body_match": true,
+        "pre_erase_hits": 1,
+        "reopened_rows": [
+          0
+        ],
+        "written_rows": [
+          1
+        ]
+      },
+      "kind": "lifecycle"
+    },
+    "text": {
+      "boundary": "engine-call-to-materialized-output",
+      "expected_checks": {
+        "all_bodies_match": true,
+        "record_count": 10
+      },
+      "kind": "query"
+    }
+  },
+  "features": {
+    "embedder": "none",
+    "profile_build": false,
+    "query": "text_only",
+    "resource_method": "gnu-time",
+    "timing_mode": "primary"
+  },
+  "min_disk_free_bytes": 1073741824,
+  "runner_sha256": "803c23ee5b64f039bc3edb34a6b578baef1128d40d3763837ceaed820f260cb3",
+  "schema_version": 1,
+  "settings": {
+    "concurrency": 1,
+    "query": "needle",
+    "samples_per_cell": 100,
+    "seed_records": 32,
+    "warmup_per_cell": 1
+  },
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa"
+}

@@ -1,0 +1,41 @@
+{
+  "controls": {
+    "changed_gold_hash": {
+      "reason_type": "ValueError",
+      "rejected": true
+    },
+    "changed_query_hash": {
+      "reason_type": "ValueError",
+      "rejected": true
+    },
+    "changed_source_hash": {
+      "reason_type": "ValueError",
+      "rejected": true
+    },
+    "changed_wheel_hash": {
+      "reason_type": "ValueError",
+      "rejected": true
+    },
+    "dropped_query": {
+      "reason_type": "ValueError",
+      "rejected": true
+    },
+    "known_wrong_hit_lowers_score": {
+      "lowered_baseline_exact_fact_recall_at_10": 0.5,
+      "rejected": false
+    },
+    "missing_candidate": {
+      "reason_type": "FileNotFoundError",
+      "rejected": true
+    },
+    "persisted_body_tamper": {
+      "reason_type": "ValueError",
+      "rejected": true
+    },
+    "unknown_hit": {
+      "reason_type": "ValueError",
+      "rejected": true
+    }
+  },
+  "original_raw_hashes_unchanged": true
+}

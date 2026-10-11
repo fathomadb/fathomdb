@@ -60,8 +60,20 @@ impl CudaProvider for RerankerCudaProvider {
             use candle_core::cuda::cudarc::driver::{result, sys};
 
             let driver_present = unsafe { sys::is_culib_present() };
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            if !driver_present {
+                crate::cuda_driver_init::record_driver_library_absent(
+                    crate::cuda_driver_init::CudaInitCaller::RerankerProbe,
+                );
+            }
             driver_present.then_some(()).ok_or(CudaProbeError::NoVisibleDevice)?;
-            result::init().map_err(classify_cuda_driver_error)?;
+            let init = result::init();
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            crate::cuda_driver_init::record_init_result(
+                crate::cuda_driver_init::CudaInitCaller::RerankerProbe,
+                &init,
+            );
+            init.map_err(classify_cuda_driver_error)?;
             let count = result::device::get_count().map_err(classify_cuda_driver_error)?;
             let count = usize::try_from(count).map_err(|_| CudaProbeError::ProbeFailed {
                 message: "CUDA driver returned a negative device count".to_owned(),
@@ -226,6 +238,9 @@ fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
 
 #[cfg(feature = "rerank-cuda")]
 fn cuda_uuid_string(bytes: [std::os::raw::c_char; 16]) -> String {
+    // `c_char` is `i8` on x86_64 and `u8` on AArch64 Linux, so the cast is a
+    // no-op only on the Jetson, where clippy would otherwise reject it.
+    #[allow(clippy::unnecessary_cast)]
     let bytes = bytes.map(|byte| byte as u8);
     format!(
         "GPU-{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
@@ -563,222 +578,6 @@ impl CandleTinyBertReranker {
     }
 }
 
-// ----- Tests (default-reranker only; uses the locally cached pinned model) ----
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Load the pinned reranker from the local cache, or skip the test if it is
-    /// unavailable (offline CI with a cold cache). Locally the model is cached so
-    /// these tests DO execute the real forward — they are not vacuously green.
-    fn load_or_skip() -> Option<CandleTinyBertReranker> {
-        match CandleTinyBertReranker::try_load() {
-            Ok(m) => Some(m),
-            Err(e) => {
-                eprintln!("SKIP: reranker model unavailable ({e})");
-                None
-            }
-        }
-    }
-
-    const QUERY: &str = "What is the capital of France?";
-    // Three passages of deliberately DIFFERENT token lengths so that batching
-    // forces right-padding to L_max — this is what exercises the pad/mask path.
-    const PASSAGES: [&str; 3] = [
-        "Paris.",
-        "Paris is the capital and most populous city of France.",
-        "France is a country in Western Europe with several overseas regions and \
-         territories; its capital and largest city is Paris, a major global center \
-         for art, fashion, gastronomy, and culture, situated on the river Seine.",
-    ];
-
-    /// THE load-bearing test: batched scoring must equal per-pair scoring within
-    /// tolerance on pairs of differing token lengths (proves pad + mask).
-    #[test]
-    fn score_batch_matches_per_pair() {
-        let Some(model) = load_or_skip() else { return };
-
-        let per_pair: Vec<f32> =
-            PASSAGES.iter().map(|p| model.score(QUERY, p).expect("per-pair score")).collect();
-        let batched = model.score_batch(QUERY, &PASSAGES).expect("batched score");
-
-        assert_eq!(batched.len(), PASSAGES.len(), "one logit per passage, order preserved");
-        let mut max_abs = 0f32;
-        for (i, (b, p)) in batched.iter().zip(per_pair.iter()).enumerate() {
-            let d = (b - p).abs();
-            max_abs = max_abs.max(d);
-            assert!(
-                d < 1e-3,
-                "pair {i}: batched {b} vs per-pair {p} differ by {d} (>1e-3); pad/mask is wrong"
-            );
-        }
-        eprintln!("score_batch vs per-pair max abs diff = {max_abs:e}");
-    }
-
-    /// Determinism: identical input → byte-identical output across two calls.
-    #[test]
-    fn score_batch_is_deterministic() {
-        let Some(model) = load_or_skip() else { return };
-        let a = model.score_batch(QUERY, &PASSAGES).expect("batch a");
-        let b = model.score_batch(QUERY, &PASSAGES).expect("batch b");
-        assert_eq!(a, b, "batched scoring must be deterministic");
-    }
-
-    /// A very short passage mixed with a ~512-cap (truncated) passage in one batch
-    /// still matches per-pair — exercises the maximum padding span.
-    #[test]
-    fn score_batch_short_plus_capped() {
-        let Some(model) = load_or_skip() else { return };
-        let long = "lorem ipsum ".repeat(2000); // far exceeds 512 tokens → truncated
-        let passages: Vec<&str> = vec!["hi", long.as_str()];
-
-        let per_pair: Vec<f32> =
-            passages.iter().map(|p| model.score(QUERY, p).expect("per-pair")).collect();
-        let batched = model.score_batch(QUERY, &passages).expect("batched");
-        for (i, (b, p)) in batched.iter().zip(per_pair.iter()).enumerate() {
-            assert!((b - p).abs() < 1e-3, "pair {i}: {b} vs {p} (short+capped batch)");
-        }
-    }
-
-    /// Chunk-boundary correctness: a batch of N > `MAX_CE_BATCH` pairs (spanning
-    /// two full chunks plus a partial trailing chunk), of DIFFERING token lengths
-    /// so each chunk pads to a different per-chunk `L_max`, must still equal
-    /// per-pair `score` within tolerance AND preserve input order across chunk
-    /// boundaries. This is the load-bearing test for the OOM-bounding fix: it
-    /// proves the chunk loop concatenates per-chunk results in order and that
-    /// per-chunk (rather than whole-batch) padding does not perturb any logit.
-    #[test]
-    fn score_batch_spans_chunk_boundaries() {
-        let Some(model) = load_or_skip() else { return };
-
-        // Spans 2 full chunks + a 3-element partial chunk (e.g. 67 at MAX=32).
-        let n = MAX_CE_BATCH * 2 + 3;
-        // Differing lengths so per-chunk L_max varies across chunk boundaries.
-        let owned: Vec<String> =
-            (0..n).map(|i| "Paris is the capital of France. ".repeat(1 + (i % 7))).collect();
-        let passages: Vec<&str> = owned.iter().map(String::as_str).collect();
-
-        let per_pair: Vec<f32> =
-            passages.iter().map(|p| model.score(QUERY, p).expect("per-pair score")).collect();
-        let batched = model.score_batch(QUERY, &passages).expect("batched score");
-
-        assert_eq!(batched.len(), n, "one logit per passage across all chunks, order preserved");
-        let mut max_abs = 0f32;
-        for (i, (b, p)) in batched.iter().zip(per_pair.iter()).enumerate() {
-            let d = (b - p).abs();
-            max_abs = max_abs.max(d);
-            assert!(
-                d < 1e-3,
-                "pair {i}: batched {b} vs per-pair {p} differ by {d} (>1e-3) across chunk boundary"
-            );
-        }
-        eprintln!("score_batch_spans_chunk_boundaries: N={n} (MAX_CE_BATCH={MAX_CE_BATCH}), max abs diff = {max_abs:e}");
-    }
-
-    /// Empty batch → Ok(vec![]) with no forward.
-    #[test]
-    fn score_batch_empty() {
-        let Some(model) = load_or_skip() else { return };
-        let out = model.score_batch(QUERY, &[]).expect("empty batch");
-        assert!(out.is_empty(), "empty passages → empty output");
-    }
-}
-
-// ----- GPU smoke + CPU↔GPU closeness (rerank-cuda only) ---------------------
-
-/// 0.8.12 — these only build/run under `--features rerank-cuda` on a CUDA host;
-/// the default CPU test suite never compiles them. They prove (1) the GPU device
-/// resolves + a forward runs end-to-end returning a FINITE logit, and (2) the
-/// GPU port is numerically faithful: GPU logits match the CPU logits within a
-/// tolerance, so the opt-in does not silently change scores. If the pinned model
-/// is not cached the tests skip (no network in CI), exactly like the CPU suite.
-#[cfg(all(test, feature = "rerank-cuda"))]
-mod gpu_tests {
-    use super::*;
-    use crate::ENV_RERANK_DEVICE;
-    use std::sync::Mutex;
-
-    const Q: &str = "What is the capital of France?";
-    const PASSAGES: [&str; 3] = [
-        "Paris.",
-        "Paris is the capital and most populous city of France.",
-        "France is a country in Western Europe; its capital and largest city is \
-         Paris, a major global center for art, fashion, and culture.",
-    ];
-
-    /// `FATHOMDB_RERANK_DEVICE` is process-global, and `cargo test` runs `#[test]`
-    /// fns in parallel within one binary. Each test takes this lock for its WHOLE
-    /// body so the env var it sets cannot be observed/overwritten by a sibling
-    /// test's load (which would resolve the wrong device and either compare the
-    /// wrong backends or build a CPU model where CUDA was expected). `unwrap_or_else
-    /// (into_inner)` so one panicking test does not poison-cascade into the other
-    /// (the real failure still surfaces in the test that panicked).
-    static DEVICE_ENV_LOCK: Mutex<()> = Mutex::new(());
-
-    /// Load a reranker with `FATHOMDB_RERANK_DEVICE` set to `dev` for the duration
-    /// of construction, then RESTORE the previous value (not blindly remove it).
-    /// The device is read once at load time and stored in the struct, so the env
-    /// only needs to be stable across this call. Caller MUST hold `DEVICE_ENV_LOCK`.
-    /// Returns None (skip) if the model is uncached.
-    fn load_on(dev: &str) -> Option<CandleTinyBertReranker> {
-        let prev = std::env::var_os(ENV_RERANK_DEVICE);
-        std::env::set_var(ENV_RERANK_DEVICE, dev);
-        let m = match CandleTinyBertReranker::try_load() {
-            Ok(m) => Some(m),
-            Err(e) => {
-                eprintln!("SKIP gpu_tests: reranker model unavailable ({e})");
-                None
-            }
-        };
-        match prev {
-            Some(v) => std::env::set_var(ENV_RERANK_DEVICE, v),
-            None => std::env::remove_var(ENV_RERANK_DEVICE),
-        }
-        m
-    }
-
-    /// Smoke: the reranker loads on cuda:0 and scores one pair to a finite logit.
-    #[test]
-    fn gpu_loads_and_scores_finite() {
-        let _guard = DEVICE_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let Some(model) = load_on("cuda:0") else { return };
-        assert!(
-            model.device.is_cuda(),
-            "FATHOMDB_RERANK_DEVICE=cuda:0 must resolve to a CUDA device"
-        );
-        let logit = model.score(Q, PASSAGES[1]).expect("gpu score");
-        assert!(logit.is_finite(), "gpu logit must be finite, got {logit}");
-        eprintln!("gpu_loads_and_scores_finite: cuda:0 logit = {logit}");
-    }
-
-    /// CPU↔GPU numeric closeness: the same pairs scored on CPU and on cuda:0 must
-    /// agree within tolerance (different BLAS/kernels → not bit-identical, but the
-    /// port must not change the ranking-relevant logit). Tolerance is generous
-    /// relative to the ~unit-scale logits but far tighter than any score gap that
-    /// would flip a ranking.
-    #[test]
-    fn cpu_gpu_logits_close() {
-        let _guard = DEVICE_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let Some(cpu) = load_on("cpu") else { return };
-        let Some(gpu) = load_on("cuda:0") else { return };
-        assert!(!cpu.device.is_cuda() && gpu.device.is_cuda());
-
-        let cpu_logits: Vec<f32> =
-            PASSAGES.iter().map(|p| cpu.score(Q, p).expect("cpu score")).collect();
-        let gpu_logits: Vec<f32> =
-            PASSAGES.iter().map(|p| gpu.score(Q, p).expect("gpu score")).collect();
-
-        let mut max_abs = 0f32;
-        for (i, (c, g)) in cpu_logits.iter().zip(gpu_logits.iter()).enumerate() {
-            let d = (c - g).abs();
-            max_abs = max_abs.max(d);
-            assert!(d < 1e-2, "pair {i}: cpu {c} vs gpu {g} differ by {d} (>1e-2)");
-        }
-        eprintln!("cpu_gpu_logits_close: max abs diff = {max_abs:e}");
-    }
-}
-
 // ----- Weight loader (mirrors loader.rs; reranker-pinned) --------------------
 
 struct LoadedWeights {
@@ -974,4 +773,224 @@ fn sha256_file(path: &Path) -> std::io::Result<String> {
     }
     // digest 0.11 `Array` output: format to identical lowercase, zero-padded hex.
     Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
+}
+
+// ----- Tests (default-reranker only; uses the locally cached pinned model) ----
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Load the pinned reranker from the local cache, or skip the test if it is
+    /// unavailable (offline CI with a cold cache). Locally the model is cached so
+    /// these tests DO execute the real forward — they are not vacuously green.
+    fn load_or_skip() -> Option<CandleTinyBertReranker> {
+        match CandleTinyBertReranker::try_load() {
+            Ok(m) => Some(m),
+            Err(e) => {
+                crate::live::require_live_or_skip(&format!(
+                    "SKIP: reranker model unavailable ({e})"
+                ));
+                None
+            }
+        }
+    }
+
+    const QUERY: &str = "What is the capital of France?";
+    // Three passages of deliberately DIFFERENT token lengths so that batching
+    // forces right-padding to L_max — this is what exercises the pad/mask path.
+    const PASSAGES: [&str; 3] = [
+        "Paris.",
+        "Paris is the capital and most populous city of France.",
+        "France is a country in Western Europe with several overseas regions and \
+         territories; its capital and largest city is Paris, a major global center \
+         for art, fashion, gastronomy, and culture, situated on the river Seine.",
+    ];
+
+    /// THE load-bearing test: batched scoring must equal per-pair scoring within
+    /// tolerance on pairs of differing token lengths (proves pad + mask).
+    #[test]
+    fn score_batch_matches_per_pair() {
+        let Some(model) = load_or_skip() else { return };
+
+        let per_pair: Vec<f32> =
+            PASSAGES.iter().map(|p| model.score(QUERY, p).expect("per-pair score")).collect();
+        let batched = model.score_batch(QUERY, &PASSAGES).expect("batched score");
+
+        assert_eq!(batched.len(), PASSAGES.len(), "one logit per passage, order preserved");
+        let mut max_abs = 0f32;
+        for (i, (b, p)) in batched.iter().zip(per_pair.iter()).enumerate() {
+            let d = (b - p).abs();
+            max_abs = max_abs.max(d);
+            assert!(
+                d < 1e-3,
+                "pair {i}: batched {b} vs per-pair {p} differ by {d} (>1e-3); pad/mask is wrong"
+            );
+        }
+        eprintln!("score_batch vs per-pair max abs diff = {max_abs:e}");
+    }
+
+    /// Determinism: identical input → byte-identical output across two calls.
+    #[test]
+    fn score_batch_is_deterministic() {
+        let Some(model) = load_or_skip() else { return };
+        let a = model.score_batch(QUERY, &PASSAGES).expect("batch a");
+        let b = model.score_batch(QUERY, &PASSAGES).expect("batch b");
+        assert_eq!(a, b, "batched scoring must be deterministic");
+    }
+
+    /// A very short passage mixed with a ~512-cap (truncated) passage in one batch
+    /// still matches per-pair — exercises the maximum padding span.
+    #[test]
+    fn score_batch_short_plus_capped() {
+        let Some(model) = load_or_skip() else { return };
+        let long = "lorem ipsum ".repeat(2000); // far exceeds 512 tokens → truncated
+        let passages: Vec<&str> = vec!["hi", long.as_str()];
+
+        let per_pair: Vec<f32> =
+            passages.iter().map(|p| model.score(QUERY, p).expect("per-pair")).collect();
+        let batched = model.score_batch(QUERY, &passages).expect("batched");
+        for (i, (b, p)) in batched.iter().zip(per_pair.iter()).enumerate() {
+            assert!((b - p).abs() < 1e-3, "pair {i}: {b} vs {p} (short+capped batch)");
+        }
+    }
+
+    /// Chunk-boundary correctness: a batch of N > `MAX_CE_BATCH` pairs (spanning
+    /// two full chunks plus a partial trailing chunk), of DIFFERING token lengths
+    /// so each chunk pads to a different per-chunk `L_max`, must still equal
+    /// per-pair `score` within tolerance AND preserve input order across chunk
+    /// boundaries. This is the load-bearing test for the OOM-bounding fix: it
+    /// proves the chunk loop concatenates per-chunk results in order and that
+    /// per-chunk (rather than whole-batch) padding does not perturb any logit.
+    #[test]
+    fn score_batch_spans_chunk_boundaries() {
+        let Some(model) = load_or_skip() else { return };
+
+        // Spans 2 full chunks + a 3-element partial chunk (e.g. 67 at MAX=32).
+        let n = MAX_CE_BATCH * 2 + 3;
+        // Differing lengths so per-chunk L_max varies across chunk boundaries.
+        let owned: Vec<String> =
+            (0..n).map(|i| "Paris is the capital of France. ".repeat(1 + (i % 7))).collect();
+        let passages: Vec<&str> = owned.iter().map(String::as_str).collect();
+
+        let per_pair: Vec<f32> =
+            passages.iter().map(|p| model.score(QUERY, p).expect("per-pair score")).collect();
+        let batched = model.score_batch(QUERY, &passages).expect("batched score");
+
+        assert_eq!(batched.len(), n, "one logit per passage across all chunks, order preserved");
+        let mut max_abs = 0f32;
+        for (i, (b, p)) in batched.iter().zip(per_pair.iter()).enumerate() {
+            let d = (b - p).abs();
+            max_abs = max_abs.max(d);
+            assert!(
+                d < 1e-3,
+                "pair {i}: batched {b} vs per-pair {p} differ by {d} (>1e-3) across chunk boundary"
+            );
+        }
+        eprintln!("score_batch_spans_chunk_boundaries: N={n} (MAX_CE_BATCH={MAX_CE_BATCH}), max abs diff = {max_abs:e}");
+    }
+
+    /// Empty batch → Ok(vec![]) with no forward.
+    #[test]
+    fn score_batch_empty() {
+        let Some(model) = load_or_skip() else { return };
+        let out = model.score_batch(QUERY, &[]).expect("empty batch");
+        assert!(out.is_empty(), "empty passages → empty output");
+    }
+}
+
+// ----- GPU smoke + CPU↔GPU closeness (rerank-cuda only) ---------------------
+
+/// 0.8.12 — these only build/run under `--features rerank-cuda` on a CUDA host;
+/// the default CPU test suite never compiles them. They prove (1) the GPU device
+/// resolves + a forward runs end-to-end returning a FINITE logit, and (2) the
+/// GPU port is numerically faithful: GPU logits match the CPU logits within a
+/// tolerance, so the opt-in does not silently change scores. If the pinned model
+/// is not cached the tests skip (no network in CI), exactly like the CPU suite.
+#[cfg(all(test, feature = "rerank-cuda"))]
+mod gpu_tests {
+    use super::*;
+    use crate::ENV_RERANK_DEVICE;
+    use std::sync::Mutex;
+
+    const Q: &str = "What is the capital of France?";
+    const PASSAGES: [&str; 3] = [
+        "Paris.",
+        "Paris is the capital and most populous city of France.",
+        "France is a country in Western Europe; its capital and largest city is \
+         Paris, a major global center for art, fashion, and culture.",
+    ];
+
+    /// `FATHOMDB_RERANK_DEVICE` is process-global, and `cargo test` runs `#[test]`
+    /// fns in parallel within one binary. Each test takes this lock for its WHOLE
+    /// body so the env var it sets cannot be observed/overwritten by a sibling
+    /// test's load (which would resolve the wrong device and either compare the
+    /// wrong backends or build a CPU model where CUDA was expected). `unwrap_or_else
+    /// (into_inner)` so one panicking test does not poison-cascade into the other
+    /// (the real failure still surfaces in the test that panicked).
+    static DEVICE_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Load a reranker with `FATHOMDB_RERANK_DEVICE` set to `dev` for the duration
+    /// of construction, then RESTORE the previous value (not blindly remove it).
+    /// The device is read once at load time and stored in the struct, so the env
+    /// only needs to be stable across this call. Caller MUST hold `DEVICE_ENV_LOCK`.
+    /// Returns None (skip) if the model is uncached.
+    fn load_on(dev: &str) -> Option<CandleTinyBertReranker> {
+        let prev = std::env::var_os(ENV_RERANK_DEVICE);
+        std::env::set_var(ENV_RERANK_DEVICE, dev);
+        let m = match CandleTinyBertReranker::try_load() {
+            Ok(m) => Some(m),
+            Err(e) => {
+                crate::live::require_live_or_skip(&format!(
+                    "SKIP gpu_tests: reranker model unavailable ({e})"
+                ));
+                None
+            }
+        };
+        match prev {
+            Some(v) => std::env::set_var(ENV_RERANK_DEVICE, v),
+            None => std::env::remove_var(ENV_RERANK_DEVICE),
+        }
+        m
+    }
+
+    /// Smoke: the reranker loads on cuda:0 and scores one pair to a finite logit.
+    #[test]
+    fn gpu_loads_and_scores_finite() {
+        let _guard = DEVICE_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(model) = load_on("cuda:0") else { return };
+        assert!(
+            model.device.is_cuda(),
+            "FATHOMDB_RERANK_DEVICE=cuda:0 must resolve to a CUDA device"
+        );
+        let logit = model.score(Q, PASSAGES[1]).expect("gpu score");
+        assert!(logit.is_finite(), "gpu logit must be finite, got {logit}");
+        eprintln!("gpu_loads_and_scores_finite: cuda:0 logit = {logit}");
+    }
+
+    /// CPU↔GPU numeric closeness: the same pairs scored on CPU and on cuda:0 must
+    /// agree within tolerance (different BLAS/kernels → not bit-identical, but the
+    /// port must not change the ranking-relevant logit). Tolerance is generous
+    /// relative to the ~unit-scale logits but far tighter than any score gap that
+    /// would flip a ranking.
+    #[test]
+    fn cpu_gpu_logits_close() {
+        let _guard = DEVICE_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(cpu) = load_on("cpu") else { return };
+        let Some(gpu) = load_on("cuda:0") else { return };
+        assert!(!cpu.device.is_cuda() && gpu.device.is_cuda());
+
+        let cpu_logits: Vec<f32> =
+            PASSAGES.iter().map(|p| cpu.score(Q, p).expect("cpu score")).collect();
+        let gpu_logits: Vec<f32> =
+            PASSAGES.iter().map(|p| gpu.score(Q, p).expect("gpu score")).collect();
+
+        let mut max_abs = 0f32;
+        for (i, (c, g)) in cpu_logits.iter().zip(gpu_logits.iter()).enumerate() {
+            let d = (c - g).abs();
+            max_abs = max_abs.max(d);
+            assert!(d < 1e-2, "pair {i}: cpu {c} vs gpu {g} differ by {d} (>1e-2)");
+        }
+        eprintln!("cpu_gpu_logits_close: max abs diff = {max_abs:e}");
+    }
 }

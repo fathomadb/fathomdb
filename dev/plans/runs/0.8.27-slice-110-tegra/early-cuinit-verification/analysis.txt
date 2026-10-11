@@ -1,0 +1,172 @@
+== cost-hook-installed-node25: 10 / 10 pass  [node=v25.9.0 count=10 flags= start=2026-10-05T13:29:50Z]
+   stderr lines per run: [0]
+   import ms median=32.4 min=30.7 max=141.8 (n=10)
+   import VmSize delta MiB median=63787.0 min=63787.0 max=63788.0 (n=10); VmRSS delta MiB median=11.0 min=10.0 max=15.0 (n=10)
+   heapUsed MiB before open median=5.0 min=5.0 max=5.0 (n=10)
+== cost-nohook-installed-node25: 10 / 10 pass  [node=v25.9.0 count=10 flags= start=2026-10-05T13:29:53Z]
+   stderr lines per run: [0]
+   import ms median=21.0 min=19.9 max=26.6 (n=10)
+   import VmSize delta MiB median=821.0 min=821.0 max=821.0 (n=10); VmRSS delta MiB median=8.0 min=6.0 max=11.0 (n=10)
+   heapUsed MiB before open median=5.0 min=5.0 max=5.0 (n=10)
+== cost-skipped-installed-node25: 10 / 10 pass  [node=v25.9.0 count=10 flags= start=2026-10-05T13:29:52Z]
+   stderr lines per run: [0]
+   import ms median=20.9 min=18.7 max=27.1 (n=10)
+   import VmSize delta MiB median=821.0 min=821.0 max=821.0 (n=10); VmRSS delta MiB median=10.0 min=8.0 max=12.0 (n=10)
+   heapUsed MiB before open median=5.0 min=5.0 max=5.0 (n=10)
+== cpu-intree-node25: 3 / 3 pass  [node=v25.9.0 count=3 flags= start=2026-10-05T13:29:43Z]
+   stderr lines per run: [0]
+   import ms median=20.4 min=19.7 max=20.5 (n=3)
+   import VmSize delta MiB median=820.0 min=820.0 max=821.0 (n=3); VmRSS delta MiB median=8.0 min=8.0 max=8.0 (n=3)
+   heapUsed MiB before open median=5.0 min=5.0 max=5.0 (n=3)
+   steady embed ms (CPU): median=28.9 min=28.9 max=41.7 (n=3)
+   embedder device, reason: [('cpu', None)]
+   open ms median=287.4 min=284.0 max=291.0 (n=3); first embed ms median=29.2 min=26.2 max=33.8 (n=3)
+== early-intree-node24-h1000000: 5 / 5 pass  [node=v24.15.0 count=5 flags= start=2026-10-05T13:28:44Z]
+   stderr lines per run: [0]
+   import ms median=32.5 min=31.4 max=137.2 (n=5)
+   import VmSize delta MiB median=63788.0 min=63788.0 max=63788.0 (n=5); VmRSS delta MiB median=10.0 min=10.0 max=15.0 (n=5)
+   heapUsed MiB before open median=177.0 min=156.0 max=180.0 (n=5)
+   inferred allocator: 2 synchronous, 3 stream-ordered
+   steady embed ms, synchronous: median=24.8 min=24.4 max=25.3 (n=2)
+   steady embed ms, stream-ordered: median=13.9 min=11.8 max=15.8 (n=3)
+   median ratio synchronous / stream-ordered: 1.79
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=137.0 min=137.0 max=140.0 (n=5)
+   open ms median=1590.7 min=1325.3 max=1626.6 (n=5); first embed ms median=47.2 min=38.8 max=60.8 (n=5)
+== early-intree-node24-h400000: 5 / 5 pass  [node=v24.15.0 count=5 flags= start=2026-10-05T13:28:32Z]
+   stderr lines per run: [0]
+   import ms median=32.5 min=27.1 max=140.4 (n=5)
+   import VmSize delta MiB median=63788.0 min=63788.0 max=64803.0 (n=5); VmRSS delta MiB median=12.0 min=10.0 max=13.0 (n=5)
+   heapUsed MiB before open median=77.0 min=76.0 max=77.0 (n=5)
+   inferred allocator: 3 synchronous, 2 stream-ordered
+   steady embed ms, synchronous: median=25.1 min=24.6 max=25.5 (n=3)
+   steady embed ms, stream-ordered: median=11.8 min=10.1 max=13.4 (n=2)
+   median ratio synchronous / stream-ordered: 2.13
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=139.0 min=137.0 max=140.0 (n=5)
+   open ms median=1333.9 min=1301.2 max=1628.0 (n=5); first embed ms median=61.9 min=49.3 max=68.7 (n=5)
+== early-intree-node25-h1000000: 15 / 15 pass  [node=v25.9.0 count=15 flags= start=2026-10-05T13:27:55Z]
+   stderr lines per run: [0]
+   import ms median=32.0 min=26.2 max=137.9 (n=15)
+   import VmSize delta MiB median=63788.0 min=63787.0 max=64465.0 (n=15); VmRSS delta MiB median=12.0 min=10.0 max=13.0 (n=15)
+   heapUsed MiB before open median=158.0 min=157.0 max=181.0 (n=15)
+   inferred allocator: 7 synchronous, 8 stream-ordered
+   steady embed ms, synchronous: median=25.1 min=24.9 max=25.4 (n=7)
+   steady embed ms, stream-ordered: median=11.3 min=8.6 max=14.7 (n=8)
+   median ratio synchronous / stream-ordered: 2.22
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=137.0 min=137.0 max=144.0 (n=15)
+   open ms median=1579.8 min=1290.6 max=1603.8 (n=15); first embed ms median=50.3 min=41.2 max=74.3 (n=15)
+== early-intree-node25-h400000: 15 / 15 pass  [node=v25.9.0 count=15 flags= start=2026-10-05T13:27:21Z]
+   stderr lines per run: [0]
+   import ms median=32.1 min=26.1 max=138.6 (n=15)
+   import VmSize delta MiB median=63788.0 min=63787.0 max=63788.0 (n=15); VmRSS delta MiB median=11.0 min=10.0 max=15.0 (n=15)
+   heapUsed MiB before open median=69.0 min=69.0 max=74.0 (n=15)
+   inferred allocator: 11 synchronous, 4 stream-ordered
+   steady embed ms, synchronous: median=25.4 min=24.7 max=31.9 (n=11)
+   steady embed ms, stream-ordered: median=12.8 min=10.8 max=14.4 (n=4)
+   median ratio synchronous / stream-ordered: 1.98
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=140.0 min=137.0 max=140.0 (n=15)
+   open ms median=1302.2 min=1286.6 max=1590.5 (n=15); first embed ms median=59.7 min=40.7 max=77.8 (n=15)
+== early-intree-node26-h1000000: 5 / 5 pass  [node=v26.10.0 count=5 flags= start=2026-10-05T13:29:08Z]
+   stderr lines per run: [0]
+   import ms median=32.2 min=27.0 max=144.3 (n=5)
+   import VmSize delta MiB median=63787.0 min=63787.0 max=64126.0 (n=5); VmRSS delta MiB median=11.0 min=10.0 max=12.0 (n=5)
+   heapUsed MiB before open median=180.0 min=161.0 max=181.0 (n=5)
+   inferred allocator: 3 synchronous, 2 stream-ordered
+   steady embed ms, synchronous: median=27.1 min=24.6 max=27.4 (n=3)
+   steady embed ms, stream-ordered: median=12.4 min=11.6 max=13.3 (n=2)
+   median ratio synchronous / stream-ordered: 2.18
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=140.0 min=137.0 max=140.0 (n=5)
+   open ms median=1351.5 min=1324.2 max=1633.5 (n=5); first embed ms median=61.2 min=38.8 max=81.0 (n=5)
+== early-intree-node26-h400000: 5 / 5 pass  [node=v26.10.0 count=5 flags= start=2026-10-05T13:28:57Z]
+   stderr lines per run: [0]
+   import ms median=32.3 min=27.3 max=141.6 (n=5)
+   import VmSize delta MiB median=64126.0 min=63787.0 max=64126.0 (n=5); VmRSS delta MiB median=12.0 min=10.0 max=12.0 (n=5)
+   heapUsed MiB before open median=69.0 min=69.0 max=79.0 (n=5)
+   inferred allocator: 5 synchronous, 0 stream-ordered
+   steady embed ms, synchronous: median=25.5 min=24.6 max=26.5 (n=5)
+   steady embed ms, stream-ordered: -
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=140.0 min=139.0 max=142.0 (n=5)
+   open ms median=1324.6 min=1315.8 max=1336.1 (n=5); first embed ms median=57.0 min=52.1 max=62.1 (n=5)
+== late-installed-node25-h1000000: 0 / 5 pass  [node=v25.9.0 count=5 flags= start=2026-10-05T13:29:27Z]
+   stderr lines per run: [0]
+   FAIL run-1 step=open code=FDB_EMBED_DEVICE_POLICY kind=cuda_probe_failed heapUsedMiB=176
+        message=cuda:0 requested but unavailable: CudaProbeFailed; cuInit returned CUDA_ERROR_OUT_OF_MEMORY: the CUDA driver could not reserve its range of the process address space, which is usually fragmented by a large JavaScript heap; import fathomdb before building large in-memory data (at the top of the entry module), or start Node with --import fathomdb
+   FAIL run-2 step=open code=FDB_EMBED_DEVICE_POLICY kind=cuda_probe_failed heapUsedMiB=176
+        message=cuda:0 requested but unavailable: CudaProbeFailed; cuInit returned CUDA_ERROR_OUT_OF_MEMORY: the CUDA driver could not reserve its range of the process address space, which is usually fragmented by a large JavaScript heap; import fathomdb before building large in-memory data (at the top of the entry module), or start Node with --import fathomdb
+   FAIL run-3 step=open code=FDB_EMBED_DEVICE_POLICY kind=cuda_probe_failed heapUsedMiB=175
+        message=cuda:0 requested but unavailable: CudaProbeFailed; cuInit returned CUDA_ERROR_OUT_OF_MEMORY: the CUDA driver could not reserve its range of the process address space, which is usually fragmented by a large JavaScript heap; import fathomdb before building large in-memory data (at the top of the entry module), or start Node with --import fathomdb
+   FAIL run-4 step=open code=FDB_EMBED_DEVICE_POLICY kind=cuda_probe_failed heapUsedMiB=174
+        message=cuda:0 requested but unavailable: CudaProbeFailed; cuInit returned CUDA_ERROR_OUT_OF_MEMORY: the CUDA driver could not reserve its range of the process address space, which is usually fragmented by a large JavaScript heap; import fathomdb before building large in-memory data (at the top of the entry module), or start Node with --import fathomdb
+   FAIL run-5 step=open code=FDB_EMBED_DEVICE_POLICY kind=cuda_probe_failed heapUsedMiB=175
+        message=cuda:0 requested but unavailable: CudaProbeFailed; cuInit returned CUDA_ERROR_OUT_OF_MEMORY: the CUDA driver could not reserve its range of the process address space, which is usually fragmented by a large JavaScript heap; import fathomdb before building large in-memory data (at the top of the entry module), or start Node with --import fathomdb
+   import ms median=32.5 min=32.3 max=134.1 (n=5)
+   import VmSize delta MiB median=863.0 min=862.0 max=863.0 (n=5); VmRSS delta MiB median=10.0 min=9.0 max=12.0 (n=5)
+   heapUsed MiB before open median=175.0 min=174.0 max=176.0 (n=5)
+== late-nodeoptions-installed-node25-h1000000: 3 / 3 pass  [node=v25.9.0 count=3 flags= start=2026-10-05T13:31:01Z]
+   stderr lines per run: [0]
+   import ms median=0.9 min=0.9 max=0.9 (n=3)
+   import VmSize delta MiB median=0.0 min=0.0 max=0.0 (n=3); VmRSS delta MiB median=0.0 min=0.0 max=0.0 (n=3)
+   heapUsed MiB before open median=158.0 min=158.0 max=161.0 (n=3)
+   inferred allocator: 3 synchronous, 0 stream-ordered
+   steady embed ms, synchronous: median=24.8 min=24.6 max=30.6 (n=3)
+   steady embed ms, stream-ordered: -
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=140.0 min=140.0 max=140.0 (n=3)
+   open ms median=1339.1 min=1320.1 max=1347.8 (n=3); first embed ms median=58.8 min=52.0 max=66.0 (n=3)
+== late-preimport-installed-node25-h1000000: 5 / 5 pass  [node=v25.9.0 count=5 flags=--import fathomdb start=2026-10-05T13:29:30Z]
+   stderr lines per run: [0]
+   import ms median=0.9 min=0.9 max=0.9 (n=5)
+   import VmSize delta MiB median=0.0 min=0.0 max=0.0 (n=5); VmRSS delta MiB median=0.0 min=0.0 max=0.0 (n=5)
+   heapUsed MiB before open median=158.0 min=158.0 max=161.0 (n=5)
+   inferred allocator: 5 synchronous, 0 stream-ordered
+   steady embed ms, synchronous: median=25.3 min=24.4 max=29.8 (n=5)
+   steady embed ms, stream-ordered: -
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=140.0 min=140.0 max=140.0 (n=5)
+   open ms median=1340.9 min=1334.5 max=1355.1 (n=5); first embed ms median=55.8 min=52.3 max=73.7 (n=5)
+== novisible-auto-intree-node25: 3 / 3 pass  [node=v25.9.0 count=3 flags= start=2026-10-05T13:29:46Z]
+   stderr lines per run: [0]
+   import ms median=32.2 min=30.5 max=143.8 (n=3)
+   import VmSize delta MiB median=863.0 min=863.0 max=863.0 (n=3); VmRSS delta MiB median=11.0 min=10.0 max=12.0 (n=3)
+   heapUsed MiB before open median=5.0 min=5.0 max=5.0 (n=3)
+   steady embed ms (CPU): median=44.1 min=29.0 max=44.5 (n=3)
+   embedder device, reason: [('cpu', 'no_visible_cuda_device')]
+   open ms median=299.1 min=297.1 max=299.9 (n=3); first embed ms median=32.3 min=31.7 max=32.5 (n=3)
+== small-installed-node25: 10 / 10 pass  [node=v25.9.0 count=10 flags= start=2026-10-05T13:26:54Z]
+   stderr lines per run: [0]
+   import ms median=32.6 min=29.3 max=144.2 (n=10)
+   import VmSize delta MiB median=63787.5 min=63787.0 max=64465.0 (n=10); VmRSS delta MiB median=12.5 min=11.0 max=14.0 (n=10)
+   heapUsed MiB before open median=5.0 min=5.0 max=5.0 (n=10)
+   inferred allocator: 6 synchronous, 4 stream-ordered
+   steady embed ms, synchronous: median=25.2 min=24.5 max=26.5 (n=6)
+   steady embed ms, stream-ordered: median=13.1 min=10.9 max=14.4 (n=4)
+   median ratio synchronous / stream-ordered: 1.93
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=140.0 min=137.0 max=144.0 (n=10)
+   open ms median=1295.3 min=1267.3 max=1576.4 (n=10); first embed ms median=57.8 min=41.2 max=73.6 (n=10)
+== small-intree-node25: 10 / 10 pass  [node=v25.9.0 count=10 flags= start=2026-10-05T13:26:33Z]
+   stderr lines per run: [0]
+   import ms median=32.0 min=26.2 max=137.0 (n=10)
+   import VmSize delta MiB median=63788.0 min=63787.0 max=63788.0 (n=10); VmRSS delta MiB median=11.5 min=10.0 max=15.0 (n=10)
+   heapUsed MiB before open median=5.0 min=5.0 max=5.0 (n=10)
+   inferred allocator: 6 synchronous, 4 stream-ordered
+   steady embed ms, synchronous: median=25.4 min=24.8 max=30.5 (n=6)
+   steady embed ms, stream-ordered: median=12.9 min=9.9 max=14.9 (n=4)
+   median ratio synchronous / stream-ordered: 1.97
+   embedder device, reason: [('cuda', None)]
+   witness delta MiB median=139.0 min=106.0 max=140.0 (n=10)
+   open ms median=1277.6 min=1261.7 max=1580.2 (n=10); first embed ms median=53.7 min=38.9 max=80.1 (n=10)
+== distinct leading embedding values by device: [('cpu', (-0.050924, -0.002629, 0.018068)), ('cuda', (-0.050924, -0.002629, 0.018068))]
+== per-series synchronous / stream-ordered steady-embed median ratios:
+   early-intree-node24-h1000000: 1.79
+   early-intree-node24-h400000: 2.13
+   early-intree-node25-h1000000: 2.22
+   early-intree-node25-h400000: 1.98
+   early-intree-node26-h1000000: 2.18
+   small-installed-node25: 1.93
+   small-intree-node25: 1.97

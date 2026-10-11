@@ -1,4 +1,10 @@
-#![cfg(feature = "test-hooks")]
+// `worker_publication_never_repairs_a_partial_projection_tuple` calls
+// `Engine::pause_projection_worker_after_wal_transaction_for_test` and
+// `Engine::pause_projection_commit_failure_cleanup_for_test`, both
+// `#[cfg(debug_assertions)]`-only (never available in a release build), so
+// this whole file does not compile under `--release --features test-hooks`
+// without also requiring debug_assertions.
+#![cfg(all(feature = "test-hooks", debug_assertions))]
 
 use std::sync::{Arc, Barrier};
 use std::thread;

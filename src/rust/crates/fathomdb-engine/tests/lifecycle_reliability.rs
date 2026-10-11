@@ -1,13 +1,25 @@
-use std::collections::BTreeSet;
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use fathomdb_engine::lifecycle::{Event, EventCategory, EventSource};
-use fathomdb_engine::{Engine, ProjectionRole, ProjectionSpec};
+use fathomdb_engine::Engine;
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
+
+// AC-021 measures `Engine::rebuild_projections`, which only exists behind the
+// `operator` feature (dev/design/bindings.md's recovery-clean default
+// surface). These imports are exclusive to AC-021 and its CapturingSubscriber
+// helper below, so they stay gated rather than widening the release-default
+// engine surface; the workspace verify gate unifies `operator` on for
+// `fathomdb-cli`, so AC-021 still runs under `cargo test --workspace`.
+#[cfg(feature = "operator")]
+use fathomdb_engine::lifecycle::{Event, EventCategory, EventSource};
+#[cfg(feature = "operator")]
+use fathomdb_engine::{ProjectionRole, ProjectionSpec};
+#[cfg(feature = "operator")]
+use std::collections::BTreeSet;
+#[cfg(feature = "operator")]
+use std::sync::{Arc, Mutex};
 
 fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
@@ -154,11 +166,19 @@ fn fd_count() -> usize {
     count as usize
 }
 
+// AC-021 measures `Engine::rebuild_projections`, which only exists behind the
+// `operator` feature (dev/design/bindings.md's recovery-clean default
+// surface). CapturingSubscriber and AC-021 below are exclusive to that
+// feature, so they stay gated rather than widening the release-default
+// engine surface; the workspace verify gate unifies `operator` on for
+// `fathomdb-cli`, so AC-021 still runs under `cargo test --workspace`.
+#[cfg(feature = "operator")]
 #[derive(Default)]
 struct CapturingSubscriber {
     events: Mutex<Vec<Event>>,
 }
 
+#[cfg(feature = "operator")]
 impl fathomdb_engine::lifecycle::Subscriber for CapturingSubscriber {
     fn on_event(&self, event: &Event) {
         self.events.lock().unwrap().push(event.clone());
@@ -172,6 +192,7 @@ impl fathomdb_engine::lifecycle::Subscriber for CapturingSubscriber {
 // is exercised only by `scripts/check.sh` with `AGENT_LONG=1`. The smoke
 // run does not satisfy the AC's measurement protocol on its own.
 // Catalog: `dev/test-plan.md` § Implementation Order step 3.
+#[cfg(feature = "operator")]
 #[test]
 fn ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl() {
     use fathomdb_engine::PreparedWrite;

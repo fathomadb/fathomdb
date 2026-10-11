@@ -133,11 +133,18 @@ run_tier_suite fast test-release-version-surfaces bash scripts/tests/test_releas
 run_tier_suite fast test-platform-capabilities bash scripts/tests/test_platform_capabilities.sh
 run_tier_suite fast test-sqlite-dependency-contract bash scripts/tests/test_sqlite_dependency_contract.sh
 run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_truth.sh
+run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_preparation.py
+run_tier_suite fast test-slice30-surface-comparator python3 scripts/tests/test_slice30_surface_comparator.py
+run_tier_suite fast test-test-targets python3 scripts/tests/test_test_targets.py
+run_tier_suite fast check-test-target-coverage python3 scripts/check-test-target-coverage.py
+run_tier_suite fast test-napi-build-hermetic python3 scripts/tests/test_napi_build_hermetic.py
+run_tier_suite fast test-python-artifact-gate-contract python3 scripts/tests/test_python_artifact_gate_contract.py
 run_tier_suite fast test-check-architecture-authority bash scripts/tests/test_check_architecture_authority.sh
 run_tier_suite fast test-check-design-lifecycle bash scripts/tests/test_check_design_lifecycle.sh
 run_tier_suite fast test-slice70-embedding-docs-contract bash scripts/tests/test_slice70_embedding_docs_contract.sh
 run_tier_suite fast test-slice70-cli-artifact-design bash scripts/tests/test_slice70_cli_artifact_design.sh
 run_tier_suite fast test-ac036-ptrace-blocker bash scripts/tests/test_ac036_ptrace_blocker.sh
+run_tier_suite fast test-agent-verify-markdown-scope bash scripts/tests/test_agent_verify_markdown_scope.sh
 
 # The partition gate itself is intentionally early: if a registration is
 # unassigned, there is no point spending time on the rest of the fast tier.
@@ -163,6 +170,58 @@ run_tier_suite fast test-native-artifact-receipts python3 scripts/tests/test_nat
 run_tier_suite fast test-slice65-candidate-manifest python3 scripts/tests/test_slice65_candidate_manifest.py
 run_tier_suite fast test-slice50-evidence-matrix python3 scripts/tests/test_slice50_evidence_matrix.py
 run_tier_suite fast test-dependency-policy bash scripts/tests/test_check_dependency_policy.sh
+run_tier_suite fast test-module-boundary-gate bash scripts/tests/test_module_boundary_gate.sh
+run_tier_suite fast test-slice90-runtime-configuration-owner python3 scripts/tests/test_slice90_runtime_configuration_owner.py
+run_tier_suite fast test-slice90-connection-runtime-owner python3 scripts/tests/test_slice90_connection_runtime_owner.py
+run_tier_suite fast test-slice90-open-admission-owner python3 scripts/tests/test_slice90_open_admission_owner.py
+run_tier_suite fast test-slice90-open-methods-owner python3 scripts/tests/test_slice90_open_methods_owner.py
+run_tier_suite fast test-slice90-open-startup-owner python3 scripts/tests/test_slice90_open_startup_owner.py
+run_tier_suite fast test-slice90-open-embedder-owner python3 scripts/tests/test_slice90_open_embedder_owner.py
+run_tier_suite fast test-slice90-open-cleanup-owner python3 scripts/tests/test_slice90_open_cleanup_owner.py
+run_tier_suite fast test-slice90-runtime-lifecycle-owner python3 scripts/tests/test_slice90_runtime_lifecycle_owner.py
+run_tier_suite fast test-slice90-wal-runtime-owner python3 scripts/tests/test_slice90_wal_runtime_owner.py
+run_tier_suite fast test-slice90-wal-inventory-arms-owner python3 scripts/tests/test_slice90_wal_inventory_arms_owner.py
+run_tier_suite fast test-slice90-index-projector-owner python3 scripts/tests/test_slice90_index_projector_owner.py
+run_tier_suite fast test-slice90-operator-diagnostics-owner python3 scripts/tests/test_slice90_operator_diagnostics_owner.py
+run_tier_suite fast test-slice90-operator-integrity-owner python3 scripts/tests/test_slice90_operator_integrity_owner.py
+run_tier_suite fast test-slice90-operator-recovery-owner python3 scripts/tests/test_slice90_operator_recovery_owner.py
+run_tier_suite fast test-slice90-provenance-trace-owner python3 scripts/tests/test_slice90_provenance_trace_owner.py
+run_tier_suite fast test-slice90-dependency-trace-owner python3 scripts/tests/test_slice90_dependency_trace_owner.py
+run_tier_suite fast test-slice90-data-plane-integrity-owner python3 scripts/tests/test_slice90_data_plane_integrity_owner.py
+run_tier_suite fast test-slice90-embedding-owner python3 scripts/tests/test_slice90_embedding_owner.py
+run_tier_suite fast test-slice90-projection-registry-carriers-owner python3 scripts/tests/test_slice90_projection_registry_carriers_owner.py
+run_tier_suite fast test-slice90-projection-runtime-status-owner python3 scripts/tests/test_slice90_projection_runtime_status_owner.py
+run_tier_suite fast test-slice90-projection-rebuild-owner python3 scripts/tests/test_slice90_projection_rebuild_owner.py
+run_tier_suite fast test-slice90-projection-commit-owner python3 scripts/tests/test_slice90_projection_commit_owner.py
+run_tier_suite fast test-slice90-telemetry-owner python3 scripts/tests/test_slice90_telemetry_owner.py
+run_tier_suite fast test-slice90-lifecycle-events-owner python3 scripts/tests/test_slice90_lifecycle_events_owner.py
+run_tier_suite fast test-slice90-error-mapping-owner python3 scripts/tests/test_slice90_error_mapping_owner.py
+run_tier_suite fast test-slice90-vector-constants-owner python3 scripts/tests/test_slice90_vector_constants_owner.py
+run_tier_suite fast test-slice90-erasure-bookkeeping-owner python3 scripts/tests/test_slice90_erasure_bookkeeping_owner.py
+run_tier_suite fast test-slice90-record-lifecycle-owner python3 scripts/tests/test_slice90_record_lifecycle_owner.py
+run_tier_suite fast test-slice90-temporal-epoch-owner python3 scripts/tests/test_slice90_temporal_epoch_owner.py
+run_tier_suite fast test-slice90-reader-pool-size-owner python3 scripts/tests/test_slice90_reader_pool_size_owner.py
+run_tier_suite fast test-slice90-write-cursor-owner python3 scripts/tests/test_slice90_write_cursor_owner.py
+run_tier_suite fast test-slice90-identity-helpers-owner python3 scripts/tests/test_slice90_identity_helpers_owner.py
+run_tier_suite fast test-slice90-mean-carriers-owner python3 scripts/tests/test_slice90_mean_carriers_owner.py
+run_tier_suite fast test-slice90-engine-config-owner python3 scripts/tests/test_slice90_engine_config_owner.py
+run_tier_suite fast test-slice90-write-importance-owner python3 scripts/tests/test_slice90_write_importance_owner.py
+run_tier_suite fast test-slice90-read-importance-owner python3 scripts/tests/test_slice90_read_importance_owner.py
+run_tier_suite fast test-slice90-embed-timeout-owner python3 scripts/tests/test_slice90_embed_timeout_owner.py
+run_tier_suite heavy test-slice140-test-seam-boundary python3 scripts/tests/test_slice140_test_seam_boundary.py
+run_tier_suite fast test-slice90-mean-test-seams-owner python3 scripts/tests/test_slice90_mean_test_seams_owner.py
+run_tier_suite fast test-slice90-projection-runtime-test-seams-owner python3 scripts/tests/test_slice90_projection_runtime_test_seams_owner.py
+run_tier_suite fast test-slice90-search-api-test-seams-owner python3 scripts/tests/test_slice90_search_api_test_seams_owner.py
+run_tier_suite fast test-slice90-frozen-timing-owner python3 scripts/tests/test_slice90_frozen_timing_owner.py
+run_tier_suite fast test-slice90-reader-connection-test-seams-owner python3 scripts/tests/test_slice90_reader_connection_test_seams_owner.py
+run_tier_suite fast test-slice90-dependency-trace-test-seams-owner python3 scripts/tests/test_slice90_dependency_trace_test_seams_owner.py
+run_tier_suite fast test-slice90-projection-metadata-test-seams-owner python3 scripts/tests/test_slice90_projection_metadata_test_seams_owner.py
+run_tier_suite fast test-slice90-vector-storage-test-seams-owner python3 scripts/tests/test_slice90_vector_storage_test_seams_owner.py
+run_tier_suite fast test-slice90-canonical-row-test-seams-owner python3 scripts/tests/test_slice90_canonical_row_test_seams_owner.py
+run_tier_suite fast test-slice90-writer-control-test-seams-owner python3 scripts/tests/test_slice90_writer_control_test_seams_owner.py
+run_tier_suite fast test-slice90-final-observation-test-seams-owner python3 scripts/tests/test_slice90_final_observation_test_seams_owner.py
+run_tier_suite fast test-slice90-d27-adapter-owner python3 scripts/tests/test_slice90_d27_adapter_owner.py
+run_tier_suite fast test-slice90-root-reconciliation python3 scripts/tests/test_slice90_root_reconciliation.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.
@@ -261,6 +320,11 @@ run_tier_suite fast test-check-sdk-surface-parity python3 scripts/tests/test_che
 # js-yaml@4.2.0 regression and malformed-input fail-closed arms.
 run_tier_suite fast test-check-pinned-override-rot bash scripts/tests/test_check_pinned_override_rot.sh
 
+# 0.8.27 Slice 110: the vendored cudarc's allocator fallback (synchronous
+# allocation when the default memory pool is unavailable, null zero-length
+# buffers). Pure arms run everywhere; GPU arms SKIP without a CUDA device.
+run_tier_suite fast test-vendored-cudarc bash scripts/tests/test_vendored_cudarc.sh
+
 # 0.8.23 Slice 80.1 (AC80-1/AC80-2/R80-2): glibc-floor gate for the native
 # .node/.abi3.so artifacts. objdump/readelf are stubbed in fixtures so the
 # suite runs identically regardless of host architecture; fails closed when
@@ -345,6 +409,20 @@ run_tier_suite fast test-release-contract-truth bash scripts/tests/test_release_
 # (D-80.6-1), and reject a contract that splits the shared nvcc pin or
 # re-points an x86_64 selector at the Tegra axis.
 run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_release_contract.sh
+run_tier_suite fast test-tegra-wheel-linkage bash scripts/tests/test_tegra_wheel_linkage.sh
+# The Jetson Tegra N-API wrapper fails closed off its pinned host and never
+# publishes; its separately named platform package is never injected as an
+# optional dependency (ADR-0.8.27-jetson-tegra-node-addon-distribution).
+run_tier_suite fast test-tegra-napi-build-contract bash scripts/tests/test_tegra_napi_build_contract.sh
+# The installed Tegra Node package smoke never reports a skipped, missing or
+# CPU-fallback row as a pass; its verdict runs here against evidence fixtures.
+run_tier_suite fast test-tegra-node-package-smoke bash scripts/tests/test_tegra_node_package_smoke.sh
+# The driverless ARM64 import of the Tegra Node package refuses any host but a
+# driverless non-Tegra AArch64 one; its verdict runs here against fixtures.
+run_tier_suite fast test-tegra-node-driverless-smoke bash scripts/tests/test_tegra_node_driverless_smoke.sh
+# The documented optionalDependency form for the Tegra Pages tarball installs
+# on every host and is selected only on a confirmed Jetson; offline fixtures.
+run_tier_suite fast test-tegra-node-optional-dependency-install bash scripts/tests/test_tegra_node_optional_dependency_install.sh
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 
@@ -384,8 +462,14 @@ run_tier_suite fast test-windows-wal-attribution-ci-job bash scripts/tests/test_
 # immutable candidate checkout, nonpublishing boundary, and artifact evidence.
 run_tier_suite fast test-jetson-tegra-cuda-evidence-ci-job bash scripts/tests/test_jetson_tegra_cuda_evidence_ci_job.sh
 run_tier_suite fast test-tegra-pages-publisher-ci-job bash scripts/tests/test_tegra_pages_publisher_ci_job.sh
+run_tier_suite fast test-tegra-publication-operator-path bash scripts/tests/test_tegra_publication_operator_path.sh
 run_tier_suite fast test-tegra-pages-index bash scripts/tests/test_tegra_pages_index.sh
 run_tier_suite fast test-pages-site bash scripts/tests/test_pages_site.sh
+run_tier_suite fast test-generated-public-docs python3 scripts/tests/test_generated_public_docs.py
+run_tier_suite fast test-pages-source-currency python3 scripts/tests/test_pages_source_currency.py
+run_tier_suite fast test-tegra-pages-retention bash scripts/tests/test_tegra_pages_retention.sh
+run_tier_suite fast test-tegra-pages-live-verification bash scripts/tests/test_tegra_pages_live_verification.sh
+run_tier_suite fast test-tegra-pages-retention-live bash scripts/tests/test_tegra_pages_retention_live.sh
 run_tier_suite fast test-tegra-pages-release-version bash scripts/tests/test_tegra_pages_release_version.sh
 
 # Slice 15: each release-ready runner must consume its locally built wheel and
@@ -504,6 +588,7 @@ run_tier_suite fast test-track-runner bash scripts/tests/test_track_runner.sh
 # the orphan-marker confinement rule, and the TC-37 zero-blocks hard fail. RED
 # fixtures built inline under mktemp -d; also asserts the CI job is always-on.
 run_tier_suite fast test-check-release-state-views bash scripts/tests/test_check_release_state_views.sh
+run_tier_suite fast test-runtime-checkpoints python3 scripts/tests/test_runtime_checkpoint.py
 
 # T3a: recurrence guard for the stateless Steward cold-start briefing — the
 # <=4096-byte cap, "writes no file", the zero-result hard fail, the release being
@@ -565,22 +650,25 @@ fi
 
 python_suite_skip_reason=""
 python_suite_command=()
+python_receipt_skip_reason="candidate receipt requires a checkout-owned .venv"
+python_receipt_path="$PWD/.cache/0.8.27-python-test-hooks-receipt.json"
+python_receipt_nonce="agent-test-$BASHPID"
 if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [ -d src/python/tests ]; then
   # TC-27 (0.8.20 Slice 5 fix-6): the editable binding built by the documented
   # `pip install -e 'src/python[dev]'` has no `test-hooks` surface, so
-  # `tests/conftest.py` may rebuild it with `maturin develop` — which REBINDS the
-  # active virtualenv to this source tree. This is the repo's own sanctioned dev
-  # loop, so it authorizes that rebuild, but ONLY when the interpreter we picked
-  # is the `.venv` INSIDE this checkout (`cd_repo_root` above, so in a linked
-  # worktree that is the worktree's own venv). If we fell back to a system
-  # `python3` — or to any environment that is not ours to rebind — we stay
+  # `tests/conftest.py` may build a non-editable candidate wheel in disposable
+  # scratch and install its extension into this checkout's ignored source path.
+  # The repo's sanctioned gate authorizes that operation only when the selected
+  # interpreter is the `.venv` INSIDE this checkout. If we fell back to a system
+  # `python3` — or to any environment that is not ours — we stay
   # silent and conftest degrades to visibly SKIPPING the hook-dependent tests
-  # rather than repointing a shared venv. conftest re-checks venv ownership
-  # itself; this is the outer half of a belt-and-suspenders pair. The generic
+  # rather than mutating a shared checkout. conftest re-checks venv ownership
+  # and atomically writes a nonce-bound candidate/module/SHA receipt. The generic
   # loop also skips network-hitting Python model fixtures; the cache-owning
   # default-embedder CI job runs those after warming the model cache.
   if [ "$python_bin" = ".venv/bin/python" ]; then
-    python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 FATHOMDB_TESTS_ALLOW_REBUILD=1 "$python_bin" -m pytest -q src/python/tests)
+    python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 FATHOMDB_TESTS_ALLOW_REBUILD=1 FATHOMDB_TESTS_RECEIPT="$python_receipt_path" FATHOMDB_TESTS_RECEIPT_NONCE="$python_receipt_nonce" "$python_bin" -m pytest -q src/python/tests)
+    python_receipt_skip_reason=""
   else
     python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 "$python_bin" -m pytest -q src/python/tests)
   fi
@@ -588,6 +676,7 @@ else
   python_suite_skip_reason="pytest not installed or no tests dir"
 fi
 run_tier_maybe_suite heavy test-python "$python_suite_skip_reason" "${python_suite_command[@]}"
+run_tier_maybe_suite heavy test-python-native-receipt "$python_receipt_skip_reason" python3 scripts/tests/verify_python_test_hook_receipt.py "$python_receipt_path" "$python_receipt_nonce"
 
 # PROGRAM Track Runner exercises the current LOCOMO/Mem0 harnesses directly:
 # their typed configs must retain the right track identifier through each arm
@@ -612,6 +701,18 @@ else
 fi
 run_tier_maybe_suite fast test-program-experiment-harness "$experiment_track_runner_skip_reason" "${experiment_track_runner_command[@]}"
 
+# Slice 135 measurement receipts and negative controls live outside src/python/.
+# Register the whole script suite so a normal fast/full run exercises them.
+run_tier_maybe_suite fast test-slice135-harness "$experiment_track_runner_skip_reason" \
+  env PYTHONDONTWRITEBYTECODE=1 "$python_bin" -m pytest -q -p no:cacheprovider \
+  scripts/tests/test_slice135_*.py
+slice135_node_skip_reason=""
+if ! command -v node >/dev/null 2>&1; then
+  slice135_node_skip_reason="Node.js not installed"
+fi
+run_tier_maybe_suite fast test-slice135-ts-s01-contracts "$slice135_node_skip_reason" \
+  node scripts/tests/test_slice135_ts_s01.mjs
+
 # ledgerwatch (dev/agent-tools): pure-stdlib pytest suite, no fathomdb binding
 # needed, so it runs under whichever interpreter was resolved above without the
 # maturin-rebuild dance. Wired in by DOC-HYGIENE-2 T1b — the suite existed but
@@ -630,16 +731,25 @@ run_tier_maybe_suite fast test-ledgerwatch "$ledgerwatch_skip_reason" "${ledgerw
 # TypeScript
 ts_suite_skip_reason=""
 ts_suite_command=()
+napi_execute_skip_reason="src/ts/node_modules not installed"
+napi_execute_command=()
 if [ -d src/ts/node_modules ]; then
   # The seven default-embedder TypeScript arms remain part of this ordinary
   # prework gate, but skip their live-model bodies here.  CI's
   # default-embedder-tests job owns the same suite after warming the BGE cache
   # and enables its release-surface arm there.
   ts_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 bash -c 'cd src/ts && npm test --silent')
+  napi_execute_skip_reason=""
+  napi_execute_command=(python3 scripts/tests/test_napi_build_hermetic.py --execute)
 else
   ts_suite_skip_reason="src/ts/node_modules not installed"
 fi
 run_tier_maybe_suite heavy test-ts "$ts_suite_skip_reason" "${ts_suite_command[@]}"
+run_tier_maybe_suite heavy test-napi-build-hermetic-executable "$napi_execute_skip_reason" "${napi_execute_command[@]}"
+# Jetson only: forced CUDA in a heap-heavy Node process that imported fathomdb
+# first. It needs FATHOMDB_TEGRA_NODE_PACKAGE (a CUDA-built package) and the
+# measured AGX Orin 64 GB, and prints SKIP with the reason elsewhere.
+run_tier_suite heavy test-tegra-node-early-cuinit bash scripts/tests/test_tegra_node_early_cuinit.sh
 
 # The release-surface test executes from tsc's `dist/tests` layout. Keep its
 # repository-root calculation pinned independently so its opt-in CI arm cannot

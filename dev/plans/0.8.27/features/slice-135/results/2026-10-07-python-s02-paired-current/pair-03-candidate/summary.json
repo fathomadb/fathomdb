@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "status": "VALID_S02_PAIRED_BLOCK",
+  "role": "candidate",
+  "comparison_protocol_sha256": "b9ee6b30be3e4353adcbdca99484d3be21ae9e796d066eb26f0164b9a26b7aae",
+  "invalidators": [],
+  "warnings": [
+    "host swap drift: 3 pages; child swap events: 0"
+  ],
+  "manifest_sha256": "1b823d825c543c91fca1623f31d7ed98e98836a01d5b3114f18199c6eb9cb730",
+  "environment_sha256": "48a9976f2d3bb0a3c55c9d1b1376eeae1ff89fc2efbcb4eae1cc9ff8c32d34f7",
+  "attempts_sha256": "7dd64eb8fb9a684d52f1e2063bd75ebd79745437511a9d58721f61a5dbe5de21",
+  "valid_samples": 20,
+  "median_product_ns": 5416496082,
+  "min_product_ns": 5342761094,
+  "max_product_ns": 5459659554
+}

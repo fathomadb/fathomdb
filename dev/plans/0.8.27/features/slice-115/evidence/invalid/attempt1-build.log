@@ -1,0 +1,26 @@
+Attempt 1, sandboxed external Cargo crate without copied repository lockfile:
+    Updating crates.io index
+warning: spurious network error (3 tries remaining): [6] Could not resolve hostname (Could not resolve host: index.crates.io)
+warning: spurious network error (2 tries remaining): [6] Could not resolve hostname (Could not resolve host: index.crates.io)
+warning: spurious network error (1 try remaining): [6] Could not resolve hostname (Could not resolve host: index.crates.io)
+error: failed to get `getrandom` as a dependency of package `fathomdb-engine v0.8.26`
+Caused by:
+  failed to download from `https://index.crates.io/config.json`
+Caused by:
+  [6] Could not resolve hostname (Could not resolve host: index.crates.io)
+
+Offline attempt inside sandbox:
+error: failed to download `bytemuck v1.25.2`
+Caused by:
+  unable to get packages from source
+Caused by:
+  failed to unpack package `bytemuck v1.25.2`
+Caused by:
+  failed to create directory `/home/coreyt/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytemuck-1.25.2`
+Caused by:
+  Read-only file system (os error 30)
+
+Offline attempt unconfined before repository lockfile copy:
+error: failed to download `zerocopy-derive v0.8.59`
+Caused by:
+  attempting to make an HTTP request, but --offline was specified

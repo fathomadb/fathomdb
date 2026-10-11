@@ -1,0 +1,31 @@
+[package]
+name = "fathomdb-sdk"
+description = "FathomDB Rust application SDK — the same Engine, read, graph and admin surface as the Python and TypeScript SDKs."
+readme = "README.md"
+keywords = ["database", "embedded", "sqlite", "vector-search", "sdk"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+fathomdb-embedder.workspace = true
+fathomdb-embedder-api.workspace = true
+fathomdb-engine.workspace = true
+fathomdb-schema.workspace = true
+
+[features]
+# Empty by default like the `fathomdb` facade: a default model feature would
+# unify into every workspace build. `default-embedder` reproduces the shipped
+# Python wheel and npm package behaviour.
+default = []
+default-embedder = ["fathomdb-engine/default-embedder", "fathomdb-embedder/default-embedder"]
+embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]
+embed-metal = ["default-embedder", "fathomdb-engine/embed-metal"]
+default-reranker = ["fathomdb-engine/default-reranker"]
+rerank-cuda = ["default-reranker", "fathomdb-engine/rerank-cuda"]
+rerank-metal = ["default-reranker", "fathomdb-engine/rerank-metal"]
+
+[dev-dependencies]
+tempfile = "3"

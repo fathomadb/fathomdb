@@ -8,7 +8,22 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
+SLICE20_FIX1_SOURCE="${SLICE20_FIX1_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/slice20_fix1_tests.rs}"
+WAL_RUNTIME_SOURCE="${WAL_RUNTIME_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/wal_runtime.rs}"
+CONNECTION_SOURCE="${CONNECTION_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/connection_runtime.rs}"
+OPEN_SOURCE="${OPEN_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/open.rs}"
+PROJECTION_COMMIT_SOURCE="${PROJECTION_COMMIT_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/projection_commit.rs}"
+READ_API_SOURCE="${READ_API_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/read_api.rs}"
+WAL_ATTRIBUTION_SOURCE="${WAL_ATTRIBUTION_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/wal_attribution.rs}"
+# Reader-pool ownership and completion live in their extracted module.
+READER_POOL_SOURCE="${READER_POOL_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/reader_pool.rs}"
+# `impl ProjectionRuntime` (runtime inventory replies) lives in its own module.
+RUNTIME_SOURCE="${RUNTIME_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/projection_runtime.rs}"
+PROJECTION_WORKER_SOURCE="${PROJECTION_WORKER_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/projection_worker.rs}"
+ERASURE_SOURCE="${ERASURE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/erasure.rs}"
 PY_SOURCE="${PY_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs}"
+PY_ENGINE_SOURCE="${PY_ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/engine.rs}"
+PY_TEST_SUPPORT_SOURCE="${PY_TEST_SUPPORT_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/test_support.rs}"
 PY_CONTROL="${PY_CONTROL:-$REPO_ROOT/src/python/tests/test_slice65_wal_attribution_installed.py}"
 HOOK_CONTRACT="${HOOK_CONTRACT:-$REPO_ROOT/scripts/release/smoke/python-test-hooks-v1.json}"
 PASSED=0
@@ -25,8 +40,15 @@ job_block() {
   ' "$1"
 }
 
+# assert_contains HAYSTACK NEEDLE... MESSAGE — every needle must be present.
 assert_contains() {
-  if grep -Fq -- "$2" <<<"$1"; then pass "$3"; else fail "$3 (missing: $2)"; fi
+  local haystack="$1" message="${!#}" missing=""
+  shift
+  while (($# > 1)); do
+    grep -Fq -- "$1" <<<"$haystack" || missing="${missing:+$missing, }$1"
+    shift
+  done
+  if [[ -z "$missing" ]]; then pass "$message"; else fail "$message (missing: $missing)"; fi
 }
 
 assert_absent() {
@@ -35,8 +57,8 @@ assert_absent() {
 
 function_body() {
   awk -v name="$2" '
-    $0 ~ "^    (pub )?fn " name "\\(" { inside = 1 }
-    inside && $0 ~ "^    (pub )?fn " && $0 !~ "^    (pub )?fn " name "\\(" { exit }
+    $0 ~ "^    (pub(\\(crate\\))? )?fn " name "\\(" { inside = 1 }
+    inside && $0 ~ "^    (pub(\\(crate\\))? )?fn " && $0 !~ "^    (pub(\\(crate\\))? )?fn " name "\\(" { exit }
     inside { print }
   ' "$1"
 }
@@ -279,67 +301,148 @@ for marker in \
   'fn wal_attribution_close_boundary_read_get_is_clean' \
   'fn wal_attribution_close_boundary_neighbors_is_clean' \
   'unclassified_external'; do
-  assert_contains "$(<"$SOURCE_TEST") $(<"$ENGINE_SOURCE")" "$marker" "source retains $marker"
+  assert_contains "$(<"$SOURCE_TEST") $(<"$ENGINE_SOURCE") $(<"$WAL_RUNTIME_SOURCE") $(<"$READER_POOL_SOURCE") $(<"$PROJECTION_WORKER_SOURCE")" "$marker" "source retains $marker"
 done
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_arm_next_reader_snapshot_pause_for_test' \
   'wal_attribution_checkpoint_records_for_test' \
   "installed binding exposes the rendezvous only in its test-hooks build"
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_arm_next_reader_completion_pause_for_test' \
   '_wal_attribution_binding_inventory_for_test' \
   "installed binding exposes completion and direct-inventory hooks only in its test-hooks build"
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_arm_binding_native_state_observation_for_test' \
   '_drain_binding_native_state_observations_for_test' \
   "installed binding exposes the private binding native-state observer only in its test-hooks build"
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_wal_attribution_binding_native_state_inventory_for_test' \
-  'reader_native_state_for_test()' \
-  "installed binding exposes complete native-state inventory and held-reader positive evidence"
-assert_contains "$(<"$PY_SOURCE")" \
+  "installed binding exposes complete native-state inventory"
+assert_contains "$(<"$PY_TEST_SUPPORT_SOURCE")" \
+  'fn reader_native_state_for_test(&self)' \
+  "installed binding exposes held-reader positive evidence"
+assert_contains "$(<"$PY_TEST_SUPPORT_SOURCE")" \
   '_native_raw_wal_checkpoint_for_test' \
+  "native raw-checkpoint hook implementation remains gated"
+assert_contains "$(<"$PY_SOURCE")" \
   'wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)' \
   "installed binding exposes the native child raw-checkpoint hook only in its test-hooks build"
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_arm_actual_checkpoint_observation_for_test' \
   '_drain_actual_checkpoint_observations_for_test' \
   "installed serial exposes actual-checkpoint observation only in its test-hooks build"
 assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
   'test-hooks = []' \
   "engine reader rendezvous is a non-default test feature"
-assert_contains "$(<"$ENGINE_SOURCE")" \
-  '#[cfg(any(debug_assertions, feature = "test-hooks"))]' \
+assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
+  '#[cfg(any(test, feature = "test-hooks"))]' \
+  'pub fn pause_reader_after_wal_snapshot_for_test' \
   "managed-reader hook is unavailable from shipped production builds"
-assert_contains "$(<"$ENGINE_SOURCE")" \
+if managed_reader_gate_out="$(python3 - "$SCRIPT_DIR" "$WAL_RUNTIME_SOURCE" <<'PY_GATE'
+from pathlib import Path
+import re
+import sys
+sys.path.insert(0, sys.argv[1])
+from rust_source_lex import outer_attributes
+source = Path(sys.argv[2]).read_text()
+match = re.search(r"(?m)^    pub fn pause_reader_after_wal_snapshot_for_test\(", source)
+assert match is not None, "managed-reader hook missing"
+gates = [a for a in outer_attributes(source, match.start() + 4) if a.startswith("#[cfg")]
+assert gates == ['#[cfg(any(test,feature="test-hooks"))]'], gates
+PY_GATE
+)"; then
+  pass "managed-reader hook cfg requires unit tests or explicit test-hooks"
+else
+  fail "managed-reader hook cfg requires unit tests or explicit test-hooks ($managed_reader_gate_out)"
+fi
+assert_contains "$(<"$READER_POOL_SOURCE")" \
   'wal_attribution.fire_reader_completion_pause(connection.is_autocommit())' \
+  "reader pool retains the private completion-pause seam"
+assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
   'binding_connection_inventory_for_test' \
   'checkpoint_at_rest_for_test' \
-  "engine retains private completion, inventory, and checkpoint sampler seams"
-assert_contains "$(<"$ENGINE_SOURCE")" \
+  "engine retains private inventory and checkpoint sampler seams"
+assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
+  'pub(crate) struct RuntimeConnectionInventoryRequest' \
+  'pub(crate) struct RuntimeNativeStateRequest' \
+  "WAL runtime owns both distinct inventory request carriers"
+assert_absent "$(<"$ENGINE_SOURCE")" \
+  'struct RuntimeConnectionInventoryRequest' \
+  "root no longer defines the WAL runtime inventory carrier"
+assert_contains "$(<"$PROJECTION_WORKER_SOURCE")" \
+  'fn report_runtime_connection_inventory_for_test(' \
+  'fn report_runtime_native_state_inventory_for_test(' \
+  "projection worker owns both connection-thread inventory reply arms"
+assert_absent "$(<"$ENGINE_SOURCE")" \
+  'fn report_runtime_connection_inventory_for_test(' \
+  "root no longer defines the projection connection inventory reply arm"
+assert_absent "$(<"$ENGINE_SOURCE")" \
+  'fn report_runtime_native_state_inventory_for_test(' \
+  "root no longer defines the projection native-state inventory reply arm"
+assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
   'NativeTransactionState' \
   'native_connection_state_for_test' \
-  'binding_native_state_observations' \
-  "engine retains private native SQLite transaction and statement-state observation"
+  "WAL owner retains private native SQLite transaction and statement-state observation"
 assert_contains "$(<"$ENGINE_SOURCE")" \
+  'binding_native_state_observations' \
+  "engine retains the private binding observer field"
+assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
   'connection.transaction_state(Some("main"))' \
   'connection.is_busy()' \
+  "WAL owner uses rusqlite state APIs on owning connections without custom SQLite FFI"
+assert_contains "$(<"$READER_POOL_SOURCE")" \
   'WalNativeStateInventory' \
-  "engine uses rusqlite state APIs on owning connections without custom SQLite FFI"
+  "reader pool retains the native-state reader request"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(test, feature = "test-hooks"))]' \
   'actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>' \
   "actual checkpoint observation is test/test-hooks-only"
-assert_contains "$(<"$ENGINE_SOURCE")" \
+assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
   'native_raw_wal_checkpoint_for_test' \
   'open_managed_connection' \
   "engine retains the native fresh-child raw-checkpoint seam behind the audited opener"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fresh_writer_connection_open=' \
   "source records the live fresh writer connection fact"
+if managed_owner_out="$(python3 "$SCRIPT_DIR/slice65_managed_connection_owners.py" \
+  "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" \
+  --override "lib.rs=$ENGINE_SOURCE" \
+  --override "slice20_fix1_tests.rs=$SLICE20_FIX1_SOURCE" \
+  --override "wal_runtime.rs=$WAL_RUNTIME_SOURCE" \
+  --override "connection_runtime.rs=$CONNECTION_SOURCE" \
+  --override "open.rs=$OPEN_SOURCE" \
+  --override "projection_worker.rs=$PROJECTION_WORKER_SOURCE" \
+  --override "projection_commit.rs=$PROJECTION_COMMIT_SOURCE" \
+  --override "read_api.rs=$READ_API_SOURCE" \
+  --override "reader_pool.rs=$READER_POOL_SOURCE")"; then
+  pass "source classifies every Engine-managed SQLite open"
+else
+  fail "source classifies every Engine-managed SQLite open ($managed_owner_out)"
+fi
+if unit_production_mask_out="$(python3 - "$SCRIPT_DIR" <<'PY_UNIT_MASK'
+import sys
+sys.path.insert(0, sys.argv[1])
+from slice65_managed_connection_owners import production
+body = 'fn sample() { let connection = rusqlite::Connection::open("sample.sqlite"); }\n'
+assert 'Connection::open' not in production('#[test]\n' + body)
+for ordinary in (body, '// #[test]\n' + body, 'const DECOY: &str = "#[test]";\n' + body):
+    assert 'Connection::open' in production(ordinary), ordinary
+PY_UNIT_MASK
+)"; then
+  pass "production opener inventory excludes actual unit tests and retains ordinary opener mutants"
+else
+  fail "production opener inventory excludes actual unit tests and retains ordinary opener mutants ($unit_production_mask_out)"
+fi
 assert_contains "$(<"$ENGINE_SOURCE")" \
-  'ManagedConnectionCategory' \
-  "source classifies every Engine-managed SQLite open"
+  'fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' \
+  "engine source retains the WAL-attribution tests"
+assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
+  'struct WalAttributionCollector' \
+  'enum WalAttributionRole' \
+  "WAL attribution module owns the runtime"
+assert_contains "$(<"$ERASURE_SOURCE")" \
+  'pub(crate) fn complete_erasure_at_rest(' \
+  "erasure source owns complete_erasure_at_rest"
 for marker in \
   'runtime_probe_lifecycle: Mutex<RuntimeProbeLifecycle>' \
   'struct RuntimeProbeLifecycle' \
@@ -350,19 +453,26 @@ for marker in \
   'impl Drop for RuntimeProbeRegistration' \
   'impl RuntimeProbeConnection'; do
   assert_cfg_test_near_marker \
-    "$ENGINE_SOURCE" \
+    "$WAL_RUNTIME_SOURCE" \
     "$marker" \
     "runtime-probe ladder bookkeeping is cfg(test)-only: $marker"
 done
-assert_contains "$(<"$ENGINE_SOURCE")" \
+assert_contains "$(<"$CONNECTION_SOURCE")" \
   'fn open_managed_connection' \
-  "source centralizes Engine-managed SQLite opens through the audited factory"
+  "connection owner centralizes Engine-managed SQLite opens through the audited factory"
+assert_absent "$(<"$ENGINE_SOURCE")" \
+  'fn open_managed_connection' \
+  "root no longer defines the audited connection factory"
 PRODUCTION_ENGINE_SOURCE="$(sed '/^mod tests {$/,$d' "$ENGINE_SOURCE")"
+PRODUCTION_CONNECTION_SOURCE="$(sed '/^mod tests {$/,$d' "$CONNECTION_SOURCE")"
+PRODUCTION_WAL_RUNTIME_SOURCE="$(sed '/^mod tests {$/,$d' "$WAL_RUNTIME_SOURCE")"
 FACTORY_DIRECT_OPENS="$(grep -Fc 'Connection::open(' <<<"$PRODUCTION_ENGINE_SOURCE" || true)"
+FACTORY_DIRECT_OPENS=$((FACTORY_DIRECT_OPENS + $(grep -Fc 'Connection::open(' <<<"$PRODUCTION_CONNECTION_SOURCE" || true)))
+FACTORY_DIRECT_OPENS=$((FACTORY_DIRECT_OPENS + $(grep -Fc 'Connection::open(' <<<"$PRODUCTION_WAL_RUNTIME_SOURCE" || true)))
 if [ "$FACTORY_DIRECT_OPENS" -eq 1 ]; then
   pass "only the audited factory directly opens Engine SQLite connections"
 else
-  fail "Engine production source has $FACTORY_DIRECT_OPENS direct SQLite opens; expected the one audited factory"
+  fail "Engine, WAL runtime, and connection production sources have $FACTORY_DIRECT_OPENS direct SQLite opens; expected the one audited factory"
 fi
 assert_contains "$(<"$PY_CONTROL")" \
   '--observe-baseline-first-erase' \
@@ -539,23 +649,23 @@ assert_contains "$projection_worker_body" \
 assert_absent "$projection_worker_body" \
   'retry after release' \
   "projection-worker diagnostic does not retry the original erase"
-actual_checkpoint_engine_body="$(function_body "$ENGINE_SOURCE" "complete_erasure_at_rest")"
+actual_checkpoint_engine_body="$(function_body "$ERASURE_SOURCE" "complete_erasure_at_rest")"
 assert_before_in_text \
   "$actual_checkpoint_engine_body" \
   'self.actual_checkpoint_observation_for_test(' \
   'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
-  "actual observer records immediately before the existing checkpoint call"
+  "erasure source keeps the before observer ahead of the checkpoint"
 assert_before_in_text \
   "$actual_checkpoint_engine_body" \
   'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
   'checkpoint_result.as_ref().ok().cloned()' \
-  "actual observer records immediately after the existing checkpoint call"
-actual_checkpoint_observer_body="$(function_body "$ENGINE_SOURCE" "actual_checkpoint_observation_for_test")"
+  "erasure source keeps the checkpoint ahead of the after observer result"
+actual_checkpoint_observer_body="$(function_body "$WAL_RUNTIME_SOURCE" "actual_checkpoint_observation_for_test")"
 assert_contains "$actual_checkpoint_observer_body" \
   '"python_serial" => 0' \
   "feature-built Python observer expects no cfg(test)-only runtime probes"
-normal_runtime_inventory_body="$(function_body "$ENGINE_SOURCE" "report_runtime_connection_inventory_for_test")"
-assert_contains "$(<"$ENGINE_SOURCE")" \
+normal_runtime_inventory_body="$(function_body "$RUNTIME_SOURCE" "report_runtime_connection_inventory_for_test")"
+assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
   'respond: SyncSender<(WalAttributionRole, usize, bool)>' \
   "normal actual/post-commit runtime inventory retains boolean replies"
 assert_contains "$normal_runtime_inventory_body" \
@@ -567,18 +677,18 @@ assert_absent "$normal_runtime_inventory_body" \
 assert_absent "$normal_runtime_inventory_body" \
   'NativeConnectionStateFact' \
   "normal actual/post-commit runtime inventory cannot return native state facts"
-native_runtime_inventory_body="$(function_body "$ENGINE_SOURCE" "report_runtime_native_state_inventory_for_test")"
+native_runtime_inventory_body="$(function_body "$RUNTIME_SOURCE" "report_runtime_native_state_inventory_for_test")"
 assert_contains "$native_runtime_inventory_body" \
   'Duration::from_millis(250)' \
   "binding native-state runtime inventory has its own finite timeout"
 assert_contains "$native_runtime_inventory_body" \
   'NativeConnectionStateFact' \
   "binding native-state runtime inventory has a separate fact reply"
-native_state_inventory_body="$(function_body "$ENGINE_SOURCE" "native_state_inventory_for_test")"
+native_state_inventory_body="$(function_body "$WAL_RUNTIME_SOURCE" "native_state_inventory_for_test")"
 assert_contains "$native_state_inventory_body" \
   'report_runtime_native_state_inventory_for_test' \
   "binding native-state inventory alone requests runtime native facts"
-actual_direct_inventory_body="$(function_body "$ENGINE_SOURCE" "actual_checkpoint_direct_inventory_for_test")"
+actual_direct_inventory_body="$(function_body "$WAL_RUNTIME_SOURCE" "actual_checkpoint_direct_inventory_for_test")"
 assert_contains "$actual_direct_inventory_body" \
   'report_runtime_connection_inventory_for_test' \
   "normal actual observer retains its boolean runtime inventory request"
@@ -589,9 +699,9 @@ serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident"
 assert_contains "$serial_incident_body" \
   'creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0;complete=1' \
   "installed Python serial expects no cfg(test)-only runtime probes"
-binding_inventory_body="$(function_body "$ENGINE_SOURCE" "binding_connection_inventory_for_test")"
+binding_inventory_body="$(function_body "$WAL_RUNTIME_SOURCE" "binding_connection_inventory_for_test")"
 assert_contains "$binding_inventory_body" \
-  'creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 0)' \
+  'creation != (1, READER_POOL_SIZE, 1, worker_count, 0)' \
   "installed binding inventory rejects cfg(test)-only runtime probes"
 assert_contains "$serial_incident_body" \
   'test_hooks._arm_actual_checkpoint_observation_for_test()' \
@@ -656,7 +766,307 @@ done
 
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
+  MANAGED_READER_DEBUG_MUTATED="$TMPROOT/wal-with-default-debug-hook.rs"
+  python3 - "$WAL_RUNTIME_SOURCE" "$MANAGED_READER_DEBUG_MUTATED" <<'PY_GATE'
+from pathlib import Path
+import sys
+source = Path(sys.argv[1]).read_text()
+anchor = '#[cfg(any(test, feature = "test-hooks"))]\n    #[allow(dead_code)]\n    #[doc(hidden)]\n    pub fn pause_reader_after_wal_snapshot_for_test('
+assert source.count(anchor) == 1
+Path(sys.argv[2]).write_text(source.replace(anchor, anchor.replace('any(test, feature', 'any(test, debug_assertions, feature'), 1))
+PY_GATE
+  set +e
+  managed_reader_debug_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 WAL_RUNTIME_SOURCE="$MANAGED_READER_DEBUG_MUTATED" bash "$0" 2>&1)"
+  managed_reader_debug_rc=$?
+  set -e
+  if [ "$managed_reader_debug_rc" -ne 0 ] && grep -Fq 'FAIL  managed-reader hook cfg requires unit tests or explicit test-hooks' <<<"$managed_reader_debug_out"; then
+    pass "mutation rejects managed-reader cfg widened to default debug builds"
+  else
+    fail "mutation did not reject managed-reader debug cfg widening: $managed_reader_debug_out"
+  fi
   trap 'rm -rf "$TMPROOT"' EXIT
+
+  WRONG_ENGINE_OWNER="$TMPROOT/erasure-as-engine-owner.rs"
+  cp "$ERASURE_SOURCE" "$WRONG_ENGINE_OWNER"
+  set +e
+  wrong_engine_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$WRONG_ENGINE_OWNER" ERASURE_SOURCE="$ERASURE_SOURCE" bash "$0" 2>&1)"
+  wrong_engine_owner_rc=$?
+  set -e
+  if [ "$wrong_engine_owner_rc" -ne 0 ] \
+    && grep -Fq 'engine source retains the WAL-attribution tests' <<<"$wrong_engine_owner_out"; then
+    pass "fixture proves ENGINE_SOURCE is independently injectable"
+  else
+    fail "fixture did not reject the wrong engine owner: $wrong_engine_owner_out"
+  fi
+
+  set +e
+  old_connection_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$ENGINE_SOURCE" bash "$0" 2>&1)"
+  old_connection_owner_rc=$?
+  set -e
+  if [ "$old_connection_owner_rc" -ne 0 ] \
+    && grep -Fq 'connection owner centralizes Engine-managed SQLite opens' <<<"$old_connection_owner_out"; then
+    pass "fixture rejects the old root as connection factory owner"
+  else
+    fail "fixture did not reject the old connection owner: $old_connection_owner_out"
+  fi
+
+  MISSING_CONNECTION_FACTORY="$TMPROOT/connection-without-factory.rs"
+  sed 's/fn open_managed_connection(/fn removed_managed_connection(/' \
+    "$CONNECTION_SOURCE" >"$MISSING_CONNECTION_FACTORY"
+  set +e
+  missing_connection_factory_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$MISSING_CONNECTION_FACTORY" bash "$0" 2>&1)"
+  missing_connection_factory_rc=$?
+  set -e
+  if [ "$missing_connection_factory_rc" -ne 0 ] \
+    && grep -Fq 'connection owner centralizes Engine-managed SQLite opens' <<<"$missing_connection_factory_out"; then
+    pass "fixture rejects a missing audited connection factory"
+  else
+    fail "fixture did not reject a missing connection factory: $missing_connection_factory_out"
+  fi
+
+  EXTRA_DIRECT_CONNECTION_OPEN="$TMPROOT/connection-with-extra-open.rs"
+  cp "$CONNECTION_SOURCE" "$EXTRA_DIRECT_CONNECTION_OPEN"
+  printf '\nfn unaudited_open() { let _ = Connection::open("/tmp/unaudited"); }\n' >>"$EXTRA_DIRECT_CONNECTION_OPEN"
+  set +e
+  extra_direct_open_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$EXTRA_DIRECT_CONNECTION_OPEN" bash "$0" 2>&1)"
+  extra_direct_open_rc=$?
+  set -e
+  if [ "$extra_direct_open_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite opens; expected the one audited factory' <<<"$extra_direct_open_out"; then
+    pass "fixture rejects an extra direct SQLite open in the connection owner"
+  else
+    fail "fixture did not reject an extra direct SQLite open: $extra_direct_open_out"
+  fi
+
+  WRONG_WRITER_ROLE="$TMPROOT/open-with-wrong-writer-role.rs"
+  OLD_ROOT_CATEGORY_DECOY="$TMPROOT/lib-with-old-category-token.rs"
+  python3 - "$OPEN_SOURCE" "$WRONG_WRITER_ROLE" "$ENGINE_SOURCE" "$OLD_ROOT_CATEGORY_DECOY" <<'PY'
+from pathlib import Path
+import sys
+
+open_source, wrong_open, root_source, root_decoy = map(Path, sys.argv[1:])
+source = open_source.read_text()
+assert source.count("ManagedConnectionCategory::Writer") == 1
+wrong_open.write_text(source.replace("ManagedConnectionCategory::Writer", "ManagedConnectionCategory::ReaderWorker", 1))
+root = root_source.read_text()
+assert "mod tests {" in root
+root_decoy.write_text(root.replace("mod tests {", 'const OLD_CATEGORY_TOKEN: &str = "ManagedConnectionCategory";\nmod tests {', 1))
+PY
+  set +e
+  wrong_writer_role_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 OPEN_SOURCE="$WRONG_WRITER_ROLE" ENGINE_SOURCE="$OLD_ROOT_CATEGORY_DECOY" bash "$0" 2>&1)"
+  wrong_writer_role_rc=$?
+  set -e
+  if [ "$wrong_writer_role_rc" -ne 0 ] \
+    && grep -Fq 'managed call inventory differs' <<<"$wrong_writer_role_out" \
+    && grep -Fq "('open.rs', 'open_managed_connection', 'Writer')" <<<"$wrong_writer_role_out"; then
+    pass "mutation rejects a wrong writer category despite an old-root category decoy"
+  else
+    fail "mutation missed a wrong writer category with old-root decoy: $wrong_writer_role_out"
+  fi
+
+  WRONG_CATEGORY_OWNER="$TMPROOT/reader-pool-with-writer-category.rs"
+  python3 - "$READER_POOL_SOURCE" "$WRONG_CATEGORY_OWNER" <<'PY'
+from pathlib import Path
+import sys
+
+source, output = map(Path, sys.argv[1:])
+text = source.read_text()
+declaration = "fn wrong_owner_open(path: &str, registry: &ManagedConnectionRegistry) { let _ = open_managed_connection(path, ManagedConnectionCategory::Writer, registry); }\n"
+output.write_text(text + "\n" + declaration)
+PY
+  set +e
+  wrong_category_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 READER_POOL_SOURCE="$WRONG_CATEGORY_OWNER" bash "$0" 2>&1)"
+  wrong_category_owner_rc=$?
+  set -e
+  if [ "$wrong_category_owner_rc" -ne 0 ] \
+    && grep -Fq 'managed call inventory differs' <<<"$wrong_category_owner_out" \
+    && grep -Fq "('reader_pool.rs', 'open_managed_connection', 'Writer')" <<<"$wrong_category_owner_out"; then
+    pass "mutation rejects a managed writer open in the wrong production owner"
+  else
+    fail "mutation missed a managed writer open in the wrong owner: $wrong_category_owner_out"
+  fi
+
+  MISSING_CATEGORY_REGISTRATION="$TMPROOT/connection-without-role-registration.rs"
+  sed '/managed_connections.record_open(category);/d' "$CONNECTION_SOURCE" >"$MISSING_CATEGORY_REGISTRATION"
+  set +e
+  missing_category_registration_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$MISSING_CATEGORY_REGISTRATION" bash "$0" 2>&1)"
+  missing_category_registration_rc=$?
+  set -e
+  if [ "$missing_category_registration_rc" -ne 0 ] \
+    && grep -Fq 'managed factory lacks typed category registration before SQLite open' <<<"$missing_category_registration_out"; then
+    pass "mutation rejects a managed factory that omits category registration"
+  else
+    fail "mutation missed missing category registration: $missing_category_registration_out"
+  fi
+
+  WRONG_RUNTIME_FORWARD="$TMPROOT/connection-with-wrong-runtime-category.rs"
+  python3 - "$CONNECTION_SOURCE" "$WRONG_RUNTIME_FORWARD" <<'PY'
+from pathlib import Path
+import sys
+
+source, output = map(Path, sys.argv[1:])
+text = source.read_text()
+assert text.count("        category,\n") == 1
+output.write_text(text.replace("        category,\n", "        ManagedConnectionCategory::ReaderWorker,\n", 1))
+PY
+  set +e
+  wrong_runtime_forward_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$WRONG_RUNTIME_FORWARD" bash "$0" 2>&1)"
+  wrong_runtime_forward_rc=$?
+  set -e
+  if [ "$wrong_runtime_forward_rc" -ne 0 ] \
+    && grep -Fq 'runtime opener does not forward typed category to managed factory' <<<"$wrong_runtime_forward_out"; then
+    pass "mutation rejects a runtime opener that discards its typed category"
+  else
+    fail "mutation missed a discarded runtime category: $wrong_runtime_forward_out"
+  fi
+
+  DIRECT_WORKER_OPEN="$TMPROOT/projection-worker-with-direct-open.rs"
+  python3 - "$PROJECTION_WORKER_SOURCE" "$DIRECT_WORKER_OPEN" <<'PY'
+from pathlib import Path
+import sys
+
+source, output = map(Path, sys.argv[1:])
+text = source.read_text()
+declaration = 'fn bypass_managed_factory() { let _ = Connection::open("/tmp/bypass"); }\n'
+output.write_text(text + "\n" + declaration)
+PY
+  set +e
+  direct_worker_open_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PROJECTION_WORKER_SOURCE="$DIRECT_WORKER_OPEN" bash "$0" 2>&1)"
+  direct_worker_open_rc=$?
+  set -e
+  if [ "$direct_worker_open_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$direct_worker_open_out" \
+    && grep -Fq 'projection_worker.rs' <<<"$direct_worker_open_out"; then
+    pass "mutation rejects a direct SQLite open in a moved production owner"
+  else
+    fail "mutation missed a direct SQLite open in the projection worker: $direct_worker_open_out"
+  fi
+
+  for constructor in \
+    'open_with_flags("/tmp/bypass", rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)' \
+    'open_in_memory()'; do
+    DIRECT_WORKER_VARIANT="$TMPROOT/projection-worker-with-${constructor%%(*}.rs"
+    cp "$PROJECTION_WORKER_SOURCE" "$DIRECT_WORKER_VARIANT"
+    printf '\nfn bypass_managed_factory() { let _ = Connection::%s; }\n' "$constructor" >>"$DIRECT_WORKER_VARIANT"
+    set +e
+    direct_worker_variant_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PROJECTION_WORKER_SOURCE="$DIRECT_WORKER_VARIANT" bash "$0" 2>&1)"
+    direct_worker_variant_rc=$?
+    set -e
+    if [ "$direct_worker_variant_rc" -ne 0 ] \
+      && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$direct_worker_variant_out" \
+      && grep -Fq "'projection_worker.rs'" <<<"$direct_worker_variant_out"; then
+      pass "mutation rejects projection-worker Connection::$constructor"
+    else
+      fail "mutation missed projection-worker Connection::$constructor: $direct_worker_variant_out"
+    fi
+  done
+
+  WRONG_SCHEMA_PROBE="$TMPROOT/open-with-writable-schema-probe.rs"
+  python3 - "$OPEN_SOURCE" "$WRONG_SCHEMA_PROBE" <<'PY'
+from pathlib import Path
+import sys
+
+source, output = map(Path, sys.argv[1:])
+text = source.read_text()
+original = "read_only_sqlite_uri(path),\n        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY"
+assert text.count(original) == 1
+output.write_text(text.replace(original, original.replace("READ_ONLY", "READ_WRITE"), 1))
+PY
+  set +e
+  wrong_schema_probe_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 OPEN_SOURCE="$WRONG_SCHEMA_PROBE" bash "$0" 2>&1)"
+  wrong_schema_probe_rc=$?
+  set -e
+  if [ "$wrong_schema_probe_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$wrong_schema_probe_out" \
+    && grep -Fq "('open.rs', 'read_effective_schema_version', 'open_with_flags'" <<<"$wrong_schema_probe_out"; then
+    pass "mutation rejects changing the exact read-only open schema probe"
+  else
+    fail "mutation missed a writable schema probe: $wrong_schema_probe_out"
+  fi
+
+  UNGATED_TEST_MODULE="$TMPROOT/lib-with-ungated-slice20-tests.rs"
+  UNGATED_TEST_FUNCTIONS="$TMPROOT/slice20-with-production-functions.rs"
+  python3 - "$ENGINE_SOURCE" "$UNGATED_TEST_MODULE" "$SLICE20_FIX1_SOURCE" "$UNGATED_TEST_FUNCTIONS" <<'PY'
+from pathlib import Path
+import sys
+
+source, output, test_source, test_output = map(Path, sys.argv[1:])
+text = source.read_text()
+original = "#[cfg(test)]\nmod slice20_fix1_tests;"
+assert text.count(original) == 1
+output.write_text(text.replace(original, "mod slice20_fix1_tests;", 1))
+test_text = test_source.read_text()
+assert "#[test]" in test_text
+test_output.write_text(test_text.replace("#[test]", ""))
+PY
+  set +e
+  ungated_test_module_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$UNGATED_TEST_MODULE" SLICE20_FIX1_SOURCE="$UNGATED_TEST_FUNCTIONS" bash "$0" 2>&1)"
+  ungated_test_module_rc=$?
+  set -e
+  if [ "$ungated_test_module_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$ungated_test_module_out" \
+    && grep -Fq 'slice20_fix1_tests.rs' <<<"$ungated_test_module_out"; then
+    pass "mutation rejects external test openers after module and function test gates are removed"
+  else
+    fail "mutation missed an ungated external test module: $ungated_test_module_out"
+  fi
+
+  ROOT_OPEN_AFTER_TEST_MODULE="$TMPROOT/lib-with-open-after-test-module.rs"
+  cp "$ENGINE_SOURCE" "$ROOT_OPEN_AFTER_TEST_MODULE"
+  printf '\nfn appended_bypass() { let _ = Connection::open_in_memory(); }\n' >>"$ROOT_OPEN_AFTER_TEST_MODULE"
+  set +e
+  root_open_after_test_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ROOT_OPEN_AFTER_TEST_MODULE" bash "$0" 2>&1)"
+  root_open_after_test_rc=$?
+  set -e
+  if [ "$root_open_after_test_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$root_open_after_test_out" \
+    && grep -Fq "('lib.rs', 'appended_bypass', 'open_in_memory'" <<<"$root_open_after_test_out"; then
+    pass "mutation scans production declarations after a cfg(test) module"
+  else
+    fail "mutation missed a root open after its test module: $root_open_after_test_out"
+  fi
+
+  MISSING_ERASURE_OWNER="$TMPROOT/erasure-without-completion-owner.rs"
+  sed 's/fn complete_erasure_at_rest(/fn completion_owner_removed(/' \
+    "$ERASURE_SOURCE" >"$MISSING_ERASURE_OWNER"
+  set +e
+  missing_erasure_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ENGINE_SOURCE" ERASURE_SOURCE="$MISSING_ERASURE_OWNER" bash "$0" 2>&1)"
+  missing_erasure_owner_rc=$?
+  set -e
+  if [ "$missing_erasure_owner_rc" -ne 0 ] \
+    && grep -Fq 'erasure source owns complete_erasure_at_rest' <<<"$missing_erasure_owner_out"; then
+    pass "fixture proves ERASURE_SOURCE rejects a missing completion owner"
+  else
+    fail "fixture did not reject the missing erasure owner: $missing_erasure_owner_out"
+  fi
+
+  SWAPPED_ERASURE_ORDER="$TMPROOT/erasure-with-observer-after-checkpoint.rs"
+  python3 - "$ERASURE_SOURCE" "$SWAPPED_ERASURE_ORDER" <<'PY'
+import sys
+
+source_path, output_path = sys.argv[1:]
+source = open(source_path, encoding="utf-8").read()
+owner = source.index("    pub(crate) fn complete_erasure_at_rest(")
+checkpoint = source.index(
+    "            let checkpoint_result = self.wal_checkpoint_truncate_once(false);", owner
+)
+observer = source.rfind("            #[cfg(any(test, feature = \"test-hooks\"))]", owner, checkpoint)
+observer_end = source.index("            );\n", observer) + len("            );\n")
+checkpoint_end = source.index("\n", checkpoint) + 1
+observer_block = source[observer:observer_end]
+mutated = source[:observer] + source[observer_end:checkpoint_end] + observer_block + source[checkpoint_end:]
+open(output_path, "w", encoding="utf-8").write(mutated)
+PY
+  set +e
+  swapped_erasure_order_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ENGINE_SOURCE" ERASURE_SOURCE="$SWAPPED_ERASURE_ORDER" bash "$0" 2>&1)"
+  swapped_erasure_order_rc=$?
+  set -e
+  if [ "$swapped_erasure_order_rc" -ne 0 ] \
+    && grep -Fq 'erasure source keeps the before observer ahead of the checkpoint' <<<"$swapped_erasure_order_out"; then
+    pass "fixture proves ERASURE_SOURCE ordering is independently injectable"
+  else
+    fail "fixture did not reject swapped erasure observer/checkpoint ordering: $swapped_erasure_order_out"
+  fi
 
   BINDING_WORKFLOW_PROBES_MUTATED="$TMPROOT/ci-with-binding-probes-two.yml"
   sed '/python_binding_direct_inventory=/ s/workers:2,probes:0/workers:2,probes:2/' \
@@ -672,11 +1082,11 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     fail "mutation did not fail installed-binding workflow probe count: $binding_workflow_probes_out"
   fi
 
-  BINDING_ENGINE_PROBES_MUTATED="$TMPROOT/lib-with-binding-probes-two.rs"
-  sed '/pub fn binding_connection_inventory_for_test/,/^    pub fn / s/PROJECTION_WORKERS, 0/PROJECTION_WORKERS, 2/' \
-    "$ENGINE_SOURCE" >"$BINDING_ENGINE_PROBES_MUTATED"
+  BINDING_ENGINE_PROBES_MUTATED="$TMPROOT/wal-runtime-with-binding-probes-two.rs"
+  sed '/pub fn binding_connection_inventory_for_test/,/^    pub fn / s/worker_count, 0/worker_count, 2/' \
+    "$WAL_RUNTIME_SOURCE" >"$BINDING_ENGINE_PROBES_MUTATED"
   set +e
-  binding_engine_probes_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$BINDING_ENGINE_PROBES_MUTATED" bash "$0" 2>&1)"
+  binding_engine_probes_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 WAL_RUNTIME_SOURCE="$BINDING_ENGINE_PROBES_MUTATED" bash "$0" 2>&1)"
   binding_engine_probes_rc=$?
   set -e
   if [ "$binding_engine_probes_rc" -ne 0 ] \
@@ -1007,10 +1417,10 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     fail "mutation did not fail RuntimeProbe exclusion: $actual_checkpoint_runtime_out"
   fi
 
-  RUNTIME_PROBE_LIFECYCLE_MUTATED="$TMPROOT/lib-without-runtime-probe-registration.rs"
-  sed 's/RuntimeProbeRegistration/ProbeLifecycleRegistrationRemoved/g' "$ENGINE_SOURCE" >"$RUNTIME_PROBE_LIFECYCLE_MUTATED"
+  RUNTIME_PROBE_LIFECYCLE_MUTATED="$TMPROOT/wal-runtime-without-runtime-probe-registration.rs"
+  sed 's/RuntimeProbeRegistration/ProbeLifecycleRegistrationRemoved/g' "$WAL_RUNTIME_SOURCE" >"$RUNTIME_PROBE_LIFECYCLE_MUTATED"
   set +e
-  runtime_probe_lifecycle_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$RUNTIME_PROBE_LIFECYCLE_MUTATED" bash "$0" 2>&1)"
+  runtime_probe_lifecycle_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 WAL_RUNTIME_SOURCE="$RUNTIME_PROBE_LIFECYCLE_MUTATED" bash "$0" 2>&1)"
   runtime_probe_lifecycle_rc=$?
   set -e
   if [ "$runtime_probe_lifecycle_rc" -ne 0 ] \
@@ -1018,6 +1428,40 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves runtime-probe lifecycle assertion is load-bearing"
   else
     fail "mutation did not fail runtime-probe lifecycle assertion: $runtime_probe_lifecycle_out"
+  fi
+
+  WAL_REQUEST_MISSING_OWNER="$TMPROOT/wal-runtime-without-boolean-request.rs"
+  WAL_REQUEST_OLD_ROOT_DECOY="$TMPROOT/lib-with-boolean-request-decoy.rs"
+  sed 's/pub(crate) struct RuntimeConnectionInventoryRequest/pub(crate) struct RemovedRuntimeConnectionInventoryRequest/' \
+    "$WAL_RUNTIME_SOURCE" >"$WAL_REQUEST_MISSING_OWNER"
+  cp "$ENGINE_SOURCE" "$WAL_REQUEST_OLD_ROOT_DECOY"
+  printf '\nstruct RuntimeConnectionInventoryRequest;\n' >>"$WAL_REQUEST_OLD_ROOT_DECOY"
+  set +e
+  wal_request_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$WAL_REQUEST_OLD_ROOT_DECOY" WAL_RUNTIME_SOURCE="$WAL_REQUEST_MISSING_OWNER" bash "$0" 2>&1)"
+  wal_request_owner_rc=$?
+  set -e
+  if [ "$wal_request_owner_rc" -ne 0 ] \
+    && grep -Fq 'WAL runtime owns both distinct inventory request carriers (missing: pub(crate) struct RuntimeConnectionInventoryRequest)' <<<"$wal_request_owner_out"; then
+    pass "mutation proves old-root decoy cannot replace the WAL inventory owner"
+  else
+    fail "mutation accepted missing WAL inventory owner with old-root decoy: $wal_request_owner_out"
+  fi
+
+  WORKER_ARMS_MISSING_OWNER="$TMPROOT/projection-worker-without-inventory-arms.rs"
+  WORKER_ARMS_OLD_ROOT_DECOY="$TMPROOT/lib-with-inventory-arm-decoy.rs"
+  sed 's/fn report_runtime_connection_inventory_for_test(/fn removed_runtime_connection_inventory_for_test(/' \
+    "$PROJECTION_WORKER_SOURCE" >"$WORKER_ARMS_MISSING_OWNER"
+  cp "$ENGINE_SOURCE" "$WORKER_ARMS_OLD_ROOT_DECOY"
+  printf '\nfn report_runtime_connection_inventory_for_test() {}\n' >>"$WORKER_ARMS_OLD_ROOT_DECOY"
+  set +e
+  worker_arms_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$WORKER_ARMS_OLD_ROOT_DECOY" PROJECTION_WORKER_SOURCE="$WORKER_ARMS_MISSING_OWNER" bash "$0" 2>&1)"
+  worker_arms_owner_rc=$?
+  set -e
+  if [ "$worker_arms_owner_rc" -ne 0 ] \
+    && grep -Fq 'projection worker owns both connection-thread inventory reply arms (missing: fn report_runtime_connection_inventory_for_test(' <<<"$worker_arms_owner_out"; then
+    pass "mutation proves old-root decoy cannot replace the projection worker inventory arm"
+  else
+    fail "mutation accepted missing projection worker inventory arm with old-root decoy: $worker_arms_owner_out"
   fi
 
   IDENTITY_MUTATED="$TMPROOT/ci-without-wheel-identity.yml"
@@ -1217,11 +1661,11 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     fail "mutation did not fail normal-serial exclusion assertion: $serial_native_state_out"
   fi
 
-  ACTUAL_NATIVE_STATE_MUTATED="$TMPROOT/lib-with-native-runtime-request-in-actual-observer.rs"
-  sed 's/let runtime = self\.projection_runtime\.report_runtime_connection_inventory_for_test();/let runtime = self.projection_runtime.report_runtime_native_state_inventory_for_test();/' "$ENGINE_SOURCE" \
+  ACTUAL_NATIVE_STATE_MUTATED="$TMPROOT/wal-runtime-with-native-runtime-request-in-actual-observer.rs"
+  sed 's/let runtime = self\.projection_runtime\.report_runtime_connection_inventory_for_test();/let runtime = self.projection_runtime.report_runtime_native_state_inventory_for_test();/' "$WAL_RUNTIME_SOURCE" \
     >"$ACTUAL_NATIVE_STATE_MUTATED"
   set +e
-  actual_native_state_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ACTUAL_NATIVE_STATE_MUTATED" bash "$0" 2>&1)"
+  actual_native_state_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 WAL_RUNTIME_SOURCE="$ACTUAL_NATIVE_STATE_MUTATED" bash "$0" 2>&1)"
   actual_native_state_rc=$?
   set -e
   if [ "$actual_native_state_rc" -ne 0 ] \
@@ -1231,11 +1675,11 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     fail "mutation did not fail normal actual/native-state isolation: $actual_native_state_out"
   fi
 
-  RUNTIME_TIMEOUT_MUTATED="$TMPROOT/lib-with-short-normal-runtime-timeout.rs"
-  sed 's/recv_timeout(Duration::from_secs(2))/recv_timeout(Duration::from_millis(250))/' "$ENGINE_SOURCE" \
+  RUNTIME_TIMEOUT_MUTATED="$TMPROOT/runtime-with-short-normal-runtime-timeout.rs"
+  sed 's/recv_timeout(Duration::from_secs(2))/recv_timeout(Duration::from_millis(250))/' "$RUNTIME_SOURCE" \
     >"$RUNTIME_TIMEOUT_MUTATED"
   set +e
-  runtime_timeout_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$RUNTIME_TIMEOUT_MUTATED" bash "$0" 2>&1)"
+  runtime_timeout_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 RUNTIME_SOURCE="$RUNTIME_TIMEOUT_MUTATED" bash "$0" 2>&1)"
   runtime_timeout_rc=$?
   set -e
   if [ "$runtime_timeout_rc" -ne 0 ] \

@@ -1,0 +1,9 @@
+{
+  "invalidators": [],
+  "protocol_sha256": "534aade87c6a7d9e2cfe763fffee7ebec4cd2cf3a51b418f3d766e5269c2c996",
+  "runner_sha256": "91574e04c212c27c57cad23aa0b8ddb16b091966d2109b38cca4f9d50734c17b",
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "status": "VALID_BASELINE_PILOT_BLOCK",
+  "summary_sha256": "8b823f84da449244836f220a7b6a5d8a59cea524c1926307b956179f08e003fb",
+  "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+}

@@ -1,0 +1,433 @@
+series                         run              outcome step    ctx effective     defpool    open   emb1  embSt    rr1    rr2 deltaMiB poolUsedHiMiB sha
+node24-pool                    run-pool-1       pass              9 explicit-pool false    2105.1   39.6    8.9  110.3    7.1    138.9         143.7 d9dafb8c410005f3
+node24-pool                    run-pool-2       pass              9 explicit-pool false    1957.5   45.9    9.6  116.7    7.9    140.5         143.7 d9dafb8c410005f3
+node24-pool                    run-pool-3       pass              9 explicit-pool false    1988.7   47.9   11.7  128.9    7.6    137.0         143.7 d9dafb8c410005f3
+node24-pool                    run-pool-4       pass              9 explicit-pool false    1966.5   42.0   14.4  157.0    9.0    137.2         143.7 d9dafb8c410005f3
+node24-pool                    run-pool-5       pass              9 explicit-pool false    2000.9   46.0   14.5  157.0    9.4    136.5         143.7 d9dafb8c410005f3
+node24-stock                   run-stock-1      fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node24-stock                   run-stock-2      fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node24-stock                   run-stock-3      fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node24-sync                    run-sync-1       pass              9 sync          true     1812.1   72.7   25.9  147.8    9.8    139.7           0.0 d9dafb8c410005f3
+node24-sync                    run-sync-2       pass              9 sync          true     1378.2   64.7   27.0  151.7   11.3    139.9           0.0 d9dafb8c410005f3
+node24-sync                    run-sync-3       pass              9 sync          false    1381.7   57.8   26.0  156.2   12.5    139.7           0.0 d9dafb8c410005f3
+node25-heap400k-pool           run-pool-01      pass              9 explicit-pool false    2076.8   41.7   14.8  138.7    7.6    137.5         143.7 d9dafb8c410005f3
+node25-heap400k-pool           run-pool-02      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-pool           run-pool-03      pass              9 explicit-pool false    1400.8   45.9   10.9  119.4    8.2    106.0         143.7 d9dafb8c410005f3
+node25-heap400k-pool           run-pool-04      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-pool           run-pool-05      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-pool           run-pool-06      pass              9 explicit-pool false    1396.0   41.6   10.5  156.2    9.3    105.0         143.7 d9dafb8c410005f3
+node25-heap400k-pool           run-pool-07      pass              9 explicit-pool false    1385.4   41.6   12.4  156.6    9.4    105.2         143.7 d9dafb8c410005f3
+node25-heap400k-pool           run-pool-08      pass              9 explicit-pool false    1372.1   41.9   11.0  126.5    8.4    108.5         143.7 d9dafb8c410005f3
+node25-heap400k-pool           run-pool-09      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-pool           run-pool-10      pass              9 explicit-pool false    1393.8   42.6   11.9  157.5    9.1    105.0         143.7 d9dafb8c410005f3
+node25-heap400k-pool-r2        run-pool-01      pass              9 explicit-pool false    2088.7   40.9   11.0  142.2    7.5    136.9         143.7 d9dafb8c410005f3
+node25-heap400k-pool-r2        run-pool-02      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-pool-r2        run-pool-03      pass              9 explicit-pool false    1398.8   45.1   13.7  145.8    9.1    105.2         143.7 d9dafb8c410005f3
+node25-heap400k-pool-r2        run-pool-04      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-pool-r2        run-pool-05      pass              9 explicit-pool false    1096.7   43.2    9.7  112.2    7.5    104.3         143.7 d9dafb8c410005f3
+node25-heap400k-pool-r2        run-pool-06      pass              9 explicit-pool false    1407.0   45.6   14.7  159.9    9.6    107.0         143.7 d9dafb8c410005f3
+node25-heap400k-pool-r2        run-pool-07      pass              9 explicit-pool false    1399.3   45.5   11.1  158.5    9.7    106.8         143.7 d9dafb8c410005f3
+node25-heap400k-pool-r2        run-pool-08      pass              9 explicit-pool false    1413.9   46.0   10.8  144.5    9.1    106.0         143.7 d9dafb8c410005f3
+node25-heap400k-pool-r2        run-pool-09      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-pool-r2        run-pool-10      pass              9 explicit-pool false    1396.7   42.0   14.5  156.1    9.3    105.0         143.7 d9dafb8c410005f3
+node25-heap400k-pool36G        run-pool-1       pass              9 sync          false    1228.5   54.5   27.6  132.3   11.8    139.9           0.0 d9dafb8c410005f3
+node25-heap400k-pool36G        run-pool-2       fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-pool36G        run-pool-3       pass              9 sync          false    1094.9   62.0   24.8  161.5   14.6    139.9           0.0 d9dafb8c410005f3
+node25-heap400k-pool36G        run-pool-4       fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-pool36G        run-pool-5       pass              9 sync          false    1104.7   55.0   25.4  116.5   12.5    138.5           0.0 d9dafb8c410005f3
+node25-heap400k-pool36G        run-pool-6       pass              9 sync          false    1392.5   60.1   24.9  117.9   12.9    139.9           0.0 d9dafb8c410005f3
+node25-heap400k-pool36G        run-pool-7       pass              9 sync          false    1378.1   55.3   27.1  161.6   14.8    139.9           0.0 d9dafb8c410005f3
+node25-heap400k-pool36G        run-pool-8       pass              9 sync          false    1378.5   52.9   31.5  161.3   14.8    139.9           0.0 d9dafb8c410005f3
+node25-heap400k-stock          run-stock-01     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock          run-stock-02     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock          run-stock-03     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock          run-stock-04     fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock          run-stock-05     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock          run-stock-06     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock          run-stock-07     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock          run-stock-08     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock          run-stock-09     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock          run-stock-10     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-01     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-02     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-03     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-04     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-05     fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-06     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-07     fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-08     fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-09     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-heap400k-stock-r2       run-stock-10     fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync           run-sync-01      pass              9 sync          false    1524.6   50.7   24.5  147.1   10.6    139.8           0.0 d9dafb8c410005f3
+node25-heap400k-sync           run-sync-02      pass              9 sync          false    1379.5   60.6   27.2  146.3   11.9    139.9           0.0 d9dafb8c410005f3
+node25-heap400k-sync           run-sync-03      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync           run-sync-04      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync           run-sync-05      pass              9 sync          false    1370.3   52.7   24.9  117.3   10.7    139.9           0.0 d9dafb8c410005f3
+node25-heap400k-sync           run-sync-06      pass              9 sync          false    1392.4   55.8   26.6  132.7   11.5    140.1           0.0 d9dafb8c410005f3
+node25-heap400k-sync           run-sync-07      pass              9 sync          false    1385.3   55.9   24.8  112.4   10.5    139.7           0.0 d9dafb8c410005f3
+node25-heap400k-sync           run-sync-08      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync           run-sync-09      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync           run-sync-10      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync-r2        run-sync-01      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync-r2        run-sync-02      pass              9 sync          false    1370.4   55.6   24.4  108.4    9.6    147.5           0.0 d9dafb8c410005f3
+node25-heap400k-sync-r2        run-sync-03      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync-r2        run-sync-04      pass              9 sync          false    1098.8   52.9   25.3  158.0   12.4    122.5           0.0 d9dafb8c410005f3
+node25-heap400k-sync-r2        run-sync-05      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync-r2        run-sync-06      pass              9 sync          false    1380.2   56.2   26.2  140.4   11.0    139.7           0.0 d9dafb8c410005f3
+node25-heap400k-sync-r2        run-sync-07      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync-r2        run-sync-08      pass              9 sync          false    1387.2   60.0   25.3  117.3   10.6    139.9           0.0 d9dafb8c410005f3
+node25-heap400k-sync-r2        run-sync-09      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-heap400k-sync-r2        run-sync-10      fail    open      0 none(no-ctx)  -             -      -      -      -      -      0.0           0.0 -
+node25-pool192M-exhaust        run-pool-1       fail    open      3 explicit-pool false         -      -      -      -      -      0.0          63.5 -
+node25-pool192M-exhaust        run-pool-2       fail    open      3 explicit-pool false         -      -      -      -      -      0.0          63.5 -
+node25-pool192M-exhaust        run-pool-3       pass              9 default-pool  true     1956.9   46.7   10.0  151.3    8.1    136.7           0.0 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-01      pass              9 default-pool  true     2081.7   41.9   10.9  134.4    6.7    137.0           0.0 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-02      pass              9 default-pool  true     1097.4   47.9   14.4  149.9    7.9    105.4           0.0 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-03      pass              9 explicit-pool false    1952.6   47.5   14.1  152.2    8.8    140.5         143.7 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-04      pass              9 explicit-pool false    1940.9   43.2   14.2  157.1    9.1    137.0         143.7 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-05      pass              9 explicit-pool false    1961.1   46.4   14.6  153.2    9.0    137.0         143.7 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-06      pass              9 explicit-pool false    1937.5   42.3   13.9  144.1    9.2    137.0         143.7 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-07      pass              9 explicit-pool false    1953.3   47.3   13.7  154.3    8.8    137.5         143.7 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-08      pass              9 explicit-pool false    1371.7   44.1   14.6  154.3    9.1    105.0         143.7 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-09      pass              9 explicit-pool false    1389.2   42.8   14.0  152.6    9.1    107.0         143.7 d9dafb8c410005f3
+node25-pool36G-thr0            run-pool-10      pass              9 explicit-pool false    1115.9   47.5   14.4  157.5    9.1    105.1         143.7 d9dafb8c410005f3
+node25-pool384M-exhaust        run-pool-1       fail    rerank    8 explicit-pool false    2110.3   40.4   14.2      -      -    134.3         128.0 d9dafb8c410005f3
+node25-pool384M-exhaust        run-pool-2       fail    rerank    8 explicit-pool false    1961.2   42.2   13.1      -      -    136.7         128.0 d9dafb8c410005f3
+node25-pool384M-exhaust        run-pool-3       fail    rerank    8 explicit-pool false    2004.6   43.5   14.3      -      -    136.5         128.0 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-01      pass              9 explicit-pool false    2103.3   39.4   13.9  123.5    7.2    136.7         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-02      pass              9 explicit-pool false    1948.2   42.9   14.6  158.7    9.1    137.2         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-03      pass              9 explicit-pool false    1971.6   48.0   14.6  156.7    9.3    136.7         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-04      pass              9 explicit-pool false    1102.1   42.3    9.3  154.9    9.5    108.9         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-05      pass              9 default-pool  true     1948.2   52.6    9.9  153.2    8.3    137.0           0.0 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-06      pass              9 default-pool  true     1945.6   47.0   11.2  127.4    7.5    140.5           0.0 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-07      pass              9 explicit-pool false    1968.3   43.3   11.9  146.9    8.9    137.2         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-08      pass              9 explicit-pool false    1944.3   44.6   11.8  153.2    8.6    137.2         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-09      pass              9 explicit-pool false    1955.9   42.2    8.3  149.3    8.7    137.0         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-10      pass              9 explicit-pool false    1943.2   46.4   14.7  157.0    9.0    137.2         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-11      pass              9 explicit-pool false    1097.9   42.7   12.3   95.3    7.2    108.2         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-12      pass              9 explicit-pool false    1095.4   43.5   10.8  125.7    8.4    107.6         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-13      pass              9 default-pool  true     1949.2   42.3    9.9   94.0    6.2    137.0           0.0 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-14      pass              9 explicit-pool false    1978.6   48.3   10.2  157.6    9.8    137.2         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-15      pass              9 explicit-pool false    1093.1   44.0   15.2  155.7    9.1    105.8         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-16      pass              9 explicit-pool false    1959.0   45.2   15.0  144.5    8.8    136.6         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-17      pass              9 explicit-pool false    1395.6   42.7   10.0  113.9    7.9    106.6         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-18      pass              9 explicit-pool false    1398.2   41.9    9.9  154.5    8.8    105.0         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-19      pass              9 explicit-pool false    1955.0   43.3    9.2  120.7    8.1    137.0         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-20      pass              9 explicit-pool false    1103.6   42.3    9.7  155.3    9.0    105.0         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-21      pass              9 explicit-pool false    1384.2   43.0   14.5  141.6    8.1    105.2         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-22      pass              9 default-pool  true     1087.7   44.2   11.1  119.8    7.0    105.0           0.0 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-23      pass              9 default-pool  true     1364.4   45.4   11.2  150.8    7.8    105.5           0.0 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-24      pass              9 explicit-pool false    1377.7   48.2   15.1  158.0    9.0    107.2         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-25      pass              9 explicit-pool false    1377.2   44.6   10.4  123.9    8.1    105.0         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-26      pass              9 explicit-pool false    1384.7   45.7   15.1  157.8    9.3    105.0         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-27      pass              9 default-pool  true     1933.8   46.4   13.7  155.2    8.4    137.0           0.0 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-28      pass              9 explicit-pool false    1395.0   47.4   10.8  122.8    7.9    105.0         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-29      pass              9 explicit-pool false    1400.1   47.4   14.7  152.6    9.1    105.2         143.7 d9dafb8c410005f3
+node25-pool3G-thr0             run-pool-30      pass              9 explicit-pool false    1948.7   46.0   15.5  152.7    8.8    137.2         143.7 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-01      pass              9 explicit-pool false    1484.3   39.7    9.8  142.7    6.8    105.0         143.7 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-02      pass              9 explicit-pool false    1307.6   42.3    9.5  113.7    7.7    105.0         143.7 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-03      pass              9 default-pool  true     1363.1   45.7   14.2  118.1    6.9    105.2           0.0 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-04      pass              9 explicit-pool false    1333.8   44.2   14.5  157.0    9.6    104.8         143.7 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-05      pass              9 explicit-pool false    1336.9   42.5    9.7  152.7    8.9    105.0         143.7 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-06      pass              9 explicit-pool false    1344.8   42.8    8.6  157.5    9.6    105.0         143.7 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-07      pass              9 default-pool  true     1393.7   48.1   10.4  142.1    7.9    106.2           0.0 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-08      pass              9 default-pool  true     1957.0   45.6   14.7  155.6    8.4    137.0           0.0 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-09      pass              9 default-pool  true     1370.8   48.2   11.2  126.1    7.6    105.8           0.0 d9dafb8c410005f3
+node25-pool3G-thrmax           run-pool-10      pass              9 default-pool  true     1364.5   46.1   15.0  153.9    8.2    106.0           0.0 d9dafb8c410005f3
+node25-stock                   run-stock-01     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-stock                   run-stock-02     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-stock                   run-stock-03     pass              9 default-pool  true     1373.6   40.6   15.3  134.8    6.3    106.0           0.0 d9dafb8c410005f3
+node25-stock                   run-stock-04     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-stock                   run-stock-05     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-stock                   run-stock-06     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-stock                   run-stock-07     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-stock                   run-stock-08     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-stock                   run-stock-09     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-stock                   run-stock-10     fail    open      1 default-pool  false         -      -      -      -      -      0.0           0.0 -
+node25-sync                    run-sync-01      pass              9 sync          false    1494.7   50.6   24.7  148.0    9.9    139.9           0.0 d9dafb8c410005f3
+node25-sync                    run-sync-02      pass              9 sync          false    1655.4   53.1   24.9  159.4   12.3    139.9           0.0 d9dafb8c410005f3
+node25-sync                    run-sync-03      pass              9 sync          false    1380.0   61.6   25.4  114.3    9.6    139.9           0.0 d9dafb8c410005f3
+node25-sync                    run-sync-04      pass              9 sync          false    1364.2   62.2   30.1  158.5   11.8    140.1           0.0 d9dafb8c410005f3
+node25-sync                    run-sync-05      pass              9 sync          false    1369.7   60.5   27.1  118.2   10.6    139.2           0.0 d9dafb8c410005f3
+node25-sync                    run-sync-06      pass              9 sync          false    1356.7   59.8   27.4  153.5   12.5    139.5           0.0 d9dafb8c410005f3
+node25-sync                    run-sync-07      pass              9 sync          true     1363.7   60.5   25.0  154.9   11.8    143.3           0.0 d9dafb8c410005f3
+node25-sync                    run-sync-08      pass              9 sync          false    1365.7   66.3   26.3  158.0   12.2    140.4           0.0 d9dafb8c410005f3
+node25-sync                    run-sync-09      pass              9 sync          false    1370.1   59.1   28.3  154.7   11.6    139.7           0.0 d9dafb8c410005f3
+node25-sync                    run-sync-10      pass              9 sync          false    1372.1   62.6   25.1  153.3   11.5    143.3           0.0 d9dafb8c410005f3
+
+# failures (series run step: error)
+  node24-stock run-stock-1 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node24-stock run-stock-2 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node24-stock run-stock-3 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-pool run-pool-02 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-pool run-pool-04 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-pool run-pool-05 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-pool run-pool-09 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-pool-r2 run-pool-02 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-pool-r2 run-pool-04 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-pool-r2 run-pool-09 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-pool36G run-pool-2 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-pool36G run-pool-4 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-01 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-02 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-03 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-04 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-05 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-06 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-07 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-08 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-09 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock run-stock-10 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-01 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-02 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-03 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-04 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-05 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-06 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-07 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-08 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-09 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-stock-r2 run-stock-10 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync run-sync-03 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync run-sync-04 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync run-sync-08 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync run-sync-09 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync run-sync-10 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync-r2 run-sync-01 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync-r2 run-sync-03 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync-r2 run-sync-05 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync-r2 run-sync-07 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync-r2 run-sync-09 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-heap400k-sync-r2 run-sync-10 ctx=0 eff=none(no-ctx) step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-pool192M-exhaust run-pool-1 ctx=3 eff=explicit-pool step=open: embedder error during open: Failed { message: "FATHOMDB_GPU_ALLOCATION_WITNESS was requested but no GPU allocation witness could be produced (probe_failed): gpu witness probe failed: model deserialize: DriverError(CUDA_ERROR_OUT_OF_MEMORY, \"out of memory\")" }
+  node25-pool192M-exhaust run-pool-2 ctx=3 eff=explicit-pool step=open: embedder error during open: Failed { message: "FATHOMDB_GPU_ALLOCATION_WITNESS was requested but no GPU allocation witness could be produced (probe_failed): gpu witness probe failed: model deserialize: DriverError(CUDA_ERROR_OUT_OF_MEMORY, \"out of memory\")" }
+  node25-pool384M-exhaust run-pool-1 ctx=8 eff=explicit-pool step=rerank: reranker device policy: cuda:0 requested for reranking but unavailable: CudaProbeFailed
+  node25-pool384M-exhaust run-pool-2 ctx=8 eff=explicit-pool step=rerank: reranker device policy: cuda:0 requested for reranking but unavailable: CudaProbeFailed
+  node25-pool384M-exhaust run-pool-3 ctx=8 eff=explicit-pool step=rerank: reranker device policy: cuda:0 requested for reranking but unavailable: CudaProbeFailed
+  node25-stock run-stock-01 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-stock run-stock-02 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-stock run-stock-04 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-stock run-stock-05 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-stock run-stock-06 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-stock run-stock-07 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-stock run-stock-08 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-stock run-stock-09 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+  node25-stock run-stock-10 ctx=1 eff=default-pool step=open: cuda:0 requested but unavailable: CudaProbeFailed
+
+# counts: series / outcome / effective allocator
+  ('node24-pool', 'pass', 'explicit-pool'): 5
+  ('node24-stock', 'fail', 'default-pool'): 3
+  ('node24-sync', 'pass', 'sync'): 3
+  ('node25-heap400k-pool', 'fail', 'none(no-ctx)'): 4
+  ('node25-heap400k-pool', 'pass', 'explicit-pool'): 6
+  ('node25-heap400k-pool-r2', 'fail', 'none(no-ctx)'): 3
+  ('node25-heap400k-pool-r2', 'pass', 'explicit-pool'): 7
+  ('node25-heap400k-pool36G', 'fail', 'none(no-ctx)'): 2
+  ('node25-heap400k-pool36G', 'pass', 'sync'): 6
+  ('node25-heap400k-stock', 'fail', 'default-pool'): 9
+  ('node25-heap400k-stock', 'fail', 'none(no-ctx)'): 1
+  ('node25-heap400k-stock-r2', 'fail', 'default-pool'): 6
+  ('node25-heap400k-stock-r2', 'fail', 'none(no-ctx)'): 4
+  ('node25-heap400k-sync', 'fail', 'none(no-ctx)'): 5
+  ('node25-heap400k-sync', 'pass', 'sync'): 5
+  ('node25-heap400k-sync-r2', 'fail', 'none(no-ctx)'): 6
+  ('node25-heap400k-sync-r2', 'pass', 'sync'): 4
+  ('node25-pool192M-exhaust', 'fail', 'explicit-pool'): 2
+  ('node25-pool192M-exhaust', 'pass', 'default-pool'): 1
+  ('node25-pool36G-thr0', 'pass', 'default-pool'): 2
+  ('node25-pool36G-thr0', 'pass', 'explicit-pool'): 8
+  ('node25-pool384M-exhaust', 'fail', 'explicit-pool'): 3
+  ('node25-pool3G-thr0', 'pass', 'default-pool'): 6
+  ('node25-pool3G-thr0', 'pass', 'explicit-pool'): 24
+  ('node25-pool3G-thrmax', 'pass', 'default-pool'): 5
+  ('node25-pool3G-thrmax', 'pass', 'explicit-pool'): 5
+  ('node25-stock', 'fail', 'default-pool'): 9
+  ('node25-stock', 'pass', 'default-pool'): 1
+  ('node25-sync', 'pass', 'sync'): 10
+
+# default-pool availability among runs that created >=1 context (from pool_available=)
+  node24-pool: 0/5
+  node24-stock: 0/3
+  node24-sync: 2/3
+  node25-heap400k-pool: 0/6
+  node25-heap400k-pool-r2: 0/7
+  node25-heap400k-pool36G: 0/6
+  node25-heap400k-stock: 0/9
+  node25-heap400k-stock-r2: 0/6
+  node25-heap400k-sync: 0/5
+  node25-heap400k-sync-r2: 0/4
+  node25-pool192M-exhaust: 1/3
+  node25-pool36G-thr0: 2/10
+  node25-pool384M-exhaust: 0/3
+  node25-pool3G-thr0: 6/30
+  node25-pool3G-thrmax: 5/10
+  node25-stock: 1/10
+  node25-sync: 1/10
+
+# timings (ms), PASSING runs, grouped by node major + series config + effective allocator
+
+('v24', 'pool', 'explicit-pool')
+  open               n= 5 median= 1988.7 min= 1957.5 max= 2105.1 IQR=[1962.0,2053.0]
+  embedFirst         n= 5 median=   45.9 min=   39.6 max=   47.9 IQR=[40.8,46.9]
+  embedSteadyMedian  n= 5 median=   11.7 min=    8.9 max=   14.5 IQR=[9.3,14.4]
+  rerankFirst        n= 5 median=  128.9 min=  110.3 max=  157.0 IQR=[113.5,157.0]
+  rerankSecond       n= 5 median=    7.9 min=    7.1 max=    9.4 IQR=[7.3,9.2]
+  witnessDeltaMiB    n= 5 median=  137.2 min=  136.5 max=  140.5 IQR=[136.7,139.7]
+  poolUsedHighMiB    n= 5 median=  143.7 min=  143.7 max=  143.7 IQR=[143.7,143.7]
+  poolReservedHighMiB n= 5 median=  160.0 min=  160.0 max=  160.0 IQR=[160.0,160.0]
+
+('v24', 'sync', 'sync')
+  open               n= 3 median= 1381.7 min= 1378.2 max= 1812.1
+  embedFirst         n= 3 median=   64.7 min=   57.8 max=   72.7
+  embedSteadyMedian  n= 3 median=   26.0 min=   25.9 max=   27.0
+  rerankFirst        n= 3 median=  151.7 min=  147.8 max=  156.2
+  rerankSecond       n= 3 median=   11.3 min=    9.8 max=   12.5
+  witnessDeltaMiB    n= 3 median=  139.7 min=  139.7 max=  139.9
+
+('v25', 'heap400k-pool', 'explicit-pool')
+  open               n= 6 median= 1394.9 min= 1372.1 max= 2076.8 IQR=[1382.0,1569.8]
+  embedFirst         n= 6 median=   41.8 min=   41.6 max=   45.9 IQR=[41.6,43.4]
+  embedSteadyMedian  n= 6 median=   11.4 min=   10.5 max=   14.8 IQR=[10.8,13.0]
+  rerankFirst        n= 6 median=  147.4 min=  119.4 max=  157.5 IQR=[124.7,156.8]
+  rerankSecond       n= 6 median=    8.8 min=    7.6 max=    9.4 IQR=[8.0,9.3]
+  witnessDeltaMiB    n= 6 median=  105.6 min=  105.0 max=  137.5 IQR=[105.0,115.7]
+  poolUsedHighMiB    n= 6 median=  143.7 min=  143.7 max=  143.7 IQR=[143.7,143.7]
+  poolReservedHighMiB n= 6 median=  160.0 min=  160.0 max=  160.0 IQR=[160.0,160.0]
+
+('v25', 'heap400k-pool-r2', 'explicit-pool')
+  open               n= 7 median= 1399.3 min= 1096.7 max= 2088.7 IQR=[1396.7,1413.9]
+  embedFirst         n= 7 median=   45.1 min=   40.9 max=   46.0 IQR=[42.0,45.6]
+  embedSteadyMedian  n= 7 median=   11.1 min=    9.7 max=   14.7 IQR=[10.8,14.5]
+  rerankFirst        n= 7 median=  145.8 min=  112.2 max=  159.9 IQR=[142.2,158.5]
+  rerankSecond       n= 7 median=    9.1 min=    7.5 max=    9.7 IQR=[7.5,9.6]
+  witnessDeltaMiB    n= 7 median=  106.0 min=  104.3 max=  136.9 IQR=[105.0,107.0]
+  poolUsedHighMiB    n= 7 median=  143.7 min=  143.7 max=  143.7 IQR=[143.7,143.7]
+  poolReservedHighMiB n= 7 median=  160.0 min=  160.0 max=  160.0 IQR=[160.0,160.0]
+
+('v25', 'heap400k-pool36G', 'sync')
+  open               n= 6 median= 1303.3 min= 1094.9 max= 1392.5 IQR=[1102.2,1382.0]
+  embedFirst         n= 6 median=   55.2 min=   52.9 max=   62.0 IQR=[54.1,60.6]
+  embedSteadyMedian  n= 6 median=   26.2 min=   24.8 max=   31.5 IQR=[24.9,28.6]
+  rerankFirst        n= 6 median=  146.8 min=  116.5 max=  161.6 IQR=[117.6,161.5]
+  rerankSecond       n= 6 median=   13.7 min=   11.8 max=   14.8 IQR=[12.3,14.8]
+  witnessDeltaMiB    n= 6 median=  139.9 min=  138.5 max=  139.9 IQR=[139.5,139.9]
+
+('v25', 'heap400k-sync', 'sync')
+  open               n= 5 median= 1385.3 min= 1370.3 max= 1524.6 IQR=[1374.9,1458.5]
+  embedFirst         n= 5 median=   55.8 min=   50.7 max=   60.6 IQR=[51.7,58.3]
+  embedSteadyMedian  n= 5 median=   24.9 min=   24.5 max=   27.2 IQR=[24.6,26.9]
+  rerankFirst        n= 5 median=  132.7 min=  112.4 max=  147.1 IQR=[114.9,146.7]
+  rerankSecond       n= 5 median=   10.7 min=   10.5 max=   11.9 IQR=[10.6,11.7]
+  witnessDeltaMiB    n= 5 median=  139.9 min=  139.7 max=  140.1 IQR=[139.8,140.0]
+
+('v25', 'heap400k-sync-r2', 'sync')
+  open               n= 4 median= 1375.3 min= 1098.8 max= 1387.2 IQR=[1166.7,1385.5]
+  embedFirst         n= 4 median=   55.9 min=   52.9 max=   60.0 IQR=[53.6,59.1]
+  embedSteadyMedian  n= 4 median=   25.3 min=   24.4 max=   26.2 IQR=[24.6,26.0]
+  rerankFirst        n= 4 median=  128.8 min=  108.4 max=  158.0 IQR=[110.6,153.6]
+  rerankSecond       n= 4 median=   10.8 min=    9.6 max=   12.4 IQR=[9.8,12.1]
+  witnessDeltaMiB    n= 4 median=  139.8 min=  122.5 max=  147.5 IQR=[126.8,145.6]
+
+('v25', 'pool192M-exhaust', 'default-pool')
+  open               n= 1 median= 1956.9 min= 1956.9 max= 1956.9
+  embedFirst         n= 1 median=   46.7 min=   46.7 max=   46.7
+  embedSteadyMedian  n= 1 median=   10.0 min=   10.0 max=   10.0
+  rerankFirst        n= 1 median=  151.3 min=  151.3 max=  151.3
+  rerankSecond       n= 1 median=    8.1 min=    8.1 max=    8.1
+  witnessDeltaMiB    n= 1 median=  136.7 min=  136.7 max=  136.7
+
+('v25', 'pool36G-thr0', 'default-pool')
+  open               n= 2 median= 1589.6 min= 1097.4 max= 2081.7
+  embedFirst         n= 2 median=   44.9 min=   41.9 max=   47.9
+  embedSteadyMedian  n= 2 median=   12.6 min=   10.9 max=   14.4
+  rerankFirst        n= 2 median=  142.2 min=  134.4 max=  149.9
+  rerankSecond       n= 2 median=    7.3 min=    6.7 max=    7.9
+  witnessDeltaMiB    n= 2 median=  121.2 min=  105.4 max=  137.0
+
+('v25', 'pool36G-thr0', 'explicit-pool')
+  open               n= 8 median= 1939.2 min= 1115.9 max= 1961.1 IQR=[1376.1,1953.1]
+  embedFirst         n= 8 median=   45.2 min=   42.3 max=   47.5 IQR=[42.9,47.4]
+  embedSteadyMedian  n= 8 median=   14.2 min=   13.7 max=   14.6 IQR=[13.9,14.5]
+  rerankFirst        n= 8 median=  153.7 min=  144.1 max=  157.5 IQR=[152.3,156.4]
+  rerankSecond       n= 8 median=    9.1 min=    8.8 max=    9.2 IQR=[8.9,9.1]
+  witnessDeltaMiB    n= 8 median=  137.0 min=  105.0 max=  140.5 IQR=[105.6,137.3]
+  poolUsedHighMiB    n= 8 median=  143.7 min=  143.7 max=  143.7 IQR=[143.7,143.7]
+  poolReservedHighMiB n= 8 median=  160.0 min=  160.0 max=  160.0 IQR=[160.0,160.0]
+
+('v25', 'pool3G-thr0', 'default-pool')
+  open               n= 6 median= 1939.7 min= 1087.7 max= 1949.2 IQR=[1295.2,1948.4]
+  embedFirst         n= 6 median=   45.9 min=   42.3 max=   52.6 IQR=[43.8,48.4]
+  embedSteadyMedian  n= 6 median=   11.1 min=    9.9 max=   13.7 IQR=[9.9,11.8]
+  rerankFirst        n= 6 median=  139.1 min=   94.0 max=  155.2 IQR=[113.4,153.7]
+  rerankSecond       n= 6 median=    7.6 min=    6.2 max=    8.4 IQR=[6.8,8.3]
+  witnessDeltaMiB    n= 6 median=  137.0 min=  105.0 max=  140.5 IQR=[105.4,137.8]
+
+('v25', 'pool3G-thr0', 'explicit-pool')
+  open               n=24 median= 1399.1 min= 1093.1 max= 2103.3 IQR=[1377.3,1955.7]
+  embedFirst         n=24 median=   43.7 min=   39.4 max=   48.3 IQR=[42.7,46.3]
+  embedSteadyMedian  n=24 median=   12.1 min=    8.3 max=   15.5 IQR=[10.1,14.7]
+  rerankFirst        n=24 median=  152.7 min=   95.3 max=  158.7 IQR=[124.3,156.4]
+  rerankSecond       n=24 median=    8.8 min=    7.2 max=    9.8 IQR=[8.1,9.1]
+  witnessDeltaMiB    n=24 median=  108.5 min=  105.0 max=  137.2 IQR=[105.2,137.1]
+  poolUsedHighMiB    n=24 median=  143.7 min=  143.7 max=  143.7 IQR=[143.7,143.7]
+  poolReservedHighMiB n=24 median=  160.0 min=  160.0 max=  160.0 IQR=[160.0,160.0]
+
+('v25', 'pool3G-thrmax', 'default-pool')
+  open               n= 5 median= 1370.8 min= 1363.1 max= 1957.0 IQR=[1363.8,1675.4]
+  embedFirst         n= 5 median=   46.1 min=   45.6 max=   48.2 IQR=[45.7,48.2]
+  embedSteadyMedian  n= 5 median=   14.2 min=   10.4 max=   15.0 IQR=[10.8,14.8]
+  rerankFirst        n= 5 median=  142.1 min=  118.1 max=  155.6 IQR=[122.1,154.8]
+  rerankSecond       n= 5 median=    7.9 min=    6.9 max=    8.4 IQR=[7.2,8.3]
+  witnessDeltaMiB    n= 5 median=  106.0 min=  105.2 max=  137.0 IQR=[105.5,121.6]
+
+('v25', 'pool3G-thrmax', 'explicit-pool')
+  open               n= 5 median= 1336.9 min= 1307.6 max= 1484.3 IQR=[1320.7,1414.6]
+  embedFirst         n= 5 median=   42.5 min=   39.7 max=   44.2 IQR=[41.0,43.5]
+  embedSteadyMedian  n= 5 median=    9.7 min=    8.6 max=   14.5 IQR=[9.1,12.1]
+  rerankFirst        n= 5 median=  152.7 min=  113.7 max=  157.5 IQR=[128.2,157.2]
+  rerankSecond       n= 5 median=    8.9 min=    6.8 max=    9.6 IQR=[7.2,9.6]
+  witnessDeltaMiB    n= 5 median=  105.0 min=  104.8 max=  105.0 IQR=[104.9,105.0]
+  poolUsedHighMiB    n= 5 median=  143.7 min=  143.7 max=  143.7 IQR=[143.7,143.7]
+  poolReservedHighMiB n= 5 median=  160.0 min=  160.0 max=  160.0 IQR=[160.0,160.0]
+
+('v25', 'stock', 'default-pool')
+  open               n= 1 median= 1373.6 min= 1373.6 max= 1373.6
+  embedFirst         n= 1 median=   40.6 min=   40.6 max=   40.6
+  embedSteadyMedian  n= 1 median=   15.3 min=   15.3 max=   15.3
+  rerankFirst        n= 1 median=  134.8 min=  134.8 max=  134.8
+  rerankSecond       n= 1 median=    6.3 min=    6.3 max=    6.3
+  witnessDeltaMiB    n= 1 median=  106.0 min=  106.0 max=  106.0
+
+('v25', 'sync', 'sync')
+  open               n=10 median= 1369.9 min= 1356.7 max= 1655.4 IQR=[1364.1,1408.7]
+  embedFirst         n=10 median=   60.5 min=   50.6 max=   66.3 IQR=[57.6,62.3]
+  embedSteadyMedian  n=10 median=   25.8 min=   24.7 max=   30.1 IQR=[25.0,27.6]
+  rerankFirst        n=10 median=  154.1 min=  114.3 max=  159.4 IQR=[140.5,158.1]
+  rerankSecond       n=10 median=   11.7 min=    9.6 max=   12.5 IQR=[10.4,12.2]
+  witnessDeltaMiB    n=10 median=  139.9 min=  139.2 max=  143.3 IQR=[139.6,141.1]
+
+# pooled timings across Node 25 configs by effective allocator (passing runs, all heap/maxSize/threshold configs pooled)
+
+default-pool
+  open               n=15 median= 1393.7 min= 1087.7 max= 2081.7 IQR=[1364.4,1949.2]
+  embedFirst         n=15 median=   46.1 min=   40.6 max=   52.6 IQR=[44.2,47.9]
+  embedSteadyMedian  n=15 median=   11.2 min=    9.9 max=   15.3 IQR=[10.4,14.4]
+  rerankFirst        n=15 median=  142.1 min=   94.0 max=  155.6 IQR=[126.1,153.2]
+  rerankSecond       n=15 median=    7.8 min=    6.2 max=    8.4 IQR=[6.9,8.2]
+
+explicit-pool
+  open               n=50 median= 1398.5 min= 1093.1 max= 2103.3 IQR=[1372.0,1949.7]
+  embedFirst         n=50 median=   43.3 min=   39.4 max=   48.3 IQR=[42.3,45.9]
+  embedSteadyMedian  n=50 median=   12.3 min=    8.3 max=   15.5 IQR=[10.4,14.6]
+  rerankFirst        n=50 median=  152.7 min=   95.3 max=  159.9 IQR=[140.9,156.7]
+  rerankSecond       n=50 median=    9.0 min=    6.8 max=    9.8 IQR=[8.2,9.2]
+
+sync
+  open               n=25 median= 1372.1 min= 1094.9 max= 1655.4 IQR=[1364.0,1386.2]
+  embedFirst         n=25 median=   56.2 min=   50.6 max=   66.3 IQR=[53.8,60.6]
+  embedSteadyMedian  n=25 median=   25.4 min=   24.4 max=   31.5 IQR=[24.9,27.1]
+  rerankFirst        n=25 median=  147.1 min=  108.4 max=  161.6 IQR=[117.6,158.0]
+  rerankSecond       n=25 median=   11.8 min=    9.6 max=   14.8 IQR=[10.6,12.4]
+
+# output identity across allocators (passing runs)
+  embedSha=d9dafb8c410005f3 rerankScores=[9.954336737870562e-06, 0.9979814299391018]: {'explicit-pool': 55, 'sync': 28, 'default-pool': 15}

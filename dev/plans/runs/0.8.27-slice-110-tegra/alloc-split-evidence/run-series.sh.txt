@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Temporary Slice 110 diagnostic: run N fresh Node processes of the
+# Engine.open reproducer with the alloc-split instrumentation enabled.
+# Usage: run-series.sh <label> <count> [prefix-cmd...]
+# Optional env NODE_ARGS adds node/V8 flags (e.g. NODE_ARGS=--random-seed=7).
+# e.g.   run-series.sh aslr-on 24
+#        run-series.sh aslr-off 10 setarch -R
+set -u
+label=$1; count=$2; shift 2
+EVID=$(cd "$(dirname "$0")" && pwd)
+SCRATCH=<scratch>
+OUT=$EVID/logs-$label
+mkdir -p "$OUT/maps"
+source ~/.nvm/nvm.sh >/dev/null && nvm use 25.9.0 >/dev/null
+echo "node=$(node --version) prefix='$*' NODE_ARGS='${NODE_ARGS:-}'" > "$OUT/series-header.txt"
+for i in $(seq -w 1 "$count"); do
+  busy=$(pgrep -fa 'Runner.Worker|cargo|rustc|nvcc|pytest' | grep -v pgrep | wc -l)
+  {
+    echo "BEGIN run=$i label=$label utc=$(date -u +%FT%TZ) busy_procs=$busy"
+    grep -E '^(MemAvailable|CmaFree)' /proc/meminfo
+    env FATHOMDB_EMBED_DEVICE=cuda:0 FATHOMDB_SLICE110_ALLOC_SPLIT=1 \
+        FATHOMDB_SLICE110_MAPS_DIR="$OUT/maps" "$@" node ${NODE_ARGS:-} "$SCRATCH/smoke.mjs" 2>&1
+    echo "END run=$i exit=$?"
+  } > "$OUT/run-$i.log"
+  tail -2 "$OUT/run-$i.log" | head -1
+done

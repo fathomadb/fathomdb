@@ -67,8 +67,14 @@ with zipfile.ZipFile(wheel, 'w') as archive:
     )
 PY
 
+# Retention is exercised in test_tegra_pages_retention.sh; here the retained
+# list is empty so this test isolates the docs-plus-new-wheel layout.
+EMPTY_MANIFEST="$TMPROOT/retained.json"
+printf '{"schema": "fathomdb.tegra-pages-retained/v1", "artifacts": []}\n' > "$EMPTY_MANIFEST"
+mkdir -p "$TMPROOT/retained"
 OUT="$TMPROOT/site"
-PATH="$TMPROOT/bin:$PATH" "$BUILDER" --wheel "$WHEEL" --out "$OUT" --version "$VERSION"
+PATH="$TMPROOT/bin:$PATH" "$BUILDER" --manifest "$EMPTY_MANIFEST" --artifact-dir "$TMPROOT/retained" \
+  --wheel "$WHEEL" --out "$OUT" --version "$VERSION"
 WHEEL_NAME="$(basename "$WHEEL")"
 
 if [ -f "$OUT/index.html" ] && [ -f "$OUT/reference/rust-api.html" ]; then
@@ -87,6 +93,7 @@ mkdir -p "$TMPROOT/nonempty"
 printf 'keep\n' > "$TMPROOT/nonempty/existing.txt"
 set +e
 nonempty_out="$(PATH="$TMPROOT/bin:$PATH" "$BUILDER" \
+  --manifest "$EMPTY_MANIFEST" --artifact-dir "$TMPROOT/retained" \
   --wheel "$WHEEL" --out "$TMPROOT/nonempty" --version "$VERSION" 2>&1)"
 nonempty_rc=$?
 set -e
@@ -100,7 +107,9 @@ for contract in \
   'branches:' \
   '      - main' \
   'bash scripts/release/build-pages-site.sh' \
-  '652ad6926b17c9580365b012ec9cb925fa1aabc6fe83047874c718dc5c5e5897' \
+  'bash scripts/release/fetch-tegra-pages-retained.sh' \
+  '--manifest scripts/release/tegra-pages-retained.json' \
+  'scripts/release/tegra-pages-retained.json' \
   'actions/upload-pages-artifact@' \
   'actions/deploy-pages@' \
   'pages: write' \
@@ -109,6 +118,16 @@ for contract in \
     pass "docs workflow retains contract: $contract"
   else
     fail "docs workflow lacks contract: $contract"
+  fi
+done
+
+# The retained list is the one pin for Pages artifacts; an inline wheel pin in
+# the docs deployer would let it diverge from the Jetson route.
+for forbidden in 'TEGRA_WHEEL_SHA256' 'TEGRA_WHEEL_URL'; do
+  if grep -Fq -- "$forbidden" "$WORKFLOW"; then
+    fail "docs workflow pins a Tegra artifact outside the retained list: $forbidden"
+  else
+    pass "docs workflow has no inline Tegra artifact pin: $forbidden"
   fi
 done
 

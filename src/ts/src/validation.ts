@@ -11,6 +11,11 @@ export function validateFfiString(value: string): void {
   validateFfiStringEncoding(value, false);
 }
 
+/** Source identities retain NUL but still reject lossy UTF-16 encodings. */
+export function validateSourceIdFfiString(value: string): void {
+  validateFfiStringEncoding(value, true);
+}
+
 function validateFfiStringEncoding(value: string, allowNul: boolean): void {
   for (let i = 0; i < value.length; i++) {
     const code = value.charCodeAt(i);
@@ -307,4 +312,9 @@ export function validateWriteFfiTree(batch: unknown[]): void {
       }
     }
   }
+}
+
+/** Escape one JSON Pointer segment shared by evidence and graph validation. */
+export function evidencePointerSegment(value: string): string {
+  return value.replaceAll("~", "~0").replaceAll("/", "~1");
 }

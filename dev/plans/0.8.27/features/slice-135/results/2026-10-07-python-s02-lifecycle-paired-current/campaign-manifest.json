@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "status": "PRODUCER_COMPLETE_S02_L_PAIRED",
+  "protocol_sha256": "cc0314a7f7ce8790601224aaa05874c7631893cc3a8306673496a06f53dfd394",
+  "campaign_runner_sha256": "b75f7d5de60719605c2e6a0919dba6ef483f54e4edeee933db2186d9bdbadd59",
+  "baseline_checkout": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline",
+  "candidate_checkout": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135",
+  "baseline_python": "/tmp/slice135-python-venv-baseline-f99e002/bin/python",
+  "candidate_python": "/tmp/slice135-integrated-venv-clean-v1/bin/python"
+}

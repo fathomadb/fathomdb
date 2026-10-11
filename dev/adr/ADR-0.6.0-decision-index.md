@@ -24,16 +24,16 @@ preserve options-considered for posterity; they do not deliberate.
 
 | #   | Category     | Candidate decision                                                                                        | HITL verdict                  | ADR file                                    |
 | --- | ------------ | --------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------- |
-| 1   | architecture | Async-surface for engine API (sync engine + Path 2 TS-binding fix + Invariants A-D)                       | accepted (deliberation)       | ADR-0.6.0-async-surface.md                  |
+| 1   | architecture | Async-surface for engine API (sync engine + Path 2 TS-binding fix + Invariants A-D)                       | accepted; mechanisms partially superseded by #56 | ADR-0.6.0-async-surface.md                  |
 | 2   | design       | Default-embedder architecture (candle + tokenizers + sqlite-vec; mean-pool + L2-normalize; zerocopy BLOB) | implemented in 0.7.1          | ADR-0.6.0-default-embedder.md               |
 | 3   | architecture | sqlite-vec accept-no-fallback (sole-maintainer risk)                                                      | accepted (decision-recording) | ADR-0.6.0-sqlite-vec-acceptance.md          |
 | 4   | interface    | Operator config = JSON-only (toml dropped)                                                                | accepted (decision-recording) | ADR-0.6.0-operator-config-json-only.md      |
 | 5   | architecture | Typed at engine boundary; no raw SQL ever from clients                                                    | accepted (decision-recording) | ADR-0.6.0-typed-write-boundary.md           |
 | 6   | architecture | Operational store lives in same sqlite file (no dual-store)                                               | accepted (decision-recording) | ADR-0.6.0-op-store-same-file.md             |
-| 7   | design       | Embedder protocol contract (sync, unit-norm, no-reentrancy, engine-owned-thread, per-call-timeout)        | accepted (deliberation)       | ADR-0.6.0-embedder-protocol.md              |
+| 7   | design       | Embedder protocol contract (sync, unit-norm, no-reentrancy, engine-owned-thread, per-call-timeout)        | accepted; dispatch/deadline details partially superseded by #56 | ADR-0.6.0-embedder-protocol.md              |
 | 8   | architecture | Vector BLOB on-disk invariants (LE f32, alignment, byte-length, BLOB affinity)                            | accepted (decision-recording) | ADR-0.6.0-zerocopy-blob.md                  |
 | 9   | interface    | No 0.5.x→0.6.0 shims; no within-0.6.x multi-release deprecation cycles                                    | accepted (decision-recording) | ADR-0.6.0-no-shims-policy.md                |
-| 10  | architecture | Single-writer-thread engine for 0.6.0; MVCC explicitly out of scope (closes Phase 2 #12 by deferral)      | accepted (decision-recording) | ADR-0.6.0-single-writer-thread.md           |
+| 10  | architecture | Single-writer-thread engine for 0.6.0; MVCC explicitly out of scope (closes Phase 2 #12 by deferral)      | accepted; writer mechanism partially superseded by #56 | ADR-0.6.0-single-writer-thread.md           |
 | 11  | design       | Vector identity belongs to the embedder; vector configs never carry identity strings                      | accepted (decision-recording) | ADR-0.6.0-vector-identity-embedder-owned.md |
 
 ## Phase 2 (deliberation ADRs)
@@ -49,9 +49,9 @@ Decisions that are not yet settled. Drafts pending after Phase 1 ADRs land.
 | 11  | architecture | Crate topology — keep `fathomdb-engine` monolith or split                                                                                                    | accepted (HITL 2026-04-27)                                                        | ADR-0.6.0-crate-topology.md                                              |
 | 12  | architecture | Single-writer thread vs MVCC                                                                                                                                 | resolved-by-deferral                                                              | → ADR-0.6.0-single-writer-thread.md (Phase 1 #10); MVCC deferred to 0.7+ |
 | 13  | architecture | Vector index location (vec0 in same sqlite file)                                                                                                             | accepted (HITL 2026-04-27, lite batch)                                            | ADR-0.6.0-vector-index-location.md                                       |
-| 14  | architecture | Scheduler shape — tokio runtime + per-job tasks                                                                                                              | accepted (HITL 2026-04-27)                                                        | ADR-0.6.0-scheduler-shape.md                                             |
+| 14  | architecture | Scheduler shape — tokio runtime + per-job tasks                                                                                                              | accepted; runtime topology partially superseded by #56                            | ADR-0.6.0-scheduler-shape.md                                             |
 | 15  | architecture | Wire format for subprocess bridge                                                                                                                            | resolved-by-deferral                                                              | ADR-0.6.0-subprocess-bridge-deferral.md (revisit 0.8.0)                  |
-| 16  | design       | Projection model — push (eager)                                                                                                                              | accepted (HITL 2026-04-27)                                                        | ADR-0.6.0-projection-model.md                                            |
+| 16  | design       | Projection model — push (eager)                                                                                                                              | accepted; admission/rediscovery details partially superseded by #56               | ADR-0.6.0-projection-model.md                                            |
 | 17  | design       | Retrieval pipeline shape — fixed stages                                                                                                                      | accepted (HITL 2026-04-27); composable middleware revisit 0.8.0                   | ADR-0.6.0-retrieval-pipeline-shape.md                                    |
 | 18  | design       | Error taxonomy — per-module + top-level wrap                                                                                                                 | accepted (HITL 2026-04-27)                                                        | ADR-0.6.0-error-taxonomy.md                                              |
 | 19  | design       | PreparedWrite shape                                                                                                                                          | accepted (HITL 2026-04-27, lite batch)                                            | ADR-0.6.0-prepared-write-shape.md                                        |
@@ -124,7 +124,7 @@ Slice-0 gate before Slices 15 and 25 open.
 
 | # | Category | Candidate decision | HITL verdict | ADR file |
 | - | -------- | ------------------ | ------------ | -------- |
-| 43 | interface | Supported Linux x86_64 CUDA-capable artifacts provide one CPU/GPU runtime with typed `auto`/`cpu`/`cuda:N` policy and `doctor gpu`; forced CUDA never silently falls back | proposed under HITL `seq:250` | ADR-0.8.23-dual-runtime-device-policy.md |
+| 43 | interface | Supported Linux x86_64 CUDA-capable artifacts provide one CPU/GPU runtime with typed `auto`/`cpu`/`cuda:N` policy and `doctor gpu`; forced CUDA never silently falls back | accepted; HITL `seq:250`, `seq:252`, and 2026-10-10 status reconciliation | ADR-0.8.23-dual-runtime-device-policy.md |
 
 ## Phase 0.8.25 (data-plane boundary decisions)
 
@@ -147,6 +147,17 @@ Slice-0 gate before Slices 15 and 25 open.
 | 53 | interface | Introduce no parallel functional V1/V2 public API pairs in 0.8.26; change affected V1 contracts in place, make the release breaking and fresh-database-only, carry no historical compatibility or migration machinery, and defer parallel API generations until post-1.0 | accepted (HITL `seq-283`, superseding `seq-282` as to V2 naming and redirects) | ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md |
 | 54 | interface | Add an opt-in positional graph evidence sidecar and frozen-only opaque point resolver for the exact selected target and winning terminal edge | accepted (HITL `seq-290`, D26-01 option A) | ADR-0.8.26-exact-graph-artifact-evidence.md |
 | 55 | interface | Preserve `recover` for CLI data-loss-authorized operator recovery while grandfathering only the shipped atomic `doctor recompute-mean` derived-vector maintenance exception | accepted by explicit repository-owner authorization on 2026-09-17 | ADR-0.8.26-cli-derived-maintenance-boundary.md |
+
+## Phase 0.8.27 (engine runtime successor)
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 56 | architecture | Preserve synchronous primary-writer/projection-worker/commit-gate ownership; add bounded engine-owned projection orchestration and embed dispatch with universal deadlines, typed configuration and two-phase shutdown | accepted (HITL `seq-295`, following direction `seq-293`) | ADR-0.8.27-engine-owned-runtime-topology.md |
+| 57 | architecture | Select the lowest passing default embed-dispatch worker count under the D27 comparison and unchanged release performance gates | accepted five under HITL rule `seq-299` and 2026-10-02 targeted throughput ruling; strict D27 retry PASS, third-run 0.4125 commits/s shortfall accepted, earlier latency FAIL retained | ADR-0.8.27-embed-dispatch-default-capacity.md |
+| 58 | interface | Deliver Python engine diagnostics through a bounded, nonblocking logger adapter; remove the inert Python heartbeat interval and add no binding-generated operation IDs | accepted by repository-owner 2026-10-03 direction conditioned on reviewed active architecture and design updates | ADR-0.8.27-python-subscriber-delivery.md |
+| 59 | interface | Diagnose owed physical erasures in doctor and complete proven WAL obligations through one offline recover connection, preserving telemetry obligations without the original sink | accepted by repository-owner 2026-10-03 Slice 103 direction | ADR-0.8.27-offline-physical-erasure-completion.md |
+| 60 | interface | Add a dedicated `fathomdb-sdk` Rust crate carrying the 44 governed Python/TypeScript operations, namespaces, defaults and error categories under fixed translation rules; check it in the operation map; amend (not supersede) BIND-RUST | accepted by repository-owner 2026-10-06 direction, conditioned on the reviewed Slice 132 design | ADR-0.8.27-rust-sdk-parity.md |
+| 61 | release | Distribute a separately named, dual-runtime CUDA Node addon for classic Jetson Orin as an exact-version tarball through the existing Tegra Pages route, not the npm registry, in 0.8.27; loader selects it only on detected Tegra with an exact version match | accepted by repository-owner 2026-10-09 (`slice-117-delivery-shape`; channel ruled 2026-10-05 by `slice-117-channel-tegra-pages`; follows 2026-10-05 supersession of D-80.7-3/D-80.6-2) | ADR-0.8.27-jetson-tegra-node-addon-distribution.md |
 
 ## Categories
 

@@ -1,0 +1,13 @@
+{
+  "edge_sources": [
+    "actuated",
+    "ordinary"
+  ],
+  "negative_control": "target revision changed in memory",
+  "negative_control_rejection": "resolved target revision does not match intrinsic evidence",
+  "schema_33_refusal": "typed_and_nonmutating",
+  "schema_version": 1,
+  "source": "slice50-graph-evidence.json",
+  "validated_cases": 12,
+  "validated_rows": 24
+}

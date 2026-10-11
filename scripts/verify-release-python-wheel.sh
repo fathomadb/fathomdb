@@ -38,6 +38,7 @@ if [ "${#wheels[@]}" -ne 1 ]; then
   echo "expected exactly one wheel in $wheel_dir; found ${#wheels[@]}" >&2
   exit 1
 fi
+python3 "$repo/scripts/check_python_wheel_contents.py" "${wheels[0]}"
 
 "$python_bin" -m venv "$venv_dir"
 "$venv_dir/bin/python" -m pip install --no-index --no-deps "${wheels[0]}"

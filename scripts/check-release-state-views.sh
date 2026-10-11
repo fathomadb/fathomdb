@@ -649,6 +649,23 @@ def render_status_current_state(st):
             "`next_slice` is %s but the ladder carries no such slice, so the STATUS "
             "board would name a slice that does not exist." % _slice_str(nxt))
     entry = by[nxt]
+    active_ref = st.get("active_ref")
+    if st.get("completion") is None and active_ref is not None:
+        expected_ref = "refs/heads/release/%s" % st["release"]
+        if active_ref != expected_ref:
+            raise ValueError(
+                "`active_ref` is %r; release %s must name %r"
+                % (active_ref, st["release"], expected_ref))
+        completed = " · ".join(
+            "%s (`%s`)" % (_slice_str(item["slice"]), item["sha"])
+            for item in st["ladder"]
+            if item.get("status") in {"COMPLETE_ON_RELEASE_BRANCH", "LANDED"}
+        ) or "no slices"
+        branch = active_ref.removeprefix("refs/heads/")
+        return ("**Next is Slice %s (%s), %s.** Completed on local `%s` per "
+                "release state: %s — state-owned, not an `origin/main` claim."
+                % (_slice_str(nxt), entry["short"], entry["status"], branch,
+                   completed))
     landed = " · ".join(
         "%s (`%s`)" % (_slice_str(item["slice"]), item["sha"])
         for item in st["ladder"] if item["slice"] in st["landed"])

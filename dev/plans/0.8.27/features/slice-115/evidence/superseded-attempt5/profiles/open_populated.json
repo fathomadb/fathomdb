@@ -1,0 +1,15 @@
+{
+  "path": "open_populated",
+  "method": "gdb-interrupt-stack",
+  "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+  "binary_sha256": "49a9b7d7409dd1a8b7029ef5596f4dbf8d19c12b21e58c0414160e6fc58b0655",
+  "requested_samples": 20,
+  "total_samples": 20,
+  "operation_samples": 10,
+  "sha256": "81585192a4a1edfd58b76230d2e12b07d5b828f3ebaad2fea0351867103f0abc",
+  "sampling_interval_seconds": 0.08,
+  "profile_loop_seconds": 15,
+  "control_operations": 268,
+  "profiled_operations": 255,
+  "control_vs_profile_throughput_ratio": 0.9514925373134329
+}

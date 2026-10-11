@@ -159,6 +159,8 @@ fn entry(status: &ProjectionRuntimeStatus, name: &str) -> ProjectionStatusDenseR
         .unwrap_or_else(|| panic!("missing projection {name:?}"))
 }
 
+// Seeds via `Engine::set_legacy_projection_vector_declared_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 fn seed_legacy_non_searchable_vector(engine: &Engine, name: &str) {
     engine
         .configure_projections(&[filterable_spec(name)], &[])
@@ -297,6 +299,8 @@ fn status_covers_embedding_ready_and_the_equivalence_refusal_reason() {
     rejected.engine.close().expect("close degraded runtime");
 }
 
+// Uses `Engine::set_legacy_projection_vector_declared_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn legacy_non_searchable_vector_is_not_declared_and_never_reports_unsupported_kinds() {
     let dir = TempDir::new().expect("tempdir");

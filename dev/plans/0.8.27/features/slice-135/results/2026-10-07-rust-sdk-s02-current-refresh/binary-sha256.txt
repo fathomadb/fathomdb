@@ -1,0 +1,1 @@
+09984ef5b66a14b6404e6d512cfe1bd56f670ed55aeb50bd428ecd6a32aa10ab  slice135-rust-sdk-consumer

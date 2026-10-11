@@ -5,13 +5,20 @@
 //! Consumes `dev/adr/ADR-0.8.0-canonical-identity-substrate.md` (SIGNED
 //! 2026-06-03) and the design memo `dev/design/slice-15-g0-design.md`.
 
-use fathomdb_engine::{Engine, PreparedWrite};
+use fathomdb_engine::{configure_runtime, Engine, PreparedWrite, RuntimeSqliteMode};
 use fathomdb_schema::{migrate, migrate_with_steps, SCHEMA_VERSION, SQLITE_SUFFIX};
 use rusqlite::Connection;
 use tempfile::TempDir;
 
 fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
+}
+
+// The SQLite runtime latches on the first open in the process; a raw
+// `Connection::open` in a parallel test would otherwise make every later
+// `Engine::open` fail with `RuntimeConfiguration(TooLate)`.
+fn configure_test_runtime() {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
 }
 
 fn node(kind: &str, body: &str, logical_id: Option<&str>) -> PreparedWrite {
@@ -48,6 +55,7 @@ fn edge(kind: &str, from: &str, to: &str, logical_id: Option<&str>) -> PreparedW
 /// superseded version retained (invalidate-not-delete).
 #[test]
 fn s15_supersession_is_idempotent_one_active_version() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "supersede");
     {
@@ -101,6 +109,7 @@ fn s15_supersession_is_idempotent_one_active_version() {
 /// active, keyed by `logical_id` alone (Decision 5, HITL-SIGNED 2026-06-05).
 #[test]
 fn s15_edge_supersession_is_idempotent_one_active_version() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "edge_supersede");
     {
@@ -130,6 +139,7 @@ fn s15_edge_supersession_is_idempotent_one_active_version() {
 /// rows coexist active without colliding (SQLite treats each NULL as distinct).
 #[test]
 fn s15_null_logical_id_rows_never_collide() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "nullsafe");
     {
@@ -160,6 +170,7 @@ fn s15_null_logical_id_rows_never_collide() {
 /// NO LONGER a distinct active row; it collides too.
 #[test]
 fn s15_partial_unique_active_index_rejects_two_active_versions() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "uniqueidx");
     let conn = Connection::open(&path).expect("open sqlite");
@@ -209,6 +220,7 @@ fn s15_partial_unique_active_index_rejects_two_active_versions() {
 /// FAILS (two active rows) — that failure is the fork bug this slice fixes.
 #[test]
 fn s31_node_kind_change_reingest_supersedes() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "node_kind_change");
     {
@@ -264,6 +276,7 @@ fn s31_node_kind_change_reingest_supersedes() {
 /// (Decision 5). One active edge after the re-ingest; the prior is tombstoned.
 #[test]
 fn s31_edge_kind_change_reingest_supersedes() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "edge_kind_change");
     {
@@ -322,6 +335,7 @@ fn s31_edge_kind_change_reingest_supersedes() {
 /// scalar `cursor` remains the batch high-water cursor.
 #[test]
 fn s15_row_cursors_are_one_to_one_with_the_batch() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "rowcursors");
     let opened = Engine::open(&path).expect("open");
@@ -347,6 +361,7 @@ fn s15_row_cursors_are_one_to_one_with_the_batch() {
 /// queryable, and re-applying the migration is a no-op (idempotence).
 #[test]
 fn s15_legacy_pre_step12_db_upgrades_in_place_with_null_backfill() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "legacy_upgrade");
     let conn = Connection::open(&path).expect("open sqlite");

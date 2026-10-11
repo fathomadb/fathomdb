@@ -1,0 +1,22 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,5 +1,5 @@
+-pub struct EngineError;
+-pub enum EngineOpenError {
+-    Io,
+-}
++mod errors;
++pub use errors::{
++    EngineError,
++    EngineOpenError,
++};
+diff --git a/src/rust/crates/example/src/errors.rs b/src/rust/crates/example/src/errors.rs
+new file mode 100644
+--- /dev/null
++++ b/src/rust/crates/example/src/errors.rs
+@@ -0,0 +1,4 @@
++pub struct EngineError;
++pub enum EngineOpenError {
++    Io,
++}

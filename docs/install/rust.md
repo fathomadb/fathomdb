@@ -1,15 +1,18 @@
 # Install — Rust
 
-Two consumption paths for Rust users:
+Rust application code uses `fathomdb-sdk`, the peer of the Python and
+TypeScript SDKs. The lower-level facade and operator CLI remain separate
+consumption routes:
 
+- **`fathomdb-sdk`** (0.8.27) — the
+  [Rust SDK](../reference/rust-sdk.md) with the Python/TypeScript surface.
 - **`fathomdb` facade crate** — re-exports the runtime verbs from
   `fathomdb-engine` for downstream Rust libraries and applications.
 - **`fathomdb-cli` operator CLI** — `fathomdb doctor` and
   `fathomdb recover` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
 
-> **0.8.25 is published to crates.io.** FathomDB is pre-1.0 and the surface
-> is **beta**.
+> **Release 0.8.27, pre-1.0 beta.**
 
 ## Requirements
 
@@ -17,70 +20,75 @@ Two consumption paths for Rust users:
 - SQLite headers + a system `sqlite-vec` build, or vendored equivalent
   (the workspace builds `sqlite-vec` from source by default).
 - A Rust-supported target and a working SQLite + `sqlite-vec` build. The
-  published Python and npm native-artifact boundary is Linux
-  `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`; Rust crates
+  Python and npm native-artifact boundary covers Linux x86_64
+  (`x86_64-unknown-linux-gnu`), Linux AArch64
+  (`aarch64-unknown-linux-gnu`), macOS x64/arm64, and Windows x64; Rust crates
   compile from source.
 
-## Install the published crates
+## Install the lower-level facade and CLI
 
-Library:
+Lower-level library:
 
 ```bash
-cargo add fathomdb
+cargo add fathomdb@=0.8.27
 ```
 
 CLI:
 
 ```bash
-cargo install fathomdb-cli --version 0.8.25
+cargo install fathomdb-cli --version 0.8.27
 ```
 
-For the immutable 0.8.26 data-plane inspection route, wait until 0.8.26 is
-published, pin the exact version, and verify the discovered binary:
+For the immutable 0.8.27 data-plane inspection route, pin the exact version and
+verify the discovered binary:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.26' --locked
+cargo install fathomdb-cli --version '=0.8.27' --locked
 fathomdb --version
 ```
 
-Do not treat 0.8.25 as an immutable-inspection substitute even though it uses
-the same database schema version: its data-plane command still enters through
-the ordinary writable engine-open path.
+Public 0.8.27 opens bootstrap a missing or zero-length path directly at schema
+34 and accept a non-empty database only when its committed schema is exactly
+34. There is no public automatic-upgrade route.
 
-## Qualify a source candidate
+## Install the application SDK
 
-From a trusted FathomDB checkout, install into a clean root and invoke that
-exact binary:
-
-```bash
-candidate_root="$(mktemp -d)"
-cargo install --path src/rust/crates/fathomdb-cli --root "$candidate_root" --locked
-"$candidate_root/bin/fathomdb" --version
-```
-
-This proves the current checkout and host, not the future crates.io artifact.
-The release candidate repeats this check after version integration; the
-post-publication smoke is the only evidence for crates.io 0.8.26.
-
-## Install (current path — from git)
-
-Library:
+For the application surface shared with Python and TypeScript:
 
 ```bash
-cargo add fathomdb \
-  --git https://github.com/fathomadb/fathomdb \
-  --branch main
+cargo add fathomdb-sdk@=0.8.27
 ```
 
-CLI:
+Use this complete program in `src/main.rs`, then run `cargo run`:
+
+```rust
+use fathomdb_sdk::{Engine, OpenOptions, SearchOptions};
+
+fn main() -> fathomdb_sdk::Result<()> {
+    let engine = Engine::open("./sdk-example.sqlite", OpenOptions::default())?;
+    let hits = engine.search("hello", SearchOptions::default())?;
+    assert!(hits.results.is_empty());
+    engine.close()?;
+    Ok(())
+}
+```
+
+See the [Rust SDK reference](../reference/rust-sdk.md) for operations and
+option defaults. To build from source, use a trusted
+`release/0.8.27` checkout beside the application:
 
 ```bash
-cargo install fathomdb-cli \
-  --git https://github.com/fathomadb/fathomdb \
-  --branch main
+cargo add fathomdb-sdk --path ../fathomdb/src/rust/crates/fathomdb-sdk
 ```
 
-## Feature flags
+The lower-level example below deliberately imports `fathomdb`.
+
+## Lower-level facade feature flags
+
+These flags describe the `fathomdb` facade. The application SDK has no
+`operator` feature or raw SQL route. It enables no features by default; opt
+into `default-embedder` and `default-reranker` for those model runtimes. See
+the [SDK feature reference](../reference/rust-sdk.md#features).
 
 - **default (no features)** — the *governed application surface*: `Engine::open`
   / `write` / `search` / `close`, the `read_*` and `graph_*` verbs, the
@@ -140,6 +148,7 @@ WAL/rollback-journal sidecars, and performs no migration or repair. See the
 
 ## See also
 
+- [Reference — Rust SDK](../reference/rust-sdk.md)
 - [Reference — Rust API](../reference/rust-api.md)
 - [Reference — CLI](../reference/cli.md)
 - [Reference — errors](../reference/errors.md)

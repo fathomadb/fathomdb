@@ -1,0 +1,5 @@
+{
+  "child_swap_event": "measured child resource invalidator",
+  "reordered_block": "run-order record differs from frozen order",
+  "wrong_materialized_id": "text: malformed or ineligible result"
+}

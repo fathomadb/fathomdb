@@ -280,7 +280,8 @@ the only test-plan.md responsibility for this section.)
 **Test id:** T-011a
 **Assertion:** Sequential `WriteTx` commits with 1 KB payload sustain ≥ 1,000 commits/sec.
 **Measurement:** P-WTP-WARMUP warmup → P-WTP-RUN steady-state measurement window; commits/sec computed over the run window; CI gate fails if value < 1,000.
-**Fixture:** write-throughput-1kb (test-plan.md fixture spec — pending).
+**Fixture:** `perf_gates::ac_011a_write_throughput_1kb`, invoked in optimized
+mode by `scripts/run-ac011-write-throughput.sh` on the tier-1 runner.
 
 ## AC-011b: Write throughput @ 100 KB ≥ 100 commits/sec
 
@@ -288,7 +289,8 @@ the only test-plan.md responsibility for this section.)
 **Test id:** T-011b
 **Assertion:** Sequential `WriteTx` commits with 100 KB payload sustain ≥ 100 commits/sec, measured per the same protocol.
 **Measurement:** As AC-011a with 100 KB payload.
-**Fixture:** write-throughput-100kb (test-plan.md fixture spec — pending).
+**Fixture:** `perf_gates::ac_011b_write_throughput_100kb`, invoked in optimized
+mode by `scripts/run-ac011-write-throughput.sh` on the tier-1 runner.
 
 ## AC-012: Text query latency on FTS5 path
 
@@ -652,6 +654,12 @@ not an active release gate.
 **Assertion:** `Engine.open` on a fresh database, with the default embedder configured by the caller, triggers zero outbound network requests.
 **Measurement:** Run `Engine.open` inside a network namespace with default-deny egress; assert open succeeds and no `connect()` syscalls outside loopback.
 **Fixture:** netns-deny-egress fixture (test-plan.md fixture spec — pending).
+**Executor:** the live layers need rootless user namespaces. On Ubuntu 24.04
+hosts (`kernel.apparmor_restrict_unprivileged_userns=1`), follow
+`dev/release/ac-037-live-netns-hitl-runbook.md`. In that runbook the HITL
+temporarily grants `userns` to `/usr/bin/unshare` only, runs `STRICT=1
+scripts/agent-security.sh`, and then restores the restriction. Without that
+grant, the live layers are an environmental downgrade and never a pass.
 
 ## AC-038: FTS5-injection-safe text query
 

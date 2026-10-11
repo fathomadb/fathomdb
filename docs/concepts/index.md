@@ -1,6 +1,6 @@
 # Concepts
 
-Mental model for the published 0.8.25 release. Detailed treatment lives in internal design
+Mental model for the 0.8.27 release. Detailed treatment lives in internal design
 docs under
 [`dev/design/`](https://github.com/fathomadb/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.
@@ -12,22 +12,24 @@ open → write / search / admin.configure / instrumentation → close → proces
 ```
 
 1. **Open** — `Engine.open(path)` creates or opens the SQLite database
-   at `path`. The handle owns the writer thread, the reader pool with
+   at `path`. The handle owns the primary SQLite connection, the reader pool with
    thread-affine workers, the scheduler, the op-store, and the
-   embedder pool. Open is the only place migration runs.
+   embedder pool. A missing or zero-length database is initialized at schema
+   34. A non-empty database must already have schema 34; public open does not
+   upgrade it and rejects a different version with a typed incompatibility error.
 2. **Write / search / configure** — application code calls the
-   governed verb surface. Writes are serialized through the
-   writer thread; retrieval reads are served by the reader pool; admin
+   governed verb surface. Writes are serialized on the primary
+   connection; retrieval reads are served by the reader pool; admin
    configurations apply in write order. Pure projection introspection
    (`read.projections` / `read.projection_status`) instead uses the ordinarily
    opened Engine connection and may briefly take its connection lock; it neither
    mutates nor promises a separately opened read-only SQLite mode.
-3. **Close** — `engine.close()` joins the writer thread, drains the
-   scheduler, releases SQLite handles, and releases the on-disk lock.
+3. **Close** — `engine.close()` shuts down the projection scheduler and reader workers,
+   releases SQLite handles, and releases the on-disk lock.
    Idempotent.
 4. **Process exit** — the process must exit cleanly after close. The
-   wheel-on-disk lock cleanup and process exit are the bug signal the
-   release smokes watch for (per `feedback_release_verification`).
+   installed-package release checks verify lock cleanup and clean process
+   exit after close.
 
 ## Governed runtime surface
 
@@ -47,8 +49,9 @@ Around them sit the rest of the governed surface: the `read.*` and
 primitives (`search_text_only`, `rerank`, `embed`) and the BYO-LLM
 verbs (`ingest_with_extractor`, `consolidate_with_provider`). The
 membership is pinned by
-`src/conformance/governed-surface-allowlist.json` and asserted by both
-binding test suites.
+`src/conformance/governed-surface-allowlist.json`. Python and TypeScript
+conformance suites and the Rust SDK operation map check
+that membership; the lower-level Rust facade has a separate contract.
 
 Engine-attached instrumentation (`open_report`, `drain`, `counters`,
 `set_profiling`, `set_slow_threshold_ms`, subscriber attach) is not

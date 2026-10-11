@@ -1,0 +1,707 @@
+{
+  "rows": [
+    {
+      "depth": 1,
+      "direction": "outgoing",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice10-wheel-claim-r1",
+        "slice20-wheel-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice20-wheel-root",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice20-wheel-edge-r1",
+      "resolved_edge_to": "slice10-wheel-claim",
+      "resolved_target_logical_id": "slice10-wheel-claim",
+      "resolved_target_revision": "slice10-wheel-claim-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "explicit",
+      "target_index": 0,
+      "target_ref": "fdbgev1.0c7e19996f827b64495d17bed1063a50e73e6b76d911ba5d5144fd20938c46bdf60b9bfaed067ba51550cf1ab4fac36569ce0bfb3a5e75f33f1af9ef4083291151954bf056267dfc2ae3f4b5b2d5fc0de9dabe7657f0b2a3b0b210d42ee0fa88a314e4cca6ab9535dea1d46552e1f58a4ba663e77296b6f7dcc02944e71f7707efb4bfb5f8259ba948368f98abcedea5f1346acbfcdc7a39c0a0693f79aadb2c9ff12009f1030e4089b62b6f1e1e96693933054c4484821273fcb8b3c33eabf96417289995aa7811657396521d5579dcf57474794569a599fc8eab845072a87feea7bce3e985366b462e783d1d406d07140290f960c24da724cd98834d5cb3b03070b6f3c66b81c97bc6755c2c4d5cf711d8e0ab1b6c317904722931a34c91044a820b1bbe7485e600fb25f0af3ad71b9ca90ce991761dd3b43303768a3e8dc8a852dee032a9a3ff6133c81c3b093c788c21e656995088944654f4a0",
+      "terminal_ref": "fdbgev1.71318ea8779da00903465325de7836512eab72196480a21ea9d6f5eef13dbe107858e32254ef225ae1623667bc0db91cd033330b4dd4fa8c479949b8a1661659275e1697358e91d529dac458b52291e81f2563c64c8293e3175379265fe6fcd052e570b571f87d58cac66c55bc5ca5fdc51ee89b0b63f8cd642a3c6b79074cd76996a40b28b46a8c261634f704096248c3cf7249c4c3c4b1565456b14d4d58593ef24384362ed2e6ae59e87a404b814f622e8b6957286d3e7a36c081c3c0a9eff93b663a16bd71d55fe6c433d45bcebabc74cb3b199c83d005b639d6d79ee820cc4f2dd34e717951a46a1e5d67497f3213f3717ddb535bfd54f323a484145e620444f176ddad255e567c0fb775fd11dd57f437cedc641b48d1d2129b13f23472304bda5ba22f73d8c84b570a2e4a0de05e8fa070ead1a0a822f02811e1fbd6f4719c4629a92c0b6d53a1429bf09e9e2122ff7a1353e44124e09cc72f"
+    },
+    {
+      "depth": 2,
+      "direction": "outgoing",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice10-wheel-claim-r1",
+        "slice20-wheel-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice20-wheel-root",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice20-wheel-edge-r1",
+      "resolved_edge_to": "slice10-wheel-claim",
+      "resolved_target_logical_id": "slice10-wheel-claim",
+      "resolved_target_revision": "slice10-wheel-claim-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "explicit",
+      "target_index": 0,
+      "target_ref": "fdbgev1.4776a9dd49f0ddc9dd4bde03a335768106479678a580134a5c6c8914ecc5a9c037c88d182d5625e184e1ee92147f4843f826267be858038246a31c1bd38dae0e13dcabe5e7928408ff3179700ff34fe0a4aa865d0f9cb8df022b1562eade6837ac4aac11daf5ffcf407217f9ad23e7fec3ad1a27765a39156ad185ca913bf0e1ee3635a8e7e9417ce6893942ad02b8f0c339855469fc5447897030792c526c880b85068b85a080a49ba4b2c7bdc381182e6af692532bebb7b2db59af8d6a0f25b13434876d4f4f4aad38a86205d11ffa24879071ec427e96133b5de8548fcacd93937f744b45a13b5968de7e65f23900442ac7c740cfd5dca2ca2b20f78da05881b7d596d2cb9cd24e8a56bb0a033e3f29aee9049b1224240c76e32d08871fcd5cefe7de43b36facdbc89ffc6a8bfc9ae125f0b028124ebac552b68b1c8f37003decd2d912a0c2a246a311ecc01caa2fbdb2494cbc16049fbe27d63c",
+      "terminal_ref": "fdbgev1.074bd8379eb2d115b37288d2c0e2309c4326837b2c563f85756456488dd0a32f5d7784e9e2956e1894f6c2a2cfde604f31a752c70029e84d27c7420053e2174be592dd0af029b4721ca48ee509c55433c0deb06db1a61060be69c7f06d169e9347d112fce8e97b705b6ce3f9873b202c13fedcf2ef20fd3d15cbcf8d136c4085626c0ccb82a78039198bfc4619109b933856cbfc23c27ebce49ec999b1f262f6579a0b78ee3820e1d84d6fde79336f064dc633d9467ffe782025e26fcc7a81cd7028377dca57aa00140ddf49a1cf4d84b900d53e3da1686ae6a6bcf386db5058430a1b9b849a7d89dc23facc5eae662169a4e108ad429c0ec2460262c447921f9006caa52d2de3965f4859b37fa464b135bafcb16d5d3336d251bd4836aa0ac09de3b5cc5607e316e2e830da1733029ee58ec1ef7b4a72e34491326f22bb1475e171b189d70d3a08010c53a880a8dec81603303f757013863b1f416d"
+    },
+    {
+      "depth": 2,
+      "direction": "outgoing",
+      "edge_source": "actuated",
+      "hop_count": 2,
+      "intrinsic_evidence": [
+        "slice50-wheel-out2-r1",
+        "slice50-wheel-actuated-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice10-wheel-claim",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-actuated-edge-r1",
+      "resolved_edge_to": "slice50-wheel-out2",
+      "resolved_target_logical_id": "slice50-wheel-out2",
+      "resolved_target_revision": "slice50-wheel-out2-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "slice50-wheel-out2",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "explicit",
+      "target_index": 1,
+      "target_ref": "fdbgev1.7fa457af1c9a7a389ed3739c576ea4ecb38dfc58f89375efb6f56343e9ac0ac67fe0b0f2edb07913cf389bc8a321c8c83e41e1ccbc89c6eaa50dfe1d355f60eeefdb883d97d115939e5dacb09acf14dab19133b4dd98219b04e645d22882f41e5561dc340a23f50db5afeb46db10563175d549f2535b76a13b7585b496487cbc829ee6853f6fabfb5852611a232170b58a009f42a63f320a2032a4c8a74d36fb254c4151d5728848f1e669aab9bd7f3f700ded96d385c65cad027cb1336f0653fd4273de112d3166af67aafa14733144f6f7c51fda036ac017b70c2447711c3d6281365a3d6bef493e31e148274054fb0d0c6985758787abc4cf83fc46b342c6b989d10e7137f3daa344d879ce4f77ea9febdaa926099fa9bd64c5451dff783129366e244c0c1002583907a0a54ae0aa70285e11164e874e98bd5db637ec2a10e44e19c1a5f15b799c88c48fcfdeb109776d92cbaffb3a2669d939de",
+      "terminal_ref": "fdbgev1.2b520a2a5ee044e17c3cfe390c1b415a3a472d27e06c484d4840976a81b630ed2f5f0b9cd635ffb2af65fe557a89199b456c72e877212c3388d239e9f62611306765156a563fdd8a2e2074147d87f677c79c4b53db1b33a58df71e8f01361feb2a625487e1d9ed268daf201be42a34e3166fe63ebc2993f79814312d96092206007da9894889a853d5c2b284b0aca9b7bc81f7c348a36f2735cb41741050ffcf390dcc79fd4e8859d080ee18c365c2019dbbc14bad9648e1b3a15e9f90678c29eea8f13c6fdd76dd2c683e5aa0843fff680c473b11de938ef62753b7863ed68b1a48ff838f8b62f833502549429732b57c04fcd80e02e6ce1d18f9a80ebf34d1a8be121b76e1d73cb8c9d93498aa7490cd97a573426598543176c44cea83fe89903d83d8519876db3ce5aa83003401121523442a4878ad33558064d1a7c969393ce38a5fc56afeb81bf12e358ef996ef4b865a6aeaae4d7f87ddda5b"
+    },
+    {
+      "depth": 1,
+      "direction": "incoming",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice50-wheel-in1-r1",
+        "slice50-wheel-in-edge1-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in1",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge1-r1",
+      "resolved_edge_to": "slice20-wheel-root",
+      "resolved_target_logical_id": "slice50-wheel-in1",
+      "resolved_target_revision": "slice50-wheel-in1-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "supports",
+        "incoming"
+      ],
+      "seed": "explicit",
+      "target_index": 0,
+      "target_ref": "fdbgev1.a288b94f0b12a7cc3baa94fa7c245e711e8a29c2eed7c78ff49fe001dafc41e9f12a18a21d70a96e7458c72700e144054876428349a92b9fb37483b76d98c22c54b489d01a29b214bbc89950f2e8a415b8f7e3a14f7049b3d4079eec3a6a2363f1c8db81e8a2f37690f2d8bbce33c0350dd7f6696048aa6cfafa2781497c76165956857df19317bbbf5876dbb13d522b780dfab55fdf591103c5c0aa792afd03bc77c7dd000870a31aa726aec00bac51b7f932c4feed5bcb62139df2d7bda5eaa6062dd09a7340a19dd71f07c5b3df681dd50d0fc9636734360d7473699ab0551512c608a8efdc13b7f06ff150c6636ed820188e9f48d5a805440c5062b138f3e14db07708493b3bdd1333b373e45ab0c2a02754efefefcf2c7efc05ecb45a836e10bddb39e641542a109520e9feda8746a9b5da84e6b5413612f3d21e726ff9bbdfebb8107eae77739a5638e4527a3e9d82a929982adeb492facf6e",
+      "terminal_ref": "fdbgev1.0c8d1ed45ac085f29ef2df9a313d43d7e33be86e702f7a7595185d7683a9fe50b9ae15e4edc666fe47a3d4cb08d672353bf9abcd2ef1eaf3de9a310bb4b13a0a46164046f792e8eae8959fadbf41c16efc7d7cb6ea69536914a6bc877a93c26489480227dc2f937a7a8430208e790c382423960fab1604d4c06281ef1c1070911c7c238f37981e08b8d73cf758b965e9e39ff2f2347e5216e75c370139d3bb91b84ea06cbccf420dbb052c702185f5b5f29bf9ce26afc2bec3bdbbaa34c95501dc08a3970685a2c34a122fd05a941574bb1f081b858366139494db154eac696991f38f77517b4bffb6fe941dc7e87fd828ff1183da844e94a4cb9678bcb8a9ded58f846acba31ba9e591b0fc35a9b7051885ced66556861178fbe9ca65806bb5742d2a4b0aa603774d8bd35c8d479909bf8ecbdea1f36f61472caf8640ae3c5caedd4312188e887b284c7992e5133b176941ed7bfd86ae1cfc969b54"
+    },
+    {
+      "depth": 2,
+      "direction": "incoming",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice50-wheel-in1-r1",
+        "slice50-wheel-in-edge1-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in1",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge1-r1",
+      "resolved_edge_to": "slice20-wheel-root",
+      "resolved_target_logical_id": "slice50-wheel-in1",
+      "resolved_target_revision": "slice50-wheel-in1-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "supports",
+        "incoming"
+      ],
+      "seed": "explicit",
+      "target_index": 0,
+      "target_ref": "fdbgev1.886c813a9cbf00eb5a5505a792d1f336150d0cf5445f6c609cc7b23ef6d94537ebbe5dec207485de79b5f737a5b11f64c529ab3e95dcad9af42e221fb416cdcf2b42754d1d79fc6600d5185a9d020b50a83519ef71da1d9ef342c0801f0fcc8aadb19e96e7cca913b9ae96f5082d854f226184c448f19b41e9d6fe3598f2c91fd1fa8e760752d575239c9215400534521b9ca98ef9992d4e0d29195bd2c5f996764ba4c67131246b317f7c9982776141be4d44d8ec6b2fb0f0fb5ff9583bc7fff068c626a2df64d242fd4ae48f5f33a70bd5902b7e52f4f6c6a68ae7e7a7e1ca9177a5506ca8496ba67fe30611328e9a46901ad05a4a52118dddb9f989c63a5feea487caf79aaef955372bf1ec7f238b75e5928a7c4fbd1c8cda47f54d30c7400b84b4372f058170d943d607876d2b337efda4c936765e4f279ec1610fb4e39e689339e5324de439891859873c6ef879327741cb586f1a95165d5464",
+      "terminal_ref": "fdbgev1.09e6b580614683ef7b2ce6168cb6c4351ce9217b4ef2911de5c2b1c8ca30d5fdd512db21ecdab2e27f586ef81706347ec9b4054b62a83f2f70173e815cc08f27268c008010d7292b7e3feacb0a08614ec1351a55f4e80d4b3a735996cfade2fefb2265d60ce6cb0e33f39c1021442c3b40d76c55a65370fe4a6112c1c8ffd174f2554be66d69b792fcd479906e4e4d596acc153739bc355b1fcf66c5675b26af99c31decbab11d433bf0d34dc0fd045ce34c1d1580da4d6e09445e3b1f7290587de5a593416328ef80dc79c205cc7946e5b4c8c76add95fea1349974300e18f2445f1e5c026d834309229d74a60d6b219c4ee34b32e5054218054d9b02d2c7c1ee585409693402a22f6d71aa8fbcb27d1a15dab3e8cdca1d2c3addcac732493d6634a33f80e33e32f0071d89aff6d5b704a6152789acbe9413802e1299bb1bebc8fa3b7ec48c586d88ec0e7ec9f322512b33ae9b1064f39f70913978"
+    },
+    {
+      "depth": 2,
+      "direction": "incoming",
+      "edge_source": "ordinary",
+      "hop_count": 2,
+      "intrinsic_evidence": [
+        "slice50-wheel-in2-r1",
+        "slice50-wheel-in-edge2-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in2",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge2-r1",
+      "resolved_edge_to": "slice50-wheel-in1",
+      "resolved_target_logical_id": "slice50-wheel-in2",
+      "resolved_target_revision": "slice50-wheel-in2-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "slice50-wheel-in2",
+        "supports",
+        "incoming"
+      ],
+      "seed": "explicit",
+      "target_index": 1,
+      "target_ref": "fdbgev1.ad3d4b0927fe6543270ca600b6bd59b4479a13e376e38777d5bbd05be12ff39fdaffb70d081e739a4d2ed30c877468d2d801b72a79e5010bc6799ff4483ea661d157460e951dc0b85c9299c66c74951a69e76b611b64fe8826ddd7c90c7e6c8ec0dbe037546a6145e3bc7292d7f2b0966e0f2aac2ca195de1a9c6ca2f9e2d42915eb903494635a48ce395c6e5566070e1050b463b400db2ba194efc1b84df6ca949306ae5b0b424519905fd2b2aa9004cbb4634879f19f142ed1a41f03524cc8cfddf2f4805ec0d5fa9955457d1f8f3a12ad548fe58fbe7254303f730a2eea6719f50891b9c71a6fb162029fbffccd3bbd1ba74a946dd4a2c1787e86e03307d667d397d1c043a68891abf6ba83aadca3e4d944a479b532939d83ee1b8ff6740131d69d25162cb3873cb66ab33b430f83c3cf6e8eee7260c6b83e46d7bbd43c0664ff3c38a61431633669e1fcaf0faa7c40c71f1840b0bdd9c0fcd3ff",
+      "terminal_ref": "fdbgev1.160e6537a23643e7acec1d56f2f93eddcf133978dc42e85d9e222bfdf48f5d2aa89e3c9b6c61a83242326a9dbe6a0c2ab0155e58ca5ecea188e5afe26af431c411f2940ed2df46aff22dcff31cbc27f79446cdceac4e0f15ed24a632b6fd82b5f2a1397f4a928b9bac93b26618215ea1eaf2d43a65810a26990814aed52b7faeaf0d988ab3a33b7d3974967db64ac6db677cd933147313e256c8f8c330d7b0a1baf25719883d49e49fc3f77d8f4bf1b695f757c8082b2d37518ef0e5d2f301050636b744d14a12e4ec6e848eb0c634da8f7df2cc341a8b3917298e270223ff56716ebb88a304139cff3cfb826940c0911e370b3a9c66d09bad836991df9570784701d79d73a10aebc1c32a3a34fb2543936193a7aa34bdc8837cfaff6bd186a3e636541d5e3e897e93861f2100ff25715ce96d1ae10e738c31fe892d37bcdf9f1cb409682275fe8834b521ba5ff144e48a4cf10a524fed33ec0fcabb"
+    },
+    {
+      "depth": 1,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice10-wheel-claim-r1",
+        "slice20-wheel-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice20-wheel-root",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice20-wheel-edge-r1",
+      "resolved_edge_to": "slice10-wheel-claim",
+      "resolved_target_logical_id": "slice10-wheel-claim",
+      "resolved_target_revision": "slice10-wheel-claim-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "explicit",
+      "target_index": 0,
+      "target_ref": "fdbgev1.6249c47a8c7255dc3f1de3b7f4d4c73c6efaf19c4292294eae179147b84f1bca4aa96c495ee842d321fbab19a8bf82cc8385355feaae7d92cad5abd56e64d32fe86691a856a1bf7be7b0f916915d82352617ae0fe417be31068de2a8b966d131fdfb584c894a2f4cf2aacb8a72083429981b2ba8d870f95f3074b70bfb7069e20dd29c6dc50ce4eba3793bd8eca44ac6ce05f18629fd059a8c0b2c40e50e46c24c69f51f529c8113e5ebcbc2fafdff918da44b9c6da19a3330a3e2c303a9f033903ac34dd204a9115ac9725fe23675c56a657e5289ea4cc1274ea0a173f02ee56e042921e86ce77caaa8081265924ec88e9443afd0079d6f5d93a61e57662745899f6d52f782853671758c1ddbc08139a890096e877c6382839fc6cb8467fb208bbb40027ea6194fd17490d2d45fc7ca9c14ac1aeb3fae66de416f3b86c4f5b1444630e3ee9bb0e952c8c248c74a731b35b4a30d0e3c69aad9c47c53",
+      "terminal_ref": "fdbgev1.fa363038f04c7223b6e848a466b93f9859cd67f164a5c1d21253071f5ab003c09b5788171edb1b388166493e8680924d86894e5f52ee638fde471fa1f1e230a292a53cb480b27eca9c01f53ab24a0bf9971b6e8b483bcbdf072e95eaaffa1c4a15aacdf1d129c95194fd0288de61b00ba86a306a719f9b3babdfb809115c619bbee235011440d9bd10135cd59dbdd5b0ce0b941651c4ab5473ae256852220972200b21eb89ec8d22576f5a1c5b6b35084d83c8752327363268bdaf878c379f1477a36c54c58657fa9244eb70e433453ec764ddcea384e70fd0e81b9a4d1f3aac3e760f34721b2d7cd8598743e75eceae65f9ae7d976f33265da2311be4f6126ae22ab3796bd2c68f7254de509381a82259d3e9554d2ce133e031ce79550999ebfc13848906ac5e437af278b0734b4f7f3871ef3083a22e96e271eb43cc040b104f42e2b042752f3fb9cf5431da576e7be1a8c0503e32c231709aa824"
+    },
+    {
+      "depth": 1,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice50-wheel-in1-r1",
+        "slice50-wheel-in-edge1-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in1",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge1-r1",
+      "resolved_edge_to": "slice20-wheel-root",
+      "resolved_target_logical_id": "slice50-wheel-in1",
+      "resolved_target_revision": "slice50-wheel-in1-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "supports",
+        "incoming"
+      ],
+      "seed": "explicit",
+      "target_index": 1,
+      "target_ref": "fdbgev1.5459b8824407e28eebffcca0c97c8bbb6eec010e134943c6e52bc16971a788a4da7562502de35a78b993c666311ba2abf3de450653f5a4615809baf0efcd05fd4a3bd70f1064c14af5fd377d6f1d2812443306e71477647ae0db21e0238a09541e124f5786ee6ccdd960c7ae0a4eb8db37fd22ff4305a8d38329eb2196d144f7eaa74fcb45dcda7ab495f174277835a928ad3b5ac5c484b3ff2b37738677fedd5eafc255ec22c2595755caf78be215e707e7b4c2f2bb8a833987539637e63505eebfcffb40726538f50ba68cece81cfdf687549d86390747c516bdd99e7511bd80def151c82698ae8545297edc77cd1a9429c6c6d90d8384b3479ffb3fe38647869b1243fbe6a5bbce3a668c795e5ae1e513fdb29d64647058b06c00c64cf9a6c3af9bdb009ee99311f569297172426998a961c83cb61ee79b806c7f556ef47defa17a0d61ebc7690c8f23470681de1c2fe88bc84e847054114e56f3",
+      "terminal_ref": "fdbgev1.cfd329f05d72c165815d1ce228a299671ce6d0dae9e31f612aa1fbb0f7867ab4007ae99b4cc7ae220c97cff3ac49ea328a526261d9cccc5031b232cd62d0b6b3460328e3e59a0f0a6d77d107c4a21ef63799c17d07fe5c274e5614ce0bf281f297749094ff74afa3d047b3a3e8dd63938d3aa0186dbdd42d286992a4cad41f656735e929bffa11f71eb96908c4638511fb524663edcb37449a1e6046f0038ea62f79ba4de48e42ff24633ec38cb4d4f13351733df27c62115a6b52fab7b7c4c08b31fb126645c31d4abbc671ffc75fab3ec9ee1a36fb4becdcf64025cdee36294ff200240ecabe61caaf83c98931334e8188fb688ff251b29f99d8b5e1708e4142e8ba8fc4ab6f04911e61f4d5a409e0151d408b58f11c6fbaf191c7f657a16823c3c58c50edf3d8f1a4711726ef2584b95de4441920149f3c9dd3c025e263e7e3ceb13851f91d850ab7ecfe8df674ba3a56f9d696aee5d65384d2dd"
+    },
+    {
+      "depth": 2,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice10-wheel-claim-r1",
+        "slice20-wheel-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice20-wheel-root",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice20-wheel-edge-r1",
+      "resolved_edge_to": "slice10-wheel-claim",
+      "resolved_target_logical_id": "slice10-wheel-claim",
+      "resolved_target_revision": "slice10-wheel-claim-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "explicit",
+      "target_index": 0,
+      "target_ref": "fdbgev1.a48b0a3c1b1b6e73b6a75c95aa10e17f477edf873af522f7437e6eaf7acb43e3fb90ed87c00e890cd63dd04a1da2f92835abb5b05afbb906a5ad8c36859a00f5e9ed1c1eb1d4fbff82867ba4ef93a7921960914eebafc45990c3a46d370846ed8bdbf879f0e73f5795372f7e1adba66f6a39688f812475d66dfce30f4c41cc2eec772ef7081328fe10774873ad4f63db8c996fc03db5c4b742e3c1e7ac0eae8f06154599cc42bf29810659d8d3259297322a77ff31e70ed3c29de836162c9171a2d62773ed28ed7d2d36e70e6e2cca8d446255e889cd65916d6f9c8752d001fa8521961026338601b88e5275f3218c854013d63c5908e5f81200f3869b04b0172fae59dafd3d5abebfbf0de16fcc1898ed72f45530b8a2be4626dcb4c37a3fea203c3fa922efe13de3af8732510091d27ed5fef2532fed889d0847a417d0e314103848c6e670ee4dd893e9ebf1ffa4bd05a5abfd6151e8dc4827ab7c",
+      "terminal_ref": "fdbgev1.e8ad5e513440b2d2fcf08991ac9810e5a8d99ea5ed379b55ae8d12746f515e5aaafa0daa2e8cd73da6138fe8b230fc980103e3f238db6f10122a3e8f2e80b5efaba1c8a76c14e0b2c6031a82aa9858a0a47786f09bb9677e4a7e7b98cd77c7ecd9c60784fceb223ce4eaf582f91dd5dcdf5eb5fdbf337cdd8902dc6c561ba713ef7370bb024a9773e156c9ad6c23d99a7e975959f370b5e212f1fadcdb18944333671ae054a9b2ebcc6c44aa1b909779a2d965535f0cc9c9053ac187daf90262a641166e87844b9d9bf9b67afa5f008f59280770f735285b463a3514f6728df810dbbd1df21e7a27ec04a0b93c4542021e58fd100acb138f90d90facc2c971c6f0274333417c1b2cec408927b2af45b86f261fca3625ea904b6594f7e87e10ffce9d1bead2c7533a5371467fb93795ebcc663f99ac9c919ed7fe6822af93adf774d74d3a4ec1a2ea0d3cea23364e14e90e9de513e5328d4bc630af1e"
+    },
+    {
+      "depth": 2,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice50-wheel-in1-r1",
+        "slice50-wheel-in-edge1-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in1",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge1-r1",
+      "resolved_edge_to": "slice20-wheel-root",
+      "resolved_target_logical_id": "slice50-wheel-in1",
+      "resolved_target_revision": "slice50-wheel-in1-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "supports",
+        "incoming"
+      ],
+      "seed": "explicit",
+      "target_index": 1,
+      "target_ref": "fdbgev1.43e62f0e990e3d4237ee1e23a2ebd8b9988749cb678e169aa0c5dffcb505bedbe14b0ddc138b18e5139d9fcfa2a74908416bf30e30afb3fc5dfea2f9816cd6c23407fd3968c290a594b714a5b6368c1a0231e78b346bd75c2e1e77acff983d9940e2b911d67201e19a75d30dee7b50ee375a4d354c3451fffd7697a22e6c8c72324b16a97782fc69efea145c98a35c58cd4aeeb4af7d5d4b0f04ea656e9302e0254c42aa6fd6a2e00e0ce24ca53495d0fdff4d08154250b673ae6e42d422b7b139752d2bbfaa4d9d618ef06fa20acd88b9fe324e83259bfce4ae983dfa126859e6540ac4e9256bcf64d313893aaf241f5d4980821a500007aa11a0a8ac05c03c7eba2110960150068fc2ac69f5c014f258e2dec76bdf06cc90bcb4439b43780452fd583d3807f229f2733d51681fcd45e0faea0f884a002344eca1fd6b8ceb43ebec6d3927f5dd03f6ae2bd53efdf66a111f6c0501ba0333a2f909fa",
+      "terminal_ref": "fdbgev1.28855b7482c78f68bb5a5d85988774018574d3ebe090e58d74f67c37d289b84e47ac5d85b89560cd7eb5ace9e2d81d684c8b32930f1247954449e043a4843c7c493c61ad5ae33d227d73988312f4deaa343cdb0325ff4bf96f133d2e2d5a65c7453b7e9d80700fe2bd83438fdbb27101245fb77dd4ec8bbebad0e4b5eb4c2f4b855603f5ffff90b803d489081dea339173ee2b3a8dbf901c39f2814b3639deb80293053378d8a10a72d2d98e31a61e7e50ca45d540d0e8bef0494b27c43ac9e80747da2976dd7c21a71767268835c35de61a32208150ecb78e9754ded45813823e16a34d220236aa45b1dcb8413a984836c20f5b6055c028f493bdd5f74c7c741d5cc8a3eeeacb89fa2935ff73820cd936c10b123960ab7705926f4e93f1e507d33d97741b29f256432254b1462302db170ef8d96b00b4eeccbb1a5f27db09f031ec43c9e2ab812ad82fe32d626e2d25696c990fa2655a76eb58d952"
+    },
+    {
+      "depth": 2,
+      "direction": "both",
+      "edge_source": "actuated",
+      "hop_count": 2,
+      "intrinsic_evidence": [
+        "slice50-wheel-out2-r1",
+        "slice50-wheel-actuated-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice10-wheel-claim",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-actuated-edge-r1",
+      "resolved_edge_to": "slice50-wheel-out2",
+      "resolved_target_logical_id": "slice50-wheel-out2",
+      "resolved_target_revision": "slice50-wheel-out2-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "slice50-wheel-out2",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "explicit",
+      "target_index": 2,
+      "target_ref": "fdbgev1.60c09dce1e584e0c797e84256aa84a8ebf84ab6f59dd68224ee1aab7bf933803055c20cca852b73d5285c9c1b76b051b5b1076af333a1f73cb379ff9ff3029921b9732a72b79115499d582280db655b7d8a374ab5c749ebaa30f84279366b09558bfcb3605e4a2639e2d462f27f8128cced02a2f399908402445fe88840c5d5d30625a412ba024cc52002197fa0880ae8215874932a7caad96dd801b5863e54da74bad67aa65a7ab0e397c5f6f2a29627d06dc2912e84493e87c044c2035926ba23bbf2aa40de13e6236765e8a0bfd6f5ac997b0a3cb0e04038e6f63980948922ea135245d3445c80fdad6a47338ff3df983c851c49fa6d88c7ffe3093dd46bd32e043c6b92ec82eda23606a75de59e870ecaf909ebf5a470173e5f779118ec95156891fa2d9bed5f329a7cd81f7e36572b781c3f6c44e5966cc28fae602eaf9d365dcadfc7a24080f345815f6b627baff40ead4f22cbeee2261512d",
+      "terminal_ref": "fdbgev1.868758649350f803efb2789bebd087020f23328fc342448f1e7041686f7c63790ff17f7950127980d012987794b4688d0c824b284310f0fdbcf6e9f7772f4f34711c7a2ac7690e0513508809bf678f8b141aba17e33f3b85cd89d6212ce22df220b38744e8d84b47d22cf8e76d284e81a8b7dead298e030046882f9af96a5d722653960f46fa0ef133700aee19ea87e1e3d2cea9adb3972c3c86786ad10ed5c9537f2e42724bbf983985f39578fd70976620f6debf723e97500f94c8c8d2b85891ff5bf5a1f9cf098f6e8ae8eaf9b9886a504e846f03414a973c3ec455cac3abd1b459c3d0ae5267ba23fa661150be6882cc5fe471e6ae7faad4c9cb578ab62082c163c399d6f1507b6a85adfe186b510ecd09ab1d0d48e6085aff98bee5576abedb41ab9cad1bf3e989c4ad26a2fb5a024e745096159f1330045d0d787008b9f929d17ecd05856973d989f374e9099c462b4ecad83417139a945d65"
+    },
+    {
+      "depth": 2,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 2,
+      "intrinsic_evidence": [
+        "slice50-wheel-in2-r1",
+        "slice50-wheel-in-edge2-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in2",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge2-r1",
+      "resolved_edge_to": "slice50-wheel-in1",
+      "resolved_target_logical_id": "slice50-wheel-in2",
+      "resolved_target_revision": "slice50-wheel-in2-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "slice50-wheel-in2",
+        "supports",
+        "incoming"
+      ],
+      "seed": "explicit",
+      "target_index": 3,
+      "target_ref": "fdbgev1.166098993408a4200884de79064ce980aa110805cfac34b497034ba2985f860349c1b18e72ab2ae1c8f5afea01a197370a2f3ba6ba7247e94b58966933ef2d0c8e11b268bcef95669668bfc929ef84bfc8db9d73d3087df4a6accd9c82e1251733c3b8b1415a9b09b0b373bd11e169554c726ac78fc1190990c9a8a0b0b0bdbc6490c5f1ee881fa210dc542fd26f60323023688237bdbd0676a2a497533f3455b2f20444fb8fa1b0635a566fafb51f9825031438d2f3b3427db597ca0a63c0f9c0689272824c3366825266006c880fdf8624a98ab6f8209372913d9b804c1bca60dcb4c5cc5390871fd633e1663b417b62b0f7aff91280ce7793b381800e6cce0b0c4e3eb42b29f044d0ab8d28afabde614ea8aebaac5364571edd3970f0874f66b0478f7ae96897ef5669528ac8b9b47d7effab5f8b82f836df30b778e2de2810e7a221946cf1476006c0522c293f5557121d58c42aa4f6ace9ec2d",
+      "terminal_ref": "fdbgev1.32cb480f8573f8c42fd26690c7b6f06e0cac792b602a12a8007ed9442656dce9ca85baf046c2fac532edc06f64f938f0e5a03d8cef4ef61056608602198cdbb35191d55df87c1cbb9e919c1f147c90acc538446ca5a65edf86d257b4dee6bd2d85f7c09a81352259c9ae6f886f8070366b67f85a684ca81550a438595537a774cf661c09d08583c7c79068f76287570b225bbb62421f69c0de0c22023006ea71cb7c8f77c6e144c90ceb797cf09dd29096cdae5e1f7cb507d2659886ea0b7247d06bb558c982cfcfb89a83da23f17f763b701c073afb8d848f5ed1237f26fca6df5f28b3df1c9d2d10cb55fc21c8f63d256a28c0efb3fed7189df072a5bb75b864e5cf08c220d71268a212040d858a8409d8e94243916c6e996ab60a031fe32fabc5256e528f1dac5eaf13307c1838d00aba92a4909c38d8ccd9b615fe0b8f5a7c1e12dfe9296be13c425eb0b48ea9b1afb3134425572a26281db31b"
+    },
+    {
+      "depth": 1,
+      "direction": "outgoing",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice10-wheel-claim-r1",
+        "slice20-wheel-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice20-wheel-root",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice20-wheel-edge-r1",
+      "resolved_edge_to": "slice10-wheel-claim",
+      "resolved_target_logical_id": "slice10-wheel-claim",
+      "resolved_target_revision": "slice10-wheel-claim-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "query",
+      "target_index": 0,
+      "target_ref": "fdbgev1.a9e1357ebc50cf69cfae23f45410ff8d00f8ba552b5ced9eae2d04100e8179ad108a33f608c3a21e5eeafb0bdebbf1de649fdb80377a1d2bd43bb5f4b209e74222a97dc63a67c9c49a286c0d0ddbf871ecf2348ef5ade0c4c165a86332e4ed61c8f39eace1effeb26cec70d20fb39f2a1668a501605b134421e82865bd5be98195cb84617f7c411034f8583dbaf491866c2e3b6985ee32dcb5fc644c6dab638d3f849cc86c64a743204610fabd54b8a4dca3c86b87722e7a8902c2cd11ca4fc15d06040d6da1f6e1bd3165f2cae6ce5d22a2d7b3614c69831eb053f3cae0dec00e3e50fc23fc7060c8f9ac95d260d712bf6cce72e896869400359920c3623c0bb48c5df52d8c27d564a42580506cb4698f6700aa4cabd994e0989267b4687d6f1de0feb23edfb65b33ea9d450883d5d51a8f041e572d71612ee96605373700a8d220c61be27a1f5efff8448ce3544ced8d155c31bb9e64f7c2fbaeb6",
+      "terminal_ref": "fdbgev1.e8f61d2acad3212c3e2a5cb85cba37845e109a41c6f562771dce7175d070e8182df919513890a9609c2127c1b930ca4cbd9f6064f9da8f9a93256ba946f47395c367aa1a48a0bb1f84cf5a7470332d47e4adccdbfbc755e8b9b8064e79426bef7e60f6467f5c07e82d94f87de0239269dabcf2df52f30356e51806ec9b17b34d1987bac8632ff2786f5b6c77029995d69bfec4b3b9368087a146779ff5bd756ec80d71ee4c970323851ee32d9f2d6d104bf85f550130d46e069c106cf4668ce6755513cea357aa2418c4d4a9bc5183d08da56d301748aa24a38f0cb1dbc30a9c48f59c207ea81b0c83d9ce0a203010190f8211d7ddcb1ff00db6cf9c72570fd649c69dbc317bc8270db0ed12bcd1a019f65adc1c55480bd52b4fbc7c315bca471dad919c5bc14c9145298637f87c49552d01eaa2c81479cb73aff952d2af8fcb2dad545bacea10e3efe41458223eb2976cd481c209fe409ee8fe7574"
+    },
+    {
+      "depth": 2,
+      "direction": "outgoing",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice10-wheel-claim-r1",
+        "slice20-wheel-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice20-wheel-root",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice20-wheel-edge-r1",
+      "resolved_edge_to": "slice10-wheel-claim",
+      "resolved_target_logical_id": "slice10-wheel-claim",
+      "resolved_target_revision": "slice10-wheel-claim-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "query",
+      "target_index": 0,
+      "target_ref": "fdbgev1.ff2b983bc98d70b1988925dbc3475cde35afb82238a449c40751474f6f170ed2ef07ac672c679851e3889ed344d8cc4cf27c8725cae7646ba3443168c7c1d89c4ce72c65d26582098dbbbdc75e4966be0cec38222564f672704854677f9a7a5413492312d61d8a72c9dacb221244aa09a29ff8ef88789550ecf98db57af6bf1a2ad2639912969724a6b2df2af0b4e722f091c221a96661ab7a1ada121b7fe541ff058c4c008fc28f39980c7a62a8d52d9c38622a4e60f001ce0c8cf620d10edad2773cdba7b8f835e6091bdce3a3fbf7b20e57c4c77880f078e230c2dacc29393e2cab175eaa6d07c7429b46f362d9c116f1ea235b4cbe30ba34423ffe8f8fb7070470c4ed20fc19915e521f36ec4095056e00f216027362477ef9fe20c65b91cbc994d3a924832355db98ee121187772e699fce7e391690379ae6e67a621fc0ad65c80344086ed9e2d40a2c83fffeae994a40519fa7bba265b50e2c",
+      "terminal_ref": "fdbgev1.93d7f24a082bfbe738752d59999b6c65ad047aa8f2ff2548128576aa6b048de120d1218d6ee0ca828421d969dbfaa78b1ff49f8cb6df776af996fa50e83e333281f0aa44540aa8611204c94169778c53cb7a631a2d7d6aac6602996ee68a7fc40b1081303279a62a44c30b2c4e0c93db7c8e72319683e605db5b332818e3f49de640c22745bf5338d29070e9adaa18cdd73e1a973cb759550b0b349ca48e3d34cbeffac2fa8feda5aeefd415ae919b1a7da6b711e727322d2ff27015f6857142a4d408e5324e8e3d8b7383f4e8d48261b1482cb45a17daed7e6b92b1c02bca7d49cfddfaf8415f092e1907d64117704a9e3981bef12535cf4d46dfdb1697a5380074f31eeeb07dae34421dd1878f942214d8758b1f17d04334d08e9543c7125d6549a8b563c0175553ee9efeec72da3fadee6a8cdf3f1198b8d05e56f31deaee70287a17c45767174485f958e1ee78a8614da336b14cdee04071afe1"
+    },
+    {
+      "depth": 2,
+      "direction": "outgoing",
+      "edge_source": "actuated",
+      "hop_count": 2,
+      "intrinsic_evidence": [
+        "slice50-wheel-out2-r1",
+        "slice50-wheel-actuated-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice10-wheel-claim",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-actuated-edge-r1",
+      "resolved_edge_to": "slice50-wheel-out2",
+      "resolved_target_logical_id": "slice50-wheel-out2",
+      "resolved_target_revision": "slice50-wheel-out2-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "slice50-wheel-out2",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "query",
+      "target_index": 1,
+      "target_ref": "fdbgev1.9c0437ed54a6f25c75f87a0f0f1397a017dce98bc4979f6e560facf2b18df963d9443f52cbcd4b5b622fb3e3286f2efdd8a288a8549bc2a98104ce7ed2cdb178cd2b5e0f42e60203efc14e93f22b097dd24631887eb1dd3387a312f49cdb6b909cbd58da985b88a764631415f30e7acaf0cf36208ce255d0761adf8e7996a67ddd6c069f014a998215e04e39059581947689d2624e7ce1180001aefa4c44f523557406ee2fd19d59d84401557096615a7826e6ace22230a2d5772c37afc6b0a0f5f3a0df5ea26654594522328281017180fbf13e74679018ee72c6e756f5370523548a4189b7f00c56102966f0dc67dcf6d59a557f32d48fc37229d5fa3ab3afc9dbcf20dc2916f0b1409f58b94028845f2b18e3890a6dbfb76d08818db37ebe1feb1c446431de9633c089e27ac33aa34b897b94a041f0eea91e16d5205615c042d0cbdad9e8fe90c5f3893dca3aba2629e3f3ab7b44b1af1a8ce6e1",
+      "terminal_ref": "fdbgev1.7c3d27e1c07d5bbd67f09e433a81cac52820d064ea2be7dae3141fab5ffd4d84ac4df0dbad85f8826a0f336237a65781df5a4398af705d7e8caffc54395c40fdb2e9349bd6042aee7f1844c6a1cb5c52646c2153fee2be7bfef30bf882f7d53879027c50e0e522b523023c43ce5b31ba5dd9389583056283db375dec3772cc646690d03ff0250ac207d2bac0b0c8b271a7f9f1e23ff57dc952caebb4bcadf0928aaa0f690f56e0c0e176b7abebbe1d47b628b60aaea5a524852bc80eaba470967c2ae3a98466428640539fb461f4d1bf95e78aee60cd3a82fc54fe8c523ddb12de7d942bedc60645d6e863dc9c960bc7cb1a10fe8fab86e03d6eb0afc9593f7e7e42ea16a263baac30613683a344f8ed6660b3123c72d5b1ac4a856b96e9f4b48b75e928c75bc9a5755150f1b0a4373bc8052e952d84001318d7f17222da3a64521435afd3242b0c6838632f71fd7f248365e06ad1a51f198ce2a16f"
+    },
+    {
+      "depth": 1,
+      "direction": "incoming",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice50-wheel-in1-r1",
+        "slice50-wheel-in-edge1-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in1",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge1-r1",
+      "resolved_edge_to": "slice20-wheel-root",
+      "resolved_target_logical_id": "slice50-wheel-in1",
+      "resolved_target_revision": "slice50-wheel-in1-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "supports",
+        "incoming"
+      ],
+      "seed": "query",
+      "target_index": 0,
+      "target_ref": "fdbgev1.760e2d9bc843251b7a43c624f1be9400ed4141525e79c29bd748c24c2a912b0c1b9dbeeca5e4db7c74f8990ac4a1afd656c54b051e55119b1103d1cf31ecd1c448cb148925ff422f2f181ab3c5261ab185973df3c48949e57feed3c42620148207d2f8a06cfe1986ce353c86327e5166d8e15f025e71a517908049790edc721b1dd6c7e075fdeb43da253c851b714314379069b087fddbf3dd805632d0db4547398191976172fc9553d5524b1c51fe0f93a43eb4137cb97320bd86278ae5d60ff292a2b0c566ada9b024e186068ec8cac2f01e30d3d436eea5a510063e61cbf54b27edc0b0db578f956330b87eaa6131bd1b94319e629f27e7ac5b718e5031e5e375f415c3803d478de9b8ca7e00586ea3802d1417743bcea785beec25b037b0df830bb17447013d35220dc501c6602e5a33ae4f21148d58101f90be800174a1cd93a39d9e8d498bf2da036d30ef18f272f1e6033a0a7838a6ccfad9",
+      "terminal_ref": "fdbgev1.779e7ceb792cb07e6e013a8cd6da140354e3e2c7017952b445cfdc63fbd74bb324835cb58f94d92f4b57826522ad9fbdce60e01c8d205ca2696d42bbadda230db7b9ef8a6e0a0c8e3bfda272540f354011daf44cbb006d1dd2952c72352ed595402b46c1fa9bd05d01cffadae0cbd60fb0b03033b1ccc8615d6bb99331c016c830969626ed29c6901a434049b6d5b9bef745d365cc3a14db45e7091e20ffcfb83fd5b8bc835048b2839c0774f0a10eba59ba612853df5c01c11231a94b0e970da2c608bab51c724200ae5b79155993b0e038a80854ec11b19163b312260fc14014d9e3039ecbdd3c936f7e9e2de253aed5858589e331ff45267b7b7591ea5fb23fce9a2ab84f7065535b1bd1403c1fe249bdcb3b9d633bf21ff6d9eb89b3718a4db3929f1f21f5dfd445512d44a7f97a935bc5b38756d1358124f610e33d478ef30546ca574a2e5c91b7d13758639a4b25f5562fc9f9571406dd9d1d"
+    },
+    {
+      "depth": 2,
+      "direction": "incoming",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice50-wheel-in1-r1",
+        "slice50-wheel-in-edge1-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in1",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge1-r1",
+      "resolved_edge_to": "slice20-wheel-root",
+      "resolved_target_logical_id": "slice50-wheel-in1",
+      "resolved_target_revision": "slice50-wheel-in1-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "supports",
+        "incoming"
+      ],
+      "seed": "query",
+      "target_index": 0,
+      "target_ref": "fdbgev1.d0b201f2f14493d29c6f20d832bb5d4d28b02f81a939c3e6df4536e535dc89c73519c20dff4079dfda5f8962b4a04d130481e8e6655a4b658c19883cc51c3bf951b95281ec2aa01096fafbf06c38fceaa6087b2a8df2c7ca92b3e34b6729b90efdfc75f83e673fcd9ea46ce7b09b0d574bb8c0dc3257472cc36bbdff2ddf31629e86c92d0239e57bb41896f4fc4f74f41c17de486409175697dc2a9c7c284e164a9b18034c6be05cd6ca581110ccf2a29e8c353d3dfecce2bcbba57986c5fde5cba1da51265eea7e1a94a0b14eafeb3dbebef973b01fd15e31047669acfe3d279d675eb87c236eb8b19f92fcca5f1fcc9db90bc53b5a3d5dcd77fd5a51e68b7db52bbe321576ff6428ccf9b3057f9c874471881c661f87c5b25aaf8b422c0e00eccb8b40cff4f5b06abaabadde8c40d198da19e654aa56b6aa6e88f35f4ee43519fda0de0c230955ce49edadf8657bf8557bd3a124efe7cf6fbdac60",
+      "terminal_ref": "fdbgev1.22c3311349698014b763a1e2e9a5d7011ab7dc1e7ee0bf542cb40511d9496f780bfef6d7280368e94961709e26071de2e4b967950afdf16bff69c450cabc5ced0382c6c84a283f5175d33e3d01eca6d5ede1a5644c983c068e1fc6abe8a869b89389a636b9bbc70130492f74dfb3e19acd3abcddd3f6c8eda731ed3c514a7afaebb64ff6314a168c63853168250ce1f2ab4317192f41fdf935cc34286ffcc719ed568ab99ebce8cfeb72ff4a04db2f925a5d5c499d66a9ec0a0cb7e5cacb3fbb63c5bc05078d677e05aa9b7c29438c27363ca072520b6303365b66aa40f243bc1007b7c919c7772c1e07bd85e096bc6bf7c17ac4586a9886867f4f1347392b44b91b9823994a2c2314d18ba4fe9f8a2ba1c8281e3af62d7dfef3fb4c3fd9900d6621e705f04b40e94bd4ddaefb5df9176ff3b66b1286cfa19856c2f6df998efd8a57a219ad76111da7f9e51c6f9d4fdb29d38553aefd9a07e27789ef"
+    },
+    {
+      "depth": 2,
+      "direction": "incoming",
+      "edge_source": "ordinary",
+      "hop_count": 2,
+      "intrinsic_evidence": [
+        "slice50-wheel-in2-r1",
+        "slice50-wheel-in-edge2-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in2",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge2-r1",
+      "resolved_edge_to": "slice50-wheel-in1",
+      "resolved_target_logical_id": "slice50-wheel-in2",
+      "resolved_target_revision": "slice50-wheel-in2-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "slice50-wheel-in2",
+        "supports",
+        "incoming"
+      ],
+      "seed": "query",
+      "target_index": 1,
+      "target_ref": "fdbgev1.7ecf54f74f13aa5b1ff05e3a8ed2af9919b13f4c75a3f9d4953c8408a29877e2e65421859559aaa884f13da9dfe4447659cfd5d15a6641c1fd86c6b5e72d3de186e05fdb6c2e43d9951a7e545c8a8483d54dfd94a545264d31867076dd48f2fcf2ff4d5b13786a5c87ce2b122e1851f6002fd615b8c3e0f65f44fdc552fb1d25db0938ac9f1e9528fdaa7957c86880ae39ae5487f0dc590285bdf625684aa5ee76e0145306dd37962d14381e0536fa4fe9c99c07ad595ee84efc8e3c023fa2cf36b566de51b5cdd3a3077a91f2649404d043a274935c0dcaf9e1c55ecc7189bc174c7c20c7c3861857f54c3731457f7e5bf7cf4cbc158cf099498150433ecfca4ea5814a5a1df053524039cc6f0fe758e7a38871602ca34ce2347aa95d64915fc20db012d2f5ae4526a295be56d1218f59dbea6ca900a138c31844daa2c58d6cc10ca69fbdcfddd94d6b18ecbeefe8a2a1694fad74b2fc295572e016",
+      "terminal_ref": "fdbgev1.afc9d1b1f7600f3736b1cac250e3326b777a93692e7e5dcb5d5eb1c6ae6cea192d1526879873221221ae447043123067831d6b8edf1cb458e8c9ed71297f932ad9440c320430c133c94e018218489c01514ddbf95bd093ae7644d52054886a92e3e63837313113e739394532d1c715fe58e1a568fc0d214ce261782b5b827a31a47867c01a8ef2a3e6fdf497d1e15d5462a9348c7bfff297aac95961a16d0e09ec276daf86236f101558cb3f3a6a48062eb3fc82f66541cd68b3d6d0fe981a380c16a0d59159e415dfbb00f342a8e0fbbea50135e04bd834cffe6349278f9eb7aafc9d8169896840b5047fc40b02e43df7aad48c8f89272943b759c22e74af6ef7477066f8ebccb28f6d42d0bc52f412333fa62320e44309d015fb0ee2151c9e7f5ec4332e75ac43583eca143608757ada477d7a4b0d6ea9ac3dce07d70d8ea58f80fcdc5e05e2884d41b4e6a9135dbcf618accd9d610a41d866d962"
+    },
+    {
+      "depth": 1,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice10-wheel-claim-r1",
+        "slice20-wheel-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice20-wheel-root",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice20-wheel-edge-r1",
+      "resolved_edge_to": "slice10-wheel-claim",
+      "resolved_target_logical_id": "slice10-wheel-claim",
+      "resolved_target_revision": "slice10-wheel-claim-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "query",
+      "target_index": 0,
+      "target_ref": "fdbgev1.8bad150227992cd1a595400c899fdf9dd5ae95c401258bc0e6597c3b9547f2b829da4b1a793f2ff15110ea9155b9da483aa1d8dbac2ce825bb798d18e6230991f900ee5467d74ec86ee74a8acdedf90b7b52897ac500287373d008ed011384d3f2d3fd9d3362c34ecd7105c55b13b72b12f5ac62379488936f3c8da1f9c3c8fb0418d1eb48adaeb134b6cd580f5920f993df81295a0ed34f1efdefdd7d0c15a19e033825b467d268556f3af111e9a39fdaf5768401e266720aea2dc5d2456881914ecfe7a8dd14cbf62c4ec9baccb5af09b6ffc6d2484c3a4a18b7785a91799756b0fb37eddba78a0527dff21ed1e8715abda21cc586f222e7fb066e55c6d83cda3747d00b5f32d8a91f99cd33c6c7780e011cb5c106c912f9c734986de73777d54de8cade02068743dcfbcaae0c5cf145420b233095e5c6c463275515bf85840bd6763055f785369f8cd8483c4ade04f9572fefbbede38766fc4b36",
+      "terminal_ref": "fdbgev1.c5948110ed3eed72c638e86cf4a84aaac7ca12e4dfb4c84220d14c236aaad027a20595f25e52b9ab6191e5cd4194d6ddcd69b472a566d8479ba1b47b0fcdaaf6213de1d68b7221128da1ba8cc208b79bd294f446d99b9a1097ed599920c2fdc8e85c0639337c43b9459e88da6cca8e87090e98bf0591e1e4e772a7790f6e4bea512e3792a1d943fd758388c7a2807197562d75b62791240bada276a5ad4b2f48c70bb3d0fb89203ffeb699476ad59553172557810eec28022ef6a6f4f644479e63b8f3a25ab729d04c99da3c02d3064e916b87390160a8a8af7fbaabd6661dc237b1218371688f88eb3fccaabb93ad10c6335515b844056550dfd5f5762e2757f14cca8084d6fee57b9789a3debb0188bec9567a445a468d48f6026dc3952ca5bb9f06b21f06724e7b793d56bb0221f51a72c97ae6c48bc6d6a682675f2fd6c681e2ceb4663070bd6eace71282a9a86e317bda6be6eaf8373c06d1e7"
+    },
+    {
+      "depth": 1,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice50-wheel-in1-r1",
+        "slice50-wheel-in-edge1-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in1",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge1-r1",
+      "resolved_edge_to": "slice20-wheel-root",
+      "resolved_target_logical_id": "slice50-wheel-in1",
+      "resolved_target_revision": "slice50-wheel-in1-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "supports",
+        "incoming"
+      ],
+      "seed": "query",
+      "target_index": 1,
+      "target_ref": "fdbgev1.5226fd3d6c702b7421365021c0b833b8092a3d6d1bc0d96118f81f57344aa3833354172a1895b558b384146391d55d7f692d0db3ddb929ea234cbfd6f8340bedcabffbc2955493c4aba6c339fee885618f0e3fbddffba99a9000ad8d87360f3c94b329c2be4fb580917eaf1eea57a17d464261e10ebe4e1eaebc8b7d9fcca6bab1ce33efdb91dccdfe784b964be25fa735a4aa17c7a73b14d3c14520e5037ce5b6159833cf26305d91253b10a1aac2f8c59267f4cc044736213e3728206b597fca20928c1a53c60a73e8bd64a129cd305c16b1fe2bfa0037528cdbca07244d294ce72b79750b09d864a2532d83d630eac2225628f4c56832152cc1298abc3f004bf6208ae072c670e1d2eed7a4bb92bc6b96abaa42bff0ad60f4ab2ce7b5b4296830f52a9da4da6257bc8ed51a768e7d98d7389f6def1a23226680bfcb412de6679d03aed21d8ae107dcf0cd40f31ee268c2702a04a60ab460c1e001",
+      "terminal_ref": "fdbgev1.f28ccf1f109ad6f786d740db449ae66a06f030daed933f2d34be88f7d4d995302410898c59978e247314dc4a7f1611259e7cf7d034c0dc0a0ba7d2ac96b384544191ec7ade8a7d240a01e5a1cc0c25607a0b76c5bab8a71d889b66e497dbdeca95d895eec76b342eb75ab2bb4d3758ef0b5d8941fbb2c3e4f20eaed36f6da4e7bc50c0665279c28eb469a9e958c0cf1c05f0c493c57d0d0db2852a79f48b829cbe7129d25aaa9078392e30dff8325b68656459ac30dd53fe306d153b21cf09d6f056e7c10b2485e0f902093238f349f7e1cd72f116aee256edcb5add4c3299e3dbbca3b1e5464ddab770408f29b099584401ee128759493ec52990825ecf24a2b18c6f207fb44b2b810017c7ab3f510b81b7834df8f0a179a916c7aaed95f07d497f0c3cb298040592ced904bbc0d170b0f87e14cc5b10ec3a5ee0549fd5b4ad6cbbbe5ab166c91a5b6d5a9bc78df7185f769319c469746dcf81c97c"
+    },
+    {
+      "depth": 2,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice10-wheel-claim-r1",
+        "slice20-wheel-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice20-wheel-root",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice20-wheel-edge-r1",
+      "resolved_edge_to": "slice10-wheel-claim",
+      "resolved_target_logical_id": "slice10-wheel-claim",
+      "resolved_target_revision": "slice10-wheel-claim-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "query",
+      "target_index": 0,
+      "target_ref": "fdbgev1.b73fcb99351be6a20ff7adbe3af3f051870b98f7ad0a4f9bc4f208ad4f91f7b4bd85fbad26930ee5df8f8ba9fc637547142d29de30dd845e2cdb1c7334aef744c8959b0e0aeb34cae8ae90d7c44747f9b0dcad969c395e18e70abef285fcc6d4346f7a71964493253c7db1e7fe2fe548564851a722e3d2ed5f7384c84d70582237def287eac86d10e2e2dc75c3e7857a4d9086efbd2cec21cd7d0c4006eee41f67a18c9b84f17ee902660e54e6c3c7670eead8410d054816aa8f6d69d5b2c9f8ae5ac36b7bfdb42f605e4564add2e3802aada1de1f23a6c747d987e3752ed0ef6ec95e6f58b6f773f60300fc305158f36446adbc201aad2d39cd1d9ad49b4d8741362f1a2740deb012eaf6cae442cd4cd45ac6814c5e6a99a5663ca8b4509a1eaf3d470bf3fbf9b262a2bd510da265977a6cfde10c128008c4651a5126bae6d94800115963f0d9bbefd621a9012c552bb3fe2c2412755ee1f06dff75",
+      "terminal_ref": "fdbgev1.a3450c21bc8047feec677daedfc10c099c4ad728ea5441fc6e2f1fed02ed8b4154c08af6f25aa8e72731e2a6d7439ec4315fd0facd3d7193650c124fede003475e605a8a5ca3b4b0a7b51fd23680a6efe87d3c66132e43274752ab198760f1eb439061df60966db6096cc0a8705f8bd4a9a37c107a6694e3368c6f7e414677fa3e70f2bb2ec61b8b98b87abdd86d4cc1adccbfece02cfe11065b7614d2c39b862260ad53b34bad31d0d9b265b3aaf098f43f8c90f726f8a6ab9d094e759fcdab6832eb9fb5efad2ac0107bca6c0f03d1f29f8bc1d748e0a0c5cabb4cf66f766c8e6418a72a1998e366bd538f0fda1f3f8e6b474fc6135c56a92e99d3f60bcba9f5c5ce2849b673cec1823e2c448f785d57a9fe7f60573c11ce795f3677c7ab051c39491386014b9191ff0f10fa6238136b1838d0db01f104e7acdb82bb26a849b34d83b1f7cd6fcf6e605722a1a3462f44f83af885b2feaf92314dad"
+    },
+    {
+      "depth": 2,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 1,
+      "intrinsic_evidence": [
+        "slice50-wheel-in1-r1",
+        "slice50-wheel-in-edge1-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in1",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge1-r1",
+      "resolved_edge_to": "slice20-wheel-root",
+      "resolved_target_logical_id": "slice50-wheel-in1",
+      "resolved_target_revision": "slice50-wheel-in1-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "supports",
+        "incoming"
+      ],
+      "seed": "query",
+      "target_index": 1,
+      "target_ref": "fdbgev1.ae4c92440e368960b488df2cdd5dd0a58ac5b4c3755140954913fd9a283e7d936aa646c6d71f9875cae51e9b255add0610eb3ae12d0102a97f82e39fe1ab2a46f7cf0f32a024766e649a85b9d05be37a5aa9a2afdd36a330c09ba9444b210e85e45f7c83549a3cd8cce7a4fb422e9fd647b4fe70cd421632601b260c0684244ba0cf2d2dd702d6c3f56a158b164eb36eac36c24d102194a3bc777003fc8de7585e1ea32388f4f751f3e53490e583bf15c1a2f0bc10feff53b17be2011eec4c5ebb6195b709ad9d3ac21c039d17078c6875ccb1b2e129b996770bce080fa4563bffe09fb5bddf7f1884b24368023df720d80181b15ee2f26f2ec983f938feb69fbbd51099b7d6de28956a4937f9ea27d2cdf62889381c3225700663c99cd7b74b2aad7b7a538a7b096f7a909c142a6068cca8035d086c7a94a390f364001532b685593ec05e56f9f3871d8a70882ae477fc7f5ee2b08fe2536dfe63c2",
+      "terminal_ref": "fdbgev1.adc21e3441b8dea8005dab4fcdbecfa8ad4ae6b00065e63cc39c3d50897b6dcd917d681fabe7c5ecb13d82e9a60c4262159808c1e2c4df821db8606ea0079a6ff80fd1d149ec4be4fe3840ecf72bdca49faf06fec09c58212266fda9aa727f11430ad1f43c8d5a586024fb634578e1cc19b4bcc114b722d3ddf0cbbfbab87659bdcc9dae33520eba57a1f8f455f942561c569b4b5c8ddd54bbf9c8258b286af8084845f69dcf6d7437c4d65c7ef8d1a93d22dad9d92c74a8113ddcdd8390340c0f48ed8737d01810dcdc1823bd3d1efeb117ee11a09fbe2a96ba94e6d22941fe07958b5bee9cb56b7ea0c1ef84efc73185dde7197283eb25211461cb061a97fec079415f20515ee520963e050abc318b30802e86e2ddc353ab795c6d02c0cdd3e9ded0ba7cd76bbc22afe225eb0354b98b1a7302414e5a17d954a337440a1071ab40860e35be1cf0e9afcb665ed27ee63eb47686341cb74249d1eb2a"
+    },
+    {
+      "depth": 2,
+      "direction": "both",
+      "edge_source": "actuated",
+      "hop_count": 2,
+      "intrinsic_evidence": [
+        "slice50-wheel-out2-r1",
+        "slice50-wheel-actuated-edge-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice10-wheel-claim",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-actuated-edge-r1",
+      "resolved_edge_to": "slice50-wheel-out2",
+      "resolved_target_logical_id": "slice50-wheel-out2",
+      "resolved_target_revision": "slice50-wheel-out2-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice10-wheel-claim",
+        "slice50-wheel-out2",
+        "supports",
+        "outgoing"
+      ],
+      "seed": "query",
+      "target_index": 2,
+      "target_ref": "fdbgev1.1b6310411f76ccb41f79094f37d8cec47d68dabfe5dfd10783677a4aabb65110c27e3f6760791c9112931c580f10ce1e6d74c0ba3f29193c16c18b355bad5100088f3f8cb9e089a978813da19240fbf1d73359e12e69f87d45ad27ef7901a3e47d4ef9a515d5d4e0f02b42cfcad82147e08d6d4837e3f03fab5b1ea5f2b5e5eb52ada9d393ca166628e23c4f690b10e05a2f4d86742a502750359e6e2bf358f1823b3d9b39fbfe7097c078553183321f42f02100277ffd650140ca330a1f3470b8fd4345ca71f7412b4d1e0181b03132165975e05e9c60d942351b2251fd6e46adbe182ecb6dc5fc61befd721226aea5c65038778b0276d51319009c4318de71f49fcd93c8c3a82aadbb7e6f0ed8ce2d1a99af19aa13a0ea222a9d18854ea0a133c1470348999a8a1abe1c50b1c103333e088dcea205a0cda456a71add698853f802822dcaa7234e2b83bb2261c58ba3eb818734cfcfd3dcaef500d6",
+      "terminal_ref": "fdbgev1.77c51afbaa2d626d56204852d20feb77584ba0152f4201c410abc0e2c0870121f68579e7958f10342e872f4edace6c96da39d443287a756b188ed50f3ecd92940e1387d6a48ea1b7d3f128c19b4a87fd958ecbd46285d3eedcd9035cad0a923be71e298caa43e211a0da26604244e6219e1180081c076cba3e867f135c3b980f96788b7a85206d4f683209d3a90dca6fae2e9d8888abf019e03b182b0585476b67c4c06c982c5c54f1b35f80b80b5aed17d4e5f71861e32b2aa724711bd75730f72fb54e0255e9c2142754f258e5ad69bccc893275ea2a5f711a70c74a9bbfad4555441247b1ebf52f5d75d368370329b8f1d84a611135e4dba1348a5a4b37b897cc214be0aa75f77db3aab2b5f337c4130c45d06cc4fe7a96139bb76c578414008d6b34230bd0912c3422a2f5ec5932022c587456228179df89dbdda2aea1d5bbd4497ee900dc9a38724892e8448752e0121792ff88a83429d036d5"
+    },
+    {
+      "depth": 2,
+      "direction": "both",
+      "edge_source": "ordinary",
+      "hop_count": 2,
+      "intrinsic_evidence": [
+        "slice50-wheel-in2-r1",
+        "slice50-wheel-in-edge2-r1"
+      ],
+      "resolved_edge_class": "edge",
+      "resolved_edge_from": "slice50-wheel-in2",
+      "resolved_edge_kind": "supports",
+      "resolved_edge_revision": "slice50-wheel-in-edge2-r1",
+      "resolved_edge_to": "slice50-wheel-in1",
+      "resolved_target_logical_id": "slice50-wheel-in2",
+      "resolved_target_revision": "slice50-wheel-in2-r1",
+      "route_provenance": [
+        "slice20-wheel-root",
+        "slice50-wheel-in1",
+        "slice50-wheel-in2",
+        "supports",
+        "incoming"
+      ],
+      "seed": "query",
+      "target_index": 3,
+      "target_ref": "fdbgev1.70cef8aaf1ca799582cd5625b8a3bb44e362a3e4b9486a6bf8b557be787168abd984a561da1c5eb88d92256b51f12e38fff70b791a0d07813c8d97a09b5ce34a3fd4a0a3541455c2dcff18e1a59ee1ee98f559eee4a6b44bda9b79146948b848bf283ed93f51a2b43ee2b4452214f1874821d5110c308e9f7aea83c7186db3cd6a422a3743a5a3356aa4637934f73e93b31bff8da2b654d5fb1e29fc2e484a3a7b60c57ea8034664fe694128e69166c478553fb22dd85af39aa0aa7512608207521f8014b1fa35c78da002d97e05ea31990d776ec5313a13befd0144858522d945d7e0f6b40645f4acfc70fd0a97c71b69745f100c6bd6889cd568c65062cd4b9d40208acefe57ff79ab713e43169039dc8a37dc05c5faa00f8b72992f24658e3909b3bd31fc915e55855e5f4f57cd6eb4a73924f237f56c60ed056db5b33853b08ab6746677463c42fa9284cc4e741b6344d183602a1fe427a7a61c",
+      "terminal_ref": "fdbgev1.0ec1f105eee9772537058e425e938cbf009bd79c41f4237c2ec693bb3a13899bec9133e701b4250edf5f1b13b31dba1264b71e2969b0d734b975bf225073af04c2bdfe5b297aea8c6da3fd8609e6f85c2de5b753027b29205d2208605fbeb62ca545384b9c5c9a930973949d91cb0b5b3958bc1a7babee00ee8fa1993b7b08b313974a072681346a3d77400f0efb5828def2101497aede11d0fde231469979f3e6b9b30a5bd7a4f4f1cb7262788a163acb1489bc3fea69a8745f720a26415f58822506f6d6e9bceba11f7e16b54d2c8f39f66bf7a07d231334ee06f836bdbfd7734d369b939f79f02821000aeb63828a7ec5b88d8bfd405b0aa6e4d00e9cdf97a1a578b45c691dfe29556799221612626376902f9e4b8ca7ce84c5d1051feea373e0b95f1f09c3258def73386242681a7067c1ee9bb9fb0222223df901f293f23e9dc1ac4c0ac121ba4c02cb70ee76c43fffc8cc18c1a2c4470b1031"
+    }
+  ],
+  "schema_33_refusal": {
+    "after": [
+      {
+        "name": "schema-33.sqlite",
+        "sha256": "a6107dfadf37d9b3d521ffb4dda838b97f67421c37f88bb4d8ce1958c30a3e78",
+        "size": 8192
+      },
+      {
+        "name": "schema-33.sqlite.lock",
+        "sha256": "1aebd3209ff03ab7fdd8e9b45770f2a23c79a677147635b1e90d46c8405f20d2",
+        "size": 21
+      }
+    ],
+    "before": [
+      {
+        "name": "schema-33.sqlite",
+        "sha256": "a6107dfadf37d9b3d521ffb4dda838b97f67421c37f88bb4d8ce1958c30a3e78",
+        "size": 8192
+      },
+      {
+        "name": "schema-33.sqlite.lock",
+        "sha256": "1aebd3209ff03ab7fdd8e9b45770f2a23c79a677147635b1e90d46c8405f20d2",
+        "size": 21
+      }
+    ],
+    "database": "schema-33.sqlite",
+    "expected_schema": 33,
+    "outcome": "typed_refusal",
+    "supported_schema": 34
+  },
+  "schema_version": "fathomdb.slice50-graph-evidence/v1"
+}

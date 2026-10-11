@@ -256,7 +256,7 @@ membership. `eval/earp/knobs.py::CATALOG: tuple[KnobEntry, ...]`.
 | `enable_telemetry`, `record_feedback` | observability | `Engine.*` |
 | `drain` | runtime | `Engine.drain(timeout_s=)` — can change whether writes are visible before search, so it can move a recall number |
 | `configure_projections` | indexing | `Engine.configure_projections` |
-| `attach_logging_subscriber` | unsupported | path exists but is inert — its own docstring defers wiring to a later slice |
+| `attach_logging_subscriber` | unsupported at Slice 3 | The path was inert at this design's baseline; 0.8.27 Slice 100 supersedes this row with bounded diagnostic delivery. |
 
 `attach_logging_subscriber` is the catalog's proof of purpose: a call path that
 exists and does nothing. The witness requirement is what keeps it honest, and

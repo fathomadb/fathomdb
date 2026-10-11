@@ -1,8 +1,8 @@
 ---
 title: Python Public Interface
-date: 2026-09-15
-target_release: 0.8.26
-desc: Public Python surface for 0.8.26
+date: 2026-09-21
+target_release: 0.8.27
+desc: Public Python surface for 0.8.27
 blast_radius: src/python/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -12,6 +12,9 @@ status: locked
 This file owns Python-visible symbol spelling and attribute casing.
 Cross-binding parity remains owned by `design/bindings.md`.
 
+The Rust peer of this SDK is `fathomdb-sdk`; its operation mapping and
+translation rules are in [`rust-sdk.md`](rust-sdk.md).
+
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
 `Engine.open` bootstraps a missing or zero-length path at schema 34. A
@@ -19,6 +22,11 @@ non-empty database is admitted only when its effective committed
 `PRAGMA user_version` is exactly 34; any other version raises
 `IncompatibleSchemaVersionError` before product mutation. Python exposes no
 automatic-upgrade or custom-migration route.
+
+On Windows, `Engine.open` refuses a path component ending in a dot or space
+before database creation because SQLite may resolve it to a different file.
+The bundled Windows wheel supports long local drive paths through its corrected
+SQLite VFS. SQLite WAL on a network filesystem remains unsupported.
 
 ## Runtime surface
 
@@ -59,7 +67,9 @@ synchronous startup runtime control, not a governed application command. It
 returns frozen `RuntimeConfiguration(sqlite_mode=...)`. Invalid strings raise
 `ValueError`; native startup failures raise `RuntimeConfigurationError` with
 `reason`, `requested_mode`, `effective_mode`, and `sqlite_code` attributes.
-Call it before any Engine open. Without a call, first open selects performance.
+Call it before any Engine open to select a non-default mode. A same-mode repeat
+also succeeds after open; a conflicting choice fails. Without a call, first
+open selects performance.
 Performance disables SQLite global memory accounting and heap-limit enforcement
 for the loaded runtime; diagnostics preserves them. Mode changes require a
 process restart.
@@ -81,7 +91,8 @@ denylist name).
   `from`, which is a Python keyword — parity-safe naming, S7).
 - `engine.purge(logical_id: str) -> None` — irreversible hard-erase of a
   governed node across every row-owned target. DELETED-FIRST and IDEMPOTENT.
-  **No restore counterpart exists on any surface.**
+  **No restore counterpart exists on any surface.** A logical id remains
+  purgeable after a correction supersedes one of its revisions.
 - `engine.erase_source(source_id: str) -> EraseReport` — erase every canonical
   row carrying `source_id` plus its row-owned projections, then finish at rest
   (telemetry redaction + WAL truncation). The COMPANION to `purge`:
@@ -90,7 +101,12 @@ denylist name).
   reserved (`_`-prefixed) id, and `ErasureIncompleteError` (with `stage` /
   `detail`) rather than reporting success when the at-rest step did not
   complete. `EraseReport` carries `source_ref`, `nodes_excised`,
-  `edges_excised`, `projections_invalidated`.
+  `edges_excised`, `projections_invalidated`. A source remains erasable after
+  correction supersedes it; the original and replacement source buckets may
+  be erased in either order. Counts remain exact for only the requested
+  bucket, with no cross-bucket expansion or report-shape change. The
+  `source_id` argument uses the same `SourceId` grammar as writes: an embedded
+  NUL is preserved and is erasable by an exact matching call.
 
 `Engine.open(...)` returns the engine handle. The structured open report owned
 by `design/engine.md` is accessible after open via `engine.open_report()` (see
@@ -103,6 +119,8 @@ package-level operation paired with TypeScript's `rerank`. Its passage/result
 shape, identity path, defaults, and validation behavior are defined by the
 public stub and are unchanged by the 0.8.26 parity repair; Slice 55 adds the
 missing TypeScript peer and exact two-binding conformance enforcement.
+The optional `alpha` must be finite, including when depth is zero or the
+passage list is empty.
 
 ### Module-level CLS batch embedding (0.8.20 Slice 40)
 
@@ -126,6 +144,32 @@ engine-owned knobs from `design/engine.md` in snake_case:
 
 The keyword form and `EngineConfig` object form are equivalent. Python
 executor usage remains caller-owned and is not an engine config field.
+`engine.config` returns the requested-open snapshot, including omitted fields;
+`set_slow_threshold_ms` changes the effective threshold without rewriting that
+snapshot. The engine resolves defaults and rejects invalid values before
+filesystem, lock, provider or SQLite work.
+
+The frozen `EngineConfig` records requested open values. `Engine.open` rejects
+booleans and non-integers before native open, rejects out-of-range integers
+without narrowing, and forwards all five values. Scheduler and embedder counts
+are `1..=64`; embed deadlines are `1..=2^32-1` ms; provenance caps and slow
+thresholds are `0..=2^53-1`. Zero remains valid for the latter two. Omitted
+values select the Rust defaults. The slow-threshold setter changes effective
+behavior without changing `engine.config`.
+
+Early validation raises `TypeError` for booleans/non-integers and `ValueError`
+for out-of-range integers; Rust makes the final range/capacity check, mapped
+to `InvalidArgumentError`. Omission selects the Rust default and explicit
+zero remains valid for provenance retention and slow signals. Production
+projection, ordinary/frozen search, direct embedding and open-time equivalence
+probes use the engine embed dispatcher and one queue-plus-service deadline per
+call or batch. Direct embedding maps full/expired queue to `OverloadedError`,
+started failure/timeout to `EmbedderError`, and close cancellation to
+`ClosingError`. Hybrid search preserves same-snapshot sparse fallback;
+projection capacity waits leave durable work pending without a provider retry.
+Explicit close may raise `SchedulerError` until an unfinished provider exits.
+Engine open selects the pinned default embedder or none; it does not inject a
+custom Python provider. The module-level CLS utility is separate.
 
 ## Engine-attached instrumentation / control
 
@@ -139,10 +183,17 @@ These are public instance methods, not extra top-level SDK verbs:
 
 Subscriber attachment is provided by:
 
-- `engine.attach_logging_subscriber(logger, *, heartbeat_interval_ms=None)`
+- `engine.attach_logging_subscriber(logger)`
 
 The helper maps engine events into Python `logging.LogRecord`s with the stable
-`fathomdb` payload described by `design/bindings.md`.
+`fathomdb` payload described by `design/bindings.md`. The logger remains
+caller-owned and must expose a callable `log` method and support weak
+references. Delivery is opt-in and bounded; if a slow logger overruns the
+queue, later delivery includes a `fathomdb.dropped_records` warning. Logger
+exceptions do not change database operation results. A logger callback that
+reenters a FathomDB database operation receives `InvalidArgumentError` before
+dispatch. No binding-generated heartbeat or operation ID is promised by this
+helper; see `ADR-0.8.27-python-subscriber-delivery`.
 
 ## Caller-visible data shapes
 
@@ -872,14 +923,12 @@ binding is rebuilt with `--features test-hooks` (the
 `src/python/tests/conftest.py` session fixture does this for the
 pytest suite). End-user callers should not rely on these symbols.
 
-### Custom embedder implementations (deferred to 0.8.x)
+### Engine embedder selection
 
-Supplying a custom Python `Embedder` implementation requires a PyO3
-callback bridge subject to ADR-0.6.0-embedder-protocol Invariant 3 (no
-`pyo3-log` emission during `embed()`). That bridge is a multi-slice
-campaign deferred to 0.8.x. In 0.7.1 the binding surface is binary:
-`use_default_embedder=True` (engine's bge-small) or `False` (no embedder;
-vector writes fail with `EmbedderNotConfiguredError`).
+`use_default_embedder=True` selects the pinned bge-small provider;
+`False` selects no provider. The Python engine API does not accept a custom
+embedder implementation. Standalone CLS embedding is a separate module-level
+utility, outside engine dispatch.
 
 ## `view=` on `search` / `search_text_only` (0.8.20 Slice 15b fix-2)
 
@@ -935,7 +984,10 @@ non-empty attribute list with `InvalidFilterError` rather than losing predicates
 For `engine.search(..., explain=True)` with attribute predicates,
 `result.explanation.trace.dropped_edge_hits` reports edge-FTS candidates rejected
 solely by the node-scoped attribute rule. The default non-explain path does not
-collect this count.
+collect this count. If the count query or its row decoding fails, search raises
+`StorageError` rather than returning a plausible zero.
+Stored importance/confidence lookup failures also raise `StorageError`
+instead of yielding a neutral ranking or explanation value.
 
 `engine.search_projected_text(query, name, filter=None, *, view=None, limit=10)` searches
 only the named declared `SEARCHABLE` property-FTS projection, applying metadata,
@@ -976,6 +1028,9 @@ object and raise `errors.FrozenReadError` with `reason` and `field_path` on a
 tampered, foreign, unsupported, unavailable, or drifted context. Search
 controls may change ranking or result count but cannot weaken the bound view or
 eligibility.
+Omitting `pool_n` uses `rerank_depth`, as in ordinary `search` and the
+TypeScript/Rust SDKs. This corrects the former Python frozen-search default of
+zero, which could change ranking for callers that set a positive depth.
 
 With `explain=True`, `engine.search_frozen` returns a mapper-valid explanation
 with a non-empty Engine correlation identity. With `explain=False`, explanation

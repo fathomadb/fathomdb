@@ -19,10 +19,13 @@ Two regressions are locked here:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
 from _test_hooks_gate import (
@@ -33,13 +36,18 @@ from _test_hooks_gate import (
     REBUILD,
     REBUILD_OPT_IN,
     TEST_HOOK_SYMBOLS,
+    candidate_wheel_command,
+    clean_candidate_sha,
     decide,
     hook_symbol_name,
     missing_symbols_from_probe,
     partial_binding_note,
     probe_source,
+    replace_native_module_from_wheel,
     hook_surface_drift,
+    read_binding_source,
     venv_belongs_to_source_tree,
+    write_candidate_receipt_atomic,
 )
 
 # The "everything is fine, rebuild is safe" baseline; each test overrides the
@@ -61,14 +69,110 @@ def test_authorized_rebuild_in_owned_venv_proceeds_to_rebuild() -> None:
     assert _decide().action == REBUILD
 
 
-def test_hooks_already_present_short_circuits() -> None:
-    """The common warm path: never consults the opt-in at all."""
+def test_hooks_already_present_only_short_circuit_without_gate_authorization() -> None:
+    """A manual warm run may proceed, but the candidate gate must rebuild."""
 
-    for allow in (True, False):
-        for owned in (True, False):
-            decision = _decide(hooks_present=True, allow_rebuild=allow,
-                               venv_owned_by_source_tree=owned)
-            assert decision.action == PROCEED
+    assert _decide(hooks_present=True, allow_rebuild=False).action == PROCEED
+    assert _decide(hooks_present=True, allow_rebuild=True).action == REBUILD
+
+
+def test_authorized_freshness_rebuild_is_still_refused_for_a_foreign_venv() -> None:
+    decision = _decide(
+        hooks_present=True,
+        allow_rebuild=True,
+        venv_owned_by_source_tree=False,
+    )
+    assert decision.action == DEGRADED
+
+
+def test_noneditable_wheel_replaces_every_stale_source_module() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        package = root / "fathomdb"
+        package.mkdir()
+        (package / "_fathomdb.abi3.so").write_bytes(b"stale")
+        (package / "_fathomdb.cpython-312-x86_64-linux-gnu.so").write_bytes(b"older")
+        wheel = root / "candidate.whl"
+        with zipfile.ZipFile(wheel, "w") as archive:
+            archive.writestr("fathomdb/_fathomdb.abi3.so", b"candidate")
+
+        installed = replace_native_module_from_wheel(wheel, package)
+
+        assert installed == package / "_fathomdb.abi3.so"
+        assert installed.read_bytes() == b"candidate"
+        assert sorted(path.name for path in package.glob("_fathomdb*.so")) == [installed.name]
+
+
+def test_candidate_receipt_is_atomic_and_binds_commit_path_digest_and_nonce() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        module = root / "_fathomdb.abi3.so"
+        module.write_bytes(b"candidate")
+        receipt = root / "receipt.json"
+        write_candidate_receipt_atomic(
+            receipt,
+            candidate_sha="a" * 40,
+            module_path=module,
+            module_sha256=hashlib.sha256(b"candidate").hexdigest(),
+            nonce="gate-123",
+        )
+        assert json.loads(receipt.read_text()) == {
+            "schema": "fathomdb.python-test-hooks-receipt/v1",
+            "candidate_sha": "a" * 40,
+            "module_path": str(module.resolve()),
+            "module_sha256": hashlib.sha256(b"candidate").hexdigest(),
+            "nonce": "gate-123",
+        }
+        assert not list(root.glob(".receipt.json.*"))
+
+
+def test_candidate_sha_refuses_tracked_and_untracked_dirt() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = Path(directory)
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        source = repo / "source.txt"
+        source.write_text("clean\n")
+        subprocess.run(["git", "-C", str(repo), "add", "source.txt"], check=True)
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "-c",
+                "user.name=Gate Test",
+                "-c",
+                "user.email=gate@example.invalid",
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "-qm",
+                "fixture",
+            ],
+            check=True,
+        )
+        assert len(clean_candidate_sha(repo)) == 40
+        source.write_text("dirty\n")
+        try:
+            clean_candidate_sha(repo)
+        except RuntimeError as exc:
+            assert "clean worktree" in str(exc)
+        else:
+            raise AssertionError("tracked dirt was accepted")
+        subprocess.run(["git", "-C", str(repo), "restore", "source.txt"], check=True)
+        (repo / "untracked.txt").write_text("dirty\n")
+        try:
+            clean_candidate_sha(repo)
+        except RuntimeError as exc:
+            assert "clean worktree" in str(exc)
+        else:
+            raise AssertionError("untracked dirt was accepted")
+
+
+def test_candidate_wheel_build_is_locked_and_noneditable() -> None:
+    command = candidate_wheel_command("python", Path("/tmp/wheels"))
+    assert command[:4] == ("python", "-m", "maturin", "build")
+    assert "--locked" in command
+    assert "develop" not in command
 
 
 def test_wheel_context_proceeds_without_a_source_tree() -> None:
@@ -89,7 +193,8 @@ def test_default_editable_checkout_degrades_never_raises() -> None:
     assert decision.is_degraded
     # The message has to tell the reader how to fix it.
     assert REBUILD_OPT_IN in decision.reason
-    assert "maturin develop" in decision.reason
+    assert "agent-test.sh --tier=heavy" in decision.reason
+    assert "maturin develop" not in decision.reason
 
 
 def test_authorized_rebuild_still_refused_when_venv_is_foreign() -> None:
@@ -130,7 +235,6 @@ def test_no_input_combination_yields_an_unsafe_rebuild() -> None:
         if decision.action != REBUILD:
             continue
         assert obs["is_source_tree"]
-        assert not obs["hooks_present"]
         assert obs["allow_rebuild"]
         assert not obs["forbid_rebuild"]
         assert obs["venv_owned_by_source_tree"]
@@ -310,7 +414,7 @@ def test_probed_symbols_match_the_rust_cfg_gates() -> None:
         Path(__file__).resolve().parents[2]
         / "rust" / "crates" / "fathomdb-py" / "src" / "lib.rs"
     )
-    missing, unexpected = hook_surface_drift(lib_rs.read_text())
+    missing, unexpected = hook_surface_drift(read_binding_source(lib_rs.parent))
     assert not missing, f"Rust cfg exposes unprobed hooks: {[hook_symbol_name(*symbol) for symbol in missing]}"
     assert not unexpected, (
         "probe inventory names hooks not exposed by Rust cfg: "
@@ -325,7 +429,7 @@ def test_cfg_gated_python_callable_missing_from_inventory_is_rejected() -> None:
         Path(__file__).resolve().parents[2]
         / "rust" / "crates" / "fathomdb-py" / "src" / "lib.rs"
     )
-    source = lib_rs.read_text()
+    source = read_binding_source(lib_rs.parent)
     needle = """    #[cfg(feature = \"test-hooks\")]
     fn _checkpoint_at_rest_for_test"""
     mutation = """    #[cfg(feature = \"test-hooks\")]

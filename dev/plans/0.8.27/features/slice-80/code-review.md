@@ -1,0 +1,163 @@
+---
+title: FathomDB 0.8.27 Slice 80 - code review
+status: PASS
+target_release: 0.8.27
+initial_reviewed_range: bb077cfa..ac404a81
+historical_reviewed_range: 0efa62c544af00858aa6975944e8f36c99f13218..e9631b9761d292a4115d1beee95678801512f4f2
+historical_review_fix_candidate: e9631b9761d292a4115d1beee95678801512f4f2
+reviewed_range: 1d7f826c2125d5de6d852ddbc96d35fec2de5816..b7403958a3839d371c1672335c517fa762a451cf
+review_fix_candidate: b7403958a3839d371c1672335c517fa762a451cf
+authoritative_binding: PASS
+---
+
+# Slice 80 code review
+
+The reviewer was an independent, read-only `gpt-5.6-sol` subagent at high
+reasoning. It reviewed the commissioned plan, design, implementation commits,
+and clean candidate `ac404a81`. Its initial verdict was **FAIL**, with two P2
+architectural findings. Both findings were closed at historical fix candidate
+`8e449963` without a behavioral change; the current follow-up review binding
+is recorded below.
+
+## Findings and resolutions
+
+| # | Severity | Finding | Resolution |
+| --- | --- | --- | --- |
+| 1 | P2 | Moving `begin_attributed_reader_tx` into `reader_pool` created unapproved `read` ↔ `reader_pool` and `graph_expand` ↔ `reader_pool` cycles: handlers called the pool-owned helper while the pool dispatched to those handlers. | **Historical resolution at review time; corrected below.** Moved the helper body unchanged back to the crate root and restored private visibility. `reader_pool` now depends on the read, search, and graph handlers; those handlers depend only on the root primitive. The review then claimed the only retained module cycle was `search` ↔ `graph_expand`; the post-hoc correction below records why that claim was false. |
+| 2 | P2 | Several helpers and graph-module aliases were widened to `pub(crate)` even though their users did not require crate-wide visibility. | Same-file search and filter helpers are private. `SCHEMA_VERSION` and `graph_expansion_degradation_codes` are `pub(super)` and their implementation helper is private. The graph directory aliases used only by the crate root are `pub(super)`; type aliases used only inside the directory are private. The root graph-handler import is private. |
+
+The execution and traversal definitions re-exported to the crate root remain
+`pub(crate)`: making those definitions `pub(super)` produced compile RED
+(`E0364`) because Rust does not permit a parent module to re-export a child
+item beyond the item's own visibility. Their `graph_expand/mod.rs` aliases are
+`pub(super)`, so the reachable seam is still limited to the crate root.
+
+## Verification of the fixes
+
+- Focused reader, traversal, graph-expand, transaction-release, and
+  search-view suites: 47 passed, 0 failed.
+- Ten affected engine/facade feature routes compiled, including
+  `test-hooks`, `slice72-test-hooks`, `operator,test-hooks`,
+  `migration-test-hooks`, `tc5-benchmark`, `default-reranker`, and
+  `default-embedder`.
+- Engine Clippy passed with warnings denied on the
+  `test-hooks,migration-test-hooks` and `tc5-benchmark` routes.
+- C1 conformance passed 26/26 and its recursive self-test passed. The Windows
+  WAL attribution fixture passed 313/313. The Slice 35 virtual-mutation
+  manifest passed, `slice60_fix1_wire` passed 4/4, plan anchors passed, and
+  AC-050c found no unrecorded public removal against `bb077cfa`.
+- The historical public capture at
+  `8e4499637e9d40ac6fcb9579f352b9f643e86709` contains 13 rows and is exactly
+  equal to the pre-move capture, the original implementation candidate, and
+  the tracked Slice 30 baseline.
+- The hidden capture at that historical SHA contains 33 rows and is exactly
+  equal to the pre-move capture and original implementation candidate.
+  Against the tracked `8e2afb29` hidden baseline it has 261 additions, 0
+  changes, and 0 removals.
+
+> **Post-hoc correction (2026-09-27).** The post-hoc adversarial design
+> review found that the finding 1 resolution overstated its effect. Moving
+> `begin_attributed_reader_tx` back to the root removed the *handler*-level
+> dependency on `reader_pool`. At module level, however, the `impl Engine`
+> facades that share modules with the handlers still close three cycles:
+> `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and
+> `graph_expand` ↔ `search_api`. So `search` ↔ `graph_expand` is not the only
+> retained module cycle. `design.md` now states the invariant at
+> facade-vs-handler granularity. The earlier Slice 90 allocation is superseded:
+> Slice 85 must eliminate all four cycles, including
+> `search` ↔ `graph_expand`. Only the three inherited earlier-slice cycles
+> named in `design.md` are initially eligible for narrow allowlisting.
+>
+> The finding 2 closure was also incomplete. Six items stayed wider than
+> their users required, and four struct fields had widened
+> (`TelemetrySink.path` and the three `EvidenceCapture` fields). Fix-1
+> (`b8af4d86`) narrows the items and restores the private fields. The table
+> above is left as originally recorded.
+
+Both review findings are **CLOSED**. Independent final verification ran as a
+separate gate and is recorded in `review-verification.md`; it is not part of
+this review verdict.
+
+## Post-hoc adversarial code review (2026-09-27) — PASS-WITH-FIXES
+
+An independent read-only review of `9a31e979..c152d74b` (`src`, `scripts`;
+also covering docs-only `bd1347d7`) found no P0-P2 defects. Workspace Clippy
+and check, engine Clippy on `test-hooks`, `operator,test-hooks`, and
+`tc5-benchmark`, the engine lib tests, the Slice 80, Slice 35, and Slice 60
+wire tests, the WAL guard (314/0), and C1 (26/26) passed. Name resolution,
+statics, module-path-dependent output, doc/derive attachment, and
+`#[doc(hidden)]` counts are unchanged from `bb077cfa`; rustdoc warnings are
+identical at base and head.
+
+| # | Severity | Finding | Resolution |
+| --- | --- | --- | --- |
+| 1 | P3 | `search_inner_with_frozen_binding_and_stats` was `pub(crate)` although private at `bb077cfa` and used only in `search_api.rs`. | Made private. |
+| 2 | P3 | `read.rs` cited a `:4170` line anchor that was already wrong at baseline and cannot resolve. | Anchor removed. |
+
+Both fixes are mechanical; workspace Clippy, the three engine feature-set
+Clippy runs, `cargo fmt --check`, and the engine lib tests (78 passed)
+passed after them, so no further cycle was run.
+
+## Follow-up independent rereview (2026-09-27) — PASS
+
+An independent, read-only `gpt-5.6-sol` subagent at high reasoning reviewed
+the follow-up through clean candidate
+`e9631b9761d292a4115d1beee95678801512f4f2`. Production is unchanged after
+`0efa62c544af00858aa6975944e8f36c99f13218`; the test implementation
+candidate is `31e78529fdb047e4827d1d3836e6b076ab358705`.
+
+The rereview took three cycles:
+
+1. **FAIL.** The result-codec properties and mutation evidence were sound,
+   but the initial Slice 85 plan did not guarantee non-root semantic ownership
+   for every root-kept carrier and did not require removal of all four Slice
+   80 cycles. FIX-1 made both requirements categorical.
+2. **FAIL (P2).** The Slice 80 design still called
+   `graph_expand` → `search_api` an accepted facade exception, while the
+   general exception wording could allow one of the four cycles to survive.
+   FIX-2 marked that language historical/current-only and made all four cycles
+   ineligible for retention, exception, or allowlisting.
+3. **PASS.** Candidate `e9631b97` closes both review cycles. Only the three
+   named inherited earlier-slice cycles are initial allowlist candidates; an
+   unavoidable-cycle exception mechanism applies solely outside the four
+   Slice 80 cycles.
+
+The final rereview binds the codec-property test implementation and the Slice
+85 planning corrections. It does not convert the historical `66e27983`
+AC-037 receipt into evidence for this candidate or the final release
+candidate; Slice 150 alone owns exact-final-candidate qualification.
+
+## Final independent rereview closure (2026-09-27) — PASS
+
+An independent, read-only three-cycle rereview covered the strengthened
+fixed-shape result-codec property, its canonical JSON-value equality and
+mutant evidence, the corrected verification limits, and the final Slice 85
+dependency-boundary design through clean candidate
+`b7403958a3839d371c1672335c517fa762a451cf`.
+
+1. **Cycle 1 — FAIL:** one P1 and four P2 findings. The P1 required the
+   dependency gate to compare complete Engine-module and Engine-field-owner
+   inventories mechanically, rather than merely require nonempty manifests.
+   The four P2s required private typed pool capabilities for the distinct
+   `VectorStage` and `ExplainGraphNeighbors` construction seams, final
+   `graph_api.rs` placement and Slice 140 carryover for all graph `Engine`
+   facades, and a final non-root WAL attribution owner. FIX-1 made the
+   manifest coverage exact with deletion fixtures, preserved each request's
+   cfg/doc-hidden boundary, set the graph home, and assigned
+   `wal_attribution.rs` together with its aliases and helpers.
+2. **Cycle 2 — FAIL (P2):** manual release-board prose still said Slice 80
+   was complete while the release state correctly kept it in progress pending
+   this review. FIX-2 corrected that boundary statement without changing
+   implementation or verification evidence.
+3. **Cycle 3 — PASS:** the reviewer confirmed the property, design, and
+   record corrections through `b7403958`. The compiler-visible explicit-edge
+   shape and the `syn` gate do not rely on general Rust type inference; a
+   `self.reader_pool` edge is governed only by the explicit Engine-field
+   ownership map or an imported capability/free-function edge.
+
+This is a code-review PASS and supplies the reviewed candidate for the
+separate release-state binding. It does **not** make the historical Terra
+receipts, the partial `24813b8e` diagnostic run, or blocked surface captures
+current verification passes. Slice 85 still requires its capable-host,
+exact-baseline prerequisite, and Slice 150 alone owns exact-final-candidate
+AC-037 qualification.

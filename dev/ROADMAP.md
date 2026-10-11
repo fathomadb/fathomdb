@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 scope: post-0.8.26
-updated: 2026-09-21
+updated: 2026-10-09
 ---
 
 # FathomDB roadmap after 0.8.26
@@ -10,6 +10,10 @@ Start here for future work. This document consolidates the active release
 schedule, draft scopes, experimental review checkpoints, and explicitly
 preserved backlog into one readable map.
 
+The [product hygiene roadmap](hygeine-roadmap.md) tracks cross-release
+correctness, quality, performance and qualification risks separately from
+this release schedule.
+
 This is a roadmap, not implementation authority. Release placement is owned by
 [`plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md`](plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md).
 A release becomes executable only when it has an approved plan, release-state
@@ -17,11 +21,17 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 ## Current position
 
-- **0.8.26 is published.** All tracked releases are published and no release is
-  currently active.
-- **0.8.27 is the next named candidate release.** Its scope is proposed intake,
-  not approved implementation. There is no `plan-0.8.27.md`,
-  `release-state-0.8.27.json`, or `STATUS-0.8.27.md` yet.
+- **0.8.26 is the published predecessor.** Its retained state contains the
+  historical publication receipt.
+- **0.8.27 is the active implementation release** on `release/0.8.27`.
+  Prework approved correction-safe erasure and a behavior-preserving semantic
+  refactor. As of 2026-10-10, release state records Slice 135's bounded
+  system qualification and Slice 117's qualified, unpublished Jetson Node
+  delivery route complete alongside the erasure fix (Slice 20) and the
+  NAPI, TypeScript, Python and Rust SDK slices (110–132). Slice 140 is next,
+  followed by final-candidate qualification (150) and publication (160).
+  Its plan, state, and board are the execution authority; publication remains
+  separately gated.
 - An open todo does not automatically become roadmap scope. This file includes
   work only when a current schedule, draft scope, or explicit backlog/proposal
   record preserves it.
@@ -40,20 +50,21 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 | Release | Status | Theme |
 | --- | --- | --- |
-| **0.8.27** | **Reported release blocker + proposed scope** | Correction-safe source erasure after supersession, followed by full opt-in snapshot and cursor continuity, generalized graph/state pagination, and persisted evidence replay. |
-| **0.8.28** | **Proposed release scope** | Manually selected advanced retrieval, rich graph continuation, and expanded exclusion tracing. |
+| **0.8.27** | **Active implementation; Slice 117 complete, 140 next** | Correction-safe source erasure, semantic decomposition, bounded system qualification, and the qualified, unpublished Jetson CUDA Node route are recorded. Slice 160 owns publication and post-publication proof. |
+| **0.8.28** | **Proposed release scope** | Advanced retrieval and continuation, Tegra CUDA memory-pool adoption, plus four owner-placed Slice 135 fault, quality, artifact and latency follow-ups. |
 | **0.8.29** | **Review checkpoint** | Candidate-selection experiments. |
+| **0.8.30** | Backlog | Explicit release of the process-lifetime module-level CUDA models. |
 | **0.8.31** | **Review checkpoint** | Associative retrieval and automatic profile-routing experiments. |
 | **0.8.33** | **Review checkpoint** | Expanded integrity, repair-planning, and release-matrix experiments. |
 | **0.9.0** | Planning only | Define post-0.8.x product identity and the next major release. No implementation is scheduled by the program schedule. |
 | **Post-1.0, pre-2.1** | Backlog | ANN indexing for the 100k/1M vector-latency tiers. |
 
-## 0.8.27 proposed scope
+## 0.8.27 scope
 
 The source of record is
-[`plans/0.8.27-draft-scope.md`](plans/0.8.27-draft-scope.md). Every item must be
-revalidated against the shipped 0.8.25 and 0.8.26 contracts before it enters an
-executable plan.
+[`plans/plan-0.8.27.md`](plans/plan-0.8.27.md), with live progress on
+[`plans/runs/STATUS-0.8.27.md`](plans/runs/STATUS-0.8.27.md). The original
+draft intake is retained as a superseded record with every item dispositioned.
 
 ### Release-blocking finding
 
@@ -69,9 +80,13 @@ replacement bucket first can unlock the original. Memex truthfully reports
 `storage_failed`; it does not claim erasure or bypass the public API.
 
 This is a privacy-deletion and authority-boundary risk. Treat it as blocking
-0.8.27 publication and Memex 0.6.0 production cutover until FathomDB reproduces
-and resolves it, or disproves it with durable evidence. Continued isolated
-Memex Slice 80 development is not blocked. The required outcome is a supported,
+0.8.27 publication until FathomDB resolves it or disproves it with durable
+evidence. Memex later received a narrow exemption for this exact characterized
+refusal, so the finding no longer blocks its 0.6.0 cutover by itself.
+Slice 20 implemented and reviewed correction-safe erasure on
+`release/0.8.27`; the finding stays publication-relevant until the release's
+final qualification (Slice 150) and publication decision. The
+required outcome is a supported,
 truthfully reported erase of buckets containing superseded revisions and closed
 dependents, tested for same-bucket and cross-bucket replacements without private
 database APIs. The exact external characterization is recorded in Memex
@@ -79,14 +94,14 @@ database APIs. The exact external characterization is recorded in Memex
 `dev/fathomdb/0.8.26-erase-after-supersede-gap.md` (local checkout:
 `/home/coreyt/projects/memex-worktrees/release-0.6.0/dev/fathomdb/0.8.26-erase-after-supersede-gap.md`).
 
-### Candidate work
+### Deferred candidate work
 
 | ID | Candidate work | Proof required before promotion |
 | --- | --- | --- |
-| **D27-01** | Full opt-in cross-operation frozen-snapshot leases with typed mismatch, expiry, unavailable, and drift outcomes. | Show that the compact optional frozen read cannot satisfy a concrete multi-operation consistency need. |
-| **D27-02** | Opaque cursors bound to request, snapshot, projection generation, ordering, exclusive key, and expiry. | Demonstrate duplicate, omission, or authorization risk under the minimal continuation contract. |
-| **D27-03** | Generalized graph pagination and richer `operational_state` continuation. | Identify a bounded consumer workload with deterministic complete ordering; ranked top-K remains separate. |
-| **D27-04** | Persisted source-complete evidence receipts with eligibility-bound replay and retention/expiry behavior. | Demonstrate a need to resolve evidence beyond the compact reference lifetime without weakening current authorization. |
+| **D27-01** | Full opt-in cross-operation frozen-snapshot leases with typed mismatch, expiry, unavailable, and drift outcomes. | Moved to 0.8.28 D28-05; proof remains unmet. |
+| **D27-02** | Opaque cursors bound to request, snapshot, projection generation, ordering, exclusive key, and expiry. | Moved to 0.8.28 D28-06; proof remains unmet. |
+| **D27-03** | Generalized graph pagination and richer `operational_state` continuation. | Merged into 0.8.28 D28-03; proof remains unmet. |
+| **D27-04** | Persisted source-complete evidence receipts with eligibility-bound replay and retention/expiry behavior. | Moved to 0.8.28 D28-07; proof remains unmet. |
 
 Constraints:
 
@@ -98,16 +113,77 @@ Constraints:
 ## 0.8.28 proposed scope
 
 The source of record is
-[`plans/0.8.28-draft-scope.md`](plans/0.8.28-draft-scope.md). These are
-caller-selected advanced reads; automatic routing and default changes are not
-part of this scope.
+[`plans/0.8.28-draft-scope.md`](plans/0.8.28-draft-scope.md). D28-01 to D28-07
+are caller-selected advanced reads. D28-08 is owner-placed Tegra pool work;
+D28-09 to D28-12 are the four owner-placed items from the
+[product hygiene roadmap](hygeine-roadmap.md#open-risk-register).
+Automatic routing is outside this scope; default changes require their own
+reviewed contracts and gates.
 
 | ID | Candidate work | Proof required before promotion |
 | --- | --- | --- |
 | **D28-01** | Manual named-profile configuration and qualification. | At least one non-A0 treatment has a reviewed, reproducible use case. |
 | **D28-02** | Specialized time-scoped and changed-fact retrieval. | External-validity evidence shows improvement beyond filtering without truth inference or answer regression. |
-| **D28-03** | Rich constrained-graph continuation and replayable path evidence. | A consumer needs more than the deterministic one-page result and can state bounded continuation semantics. |
+| **D28-03** | Rich constrained-graph continuation, replayable path evidence, and richer `operational_state` continuation. | A consumer needs more than the deterministic one-page graph/state result and can state bounded continuation, authorization, and replay semantics for both components. |
 | **D28-04** | Expanded deterministic exclusion and not-selected tracing. | A concrete debugging or compliance decision cannot be answered by compact inclusion/degradation output. |
+| **D28-05** | Full opt-in cross-operation frozen-snapshot leases. | Compact frozen reads cannot meet a concrete multi-operation consistency need. |
+| **D28-06** | Fully request/snapshot/projection/ordering-bound cursors. | A duplicate, omission, or authorization failure is demonstrated under minimal continuation. |
+| **D28-07** | Persisted source-complete evidence replay. | A caller needs resolution beyond compact-reference lifetime without weaker authorization. |
+| **D28-08** | **Owner-placed (2026-10-07):** adopt the Tegra private CUDA memory pool as the aarch64-Linux integrated-GPU default, with C7 context-reset instrumentation and an upstream cudarc pool primitive. | Requirements, acceptance criteria, ADR, TDD and an AGX Orin qualification against the study's gates, allocation correctness and release first. |
+| **D28-09** | **Owner-placed (2026-10-09, Slice 135 rank 1):** qualify in-transaction erasure and WAL interruption; repair any confirmed contract violation. | Controlled fault positions, independent reopened-state and erasure oracles, truthful status and recovery. |
+| **D28-10** | **Owner-placed (2026-10-09, Slice 135 rank 2):** improve qualified multi-hop evidence reachability. | Held-out support-set gain by hop count without correctness, provenance or lifecycle regression. |
+| **D28-11** | **Owner-placed (2026-10-09, Slice 135 rank 3):** qualify installed CPU–CUDA and Jetson retrieval parity on 0.8.28 release artifacts. | Frozen same-query audit on real hardware; preserve 0.8.27 Slice 117/150 gates. |
+| **D28-12** | **Owner-placed (2026-10-09, Slice 135 rank 7):** attribute and conditionally remediate engine vector, hybrid and populated-open latency leads. | Matched stage/CPU/queue and whole-call boundaries; rerun affected cells after a product change. |
+
+### Prework: Tegra CUDA memory-pool study
+
+The owner ruled on 2026-10-05 that 0.8.27 ships the aarch64-Linux synchronous
+CUDA allocation fallback with early `cuInit` and no memory pool, and that
+0.8.28 evaluates a pool against it. The
+[study plan](plans/0.8.28/prework/tegra-cuda-memory-pool-study.md) defines the
+evidence. As of 2026-10-07, Phases 0–4 are complete on branch
+`llm/0.8.28-tegra-pool-study`. On the AGX Orin 64 GB the private pool created
+at first use passed the allocation, release, cap and performance gates (steady
+embed 0.986 of the default pool; 1.93× faster than the synchronous path).
+A spot check on the corrected embedder-close fix (now on `release/0.8.27`)
+confirmed the result. On 2026-10-07 the owner placed adoption in 0.8.28 as
+D28-08 and ruled:
+
+- a co-resident CUDA context reset stays unsupported and documented in 0.8.28,
+  which adds instrumentation (context-id detection, a typed
+  `cuda_context_lost` error, a diagnostic snapshot, and a characterization
+  test) so 0.8.29 can design the survival fix from data;
+- early `cuInit` at module load is the Tegra contract: FathomDB creates the
+  pool only when its early `cuInit` ran, otherwise uses the synchronous path,
+  and never refuses;
+- an upstream cudarc PR for the pool primitive is a goal, with every vendored
+  patch item tracked to an upstream status and removal path.
+
+The [draft scope](plans/0.8.28-draft-scope.md#d28-08-tegra-private-cuda-memory-pool)
+holds the full rulings.
+
+## 0.8.30 backlog
+
+Placed by HITL decision on 2026-10-07. This is backlog with a release slot,
+not implementation authority; no plan, release-state file, or board exists.
+
+**B30-01 — release the module-level CUDA models.** Todo
+`TC-8d3c1cde-97d7-46d5-af50-9cc479da6de7`. The embedder-close fix releases the
+engine-owned embedder at `close()`. The module-level batch-CLS embedder and
+reranker live in process-lifetime statics instead. They hold about 17 MiB
+(reranker) to 143 MiB (with batch CLS) until exit. The amount is bounded and
+does not grow, but on integrated GPUs it is host memory. It also keeps a
+private CUDA pool from returning to zero reserved.
+
+- Shape: an explicit, opt-in release call in Rust, Python, and TypeScript, not
+  automatic idle release. It needs clearable cells, typed errors, and an
+  interface-doc or ADR update. Tests cover reload after release, concurrent
+  use, and use after release.
+- Prerequisite: fix the cudarc `CudaSlice` drop crash after a co-resident CUDA
+  context reset first. A runtime release drops CUDA objects on the path where
+  that crash occurs. Statics are never dropped at exit today.
+- Revisit triggers: that fix, deployments with many processes, 8 or 16 GB
+  integrated devices, or reports of memory held while idle.
 
 ## Experimental review checkpoints
 
@@ -126,6 +202,12 @@ TDD, and verification.
 Promotion requires a bounded family that improves held-out answer use without
 correctness, groundedness, attribution, latency, lifecycle, or accepted-default
 regression.
+
+**Placed work, not a checkpoint (owner ruling 2026-10-07):** make FathomDB
+survive a co-resident library resetting the CUDA primary context (todo
+`TC-281155a1-4767-4379-9506-ef97b2ed51a9`). Today cudarc's `CudaSlice` drop
+crashes inside `Engine::close` after such a reset. Design the fix from the
+data that the 0.8.28 D28-08 instrumentation collects.
 
 ### 0.8.31 — associative retrieval and routing
 
@@ -225,10 +307,10 @@ engine defect or a new release commitment.
 
 These records preserve future work but do not override the release map.
 
-- **0.9.0 readability and navigability:** capability-module decomposition of
-  the engine, focused binding/CLI/test splits, reusable structure maps, and
-  duplication cleanup. The proposal is placed for 0.9.0, but implementation is
-  not scheduled. See
+- **Readability and navigability:** the bounded engine/binding/SDK semantic
+  decomposition moved to the 0.8.27 plan. The original 0.9.0 proposal remains
+  historical rationale; unrelated CLI/test splits and duplication cleanup stay
+  unscheduled. See
   [`design/0.9.0-readability-refactor-proposal.md`](design/0.9.0-readability-refactor-proposal.md).
 - **Multi-field and recursive-payload FTS:** multi-field FTS, per-kind
   tokenizers, and related precision controls remain deferred to at least 0.9.x;

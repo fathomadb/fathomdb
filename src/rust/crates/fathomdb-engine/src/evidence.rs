@@ -3,9 +3,9 @@ use std::fmt::{Display, Formatter};
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::{
-    frozen_read, ArtifactRevisionId, CanonicalHash, DependencyId, EngineError, FrozenReadContextV1,
-    LifecycleState, ProjectionGenerationId, SearchResult, SoftFallbackBranch, SourceDependencyV1,
-    SourceLocator, SourceRevisionId,
+    frozen_read, ArtifactRevisionId, CanonicalHash, DependencyId, Engine, EngineError,
+    FrozenReadContextV1, LifecycleState, ProjectionGenerationId, SearchResult, SoftFallbackBranch,
+    SourceDependencyV1, SourceLocator, SourceRevisionId,
 };
 
 const SCHEMA_VERSION: u32 = 1;
@@ -2662,6 +2662,17 @@ impl PayloadCursor<'_> {
     }
 }
 
+impl Engine {
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn explain_graph_evidence_preflights_for_test(&self) -> Result<Vec<String>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        explain_intrinsic_preflights_for_test(connection)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2759,7 +2770,7 @@ mod tests {
         let authority = graph_evidence_authority(connection, &frozen).unwrap();
         // Run the real reader transaction on this thread to isolate the hash observer
         // from background workers and parallel tests without a process-global counter.
-        crate::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.set(0));
+        crate::write_commit::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.set(0));
         let result = crate::graph_expand::read_graph_expand_in_tx(
             connection,
             &request,
@@ -2772,7 +2783,7 @@ mod tests {
             0,
         )
         .unwrap();
-        let calls = crate::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.get());
+        let calls = crate::write_commit::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.get());
         assert_eq!(result.targets.len(), 2);
         assert_eq!(result.evidence.unwrap().entries.len(), 2);
         assert_eq!(calls, 1, "four selected artifacts share one canonical source");

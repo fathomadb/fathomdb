@@ -14,10 +14,12 @@
 //! non-bge, so `identity_requires_mean_centering` is false and the probe uses the
 //! un-centered (raw-sign) representation on BOTH sides (R-VEQ-3c non-MC branch).
 
-use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{Engine, EngineError};
+use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, EngineError};
 use tempfile::TempDir;
 
 const DIM: usize = 384;
@@ -58,6 +60,26 @@ impl Embedder for RefEmbedder {
         EmbedderIdentity::new(PROBE_IDENTITY_NAME, PROBE_IDENTITY_REV, DIM as u32)
     }
     fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
+        Ok(reference_vector(text))
+    }
+}
+
+#[derive(Debug)]
+struct FirstProbeParked {
+    calls: AtomicUsize,
+    release: Mutex<mpsc::Receiver<()>>,
+}
+
+impl Embedder for FirstProbeParked {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new(PROBE_IDENTITY_NAME, PROBE_IDENTITY_REV, DIM as u32)
+    }
+
+    fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
+        if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
+            let _ =
+                self.release.lock().expect("release lock").recv_timeout(Duration::from_millis(500));
+        }
         Ok(reference_vector(text))
     }
 }
@@ -624,6 +646,97 @@ fn population_failure_fails_safe_and_persists_no_partial_baseline() {
     assert_eq!(rows, 0, "a failed population must persist NO probe rows (no partial baseline)");
 }
 
+#[test]
+fn timed_out_population_probe_degrades_open_without_persisting_baseline() {
+    let dir = TempDir::new().expect("test directory");
+    let path = db_path(&dir);
+    let seeded = Engine::open_with_embedder_for_test(&path, Arc::new(RefEmbedder)).expect("open");
+    seeded.engine.configure_vector_kind_for_test("note").expect("register vector kind");
+    seeded.engine.close().expect("close seed session");
+
+    let (release, held) = mpsc::channel();
+    let provider =
+        Arc::new(FirstProbeParked { calls: AtomicUsize::new(0), release: Mutex::new(held) });
+    let started = Instant::now();
+    let opened = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(provider),
+        EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
+    )
+    .expect("timeout must degrade open rather than fail it");
+    let elapsed = started.elapsed();
+    release.send(()).ok();
+    assert!(opened.report.dense_disabled, "unverified vector arm must be refused");
+    assert!(elapsed < Duration::from_millis(250), "open probe must honor the 50ms deadline");
+    opened.engine.close().expect("close degraded session");
+    let connection = rusqlite::Connection::open(&path).expect("read probe state");
+    let rows: i64 = connection
+        .query_row("SELECT COUNT(*) FROM _fathomdb_embed_probe", [], |row| row.get(0))
+        .expect("probe row count");
+    assert_eq!(rows, 0, "failed population cannot persist a partial baseline");
+}
+
+#[test]
+fn timed_out_verification_preserves_baseline_and_drops_late_result() {
+    let dir = TempDir::new().expect("test directory");
+    let path = db_path(&dir);
+    seed_references(&path);
+
+    let (release, held) = mpsc::channel();
+    let provider =
+        Arc::new(FirstProbeParked { calls: AtomicUsize::new(0), release: Mutex::new(held) });
+    let started = Instant::now();
+    let opened = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(provider.clone()),
+        EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
+    )
+    .expect("timed-out verification degrades open");
+    assert!(started.elapsed() < Duration::from_millis(250));
+    assert!(opened.report.dense_disabled);
+    assert!(matches!(
+        opened.engine.search("anything"),
+        Err(EngineError::VectorEquivalenceMismatch { .. })
+    ));
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1, "refusal precedes query dispatch");
+    let conn = rusqlite::Connection::open(&path).expect("inspect baseline");
+    let baseline: i64 = conn
+        .query_row("SELECT COUNT(*) FROM _fathomdb_embed_probe", [], |row| row.get(0))
+        .expect("baseline count");
+    assert_eq!(baseline, 45, "verification does not mutate reference rows");
+    let verdict: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM _fathomdb_open_state WHERE key = ?1",
+            [VEQ_VERDICT_CACHE_KEY],
+            |row| row.get(0),
+        )
+        .expect("verdict cache count");
+    assert_eq!(verdict, 0, "failed verification does not cache a passing verdict");
+    drop(conn);
+
+    release.send(()).expect("release late provider result");
+    opened.engine.close().expect("close degraded engine");
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1, "verification stopped after timeout");
+    let conn = rusqlite::Connection::open(&path).expect("inspect late completion");
+    let baseline_after: i64 = conn
+        .query_row("SELECT COUNT(*) FROM _fathomdb_embed_probe", [], |row| row.get(0))
+        .expect("baseline count after release");
+    assert_eq!(baseline_after, 45, "late provider result cannot rewrite baseline");
+    let verdict_after: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM _fathomdb_open_state WHERE key = ?1",
+            [VEQ_VERDICT_CACHE_KEY],
+            |row| row.get(0),
+        )
+        .expect("verdict cache count after release");
+    assert_eq!(verdict_after, 0, "late result cannot cache a passing verdict");
+    drop(conn);
+    let healthy = Engine::open_with_embedder_for_test(&path, Arc::new(RefEmbedder))
+        .expect("healthy backend re-verifies");
+    assert!(!healthy.report.dense_disabled);
+    healthy.engine.close().expect("close healthy engine");
+}
+
 // ---- fix-1 DEFECT #4 hole (a) — post-open registration: safe in-session + ------
 // ---- baseline established at the NEXT open (NOT in the write path) ------------
 
@@ -632,7 +745,7 @@ fn population_failure_fails_safe_and_persists_no_partial_baseline() {
 /// diverge from), and the baseline is established at the NEXT open (identity-gated
 /// population), catching all forward drift. The baseline is deliberately NOT
 /// captured in the write path: a write must never block on the embedder (the
-/// async-projection invariant — `ac_029` + the PR-9 embed watchdog). This closes
+/// async-projection invariant — `ac_029` and bounded provider dispatch). This closes
 /// hole (a) to the same degree as the accepted v18→v19 upgrade residual.
 #[test]
 fn post_open_registration_serves_in_session_and_baselines_at_next_open() {

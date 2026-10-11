@@ -1,0 +1,12 @@
+{
+  "status": "RAW_CAPTURED",
+  "reasons": [],
+  "binary_sha256": "4cddccf3a60b6d2d688450802e5bffdcad9d03b3fbb9a99cc6443df17b07556a",
+  "runner_sha256": "254705add4ad0885b1611a84fc63f80738a5d5f14881b9325908c4e798bf646b",
+  "protocol_sha256": "0c4aa0059b5454f9b78a79b71abee9384deb6ae92a4537d39f861e6601e90778",
+  "model_assets": {
+    "config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+    "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
+    "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+  }
+}

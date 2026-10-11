@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+  "checked": [
+    "two typed FFI write refusals per installed SDK",
+    "unchanged write counter",
+    "reopened counter",
+    "installed Python module path",
+    "Node v25 runtime"
+  ],
+  "files_sha256": {
+    "python-probe.py": "d5119bedd4464a00d1e83efbbce8f09221a44ceae4c6ce3e89026383e7244da8",
+    "python-result.json": "e9f9dc6a25aaba7f822523a997a0b715dc96921680af0b079213180241635ab0",
+    "typescript-probe.mjs": "2c809a2e69a617fc72ea343b5a47015de797777f2847c79768070c3144fda326",
+    "typescript-result.json": "1fa728db32eee7b7f729453e8b2e474542aab25f6fd9eb7bf71b4a36e7e3b144"
+  }
+}

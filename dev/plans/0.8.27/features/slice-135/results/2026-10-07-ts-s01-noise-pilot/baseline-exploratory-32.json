@@ -1,0 +1,834 @@
+{
+  "schema_version": 1,
+  "status": "UNFROZEN_TS_S01_PILOT",
+  "started_utc": "2026-10-07T15:38:33.929Z",
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "artifact": {
+    "module_path": "/tmp/slice135-ts-artifacts/baseline/consumer/node_modules/fathomdb/dist/index.js",
+    "module_sha256": "9d86c756e481ee09581ff8c687fd74de8cefbf2ad825a582015cb7b703ea4dc7",
+    "native_path": "/tmp/slice135-ts-artifacts/baseline/consumer/node_modules/fathomdb-linux-x64-gnu/fathomdb.linux-x64-gnu.node",
+    "native_sha256": "4a3aef2833060cde858faad689e4c734de31dc70e9dab13a00a6594f694c60ca",
+    "package_path": "/tmp/slice135-ts-artifacts/baseline/consumer/node_modules/fathomdb/package.json",
+    "package_sha256": "4570f02423e72e879f699a797b27d283d68d6e986880b7dcd3f3d784e59ab6b6",
+    "package_version": "0.8.26",
+    "node_executable": "/home/coreyt/.local/actions-runner/fathomdb-gpu/_work/_tool/node/25.9.0/x64/bin/node",
+    "node_version": "v25.9.0"
+  },
+  "corpus_size": 32,
+  "corpus_sha256": "e01c7b7772a925ab9c3a80ffb1d20ae1f9338c4fb0501fa16fcc844b871338dd",
+  "model": "fathomdb-bge-small-en-v1.5 default embedder",
+  "queries": {
+    "text": "brightblue",
+    "vector": "boat schedule across water",
+    "hybrid": "harbor ferry"
+  },
+  "warm_samples_per_cell": 10,
+  "cells": {
+    "text": {
+      "session_cold": {
+        "latency_ns": 838286,
+        "ids": [
+          "A"
+        ],
+        "branches": [
+          "text"
+        ],
+        "semantic_ok": true
+      },
+      "warmup": {
+        "latency_ns": 626806,
+        "ids": [
+          "A"
+        ],
+        "branches": [
+          "text"
+        ],
+        "semantic_ok": true
+      },
+      "warm": [
+        {
+          "latency_ns": 612078,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 516537,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 466553,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 371232,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 473717,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 551363,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 185040,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 221849,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 209837,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 154002,
+          "ids": [
+            "A"
+          ],
+          "branches": [
+            "text"
+          ],
+          "semantic_ok": true
+        }
+      ]
+    },
+    "vector": {
+      "session_cold": {
+        "latency_ns": 11037041,
+        "ids": [
+          "A",
+          "B",
+          "F0004",
+          "F0017",
+          "F0008",
+          "F0005",
+          "F0003",
+          "F0007",
+          "F0006",
+          "F0027"
+        ],
+        "branches": [
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector"
+        ],
+        "semantic_ok": true
+      },
+      "warmup": {
+        "latency_ns": 11155415,
+        "ids": [
+          "A",
+          "B",
+          "F0004",
+          "F0017",
+          "F0008",
+          "F0005",
+          "F0003",
+          "F0007",
+          "F0006",
+          "F0027"
+        ],
+        "branches": [
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector"
+        ],
+        "semantic_ok": true
+      },
+      "warm": [
+        {
+          "latency_ns": 10567163,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 10625042,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 13285164,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 10385699,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 10516266,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 10957131,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 10172416,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 10162687,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 9887146,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 10054342,
+          "ids": [
+            "A",
+            "B",
+            "F0004",
+            "F0017",
+            "F0008",
+            "F0005",
+            "F0003",
+            "F0007",
+            "F0006",
+            "F0027"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        }
+      ]
+    },
+    "hybrid": {
+      "session_cold": {
+        "latency_ns": 9611645,
+        "ids": [
+          "A",
+          "B",
+          "F0017",
+          "F0005",
+          "F0018",
+          "F0026",
+          "F0008",
+          "F0009",
+          "F0024",
+          "F0025"
+        ],
+        "branches": [
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector"
+        ],
+        "semantic_ok": true
+      },
+      "warmup": {
+        "latency_ns": 8744975,
+        "ids": [
+          "A",
+          "B",
+          "F0017",
+          "F0005",
+          "F0018",
+          "F0026",
+          "F0008",
+          "F0009",
+          "F0024",
+          "F0025"
+        ],
+        "branches": [
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector",
+          "vector"
+        ],
+        "semantic_ok": true
+      },
+      "warm": [
+        {
+          "latency_ns": 8723415,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 8317166,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 8795590,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 9466881,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 9862139,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 8709768,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 8763901,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 8952548,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 8713606,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        },
+        {
+          "latency_ns": 8540808,
+          "ids": [
+            "A",
+            "B",
+            "F0017",
+            "F0005",
+            "F0018",
+            "F0026",
+            "F0008",
+            "F0009",
+            "F0024",
+            "F0025"
+          ],
+          "branches": [
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector",
+            "vector"
+          ],
+          "semantic_ok": true
+        }
+      ]
+    }
+  },
+  "finished_utc": "2026-10-07T15:38:39.344Z",
+  "semantic_failures": 0
+}

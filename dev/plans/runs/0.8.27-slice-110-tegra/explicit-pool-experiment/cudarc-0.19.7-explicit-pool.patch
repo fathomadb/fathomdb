@@ -1,0 +1,282 @@
+diff -ru cudarc-0.19.7-stock/src/driver/safe/core.rs cudarc-0.19.7/src/driver/safe/core.rs
+--- cudarc-0.19.7-stock/src/driver/safe/core.rs	2006-07-23 20:21:28.000000000 -0500
++++ cudarc-0.19.7/src/driver/safe/core.rs	2026-10-04 22:19:31.135060686 -0500
+@@ -42,12 +42,208 @@
+     pub(crate) error_state: AtomicU32,
+ }
+ 
++// SLICE110 EXPERIMENT-ONLY BEGIN: allocator-path selection switch.
++// CUDARC_SLICE110_ALLOC_MODE = "sync" | "fallback" | unset/"stock".
++//   stock    -> async iff CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED > 0 (upstream behaviour)
++//   sync     -> never async (cuMemAlloc_v2 / cuMemFree_v2)
++//   fallback -> async iff pools supported AND cuDeviceGetDefaultMemPool succeeds
++// The default pool is queried in every mode (for the per-process stderr record).
++fn slice110_select_async_alloc(
++    cu_device: sys::CUdevice,
++    cu_ctx: sys::CUcontext,
++    ordinal: usize,
++) -> Result<bool, DriverError> {
++    let t0 = std::time::Instant::now();
++    let pools_supported = unsafe {
++        result::device::get_attribute(
++            cu_device,
++            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
++        )?
++    } > 0;
++    let r_ctx = unsafe { sys::cuCtxSetCurrent(cu_ctx) };
++    let mut pool: sys::CUmemoryPool = std::ptr::null_mut();
++    let r_pool = unsafe { sys::cuDeviceGetDefaultMemPool(&mut pool, cu_device) };
++    let pool_ok = r_pool == sys::CUresult::CUDA_SUCCESS;
++    let mode = std::env::var("CUDARC_SLICE110_ALLOC_MODE").unwrap_or_default();
++    let mut pool_note = String::new();
++    let (mode_name, use_async) = match mode.as_str() {
++        "sync" => ("sync", false),
++        "fallback" => ("fallback", pools_supported && pool_ok),
++        "" | "stock" => ("stock", pools_supported),
++        "pool" => {
++            if !pools_supported {
++                pool_note = "pool_source=none(unsupported)".into();
++                ("pool", false)
++            } else if pool_ok {
++                pool_note = "pool_source=default".into();
++                ("pool", true)
++            } else {
++                let (ok, note) = slice110_explicit_pool(cu_device, ordinal);
++                pool_note = note;
++                ("pool", ok)
++            }
++        }
++        other => panic!("CUDARC_SLICE110_ALLOC_MODE: unknown value {other:?}"),
++    };
++    eprintln!(
++        "cudarc-slice110 alloc-select pid={} ordinal={ordinal} mode={mode_name} \
++         pools_supported={pools_supported} set_current={r_ctx:?} default_pool={r_pool:?} \
++         pool_available={pool_ok} path={} select_us={} {pool_note}",
++        std::process::id(),
++        if use_async { "async" } else { "sync" },
++        t0.elapsed().as_micros()
++    );
++    Ok(use_async)
++}
++
++// One explicit pool per device per process, shared by every CudaContext on that
++// device (the primary context is shared, and cuDeviceSetMemPool is device-wide).
++// Stored as usize because CUmemoryPool is a raw pointer. Never destroyed: it lives
++// until process exit (destroying it while current reverts the device to the
++// default pool, which is exactly the pool that is unavailable here).
++static SLICE110_POOLS: std::sync::Mutex<Vec<(sys::CUdevice, usize)>> =
++    std::sync::Mutex::new(Vec::new());
++
++fn slice110_env_bytes(name: &str, default: u64) -> u64 {
++    match std::env::var(name) {
++        Ok(v) if v == "max" => u64::MAX,
++        Ok(v) => v.parse::<u64>().unwrap_or_else(|_| panic!("{name}: not a byte count: {v:?}")),
++        Err(_) => default,
++    }
++}
++
++fn slice110_pool_attr(pool: sys::CUmemoryPool, attr: sys::CUmemPool_attribute) -> u64 {
++    let mut v: u64 = 0;
++    let r = unsafe {
++        sys::cuMemPoolGetAttribute(pool, attr, &mut v as *mut u64 as *mut std::ffi::c_void)
++    };
++    if r == sys::CUresult::CUDA_SUCCESS { v } else { u64::MAX }
++}
++
++fn slice110_pool_stats(pool: sys::CUmemoryPool) -> String {
++    use sys::CUmemPool_attribute::*;
++    format!(
++        "threshold={} reserved_cur={} reserved_high={} used_cur={} used_high={}",
++        slice110_pool_attr(pool, CU_MEMPOOL_ATTR_RELEASE_THRESHOLD),
++        slice110_pool_attr(pool, CU_MEMPOOL_ATTR_RESERVED_MEM_CURRENT),
++        slice110_pool_attr(pool, CU_MEMPOOL_ATTR_RESERVED_MEM_HIGH),
++        slice110_pool_attr(pool, CU_MEMPOOL_ATTR_USED_MEM_CURRENT),
++        slice110_pool_attr(pool, CU_MEMPOOL_ATTR_USED_MEM_HIGH),
++    )
++}
++
++pub(crate) fn slice110_pool_teardown_note(cu_device: sys::CUdevice) {
++    if std::env::var("CUDARC_SLICE110_ALLOC_MODE").as_deref() != Ok("pool") {
++        return;
++    }
++    let pools = SLICE110_POOLS.lock().unwrap();
++    let mut cur: sys::CUmemoryPool = std::ptr::null_mut();
++    let r_cur = unsafe { sys::cuDeviceGetMemPool(&mut cur, cu_device) };
++    for (dev, p) in pools.iter() {
++        if *dev == cu_device {
++            let pool = *p as sys::CUmemoryPool;
++            eprintln!(
++                "cudarc-slice110 pool-teardown pid={} device_current={r_cur:?} still_current={} {}",
++                std::process::id(),
++                cur == pool,
++                slice110_pool_stats(pool)
++            );
++        }
++    }
++}
++
++// Requires cu_ctx current on this thread (the caller set it).
++fn slice110_explicit_pool(cu_device: sys::CUdevice, ordinal: usize) -> (bool, String) {
++    let mut pools = SLICE110_POOLS.lock().unwrap();
++    if let Some((_, p)) = pools.iter().find(|(d, _)| *d == cu_device) {
++        let pool = *p as sys::CUmemoryPool;
++        let mut cur: sys::CUmemoryPool = std::ptr::null_mut();
++        let r_cur = unsafe { sys::cuDeviceGetMemPool(&mut cur, cu_device) };
++        let still = r_cur == sys::CUresult::CUDA_SUCCESS && cur == pool;
++        let r_set = if still {
++            sys::CUresult::CUDA_SUCCESS
++        } else {
++            unsafe { sys::cuDeviceSetMemPool(cu_device, pool) }
++        };
++        let ok = r_set == sys::CUresult::CUDA_SUCCESS;
++        return (
++            ok,
++            format!(
++                "pool_source=explicit-reused get_current={r_cur:?} was_current={still} reset={r_set:?} {}",
++                slice110_pool_stats(pool)
++            ),
++        );
++    }
++    let max_size = slice110_env_bytes("CUDARC_SLICE110_POOL_MAXSIZE", 3 << 30);
++    let threshold = slice110_env_bytes("CUDARC_SLICE110_POOL_RELEASE_THRESHOLD", 0);
++    let props = sys::CUmemPoolProps {
++        allocType: sys::CUmemAllocationType::CU_MEM_ALLOCATION_TYPE_PINNED,
++        handleTypes: sys::CUmemAllocationHandleType_enum(0),
++        location: sys::CUmemLocation {
++            type_: sys::CUmemLocationType::CU_MEM_LOCATION_TYPE_DEVICE,
++            id: ordinal as i32,
++        },
++        win32SecurityAttributes: std::ptr::null_mut(),
++        maxSize: max_size as usize,
++        usage: 0,
++        reserved: [0; 54],
++    };
++    let mut pool: sys::CUmemoryPool = std::ptr::null_mut();
++    let r_create = unsafe { sys::cuMemPoolCreate(&mut pool, &props) };
++    if r_create != sys::CUresult::CUDA_SUCCESS {
++        return (false, format!("pool_source=sync-fallback create={r_create:?} max_size={max_size}"));
++    }
++    let mut thr = threshold;
++    let r_thr = unsafe {
++        sys::cuMemPoolSetAttribute(
++            pool,
++            sys::CUmemPool_attribute::CU_MEMPOOL_ATTR_RELEASE_THRESHOLD,
++            &mut thr as *mut u64 as *mut std::ffi::c_void,
++        )
++    };
++    let r_set = unsafe { sys::cuDeviceSetMemPool(cu_device, pool) };
++    // Pool creation succeeding does not prove the pool can back an allocation,
++    // so probe one real stream-ordered allocation before committing to it.
++    let mut probe: sys::CUdeviceptr = 0;
++    let r_probe = if r_set == sys::CUresult::CUDA_SUCCESS {
++        unsafe { sys::cuMemAllocAsync(&mut probe, 4, std::ptr::null_mut()) }
++    } else {
++        sys::CUresult::CUDA_ERROR_NOT_PERMITTED
++    };
++    let r_free = if r_probe == sys::CUresult::CUDA_SUCCESS {
++        unsafe { sys::cuMemFreeAsync(probe, std::ptr::null_mut()) }
++    } else {
++        sys::CUresult::CUDA_ERROR_NOT_PERMITTED
++    };
++    let r_sync = unsafe { sys::cuCtxSynchronize() };
++    let ok = r_create == sys::CUresult::CUDA_SUCCESS
++        && r_set == sys::CUresult::CUDA_SUCCESS
++        && r_probe == sys::CUresult::CUDA_SUCCESS
++        && r_free == sys::CUresult::CUDA_SUCCESS
++        && r_sync == sys::CUresult::CUDA_SUCCESS;
++    let note = format!(
++        "pool_source={} create={r_create:?} max_size={max_size} set_threshold={r_thr:?} threshold_req={threshold} \
++         set_mem_pool={r_set:?} probe_alloc={r_probe:?} probe_free={r_free:?} sync={r_sync:?} {}",
++        if ok { "explicit-created" } else { "sync-fallback" },
++        slice110_pool_stats(pool)
++    );
++    if ok {
++        pools.push((cu_device, pool as usize));
++    } else {
++        // Reverts the device to its default pool (documented behaviour).
++        unsafe { sys::cuMemPoolDestroy(pool) };
++    }
++    (ok, note)
++}
++// SLICE110 EXPERIMENT-ONLY END
++
+ unsafe impl Send for CudaContext {}
+ unsafe impl Sync for CudaContext {}
+ 
+ impl Drop for CudaContext {
+     fn drop(&mut self) {
+         self.record_err(self.bind_to_thread());
++        slice110_pool_teardown_note(self.cu_device); // SLICE110 EXPERIMENT-ONLY
+         let ctx = std::mem::replace(&mut self.cu_ctx, std::ptr::null_mut());
+         if !ctx.is_null() {
+             if self.is_primary {
+@@ -72,16 +268,15 @@
+ impl CudaContext {
+     /// Creates a new context on the specified device ordinal.
+     pub fn new(ordinal: usize) -> Result<Arc<Self>, DriverError> {
+-        result::init()?;
+-        let cu_device = result::device::get(ordinal as i32)?;
+-        let cu_ctx = unsafe { result::primary_ctx::retain(cu_device) }?;
+-        let has_async_alloc = unsafe {
+-            let memory_pools_supported = result::device::get_attribute(
+-                cu_device,
+-                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
+-            )?;
+-            memory_pools_supported > 0
++        // SLICE110 EXPERIMENT-ONLY: record the raw result of each setup step on failure.
++        let slice110_fail = |step: &str, e: &DriverError| {
++            eprintln!("cudarc-slice110 ctx-new-failed pid={} ordinal={ordinal} step={step} error={:?}", std::process::id(), e.0);
+         };
++        result::init().inspect_err(|e| slice110_fail("cuInit", e))?;
++        let cu_device = result::device::get(ordinal as i32).inspect_err(|e| slice110_fail("cuDeviceGet", e))?;
++        let cu_ctx = unsafe { result::primary_ctx::retain(cu_device) }
++            .inspect_err(|e| slice110_fail("cuDevicePrimaryCtxRetain", e))?;
++        let has_async_alloc = slice110_select_async_alloc(cu_device, cu_ctx, ordinal)?;
+         let ctx = Arc::new(CudaContext {
+             cu_device,
+             cu_ctx,
+@@ -147,13 +342,7 @@
+         )))]
+         let cu_ctx = unsafe { result::ctx::create_v3(flags, cu_device) }?;
+ 
+-        let has_async_alloc = unsafe {
+-            let memory_pools_supported = result::device::get_attribute(
+-                cu_device,
+-                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
+-            )?;
+-            memory_pools_supported > 0
+-        };
++        let has_async_alloc = slice110_select_async_alloc(cu_device, cu_ctx, ordinal)?;
+         let ctx = Arc::new(CudaContext {
+             cu_device,
+             cu_ctx,
+@@ -198,13 +387,7 @@
+             cigParams: cig_params as *mut sys::CUctxCigParam,
+         };
+         let cu_ctx = unsafe { result::ctx::create_v4(&mut ctx_create_params, flags, cu_device) }?;
+-        let has_async_alloc = unsafe {
+-            let memory_pools_supported = result::device::get_attribute(
+-                cu_device,
+-                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
+-            )?;
+-            memory_pools_supported > 0
+-        };
++        let has_async_alloc = slice110_select_async_alloc(cu_device, cu_ctx, ordinal)?;
+         let ctx = Arc::new(CudaContext {
+             cu_device,
+             cu_ctx,
+@@ -235,13 +418,7 @@
+         cu_device: sys::CUdevice,
+         cu_ctx: sys::CUcontext,
+     ) -> Result<Arc<Self>, DriverError> {
+-        let has_async_alloc = {
+-            let memory_pools_supported = result::device::get_attribute(
+-                cu_device,
+-                sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED,
+-            )?;
+-            memory_pools_supported > 0
+-        };
++        let has_async_alloc = slice110_select_async_alloc(cu_device, cu_ctx, ordinal)?;
+         let ctx = Arc::new(CudaContext {
+             cu_device,
+             cu_ctx,

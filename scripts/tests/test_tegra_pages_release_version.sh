@@ -49,5 +49,41 @@ else
   fail "stale project metadata did not fail closed: $bad_out"
 fi
 
+# The Tegra Node tarball is stamped from src/ts/package.json's release, so the
+# same guard binds the TypeScript package manifest.
+GOOD_TS="$TMPROOT/good/package.json"
+BAD_TS="$TMPROOT/bad/package.json"
+NO_VERSION_TS="$TMPROOT/no-version/package.json"
+mkdir -p "$TMPROOT/good" "$TMPROOT/bad" "$TMPROOT/no-version"
+printf '{"name": "fathomdb", "version": "0.8.24"}\n' > "$GOOD_TS"
+printf '{"name": "fathomdb", "version": "0.8.23"}\n' > "$BAD_TS"
+printf '{"name": "fathomdb"}\n' > "$NO_VERSION_TS"
+
+if "$CHECKER" --manifest "$GOOD_TS" --expected-version 0.8.24; then
+  pass "exact authorized TypeScript package version passes"
+else
+  fail "exact authorized TypeScript package version should pass"
+fi
+
+set +e
+bad_ts_out="$("$CHECKER" --manifest "$BAD_TS" --expected-version 0.8.24 2>&1)"
+bad_ts_rc=$?
+set -e
+if [ "$bad_ts_rc" -ne 0 ] && grep -Fq 'expected 0.8.24, got 0.8.23' <<<"$bad_ts_out"; then
+  pass "stale TypeScript package metadata fails before Pages publication"
+else
+  fail "stale TypeScript package metadata did not fail closed: $bad_ts_out"
+fi
+
+set +e
+no_version_out="$("$CHECKER" --manifest "$NO_VERSION_TS" --expected-version 0.8.24 2>&1)"
+no_version_rc=$?
+set -e
+if [ "$no_version_rc" -ne 0 ] && grep -Fq 'version' <<<"$no_version_out"; then
+  pass "a TypeScript package manifest without a version fails closed"
+else
+  fail "a TypeScript package manifest without a version did not fail closed: $no_version_out"
+fi
+
 printf '%s passed, %s failed\n' "$PASSED" "$FAILED"
 [ "$FAILED" -eq 0 ]

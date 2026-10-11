@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    {
+      "kind": "wheel",
+      "name": "fathomdb-0.8.26-cp310-abi3-macosx_10_12_x86_64.whl",
+      "sha256": "7a6887d847ac3b98c04ecb8419c2a8f60008eaf91847ca1c1ac6c1cc40f8030b",
+      "size": 6802469
+    },
+    {
+      "kind": "napi",
+      "name": "fathomdb.darwin-x64.node",
+      "sha256": "d156a09c2db0976c57fc109482978b1459924538a3419899e0a715f6b19d9e83",
+      "size": 19678480
+    }
+  ],
+  "candidate_sha": "366e1bc3d4e4df2a8bb8cd9268ccfdae0e02b08a",
+  "command": "native-artifact-runtime-validation",
+  "label": "darwin-x64",
+  "outcome": "pass",
+  "runner": "GitHub Actions 1000007402:macOS:X64",
+  "schema_version": "fathomdb.native-artifact-receipt/v1",
+  "target": "x86_64-apple-darwin",
+  "toolchains": {
+    "node": "25.9.0",
+    "python": "3.11",
+    "rust": "1.95.0"
+  }
+}

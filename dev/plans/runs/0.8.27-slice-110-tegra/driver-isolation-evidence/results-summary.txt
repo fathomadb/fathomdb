@@ -1,0 +1,155 @@
+## s1-control: n=20 pass=20 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=61.32 max=61.32 | FAIL: min=- max=-
+   x20   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+## s2-random18-8G-128G-none: n=200 pass=22 FAIL=178 fail_rate=89.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.64 max=45.98 | FAIL: min=7.67 max=23.01
+   x178  FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x22   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2-random18-8G-128G-rw: n=200 pass=22 FAIL=178 fail_rate=89.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.64 max=45.98 | FAIL: min=7.67 max=23.01
+   x178  FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x22   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2-rerun-seeds1-50-none: n=50 pass=4 FAIL=46 fail_rate=92.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.64 max=30.64 | FAIL: min=7.67 max=23.01
+   x46   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x4    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2b-random1-8G-128G-none: n=100 pass=100 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.68 max=61.32 | FAIL: min=- max=-
+   x96   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+   x4    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2b-random12-8G-128G-none: n=100 pass=33 FAIL=67 fail_rate=67.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.64 max=45.98 | FAIL: min=15.3 max=23.01
+   x67   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x30   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x3    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2b-random2-8G-128G-none: n=100 pass=100 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.68 max=61.32 | FAIL: min=- max=-
+   x71   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+   x29   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2b-random3-8G-128G-none: n=100 pass=100 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.64 max=61.32 | FAIL: min=- max=-
+   x55   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x44   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+   x1    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2b-random4-8G-128G-none: n=100 pass=100 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.64 max=61.32 | FAIL: min=- max=-
+   x65   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x25   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+   x10   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2b-random6-8G-128G-none: n=100 pass=97 FAIL=3 fail_rate=3.0%  placed_fail_runs=0
+   max piece GiB  pass: min=15.34 max=61.32 | FAIL: min=15.34 max=15.34
+   x46   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x43   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x8    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+   x3    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2b-random9-8G-128G-none: n=100 pass=66 FAIL=34 fail_rate=34.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.64 max=45.98 | FAIL: min=15.3 max=23.01
+   x56   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x34   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x10   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s2c-random18-0G-256G-none: n=100 pass=66 FAIL=34 fail_rate=34.0%  placed_fail_runs=0
+   max piece GiB  pass: min=15.34 max=61.32 | FAIL: min=15.34 max=23.01
+   x46   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x34   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x16   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x4    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+## s3-random18-0G-8G-none: n=100 pass=100 FAIL=0 fail_rate=0.0%  placed_fail_runs=2
+   max piece GiB  pass: min=61.32 max=61.32 | FAIL: min=- max=-
+   x100  pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+## s3-random18-128G-256G-none: n=100 pass=100 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=61.32 max=61.32 | FAIL: min=- max=-
+   x100  pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+## s3-random18-256G-512G-none: n=100 pass=100 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=61.32 max=61.32 | FAIL: min=- max=-
+   x100  pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+## s4a-single-4K-sweep: n=384 pass=384 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.68 max=61.32 | FAIL: min=- max=-
+   x369  pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+   x15   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s4b-equal-spaced-n1-4K: n=5 pass=5 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.68 max=30.68 | FAIL: min=- max=-
+   x5    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s4b-equal-spaced-n2-4K: n=5 pass=5 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=30.68 max=30.68 | FAIL: min=- max=-
+   x5    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+## s4b-equal-spaced-n3-4K: n=5 pass=0 FAIL=5 fail_rate=100.0%  placed_fail_runs=0
+   max piece GiB  pass: min=- max=- | FAIL: min=15.34 max=15.34
+   x5    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s4b-equal-spaced-n4-4K: n=5 pass=5 FAIL=0 fail_rate=0.0%  placed_fail_runs=0
+   max piece GiB  pass: min=15.34 max=15.34 | FAIL: min=- max=-
+   x5    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s4b-equal-spaced-n5-4K: n=5 pass=0 FAIL=5 fail_rate=100.0%  placed_fail_runs=0
+   max piece GiB  pass: min=- max=- | FAIL: min=15.34 max=15.34
+   x5    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s4b-equal-spaced-n6-4K: n=5 pass=0 FAIL=5 fail_rate=100.0%  placed_fail_runs=0
+   max piece GiB  pass: min=- max=- | FAIL: min=15.34 max=15.34
+   x5    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s4b-equal-spaced-n7-4K: n=5 pass=0 FAIL=5 fail_rate=100.0%  placed_fail_runs=0
+   max piece GiB  pass: min=- max=- | FAIL: min=7.67 max=7.67
+   x5    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s4c-freegap-threshold: n=54 pass=30 FAIL=24 fail_rate=44.4%  placed_fail_runs=0
+   max piece GiB  pass: min=15.34 max=15.34 | FAIL: min=15.34 max=15.34
+   x30   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x24   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s4d-inunit-threshold: n=33 pass=21 FAIL=12 fail_rate=36.4%  placed_fail_runs=0
+   max piece GiB  pass: min=61.32 max=61.32 | FAIL: min=61.32 max=61.32
+   x18   pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x12   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x3    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+## s4e-inunit-fine: n=18 pass=9 FAIL=9 fail_rate=50.0%  placed_fail_runs=0
+   max piece GiB  pass: min=61.32 max=61.32 | FAIL: min=61.32 max=61.32
+   x9    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x9    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s5-thread-and-maxsize: n=33 pass=6 FAIL=27 fail_rate=81.8%  placed_fail_runs=0
+   max piece GiB  pass: min=61.32 max=61.32 | FAIL: min=15.34 max=15.34
+   x21   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=0 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x6    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x3    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=-1 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+   x3    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=0 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+## s5b-maxsize-large: n=18 pass=0 FAIL=18 fail_rate=100.0%  placed_fail_runs=0
+   max piece GiB  pass: min=- max=- | FAIL: min=15.34 max=15.34
+   x12   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=0 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x6    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=2 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+## s5c-setmempool-workaround: n=45 pass=3 FAIL=42 fail_rate=93.3%  placed_fail_runs=0
+   max piece GiB  pass: min=61.32 max=61.32 | FAIL: min=11.67 max=23.01
+   x30   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=0 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x12   FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=2 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x3    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=0 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+## s5d-maxsize-limit: n=10 pass=5 FAIL=5 fail_rate=50.0%  placed_fail_runs=0
+   max piece GiB  pass: min=61.32 max=61.32 | FAIL: min=15.34 max=15.34
+   x5    pass attr_pools=1 alloc_sync=0 default_pool=0 alloc_async=0 pool_create=0 pool_create_maxsize=0 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=0
+   x3    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=0 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+   x2    FAIL attr_pools=1 alloc_sync=0 default_pool=2 alloc_async=2 pool_create=2 pool_create_maxsize=2 resv_2M=0 resv_64M=0 resv_1G=0 resv_32G=2
+
+| series | runs | pass | FAIL | fail rate | min max-piece (pass) | max max-piece (FAIL) |
+|---|---|---|---|---|---|---|
+| s1-control | 20 | 20 | 0 | 0% | 61.32 | - |
+| s2-random18-8G-128G-none | 200 | 22 | 178 | 89% | 30.64 | 23.01 |
+| s2-random18-8G-128G-rw | 200 | 22 | 178 | 89% | 30.64 | 23.01 |
+| s2-rerun-seeds1-50-none | 50 | 4 | 46 | 92% | 30.64 | 23.01 |
+| s2b-random1-8G-128G-none | 100 | 100 | 0 | 0% | 30.68 | - |
+| s2b-random12-8G-128G-none | 100 | 33 | 67 | 67% | 30.64 | 23.01 |
+| s2b-random2-8G-128G-none | 100 | 100 | 0 | 0% | 30.68 | - |
+| s2b-random3-8G-128G-none | 100 | 100 | 0 | 0% | 30.64 | - |
+| s2b-random4-8G-128G-none | 100 | 100 | 0 | 0% | 30.64 | - |
+| s2b-random6-8G-128G-none | 100 | 97 | 3 | 3% | 15.34 | 15.34 |
+| s2b-random9-8G-128G-none | 100 | 66 | 34 | 34% | 30.64 | 23.01 |
+| s2c-random18-0G-256G-none | 100 | 66 | 34 | 34% | 15.34 | 23.01 |
+| s3-random18-0G-8G-none | 100 | 100 | 0 | 0% | 61.32 | - |
+| s3-random18-128G-256G-none | 100 | 100 | 0 | 0% | 61.32 | - |
+| s3-random18-256G-512G-none | 100 | 100 | 0 | 0% | 61.32 | - |
+| s4a-single-4K-sweep | 384 | 384 | 0 | 0% | 30.68 | - |
+| s4b-equal-spaced-n1-4K | 5 | 5 | 0 | 0% | 30.68 | - |
+| s4b-equal-spaced-n2-4K | 5 | 5 | 0 | 0% | 30.68 | - |
+| s4b-equal-spaced-n3-4K | 5 | 0 | 5 | 100% | - | 15.34 |
+| s4b-equal-spaced-n4-4K | 5 | 5 | 0 | 0% | 15.34 | - |
+| s4b-equal-spaced-n5-4K | 5 | 0 | 5 | 100% | - | 15.34 |
+| s4b-equal-spaced-n6-4K | 5 | 0 | 5 | 100% | - | 15.34 |
+| s4b-equal-spaced-n7-4K | 5 | 0 | 5 | 100% | - | 7.67 |
+| s4c-freegap-threshold | 54 | 30 | 24 | 44% | 15.34 | 15.34 |
+| s4d-inunit-threshold | 33 | 21 | 12 | 36% | 61.32 | 61.32 |
+| s4e-inunit-fine | 18 | 9 | 9 | 50% | 61.32 | 61.32 |
+| s5-thread-and-maxsize | 33 | 6 | 27 | 82% | 61.32 | 15.34 |
+| s5b-maxsize-large | 18 | 0 | 18 | 100% | - | 15.34 |
+| s5c-setmempool-workaround | 45 | 3 | 42 | 93% | 61.32 | 23.01 |
+| s5d-maxsize-limit | 10 | 5 | 5 | 50% | 61.32 | 15.34 |

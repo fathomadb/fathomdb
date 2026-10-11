@@ -1,0 +1,241 @@
+---
+title: FathomDB 0.8.27 Slice 30 - implementation status
+status: COMPLETE
+implemented_on: 2026-09-22
+baseline_source_commit: def7d894d6439c4dd223d972963613c097d27eea
+baseline_tracking_commit: 00a2c3e674a74e310f755f87566b667f62cbfcbd
+implementation_candidate: 6ba3be95cd043570da1deafbe4e2f78c878d8a87
+closeout_commit: c9eec2247be9c95ca509b7520b1fa6a15ba27958
+---
+
+# Slice 30 implementation status
+
+## Implemented scope
+
+- Genuine RED commit `d1cf4481` defined deterministic capture, all required
+  mutation arms, row identity mismatch, and duplicate-manifest rejection before
+  the tool existed.
+- GREEN/tool commits `61e52258` and `07c8bf55` implemented one explicit
+  capture/compare entry point with exact tool/target/row metadata, clean-tree
+  and source-SHA validation, owned resource roots, immutable comparison, and
+  complete diagnostics.
+- Real `cargo public-api` output found three fixture gaps. RED/GREEN pairs
+  `7eeb4d59`/`6eeeffd8`, `d823f2e2`/`273d3efb`, and
+  `8631f0eb`/`3b726cba` added associated-path overloads, trait-qualified
+  identical method signatures, and repeated identical compiler-entry
+  normalization without weakening duplicate-manifest rejection.
+- Initial code review found five comparator/evidence defects. RED commit
+  `f621c9cd` specified source-SHA-independent semantic comparison, complete
+  Python alias/inheritance capture, exact tool handling, missing-executable
+  errors, hardlink-safe immutability, atomic writes, and gate registration.
+  GREEN commit `add4f3f4` closed them without product-code changes.
+- Clean source commit `add4f3f4f066f0c4b1b47d7a91c1a4f979eba6bf`
+  produced two byte-identical 12-row captures. Commit `d80a6623` tracks the
+  corrected reviewed baseline and its source-bound advisory inventory.
+- No product runtime, public API, schema, ADR, interface contract,
+  `dev/acceptance.md`, feature gate, package root, or transaction/locking
+  behavior changed.
+
+The original 12-row baseline was 10,206,103 bytes and 212,596 lines; the
+adversarial-review recapture below supersedes it. Normal
+hooks impose no repository large-file prohibition. Its size is intentional:
+the six complete Rust rows retain 41,411 explainable cargo-public-api entries,
+including blanket impl signatures, rather than opaque signature hashes. The
+remaining rows retain 119 Python exports, 121 PyO3 registrations, 538 native
+stub entries, 81 production NAPI declarations, 149 TypeScript declarations,
+and 64 package/runtime entries. `inventory.md` is the human navigation layer;
+the machine baseline is not intended for prompt ingestion.
+
+## Capture and verification receipts
+
+- Both corrected real captures used `cargo-public-api 0.52.0`,
+  `nightly-2026-04-24`, Rust `1.97.0-nightly (36ba2c771 2026-04-23)`, Node
+  `v25.9.0`, TypeScript `6.0.3`, target `x86_64-unknown-linux-gnu`, and exact
+  production NAPI `default-embedder` generation. Each file had SHA-256
+  `7c76bd0d409cecc5dc073e29baf7806b329379bd9475c7ab138dda12cde5cdf2`;
+  byte and semantic comparisons passed with no diff.
+- A fresh candidate from tracking commit
+  `d80a66236ca9dc0dd6456e2a0d5322c3722d364c` had SHA-256
+  `c78b89da8c40be4821c9e25fa53dd6a834de79ef4b7d917079a35d0c512c5413`.
+  It compared semantically equal with empty metadata/row diffs while reporting
+  the distinct baseline and candidate provenance SHAs.
+- The focused comparator contract passed. SDK parity passed 10/10. Rust
+  re-export/governed-surface checks passed 4 default and 5 operator-feature
+  tests. Python native-stub/package/parity checks passed 20/20. Focused
+  TypeScript no-recovery, release-surface, parity, and package-surface checks
+  passed 20/20.
+- The review-requested TypeScript release-surface route was rerun under Node
+  `v25.9.0` with `RELEASE_SURFACE_TESTS=1`: its production native no-test-hook
+  inspection executed and passed. TAP reported 2/2; the default-embedder open
+  branch returned early under the explicitly recorded
+  `FATHOMDB_SKIP_NETWORK_TESTS=1` condition and is not claimed as exercised.
+- The canonical gate's lint, Rust/Python/TypeScript type checks, strict
+  unconfined security checks (0 violations, 0 blockers, 0 downgrades), Rust
+  suite, TypeScript suite, and 118 repository harness suites passed. The full
+  Python suite reported 1,527 passed and 27 skipped; its sole failure was the
+  ownership guard correctly rejecting the temporary worktree `.venv` link
+  needed by Pyright. After removing that link, the unchanged failed test passed
+  1/1. No full gate was rerun a fourth time merely to combine those already
+  observed results.
+- The sandboxed NAPI build initially refused its `/bin/sh` helper and AC-036
+  initially refused ptrace. The unchanged commands passed through the approved
+  unconfined route. Runtime Python native introspection was intentionally not
+  collected because editable worktree installation is forbidden; source
+  registration, native stub, and package export rows are all present.
+
+## Independent review, cleanup, and closeout
+
+The temporary `.venv` link, generated TypeScript malformed-context fixtures,
+checkout-owned `.cache/0.8.27-slice30`, owned `/tmp` scratch, and both temporary
+capture files were removed. The user-provided durable release worktree and
+branch remain; this slice created neither.
+
+Independent code review first rejected three P1 and three P2 findings. RED
+commit `f621c9cd`, GREEN commit `add4f3f4`, corrected baseline commit
+`d80a6623`, and evidence commit `b102bceb` closed all six. The same reviewer
+returned PASS. Independent reverification also returned PASS: a fresh Node
+25.9.0 capture at `b102bceb` compared equal to the immutable baseline despite
+its distinct valid provenance SHA; focused parity and surface suites passed;
+and the baseline hash, counts, size, and provenance matched this record.
+
+Slice 30 is complete on `release/0.8.27`. Slice 40 and all later slices, main
+integration, tags, registries, qualification, and publication remain separate.
+
+## Adversarial review FIX-1 (Phase 1)
+
+A requirements/design adversarial review found the TypeScript row blind to
+re-exported declarations (errors, `read`), no Python wrapper signature row,
+cfg-blind PyO3 registrations, an unchecked NAPI build identity, and a
+mistranscribed hash in `review-verification.md`. RED commit `eb54ca29` and
+GREEN commit `4ce45c51` added re-export resolution, the
+`python-wrapper-declarations` row, cfg-aware registration entries, and a
+fail-closed `build:native` identity check. A clean Node `v25.9.0` capture at
+`4ce45c518789108a9fcc1da35fda4c9b74f19aff` produced the 13-row baseline, SHA-256
+`24cc30a01539eddc7515072a11c09b45fb9077b2aa34a77b1ed8e7032f4cf3dd`, 10,431,950 bytes and 218,556 lines. Against the prior baseline
+it differed only in `row_identities` metadata, the three cfg-gated
+registrations, the new 1,131-entry wrapper row, and the TypeScript row
+(208 entries: +62 resolved declarations, −3 opaque re-export statements).
+All Rust, NAPI, stub, export, and package rows compared equal.
+
+## Adversarial review FIX-2 (Phase 1)
+
+The re-review closed P1-1..P1-5 and found cfg gates on enclosing items not
+propagated, JSDoc/`///` comments embedded in declaration signatures (with
+brace-bearing comments able to shift statement boundaries), stale closeout
+receipts, and a stale plan requirement table. RED `95441a30` and GREEN `58bc8eb4` fixed the adapters. Two clean Node `v25.9.0` captures of
+`58bc8eb4836f6f0f52b40b21befaea87a490b9fa` were byte-identical, SHA-256 `b54a01cc486c4d1755297196831f5490d0311237e12ca6f40d37c03af1b3a1b4`, 10,397,378 bytes and
+218,556 lines (AC27-30A). Against the FIX-1 baseline `24cc30a01539…` the only
+differences were 22 TypeScript and 22 NAPI entries whose signatures lost their
+comments. `plan.md` R27-30B/AC27-30C now name every capture arm. The
+adversarial reviewer is the reviewer of record for the FIX-1/FIX-2 diff; the
+earlier `code-review.md`/`review-verification.md` PASS records cover the
+12-row tool at `b102bceb` only.
+
+## Adversarial review Phase 2 and Phase 3
+
+Phase 2 (test review) closed in one cycle with test-only hardening
+(`e908b678`). Phase 3 (code review) found bare local TypeScript export lists
+opaque to the flattener, Rust items bound to adjacent marker impls because
+generic `impl<…>` headers were not recognised, cfg brace counting that
+ignored literals and single-line gates, a diff-pairing heuristic that reused
+one added entry, a scratch root nothing wrote into, and minor parsing edges.
+RED `a8786164` and GREEN `df801746` fixed them: local export lists resolve to
+local declarations; any `impl`/`impl<…>`/`unsafe impl` header owns the items
+after it; Rust literals and comments are blanked before brace counting, with
+multi-line attributes joined and unbalanced input rejected; pairing consumes
+each added entry once; TypeScript declarations are emitted into the owned
+scratch root; `const enum` is keyed by name; missing adapter inputs raise
+`ComparatorError`. Two clean Node `v25.9.0` captures of `df8017463ecce6281a4c989a2d1bd01118e2025e` were
+byte-identical, SHA-256 `7db3d883f99940aea69c58079e64d6794be459ef9ab76561106a314e61900384`, 10,678,832 bytes and 218,556 lines.
+Against the prior baseline only the four engine Rust rows changed, with equal
+added and removed counts (items rebound to their owning impl), plus the
+`typescript-declarations` row identity.
+
+Phase 3 FIX-2: the rewritten cfg scanner truncated literals in multi-line
+cfg attributes, and same-path diff pairing could lose to processing order.
+RED `06ccc6e1` and GREEN `fb2ba9b3` slice both scanner views identically and pair
+same-path entries in a first pass. Neither change alters any row of the
+tracked baseline (no multi-line cfg in the PyO3 crate; pairing is report-only).
+
+Phase 3 FIX-3 (found at closeout): a fresh capture after the repository gate
+reported `forcePanicForTest` and `forcePanicInAccessorForTest` in the
+production NAPI row. The pinned `@napi-rs/cli` 2.18.4 reads type definitions
+from `os.tmpdir()/<artifact>-<cwd hash>.napi_type_def.tmp`, which the proc
+macros rewrite only on recompilation; with a warm owned cargo cache, capture
+read the file the gate's test-hooks debug build had written. RED `bb9d79fa`
+and GREEN `7c340a61` force the NAPI crate to recompile and give it a private
+`TMPDIR`; `5142a504` stops the capture path and a test from ever creating the
+owned scratch root without its marker. With the polluted shared temp files
+still present, two captures of `5142a504` were byte-identical
+(`5e7f03d2…`) and compared `equal: true` to the tracked baseline
+`7db3d883…` with empty metadata and row diffs (AC27-30A later-candidate
+receipt). The tracked baseline, captured before any debug build, contains no
+test-hook declaration.
+
+## Adversarial review closeout
+
+All three adversarial phases are clean. The canonical gate ran on `455da9812624c2616e51ce3dedbd33238c0a7ee3`
+(both slices' final code): `scripts/agent-verify.sh` passed 120/120 suites
+with no skips or exclusions and security 0 violations; full-workspace
+`cargo clippy --workspace --all-targets -- -D warnings` and
+`cargo check --workspace --all-targets` passed. The gate ran with a
+worktree-private `.venv` (non-editable wheel built from the final Rust
+candidate, native module SHA-256
+`e6e840df1a3938d0361bf23126a2fe177ad00b3434dfa959e6d8f74b0b220b80`, the
+`[dev]`/`[test]` extras, and a `.pth` entry for `src/python`); it was removed
+afterwards. Test-generated `src/ts/slice55-malformed-frozen-context*` files
+were removed; the worktree was clean.
+
+Slice 30's final test-only commit `6adb2230` (P3-10 owned-cache assertion)
+follows the gate commit; the focused comparator suite and Ruff passed on it,
+and a neutered unscoped `cargo clean` fails that suite.
+
+## Whole-work external review remediation
+
+The 2026-09-22 whole-work review supersedes the earlier closeout claims where
+they conflict. It reviewed the complete Slice 20/30 diff, plans, assigned
+functions, allocated draft items, baseline, tests, records, and ignored build
+artifacts—not only the three reported leftovers.
+
+The review found and closed seven implementation/evidence gaps: stale Python
+native shadowing; debug NAPI declaration leakage; multiline enclosing-item cfg
+attribution; capacity checks on only one filesystem; weak scratch ownership;
+the repository-relative Slice 55 fixture; and stale closeout records/cleanup.
+Follow-up independent review also closed worktree-forbidden `maturin develop`,
+dirty-candidate receipt labeling, optimized-Python assertion elision, and
+missing environment guards.
+
+TDD chronology for this remediation is RED `87a4585d`, GREEN `def7d894`,
+baseline tracking `00a2c3e6`; RED `0e1185ba`, GREEN `d63b585a`; RED
+`523b9427`, GREEN `2967593c`; and the wrapper-aware packaging assertion
+`6ba3be95`. The canonical Python gate now builds a locked non-editable wheel in
+disposable scratch, atomically installs its one extension, and validates a
+nonce-bound receipt against clean HEAD before and after the build. Final
+receipt: candidate `6ba3be95cd043570da1deafbe4e2f78c878d8a87`, module SHA-256
+`2f6d0e2509d1d3b5928723d47a239ae9132ec210b1836fb76518f957a6c450b6`.
+
+The reviewed baseline has 13 rows, source `def7d894d6439c4dd223d972963613c097d27eea`,
+tracking commit `00a2c3e674a74e310f755f87566b667f62cbfcbd`, SHA-256
+`06212f662b2a3897447fe294d65d87ae93255b9b511d9fdd57eab3cf8490a723`,
+10,678,883 bytes, and 218,557 lines. Two captures of `d63b585a` were
+byte-identical (`d563d517…`); a later clean capture of `2967593c` had SHA-256
+`4dcd21bb…` and compared equal with empty metadata and row diffs.
+
+The executable NAPI regression ran a debug build followed by ordinary
+`npm run build:native` and proved both panic test hooks disappeared from
+`index.d.ts`. Independent design review, code review, and focused verification
+all returned PASS at `2967593c`; the final test-only packaging correction does
+not change those reviewed execution paths.
+
+The canonical gate at `2967593c` passed lint, typecheck, strict security
+(0 violations, 0 blockers, 0 downgrades), Rust, TypeScript, executable NAPI,
+and 123 of 124 registered suites. Its sole failure was the older Python
+assertion that expected feature flags directly in `package.json`; after
+`6ba3be95` made that assertion wrapper-aware, the full Python suite passed
+1,533 with 27 documented skips and the final candidate receipt validated.
+No unrelated regression was rerun for that test-only correction.
+
+Closeout removed the temporary `.venv`, Slice 30 capture cache and files,
+candidate receipt, source-tree Python extension, generated NAPI module and
+declarations, and review scratch directories. The user-provided durable
+`release/0.8.27` worktree and branch remain in place for the release.

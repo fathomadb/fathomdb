@@ -4,12 +4,17 @@ date: 2026-04-27
 target_release: 0.6.0
 desc: Async-surface posture for engine API across Rust / Python / TypeScript / CLI
 blast_radius: every public API on every binding; rusqlite usage; bindings (PyO3, napi-rs); Python and TS wrapper layers
-status: accepted
+status: accepted; exact runtime mechanisms partially superseded by ADR-0.8.27-engine-owned-runtime-topology
 ---
 
 # ADR-0.6.0 — Async surface
 
 **Status:** accepted (HITL 2026-04-27 — Path 2 + Path 1 invariants).
+The exact ThreadsafeFunction, binding-pool and internal async mechanisms are
+partially superseded by
+[`ADR-0.8.27-engine-owned-runtime-topology`](ADR-0.8.27-engine-owned-runtime-topology.md);
+the synchronous Rust/Python surface, TypeScript off-event-loop outcome,
+post-commit dispatch and product invariants remain authoritative.
 
 This is a **deliberation** ADR (not decision-recording). It was promoted
 from Phase 2 to Phase 1 by HITL F4 because the choice frames every

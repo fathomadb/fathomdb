@@ -1,0 +1,10 @@
+{
+  "reopened_erased_source_visible": {
+    "error": "after_reopen source_absent failed",
+    "rejected": true
+  },
+  "reordered_block": {
+    "error": "integrated S02 block order changed",
+    "rejected": true
+  }
+}

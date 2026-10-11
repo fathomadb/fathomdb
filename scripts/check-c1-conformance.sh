@@ -399,7 +399,13 @@ CONTRACT, PIN, ROOT, LIST_SOURCES = sys.argv[1], sys.argv[2], sys.argv[3], sys.a
 # silently rots (a stale fixture root would turn every source arm into a TC-37
 # path-#4 evaporation and stop testing what it claims).
 # ---------------------------------------------------------------------------
-ENG = "src/rust/crates/fathomdb-engine/src/lib.rs"
+OPEN = "src/rust/crates/fathomdb-engine/src/open.rs"
+SEARCH_TYPES = "src/rust/crates/fathomdb-engine/src/search_types.rs"
+ERR = "src/rust/crates/fathomdb-engine/src/errors.rs"
+IDENTITY = "src/rust/crates/fathomdb-engine/src/identity.rs"
+REGISTRY = "src/rust/crates/fathomdb-engine/src/projection_registry.rs"
+RUNTIME = "src/rust/crates/fathomdb-engine/src/projection_runtime.rs"
+COMMIT = "src/rust/crates/fathomdb-engine/src/projection_commit.rs"
 SCH = "src/rust/crates/fathomdb-schema/src/lib.rs"
 EMB = "src/rust/crates/fathomdb-embedder/src/candle_bge.rs"
 T15 = "src/rust/crates/fathomdb-engine/tests/slice15d_projection_registry.rs"
@@ -407,9 +413,9 @@ T20 = "src/rust/crates/fathomdb-engine/tests/slice20_dense_readiness.rs"
 T25 = "src/rust/crates/fathomdb-engine/tests/slice25_registration_identity_inert.rs"
 PLAN = "dev/plans/plan-0.8.20.md"
 SRC_TREE = "src"
-# The CRATE SOURCE TREES the negative probes scan (fix-3). ENG and SCH above name
-# the crates' lib.rs; these name the whole module tree each lib.rs is the root of,
-# because that — not one file — is the scope in which a crate's obligations hold.
+# The CRATE SOURCE TREES the negative probes scan (fix-3). Positive probes name
+# specific owner files; these trees cover every module where a forbidden form
+# could appear.
 ENG_TREE = "src/rust/crates/fathomdb-engine/src"
 SCH_TREE = "src/rust/crates/fathomdb-schema/src"
 
@@ -623,6 +629,8 @@ def crate_manifest_for(test_path):
 # `fts_tokenizer_shared` does for the sibling tokenizer clause: both constants
 # must exist as declarations, must carry the same string, and that string must be
 # the pinned one.
+# Slice 90 moved the engine's same named constant into its private open owner;
+# the owner remains the engine's shipped default subject for this relation.
 #
 # THE FIX-5 RE-AUDIT of all 26 CHECKABLE clauses against this question found NO
 # second instance — every other probe's file is the crate the clause names (see
@@ -673,8 +681,10 @@ def crate_manifest_for(test_path):
 # things that remain.
 #
 # NO PYTHON OR TYPESCRIPT TEST IS CITED BY ANY CLAUSE. `--list-sources` is the
-# authority: the gate reads seven files (four Rust, one markdown plan, and the
-# two crate lib.rs) and three trees, and not one `.py` or `.ts` among them. The
+# authority: the gate reads fourteen files (engine owner modules/tests, the
+# schema crate lib.rs, the embedder identity source, one markdown plan, and one
+# Cargo manifest) and three trees, and not
+# one `.py` or `.ts` among them. The
 # same evaporation exists in those languages (`@pytest.mark.skip`, `xfail`,
 # `describe.skip` / `it.skip` / `.only`, a renamed-away `test_` prefix), so if a
 # future clause ever cites one, it needs its own `test_defined` equivalent — not
@@ -728,7 +738,7 @@ ASSERTIONS = {
     # instance verb the pin's evidence records and every call site in this repo
     # uses, stops compiling. So the RECEIVER is probed too.
     "C1-SEAM-ENGINE-BUILD-DROP": [
-        ("present", ENG, r"pub fn configure_projections\("),
+        ("present", REGISTRY, r"pub fn configure_projections\("),
         # A `self` receiver is legal ONLY inside an `impl`/trait block, so
         # requiring one excludes both shapes the finding names (a free function
         # and a receiver-less associated function) without this gate having to
@@ -737,17 +747,17 @@ ASSERTIONS = {
         # `mut self` — because a formatting-only edit must not manufacture a
         # false RED (`self` may only ever be the FIRST parameter, so the open
         # paren this anchors on can only be the parameter list's).
-        ("fn_sig", ENG, "configure_projections",
+        ("fn_sig", REGISTRY, "configure_projections",
          r"\(\s*(?:&\s*(?:'[A-Za-z_]\w*\s+)?)?(?:mut\s+)?self\b"),
-        ("fn_sig", ENG, "configure_projections", r"specs:\s*&\[ProjectionSpec\]"),
-        ("fn_sig", ENG, "configure_projections", r"drop:\s*&\[String\]"),
-        ("fn_sig", ENG, "configure_projections",
+        ("fn_sig", REGISTRY, "configure_projections", r"specs:\s*&\[ProjectionSpec\]"),
+        ("fn_sig", REGISTRY, "configure_projections", r"drop:\s*&\[String\]"),
+        ("fn_sig", REGISTRY, "configure_projections",
          r"->\s*Result<\s*ProjectionDelta\s*,\s*EngineError\s*>"),
     ],
     # ---- Q1 --------------------------------------------------------------
     "C1-Q1-ROLE-SET": [
-        ("present", ENG, r"pub enum ProjectionRole \{"),
-        ("in_item", ENG, "struct", "ProjectionSpec",
+        ("present", REGISTRY, r"pub enum ProjectionRole \{"),
+        ("in_item", REGISTRY, "struct", "ProjectionSpec",
          r"pub\s+roles\s*:\s*BTreeSet\s*<\s*ProjectionRole\s*>"),
     ],
     # ---- Q3 --------------------------------------------------------------
@@ -758,12 +768,12 @@ ASSERTIONS = {
     "C1-Q3-SOLE-AUTHORITY": [
         ("sql_ddl", SCH, "_fathomdb_projection_registry",
          r"(?i)\bname\s+TEXT\s+PRIMARY\s+KEY\b"),
-        ("fn_defined", ENG, "apply_projection_config"),
-        ("in_item", ENG, "struct", "ProjectionDelta",
+        ("fn_defined", REGISTRY, "apply_projection_config"),
+        ("in_item", REGISTRY, "struct", "ProjectionDelta",
          r"pub\s+dropped\s*:\s*Vec\s*<\s*String\s*>"),
     ],
     "C1-Q3-DESTRUCTIVE-DELTA": [
-        ("in_item", ENG, "enum", "EngineError", r"\bProjectionDestructive\s*\{"),
+        ("in_item", ERR, "enum", "EngineError", r"\bProjectionDestructive\s*\{"),
         ("test_defined", T15, "destructive_change_requires_explicit_drop"),
     ],
     "C1-Q3-OMISSION-NOT-DROP": [
@@ -772,7 +782,7 @@ ASSERTIONS = {
     ],
     # ---- Q5 --------------------------------------------------------------
     "C1-Q5-DERIVED-CACHE-IDEMPOTENT": [
-        ("in_item", ENG, "struct", "ProjectionDelta", r"pub\s+unchanged\s*:\s*bool"),
+        ("in_item", REGISTRY, "struct", "ProjectionDelta", r"pub\s+unchanged\s*:\s*bool"),
         ("test_defined", T15, "idempotent_reregistration_is_a_noop"),
     ],
     # ---- Q2 --------------------------------------------------------------
@@ -833,8 +843,8 @@ ASSERTIONS = {
     # apply verb's BODY, and was probed file-wide — a decoy call elsewhere
     # satisfied it while the real call ran outside the transaction.
     "C1-Q4-CHEAP-SAME-TRANSACTION": [
-        ("in_item", ENG, "fn", "configure_projections", r"apply_projection_config\(&tx,"),
-        ("in_item", ENG, "struct", "ProjectionDelta", r"pub\s+built\s*:\s*Vec\s*<\s*String\s*>"),
+        ("in_item", REGISTRY, "fn", "configure_projections", r"apply_projection_config\(&tx,"),
+        ("in_item", REGISTRY, "struct", "ProjectionDelta", r"pub\s+built\s*:\s*Vec\s*<\s*String\s*>"),
     ],
     # "EXACTLY {unavailable, embedding, ready}" is a CLOSED vocabulary, so it
     # is asserted structurally (fix-1, codex finding #1): the enum has exactly
@@ -847,9 +857,9 @@ ASSERTIONS = {
     #
     # fix-3 SWEEP: that negative probe is scoped to the ENGINE CRATE TREE. The
     # reserved token is just as much a violation in a sibling module as in
-    # lib.rs, and since a variant cannot be added to `enum DenseReadiness` from
-    # outside the crate that declares it, the crate tree is the COMPLETE scope
-    # for this obligation, not merely a wider one.
+    # the registry owner, and since a variant cannot be added to
+    # `enum DenseReadiness` from outside the crate that declares it, the crate
+    # tree is the COMPLETE scope for this obligation, not merely a wider one.
     #
     # fix-4 SWEEP: the two spelling probes are read INSIDE `impl DenseReadiness`
     # rather than file-wide. They were never a false-green vector (the
@@ -857,15 +867,15 @@ ASSERTIONS = {
     # a file-wide spelling probe fails the exact-pair check), but a probe that
     # states its subject is worth more than one that happens to be covered.
     "C1-Q4-DENSE-READINESS-THREE-STATES": [
-        ("present", ENG, r"pub enum DenseReadiness \{"),
-        ("in_item", ENG, "impl", "DenseReadiness", r'DenseReadiness::Unavailable => "unavailable",'),
-        ("in_item", ENG, "impl", "DenseReadiness", r'DenseReadiness::Ready => "ready",'),
-        ("in_item", ENG, "impl", "DenseReadiness", r'DenseReadiness::Embedding => "embedding",'),
+        ("present", REGISTRY, r"pub enum DenseReadiness \{"),
+        ("in_item", REGISTRY, "impl", "DenseReadiness", r'DenseReadiness::Unavailable => "unavailable",'),
+        ("in_item", REGISTRY, "impl", "DenseReadiness", r'DenseReadiness::Ready => "ready",'),
+        ("in_item", REGISTRY, "impl", "DenseReadiness", r'DenseReadiness::Embedding => "embedding",'),
         ("absent_tree", ENG_TREE, r"DenseReadiness::Pending", (".rs",)),
-        ("enum_exact", ENG, "DenseReadiness", ("Unavailable", "Embedding", "Ready")),
-        ("arms_exact", ENG, "DenseReadiness", "as_str",
+        ("enum_exact", REGISTRY, "DenseReadiness", ("Unavailable", "Embedding", "Ready")),
+        ("arms_exact", REGISTRY, "DenseReadiness", "as_str",
          (("Unavailable", "unavailable"), ("Embedding", "embedding"), ("Ready", "ready"))),
-        ("arms_exact", ENG, "DenseReadiness", "from_str_opt",
+        ("arms_exact", REGISTRY, "DenseReadiness", "from_str_opt",
          (("Unavailable", "unavailable"), ("Embedding", "embedding"), ("Ready", "ready"))),
     ],
     "C1-Q4-NO-PROVISIONAL-CONCEPT": [
@@ -881,24 +891,24 @@ ASSERTIONS = {
     # for the same reason as the readiness clause: the crate that declares
     # `enum ProjectionRole` is the complete scope in which a role can be named.
     "C1-Q6A-THREE-ROLES": [
-        ("in_item", ENG, "impl", "ProjectionRole",
+        ("in_item", REGISTRY, "impl", "ProjectionRole",
          r'"filterable" => Some\(ProjectionRole::Filterable\),'),
-        ("in_item", ENG, "impl", "ProjectionRole",
+        ("in_item", REGISTRY, "impl", "ProjectionRole",
          r'"rankable" => Some\(ProjectionRole::Rankable\),'),
-        ("in_item", ENG, "impl", "ProjectionRole",
+        ("in_item", REGISTRY, "impl", "ProjectionRole",
          r'"searchable" => Some\(ProjectionRole::Searchable\),'),
         ("absent_tree", ENG_TREE, r"ProjectionRole::Vector\b", (".rs",)),
         ("absent_tree", ENG_TREE, r"ProjectionRole::Fts\b", (".rs",)),
-        ("enum_exact", ENG, "ProjectionRole", ("Filterable", "Rankable", "Searchable")),
-        ("arms_exact", ENG, "ProjectionRole", "as_str",
+        ("enum_exact", REGISTRY, "ProjectionRole", ("Filterable", "Rankable", "Searchable")),
+        ("arms_exact", REGISTRY, "ProjectionRole", "as_str",
          (("Filterable", "filterable"), ("Rankable", "rankable"),
           ("Searchable", "searchable"))),
-        ("arms_exact", ENG, "ProjectionRole", "from_str_opt",
+        ("arms_exact", REGISTRY, "ProjectionRole", "from_str_opt",
          (("Filterable", "filterable"), ("Rankable", "rankable"),
           ("Searchable", "searchable"))),
     ],
     "C1-Q6A-RANKABLE-GRACEFUL-DEFER": [
-        ("in_item", ENG, "struct", "ProjectionDelta",
+        ("in_item", REGISTRY, "struct", "ProjectionDelta",
          r"pub\s+deferred\s*:\s*Vec\s*<\s*String\s*>"),
         ("test_defined", T15, "rankable_is_graceful_deferred_never_blocking"),
         ("test_defined", T15, "idempotent_reregistration_holds_for_deferred_rankable"),
@@ -915,14 +925,14 @@ ASSERTIONS = {
     # not be seen even in principle. Closed structurally over BOTH conversion
     # fns, so a fourth prefix or a fourth discriminant spelling fails too.
     "C1-Q6B-IDSPACE-TOTAL-THREE": [
-        ("present", ENG, r"pub enum IdSpaceKind \{"),
-        ("in_item", ENG, "impl", "IdSpaceKind", r'Self::Logical => "l:",'),
-        ("in_item", ENG, "impl", "IdSpaceKind", r'Self::Content => "h:",'),
-        ("in_item", ENG, "impl", "IdSpaceKind", r'Self::Passage => "p:",'),
-        ("enum_exact", ENG, "IdSpaceKind", ("Logical", "Content", "Passage")),
-        ("arms_exact", ENG, "IdSpaceKind", "prefix",
+        ("present", IDENTITY, r"pub enum IdSpaceKind \{"),
+        ("in_item", IDENTITY, "impl", "IdSpaceKind", r'Self::Logical => "l:",'),
+        ("in_item", IDENTITY, "impl", "IdSpaceKind", r'Self::Content => "h:",'),
+        ("in_item", IDENTITY, "impl", "IdSpaceKind", r'Self::Passage => "p:",'),
+        ("enum_exact", IDENTITY, "IdSpaceKind", ("Logical", "Content", "Passage")),
+        ("arms_exact", IDENTITY, "IdSpaceKind", "prefix",
          (("Logical", "l:"), ("Content", "h:"), ("Passage", "p:"))),
-        ("arms_exact", ENG, "IdSpaceKind", "as_str",
+        ("arms_exact", IDENTITY, "IdSpaceKind", "as_str",
          (("Logical", "logical"), ("Content", "content"), ("Passage", "passage"))),
     ],
     # fix-2 SWEEP (not a codex finding): the same NARROW-REGEX class as findings
@@ -944,20 +954,21 @@ ASSERTIONS = {
     # SearchHit's field (rather than making it nullable) does not trip the
     # negative probe either, so the clause had a complete false-green path.
     "C1-Q6B-ID-NON-NULL": [
-        ("in_item", ENG, "struct", "SearchHit", r"pub\s+id\s*:\s*IdSpace\s*,"),
+        ("in_item", SEARCH_TYPES, "struct", "SearchHit", r"pub\s+id\s*:\s*IdSpace\s*,"),
         ("absent_tree", ENG_TREE, r"pub\s+id\s*:\s*Option\s*<\s*IdSpace", (".rs",)),
     ],
     # fix-4 SWEEP: the error variant is read out of `enum EngineError`. File-wide,
     # `NotLifecycleAddressable {` is spelled by the Display impl and by every
     # construction site, so deleting the VARIANT left the probe satisfied.
     "C1-Q6B-H-TERMINAL-NOT-LIFECYCLE-ADDRESSABLE": [
-        ("in_item", ENG, "enum", "EngineError", r"\bNotLifecycleAddressable\s*\{"),
+        ("in_item", ERR, "enum", "EngineError", r"\bNotLifecycleAddressable\s*\{"),
         ("test_defined", T25,
          "an_anonymous_write_stays_anonymous_through_the_whole_durable_path"),
     ],
     "C1-Q6B-SURROGATE-GOVERNED-ONLY": [
         ("test_defined", T25, "registering_projections_never_alters_a_pre_existing_row_id_space"),
-        ("test_defined", T25, "the_internal_structural_row_writer_mints_no_logical_id"),
+        ("test_defined", "src/rust/crates/fathomdb-engine/src/write.rs",
+         "the_internal_structural_row_writer_mints_no_logical_id"),
     ],
     # ---- Apply atomicity -------------------------------------------------
     # fix-4 SWEEP: every "the named thing still exists" probe reads the
@@ -972,7 +983,7 @@ ASSERTIONS = {
     # functions in the engine; the gate refuses to evaluate `fn_defined` against a
     # `tests/` path at all.
     "C1-AA-ATOMIC-FLIP": [
-        ("fn_defined", ENG, "commit_projection_outcomes"),
+        ("fn_defined", COMMIT, "commit_projection_outcomes"),
         ("test_defined", T20,
          "atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write"),
     ],
@@ -980,13 +991,13 @@ ASSERTIONS = {
     # verb. `notify_new_work()` file-wide is satisfied by the engine's three
     # unrelated wake sites, so removing the wake FROM THE APPLY was invisible.
     "C1-AA-NO-BLOCK-ON-EMBEDDING": [
-        ("fn_defined", ENG, "notify_new_work"),
-        ("in_item", ENG, "fn", "configure_projections", r"notify_new_work\(\)"),
+        ("fn_defined", RUNTIME, "notify_new_work"),
+        ("in_item", REGISTRY, "fn", "configure_projections", r"notify_new_work\(\)"),
         ("test_defined", T20,
          "readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready"),
     ],
     "C1-AA-CRASH-HEAL-BOOT-REDERIVE": [
-        ("fn_defined", ENG, "load_projection_registry"),
+        ("fn_defined", REGISTRY, "load_projection_registry"),
         ("test_defined", T15, "boot_rederive_converges_after_simulated_crash"),
     ],
     # ---- Tokenizer / embedder defaults -----------------------------------
@@ -1002,10 +1013,10 @@ ASSERTIONS = {
     # identity mismatch, so engine-default != embedder-identity is a broken
     # shipped default. Same shape as the sibling tokenizer clause.
     "C1-TE-DEFAULT-EMBEDDER": [
-        ("in_item", ENG, "struct", "ProjectionVector",
+        ("in_item", REGISTRY, "struct", "ProjectionVector",
          r"pub\s+embedder\s*:\s*Option\s*<\s*String\s*>"),
         ("const_str_agree",
-         ((ENG, "DEFAULT_EMBEDDER_NAME"), (EMB, "DEFAULT_EMBEDDER_NAME")),
+         ((OPEN, "DEFAULT_EMBEDDER_NAME"), (EMB, "DEFAULT_EMBEDDER_NAME")),
          "fathomdb-bge-small-en-v1.5"),
     ],
     # fix-4, codex §9 round 4 [P2] — THE FINDING. The obligation is RELATIONAL:
@@ -1027,7 +1038,7 @@ ASSERTIONS = {
     # the edge index is a different subject, and its equal tokenizer was part of
     # the coincidence that kept the old count satisfied.
     "C1-TE-DEFAULT-TOKENIZER": [
-        ("in_item", ENG, "struct", "ProjectionFts",
+        ("in_item", REGISTRY, "struct", "ProjectionFts",
          r"pub\s+tokenizer\s*:\s*Option\s*<\s*String\s*>"),
         ("fts_tokenizer_shared", SCH, "property_search_index",
          ("search_index_v2", "search_index"), "porter unicode61 remove_diacritics 2"),

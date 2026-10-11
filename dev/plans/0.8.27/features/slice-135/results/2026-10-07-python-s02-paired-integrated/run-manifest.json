@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "status": "FULL_CAMPAIGN_COMPLETE",
+  "protocol_sha256": "8aa493bfe49426fc8253672692f22268224dbc88074133ba1fde79a0451cbce1",
+  "campaign_runner_sha256": "1da66c45b81537993d69210e8ee83b954d28ffc944679b54aad47994ca035a40",
+  "started_utc": "2026-10-07T22:24:40.551962+00:00",
+  "pair_order": [
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ]
+  ],
+  "samples_per_block": 20,
+  "last_complete_pair": 5,
+  "baseline_checkout": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline",
+  "candidate_checkout": "/tmp/slice135-python-s02-candidate-cdf253",
+  "baseline_python": "/tmp/slice135-python-venv-baseline-f99e002/bin/python",
+  "candidate_python": "/tmp/slice135-integrated-venv-clean-v1/bin/python",
+  "updated_utc": "2026-10-07T22:45:20.938423+00:00",
+  "finished_utc": "2026-10-07T22:45:20.938599+00:00"
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_S02_L_PYTHON_PAIRED",
+  "scope": "Installed Python default-embedder open/close lifecycle on exact source 224e44c59; subset of Phase 1",
+  "freeze_date_utc": "2026-10-08",
+  "baseline_noise_evidence": "results/2026-10-07-python-s02-lifecycle-baseline-pilot/independent-audit.json",
+  "baseline_noise_audit_sha256": "585a8a093a1485032b7788d2438fc58919f330e287f16fdc9d117d254175b789",
+  "baseline": {
+    "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282"
+  },
+  "candidate": {
+    "source_sha": "224e44c593c13d86ece648adabe445723db04070",
+    "wheel_sha256": "ee8b402f76377956034f900ef69f9e3c0296d79ea30d6728dc1283040266f85a"
+  },
+  "candidate_source_note": "The clean exact-source installed wheel contains corrected embedder-close and Tegra install-route landings. Package metadata remains 0.8.26; source and native wheel bytes are authoritative.",
+  "block_runner_sha256": "2a720f63350186bef6d2e2b0b92fdb833e23437c2b5230214dc025bcb064b81f",
+  "lifecycle_runner_sha256": "d6071b49fce7d87ce4395504c480b07e35d59abbc603d79c38a634b7092bc9d9",
+  "pilot_helper_sha256": "e8fde3e7caab5c5b6a43069562c7b0d29825d9ac9766539a94ccf7050b0a866d",
+  "audit_sha256": "60df105153fe8165809374988c36585d30bac1f86c12ab0a9a1da514ed4483e1",
+  "model": "fathomdb-bge-small-en-v1.5 default CPU embedder",
+  "database": "Fresh real SQLite database and fresh installed Python process per cycle",
+  "timing_boundary": "Engine.close invocation to return with the closed Python engine handle retained",
+  "memory_boundary": "Linux smaps_rollup RSS, PSS and private memory before open, after model use, immediately after close, after 200 ms closed idle and after handle drop",
+  "warmup_per_block": 1,
+  "samples_per_block": 20,
+  "pairs": 5,
+  "pair_order": [["baseline", "candidate"], ["candidate", "baseline"], ["baseline", "candidate"], ["candidate", "baseline"], ["baseline", "candidate"]],
+  "minimum_idle_seconds_between_blocks": 5,
+  "total_valid_samples_per_version": 100,
+  "primary_statistics": ["nearest_rank_p50", "nearest_rank_p95"],
+  "unsupported_statistics": ["p99"],
+  "percentile_rule": "Sort all valid per-version samples; nearest-rank index ceil(p*n)-1, without trimming. Report each block median and complete range.",
+  "pair_delta_formula": "100*(candidate_percentile_ns-baseline_percentile_ns)/baseline_percentile_ns",
+  "uncertainty_rule": "Report each of the five pair deltas, their median and complete range; do not claim significance or equivalence.",
+  "memory_rule": "Report PSS, RSS and private opened-to-closed-idle deltas for both versions; allocator retention means memory counters are diagnostic. A close-time increase must be interpreted together with memory release and the focused ownership/deadlock oracle.",
+  "invalid_block_rule": "Preserve all attempts. Require verified wheel/native/source/runner bytes, exactly 20 valid measured cycles and one valid warmup, semantic and reopen assertions, stable host/kernel/CPU/storage/governor/toolchain, no named competing jobs, at least 1 GiB free and zero child swap. Host-only swap drift is a warning with sensitivity. Do not replace a slow valid sample.",
+  "candidate_verdict_rule": "Descriptive whole-lifecycle comparison only. Report slower/faster close and memory change separately from accepted release gates; version agreement does not prove correctness.",
+  "replaces": "s02-python-lifecycle-comparison-protocol.json",
+  "revision_reason": "Bind unchanged qualified lifecycle workload and analysis rules to the exact post-Slice-132 224e44c59 wheel."
+}

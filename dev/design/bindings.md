@@ -3,7 +3,7 @@ title: Bindings Subsystem Design
 date: 2026-04-29
 target_release: 0.6.0
 desc: Cross-language binding strategy (Python, TypeScript, CLI) — concerns that span all bindings collectively, distinct from per-surface signatures owned by interfaces/{python,ts,cli}.md
-blast_radius: src/rust/crates/fathomdb (Rust facade); src/rust/crates/fathomdb-embedder-api (semver-pinned trait crate; REQ-047 link-time check); src/python/ (PyO3 cdylib); src/ts/ (napi-rs cdylib); src/rust/crates/fathomdb-cli (binary); interfaces/{python,ts,cli,rust,wire}.md (per-surface signatures); design/errors.md (variant→class matrix owner); design/release.md (CI smoke gate owner); ADR-error-taxonomy + ADR-async-surface + ADR-python-api-shape + ADR-typescript-api-shape + ADR-cli-scope + ADR-embedder-protocol + ADR-prepared-write-shape + ADR-corruption-open-behavior; dev/design-logging-and-tracing.md (Tier 1/2 carryovers cited in § 8); build pipelines (pip + npm)
+blast_radius: src/rust/crates/fathomdb (Rust facade); src/rust/crates/fathomdb-embedder-api (semver-pinned trait crate; REQ-047 link-time check); src/python/ (PyO3 cdylib); src/ts/ (napi-rs cdylib); src/rust/crates/fathomdb-cli (binary); interfaces/{python,ts,cli,rust,wire}.md (per-surface signatures); design/errors.md (variant→class matrix owner); design/release.md (CI smoke gate owner); ADR-error-taxonomy + ADR-async-surface + ADR-python-api-shape + ADR-typescript-api-shape + ADR-cli-scope + ADR-embedder-protocol + ADR-prepared-write-shape + ADR-corruption-open-behavior; design/lifecycle.md (event and profile payload authority); build pipelines (pip + npm)
 status: locked
 ---
 
@@ -73,6 +73,11 @@ comparison. The invariant has three permanent clauses:
 - **Typed / no-raw-SQL boundary** — reads take typed args + a small fixed filter
   grammar (equality + range over body-JSON), never raw SQL or a query DSL.
 
+Rust application code uses the dedicated `fathomdb-sdk` crate (0.8.27,
+`ADR-0.8.27-rust-sdk-parity.md`), a third governed binding checked against the
+same operation map as Python and TypeScript; see `interfaces/rust-sdk.md`.
+The `fathomdb` crate below remains the lower-level facade.
+
 Rust is a stable public facade contract. Under the signed Q5 = BIND-RUST it is
 **also bound** by the governed-surface AC (AC-074); the Rust-facade
 positive-allowlist/parity pin executes at reserved-gap Slice 27.
@@ -94,15 +99,22 @@ Each binding owns the dispatch model for its language. The protocol that connect
 | Binding    | Dispatch model                                                                   | Engine call shape                                                                                                                                                                                                                                                                              | Owning ADR                                                                |
 | ---------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | Python     | Sync surface (Path 1)                                                            | Direct PyO3 call into Rust; engine is sync; Python `asyncio` users wrap with `run_in_executor` (documented pattern, not first-party API).                                                                                                                                                      | ADR-0.6.0-python-api-shape; ADR-0.6.0-async-surface (Path 1 + Invariants) |
-| TypeScript | Promise surface (Path 2)                                                         | napi-rs `ThreadsafeFunction` + TS binding-owned Rust handoff pool sized `num_cpus::get()`. Decoupled from libuv's `fs/dns/crypto` thread pool. TS may expose adapter-specific sizing control, but that control is owned by the TS binding runtime rather than the canonical engine-config set. | ADR-0.6.0-typescript-api-shape; ADR-0.6.0-async-surface (Path 2)          |
+| TypeScript | Promise surface (Path 2) | NAPI moves blocking engine calls to Tokio `spawn_blocking`; the TypeScript wrapper returns Promises. This binding handoff is separate from the engine-owned projection and embed executors. | ADR-0.6.0-typescript-api-shape; ADR-0.8.27-engine-owned-runtime-topology |
 | CLI        | Sync subcommand entry; binary returns process exit code per ADR-0.6.0-cli-scope. | Direct sync call into Rust; same engine as SDK.                                                                                                                                                                                                                                                | ADR-0.6.0-cli-scope                                                       |
+
+For TypeScript, the engine Arc outlives each scheduled blocking call, and
+typed engine errors and caught panics cross back through the Promise. This
+keeps SQLite work off the JavaScript thread without making the binding's
+executor a second engine scheduler. Synchronous N-API conversion errors and
+accessors retain their immediate-throw behavior. Subscriber callbacks use the
+separate transport in § 8 because they must run on the JavaScript thread.
 
 Async invariants A–D from ADR-0.6.0-async-surface manifest in every binding. The invariants themselves are owned by that ADR; this file commits only the _binding-side_ assertion that no binding exposes an escape hatch:
 
 - **Invariant A (scheduler post-commit).** Cite ADR-async-surface § Decision. Bindings expose no escape hatch: bindings do not introduce additional locking around `write`, do not pre-dispatch scheduler work from the caller thread, and do not provide a "skip-scheduler" path.
-- **Invariant B (engine-owned embedder thread).** Cite ADR-async-surface § Decision. Bindings expose no escape hatch: embedder calls always run on the engine-owned embedder pool, never on the binding's caller thread (Python GIL-holder, TS libuv worker, CLI main thread).
-- **Invariant C (embedder-protocol no-reentrancy).** Cite ADR-async-surface + ADR-embedder-protocol. Bindings document this constraint in their `Embedder` impl docs; tests verify a buggy user-supplied embedder cannot deadlock the engine. Bindings expose no escape hatch (no "reentrant embedder" config flag).
-- **Invariant D (eager model warmup + per-call timeout).** Cite ADR-async-surface § Decision (eager warmup at `Engine.open`; per-call timeout default 30s). Bindings expose no escape hatch: no cold-load path, no per-call-timeout override that disables the watchdog. Reporting of model-load duration is part of `Engine.open`'s structured result, the shape of which is owned by `design/engine.md`.
+- **Invariant B (engine-owned embedder thread).** Production Engine inference (open-time equivalence probes, projection, ordinary and frozen search, and direct `embed_text`) runs on the engine-owned embed dispatcher, never on the binding's caller thread. Provider warmup and standalone SDK embedding utilities are outside this dispatch contract.
+- **Invariant C (embedder-protocol no-reentrancy).** The Rust provider trait forbids re-entering the same engine. Python and TypeScript currently offer default-or-none engine embedder selection, not custom provider injection or a reentrancy flag.
+- **Invariant D (eager model warmup + per-call deadline).** Model warmup remains synchronous during `Engine.open`. Production inference uses the engine's configured absolute queue-plus-service deadline (default 30s); bindings offer no bypass. `OpenReport` records warmup duration as specified by `design/engine.md`.
 
 ## 3. Error-mapping protocol
 
@@ -138,7 +150,7 @@ This file does NOT enumerate the variant→class matrix; that authority lives in
 | Engine → caller: errors                                                                    | Per § 3.                                                                                                                                                                                                                                                                                                                            | ADR-0.6.0-error-taxonomy                                          |
 
 JSON-Schema validation behavior (AC-060b) is invariant across bindings:
-validation fires save-time, pre-commit, on the writer thread; failure surfaces
+validation fires save-time, pre-commit, on the primary writer path; failure surfaces
 as `SchemaValidationError`; no open-time re-validation; bindings do _not_ run
 their own pre-engine validation pass (single source of truth).
 
@@ -148,7 +160,7 @@ Per ADR-0.6.0-vector-identity-embedder-owned + ADR-0.6.0-embedder-protocol, vect
 
 - A DB written by Python with embedder identity `E` and re-opened by TypeScript MUST resolve the same `EmbedderIdentity`. Bindings do not pin or override identity at open.
 - Identity-mismatch surfaces uniformly as `EmbedderIdentityMismatch` (per § 3 mapping). Bindings do not auto-rebuild on mismatch (consistent with ADR-0.6.0-corruption-open-behavior's no-auto-recover posture for open failures).
-- A user-supplied embedder (Python or TS impl) declares its `EmbedderIdentity` per ADR-0.6.0-embedder-protocol Invariants 1–4. Binding-side bindings do _not_ synthesize identity from binding metadata; identity is the embedder's responsibility.
+- A Rust caller-supplied embedder declares its `EmbedderIdentity` per ADR-0.6.0-embedder-protocol. Python and TypeScript currently select the pinned default embedder or none; neither injects a custom engine provider. Bindings do _not_ synthesize identity from binding metadata.
 - REQ-047 (embedder version-skew detection) is satisfied at link/resolution time by the semver-pinned `fathomdb-embedder-api` trait crate (architecture.md § 1) plus the embedder-owned `EmbedderIdentity` carried in stored vectors. Bindings do NOT perform runtime version-skew checks; they consume the typed mismatch error surfaced by the engine.
 
 ## 6. SDK symmetry, CLI boundary, and config classes
@@ -175,10 +187,8 @@ Examples:
   across SDK bindings.
 - Python `run_in_executor` usage — caller-side runtime pattern, not an engine
   knob.
-- TypeScript `ThreadsafeFunction` pool sizing — TS binding runtime mechanic per
-  ADR-0.6.0-async-surface. A TS binding may surface it near `Engine.open`, but
-  it is not part of the canonical engine-config set and does not create a
-  Python-parity obligation.
+- NAPI's Tokio `spawn_blocking` handoff — a binding implementation detail,
+  separate from the five canonical engine settings.
 
 CLI inherits engine defaults unless `interfaces/cli.md` explicitly grants a
 flag. That inheritance posture does not weaken the SDK symmetry rule because
@@ -204,11 +214,83 @@ The corruption-on-open path (ADR-0.6.0-corruption-open-behavior § 5; AC-035c) M
 
 ## 8. Logging / tracing subscriber attachment
 
-The engine emits structured tracing events (per `dev/design-logging-and-tracing.md` Tier 1/2 carryovers). Binding adapters attach a host subscriber:
+The engine emits structured lifecycle and diagnostic events (payload authority
+in [`lifecycle.md`](lifecycle.md)). Binding adapters attach a host subscriber:
 
-- Python: caller registers a `logging`-backed adapter via a binding-provided helper that maps tracing events into Python `LogRecord`s.
-- TypeScript: caller registers a callback invoked per event.
-- CLI: when run in human-facing mode, attaches a console subscriber; when run in machine-facing `--json` mode, emits the verb-owned JSON shape from `interfaces/cli.md` / `design/recovery.md`. `doctor check-integrity` is a single JSON object; other verbs own their own machine-readable contract.
+- Python: caller registers a `logging`-backed adapter via a binding-provided helper that maps tracing events into Python `LogRecord`s. The adapter is bounded and best-effort under overload per `ADR-0.8.27-python-subscriber-delivery`; it reports dropped records when delivery resumes. It never calls Python from an engine or SQLite callback thread.
+- TypeScript: `attachSubscriber(callback)` installs one replaceable host
+  listener. The N-API adapter keeps a bounded owned record queue and sends
+  coalesced wakeups to the JavaScript thread. Its callback, overload,
+  replacement, close, and process-exit behavior is specified by
+  `ADR-0.8.27-typescript-subscriber-delivery`.
+
+- CLI: a console subscriber in human-facing mode remains the intended design,
+  but the current CLI has no engine subscriber attachment. Machine-facing
+  `--json` output uses the verb-owned shape from `interfaces/cli.md` and
+  `design/recovery.md`. `doctor check-integrity` is a single JSON object;
+  other verbs own their own machine-readable contract.
+
+The TypeScript queue separates collection from delivery because engine events
+can arise while SQLite owns a connection, including inside a C profile
+callback. An arbitrary JavaScript listener must not run or block there.
+Coalesced data-free wakeups avoid owning a record in N-API's queue; the pinned
+napi-rs helper does not reclaim a boxed record on failed enqueue. A bounded
+Rust queue and per-turn drain cap bound queued record count and each
+event-loop turn, while cumulative loss reporting makes overload visible.
+Diagnostic payload bytes have no separate cap. Close detaches at
+call entry before scheduling engine shutdown, preserving the public
+`Promise<void>` shape and preventing new listener calls after close begins.
+No binding heartbeat timer is installed: the current engine provides no
+operation-scoped progress signal for one to report truthfully.
+
+The engine subscriber seam predates 0.8.27, and Python already exposed
+`attach_logging_subscriber`; its native implementation silently discarded the
+logger and interval. Slice 100 makes Python delivery functional. It does not
+add a database mutation hook, a user-defined SQLite function, or a general
+callback framework. Rust `Subscriber` remains the engine-owned collection
+interface; the Python logger is only a diagnostic consumer.
+
+On a profiled statement, the call path is `rusqlite` connection execution →
+SQLite `sqlite3_profile` C callback → engine subscriber registry → Python
+adapter queue. The callback may run before the connection, reader worker, or
+writer path has released its owned resources. The registry snapshots the
+subscriber list, invokes it without the registry mutex, and catches Rust
+subscriber panics so they cannot unwind across SQLite's C frame. The Python
+adapter only copies an owned record and attempts a short queue insertion on
+that producer thread. It never acquires the GIL or calls a Python handler
+there. A dedicated delivery worker resolves a weak logger reference and calls
+`logger.log(level, message, extra={"fathomdb": payload})`.
+
+The queue holds at most 4096 records per attachment. A full or contended
+queue drops a new record and increments a saturating loss count; the worker
+reports it with a warning record and then permits normal records to proceed.
+This is the required tradeoff for a bounded adapter that cannot wait for an
+arbitrarily slow handler. Capacity bounds record count, not payload bytes:
+the copied SQL text and debug error context have no separate byte cap.
+Logging filters, formatting, I/O and exceptions
+remain caller-controlled. Handler exceptions are contained and later records
+are attempted. A handler that calls back into a FathomDB database operation
+on the delivery thread receives `InvalidArgumentError` before engine dispatch;
+this blocks recursive search/profile cycles. The worker holds no engine or
+queue lock while invoking Python.
+
+Each Python Engine has one active logger attachment. Replacement disables and
+clears the old queue before installing the new attachment; an already running
+old callback may finish. The subscription is detached through its RAII handle.
+Close and logger collection stop new delivery without waiting for a blocked
+handler. At most one retiring worker may coexist with the active worker;
+further replacement while it is blocked raises `OverloadedError` and leaves
+the active logger intact. Before the first attachment, there is no Python
+delivery worker or queue. A detached worker may outlive replacement or close
+until its already running handler returns; close never waits for it.
+
+Engine events do not currently carry a public operation ID or an
+operation-scoped heartbeat producer. A binding timer would establish only
+that its worker is alive, not that SQLite, projection or a provider operation
+is progressing. The former Python interval argument is therefore removed by
+the accepted successor ADR. Durable actuation operation IDs are idempotency
+keys, not diagnostic correlation IDs. A future progress/heartbeat API needs
+an engine-owned producer and a separately reviewed event contract.
 
 Across bindings, the _engine event payload_ is wire-stable: same field names,
 same types, same lifecycle phase tag enum (AC-001). The host adapter MAY
@@ -222,12 +304,21 @@ target them precisely; the engine never emits a host-named field directly.
 Within the host record, the stable `fathomdb` payload key carries one of these
 surface shapes:
 
-- response-cycle event: `phase` plus producer-owned operation context
-- diagnostic event: `source`, `category`, and producer-owned detail payload
+- engine event: `phase`, `source`, `category`, and optional `code`; no current
+  operation identity field
 - counter snapshot: `counter_snapshot`
 - profile record: `profile_record`
+- slow-statement signal: `slow_statement`
 - stress-failure payload: `stress_failure`
 - migration step event: `migration_step`
+- Python adapter overload: `dropped_records`
+
+The current Python adapter delivers engine events, profiles, slow-statement
+signals, debug stress failures, and overload warnings. Counter snapshots are
+pulled through `Engine.counters`; the adapter does not fabricate a counter or
+migration-step LogRecord when the engine has not supplied one. The envelope
+list above names cross-surface payload families, not a guarantee that every
+producer emits every family on every operation.
 
 Ownership split:
 
@@ -271,7 +362,7 @@ This is a _non-presence_ claim, not a per-binding signature, and is therefore ow
 | Write validation failure (JSON Schema)  | `SchemaValidationError` per § 3                                                                                    | Surfaces save-time, pre-commit (AC-060b); engine state is unchanged after rejection. Bindings do NOT pre-validate.                                                                                                                                                                                                          |
 | Engine.close while writes in flight     | `ClosingError` per § 3 (variant per ADR-0.6.0-error-taxonomy § Consequences)                                       | Bindings surface as a typed close-race error; `Engine.close` itself is required (REQ-020a; AC-022a) and bindings do not auto-retry.                                                                                                                                                                                         |
 | Backpressure exhaustion / overload      | `OverloadedError` per § 3 (variant per ADR-0.6.0-error-taxonomy + ADR-0.6.0-projection-model layer-4 backpressure) | Bindings surface as a typed overload error; do NOT auto-retry; caller decides retry policy.                                                                                                                                                                                                                                 |
-| User-supplied embedder buggy / blocking | Engine watchdog enforces per-call timeout per Invariant D (default 30 s); surfaces as `EmbedderError`.             | Bindings document Invariant B + C constraints in their `Embedder` impl docs; tests verify a buggy embedder cannot deadlock the engine.                                                                                                                                                                                      |
+| Provider call blocks or fails | The engine enforces one queue-plus-service deadline (default 30 s); a started failure/timeout follows the operation's error or fallback rule. | Python and TypeScript currently expose default-or-none engine embedder selection, not a custom callback bridge. |
 
 ## 12. Boundaries with `interfaces/*.md`
 

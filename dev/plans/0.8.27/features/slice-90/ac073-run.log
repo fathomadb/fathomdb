@@ -1,0 +1,34 @@
+    Finished `release` profile [optimized] target(s) in 0.15s
+     Running tests/eu7_real_corpus_ac.rs (/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/ac073-2e94aaf4f/target/release/deps/eu7_real_corpus_ac-7330e27ac1709bed)
+
+running 1 test
+test eu7_real_corpus_ac_validation ... EU7_SETUP real_docs=18472 queries=100 n_values=[7667] bootstrap=1000 latency_samples=1000 stress_per_thread=250
+EU7_PHASE n=7667 seed_start (from 0)
+EU7_SEED_PROGRESS seeded=3072/7667 elapsed_s=32 rate_docs_per_s=95.6
+EU7_PHASE n=7667 GT_EMBED_START n=7667
+EU7_GT_EMBED_PROGRESS embedded=2920/7667 rate_docs_per_s=97.3
+EU7_PHASE n=7667 seed_done seed_ms=49520
+EU7_PHASE n=7667 latency_done p50_ms=38 p99_ms=51
+EU7_RECALL_OLD exclude-after+setGT(fused) recall@10=0.3140 ci=[0.2630,0.3590] sigma=0.0248 target_in_top10=70/100
+EU7_RECALL_VECTOR exclude-before+dedupGT vector-stage recall@10=0.7730 ci=[0.7440,0.7990] sigma=0.0144 (AC-075 VERDICT SUT)
+EU7_RECALL_FUSED exclude-before+dedupGT fused-search recall@10=0.3220 ci=[0.2690,0.3690] sigma=0.0256 (report-only delta; NOT the floor SUT)
+EU7_RECALL_DELTA vector_stage=0.7730 fused_search=0.3220 delta=0.4510 (correction is load-bearing: the floor gates the vector stage, not the hybrid output)
+EU7_PHASE n=7667 recall_done vector_stage=0.7730 fused_search=0.3220
+EU7_PHASE n=7667 stress_done p99_ms=493
+EU7_NUMBERS n=7667 padded=false seed_ms=49520 p50_ms=38 p99_ms=51 recall_at_10=0.7730 recall_ci_lo=0.7440 recall_ci_hi=0.7990 sigma=0.0144 recall_fused_search=0.3220 recall_fused_delta=0.4510 stress_p99_ms=493 stress_bound_ms=513 ac013=true ac019=true
+EU7_WROTE /home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/ac073-2e94aaf4f/eu7.json
+EU7_VERDICT n=7667 ac013_latency=PASS ac019_stress=PASS vector_stage_recall_at_10=0.7730 recall_ci_hi=0.7990 padded=false (latency/stress are dev-box scouting; canonical verdict is 0.7.2 PR-3)
+
+thread 'eu7_real_corpus_ac_validation' (3132218) panicked at src/rust/crates/fathomdb-engine/tests/eu7_real_corpus_ac.rs:1048:13:
+AC-075 recall verdict (0.8.0 GA-3 gate): vector-stage recall@10 95% CI is SIGNIFICANTLY below the 0.9 floor at n=7667 (recall_ci_hi 0.7990 < floor 0.9; point estimate 0.7730). 0.8.0 gate = recall 95% CI not significantly below the 0.90 floor (one-sided, ci_hi >= floor); the floor CONSTANT is UNCHANGED at 0.90 (not lowered). Measured on the REAL bge-small embedder's pre-fusion VECTOR STAGE — ANN-quantization fidelity vs the exact-f32 vector top-10; the synthetic perf_gates::ac_013b is report-only, and the RRF-fused search() recall is the report-only delta EU7_RECALL_FUSED, NOT this gate's SUT. The point-estimate-≥0.90 recovery (the ~4pt 0.7.x→0.8.0 vector drop) is tracked to 0.8.1. Per the ◆ HITL ruling 2026-06-08; this CI form is a 0.8.0-scoped reconciliation to be REVISITED after 0.8.0.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    eu7_real_corpus_ac_validation
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 354.35s
+
+error: test failed, to rerun pass `-p fathomdb-engine --test eu7_real_corpus_ac`

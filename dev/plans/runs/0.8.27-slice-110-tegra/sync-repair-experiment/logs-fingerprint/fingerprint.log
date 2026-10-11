@@ -1,0 +1,32 @@
+stock: cudarc-slice110 alloc-select pid=308968 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=async select_us=436
+stock: {"outcome":"fail","message":"cuda:0 requested but unavailable: CudaProbeFailed"}
+stock: cudarc-slice110 alloc-select pid=308991 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_SUCCESS pool_available=true path=async select_us=50
+stock: cudarc-slice110 alloc-select pid=308991 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_SUCCESS pool_available=true path=async select_us=12
+stock: cudarc-slice110 alloc-select pid=308991 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_SUCCESS pool_available=true path=async select_us=4
+stock: {"outcome":"pass","dim":384,"sha":"d9dafb8c410005f3","head":[-0.09787368774414062,0.008655762299895287,-0.012781928293406963]}
+stock: cudarc-slice110 alloc-select pid=309030 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=async select_us=416
+stock: {"outcome":"fail","message":"cuda:0 requested but unavailable: CudaProbeFailed"}
+stock: cudarc-slice110 alloc-select pid=309053 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_SUCCESS pool_available=true path=async select_us=49
+stock: cudarc-slice110 alloc-select pid=309053 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_SUCCESS pool_available=true path=async select_us=12
+stock: cudarc-slice110 alloc-select pid=309053 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_SUCCESS pool_available=true path=async select_us=4
+stock: {"outcome":"pass","dim":384,"sha":"d9dafb8c410005f3","head":[-0.09787368774414062,0.008655762299895287,-0.012781928293406963]}
+stock: cudarc-slice110 alloc-select pid=309092 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=async select_us=433
+stock: {"outcome":"fail","message":"cuda:0 requested but unavailable: CudaProbeFailed"}
+stock: cudarc-slice110 alloc-select pid=309115 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=async select_us=438
+stock: {"outcome":"fail","message":"cuda:0 requested but unavailable: CudaProbeFailed"}
+stock: cudarc-slice110 alloc-select pid=309138 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=async select_us=438
+stock: {"outcome":"fail","message":"cuda:0 requested but unavailable: CudaProbeFailed"}
+stock: cudarc-slice110 alloc-select pid=309161 ordinal=0 mode=stock pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=async select_us=450
+stock: {"outcome":"fail","message":"cuda:0 requested but unavailable: CudaProbeFailed"}
+sync: cudarc-slice110 alloc-select pid=309184 ordinal=0 mode=sync pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=sync select_us=455
+sync: cudarc-slice110 alloc-select pid=309184 ordinal=0 mode=sync pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=sync select_us=483
+sync: cudarc-slice110 alloc-select pid=309184 ordinal=0 mode=sync pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=sync select_us=506
+sync: {"outcome":"pass","dim":384,"sha":"d9dafb8c410005f3","head":[-0.09787368774414062,0.008655762299895287,-0.012781928293406963]}
+sync: cudarc-slice110 alloc-select pid=309223 ordinal=0 mode=sync pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=sync select_us=426
+sync: cudarc-slice110 alloc-select pid=309223 ordinal=0 mode=sync pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=sync select_us=494
+sync: cudarc-slice110 alloc-select pid=309223 ordinal=0 mode=sync pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=sync select_us=516
+sync: {"outcome":"pass","dim":384,"sha":"d9dafb8c410005f3","head":[-0.09787368774414062,0.008655762299895287,-0.012781928293406963]}
+sync: cudarc-slice110 alloc-select pid=309262 ordinal=0 mode=sync pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=sync select_us=427
+sync: cudarc-slice110 alloc-select pid=309262 ordinal=0 mode=sync pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=sync select_us=483
+sync: cudarc-slice110 alloc-select pid=309262 ordinal=0 mode=sync pools_supported=true set_current=CUDA_SUCCESS default_pool=CUDA_ERROR_OUT_OF_MEMORY pool_available=false path=sync select_us=518
+sync: {"outcome":"pass","dim":384,"sha":"d9dafb8c410005f3","head":[-0.09787368774414062,0.008655762299895287,-0.012781928293406963]}

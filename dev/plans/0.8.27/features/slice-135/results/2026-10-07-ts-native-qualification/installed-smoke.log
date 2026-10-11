@@ -1,0 +1,9 @@
+fathomdb-0.8.26.tgz
+fathomdb-linux-x64-gnu-0.8.26.tgz
+
+added 2 packages in 988ms
+PASS installed package: write/read/search/graph/frozen evidence/admin
+fdd4a72438e83a570c57d7775c4ed0bb0e638542180bd8bf4f0e6a2ca9ec7d1a  /tmp/fathomdb-slice120-consumer-EwMWMB/packs/fathomdb-0.8.26.tgz
+65463196e6f29a85ff79057b286674cc8a849564defef140abceb1d59b9cb297  /tmp/fathomdb-slice120-consumer-EwMWMB/packs/fathomdb-linux-x64-gnu-0.8.26.tgz
+c068038f946fda625da1e4abc00f83655201a95edbf0408a9a3e14f3e89bb359  /home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/ts/fathomdb.linux-x64-gnu.node
+Slice 120 installed consumer PASS: source=9597dff3a5d57969fccdd726d6d5b8fd42f4876f node=v25.9.0 npm=11.12.1

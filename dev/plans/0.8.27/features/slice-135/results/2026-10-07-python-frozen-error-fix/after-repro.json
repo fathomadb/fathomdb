@@ -1,0 +1,19 @@
+{
+  "source_sha": "8587b0571f4e6477045e60ddd341b0cd28f5a3cb",
+  "module": "/tmp/slice135-frozen-field-fixed-venv/lib/python3.12/site-packages/fathomdb/__init__.py",
+  "native": "/tmp/slice135-frozen-field-fixed-venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+  "native_sha256": "79fd863733d1a97de308b445a5c45b2434e27a1317048376dbfdb76502ff0ae9",
+  "python": "/tmp/slice135-frozen-field-fixed-venv/bin/python",
+  "rows": [
+    {
+      "boundary": "engine.freeze_read_context",
+      "schema_version": 2,
+      "type": "FrozenReadError",
+      "message": "unsupported_schema_version at /schemaVersion",
+      "actual": {
+        "reason": "unsupported_schema_version",
+        "field_path": "/schemaVersion"
+      }
+    }
+  ]
+}

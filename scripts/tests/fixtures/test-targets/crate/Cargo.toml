@@ -1,0 +1,15 @@
+[package]
+name = "hs_fixture"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+hooks = []
+extra = ["hooks"]
+
+[[test]]
+name = "required"
+required-features = ["hooks"]
+
+[workspace]

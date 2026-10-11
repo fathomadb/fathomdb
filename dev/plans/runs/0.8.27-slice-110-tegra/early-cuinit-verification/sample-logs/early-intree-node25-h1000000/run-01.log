@@ -1,0 +1,4 @@
+BEGIN run=01 node=v25.9.0
+{"outcome":"pass","failedStep":null,"error":null,"node":"v25.9.0","order":"early","preloaded":false,"timingsMs":{"import":137.895308,"open":1290.590963,"embedFirst":60.95233099999996,"embedSteadyMedian":25.076061500000037},"mem":{"startVszMiB":1116,"importRssDeltaMiB":11,"importVszDeltaMiB":63788,"endVszMiB":67025},"heapObjects":1000000,"heapUsedMiB":157,"embedderDevice":"cuda","embedderReason":null,"rerankerDevice":"cuda","witnessDeltaMiB":140,"embedHead":[-0.05092381313443184,-0.0026285885833203793,0.01806771010160446],"keepAlive":1000000}
+STDERR lines=0
+END run=01 exit=0 wall_ms=2342

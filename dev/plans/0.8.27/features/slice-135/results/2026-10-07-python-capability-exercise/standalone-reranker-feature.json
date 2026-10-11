@@ -1,0 +1,21 @@
+{
+  "boundary": "standalone_model",
+  "status": "MODEL_FEATURE_UNAVAILABLE_IDENTITY_BOUNDARY_ONLY",
+  "requested_depth": 1,
+  "result": [
+    {
+      "id": 7,
+      "score": 0.7,
+      "ce_score": null
+    }
+  ],
+  "refusal": {
+    "type": "WriteValidationError",
+    "message": "embedded NUL byte in FFI string"
+  },
+  "model_cache_present": true,
+  "reason": "Wheel build explicitly selected pyo3/extension-module,default-embedder; default-reranker is a separate unselected feature. Installed depth-one call has null CE score and unchanged input score. Real standalone CE model execution is unavailable in this artifact; local cache availability does not enable an unbuilt feature.",
+  "feature_contract": "src/rust/crates/fathomdb-py/Cargo.toml",
+  "feature_contract_sha256": "9422f4cd36045b197fb30bba8767347980b034f4221fa9ae0a9a85753de24d17",
+  "database_used": false
+}

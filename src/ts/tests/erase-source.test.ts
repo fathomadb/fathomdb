@@ -21,8 +21,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { createHash } from "node:crypto";
+import { unlinkSync } from "node:fs";
+
 import { Engine } from "../src/index.js";
-import { WriteValidationError } from "../src/errors.js";
+import { ErasureIncompleteError, WriteValidationError } from "../src/errors.js";
 import { freshDbPath } from "./helpers.js";
 
 function anonymousNode(body: string, sourceId: string): object {
@@ -52,6 +55,24 @@ test("eraseSource erases anonymous content end-to-end without the CLI", async ()
   }
 });
 
+test("eraseSource addresses an embedded NUL sourceId exactly", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  const sourceId = "tenant\0a";
+  try {
+    await engine.write([
+      anonymousNode("nul source payload", sourceId),
+      anonymousNode("other source payload", "tenant-a"),
+    ]);
+    const report = await engine.eraseSource(sourceId);
+    assert.equal(report.sourceRef, sourceId);
+    assert.equal(report.nodesExcised, 1);
+    assert.equal((await engine.eraseSource(sourceId)).nodesExcised, 0);
+    assert.equal((await engine.eraseSource("tenant-a")).nodesExcised, 1);
+  } finally {
+    await engine.close();
+  }
+});
+
 test("eraseSource is idempotent (an absent source is a zero-count success)", async () => {
   const engine = await Engine.open(freshDbPath());
   try {
@@ -60,6 +81,115 @@ test("eraseSource is idempotent (an absent source is a zero-count success)", asy
     // Retrying an interrupted erasure obligation must not throw.
     assert.equal((await engine.eraseSource("tenant-a")).nodesExcised, 0);
     assert.equal((await engine.eraseSource("never-written")).nodesExcised, 0);
+  } finally {
+    await engine.close();
+  }
+});
+
+test("eraseSource succeeds after correction and keeps requested-bucket counts", async () => {
+  const engine = await Engine.open(freshDbPath());
+  try {
+    await engine.actuate({
+      schemaVersion: 1,
+      operationId: "erase-correction-seed",
+      operations: [
+        {
+          type: "put_canonical_node",
+          record: {
+            kind: "doc",
+            body: "correction original body",
+            sourceId: "correction-bucket",
+            logicalId: "correction-source",
+            provenance: {
+              schemaVersion: 1,
+              role: "canonical",
+              artifactRevisionId: "correction-source-r1",
+              sourceVersionId: "correction-source-v1",
+            },
+          },
+        },
+      ],
+    });
+    // A registered derived dependent makes the correction admit completed
+    // closures that the correction receipt references; without it the
+    // erasure ordering defect is unreachable.
+    await engine.write([
+      {
+        kind: "fact",
+        body: "correction derived body",
+        sourceId: "correction-bucket",
+        logicalId: "correction-derived",
+        provenance: {
+          schemaVersion: 1,
+          role: "derived",
+          artifactRevisionId: "correction-derived-r1",
+          sourceVersionId: "correction-source-v1",
+          sourceRevisionId: "correction-source-r1",
+          sourceLocator: { kind: "whole_body" },
+          canonicalSourceHash: {
+            algorithm: "sha256",
+            digestHex: createHash("sha256").update("correction original body").digest("hex"),
+          },
+        },
+      },
+    ]);
+    await engine.registerSourceDependency({
+      schemaVersion: 1,
+      dependencyId: "correction-dependency",
+      sourceRevisionId: "correction-source-r1",
+      derivedRevisionId: "correction-derived-r1",
+    });
+    const receipt = await engine.actuate({
+      schemaVersion: 1,
+      operationId: "erase-correction-replace",
+      operations: [
+        {
+          type: "transition_lifecycle",
+          logicalId: "correction-source",
+          expectedCurrentRevisionId: "correction-source-r1",
+          toState: "deleted",
+          reason: "corrected",
+        },
+        {
+          type: "put_canonical_node",
+          record: {
+            kind: "doc",
+            body: "correction replacement body",
+            sourceId: "correction-bucket",
+            logicalId: "correction-source",
+            provenance: {
+              schemaVersion: 1,
+              role: "canonical",
+              artifactRevisionId: "correction-source-r2",
+              sourceVersionId: "correction-source-v2",
+            },
+          },
+        },
+      ],
+    });
+    assert.ok(receipt.closureOperationIds.length > 0);
+    const report = await engine.eraseSource("correction-bucket");
+    assert.equal(report.sourceRef, "correction-bucket");
+    assert.equal(report.nodesExcised, 3);
+  } finally {
+    await engine.close();
+  }
+});
+
+test("eraseSource maps a postcommit incomplete result", async () => {
+  const dbPath = freshDbPath();
+  const sink = `${dbPath}.telemetry.jsonl`;
+  const engine = await Engine.open(dbPath);
+  try {
+    await engine.enableTelemetry(sink);
+    await engine.write([{ kind: "doc", body: "mapped incomplete body", sourceId: "mapped" }]);
+    await engine.search("mapped incomplete");
+    unlinkSync(sink);
+    await assert.rejects(
+      engine.eraseSource("mapped"),
+      (error: unknown) =>
+        error instanceof ErasureIncompleteError && error.stage === "telemetry_redaction",
+    );
   } finally {
     await engine.close();
   }

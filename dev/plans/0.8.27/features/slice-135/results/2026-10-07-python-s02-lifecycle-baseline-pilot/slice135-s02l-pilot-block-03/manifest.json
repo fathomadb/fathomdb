@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "role": "baseline",
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "wheel_sha256": "7c11803d9629550be60a76e1549c4c0bb42d23978d9fc901cf5df3c463611282",
+  "native_sha256": "269fafc1c696244d05f2eabea19b23cfba6de79f5041b1123fe10589c46c51dc",
+  "runner_sha256": "d6071b49fce7d87ce4395504c480b07e35d59abbc603d79c38a634b7092bc9d9",
+  "block_runner_sha256": "2a720f63350186bef6d2e2b0b92fdb833e23437c2b5230214dc025bcb064b81f",
+  "pilot_helper_sha256": "e8fde3e7caab5c5b6a43069562c7b0d29825d9ac9766539a94ccf7050b0a866d",
+  "samples": 20,
+  "warmups": 1,
+  "source_checkout": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.26-slice-135-baseline",
+  "embed_device": "cpu",
+  "embedder_name": "fathomdb-bge-small-en-v1.5",
+  "timing_boundary": "Engine.close invocation through return, retaining the Python engine handle",
+  "memory_boundary": "fresh process: before open, after default model use, immediate close, 200ms closed idle, handle drop"
+}

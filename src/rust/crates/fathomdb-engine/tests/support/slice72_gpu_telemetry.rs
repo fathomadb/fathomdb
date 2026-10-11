@@ -25,6 +25,9 @@ use sha2::{Digest, Sha256};
 
 pub use fathomdb_engine::slice72_test_hooks::ForwardRendezvous;
 
+#[path = "live.rs"]
+mod live;
+
 static SLICE72_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 #[must_use]
@@ -665,7 +668,9 @@ impl Slice72Run {
         let runner = std::env::var("FATHOMDB_SLICE72_RUNNER").unwrap_or_default();
         let visible = std::env::var("CUDA_VISIBLE_DEVICES").unwrap_or_default();
         if Self::activation_from(&runner, &visible).is_none() {
-            eprintln!("PENDING_EXTERNAL Slice 72 requires FATHOMDB_SLICE72_RUNNER=approved-nvidia and CUDA_VISIBLE_DEVICES");
+            live::require_live_or_skip(
+                "PENDING_EXTERNAL Slice 72 requires FATHOMDB_SLICE72_RUNNER=approved-nvidia and CUDA_VISIBLE_DEVICES",
+            );
             return None;
         }
         if test_name == "stress" && std::env::var("FATHOMDB_SLICE72_STRESS").as_deref() != Ok("1") {
@@ -675,22 +680,24 @@ impl Slice72Run {
         let receipt_dir = match std::env::var_os("FATHOMDB_SLICE72_RECEIPT_DIR") {
             Some(path) if std::path::Path::new(&path).is_dir() => std::path::PathBuf::from(path),
             _ => {
-                eprintln!(
-                    "PENDING_EXTERNAL Slice 72 requires a writable FATHOMDB_SLICE72_RECEIPT_DIR"
+                live::require_live_or_skip(
+                    "PENDING_EXTERNAL Slice 72 requires a writable FATHOMDB_SLICE72_RECEIPT_DIR",
                 );
                 return None;
             }
         };
         let Some(asset_root) = std::env::var_os("FATHOMDB_SLICE72_ASSET_ROOT") else {
-            eprintln!(
-                "PENDING_EXTERNAL Slice 72 requires immutable FATHOMDB_SLICE72_ASSET_ROOT caches"
+            live::require_live_or_skip(
+                "PENDING_EXTERNAL Slice 72 requires immutable FATHOMDB_SLICE72_ASSET_ROOT caches",
             );
             return None;
         };
         let stage = match stage_cache_only_assets(std::path::Path::new(&asset_root)) {
             Ok(stage) => stage,
             Err(reason) => {
-                eprintln!("PENDING_EXTERNAL Slice 72 cache prerequisite: {reason}");
+                live::require_live_or_skip(&format!(
+                    "PENDING_EXTERNAL Slice 72 cache prerequisite: {reason}"
+                ));
                 return None;
             }
         };
@@ -702,21 +709,27 @@ impl Slice72Run {
         let embed_resolution = match resolve_default_embedder_device_from_env() {
             Ok(resolution) => resolution,
             Err(error) => {
-                eprintln!("PENDING_EXTERNAL Slice 72 forced embed CUDA preflight: {error}");
+                live::require_live_or_skip(&format!(
+                    "PENDING_EXTERNAL Slice 72 forced embed CUDA preflight: {error}"
+                ));
                 return None;
             }
         };
         let rerank_resolution = match resolve_default_reranker_device_from_env() {
             Ok(resolution) => resolution,
             Err(error) => {
-                eprintln!("PENDING_EXTERNAL Slice 72 forced rerank CUDA preflight: {error}");
+                live::require_live_or_skip(&format!(
+                    "PENDING_EXTERNAL Slice 72 forced rerank CUDA preflight: {error}"
+                ));
                 return None;
             }
         };
         if !has_exactly_one_visible_cuda_device(embed_resolution.visible_cuda_devices.len())
             || !has_exactly_one_visible_cuda_device(rerank_resolution.visible_cuda_devices.len())
         {
-            eprintln!("PENDING_EXTERNAL Slice 72 requires exactly one process-visible CUDA device");
+            live::require_live_or_skip(
+                "PENDING_EXTERNAL Slice 72 requires exactly one process-visible CUDA device",
+            );
             return None;
         }
         let uuid = match embed_resolution.selected_cuda_uuid {
@@ -726,7 +739,9 @@ impl Slice72Run {
                 uuid
             }
             _ => {
-                eprintln!("PENDING_EXTERNAL Slice 72 requires one matching forced CUDA UUID");
+                live::require_live_or_skip(
+                    "PENDING_EXTERNAL Slice 72 requires one matching forced CUDA UUID",
+                );
                 return None;
             }
         };

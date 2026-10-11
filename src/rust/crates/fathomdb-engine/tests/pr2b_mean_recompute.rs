@@ -298,7 +298,10 @@ fn manual_recompute_matches_closed_form_and_requantizes_all() {
 
 /// (2) Crash-atomicity: a fault between the `mean_vec` UPDATE and the
 /// re-quantize completion rolls back fully — no half-recentered corpus.
-#[cfg(feature = "operator")]
+// `Engine::force_next_recompute_failure_for_test` is `#[cfg(debug_assertions)]`-
+// only (never available in a release build), so this one test (unlike its
+// `operator`-only siblings in this file) additionally requires debug_assertions.
+#[cfg(all(feature = "operator", debug_assertions))]
 #[test]
 fn recompute_fault_rolls_back_fully() {
     let (_dir, path) = fixture_path("pr2b_atomicity");

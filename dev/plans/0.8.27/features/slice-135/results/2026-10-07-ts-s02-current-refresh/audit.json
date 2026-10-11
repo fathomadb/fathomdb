@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "status": "FUNCTIONAL_REFRESH_VALID_NO_LATENCY_VERDICT",
+  "source_sha": "ddd05221a5dd38bd076bfad48e7f57717d8af791",
+  "raw_sha256": "f845d4defe3905b84bc0632eff8b3d2de25e8647d35c8ff99b1e3ebe0d7c5d9c",
+  "main_archive_sha256": "13c5c384b401ec3d7c66c5b28473b17877bd5f896c2b85d8aa7d0605b1cf4f54",
+  "native_archive_sha256": "90e070acfe403ca47280a5166be0e3fc35526c6f60873105626a1d6e2b2174da",
+  "installed_native_sha256": "2d26e58cda598d702c3dc333beaeec355e268c093c342fbf1efd26e4ccd5186d",
+  "runner_sha256": "996e21916327747fdff52cc05a0fa42c4e2071fcee28f977a960acb18e96cf44",
+  "helper_sha256": "45639bd5f4a345db7aa08ade548d1d3ac17cb9fd225c95408af3709a4336841d",
+  "independent_observation_check": "passed",
+  "stage_count": 18,
+  "positive_stage_durations": true,
+  "whole_duration_covers_stage_sum": true,
+  "negative_control_rejected": "after_reopen canonical persistence changed",
+  "whole_sequence_including_checks_ms": 5239.757
+}

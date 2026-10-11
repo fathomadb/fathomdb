@@ -1,0 +1,46 @@
+{
+  "binary_sha256": "4ee6defa14652bc041b1210ada0c536f73b189247f9a4396eeec7b60dd3e8304",
+  "runs": [
+    {
+      "max_page_count": 129,
+      "ordinal": 1,
+      "page_count": 128,
+      "peak_rss_kib": 25848,
+      "physical_canonical_rows": 2,
+      "swaps": 0
+    },
+    {
+      "max_page_count": 129,
+      "ordinal": 2,
+      "page_count": 128,
+      "peak_rss_kib": 26032,
+      "physical_canonical_rows": 2,
+      "swaps": 0
+    },
+    {
+      "max_page_count": 129,
+      "ordinal": 3,
+      "page_count": 128,
+      "peak_rss_kib": 26112,
+      "physical_canonical_rows": 2,
+      "swaps": 0
+    },
+    {
+      "max_page_count": 129,
+      "ordinal": 4,
+      "page_count": 128,
+      "peak_rss_kib": 25492,
+      "physical_canonical_rows": 2,
+      "swaps": 0
+    },
+    {
+      "max_page_count": 129,
+      "ordinal": 5,
+      "page_count": 128,
+      "peak_rss_kib": 25108,
+      "physical_canonical_rows": 2,
+      "swaps": 0
+    }
+  ],
+  "source_sha": "1509818c64cde4c45478c5a2404ead4472cd9667"
+}

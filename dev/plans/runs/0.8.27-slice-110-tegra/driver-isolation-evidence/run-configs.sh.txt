@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# run-configs.sh NAME REPEATS CONFIG_FILE
+# CONFIG_FILE: one configuration per line: "<label> <pool_va_repro args...>"
+# (blank lines and lines starting with # ignored). Each configuration is run
+# REPEATS times in fresh processes. Logs: logs/NAME/run-<label>-<rep>.log;
+# RESULT lines (tag NAME@<label>#<rep>) in logs/NAME/results.txt.
+# The caller wraps the whole run in `flock <gpu.lock>`.
+set -u
+here=$(cd "$(dirname "$0")" && pwd)
+name=$1; reps=$2; cfg=$3
+dir="$here/logs/$name"; mkdir -p "$dir/maps"
+: > "$dir/results.txt"
+cp "$cfg" "$dir/configs.txt"
+{ echo "configs=$name reps=$reps file=$(basename "$cfg")"; date -u +%FT%TZ; } > "$dir/series-header.txt"
+while read -r label args; do
+  [[ -z "$label" || "$label" == \#* ]] && continue
+  for r in $(seq 1 "$reps"); do
+    log="$dir/run-$label-$r.log"
+    # shellcheck disable=SC2086
+    "$here/pool_va_repro" --maps-dir "$dir/maps" --tag "$name@$label#$r" $args > "$log" 2>&1
+    echo "exit=$?" >> "$log"
+    grep '^RESULT' "$log" >> "$dir/results.txt" || echo "RESULT tag=$name@$label#$r outcome=NORESULT" >> "$dir/results.txt"
+  done
+done < "$cfg"
+grep -o 'outcome=[A-Za-z]*' "$dir/results.txt" | sort | uniq -c | sed "s|^|$name |"

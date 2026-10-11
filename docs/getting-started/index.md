@@ -1,11 +1,11 @@
 # Getting Started
 
-> **Published release.** **v0.8.25 is published** to crates.io / PyPI /
-> npm. Native Python and npm artifacts cover Linux x86_64/glibc and Linux
-> AArch64/glibc, and npm installs use its `next` dist-tag. FathomDB is pre-1.0 and
-> the surface is **beta**. See the
-> [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
-> for what changed since 0.8.9.
+> **Release 0.8.27, pre-1.0 beta.** Choose Python, TypeScript, or the Rust
+> application SDK. Install the exact release version.
+
+Native Python and Node artifacts cover Linux x86_64/glibc, Linux
+AArch64/glibc, macOS x64/arm64, and Windows x64. See the
+[compatibility matrix](../compatibility/index.md) for CPU/CUDA and Jetson routes.
 
 ## Where to go
 
@@ -15,12 +15,11 @@
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## What ships in 0.8.25
+## What ships in 0.8.27
 
-The Python and TypeScript governed SDK surfaces use equivalent idiomatic names
-and are pinned by `src/conformance/governed-surface-allowlist.json`. The Rust
-facade exposes the same engine capabilities through inherent methods and
-re-exported types rather than an identical namespace:
+The Python, TypeScript, and Rust application SDKs use equivalent idiomatic
+names and the same governed operation membership. The separate Rust facade
+exposes lower-level inherent methods and re-exported types:
 
 - **Core** — `Engine.open`, `write`, `search`, `close`,
   `admin.configure`.
@@ -52,7 +51,8 @@ re-exported types rather than an identical namespace:
   `fathomdb recover --accept-data-loss` (truncate-wal, rebuild-vec0,
   rebuild-projections, excise-source, excise-record).
 - Local-first storage on SQLite (FTS5 + `sqlite-vec`), on-disk schema
-  version **33**.
+  version **34**. Public opens create a fresh schema-34 database or accept an
+  existing schema-34 database; they do not upgrade older non-empty databases.
 - Two-axis versioning: workspace lockstep across the
   runtime/binding/CLI crates and the independently versioned
   `fathomdb-embedder-api` trait crate.
@@ -74,10 +74,9 @@ is the authoritative list.
 
 ## Use the right SDK
 
-Prefer **Python** for production pilots. The TypeScript SDK covers the
-same governed surface and error taxonomy but is the less heavily
-exercised binding. Rust users consume the `fathomdb` facade crate or
-the `fathomdb-cli` operator binary.
+Choose Python, TypeScript, or `fathomdb-sdk` for the high-level application
+surface. Rust users can also consume the lower-level `fathomdb` facade crate. The
+`fathomdb-cli` binary provides operator diagnostics and recovery.
 
 ## Known limitations
 
@@ -86,6 +85,6 @@ the `fathomdb-cli` operator binary.
   [compatibility § performance posture](../compatibility/index.md).
 - **Custom Python / TypeScript embedder implementations** are not
   exposed; the binding choice is the built-in default embedder or none.
-- **No 0.5.x compatibility shims** and no in-place upgrade from a
-  pre-0.8.20 database whose edges must survive — see
+- **No compatibility shims or public automatic upgrades.** A non-empty
+  database must already have the compiled schema version (34) — see
   [compatibility](../compatibility/index.md).

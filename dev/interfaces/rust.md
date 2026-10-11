@@ -1,8 +1,8 @@
 ---
 title: Rust Public Interface
-date: 2026-09-15
-target_release: 0.8.26
-desc: Public Rust surface (traits, functions, types, errors) for 0.8.26
+date: 2026-09-21
+target_release: 0.8.27
+desc: Public Rust surface (traits, functions, types, errors) for 0.8.27
 blast_radius: src/rust/crates/fathomdb; design/engine.md; design/bindings.md; design/errors.md; design/lifecycle.md
 status: locked
 ---
@@ -11,6 +11,10 @@ status: locked
 
 This file owns Rust-visible symbol spelling and result shape. Cross-binding
 parity rules remain owned by `design/bindings.md`.
+
+This document covers the lower-level `fathomdb` facade. Rust application code
+uses the dedicated `fathomdb-sdk` crate, whose Python/TypeScript-parity
+contract is [`rust-sdk.md`](rust-sdk.md) (0.8.27 Slice 132).
 
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
@@ -21,6 +25,16 @@ schema 34. A non-empty database is admitted only when its effective committed
 product mutation or migration events. There is no public automatic-upgrade
 route; the custom migration seam is private to explicitly feature-gated engine
 tests and is not forwarded by the facade.
+
+On Windows, database paths with a component ending in a dot or space are
+refused before database creation because SQLite can resolve them to a
+different filename than the engine lock. Local verbatim drive paths that
+cannot be safely converted to a short drive path require SQLite 3.53.3 or the
+bundled FathomDB Windows VFS correction; otherwise `Engine::open*` returns
+`EngineOpenError::Io` before database creation. This applies to published Rust
+crate consumers whose dependency resolver selects an uncorrected SQLite
+3.53.2. The bundled FathomDB build supports long local drive paths. SQLite
+WAL on a network filesystem remains unsupported.
 
 ## SQLite runtime configuration (0.8.25 Slice 79)
 
@@ -34,10 +48,53 @@ prior call selects `Performance`; a configuration failure is surfaced as
 
 The choice applies to the loaded SQLite runtime for the process lifetime.
 Performance disables SQLite global memory statistics and heap-limit enforcement;
-Diagnostics retains them. Identical calls are idempotent, conflicting or late
-calls fail, and changing mode requires restart. No path calls
+Diagnostics retains them. A same-mode repeat succeeds even after Engine open.
+A conflicting choice fails, as does a first request after SQLite was
+initialized elsewhere; changing mode requires restart. No path calls
 `sqlite3_shutdown()` to force the choice. The API is not a database connection
 permission or file-access boundary.
+
+## Per-engine configuration (0.8.27 Slice 90)
+
+`Engine::open_with_choice_and_config(path, choice, config)` accepts a public
+`EngineConfig` whose five fields are optional `u64` requested values. Omission
+selects the default. `Engine::config()` returns the unchanged requested-open
+snapshot; `set_slow_threshold_ms` changes the effective threshold without
+rewriting that snapshot. The older open methods select default settings.
+
+| Field | Accepted inclusive range | Default |
+| --- | --- | --- |
+| `scheduler_runtime_threads` | `1..=64` | `2` |
+| `embedder_pool_size` | `1..=64` | `5` |
+| `embedder_call_timeout_ms` | `1..=u32::MAX` | `30_000` ms |
+| `provenance_row_cap` | `0..=2^53-1` | `1_000_000` rows |
+| `slow_threshold_ms` | `0..=2^53-1` | `100` ms |
+
+Zero disables provenance retention and remains accepted for the slow threshold.
+Validation precedes filesystem, lock, provider and SQLite work. Invalid values
+and native-width capacity overflow return
+`EngineOpenError::EngineConfiguration(EngineConfigurationError)`; process-wide
+SQLite mode failures retain `EngineOpenError::RuntimeConfiguration`.
+
+`scheduler_runtime_threads` starts exactly that many projection workers and
+worker-owned SQLite connections. Projection admission and each dispatcher scan
+are bounded by `scheduler_runtime_threads * PROJECTION_COMMIT_BATCH`, where the
+commit batch is 64 rows.
+
+With a provider, `embedder_pool_size` starts that many fixed dispatch workers
+and permits `4 * workers` waiting requests; without a provider it starts none.
+Projection, ordinary and frozen search, direct `embed_text`, and open-time
+vector-equivalence probes use the engine dispatcher. Each invocation (including
+a batch) has one absolute queue-plus-service deadline. Full admission and
+queued expiry map to `EngineError::Overloaded` for direct `embed_text`; a
+started failure/timeout maps to `EngineError::Embedder`. Hybrid search retains
+same-snapshot sparse fallback. Projection capacity waits leave durable work
+pending without spending or resetting a provider-failure retry; started
+failures/timeouts use the fixed 1/4/16-second ladder and may terminalize.
+Close cancels pending replies; if a provider worker remains after the shared
+30-second post-quiescence drain budget, explicit close returns
+`EngineError::Scheduler` until that worker exits. A timely provider panic keeps
+the operation's existing panic boundary; a late result/panic is discarded.
 
 ## TC-5 benchmark-only boundary (Slice 70)
 
@@ -64,6 +121,46 @@ five-verb cap). Under the signed Q5 = BIND-RUST
 by AC-074; its positive-allowlist/parity pin **landed at reserved-gap Slice 27**
 (see § Governed-surface contract below). Rust keeps the facade shape below
 unless a successor ADR expands it.
+
+### Temporary default-compiled test seam
+
+`Engine::write_vector_for_test` is a `#[doc(hidden)]` public method that remains
+default-compiled through Slice 90 and is scheduled for removal from default
+builds by Slice 140. It is not a production vector-write contract and is the
+sole explicit exception to the Slice 90 embed-dispatch rule: it may call the
+provider directly and must not supply deadline, queue-bound, lock-order, or
+performance evidence. Production open, projection, search, frozen-search, and
+direct-embed paths have no such exception.
+
+### Explicit engine test fixtures (0.8.27 Slice 140)
+
+The engine's doc-hidden test fixtures require `fathomdb-engine/test-hooks`
+for external consumers, in both dev and release profiles. Crate unit tests
+also compile them under `cfg(test)`. `debug_assertions` grants no test access.
+This includes arbitrary writer SQL (`execute_for_test`, `query_i64_col_for_test`,
+`query_text_col_for_test`), injected failures, reader/projection pauses,
+fixture constructors and vector writes, search tuning, conversion witnesses,
+and mean/clock inspection. The [complete removal inventory](../plans/0.8.27/features/slice-140/test-seam-inventory.json)
+records public paths, current owners, former gates, and integration callers.
+Integration targets declare `required-features`; binding unit tests use a dev
+dependency with the feature. Production binding preflight
+`validate_frozen_read_context_for_binding`, BM25F, fusion, reranking, and
+operator diagnostics retain their production routes. This feature is absent
+from shipped SDK, addon, wheel, and CLI feature lists.
+
+### Unstable binding-support items in `fathomdb-embedder` (0.8.27 Slice 110)
+
+`fathomdb-embedder` exports five `#[doc(hidden)]` items for the Node addon's
+early CUDA initialisation on Jetson: `initialize_cuda_driver`,
+`last_cuda_driver_init`, `cuda_driver_init_seen_by`, `CudaDriverInit` and
+`CudaInitCaller`. They exist only in builds for
+`cfg(all(target_os = "linux", target_arch = "aarch64"))` with `embed-cuda` or
+`rerank-cuda`, so every such build compiles them (the Node addon, the Tegra
+Python wheel, the CLI), but only the Node addon calls them. The probes in
+those builds record their own `cuInit` outcomes as well. These items are
+binding support, not an SDK surface. They are unstable, are not re-exported
+by the `fathomdb` facade, are outside the AC-074 governed set, and may change
+or disappear in any release without a successor ADR.
 
 ## Governed-surface contract (AC-074, Q5 = BIND-RUST — landed Slice 27; method-level + feature-gated by Slice 27 fix-1)
 
@@ -145,7 +242,7 @@ compile-time resolves-check plus this source-inspection-documented contract. See
 The Slice 27 type-only audit missed that the facade re-exports the engine's
 `Engine` **wholesale**, so its inherent **methods** — including
 `rebuild_projections`/`rebuild_vec0` (recovery-denylist names) and the
-debug-only raw-SQL `execute_for_test` — were reachable. Per the signed Option B
+then-debug-only raw-SQL `execute_for_test` — were reachable. Per the signed Option B
 (codex [P1], HITL 2026-06-05) the **operator/recovery seam is feature-gated**:
 
 - **Default `fathomdb` facade (operator OFF)** — the governed runtime surface:
@@ -157,10 +254,11 @@ debug-only raw-SQL `execute_for_test` — were reachable. Per the signed Option 
   (`governed_surface_method_absence_proof`, default build;
   `release_surface_raw_sql_absence_proof`, release build) — the only mechanism
   that can assert a method does *not* resolve.
-- **`operator` feature (ON — `fathomdb-cli` enables it)** — un-gates the 12
+- **`operator` feature (ON — `fathomdb-cli` enables it)** — un-gates the
   operator/recovery methods (`rebuild_*`, `excise_source`, `dump_*`,
   `trace_source_ref`, `truncate_wal`, `verify_embedder`, `check_integrity`,
-  `safe_export`, `recompute_mean`) + the 20 operator-seam re-exports below. The
+  `pending_erasures`, `safe_export`, `recompute_mean`) and the operator-seam
+  re-exports below. The
   CLI (`fathomdb recover`/`doctor`) is the operator substrate. **Gating, not
   deletion**: engine behavior is byte-identical with the feature on.
 
@@ -183,6 +281,17 @@ Rust exposes:
 - `Engine::search_text_only(&self, query: &str) -> Result<SearchResult, EngineError>` — default 10.
 - `Engine::search_text_only_with_limit(query, limit) -> Result<SearchResult, EngineError>`
 - `Engine::close(...) -> Result<(), EngineError>`
+
+`close` stops admission, waits for active database work and releases every
+SQLite owner before beginning a shared 30-second embed-worker drain. It returns
+`EngineError::Scheduler` if a provider call survives that deadline; worker
+accounting remains live, and a later `close` succeeds after the provider exits.
+Concurrent or repeated calls and Drop do not renew the drain deadline. Active
+database work can extend total close time beyond 30 seconds.
+After a successful drain, `close` releases the engine's embedder reference even
+if the `Engine` object remains alive. A caller-held embedder reference remains
+caller-owned. A timed-out drain retains the provider until its worker exits and
+a later `close` completes.
 
 ### Direct text-only result-prefix contract (0.8.22 Slice 23)
 
@@ -241,7 +350,9 @@ DEFAULT facade, not behind the `operator` feature.
   irreversible hard-erase of a governed node across every row-owned target (all
   versions, FTS/vector shadows, touching edges cascade-removed). DELETED-FIRST
   (legal only from `deleted`) and IDEMPOTENT. A SEPARATE verb from `transition`.
-  **There is no restore counterpart on any surface.**
+  **There is no restore counterpart on any surface.** A logical id remains
+  purgeable after a correction supersedes one of its revisions: completed
+  direct-dependent closure rows do not block receipt redaction.
 - `Engine::erase_source(&self, source_id: &str) -> Result<ExciseReport, EngineError>`
   — 0.8.20 Slice 5d (R-20-E4): erase every canonical row carrying `source_id`
   plus its row-owned projections, then finish the erasure AT REST (telemetry
@@ -252,7 +363,12 @@ DEFAULT facade, not behind the `operator` feature.
   reserved (`_`-prefixed) id with `EngineError::WriteValidation`; the reserved
   namespace stays reachable only through the CLI `--excise-source` seam.
   Reports `EngineError::ErasureIncomplete` rather than success when the
-  at-rest step could not complete.
+  at-rest step could not complete. A source remains erasable after a
+  correction supersedes it: completed direct-dependent closure rows do not
+  block receipt redaction, and the original and replacement source buckets
+  may be erased in either order. Report counts remain exact for only the
+  requested source bucket; no cross-bucket expansion or new report field is
+  implied.
 
 ### Projection-registry verbs
 
@@ -391,9 +507,10 @@ returns `Ok(())` when the engine-owned background projection queue reaches a
 quiescent state before `timeout_ms`, and returns a typed runtime error when the
 timeout elapses first.
 
-`subscribe` owns host-subscriber attachment and may carry heartbeat-cadence
-options. The payload semantics remain owned by `design/lifecycle.md` and
-`design/migrations.md`.
+`subscribe` owns host-subscriber attachment. The current method takes a
+subscriber only; it has no heartbeat-cadence option and does not itself
+produce operation heartbeats. The payload semantics remain owned by
+`design/lifecycle.md` and `design/migrations.md`.
 
 ## Companion embedder contract
 
@@ -666,8 +783,8 @@ the read verbs, so search validity is deterministically testable.
 commands (`configure_projections`, `read.projections`), the types
 `ProjectionSpec` / `ProjectionRole` / `ProjectionDelta`, and the typed
 `ProjectionDestructiveError` — all recorded in
-`src/conformance/governed-surface-allowlist.json`. **AC-079 remains UNMINTED**
-(it mints at Slice 40); the signature is pinned to that file's content, so any
+`src/conformance/governed-surface-allowlist.json`. **AC-079 is minted** (0.8.20
+Slice 40; `dev/acceptance.md`); the signature is pinned to that file's content, so any
 diff re-opens the gate (T1e pin).
 
 ⚠ **`ProjectionFts` and `ProjectionVector` are NOT part of that `seq-157`
@@ -1022,7 +1139,10 @@ attributes.
 On `search_explained` with attribute predicates, `Explanation.trace.dropped_edge_hits`
 reports edge-FTS candidates rejected solely by the
 node-scoped attribute rule. Default non-explained searches do not collect the
-counter or incur its extra comparison.
+counter or incur its extra comparison. If the count query or its row decoding
+fails, search returns `EngineError::Storage` rather than a plausible zero.
+Stored importance/confidence lookup failures likewise return
+`EngineError::Storage` instead of a neutral ranking or explanation value.
 
 - `Engine::search_projected_text(query, name, filter, &ReadView) ->
   Result<SearchResult, EngineError>` searches exactly one declared
@@ -1070,7 +1190,7 @@ types without renaming them.
 
 ## Recovery / operator seam re-exports
 
-With the `operator` feature, the facade exports two path-scoped free functions:
+With the `operator` feature, the facade exports path-scoped free functions:
 
 - `inspect_data_plane_integrity(path, DataPlaneIntegrityRequestV1) ->
   Result<DataPlaneIntegrityResultV1, EngineError>` validates first, acquires the
@@ -1089,8 +1209,18 @@ With the `operator` feature, the facade exports two path-scoped free functions:
   `TruncateWalReport::discarded_corrupt_wal` is true only when the locked header
   classification was malformed and SQLite returned `Done`; it is false for
   absent/healthy WAL and `Busy`.
+- `recover_complete_erasures(path: impl Into<PathBuf>) ->
+  Result<CompleteErasuresReport, EngineOpenError>` shares the offline
+  admission and lock path, validates all owed physical zero proofs, refuses
+  unavailable original telemetry obligations, and uses one read-write
+  recovery connection for the truncate checkpoint before marking closures
+  complete. A busy checkpoint leaves them owed.
 
-Both functions and their operator-specific reports are absent when `operator`
+The operator-gated `Engine::pending_erasures()` returns content-free
+`PendingErasure` records for doctor diagnosis; it does not expose source
+identity or alter closure state.
+
+These functions and their operator-specific reports are absent when `operator`
 is disabled.
 
 The `fathomdb` facade re-exports the following recovery and reporting types
@@ -1098,7 +1228,7 @@ from `fathomdb-engine` so that `fathomdb-cli` (the only public consumer of
 these types) compiles against the public Rust surface, not engine internals.
 These are CLI-only ergonomic types; they are NOT exposed as runtime SDK
 verbs (recovery remains CLI-only — see Non-presence below). **Since Slice 27
-fix-1 these 20 re-exports — and the `Engine` methods that produce them — are
+fix-1 these re-exports — and the `Engine` methods that produce them — are
 gated behind the `operator` cargo feature** (which `fathomdb-cli` enables), so
 they are absent from the default facade surface (see § Method-level boundary).
 
@@ -1122,6 +1252,8 @@ Re-exported types (canonical spellings, locked 2026-05-12; extended
 - `DumpProfileReport`
 - `TruncateWalReport`
 - `TruncateWalStatus`
+- `CompleteErasuresReport`
+- `PendingErasure`
 
 Engine methods backing these types are owned by `design/recovery.md` and
 listed in `dev/plans/0.6.0-implementation.md` (Phase 10a + Phase 10b-A).
@@ -1249,3 +1381,20 @@ start-inclusive, end-exclusive target, terminal-edge, and source validity.
 Mutation after context mint is a frozen snapshot drift error before evidence
 hydration. For authenticated state, missing provenance is distinguished from an
 unavailable linked source only after global target-and-edge authorization.
+
+### Reader-search pause seam (internal tests)
+
+`fathomdb_engine::arm_reader_search_hook_for_test(&Engine)` returns a
+`ReaderSearchPauseForTest` guard for that Engine's next reader search before
+its snapshot is pinned. This replaces the process-global closure and clear
+functions. The arm function, guard type, and guard methods are compiled only
+for crate unit tests (`cfg(test)`) or the explicit `fathomdb-engine/test-hooks`
+integration-fixture feature. Default dev and release dependency builds omit
+them, including when `operator` is enabled. It remains a hidden test seam and
+is not exported by the SDK facade.
+`wait_ready(Duration)` cancels on timeout/disconnection and clamps readiness waits
+to fifteen seconds; the worker release wait has the same upper bound. `release()`
+is idempotent, and guard destruction releases a parked reader and disarms an
+unconsumed pause on normal return or unwind. Keep the guard local to any scoped
+thread closure so cleanup runs before scoped joins on failure. Another Engine
+cannot consume or disarm this pause. Arming twice before consumption panics.

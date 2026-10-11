@@ -1,0 +1,34 @@
+mode=nonprimary
+cuInit                             -> 0 (CUDA_SUCCESS)
+cuDeviceGet                        -> 0 (CUDA_SUCCESS)
+W0 after cuInit: 1 ranges, mapped=61.36 GiB, largest_piece=61.36 GiB, largest_hole=58.64 GiB
+  [0x200000000, 0x1156bf8000) 61.36 GiB
+cuCtxCreate                        -> 0 (CUDA_SUCCESS)
+cuDeviceGetDefaultMemPool          -> 0 (CUDA_SUCCESS)
+cuMemAllocAsync(4)                 -> 0 (CUDA_SUCCESS)
+cuMemFreeAsync                     -> 0 (CUDA_SUCCESS)
+cuCtxSynchronize                   -> 0 (CUDA_SUCCESS)
+cuMemPoolCreate(maxSize 1 GiB)     -> 0 (CUDA_SUCCESS)
+cuMemAllocFromPoolAsync(4)         -> 0 (CUDA_SUCCESS)
+W1 after pool + async alloc: 1 ranges, mapped=61.36 GiB, largest_piece=61.36 GiB, largest_hole=58.64 GiB
+  [0x200000000, 0x1156bf8000) 61.36 GiB
+cuCtxDestroy                       -> 0 (CUDA_SUCCESS)
+W2 after teardown: 1 ranges, mapped=61.36 GiB, largest_piece=61.36 GiB, largest_hole=58.64 GiB
+  [0x200000000, 0x1156bf8000) 61.36 GiB
+window ranges added by context+pool (W1-W0): 0, 0.00 GiB
+window ranges unmapped by teardown (W1-W2): 0, 0.00 GiB
+blockers in freed ranges: placed=0 refused=0; standard blockers placed=1/3
+hole-filling blockers placed=16
+W3 after blockers: 16 ranges, mapped=61.36 GiB, largest_piece=61.36 GiB, largest_hole=4.00 GiB
+  [0x200000000, 0x1156bf9000) 61.36 GiB
+cuCtxCreate (again)                -> 0 (CUDA_SUCCESS)
+cuDeviceGetDefaultMemPool          -> 0 (CUDA_SUCCESS)
+same default pool handle: yes
+cuMemAllocAsync(4)                 -> 0 (CUDA_SUCCESS)
+cuMemFreeAsync                     -> 0 (CUDA_SUCCESS)
+cuCtxSynchronize                   -> 0 (CUDA_SUCCESS)
+cuMemAlloc(4)                      -> 0 (CUDA_SUCCESS)
+cuMemAllocFromPoolAsync(4) again   -> 0 (CUDA_SUCCESS)
+W4 after re-retain: 16 ranges, mapped=61.36 GiB, largest_piece=61.36 GiB, largest_hole=4.00 GiB
+  [0x200000000, 0x1156bf9000) 61.36 GiB
+RESULT pre_blockers=0 mode=nonprimary pool_before=CUDA_SUCCESS async_before=CUDA_SUCCESS added_GiB=0.00 freed_GiB=0.00 freed_blockers=0 std_blockers=1 hole_after_blockers_GiB=4.00 pool_after=CUDA_SUCCESS same_pool=1 async_after=CUDA_SUCCESS sync_after=CUDA_SUCCESS explicit_before=CUDA_SUCCESS explicit_after=CUDA_SUCCESS

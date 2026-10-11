@@ -1,0 +1,15 @@
+{
+  "status": "INVALID",
+  "reasons": [
+    "workload exit 101",
+    "raw receipt absent"
+  ],
+  "binary_sha256": "411f763626638d99cb3d7222c537b63e8df4e0406705684c8b909208bebe8a32",
+  "runner_sha256": "e60780f0bfe95318303bfaba69198438ab2dd03cfaa7944ce45f5126b6a53914",
+  "protocol_sha256": "b38353b26c504f7ff31cb90a62d721bd5bc13dbc0d7bf74a0708678b20170ff9",
+  "model_assets": {
+    "config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+    "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
+    "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+  }
+}

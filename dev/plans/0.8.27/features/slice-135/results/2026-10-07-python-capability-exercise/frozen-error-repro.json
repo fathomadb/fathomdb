@@ -1,0 +1,13 @@
+{
+  "operation": "engine.freeze_read_context",
+  "request": {
+    "schema_version": 2
+  },
+  "error_type": "FrozenReadError",
+  "message": "unsupported_schema_version at /schemaVersion",
+  "actual_reason": null,
+  "actual_field_path": null,
+  "expected_reason": "unsupported_schema_version",
+  "expected_field_path": "/schemaVersion",
+  "contract_ok": false
+}

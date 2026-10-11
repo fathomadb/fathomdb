@@ -1,0 +1,16 @@
+# workaround probe: explicit pool with maxSize, cuDeviceSetMemPool, then cuMemAllocAsync (4 B and 256 MiB); failing n=3 layout and s2 failing seeds
+n3-setpool-1G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 1G
+n3-setpool-8G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 8G
+n3-setpool-16G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 16G
+n3-setpool-32G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 32G
+n3-setpool-40G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 40G
+n3-setpool-48G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 48G
+n3-setpool-52G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 52G
+n3-setpool-56G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 56G
+n3-setpool-60G --size 4K --at 0x980000000,0x1100000000,0x1880000000 --pool-maxsize 60G
+s2seed2-setpool-16G --random 18 --range 8G:128G --seed 2 --pool-maxsize 16G
+s2seed101-setpool-16G --random 18 --range 8G:128G --seed 101 --pool-maxsize 16G
+s2seed3-setpool-16G --random 18 --range 8G:128G --seed 3 --pool-maxsize 16G
+s2seed4-setpool-16G --random 18 --range 8G:128G --seed 4 --pool-maxsize 16G
+s2seed5-setpool-16G --random 18 --range 8G:128G --seed 5 --pool-maxsize 16G
+control-setpool-16G --pool-maxsize 16G

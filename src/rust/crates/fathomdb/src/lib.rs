@@ -1,9 +1,10 @@
 //! **FathomDB** — a local-first retrieval and graph-oriented data system for
 //! application and agent workloads.
 //!
-//! This is the crate to depend on from Rust. It is a thin facade that
+//! This is the lower-level Rust engine facade. It is a thin crate that
 //! re-exports the public surface of the `fathomdb-engine` runtime, so you get
-//! the supported API without depending on engine internals.
+//! the supported core API without depending on engine internals. For the
+//! Python/TypeScript peer application surface, use `fathomdb-sdk`.
 //!
 //! FathomDB embeds SQLite (FTS5 + `sqlite-vec`) in your process — there is no
 //! server and no sidecar. One `Engine` owns the writer thread, a reader pool,
@@ -18,7 +19,7 @@
 //!   nearest-neighbour index at very large scale: vector retrieval here is a
 //!   full scan, so latency grows with corpus size.
 //!
-//! Related crates: `fathomdb-cli` (the operator binary — `doctor` / `recover`),
+//! Related crates: `fathomdb-sdk` (the Rust application SDK), `fathomdb-cli` (the operator binary — `doctor` / `recover`),
 //! `fathomdb-embedder-api` (the semver-stable embedder trait, versioned
 //! independently), and `fathomdb-engine` (the runtime this crate re-exports;
 //! prefer this facade).
@@ -158,21 +159,22 @@ pub use fathomdb_engine::{
     DependencyListV1, DependencySourceLookupV1, DependencyTraceDirectionV1, DependencyTraceEdgeV1,
     DependencyTraceErrorReasonV1, DependencyTraceErrorV1, DependencyTraceNodeV1,
     DependencyTraceRequestV1, DependencyTraceResultV1, EmbedderRequired, EmbeddingOperation,
-    EmbeddingReadiness, EmbeddingReadinessState, Engine, EngineError, EngineOpenError,
-    EvidenceArmV1, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1, EvidenceContributionV1,
-    EvidenceErrorReasonV1, EvidenceErrorV1, EvidenceGraphOriginV1, EvidenceProjectionOriginV1,
-    EvidenceRefV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1, EvidenceSearchResultV1,
-    EvidenceSidecarEntryV1, ExciseReport, Explanation, ExtractDocument, FrozenReadContextV1,
-    FrozenReadError, FrozenReadErrorReason, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
-    GraphEvidenceResolveRequestV1, GraphEvidenceSidecarEntryV1, GraphEvidenceSidecarV1,
-    GraphExpandRequestV1, GraphExpandResultV1, GraphExpansionDegradationCodeV1,
-    GraphExpansionErrorReasonV1, GraphExpansionErrorV1, GraphExpansionExplanationV1, GraphOriginV1,
-    GraphProjectionOriginV1, GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1,
-    GraphSeedSourceV1, GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1,
-    IngestWithExtractorReceipt, InitialState, LifecycleActuationV1, LifecycleState,
-    MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NodeRecord, OpenReport,
-    OpenStage, OpenedEngine, OperationalStateRecordV1, PageCursor, PageError, PageErrorReason,
-    PageRequestV1, PageV1, PerHitExplain, Predicate, PreparedWrite, ProjectionDelta, ProjectionFts,
+    EmbeddingReadiness, EmbeddingReadinessState, Engine, EngineConfig, EngineConfigurationError,
+    EngineError, EngineOpenError, EvidenceArmV1, EvidenceArtifactClassV1,
+    EvidenceArtifactLifecycleV1, EvidenceContributionV1, EvidenceErrorReasonV1, EvidenceErrorV1,
+    EvidenceGraphOriginV1, EvidenceProjectionOriginV1, EvidenceRefV1, EvidenceResolveRequestV1,
+    EvidenceSearchRequestV1, EvidenceSearchResultV1, EvidenceSidecarEntryV1, ExciseReport,
+    Explanation, ExtractDocument, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason,
+    GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
+    GraphEvidenceSidecarEntryV1, GraphEvidenceSidecarV1, GraphExpandRequestV1, GraphExpandResultV1,
+    GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1, GraphExpansionErrorV1,
+    GraphExpansionExplanationV1, GraphOriginV1, GraphProjectionOriginV1,
+    GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1,
+    GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, IngestWithExtractorReceipt, InitialState,
+    LifecycleActuationV1, LifecycleState, MutationProjectionStatusRequestV1,
+    MutationProjectionStatusV1, NodeRecord, OpenReport, OpenStage, OpenedEngine,
+    OperationalStateRecordV1, PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1,
+    PerHitExplain, Predicate, PreparedWrite, ProjectionDelta, ProjectionFts,
     ProjectionGenerationError, ProjectionGenerationErrorReason, ProjectionGenerationId,
     ProjectionGenerationOriginV1, ProjectionGenerationStatusV1, ProjectionReadinessV1,
     ProjectionRole, ProjectionRuntimeStateV1, ProjectionRuntimeStatus,
@@ -202,13 +204,14 @@ pub use fathomdb_engine::{
 //     the same posture as `dump-mutations` (Slice 34).
 #[cfg(feature = "operator")]
 pub use fathomdb_engine::{
-    inspect_data_plane_integrity, recover_truncate_wal, CheckIntegrityOpts,
-    DataPlaneIntegrityBoundaryV1, DataPlaneIntegrityCheckCountV1, DataPlaneIntegrityCheckV1,
-    DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityErrorV1, DataPlaneIntegrityFindingCodeV1,
-    DataPlaneIntegrityFindingV1, DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1,
-    DataPlaneIntegritySeverityV1, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport,
-    ExciseRecordReport, Finding, IntegrityReport, MeanRecomputeReport, OrphanProvenanceReport,
-    OrphanProvenanceSource, RebuildKind, RebuildReport, SafeExportArtifact, SchemaObject, Section,
+    inspect_data_plane_integrity, recover_complete_erasures, recover_truncate_wal,
+    CheckIntegrityOpts, CompleteErasuresReport, DataPlaneIntegrityBoundaryV1,
+    DataPlaneIntegrityCheckCountV1, DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1,
+    DataPlaneIntegrityErrorV1, DataPlaneIntegrityFindingCodeV1, DataPlaneIntegrityFindingV1,
+    DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1, DataPlaneIntegritySeverityV1,
+    DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, ExciseRecordReport, Finding,
+    IntegrityReport, MeanRecomputeReport, OrphanProvenanceReport, OrphanProvenanceSource,
+    PendingErasure, RebuildKind, RebuildReport, SafeExportArtifact, SchemaObject, Section,
     TableRowCount, TraceEvent, TraceReport, TruncateWalReport, TruncateWalStatus,
     VerifyEmbedderReport, VerifyEmbedderStatus,
 };
@@ -254,9 +257,9 @@ pub mod governed_surface_method_absence_proof {}
 
 /// AC-074 no-raw-SQL release-surface pin: the shipped (release) facade exposes
 /// no raw-SQL method. The **canonical** guarantee is the engine's
-/// `Engine::execute_for_test` gate — `#[cfg(debug_assertions)] #[doc(hidden)]`,
-/// so the symbol is absent from release builds (verified: it is not present in
-/// `target/release/libfathomdb_engine.rlib`). This `#[cfg(not(debug_assertions))]`
+/// `Engine::execute_for_test` gate — `cfg(any(test, feature = "test-hooks"))`,
+/// so ordinary dev and release consumers cannot resolve it. The engine feature
+/// is an explicit test dependency opt-in and is absent from shipped artifacts. This `#[cfg(not(debug_assertions))]`
 /// module is the release-surface pin in the best-effort `no_recovery_surface.rs`
 /// style; it is compiled out of debug builds, and a true no-debug-assertions doc
 /// build runs the `compile_fail` below. (Plain `cargo test --release` may not

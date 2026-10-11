@@ -1,16 +1,22 @@
+// Only used by `RollbackEmbedder`, gated `#[cfg(debug_assertions)]` below.
+#[cfg(debug_assertions)]
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::{Event, EventCategory, Phase, Subscriber};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,
     ActuationRefusalReasonV1, ArtifactRevisionId, CanonicalHash, ClosureLookupV1, ClosurePhaseV1,
-    Engine, EngineError, InitialState, LifecycleActuationV1, LifecycleState, ProjectionFts,
-    ProjectionRole, ProjectionSpec, ProjectionVector, ProvenancedNodeV1,
+    Engine, EngineError, InitialState, LifecycleActuationV1, LifecycleState, ProvenancedNodeV1,
     SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
     WriteProvenanceV1,
 };
+// Only used by `configure_rollback_projections`, gated `#[cfg(debug_assertions)]` below.
+#[cfg(debug_assertions)]
+use fathomdb_engine::{ProjectionFts, ProjectionRole, ProjectionSpec, ProjectionVector};
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
+// Only used by `configure_rollback_projections`, gated `#[cfg(debug_assertions)]` below.
+#[cfg(debug_assertions)]
 use std::collections::BTreeSet;
 use std::sync::{Arc, Barrier, Mutex};
 use tempfile::TempDir;
@@ -73,9 +79,16 @@ fn derived_with_source_hash(
     }
 }
 
+// `RollbackEmbedder`, `configure_rollback_projections`, and
+// `projection_rollback_state` below are only used by
+// `infrastructure_failure_after_each_operation_rolls_back_the_whole_batch`,
+// gated `#[cfg(debug_assertions)]` for its
+// `Engine::force_actuation_failure_after_operation_for_test` hook.
+#[cfg(debug_assertions)]
 #[derive(Debug)]
 struct RollbackEmbedder;
 
+#[cfg(debug_assertions)]
 impl Embedder for RollbackEmbedder {
     fn identity(&self) -> EmbedderIdentity {
         EmbedderIdentity::new("slice25-rollback", "v1", 384)
@@ -88,6 +101,7 @@ impl Embedder for RollbackEmbedder {
     }
 }
 
+#[cfg(debug_assertions)]
 fn configure_rollback_projections(engine: &Engine) {
     engine
         .configure_projections(
@@ -103,6 +117,7 @@ fn configure_rollback_projections(engine: &Engine) {
         .unwrap();
 }
 
+#[cfg(debug_assertions)]
 fn projection_rollback_state(connection: &Connection) -> Vec<(String, Vec<String>)> {
     [
         (
@@ -539,6 +554,8 @@ fn actuation_event_order_is_causal_for_commit_refusal_and_failure() {
     assert!(sink.take_writer_phases().is_empty());
 }
 
+// Uses `Engine::set_actuation_after_initial_lookup_delay_ms_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn forced_slow_inner_race_replays_emit_no_extra_events() {
     let dir = TempDir::new().unwrap();
@@ -580,6 +597,8 @@ fn forced_slow_inner_race_replays_emit_no_extra_events() {
     assert!(phases.iter().filter(|phase| **phase == Phase::Slow).count() <= 1);
 }
 
+// Uses `Engine::force_next_commit_failure_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn cursor_refusal_precommit_failure_rolls_back_receipt_and_is_retryable() {
     let dir = TempDir::new().unwrap();
@@ -617,6 +636,8 @@ fn cursor_refusal_precommit_failure_rolls_back_receipt_and_is_retryable() {
     assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::WriteCursorExhausted]);
 }
 
+// Uses `Engine::force_actuation_failure_after_operation_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
     for fault_index in 0..4 {

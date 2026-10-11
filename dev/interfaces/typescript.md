@@ -1,8 +1,8 @@
 ---
 title: TypeScript Public Interface
-date: 2026-09-15
-target_release: 0.8.26
-desc: Public TypeScript surface for 0.8.26
+date: 2026-09-21
+target_release: 0.8.27
+desc: Public TypeScript surface for 0.8.27
 blast_radius: src/ts/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -11,6 +11,9 @@ status: locked
 
 This file owns TypeScript-visible symbol spelling and export shape. Cross-
 binding parity remains owned by `design/bindings.md`.
+
+The Rust peer of this SDK is `fathomdb-sdk`; its operation mapping and
+translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
@@ -83,7 +86,8 @@ denylist name).
   `from`, which is a reserved word in the Python peer — parity-safe naming, S7).
 - `engine.purge(logicalId: string): Promise<void>` — irreversible hard-erase of
   a governed node across every row-owned target. DELETED-FIRST and IDEMPOTENT.
-  **No restore counterpart exists on any surface.**
+  **No restore counterpart exists on any surface.** A logical id remains
+  purgeable after a correction supersedes one of its revisions.
 - `engine.eraseSource(sourceId: string): Promise<EraseReport>` — erase every
   canonical row carrying `sourceId` plus its row-owned projections, then finish
   at rest (telemetry redaction + WAL truncation). The COMPANION to `purge`:
@@ -92,7 +96,11 @@ denylist name).
   whitespace-only / reserved (`_`-prefixed) id, and with
   `ErasureIncompleteError` (with `stage` / `detail`) rather than resolving when
   the at-rest step did not complete. `EraseReport` is
-  `{ sourceRef, nodesExcised, edgesExcised, projectionsInvalidated }`.
+  `{ sourceRef, nodesExcised, edgesExcised, projectionsInvalidated }`. A source
+  remains erasable after correction supersedes it; the original and
+  replacement source buckets may be erased in either order. Counts remain
+  exact for only the requested bucket, with no cross-bucket expansion or
+  report-shape change.
 
 Application commands are Promise-returning on the TS surface. The startup-only
 `admin.configureRuntime` control is synchronous.
@@ -138,9 +146,29 @@ member carrying the engine-owned knobs from `design/engine.md` in camelCase:
 - `embedderCallTimeoutMs`
 - `slowThresholdMs`
 
-If TypeScript exposes ThreadsafeFunction handoff-pool sizing, that option is a
-TS binding-runtime option beside `engineConfig`, not a canonical engine config
-field and not a Python parity obligation.
+`engine.config` is a cloned, frozen, readonly snapshot of the requested
+open-time values. Mutating the caller's original object after `Engine.open`
+does not change it, and callers cannot mutate the returned snapshot. The
+snapshot is not a live effective-value view: `engine.setSlowThresholdMs`
+changes runtime behavior without rewriting `engine.config.slowThresholdMs`.
+
+NAPI hands blocking calls to Tokio `spawn_blocking`. That binding handoff is
+separate from both configured engine executors; there is no handoff-pool
+sizing field in `engineConfig` or `EngineOpenOptions`.
+
+`Engine.open` checks the cloned config before native work. Non-number values
+raise `TypeError`; non-finite, fractional, unsafe, negative or out-of-range
+numbers raise `RangeError`. Omission selects the Rust default; zero is accepted
+only for `provenanceRowCap` and `slowThresholdMs`. NAPI checks numeric
+conversion and Rust makes the final range/capacity check, mapped to
+`InvalidArgumentError`. Production projection, search (including frozen
+reads), direct embedding and open-time equivalence probes share the engine
+embed dispatcher and its queue-plus-service deadline. Direct embedding maps
+full/expired queue to `OverloadedError`, started failure/timeout to
+`EmbedderError`, and close cancellation to `ClosingError`. Hybrid search keeps
+same-snapshot sparse fallback; projection capacity waits keep rows pending
+without spending a provider retry. Explicit close may reject with
+`SchedulerError` while a provider worker remains after the drain budget.
 
 ## Engine-attached instrumentation / control
 
@@ -154,10 +182,16 @@ These are public instance methods, not extra top-level SDK verbs:
 
 Subscriber attachment is provided by:
 
-- `engine.attachSubscriber(callback, { heartbeatIntervalMs? })`
+- `engine.attachSubscriber(callback)`
 
-`callback` receives the stable `fathomdb` payload described in
-`design/bindings.md`.
+`callback` receives a tagged `SubscriberEvent` (`event`, `profile`,
+`slowStatement`, or `stressFailure`) on the JavaScript thread. Diagnostic
+integer fields and `droppedRecordsTotal` are decimal strings. Delivery is
+bounded and best-effort: the binding may drop records under overload; the
+cumulative drop count on later records discloses that loss. Synchronous
+listener exceptions are contained. The returned Promise of an async listener
+is caller-owned. A new attachment replaces the prior one, and close detaches
+delivery at call entry. No binding heartbeat timer or operation ID is emitted.
 
 ## Caller-visible data shapes
 
@@ -326,6 +360,8 @@ ID permanently unusable without retaining its prior receipt content.
 `sourceId` follows the Engine `SourceId` grammar rather than the generic
 content-string FFI guard, so an embedded NUL is preserved exactly; body, kind,
 and other content/control strings retain the REQ-064 rejection.
+`eraseSource(sourceId)` uses this same identity grammar and can erase a row
+whose source ID contains an embedded NUL.
 
 ## Dependency lifecycle closure (0.8.25 Slice 30)
 
@@ -761,6 +797,48 @@ TypeScript process. That creates independent model instances, not a GPU
 reservation, memory quota, scheduler, or evidence that retrieval/FTS/fusion/
 graph work used the GPU.
 
+### Early CUDA initialisation on aarch64 Linux (0.8.27 Slice 110)
+
+A native addon built for aarch64 Linux with `embed-cuda` or `rerank-cuda`
+calls `cuInit(0)` while Node registers the module, from the addon's
+module-exports callback after its exports are registered. That is on the
+loading thread once `dlopen` has returned, never in a shared-library
+constructor. It runs at most once per process: a `worker_threads` worker
+that registers the module again, or a worker that is the first to load it,
+shares one guard. Its environment is the process environment at that moment.
+
+- It is skipped when every component built with CUDA has an exact `cpu`
+  policy, read with the open-time parsers (unset means `auto`). An addon
+  built with only `embed-cuda` therefore skips it when
+  `FATHOMDB_EMBED_DEVICE=cpu`, whatever `FATHOMDB_RERANK_DEVICE` says. An
+  addon built with both skips it only when both are `cpu`.
+- `FATHOMDB_CUDA_EARLY_INIT=off` (that exact value; any other value is
+  ignored) skips it unconditionally. This is an escape hatch, for example for
+  a process that loads fathomdb but must not reserve CUDA address space until
+  it opens an engine. Without early init the Jetson heap limits in
+  `docs/embedder.md` apply again.
+- It checks for the driver library before calling it, never prints, and
+  never panics out of or fails registration. It adds no export.
+
+When forced CUDA later refuses with kind `cuda_probe_failed`, the
+`EmbedDevicePolicyError` / `RerankerDevicePolicyError` message keeps its
+`cuda:N requested ... but unavailable: CudaProbeFailed` prefix. It may append
+the possible `cuInit` out-of-memory cause and the remedy to import fathomdb
+first or start Node with `--import fathomdb`. The record has module-load,
+embedder-probe and reranker-probe slots. The hint reads the latest `cuInit`
+outcome from the embedder-probe or reranker-probe slot matching the refusing
+component, not an outcome bound to that refusal. A
+probe of another kind cannot change the hint, but a concurrent or later probe
+of the same kind can replace the record before the message is formatted.
+Every `Engine.open` in a build with the
+cross-encoder, and `rerank()` with a depth above zero, re-run the reranker
+probe, so the reranker's refusal, which is memoized for the process, can lose
+its hint after a later reranker probe succeeds. The code, `kind`,
+`ordinal` and the no-CPU-fallback rule are unchanged. As with other messages,
+the text is for people; match on `code` and `kind`. Other targets do not
+compile this. User guide: `docs/embedder.md` § "Node.js on Jetson: load
+fathomdb first".
+
 TypeScript exposes one concrete class per canonical row in
 `design/errors.md` — **41** of them as of 0.8.25, 1:1 with the Python set
 below `EngineError`.
@@ -918,15 +996,12 @@ installed `.node` binaries. They are exposed only when the binding is
 built via `npm run build:native:debug` (the script the vitest suite
 uses). End-user callers should not rely on these symbols.
 
-### Custom embedder implementations (deferred to 0.8.x)
+### Engine embedder selection
 
-Supplying a custom TypeScript `Embedder` implementation requires a
-napi-rs callback bridge subject to ADR-0.6.0-embedder-protocol
-Invariant 3 (no host-side log emission during `embed()`). That bridge
-is a multi-slice campaign deferred to 0.8.x. In 0.7.1 the binding
-surface is binary: `useDefaultEmbedder: true` (engine's bge-small) or
-omitted/`false` (no embedder; vector writes reject with
-`EmbedderNotConfiguredError`).
+`useDefaultEmbedder: true` selects the pinned bge-small provider;
+omitted/`false` selects no provider. The TypeScript engine API does not accept
+a custom embedder implementation. Standalone CLS embedding is a separate
+module-level utility, outside engine dispatch.
 
 ## `view` on `search` / `searchTextOnly` (0.8.20 Slice 15b fix-2)
 
@@ -1000,7 +1075,10 @@ string `"1"` and number `1` both match `"1"`. `searchFilterToFilter` throws
 For a search invoked with its `explain` argument set to `true` and attribute predicates,
 `result.explanation.trace.droppedEdgeHits` reports edge-FTS candidates rejected
 solely by the node-scoped attribute rule. The default non-explain path does not
-collect this count.
+collect this count. If the count query or its row decoding fails, search throws
+`StorageError` rather than returning a plausible zero.
+Stored importance/confidence lookup failures also throw `StorageError`
+instead of yielding a neutral ranking or explanation value.
 
 `engine.searchProjectedText(query, name, filter?, view?)` searches only the
 named declared `"searchable"` property-FTS projection, applying metadata,

@@ -1,0 +1,34 @@
+{
+  "acceptance": {
+    "R27-103G": "implemented and branch-locally verified; integrated-candidate qualification pending"
+  },
+  "baseline_sha": "25d90e5334382cecef041bd3991e24f8094160d5",
+  "branch": "llm/slice-103-erasure-recovery",
+  "code_sha": "e555363a93a6c0b87dee09f3f1454ada62ce756f",
+  "integrated_source_verification_required": true,
+  "receipt": "dev/plans/runs/0.8.27-slice-103-recovery/receipt.md",
+  "schema_version": "fathomdb.slice-103.track-output/v1",
+  "tests": {
+    "focused_cli_real_database": {
+      "exit_code": 0,
+      "passed": 8
+    },
+    "full_verifier": {
+      "candidate_sha": "e555363a93a6c0b87dee09f3f1454ada62ce756f",
+      "excluded": 0,
+      "exit_code": 0,
+      "log": "evidence/verify-full.log",
+      "log_sha256": "6193e1bffdfb1b18b21084ca9860f207fd92c843b5020d52d72288ffa08a478b",
+      "passed": 178,
+      "registered": 182,
+      "skipped": 4,
+      "test_environment": "checkout-local virtual environment with copied dependencies and prebuilt Python binding; no exact-source installed wheel"
+    },
+    "initial_red": {
+      "exit_code": 101,
+      "failed": 4,
+      "test_commit": "9d2dc326c"
+    }
+  },
+  "track": "R"
+}

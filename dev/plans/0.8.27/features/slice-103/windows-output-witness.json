@@ -1,0 +1,108 @@
+{
+  "branch": "llm/slice-103-windows",
+  "branch_code_head_sha": "75093d59ebbcaab64cd6f3d473dbe595a75f0f96",
+  "branch_gate": {
+    "exit": 130,
+    "partial_log_path": "dev/plans/0.8.27/features/slice-103/windows-evidence/agent-verify-75093d59e-unqualified.log",
+    "partial_log_sha256": "7fd6bb2c7463ece7c0330349a3f114e806f2a64691be5dac4a899aac9bbdfb68",
+    "reason": "two failures: stale Slice 90 lib_rs_blob inventory and dynamic release-ref preflight after release advanced to f148; then interrupted",
+    "security": "0 violations, 0 blockers, 0 downgrades",
+    "slice90_remedy": "doc-only 9764dd6c1; focused 8-test suite exit 0",
+    "status": "unqualified"
+  },
+  "final_windows": {
+    "governed_purge": "5/5, WAL zero, survivor only",
+    "installed_extension_sha256": "9255961e624e46d3317a84a943d29099073c50aaf96f97535c29e2c8bd6317b5",
+    "metadata_only_changed_files": 11,
+    "metadata_overlay_command": "scripts/set-version.sh --workspace 0.8.27 in disposable source copy",
+    "operator_excise_source": "exit 64 count 1; repeat exit 64 count 0; WAL zero; survivor only",
+    "path": "long and NUL.txt open; trailing dot/space refuse before DB/alias/lock",
+    "public_probe": {
+      "noread": "40/40 exit 0",
+      "page": "20/20 exit 0",
+      "read": "40/40 exit 0"
+    },
+    "public_probe_first_refusals": {
+      "noread": "0/40",
+      "page": "0/20",
+      "read": "0/40"
+    },
+    "source_archive_sha256": "c09999b35619296e151e6a22a89476bac11ab1af1a8456df36e0fa7c32deaf0d",
+    "staged_archive_sha256": "dd12cd6c8cbbf74b3ad29d15aa5f24241f2b24eec1269f301013184c32f982a4",
+    "wheel": "fathomdb-0.8.27-cp310-abi3-win_amd64.whl",
+    "wheel_sha256": "c372e8fd1fdcd5d46cd80d85443efa2c245a638a85add65dc2d4344fb79348dd",
+    "source_commit": "c2e80ff7683fe856a4cf372a088897c3450b0b9a",
+    "cli_sha256": "af5218cd9336ec55ecc6c032ded6ac09cf8f87928b5de841378efbf0770a30b5",
+    "probe_logs_sha256": {
+      "noread": "9dd4bbe7e1d25e746281c29a81d54fc38c5340ddbfafc50c16cb41e8f0e01ae5",
+      "read": "e43cd1ee536182eab3b58c00f8bb4858dcbc48a3de75de56676a8a3a91dae8fd",
+      "page": "1a94f1c3cefa93475c47d3048f5f3a5760affb698a439e5c44e47ddabf9a1f4b"
+    },
+    "focused_log_sha256": "8b6ebd8a431968575e3953e961790be1a060ce438e4d0557769ed95d8693a97e",
+    "path_log_sha256": "21bdb6756f0769116d54582e714019cb9a3452d437d0b5143b0ffa7c949b192c"
+  },
+  "frozen_source_sha": "8fb6fdac9d2f1655a62355e0ca8af51d42dd1fb7",
+  "historical_windows": {
+    "exact_memex_script_sha256": "fb3731ba86fb8b7560d5e349b9d5855b965def157f4f1e5157934462c267bb73",
+    "first_refusals": {
+      "noread": "4/40",
+      "page": "1/20",
+      "read": "1/40",
+      "total": "6/100"
+    },
+    "registry_version": "0.8.26",
+    "wheel_sha256": "7a94e26f78b040ce95aa79ada69ffac6f6d369280f300ec15da0c713d7bd5a1c"
+  },
+  "integrated_gate": {
+    "status": "orchestrator-owned; exact c2e or doc-only descendant gate pending",
+    "previous_gate_source_sha": "9764dd6c1",
+    "previous_product_code_sha": "f148aca86d4149e11b85d146b969064f4683677c"
+  },
+  "integrated_source_sha": "c2e80ff7683fe856a4cf372a088897c3450b0b9a",
+  "linux_controls": {
+    "candidate_probe_page": "40/40 passed",
+    "candidate_probe_read": "40/40 passed",
+    "governed_purge": "20/20 passed",
+    "historical_page_first_refusals": "0/40",
+    "historical_read_first_refusals": "0/40",
+    "operator_excise_source": "exit 64 count 1; repeat exit 64 count 0"
+  },
+  "probe_sha256": "9f9a5e39a9590f447df4406dc4ebc9d71c4f785ca98dd3d89fac496db113a129",
+  "receipt_path": "dev/plans/0.8.27/features/slice-103/windows-evidence-receipt.md",
+  "red_green": {
+    "downstream_external_consumer": "registry libsqlite3-sys 0.38.2, Engine::open refused >260 local path before database creation, exit 0",
+    "downstream_guard_red_commit": "b5f32a0c8",
+    "engine_wal_green": "3 databases x 50 cycles x 8 readers passed",
+    "engine_wal_red": "Windows BUSY row 1/13/13 at cycle 0",
+    "engine_wal_red_commit": "ab9a63f31",
+    "trailing_engine_green": "actual Engine::open refused before DB/alias/lock, exit 0",
+    "trailing_engine_green_commit": "75093d59e",
+    "trailing_path_red_commit": "262a4a1af"
+  },
+  "requirements": {
+    "R27-103D": "windows-final-wheel-passed-cross-platform-closeout-pending",
+    "R27-103E": "local-drive-vfs-remedy-and-downstream-refusal-proved-cross-platform-closeout-pending"
+  },
+  "schema": "fathomdb.slice-103.track-w.output/v1",
+  "scope": {
+    "external_unpatched_long_drive": "fails closed",
+    "local_drive": "corrected and installed-wheel qualified",
+    "true_unc_and_mapped_network": "not qualified; SQLite WAL unsupported on network filesystem"
+  },
+  "status": "windows-platform-qualified-integrated-gate-pending",
+  "unmodified_branch_windows": {
+    "first_refusals_by_100_trial_batch": [
+      6,
+      5,
+      4
+    ],
+    "retry_findings": "one read trial BUSY after five same-engine attempts and reopen; ten post-success second-call BUSY outcomes, kept separate",
+    "total_first_refusals": "15/300",
+    "wheel_sha256": "bc9bc2706a3d02bb08e4f88ed90a1ff506d6dff7e1dd3d404f62689b59ab885c"
+  },
+  "vm_evidence_root": "gh-runner-wonl-win11:C:/ci/s103w/",
+  "previous_integrated_windows": {
+    "code_sha": "f148aca86d4149e11b85d146b969064f4683677c",
+    "wheel_sha256": "e152fb260a22bef8fb840d33351f96e98fdb360d02bcb1608c8a2f1dcfccfe1e"
+  }
+}

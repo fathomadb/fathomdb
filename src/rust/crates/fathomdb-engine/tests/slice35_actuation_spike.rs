@@ -1,3 +1,7 @@
+// Only used by `edge_projection_failure_redispatches_and_receipt_binds_generation`,
+// gated `#[cfg(debug_assertions)]` below for its
+// `Engine::force_next_projection_commit_failure_for_test` hook.
+#[cfg(debug_assertions)]
 use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
     ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,
@@ -378,6 +382,8 @@ fn eight_unique_callers_commit_complete_graph_units() {
     assert_eq!(counts, (8, 8, 8));
 }
 
+// Uses `Engine::force_actuation_failure_after_operation_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn edge_graph_unit_rolls_back_at_each_injected_operation_boundary() {
     for fault_index in 0..3 {
@@ -406,6 +412,8 @@ fn edge_graph_unit_rolls_back_at_each_injected_operation_boundary() {
     }
 }
 
+// Uses `Engine::force_next_commit_failure_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn edge_graph_unit_rolls_back_on_forced_terminal_commit_failure() {
     let dir = TempDir::new().unwrap();
@@ -431,6 +439,8 @@ fn edge_graph_unit_rolls_back_on_forced_terminal_commit_failure() {
     assert_eq!(opened.engine.actuate(request).unwrap().outcome, ActuationOutcomeV1::Committed);
 }
 
+// Uses `Engine::force_next_projection_commit_failure_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn edge_projection_failure_redispatches_and_receipt_binds_generation() {
     let dir = TempDir::new().unwrap();

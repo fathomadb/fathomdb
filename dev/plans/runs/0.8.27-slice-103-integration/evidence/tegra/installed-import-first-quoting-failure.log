@@ -1,0 +1,4 @@
+  File "<string>", line 1
+    from importlib.metadata import version; import fathomdb; print(f"version={version(\"fathomdb\")} package={fathomdb.__file__}")
+                                                                                       ^
+SyntaxError: unexpected character after line continuation character

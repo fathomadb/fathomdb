@@ -1,0 +1,34 @@
+warning: patch `candle-kernels v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd00)` was not used in the crate graph
+warning: patch `cudarc v0.19.7 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/third_party/cudarc-0.19.7)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling bitflags v2.11.1
+   Compiling libsqlite3-sys v0.38.1 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/third_party/libsqlite3-sys-0.38.1)
+   Compiling rustix v1.1.4
+   Compiling getrandom v0.4.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling fastrand v2.4.1
+   Compiling raw-cpuid v11.6.0
+   Compiling onig v6.5.3
+   Compiling tokenizers v0.22.2
+   Compiling tokenizers v0.20.4
+   Compiling pulp v0.22.2
+   Compiling tempfile v3.27.0
+   Compiling gemm-common v0.19.0
+   Compiling gemm-f32 v0.19.0
+   Compiling gemm-f64 v0.19.0
+   Compiling gemm-c64 v0.19.0
+   Compiling gemm-c32 v0.19.0
+   Compiling gemm-f16 v0.19.0
+   Compiling gemm v0.19.0
+   Compiling candle-core-fathomdb v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd00)
+   Compiling candle-nn-fathomdb v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd00)
+   Compiling candle-transformers-fathomdb v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd00)
+   Compiling fathomdb-embedder v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-embedder)
+   Compiling rusqlite v0.40.1
+   Compiling fathomdb-schema v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-schema)
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+   Compiling slice135-e12-feasibility v0.1.0 (/tmp/slice135-e12-feasibility/candidate/build)
+    Finished `release` profile [optimized] target(s) in 45.78s

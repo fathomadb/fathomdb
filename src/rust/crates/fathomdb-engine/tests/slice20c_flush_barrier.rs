@@ -55,8 +55,8 @@
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    DenseReadiness, EmbeddingOperation, Engine, EngineError, InitialState, PreparedWrite,
-    ProjectionRole, ProjectionSpec, ProjectionVector, SourceId,
+    DenseReadiness, EmbeddingOperation, Engine, EngineError, EngineOpenError, InitialState,
+    PreparedWrite, ProjectionRole, ProjectionSpec, ProjectionVector, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::collections::BTreeSet;
@@ -1468,8 +1468,8 @@ fn a_boot_graft_whose_repair_fails_registers_nothing() {
         Arc::new(CountingEmbedder::with_identity(identity.clone())),
     );
     assert!(
-        failed_open.is_err(),
-        "the faulted boot graft must fail open rather than expose half-repaired durable state"
+        matches!(failed_open, Err(EngineOpenError::Io { ref message }) if message == "could not graft declared vector projection on boot"),
+        "post-probe startup failure must retain the original graft error"
     );
     assert!(
         !vector_kind_registered(&ro(&path), "doc"),

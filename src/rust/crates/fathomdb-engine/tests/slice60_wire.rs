@@ -50,6 +50,45 @@ fn decode_response(value: &Value) -> fathomdb_engine::GraphExpansionErrorV1 {
     decode_graph_expand_result_v1(&serde_json::to_vec(value).unwrap()).unwrap_err()
 }
 
+struct CoherentResponseInput<'a> {
+    seed_logical_id: &'a str,
+    target_logical_id: &'a str,
+    predecessor_logical_id: &'a str,
+    body: &'a str,
+    write_cursor: u64,
+    work_units: u64,
+    query_score: Option<f64>,
+    include_evidence: bool,
+}
+
+fn coherent_response(input: CoherentResponseInput<'_>) -> Value {
+    let mut value = fixture()["response"].clone();
+    value["seeds"][0]["logicalId"] = json!(input.seed_logical_id);
+    value["seeds"][0]["queryScore"] = json!(input.query_score);
+    value["targets"][0]["logicalId"] = json!(input.target_logical_id);
+    value["targets"][0]["body"] = json!(input.body);
+    value["targets"][0]["writeCursor"] = json!(input.write_cursor.to_string());
+    value["targets"][0]["origin"]["seedLogicalId"] = json!(input.seed_logical_id);
+    value["targets"][0]["origin"]["predecessorLogicalId"] = json!(input.predecessor_logical_id);
+    value["targets"][0]["origin"]["targetLogicalId"] = json!(input.target_logical_id);
+    value["explanation"]["perTarget"][0]["origin"] = value["targets"][0]["origin"].clone();
+    value["workUnits"] = json!(input.work_units.to_string());
+    if input.include_evidence {
+        value["evidence"] = json!({
+            "schemaVersion": 1,
+            "entries": [{
+                "schemaVersion": 1,
+                "targetIndex": 0,
+                "targetArtifactRevisionId": "target-r1",
+                "targetEvidenceRef": "target-evidence-ref",
+                "terminalEdgeArtifactRevisionId": "edge-r1",
+                "terminalEdgeEvidenceRef": "edge-evidence-ref"
+            }]
+        });
+    }
+    value
+}
+
 #[test]
 fn canonical_fixture_round_trips_request_and_response() {
     let request_fixture: Value = serde_json::from_str(include_str!(
@@ -269,5 +308,58 @@ proptest! {
         value.direction = direction;
         let bytes = encode_graph_expand_request_v1(&value).unwrap();
         prop_assert_eq!(decode_graph_expand_request_v1(&bytes).unwrap(), value);
+    }
+
+    #[test]
+    fn result_codec_round_trips_coherent_generated_carriers(
+        seed_logical_id in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}",
+        target_logical_id in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}",
+        predecessor_logical_id in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}",
+        body in "[ -~]{1,64}",
+        write_cursor in any::<u64>(),
+        work_units in any::<u64>(),
+        score_numerator in proptest::option::of(-10_000_i16..=10_000),
+        include_evidence in any::<bool>(),
+    ) {
+        let query_score = score_numerator.map(|score| f64::from(score) / 10.0);
+        let value = coherent_response(CoherentResponseInput {
+            seed_logical_id: &seed_logical_id,
+            target_logical_id: &target_logical_id,
+            predecessor_logical_id: &predecessor_logical_id,
+            body: &body,
+            write_cursor,
+            work_units,
+            query_score,
+            include_evidence,
+        });
+        let decoded = decode_graph_expand_result_v1(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let encoded = encode_graph_expand_result_v1(&decoded).unwrap();
+        let encoded_value: Value = serde_json::from_slice(&encoded).unwrap();
+
+        prop_assert_eq!(encoded_value, value);
+        prop_assert_eq!(decode_graph_expand_result_v1(&encoded).unwrap(), decoded);
+    }
+
+    #[test]
+    fn result_codec_rejects_generated_nonzero_first_evidence_position(
+        target_index in 1_u32..=u32::MAX,
+        target_logical_id in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}",
+        write_cursor in any::<u64>(),
+    ) {
+        let mut value = coherent_response(CoherentResponseInput {
+            seed_logical_id: "seed-a",
+            target_logical_id: &target_logical_id,
+            predecessor_logical_id: "middle-b",
+            body: "generated target body",
+            write_cursor,
+            work_units: 2,
+            query_score: None,
+            include_evidence: true,
+        });
+        value["evidence"]["entries"][0]["targetIndex"] = json!(target_index);
+
+        let error = decode_response(&value);
+        prop_assert_eq!(error.reason, GraphExpansionErrorReasonV1::GraphCorrupt);
+        prop_assert_eq!(error.field_path, "/evidence/entries/0");
     }
 }

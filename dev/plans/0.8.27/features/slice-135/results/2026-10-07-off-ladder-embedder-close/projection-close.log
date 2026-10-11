@@ -1,0 +1,11 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+     Running tests/projection_runtime.rs (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/target/debug/deps/projection_runtime-ef66810f682bd960)
+
+running 3 tests
+test close_drops_last_embedder_ref_outside_close_lock ... ok
+test close_releases_embedder_while_engine_handle_is_retained ... ok
+test close_leaves_caller_retained_embedder_owned_and_usable ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.06s
+

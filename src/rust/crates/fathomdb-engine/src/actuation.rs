@@ -1,4 +1,7 @@
 use super::*;
+use crate::identity::hex_encode;
+use crate::record_lifecycle::is_legal_transition_move;
+use crate::write_commit::load_next_cursor;
 use rusqlite::{params, OptionalExtension};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -1908,7 +1911,7 @@ impl Engine {
             }
         }
 
-        #[cfg(debug_assertions)]
+        #[cfg(any(test, feature = "test-hooks"))]
         {
             let delay = self.actuation_after_initial_lookup_delay_ms.load(Ordering::SeqCst);
             if delay > 0 {
@@ -2017,7 +2020,7 @@ impl Engine {
                 request.operations.len(),
                 receipt.affected_revision_ids.len(),
             )?;
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -2054,7 +2057,7 @@ impl Engine {
                 request.operations.len(),
                 receipt.affected_revision_ids.len(),
             )?;
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -2091,7 +2094,7 @@ impl Engine {
                 request.operations.len(),
                 receipt.affected_revision_ids.len(),
             )?;
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -2360,7 +2363,7 @@ impl Engine {
                     RefusalOrInfrastructure::Infrastructure(error) => return Err(error),
                 }
             }
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             if self.actuation_failure_after_operation.load(Ordering::SeqCst) == index {
                 self.actuation_failure_after_operation.store(usize::MAX, Ordering::SeqCst);
                 return Err(EngineError::Storage);
@@ -2381,7 +2384,7 @@ impl Engine {
                 request.operations.len(),
                 receipt.affected_revision_ids.len(),
             )?;
-            #[cfg(debug_assertions)]
+            #[cfg(any(test, feature = "test-hooks"))]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -2431,7 +2434,7 @@ impl Engine {
             request.operations.len(),
             receipt.affected_revision_ids.len(),
         )?;
-        #[cfg(debug_assertions)]
+        #[cfg(any(test, feature = "test-hooks"))]
         if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
             return Err(EngineError::Storage);
         }
@@ -2444,6 +2447,20 @@ impl Engine {
             self.projection_runtime.notify_new_work();
         }
         Ok(ActuationAttempt::New(receipt))
+    }
+}
+
+impl Engine {
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn set_actuation_after_initial_lookup_delay_ms_for_test(&self, value: u64) {
+        self.actuation_after_initial_lookup_delay_ms.store(value, Ordering::SeqCst);
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn force_actuation_failure_after_operation_for_test(&self, index: usize) {
+        self.actuation_failure_after_operation.store(index, Ordering::SeqCst);
     }
 }
 

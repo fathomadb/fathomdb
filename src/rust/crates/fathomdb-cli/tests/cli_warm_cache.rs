@@ -7,6 +7,9 @@
 
 use std::process::Command;
 
+#[path = "support/live.rs"]
+mod live;
+
 fn fathomdb() -> Command {
     Command::new(env!("CARGO_BIN_EXE_fathomdb"))
 }
@@ -18,7 +21,7 @@ fn fathomdb() -> Command {
 macro_rules! skip_if_no_network {
     () => {
         if std::env::var("FATHOMDB_SKIP_NETWORK_TESTS").is_ok() {
-            eprintln!("[skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping test");
+            live::require_live_or_skip("[skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping test");
             return;
         }
     };

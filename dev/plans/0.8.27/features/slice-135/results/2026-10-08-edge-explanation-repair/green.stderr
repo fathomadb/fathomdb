@@ -1,0 +1,3 @@
+   Compiling fathomdb-engine v0.8.26 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-135/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.38s
+     Running tests/slice135_edge_explanation_row_error.rs (/tmp/slice135-current-tc91-target/debug/deps/slice135_edge_explanation_row_error-245a92b818d0c9a6)

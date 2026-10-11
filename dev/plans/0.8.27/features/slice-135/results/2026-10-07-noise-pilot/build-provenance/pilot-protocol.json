@@ -1,0 +1,43 @@
+{
+  "artifact_sha256": {
+    "build/Cargo.lock": "5f3a19d59c095886bb2e96572005bebf4e7375cc8f50e18fbb770b26b5f2370d",
+    "corpus.txt": "3490cb46178d1016388d9ee56ae6a9035a9f0e8658512e5f62801c000f3147b4",
+    "slice135_pilot_workload": "c6d2133640535ce49846e328ccceac91a96997306377bd83a998d99825574db1"
+  },
+  "cells": {
+    "close_fresh": {
+      "boundary": "close-call-to-return",
+      "expected_checks": {
+        "canonical_rows": [
+          0
+        ],
+        "reopen_ok": true,
+        "second_close_ok": true
+      },
+      "kind": "lifecycle"
+    },
+    "text": {
+      "boundary": "engine-call-to-materialized-output",
+      "expected_checks": {
+        "all_bodies_match": true,
+        "record_count": 10
+      },
+      "kind": "query"
+    }
+  },
+  "features": {
+    "embedder": "none",
+    "query": "text_only"
+  },
+  "min_disk_free_bytes": 1073741824,
+  "runner_sha256": "1c86910bfddba6d77b15937435f2e2da3180c7e1abf91a63253bc45adeb89397",
+  "schema_version": 1,
+  "settings": {
+    "concurrency": 1,
+    "query": "needle",
+    "samples_per_cell": 2,
+    "seed_records": 32,
+    "warmup_per_cell": 1
+  },
+  "source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa"
+}

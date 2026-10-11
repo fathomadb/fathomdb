@@ -1,0 +1,22 @@
+{
+  "wrapper": [
+    "/usr/bin/time",
+    "-o",
+    "/tmp/slice135-paired-p3-candidate/resource.txt",
+    "-f",
+    "user_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nfs_inputs=%I\nfs_outputs=%O\nmajor_faults=%F\nswap_events=%W\n",
+    "/tmp/slice135-paired-p3-candidate/slice135_pilot_workload",
+    "--ignored",
+    "--exact",
+    "slice135_pilot",
+    "--nocapture"
+  ],
+  "measured_binary": [
+    "/tmp/slice135-paired-p3-candidate/slice135_pilot_workload",
+    "--ignored",
+    "--exact",
+    "slice135_pilot",
+    "--nocapture"
+  ],
+  "timing_mode": "primary"
+}

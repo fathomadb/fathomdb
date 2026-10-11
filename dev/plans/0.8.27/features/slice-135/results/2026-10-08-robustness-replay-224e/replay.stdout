@@ -1,0 +1,29 @@
+
+running 1 test
+test persistent_provider_failure_stays_truthful_until_explicit_rebuild ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+
+running 7 tests
+test slice135_bounded_sqlite_full_write_rolls_back_and_reopens ... ok
+test slice135_concurrent_read_write_reopens_exact_state ... ok
+test slice135_crash_victim ... ignored, subprocess victim; parent controls the FathomDB write boundary
+test slice135_injected_pretransaction_refusal_preserves_reopened_state ... ok
+test slice135_negative_missing_record_must_fail ... ignored, negative control: runner requires this test to fail
+test slice135_persistent_sqlite_full_preserves_state_until_cap_lifts ... ok
+test slice135_process_kill_before_and_after_acknowledged_write ... ok
+
+test result: ok. 5 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+
+running 6 tests
+test tc91_panic_terminal_commit_failure_is_reported_and_redispatched ... ok
+test tc91_projection_commit_busy_is_reported_and_redispatched ... ok
+test tc91_projection_commit_failure_at_mean_pin_is_rollback_safe ... ok
+test tc91_projection_commit_failure_survives_stop_and_reopen ... ok
+test tc91_projection_commit_storage_error_is_reported_and_redispatched ... ok
+test tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+

@@ -46,4 +46,4 @@ new session rather than archived history:
 Everything else in this directory is closed-line and archived-in-place. For
 current program state, read the single live
 `dev/plans/release-state-*.json` file, then the board named by its `board` key
-(currently `dev/plans/runs/STATUS-0.8.23.md`), not a scan of this directory.
+(currently `dev/plans/runs/STATUS-0.8.27.md`), not a scan of this directory.

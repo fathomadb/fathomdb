@@ -19,6 +19,9 @@
 //! 8. CLI `fathomdb doctor warm-cache` lives at the CLI level
 //!    (see `tests/cli_warm_cache.rs`).
 
+#[path = "support/live.rs"]
+mod live;
+
 use std::sync::Arc;
 
 use fathomdb_embedder::EmbedderEvent;
@@ -37,7 +40,7 @@ use tempfile::TempDir;
 macro_rules! skip_if_no_network {
     () => {
         if std::env::var("FATHOMDB_SKIP_NETWORK_TESTS").is_ok() {
-            eprintln!("[skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping test");
+            live::require_live_or_skip("[skip] FATHOMDB_SKIP_NETWORK_TESTS set; skipping test");
             return;
         }
     };

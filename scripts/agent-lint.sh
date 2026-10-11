@@ -67,6 +67,9 @@ fi
 # scripts/agent-lint-shell.sh.
 run_capped lint-shell "$SCRIPT_DIR/agent-lint-shell.sh"
 
+# Rust module ownership and dependency direction (Slice 85).
+run_capped module-boundary "$SCRIPT_DIR/check-module-boundaries.sh"
+
 # Rust: clippy with -D warnings (treat warnings as errors)
 run_capped lint-rust cargo clippy --workspace --all-targets --quiet -- -D warnings
 

@@ -1,0 +1,26 @@
+Candidate source: 50eaa5035b9a79ce2723251853846e6cc96ea7f7
+Toolchain: rustc/cargo 1.95.0; matching LLVM from llvm-tools-preview
+Mode: diagnostic branch coverage; never primary latency
+
+Workload build:
+RUSTC_BOOTSTRAP=1 CARGO_TARGET_DIR=/tmp/slice135-open-workload-debug-cov RUSTFLAGS='-C instrument-coverage -Z coverage-options=branch' LLVM_PROFILE_FILE='/tmp/slice135-open-debug-build-%p-%m.profraw' cargo test --offline --locked --no-run --message-format=json --manifest-path /tmp/slice135-candidate-build-final2/build/Cargo.toml
+
+Workload execution:
+SLICE135_COUNT=100 SLICE135_TIMING_MODE=primary LLVM_PROFILE_FILE='/tmp/slice135-open-debug-workload-%p-%m.profraw' FATHOMDB_EMBED_DEVICE=cpu /tmp/slice135-open-workload-debug-cov/debug/deps/slice135_pilot_workload-764bc3891edd421e --ignored --exact slice135_pilot --nocapture
+
+Selected existing test build:
+RUSTC_BOOTSTRAP=1 CARGO_TARGET_DIR=/tmp/slice135-open-tests-cov RUSTFLAGS='-C instrument-coverage -Z coverage-options=branch' cargo test --offline --locked -p fathomdb-engine --features operator --test durability_open_path --test runtime_configuration --test lifecycle_reliability --no-run --message-format=json
+
+Selected test execution, each with unique LLVM_PROFILE_FILE and 120 s timeout:
+/tmp/slice135-open-tests-cov/debug/deps/durability_open_path-98fece2c76e5b4ec --nocapture
+/tmp/slice135-open-tests-cov/debug/deps/runtime_configuration-87471aeaf9db717b --nocapture
+/tmp/slice135-open-tests-cov/debug/deps/lifecycle_reliability-61ed7dee3c177db2 --nocapture
+
+The raw profile files were merged separately with the matching llvm-profdata
+merge -sparse. The matching llvm-cov export -format=lcov read each merged
+profile and its executable(s). The retained LCOV files contain the exact
+open.rs and connection_runtime.rs records with source paths normalized to
+repository-relative paths. Raw profiles are gzip-compressed individually.
+The standalone workload uses the test-hooks engine feature; the selected
+existing tests use operator, so feature-specific unmapped branches are
+reported explicitly in pareto-analysis.json.

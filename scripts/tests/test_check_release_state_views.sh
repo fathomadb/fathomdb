@@ -2026,6 +2026,38 @@ else
   fail "arm R6 (all-live current-state pointers): rc=$LIVE_POINTER_RC errors=$LIVE_POINTER_ERRORS"
 fi
 
+# --- Arm R6a: an active release branch does not claim origin/main ----------
+# A release can have completed rows before a remote completion ref exists.
+# The STATUS view must enumerate those branch-complete rows from the state and
+# must not relabel them as landed on origin/main.
+setup_fixture
+python3 - "$FIX/dev/plans/release-state-9.9.9.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+s = json.load(open(p))
+s["active_ref"] = "refs/heads/release/9.9.9"
+for entry in s["ladder"]:
+    if entry["slice"] in {0, 5}:
+        entry["status"] = "COMPLETE_ON_RELEASE_BRANCH"
+s["generated_views"].append({
+    "id": "status-current-state",
+    "file": "dev/plans/runs/board.md",
+})
+json.dump(s, open(p, "w"), indent=2)
+PY
+cat >>"$FIX/dev/plans/runs/board.md" <<'EOF'
+
+## Current release state
+
+<!-- BEGIN GENERATED release-state:9.9.9:status-current-state -->**Next is Slice 10 (R-B), UNBLOCKED.** Completed on local `release/9.9.9` per release state: 0 (`aaaa1111`) · 5 (`bbbb2222`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:9.9.9:status-current-state -->
+EOF
+run_gate
+if [ "$RC" -eq 0 ]; then
+  pass "arm R6a: active release-branch completions render without an origin/main claim"
+else
+  fail "arm R6a (active release-branch state): rc=$RC out=$OUT"
+fi
+
 # --- Arm R6b: a release with no landings says so explicitly -----------------
 # A newly opened release legitimately has `landed: []`. Both roll-up renderers
 # used the ordinary "Slices %s" template, yielding the malformed "Slices ."

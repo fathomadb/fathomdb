@@ -1,0 +1,79 @@
+==> AC-036 no-listen-syscall
+AC-036 OK: no successful listen() captured across security_cycle.
+    PASS
+==> AC-037 netns-deny-egress
+AC-037 OK: all connect() syscalls were loopback / AF_UNIX / AF_NETLINK.
+    PASS
+==> AC-037 catch (demonstrate)
+AC-037 catch OK (offline): 2 off-loopback connect() flagged:
+    connect(3, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr("8.8.8.8")}, 16) = -1 ENETUNREACH (Network is unreachable)
+    connect(4, {sa_family=AF_INET6, sin6_port=htons(443), inet_pton(AF_INET6, "2606:4700:4700::1111", &sin6_addr), sin6_scope_id=0}, 28) = -1 ENETUNREACH (Network is unreachable)
+AC-037 catch OK (live netns): deliberate egress flagged:
+    117168 connect(3, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr("8.8.8.8")}, 16) = -1 ENETUNREACH (Network is unreachable)
+    PASS
+==> AC-037 policy self-test
+policy self-test OK: exit-code classification is honest (STRICT narrowed to the environmental case).
+    PASS
+==> AC-038 FTS5-injection-safe
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+    PASS
+==> AC-050a ast-scan rust
+AC-050a OK: rust surface clean (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-103-windows/src/rust/crates)
+    PASS
+==> AC-050a ast-scan python
+AC-050a OK: python surface clean (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-103-windows/src/python)
+    PASS
+==> AC-050a ast-scan ts
+AC-050a OK: ts surface clean (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-103-windows/src/ts)
+    PASS
+==> AC-050c removal-detect
+AC-050c OK: 29 removals all documented.
+    PASS
+
+agent-security: 0 violation(s), 0 blocker(s), 0 downgrade(s)
+FAIL test-slice90-root-reconciliation (exit=1, 10184ms)
+----
+...F....
+======================================================================
+FAIL: test_inventory_matches_exact_root_storage_blob (__main__.RootReconciliationTest.test_inventory_matches_exact_root_storage_blob)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-103-windows/scripts/tests/test_slice90_root_reconciliation.py", line 136, in test_inventory_matches_exact_root_storage_blob
+    self.assertIn("lib_rs_blob: " + blob, inventory)
+AssertionError: 'lib_rs_blob: 8d8fec2e7c75a3c0f0cea3f7417d2c17faf3d842' not found in '---\ntitle: Slice 90 Phase 3 root reconciliation\ntarget_release: 0.8.27\nlib_rs_blob: b2f01b3f95bab83a263bd1f2a1df742e07a72a69\n---\n\n# Slice 90 Phase 3 root reconciliation\n\nThis inventory is derived from the engine `lib.rs` blob named above after the\napproved structural moves and the query-helper doc correction. The accepted\n[design](design.md) and its reviewed test-seam owner amendment govern the\nowner decisions.\nThe fast-tier `test-slice90-root-reconciliation` guard checks the root item\nclosure, the retained method gates, the test-only worker fixture, and selected\npublic re-exports. This is a source inventory, not a final qualification or\nperformance receipt.\n\n## Remaining root declarations\n\n| Declaration | Disposition |\n| --- | --- |\n| `Engine` and its 43 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |\n| `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |\n| `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |\n| `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, debug_assertions, test-hooks)`, public and doc-hidden. |\n| `Engine::run_one_thread_poison_for_test` | Approved Slice 140 composite write/search/lifecycle fixture; `debug_assertions`, public and doc-hidden. |\n| `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved ungated, public, doc-hidden arbitrary writer-SQL column fixtures. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |\n| `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |\n\nThe exact 43 storage fields are grouped here to prevent a generic\n"remaining state" exemption:\n\n| Storage role | Root field names |\n| --- | --- |\n| Identity and admission state | `path`, `requested_config`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence`, `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusals` |\n| Connections and lifecycle | `closed`, `close_lock`, `lock`, `connection`, `reader_pool`, `profile_contexts`, `reader_lookaside_rcs`, `managed_connections`, `writer_connection_registration`, `actual_checkpoint_observations`, `binding_native_state_observations`, `wal_attribution` |\n| Projection and write state | `next_cursor`, `read_visibility_generation`, `projection_generation_status_cache`, `mutation_projection_status_cache`, `projection_generation_status_full_owner_scan_count`, `projection_runtime`, `provenance_row_cap` |\n| Embed dispatch state | `runtime_embedder`, `embed_dispatch` |\n| Events and telemetry | `counters`, `subscribers`, `profiling_enabled`, `slow_threshold_ms`, `telemetry`, `telemetry_enabled` |\n| Test controls | `graph_expand_rss_baseline_bytes`, `graph_expand_rss_delta_bytes`, `graph_evidence_before_resolve_return_hook`, `erasure_before_primary_lock_hook`, `force_next_commit_failure`, `actuation_after_initial_lookup_delay_ms`, `actuation_failure_after_operation` |\n\nRoot also composes module declarations, imports, and public re-exports. The\nremaining `#[cfg(test)]` modules are `gpu_allocation_witness_opt_in_tests`,\n`slice20_fix1_tests`, `slice90_close_tests`,\n`slice90_concurrent_close_tests`, `slice90_close_review_tests`,\n`slice90_post_probe_real_error_tests`, and `tests`. They are test containers,\nnot production owner methods. The public `D27Observation`,\n`MEAN_VEC_PIN_THRESHOLD`, `RowKind`, mean test internals, and the other moved\npublic types/functions retain their root re-export paths. The three D27\nobservation methods now have one ordinary implementation in `embed_dispatch`;\nnone remains in root.\n\nThe source scan finds no other root production struct, enum, constant, static,\nfree function, trait, or implementation body. There are zero unresolved\nroot-owned production items against the accepted map. Feature-qualified\npublic/hidden surface comparison and the full release gate remain separate\ncandidate checks.\n'
+
+----------------------------------------------------------------------
+Ran 8 tests in 10.140s
+
+FAILED (failures=1)
+----
+full log: /tmp/fathomdb-agent-test-slice90-root-reconciliation-117733.log
+FAIL test-preflight-release-state (exit=1, 669ms)
+----
+..........F
+======================================================================
+FAIL: test_current_release_worktree_and_latest_closed_slice_are_accepted (__main__.RealPreflightRegressionTest.test_current_release_worktree_and_latest_closed_slice_are_accepted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-103-windows/scripts/tests/test_preflight_release_state.py", line 288, in test_current_release_worktree_and_latest_closed_slice_are_accepted
+    self.assertEqual(result.returncode, 0, result.stdout)
+AssertionError: 1 != 0 : ok    canonical repo is not mid-merge/rebase/cherry-pick
+ok    tracked source (src/ scripts/ mkdocs.yml) is clean
+ok    disk headroom on /home/coreyt/projects/fathomdb-worktrees: 18G free (>= 1G)
+HARD  FAIL release-state preflight: target HEAD 75093d59ebbcaab64cd6f3d473dbe595a75f0f96 is not a descendant of release baseline refs/heads/release/0.8.27
+INFO  release state is invalid; stale-base acceptance is refused
+INFO  reminder: do NOT 'maturin develop' / 'pip install -e' from a worktree — build on the MAIN tree only.
+HARD  dependency Slice 100 is not verifiably closed in release state
+{"preflight":"fail","main_ref":"origin/main","main_sha":"2332242848d6135a1737d1abcc767c99620a9f53","worktree":"/home/coreyt/projects/fathomdb-worktrees/release-0.8.27-slice-103-windows","release":"","state":"","baseline_ref":"","dependency_sha":"","hard_fails":["FAIL release-state preflight: target HEAD 75093d59ebbcaab64cd6f3d473dbe595a75f0f96 is not a descendant of release baseline refs/heads/release/0.8.27","dependency Slice 100 is not verifiably closed in release state"],"warnings":[]}
+
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.618s
+
+FAILED (failures=1)
+----
+full log: /tmp/fathomdb-agent-test-preflight-release-state-117733.log

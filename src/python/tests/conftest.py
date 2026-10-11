@@ -6,8 +6,8 @@ exclusive file lock, so reusing one path across tests in the same
 process would surface as `DatabaseLockedError`). `db_path` yields a
 fresh per-test `Path` under pytest's `tmp_path` fixture.
 
-EU-6 FIX-1 / 0.8.9.2: rebuild the editable binding with the dev-only
-`test-hooks` Cargo feature before any test module is imported —
+EU-6 FIX-1 / 0.8.9.2: build a non-editable wheel with the dev-only `test-hooks`
+Cargo feature and install its native module before any test module is imported —
 `pyproject.toml [tool.maturin] features` ships only `default-embedder`
 (parity with the released wheel), so without this `Engine._write_vector_for_test`
 and friends are missing and tests like `test_use_default_embedder.py`,
@@ -24,18 +24,20 @@ below), NOT as a session-scoped fixture. A fixture runs during test *setup*,
 which is too late: a test module that imports the extension during *collection*
 dlopen()s the stale `.so`, and a later `maturin develop` cannot be re-imported
 in the same process. conftest.py top-level code is the earliest hook that still
-runs before sibling test modules are collected. The rebuild short-circuits if
-the test-hooks symbol is already present (developer pre-warmed with
-`maturin develop --features ...,test-hooks,...`, or a previous session in the
-same venv built it), so the `maturin develop` cost (~5-60s) is paid at most
-once per venv.
+runs before sibling test modules are collected. An ordinary developer run may
+short-circuit when the hooks are already present. An explicitly authorized
+gate run never does: it builds a wheel from the current checkout in disposable
+scratch and atomically records a candidate/module/digest receipt.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -46,14 +48,20 @@ from _test_hooks_gate import (
     REBUILD,
     REBUILD_OPT_IN,
     REBUILD_OPT_OUT,
+    REBUILD_RECEIPT_NONCE,
+    REBUILD_RECEIPT_PATH,
     REQUIRES_HOOKS_MARKER,
     Decision,
+    candidate_wheel_command,
+    clean_candidate_sha,
     decide,
     missing_symbols_from_probe,
     partial_binding_note,
     probe_source,
+    replace_native_module_from_wheel,
     skip_reason,
     venv_belongs_to_source_tree,
+    write_candidate_receipt_atomic,
 )
 
 
@@ -63,6 +71,35 @@ def db_path(tmp_path: Path) -> str:
 
 
 _PYTHON_SRC_DIR = Path(__file__).resolve().parent.parent  # src/python
+_REPO_ROOT = _PYTHON_SRC_DIR.parents[1]
+
+
+def _native_module_receipt() -> tuple[Path, str]:
+    """Validate and return the extension path and SHA-256 loaded by a child."""
+
+    probe = (
+        "import hashlib,json,pathlib; import fathomdb._fathomdb as native; "
+        "path=pathlib.Path(native.__file__).resolve(); "
+        "print(json.dumps({'path':str(path),'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}))"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=str(_PYTHON_SRC_DIR),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(completed.stdout.strip().splitlines()[-1])
+    path = Path(payload["path"]).resolve()
+    expected_parent = (_PYTHON_SRC_DIR / "fathomdb").resolve()
+    if path.parent != expected_parent:
+        raise RuntimeError(
+            f"rebuilt extension resolved outside this checkout: {path} (expected {expected_parent})"
+        )
+    digest = str(payload["sha256"])
+    if digest != hashlib.sha256(path.read_bytes()).hexdigest():
+        raise RuntimeError(f"rebuilt extension changed while its receipt was captured: {path}")
+    return path, digest
 
 
 def _probe_missing_test_hook_symbols() -> tuple[str, ...]:
@@ -147,9 +184,8 @@ def _ensure_test_hooks_binding() -> Decision:
 
     decision = decide(
         is_source_tree=is_source_tree,
-        # Developer already built with test-hooks (or a previous pytest session
-        # in the same venv did) — the normal path, which never consults the
-        # opt-in. "Present" means ALL the hook symbols, never merely some.
+        # A warm developer run may use the complete hook surface. The pure
+        # policy overrides this observation when the gate explicitly opts in.
         hooks_present=is_source_tree and not missing,
         allow_rebuild=os.environ.get(REBUILD_OPT_IN) == "1",
         forbid_rebuild=os.environ.get(REBUILD_OPT_OUT) == "1",
@@ -162,32 +198,29 @@ def _ensure_test_hooks_binding() -> Decision:
     if decision.action != REBUILD:
         return _annotate_partial(decision, missing)
 
+    receipt_value = os.environ.get(REBUILD_RECEIPT_PATH)
+    receipt_nonce = os.environ.get(REBUILD_RECEIPT_NONCE)
+    if not receipt_value or not receipt_nonce:
+        raise TestHooksBindingMisconfigured(
+            f"{REBUILD_OPT_IN}=1 requires {REBUILD_RECEIPT_PATH} and "
+            f"{REBUILD_RECEIPT_NONCE} so candidate provenance cannot be lost"
+        )
+    candidate_sha = clean_candidate_sha(_REPO_ROOT)
     print(
-        "\n[conftest] EU-6 FIX-1: rebuilding fathomdb editable binding "
-        "with test-hooks feature (one-time per venv; ~5-60s) ...",
+        "\n[conftest] building a non-editable test-hooks wheel from this candidate "
+        "in disposable scratch (~5-60s) ...",
         flush=True,
     )
-    # `maturin develop` requires an activated virtualenv: it looks for
-    # $VIRTUAL_ENV / $CONDA_PREFIX / a `.venv` in cwd-or-parents. A bare
-    # subprocess inherits neither when pytest was launched via an absolute
-    # interpreter path (e.g. `.venv/bin/python -m pytest`, or any venv not
-    # named `.venv`), so it fails with "Couldn't find a virtualenv". Point it
-    # at THIS interpreter's environment root (`sys.prefix` is the venv dir for
-    # a venv interpreter) so the rebuilt `.so` lands in the venv we are running.
-    env = dict(os.environ)
-    env["VIRTUAL_ENV"] = sys.prefix
-    subprocess.check_call(
-        [
-            sys.executable,
-            "-m",
-            "maturin",
-            "develop",
-            "--features",
-            "pyo3/extension-module,test-hooks,default-embedder,default-reranker",
-        ],
-        cwd=str(_PYTHON_SRC_DIR),
-        env=env,
-    )
+    with tempfile.TemporaryDirectory(prefix="fathomdb-python-test-hooks-") as directory:
+        wheel_directory = Path(directory)
+        subprocess.check_call(
+            candidate_wheel_command(sys.executable, wheel_directory),
+            cwd=str(_PYTHON_SRC_DIR),
+        )
+        wheels = sorted(wheel_directory.glob("*.whl"))
+        if len(wheels) != 1:
+            raise RuntimeError(f"expected one candidate wheel, got {wheels}")
+        replace_native_module_from_wheel(wheels[0], _PYTHON_SRC_DIR / "fathomdb")
     # Belt-and-suspenders: drop any cached `fathomdb*` modules so the first
     # post-rebuild import re-reads from disk. (The out-of-process probe above
     # means this interpreter has NOT yet dlopen()ed the extension, so the fresh
@@ -196,7 +229,7 @@ def _ensure_test_hooks_binding() -> Decision:
         if mod_name == "fathomdb" or mod_name.startswith("fathomdb."):
             del sys.modules[mod_name]
 
-    # Re-probe rather than trusting a zero exit code. If `maturin develop`
+    # Re-probe rather than trusting a zero exit code. If the wheel artifact
     # somehow lands a binding that still lacks the hooks, DEGRADED (visible
     # skips) is the honest outcome — never let the marked tests run and
     # "pass" against a surface that is not there.
@@ -205,12 +238,29 @@ def _ensure_test_hooks_binding() -> Decision:
         return _annotate_partial(
             Decision(
                 DEGRADED,
-                "`maturin develop` completed but the rebuilt binding still does not expose "
+                "candidate wheel installation completed but the rebuilt binding still does not expose "
                 f"the full test-hooks surface (missing {', '.join(still_missing)}). Check "
                 "that the `test-hooks` Cargo feature still gates the expected symbols.",
             ),
             still_missing,
         )
+    module_path, module_sha256 = _native_module_receipt()
+    verified_sha = clean_candidate_sha(_REPO_ROOT)
+    if verified_sha != candidate_sha:
+        raise RuntimeError(
+            f"candidate HEAD changed during native build: {candidate_sha} -> {verified_sha}"
+        )
+    write_candidate_receipt_atomic(
+        Path(receipt_value),
+        candidate_sha=candidate_sha,
+        module_path=module_path,
+        module_sha256=module_sha256,
+        nonce=receipt_nonce,
+    )
+    print(
+        f"[conftest] candidate={candidate_sha} native={module_path} sha256={module_sha256}",
+        flush=True,
+    )
     return decision
 
 

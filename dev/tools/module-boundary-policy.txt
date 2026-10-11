@@ -1,0 +1,198 @@
+# Engine architecture policy: reviewed owners, classifications and prohibitions.
+# The gate reads manifest feature closure for the three boundary axes and the
+# five actual helper cases below. Each feature set covers test/non-test,
+# Linux/non-Linux and debug/release (104 concrete points). New relevant cfg
+# predicates or edges active at no point fail; ML cases are not a consumer matrix.
+# The governed-module graph follows import/type/explicit dependencies.
+# The item graph follows calls, callable references and Engine fields/methods,
+# keeping root helpers separate. Imports never call every item of a module.
+# Reexports, Engine layout and the named error type admission are composition.
+# Arbitrary dot-call inference and exact edge/method/SCC inventories are absent.
+# Outside globs are conservative; governed internal globs remain forbidden.
+# Allowances are stale-checked. The required forbid floor cannot be weakened.
+version 1
+configuration-feature test-hooks hooks
+configuration-feature tc5-benchmark tc5
+configuration-feature operator operator
+configuration-case ml-cpu default-embedder,default-reranker
+configuration-case ml-cuda embed-cuda,rerank-cuda
+configuration-case migration migration-test-hooks
+configuration-case slice72 slice72-test-hooks
+configuration-case helpers test-hooks,operator,default-embedder,default-reranker,migration-test-hooks,slice72-test-hooks
+reported actuation
+reported actuation::tests
+reported consolidation
+reported connection_runtime
+reported data_plane_integrity
+reported dependency
+reported dependency_closure
+reported dependency_trace
+reported embed_dispatch
+reported embed_dispatch::core
+reported embed_dispatch::d27_observation
+reported embedding
+reported erasure
+admitted errors
+reported evidence
+reported evidence::tests
+governed filter
+reported filter::slice85_boundary_tests
+governed frozen_read
+reported frozen_read::tests
+reported fusion
+governed graph_api
+governed graph_expand
+governed graph_expand::codec
+governed graph_expand::execution
+reported graph_expand::graph_evidence_request_tests
+governed graph_expand::traversal
+governed graph_expand::types
+reported identity
+reported index_projector
+reported ingest
+reported lifecycle
+reported mean
+reported mean::mean_centering_internals_for_test
+reported open
+reported operator
+reported operator::data_plane
+reported pagination
+reported pagination::tests
+reported projection_commit
+reported projection_generation
+reported projection_generation::tests
+reported projection_rebuild
+reported projection_registry
+reported projection_runtime
+reported projection_worker
+reported provenance
+reported provider
+governed read
+governed read_api
+governed reader_pool
+governed reader_transaction
+reported record_lifecycle
+reported rerank
+admitted root
+reported root::gpu_allocation_witness_opt_in_tests
+reported root::tests
+reported runtime_configuration
+reported runtime_configuration::tests
+reported runtime_lifecycle
+governed search
+governed search_api
+governed search_types
+reported slice20_fix1_tests
+reported slice90_close_review_tests
+reported slice90_close_tests
+reported slice90_concurrent_close_tests
+reported slice90_post_probe_real_error_tests
+governed structural_state
+reported tc5_benchmark
+reported tc5_benchmark::route_trap_tests
+governed telemetry
+reported temporal
+reported test_hooks
+reported test_hooks::evidence_linearization_hooks
+reported test_hooks::explanation_finalization_hooks
+reported test_hooks::frozen_after_validation_hook
+reported test_hooks::reader_search_hook
+reported test_hooks::slice15_erasure_lock_hook
+reported test_hooks::slice72_test_hooks
+reported vector_equivalence
+reported vector_storage
+governed wal_attribution
+reported wal_runtime
+reported write
+reported write_commit
+reported write_types
+reported write_validation
+field actual_checkpoint_observations root
+field actuation_after_initial_lookup_delay_ms root
+field actuation_failure_after_operation root
+field binding_native_state_observations root
+field close_lock root
+field closed root
+field connection root
+field counters root
+field dense_disabled root
+field dense_disabled_reason root
+field embed_dispatch embed_dispatch
+field erasure_before_primary_lock_hook root
+field explanation_open_nonce telemetry
+field explanation_sequence telemetry
+field force_next_commit_failure root
+field graph_evidence_before_resolve_return_hook root
+field graph_expand_rss_baseline_bytes root
+field graph_expand_rss_delta_bytes root
+field lock root
+field managed_connections root
+field mutation_projection_status_cache root
+field next_cursor root
+field path root
+field profile_contexts root
+field profiling_enabled root
+field projection_generation_status_cache root
+field projection_generation_status_full_owner_scan_count root
+field projection_runtime root
+field provenance_row_cap root
+field read_visibility_generation root
+field reader_lookaside_rcs root
+field reader_pool reader_pool
+field requested_config runtime_configuration
+field resolved_config runtime_configuration
+field runtime_embedder root
+field runtime_embedder_identity root
+field slow_threshold_ms root
+field subscribers root
+field telemetry telemetry
+field telemetry_enabled telemetry
+field vector_equivalence_refusals root
+field wal_attribution wal_attribution
+field writer_connection_registration root
+owner ReaderWorkerPool reader_pool
+owner ReaderRequest reader_pool
+owner CacheStatusReply reader_pool
+owner SearchReaderWork search
+owner FrozenQueryRuntime search
+owner EvidenceCapture search
+owner SearchReaderError search
+owner PageReaderError read
+owner SnapshotFilterError filter
+owner SearchExpandHandlerError graph_expand::traversal
+owner TelemetrySink telemetry
+owner WalAttributionCollector wal_attribution
+forbid-dependency graph_expand reader_pool
+forbid-dependency graph_expand search_api
+forbid-dependency graph_expand search
+forbid-dependency read reader_pool
+forbid-dependency read search
+forbid-dependency filter search
+forbid-dependency frozen_read search
+forbid-dependency embed_dispatch::core open
+forbid-dependency embed_dispatch::core connection_runtime
+forbid-dependency embed_dispatch::core reader_pool
+forbid-dependency embed_dispatch::core wal_runtime
+forbid-dependency embed_dispatch::core runtime_lifecycle
+forbid-dependency embed_dispatch::core projection_runtime
+forbid-dependency embed_dispatch::core search
+forbid-dependency embed_dispatch::d27_observation open
+forbid-dependency embed_dispatch::d27_observation connection_runtime
+forbid-dependency embed_dispatch::d27_observation reader_pool
+forbid-dependency embed_dispatch::d27_observation wal_runtime
+forbid-dependency embed_dispatch::d27_observation runtime_lifecycle
+forbid-dependency embed_dispatch::d27_observation projection_runtime
+forbid-dependency embed_dispatch::d27_observation search
+forbid-dependency search reader_pool
+forbid-cycle search graph_expand
+forbid-cycle read reader_pool
+forbid-cycle graph_expand reader_pool
+forbid-cycle graph_expand search_api
+forbid-cycle search reader_pool
+admit-type errors EngineError::GraphExpansion graph_expand::types GraphExpansionErrorV1
+local-macro identity caller_identity_newtype 7294cc907f93c51b
+unparsed-macro actuation::tests <module> proptest ddd003ceb259de46
+unparsed-macro evidence::tests <module> proptest 174c5b885c19479e
+unparsed-macro frozen_read::tests <module> proptest 8077e5a8a7846daf
+unparsed-macro pagination::tests <module> proptest b18a9c1d1a2ce7f9
+unparsed-macro root::tests <module> proptest ea8d95990855291e

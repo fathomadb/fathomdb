@@ -310,7 +310,11 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
         context = request.context.context
         context_path = "/context/context"
     eligibility = context.eligibility
-    for name, value in (("sourceType", eligibility.source_type), ("kind", eligibility.kind), ("status", eligibility.status)):
+    for name, value in (
+        ("sourceType", eligibility.source_type),
+        ("kind", eligibility.kind),
+        ("status", eligibility.status),
+    ):
         if value is not None:
             string(value, "graph_context_invalid", f"{context_path}/eligibility/{name}")
     if eligibility.created_after is not None and (type(eligibility.created_after) is not int):
@@ -337,7 +341,7 @@ def expand(engine: "Engine", request: GraphExpandRequestV1) -> GraphExpandResult
         )
 
     response = json.loads(response_json, object_hook=native_object)
-    from fathomdb.engine import _map_native_graph_expand_result
+    from fathomdb._sdk_graph import _map_native_graph_expand_result
 
     return _map_native_graph_expand_result(response)
 

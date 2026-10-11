@@ -1,13 +1,12 @@
 # TypeScript API
 
 Package: `fathomdb`. Authoritative spec:
-[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md).
+[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/typescript.md).
 
-> **Release state.** 0.8.25 is the current published release.
+> **Release 0.8.27, pre-1.0 beta.**
 
-**TS SDK parity caveat.** The TS surface covers the same governed command set
-and the same error taxonomy as Python, but Python remains the more heavily
-exercised binding. Prefer Python for production pilots. See
+The TypeScript, Python, and Rust SDKs share the governed operation surface
+and error categories. Language calling conventions differ. See
 [SDK parity](../positions/sdk-parity.md).
 
 Governed Engine operations are Promise-returning. Process-start runtime
@@ -33,6 +32,7 @@ import {
   type SearchHit,
   type SearchResult,
   type SearchFilter,
+  type Filter,
   type SoftFallback,
   type SoftFallbackBranch,
   type CounterSnapshot,
@@ -45,7 +45,6 @@ import {
   type ProjectionRuntimeUnavailabilityReason,
   type ProjectionStatusDenseReadiness,
   type SubscriberCallback,
-  type AttachSubscriberOptions,
   type AdminConfigureOptions,
   FathomDbError,
   // ...typed classes below the root, see errors reference
@@ -60,6 +59,11 @@ Open or create a FathomDB database at `path`.
 
 - `path` (`string`).
 - `options` (`EngineOpenOptions`):
+  - `useDefaultEmbedder` (`boolean`, default `false`) — `true` enables the
+    pinned `fathomdb-bge-small-en-v1.5` embedder. First use can download
+    weights into `~/.cache/fathomdb/embedders/`. Without an embedder, vector
+    writes and `engine.embed` reject with `EmbedderNotConfiguredError`.
+    See the [embedder guide](../embedder.md) for runtime policy.
   - `engineConfig` (`EngineConfig`) — engine knobs in camelCase.
     See [config](config.md).
 
@@ -147,12 +151,15 @@ const receipt = await engine.write([
 
 ### `engine.search(query, filter?, rerankDepth?, useGraphArm?, alpha?, poolN?, explain?, options?) -> Promise<SearchResult>`
 
-Run hybrid retrieval, ranked by **G9 RRF fusion**, with optional CPU
+Run hybrid retrieval, ranked by **G9 RRF fusion**, with optional
 cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
 
 - `query` (`string`).
-- `filter` ([`SearchFilter`](#searchfilter), optional) — closed metadata filter;
-  omitted (or all-`undefined`) is the unfiltered path.
+- `filter` ([`SearchFilter`](#searchfilter) | `Filter`, optional) — closed
+  metadata filter. `Filter` accepts the unified metadata terms and lowers to
+  `SearchFilter`; a `json` term throws `InvalidFilterError` because search must
+  not apply a JSON predicate after vector candidate selection. Omitted (or
+  all-`undefined`) is the unfiltered path.
 - `rerankDepth` (`number`, optional, default `undefined`/`0`) — 0.8.1 R1 opt-in.
   `0` or omitted uses the identity / soft-fallback path: byte-identical to the
   pre-0.8.1 fused order. `N > 0` applies a cross-encoder (TinyBERT-L-2,
@@ -276,6 +283,8 @@ Rejects with `WriteValidationError` for an empty, whitespace-only, or
 reachable only through `fathomdb recover --excise-source`. Rejects with
 `ErasureIncompleteError` (carrying `stage` and `detail`) rather than reporting
 success if the erasure could not be completed at rest.
+The same source identity accepted by a write can be erased, including one with
+an embedded NUL; the call matches the full identity exactly.
 
 Resolves to an `EraseReport` with `sourceRef`, `nodesExcised`, `edgesExcised`,
 and `projectionsInvalidated`. Mirror of the Python
@@ -306,16 +315,22 @@ Toggle per-operation profiling.
 
 Set the slow-query threshold for profiling event emission.
 
-### `engine.attachSubscriber(callback, options?) -> void`
+### `engine.attachSubscriber(callback) -> void`
 
-Bind engine events to a callback. `callback: (event:
-SubscriberEvent) => void` receives the stable `fathomdb` payload
-described in `dev/design/bindings.md`. `options.heartbeatIntervalMs`
-is optional.
+Bind diagnostics to a callback on the JavaScript thread. The callback receives
+a tagged `SubscriberEvent`: `event`, `profile`, `slowStatement`, or
+`stressFailure`. Diagnostic integer fields and `droppedRecordsTotal` are
+decimal strings. Delivery is best-effort with a bounded 4096-record queue;
+the cumulative drop count on later records reports overload. Attaching again
+replaces the listener; closing the engine detaches it. Synchronous listener
+exceptions do not change the engine operation result. An async listener must
+handle its own rejected Promise. The binding does not generate heartbeats or
+operation IDs.
 
 ### Properties
 
-- `engine.config` (`EngineConfig`) — resolved config.
+- `engine.config` (`EngineConfig`) — readonly requested configuration captured
+  at open; omitted fields remain omitted even when the engine uses defaults.
 
 ## 0.8.25 data-plane additions
 
@@ -428,7 +443,8 @@ console.assert(runtime.sqliteMode === "performance");
 
 `RuntimeSqliteMode` is `"performance" | "diagnostics"`. With no explicit
 call, the first Engine open selects performance. Repeating the effective mode
-is idempotent; conflicting or late calls throw `RuntimeConfigurationError` and
+is idempotent even after Engine open. A conflicting choice or a first request
+after SQLite was initialized elsewhere throws `RuntimeConfigurationError`;
 changing mode requires a process restart. This synchronous startup control is
 not a database permission or a governed application command.
 
@@ -811,5 +827,5 @@ and FathomDB provides no GPU reservation or hard memory cap.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md)
+- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/typescript.md)
 - TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)

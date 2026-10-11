@@ -1,0 +1,24 @@
+# Built from commit 954ddd760 (vendored cudarc allocator fix), Node 25.9.0 /
+# npm 11.12.1, Rust 1.95.0, NVCC 12.6.68, CUDA_COMPUTE_CAP=87,
+# features embed-cuda,rerank-cuda. The installed consumer's resolved
+# fathomdb-linux-arm64-gnu binary had the same hash as the built one.
+dd625fd7de9e3d352fad3bc9718f2af26e29872164abe817ce76771d05aac5ce  fathomdb.linux-arm64-gnu.node
+b4f41e454255bd767ad515e7b50df8c28f748a83e012c4b645edecdab2cca794  fathomdb-linux-arm64-gnu-0.8.26.tgz
+5c7ab8b1779041ee393a9d1cee1e882a731220f778f7c164caee9b354b2a133b  fathomdb-0.8.26.tgz
+# Tegra Python wheel: scripts/release/build-python-cuda-tegra.sh, maturin 1.14.1.
+d7d1b651a1fb6120b7d0e6d85fa73f1bd8418f2336ec8beaa67143ef2efcdc73  fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl
+# Review fix 1: rebuilt from commit 671c2349a (one allocator decision per
+# device, strict pool-error triage) with the same toolchain and features; the
+# installed consumer's binary had the same hash. The main tarball's extracted
+# contents are identical to the one above; only the archive bytes differ.
+855ded8b20d30ea0d968546a56439c6d35b7dfef591584611dd55f1fcfee470a  fathomdb.linux-arm64-gnu.node
+4a9ec6973b38d471b9eb90a2a87c927191517de9395d37fb47d2a0494f319743  fathomdb-linux-arm64-gnu-0.8.26.tgz
+9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257  fathomdb-0.8.26.tgz
+# Review fix 2 + aarch64-Linux-only gating: rebuilt from commit c7e3f2748 with
+# the same toolchain and features; the installed consumer's binary had the same
+# hash. Main tarball contents unchanged. Tegra wheel rebuilt with
+# scripts/release/build-python-cuda-tegra.sh, maturin 1.14.1.
+057eed2b344862592cfdd7fe7eec885dc66bd466a59c2b15d090bd30d05c4db0  fathomdb.linux-arm64-gnu.node
+a56119d4b1415e31bc21898e076402b7587b3c48fb3c0ee5ce05045cadc7480b  fathomdb-linux-arm64-gnu-0.8.26.tgz
+9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257  fathomdb-0.8.26.tgz
+29df2ead4bc4f3c0fc336a25755f73af919191fbc6aa0084305acba6de135a86  fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl

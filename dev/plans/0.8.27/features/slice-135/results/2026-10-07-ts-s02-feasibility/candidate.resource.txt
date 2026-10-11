@@ -1,0 +1,23 @@
+	Command being timed: "/home/coreyt/.local/actions-runner/fathomdb-gpu/_work/_tool/node/25.9.0/x64/bin/node scripts/slice135_ts_s02.mjs --install-root /tmp/slice135-ts-s02-current/consumer --source-sha 438cff2995a489f9d5b4e3d6a77fd3b63670bc7d --expected-native-sha256 3f08b3b561c685f7bf795bfb4cf00edabfe080277004e16b098ad7806e5b0290 --output /tmp/slice135-ts-s02-exact/candidate-exact.json"
+	User time (seconds): 28.93
+	System time (seconds): 10.76
+	Percent of CPU this job got: 739%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.36
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 346392
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 220264
+	Voluntary context switches: 281177
+	Involuntary context switches: 873727
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 11720
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

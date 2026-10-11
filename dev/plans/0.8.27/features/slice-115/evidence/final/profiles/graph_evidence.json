@@ -1,0 +1,15 @@
+{
+  "path": "graph_evidence",
+  "method": "gdb-interrupt-stack",
+  "gdb_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+  "binary_sha256": "438bc73262faa36491535edab8085c522037e62286eba7b7a2242dbf0363e4b1",
+  "requested_samples": 20,
+  "total_samples": 20,
+  "operation_samples": 17,
+  "sha256": "852d0b0f20d52809ce81b246343791dd89e19c714e4383df0151657ed96f391d",
+  "sampling_interval_seconds": 0.08,
+  "profile_loop_seconds": 15,
+  "control_operations": 59772,
+  "profiled_operations": 59803,
+  "control_vs_profile_throughput_ratio": 1.0005186374891253
+}

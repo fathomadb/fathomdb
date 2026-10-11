@@ -3,7 +3,12 @@ use std::time::{Duration, Instant};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{Engine, PreparedWrite};
 use fathomdb_schema::SQLITE_SUFFIX;
-use std::sync::{Arc, Barrier};
+use std::sync::Arc;
+// Only used by `concurrent_search_does_not_observe_speculative_failed_cursor`,
+// gated `#[cfg(debug_assertions)]` below for its
+// `Engine::force_next_commit_failure_for_test` hook.
+#[cfg(debug_assertions)]
+use std::sync::Barrier;
 use std::thread;
 use tempfile::TempDir;
 
@@ -95,7 +100,8 @@ fn ac_059b_write_cursor_is_satisfied_by_projection_cursor_and_queryable() {
         thread::sleep(Duration::from_millis(10));
     }
 }
-
+// Uses `Engine::force_next_commit_failure_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn failed_commit_does_not_publish_projection_cursor() {
     let (_dir, opened) = open_fixture("failed_cursor");
@@ -150,6 +156,8 @@ fn failed_commit_does_not_publish_projection_cursor() {
     assert_eq!(after_failure, committed + 1);
 }
 
+// Uses `Engine::force_next_commit_failure_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn concurrent_search_does_not_observe_speculative_failed_cursor() {
     let (_dir, opened) = open_fixture("failed_cursor_race");

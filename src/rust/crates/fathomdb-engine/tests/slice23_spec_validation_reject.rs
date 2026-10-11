@@ -385,6 +385,8 @@ fn name_rejections_keep_invalid_argument_while_the_shape_reject_is_write_validat
 /// the round-trip is broken BY DESIGN, and the remedy is to add the
 /// `searchable` role or drop the sub-object. This is not an upgrade-admission
 /// promise.
+// Uses `Engine::set_legacy_projection_search_subobjects_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn a_legacy_registry_row_reads_back_verbatim_but_no_longer_re_applies() {
     let dir = TempDir::new().unwrap();

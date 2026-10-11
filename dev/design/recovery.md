@@ -71,11 +71,12 @@ own design and is not new doctor mutation authority.
 
 ## Recovery inventory
 
-The recovery parser exposes five actions:
+The recovery parser exposes six actions:
 
 | Action | Engine operation | Scope |
 | --- | --- | --- |
 | `--truncate-wal` | WAL truncate/checkpoint recovery | Physical recovery state. |
+| `--complete-erasures` | Validate and complete owed physical dependency closures offline | Already-admitted `purged` and `source_erased` closures. |
 | `--rebuild-vec0` | Rebuild vector storage | Derived vector projection. |
 | `--rebuild-projections` | Rebuild projection materializations | Derived serving state. |
 | `--excise-source <id>` | Excise every reachable row for one source | Canonical/provenance erasure, including reserved operator namespaces. |
@@ -123,6 +124,22 @@ then owns `PRAGMA wal_checkpoint(TRUNCATE)` and the destructive WAL recovery.
 The path never bootstraps, migrates, starts workers, or edits the WAL directly,
 and normal `Engine::open` remains fail-closed.
 
+`recover --accept-data-loss --complete-erasures <db_path>` shares that
+path-scoped admission sequence and lock. It opens one recovery-only read-write
+connection after preflight, without Engine reader pool or projection runtime.
+It refuses malformed WAL, validates each owed physical closure against both
+its recorded proof and current zero state, and checks the durable telemetry
+redaction queue before any checkpoint. The queue does not persist an
+authenticated original sink path, so a telemetry obligation or
+`telemetry_redaction` blocker remains owed and the action exits `70`; the
+operator must attach the original sink and retry the originating engine
+erasure. A clean `wal_checkpoint(TRUNCATE)` precedes marking the validated
+closures complete. SQLite BUSY leaves them owed and exits `71`; successful
+completion exits `64`. If no physical closure is owed, the action leaves an
+unrelated WAL untouched and exits `0` with status `clean`. The required
+`--accept-data-loss` acknowledges
+irreversible removal of recoverable erased content from the WAL.
+
 ## JSON shapes for other doctor verbs
 
 `--json` selects the normative machine-readable representation. Every current
@@ -165,6 +182,21 @@ actions:
 | `E_CORRUPT_SCHEMA` | Diagnose; use projection rebuild only when the finding and current schema permit it. |
 | `E_CORRUPT_EMBEDDER_IDENTITY` | Treat stored profile drift as corruption; do not auto-accept identity change on open. |
 | `E_CORRUPT_INTEGRITY_CHECK` | Doctor-only full-integrity finding. |
+| `E_ERASURE_INCOMPLETE` | Stop the application, then run the finding's `recover --accept-data-loss --complete-erasures <db_path>` argv; if telemetry is owed, reattach the original sink and retry the originating erasure instead. |
+
+### Erasure incomplete
+
+`doctor check-integrity` adds one logical finding per owed physical closure.
+The finding reports an opaque closure id, cause, phase, blocker, sequence,
+observed WAL frame count, and a parser-ready remediation argv array; it
+redacts the source identity. The argv is provided for checkpoint obligations;
+for `telemetry_redaction`, the argv is null and the detail calls for the
+original sink and exact originating erasure retry. A durable pending-redaction
+queue takes precedence over a not-yet-recorded blocker in the crash window
+after the erasure transaction. The frame count is observed from WAL sidecar
+bytes, without issuing any checkpoint; it is `null` if the header or sidecar
+cannot be read reliably. Doctor does not discharge closures. An owed closure
+exits `65`.
 
 ### Wal replay failures
 

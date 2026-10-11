@@ -8,6 +8,9 @@
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
+// Only used by `calibrate_cte_n`, gated `#[cfg(debug_assertions)]` below for
+// its `Engine::execute_for_test` hook.
+#[cfg(debug_assertions)]
 use std::time::{Duration, Instant};
 
 use fathomdb_engine::lifecycle::{
@@ -625,6 +628,27 @@ fn ac_005b_profile_record_typed_numeric_fields() {
     let _: i64 = record.cache_delta;
 }
 
+struct PanickingProfileSubscriber;
+
+impl Subscriber for PanickingProfileSubscriber {
+    fn on_event(&self, _event: &Event) {}
+
+    fn on_profile(&self, _record: &ProfileRecord) {
+        panic!("subscriber panic from SQLite profile callback");
+    }
+}
+
+#[test]
+fn sqlite_profile_subscriber_panic_does_not_abort_or_fail_search() {
+    let (_dir, engine) = fixture();
+    let _subscription = engine.subscribe(Arc::new(PanickingProfileSubscriber));
+    engine.set_profiling(true).expect("enable profiling");
+
+    let result = engine.search("hello");
+    assert!(result.is_ok(), "subscriber panic must not change the query result");
+    assert!(engine.search("again").is_ok(), "engine remains usable after callback panic");
+}
+
 // AC-006: SQLite-internal events surfaced with typed source tag.
 //
 // Page-1 magic-header bit-flip flavor: documented page-corruption tool
@@ -711,6 +735,8 @@ fn ac_006_interior_page_corruption_emits_sqlite_corrupt() {
 // Measurement: default threshold = 100 ms (REQ-006a). The
 // deterministic-slow-cte fixture (≥ 200 ms guaranteed by recursive-CTE
 // counter) emits exactly one slow-statement signal identifying the SQL.
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_007a_slow_statement_event_at_default_threshold() {
     let (_dir, engine) = fixture();
@@ -745,6 +771,8 @@ fn ac_007a_slow_statement_event_at_default_threshold() {
 // fixed N, so the test holds across hardware speeds (a fixed N=1_000_000 ran
 // ~800 ms on the aarch64 probe but only ~144 ms on a fast x86_64 box, which
 // silently dropped the "slow" fixture under the 500 ms threshold).
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_007b_slow_threshold_reconfigurable() {
     const THRESHOLD_MS: u64 = 500;
@@ -779,6 +807,8 @@ fn ac_007b_slow_threshold_reconfigurable() {
 }
 
 /// Recursive-CTE counter SQL whose runtime scales linearly with `n`.
+// Uses `Engine::execute_for_test`, a debug-build-only hook, through its callers.
+#[cfg(debug_assertions)]
 fn cte_sql(n: u64) -> String {
     format!(
         "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c WHERE x < {n}) \
@@ -791,6 +821,8 @@ fn cte_sql(n: u64) -> String {
 /// instead of pinning fixed iteration counts to one CI runner's speed. Runs a
 /// probe twice and uses the faster sample to damp transient load. The returned
 /// `n` is clamped to a sane range.
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 fn calibrate_cte_n(engine: &Engine, target_ms: u64) -> u64 {
     const PROBE_N: u64 = 1_000_000;
     let probe = cte_sql(PROBE_N);
@@ -811,6 +843,8 @@ fn calibrate_cte_n(engine: &Engine, target_ms: u64) -> u64 {
 // (`cte_sql` + `calibrate_cte_n`) because its 500 ms threshold is sensitive to
 // host speed — the fixed N=1_000_000 ran ~800 ms on the original aarch64 probe
 // but only ~144 ms on a fast x86_64 box, silently falling under 500 ms.
+// Passed only to `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 const SLOW_CTE: &str = "WITH RECURSIVE c(x) AS (VALUES(1) UNION ALL \
                         SELECT x + 1 FROM c WHERE x < 1000000) \
                         SELECT count(*) FROM c";
@@ -822,6 +856,8 @@ const SLOW_CTE: &str = "WITH RECURSIVE c(x) AS (VALUES(1) UNION ALL \
 // (i) a statement-level slow-statement signal, (ii) ≥ 1 lifecycle
 // `phase == Slow` event during the operation's wall-clock window. The
 // slow CTE fixture from AC-007a satisfies both.
+// Uses debug-build-only `Engine::*_for_test` hooks.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_008_slow_signal_feeds_lifecycle() {
     let (_dir, engine) = fixture();
@@ -856,6 +892,8 @@ fn ac_008_slow_signal_feeds_lifecycle() {
 //   the engine error)
 // - `projection_state` is one of the `ProjectionStatus` variants
 //   stringified
+// Uses debug-build-only `Engine::*_for_test` hooks.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_009_poison_thread_emits_full_stress_failure_context() {
     let (_dir, engine) = fixture();
@@ -890,6 +928,8 @@ fn ac_009_poison_thread_emits_full_stress_failure_context() {
 }
 
 // AC-009 supporting: Pure-type construction of StressFailureContext.
+// Uses debug-build-only `Engine::*_for_test` hooks.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_009_stress_failure_context_constructs() {
     let (_dir, engine) = fixture();

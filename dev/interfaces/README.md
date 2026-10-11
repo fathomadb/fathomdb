@@ -21,8 +21,12 @@ surfaces.
 
 Canonical for internal interface intent until replaced by shipped public docs.
 
-The Rust, Python, TypeScript, CLI, and wire records are maintained for the
-0.8.26 source candidate. Section-local status remains controlling: implemented,
+The dedicated Rust SDK (`fathomdb-sdk`, 0.8.27) has its own contract in
+[`rust-sdk.md`](rust-sdk.md); [`rust.md`](rust.md) covers the lower-level
+`fathomdb` facade.
+
+The Rust, Python, TypeScript and CLI records are maintained for the current
+0.8.27 source. Historical wire draft sections retain their local status. Section-local status remains controlling: implemented,
 accepted, proposed, and unsigned sections can coexist, and this index does not
 promote proposed material. The active architecture is
 [`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md).

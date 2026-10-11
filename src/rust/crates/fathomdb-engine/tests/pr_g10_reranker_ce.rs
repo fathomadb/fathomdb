@@ -16,6 +16,9 @@
 //! (not a FathomDB-default network call): the default build and the
 //! `rerank_depth == 0` path never touch it.
 
+#[path = "support/live.rs"]
+mod live;
+
 use fathomdb_engine::{rerank_fused, IdSpace, SearchHit, SoftFallbackBranch};
 
 fn hit(id: u64, body: &str, score: f64) -> SearchHit {
@@ -81,7 +84,9 @@ fn default_alpha_0_3_preserves_blend_and_order() {
     let raw: Vec<f64> = input.iter().map(|h| h.score).collect();
     let out = rerank_fused(query, input.clone(), 3, 0.3, 3);
     if !model_scored(&out) {
-        eprintln!("[SKIP] CE model unavailable — default-blend pin needs the cached reranker");
+        live::require_live_or_skip(
+            "[SKIP] CE model unavailable — default-blend pin needs the cached reranker",
+        );
         return;
     }
     assert_eq!(
@@ -112,7 +117,9 @@ fn alpha_1_0_is_pure_ce_order() {
     let (query, input) = berlin_fixture();
     let out = rerank_fused(query, input.clone(), 3, 1.0, 3);
     if !model_scored(&out) {
-        eprintln!("[SKIP] CE model unavailable — α=1.0 ordering needs the cached reranker");
+        live::require_live_or_skip(
+            "[SKIP] CE model unavailable — α=1.0 ordering needs the cached reranker",
+        );
         return;
     }
     // score == ce_norm exactly at α=1.0.
@@ -135,7 +142,9 @@ fn alpha_0_0_is_pure_rrf_order() {
     let (query, input) = berlin_fixture();
     let out = rerank_fused(query, input.clone(), 3, 0.0, 3);
     if !model_scored(&out) {
-        eprintln!("[SKIP] CE model unavailable — α=0.0 ordering needs the cached reranker");
+        live::require_live_or_skip(
+            "[SKIP] CE model unavailable — α=0.0 ordering needs the cached reranker",
+        );
         return;
     }
     assert_eq!(
@@ -167,7 +176,9 @@ fn pool_n_clamps_and_bounds_the_reranked_pool() {
     // pool_n=2 < depth=3 → only A,B reranked; C is the untouched remainder.
     let out = rerank_fused(query, input.clone(), 3, 1.0, 2);
     if !model_scored(&out) {
-        eprintln!("[SKIP] CE model unavailable — pool_n bound needs the cached reranker");
+        live::require_live_or_skip(
+            "[SKIP] CE model unavailable — pool_n bound needs the cached reranker",
+        );
         return;
     }
     assert_eq!(out.len(), 3);
@@ -196,7 +207,9 @@ fn ce_score_population_scope() {
 
     let out = rerank_fused(query, input.clone(), 3, 1.0, 3);
     if !model_scored(&out) {
-        eprintln!("[SKIP] CE model unavailable — ce_score values need the cached reranker");
+        live::require_live_or_skip(
+            "[SKIP] CE model unavailable — ce_score values need the cached reranker",
+        );
         return;
     }
     for h in &out {
@@ -286,7 +299,9 @@ fn nonfinite_alpha_falls_back_to_default() {
     let (query, input) = berlin_fixture();
     let out_default = rerank_fused(query, input.clone(), 3, 0.3, 3);
     if !model_scored(&out_default) {
-        eprintln!("[SKIP] CE model unavailable — NaN-α fallback pin needs the cached reranker");
+        live::require_live_or_skip(
+            "[SKIP] CE model unavailable — NaN-α fallback pin needs the cached reranker",
+        );
         return;
     }
     for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {

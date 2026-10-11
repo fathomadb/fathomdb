@@ -42,6 +42,11 @@ fn repeated_and_conflicting_configuration_is_deterministic() {
 }
 
 #[test]
+fn post_open_repeat_succeeds_and_conflict_fails() {
+    run_scenario("post-open-repeat-conflict");
+}
+
+#[test]
 fn prior_sqlite_initialization_is_rejected_without_shutdown() {
     run_scenario("too-late");
 }
@@ -96,6 +101,21 @@ fn runtime_configuration_child() {
                     effective: RuntimeSqliteMode::Performance
                 })
             ));
+        }
+        "post-open-repeat-conflict" => {
+            let (_dir, db) = path("post-open-repeat");
+            let opened = Engine::open(&db).expect("default open");
+            let repeated = configure_runtime(RuntimeSqliteMode::Performance)
+                .expect("same mode after open must be idempotent");
+            assert_eq!(repeated, opened.runtime_configuration());
+            assert!(matches!(
+                configure_runtime(RuntimeSqliteMode::Diagnostics),
+                Err(RuntimeConfigurationError::Conflict {
+                    requested: RuntimeSqliteMode::Diagnostics,
+                    effective: RuntimeSqliteMode::Performance
+                })
+            ));
+            opened.engine.close().expect("close");
         }
         "too-late" => {
             let connection = rusqlite::Connection::open_in_memory().expect("host SQLite");

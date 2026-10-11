@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Run lint -> typecheck -> test in latency order. Short-circuit on first failure.
+# Full scope preflights checkout-local developer tools, then runs lint ->
+# typecheck -> security -> test in latency order and
+# short-circuits on first failure. Markdown scope delegates to agent-lint-md.sh.
 # This is the agent-loop gate. The broader CI gate is scripts/check.sh.
 set -euo pipefail
 
@@ -15,31 +17,96 @@ cd_repo_root
 
 usage() {
   cat >&2 <<'USAGE'
-Usage: agent-verify.sh [--tier=fast|heavy|all]
+Usage: agent-verify.sh [--tier=fast|heavy|all] | [--scope=markdown]
 
   --tier=fast|heavy|all  Select the corresponding agent-test tier. all is the
                          local default and preserves the full verifier.
+  --scope=markdown       Run only the authoritative Markdown gate. This skips
+                         broad lint, typecheck, security, and test gates.
 USAGE
 }
 
 verify_tier="all"
-if [ "$#" -gt 1 ]; then
+verify_scope="full"
+tier_selected=0
+scope_selected=0
+if [ "$#" -gt 2 ]; then
   usage
   exit 2
 fi
-if [ "$#" -eq 1 ]; then
+while [ "$#" -gt 0 ]; do
   case "$1" in
     --tier=fast|--tier=heavy|--tier=all)
+      if [ "$scope_selected" -eq 1 ]; then
+        printf 'agent-verify.sh: cannot combine --scope=markdown with --tier\n' >&2
+        usage
+        exit 2
+      fi
+      if [ "$tier_selected" -eq 1 ]; then
+        usage
+        exit 2
+      fi
       verify_tier="${1#--tier=}"
+      tier_selected=1
+      ;;
+    --scope=markdown)
+      if [ "$tier_selected" -eq 1 ]; then
+        printf 'agent-verify.sh: cannot combine --scope=markdown with --tier\n' >&2
+        usage
+        exit 2
+      fi
+      if [ "$scope_selected" -eq 1 ]; then
+        usage
+        exit 2
+      fi
+      verify_scope="markdown"
+      scope_selected=1
       ;;
     *)
       usage
       exit 2
       ;;
   esac
-fi
+  shift
+done
 
 start=$(date +%s)
+
+if [ "$verify_scope" = "markdown" ]; then
+  printf 'verify scope=markdown: running agent-lint-md.sh only; lint,typecheck,security,test skipped\n'
+  if ! "$SCRIPT_DIR/agent-lint-md.sh"; then
+    end=$(date +%s)
+    printf 'FAIL verify at scope=markdown (%ss elapsed)\n' "$((end - start))"
+    exit 1
+  fi
+  if [ "${AGENT_VERBOSE:-0}" = "1" ]; then
+    end=$(date +%s)
+    printf 'ok verify scope=markdown %ss\n' "$((end - start))"
+  fi
+  exit 0
+fi
+
+verify_preflight() {
+  local tool_output
+  if [ ! -x .venv/bin/python ]; then
+    printf 'FAIL verify preflight: checkout-owned .venv/bin/python is missing; prepare this checkout before full verification.\n' >&2
+    return 1
+  fi
+  if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+    printf 'FAIL verify preflight: checkout-owned .venv/bin/python cannot run pip.\n' >&2
+    return 1
+  fi
+  if ! tool_output="$(bash "$SCRIPT_DIR/tests/test_dev_environment_tools.sh" 2>&1)"; then
+    printf '%s\n' "$tool_output" >&2
+    return 1
+  fi
+}
+
+if ! verify_preflight; then
+  end=$(date +%s)
+  printf 'FAIL verify at step=preflight (%ss elapsed)\n' "$((end - start))" >&2
+  exit 1
+fi
 
 run_step() {
   local step="$1"

@@ -1,0 +1,112 @@
+{
+  "analysis_rules": {
+    "comparison": "Keep engine, installed Python, installed TypeScript and Rust candidate-only boundaries separate. Five pairs are descriptive, not equivalence or significance proof.",
+    "functional": "Reconcile the canonical 44-operation register by exact candidate artifact and mark provider/model and installed platform cells unavailable when unqualified.",
+    "logic": "Selected workload/test line and branch overlays are separate from assertion strength. A plausible search-row mutation must fail its named test.",
+    "pareto": "Use python_query_mix component for exact installed Python 10-path equal-frequency elapsed ranking by corpus size; separately rank CPU/queue where a per-path instrumented probe exists and otherwise mark unsupported.",
+    "primary_timing": "Unprofiled latency; keep all valid samples and every warning, report full observed pair range and warning-free sensitivity.",
+    "query_p99": "Only with at least 1000 valid observations per measured cell; lifecycle p99 unsupported.",
+    "robustness": "Real SQLite reopen and product-state oracles for each named fault point. PRAGMA integrity_check is supplementary; process kill does not simulate power-loss reordering."
+  },
+  "baseline_source_sha": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+  "candidate_source_sha": "224e44c593c13d86ece648adabe445723db04070",
+  "candidate_timing_after_bundle_freeze": [
+    "python_s03",
+    "python_s02_lifecycle"
+  ],
+  "components": {
+    "engine_e01_e12": {
+      "path": "e12-224e-comparison-protocol.json",
+      "sha256": "90230a1354b28b6cd7851207305a90d26801811e9db3005c6b8cfefe6ab92e44"
+    },
+    "python_query_mix": {
+      "path": "phase1-python-query-mix-224e-protocol.json",
+      "sha256": "6f04fa9e044a867db754216ba80eb96bea6f5b6cee08f6bdbd84b8429df5bffb"
+    },
+    "python_s01": {
+      "path": "s01-python-224e-comparison-protocol.json",
+      "sha256": "019c953091eb6a0582e64ed4e420a13e5d6d71ab7ce4b4d8f3053ef69289173e"
+    },
+    "python_s02": {
+      "path": "s02-python-224e-comparison-protocol.json",
+      "sha256": "095195b28220a07b92b0317c917b1848575b3fb6e5e65a521b6739a04e8c682e"
+    },
+    "python_s02_lifecycle": {
+      "path": "s02-python-lifecycle-224e-comparison-protocol.json",
+      "sha256": "1563b907157a09a633735b167a84f6140c931fa41cf748ce25d25d2c1b9c1070"
+    },
+    "python_s03": {
+      "path": "s03-python-224e-comparison-protocol.json",
+      "sha256": "bc098de2cece9e7e5d837981145e0075d2b4dddf6610fc031ad08beed21fb3e8"
+    },
+    "typescript_s01": {
+      "path": "s01-ts-224e-comparison-protocol.json",
+      "sha256": "18818cf596a3747806c9b316eeecf80fb31cac1913f975a039a7100d8fb2896c"
+    },
+    "typescript_s02": {
+      "path": "s02-ts-224e-comparison-protocol.json",
+      "sha256": "5d52c0a6be26936afd24bfe5917b4ba05535c1f3539abfeb7dd465b91690a75a"
+    }
+  },
+  "executable_auditors": {
+    "engine_e01_e12": {
+      "path": "scripts/slice135_e12_pair_audit.py",
+      "sha256": "1b5286f0458f63cf842cc5a810c3f0e6b623ef98630b98a528398ca5cc0dae5d"
+    },
+    "python_query_mix": {
+      "path": "scripts/slice135_phase1_mix.py",
+      "sha256": "90c9f25b9ec53c9840c1da7410a53c7b7a1f00c2fd77762016778445ac0289c0"
+    },
+    "python_s01": {
+      "path": "scripts/slice135_python_s01_integrated_audit.py",
+      "sha256": "b9de69a0ae24bf674f669972ab0c1ae0f5bf100c3040d001a721083bff05f88c"
+    },
+    "python_s02": {
+      "path": "scripts/slice135_python_s02_pair_audit.py",
+      "sha256": "c54086ea8b644761ce46f0e5338f70534b91eedab2c4f74a55e139a854c0e998"
+    },
+    "python_s02_lifecycle": {
+      "path": "scripts/slice135_python_close_pair_audit.py",
+      "sha256": "3b74f766d124c72c390becc0ff1299f73c69de1f97318ad91bb0cd1fb950448d"
+    },
+    "python_s03": {
+      "path": "scripts/slice135_python_s03_pair_audit.py",
+      "sha256": "6a07531fe33ab14804e03c7166a6ba2c5f775150a026e46c618b71f7d28445e7"
+    },
+    "typescript_s01": {
+      "path": "scripts/slice135_ts_s01_integrated_audit.py",
+      "sha256": "4ff4f6dcf83a69810d958bbb67d4e33129168117079100d6c1c0b788783a9c3a"
+    },
+    "typescript_s02": {
+      "path": "scripts/slice135_ts_s02_pair_audit.py",
+      "sha256": "7019498c07f69dcba9611464de7af19d6ee731c8dc3ce954f9b1e1fb6c8f0676"
+    }
+  },
+  "freeze_date_utc": "2026-10-08",
+  "omitted_cells": {
+    "c01_mem0": "Unqualified until pinned external harness, config and output root are recovered; no matched competitor timing.",
+    "gpu_large_model": "No qualified CUDA-capable measured host in this checkout; CPU compatibility model remains separately labeled.",
+    "rust_sdk_baseline": "No 0.8.26 Rust SDK peer; exact-candidate external Cargo exercise only.",
+    "typescript_s03": "No qualified exact-source installed TypeScript S03 timing adapter; selected capability operations and S01/S02 are reported separately."
+  },
+  "phase2": "Dedicated gold-answer scoring remains unopened until four-area checkpoint recorded.",
+  "preexisting_component_timing_note": "E01-E12 and Python/TypeScript S01/S02 exact-source subsets each froze their own executable protocol before their candidate campaign; this bundle links their immutable hashes.",
+  "product_identity_rule": "Require exact source tree and artifact bytes, not branch label or prerelease package version.",
+  "required_records": [
+    "source-and-artifact hashes",
+    "baseline pilots",
+    "frozen component protocols",
+    "raw attempts and order",
+    "semantic and reopened state",
+    "resource/environment invalidators",
+    "independent audit and negative controls",
+    "80-percent elapsed prefix",
+    "CPU/queue support status",
+    "fault matrix",
+    "static and FFI review",
+    "omitted cells and residual risk"
+  ],
+  "schema_version": 1,
+  "scope": "Four-area Phase 1 diagnostic bundle for the exact post-Slice-132 source; component auditors are executable and independently recompute each receipt; Phase 2 gold scoring excluded",
+  "status": "FROZEN_PHASE1_BROADER_BUNDLE"
+}

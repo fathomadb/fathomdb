@@ -43,7 +43,8 @@ error surface.
   `close`, scheduler callbacks, and op-store validation on accepted 0.6.0
   write paths.
 - `EngineOpenError` owns `Engine.open` failures, including lock contention,
-  incompatible schema, embedder-identity mismatch, and corruption-on-open.
+  incompatible schema, invalid per-engine configuration, embedder-identity
+  mismatch, and corruption-on-open.
 
 Bindings map these roots into language-idiomatic class hierarchies per
 `design/bindings.md`.
@@ -242,6 +243,25 @@ idleness. A worker that exhausts retries instead records a durable `failed`
 terminal, after which `drain` may return `Ok` once idle. Neither is this
 configuration error.
 
+Per-engine `EngineOpenError::EngineConfiguration` is distinct from the
+process-wide SQLite `RuntimeConfiguration` error. Its out-of-range and
+derived-capacity-overflow variants map to the existing `InvalidArgumentError`
+class in both SDKs; no new exception class is introduced. Python may reject a
+malformed setting with `TypeError` or `ValueError` before native open;
+TypeScript may reject it with `TypeError` or `RangeError`. NAPI checks numeric
+conversion, and the Rust resolver makes the final range/capacity check before
+open side effects.
+
+Embed-dispatch outcomes are operation-specific. A full waiting queue or queued
+expiry is `Overloaded` for direct `embed_text`; a started provider failure,
+timeout or invalid vector is `Embedder`. Ordinary and frozen hybrid search
+preserve same-snapshot sparse fallback. Projection capacity waits keep durable
+work pending without spending a provider-failure retry; a started failure or
+timeout uses the 1/4/16-second retry ladder and can terminalize the row. Close
+cancels queued/result waiters; incomplete provider-only drain reports
+`Scheduler`, while a later close can succeed after workers exit. Timely
+provider panics keep their operation-specific panic boundary.
+
 | Rust-side surface                    | Python class stem                | TypeScript class stem            | CLI dispatch class    |
 | ------------------------------------ | -------------------------------- | -------------------------------- | --------------------- |
 | `StorageError`                       | `StorageError`                   | `StorageError`                   | runtime failure       |
@@ -264,7 +284,7 @@ configuration error.
 | `EngineError::Evidence`               | `EvidenceError`                  | `EvidenceError`                  | runtime failure       |
 | `EngineError::DependencyTrace`        | `DependencyTraceError`           | `DependencyTraceError`           | runtime failure       |
 | `EngineError::GraphExpansion`         | `GraphExpansionError`            | `GraphExpansionError`            | runtime failure       |
-| `EngineError::InvalidArgument`       | `InvalidArgumentError`           | `InvalidArgumentError`           | runtime failure       |
+| `EngineError::InvalidArgument` / `EngineOpenError::EngineConfiguration` | `InvalidArgumentError` | `InvalidArgumentError` | argument/configuration failure |
 | `SchemaValidationError`              | `SchemaValidationError`          | `SchemaValidationError`          | runtime failure       |
 | `Overloaded`                         | `OverloadedError`                | `OverloadedError`                | runtime failure       |
 | `Closing`                            | `ClosingError`                   | `ClosingError`                   | runtime failure       |

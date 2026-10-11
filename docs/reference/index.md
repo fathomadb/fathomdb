@@ -1,13 +1,16 @@
 # Reference
 
-Reference for the published 0.8.25 surface. Field spellings and type-level details are authoritative
-in the locked internal interface specs (`dev/interfaces/{python,typescript,cli}.md`);
-this section is the client-facing view.
+Reference for the 0.8.27 release. Field spellings and type-level details are
+authoritative in the interface specs
+(`dev/interfaces/{python,typescript,rust-sdk,cli}.md`); this section is the
+client-facing view.
 
 - [Python API](python-api.md) — `Engine`, `admin`, governed reads,
   data-plane additions, data shapes, and instrumentation methods.
 - [TypeScript API](typescript-api.md) — Promise-based `Engine`, `admin`,
   governed reads, data-plane additions, data shapes, and instrumentation.
+- [Rust SDK](rust-sdk.md) — `fathomdb-sdk`, the Rust peer of the Python and
+  TypeScript SDKs (0.8.27)
 - [Rust API](rust-api.md) — facade model, Engine methods, public carrier
   families, feature boundary, and links to generated rustdoc.
 - [CLI](cli.md) — `fathomdb doctor` + `fathomdb recover` verbs, flag
@@ -22,7 +25,7 @@ above explains how that generated surface maps to FathomDB's governed facade.
 
 ## Known limitations
 
-The reference reflects the shipped surface. These are documented gaps:
+These are documented gaps in the release surface:
 
 - Published performance evidence is not a general latency SLA; see
   [compatibility § performance posture](../compatibility/index.md).
@@ -30,3 +33,7 @@ The reference reflects the shipped surface. These are documented gaps:
   population source, so a `status=`-filtered query prunes every row.
 - Custom Python / TypeScript embedder implementations are not exposed;
   the binding choice is the built-in default embedder or none.
+
+The generated [SDK operation map](../generated/sdk-operation-map.md) indexes
+matching names and owners across the three languages. Detailed signatures,
+options, results and errors remain in the reference pages above.

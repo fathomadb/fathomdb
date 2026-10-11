@@ -1,0 +1,58 @@
+{
+  "status": "C01_REQUIRED_ARTIFACTS_MISSING",
+  "reference_record": "experiments/runs/mem0-oss-locomo-native-20260824T1325Z-9de95019/record.json",
+  "reference_record_sha256": "4637f6d4b722d6d1a49dd6e7328b16927314390f875efe7ccac145e4a1bf277b",
+  "record_run_id": "mem0-oss-locomo-native-20260824T1325Z-9de95019",
+  "expected_corpus_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+  "required_artifacts": {
+    "corpus": {
+      "path": "/home/coreyt/projects/fathomdb/data/corpus-data/raw/locomo10.json",
+      "exists": true,
+      "is_file": true,
+      "is_dir": false,
+      "sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4"
+    },
+    "harness_checkout": {
+      "path": "/tmp/fathomdb-mem0-memory-benchmarks",
+      "exists": false,
+      "is_file": false,
+      "is_dir": false
+    },
+    "harness_python": {
+      "path": "/tmp/fathomdb-mem0-memory-benchmarks/.venv/bin/python",
+      "exists": false,
+      "is_file": false,
+      "is_dir": false
+    },
+    "external_output_root": {
+      "path": "/tmp/fathomdb-memory01-artifacts",
+      "exists": false,
+      "is_file": false,
+      "is_dir": false
+    },
+    "base_compose": {
+      "path": "/tmp/fathomdb-mem0-memory-benchmarks/docker-compose.yml",
+      "exists": false,
+      "is_file": false,
+      "is_dir": false
+    },
+    "compose_override": {
+      "path": "/tmp/fathomdb-mem0-locomo/compose.override.yaml",
+      "exists": false,
+      "is_file": false,
+      "is_dir": false
+    },
+    "mem0_airlock_config": {
+      "path": "/tmp/fathomdb-mem0-locomo/mem0-airlock.yaml",
+      "exists": true,
+      "is_file": false,
+      "is_dir": true
+    },
+    "harness_resilience_patch": {
+      "path": "/tmp/fathomdb-performance-0.8.23-plan-20260821/experiments/configs/mem0-oss/memory01-resilience.patch",
+      "exists": false,
+      "is_file": false,
+      "is_dir": false
+    }
+  }
+}

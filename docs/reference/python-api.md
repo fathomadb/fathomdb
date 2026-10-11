@@ -1,9 +1,9 @@
 # Python API
 
 Module: `fathomdb`. Authoritative spec:
-[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/python.md).
+[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/python.md).
 
-> **Release state.** 0.8.25 is the current published release.
+> **Release 0.8.27, pre-1.0 beta.**
 
 ## Representative top-level imports
 
@@ -15,6 +15,7 @@ from fathomdb import (
     DenseReadiness,
     Engine,
     EngineConfig,
+    Filter,
     IdSpace,
     NodeRecord,
     OpStoreRow,
@@ -25,6 +26,7 @@ from fathomdb import (
     ProjectionRuntimeUnavailabilityReason,
     ProjectionSpec,
     ProjectionStatusDenseReadiness,
+    ReadView,
     SearchFilter,
     SearchHit,
     SearchResult,
@@ -41,13 +43,18 @@ from fathomdb import (
 
 ## `Engine`
 
-### `Engine.open(path, *, config=None, **engine_config) -> Engine`
+### `Engine.open(path, *, config=None, use_default_embedder=False, **engine_config) -> Engine`
 
 Open or create a FathomDB database at `path`. Returns the engine
 handle.
 
 - `path` (`str`) — path to the SQLite DB file.
 - `config` (`EngineConfig | None`) — pre-built config object.
+- `use_default_embedder` (`bool`, default `False`) — `True` enables the pinned
+  `fathomdb-bge-small-en-v1.5` embedder. First use can download weights into
+  `~/.cache/fathomdb/embedders/`. `False` opens without an embedder; vector
+  writes and `engine.embed` raise `EmbedderNotConfiguredError`. See the
+  [embedder guide](../embedder.md) for runtime policy and typed failures.
 - `**engine_config` — per-knob keyword arguments (see
   [config](config.md)). Mutually exclusive with `config`.
 
@@ -69,8 +76,8 @@ embedder telemetry fields (`embedder_download_ms`, `embedder_events`,
 
 ### `engine.write(batch=None) -> WriteReceipt`
 
-Enqueue a batch of canonical rows. Synchronous; blocks until the
-writer thread has accepted the batch.
+Write a batch of canonical rows synchronously through the primary writer
+connection; return its committed receipt.
 
 - `batch` (`list[Any] | None`) — caller-shaped canonical rows.
   Defaults to `[]` (a valid, item-less batch).
@@ -135,15 +142,18 @@ receipt = engine.write([
   pointing at a non-existent or superseded node — see
   [`WriteReceipt`](#writereceipt).
 
-### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, limit=10) -> SearchResult`
+### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, explain=False, view=None, limit=10) -> SearchResult`
 
 Run hybrid retrieval (FTS5 + vector) for `query`, ranked by **G9 RRF fusion**,
 with optional cross-encoder reranking (0.8.1 R1) and optional graph-BFS third
 arm (0.8.1 R3).
 
 - `query` (`str`).
-- `filter` ([`SearchFilter`](#searchfilter) | `None`) — optional closed metadata
-  filter. `None` (or an all-`None` filter) is the unfiltered path.
+- `filter` ([`SearchFilter`](#searchfilter) | `Filter` | `None`) — optional closed
+  metadata filter. `Filter` accepts the unified metadata terms and lowers to
+  `SearchFilter`; a `Json` term raises `InvalidFilterError` because search must
+  not apply a JSON predicate after vector candidate selection. `None` (or an
+  all-`None` filter) is the unfiltered path.
 - `rerank_depth` (`int`, default `0`) — 0.8.1 R1 opt-in. `0` (default) uses the
   identity / soft-fallback path: byte-identical to the pre-0.8.1 fused order.
   `N > 0` applies a cross-encoder (TinyBERT-L-2, ≈4 MB; latency depends on
@@ -169,6 +179,13 @@ arm (0.8.1 R3).
   clamped to the hit count. `None` ⇒ `rerank_depth` (preserves the prior
   pool == depth semantics). Note `rerank_depth == 0` is still the identity gate,
   so `rerank_depth=0, pool_n=10` does **not** rerank.
+- `explain` (`bool`, default `False`) — `True` includes retrieval explanation
+  data in `SearchResult.explanation`; non-boolean values raise `TypeError`.
+- `view` (`ReadView | None`, default `None`) — controls validity at query time
+  or an explicit `valid_as_of` instant. `include_out_of_window=True` widens
+  validity windows. Search rejects `include_superseded` and
+  `include_inactive` with `InvalidArgumentError`; projection indexes cannot
+  answer those existence-history views. Use `read.list` for that history.
 - `limit` (`int`, default `10`) — maximum ranked hits returned. It must be in
   `1..=100`; zero, negative values, and values above 100 raise
   `InvalidArgumentError` and are never silently clamped.
@@ -267,6 +284,8 @@ substrate and the `_legacy:pre-0.8.20` migration cohort) is reachable only
 through `fathomdb recover --excise-source`. Raises `ErasureIncompleteError`
 (carrying `stage` and `detail`) rather than reporting success if the erasure
 could not be completed at rest.
+The same source identity accepted by a write can be erased, including one with
+an embedded NUL; the call matches the full identity exactly.
 
 Returns an `EraseReport` with `source_ref`, `nodes_excised`, `edges_excised`,
 and `projections_invalidated`. Mirrored in TS as `engine.eraseSource(sourceId)`.
@@ -297,15 +316,20 @@ Toggle per-operation profiling.
 
 Set the slow-query threshold for profiling event emission.
 
-### `engine.attach_logging_subscriber(logger, *, heartbeat_interval_ms=None) -> None`
+### `engine.attach_logging_subscriber(logger) -> None`
 
 Bind engine events into a Python `logging.Logger`. Engine events are
-mapped to `logging.LogRecord` with the stable `fathomdb` payload.
+mapped to `logging.LogRecord` with the stable `fathomdb` payload. The logger
+is caller-owned. Delivery uses a bounded queue: a slow logger can lose
+records, and a `dropped_records` warning reports the count when it catches
+up. Logger failures do not fail database calls. Logger handlers cannot
+reenter FathomDB database operations. This helper does not emit heartbeats.
 
 ### Properties
 
 - `engine.path` (`str`) — DB path supplied to `open`.
-- `engine.config` (`EngineConfig`) — resolved config.
+- `engine.config` (`EngineConfig`) — requested configuration captured at open;
+  omitted fields remain omitted even when the engine uses their defaults.
 
 ## 0.8.25 data-plane additions
 
@@ -361,6 +385,10 @@ Domain refusals are terminal receipts while malformed requests raise
 | `read.canonical_page(engine, kind, context, page)` | `PageV1[NodeRecord]` | Read a stable page of canonical logical nodes. |
 | `read.operational_state(engine, collection, record_key, context=None)` | `OperationalStateRecordV1 \| None` | Point-read a registered `latest_state` collection. |
 | `read.operational_state_page(engine, collection, context, page)` | `PageV1[OperationalStateRecordV1]` | Read a stable operational-state page. |
+
+For `search_frozen`, omitted `pool_n` now uses `rerank_depth`, matching ordinary
+search and the other SDKs. Previously the Python frozen default was zero, so
+this can change ranking when a caller sets a positive rerank depth.
 
 `PageRequestV1` limits are 1 through 250 and continuations are opaque
 `PageCursor` values. Frozen-context failures raise `FrozenReadError`; page,
@@ -419,7 +447,8 @@ assert runtime.sqlite_mode == "performance"
 
 The closed modes are `"performance"` and `"diagnostics"`. With no explicit
 call, the first Engine open selects performance. Repeating the effective mode
-is idempotent; conflicting or late calls raise `RuntimeConfigurationError` and
+is idempotent even after Engine open. A conflicting choice or a first request
+after SQLite was initialized elsewhere raises `RuntimeConfigurationError`;
 changing mode requires a process restart. This startup control is not a
 database permission or a governed application command.
 
@@ -810,4 +839,4 @@ and FathomDB provides no GPU reservation or hard memory cap.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/python.md)
+- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/python.md)

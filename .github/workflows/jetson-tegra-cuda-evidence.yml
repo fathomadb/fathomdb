@@ -339,12 +339,12 @@ jobs:
 
       - name: Upload Jetson Tegra CUDA evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/fathomdb-jetson-tegra-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
 
   # The Jetson cannot prove a driverless or non-Tegra import. A hosted ARM64
   # runner without a CUDA driver installs this run's Tegra tarball in a
@@ -391,12 +391,12 @@ jobs:
             --evidence-dir "$RUNNER_TEMP/tegra-node-driverless"
       - name: Upload driverless ARM64 import evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: tegra-node-driverless-arm64-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/tegra-node-driverless
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
 
   # The Jetson has no publication credential. This hosted job receives only
   # its retained artifact and constructs the public docs plus the interim,
@@ -631,7 +631,7 @@ jobs:
             --candidate-sha "$GITHUB_SHA" --evidence-dir "$node_evidence"
       - name: Upload post-publication Jetson smoke evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: jetson-tegra-pages-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           path: |

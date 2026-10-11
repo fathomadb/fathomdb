@@ -1,0 +1,87 @@
+name: Upload release artifact with bounded retries
+description: Retain built bytes on the runner while retrying transient artifact-service failures.
+
+inputs:
+  name:
+    description: Unique artifact name within this workflow run.
+    required: true
+  path:
+    description: One file, directory, or glob to upload.
+    required: true
+  if-no-files-found:
+    description: Behavior when the path has no matching files; release jobs use error.
+    default: error
+  retention-days:
+    description: Artifact retention in days; 0 uses the repository default.
+    default: '0'
+
+runs:
+  using: composite
+  steps:
+    - name: Require built artifact bytes before contacting the service
+      shell: bash
+      env:
+        ARTIFACT_PATH: ${{ inputs.path }}
+      run: |
+        found=0
+        while IFS= read -r pattern || [ -n "$pattern" ]; do
+          if [ -n "$pattern" ] && compgen -G "$pattern" >/dev/null; then
+            found=1
+            break
+          fi
+        done <<< "$ARTIFACT_PATH"
+        if [ "$found" -ne 1 ]; then
+          echo "No release artifact matches: $ARTIFACT_PATH" >&2
+          exit 1
+        fi
+    - name: Upload artifact (attempt 1)
+      id: first
+      continue-on-error: true
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+        if-no-files-found: ${{ inputs.if-no-files-found }}
+        retention-days: ${{ inputs.retention-days }}
+    - name: Back off after failed upload
+      if: ${{ always() && steps.first.outcome == 'failure' }}
+      shell: bash
+      run: sleep 15
+    - name: Upload artifact (attempt 2)
+      id: second
+      if: ${{ always() && steps.first.outcome == 'failure' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+        if-no-files-found: ${{ inputs.if-no-files-found }}
+        retention-days: ${{ inputs.retention-days }}
+        overwrite: true
+    - name: Back off after second failed upload
+      if: ${{ always() && steps.second.outcome == 'failure' }}
+      shell: bash
+      run: sleep 45
+    - name: Upload artifact (attempt 3)
+      id: third
+      if: ${{ always() && steps.second.outcome == 'failure' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+        if-no-files-found: ${{ inputs.if-no-files-found }}
+        retention-days: ${{ inputs.retention-days }}
+        overwrite: true
+    - name: Require a confirmed GitHub artifact
+      if: ${{ always() }}
+      shell: bash
+      env:
+        FIRST_ID: ${{ steps.first.outputs.artifact-id }}
+        SECOND_ID: ${{ steps.second.outputs.artifact-id }}
+        THIRD_ID: ${{ steps.third.outputs.artifact-id }}
+      run: |
+        if [ -z "$FIRST_ID$SECOND_ID$THIRD_ID" ]; then
+          echo 'Release artifact upload failed after three attempts' >&2
+          exit 1
+        fi

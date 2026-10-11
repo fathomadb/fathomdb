@@ -143,6 +143,14 @@ jobs:
         # --no-verify, so this guard is what makes that case fail pre-tag.
         # Queries crates.io directly (read-only, fail-closed on any error).
         run: bash scripts/release/verify-embedder-api-no-drift.sh
+      # Exercise artifact transport and the local retry action before starting
+      # the expensive wheel, N-API, and CUDA build matrix.
+      - name: Preflight release artifact upload transport
+        uses: ./.github/actions/upload-artifact-retry
+        with:
+          name: release-artifact-transport-preflight-${{ github.run_attempt }}
+          path: Cargo.toml
+          retention-days: 1
 
   # Slice 10: this job decides CUDA runner eligibility without executing any
   # candidate script. It is intentionally hosted; the self-hosted preflight
@@ -327,14 +335,14 @@ jobs:
             --github-output "$GITHUB_OUTPUT"
       - name: Upload unmerged-candidate route receipt
         if: ${{ github.event_name == 'retired' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
           path: cuda-unmerged-route-receipt.json
           if-no-files-found: error
       - name: Upload main-candidate route receipt
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true && success() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
           path: cuda-unmerged-route-receipt.json
@@ -410,28 +418,28 @@ jobs:
         run: bash scripts/release/cuda-preflight.sh "$CUDA_RERANK_PREFLIGHT_WITNESS_DIR" --rerank-cuda
       - name: Upload CUDA preflight witness
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-preflight-witness
           path: ${{ env.CUDA_PREFLIGHT_WITNESS_DIR }}
           if-no-files-found: error
       - name: Upload CUDA preflight package bytes
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-preflight-packages
           path: ${{ env.CUDA_PREFLIGHT_WITNESS_DIR }}.packages
           if-no-files-found: error
       - name: Upload CUDA reranker v3 preflight witness
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-rerank-preflight-witness
           path: ${{ env.CUDA_RERANK_PREFLIGHT_WITNESS_DIR }}
           if-no-files-found: error
       - name: Upload CUDA reranker v3 package bytes
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-rerank-preflight-packages
           path: ${{ env.CUDA_RERANK_PREFLIGHT_WITNESS_DIR }}.packages
@@ -494,7 +502,7 @@ jobs:
           args: --release --out dist --features pyo3/extension-module,default-embedder -i ${{ matrix.interpreters || 'python3.10 python3.11 python3.12' }}
           manylinux: ${{ matrix.manylinux || 'auto' }}
           working-directory: src/python
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./.github/actions/upload-artifact-retry
         with:
           name: python-dist-${{ matrix.target }}
           path: src/python/dist/*
@@ -595,7 +603,7 @@ jobs:
         run: |
           . scripts/release/glibc-floor-contract.sh
           bash scripts/check-glibc-floor.sh --floor "$GLIBC_FLOOR" "src/ts/fathomdb.${{ matrix.label }}.node"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./.github/actions/upload-artifact-retry
         with:
           name: napi-${{ matrix.label }}
           path: src/ts/fathomdb.${{ matrix.label }}.node
@@ -739,7 +747,7 @@ jobs:
             --run-id '${{ github.run_id }}' \
             --run-attempt '${{ github.run_attempt }}'
       - name: Upload verified package rehearsal bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-package-rehearsal
           path: candidate/cuda-package-rehearsal
@@ -826,7 +834,7 @@ jobs:
           test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
           bash control-plane/scripts/release/cuda-package-rehearsal-smoke.sh --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --model-cache-manifest rerank-preflight-witness/model-cache-manifest.json --reranker-cache-manifest rerank-preflight-witness/reranker-cache-manifest.json --reranker-cache-root "${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}}" --hf-home "${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}" --smoke-dir candidate/cuda-rerank-package-smoke
           bash control-plane/scripts/release/cuda-package-rehearsal.sh --candidate-sha '${{ inputs.candidate_commit }}' --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json --route-manifest control-plane/dev/release/cuda-unmerged-candidates.json --preflight-witness-dir rerank-preflight-witness --build-input candidate/cuda-rerank-package-build-input.json --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --smoke-dir candidate/cuda-rerank-package-smoke --output-dir candidate/cuda-rerank-package-rehearsal --workflow-ref '${{ github.workflow_ref }}' --workflow-sha '${{ github.workflow_sha }}' --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./control-plane/.github/actions/upload-artifact-retry
         with:
           name: cuda-rerank-package-rehearsal
           path: candidate/cuda-rerank-package-rehearsal
@@ -923,12 +931,12 @@ jobs:
           node_binary=(cuda-canonical-artifacts/napi/fathomdb.linux-x64-gnu.node)
           test "${#node_binary[@]}" = 1
           test -s "${node_binary[0]}"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./.github/actions/upload-artifact-retry
         with:
           name: python-dist-x86_64-unknown-linux-gnu
           path: cuda-canonical-artifacts/python/*.whl
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: ./.github/actions/upload-artifact-retry
         with:
           name: napi-linux-x64-gnu
           path: cuda-canonical-artifacts/napi/fathomdb.linux-x64-gnu.node

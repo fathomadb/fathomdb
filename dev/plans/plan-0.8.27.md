@@ -1477,9 +1477,9 @@ Order:
 1. **Before the tag:** prepare the version bump on `release/0.8.27`, then
    merge it to `main` as required by `verify-release-gates.sh` for a GA tag.
    Fast-forward the remote release branch to the same reviewed commit `C` on
-   `main`. Run the immutable-candidate `release.yml` dry-run at `C`; the
-   owner's no-local-rebuild direction replaces the local dry-run in
-   `dev/design/release.md` for this release. The annotated `v0.8.27` tag must
+   `main`. Run the scoped release-path checks and the immutable-candidate
+   `release.yml` dry-run at `C`; the owner has restored build permission.
+   The annotated `v0.8.27` tag must
    target `C`. Verify both remote branch heads equal `C` and hold them fixed
    through the Tegra Pages dispatch: the GA gate requires `C` on `main`,
    `publish-tegra-pages.sh` requires `C` at the release-branch head, and

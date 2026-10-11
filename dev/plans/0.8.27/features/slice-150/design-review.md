@@ -32,3 +32,15 @@ requalification trigger for any changed executable input. A further read-only
 finding. It confirmed two complete cycles, final executable-commit binding,
 input-tree equivalence for later record-only commits and requalification on a
 changed gate input. No qualification was run in either review.
+
+## Rust artifact amendment — `gpt-6-sol` high, 2026-10-10
+
+Prepublication `cargo package` cannot resolve unpublished sibling crate
+versions against crates.io. The plan and design now qualify a Git-bound Rust
+source archive through a clean external path-dependency consumer; Slice 160
+owns registry-resolved `.crate` proof. The reviewer found that the external
+consumer must use the candidate's active workspace patches, not merely its
+sibling crate paths. The corrected archive includes `third_party`; the
+consumer manifest applies its local patches. Its locked run compiled the
+archive's `libsqlite3-sys` patch; `cudarc` is unused in the default SDK feature
+graph. The final read-only review returned **APPROVE** with no open finding.

@@ -1414,8 +1414,9 @@ Write little or no new product test code. Re-run:
 - full `agent-verify`;
 - full-workspace clippy and check;
 - applicable feature combinations;
-- package builds;
-- isolated installed-artifact smokes;
+- fresh Python and Node package builds and isolated installed-artifact smokes;
+- a candidate-bound Rust source archive with an external path-dependency
+  consumer smoke; registry-resolved Rust `.crate` packaging waits for Slice 160;
 - required native CPU/platform routes;
 - warranted CUDA routes; and
 - Memex's unchanged exact test against the candidate artifact.

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 150 — qualification status
-status: QUALIFICATION_IN_PROGRESS
+status: BLOCKED
 target_release: 0.8.27
 planning_baseline: 3a69eef82e0381641e5bfbf7dcd8ed25141d97ff
 ---
@@ -62,3 +62,65 @@ truthfully recorded. The owner has been asked for a restricted shell or a
 specific ruling; no alternate witness is being inferred from sandbox denial.
 
 No release PASS, publication, or Slice 150 closeout is claimed here.
+
+## Qualification checkpoint — 2026-10-10
+
+The clean committed candidate `c3268281643d4dcedb005971256293c0378a768f`
+has tree `a03b92e0f8bf5699912f472de1ddf50d971debd9`. The full
+`agent-verify` run passed 196/196 suites with no failed, skipped or excluded
+suites at `a5f7dd833`; its log SHA-256 is
+`504f4a0b2021d73506ab70fc4937c84693f3cad1f39617eeb95beb0d13c579d6`.
+That commit's product source is byte-identical to `c32682816`, but the latter
+changes README CUDA guidance and removes three stale feature-gate ignore
+entries. The full verifier has not been repeated at `c32682816`; the scoped
+documentation, coverage and affected Slice 72 checks passed. A separate
+`c32682816` feature-complete run passed 20 runs: 141 planned, 136 passed,
+zero failed and five documented ignores. Its summary SHA-256 is
+`f50fa3a2983496abc53f5e9fcdbce9553cc333f97833095e2c254ed7fdf81cd8`.
+The earlier failing feature-gate run remains an invalid receipt.
+
+The Python wheel built from `a5f7dd833` has SHA-256
+`f480254b2c5f965d3ee255186d995e6cb612b62b3be84207eaaad1a4c008ea42`;
+the installed native import and real-database smoke passed, as did 18 focused
+native harness tests. The frozen Memex oracle was unchanged and passed 1/1
+against that wheel using a byte-identical historical Memex fixture; current
+Memex HEAD has since removed the oracle's `MemoryRuntime` import. Its host
+receipt is `qualification-evidence/slice-150/memex-consumer-receipt.json`.
+
+The candidate-bound Rust source archive SHA-256 is
+`57601d902fafc39ce9cdcca957ad6646b3cdb7932e82c44ccd96efecb3941d66`.
+An external default-feature SDK consumer resolved Fathom sibling crates and
+the active SQLite patch from that archive and passed write, read, source
+erasure, control preservation and reopen against a real database. The CUDA
+patch was unused in that graph. This is source-archive proof, not crates.io
+package proof. Its manifest, lockfile, test and log are retained with
+`qualification-evidence/slice-150/rust-source-consumer-receipt.json`.
+
+Fresh Node production and test-hook packages from `c32682816` passed clean
+external installed-consumer checks. An additional production-package smoke
+passed write, `read.get`, `eraseSource`, control preservation and reopen. The
+main and production native tarball SHA-256 values are respectively
+`fb0ccc8ab1feaec4168226ba169c9b0fb938a2ab87ef551cddbe915b25d5795b`
+and `a0ba076fba7a55caba42ab77e9fccd320b0ce88d3f9c26de7ddc2cd9347b84d6`.
+The witness tarball SHA-256 is
+`6dd6545e392d3d77cdb1b75161bbbab333ee918779ab19c20ec2fc07d8b5abdb`.
+Independent Sol verification approved archive, wheel, Memex and Node consumer
+evidence with explicit CPU/Linux x86_64 and prepublication limits. Terra was
+unavailable in this session; the owner authorized a Sol subagent instead.
+
+The public and hidden surface comparisons and 44/44 SDK parity check pass as
+recorded in [surface-comparison.md](surface-comparison.md). Retention survey
+findings remain in [retention-survey.md](retention-survey.md). No Windows,
+Jetson, registry-installed Rust or installed CUDA package pass is claimed.
+Historical Slice 135 performance measurements remain bound to their earlier
+source and do not establish final-candidate latency equivalence.
+
+**Blocking condition:** this host permits `unshare -rUn true` before any
+temporary grant, so it cannot produce the AC-037 pre-grant denial or
+post-revert denial required by the HITL runbook. The strict live security
+command did pass both functional AC-037 checks and report zero violations,
+blockers and downgrades, but that is not the complete grant/revert witness.
+The owner has been asked for a restricted host/shell or an explicit alternate
+ruling. The final exact-candidate full verifier and post-retirement security
+cycle also remain outstanding. The temporary hidden oracle is intact; release
+state stays on Slice 150, and this worktree is retained for completion.

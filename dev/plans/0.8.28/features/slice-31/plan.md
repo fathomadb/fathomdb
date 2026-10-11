@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 12 — second cudarc proposal (built-major library loading, FC9b, R-PROP2), production loaded-library check (D-18), cloud test venue research pending (Q13); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 13 — Q13 test-venue rulings (GCP pilot first; AWS arm64 cells to 0.8.29; Jetson on CUDA 13 via CloudJetson); revision 12 — second cudarc proposal (built-major library loading, FC9b, R-PROP2), production loaded-library check (D-18), cloud test venue research pending (Q13); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -842,6 +842,17 @@ FathomDB's `review.md` carries one line per fork review.
     12-on-13 and 13-on-12 runs; cloud Jetson.
   - The research goes to `research/cloud-gpu-test-options.md`.
   - The Docker Hub pull for C3 is held until the owner rules.
+  - **Rulings (owner, 2026-10-11):**
+    - **`windchill3` Docker:** not chosen yet, because disk is tight.
+    - **GCP:** explored first, with a one-VM pilot of the workflow
+      (credentials, a Spot T4 VM, driver install, containers pulled on the
+      VM, receipts, teardown) before any matrix run.
+    - **Agent- or human-driven VM creation** is decided after the pilot.
+    - **AWS `g5g` arm64 cells:** a todo for 0.8.29.
+    - **Jetson on CUDA 13 (Q5):** use CloudJetson
+      ([cloudjetson.com](https://cloudjetson.com/)), not a local reflash.
+      Vet the vendor first: JetPack 7.2 availability, root access, and data
+      handling.
 
 ## 16. Ledger and follow-ups
 
@@ -854,14 +865,16 @@ FathomDB's `review.md` carries one line per fork review.
 - At FK1, open a todo for whichever Candle DK-1 path is not taken (a rebase
   onto upstream 0.11.x, which already uses cudarc 0.19.10, or staying on
   0.10.x).
+- **Todo for 0.8.29 (Q13):** the AWS `g5g` (Graviton2 + T4G) arm64 cells
+  for the non-Tegra aarch64 path. File it with `ledgerwrite` at W0 step 7.
 - **Follow-up todo (Q10):** a CUDA 13.0 artifact beside 12.6 in the release
   after 0.8.28 (x86, and Orin on JetPack 7.2 once Q5 is measured), with
   artifact naming and `auto` selection designed there. File it with
   `ledgerwrite` at W0 step 7.
 - **Proposed follow-up (Q5):** before the 0.8.28 release, qualify Tegra on
   CUDA 13:
-  - reflash the Orin to JetPack 7.2.x (CUDA 13.2, then 13.4 via
-    `cuda-compat-orin-13-4`);
+  - on a CloudJetson AGX Orin running JetPack 7.2.x (CUDA 13.2, then 13.4
+    via `cuda-compat-orin-13-4`), not a reflash of our Orin (Q13);
   - re-measure whether the default-pool failure persists, bounding
     exhaustion tests per NVIDIA known issue 5699079 (a large allocation may
     reboot an L4T 39.2 device);

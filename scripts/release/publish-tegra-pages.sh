@@ -38,6 +38,7 @@ remote_head="$(git ls-remote "https://github.com/$repository.git" "refs/heads/$b
   printf 'publish-tegra-pages: remote %s is %s, not requested %s\n' "$branch" "${remote_head:-missing}" "$candidate_sha" >&2
   exit 1
 }
+bash scripts/release/check-tegra-pages-route.sh "$candidate_version" "$repository"
 
 work="$(mktemp -d)"
 cleanup() { rm -rf "$work"; }

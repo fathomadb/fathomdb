@@ -1,0 +1,97 @@
+name: Promote npm release
+
+# Recovery route for a release whose package builds and installed smokes passed
+# but whose legacy npm token could not move the main package to latest.
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Published X.Y.Z version to promote"
+        required: true
+        type: string
+      release_run_id:
+        description: "Production release.yml run with green publish and smoke jobs"
+        required: true
+        type: string
+      candidate_sha:
+        description: "Exact tagged source commit"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  promote-npm-latest:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Require exact tag and successful production publish smokes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.release_version }}
+          RUN_ID: ${{ inputs.release_run_id }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags --depth=1 origin "refs/tags/v$VERSION"
+          [ "$(git rev-parse 'FETCH_HEAD^{commit}')" = "$CANDIDATE_SHA" ]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" \
+            | jq -e --arg version "$VERSION" --arg sha "$CANDIDATE_SHA" '
+                .event == "push" and .head_branch == ("v" + $version)
+                and .head_sha == $sha and .path == ".github/workflows/release.yml"
+              ' >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" \
+            | jq -e '
+                [.jobs[] | select(.conclusion == "success") | .name] as $ok
+                | ["publish-rust-t7-cli", "publish-pypi", "publish-npm",
+                   "post-publish-smoke (crates-cli)", "post-publish-smoke (crates-sdk)",
+                   "post-publish-smoke (pypi-wheel)", "post-publish-smoke (npm-package)",
+                   "post-publish-smoke-aarch64", "post-publish-smoke-darwin-x64",
+                   "post-publish-smoke-darwin-arm64", "post-publish-smoke-win32-x64",
+                   "co-tagging-assert"] | all(. as $required | $ok | index($required) != null)
+              ' >/dev/null
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "25.9.0"
+          package-manager-cache: false
+      - name: Install npm CLI with OIDC dist-tag support
+        run: npm install --global npm@11.21.0
+      - name: Promote and verify the main package
+        env:
+          VERSION: ${{ inputs.release_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm dist-tag add "fathomdb@$VERSION" latest
+          [ "$(npm view fathomdb dist-tags.latest)" = "$VERSION" ]
+
+  github-release:
+    needs: promote-npm-latest
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          run-id: ${{ inputs.release_run_id }}
+          github-token: ${{ github.token }}
+          pattern: python-dist-*
+          merge-multiple: true
+          path: dist
+      - uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        with:
+          tag_name: v${{ inputs.release_version }}
+          files: dist/*

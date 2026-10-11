@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 150 — qualification status
-status: RETIREMENT_IN_PROGRESS
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.27
 planning_baseline: 3a69eef82e0381641e5bfbf7dcd8ed25141d97ff
 ---
@@ -139,6 +139,31 @@ dependency and Git identity (A); public/hidden comparisons and SDK parity
 fresh external Rust/Python/Node consumers and the frozen Memex oracle, with
 Windows, Jetson and registry routes explicitly unavailable or assigned to
 Slice 160 (D); live strict AC-037 pass on this already-capable host (E); and
-the read-only checkpoint/large-object retention survey (F). RH-12 and
-AC27-150G retirement now follow. Final post-retirement verification and
-release-state closeout remain to be recorded.
+the read-only checkpoint/large-object retention survey (F).
+
+## Retirement and closeout — 2026-10-10
+
+Commit `1b4b4cbe421f1f1209aae27aef939816c65579ca` retired the temporary
+hidden-surface oracle, its large JSON baselines, and its fast-tier wiring.
+The permanent test-target coverage fixture was retained under the test-target
+fixtures directory. The owned oracle cache was pruned before deletion.
+An independent `gpt-6-sol` high code review approved the retirement.
+
+Focused post-retirement checks passed: the test-target unit checks and
+coverage check, shell syntax for the edited test runner, Markdown lint, and
+the commit's formatting hooks. The coverage check found 295 targets, including
+29 feature-complete-only targets. The strict live security subgate on the
+retired commit passed AC-036, both AC-037 live checks, and the remaining
+security cases with `0 violation(s), 0 blocker(s), 0 downgrade(s)`; its log
+SHA-256 is
+`5a52176801499003e43c2e120392fa2cd36610c75ab83a6c39321f4884ac6478`.
+
+A post-retirement whole-workspace verifier was started but interrupted at the
+owner's direction after its security subgate, so **no post-retirement full-gate
+pass is claimed**. The last uninterrupted full-gate pass remains the 196/196
+receipt at `a5f7dd833`, before the README/feature-gate changes and oracle
+retirement. The affected feature gate and retirement paths have the focused
+checks above. The owner directed this scoped closeout instead of another
+rebuild. This qualification covers the stated CPU/Linux x86_64 and
+prepublication evidence; Slice 160 owns publication and post-publication
+proofs. No release tag or publication occurred in Slice 150.

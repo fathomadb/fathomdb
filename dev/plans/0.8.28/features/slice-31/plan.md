@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED FOR EXECUTION (owner, 2026-10-11); revision 6 — owner execution instructions, owner rulings Q4–Q6, Opus reviews R0-rev4 and R0-rev5 fixes
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 7 — W0 merge-forward plan added, merge awaits owner approval; revision 6 owner rulings and review fixes retained
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -23,7 +23,7 @@ this slice writes to `release/0.8.27`.
 | # | Owner instruction (2026-10-11) | Covered by |
 | --- | --- | --- |
 | I-1 | Slice 31 is approved | front matter; § 12 R0, R0-rev4, R0-rev5 |
-| I-2 | Slice 31 gets its own worktree; remove the doc-fix `release-0.8.28` worktree | § 9 W0 steps 1 and 3; § 13 merge method |
+| I-2 | Slice 31 gets its own worktree; the new `release-0.8.28` worktree holds the merge-forward plan and later merge | § 9 W0 steps 1–3; [merge-forward plan](merge-forward-plan.md) |
 | I-3 | A goal so the work can continue and complete | [GOAL.md](GOAL.md) |
 | I-4 | Bring the cudarc fork to v0.19.10, then apply our changes | § 9 W4 steps 1–2 |
 | I-5 | Compatible with the latest CUDA 13.x; read release notes and published docs | § 2.3; REQ31-03; D-8; T-MATRIX, T-CUDA |
@@ -364,18 +364,21 @@ R-PIN, R-PUB, W8 publication) block only what depends on them.
 
 ### W0. Prerequisites (main thread)
 
-1. Commit and push this plan and `GOAL.md` on `release/0.8.28`; check that
-   local `release/0.8.28` equals `origin/release/0.8.28` and the doc-fix
-   worktree is clean; run `git worktree remove` from outside it. **Keep the
-   `release/0.8.28` branch.** Record this in `status.md` once step 3 creates
-   it (I-2).
-2. **Merge forward:** in a temporary worktree of `release/0.8.28`, merge
-   `release/0.8.27` (read-only use of 0.8.27), resolve, run the checks the
-   merge touches, push, remove the temporary worktree; then do todo
-   `TC-d71a9e36…` (delete `features/cudarc-fork/plan.md`, keep one D28-13
-   row). Record shas. Repeat before R-CODE-3/R-VERIFY, each time followed by
-   the main thread merging `origin/release/0.8.28` into the slice branch (no
-   implementer running) and re-running the affected checks.
+1. Review and commit this plan, `GOAL.md` and the
+   [merge-forward plan](merge-forward-plan.md) on `release/0.8.28` before
+   execution. Check local and remote branch heads. Use the existing clean
+   `/home/coreyt/projects/fathomdb-worktrees/release-0.8.28` worktree for
+   the merge; keep the branch and worktree until merge close. Record the
+   exact plan and source SHAs in `status.md` once step 3 creates it (I-2).
+2. **Merge forward, only after a fresh owner approval:** follow the
+   [merge-forward plan](merge-forward-plan.md). It owns the source freeze,
+   known conflict and semantic-overlap resolutions, merged document review,
+   focused verification and stop boundary. The 0.8.27 checkout stays
+   read-only. Resolve todo `TC-d71a9e36…` in the same merge: delete the
+   superseded `features/cudarc-fork/plan.md` and keep one D28-13 row. Record
+   both parent SHAs. Repeat before R-CODE-3/R-VERIFY if 0.8.27 advances;
+   then, with no implementer running, merge updated `release/0.8.28` into
+   the slice branch and rerun affected checks.
 3. `scripts/preflight.sh`; create worktree
    `../fathomdb-worktrees/slice-0.8.28-31` on `slice/0.8.28-31-cudarc-fork`
    from `origin/release/0.8.28`; create fork clones
@@ -540,12 +543,15 @@ recorded disposition before the blocked step starts.
 | `coreyt/cudarc` | `fathomdb/0.19.10` | tag `v0.19.10` | implementer, `../fathomdb-forks/cudarc` | stays; pinned, then published |
 | `coreyt/cudarc` | `proposal/mem-pool` | upstream `main` | implementer, separate clone or serialized | stays; posted later only with owner sign-off |
 | `coreyt/candle-fathomdb` | `fathomdb/0.8.28-cudarc-fork` | `859b8ea1` | implementer, `../fathomdb-forks/candle-fathomdb` | stays; publishes 0.10.4 |
+| `fathomadb/fathomdb` | `release/0.8.28` | existing branch | main thread, existing `../fathomdb-worktrees/release-0.8.28`; one writer at a time | holds W0 merge-forward and later slice merges |
 | `fathomadb/fathomdb` | `slice/0.8.28-31-cudarc-fork` | `origin/release/0.8.28` | implementer and main thread, serialized | R-CODE-3 + R-VERIFY |
 | `fathomadb/fathomdb` | `slice/0.8.28-31-post` | `origin/release/0.8.28` right after the slice merges | main thread (W7 docs) and implementer (W8 step 3), serialized; worktree `../fathomdb-worktrees/slice-0.8.28-31-post` | R-CODE-4, merge |
 
-- **Merge method:** the main thread merges in a temporary worktree of
-  `release/0.8.28` (`git merge --no-ff <slice branch>`), runs the checks the
-  merge touches, pushes the explicit ref, removes the temporary worktree.
+- **Merge method:** the main thread uses the existing
+  `../fathomdb-worktrees/release-0.8.28` checkout for W0 and later slice
+  merges (`git merge --no-ff <slice branch>`), only when no other writer is
+  active there. It runs the checks the merge touches and pushes the explicit
+  branch ref. Do not create a second checkout of that checked-out branch.
 - Fork branches are never rewritten after a pin. Worktrees and clones are
   removed after their branch lands.
 

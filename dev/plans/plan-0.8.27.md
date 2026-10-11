@@ -46,7 +46,8 @@ Node delivery route. Its [status](0.8.27/features/slice-117/status.md) binds
 the installed candidate to the exact Jetson workflow and artifact hashes.
 The generic Linux AArch64 npm package remains CPU-only. The accepted
 distribution ADR governs the separately named Tegra Pages tarball. Slice 160
-owns its publication and post-publication smoke; Slice 140 is next.
+owns its publication and post-publication smoke. Slice 140 is complete;
+Slice 150 is next.
 
 The shared structural vocabulary is:
 
@@ -381,9 +382,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 140** (`DOC-CONVERGENCE`) — documentation and structural convergence
+**IMMEDIATE NEXT: Slice 150** (`QUALIFICATION`) — integrated release qualification
 
-**Remaining ladder:** 140 → 150 → 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 150 → 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 

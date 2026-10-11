@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 140 — documentation and structural convergence
-status: REVIEWED_PLAN
+status: APPROVED
 target_release: 0.8.27
 planning_baseline: 360bbe63e65aca93cb2200f6c8e27624f4042ea8
 ---

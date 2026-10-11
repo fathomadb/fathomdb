@@ -1,21 +1,25 @@
 ---
 title: FathomDB 0.8.27 Slice 140 — implementation status
-status: IMPLEMENTED_PENDING_VERIFICATION
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.27
 planning_baseline: 360bbe63e65aca93cb2200f6c8e27624f4042ea8
 ---
 
 # Slice 140 implementation status — 2026-10-10
 
-The [plan](plan.md) is reviewed and the [design](design.md) is approved,
-including the generated-documentation amendment. Rust implementation and final hidden capture are complete at `f327c28ca`;
-the documentation-target follow-up below also passes focused verification.
-Independent final reviews and the integrated full gate remain open.
-The historical planning reviews used `360bbe63e`; implementation includes
-Slice 117's completed handoff at `1476d83e0`. The release ladder remains
-`140 → 150 → 160`. Slice 117 artifacts are qualified and unpublished, with
-Slice 160 owning publication. Slice 140 is not closed by this worktree
-record, and publication-facing documentation is not a publication receipt.
+Slice 140 is complete on `release/0.8.27`. The [plan](plan.md) is reviewed,
+the [design](design.md) is approved, and the implemented candidate
+`3a69eef82e0381641e5bfbf7dcd8ed25141d97ff` passed the full agent
+verification gate: **196/196 suites passed, 0 skipped, 0 excluded**; strict
+security reported **0 violations, 0 blockers, 0 downgrades**. The three
+independent final documentation reviews and independent code review passed.
+Terra found no product defect and independently recomputed the exact 39-file
+large-file register, now bound to this candidate. Rust and hidden-surface
+capture remain bound to `f327c28ca`, with no subsequent Rust product/source
+change. Slice 117's qualified, unpublished handoff is included. The remaining
+ladder is `150 → 160`; Slice 150 qualifies the final candidate and Slice 160
+owns publication and post-publication proof. Publication-facing 0.8.27
+documentation is not a publication receipt.
 
 ## Reviewed decisions and corrections
 
@@ -56,13 +60,13 @@ parsing of the release state, and `git diff --check` passed for this document
 and metadata-only planning change. Public `docs/` and executable/source files
 did not change, so this is not a public-doc or full-workspace gate claim.
 
-## Work still required to close Slice 140
+## Prior closeout list (superseded)
 
-Source implementation, integration with the completed Slice 117 handoff,
-focused controls, contract/document convergence and final-source large-file
-coverage are complete. Terra verification, three independent final reviews, runnable
-prepared-package examples and integrated full gate must be recorded before
-acceptance. The parent owns release-state closeout and worktree cleanup.
+At planning time, source implementation, integration with the completed Slice
+117 handoff, focused controls, contract/document convergence and final-source
+large-file coverage were complete. The remaining Terra verification, three
+independent final reviews, runnable prepared-package examples and integrated
+full gate are recorded in the final closeout above and below.
 
 ## Large-file register policy update — 2026-10-10
 
@@ -327,3 +331,42 @@ Independent `gpt-6-sol` high design/code follow-up on `1b2a0107a` returned
 **APPROVE/PASS**, with no remaining P0/P1/P2. The advisory register commit
 `b68e0b815` and this receipt update change internal records only. The parent
 now owns integration and the required full verification/acceptance gates.
+
+## Final acceptance — 2026-10-10
+
+The final candidate `3a69eef82e0381641e5bfbf7dcd8ed25141d97ff`
+includes the 0.8.27 README, SDK references, generated contributor/library
+indexes, and Pages CI publication route. The source-derived generator and
+both Pages workflows check freshness and source currency. Final independent
+public-doc, SDK-doc, and contributor/Pages reviews each returned **PASS**
+without P0/P1/P2. The independent `gpt-6-sol` high code review also returned
+**PASS**. These are completed reviews, not a new release gate.
+
+The independent Terra verification passed AC27-140A, B, D, E and G, and found
+no product defect. It deferred AC27-140C only because the register then cited
+an older SHA; its own re-scan showed the same 39 paths and line counts. The
+final-candidate re-scan independently repeated that exact equality and the
+[register](large-file-review.md) and [machine-readable scan](large-file-scan.json)
+now bind to `3a69eef82`. Terra deferred AC27-140F only while the integrated
+gate was still running. That unchanged `./scripts/agent-verify.sh` run exited
+zero: **196/196 suites passed, 0 skipped, 0 excluded**, and strict security
+passed **0/0/0**, including AC-036 and live AC-037 checks. This closes both
+remaining acceptance evidence items without another review round.
+
+Prepared-package examples ran through an installed Python wheel built from
+source-equivalent checkout `1a462d0`, a local Node package route, and an
+external Rust source-path application. The Python wheel and current README
+quickstart stored and searched one note successfully. No Rust, Python,
+TypeScript source, or workspace manifest changed between that wheel's source
+and the final candidate, apart from TypeScript package README prose. These
+are runnable local-package examples, not proof of unpublished 0.8.27 registry
+artifacts. The workspace and package manifests retain 0.8.26 until Slice
+160's publication preparation. The retained Tegra manifest has no 0.8.27
+entry or digest yet; the documented install route fails closed until it does.
+
+The final strict MkDocs build, scoped Markdown/public-doc checks, generated
+documentation freshness, release-state view check, and focused documentation
+tests passed. Slice 135's 611-query CPU–CUDA match remains measured evidence
+for its candidate, host and sample only. Slice 150 must qualify the exact
+final release candidate; Slice 160 owns publication, Pages-installed smoke,
+and post-publication registry checks.

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 140 — test-seam change record
-status: IMPLEMENTED_PENDING_REVIEW
+status: REVIEWED_COMPLETE
 target_release: 0.8.27
 source_baseline: 815aa83386342d33729de16f5131e577fe6cb6a3
 ---

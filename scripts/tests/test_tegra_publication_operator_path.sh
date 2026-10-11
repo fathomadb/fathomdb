@@ -68,6 +68,8 @@ cat > "$TMPROOT/bin/gh" <<'MOCK_GH'
 #!/usr/bin/env bash
 case "$1 $2" in
   'auth status'|'workflow run'|'run watch') exit 0 ;;
+  'api repos/fathomadb/fathomdb/environments/github-pages/deployment-branch-policies')
+    printf '{"branch_policies":[{"type":"branch","name":"release/0.8.27"}]}\n' ;;
   'run download')
     dir=''
     while [ "$#" -gt 0 ]; do
@@ -142,6 +144,7 @@ fi
 FAKE_ROOT="$TMPROOT/checkout"
 mkdir -p "$FAKE_ROOT/scripts/release/smoke"
 cp "$PUBLISHER" "$FAKE_ROOT/scripts/release/publish-tegra-pages.sh"
+cp "$REPO_ROOT/scripts/release/check-tegra-pages-route.sh" "$FAKE_ROOT/scripts/release/check-tegra-pages-route.sh"
 cat > "$FAKE_ROOT/scripts/release/smoke/smoke-tegra-pages-wheel.sh" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "$MOCK_CALLS/wheel-smoke.args"

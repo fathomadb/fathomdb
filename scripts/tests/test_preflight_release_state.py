@@ -257,6 +257,21 @@ class RealPreflightRegressionTest(unittest.TestCase):
             stderr=subprocess.STDOUT,
             check=True,
         ).stdout.strip()
+        if not current:
+            states = [
+                json.loads(path.read_text(encoding="utf-8"))
+                for path in (ROOT / "dev/plans").glob("release-state-*.json")
+            ]
+            published = [state for state in states if state.get("published")]
+            self.assertTrue(published, "closed release set must include a published state")
+            latest = max(
+                published,
+                key=lambda state: tuple(int(part) for part in state["release"].split(".")),
+            )
+            self.assertIsNone(latest["next_slice"])
+            self.assertEqual(latest["remaining_ladder"], [])
+            self.assertTrue(all(item["status"] == "LANDED" for item in latest["ladder"]))
+            return
         release, _board, state_path = current.split("\t")
         state = json.loads((ROOT / state_path).read_text(encoding="utf-8"))
         closed = [

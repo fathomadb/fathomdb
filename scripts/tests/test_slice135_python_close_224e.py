@@ -27,9 +27,22 @@ def test_exact_source_lifecycle_runner_and_auditor_use_same_wheel() -> None:
     )
 
 
-def test_exact_source_protocol_rejects_changed_wheel_hash() -> None:
+def test_exact_source_protocol_rejects_changed_wheel_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     root = Path(__file__).resolve().parents[2]
     protocol = json.loads(paired_audit.FROZEN.read_text())
+    original_sha = campaign.sha
+    # The historical wheels are outside CI checkouts; keep source-file hashes real.
+    wheel_sha = {role: protocol[role]["wheel_sha256"] for role in campaign.WHEEL}
+
+    def frozen_wheel_sha(path: Path) -> str:
+        for role, wheel in campaign.WHEEL.items():
+            if path == wheel:
+                return wheel_sha[role]
+        return original_sha(path)
+
+    monkeypatch.setattr(campaign, "sha", frozen_wheel_sha)
     campaign.validate_protocol(protocol, root)
     protocol["candidate"]["wheel_sha256"] = "0" * 64
     with pytest.raises(ValueError, match="candidate source or wheel changed"):

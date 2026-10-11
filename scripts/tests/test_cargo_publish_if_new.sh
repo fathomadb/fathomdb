@@ -161,6 +161,22 @@ else
   fail "publish-case: helper exited non-zero: $out"
 fi
 
+# A first-published crate has no crates.io package endpoint yet (HTTP 404).
+# That is an absent version, and must reach cargo publish with the mapped
+# registry rather than fail as an HTTP error.
+reset_shim_log
+if out="$(CARGO_PUBLISH_IF_NEW_LOCAL_VERSION=0.8.27 \
+            run_helper fathomdb-sdk 2>&1)"; then
+  if printf '%s' "$out" | grep -q 'not on registry; publishing' \
+     && grep -q -- 'publish -p fathomdb-sdk --registry staging-alt' "$CARGO_LOG"; then
+    pass "first-published crate HTTP 404 routes to cargo publish"
+  else
+    fail "first-publish-case: shim_log='$(cat "$CARGO_LOG")' helper='$out'"
+  fi
+else
+  fail "first-publish-case: helper exited non-zero: $out"
+fi
+
 # 3) Pre-release version present in registry → still skip.
 reset_shim_log
 if out="$(CARGO_PUBLISH_IF_NEW_LOCAL_VERSION=0.0.0-test-rc \

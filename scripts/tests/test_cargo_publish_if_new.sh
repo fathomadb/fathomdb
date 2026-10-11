@@ -339,6 +339,50 @@ for leaf_crate in fathomdb-embedder-api fathomdb-schema fathomdb-query; do
   fi
 done
 
+# A freshly published sibling may be visible through the crates.io API before
+# Cargo's package index can resolve it. Retry only that dependency-propagation
+# error; an unrelated packaging failure must still stop immediately.
+cat >"$SHIM_DIR/cargo" <<'SHIM'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$CARGO_LOG"
+case "${CARGO_SHIM_MODE:-}" in
+  propagation)
+    if [ "$(wc -l <"$CARGO_LOG")" -eq 1 ]; then
+      printf '%s\n' 'error: failed to select a version for the requirement `fathomdb-engine = "^0.8.27"`' \
+        "candidate versions found which didn't match: 0.8.26" >&2
+      exit 101
+    fi
+    ;;
+  fatal)
+    printf '%s\n' 'error: package verification failed' >&2
+    exit 101
+    ;;
+esac
+SHIM
+chmod +x "$SHIM_DIR/cargo"
+reset_shim_log
+if out="$(CARGO_SHIM_MODE=propagation CARGO_PUBLISH_IF_NEW_LOCAL_VERSION=0.8.27 \
+            CARGO_PUBLISH_IF_NEW_RETRY_INTERVAL=0 run_helper fathomdb-schema 2>&1)"; then
+  if [ "$(wc -l <"$CARGO_LOG")" -eq 2 ] \
+     && printf '%s' "$out" | grep -q 'Cargo index dependency version has not propagated'; then
+    pass "retry Cargo index propagation after a just-published sibling"
+  else
+    fail "propagation retry: cargo='$(cat "$CARGO_LOG")' out='$out'"
+  fi
+else
+  fail "propagation retry exited non-zero: $out"
+fi
+
+reset_shim_log
+if CARGO_SHIM_MODE=fatal CARGO_PUBLISH_IF_NEW_LOCAL_VERSION=0.8.27 \
+     CARGO_PUBLISH_IF_NEW_RETRY_INTERVAL=0 run_helper fathomdb-schema >/dev/null 2>&1; then
+  fail "unrelated cargo failure should not be retried"
+elif [ "$(wc -l <"$CARGO_LOG")" -eq 1 ]; then
+  pass "unrelated cargo failure stops after one attempt"
+else
+  fail "unrelated cargo failure retried: $(cat "$CARGO_LOG")"
+fi
+
 stop_server
 
 if [ "$FAILED" -gt 0 ]; then

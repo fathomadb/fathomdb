@@ -82,6 +82,7 @@ ROWS: list[dict[str, Any]] = [
     },
     {"id": "facade-default", "crate": "fathomdb", "features": []},
     {"id": "facade-operator", "crate": "fathomdb", "features": ["operator"]},
+    {"id": "sdk-default", "crate": "fathomdb-sdk", "features": []},
 ]
 RELEASE_PROBE_ROW = "release-probe"
 TEST_TARGETS_ROW = "test-targets"

@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 
 const REGISTRY: &str =
     include_str!("../../../../../dev/vector-bench-corpora/vec1bench/datasets.json");
+const VECTOR_EQUIVALENCE_PROBES: &str = include_str!("../src/vector_equivalence_probes.txt");
 const QUERY_SAMPLES: usize = 100;
 const INGEST_BATCH: usize = 512;
 const DRAIN_TIMEOUT_MS: u64 = 7_200_000;
@@ -79,6 +80,24 @@ impl CorpusEmbedder {
             message: format!("cannot read corpus vector {index}: {error}"),
         })
     }
+
+    fn probe_vector(&self, input: &str) -> Vector {
+        let mut digest = Sha256::new();
+        for field in [&self.identity.name, &self.identity.revision, input] {
+            digest.update((field.len() as u64).to_le_bytes());
+            digest.update(field.as_bytes());
+        }
+        let hash = digest.finalize();
+        let mut state = u64::from_le_bytes(hash[..8].try_into().expect("SHA256 prefix")) | 1;
+        (0..self.dimension)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                ((state >> 40) as f32 / 8_388_608.0) - 1.0
+            })
+            .collect()
+    }
 }
 
 impl Embedder for CorpusEmbedder {
@@ -100,6 +119,12 @@ impl Embedder for CorpusEmbedder {
             return self.queries.get(index).cloned().ok_or_else(|| EmbedderError::Failed {
                 message: format!("query row {index} is outside the prepared corpus"),
             });
+        }
+        if VECTOR_EQUIVALENCE_PROBES
+            .lines()
+            .any(|probe| !probe.is_empty() && !probe.starts_with('#') && probe == input)
+        {
+            return Ok(self.probe_vector(input));
         }
         Err(EmbedderError::Failed { message: "unknown vec1bench input ID".to_owned() })
     }
@@ -221,6 +246,11 @@ fn run_dataset(dataset_id: &str) {
     let database = directory.join("fathom-benchmark.sqlite");
     let opened =
         Engine::open_with_embedder_for_test(&database, embedder).expect("open benchmark database");
+    assert!(
+        !opened.report.dense_disabled,
+        "benchmark database cannot serve dense retrieval: {:?}",
+        opened.report.dense_disabled_reason
+    );
     let engine = &opened.engine;
     engine.configure_vector_kind_for_test("doc").expect("configure vector kind");
 
@@ -385,14 +415,16 @@ fn run_tiny_fixture() {
         evaluation_distance: "l2".to_owned(),
         fathom_transform: "identity".to_owned(),
     };
-    let embedder = Arc::new(CorpusEmbedder::new(
-        File::open(path).expect("open tiny corpus"),
-        vec![vec![0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]],
-        &spec,
-    ));
-    let opened =
-        Engine::open_with_embedder_for_test(directory.path().join("tiny.sqlite"), embedder)
-            .expect("open real Engine for tiny fixture");
+    let make_embedder = || {
+        Arc::new(CorpusEmbedder::new(
+            File::open(&path).expect("open tiny corpus"),
+            vec![vec![0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]],
+            &spec,
+        ))
+    };
+    let database = directory.path().join("tiny.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&database, make_embedder())
+        .expect("open real Engine for tiny fixture");
     opened.engine.configure_vector_kind_for_test("doc").expect("configure vector kind");
     for index in 0..4 {
         opened
@@ -416,6 +448,34 @@ fn run_tiny_fixture() {
         opened.engine.search_with_limit(&query_body(0), 1).expect("real vector-stage search");
     assert_eq!(result.results.len(), 1);
     assert_eq!(result.results[0].body, data_body(0));
+
+    drop(opened);
+    let reopened = Engine::open_with_embedder_for_test(&database, make_embedder())
+        .expect("reopen populated real Engine for tiny fixture");
+    assert!(
+        !reopened.report.dense_disabled,
+        "reopening a benchmark corpus must preserve dense retrieval: {:?}",
+        reopened.report.dense_disabled_reason
+    );
+    reopened.engine.set_vector_stage_only_for_test(true);
+    let after_restart = reopened
+        .engine
+        .search_with_limit(&query_body(0), 1)
+        .expect("real vector-stage search after reopen");
+    assert_eq!(after_restart.results.len(), 1);
+    assert_eq!(after_restart.results[0].body, data_body(0));
+
+    drop(reopened);
+    let verified = Engine::open_with_embedder_for_test(&database, make_embedder())
+        .expect("reopen benchmark after probe baseline was established");
+    assert!(!verified.report.dense_disabled, "same-identity probe baseline must verify");
+    verified.engine.set_vector_stage_only_for_test(true);
+    let after_verification = verified
+        .engine
+        .search_with_limit(&query_body(0), 1)
+        .expect("real vector-stage search after probe verification");
+    assert_eq!(after_verification.results.len(), 1);
+    assert_eq!(after_verification.results[0].body, data_body(0));
 }
 
 #[test]

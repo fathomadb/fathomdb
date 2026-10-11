@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import inspect
 import json
+import tomllib
 from pathlib import Path
 
 import fathomdb
@@ -81,6 +82,15 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
         "kind": "python-value",
         "path": "fathomdb.errors.DependencyTraceError",
         "signature": "DependencyTraceError = _DependencyTraceError",
+    }
+    version_row = expected["fathomdb.__version__"]
+    assert version_row["signature"] == "__version__ = '0.8.26'"
+    release_version = tomllib.loads(
+        (checkout / "src/python/pyproject.toml").read_text(encoding="utf-8")
+    )["project"]["version"]
+    expected["fathomdb.__version__"] = {
+        **version_row,
+        "signature": f"__version__ = {release_version!r}",
     }
     observed = {row["path"]: row for row in declarations}
     assert len(declarations) == len(observed) == len(expected) == 1132

@@ -55,11 +55,14 @@ this status and evidence were uncommitted. That interrupted run is not a full
 gate pass. The records are being committed before an unaffected full rerun.
 
 The unconfined strict security route produced both live AC-037 pass lines and
-`0 violation(s), 0 blocker(s), 0 downgrade(s)`. The runbook's procedural
-grant/revert witness remains open: on this host `unshare -rUn true` already
-succeeds before any grant, so a pre-grant and post-revert denial cannot be
-truthfully recorded. The owner has been asked for a restricted shell or a
-specific ruling; no alternate witness is being inferred from sandbox denial.
+`0 violation(s), 0 blocker(s), 0 downgrade(s)`: the network-safety test
+passed. The locked executor paragraph in `dev/acceptance.md` and its runbook
+also prescribe a temporary AppArmor grant/revert on Ubuntu 24.04, assuming
+the initial namespace probe fails. On this host `unshare -rUn true` already
+succeeds, so the prescribed before/after denial cannot be witnessed. This is
+a mismatch between the host procedure and this host, not a failed security
+test. No grant was attempted; the owner has been asked for a restricted host
+or an explicit ruling on the already-capable case.
 
 No release PASS, publication, or Slice 150 closeout is claimed here.
 
@@ -115,12 +118,8 @@ Jetson, registry-installed Rust or installed CUDA package pass is claimed.
 Historical Slice 135 performance measurements remain bound to their earlier
 source and do not establish final-candidate latency equivalence.
 
-**Blocking condition:** this host permits `unshare -rUn true` before any
-temporary grant, so it cannot produce the AC-037 pre-grant denial or
-post-revert denial required by the HITL runbook. The strict live security
-command did pass both functional AC-037 checks and report zero violations,
-blockers and downgrades, but that is not the complete grant/revert witness.
-The owner has been asked for a restricted host/shell or an explicit alternate
-ruling. The final exact-candidate full verifier and post-retirement security
-cycle also remain outstanding. The temporary hidden oracle is intact; release
-state stays on Slice 150, and this worktree is retained for completion.
+**Remaining decisions and work:** the written AC-037 executor procedure needs
+an owner ruling for an already-capable host or a restricted-host witness. The
+final exact-candidate full verifier and post-retirement security cycle also
+remain outstanding. The temporary hidden oracle is intact; release state
+stays on Slice 150, and this worktree is retained for completion.

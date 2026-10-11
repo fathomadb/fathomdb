@@ -414,6 +414,35 @@ Cost estimate (INFERRED, from the prices above):
 Image pulls into GCE from Artifact Registry in the same region incur no
 egress charge (INFERRED). Keep the images in us-central1.
 
+### Pilot tooling (MEASURED, 2026-10-11)
+
+The checked-in driver is `scripts/gcp-cuda-lab.sh`, with the VM-side
+`scripts/gcp-lab/remote-build.sh` and guardrail tests in
+`scripts/tests/test_gcp_cuda_lab.sh`. It differs from the sketch above:
+
+- The VM has no service account and no scopes, and needs no GCS bucket.
+  Receipts come back over `gcloud compute scp`.
+- SSH keys go into instance metadata (`block-project-ssh-keys=TRUE`), never
+  the project-wide `ssh-keys`.
+- Every VM is Spot, labeled `fathomdb-lab=true`, named `fdb-lab-*`, capped by
+  `--max-run-duration` (2h default, 4h maximum) and set to DELETE on
+  termination. `destroy` refuses any VM without the label.
+- The project comes from `FDB_LAB_PROJECT`, never the active gcloud
+  configuration.
+
+The first run was a CPU-only pilot (`pilot --profile cpu`). It used one Spot
+`e2-standard-8` in us-central1-a, on Ubuntu 24.04 with kernel
+`7.0.0-1011-gcp`. It cloned `release/0.8.28` at `fd7defc68` and ran
+`cargo build --workspace --locked` with rustc 1.95.0. The build passed in
+46 s. The VM was up about 3 minutes in total, and no instance or disk
+remained after teardown.
+
+The `t4` profile (`n1-standard-4`, one T4, `--maintenance-policy=TERMINATE`)
+is implemented and covered by the tests, but has not run. On 2026-10-11 the
+project's `GPUS_ALL_REGIONS` quota was 0, and the first increase request was
+denied. The driver install and the container cells for the T4 profile are the
+next step.
+
 ## Alternatives (brief)
 
 - **AWS (REPORTED):**

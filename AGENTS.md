@@ -11,7 +11,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 - **Retrieval layer** — grep / glob / read / LSP / tree-sitter map on demand. No local vector index.
 - **Execution layer** — typed dev-loop verbs under `scripts/agent-*.sh` emit structured JSON. Tests are oracle.
 - **Persistence layer** — the per-release board `dev/plans/runs/STATUS-<version>.md`, its single writer `dev/plans/release-state-<version>.json`, the append-only JSONL ledgers, and ADR supersession. Compaction-safe. Concrete files: § 9. `dev/progress/` is **historical** — frozen at 0.6.x; read for history, never write.
-- **Permission layer** — three-tier sandbox + worktree-per-task + egress allowlist (`.claude/settings.json`).
+- **Permission layer** — conduct tiers (§ 11; harness config is local, not tracked) + worktree-per-task + egress limits.
 - **Topology layer** — main thread orchestrates; implementer (worktree) + the codex review gate fan out at clean seams; single-agent for shared-state edits; **one writer per checkout** — concurrent file-mutating sessions/agents each get their own worktree, or are serialized.
 
 ---
@@ -166,11 +166,12 @@ Hard-won from prior incidents. Violations are correctness bugs, not style prefer
 
 ## 11. Permission model (for the Claude Code harness)
 
-`.claude/settings.json` enforces a 3-tier model:
+No tracked file enforces permissions: `.claude/settings.json` and `.claude/settings.local.json` are gitignored (`.gitignore`), so prompts and allow/deny lists are each operator's local harness config. The conduct below holds whatever that config says:
 
-- **read-only** (auto-allowed): `Read`, `Grep`, `Glob`, plus `Bash` for the agent-loop verbs and read-only git/cargo/uv operations.
-- **workspace-write** (auto-allowed): `Edit`, `Write` within the repo; `git add`, `git commit`, `git restore`.
-- **escalated** (denied or asked): destructive ops (`rm`, `mv`, `git reset --hard`, `git clean`); network beyond the package registries (`curl`, `wget`); `git push` requires confirmation.
+- **read-only** (no confirmation): `Read`, `Grep`, `Glob`, the agent-loop verbs, read-only git/cargo/uv operations.
+- **workspace-write** (no confirmation): `Edit`, `Write` within the repo or your worktree; `git add`, `git commit`, `git restore`.
+- **push** (no per-push confirmation, owner 2026-10-11): branch pushes to this repo and to the owner's forks `coreyt/cudarc` and `coreyt/candle-fathomdb`. Never force-push. A `v*` tag push fires the real multi-registry publish (§ 10). Never push to Memex or any other repository, and never to upstream third-party repositories.
+- **escalated** (surface to the user first): destructive ops (`rm`, `mv`, `git reset --hard`, `git clean`); network beyond the package registries and the repositories above (`curl`, `wget`).
 
 If the agent needs an op outside this model, surface it to the user; do not look for workarounds.
 

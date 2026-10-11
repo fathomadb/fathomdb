@@ -4,7 +4,7 @@
 # candidate package inventory. Self-hosted runner workspaces can retain files.
 
 select_cuda_rehearsal_packages() {
-  local dir="${1:-}" version="${2:-}" path count
+  local dir="${1:-}" version="${2:-}" path entry count=0
   [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
     && [ -d "$dir" ] && [ ! -L "$dir" ] || {
     printf 'cuda-rehearsal-packages: invalid directory or version: %s %s\n' "$dir" "$version" >&2
@@ -19,7 +19,11 @@ select_cuda_rehearsal_packages() {
       return 1
     }
   done
-  count="$(find "$dir" -mindepth 1 -maxdepth 1 -printf '.\n' | wc -l)"
+  for entry in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
+    if [ -e "$entry" ] || [ -L "$entry" ]; then
+      count=$((count + 1))
+    fi
+  done
   [ "$count" -eq 3 ] || {
     printf 'cuda-rehearsal-packages: expected exactly 3 candidate packages, found %s in %s\n' "$count" "$dir" >&2
     return 1

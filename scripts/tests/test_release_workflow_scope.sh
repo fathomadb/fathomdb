@@ -279,13 +279,13 @@ if [ -f "$UPLOAD_ACTION" ] \
    && ! grep -q 'uses: actions/upload-artifact@' "$WF" \
    && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$WF")" -eq 13 ] \
    && ! grep -q 'uses: actions/upload-artifact@' "$JETSON_WF" \
-   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$JETSON_WF")" -eq 3 ] \
+   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$JETSON_WF")" -eq 1 ] \
    && [ "$(grep -c 'uses: actions/upload-artifact@' "$UPLOAD_ACTION")" -eq 3 ] \
    && grep -q 'overwrite: true' "$UPLOAD_ACTION" \
    && grep -q 'artifact-id' "$UPLOAD_ACTION"; then
-  pass "release and Jetson artifact uploads retry in-place and require a confirmed artifact ID"
+  pass "release uploads and the single Jetson package upload retry in-place"
 else
-  fail "all 13 release and 3 Jetson artifact uploads must use the bounded, fail-closed retry action"
+  fail "all 13 release uploads and the single Jetson package upload must use bounded retries"
 fi
 
 if [ "$FAILED" -gt 0 ]; then

@@ -2,8 +2,8 @@ name: Jetson Tegra CUDA evidence
 
 # Slice 80's real-hardware evidence route. It is deliberately independent of
 # release.yml: it builds and validates a host-native, nonpublishable Tegra
-# wheel and Tegra Node packages on the dedicated Jetson runner and retains the
-# resulting evidence.
+# wheel and Tegra Node packages on the dedicated Jetson runner. Only an
+# allowlisted package payload crosses to hosted runners.
 on:
   workflow_dispatch:
     inputs:
@@ -337,12 +337,19 @@ jobs:
             --evidence-dir "$EVIDENCE_DIR/node-local-smoke" \
             2>&1 | tee "$EVIDENCE_DIR/node-local-smoke.log"
 
-      - name: Upload Jetson Tegra CUDA evidence
-        if: always()
+      - name: Stage the exact distribution payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release/stage-tegra-pages-payload.sh \
+            --evidence-dir "$EVIDENCE_DIR" --version "$CANDIDATE_VERSION" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --out "$RUNNER_TEMP/fathomdb-tegra-pages-payload-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Upload only the Tegra distribution payload
         uses: ./.github/actions/upload-artifact-retry
         with:
-          name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/fathomdb-jetson-tegra-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          name: jetson-tegra-pages-payload-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fathomdb-tegra-pages-payload-${{ github.run_id }}-${{ github.run_attempt }}
           retention-days: 30
           if-no-files-found: error
 
@@ -367,10 +374,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - name: Download only this run's Jetson evidence artifact
+      - name: Download only this run's Tegra package payload
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          name: jetson-tegra-pages-payload-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidence
       - name: Require the Jetson-built tarball bytes
         shell: bash
@@ -389,17 +396,8 @@ jobs:
             --tegra-tarball "evidence/node/fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz" \
             --candidate-sha "$CANDIDATE_SHA" \
             --evidence-dir "$RUNNER_TEMP/tegra-node-driverless"
-      - name: Upload driverless ARM64 import evidence
-        if: always()
-        uses: ./.github/actions/upload-artifact-retry
-        with:
-          name: tegra-node-driverless-arm64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/tegra-node-driverless
-          retention-days: 30
-          if-no-files-found: error
-
   # The Jetson has no publication credential. This hosted job receives only
-  # its retained artifact and constructs the public docs plus the interim,
+  # its package payload and constructs the public docs plus the interim,
   # exact-version PEP 503 site. It is deliberately opt-in for the matching
   # release branch.
   prepare-tegra-pages:
@@ -425,10 +423,10 @@ jobs:
         env:
           GIT_TERMINAL_PROMPT: "0"
         run: python3 scripts/release/check-pages-source.py --repo "$GITHUB_WORKSPACE" --candidate "$GITHUB_SHA"
-      - name: Download only this run's Jetson evidence artifact
+      - name: Download only this run's Tegra package payload
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          name: jetson-tegra-pages-payload-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidence
       - name: Install the documentation builder
         run: python3 -m pip install --disable-pip-version-check mkdocs
@@ -464,18 +462,6 @@ jobs:
               "$tarball_sha256" "${built_sha256:-missing}" >&2
             exit 1
           fi
-          python3 - evidence/node-local-smoke/summary.json "$tarball_sha256" <<'PY'
-          import json
-          import sys
-          from pathlib import Path
-
-          summary = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-          context = json.loads((Path(sys.argv[1]).parent / "context.json").read_text(encoding="utf-8"))
-          if summary.get("outcome") != "PASS":
-              raise SystemExit("the installed Node smoke did not pass; refusing to publish the tarball")
-          if context.get("tegra_tarball_sha256") != sys.argv[2]:
-              raise SystemExit("the installed Node smoke did not test this tarball")
-          PY
           retained_dir="$RUNNER_TEMP/fathomdb-retained-tegra-artifacts"
           bash scripts/release/fetch-tegra-pages-retained.sh --manifest scripts/release/tegra-pages-retained.json \
             --dest "$retained_dir"
@@ -615,7 +601,7 @@ jobs:
         with:
           node-version: "25.9.0"
           package-manager-cache: false
-      - name: Smoke installed public artifacts and retain the evidence
+      - name: Smoke installed public artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -629,11 +615,3 @@ jobs:
             --pages-url "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz" \
             --tegra-sha256 "$NODE_TARBALL_SHA256" --pages-run "$GITHUB_RUN_ID" \
             --candidate-sha "$GITHUB_SHA" --evidence-dir "$node_evidence"
-      - name: Upload post-publication Jetson smoke evidence
-        if: always()
-        uses: ./.github/actions/upload-artifact-retry
-        with:
-          name: jetson-tegra-pages-smoke-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/tegra-pages-wheel-smoke-${{ github.run_id }}-${{ github.run_attempt }}
-            ${{ runner.temp }}/tegra-pages-node-smoke-${{ github.run_id }}-${{ github.run_attempt }}

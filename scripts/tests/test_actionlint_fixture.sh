@@ -241,8 +241,9 @@ for tier in \
       in_step { print }
     ')"
     bootstrap_line='          CARGO_REGISTRY_TOKEN: ${{ env.RELEASE_TAG == '\''v0.8.27'\'' && secrets.CARGO_REGISTRY_TOKEN || steps.crates_io_auth.outputs.token }}'
+    bootstrap_occurrences="$(awk 'index($0, "secrets.CARGO_REGISTRY_TOKEN") { n++ } END { print n+0 }' <<<"$tier_block")"
     if ! grep -Fqx "$bootstrap_line" <<<"$sdk_step" \
-      || [ "$(grep -Fc 'secrets.CARGO_REGISTRY_TOKEN' <<<"$tier_block")" -ne 1 ]; then
+      || [ "$bootstrap_occurrences" -ne 1 ]; then
       printf 'FAIL  T6 must confine the API-token bootstrap to the v0.8.27 SDK step\n' >&2
       CRATES_OIDC_FAILED=$((CRATES_OIDC_FAILED + 1))
     fi

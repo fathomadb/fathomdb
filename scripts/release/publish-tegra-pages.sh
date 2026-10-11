@@ -90,7 +90,7 @@ if [ "$skip_pages_smoke" -eq 1 ]; then
   exit 3
 fi
 gh run download "$run_id" --repo "$repository" \
-  --name "jetson-tegra-cuda-evidence-$run_id-1" --dir "$work/evidence"
+  --name "jetson-tegra-pages-payload-$run_id-1" --dir "$work/evidence"
 wheel_sha256="$(awk 'NR == 1 { print $1 }' "$work/evidence/wheel.sha256")"
 [[ "$wheel_sha256" =~ ^[0-9a-f]{64}$ ]] || {
   printf 'publish-tegra-pages: retained evidence has no valid wheel SHA-256\n' >&2; exit 1;

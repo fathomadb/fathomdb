@@ -56,11 +56,9 @@ done
 [ -n "$run_id" ] || { printf 'slice75-jetson-run: dispatched run was not identified\n' >&2; exit 1; }
 gh run watch "$run_id" --repo "$repository" --exit-status
 gh run view "$run_id" --repo "$repository" --json headSha,status,conclusion,url,jobs > "$work/run.json"
-artifact_name="jetson-tegra-cuda-evidence-$run_id-1"
+artifact_name="jetson-tegra-pages-payload-$run_id-1"
 mkdir "$work/evidence"
 gh run download "$run_id" --repo "$repository" --name "$artifact_name" --dir "$work/evidence"
-python3 scripts/release/verify-tegra-gpu-witness.py \
-  --witness "$work/evidence/tegra-gpu-allocation-witness.json"
 python3 - "$work/run.json" "$work/evidence" "$repository" "$workflow" "$branch" \
   "$candidate_sha" "$candidate_version" "$run_id" "$receipt" <<'PY'
 import hashlib
@@ -80,12 +78,14 @@ evidence = pathlib.Path(evidence_text)
 wheels = list((evidence / "wheel").glob(f"fathomdb-{version}+tegra-*-linux_aarch64.whl"))
 if len(wheels) != 1:
     raise SystemExit(f"slice75-jetson-run: expected one {version}+tegra wheel, found {len(wheels)}")
-witness = json.loads((evidence / "tegra-gpu-allocation-witness.json").read_text())
-source = (evidence / "source-identity.txt").read_text()
-if f"candidate_sha={sha}" not in source or f"checkout_sha={sha}" not in source:
-    raise SystemExit("slice75-jetson-run: downloaded source identity differs")
+required_jobs = {
+    "Build and witness the Tegra CUDA wheel and Node packages",
+    "Import the Tegra Node package on a driverless non-Tegra ARM64 runner",
+}
+if not required_jobs <= {job["name"] for job in jobs if job["conclusion"] == "success"}:
+    raise SystemExit("slice75-jetson-run: hardware or driverless proof did not pass")
 payload = {
-    "schema_version": "fathomdb.slice75-jetson/v1",
+    "schema_version": "fathomdb.slice75-jetson/v2",
     "repository": repository,
     "workflow": workflow,
     "branch": branch,
@@ -97,7 +97,7 @@ payload = {
     "wheel_count": 1,
     "wheel_filename": wheels[0].name,
     "wheel_sha256": hashlib.sha256(wheels[0].read_bytes()).hexdigest(),
-    "gpu": witness.get("device_name"),
+    "hardware_witness_job": "success",
     "policies": ["cpu", "auto", "cuda"],
     "publication_jobs": 0,
     "outcome": "pass",

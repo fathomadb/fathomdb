@@ -111,9 +111,17 @@ assert_contains 'FATHOMDB_EMBED_DEVICE=auto' "installed-wheel auto policy smoke 
 assert_contains 'FATHOMDB_EMBED_DEVICE=cuda:0' "installed-wheel forced-CUDA policy smoke is retained"
 assert_contains 'FATHOMDB_GPU_ALLOCATION_WITNESS=1' "forced CUDA smoke requires an in-process allocation witness"
 assert_contains 'verify-tegra-gpu-witness.py' "workflow validates the retained Tegra witness"
-assert_contains 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' "evidence artifact uploader is pinned"
-assert_contains 'retention-days: 30' "logs, wheel, and validated evidence have bounded retention"
-assert_contains 'if: always()' "evidence artifact is retained after failure"
+assert_contains 'stage-tegra-pages-payload.sh' "Jetson stages an allowlisted distribution payload"
+assert_contains 'fathomdb-tegra-pages-payload-${{ github.run_id }}-${{ github.run_attempt }}' "only the staged distribution path is uploaded"
+assert_absent 'path: ${{ runner.temp }}/fathomdb-jetson-tegra-evidence-' "bulk SQLite and log evidence cannot enter the upload"
+assert_absent 'Upload driverless ARM64 import evidence' "driverless job does not upload copied packages or smoke data"
+assert_absent 'Upload post-publication Jetson smoke evidence' "post-publication smoke does not upload databases or logs"
+upload_count="$(awk 'index($0, "uses: ./.github/actions/upload-artifact-retry") { n++ } END { print n+0 }' "$WORKFLOW")"
+if [ "$upload_count" -eq 1 ]; then
+  pass "the workflow uploads exactly one allowlisted cross-job artifact"
+else
+  fail "the workflow must upload exactly one allowlisted cross-job artifact"
+fi
 
 # The same Jetson run builds, smokes and retains the Tegra Node tarballs
 # beside the wheel (ADR-0.8.27-jetson-tegra-node-addon-distribution).
@@ -151,7 +159,7 @@ assert_job '--out "$EVIDENCE_DIR/node"' "Jetson job retains the packed Node tarb
 assert_job 'smoke-tegra-node-package.sh' "Jetson job smokes the installed Node packages"
 assert_job '--source local' "Jetson Node smoke installs this run's packed tarballs"
 assert_job '--candidate-sha "$CANDIDATE_SHA"' "Jetson Node smoke binds the validated candidate"
-assert_job '--evidence-dir "$EVIDENCE_DIR/node-local-smoke"' "Jetson Node smoke retains its evidence in the uploaded artifact"
+assert_job '--evidence-dir "$EVIDENCE_DIR/node-local-smoke"' "Jetson Node smoke writes local proof before payload staging"
 assert_job_absent 'permissions:' "Jetson job keeps the workflow's read-only contents permission"
 assert_job_absent ': write' "Jetson job holds no write permission"
 assert_job_absent 'NPM_TOKEN' "Jetson job holds no npm credential"
@@ -198,13 +206,12 @@ assert_driverless_absent ': write' "driverless import holds no write permission"
 assert_driverless 'timeout-minutes:' "driverless import has a bounded timeout"
 assert_driverless 'persist-credentials: false' "driverless checkout leaves no credential"
 assert_driverless "ref: \${{ github.sha }}" "driverless checkout uses the immutable dispatch SHA"
-assert_driverless 'name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}' "driverless import downloads only this run's Jetson artifact"
+assert_driverless 'name: jetson-tegra-pages-payload-${{ github.run_id }}-${{ github.run_attempt }}' "driverless import downloads only this run's package payload"
 assert_driverless 'SHA256SUMS' "driverless import checks the tarballs against the Jetson build digests"
 assert_driverless 'smoke-tegra-node-driverless.sh' "driverless import runs the driverless smoke"
 assert_driverless '--candidate-sha "$CANDIDATE_SHA"' "driverless smoke binds the validated candidate"
 assert_driverless 'fathomdb-linux-arm64-gnu-tegra-$CANDIDATE_VERSION.tgz' "driverless smoke imports this run's Tegra tarball"
-assert_driverless 'name: tegra-node-driverless-arm64-${{ github.run_id }}-${{ github.run_attempt }}' "driverless evidence is retained"
-assert_driverless 'if: always()' "driverless evidence is retained after failure"
+assert_driverless_absent 'uses: ./.github/actions/upload-artifact-retry' "driverless job uploads no redundant evidence"
 assert_driverless_absent 'registry-url' "driverless import configures no npm registry authentication"
 if grep -Fq 'needs: [tegra-cuda-evidence, tegra-node-driverless-arm64]' <<<"$pages_job"; then
   pass "Pages publication waits for the driverless ARM64 import"

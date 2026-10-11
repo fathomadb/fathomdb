@@ -6,7 +6,6 @@ import hashlib
 import importlib.util
 import inspect
 import json
-import tomllib
 from pathlib import Path
 
 import fathomdb
@@ -85,9 +84,9 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     }
     version_row = expected["fathomdb.__version__"]
     assert version_row["signature"] == "__version__ = '0.8.26'"
-    release_version = tomllib.loads(
-        (checkout / "src/python/pyproject.toml").read_text(encoding="utf-8")
-    )["project"]["version"]
+    release_version = json.loads(
+        (checkout / "src/ts/package.json").read_text(encoding="utf-8")
+    )["version"]
     expected["fathomdb.__version__"] = {
         **version_row,
         "signature": f"__version__ = {release_version!r}",

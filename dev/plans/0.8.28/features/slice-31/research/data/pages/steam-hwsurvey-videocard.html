@@ -1,0 +1,2866 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<title>Steam Hardware & Software Survey</title>
+	<link href="https://store.akamai.steamstatic.com/public/shared/css/motiva_sans.css?v=4Vj7bvhvv_UL&amp;l=english&amp;_cdn=akamai" rel="stylesheet" type="text/css">
+<link href="https://store.akamai.steamstatic.com/public/shared/css/shared_global.css?v=6XGwIQA5VRXI&amp;l=english&amp;_cdn=akamai" rel="stylesheet" type="text/css">
+<link href="https://store.akamai.steamstatic.com/public/shared/css/buttons.css?v=u7ItYmj40jWH&amp;l=english&amp;_cdn=akamai" rel="stylesheet" type="text/css">
+<link href="https://store.akamai.steamstatic.com/public/css/v6/store.css?v=b2kk9Hj3eEuj&amp;l=english&amp;_cdn=akamai" rel="stylesheet" type="text/css">
+	<link href="https://store.akamai.steamstatic.com/public/css/styles_hwsurvey.css?v=9eZ9jpBW4qlt&amp;l=english&amp;_cdn=akamai" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/shared/javascript/jquery-1.8.3.min.js?v=NXam5zydzNu8&amp;l=english&amp;_cdn=akamai"></script>
+<script type="text/javascript">$J = jQuery.noConflict();</script><script type="text/javascript">VALVE_PUBLIC_PATH = "https:\/\/store.akamai.steamstatic.com\/public\/";</script><script type="text/javascript" src="https://store.akamai.steamstatic.com/public/shared/javascript/tooltip.js?v=a9q1REOJMDBo&amp;l=english&amp;_cdn=akamai"></script>
+
+<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/shared/javascript/shared_global.js?v=ABylLOrGN4B_&amp;l=english&amp;_cdn=akamai"></script>
+
+<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/shared/javascript/auth_refresh.js?v=w6QbwI-5-j2S&amp;l=english&amp;_cdn=akamai"></script>
+
+<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/javascript/main.js?v=vLI1lFq8i6H2&amp;l=english&amp;_cdn=akamai"></script>
+
+<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/javascript/dynamicstore.js?v=RV9TYHF6En7T&amp;l=english&amp;_cdn=akamai"></script>
+
+<script type="text/javascript">
+	var __PrototypePreserve=[];
+	__PrototypePreserve[0] = Array.from;
+	__PrototypePreserve[1] = Array.prototype.filter;
+	__PrototypePreserve[2] = Array.prototype.flatMap;
+	__PrototypePreserve[3] = Array.prototype.find;
+	__PrototypePreserve[4] = Array.prototype.some;
+	__PrototypePreserve[5] = Function.prototype.bind;
+	__PrototypePreserve[6] = HTMLElement.prototype.scrollTo;
+</script>
+<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/javascript/prototype-1.7.js?v=npJElBnrEO6W&amp;l=english&amp;_cdn=akamai"></script>
+<script type="text/javascript">
+	Array.from = __PrototypePreserve[0] || Array.from;
+	Array.prototype.filter = __PrototypePreserve[1] || Array.prototype.filter;
+	Array.prototype.flatMap = __PrototypePreserve[2] || Array.prototype.flatMap;
+	Array.prototype.find = __PrototypePreserve[3] || Array.prototype.find;
+	Array.prototype.some = __PrototypePreserve[4] || Array.prototype.some;
+	Function.prototype.bind = __PrototypePreserve[5] || Function.prototype.bind;
+	HTMLElement.prototype.scrollTo = __PrototypePreserve[6] || HTMLElement.prototype.scrollTo;
+</script>
+<script type="text/javascript">
+	var __ScriptaculousPreserve=[];
+	__ScriptaculousPreserve[0] = Array.from;
+	__ScriptaculousPreserve[1] = Function.prototype.bind;
+	__ScriptaculousPreserve[2] = HTMLElement.prototype.scrollTo;
+</script>
+<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/javascript/scriptaculous/_combined.js?v=lz_99vci25ux&amp;l=english&amp;_cdn=akamai&amp;load=effects,controls,slider"></script>
+<script type="text/javascript">
+	Array.from = __ScriptaculousPreserve[0] || Array.from;
+	Function.prototype.bind = __ScriptaculousPreserve[1] || Function.prototype.bind;
+	HTMLElement.prototype.scrollTo = __ScriptaculousPreserve[2] || HTMLElement.prototype.scrollTo;
+delete String['__parseStyleElement'];  Prototype.Browser.WebKit = true;</script>
+<script type="text/javascript">Object.seal && [ Object, Array, String, Number ].map( function( builtin ) { Object.seal( builtin.prototype ); } );</script>
+		<script type="text/javascript">
+			document.addEventListener('DOMContentLoaded', function(event) {
+				$J.data( document, 'x_readytime', new Date().getTime() );
+				$J.data( document, 'x_oldref', GetNavCookie() );
+				SetupTooltips( { tooltipCSSClass: 'store_tooltip'  } );
+		});
+		</script> 	<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/javascript/hwsurvey.js?v=4l-PB2xJbnT2&amp;l=english&amp;_cdn=akamai"></script>
+	<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/shared/javascript/flot-0.8/jquery.flot.min.js?v=mSfqk1QKKgiz&amp;l=english&amp;_cdn=akamai"></script>
+	<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/shared/javascript/flot-0.8/jquery.flot.stack.min.js?v=Nu_CW9IREurT&amp;l=english&amp;_cdn=akamai"></script>
+	<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/shared/javascript/flot-0.8/jquery.flot.resize.min.js?v=MeIf0YViALgL&amp;l=english&amp;_cdn=akamai"></script>
+	<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/shared/javascript/flot-0.8/excanvas.min.js?v=7p4_7hQnC3sn&amp;l=english&amp;_cdn=akamai"></script>
+
+	<script type="text/javascript">
+		jQuery(function()
+		{
+			jQuery("<div class='chartooltip' id='charttooltip'></div>").css({
+				position: "absolute",
+				border: "1px solid #ffdddd",
+				display: "none",
+				padding: "2px",
+				"background-color": "white",
+				color: "black",
+				"font-size": "10px",
+				opacity: "1.0",
+			}).appendTo("body");
+		});
+	</script>
+</head>
+
+
+<body class="v6">
+
+<div id="application_config" style="display: none;"  data-config="{&quot;EUNIVERSE&quot;:1,&quot;WEB_UNIVERSE&quot;:&quot;public&quot;,&quot;LANGUAGE&quot;:&quot;english&quot;,&quot;COUNTRY&quot;:&quot;US&quot;,&quot;MEDIA_CDN_COMMUNITY_URL&quot;:&quot;https:\/\/shared.akamai.steamstatic.com\/community_assets\/&quot;,&quot;MEDIA_CDN_URL&quot;:&quot;https:\/\/cdn.akamai.steamstatic.com\/&quot;,&quot;VIDEO_CDN_URL&quot;:&quot;https:\/\/video.akamai.steamstatic.com\/&quot;,&quot;COMMUNITY_CDN_URL&quot;:&quot;https:\/\/community.akamai.steamstatic.com\/&quot;,&quot;COMMUNITY_CDN_ASSET_URL&quot;:&quot;https:\/\/cdn.akamai.steamstatic.com\/steamcommunity\/public\/assets\/&quot;,&quot;STORE_CDN_URL&quot;:&quot;https:\/\/store.akamai.steamstatic.com\/&quot;,&quot;PUBLIC_SHARED_URL&quot;:&quot;https:\/\/store.akamai.steamstatic.com\/public\/shared\/&quot;,&quot;COMMUNITY_BASE_URL&quot;:&quot;https:\/\/steamcommunity.com\/&quot;,&quot;CHAT_BASE_URL&quot;:&quot;https:\/\/steamcommunity.com\/&quot;,&quot;STORE_BASE_URL&quot;:&quot;https:\/\/store.steampowered.com\/&quot;,&quot;STORE_CHECKOUT_BASE_URL&quot;:&quot;https:\/\/checkout.steampowered.com\/&quot;,&quot;IMG_URL&quot;:&quot;https:\/\/store.akamai.steamstatic.com\/public\/images\/&quot;,&quot;STEAMTV_BASE_URL&quot;:&quot;https:\/\/steam.tv\/&quot;,&quot;HELP_BASE_URL&quot;:&quot;https:\/\/help.steampowered.com\/&quot;,&quot;PARTNER_BASE_URL&quot;:&quot;https:\/\/partner.steamgames.com\/&quot;,&quot;STATS_BASE_URL&quot;:&quot;https:\/\/partner.steampowered.com\/&quot;,&quot;INTERNAL_STATS_BASE_URL&quot;:&quot;https:\/\/steamstats.valve.org\/&quot;,&quot;IN_CLIENT&quot;:false,&quot;USE_POPUPS&quot;:false,&quot;STORE_ICON_BASE_URL&quot;:&quot;https:\/\/shared.akamai.steamstatic.com\/store_item_assets\/steam\/apps\/&quot;,&quot;STORE_ITEM_BASE_URL&quot;:&quot;https:\/\/shared.akamai.steamstatic.com\/store_item_assets\/&quot;,&quot;WEBAPI_BASE_URL&quot;:&quot;https:\/\/api.steampowered.com\/&quot;,&quot;TOKEN_URL&quot;:&quot;https:\/\/store.steampowered.com\/\/chat\/clientjstoken&quot;,&quot;BUILD_TIMESTAMP&quot;:1791587178,&quot;PAGE_TIMESTAMP&quot;:1791749628,&quot;IN_TENFOOT&quot;:false,&quot;IN_CHROMEOS&quot;:false,&quot;IN_MOBILE_WEBVIEW&quot;:false,&quot;PLATFORM&quot;:&quot;unknown&quot;,&quot;BASE_URL_STORE_CDN_ASSETS&quot;:&quot;https:\/\/cdn.akamai.steamstatic.com\/store\/&quot;,&quot;EREALM&quot;:1,&quot;LOGIN_BASE_URL&quot;:&quot;https:\/\/login.steampowered.com\/&quot;,&quot;AVATAR_BASE_URL&quot;:&quot;https:\/\/avatars.akamai.steamstatic.com\/&quot;,&quot;FROM_WEB&quot;:true,&quot;WEBSITE_ID&quot;:&quot;Store&quot;,&quot;BASE_URL_SHARED_CDN&quot;:&quot;https:\/\/shared.akamai.steamstatic.com\/&quot;,&quot;CLAN_CDN_ASSET_URL&quot;:&quot;https:\/\/clan.akamai.steamstatic.com\/&quot;,&quot;COMMUNITY_ASSETS_BASE_URL&quot;:&quot;https:\/\/shared.akamai.steamstatic.com\/community_assets\/&quot;,&quot;NOW&quot;:1791749628,&quot;SUPPORT_BASE_URL&quot;:&quot;https:\/\/steamsupport.valvesoftware.com\/&quot;,&quot;SNR&quot;:&quot;1_hwsurvey_4_&quot;}" data-userinfo="{&quot;logged_in&quot;:false,&quot;country_code&quot;:&quot;US&quot;,&quot;excluded_content_descriptors&quot;:[3,4]}" data-hwinfo="{&quot;bSteamOS&quot;:false,&quot;bSteamDeck&quot;:false,&quot;bSteamMachine&quot;:false,&quot;bSteamFrame&quot;:false}" data-broadcastuser="{&quot;success&quot;:1,&quot;bHideStoreBroadcast&quot;:false}" data-store_user_config="{&quot;webapi_token&quot;:&quot;&quot;,&quot;shoppingcart&quot;:null,&quot;originating_navdata&quot;:{&quot;domain&quot;:&quot;store.steampowered.com&quot;,&quot;controller&quot;:&quot;direct-navigation&quot;,&quot;method&quot;:&quot;&quot;,&quot;submethod&quot;:&quot;&quot;,&quot;feature&quot;:&quot;&quot;,&quot;depth&quot;:0,&quot;countrycode&quot;:&quot;&quot;,&quot;webkey&quot;:null,&quot;is_client&quot;:false,&quot;curator_data&quot;:null,&quot;is_likely_bot&quot;:false,&quot;is_utm&quot;:false},&quot;wishlist_item_count&quot;:0}"></div><div id="application_root"></div><script>window.g_wapit="";</script><link href="https://store.akamai.steamstatic.com/public/css/applications/store/main.css?v=S_e7RityyZE3&amp;l=english&amp;_cdn=akamai" rel="stylesheet" type="text/css">
+<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/javascript/applications/store/manifest.js?v=5y2QQAp_Ayze&amp;l=english&amp;_cdn=akamai"></script>
+<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/javascript/applications/store/libraries~b28b7af69.js?v=RjKKb5BhZu-x&amp;l=english&amp;_cdn=akamai"></script>
+<script type="text/javascript" src="https://store.akamai.steamstatic.com/public/javascript/applications/store/main.js?v=HG_26_xhyYwU&amp;l=english&amp;_cdn=akamai"></script>
+<div role="banner" id="global_header" data-panel="{&quot;flow-children&quot;:&quot;row&quot;}">
+	<div class="content">
+		<div class="logo">
+			<span id="logo_holder">
+									<a href="https://store.steampowered.com/?snr=1_hwsurvey_4__global-header" aria-label="Link to the Steam Homepage">
+						<img src="https://store.akamai.steamstatic.com/public/shared/images/header/logo_steam.svg?t=962016" width="144.5" height="44" alt="Link to the Steam Homepage">
+					</a>
+							</span>
+		</div>
+
+			<div role="navigation" class="supernav_container" aria-label="Global Menu">
+								<a class="menuitem supernav supernav_active" href="https://store.steampowered.com/?snr=1_hwsurvey_4__global-header" data-tooltip-type="selector" data-tooltip-content=".submenu_Store">
+				STORE			</a>
+			<div class="submenu_Store" style="display: none;" data-submenuid="Store">
+														<a class="submenuitem" href="https://store.steampowered.com/?snr=1_hwsurvey_4__global-header">
+						Home											</a>
+														<a class="submenuitem" href="https://store.steampowered.com/explore/?snr=1_hwsurvey_4__global-header">
+						Discovery Queue											</a>
+														<a class="submenuitem" href="https://store.steampowered.com/wishlist/?snr=1_hwsurvey_4__global-header">
+						Wishlist											</a>
+														<a class="submenuitem" href="https://store.steampowered.com/points/shop/?snr=1_hwsurvey_4__global-header">
+						Points Shop											</a>
+														<a class="submenuitem" href="https://store.steampowered.com/news/?snr=1_hwsurvey_4__global-header">
+						News											</a>
+														<a class="submenuitem" href="https://store.steampowered.com/stats/?snr=1_hwsurvey_4__global-header">
+						Charts											</a>
+							</div>
+										<a class="menuitem supernav" href="https://steamcommunity.com/" data-tooltip-type="selector" data-tooltip-content=".submenu_Community">
+				COMMUNITY			</a>
+			<div class="submenu_Community" style="display: none;" data-submenuid="Community">
+														<a class="submenuitem" href="https://steamcommunity.com/">
+						Home											</a>
+														<a class="submenuitem" href="https://steamcommunity.com/discussions/">
+						Discussions											</a>
+														<a class="submenuitem" href="https://steamcommunity.com/workshop/">
+						Workshop											</a>
+														<a class="submenuitem" href="https://steamcommunity.com/market/">
+						Market											</a>
+														<a class="submenuitem" href="https://steamcommunity.com/?subsection=broadcasts">
+						Broadcasts											</a>
+							</div>
+										<a class="menuitem " href="https://store.steampowered.com/about/?snr=1_hwsurvey_4__global-header">
+				About			</a>
+										<a class="menuitem " href="https://help.steampowered.com/en/">
+				SUPPORT			</a>
+				</div>
+	<script type="text/javascript">
+		jQuery(function($) {
+			$('#global_header .supernav').v_tooltip({'location':'bottom', 'destroyWhenDone': false, 'tooltipClass': 'supernav_content', 'offsetY':-6, 'offsetX': 1, 'horizontalSnap': 4, 'tooltipParent': '#global_header .supernav_container', 'correctForScreenSize': false});
+		});
+	</script>
+
+		<div id="global_actions">
+			<div role="navigation" id="global_action_menu" aria-label="Account Menu">
+									<a class="header_installsteam_btn header_installsteam_btn_green" href="https://store.steampowered.com/about/?snr=1_hwsurvey_4__global-header">
+						<div class="header_installsteam_btn_content">
+							Install Steam						</div>
+					</a>
+				
+				
+									<a class="global_action_link" href="https://store.steampowered.com/login/?redir=hwsurvey%2Fvideocard%2F&redir_ssl=1&snr=1_hwsurvey_4__global-header">sign in</a>
+											&nbsp;|&nbsp;
+						<span class="pulldown global_action_link" id="language_pulldown" onclick="ShowMenu( this, 'language_dropdown', 'right' );">language</span>
+						<div class="popup_block_new" id="language_dropdown" style="display: none;">
+							<div class="popup_body popup_menu">
+																																															<a class="popup_menu_item tight" href="?l=schinese" onclick="ChangeLanguage( 'schinese' ); return false;">
+											简体中文 (Simplified Chinese)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=tchinese" onclick="ChangeLanguage( 'tchinese' ); return false;">
+											繁體中文 (Traditional Chinese)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=japanese" onclick="ChangeLanguage( 'japanese' ); return false;">
+											日本語 (Japanese)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=koreana" onclick="ChangeLanguage( 'koreana' ); return false;">
+											한국어 (Korean)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=thai" onclick="ChangeLanguage( 'thai' ); return false;">
+											ไทย (Thai)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=indonesian" onclick="ChangeLanguage( 'indonesian' ); return false;">
+											Bahasa Indonesia (Indonesian)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=malay" onclick="ChangeLanguage( 'malay' ); return false;">
+											Bahasa Melayu (Malay)																							<span class="language_beta">BETA</span>
+																					</a>
+																																							<a class="popup_menu_item tight" href="?l=bulgarian" onclick="ChangeLanguage( 'bulgarian' ); return false;">
+											Български (Bulgarian)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=czech" onclick="ChangeLanguage( 'czech' ); return false;">
+											Čeština (Czech)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=danish" onclick="ChangeLanguage( 'danish' ); return false;">
+											Dansk (Danish)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=german" onclick="ChangeLanguage( 'german' ); return false;">
+											Deutsch (German)																					</a>
+																																																	<a class="popup_menu_item tight" href="?l=spanish" onclick="ChangeLanguage( 'spanish' ); return false;">
+											Español - España (Spanish - Spain)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=latam" onclick="ChangeLanguage( 'latam' ); return false;">
+											Español - Latinoamérica (Spanish - Latin America)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=greek" onclick="ChangeLanguage( 'greek' ); return false;">
+											Ελληνικά (Greek)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=french" onclick="ChangeLanguage( 'french' ); return false;">
+											Français (French)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=italian" onclick="ChangeLanguage( 'italian' ); return false;">
+											Italiano (Italian)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=hungarian" onclick="ChangeLanguage( 'hungarian' ); return false;">
+											Magyar (Hungarian)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=dutch" onclick="ChangeLanguage( 'dutch' ); return false;">
+											Nederlands (Dutch)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=norwegian" onclick="ChangeLanguage( 'norwegian' ); return false;">
+											Norsk (Norwegian)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=polish" onclick="ChangeLanguage( 'polish' ); return false;">
+											Polski (Polish)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=portuguese" onclick="ChangeLanguage( 'portuguese' ); return false;">
+											Português (Portuguese - Portugal)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=brazilian" onclick="ChangeLanguage( 'brazilian' ); return false;">
+											Português - Brasil (Portuguese - Brazil)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=romanian" onclick="ChangeLanguage( 'romanian' ); return false;">
+											Română (Romanian)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=russian" onclick="ChangeLanguage( 'russian' ); return false;">
+											Русский (Russian)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=finnish" onclick="ChangeLanguage( 'finnish' ); return false;">
+											Suomi (Finnish)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=swedish" onclick="ChangeLanguage( 'swedish' ); return false;">
+											Svenska (Swedish)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=turkish" onclick="ChangeLanguage( 'turkish' ); return false;">
+											Türkçe (Turkish)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=vietnamese" onclick="ChangeLanguage( 'vietnamese' ); return false;">
+											Tiếng Việt (Vietnamese)																					</a>
+																																							<a class="popup_menu_item tight" href="?l=ukrainian" onclick="ChangeLanguage( 'ukrainian' ); return false;">
+											Українська (Ukrainian)																					</a>
+																									<a class="popup_menu_item tight" href="https://www.valvesoftware.com/contact?contact-person=Translation%20Team%20Feedback" target="_blank">Report a translation problem</a>
+							</div>
+						</div>
+												</div>
+					</div>
+			</div>
+</div>
+
+<div class="">
+
+
+
+
+				<div id="main">
+	<div id="main_content">
+		<!-- Main Content -->
+		
+		<div id="hws_main">
+		<div id="hws_ctn" class="page_header_ctn search">
+			<div class="page_content">
+                <a class="backLink" href="https://store.steampowered.com/hwsurvey/">&lt;&lt; Back to Overview</a>			    <h1>Steam Hardware & Software Survey: September 2026</h1>
+
+					<div id="main_stats_header">
+				<div id="substats_sort"><form method="GET">Sort By:<select name="sort">
+				<option value="pct"selected="selected">Percent Share</option>
+				<option value="chg">% Change this month</option>
+				<option value="name">Item Name</option></select><input type="submit" value="Sort" /></form></div>
+				PC VIDEO CARD USAGE DETAILS			</div>
+			<div id="sub_stats">
+						<div class="substats_col_left col_header">OVERALL DISTRIBUTION OF CARDS</div>
+						<div class="substats_col_month col_header">MAY</div>
+						<div class="substats_col_month col_header">JUN</div>
+						<div class="substats_col_month col_header">JUL</div>
+						<div class="substats_col_month col_header">AUG</div>
+						<div class="substats_col_month_last_pct col_header"><strong>SEP</strong></div><div class="substats_col_month_last_chg">&nbsp;</div>
+								<div class="substats_row row_0">
+					<div class="substats_col_left">DirectX 12 GPUs</div>
+							<div class="substats_col_month">91.91%</div>
+							<div class="substats_col_month">91.74%</div>
+							<div class="substats_col_month">91.37%</div>
+							<div class="substats_col_month">91.45%</div>
+							<div class="substats_col_month_last_pct"><strong>92.19%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.74%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left">DirectX 11 GPUs</div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.46%</div>
+							<div class="substats_col_month">0.41%</div>
+							<div class="substats_col_month_last_pct"><strong>0.35%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left">DirectX 10 GPUs</div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month">0.21%</div>
+							<div class="substats_col_month_last_pct"><strong>0.17%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left">DirectX 9 Shader Model 2b and 3.0 GPUs</div>
+							<div class="substats_col_month">0.00%</div>
+							<div class="substats_col_month">0.00%</div>
+							<div class="substats_col_month">0.01%</div>
+							<div class="substats_col_month">0.00%</div>
+							<div class="substats_col_month_last_pct"><strong>0.00%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_unchanged">0.00%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left">DirectX 9 Shader Model 2.0 GPUs</div>
+							<div class="substats_col_month">0.00%</div>
+							<div class="substats_col_month">0.00%</div>
+							<div class="substats_col_month">0.00%</div>
+							<div class="substats_col_month">0.00%</div>
+							<div class="substats_col_month_last_pct"><strong>0.00%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_unchanged">0.00%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left">DirectX 8 GPUs and below</div>
+							<div class="substats_col_month">7.42%</div>
+							<div class="substats_col_month">7.61%</div>
+							<div class="substats_col_month">7.93%</div>
+							<div class="substats_col_month">7.93%</div>
+							<div class="substats_col_month_last_pct"><strong>7.29%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.64%</span></div>
+							<br clear="left" />
+				</div>
+						<br clear="all" />
+				<br clear="all" />
+						<div class="substats_col_left col_header">ALL VIDEO CARDS</div>
+						<div class="substats_col_month col_header">MAY</div>
+						<div class="substats_col_month col_header">JUN</div>
+						<div class="substats_col_month col_header">JUL</div>
+						<div class="substats_col_month col_header">AUG</div>
+						<div class="substats_col_month_last_pct col_header"><strong>SEP</strong></div><div class="substats_col_month_last_chg">&nbsp;</div>
+								<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5070</span></div></div>
+							<div class="substats_col_month">3.09%</div>
+							<div class="substats_col_month">3.29%</div>
+							<div class="substats_col_month">3.62%</div>
+							<div class="substats_col_month">3.77%</div>
+							<div class="substats_col_month_last_pct"><strong>6.15%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+2.38%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5060</span></div></div>
+							<div class="substats_col_month">2.58%</div>
+							<div class="substats_col_month">2.81%</div>
+							<div class="substats_col_month">3.03%</div>
+							<div class="substats_col_month">3.16%</div>
+							<div class="substats_col_month_last_pct"><strong>4.40%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+1.24%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5060 Ti</span></div></div>
+							<div class="substats_col_month">2.06%</div>
+							<div class="substats_col_month">2.26%</div>
+							<div class="substats_col_month">2.40%</div>
+							<div class="substats_col_month">2.55%</div>
+							<div class="substats_col_month_last_pct"><strong>4.06%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+1.51%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4060</span></div></div>
+							<div class="substats_col_month">3.74%</div>
+							<div class="substats_col_month">3.65%</div>
+							<div class="substats_col_month">3.63%</div>
+							<div class="substats_col_month">3.60%</div>
+							<div class="substats_col_month_last_pct"><strong>3.89%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.29%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3060</span></div></div>
+							<div class="substats_col_month">4.02%</div>
+							<div class="substats_col_month">3.88%</div>
+							<div class="substats_col_month">3.88%</div>
+							<div class="substats_col_month">3.92%</div>
+							<div class="substats_col_month_last_pct"><strong>3.66%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.26%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4060 Laptop GPU</span></div></div>
+							<div class="substats_col_month">3.99%</div>
+							<div class="substats_col_month">4.02%</div>
+							<div class="substats_col_month">3.64%</div>
+							<div class="substats_col_month">3.84%</div>
+							<div class="substats_col_month_last_pct"><strong>3.50%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.34%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3050</span></div></div>
+							<div class="substats_col_month">3.28%</div>
+							<div class="substats_col_month">3.23%</div>
+							<div class="substats_col_month">3.22%</div>
+							<div class="substats_col_month">3.21%</div>
+							<div class="substats_col_month_last_pct"><strong>2.90%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.31%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4060 Ti</span></div></div>
+							<div class="substats_col_month">2.45%</div>
+							<div class="substats_col_month">2.41%</div>
+							<div class="substats_col_month">2.36%</div>
+							<div class="substats_col_month">2.37%</div>
+							<div class="substats_col_month_last_pct"><strong>2.85%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.48%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5060 Laptop GPU</span></div></div>
+							<div class="substats_col_month">1.83%</div>
+							<div class="substats_col_month">2.48%</div>
+							<div class="substats_col_month">2.19%</div>
+							<div class="substats_col_month">2.66%</div>
+							<div class="substats_col_month_last_pct"><strong>2.45%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.21%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1650</span></div></div>
+							<div class="substats_col_month">2.70%</div>
+							<div class="substats_col_month">2.63%</div>
+							<div class="substats_col_month">2.61%</div>
+							<div class="substats_col_month">2.49%</div>
+							<div class="substats_col_month_last_pct"><strong>2.19%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.30%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070</span></div></div>
+							<div class="substats_col_month">1.81%</div>
+							<div class="substats_col_month">1.76%</div>
+							<div class="substats_col_month">1.78%</div>
+							<div class="substats_col_month">1.78%</div>
+							<div class="substats_col_month_last_pct"><strong>2.11%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.33%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3060 Ti</span></div></div>
+							<div class="substats_col_month">2.27%</div>
+							<div class="substats_col_month">2.21%</div>
+							<div class="substats_col_month">2.17%</div>
+							<div class="substats_col_month">2.16%</div>
+							<div class="substats_col_month_last_pct"><strong>2.08%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.08%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5080</span></div></div>
+							<div class="substats_col_month">1.47%</div>
+							<div class="substats_col_month">1.55%</div>
+							<div class="substats_col_month">1.63%</div>
+							<div class="substats_col_month">1.71%</div>
+							<div class="substats_col_month_last_pct"><strong>1.98%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.27%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3070</span></div></div>
+							<div class="substats_col_month">2.08%</div>
+							<div class="substats_col_month">2.02%</div>
+							<div class="substats_col_month">2.05%</div>
+							<div class="substats_col_month">1.99%</div>
+							<div class="substats_col_month_last_pct"><strong>1.97%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5070 Ti</span></div></div>
+							<div class="substats_col_month">1.73%</div>
+							<div class="substats_col_month">1.76%</div>
+							<div class="substats_col_month">1.78%</div>
+							<div class="substats_col_month">1.82%</div>
+							<div class="substats_col_month_last_pct"><strong>1.87%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070 SUPER</span></div></div>
+							<div class="substats_col_month">1.52%</div>
+							<div class="substats_col_month">1.53%</div>
+							<div class="substats_col_month">1.49%</div>
+							<div class="substats_col_month">1.49%</div>
+							<div class="substats_col_month_last_pct"><strong>1.74%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.25%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3060 Laptop GPU</span></div></div>
+							<div class="substats_col_month">1.97%</div>
+							<div class="substats_col_month">1.95%</div>
+							<div class="substats_col_month">1.81%</div>
+							<div class="substats_col_month">1.85%</div>
+							<div class="substats_col_month_last_pct"><strong>1.66%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.19%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4050 Laptop GPU</span></div></div>
+							<div class="substats_col_month">1.71%</div>
+							<div class="substats_col_month">1.74%</div>
+							<div class="substats_col_month">1.71%</div>
+							<div class="substats_col_month">1.74%</div>
+							<div class="substats_col_month_last_pct"><strong>1.59%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.15%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2060</span></div></div>
+							<div class="substats_col_month">1.77%</div>
+							<div class="substats_col_month">1.72%</div>
+							<div class="substats_col_month">1.71%</div>
+							<div class="substats_col_month">1.65%</div>
+							<div class="substats_col_month_last_pct"><strong>1.53%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.12%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Iris Xe Graphics</span></div></div>
+							<div class="substats_col_month">1.79%</div>
+							<div class="substats_col_month">1.82%</div>
+							<div class="substats_col_month">1.85%</div>
+							<div class="substats_col_month">1.74%</div>
+							<div class="substats_col_month_last_pct"><strong>1.52%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.22%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon Graphics</span></div></div>
+							<div class="substats_col_month">1.89%</div>
+							<div class="substats_col_month">1.80%</div>
+							<div class="substats_col_month">1.84%</div>
+							<div class="substats_col_month">1.73%</div>
+							<div class="substats_col_month_last_pct"><strong>1.51%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.22%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 9070 XT</span></div></div>
+							<div class="substats_col_month">1.33%</div>
+							<div class="substats_col_month">1.35%</div>
+							<div class="substats_col_month">1.40%</div>
+							<div class="substats_col_month">1.46%</div>
+							<div class="substats_col_month_last_pct"><strong>1.42%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1060</span></div></div>
+							<div class="substats_col_month">1.59%</div>
+							<div class="substats_col_month">1.54%</div>
+							<div class="substats_col_month">1.53%</div>
+							<div class="substats_col_month">1.50%</div>
+							<div class="substats_col_month_last_pct"><strong>1.34%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.16%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3080</span></div></div>
+							<div class="substats_col_month">1.47%</div>
+							<div class="substats_col_month">1.43%</div>
+							<div class="substats_col_month">1.40%</div>
+							<div class="substats_col_month">1.38%</div>
+							<div class="substats_col_month_last_pct"><strong>1.30%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.08%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1660 SUPER</span></div></div>
+							<div class="substats_col_month">1.52%</div>
+							<div class="substats_col_month">1.47%</div>
+							<div class="substats_col_month">1.46%</div>
+							<div class="substats_col_month">1.47%</div>
+							<div class="substats_col_month_last_pct"><strong>1.26%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.21%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel(R) UHD Graphics</span></div></div>
+							<div class="substats_col_month">1.22%</div>
+							<div class="substats_col_month">1.23%</div>
+							<div class="substats_col_month">1.28%</div>
+							<div class="substats_col_month">1.21%</div>
+							<div class="substats_col_month_last_pct"><strong>1.06%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.15%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1050 Ti</span></div></div>
+							<div class="substats_col_month">1.26%</div>
+							<div class="substats_col_month">1.21%</div>
+							<div class="substats_col_month">1.19%</div>
+							<div class="substats_col_month">1.16%</div>
+							<div class="substats_col_month_last_pct"><strong>1.03%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.13%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070 Ti</span></div></div>
+							<div class="substats_col_month">0.98%</div>
+							<div class="substats_col_month">0.95%</div>
+							<div class="substats_col_month">0.91%</div>
+							<div class="substats_col_month">0.92%</div>
+							<div class="substats_col_month_last_pct"><strong>0.88%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3070 Ti</span></div></div>
+							<div class="substats_col_month">0.97%</div>
+							<div class="substats_col_month">0.93%</div>
+							<div class="substats_col_month">0.93%</div>
+							<div class="substats_col_month">0.91%</div>
+							<div class="substats_col_month_last_pct"><strong>0.88%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070 Laptop GPU</span></div></div>
+							<div class="substats_col_month">1.01%</div>
+							<div class="substats_col_month">0.98%</div>
+							<div class="substats_col_month">0.94%</div>
+							<div class="substats_col_month">0.96%</div>
+							<div class="substats_col_month_last_pct"><strong>0.86%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.10%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon(TM) Graphics</span></div></div>
+							<div class="substats_col_month">0.90%</div>
+							<div class="substats_col_month">0.91%</div>
+							<div class="substats_col_month">0.94%</div>
+							<div class="substats_col_month">0.92%</div>
+							<div class="substats_col_month_last_pct"><strong>0.82%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.10%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1660 Ti</span></div></div>
+							<div class="substats_col_month">0.95%</div>
+							<div class="substats_col_month">0.91%</div>
+							<div class="substats_col_month">0.91%</div>
+							<div class="substats_col_month">0.87%</div>
+							<div class="substats_col_month_last_pct"><strong>0.78%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.09%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 9060 XT</span></div></div>
+							<div class="substats_col_month">0.72%</div>
+							<div class="substats_col_month">0.74%</div>
+							<div class="substats_col_month">0.76%</div>
+							<div class="substats_col_month">0.80%</div>
+							<div class="substats_col_month_last_pct"><strong>0.77%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6600</span></div></div>
+							<div class="substats_col_month">0.90%</div>
+							<div class="substats_col_month">0.88%</div>
+							<div class="substats_col_month">0.85%</div>
+							<div class="substats_col_month">0.83%</div>
+							<div class="substats_col_month_last_pct"><strong>0.75%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.08%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2060 SUPER</span></div></div>
+							<div class="substats_col_month">0.81%</div>
+							<div class="substats_col_month">0.78%</div>
+							<div class="substats_col_month">0.76%</div>
+							<div class="substats_col_month">0.75%</div>
+							<div class="substats_col_month_last_pct"><strong>0.71%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070 Ti SUPER</span></div></div>
+							<div class="substats_col_month">0.78%</div>
+							<div class="substats_col_month">0.76%</div>
+							<div class="substats_col_month">0.74%</div>
+							<div class="substats_col_month">0.74%</div>
+							<div class="substats_col_month_last_pct"><strong>0.71%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4090</span></div></div>
+							<div class="substats_col_month">0.76%</div>
+							<div class="substats_col_month">0.73%</div>
+							<div class="substats_col_month">0.72%</div>
+							<div class="substats_col_month">0.71%</div>
+							<div class="substats_col_month_last_pct"><strong>0.67%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3050 6GB Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.67%</div>
+							<div class="substats_col_month">0.67%</div>
+							<div class="substats_col_month">0.69%</div>
+							<div class="substats_col_month">0.70%</div>
+							<div class="substats_col_month_last_pct"><strong>0.64%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5070 Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.52%</div>
+							<div class="substats_col_month">0.63%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month_last_pct"><strong>0.64%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4080 SUPER</span></div></div>
+							<div class="substats_col_month">0.67%</div>
+							<div class="substats_col_month">0.65%</div>
+							<div class="substats_col_month">0.64%</div>
+							<div class="substats_col_month">0.63%</div>
+							<div class="substats_col_month_last_pct"><strong>0.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_unchanged">0.00%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2070 SUPER</span></div></div>
+							<div class="substats_col_month">0.73%</div>
+							<div class="substats_col_month">0.69%</div>
+							<div class="substats_col_month">0.69%</div>
+							<div class="substats_col_month">0.67%</div>
+							<div class="substats_col_month_last_pct"><strong>0.62%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4080</span></div></div>
+							<div class="substats_col_month">0.69%</div>
+							<div class="substats_col_month">0.65%</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">0.67%</div>
+							<div class="substats_col_month_last_pct"><strong>0.62%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel UHD Graphics</span></div></div>
+							<div class="substats_col_month">0.73%</div>
+							<div class="substats_col_month">0.73%</div>
+							<div class="substats_col_month">0.75%</div>
+							<div class="substats_col_month">0.70%</div>
+							<div class="substats_col_month_last_pct"><strong>0.61%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.09%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 7800 XT</span></div></div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">0.66%</div>
+							<div class="substats_col_month">0.63%</div>
+							<div class="substats_col_month">0.63%</div>
+							<div class="substats_col_month_last_pct"><strong>0.59%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3050 Ti Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.69%</div>
+							<div class="substats_col_month">0.66%</div>
+							<div class="substats_col_month">0.65%</div>
+							<div class="substats_col_month">0.63%</div>
+							<div class="substats_col_month_last_pct"><strong>0.56%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1070</span></div></div>
+							<div class="substats_col_month">0.66%</div>
+							<div class="substats_col_month">0.62%</div>
+							<div class="substats_col_month">0.62%</div>
+							<div class="substats_col_month">0.61%</div>
+							<div class="substats_col_month_last_pct"><strong>0.54%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 580 2048SP</span></div></div>
+							<div class="substats_col_month">0.59%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.60%</div>
+							<div class="substats_col_month">0.57%</div>
+							<div class="substats_col_month_last_pct"><strong>0.51%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3080 Ti</span></div></div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.55%</div>
+							<div class="substats_col_month">0.55%</div>
+							<div class="substats_col_month">0.54%</div>
+							<div class="substats_col_month_last_pct"><strong>0.50%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 5700 XT</span></div></div>
+							<div class="substats_col_month">0.57%</div>
+							<div class="substats_col_month">0.56%</div>
+							<div class="substats_col_month">0.57%</div>
+							<div class="substats_col_month">0.54%</div>
+							<div class="substats_col_month_last_pct"><strong>0.49%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6700 XT</span></div></div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.56%</div>
+							<div class="substats_col_month">0.56%</div>
+							<div class="substats_col_month">0.55%</div>
+							<div class="substats_col_month_last_pct"><strong>0.49%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 580</span></div></div>
+							<div class="substats_col_month">0.60%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.56%</div>
+							<div class="substats_col_month_last_pct"><strong>0.49%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1050</span></div></div>
+							<div class="substats_col_month">0.59%</div>
+							<div class="substats_col_month">0.57%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.54%</div>
+							<div class="substats_col_month_last_pct"><strong>0.47%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel(R) Graphics</span></div></div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month_last_pct"><strong>0.47%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 7600</span></div></div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month_last_pct"><strong>0.46%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2050</span></div></div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month_last_pct"><strong>0.42%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1660</span></div></div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.47%</div>
+							<div class="substats_col_month">0.46%</div>
+							<div class="substats_col_month_last_pct"><strong>0.42%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon (TM) Graphics</span></div></div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.46%</div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.47%</div>
+							<div class="substats_col_month_last_pct"><strong>0.42%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5070 Ti Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month">0.41%</div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month_last_pct"><strong>0.41%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2070</span></div></div>
+							<div class="substats_col_month">0.47%</div>
+							<div class="substats_col_month">0.46%</div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month_last_pct"><strong>0.41%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5090</span></div></div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.42%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month_last_pct"><strong>0.40%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 7900 XTX</span></div></div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.42%</div>
+							<div class="substats_col_month_last_pct"><strong>0.40%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3070 Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.46%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month_last_pct"><strong>0.39%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5050 Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.29%</div>
+							<div class="substats_col_month">0.33%</div>
+							<div class="substats_col_month">0.35%</div>
+							<div class="substats_col_month">0.42%</div>
+							<div class="substats_col_month_last_pct"><strong>0.39%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel UHD Graphics 620</span></div></div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month_last_pct"><strong>0.38%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1080</span></div></div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month_last_pct"><strong>0.34%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3050 Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month">0.36%</div>
+							<div class="substats_col_month_last_pct"><strong>0.33%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1650 Ti</span></div></div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.36%</div>
+							<div class="substats_col_month_last_pct"><strong>0.32%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3090</span></div></div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month">0.36%</div>
+							<div class="substats_col_month">0.36%</div>
+							<div class="substats_col_month">0.36%</div>
+							<div class="substats_col_month_last_pct"><strong>0.32%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 570</span></div></div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month">0.35%</div>
+							<div class="substats_col_month_last_pct"><strong>0.31%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 7900 XT</span></div></div>
+							<div class="substats_col_month">0.36%</div>
+							<div class="substats_col_month">0.34%</div>
+							<div class="substats_col_month">0.33%</div>
+							<div class="substats_col_month">0.33%</div>
+							<div class="substats_col_month_last_pct"><strong>0.30%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1080 Ti</span></div></div>
+							<div class="substats_col_month">0.32%</div>
+							<div class="substats_col_month">0.31%</div>
+							<div class="substats_col_month">0.31%</div>
+							<div class="substats_col_month">0.31%</div>
+							<div class="substats_col_month_last_pct"><strong>0.27%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon 780M Graphics</span></div></div>
+							<div class="substats_col_month">0.27%</div>
+							<div class="substats_col_month">0.29%</div>
+							<div class="substats_col_month">0.29%</div>
+							<div class="substats_col_month">0.29%</div>
+							<div class="substats_col_month_last_pct"><strong>0.27%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon Vega 8 Graphics</span></div></div>
+							<div class="substats_col_month">0.32%</div>
+							<div class="substats_col_month">0.32%</div>
+							<div class="substats_col_month">0.33%</div>
+							<div class="substats_col_month">0.31%</div>
+							<div class="substats_col_month_last_pct"><strong>0.26%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6600 XT</span></div></div>
+							<div class="substats_col_month">0.30%</div>
+							<div class="substats_col_month">0.28%</div>
+							<div class="substats_col_month">0.28%</div>
+							<div class="substats_col_month">0.28%</div>
+							<div class="substats_col_month_last_pct"><strong>0.25%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Arc Graphics</span></div></div>
+							<div class="substats_col_month">0.28%</div>
+							<div class="substats_col_month">0.30%</div>
+							<div class="substats_col_month">0.30%</div>
+							<div class="substats_col_month">0.28%</div>
+							<div class="substats_col_month_last_pct"><strong>0.25%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1650 SUPER</span></div></div>
+							<div class="substats_col_month">0.30%</div>
+							<div class="substats_col_month">0.29%</div>
+							<div class="substats_col_month">0.28%</div>
+							<div class="substats_col_month">0.27%</div>
+							<div class="substats_col_month_last_pct"><strong>0.25%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 7700 XT</span></div></div>
+							<div class="substats_col_month">0.26%</div>
+							<div class="substats_col_month">0.26%</div>
+							<div class="substats_col_month">0.24%</div>
+							<div class="substats_col_month">0.25%</div>
+							<div class="substats_col_month_last_pct"><strong>0.24%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2080 SUPER</span></div></div>
+							<div class="substats_col_month">0.27%</div>
+							<div class="substats_col_month">0.26%</div>
+							<div class="substats_col_month">0.26%</div>
+							<div class="substats_col_month">0.25%</div>
+							<div class="substats_col_month_last_pct"><strong>0.24%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5050</span></div></div>
+							<div class="substats_col_month">0.19%</div>
+							<div class="substats_col_month">0.21%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month_last_pct"><strong>0.23%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_unchanged">0.00%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6650 XT</span></div></div>
+							<div class="substats_col_month">0.27%</div>
+							<div class="substats_col_month">0.27%</div>
+							<div class="substats_col_month">0.26%</div>
+							<div class="substats_col_month">0.26%</div>
+							<div class="substats_col_month_last_pct"><strong>0.23%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6750 XT</span></div></div>
+							<div class="substats_col_month">0.27%</div>
+							<div class="substats_col_month">0.26%</div>
+							<div class="substats_col_month">0.26%</div>
+							<div class="substats_col_month">0.25%</div>
+							<div class="substats_col_month_last_pct"><strong>0.23%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel UHD Graphics 630</span></div></div>
+							<div class="substats_col_month">0.28%</div>
+							<div class="substats_col_month">0.28%</div>
+							<div class="substats_col_month">0.29%</div>
+							<div class="substats_col_month">0.27%</div>
+							<div class="substats_col_month_last_pct"><strong>0.23%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2080 Ti</span></div></div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month_last_pct"><strong>0.21%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6800 XT</span></div></div>
+							<div class="substats_col_month">0.24%</div>
+							<div class="substats_col_month">0.24%</div>
+							<div class="substats_col_month">0.24%</div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month_last_pct"><strong>0.21%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3070 Ti Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month_last_pct"><strong>0.20%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 9070</span></div></div>
+							<div class="substats_col_month">0.18%</div>
+							<div class="substats_col_month">0.18%</div>
+							<div class="substats_col_month">0.19%</div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month_last_pct"><strong>0.20%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_unchanged">0.00%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2080</span></div></div>
+							<div class="substats_col_month">0.24%</div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month_last_pct"><strong>0.20%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 550</span></div></div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.21%</div>
+							<div class="substats_col_month_last_pct"><strong>0.18%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GT 1030</span></div></div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.23%</div>
+							<div class="substats_col_month">0.21%</div>
+							<div class="substats_col_month_last_pct"><strong>0.18%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1070 Ti</span></div></div>
+							<div class="substats_col_month">0.21%</div>
+							<div class="substats_col_month">0.21%</div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.19%</div>
+							<div class="substats_col_month_last_pct"><strong>0.18%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6500 XT</span></div></div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.19%</div>
+							<div class="substats_col_month">0.19%</div>
+							<div class="substats_col_month">0.18%</div>
+							<div class="substats_col_month_last_pct"><strong>0.17%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4080 Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.19%</div>
+							<div class="substats_col_month">0.18%</div>
+							<div class="substats_col_month">0.18%</div>
+							<div class="substats_col_month_last_pct"><strong>0.17%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel HD Graphics 520</span></div></div>
+							<div class="substats_col_month">0.21%</div>
+							<div class="substats_col_month">0.21%</div>
+							<div class="substats_col_month">0.22%</div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month_last_pct"><strong>0.17%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon Vega 3 Graphics</span></div></div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.19%</div>
+							<div class="substats_col_month_last_pct"><strong>0.16%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel HD Graphics 620</span></div></div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.21%</div>
+							<div class="substats_col_month">0.19%</div>
+							<div class="substats_col_month_last_pct"><strong>0.16%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 970</span></div></div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.19%</div>
+							<div class="substats_col_month">0.20%</div>
+							<div class="substats_col_month">0.18%</div>
+							<div class="substats_col_month_last_pct"><strong>0.16%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left">Other</div>
+							<div class="substats_col_month">8.58%</div>
+							<div class="substats_col_month">8.55%</div>
+							<div class="substats_col_month">8.72%</div>
+							<div class="substats_col_month">8.51%</div>
+							<div class="substats_col_month_last_pct"><strong>8.33%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.18%</span></div>
+							<br clear="left" />
+				</div>
+						<br clear="all" />
+				<br clear="all" />
+						<div class="substats_col_left col_header">DIRECTX 12 GPUS</div>
+						<div class="substats_col_month col_header">MAY</div>
+						<div class="substats_col_month col_header">JUN</div>
+						<div class="substats_col_month col_header">JUL</div>
+						<div class="substats_col_month col_header">AUG</div>
+						<div class="substats_col_month_last_pct col_header"><strong>SEP</strong></div><div class="substats_col_month_last_chg">&nbsp;</div>
+								<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5070</span></div></div>
+							<div class="substats_col_month">3.17%</div>
+							<div class="substats_col_month">3.39%</div>
+							<div class="substats_col_month">3.72%</div>
+							<div class="substats_col_month">3.89%</div>
+							<div class="substats_col_month_last_pct"><strong>6.35%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+2.46%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5060</span></div></div>
+							<div class="substats_col_month">2.65%</div>
+							<div class="substats_col_month">2.90%</div>
+							<div class="substats_col_month">3.12%</div>
+							<div class="substats_col_month">3.26%</div>
+							<div class="substats_col_month_last_pct"><strong>4.55%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+1.29%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5060 Ti</span></div></div>
+							<div class="substats_col_month">2.12%</div>
+							<div class="substats_col_month">2.34%</div>
+							<div class="substats_col_month">2.48%</div>
+							<div class="substats_col_month">2.64%</div>
+							<div class="substats_col_month_last_pct"><strong>4.20%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+1.56%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4060</span></div></div>
+							<div class="substats_col_month">3.86%</div>
+							<div class="substats_col_month">3.78%</div>
+							<div class="substats_col_month">3.76%</div>
+							<div class="substats_col_month">3.74%</div>
+							<div class="substats_col_month_last_pct"><strong>4.04%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.30%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3060</span></div></div>
+							<div class="substats_col_month">4.19%</div>
+							<div class="substats_col_month">4.06%</div>
+							<div class="substats_col_month">4.06%</div>
+							<div class="substats_col_month">4.11%</div>
+							<div class="substats_col_month_last_pct"><strong>3.84%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.27%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4060 Laptop GPU</span></div></div>
+							<div class="substats_col_month">4.10%</div>
+							<div class="substats_col_month">4.16%</div>
+							<div class="substats_col_month">3.77%</div>
+							<div class="substats_col_month">3.97%</div>
+							<div class="substats_col_month_last_pct"><strong>3.64%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.33%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3050</span></div></div>
+							<div class="substats_col_month">3.38%</div>
+							<div class="substats_col_month">3.34%</div>
+							<div class="substats_col_month">3.33%</div>
+							<div class="substats_col_month">3.33%</div>
+							<div class="substats_col_month_last_pct"><strong>3.01%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.32%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4060 Ti</span></div></div>
+							<div class="substats_col_month">2.52%</div>
+							<div class="substats_col_month">2.50%</div>
+							<div class="substats_col_month">2.45%</div>
+							<div class="substats_col_month">2.46%</div>
+							<div class="substats_col_month_last_pct"><strong>2.96%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.50%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5060 Laptop GPU</span></div></div>
+							<div class="substats_col_month">1.87%</div>
+							<div class="substats_col_month">2.54%</div>
+							<div class="substats_col_month">2.24%</div>
+							<div class="substats_col_month">2.73%</div>
+							<div class="substats_col_month_last_pct"><strong>2.53%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.20%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1650</span></div></div>
+							<div class="substats_col_month">2.79%</div>
+							<div class="substats_col_month">2.73%</div>
+							<div class="substats_col_month">2.71%</div>
+							<div class="substats_col_month">2.59%</div>
+							<div class="substats_col_month_last_pct"><strong>2.28%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.31%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070</span></div></div>
+							<div class="substats_col_month">1.87%</div>
+							<div class="substats_col_month">1.83%</div>
+							<div class="substats_col_month">1.85%</div>
+							<div class="substats_col_month">1.86%</div>
+							<div class="substats_col_month_last_pct"><strong>2.20%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.34%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3060 Ti</span></div></div>
+							<div class="substats_col_month">2.36%</div>
+							<div class="substats_col_month">2.31%</div>
+							<div class="substats_col_month">2.27%</div>
+							<div class="substats_col_month">2.27%</div>
+							<div class="substats_col_month_last_pct"><strong>2.18%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.09%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3070</span></div></div>
+							<div class="substats_col_month">2.17%</div>
+							<div class="substats_col_month">2.11%</div>
+							<div class="substats_col_month">2.15%</div>
+							<div class="substats_col_month">2.10%</div>
+							<div class="substats_col_month_last_pct"><strong>2.07%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5080</span></div></div>
+							<div class="substats_col_month">1.52%</div>
+							<div class="substats_col_month">1.60%</div>
+							<div class="substats_col_month">1.69%</div>
+							<div class="substats_col_month">1.77%</div>
+							<div class="substats_col_month_last_pct"><strong>2.05%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.28%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5070 Ti</span></div></div>
+							<div class="substats_col_month">1.78%</div>
+							<div class="substats_col_month">1.83%</div>
+							<div class="substats_col_month">1.85%</div>
+							<div class="substats_col_month">1.89%</div>
+							<div class="substats_col_month_last_pct"><strong>1.94%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070 SUPER</span></div></div>
+							<div class="substats_col_month">1.57%</div>
+							<div class="substats_col_month">1.58%</div>
+							<div class="substats_col_month">1.55%</div>
+							<div class="substats_col_month">1.55%</div>
+							<div class="substats_col_month_last_pct"><strong>1.80%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.25%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3060 Laptop GPU</span></div></div>
+							<div class="substats_col_month">2.03%</div>
+							<div class="substats_col_month">2.01%</div>
+							<div class="substats_col_month">1.87%</div>
+							<div class="substats_col_month">1.92%</div>
+							<div class="substats_col_month_last_pct"><strong>1.73%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.19%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4050 Laptop GPU</span></div></div>
+							<div class="substats_col_month">1.77%</div>
+							<div class="substats_col_month">1.80%</div>
+							<div class="substats_col_month">1.77%</div>
+							<div class="substats_col_month">1.81%</div>
+							<div class="substats_col_month_last_pct"><strong>1.65%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.16%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Iris Xe Graphics</span></div></div>
+							<div class="substats_col_month">1.90%</div>
+							<div class="substats_col_month">1.93%</div>
+							<div class="substats_col_month">1.97%</div>
+							<div class="substats_col_month">1.86%</div>
+							<div class="substats_col_month_last_pct"><strong>1.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.23%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2060</span></div></div>
+							<div class="substats_col_month">1.85%</div>
+							<div class="substats_col_month">1.80%</div>
+							<div class="substats_col_month">1.79%</div>
+							<div class="substats_col_month">1.74%</div>
+							<div class="substats_col_month_last_pct"><strong>1.61%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.13%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon Graphics</span></div></div>
+							<div class="substats_col_month">2.09%</div>
+							<div class="substats_col_month">2.00%</div>
+							<div class="substats_col_month">2.07%</div>
+							<div class="substats_col_month">1.96%</div>
+							<div class="substats_col_month_last_pct"><strong>1.55%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.41%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 9070 XT</span></div></div>
+							<div class="substats_col_month">1.35%</div>
+							<div class="substats_col_month">1.39%</div>
+							<div class="substats_col_month">1.44%</div>
+							<div class="substats_col_month">1.50%</div>
+							<div class="substats_col_month_last_pct"><strong>1.47%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1060</span></div></div>
+							<div class="substats_col_month">1.67%</div>
+							<div class="substats_col_month">1.62%</div>
+							<div class="substats_col_month">1.60%</div>
+							<div class="substats_col_month">1.57%</div>
+							<div class="substats_col_month_last_pct"><strong>1.41%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.16%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3080</span></div></div>
+							<div class="substats_col_month">1.55%</div>
+							<div class="substats_col_month">1.51%</div>
+							<div class="substats_col_month">1.48%</div>
+							<div class="substats_col_month">1.46%</div>
+							<div class="substats_col_month_last_pct"><strong>1.38%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.08%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1660 SUPER</span></div></div>
+							<div class="substats_col_month">1.58%</div>
+							<div class="substats_col_month">1.53%</div>
+							<div class="substats_col_month">1.52%</div>
+							<div class="substats_col_month">1.54%</div>
+							<div class="substats_col_month_last_pct"><strong>1.32%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.22%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1050 Ti</span></div></div>
+							<div class="substats_col_month">1.31%</div>
+							<div class="substats_col_month">1.26%</div>
+							<div class="substats_col_month">1.24%</div>
+							<div class="substats_col_month">1.22%</div>
+							<div class="substats_col_month_last_pct"><strong>1.08%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.14%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070 Ti</span></div></div>
+							<div class="substats_col_month">1.01%</div>
+							<div class="substats_col_month">0.99%</div>
+							<div class="substats_col_month">0.95%</div>
+							<div class="substats_col_month">0.97%</div>
+							<div class="substats_col_month_last_pct"><strong>0.92%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3070 Ti</span></div></div>
+							<div class="substats_col_month">1.01%</div>
+							<div class="substats_col_month">0.97%</div>
+							<div class="substats_col_month">0.97%</div>
+							<div class="substats_col_month">0.96%</div>
+							<div class="substats_col_month_last_pct"><strong>0.92%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070 Laptop GPU</span></div></div>
+							<div class="substats_col_month">1.05%</div>
+							<div class="substats_col_month">1.02%</div>
+							<div class="substats_col_month">0.97%</div>
+							<div class="substats_col_month">1.00%</div>
+							<div class="substats_col_month_last_pct"><strong>0.90%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.10%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon(TM) Graphics</span></div></div>
+							<div class="substats_col_month">0.96%</div>
+							<div class="substats_col_month">0.97%</div>
+							<div class="substats_col_month">1.00%</div>
+							<div class="substats_col_month">0.98%</div>
+							<div class="substats_col_month_last_pct"><strong>0.87%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.11%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1660 Ti</span></div></div>
+							<div class="substats_col_month">0.99%</div>
+							<div class="substats_col_month">0.96%</div>
+							<div class="substats_col_month">0.96%</div>
+							<div class="substats_col_month">0.91%</div>
+							<div class="substats_col_month_last_pct"><strong>0.82%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.09%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 9060 XT</span></div></div>
+							<div class="substats_col_month">0.79%</div>
+							<div class="substats_col_month">0.80%</div>
+							<div class="substats_col_month">0.84%</div>
+							<div class="substats_col_month">0.82%</div>
+							<div class="substats_col_month_last_pct"><strong>0.79%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6600</span></div></div>
+							<div class="substats_col_month">0.92%</div>
+							<div class="substats_col_month">0.90%</div>
+							<div class="substats_col_month">0.87%</div>
+							<div class="substats_col_month">0.85%</div>
+							<div class="substats_col_month_last_pct"><strong>0.77%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.08%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2060 SUPER</span></div></div>
+							<div class="substats_col_month">0.84%</div>
+							<div class="substats_col_month">0.81%</div>
+							<div class="substats_col_month">0.79%</div>
+							<div class="substats_col_month">0.78%</div>
+							<div class="substats_col_month_last_pct"><strong>0.74%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4070 Ti SUPER</span></div></div>
+							<div class="substats_col_month">0.81%</div>
+							<div class="substats_col_month">0.79%</div>
+							<div class="substats_col_month">0.77%</div>
+							<div class="substats_col_month">0.77%</div>
+							<div class="substats_col_month_last_pct"><strong>0.74%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4090</span></div></div>
+							<div class="substats_col_month">0.79%</div>
+							<div class="substats_col_month">0.76%</div>
+							<div class="substats_col_month">0.76%</div>
+							<div class="substats_col_month">0.76%</div>
+							<div class="substats_col_month_last_pct"><strong>0.71%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3050 6GB Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.69%</div>
+							<div class="substats_col_month">0.71%</div>
+							<div class="substats_col_month">0.72%</div>
+							<div class="substats_col_month">0.73%</div>
+							<div class="substats_col_month_last_pct"><strong>0.67%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4080 SUPER</span></div></div>
+							<div class="substats_col_month">0.70%</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">0.67%</div>
+							<div class="substats_col_month">0.65%</div>
+							<div class="substats_col_month_last_pct"><strong>0.66%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2070 SUPER</span></div></div>
+							<div class="substats_col_month">0.76%</div>
+							<div class="substats_col_month">0.73%</div>
+							<div class="substats_col_month">0.73%</div>
+							<div class="substats_col_month">0.71%</div>
+							<div class="substats_col_month_last_pct"><strong>0.66%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 4080</span></div></div>
+							<div class="substats_col_month">0.72%</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">0.71%</div>
+							<div class="substats_col_month">0.70%</div>
+							<div class="substats_col_month_last_pct"><strong>0.65%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel UHD Graphics</span></div></div>
+							<div class="substats_col_month">0.78%</div>
+							<div class="substats_col_month">0.78%</div>
+							<div class="substats_col_month">0.81%</div>
+							<div class="substats_col_month">0.76%</div>
+							<div class="substats_col_month_last_pct"><strong>0.65%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.11%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 7800 XT</span></div></div>
+							<div class="substats_col_month">0.70%</div>
+							<div class="substats_col_month">0.67%</div>
+							<div class="substats_col_month">0.65%</div>
+							<div class="substats_col_month">0.65%</div>
+							<div class="substats_col_month_last_pct"><strong>0.61%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1070</span></div></div>
+							<div class="substats_col_month">0.69%</div>
+							<div class="substats_col_month">0.66%</div>
+							<div class="substats_col_month">0.66%</div>
+							<div class="substats_col_month">0.65%</div>
+							<div class="substats_col_month_last_pct"><strong>0.58%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3050 Ti Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.71%</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">0.67%</div>
+							<div class="substats_col_month">0.66%</div>
+							<div class="substats_col_month_last_pct"><strong>0.58%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.08%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 5700 XT</span></div></div>
+							<div class="substats_col_month">0.62%</div>
+							<div class="substats_col_month">0.61%</div>
+							<div class="substats_col_month">0.62%</div>
+							<div class="substats_col_month">0.60%</div>
+							<div class="substats_col_month_last_pct"><strong>0.54%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 580 2048SP</span></div></div>
+							<div class="substats_col_month">0.62%</div>
+							<div class="substats_col_month">0.61%</div>
+							<div class="substats_col_month">0.63%</div>
+							<div class="substats_col_month">0.60%</div>
+							<div class="substats_col_month_last_pct"><strong>0.54%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3080 Ti</span></div></div>
+							<div class="substats_col_month">0.61%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.57%</div>
+							<div class="substats_col_month_last_pct"><strong>0.53%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 580</span></div></div>
+							<div class="substats_col_month">0.61%</div>
+							<div class="substats_col_month">0.60%</div>
+							<div class="substats_col_month">0.59%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month_last_pct"><strong>0.51%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6700 XT</span></div></div>
+							<div class="substats_col_month">0.59%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.57%</div>
+							<div class="substats_col_month">0.56%</div>
+							<div class="substats_col_month_last_pct"><strong>0.51%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1050</span></div></div>
+							<div class="substats_col_month">0.61%</div>
+							<div class="substats_col_month">0.60%</div>
+							<div class="substats_col_month">0.60%</div>
+							<div class="substats_col_month">0.57%</div>
+							<div class="substats_col_month_last_pct"><strong>0.50%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 7600</span></div></div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month">0.51%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month_last_pct"><strong>0.48%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 7900 XTX</span></div></div>
+							<div class="substats_col_month">0.51%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month_last_pct"><strong>0.46%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2050</span></div></div>
+							<div class="substats_col_month">0.52%</div>
+							<div class="substats_col_month">0.52%</div>
+							<div class="substats_col_month">0.51%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month_last_pct"><strong>0.44%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1660</span></div></div>
+							<div class="substats_col_month">0.52%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month_last_pct"><strong>0.43%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 2070</span></div></div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month_last_pct"><strong>0.43%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.02%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel UHD Graphics 620</span></div></div>
+							<div class="substats_col_month">0.52%</div>
+							<div class="substats_col_month">0.51%</div>
+							<div class="substats_col_month">0.55%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month_last_pct"><strong>0.43%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5090</span></div></div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month_last_pct"><strong>0.42%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 5070 Ti Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month_last_pct"><strong>0.42%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3070 Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.47%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month_last_pct"><strong>0.41%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1080</span></div></div>
+							<div class="substats_col_month">0.46%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.41%</div>
+							<div class="substats_col_month_last_pct"><strong>0.37%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3090</span></div></div>
+							<div class="substats_col_month">0.42%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month_last_pct"><strong>0.35%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce RTX 3050 Laptop GPU</span></div></div>
+							<div class="substats_col_month">0.41%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month_last_pct"><strong>0.35%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon 780M Graphics</span></div></div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month_last_pct"><strong>0.35%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTX 1650 Ti</span></div></div>
+							<div class="substats_col_month">0.41%</div>
+							<div class="substats_col_month">0.41%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month_last_pct"><strong>0.34%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 570</span></div></div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.36%</div>
+							<div class="substats_col_month_last_pct"><strong>0.32%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 6600 XT</span></div></div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month">0.35%</div>
+							<div class="substats_col_month">0.35%</div>
+							<div class="substats_col_month">0.35%</div>
+							<div class="substats_col_month_last_pct"><strong>0.31%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon RX 7900 XT</span></div></div>
+							<div class="substats_col_month">0.36%</div>
+							<div class="substats_col_month">0.34%</div>
+							<div class="substats_col_month">0.34%</div>
+							<div class="substats_col_month">0.34%</div>
+							<div class="substats_col_month_last_pct"><strong>0.31%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon Vega 8 Graphics</span></div></div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month_last_pct"><strong>0.31%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.06%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left">Steam Deck GPU</div>
+							<div class="substats_col_month">0.55%</div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month">0.51%</div>
+							<div class="substats_col_month">0.47%</div>
+							<div class="substats_col_month_last_pct"><strong>0.30%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.17%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left">Other</div>
+							<div class="substats_col_month">12.59%</div>
+							<div class="substats_col_month">12.75%</div>
+							<div class="substats_col_month">12.87%</div>
+							<div class="substats_col_month">12.38%</div>
+							<div class="substats_col_month_last_pct"><strong>11.93%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.45%</span></div>
+							<br clear="left" />
+				</div>
+						<br clear="all" />
+				<br clear="all" />
+						<div class="substats_col_left col_header">DIRECTX 11 GPUS</div>
+						<div class="substats_col_month col_header">MAY</div>
+						<div class="substats_col_month col_header">JUN</div>
+						<div class="substats_col_month col_header">JUL</div>
+						<div class="substats_col_month col_header">AUG</div>
+						<div class="substats_col_month_last_pct col_header"><strong>SEP</strong></div><div class="substats_col_month_last_chg">&nbsp;</div>
+								<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel HD Graphics 4000</span></div></div>
+							<div class="substats_col_month">28.42%</div>
+							<div class="substats_col_month">27.99%</div>
+							<div class="substats_col_month">27.66%</div>
+							<div class="substats_col_month">27.67%</div>
+							<div class="substats_col_month_last_pct"><strong>27.01%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.66%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Ivy Bridge</span></div></div>
+							<div class="substats_col_month">22.55%</div>
+							<div class="substats_col_month">23.28%</div>
+							<div class="substats_col_month">22.93%</div>
+							<div class="substats_col_month">23.11%</div>
+							<div class="substats_col_month_last_pct"><strong>24.26%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+1.15%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Haswell</span></div></div>
+							<div class="substats_col_month">18.48%</div>
+							<div class="substats_col_month">18.55%</div>
+							<div class="substats_col_month">19.51%</div>
+							<div class="substats_col_month">19.06%</div>
+							<div class="substats_col_month_last_pct"><strong>19.41%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.35%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Cherryview Cherrytrail</span></div></div>
+							<div class="substats_col_month">6.48%</div>
+							<div class="substats_col_month">5.99%</div>
+							<div class="substats_col_month">6.21%</div>
+							<div class="substats_col_month">6.00%</div>
+							<div class="substats_col_month_last_pct"><strong>5.64%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.36%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Valleyview Baytrail</span></div></div>
+							<div class="substats_col_month">4.68%</div>
+							<div class="substats_col_month">4.50%</div>
+							<div class="substats_col_month">5.15%</div>
+							<div class="substats_col_month">5.10%</div>
+							<div class="substats_col_month_last_pct"><strong>4.57%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.53%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon HD 5450</span></div></div>
+							<div class="substats_col_month">2.19%</div>
+							<div class="substats_col_month">2.56%</div>
+							<div class="substats_col_month">2.53%</div>
+							<div class="substats_col_month">2.24%</div>
+							<div class="substats_col_month_last_pct"><strong>2.54%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.30%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 6450</span></div></div>
+							<div class="substats_col_month">1.50%</div>
+							<div class="substats_col_month">1.71%</div>
+							<div class="substats_col_month">1.68%</div>
+							<div class="substats_col_month">1.87%</div>
+							<div class="substats_col_month_last_pct"><strong>1.70%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.17%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel HD Graphics 2500</span></div></div>
+							<div class="substats_col_month">1.46%</div>
+							<div class="substats_col_month">1.24%</div>
+							<div class="substats_col_month">1.40%</div>
+							<div class="substats_col_month">1.59%</div>
+							<div class="substats_col_month_last_pct"><strong>1.34%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.25%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Mobility Radeon HD 5000 Series</span></div></div>
+							<div class="substats_col_month">1.06%</div>
+							<div class="substats_col_month">1.31%</div>
+							<div class="substats_col_month">1.20%</div>
+							<div class="substats_col_month">1.21%</div>
+							<div class="substats_col_month_last_pct"><strong>1.29%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.08%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon HD 5700 Series</span></div></div>
+							<div class="substats_col_month">1.17%</div>
+							<div class="substats_col_month">1.20%</div>
+							<div class="substats_col_month">0.90%</div>
+							<div class="substats_col_month">1.09%</div>
+							<div class="substats_col_month_last_pct"><strong>1.26%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.17%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 6670</span></div></div>
+							<div class="substats_col_month">1.30%</div>
+							<div class="substats_col_month">1.21%</div>
+							<div class="substats_col_month">1.26%</div>
+							<div class="substats_col_month">1.21%</div>
+							<div class="substats_col_month_last_pct"><strong>1.22%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 6700 Series</span></div></div>
+							<div class="substats_col_month">1.09%</div>
+							<div class="substats_col_month">0.96%</div>
+							<div class="substats_col_month">0.98%</div>
+							<div class="substats_col_month">1.06%</div>
+							<div class="substats_col_month_last_pct"><strong>1.07%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 6570</span></div></div>
+							<div class="substats_col_month">1.15%</div>
+							<div class="substats_col_month">1.26%</div>
+							<div class="substats_col_month">1.09%</div>
+							<div class="substats_col_month">1.12%</div>
+							<div class="substats_col_month_last_pct"><strong>1.05%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 7400M Series</span></div></div>
+							<div class="substats_col_month">0.90%</div>
+							<div class="substats_col_month">0.73%</div>
+							<div class="substats_col_month">0.72%</div>
+							<div class="substats_col_month">0.77%</div>
+							<div class="substats_col_month_last_pct"><strong>0.74%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 6800 Series</span></div></div>
+							<div class="substats_col_month">0.94%</div>
+							<div class="substats_col_month">0.81%</div>
+							<div class="substats_col_month">0.77%</div>
+							<div class="substats_col_month">0.90%</div>
+							<div class="substats_col_month_last_pct"><strong>0.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.27%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon 6600M and 6700M Series</span></div></div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month_last_pct"><strong>0.60%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.20%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Broadwell</span></div></div>
+							<div class="substats_col_month">0.70%</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">0.56%</div>
+							<div class="substats_col_month">0.60%</div>
+							<div class="substats_col_month_last_pct"><strong>0.55%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 6900 Series</span></div></div>
+							<div class="substats_col_month">0.47%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.41%</div>
+							<div class="substats_col_month_last_pct"><strong>0.50%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.09%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon HD 5800 Series</span></div></div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.49%</div>
+							<div class="substats_col_month">0.52%</div>
+							<div class="substats_col_month">0.42%</div>
+							<div class="substats_col_month_last_pct"><strong>0.50%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.08%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon HD 5670</span></div></div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.63%</div>
+							<div class="substats_col_month">0.52%</div>
+							<div class="substats_col_month">0.56%</div>
+							<div class="substats_col_month_last_pct"><strong>0.49%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon HD 5570</span></div></div>
+							<div class="substats_col_month">0.47%</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month_last_pct"><strong>0.44%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_unchanged">0.00%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 6300M Series</span></div></div>
+							<div class="substats_col_month">0.34%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.33%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.33%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 6310</span></div></div>
+							<div class="substats_col_month">0.32%</div>
+							<div class="substats_col_month">0.34%</div>
+							<div class="substats_col_month">0.37%</div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month_last_pct"><strong>0.32%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.12%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 7500/7600 Series</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.31%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.31%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left">Other</div>
+							<div class="substats_col_month">2.55%</div>
+							<div class="substats_col_month">2.32%</div>
+							<div class="substats_col_month">2.80%</div>
+							<div class="substats_col_month">2.40%</div>
+							<div class="substats_col_month_last_pct"><strong>2.24%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.16%</span></div>
+							<br clear="left" />
+				</div>
+						<br clear="all" />
+				<br clear="all" />
+						<div class="substats_col_left col_header">DIRECTX 10 GPUS</div>
+						<div class="substats_col_month col_header">MAY</div>
+						<div class="substats_col_month col_header">JUN</div>
+						<div class="substats_col_month col_header">JUL</div>
+						<div class="substats_col_month col_header">AUG</div>
+						<div class="substats_col_month_last_pct col_header"><strong>SEP</strong></div><div class="substats_col_month_last_chg">&nbsp;</div>
+								<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Sandy Bridge</span></div></div>
+							<div class="substats_col_month">27.25%</div>
+							<div class="substats_col_month">27.53%</div>
+							<div class="substats_col_month">27.37%</div>
+							<div class="substats_col_month">27.17%</div>
+							<div class="substats_col_month_last_pct"><strong>27.71%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.54%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel HD Graphics 3000</span></div></div>
+							<div class="substats_col_month">22.73%</div>
+							<div class="substats_col_month">23.16%</div>
+							<div class="substats_col_month">24.10%</div>
+							<div class="substats_col_month">22.71%</div>
+							<div class="substats_col_month_last_pct"><strong>22.01%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.70%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 210</span></div></div>
+							<div class="substats_col_month">6.46%</div>
+							<div class="substats_col_month">7.33%</div>
+							<div class="substats_col_month">7.49%</div>
+							<div class="substats_col_month">7.16%</div>
+							<div class="substats_col_month_last_pct"><strong>7.92%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.76%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Ironlake Arrandale</span></div></div>
+							<div class="substats_col_month">6.70%</div>
+							<div class="substats_col_month">6.94%</div>
+							<div class="substats_col_month">7.43%</div>
+							<div class="substats_col_month">7.13%</div>
+							<div class="substats_col_month_last_pct"><strong>7.58%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.45%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel HD Graphics 2000</span></div></div>
+							<div class="substats_col_month">5.92%</div>
+							<div class="substats_col_month">6.04%</div>
+							<div class="substats_col_month">6.38%</div>
+							<div class="substats_col_month">6.12%</div>
+							<div class="substats_col_month_last_pct"><strong>5.51%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.61%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Ironlake Clarkdale</span></div></div>
+							<div class="substats_col_month">2.59%</div>
+							<div class="substats_col_month">2.45%</div>
+							<div class="substats_col_month">2.69%</div>
+							<div class="substats_col_month">2.94%</div>
+							<div class="substats_col_month_last_pct"><strong>2.30%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.64%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce G210</span></div></div>
+							<div class="substats_col_month">1.56%</div>
+							<div class="substats_col_month">1.46%</div>
+							<div class="substats_col_month">1.42%</div>
+							<div class="substats_col_month">1.58%</div>
+							<div class="substats_col_month_last_pct"><strong>1.67%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.09%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GT 220</span></div></div>
+							<div class="substats_col_month">1.73%</div>
+							<div class="substats_col_month">1.46%</div>
+							<div class="substats_col_month">1.08%</div>
+							<div class="substats_col_month">1.45%</div>
+							<div class="substats_col_month_last_pct"><strong>1.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.18%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GT 240</span></div></div>
+							<div class="substats_col_month">1.35%</div>
+							<div class="substats_col_month">1.38%</div>
+							<div class="substats_col_month">1.03%</div>
+							<div class="substats_col_month">1.09%</div>
+							<div class="substats_col_month_last_pct"><strong>1.49%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.40%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 9500 GT</span></div></div>
+							<div class="substats_col_month">1.35%</div>
+							<div class="substats_col_month">1.64%</div>
+							<div class="substats_col_month">1.30%</div>
+							<div class="substats_col_month">1.39%</div>
+							<div class="substats_col_month_last_pct"><strong>1.47%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.08%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 9600 GT</span></div></div>
+							<div class="substats_col_month">1.26%</div>
+							<div class="substats_col_month">1.17%</div>
+							<div class="substats_col_month">0.95%</div>
+							<div class="substats_col_month">1.16%</div>
+							<div class="substats_col_month_last_pct"><strong>1.27%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.11%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 310M</span></div></div>
+							<div class="substats_col_month">0.72%</div>
+							<div class="substats_col_month">0.95%</div>
+							<div class="substats_col_month">0.72%</div>
+							<div class="substats_col_month">1.25%</div>
+							<div class="substats_col_month_last_pct"><strong>1.15%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.10%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI 760G</span></div></div>
+							<div class="substats_col_month">1.14%</div>
+							<div class="substats_col_month">0.89%</div>
+							<div class="substats_col_month">0.93%</div>
+							<div class="substats_col_month">1.12%</div>
+							<div class="substats_col_month_last_pct"><strong>1.15%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 8400 GS</span></div></div>
+							<div class="substats_col_month">0.89%</div>
+							<div class="substats_col_month">0.96%</div>
+							<div class="substats_col_month">1.03%</div>
+							<div class="substats_col_month">1.04%</div>
+							<div class="substats_col_month_last_pct"><strong>0.95%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.09%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 8800 GTX</span></div></div>
+							<div class="substats_col_month">2.96%</div>
+							<div class="substats_col_month">1.76%</div>
+							<div class="substats_col_month">1.51%</div>
+							<div class="substats_col_month">1.19%</div>
+							<div class="substats_col_month_last_pct"><strong>0.92%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.27%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 9800 GT</span></div></div>
+							<div class="substats_col_month">1.25%</div>
+							<div class="substats_col_month">0.89%</div>
+							<div class="substats_col_month">0.85%</div>
+							<div class="substats_col_month">0.89%</div>
+							<div class="substats_col_month_last_pct"><strong>0.86%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 4350</span></div></div>
+							<div class="substats_col_month">0.45%</div>
+							<div class="substats_col_month">0.59%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month_last_pct"><strong>0.74%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.16%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GTS 250</span></div></div>
+							<div class="substats_col_month">0.95%</div>
+							<div class="substats_col_month">0.87%</div>
+							<div class="substats_col_month">0.82%</div>
+							<div class="substats_col_month">1.06%</div>
+							<div class="substats_col_month_last_pct"><strong>0.70%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.36%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 4200</span></div></div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.44%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month">0.31%</div>
+							<div class="substats_col_month_last_pct"><strong>0.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.32%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 9400 GT</span></div></div>
+							<div class="substats_col_month">0.53%</div>
+							<div class="substats_col_month">0.62%</div>
+							<div class="substats_col_month">0.66%</div>
+							<div class="substats_col_month">0.41%</div>
+							<div class="substats_col_month_last_pct"><strong>0.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.22%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce GT 330M</span></div></div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">0.39%</div>
+							<div class="substats_col_month">0.58%</div>
+							<div class="substats_col_month_last_pct"><strong>0.57%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Mobile Intel 4 Series Express</span></div></div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.50%</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">0.69%</div>
+							<div class="substats_col_month_last_pct"><strong>0.56%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.13%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Mobility Radeon HD 4570</span></div></div>
+							<div class="substats_col_month">0.51%</div>
+							<div class="substats_col_month">0.54%</div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">0.51%</div>
+							<div class="substats_col_month_last_pct"><strong>0.47%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 405</span></div></div>
+							<div class="substats_col_month">0.30%</div>
+							<div class="substats_col_month">0.41%</div>
+							<div class="substats_col_month">0.31%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.43%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.43%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Mobility Radeon HD 4200</span></div></div>
+							<div class="substats_col_month">0.48%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month">0.40%</div>
+							<div class="substats_col_month_last_pct"><strong>0.43%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 315M</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.33%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month_last_pct"><strong>0.40%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.03%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 4650</span></div></div>
+							<div class="substats_col_month">0.36%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.43%</div>
+							<div class="substats_col_month_last_pct"><strong>0.36%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.07%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 4670</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.38%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.31%</div>
+							<div class="substats_col_month_last_pct"><strong>0.32%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.01%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>AMD Radeon HD 4250</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.31%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.31%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left">Other</div>
+							<div class="substats_col_month">8.25%</div>
+							<div class="substats_col_month">7.81%</div>
+							<div class="substats_col_month">8.25%</div>
+							<div class="substats_col_month">7.81%</div>
+							<div class="substats_col_month_last_pct"><strong>7.86%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.05%</span></div>
+							<br clear="left" />
+				</div>
+						<br clear="all" />
+				<br clear="all" />
+						<div class="substats_col_left col_header">DIRECTX 9 SHADER MODEL 2B AND 3.0 GPUS</div>
+						<div class="substats_col_month col_header">MAY</div>
+						<div class="substats_col_month col_header">JUN</div>
+						<div class="substats_col_month col_header">JUL</div>
+						<div class="substats_col_month col_header">AUG</div>
+						<div class="substats_col_month_last_pct col_header"><strong>SEP</strong></div><div class="substats_col_month_last_chg">&nbsp;</div>
+								<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 6800</span></div></div>
+							<div class="substats_col_month">56.10%</div>
+							<div class="substats_col_month">55.00%</div>
+							<div class="substats_col_month">58.22%</div>
+							<div class="substats_col_month">56.15%</div>
+							<div class="substats_col_month_last_pct"><strong>69.11%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+12.96%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 7025</span></div></div>
+							<div class="substats_col_month">4.88%</div>
+							<div class="substats_col_month">8.57%</div>
+							<div class="substats_col_month">10.96%</div>
+							<div class="substats_col_month">10.00%</div>
+							<div class="substats_col_month_last_pct"><strong>8.13%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-1.87%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Graphics Media Accelerator 3150</span></div></div>
+							<div class="substats_col_month">11.38%</div>
+							<div class="substats_col_month">5.00%</div>
+							<div class="substats_col_month">8.22%</div>
+							<div class="substats_col_month">10.77%</div>
+							<div class="substats_col_month_last_pct"><strong>4.88%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-5.89%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon 3100</span></div></div>
+							<div class="substats_col_month">4.88%</div>
+							<div class="substats_col_month">8.57%</div>
+							<div class="substats_col_month">2.05%</div>
+							<div class="substats_col_month">1.54%</div>
+							<div class="substats_col_month_last_pct"><strong>1.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.09%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Graphics Media Accelerator 3600 Series</span></div></div>
+							<div class="substats_col_month">2.44%</div>
+							<div class="substats_col_month">5.00%</div>
+							<div class="substats_col_month">2.05%</div>
+							<div class="substats_col_month">2.31%</div>
+							<div class="substats_col_month_last_pct"><strong>1.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.68%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 7300 GT</span></div></div>
+							<div class="substats_col_month">0.81%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.77%</div>
+							<div class="substats_col_month_last_pct"><strong>1.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.86%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon X1600</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">2.86%</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">0.77%</div>
+							<div class="substats_col_month_last_pct"><strong>1.63%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.86%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 7300 SE</span></div></div>
+							<div class="substats_col_month">3.25%</div>
+							<div class="substats_col_month">0.71%</div>
+							<div class="substats_col_month">3.42%</div>
+							<div class="substats_col_month">2.31%</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-1.50%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 7900 GS</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">1.43%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.81%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 6200 LE</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.77%</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 7150M</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.81%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 6150 SE</span></div></div>
+							<div class="substats_col_month">3.25%</div>
+							<div class="substats_col_month">2.86%</div>
+							<div class="substats_col_month">4.11%</div>
+							<div class="substats_col_month">3.08%</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-2.27%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce Go 6150</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.71%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.81%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Mobility Radeon X2300</span></div></div>
+							<div class="substats_col_month">0.81%</div>
+							<div class="substats_col_month">1.43%</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.81%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon X800</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.81%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Mobility Radeon X1400</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.81%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 7100 GS</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.77%</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 6100</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.71%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">1.54%</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.73%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon X1650</span></div></div>
+							<div class="substats_col_month">0.81%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+0.81%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Mobility Radeon X1350</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">1.54%</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.73%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_nvidia.png" /><span>NVIDIA GeForce 7300 LE</span></div></div>
+							<div class="substats_col_month">2.44%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">0.68%</div>
+							<div class="substats_col_month">1.54%</div>
+							<div class="substats_col_month_last_pct"><strong>0.81%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-0.73%</span></div>
+							<br clear="left" />
+				</div>
+						<br clear="all" />
+				<br clear="all" />
+						<div class="substats_col_left col_header">DIRECTX 9 SHADER MODEL 2.0 GPUS</div>
+						<div class="substats_col_month col_header">MAY</div>
+						<div class="substats_col_month col_header">JUN</div>
+						<div class="substats_col_month col_header">JUL</div>
+						<div class="substats_col_month col_header">AUG</div>
+						<div class="substats_col_month_last_pct col_header"><strong>SEP</strong></div><div class="substats_col_month_last_chg">&nbsp;</div>
+								<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel 82945G Express</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">14.29%</div>
+							<div class="substats_col_month">28.57%</div>
+							<div class="substats_col_month">28.57%</div>
+							<div class="substats_col_month_last_pct"><strong>27.27%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-1.30%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel G33/G31 Express</span></div></div>
+							<div class="substats_col_month">21.43%</div>
+							<div class="substats_col_month">42.86%</div>
+							<div class="substats_col_month">28.57%</div>
+							<div class="substats_col_month">35.71%</div>
+							<div class="substats_col_month_last_pct"><strong>18.18%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_decrease">-17.53%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Mobile Intel 945GM Express</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">28.57%</div>
+							<div class="substats_col_month">7.14%</div>
+							<div class="substats_col_month_last_pct"><strong>18.18%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+11.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel Q35 Express</span></div></div>
+							<div class="substats_col_month">14.29%</div>
+							<div class="substats_col_month">7.14%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">7.14%</div>
+							<div class="substats_col_month_last_pct"><strong>18.18%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+11.04%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_0">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_amd.png" /><span>ATI Radeon Xpress 1250</span></div></div>
+							<div class="substats_col_month">21.43%</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>9.09%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+9.09%</span></div>
+							<br clear="left" />
+				</div>
+						<div class="substats_row row_1">
+					<div class="substats_col_left"><div class="hws_flex"><img class="hws_vendor" src="https://store.akamai.steamstatic.com/public/images/hws_intel.png" /><span>Intel 946GZ Express</span></div></div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month">-</div>
+							<div class="substats_col_month_last_pct"><strong>9.09%</strong></div>
+							<div class="substats_col_month_last_chg"> <span class="stat_increase">+9.09%</span></div>
+							<br clear="left" />
+				</div>
+						<br clear="all" />
+				<br clear="all" />
+					</div>
+					
+						
+			<br clear="all" />	
+			<br clear="all" />	
+					
+		
+			</div>
+		</div>
+</div>
+	</div>
+</div>
+
+<!-- Footer -->
+<div  data-featuretarget="footer"></div><!-- End Footer -->
+
+</body>

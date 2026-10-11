@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang='en' class='h-100' data-color-scheme='light'>
+  <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="csrf-param" content="authenticity_token" />
+<meta name="csrf-token" content="thXt3JNnb60kF86QQPffZVInNes7Rtzg8JpGMcJwOG1kfYbM5NWbfMaQpGuwBRsG5OrhXDZHCKCXC-zMDLkFwA" />
+    <meta name="csp-nonce" />
+    <title>CUDA Toolkit Archive | NVIDIA Developer</title>
+<link rel="canonical" href="https://developer.nvidia.com/cuda-toolkit-archive">
+<link rel="alternate" href="https://developer.nvidia.com/cuda-toolkit-archive" hreflang="x-default">
+<link rel="alternate" href="https://developer.nvidia.com/cuda-toolkit-archive" hreflang="en-us">
+<meta property="og:site_name" content="NVIDIA Developer">
+<meta property="og:title" content="CUDA Toolkit Archive">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://developer.download.nvidia.com/images/og-default.jpg">
+<meta property="og:url" content="https://developer.nvidia.com/cuda-toolkit-archive">
+<meta name="twitter:title" content="CUDA Toolkit Archive">
+<meta name="twitter:image" content="https://developer.download.nvidia.com/images/og-default.jpg">
+<meta name="twitter:site" content="@NVIDIA">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:creator" content="@NVIDIA">
+<meta name="nv-cre-date" content="2023-09-18T17:05:32.029Z">
+<meta name="nv-pub-date" content="2026-09-16T21:12:38.485Z">
+    <link rel="alternate" type="text/markdown" title="Page Markdown" href="https://developer.nvidia.com/cuda-toolkit-archive.md">
+
+    <link rel="stylesheet" href="https://developer.nvidia.com/assets/application-b1311f8e3775d0111068ffb570bc2dbc9f97b4e9b142bf9583af462cd93ca62f.css" media="all" />
+
+    <script>
+  const NvAssets = {
+    CSS: {
+      highlightJs: "https://developer.nvidia.com/assets/highlight-7c6157fe69da4cc401cddeb387737d6991b2012dc14e90f3d52764a3a58fd3da.css",
+    }
+  }
+</script>
+
+
+    
+  <link rel="stylesheet" href="https://developer.nvidia.com/assets/one-trust-bea625cf16a072ce5fdb0707a19f2645daf63c05eb1a016db72773eba008fc07.css" />
+  <script src="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" charset="UTF-8" data-document-language="true" data-domain-script="3e2b62ff-7ae7-4ac5-87c8-d5949ecafff5"></script>
+
+<script src="https://images.nvidia.com/aem-dam/Solutions/ot-js/ot-custom.js"></script>
+
+<script>
+  function OptanonWrapper() {
+    let event = new Event('bannerLoaded');
+    window.dispatchEvent(event);
+
+      if (window.OnetrustActiveGroups && window.OnetrustActiveGroups.includes("C0002")) {
+        window.DD_RUM && window.DD_RUM.init({
+          clientToken: '<redacted>',
+          applicationId: '9fc963c7-14e6-403d-bdec-ee671550bb7f',
+          site: 'datadoghq.com',
+          service: 'devzone',
+          env: 'prod',
+          version: 'v2.60.0',
+          sessionSampleRate: 10,
+          sessionReplaySampleRate: 5,
+          trackUserInteractions: true,
+          trackResources: true,
+          trackLongTasks: true,
+          defaultPrivacyLevel: 'mask-user-input',
+        });
+      }
+  }
+</script>
+
+
+    <script>
+  (function() {
+    var didInit = false;
+    function initMunchkin() {
+      if(didInit === false) {
+        didInit = true;
+        Munchkin.init('156-OFN-742');
+      }
+    }
+    function loadMunchkin() {
+      // Munchkin falls under the OneTrust "Advertising" category (C0004); only
+      // load it once the user has consented to that category.
+      if (!window.OnetrustActiveGroups || !window.OnetrustActiveGroups.includes("C0004")) {
+        return;
+      }
+      // bannerLoaded re-fires on every consent change; once we have consent we
+      // only need to inject the script tag once.
+      window.removeEventListener('bannerLoaded', loadMunchkin);
+      var s = document.createElement('script');
+      s.type = 'text/javascript';
+      s.async = true;
+      s.src = '//munchkin.marketo.net/munchkin.js';
+      s.onreadystatechange = function() {
+        if (this.readyState == 'complete' || this.readyState == 'loaded') {
+          initMunchkin();
+        }
+      };
+      s.onload = initMunchkin;
+      document.getElementsByTagName('head')[0].appendChild(s);
+    }
+    // OnetrustActiveGroups is populated asynchronously after the OneTrust SDK
+    // loads, which dispatches "bannerLoaded" (see layouts/_one_trust). Wait for
+    // that signal so consenting users still get Munchkin, then re-check on each
+    // consent change (the didInit guard keeps init idempotent).
+    window.addEventListener('bannerLoaded', loadMunchkin);
+})();
+</script>
+
+    <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "NVIDIA Developer",
+    "url": "https://developer.nvidia.com",
+    "logo": "https://www.nvidia.com/en-us/about-nvidia/legal-info/logo-brand-usage/_jcr_content/root/responsivegrid/nv_container_392921705/nv_container_412055486/nv_image.coreimg.100.630.png/1703060329095/nvidia-logo-horz.png",
+    "sameAs": [
+      "https://github.com/nvidia",
+      "https://www.linkedin.com/company/nvidia/",
+      "https://x.com/nvidiadeveloper"
+    ]
+  }
+</script>
+
+    
+    <meta name='typesense-host' content='typesense.svc.nvidia.com'>
+<meta name='typesense-key' content='uFs9XGl9BWS7af7eAIbKNQ49sJnjEfQk'>
+<script src="https://developer.download.nvidia.com/scripts/typesense.js"></script>
+
+
+    <script src="https://assets.adobedtm.com/5d4962a43b79/c1061d2c5e7b/launch-191c2462b890.min.js" data-ot-ignore="true"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.3/jquery.min.js" integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script src="https://developer.nvidia.com/assets/bootstrap/5.1.3/bootstrap.bundle.min-51ad1d8cab4ebd9873a0429f5e67ca717a71fd96daf8025bc04a88848e5b375c.js"></script>
+
+
+    <link rel="icon" type="image/x-icon" href="https://developer.nvidia.com/assets/favicon-81bff16cada05fcff11e5711f7e6212bdc2e0a32ee57cd640a8cf66c87a6cbe6.ico" />
+  </head>
+
+  <body class='d-flex flex-column h-100'>
+    
+    
+
+      <div id='header'></div>
+
+
+
+
+    
+
+
+
+
+
+
+
+    <div id='page-mobile-nav-container'></div>
+    <div class='page'>
+      <div class="container">
+<div class="page-header"><h1 class="text-center">CUDA Toolkit Archive</h1></div> <div class="field field-name-body field-type-text-with-summary field-label-hidden">
+<div class="field-items"><div class="field-item even"><div class="field field-name-body field-type-text-with-summary field-label-hidden"><div class="field-items"><div class="field-item even">
+<p>Previous releases of the CUDA Toolkit, GPU Computing SDK, documentation and developer drivers can be found using the links below. Please select the release you want from the list below, and be sure to check <a href="http://www.nvidia.com/drivers">www.nvidia.com/drivers</a> for more recent production drivers appropriate for your hardware configuration.</p>
+<div class="row">
+<div class="col-md-2"> </div>
+<div class="col-md-4"><a href="/cuda-downloads">Download Latest CUDA Toolkit</a></div>
+<div class="col-md-4"><a href="/cuda-toolkit" style="text-align:center;">Learn More about CUDA Toolkit</a></div>
+<div class="col-md-2"> </div>
+</div>
+<p><strong>Latest Release</strong><br><a href="/cuda-downloads">CUDA Toolkit 13.4.2 </a> (September 2026), <a href="https://docs.nvidia.com/cuda/">Versioned Online Documentation</a><br></p>
+<p><strong>Archived Releases</strong></p>  <a href="/cuda-13-4-1-download-archive">CUDA Toolkit 13.4.1</a> (September 2026), <a href="https://docs.nvidia.com/cuda/archive/13.4.1/">Versioned Online Documentation</a><br> <a href="/cuda-13-4-0-download-archive">CUDA Toolkit 13.4.0 Developer Preview</a> (July 2026), <a href="https://docs.nvidia.com/cuda/developer-preview/13.4/index.html">Versioned Online Documentation</a><br> <a href="/cuda-13-3-1-download-archive">CUDA Toolkit 13.3.1</a> (June 2026), <a href="https://docs.nvidia.com/cuda/archive/13.3.1/">Versioned Online Documentation</a><br> <a href="/cuda-13-3-0-download-archive">CUDA Toolkit 13.3.0</a> (May 2026), <a href="https://docs.nvidia.com/cuda/archive/13.3.0/">Versioned Online Documentation</a><br> <a href="/cuda-13-2-2-download-archive">CUDA Toolkit 13.2.2</a> (July 2026), <a href="https://docs.nvidia.com/cuda/archive/13.2.2/">Versioned Online Documentation</a><br> <a href="/cuda-13-2-1-download-archive">CUDA Toolkit 13.2.1</a> (April 2026), <a href="https://docs.nvidia.com/cuda/archive/13.2.1/">Versioned Online Documentation</a><br> <a href="/cuda-13-2-0-download-archive">CUDA Toolkit 13.2.0</a> (March 2026), <a href="https://docs.nvidia.com/cuda/archive/13.2.0/">Versioned Online Documentation</a><br> <a href="/cuda-13-1-2-download-archive">CUDA Toolkit 13.1.2</a> (April 2026), <a href="https://docs.nvidia.com/cuda/archive/13.1.2/">Versioned Online Documentation</a><br> <a href="/cuda-13-1-1-download-archive">CUDA Toolkit 13.1.1</a> (January 2026), <a href="https://docs.nvidia.com/cuda/archive/13.1.1/">Versioned Online Documentation</a><br> <a href="/cuda-13-1-0-download-archive">CUDA Toolkit 13.1.0</a> (December 2025), <a href="https://docs.nvidia.com/cuda/archive/13.1.0/">Versioned Online Documentation</a><br> <a href="/cuda-13-0-3-download-archive">CUDA Toolkit 13.0.3</a> (April 2026), <a href="https://docs.nvidia.com/cuda/archive/13.0.3/">Versioned Online Documentation</a><br> <a href="/cuda-13-0-2-download-archive">CUDA Toolkit 13.0.2</a> (October 2025), <a href="https://docs.nvidia.com/cuda/archive/13.0.2/">Versioned Online Documentation</a><br> <a href="/cuda-13-0-1-download-archive">CUDA Toolkit 13.0.1</a> (September 2025), <a href="https://docs.nvidia.com/cuda/archive/13.0.1/">Versioned Online Documentation</a><br> <a href="/cuda-13-0-0-download-archive">CUDA Toolkit 13.0.0</a> (August 2025), <a href="https://docs.nvidia.com/cuda/archive/13.0.0/">Versioned Online Documentation</a><br> <a href="/cuda-12-9-2-download-archive">CUDA Toolkit 12.9.2</a> (May 2026), <a href="https://docs.nvidia.com/cuda/archive/12.9.2/">Versioned Online Documentation</a><br> <a href="/cuda-12-9-1-download-archive">CUDA Toolkit 12.9.1</a> (June 2025), <a href="https://docs.nvidia.com/cuda/archive/12.9.1/">Versioned Online Documentation</a><br> <a href="/cuda-12-9-0-download-archive">CUDA Toolkit 12.9.0</a> (May 2025), <a href="https://docs.nvidia.com/cuda/archive/12.9.0/">Versioned Online Documentation</a><br> <a href="/cuda-12-8-2-download-archive">CUDA Toolkit 12.8.2</a> (April 2026), <a href="https://docs.nvidia.com/cuda/archive/12.8.2/">Versioned Online Documentation</a><br> <a href="/cuda-12-8-1-download-archive">CUDA Toolkit 12.8.1</a> (March 2025), <a href="https://docs.nvidia.com/cuda/archive/12.8.1/">Versioned Online Documentation</a><br> <a href="/cuda-12-8-0-download-archive">CUDA Toolkit 12.8.0</a> (January 2025), <a href="https://docs.nvidia.com/cuda/archive/12.8.0/">Versioned Online Documentation</a><br> <a href="/cuda-12-6-3-download-archive">CUDA Toolkit 12.6.3</a> (November 2024), <a href="https://docs.nvidia.com/cuda/archive/12.6.3/">Versioned Online Documentation</a><br> <a href="/cuda-12-6-2-download-archive">CUDA Toolkit 12.6.2</a> (October 2024), <a href="https://docs.nvidia.com/cuda/archive/12.6.2/">Versioned Online Documentation</a><br> <a href="/cuda-12-6-1-download-archive">CUDA Toolkit 12.6.1</a> (August 2024), <a href="https://docs.nvidia.com/cuda/archive/12.6.1/">Versioned Online Documentation</a><br> <a href="/cuda-12-6-0-download-archive">CUDA Toolkit 12.6.0</a> (August 2024), <a href="https://docs.nvidia.com/cuda/archive/12.6.0/">Versioned Online Documentation</a><br> <a href="/cuda-12-5-1-download-archive">CUDA Toolkit 12.5.1</a> (July 2024), <a href="https://docs.nvidia.com/cuda/archive/12.5.1/">Versioned Online Documentation</a><br> <a href="/cuda-12-5-0-download-archive">CUDA Toolkit 12.5.0</a> (May 2024), <a href="https://docs.nvidia.com/cuda/archive/12.5.0/">Versioned Online Documentation</a><br> <a href="/cuda-12-4-1-download-archive">CUDA Toolkit 12.4.1</a> (April 2024), <a href="https://docs.nvidia.com/cuda/archive/12.4.1/">Versioned Online Documentation</a><br> <a href="/cuda-12-4-0-download-archive">CUDA Toolkit 12.4.0</a> (March 2024), <a href="https://docs.nvidia.com/cuda/archive/12.4.0/">Versioned Online Documentation</a><br> <a href="/cuda-12-3-2-download-archive">CUDA Toolkit 12.3.2</a> (January 2024), <a href="https://docs.nvidia.com/cuda/archive/12.3.2/">Versioned Online Documentation</a><br> <a href="/cuda-12-3-1-download-archive">CUDA Toolkit 12.3.1</a> (November 2023), <a href="https://docs.nvidia.com/cuda/archive/12.3.1/">Versioned Online Documentation</a><br> <a href="/cuda-12-3-0-download-archive">CUDA Toolkit 12.3.0</a> (October 2023), <a href="https://docs.nvidia.com/cuda/archive/12.3.0/">Versioned Online Documentation</a><br> <a href="/cuda-12-2-2-download-archive">CUDA Toolkit 12.2.2</a> (August 2023), <a href="https://docs.nvidia.com/cuda/archive/12.2.2/">Versioned Online Documentation</a><br> <a href="/cuda-12-2-1-download-archive">CUDA Toolkit 12.2.1</a> (July 2023), <a href="https://docs.nvidia.com/cuda/archive/12.2.1/">Versioned Online Documentation</a><br> <a href="/cuda-12-2-0-download-archive">CUDA Toolkit 12.2.0</a> (June 2023), <a href="https://docs.nvidia.com/cuda/archive/12.2.0/">Versioned Online Documentation</a><br> <a href="/cuda-12-1-1-download-archive">CUDA Toolkit 12.1.1</a> (April 2023), <a href="https://docs.nvidia.com/cuda/archive/12.1.1/">Versioned Online Documentation</a><br> <a href="/cuda-12-1-0-download-archive">CUDA Toolkit 12.1.0</a> (February 2023), <a href="https://docs.nvidia.com/cuda/archive/12.1.0/">Versioned Online Documentation</a><br> <a href="/cuda-12-0-1-download-archive">CUDA Toolkit 12.0.1</a> (January 2023), <a href="https://docs.nvidia.com/cuda/archive/12.0.1/">Versioned Online Documentation</a><br> <a href="/cuda-12-0-0-download-archive">CUDA Toolkit 12.0.0</a> (December 2022), <a href="https://docs.nvidia.com/cuda/archive/12.0.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-8-0-download-archive">CUDA Toolkit 11.8.0</a> (October 2022), <a href="https://docs.nvidia.com/cuda/archive/11.8.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-7-1-download-archive">CUDA Toolkit 11.7.1</a> (August 2022), <a href="https://docs.nvidia.com/cuda/archive/11.7.1/">Versioned Online Documentation</a><br> <a href="/cuda-11-7-0-download-archive">CUDA Toolkit 11.7.0</a> (May 2022), <a href="https://docs.nvidia.com/cuda/archive/11.7.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-6-2-download-archive">CUDA Toolkit 11.6.2</a> (March 2022), <a href="https://docs.nvidia.com/cuda/archive/11.6.2/">Versioned Online Documentation</a><br> <a href="/cuda-11-6-1-download-archive">CUDA Toolkit 11.6.1</a> (February 2022), <a href="https://docs.nvidia.com/cuda/archive/11.6.1/">Versioned Online Documentation</a><br> <a href="/cuda-11-6-0-download-archive">CUDA Toolkit 11.6.0</a> (January 2022), <a href="https://docs.nvidia.com/cuda/archive/11.6.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-5-2-download-archive">CUDA Toolkit 11.5.2</a> (February 2022), <a href="https://docs.nvidia.com/cuda/archive/11.5.2/">Versioned Online Documentation</a><br> <a href="/cuda-11-5-1-download-archive">CUDA Toolkit 11.5.1</a> (November 2021), <a href="https://docs.nvidia.com/cuda/archive/11.5.1/">Versioned Online Documentation</a><br> <a href="/cuda-11-5-0-download-archive">CUDA Toolkit 11.5.0</a> (October 2021), <a href="https://docs.nvidia.com/cuda/archive/11.5.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-4-4-download-archive">CUDA Toolkit 11.4.4</a> (February 2022), <a href="https://docs.nvidia.com/cuda/archive/11.4.4/">Versioned Online Documentation</a><br> <a href="/cuda-11-4-3-download-archive">CUDA Toolkit 11.4.3</a> (November 2021), <a href="https://docs.nvidia.com/cuda/archive/11.4.3/">Versioned Online Documentation</a><br> <a href="/cuda-11-4-2-download-archive">CUDA Toolkit 11.4.2</a> (September 2021), <a href="https://docs.nvidia.com/cuda/archive/11.4.2/">Versioned Online Documentation</a><br> <a href="/cuda-11-4-1-download-archive">CUDA Toolkit 11.4.1</a> (August 2021), <a href="https://docs.nvidia.com/cuda/archive/11.4.1/">Versioned Online Documentation</a><br> <a href="/cuda-11-4-0-download-archive">CUDA Toolkit 11.4.0</a> (June 2021), <a href="https://docs.nvidia.com/cuda/archive/11.4.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-3-1-download-archive">CUDA Toolkit 11.3.1</a> (May 2021), <a href="https://docs.nvidia.com/cuda/archive/11.3.1/">Versioned Online Documentation</a><br> <a href="/cuda-11-3-0-download-archive">CUDA Toolkit 11.3.0</a> (April 2021), <a href="https://docs.nvidia.com/cuda/archive/11.3.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-2-2-download-archive">CUDA Toolkit 11.2.2</a> (March 2021), <a href="https://docs.nvidia.com/cuda/archive/11.2.2/">Versioned Online Documentation</a><br> <a href="/cuda-11-2-1-download-archive">CUDA Toolkit 11.2.1</a> (February 2021), <a href="https://docs.nvidia.com/cuda/archive/11.2.1/">Versioned Online Documentation</a><br> <a href="/cuda-11-2-0-download-archive">CUDA Toolkit 11.2.0</a> (December 2020), <a href="https://docs.nvidia.com/cuda/archive/11.2.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-1-1-download-archive">CUDA Toolkit 11.1.1</a> (October 2020), <a href="https://docs.nvidia.com/cuda/archive/11.1.1/">Versioned Online Documentation</a><br> <a href="/cuda-11-1-0-download-archive">CUDA Toolkit 11.1.0</a> (September 2020), <a href="https://docs.nvidia.com/cuda/archive/11.1.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-0-3-download-archive">CUDA Toolkit 11.0.3</a> (August 2020), <a href="https://docs.nvidia.com/cuda/archive/11.0/">Versioned Online Documentation</a><br> <a href="/cuda-11-0-2-download-archive">CUDA Toolkit 11.0.2</a> (July 2020), <a href="https://docs.nvidia.com/cuda/archive/11.0_GA/">Versioned Online Documentation</a><br> <a href="/cuda-11-0-1-download-archive">CUDA Toolkit 11.0.1</a> (June 2020), <a href="https://docs.nvidia.com/cuda/archive/11.0_GA/">Versioned Online Documentation</a><br><a href="/cuda-10.2-download-archive">CUDA Toolkit 10.2 </a> (Nov 2019), <a href="https://docs.nvidia.com/cuda/archive/10.2/">Versioned Online Documentation</a><br> <a href="/cuda-10.1-download-archive-update2">CUDA Toolkit 10.1 update2</a> (Aug 2019), <a href="https://docs.nvidia.com/cuda/archive/10.1/">Versioned Online Documentation</a><br> <a href="/cuda-10.1-download-archive-update1">CUDA Toolkit 10.1 update1</a> (May 2019), <a href="https://docs.nvidia.com/cuda/archive/10.1/">Versioned Online Documentation</a><br> <a href="/cuda-10.1-download-archive-base">CUDA Toolkit 10.1 </a> (Feb 2019), <a href="https://docs.nvidia.com/cuda/archive/10.1/">Online Documentation</a><br> <a href="/cuda-10.0-download-archive">CUDA Toolkit 10.0</a> (Sept 2018), <a href="https://docs.nvidia.com/cuda/archive/10.0/">Online Documentation</a><br> <a href="/cuda-92-download-archive">CUDA Toolkit 9.2</a> (May 2018),<a href="https://docs.nvidia.com/cuda/archive/9.2/">Online Documentation</a><br> <a href="/cuda-91-download-archive-new">CUDA Toolkit 9.1</a> (Dec 2017), <a href="https://docs.nvidia.com/cuda/archive/9.1/">Online Documentation</a><br><a href="/cuda-90-download-archive">CUDA Toolkit 9.0</a> (Sept 2017), <a href="https://docs.nvidia.com/cuda/archive/9.0/">Online Documentation</a><br> <a href="/cuda-80-ga2-download-archive">CUDA Toolkit 8.0 GA2</a> (Feb 2017), <a href="https://docs.nvidia.com/cuda/archive/8.0/">Online Documentation</a><br> <a href="/cuda-80-download-archive">CUDA Toolkit 8.0 GA1</a> (Sept 2016), <a href="https://docs.nvidia.com/cuda/archive/8.0/">Online Documentation</a><br> <a href="/cuda-75-downloads-archive">CUDA Toolkit 7.5</a> (Sept 2015)<br><a href="/cuda-toolkit-70">CUDA Toolkit 7.0</a> (March 2015)<br><a href="/cuda-toolkit-65">CUDA Toolkit 6.5</a> (August 2014)<br><a href="/cuda-toolkit-60">CUDA Toolkit 6.0</a> (April 2014)<br><a href="/cuda-toolkit-55-archive">CUDA Toolkit 5.5</a> (July 2013)<br><a href="/cuda-toolkit-50-archive">CUDA Toolkit 5.0</a> (Oct 2012)<br><a href="/cuda-toolkit-42-archive">CUDA Toolkit 4.2</a> (April 2012)<br><a href="/cuda-toolkit-41-archive">CUDA Toolkit 4.1</a> (Jan 2012)<br><a href="/cuda-toolkit-40">CUDA Toolkit 4.0</a> (May 2011)<br><a href="/cuda-toolkit-32-downloads">CUDA Toolkit 3.2 </a>(Nov 2010)<br><a href="/cuda-toolkit-31-downloads">CUDA Toolkit 3.1 </a>(June 2010)<br><a href="/cuda-toolkit-30-downloads">CUDA Toolkit 3.0 </a>(March 2010)<br><a href="/cuda-toolkit-23-downloads">CUDA Toolkit 2.3 </a> (June 2009)<br><a href="/content/cuda-toolkit-22-may-2009">CUDA Toolkit 2.2 </a> (May 2009)<br><a href="/cuda-toolkit-21-january-2009">CUDA Toolkit 2.1 </a> (Jan 2009)<br><a href="/cuda-toolkit-20-august-2008">CUDA Toolkit 2.0 </a> (Aug 2008)<br><a href="/content/cuda-toolkit-11-june-2007">CUDA Toolkit 1.1 </a> (Dec 2007)<br><a href="/content/cuda-10">CUDA Toolkit 1.0</a> (June 2007)<p></p>
+<p>Learn more about the latest <a href="/cuda-toolkit">CUDA Toolkit</a> and the <a href="/cuda-tools-ecosystem">CUDA Tools and Library Ecosystem</a></p>
+</div></div></div></div></div>
+<br>
+</div>
+</div>
+    </div>
+
+
+
+
+
+
+          <script type="text/javascript">
+  (() => {
+    const handleQuotesBlock = (quotesBlock, idx) => {
+      const blockquotes = quotesBlock.querySelectorAll('blockquote');
+      if (blockquotes.length < 1) {
+        return;
+      }
+
+      const navContainer = document.createElement('ul');
+      navContainer.classList.add('quotes-list-navigation');
+      for (let i = 0; i < blockquotes.length; i++) {
+        let navItem = document.createElement('li');
+        let btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset['group'] = idx.toString();
+        btn.dataset['length'] = blockquotes.length.toString();
+        btn.value = i.toString();
+
+        btn.addEventListener('click', (e) => {
+          const group = e.target.dataset['group'];
+          const groupActiveButtons = document.querySelectorAll(`button[data-group="${group}"].active`);
+          groupActiveButtons.forEach((activeButton) => {
+            activeButton.classList.remove('active');
+          });
+          e.target.classList.add('active');
+          const viewPortWidth = quotesBlock.getBoundingClientRect().width;
+          const clickedSlide = parseInt(e.target.value);
+          quotesBlock.querySelector('.quotes-list').style.transform = `translate(-${viewPortWidth * clickedSlide}px)`;
+        });
+        navItem.appendChild(btn);
+        navContainer.appendChild(navItem);
+
+        if (i === 0) {
+          btn.click();
+        }
+      }
+      quotesBlock.appendChild(navContainer);
+    };
+
+    const refreshQuotesBlock = () => {
+      document.querySelectorAll('.quotes-list-navigation button.active').forEach((b) => {
+        const currentItem = parseInt(b.value);
+        const maxItem = parseInt(b.dataset['length']);
+        const group = parseInt(b.dataset['group']);
+        const next = currentItem + 1;
+        if (next < maxItem) {
+          document.querySelectorAll(`button[data-group="${group}"]`)[next].click();
+        } else {
+          document.querySelectorAll(`button[data-group="${group}"]`)[0].click();
+        }
+      });
+    };
+
+    const refreshInterval = 4000;
+    const quotesBlocks = document.querySelectorAll('.quotes-list-viewport');
+
+    if (quotesBlocks.length) {
+      quotesBlocks.forEach(handleQuotesBlock);
+      setInterval(refreshQuotesBlock, refreshInterval);
+    }
+  })();
+</script>
+
+      <script type="text/javascript" charset="utf-8">
+  (() => {
+    const doInit = (accordionRoot, idx) => {
+      const baseID = `page-accordion-${idx}`;
+      accordionRoot.id = baseID;
+      const headings = accordionRoot.querySelectorAll('.accordion-header');
+      if (!headings.length) {
+        return;
+      }
+
+      const collapseElements = accordionRoot.querySelectorAll('.accordion-collapse');
+
+      headings.forEach((headingElement, idx) => {
+        const headingID = `${baseID}-heading-${idx}`;
+        const targetID = `${baseID}-target-${idx}`;
+        headingElement.id = headingID;
+        const headingButton = headingElement.querySelector('.accordion-button');
+        if (!headingButton) {
+          return;
+        }
+        headingButton.type = 'button';
+        headingButton.dataset['bsToggle'] = 'collapse';
+        headingButton.dataset['bsTarget'] = `#${targetID}`;
+        headingButton.setAttribute('aria-expanded', true);
+        headingButton.setAttribute('aria-controls', targetID);
+        headingButton.setAttribute('role', 'button');
+
+        if (!collapseElements[idx].classList.contains('show')) {
+          headingButton.classList.add('collapsed');
+        }
+
+        collapseElements[idx].id = targetID;
+        collapseElements[idx].setAttribute('aria-labelledby', headingID);
+      });
+
+      new bootstrap.Collapse(accordionRoot);
+    };
+
+    const initAccordions = () => {
+      const accordions = document.querySelectorAll('section.page__section div.accordion');
+      if (!accordions.length) {
+        return;
+      }
+
+      let accordionIndex = 0;
+      accordions.forEach((accordion) => {
+        doInit(accordion, accordionIndex);
+        accordionIndex += 1;
+      });
+    };
+    
+    document.addEventListener('DOMContentLoaded', initAccordions)
+  })();
+</script>
+
+      <script src="https://developer.nvidia.com/assets/grapesjs-tabs-f0b094476ecf56695b765f533e437303138b1e0824d993c50ff672e16dcccd8f.js"></script>
+      <script src="https://developer.nvidia.com/assets/grapesjs-code-container-d9f9220defaa8a53ba3e8b7a6b1d155f6a1e5e5b37b9fa2282a7ace75bc60ae2.js"></script>
+      <script src="https://developer.nvidia.com/assets/legacy-chart/d3.v4.min-41cfecdf7c41476e805de7afacf4aacdd1a4be6947fbecf95217e947ebc2faf5.js"></script>
+      <script src="https://developer.nvidia.com/assets/legacy-chart/visualize-d-6a082dca95b2facd89f05ef138213cffea2419e9195042f6ceed4aa706943cb1.js"></script>
+      <script src="https://developer.nvidia.com/assets/momentjs/moment-b955adb4137f92dd932ff2c3179ce60cb5e1daed5fcc4423f95cf17df02b4d68.js"></script>
+      <script src="https://developer.nvidia.com/assets/momentjs/moment-timezone-with-data-10-year-range-dd05517070a46fa0052f9e706803d57a4fc38c1a223137ab480369e6308ba8d4.js"></script>
+      <script src="https://developer.nvidia.com/assets/calendar-256ba38a1da92b24c057388ff6623eddd4cf1498f51d1a389cc4dfac501ab87c.js"></script>
+      <script src="https://developer.nvidia.com/assets/hoverable-tooltip-06658c1c074450575999f586a2be4df71fb000fa8fbc3eec0955c1484012c593.js"></script>
+
+    <script src="https://developer.nvidia.com/assets/nv-developer-menu-8ae864e49d5d53c328146a66e7ad6d73242af7511f642a7d1aa1ffedd496f826.js"></script>
+  <div id='footer' class='mt-auto'></div>
+  <script src="https://www.nvidia.com/content/dam/en-zz/Solutions/librarian/bundle-search-prod-pub-v3.1.js"></script>
+  <div id="librarian-overlay"></div>
+  <script defer>
+    setTimeout(() => {
+      LIBRARIAN.Home.mount({
+        elementId: 'librarian-overlay',
+        searchPage: false,
+        placeholder: '',
+        site: 'https://developer.nvidia.com',
+        retainFilters: true,
+        overlay: true,
+        pillsOpen: true,
+        suggestedSearchPills: ["CUDA Toolkit","cuDNN Installation Guide","Computer Vision for Self-Driving Cars","DGX SuperPOD","NVIDIA Container Toolkit","Documentation for Triton Inference Server","NeMo Framework Fundamentals","TensorRT","Download SDK Manager","NVIDIA API Guides","Omniverse Renderer Microservice","CUDA Programming Guide","vGPU","Networking Solutions","Building a RAG Powered AI Chatbot"]
+      })
+    }, 1000)
+  </script>
+<script>
+  // The menu CDN publishes en-US and zh-CN only. Any other available locale
+  // (ja-JP reaches here via the login page and the /ja-jp/ path prefix) would
+  // 404 the header and footer fetches and report a menu error, so fall back
+  // rather than lose the nav.
+  const MENU_LOCALES = ['en-US', 'zh-CN'];
+
+  let menuLocale = 'en';
+
+  if (menuLocale == 'en') {
+    menuLocale = 'en-US';
+  }
+
+  if (!MENU_LOCALES.includes(menuLocale)) {
+    menuLocale = 'en-US';
+  }
+
+  function mountHeader(data = false) {
+    const headerTarget = document.getElementById('header');
+    if (!headerTarget) {
+      return;
+    }
+    let options = {
+      baseURL: window.location.origin,
+      signedIn: false,
+      locale: menuLocale
+    };
+
+    if (data) {
+      options.secondaryMenu = data;
+    }
+
+
+    options.showMembershipCardLink = true;
+
+    new NVDeveloperHeader({
+      target: headerTarget,
+      props: options
+    });
+  }
+
+  function mountFooter(data = false) {
+    const footerTarget = document.getElementById('footer');
+    if (!footerTarget) {
+      return;
+    }
+    let options = {
+      menu: data,
+      locale: menuLocale
+    };
+
+    new NVDeveloperFooter({
+      target: document.getElementById('footer'),
+      props: options
+    });
+  }
+
+  let url = 'd29g4g2dyqv443.cloudfront.net';
+  let headerMenuURL = "https://d29g4g2dyqv443.cloudfront.net/menu/en-US/header-secondary.json";
+
+  if (headerMenuURL) {
+    fetch(headerMenuURL)
+      .then(response => response.json())
+      .then(data => {
+        mountHeader(data);
+      })
+      .catch((error) => {
+        mountHeader();
+        window.nv.tracing.addError('menu', error);
+      });
+  } else {
+    mountHeader();
+  }
+
+  fetch(`https://${url}/menu/${menuLocale}/footer.json`)
+    .then(response => response.json())
+    .then(data => {
+      mountFooter(data);
+    })
+    .catch((error) => {
+      mountFooter();
+      window.nv.tracing.addError('menu', error);
+    });
+</script>
+
+      <script src="https://www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js"></script>
+
+    
+    
+      <script>
+  let silentAuthHost = 'www.nvidia.com';
+  let crossOriginPageUrl = `https://${silentAuthHost}/auth/hints/`;
+
+  function readHint() {
+    return new Promise((resolve) => {
+      const { origin: targetOrigin } = new URL(crossOriginPageUrl);
+
+      const iframe = document.createElement('iframe');
+      iframe.hidden = true;
+      iframe.src = crossOriginPageUrl;
+
+      function responseHandler(event) {
+        if (event.origin === targetOrigin) {
+          iframe.parentNode.removeChild(iframe);
+          return resolve(event.data);
+        }
+      }
+
+      window.addEventListener('message', responseHandler, { once: true });
+
+      iframe.onload = () => {
+        iframe.contentWindow.postMessage({ type: 'read' }, targetOrigin);
+      }
+
+      document.body.appendChild(iframe);
+    });
+  }
+
+  function writeHint(login_hint, idp_id, timestamp, sub) {
+    const { origin: targetOrigin } = new URL(crossOriginPageUrl);
+
+    const iframe = document.createElement('iframe');
+    iframe.hidden = true;
+    iframe.src = crossOriginPageUrl;
+
+    iframe.onload = () => {
+      const message = { type: 'write', login_hint, idp_id, timestamp, sub };
+      iframe.contentWindow.postMessage(message, targetOrigin);
+    }
+
+    document.body.appendChild(iframe);
+  }
+
+  function deleteHint() {
+    const { origin: targetOrigin } = new URL(crossOriginPageUrl);
+
+    const iframe = document.createElement('iframe');
+    iframe.hidden = true;
+    iframe.src = crossOriginPageUrl;
+
+    iframe.onload = () => {
+      iframe.contentWindow.postMessage({ type: 'delete' }, targetOrigin);
+    }
+
+    document.body.appendChild(iframe);
+  }
+
+
+</script>
+
+    <script>_satellite.pageBottom();</script>
+    <script src="https://api-prod.nvidia.com/search/nvidia-search-library.js"></script>
+
+    <script src="https://developer.nvidia.com/assets/nv-gallery-widget-d1571cad15d961fd3ba013f57119be04a2adf32aa31b16be44a0f10f4671c37b.js"></script>
+    <script src="https://developer.nvidia.com/packs/js/runtime-f904b50470fcb0ec9bf4.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/4692-e2ed051c68e93113bb58.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/2681-6ac336ff34441936c0fb.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/2778-e8f3c5f27fbb1956fdb2.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/9878-baa65d618824b708a55b.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/8465-f321c9c28242e4383fa8.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/4622-1cd0dbd2a0f0b5243900.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/3566-c56dfeed5cc4ed4a9b8f.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/486-1ddc749b634c231b0122.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/8311-71b2da0387dad11f356f.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/1252-6d8bb3f37b33aca41843.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/8823-bac8f579788282b3f2cd.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/2104-b2c69aa8faa8352ae5a4.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/6900-b1b00a8ef19d3868862c.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/application-afbb46c9b6cc3093d8f1.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/ls_track-d4505a41101e752062c8.js" defer="defer"></script>
+  </body>
+</html>

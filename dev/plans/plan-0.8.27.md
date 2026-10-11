@@ -1387,14 +1387,16 @@ and gating ruling must cover them at their new owners:
   `vector_phase1_sql_for_test`, `slice35_ranked_eligibility_sql_for_test`,
   and `take_slice71_search_statement_trace_for_test`.
 
-Slice 140's final reviewed product source is captured in
-[successor baseline `f327c28c`](0.8.27/features/hidden-surface/baseline-f327c28c.json),
-with its [approved exact diff record](0.8.27/features/hidden-surface/baseline-f327c28c-diff.md)
+Slice 140's final reviewed product source was captured in the retired
+`f327c28c` successor baseline, with its
+[approved exact diff record](0.8.27/features/hidden-surface/baseline-f327c28c-diff.md)
 recording default pinned-proof restoration and the sole qualified unit-proof
 relocation. All Rust API/probe rows match the [previous approved successor](0.8.27/features/hidden-surface/baseline-01f4063f-diff.md),
 which retains the original fixture-gating and inherited-change decisions.
-Later receipt commits change internal documentation only. Slice 150 uses
-this final reviewed successor.
+Later receipt commits changed internal documentation only. Slice 150 compared
+against this final reviewed successor before retiring the oracle; the
+[hidden-surface status](0.8.27/features/hidden-surface/status.md) records the
+final manifest and comparison digests. Git history retains the baseline.
 
 The public-doc truth gate follows an explicit documentation target on the
 active tracked release state (`public_docs_target_release`, equal to that
@@ -1440,19 +1442,17 @@ Bind the candidate manifest to the reviewed commit, platforms, feature sets,
 commands, test counts, and artifact hashes. A qualification defect returns to
 the owning slice with a new RED test; never weaken a qualification test.
 
-As its last step, after qualification fully passes, Slice 150 retires the
-0.8.27 hidden-surface oracle (RH-12 in
-`dev/plans/0.8.27/features/hidden-surface/plan.md`): record the final hidden and
-test-inventory comparisons with manifest digests in that unit's `status.md`,
-run `hidden_surface.py prune`, then delete `dev/tools/hidden_surface.py`, its
-self-tests, fixtures, fast-tier line, and committed `baseline-*.json` files.
-The feature-complete gate, the test-target coverage check, their shared
-`scripts/lib/test_targets.py`, the committed feature matrix and skip
-allowlist, the warning-free test-build gates, the dead-code lint, and the
-removal-changelog gate stay. The retirement commit rewrites cadence step 4
-and this slice's text to say the oracle ran and was retired, citing the
-`status.md` digests. If the decomposition is abandoned or deferred, the same
-unwind runs at that decision.
+Slice 150 compared the final hidden surface and test inventory against the
+reviewed successor, recording the manifest and comparison digests in the
+[hidden-surface status](0.8.27/features/hidden-surface/status.md), then
+retired the temporary oracle under RH-12. It pruned owned scratch and removed
+the collector, its self-tests, oracle-only fixtures, fast-tier call, and
+committed baseline JSON files. The fixture crate and inventory sample used by
+the permanent test-target coverage self-tests moved to `test-targets/`.
+The feature-complete gate, test-target coverage check, shared
+`scripts/lib/test_targets.py`, feature matrix and skip allowlist,
+warning-free test-build gates, dead-code lint and removal-changelog gate
+remain. Git history retains the retired oracle and baselines.
 
 ### Slice 160 — publication to every destination
 
@@ -1511,19 +1511,17 @@ Slices 40–130 use this cadence:
 2. Add missing characterization coverage and prove it non-vacuous through
    temporary defect injection.
 3. Make one mechanical move.
-4. Run focused tests, the surface comparator, and the hidden-surface and
-   test-inventory comparison against the current hidden baseline.
+4. Run focused tests and the public surface comparator. During Slices 40–150,
+   also run the temporary hidden-surface and test-inventory comparison; its
+   final digests are in the hidden-surface status, and Slice 150 retired it.
 5. Refactor inside the new boundary, adding RED tests for new logic.
 6. Run `agent-verify` and full workspace checks before closing the slice.
 7. Preserve exact evidence and exclude unrelated cleanup.
 
-The hidden-surface and test-inventory comparison is
-`python3 dev/tools/hidden_surface.py compare`, run on a fresh capture of the
-slice head against the `baseline-<sha>.json` under
-`dev/plans/0.8.27/features/hidden-surface/` whose capture commit is the most
-recent ancestor of `HEAD`. An unexpected hidden-surface difference blocks the
-batch. An intended one is recorded as a successor `baseline-<sha>.json`
-beside a reviewed `baseline-<sha>-diff.md`; no baseline file is rewritten.
+The temporary hidden comparison ran against each slice's reviewed successor
+baseline through Slice 150. Its tool and baselines are retained in Git
+history; the final capture and comparison hashes are in
+[hidden-surface status](0.8.27/features/hidden-surface/status.md).
 
 Test-inventory policy: a removed or newly ignored test, or a test target that
 no longer builds, blocks the batch unless the slice status names it with its

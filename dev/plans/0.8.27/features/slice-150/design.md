@@ -38,8 +38,8 @@ a failed full-gate receipt.
 | 3 | Feature-complete gate, full `agent-verify`, full-workspace Clippy and check. | All mandatory gates exit zero; feature-complete shows every non-exempt target run with live prerequisites. Record exact counts. Follow repository lint → typecheck → test ordering, short-circuiting on failure. |
 | 4 | Feature/platform matrix. | Distinct default, operator, test-hooks, slice72-test-hooks, migration/test and benchmark routes where the source declares them; debug/release, CPU/driverless and CUDA routes where applicable. Avoid mutually exclusive native backends in one misleading all-features run. Windows and Jetson use exact Git archive/package hashes and their own host receipts. |
 | 5 | Package and consumer routes. | Fresh Python wheel and Node package/native addon from the candidate, with clean non-editable installs, resolved import/native paths and minimal open/write/read/close plus erasure. A candidate-bound Rust source archive includes the workspace manifest, lockfile, `src/rust` and patched `third_party`; an external consumer compiles `fathomdb-sdk` through a local path dependency and runs the same real-database smoke. Record archive members and hash, consumer manifest and lockfile hashes, resolved sibling and active patch paths, unused patches and result. The frozen Memex oracle uses the candidate native package, with its file and setup unchanged. Slice 160 owns registry-resolved Rust `.crate` packaging and registry-installed proof. |
-| 6 | Strict security and live AC-037. | Human performs only the runbook's temporary AppArmor grant and revert. Agent captures baseline denial, exact candidate and three pass lines, then revert denial. Any downgrade or missing revert is not PASS. |
-| 7 | Independent review, retirement and closeout. | `gpt-6-sol` high checks candidate/evidence and Terra independently reproduces selected decisive checks. Final hidden/test-inventory digests go to the hidden-surface status before deletion. After all pre-retirement qualification passes, prune owned oracle data, delete temporary tool/tests/fixtures/baselines and its fast-tier call; rewrite cadence step 4 and the master Slice 150 paragraph to cite those digests and state that the oracle ran and was retired. Retain permanent feature-complete, test-target coverage, feature matrix/allowlist, warning-free builds, dead-code and removal-changelog gates. Run applicable checks again, then repeat the complete human grant, strict security check and immediate revert on the final executable commit. |
+| 6 | Strict security and live AC-037. | Agent records the initial namespace capability probe, exact candidate and three pass lines. On a restricted host the human performs the runbook's temporary AppArmor grant and revert, with denial before and after. An already-capable host needs no grant. Any downgrade or missing required revert is not PASS. |
+| 7 | Independent review, retirement and closeout. | `gpt-6-sol` high checks candidate/evidence and the owner-approved Sol verifier independently reproduces selected decisive checks. Final hidden/test-inventory digests go to the hidden-surface status before deletion. After all pre-retirement qualification passes, prune owned oracle data, delete temporary tool/tests/fixtures/baselines and its fast-tier call; rewrite cadence step 4 and the master Slice 150 paragraph to cite those digests and state that the oracle ran and was retired. Retain permanent feature-complete, test-target coverage, feature matrix/allowlist, warning-free builds, dead-code and removal-changelog gates. Run applicable checks again, then repeat the strict live security check on the final executable commit, using grant/revert only if the host requires it. |
 
 The original Slice 30 baseline remains immutable. The Slice 140 reviewed
 `f327c28c` hidden successor is the comparison authority unless the completed
@@ -50,9 +50,10 @@ the fixed Memex test at
 hash before and after the run.
 
 The pre-retirement live security run and the final post-retirement run are two
-complete `dev/release/ac-037-live-netns-hitl-runbook.md` cycles. Each has its
-own HITL grant, three required pass lines, immediate revert and denial
-confirmation. After the second cycle, only receipt/status/release-state
+`dev/release/ac-037-live-netns-hitl-runbook.md` checks. Each has a namespace
+capability probe and three required pass lines. A denied probe requires the
+temporary grant, immediate revert and denial confirmation. After the second
+check, only receipt/status/release-state
 commits may follow. They must preserve the tested `src/`, `scripts/`,
 `dev/tools/`, workflow and package-manifest trees byte-for-byte; record their
 Git tree IDs and an exact changed-path list against the tested commit. The

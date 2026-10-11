@@ -1,5 +1,4 @@
-//! Hidden-surface oracle fixture crate. Every item exists to exercise one
-//! reachability, normalization, or cfg case in `dev/tools/hidden_surface.py`.
+//! Fixture crate for test-target and feature-requirement coverage checks.
 #![allow(dead_code)]
 
 mod globbed;

@@ -10,7 +10,8 @@ capture_source: f327c28caa5f20c3342127fbc5fde3c6ea189c7b
 
 ## Identity and scope
 
-The [successor manifest](baseline-f327c28c.json) binds final reviewed source
+The successor manifest `baseline-f327c28c.json` (retired in Slice 150;
+recoverable from Git history) binds final reviewed source
 `f327c28caa5f20c3342127fbc5fde3c6ea189c7b`, including the completed Slice 117
 handoff, default pinned-proof corrections, publication-facing 0.8.27 docs and
 generated library/contributor references. Later receipt commits change
@@ -21,9 +22,9 @@ completed; source-modified is false. No historical baseline was overwritten.
 
 | Evidence | SHA-256 |
 | --- | --- |
-| [Previous approved successor](baseline-01f4063f.json) | `0e041e0cb3951b70d831acaebd3d626fae9555fabb606ef88effb2f58d0362b1` |
+| Previous approved successor (`baseline-01f4063f.json`, retired) | `0e041e0cb3951b70d831acaebd3d626fae9555fabb606ef88effb2f58d0362b1` |
 | Successor capture | `e42c87f0684ee45e3cc5e51c30f82592999654ed62087cc213260595cd5b7109` |
-| [Immediate diff](baseline-f327c28c-immediate-diff.json) | `20ddda61597369dee935be1f5008bae806d678319746b91da61197ec8fd1b405` |
+| Immediate diff (`baseline-f327c28c-immediate-diff.json`, retired) | `20ddda61597369dee935be1f5008bae806d678319746b91da61197ec8fd1b405` |
 
 ## Exact immediate inventory delta
 

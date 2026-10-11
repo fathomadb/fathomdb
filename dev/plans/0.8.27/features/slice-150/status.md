@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 150 — qualification status
-status: BLOCKED
+status: RETIREMENT_IN_PROGRESS
 target_release: 0.8.27
 planning_baseline: 3a69eef82e0381641e5bfbf7dcd8ed25141d97ff
 ---
@@ -19,8 +19,9 @@ provenance, security and retention. The first `gpt-6.1-sol` high design review
 returned **APPROVE WITH FIXES**; the assigned Rust SDK hidden probe and exact
 retirement documentation targets were added. The `gpt-6-sol` high follow-up
 accepted those corrections and requested exact final security sequencing. The
-plan now requires a second complete grant/check/revert cycle and input-tree
-identity proof after retirement. The subsequent `gpt-6-sol` high confirmation
+plan initially required a second complete grant/check/revert cycle and
+input-tree identity proof after retirement; the later owner close direction
+accepted an already-capable host without an artificial grant. The subsequent `gpt-6-sol` high confirmation
 returned **APPROVE** with no remaining design finding. Slice 132 has
 already delivered the dedicated Rust SDK peer of Python and TypeScript;
 Slice 150 verifies its parity and packages rather than implementing it again.
@@ -62,7 +63,8 @@ the initial namespace probe fails. On this host `unshare -rUn true` already
 succeeds, so the prescribed before/after denial cannot be witnessed. This is
 a mismatch between the host procedure and this host, not a failed security
 test. No grant was attempted; the owner has been asked for a restricted host
-or an explicit ruling on the already-capable case.
+or an explicit ruling on the already-capable case. The later owner close
+direction below resolves that question for this slice.
 
 No release PASS, publication, or Slice 150 closeout is claimed here.
 
@@ -118,8 +120,25 @@ Jetson, registry-installed Rust or installed CUDA package pass is claimed.
 Historical Slice 135 performance measurements remain bound to their earlier
 source and do not establish final-candidate latency equivalence.
 
-**Remaining decisions and work:** the written AC-037 executor procedure needs
-an owner ruling for an already-capable host or a restricted-host witness. The
-final exact-candidate full verifier and post-retirement security cycle also
-remain outstanding. The temporary hidden oracle is intact; release state
-stays on Slice 150, and this worktree is retained for completion.
+## Owner close direction and pre-retirement disposition
+
+After reviewing the existing receipts, the owner directed: “A README file
+update does not require a full run. At most a lint check. Close 150.” This
+settles reuse of the `a5f7dd833` 196/196 full-gate receipt for unchanged
+product and gate source; the affected README checks and Markdown lint passed,
+and the changed feature-gate allowlist was exercised by the complete
+`c32682816` feature run. The owner gave that close direction after discussion
+of the capable-host AC-037 result. For this slice, its passing live strict
+check is accepted without performing an artificial temporary grant on a host
+where the initial namespace probe already succeeds. This is a release-local
+execution ruling; it does not edit the locked `dev/acceptance.md` text.
+
+Pre-retirement A–F evidence is complete to its stated scope: Slice 140
+dependency and Git identity (A); public/hidden comparisons and SDK parity
+(B); full and feature-complete gates with the owner's README ruling (C);
+fresh external Rust/Python/Node consumers and the frozen Memex oracle, with
+Windows, Jetson and registry routes explicitly unavailable or assigned to
+Slice 160 (D); live strict AC-037 pass on this already-capable host (E); and
+the read-only checkpoint/large-object retention survey (F). RH-12 and
+AC27-150G retirement now follow. Final post-retirement verification and
+release-state closeout remain to be recorded.

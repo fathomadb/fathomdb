@@ -11,7 +11,8 @@ capture_source: 01f4063f7ba19e4d9c38377c3d1956f35903ff9c
 
 ## Identity and scope
 
-The immutable [successor manifest](baseline-01f4063f.json) captures reviewed
+The immutable successor manifest `baseline-01f4063f.json` (retired in Slice 150;
+recoverable from Git history) captures reviewed
 Slice 140 product source `01f4063f7ba19e4d9c38377c3d1956f35903ff9c` after the
 completed Slice 117 handoff. Later receipt commits change documentation only.
 The capture used the unchanged hidden-surface tool, pinned
@@ -29,7 +30,8 @@ the unchanged retry completed all 37 rows. No baseline was overwritten.
 
 ## Immediate Slice 140 API delta
 
-The [exact immediate diff](baseline-01f4063f-immediate-diff.json) compares
+The exact immediate diff `baseline-01f4063f-immediate-diff.json` (retired in
+Slice 150; recoverable from Git history) compares
 completed Slice 117 `1476d83e0` with the successor and exits 1. The only
 metadata difference is derived `row_identities`: required test features
 regroup inventories from 35 to 37 rows. Toolchain, target, and schema match.

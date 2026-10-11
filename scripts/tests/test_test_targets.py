@@ -19,7 +19,7 @@ from typing import Any, Callable
 
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXTURE_CRATE = ROOT / "scripts" / "tests" / "fixtures" / "hidden-surface" / "crate"
+FIXTURE_CRATE = ROOT / "scripts" / "tests" / "fixtures" / "test-targets" / "crate"
 HOST = "x86_64-unknown-linux-gnu"
 
 
@@ -234,7 +234,7 @@ def test_run_pairs(fc: ModuleType) -> None:
     recorded = json.loads(
         (
             ROOT
-            / "scripts/tests/fixtures/hidden-surface/json/inventory-base-hooks.json"
+            / "scripts/tests/fixtures/test-targets/json/inventory-base-hooks.json"
         ).read_text()
     )
     messages = "".join(json.dumps(m) + "\n" for m in recorded["messages"])

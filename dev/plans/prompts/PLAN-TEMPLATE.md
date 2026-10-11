@@ -53,6 +53,9 @@ discovers mid-release.)
   [ ] Read `dev/notes/fathomdb-quality-testing-roadmap.md` and record which
       recommendations fit this release, which are deferred, and what new
       evidence changes the assessment (§ 1). Consultation adds no gate.
+  [ ] Ran the CUDA version review (`dev/design/cuda-version-support-review.md`):
+      usage data collected, importance table re-checked against
+      `ADR-0.8.28-cuda-version-support-policy.md`, changes ratified (§ 1).
 ========================================================================
 -->
 
@@ -86,6 +89,11 @@ release/slice it is deferred to. Deferral is a deliberate decision, not "too har
 this release adopts, defers, or revises, with reasons tied to its change rate,
 owned failure modes and available capacity. Do not turn recommendations into
 automatic release gates.}}
+
+**CUDA version review.** {{CUDA_REVIEW — per
+`dev/design/cuda-version-support-review.md`: the usage data file, what changed
+since the last review, and the importance table (unchanged or the ratified
+changes to `ADR-0.8.28-cuda-version-support-policy.md`).}}
 
 ---
 

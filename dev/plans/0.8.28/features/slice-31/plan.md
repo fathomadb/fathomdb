@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -53,6 +53,9 @@ Nothing in this slice writes to `release/0.8.27`.
 | Q7 | Fork work is planned and run in each fork (I-17, I-18) | § 15 Q7 |
 | Q8 | Close lock drift with D-16 option (b): a FathomDB guard that fails until the fork re-runs with the new lock | § 6 D-16; § 9 W6; § 15 Q8 |
 | Q9 | The published cudarc fork is named `cudarc-fathomdb` | § 3.1; § 9 W8; § 15 Q9 |
+| Q10 | CUDA version importance and actions accepted; the floor is CUDA 12.x libraries; CUDA usage and importance are re-reviewed every release | REQ31-15; § 9 W6; § 15 Q10; `ADR-0.8.28-cuda-version-support-policy.md`; `dev/design/cuda-version-support-review.md` |
+| Q11 | `windchill3`'s Quadro K620 must keep its driver support: no driver branch after R580 | § 1; § 2.2; T-CUDA; § 15 Q11 |
+| Q12 | Check the 12.6 driver floor and a CUDA-13-libraries-only environment, with web evidence on compatibility | REQ31-15; T-CUDA-COMPAT; § 15 Q12 |
 | Q4 | Never install the R615 driver; it would disable `windchill3` | § 1; § 2.2; § 9 W0 step 4 guard; § 15; fork plans § 1.6 |
 | Q5 | Tegra on CUDA 13 is UNMEASURED in Slice 31; propose doing it before the 0.8.28 release | REQ31-04; § 15; § 16 follow-up |
 | Q6 | Build against CUDA 13.0 without changing `windchill3`'s primary CUDA 12.6; find why 12.x was chosen | § 2.2; § 9 W0 step 4; T-CUDA; § 15 Q6 |
@@ -79,7 +82,8 @@ Nothing in this slice writes to `release/0.8.27`.
   compile matrix through 13.4 and its driver-only 13.x GPU tests. FathomDB
   and Candle prove it with CUDA 13.0 toolkit runs on `windchill3`.
 - **`windchill3` is never changed.** Its driver stays 580.178.04, with no
-  R615 (Q4). Its primary CUDA stays `/usr/local/cuda` → 12.6 (Q6). CUDA
+  R615 (Q4). R580 is the last driver branch that supports its Quadro K620
+  (Maxwell), so no later branch is ever installed (Q11). Its primary CUDA stays `/usr/local/cuda` → 12.6 (Q6). CUDA
   13.0 is installed toolkit-only, user-local, side by side.
 - **Tegra on CUDA 13 is UNMEASURED in Slice 31** (Q5). A follow-up before
   the 0.8.28 release is proposed (§ 16).
@@ -317,10 +321,11 @@ it and no open finding. FathomDB does not re-run the fork's tests.
 | **REQ31-11 Process.** | **AC31-11:** `status.md` lists red and green shas per FathomDB step, each red re-run by the reviewer; `review.md` records every FathomDB review with model `opus` and every fork review by link; fork CF-AC-09 and CK-AC-08 pass. |
 | **REQ31-12 Scope safety.** | **AC31-12:** no upstream issue, comment, PR or push; no PR or issue object on either fork; no commit from this slice on `release/0.8.27`; `windchill3` driver and `/usr/local/cuda` unchanged in every guard log, FathomDB and fork. |
 | **REQ31-13 Performance.** No regression from the rebase. | **AC31-13:** Slice 30 gate G9 in full (`slice-30/plan.md` § 4.2) re-run on the Orin against the Slice 30 product: Node ratio ≤ 1.05 per measure with bootstrap 95 % CIs (CI upper > 1.10 → double N once), speed-up over synchronous > 1.5 (CI lower bound), import ≤ S + 5 ms, RSS ≤ S + 32 MiB; Python P / S ≤ 1.15; RTX 3090: median ratio new/0.19.7 ≤ 1.05 for embed steady state. The proposal benchmark is the cudarc fork's T-PERF. |
+| **REQ31-15 CUDA version support** (`ADR-0.8.28-cuda-version-support-policy.md`). The 12.6 artifact works with any CUDA 12.x cuBLAS from 12.1 to 12.9 on driver 560 or later and Turing or newer GPUs; it never loads a cuBLAS of another major; an environment with no CUDA 12 cuBLAS, or an unsupported GPU, gets a typed, plain error; the user docs state the floors. | **AC31-15:** T-CUDA-COMPAT C1–C5 pass or are UNMEASURED by owner decision; cudarc CF-REQ-11 (built-major library loading) at `C`; `docs/embedder.md` states the CUDA library floor (12.x), the driver floor (560.28.03 for the 12.6 artifact) and the GPU floor (Turing, compute capability 7.5, on x86; Orin on Jetson). |
 | **REQ31-14 Fork management.** Fork work is planned, coded, reviewed and qualified in each fork per § 3.1; FathomDB pins only qualified code commits; the pin chain is consistent; published crates contain no fork engineering records. | **AC31-14:** both fork plans reviewed (R-FC-PLAN, R-FK-PLAN) and every fork review recorded with no open finding; `C` is the cudarc commit pinned by both the Candle fork at `K` and FathomDB; `git diff C <cudarc tip> -- . ':(exclude)fathomdb'` and the Candle equivalent are empty or the tips were re-qualified; the commit-class checks pass (cudarc fork plan § 1.3 over `ec1cac71..`, Candle fork plan § 1 over `859b8ea1..`); cudarc CF-AC-07a at `C` shows no `fathomdb/` path in the package; a fork CI receipt has `head_sha` = `C`. |
 
 **AC sets.** R-VERIFY before merge checks AC31-01…07, 10, 11, 12 (so far),
-13 and 14. AC31-09 is checked at R-PROP after merge. AC31-08 and AC31-12
+13, 14 and 15. AC31-09 is checked at R-PROP after merge. AC31-08 and AC31-12
 (final) are checked at R-CODE-4 after publication.
 
 ## 6. Design topics (`design.md` answers each with citations)
@@ -409,12 +414,36 @@ plan § 6). FathomDB runs:
   | --- | --- | --- |
   | RTX 3090, driver 580, 12.6 toolkit | present | embed and rerank end to end on the default allocator path; `doctor cuda-allocator` reports `not_built`; full gate |
   | RTX 3090, driver 580, user-local 13.0 toolkit | W0 step 4 | T-WS-BUILD (13000), embed end to end, `doctor cuda-allocator` reports `not_built` |
-  | RTX 3090, 13.1–13.4 builds | R615 driver (never — Q4) | UNMEASURED |
+  | RTX 3090, 13.1–13.4 builds | R590–R615 drivers, never on `windchill3` (Q4, Q11) | UNMEASURED |
   | Orin, JetPack 6, 12.6 | present | T-POOL-PRODUCT, T-ORIN |
   | Orin, JetPack 7.2.x, 13.2/13.4 | reflash | UNMEASURED (Q5) |
 
   Every run pins `CUDA_VISIBLE_DEVICES` to a 3090 and logs the
   driver/`/usr/local/cuda` guard.
+- **T-CUDA-COMPAT** CUDA version support (REQ31-15; policy ADR):
+
+  | Cell | Where | Must show |
+  | --- | --- | --- |
+  | C1 PTX driver floor | fast tier, no GPU | every PTX module in the 12.6 build declares `.version` ≤ 8.5 and `.target sm_75` (x86) or `sm_87` (Orin). A release build measured `.version 8.5`, `.target sm_75` on 2026-10-11. NVIDIA lists driver 560.28.03 for CUDA 12.6, which the docs state as the floor. PTX 8.5 maps to the CUDA 12.5 driver (555.42.02) on secondary evidence, untested and not promised. Older drivers cannot be installed on `windchill3`, so no older-driver runtime cell exists |
+  | C2 older and newer 12.x cuBLAS | RTX 3090; scratch venv with `nvidia-cublas-cu12` 12.1.x, 12.4.x and 12.9.x (PyPI), reached by `LD_LIBRARY_PATH` | embed and rerank end to end; the receipt names the cuBLAS file actually loaded (from `/proc/self/maps`) and its reported version, because the system's 12.6 `libcublas.so` is on the loader cache and could be picked silently. A missing symbol in an older cuBLAS is a typed error, recorded as a known gap, never a crash |
+  | C3 CUDA 13 libraries only | `windchill3` Docker with the NVIDIA CDI devices (present). Images `nvidia/cuda:13.0.x-runtime-ubuntu24.04` (no CUDA 12 libraries) and `-devel` (adds an unversioned `libcublas.so` → `.so.13`); pulling them needs owner approval | the 12.6 build never loads a 13.x cuBLAS. It fails with a typed error that names the missing CUDA 12 cuBLAS and the remedy (`pip install nvidia-cublas-cu12`, or the 13.0 artifact once it ships). UNMEASURED if the pull is declined; cudarc CF-REQ-11's unit tests still cover the loader logic |
+  | C4 below the GPU floor | `windchill3` Quadro K620 (sm_50, ordinal 2) | characterize `cuda:2` and `auto` with all devices visible. `auto` must not select the K620, and an explicit request must give a typed error, not a crash or an untyped PTX load failure. If today's behaviour differs, R-DES decides the fix; a new error is public surface and updates `docs/reference/errors.md` and the interface docs |
+  | C5 13.0 build, 13.0 libraries | RTX 3090; the user-local 13.0 toolkit or the cu13 scratch venv | the T-CUDA 13.0 row, plus the loaded-library check of C2 |
+
+  **Web evidence (2026-10-11) behind these cells:**
+  - NVIDIA's minor-version compatibility page lists CUDA 12.x at driver
+    525 or later and 13.x at 580 or later. It says applications that
+    compile device code to PTX will not work on older drivers.
+  - Applications built with older toolkits keep working on newer drivers
+    (binary backward compatibility), so a 12.6 build runs on R580.
+  - CUDA libraries change soname with the major (`libcublas.so.12` /
+    `.so.13`), and cuBLAS, cuFFT and cuSPARSE 13 drop pre-Turing GPUs. A
+    12.x build therefore needs a 12.x cuBLAS, and never a 13.x one.
+  - cudarc 0.19.10's `get_lib_name_candidates` (`src/lib.rs:204-243`)
+    tries the unversioned name first and also tries `.so.12`, `.so.11`,
+    `.so.10`, `.so.9` and `.so.1` whatever the built major. A 13.x build
+    can load cuBLAS 12, and a 12.x build can load cuBLAS 13 through a
+    `libcublas.so` dev symlink. The cudarc fork fixes this (CF-REQ-11).
 - **T-PRODUCT** full `./scripts/agent-verify.sh`; single-cudarc guard red
   then green; the `git grep` check of AC31-10.
 - **T-ORIN** Slice 30 gate rows; `doctor cuda-allocator`; one
@@ -505,7 +534,7 @@ on them.
    primary checkout's `.venv` (`agent-worktree-stale-base-trap.md`). The
    full gate must be green there; the Python parity oracle of
    `0.8.27-slice132-rust-sdk-lessons.md` only supplements it.
-7. Ledger: record the 2026-10-11 directions (I-17, I-18) and rulings Q4–Q9
+7. Ledger: record the 2026-10-11 directions (I-17, I-18) and rulings Q4–Q12
    with `ledgerwrite`.
 
 ### W1. Requirements and acceptance criteria → R-REQ
@@ -549,7 +578,9 @@ Same duties for R-FK-PLAN, R-FK-CODE, R-FK-VERIFY and R-FK-PUB.
 
 1. **RED:** the pinned-override checker and its test, the single-cudarc
    guard and the CUDA release contract each expect fork sources, no
-   vendored tree and no `test_vendored_cudarc.sh` tier entry.
+   vendored tree and no `test_vendored_cudarc.sh` tier entry. T-CUDA-COMPAT
+   C1 (the PTX `.version`/`.target` check) and the C4 expectation (no
+   untyped failure on a below-floor GPU) are written red first.
 2. **GREEN** (each pin commit gets R-PIN):
    - **Pins and dependency:** pin `C` and `K`, with the identical URL
      `https://github.com/coreyt/cudarc.git` and full 40-character `rev`
@@ -571,6 +602,11 @@ Same duties for R-FK-PLAN, R-FK-CODE, R-FK-VERIFY and R-FK-PUB.
      assertion changes in W8 step 3), and `dev/design/release.md` lines
      131-142 ("registry cudarc 0.19.7").
    - **Kept as is:** `release.yml` keeps `CUDARC_CUDA_VERSION=12060`.
+   - **CUDA support docs (REQ31-15):** `docs/embedder.md` states the CUDA
+     library floor (12.x; tested with cuBLAS 12.1–12.9), the driver floor
+     (560.28.03 for the 12.6 artifact), the GPU floor (Turing on x86:
+     GeForce RTX 20 and GTX 16, Quadro RTX and T series, Tesla T4, and
+     later), and the CUDA-13-only remedy.
    - **Records:** ADR amendment; changelog.
 3. Full `./scripts/agent-verify.sh` (AC-036 needs ptrace; rerun unconfined if
    denied; W0 step 6 for Python receipts).
@@ -759,6 +795,27 @@ FathomDB's `review.md` carries one line per fork review.
 - **Q9.** Crate name — ruled (owner, 2026-10-11): `cudarc-fathomdb`
   (unclaimed on crates.io, 2026-10-11; first publish needs the token
   bootstrap).
+- **Q10.** CUDA version support — ruled (owner, 2026-10-11): the proposal's
+  importance ratings and actions are accepted, and the floor is CUDA 12.x
+  libraries (11.x unsupported). Recorded in
+  `ADR-0.8.28-cuda-version-support-policy.md` (decision index row 63).
+  Every release re-runs `dev/design/cuda-version-support-review.md`;
+  `AGENTS.md` § 1 and the plan template point at it. The 13.0 artifact is
+  follow-up work for the release after 0.8.28 (§ 16).
+- **Q11.** `windchill3`'s Quadro K620 (Maxwell, sm_50) — ruled (owner,
+  2026-10-11): no driver that ends its support. R580 is the last such
+  branch, so `windchill3` stays on R580. The K620 is below the x86 kernel
+  target (compute capability 7.5), so FathomDB GPU tests use the RTX 3090s,
+  and C4 characterizes the K620 only as an unsupported device.
+- **Q12.** 12.6 driver floor and CUDA-13-only environments — investigated
+  (2026-10-11):
+  - **PTX:** a release build's PTX is ISA 8.5 for `sm_75`. NVIDIA lists
+    driver 560.28.03 for CUDA 12.6; PTX 8.5 maps to the CUDA 12.5 driver
+    (555.42.02) on secondary evidence.
+  - **Docs:** they state 560.28.03 (C1).
+  - **CUDA-13-only environment:** a 12.6 build needs a CUDA 12 cuBLAS.
+    cudarc's cross-major library names are a defect, fixed in the fork
+    (CF-REQ-11) and tested by C2 and C3.
 
 ## 16. Ledger and follow-ups
 
@@ -766,11 +823,15 @@ FathomDB's `review.md` carries one line per fork review.
 - Todo `TC-b267d940-1add-4d08-a596-a7669ae4a500`: the Q5 Tegra/CUDA 13
   follow-up below.
 - At W0 step 7: record the 2026-10-11 directions (I-17, I-18) and rulings
-  Q4–Q9 with `ledgerwrite`. Set `FATHOMDB-PATCH.md` item 5 to "on fork,
+  Q4–Q12 with `ledgerwrite`. Set `FATHOMDB-PATCH.md` item 5 to "on fork,
   not posted" until W6 deletes the file.
 - At FK1, open a todo for whichever Candle DK-1 path is not taken (a rebase
   onto upstream 0.11.x, which already uses cudarc 0.19.10, or staying on
   0.10.x).
+- **Follow-up todo (Q10):** a CUDA 13.0 artifact beside 12.6 in the release
+  after 0.8.28 (x86, and Orin on JetPack 7.2 once Q5 is measured), with
+  artifact naming and `auto` selection designed there. File it with
+  `ledgerwrite` at W0 step 7.
 - **Proposed follow-up (Q5):** before the 0.8.28 release, qualify Tegra on
   CUDA 13:
   - reflash the Orin to JetPack 7.2.x (CUDA 13.2, then 13.4 via

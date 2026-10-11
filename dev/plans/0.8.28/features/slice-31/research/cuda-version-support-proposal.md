@@ -1,7 +1,7 @@
 ---
 title: CUDA version support proposal for FathomDB GPU artifacts
 observed_on: 2026-10-11
-status: proposal (for owner decision)
+status: accepted (owner, 2026-10-11) — recorded in ADR-0.8.28-cuda-version-support-policy.md
 ---
 
 # CUDA version support proposal

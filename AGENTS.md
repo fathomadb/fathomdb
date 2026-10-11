@@ -24,6 +24,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 - **Stale > missing.** A wrong comment, doc, or ADR is more harmful than its absence. If you cannot maintain something, delete it.
 - **Public surface is contract.** Anything in `dev/interfaces/` or `pub` Rust APIs is a contract; changes need an ADR or interface-doc update in the same PR.
 - **Quality analysis at release planning.** Before drafting each new release plan, read `dev/notes/fathomdb-quality-testing-roadmap.md`. Record which recommendations apply, which are deferred, and what new evidence changes the assessment. The analysis guides scope; it does not create automatic gates.
+- **CUDA version review at release planning.** Each release plan runs `dev/design/cuda-version-support-review.md` (usage data → importance → actions) and records it; changes amend `dev/adr/ADR-0.8.28-cuda-version-support-policy.md` with owner ratification.
 
 ## 2. Repo shape
 

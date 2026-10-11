@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "source_benchmark": "https://sqlite.org/vec1bench.html",
+  "datasets": [
+    {
+      "id": "sift-128-euclidean",
+      "filename": "sift-128-euclidean.hdf5",
+      "url": "https://huggingface.co/datasets/hhy3/ann-datasets/resolve/0bc1ed67fc2626bc6f110c8794a70572681b7395/sift-128-euclidean.hdf5",
+      "source": "ANN-Benchmarks HDF5 mirror of TEXMEX SIFT1M",
+      "sha256": "dd6f0a6ed6b7ebb8934680f861a33ed01ff33991eaee4fd60914d854a0ca5984",
+      "train_rows": 1000000,
+      "dimension": 128,
+      "source_distance": "euclidean",
+      "evaluation_distance": "l2",
+      "fathom_transform": "identity",
+      "license_note": "TEXMEX source terms apply; mirror is for benchmark and research use."
+    },
+    {
+      "id": "imagenet-clip-512-normalized",
+      "filename": "imagenet-clip-512-normalized.hdf5",
+      "url": "https://huggingface.co/datasets/vector-index-bench/vibe/resolve/07b387891a221b7b073b83d2f752b76462e5fa03/imagenet-clip-512-normalized.hdf5",
+      "source": "VIBE HDF5",
+      "sha256": "6899ae09fa8b51eb8261ce793a4298cfdc1de2e0db0f25a6b8403d51fe93c19a",
+      "train_rows": 1281167,
+      "dimension": 512,
+      "source_distance": "normalized",
+      "evaluation_distance": "l2",
+      "fathom_transform": "identity",
+      "license_note": "VIBE dataset card lists CC-BY-4.0; underlying image rights may differ."
+    },
+    {
+      "id": "landmark-dino-768-cosine",
+      "filename": "landmark-dino-768-cosine.hdf5",
+      "url": "https://huggingface.co/datasets/vector-index-bench/vibe/resolve/07b387891a221b7b073b83d2f752b76462e5fa03/landmark-dino-768-cosine.hdf5",
+      "source": "VIBE HDF5",
+      "sha256": "b13bf651afbc5963fa2ecca73fa78bac9fe68889528935bdcf26ab333dd792d2",
+      "train_rows": 760757,
+      "dimension": 768,
+      "source_distance": "cosine",
+      "evaluation_distance": "cosine_via_unit_l2",
+      "fathom_transform": "unit_l2",
+      "license_note": "VIBE dataset card lists CC-BY-4.0; underlying image rights may differ."
+    },
+    {
+      "id": "agnews-mxbai-1024-euclidean",
+      "filename": "agnews-mxbai-1024-euclidean.hdf5",
+      "url": "https://huggingface.co/datasets/vector-index-bench/vibe/resolve/07b387891a221b7b073b83d2f752b76462e5fa03/agnews-mxbai-1024-euclidean.hdf5",
+      "source": "VIBE HDF5",
+      "sha256": "acb2712c1717e1309e316c20701e534bc4d3015917e6b7667baed2b3592218d0",
+      "train_rows": 769382,
+      "dimension": 1024,
+      "source_distance": "euclidean",
+      "evaluation_distance": "l2",
+      "fathom_transform": "identity",
+      "license_note": "VIBE dataset card lists CC-BY-4.0; underlying news rights may differ."
+    }
+  ]
+}

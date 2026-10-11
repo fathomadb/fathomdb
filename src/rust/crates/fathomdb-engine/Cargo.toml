@@ -87,6 +87,10 @@ slice72-gpu-tests = ["embed-cuda", "rerank-cuda", "slice72-test-hooks"]
 name = "ingest_corpus"
 required-features = ["operator"]
 
+[[test]]
+name = "vec1bench_corpora"
+required-features = ["test-hooks"]
+
 # Slice 27 fix-2: these integration-test targets exercise the operator/recovery
 # `Engine` methods that fix-1 gated behind `operator`. They are PURE-operator
 # (every `#[test]` calls a gated method), so the whole target is skipped on the
@@ -779,6 +783,7 @@ dirs = "5"
 libc = "0.2"
 proptest = "1"
 rusqlite = { version = "0.40", features = ["bundled", "fallible_uint", "hooks"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
 tempfile = "3"

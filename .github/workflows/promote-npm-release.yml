@@ -74,7 +74,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm dist-tag add "fathomdb@$VERSION" latest
+          npm_version="$(npm --version)"
+          printf 'npm CLI version: %s\n' "$npm_version"
+          [ "$npm_version" = "11.21.0" ] || { printf 'OIDC dist-tag requires npm 11.21.0\n' >&2; exit 1; }
+          [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] && [ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ] || {
+            printf 'GitHub OIDC request credentials are unavailable\n' >&2
+            exit 1
+          }
+          npm --loglevel=verbose dist-tag add "fathomdb@$VERSION" latest
           [ "$(npm view fathomdb dist-tags.latest)" = "$VERSION" ]
 
   github-release:

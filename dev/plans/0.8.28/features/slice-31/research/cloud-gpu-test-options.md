@@ -438,10 +438,31 @@ The first run was a CPU-only pilot (`pilot --profile cpu`). It used one Spot
 remained after teardown.
 
 The `t4` profile (`n1-standard-4`, one T4, `--maintenance-policy=TERMINATE`)
-is implemented and covered by the tests, but has not run. On 2026-10-11 the
-project's `GPUS_ALL_REGIONS` quota was 0, and the first increase request was
-denied. The driver install and the container cells for the T4 profile are the
-next step.
+first ran on 2026-10-12, after `GPUS_ALL_REGIONS` was raised from 0 to 1. Two
+increase requests for 2 were denied first; a request for 1 was approved.
+
+- **Command:** `pilot --profile t4 --zone us-central1-a --driver 580`.
+- **Driver:** `scripts/gcp-lab/remote-driver.sh` installed Ubuntu's prebuilt,
+  Canonical-signed module (`linux-modules-nvidia-580-server-7.0.0-1011-gcp`)
+  with `nvidia-headless-no-dkms-580-server` and `nvidia-utils-580-server`.
+  That gives 580.178.04, the same build as `windchill3`. `nvidia-smi` then
+  reported `Tesla T4, 580.178.04, 7.5`. Secure Boot was disabled.
+- **One reboot is needed.** The module loads and binds the T4, but
+  `/dev/nvidia*` does not exist until a reboot, because
+  `--no-install-recommends` leaves out `nvidia-modprobe`. Running
+  `nvidia-smi` once as root would probably create the nodes without a
+  reboot; that is untested.
+- **SSH resets after the reboot.** sshd reset connections for a short while
+  after the reboot. The tool therefore waits for three SSH answers in a row
+  and retries ssh/scp connection failures (exit 255). It never retries the
+  reboot command itself.
+- **Build:** `release/0.8.28` at `cb13cf830` built CPU-only in 80 s. The
+  receipts (`driver.json`, `driver-diagnostics.txt`, `receipt.json`) came
+  back, and no instance or disk remained.
+- **Not yet built:** the container cells (Docker, the NVIDIA Container
+  Toolkit, CUDA-library images, a CUDA-enabled test binary built on
+  `windchill3`). The owner ruled on 2026-10-12 that the fork work comes
+  first.
 
 ## Alternatives (brief)
 

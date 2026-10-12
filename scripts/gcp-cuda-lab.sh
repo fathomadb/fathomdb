@@ -19,10 +19,11 @@
 #   run     --name <n> --zone <z> -- <remote command...>
 #   push    --name <n> --zone <z> <local-path> <remote-path>
 #   pull    --name <n> --zone <z> <remote-path> <local-dir>
-#   pilot   --profile cpu|t4 --zone <z> [--ref <branch>] [--out <dir>]
-#           [--max-run 2h] [--keep]
-#           create → wait-ssh → remote build + receipt → pull → destroy.
-#           The VM is destroyed on any exit unless --keep is given.
+#   pilot   --profile cpu|t4 --zone <z> [--driver <branch>] [--ref <branch>]
+#           [--out <dir>] [--max-run 2h] [--keep]
+#           create → wait-ssh → [driver] → remote build + receipt → pull →
+#           destroy. The t4 profile needs --driver (an NVIDIA branch such as
+#           580). The VM is destroyed on any exit unless --keep is given.
 #
 # The project is never taken from the active gcloud configuration: set
 # FDB_LAB_PROJECT (or pass --project) so a run cannot land in the wrong one.
@@ -39,7 +40,7 @@ note() { printf 'gcp-cuda-lab: %s\n' "$*" >&2; }
 usage() { sed -n '/^# Usage:/,/^# The project/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; }
 
 PROJECT="${FDB_LAB_PROJECT:-}"
-PROFILE="" NAME="" ZONE="" MAX_RUN="2h" REF="release/0.8.28" OUT="" KEEP=0
+PROFILE="" NAME="" ZONE="" MAX_RUN="2h" REF="release/0.8.28" OUT="" KEEP=0 DRIVER=""
 POSITIONAL=()
 
 parse_args() {
@@ -52,6 +53,7 @@ parse_args() {
       --max-run) MAX_RUN="${2:?--max-run needs a value}"; shift 2 ;;
       --ref) REF="${2:?--ref needs a value}"; shift 2 ;;
       --out) OUT="${2:?--out needs a value}"; shift 2 ;;
+      --driver) DRIVER="${2:?--driver needs a value}"; shift 2 ;;
       --keep) KEEP=1; shift ;;
       --) shift; POSITIONAL+=("$@"); break ;;
       -*) die "unknown option: $1" ;;
@@ -134,34 +136,100 @@ ssh_target_flags() { SSH_FLAGS=(--project="$PROJECT" --zone="$ZONE" --quiet); }
 
 cmd_wait_ssh() {
   require_project; require_zone; require_lab_name; ssh_target_flags
-  local attempt
-  for attempt in $(seq 1 30); do
+  # sshd can answer once and then reset connections while first-boot or
+  # post-reboot services restart it, so require three answers in a row.
+  local attempt streak=0
+  for attempt in $(seq 1 40); do
     if gcloud compute ssh "$NAME" "${SSH_FLAGS[@]}" --command=true >/dev/null 2>&1; then
-      return 0
+      streak=$((streak + 1))
+      [ "$streak" -lt 3 ] || return 0
+      sleep "${FDB_LAB_SSH_SETTLE_SLEEP:-5}"
+      continue
     fi
-    note "waiting for SSH on $NAME (attempt $attempt/30)"
+    streak=0
+    note "waiting for SSH on $NAME (attempt $attempt/40)"
     sleep 10
   done
   die "SSH to $NAME never came up"
 }
 
+# ssh and scp exit 255 only for their own failures (connection refused or
+# reset); a remote command's own exit status passes through. Retrying 255 is
+# safe for copies, and for commands that never started.
+ssh_retry() {
+  local attempt status
+  for attempt in 1 2 3; do
+    status=0
+    "$@" || status=$?
+    [ "$status" -eq 255 ] || return "$status"
+    note "connection to $NAME failed (attempt $attempt/3); retrying"
+    sleep "${FDB_LAB_SSH_RETRY_SLEEP:-15}"
+  done
+  return 255
+}
+
 cmd_run() {
   require_project; require_zone; require_lab_name; ssh_target_flags
   [ "${#POSITIONAL[@]}" -gt 0 ] || die "run needs a remote command after --"
-  gcloud compute ssh "$NAME" "${SSH_FLAGS[@]}" --command="${POSITIONAL[*]}"
+  ssh_retry gcloud compute ssh "$NAME" "${SSH_FLAGS[@]}" --command="${POSITIONAL[*]}"
 }
 
 cmd_push() {
   require_project; require_zone; require_lab_name; ssh_target_flags
   [ "${#POSITIONAL[@]}" -eq 2 ] || die "push needs <local-path> <remote-path>"
-  gcloud compute scp "${SSH_FLAGS[@]}" --recurse "${POSITIONAL[0]}" "$NAME:${POSITIONAL[1]}"
+  ssh_retry gcloud compute scp "${SSH_FLAGS[@]}" --recurse "${POSITIONAL[0]}" "$NAME:${POSITIONAL[1]}"
 }
 
 cmd_pull() {
   require_project; require_zone; require_lab_name; ssh_target_flags
   [ "${#POSITIONAL[@]}" -eq 2 ] || die "pull needs <remote-path> <local-dir>"
   mkdir -p "${POSITIONAL[1]}"
-  gcloud compute scp "${SSH_FLAGS[@]}" --recurse "$NAME:${POSITIONAL[0]}" "${POSITIONAL[1]}"
+  ssh_retry gcloud compute scp "${SSH_FLAGS[@]}" --recurse "$NAME:${POSITIONAL[0]}" "${POSITIONAL[1]}"
+}
+
+require_driver() {
+  if [ "$PROFILE" = cpu ]; then
+    [ -z "$DRIVER" ] || die "the cpu profile has no GPU; drop --driver"
+    return 0
+  fi
+  [ -n "$DRIVER" ] || die "--driver <branch> is required for the $PROFILE profile (e.g. 580)"
+  [[ "$DRIVER" =~ ^[0-9]{3}$ ]] || die "--driver must be an NVIDIA branch number such as 580 (got '$DRIVER')"
+}
+
+# The driver script exits 100 when the new kernel module needs a reboot to load.
+install_driver() {
+  local status=0
+  POSITIONAL=("$ROOT/scripts/gcp-lab/remote-driver.sh" "fdb-lab-remote-driver.sh")
+  cmd_push
+  POSITIONAL=(bash fdb-lab-remote-driver.sh --driver-branch "$DRIVER")
+  cmd_run || status=$?
+  if [ "$status" -eq 100 ]; then
+    note "rebooting $NAME to load the NVIDIA module"
+    # Not cmd_run: the reboot drops the connection (255), and a retry would
+    # reboot the VM again.
+    gcloud compute ssh "$NAME" "${SSH_FLAGS[@]}" --command="sudo systemctl reboot" || true
+    sleep 20
+    cmd_wait_ssh
+    status=0
+    POSITIONAL=(bash fdb-lab-remote-driver.sh --driver-branch "$DRIVER" --verify-only)
+    cmd_run || status=$?
+  fi
+  [ "$status" -eq 0 ] || note "driver $DRIVER install failed on $NAME (exit $status)"
+  return "$status"
+}
+
+RECEIPTS_PULLED=0
+pull_receipts() {
+  [ "$RECEIPTS_PULLED" -eq 0 ] || return 0
+  RECEIPTS_PULLED=1
+  POSITIONAL=("fdb-lab-receipts" "$OUT")
+  cmd_pull || note "could not pull receipts from $NAME"
+}
+
+teardown() {
+  pull_receipts
+  note "tearing down $NAME"
+  cmd_destroy || note "TEARDOWN FAILED: delete $NAME by hand"
 }
 
 cmd_pilot() {
@@ -171,21 +239,23 @@ cmd_pilot() {
   run_id="$(date -u +%Y%m%d-%H%M%S)"
   NAME="fdb-lab-$PROFILE-$run_id"
   [ -n "$OUT" ] || OUT="$ROOT/target/gcp-lab/$NAME"
-  require_lab_name; require_max_run; profile_flags
+  require_lab_name; require_max_run; profile_flags; require_driver
 
   cmd_create
   if [ "$KEEP" -eq 0 ]; then
-    trap 'note "tearing down $NAME"; cmd_destroy || note "TEARDOWN FAILED: delete $NAME by hand"' EXIT
+    trap teardown EXIT
   fi
   cmd_wait_ssh
+  if [ -n "$DRIVER" ] && ! install_driver; then
+    die "stopping before the build; receipts go to $OUT/fdb-lab-receipts"
+  fi
 
   POSITIONAL=("$ROOT/scripts/gcp-lab/remote-build.sh" "fdb-lab-remote-build.sh")
   cmd_push
   local status=0
   POSITIONAL=(bash fdb-lab-remote-build.sh --ref "$REF" --profile "$PROFILE" --run-id "$NAME")
   cmd_run || status=$?
-  POSITIONAL=("fdb-lab-receipts" "$OUT")
-  cmd_pull || note "could not pull receipts from $NAME"
+  pull_receipts
   note "receipts: $OUT/fdb-lab-receipts (remote build exit $status)"
   return "$status"
 }

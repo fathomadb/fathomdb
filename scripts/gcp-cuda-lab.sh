@@ -13,12 +13,16 @@
 #   FDB_LAB_PROJECT=<project> scripts/gcp-cuda-lab.sh <command> [options]
 #
 #   create  --profile cpu|t4 --name fdb-lab-<x> --zone <zone> [--max-run 2h]
+#           [--machine-type n1-<...>]   (t4 only; default n1-standard-4)
 #   destroy --name fdb-lab-<x> --zone <zone>   (only deletes labeled lab VMs)
 #   status                                     (lists lab VMs in the project)
 #   wait-ssh --name <n> --zone <z>             (polls until SSH answers)
 #   run     --name <n> --zone <z> -- <remote command...>
 #   push    --name <n> --zone <z> <local-path> <remote-path>
 #   pull    --name <n> --zone <z> <remote-path> <local-dir>
+#   driver  --name <n> --zone <z> --driver <branch>
+#           (installs a pinned NVIDIA branch on an existing lab VM, rebooting
+#           once if the module needs it)
 #   pilot   --profile cpu|t4 --zone <z> [--driver <branch>] [--ref <branch>]
 #           [--out <dir>] [--max-run 2h] [--keep]
 #           create → wait-ssh → [driver] → remote build + receipt → pull →
@@ -40,7 +44,7 @@ note() { printf 'gcp-cuda-lab: %s\n' "$*" >&2; }
 usage() { sed -n '/^# Usage:/,/^# The project/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; }
 
 PROJECT="${FDB_LAB_PROJECT:-}"
-PROFILE="" NAME="" ZONE="" MAX_RUN="2h" REF="release/0.8.28" OUT="" KEEP=0 DRIVER=""
+PROFILE="" NAME="" ZONE="" MAX_RUN="2h" REF="release/0.8.28" OUT="" KEEP=0 DRIVER="" MACHINE_TYPE=""
 POSITIONAL=()
 
 parse_args() {
@@ -54,6 +58,7 @@ parse_args() {
       --ref) REF="${2:?--ref needs a value}"; shift 2 ;;
       --out) OUT="${2:?--out needs a value}"; shift 2 ;;
       --driver) DRIVER="${2:?--driver needs a value}"; shift 2 ;;
+      --machine-type) MACHINE_TYPE="${2:?--machine-type needs a value}"; shift 2 ;;
       --keep) KEEP=1; shift ;;
       --) shift; POSITIONAL+=("$@"); break ;;
       -*) die "unknown option: $1" ;;
@@ -89,10 +94,15 @@ require_max_run() {
 profile_flags() {
   case "$PROFILE" in
     cpu)
+      [ -z "$MACHINE_TYPE" ] || die "the cpu profile has a fixed machine type; drop --machine-type"
       PROFILE_FLAGS=(--machine-type=e2-standard-8 --boot-disk-size=60GB) ;;
     t4)
+      # Only the N1 family can carry a T4.
+      local machine="${MACHINE_TYPE:-n1-standard-4}"
+      [[ "$machine" =~ ^n1-(standard|highmem|highcpu)-[0-9]+$ ]] \
+        || die "the t4 profile needs an n1 machine type (got '$machine')"
       # GPUs cannot live-migrate, so host maintenance must terminate the VM.
-      PROFILE_FLAGS=(--machine-type=n1-standard-4 --boot-disk-size=100GB
+      PROFILE_FLAGS=(--machine-type="$machine" --boot-disk-size=100GB
         "--accelerator=count=1,type=nvidia-tesla-t4" --maintenance-policy=TERMINATE) ;;
     *) die "unknown profile '$PROFILE' (expected cpu or t4)" ;;
   esac
@@ -218,6 +228,12 @@ install_driver() {
   return "$status"
 }
 
+cmd_driver() {
+  require_project; require_zone; require_lab_name; ssh_target_flags
+  PROFILE=t4 require_driver
+  install_driver
+}
+
 RECEIPTS_PULLED=0
 pull_receipts() {
   [ "$RECEIPTS_PULLED" -eq 0 ] || return 0
@@ -272,6 +288,7 @@ main() {
     run) cmd_run ;;
     push) cmd_push ;;
     pull) cmd_pull ;;
+    driver) cmd_driver ;;
     pilot) cmd_pilot ;;
     -h|--help|help) usage ;;
     *) usage; die "unknown command: $command" ;;

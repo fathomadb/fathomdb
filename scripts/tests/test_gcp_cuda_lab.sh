@@ -130,6 +130,38 @@ pull_line="${pull_line%%:*}" delete_line="${delete_line%%:*}"
 [ -n "$pull_line" ] && [ -n "$delete_line" ] && [ "$pull_line" -lt "$delete_line" ] \
   || fail "a failed pilot must pull receipts before teardown"
 
+# The t4 profile takes a bigger n1 machine for compile-heavy cells; other
+# families cannot carry a T4, and the cpu profile keeps its fixed type.
+reset_log
+"$LAB" create --profile t4 --name fdb-lab-t4b --zone us-central1-b --machine-type n1-standard-8 >/dev/null
+expect_in_log --machine-type=n1-standard-8 "t4 machine type override"
+expect_not_in_log --machine-type=n1-standard-4 "t4 machine type override"
+expect_refused "non-n1 machine for t4" "$LAB" create --profile t4 --name fdb-lab-x --zone us-central1-b --machine-type e2-standard-8
+expect_refused "machine type on cpu" "$LAB" create --profile cpu --name fdb-lab-x --zone us-central1-a --machine-type n1-standard-8
+
+# The driver command installs a pinned branch on an existing lab VM.
+reset_log
+"$LAB" driver --name fdb-lab-t4b --zone us-central1-b --driver 580 >/dev/null 2>&1
+expect_in_log "remote-driver.sh" "driver command pushes the driver script"
+expect_in_log "--driver-branch 580" "driver command pins the branch"
+expect_not_in_log "instances create" "driver command"
+expect_not_in_log "instances delete" "driver command"
+expect_refused "driver command without branch" "$LAB" driver --name fdb-lab-t4b --zone us-central1-b
+expect_refused "driver command on foreign VM" "$LAB" driver --name instance-1 --zone us-central1-b --driver 580
+
+# The fork-cell script rejects bad cells before touching the machine.
+CELL="$ROOT/scripts/gcp-lab/remote-fork-cell.sh"
+cell_refused() {
+  local what="$1"; shift
+  if HOME="$TMP/cellhome" bash "$CELL" "$@" >/dev/null 2>&1; then fail "fork cell accepted $what"; fi
+  [ ! -e "$TMP/cellhome/fdb-lab-receipts" ] || fail "fork cell wrote receipts for $what"
+}
+cell_refused "an unknown fork" --cell c1 --fork memex --ref main --toolkit 12.6 --cuda-version 12060
+cell_refused "an unknown toolkit" --cell c1 --fork cudarc --ref main --toolkit 12.4 --cuda-version 12040
+cell_refused "a mismatched cudarc version" --cell c1 --fork cudarc --ref main --toolkit 12.6 --cuda-version 13000
+cell_refused "a bad cell id" --cell 'c 1' --fork cudarc --ref main --toolkit 12.6 --cuda-version 12060
+cell_refused "a missing ref" --cell c1 --fork candle --toolkit 13.0 --cuda-version 13000
+
 # Status lists only lab instances, with data reduction.
 reset_log
 "$LAB" status >/dev/null

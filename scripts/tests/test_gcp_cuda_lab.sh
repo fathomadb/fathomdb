@@ -69,6 +69,23 @@ for flag in --accelerator=count=1,type=nvidia-tesla-t4 --maintenance-policy=TERM
   expect_in_log "$flag" "t4 create"
 done
 
+# L4 profile: a G2 machine carries its L4 itself (no --accelerator); host
+# maintenance still terminates; only G2 machine types are accepted.
+reset_log
+"$LAB" create --profile l4 --name fdb-lab-l4a --zone us-central1-a >/dev/null
+for flag in --machine-type=g2-standard-4 --maintenance-policy=TERMINATE \
+  --provisioning-model=SPOT --max-run-duration=2h --instance-termination-action=DELETE \
+  --labels=fathomdb-lab=true,fathomdb-lab-profile=l4; do
+  expect_in_log "$flag" "l4 create"
+done
+expect_not_in_log --accelerator "l4 create"
+expect_refused "l4 with an n1 machine" "$LAB" create --profile l4 --name fdb-lab-x --zone us-central1-a --machine-type n1-standard-4
+reset_log
+STUB_LABEL=true "$LAB" pilot --profile l4 --zone us-central1-a --driver 615 --driver-open \
+  --out "$TMP/out" >/dev/null 2>&1
+expect_in_log "--driver-branch 615 --open" "l4 pilot installs the driver"
+expect_refused "l4 pilot without a driver" "$LAB" pilot --profile l4 --zone us-central1-a --out "$TMP/out"
+
 # --on-demand: standard provisioning that keeps the run-time cap and the
 # self-delete, so a forgotten VM still cannot keep billing.
 reset_log

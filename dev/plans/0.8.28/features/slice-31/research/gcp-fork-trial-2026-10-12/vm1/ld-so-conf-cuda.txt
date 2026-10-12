@@ -1,0 +1,3 @@
+/usr/local/cuda/targets/x86_64-linux/lib
+/usr/local/cuda-13/targets/x86_64-linux/lib
+/usr/local/cuda-12/targets/x86_64-linux/lib

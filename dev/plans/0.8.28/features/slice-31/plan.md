@@ -848,6 +848,30 @@ FathomDB's `review.md` carries one line per fork review.
       (credentials, a Spot T4 VM, driver install, containers pulled on the
       VM, receipts, teardown) before any matrix run.
     - **Agent- or human-driven VM creation** is decided after the pilot.
+    - **Pilot (done, 2026-10-12):** CPU and T4 workflow pilots passed
+      (`scripts/gcp-cuda-lab.sh`; driver 580.178.04 on a Spot T4).
+    - **Fork build trial (done, 2026-10-12, owner request):** each fork
+      built and tested on a T4 in two environments, four efforts in total,
+      within the 2-hour T4 wall-clock limit (03:11:10Z–03:48:08Z). Driver
+      580 throughout; environment 1 is the CUDA 12.6 toolkit, environment
+      2 adds the 13.0 toolkit and selects it.
+      - cudarc `c075191`: builds pass for `cuda-12060` and `cuda-13000`;
+        68/70 and 66/68 tests pass. The two failures in both environments
+        are upstream timing assertions (pinned versus pageable copy speed)
+        that this host does not meet, reproduced 6/6 times. FC3 must
+        classify them as host-dependent.
+      - Candle `7e55a57`: builds pass with both toolkits; 250 of 251
+        `candle-core-fathomdb` tests pass in each, including
+        `cuda_from_context`. `ones_gpu` fails on any pre-Ampere GPU because
+        the BF16/F8 fill kernels are built only for sm_80+. FathomDB must
+        never select BF16 on Turing, and the FK cells must expect this
+        test on sm_75.
+      - Every CUDA library each test opened came from the selected toolkit
+        (`LD_DEBUG=files`).
+      - Not qualification: the fork plans' GPU cells still run on
+        `windchill3` and the Orin. Details and receipts:
+        [research](research/cloud-gpu-test-options.md) § "Fork build trial
+        on a T4".
     - **AWS `g5g` arm64 cells:** a todo for 0.8.29.
     - **Jetson on CUDA 13 (Q5):** use CloudJetson
       ([cloudjetson.com](https://cloudjetson.com/)), not a local reflash.

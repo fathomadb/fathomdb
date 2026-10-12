@@ -1,0 +1,5 @@
+03:34:51Z start candle-e1-cuda126-full
+03:41:14Z end candle-e1-cuda126-full exit=1
+03:41:14Z start candle-e2-cuda130-full
+03:46:11Z end candle-e2-cuda130-full exit=1
+03:46:11Z ALL DONE

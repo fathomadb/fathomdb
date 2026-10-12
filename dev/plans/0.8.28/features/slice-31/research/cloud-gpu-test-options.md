@@ -464,6 +464,80 @@ increase requests for 2 were denied first; a request for 1 was approved.
   `windchill3`). The owner ruled on 2026-10-12 that the fork work comes
   first.
 
+### Fork build trial on a T4 (MEASURED, 2026-10-12)
+
+The owner asked for one trial build of each fork on a T4: pick an
+environment, get the build working, then test again after an environment
+change, with four efforts in total and at most 2 hours of T4 wall-clock
+time. This trial is not fork qualification; it does not replace the fork
+plans' GPU cells, which run on `windchill3` and the Orin.
+
+- **Tooling:** `scripts/gcp-lab/remote-fork-cell.sh` builds and tests one
+  fork against one toolkit and writes a JSON receipt per cell. It installs
+  toolkit packages only (`cuda-nvcc`, `cuda-cudart-dev`, `cuda-nvrtc-dev`,
+  `cuda-cccl`, `libcublas-dev`, `libcurand-dev`) from NVIDIA's Ubuntu 24.04
+  apt repository, never a driver. Each cell sets `CUDA_PATH`, `PATH` and a
+  single-directory `LD_LIBRARY_PATH`, and runs its tests under
+  `LD_DEBUG=files` to record the CUDA libraries actually opened.
+  `gcp-cuda-lab.sh` gained a `driver` command for a kept VM and an n1
+  `--machine-type` override for the `t4` profile (`n1-standard-8` here).
+- **Host:** Spot `n1-standard-8` with one Tesla T4 (sm_75) in us-central1-a,
+  Ubuntu 24.04.5, kernel `7.0.0-1011-gcp`, driver 580.178.04 (Ubuntu's
+  prebuilt `-server` module, one reboot), rustc 1.99.0. The driver was
+  unchanged before and after every cell.
+- **Environment 1:** CUDA 12.6 toolkit only (nvcc 12.6.85, cuBLAS 12.6.4.1),
+  `CUDARC_CUDA_VERSION=12060`.
+- **Environment 2 (the change):** the CUDA 13.0 toolkit added beside 12.6
+  and selected (nvcc 13.0.88, cudart 13.0.96, cuBLAS 13.1.1.3, which is
+  what NVIDIA's `libcublas-13-0` package ships), `CUDARC_CUDA_VERSION=13000`.
+- **Wall clock:** first T4 created at 03:11:10Z; last deleted at
+  03:48:08Z (37 minutes; two VMs, about 36 VM-minutes). No instance or
+  disk remains.
+
+| Cell | Fork commit | Build | Tests | CUDA libraries opened |
+| --- | --- | --- | --- | --- |
+| cudarc, env 1 | `coreyt/cudarc` `fathomdb/0.19.10` `c075191` (upstream v0.19.10 plus plan docs) | `cargo build --lib -F cuda-12060`: pass, 13 s | `cargo test --lib -F cuda-12060 -- --test-threads=1`: 68 passed, 2 failed, 5 ignored | all from `/usr/local/cuda-12.6/lib64` (`libcublas.so`, `libcublasLt.so.12`, `libcurand.so`, `libnvrtc.so`, `libnvrtc-builtins.so.12.6`) |
+| cudarc, env 2 | same | `-F cuda-13000`: pass, 13 s | 66 passed, 2 failed, 5 ignored (the two `from_raw_context` tests are not compiled for 13000) | all from `/usr/local/cuda-13.0/lib64` (`libcublasLt.so.13`, `libnvrtc-builtins.so.13.0`, …) |
+| Candle, env 1 | `coreyt/candle-fathomdb` `fathomdb/0.8.28-cudarc-fork` `7e55a57` (registry cudarc 0.19.10) | `cargo build -p candle-core-fathomdb --features cuda`: pass, 87 s with kernels | full `candle-core-fathomdb` suite: 250 passed, 1 failed; `cuda_from_context` passed | `/usr/local/cuda-12.6/lib64` (`libcublas.so`, `libcublasLt.so.12`, `libcurand.so`) |
+| Candle, env 2 | same | pass, 78 s | 250 passed, 1 failed (the same test); `cuda_from_context` passed | `/usr/local/cuda-13.0/lib64` (`libcublasLt.so.13`, …) |
+
+Receipts (JSON and full test output per cell, package lists, driver
+receipts): [`gcp-fork-trial-2026-10-12/`](gcp-fork-trial-2026-10-12/).
+
+Findings:
+
+1. **Both forks build with CUDA 12.6 and 13.0 on driver 580**, and with a
+   single-directory `LD_LIBRARY_PATH` every CUDA library came from the
+   selected toolkit, including the soname-versioned `libcublasLt`.
+2. **Two cudarc upstream tests fail on this host in both environments:**
+   `test_pinned_copy_is_faster` and
+   `test_default_pinned_host_reads_are_faster_than_write_combined` assert
+   that one host-memory kind is faster than another. Six reruns per
+   environment failed every time (for example 1.04 ms vs 0.95 ms, and
+   32.5 ms vs 32.8 ms). They encode a hardware-performance assumption that
+   this virtualized T4 does not meet; they are not a build or toolkit
+   defect. The cudarc fork test plan (FC3) must classify them as
+   host-dependent rather than count them as regressions.
+3. **One Candle test fails on any pre-Ampere GPU:** `ones_gpu` creates BF16
+   and F8E4M3 tensors, but `candle-kernels/src/fill.cu` builds
+   `const_set_bf16` and the F8 kernels only for `__CUDA_ARCH__ >= 800`.
+   On sm_75 the symbol is missing (`CUDA_ERROR_NOT_FOUND`). FathomDB's x86
+   GPU floor is Turing, so FathomDB must never select BF16 on sm_75; the
+   Candle fork's FK cells must expect this test on Turing.
+4. **The first Candle attempt was mis-scoped and was redone.** It used the
+   test filter `cuda`, but Candle names its CUDA test variants `*_gpu`, so
+   only 31 tests ran and `cuda_from_context` was skipped. Both Candle
+   efforts were rerun on a second VM with the full suite; the table shows
+   the reruns. The first VM's `progress.txt` also shows `exit=0` for every
+   cell because the session runner read `$?` after a `$(date)`; the JSON
+   receipts carry the true status.
+5. **NVIDIA's 13.0 apt packages bring cuBLAS 13.1.1.3**, not 13.0.x, and
+   also install `cuda-toolkit-config-common` 13.4, which writes
+   `/etc/ld.so.conf.d` entries for `/usr/local/cuda` and `/usr/local/cuda-13`.
+   That confirms caution 2 of
+   [the multiple-installations note](../../../../../notes/cuda-multiple-installations.md)
+   for any host that matters.
+
 ## Alternatives (brief)
 
 - **AWS (REPORTED):**

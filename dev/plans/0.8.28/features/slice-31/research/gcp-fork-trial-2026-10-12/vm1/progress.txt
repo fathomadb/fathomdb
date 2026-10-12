@@ -1,0 +1,9 @@
+03:16:11Z start cudarc-e1-cuda126
+03:17:51Z end cudarc-e1-cuda126 exit=0
+03:17:51Z start candle-e1-cuda126
+03:21:15Z end candle-e1-cuda126 exit=0
+03:21:15Z start cudarc-e2-cuda130
+03:22:39Z end cudarc-e2-cuda130 exit=0
+03:22:39Z start candle-e2-cuda130
+03:25:59Z end candle-e2-cuda130 exit=0
+03:25:59Z ALL DONE

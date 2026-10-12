@@ -1,0 +1,18 @@
+12.6 try1: 31.527858ms vs 32.175572ms
+12.6 try1: 985.815µs vs 876.86µs
+12.6 try1: test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 70 filtered out; finished in 3.31s
+12.6 try2: 32.275944ms vs 32.973792ms
+12.6 try2: 1.096722ms vs 1.009ms
+12.6 try2: test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 70 filtered out; finished in 3.29s
+12.6 try3: 32.483905ms vs 32.657807ms
+12.6 try3: 1.092204ms vs 993.186µs
+12.6 try3: test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 70 filtered out; finished in 3.28s
+13.0 try1: 32.516104ms vs 32.835405ms
+13.0 try1: 1.038692ms vs 951.014µs
+13.0 try1: test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 68 filtered out; finished in 3.30s
+13.0 try2: 33.037578ms vs 34.066053ms
+13.0 try2: 1.061733ms vs 985.753µs
+13.0 try2: test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 68 filtered out; finished in 3.26s
+13.0 try3: 32.720601ms vs 33.514787ms
+13.0 try3: 1.008578ms vs 904.033µs
+13.0 try3: test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 68 filtered out; finished in 3.31s

@@ -1,0 +1,99 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running unittests src/lib.rs (/home/coreyt/target/cudarc-13.0/debug/deps/cudarc-43c84840d007757c)
+
+running 73 tests
+test cublas::safe::asum::tests::test_dasum ... ok
+test cublas::safe::asum::tests::test_sasum ... ok
+test cublas::safe::gemm::tests::test_dgemm ... ok
+test cublas::safe::gemm::tests::test_sgemm ... ok
+test cublas::safe::gemv::tests::test_dgemv ... ok
+test cublas::safe::gemv::tests::test_sgemv ... ok
+test cublas::safe::tests::cublas_pointer_mode ... ok
+test cublaslt::safe::tests::test_matmul_f32 ... ok
+test curand::safe::tests::test_different_seeds_neq ... ok
+test curand::safe::tests::test_log_normal_f32 ... ok
+test curand::safe::tests::test_log_normal_f64 ... ok
+test curand::safe::tests::test_normal_f32 ... ok
+test curand::safe::tests::test_normal_f64 ... ok
+test curand::safe::tests::test_seed_reproducible ... ok
+test curand::safe::tests::test_set_offset ... ok
+test curand::safe::tests::test_uniform_f32 ... ok
+test curand::safe::tests::test_uniform_f64 ... ok
+test curand::safe::tests::test_uniform_u32 ... ok
+test driver::result::tests::peer_transfer_contexts ... ignored, must be executed with multiple gpus
+test driver::result::tests::peer_transfer_self ... ok
+test driver::result::tests::re_associate_context_for_memory_op ... ignored, must be executed with multiple gpus
+test driver::safe::core::tests::test_alloc_pinned_panics_on_size_overflow - should panic ... ok
+test driver::safe::core::tests::test_borrowed_stream_is_not_destroyed_on_drop ... ok
+test driver::safe::core::tests::test_copy_uses_correct_context ... ok
+test driver::safe::core::tests::test_ctx_copy_to_views ... ok
+test driver::safe::core::tests::test_default_pinned_host_reads_are_faster_than_write_combined ... FAILED
+test driver::safe::core::tests::test_event_try_is_complete ... ok
+test driver::safe::core::tests::test_event_try_is_complete_preserves_capture_error ... ok
+test driver::safe::core::tests::test_htod_copy_pinned ... ok
+test driver::safe::core::tests::test_htod_copy_pinned_with_default_flags ... ok
+test driver::safe::core::tests::test_leak_and_upgrade ... ok
+test driver::safe::core::tests::test_new_non_primary_creates_and_destroys ... ok
+test driver::safe::core::tests::test_new_non_primary_cross_thread ... ok
+test driver::safe::core::tests::test_new_non_primary_htod_dtoh ... ok
+test driver::safe::core::tests::test_pinned_copy_is_faster ... FAILED
+test driver::safe::core::tests::test_post_alloc_arc_counts ... ok
+test driver::safe::core::tests::test_post_alloc_memory ... ignored, must be executed by itself
+test driver::safe::core::tests::test_post_build_arc_count ... ok
+test driver::safe::core::tests::test_primary_context_is_primary ... ok
+test driver::safe::core::tests::test_slice_is_freed_with_correct_context ... ok
+test driver::safe::core::tests::test_threading ... ok
+test driver::safe::core::tests::test_transmutes ... ok
+test driver::safe::graph::tests::test_end_capture_flags ... ok
+test driver::safe::graph::tests::test_end_capture_invalid_flags ... ok
+test driver::safe::launch::tests::test_device_side_assert ... ignored, must be executed by itself
+test driver::safe::launch::tests::test_large_launches ... ok
+test driver::safe::launch::tests::test_launch_arrays ... ok
+test driver::safe::launch::tests::test_launch_with_16bit ... ok
+test driver::safe::launch::tests::test_launch_with_32bit ... ok
+test driver::safe::launch::tests::test_launch_with_64bit ... ok
+test driver::safe::launch::tests::test_launch_with_8bit ... ok
+test driver::safe::launch::tests::test_launch_with_floats ... ok
+test driver::safe::launch::tests::test_launch_with_mut_and_ref_cudarc ... ok
+test driver::safe::launch::tests::test_launch_with_views ... ok
+test driver::safe::launch::tests::test_multi_stream_concurrent_reads ... ok
+test driver::safe::launch::tests::test_multi_stream_writes_block ... ok
+test driver::safe::launch::tests::test_par_launch ... ok
+test driver::safe::launch::tests::test_peer_memcpy_waits_for_src_stream ... ignored, must be executed with multiple gpus
+test driver::safe::unified_memory::tests::test_unified_memory_global ... ok
+test driver::safe::unified_memory::tests::test_unified_memory_host ... ok
+test driver::safe::unified_memory::tests::test_unified_memory_single_stream ... ok
+test driver::safe::unified_memory::tests::test_unified_slice_copy_to_views ... ok
+test driver::safe::unified_memory::tests::test_unified_slice_split_at ... ok
+test driver::safe::unified_memory::tests::test_unified_slice_views_respect_stream_attachment ... ok
+test nvrtc::result::tests::test_compile_bad_program ... ok
+test nvrtc::result::tests::test_compile_program_1_opt ... ok
+test nvrtc::result::tests::test_compile_program_2_opt ... ok
+test nvrtc::result::tests::test_compile_program_no_opts ... ok
+test nvrtc::result::tests::test_get_ptx ... ok
+test nvrtc::safe::tests::test_compile_no_opts ... ok
+test nvrtc::safe::tests::test_compile_options_build_ftz ... ok
+test nvrtc::safe::tests::test_compile_options_build_multi ... ok
+test nvrtc::safe::tests::test_compile_options_build_none ... ok
+
+failures:
+
+---- driver::safe::core::tests::test_default_pinned_host_reads_are_faster_than_write_combined stdout ----
+default pinned host reads: 32.930144ms; write-combined host reads: 33.210834ms
+
+thread 'driver::safe::core::tests::test_default_pinned_host_reads_are_faster_than_write_combined' (10937) panicked at src/driver/safe/core.rs:2931:9:
+32.930144ms vs 33.210834ms
+
+---- driver::safe::core::tests::test_pinned_copy_is_faster stdout ----
+
+thread 'driver::safe::core::tests::test_pinned_copy_is_faster' (10951) panicked at src/driver/safe/core.rs:2964:9:
+1.108203ms vs 1.049912ms
+
+
+failures:
+    driver::safe::core::tests::test_default_pinned_host_reads_are_faster_than_write_combined
+    driver::safe::core::tests::test_pinned_copy_is_faster
+
+test result: FAILED. 66 passed; 2 failed; 5 ignored; 0 measured; 0 filtered out; finished in 4.89s
+
+error: test failed, to rerun pass `--lib`

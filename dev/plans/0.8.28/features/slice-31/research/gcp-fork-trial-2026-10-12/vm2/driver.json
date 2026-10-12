@@ -1,0 +1,24 @@
+{
+  "branch": "580",
+  "kernel": "7.0.0-1011-gcp",
+  "method": "verified-after-reboot",
+  "packages": [
+    "libnvidia-cfg1-580-server=580.178.04-0ubuntu0.24.04.1",
+    "libnvidia-compute-580-server=580.178.04-0ubuntu0.24.04.1",
+    "linux-modules-nvidia-580-server-7.0.0-1011-gcp=7.0.0-1011.11~24.04.1+1",
+    "linux-objects-nvidia-580-server-7.0.0-1011-gcp=7.0.0-1011.11~24.04.1+1",
+    "nvidia-compute-utils-580-server=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-driver-580-server=",
+    "nvidia-firmware-580-580.178.04=",
+    "nvidia-firmware-580-server-580.178.04=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-headless-no-dkms-580-server=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-kernel-common-580-server=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-kernel-common-580-server-580.178.04=",
+    "nvidia-kernel-source-580-server=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-utils-580-server=580.178.04-0ubuntu0.24.04.1"
+  ],
+  "proc": "NVRM version: NVIDIA UNIX x86_64 Kernel Module  580.178.04  Tue Jul  7 12:38:21 UTC 2026",
+  "secure_boot": "SecureBoot disabled",
+  "smi": "Tesla T4, 580.178.04, 7.5",
+  "version": "580.178.04"
+}

@@ -1,0 +1,389 @@
+warning: candle-kernels@0.10.2: Compiling 11 of 11 PTX kernels
+warning: candle-kernels@0.10.2: Using 4 threads for compilation
+warning: candle-kernels@0.10.2: Compiling 3 of 3 kernels
+warning: use of deprecated constant `std::f64::INFINITY`: replaced by the `INFINITY` associated constant on `f64`
+  --> candle-core/src/cpu/erf.rs:49:14
+   |
+49 |         f64::INFINITY
+   |              ^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated constant `std::f64::NEG_INFINITY`: replaced by the `NEG_INFINITY` associated constant on `f64`
+  --> candle-core/src/cpu/erf.rs:51:14
+   |
+51 |         f64::NEG_INFINITY
+   |              ^^^^^^^^^^^^
+
+warning: use of deprecated constant `std::f64::INFINITY`: replaced by the `INFINITY` associated constant on `f64`
+  --> candle-core/src/cpu/erf.rs:73:14
+   |
+73 |         f64::INFINITY
+   |              ^^^^^^^^
+
+warning: use of deprecated constant `std::f64::NEG_INFINITY`: replaced by the `NEG_INFINITY` associated constant on `f64`
+  --> candle-core/src/cpu/erf.rs:75:14
+   |
+75 |         f64::NEG_INFINITY
+   |              ^^^^^^^^^^^^
+
+warning: `candle-core-fathomdb` (lib) generated 4 warnings
+warning: `candle-core-fathomdb` (lib test) generated 4 warnings (4 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running unittests src/lib.rs (/home/coreyt/target/candle-13.0/debug/deps/candle_core-940110eaf0477b10)
+
+running 11 tests
+test cuda_backend::device::from_context_tests::a_device_from_a_context_uses_that_context_and_its_default_stream ... ok
+test npy::tests::parse ... ok
+test quantized::cuda::test::cuda_mm_q8_1 ... ok
+test quantized::cuda::test::cuda_mm_q8_1_pad ... ok
+test quantized::cuda::test::cuda_mmv_q8_1 ... ok
+test quantized::cuda::test::cuda_quantize_q8_1 ... ok
+test safetensors::tests::load_u8 ... ok
+test safetensors::tests::save_load_multiple_tensors ... ok
+test safetensors::tests::save_single_tensor ... ok
+test shape::tests::stride ... ok
+test shape::tests::test_from_tuple ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.01s
+
+     Running tests/aarch64_linux_cpu.rs (/home/coreyt/target/candle-13.0/debug/deps/aarch64_linux_cpu-067866d43c660c2d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/bilinear_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/bilinear_tests-63fd4798d33cf2be)
+
+running 24 tests
+test bilinear_align_corners_difference_cpu ... ok
+test bilinear_align_corners_difference_gpu ... ok
+test bilinear_identity_cpu ... ok
+test bilinear_identity_gpu ... ok
+test bilinear_output_dimensions_cpu ... ok
+test bilinear_output_dimensions_gpu ... ok
+test bilinear_pytorch_2x_upscale_cpu ... ok
+test bilinear_pytorch_2x_upscale_gpu ... ok
+test bilinear_pytorch_align_corners_true_cpu ... ok
+test bilinear_pytorch_align_corners_true_gpu ... ok
+test bilinear_pytorch_downscale_cpu ... ok
+test bilinear_pytorch_downscale_gpu ... ok
+test bilinear_pytorch_large_64x64_to_128x128_cpu ... ok
+test bilinear_pytorch_large_64x64_to_128x128_gpu ... ok
+test bilinear_pytorch_multi_channel_cpu ... ok
+test bilinear_pytorch_multi_channel_gpu ... ok
+test bilinear_pytorch_non_square_exact_cpu ... ok
+test bilinear_pytorch_non_square_exact_gpu ... ok
+test bilinear_pytorch_scale_factor_cpu ... ok
+test bilinear_pytorch_scale_factor_gpu ... ok
+test bilinear_pytorch_tiny_1x1_to_3x3_cpu ... ok
+test bilinear_pytorch_tiny_1x1_to_3x3_gpu ... ok
+test bilinear_pytorch_tiny_1x2_to_3x6_cpu ... ok
+test bilinear_pytorch_tiny_1x2_to_3x6_gpu ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.21s
+
+     Running tests/conv_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/conv_tests-49516c6df68e918c)
+
+running 16 tests
+test conv1d_cpu ... ok
+test conv1d_gpu ... ok
+test conv1d_small_cpu ... ok
+test conv1d_small_gpu ... ok
+test conv2d_c_eq_h_eq_w_cpu ... ok
+test conv2d_c_eq_h_eq_w_gpu ... ok
+test conv2d_cpu ... ok
+test conv2d_gpu ... ok
+test conv2d_grad_cpu ... ok
+test conv2d_grad_gpu ... ok
+test conv2d_non_square_cpu ... ok
+test conv2d_non_square_gpu ... ok
+test conv2d_small_cpu ... ok
+test conv2d_small_gpu ... ok
+test conv2d_smaller_cpu ... ok
+test conv2d_smaller_gpu ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.13s
+
+     Running tests/cuda_from_context.rs (/home/coreyt/target/candle-13.0/debug/deps/cuda_from_context-4e807a97f76bdb58)
+
+running 1 test
+test device_from_context_runs_on_that_context ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s
+
+     Running tests/custom_op_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/custom_op_tests-04e5e178b3e9e038)
+
+running 3 tests
+test custom_op1_no_backward ... ok
+test custom_op1_with_backward ... ok
+test inplace_op1 ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/display_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/display_tests-432f5cbba61543bb)
+
+running 3 tests
+test display_multi_dim ... ok
+test display_scalar ... ok
+test display_vector ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/grad_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/grad_tests-a98056cf113f0948)
+
+running 13 tests
+test binary_grad_cpu ... ok
+test binary_grad_gpu ... ok
+test grad_descent_cpu ... ok
+test grad_descent_gpu ... ok
+test matmul_grad_cpu ... ok
+test matmul_grad_gpu ... ok
+test simple_grad_cpu ... ok
+test simple_grad_gpu ... ok
+test sum_grad_cpu ... ok
+test sum_grad_gpu ... ok
+test test_flip_backprop ... ok
+test unary_grad_cpu ... ok
+test unary_grad_gpu ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.47s
+
+     Running tests/indexing_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/indexing_tests-b4c67b6962585920)
+
+running 4 tests
+test index_3d ... ok
+test integer_index ... ok
+test range_index ... ok
+test slice_assign ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/layout_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/layout_tests-8411a5b8436ce4b9)
+
+running 3 tests
+test contiguous_cpu ... ok
+test contiguous_gpu ... ok
+test strided_blocks ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.79s
+
+     Running tests/matmul_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/matmul_tests-4322bd16e659f9fa)
+
+running 12 tests
+test broadcast_matmul_cpu ... ok
+test broadcast_matmul_gpu ... ok
+test matmul_bf16_cpu ... ok
+test matmul_bf16_gpu ... ok
+test matmul_cpu ... ok
+test matmul_gpu ... ok
+test mm_layout_cpu ... ok
+test mm_layout_gpu ... ok
+test squeeze_mm_cpu ... ok
+test squeeze_mm_gpu ... ok
+test tensor_dot ... ok
+test tensor_mv ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.89s
+
+     Running tests/pool_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/pool_tests-c555e4fce9f1423b)
+
+running 8 tests
+test avg_pool2d_cpu ... ok
+test avg_pool2d_gpu ... ok
+test avg_pool2d_pytorch_cpu ... ok
+test avg_pool2d_pytorch_gpu ... ok
+test max_pool2d_cpu ... ok
+test max_pool2d_gpu ... ok
+test upsample_nearest2d_cpu ... ok
+test upsample_nearest2d_gpu ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.81s
+
+     Running tests/pth_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/pth_tests-101a896b6ca7f3c1)
+
+running 3 tests
+test test_pth ... ok
+test test_pth_fortran_contiguous ... ok
+test test_pth_with_key ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/quantized_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/quantized_tests-e1435d76c3dc4736)
+
+running 62 tests
+test imatrix_quantize_q2k ... ok
+test imatrix_quantize_q3k ... ok
+test imatrix_quantize_q4k ... ok
+test imatrix_quantize_q5k ... ok
+test imatrix_quantize_q6k ... ok
+test qmm_b_cpu ... ok
+test qmm_b_cuda ... ok
+test qmm_cpu ... ok
+test qmm_cuda ... ok
+test qmm_n_cpu ... ok
+test qmm_n_cuda ... ok
+test quantize_q2k_cpu ... ok
+test quantize_q2k_cuda ... ok
+test quantize_q3k_cpu ... ok
+test quantize_q3k_cuda ... ok
+test quantize_q4_0_cpu ... ok
+test quantize_q4_0_cuda ... ok
+test quantize_q4_1_cpu ... ok
+test quantize_q4_1_cuda ... ok
+test quantize_q4k_cpu ... ok
+test quantize_q4k_cuda ... ok
+test quantize_q5_0_cpu ... ok
+test quantize_q5_0_cuda ... ok
+test quantize_q5_1_cpu ... ok
+test quantize_q5_1_cuda ... ok
+test quantize_q5k_cpu ... ok
+test quantize_q5k_cuda ... ok
+test quantize_q6k_cpu ... ok
+test quantize_q6k_cuda ... ok
+test quantize_q8k_cpu ... ok
+test quantize_q8k_cuda ... ok
+test quantized_matmul_q2k ... ok
+test quantized_matmul_q2k_cpu ... ok
+test quantized_matmul_q2k_cuda ... ok
+test quantized_matmul_q3k ... ok
+test quantized_matmul_q3k_cpu ... ok
+test quantized_matmul_q3k_cuda ... ok
+test quantized_matmul_q4_0_cpu ... ok
+test quantized_matmul_q4_0_cuda ... ok
+test quantized_matmul_q4_1_cpu ... ok
+test quantized_matmul_q4_1_cuda ... ok
+test quantized_matmul_q4k ... ok
+test quantized_matmul_q4k_cpu ... ok
+test quantized_matmul_q4k_cuda ... ok
+test quantized_matmul_q5_0_cpu ... ok
+test quantized_matmul_q5_0_cuda ... ok
+test quantized_matmul_q5_1_cpu ... ok
+test quantized_matmul_q5_1_cuda ... ok
+test quantized_matmul_q5k ... ok
+test quantized_matmul_q5k_cpu ... ok
+test quantized_matmul_q5k_cuda ... ok
+test quantized_matmul_q6k ... ok
+test quantized_matmul_q6k_cpu ... ok
+test quantized_matmul_q6k_cuda ... ok
+test quantized_matmul_q8_0_cpu ... ok
+test quantized_matmul_q8_0_cuda ... ok
+test quantized_matmul_q8_1_cpu ... ok
+test quantized_matmul_q8_1_cuda ... ok
+test quantized_matmul_q8k ... ok
+test quantized_matmul_q8k_cpu ... ok
+test quantized_matmul_q8k_cuda ... ok
+test quantized_mm ... ok
+
+test result: ok. 62 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.37s
+
+     Running tests/serialization_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/serialization_tests-3f7d9e2c0360c10e)
+
+running 3 tests
+test npy ... ok
+test npz ... ok
+test safetensors ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tensor_tests.rs (/home/coreyt/target/candle-13.0/debug/deps/tensor_tests-43aa2d006252a383)
+
+running 85 tests
+test add_mul_cpu ... ok
+test add_mul_gpu ... ok
+test allocates_twice_when_transferring_to_same_device ... ok
+test arange_cpu ... ok
+test arange_gpu ... ok
+test argmax_cpu ... ok
+test argmax_gpu ... ok
+test argmin_cpu ... ok
+test argmin_gpu ... ok
+test asort_big_cpu ... ok
+test asort_big_gpu ... ok
+test asort_cpu ... ok
+test asort_gpu ... ok
+test binary_op_cpu ... ok
+test binary_op_gpu ... ok
+test broadcast_cpu ... ok
+test broadcast_gpu ... ok
+test broadcasting_cpu ... ok
+test broadcasting_gpu ... ok
+test cat_cpu ... ok
+test cat_gpu ... ok
+test clamp_cpu ... ok
+test clamp_gpu ... ok
+test cmp_cpu ... ok
+test cmp_gpu ... ok
+test cs_cpu ... ok
+test cs_gpu ... ok
+test cumsum ... ok
+test embeddings_cpu ... ok
+test embeddings_gpu ... ok
+test full_cpu ... ok
+test full_gpu ... ok
+test gather_cpu ... ok
+test gather_gpu ... ok
+test i64_abs ... ok
+test index_add_cpu ... ok
+test index_add_gpu ... ok
+test index_select_cpu ... ok
+test index_select_fail ... ok
+test index_select_gpu ... ok
+test log_sum_exp ... ok
+test max_cpu ... ok
+test max_gpu ... ok
+test min_cpu ... ok
+test min_gpu ... ok
+test narrow_cpu ... ok
+test narrow_gpu ... ok
+test ones_cpu ... ok
+test ones_gpu ... FAILED
+test pad_with_same ... ok
+test pow ... ok
+test randn_cpu ... ok
+test randn_gpu ... ok
+test randn_hasneg ... ok
+test scatter_cpu ... ok
+test scatter_gpu ... ok
+test slice_scatter_cpu ... ok
+test slice_scatter_gpu ... ok
+test ss_cpu ... ok
+test ss_gpu ... ok
+test sum_cpu ... ok
+test sum_gpu ... ok
+test tensor_2d_cpu ... ok
+test tensor_2d_gpu ... ok
+test tensor_new ... ok
+test tensor_norm ... ok
+test tensor_send_sync_cpu ... ok
+test tensor_send_sync_gpu ... ok
+test ternary_op_cpu ... ok
+test ternary_op_gpu ... ok
+test test_flip_1d ... ok
+test test_flip_2d ... ok
+test test_flip_3d_channels ... ok
+test transfers_cuda_to_device ... ok
+test transpose_cpu ... ok
+test transpose_gpu ... ok
+test tril_triu_eye ... ok
+test unary_op_cpu ... ok
+test unary_op_gpu ... ok
+test var_cpu ... ok
+test var_gpu ... ok
+test zero_dim_cpu ... ok
+test zero_dim_gpu ... ok
+test zeros_cpu ... ok
+test zeros_gpu ... ok
+
+failures:
+
+---- ones_gpu stdout ----
+Error: DriverError(CUDA_ERROR_NOT_FOUND, "named symbol not found")
+
+
+failures:
+    ones_gpu
+
+test result: FAILED. 84 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.07s
+
+error: test failed, to rerun pass `-p candle-core-fathomdb --test tensor_tests`

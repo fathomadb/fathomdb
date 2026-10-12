@@ -858,7 +858,7 @@ FathomDB's `review.md` carries one line per fork review.
       - cudarc `c075191`: builds pass for `cuda-12060` and `cuda-13000`;
         68/70 and 66/68 tests pass. The two failures in both environments
         are upstream timing assertions (pinned versus pageable copy speed)
-        that this host does not meet, reproduced 6/6 times. FC3 must
+        that this host does not meet, failing in all 8 runs. FC3 must
         classify them as host-dependent.
       - Candle `7e55a57`: builds pass with both toolkits; 250 of 251
         `candle-core-fathomdb` tests pass in each, including

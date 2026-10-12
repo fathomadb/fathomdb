@@ -512,8 +512,8 @@ Findings:
 2. **Two cudarc upstream tests fail on this host in both environments:**
    `test_pinned_copy_is_faster` and
    `test_default_pinned_host_reads_are_faster_than_write_combined` assert
-   that one host-memory kind is faster than another. Six reruns per
-   environment failed every time (for example 1.04 ms vs 0.95 ms, and
+   that one host-memory kind is faster than another. Each failed in all
+   8 runs: per toolkit, the full run and three reruns (for example 1.04 ms vs 0.95 ms, and
    32.5 ms vs 32.8 ms). They encode a hardware-performance assumption that
    this virtualized T4 does not meet; they are not a build or toolkit
    defect. The cudarc fork test plan (FC3) must classify them as

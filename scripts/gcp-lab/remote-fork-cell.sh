@@ -124,13 +124,20 @@ if [ "$build_status" -eq 0 ]; then
   done < <(sed -nE 's/.*test result: [a-zA-Z]+\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored.*/\1,\2,\3/p' "$TEST_OUT")
   # The CUDA libraries the test processes opened, deduplicated.
   cat "$OUT/cells/$CELL.ld".* 2>/dev/null \
-    | grep -oE 'file=[^ ]*(libcuda|libcudart|libcublas|libcublasLt|libnvrtc|libcurand)[^ ]*' \
+    | grep -oE 'file=[^ ;]*(libcuda|libcudart|libcublas|libcublasLt|libnvrtc|libcurand)[^ ;]*' \
     | sort -u >"$LD_OUT" || true
   rm -f "$OUT/cells/$CELL.ld".*
 fi
 
 lock_sha="$(sha256sum Cargo.lock 2>/dev/null | cut -d' ' -f1 || echo none)"
-cudarc_resolved="$(cargo tree "${tree_args[@]}" -e normal -i cudarc --depth 0 2>/dev/null | head -n 1 || echo unknown)"
+# `cargo tree -i cudarc` refuses to choose when the lockfile holds two
+# cudarc versions (Candle's does), so name the package by its exact spec.
+cudarc_resolved=unknown
+for spec in $(sed -n '/^name = "cudarc"$/{n;s/^version = "\(.*\)"$/cudarc@\1/p}' Cargo.lock 2>/dev/null); do
+  if line="$(cargo tree "${tree_args[@]}" -e normal -i "$spec" --depth 0 2>/dev/null | head -n 1)" && [ -n "$line" ]; then
+    cudarc_resolved="$line"
+  fi
+done
 driver_after="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>&1 || true)"
 gpu="$(nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader 2>&1 || true)"
 kernel="$(uname -r)"

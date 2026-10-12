@@ -77,6 +77,10 @@ Facts that bound the choice:
   the 13.0 artifact ships; the failure must be typed and plain.
 - cudarc must load only libraries of the major it was built for (Slice 31,
   cudarc fork plan); a wrong-major cuBLAS is never loaded silently.
+- A host that carries a second CUDA toolkit or library set follows
+  [the multiple-installation cautions](../notes/cuda-multiple-installations.md):
+  toolkit-only, user-local, no global `LD_LIBRARY_PATH`, and the loaded
+  library checked rather than assumed.
 
 ## Alternatives rejected
 

@@ -69,6 +69,21 @@ for flag in --accelerator=count=1,type=nvidia-tesla-t4 --maintenance-policy=TERM
   expect_in_log "$flag" "t4 create"
 done
 
+# --on-demand: standard provisioning that keeps the run-time cap and the
+# self-delete, so a forgotten VM still cannot keep billing.
+reset_log
+"$LAB" create --profile t4 --name fdb-lab-t4b --zone us-central1-b --on-demand >/dev/null
+for flag in --provisioning-model=STANDARD --max-run-duration=2h --instance-termination-action=DELETE \
+  --maintenance-policy=TERMINATE --labels=fathomdb-lab=true; do
+  expect_in_log "$flag" "on-demand create"
+done
+expect_not_in_log --provisioning-model=SPOT "on-demand create"
+reset_log
+STUB_LABEL=true "$LAB" pilot --profile t4 --zone us-central1-b --driver 580 --on-demand \
+  --out "$TMP/out" >/dev/null 2>&1
+expect_in_log --provisioning-model=STANDARD "on-demand pilot"
+expect_not_in_log --provisioning-model=SPOT "on-demand pilot"
+
 # Refusals: no project, foreign names, unbounded run time, unknown profile.
 expect_refused "missing project" env -u FDB_LAB_PROJECT "$LAB" create --profile cpu --name fdb-lab-x --zone us-central1-a
 expect_refused "foreign create name" "$LAB" create --profile cpu --name instance-1 --zone us-central1-a

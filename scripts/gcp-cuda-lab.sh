@@ -3,9 +3,10 @@
 # CUDA driver/library compatibility cells (dev/plans/0.8.28/features/slice-31/
 # research/cloud-gpu-test-options.md).
 #
-# Every VM this script creates is Spot, carries the label fathomdb-lab=true,
-# has a hard run-time cap (default 2h, max 4h) and deletes itself when the cap
-# or a preemption hits, so a forgotten VM cannot keep billing. The VM gets no
+# Every VM this script creates is Spot (or standard with --on-demand), carries
+# the label fathomdb-lab=true, has a hard run-time cap (default 2h, max 4h)
+# and deletes itself when the cap or a preemption hits, so a forgotten VM
+# cannot keep billing. The VM gets no
 # service account: it never needs Google Cloud API access. SSH keys go into
 # instance metadata, never the project-wide ssh-keys.
 #
@@ -14,6 +15,8 @@
 #
 #   create  --profile cpu|t4 --name fdb-lab-<x> --zone <zone> [--max-run 2h]
 #           [--machine-type n1-<...>]   (t4 only; default n1-standard-4)
+#           [--on-demand]   (standard provisioning, not preemptible; the
+#           run-time cap and self-delete still apply)
 #   destroy --name fdb-lab-<x> --zone <zone>   (only deletes labeled lab VMs)
 #   status                                     (lists lab VMs in the project)
 #   wait-ssh --name <n> --zone <z>             (polls until SSH answers)
@@ -28,7 +31,7 @@
 #           with the driver built for it, sharing the one reboot)
 #   pilot   --profile cpu|t4 --zone <z> [--driver <branch>] [--driver-open]
 #           [--kernel <release>] [--ref <branch>] [--out <dir>]
-#           [--max-run 2h] [--keep]
+#           [--max-run 2h] [--on-demand] [--keep]
 #           create → wait-ssh → [driver] → remote build + receipt → pull →
 #           destroy. The t4 profile needs --driver (an NVIDIA branch such as
 #           580). The VM is destroyed on any exit unless --keep is given.
@@ -50,7 +53,7 @@ usage() { sed -n '/^# Usage:/,/^# The project/p' "${BASH_SOURCE[0]}" | sed 's/^#
 
 PROJECT="${FDB_LAB_PROJECT:-}"
 PROFILE="" NAME="" ZONE="" MAX_RUN="2h" REF="release/0.8.28" OUT="" KEEP=0 DRIVER="" MACHINE_TYPE=""
-DRIVER_OPEN=0 KERNEL=""
+DRIVER_OPEN=0 KERNEL="" PROVISIONING=SPOT
 POSITIONAL=()
 
 parse_args() {
@@ -67,6 +70,7 @@ parse_args() {
       --machine-type) MACHINE_TYPE="${2:?--machine-type needs a value}"; shift 2 ;;
       --driver-open) DRIVER_OPEN=1; shift ;;
       --kernel) KERNEL="${2:?--kernel needs a value}"; shift 2 ;;
+      --on-demand) PROVISIONING=STANDARD; shift ;;
       --keep) KEEP=1; shift ;;
       --) shift; POSITIONAL+=("$@"); break ;;
       -*) die "unknown option: $1" ;;
@@ -123,7 +127,7 @@ cmd_create() {
     "${PROFILE_FLAGS[@]}" \
     --boot-disk-type=pd-balanced \
     --image-family=ubuntu-2404-lts-amd64 --image-project=ubuntu-os-cloud \
-    --provisioning-model=SPOT \
+    --provisioning-model="$PROVISIONING" \
     --max-run-duration="$MAX_RUN" --instance-termination-action=DELETE \
     --labels="$LAB_LABEL=true,$LAB_LABEL-profile=$PROFILE" \
     --no-service-account --no-scopes \

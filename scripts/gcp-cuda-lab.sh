@@ -20,11 +20,15 @@
 #   run     --name <n> --zone <z> -- <remote command...>
 #   push    --name <n> --zone <z> <local-path> <remote-path>
 #   pull    --name <n> --zone <z> <remote-path> <local-dir>
-#   driver  --name <n> --zone <z> --driver <branch>
+#   driver  --name <n> --zone <z> --driver <branch> [--driver-open]
+#           [--kernel <release>]
 #           (installs a pinned NVIDIA branch on an existing lab VM, rebooting
-#           once if the module needs it)
-#   pilot   --profile cpu|t4 --zone <z> [--driver <branch>] [--ref <branch>]
-#           [--out <dir>] [--max-run 2h] [--keep]
+#           once if the module needs it; --driver-open takes the open kernel
+#           modules, --kernel boots that GCP kernel, e.g. 7.0.0-1014-gcp,
+#           with the driver built for it, sharing the one reboot)
+#   pilot   --profile cpu|t4 --zone <z> [--driver <branch>] [--driver-open]
+#           [--kernel <release>] [--ref <branch>] [--out <dir>]
+#           [--max-run 2h] [--keep]
 #           create → wait-ssh → [driver] → remote build + receipt → pull →
 #           destroy. The t4 profile needs --driver (an NVIDIA branch such as
 #           580). The VM is destroyed on any exit unless --keep is given.
@@ -36,6 +40,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LAB_LABEL="fathomdb-lab"
 NAME_RE='^fdb-lab-[a-z0-9-]{1,40}$'
+KERNEL_RE='^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-gcp$'
 MAX_RUN_CAP_MINUTES=240
 
 die() { printf 'gcp-cuda-lab: %s\n' "$*" >&2; exit 2; }
@@ -45,6 +50,7 @@ usage() { sed -n '/^# Usage:/,/^# The project/p' "${BASH_SOURCE[0]}" | sed 's/^#
 
 PROJECT="${FDB_LAB_PROJECT:-}"
 PROFILE="" NAME="" ZONE="" MAX_RUN="2h" REF="release/0.8.28" OUT="" KEEP=0 DRIVER="" MACHINE_TYPE=""
+DRIVER_OPEN=0 KERNEL=""
 POSITIONAL=()
 
 parse_args() {
@@ -59,6 +65,8 @@ parse_args() {
       --out) OUT="${2:?--out needs a value}"; shift 2 ;;
       --driver) DRIVER="${2:?--driver needs a value}"; shift 2 ;;
       --machine-type) MACHINE_TYPE="${2:?--machine-type needs a value}"; shift 2 ;;
+      --driver-open) DRIVER_OPEN=1; shift ;;
+      --kernel) KERNEL="${2:?--kernel needs a value}"; shift 2 ;;
       --keep) KEEP=1; shift ;;
       --) shift; POSITIONAL+=("$@"); break ;;
       -*) die "unknown option: $1" ;;
@@ -199,29 +207,36 @@ cmd_pull() {
 
 require_driver() {
   if [ "$PROFILE" = cpu ]; then
-    [ -z "$DRIVER" ] || die "the cpu profile has no GPU; drop --driver"
+    [ -z "$DRIVER" ] && [ "$DRIVER_OPEN" -eq 0 ] && [ -z "$KERNEL" ] \
+      || die "the cpu profile has no GPU; drop --driver, --driver-open and --kernel"
     return 0
   fi
   [ -n "$DRIVER" ] || die "--driver <branch> is required for the $PROFILE profile (e.g. 580)"
   [[ "$DRIVER" =~ ^[0-9]{3}$ ]] || die "--driver must be an NVIDIA branch number such as 580 (got '$DRIVER')"
+  [ -z "$KERNEL" ] || [[ "$KERNEL" =~ $KERNEL_RE ]] \
+    || die "--kernel must be a GCP kernel release such as 7.0.0-1014-gcp (got '$KERNEL')"
+  DRIVER_ARGS=(--driver-branch "$DRIVER")
+  [ "$DRIVER_OPEN" -eq 0 ] || DRIVER_ARGS+=(--open)
+  [ -z "$KERNEL" ] || DRIVER_ARGS+=(--kernel "$KERNEL")
 }
 
-# The driver script exits 100 when the new kernel module needs a reboot to load.
+# The driver script exits 100 when the new kernel module, or a new kernel,
+# needs a reboot.
 install_driver() {
   local status=0
   POSITIONAL=("$ROOT/scripts/gcp-lab/remote-driver.sh" "fdb-lab-remote-driver.sh")
   cmd_push
-  POSITIONAL=(bash fdb-lab-remote-driver.sh --driver-branch "$DRIVER")
+  POSITIONAL=(bash fdb-lab-remote-driver.sh "${DRIVER_ARGS[@]}")
   cmd_run || status=$?
   if [ "$status" -eq 100 ]; then
     note "rebooting $NAME to load the NVIDIA module"
     # Not cmd_run: the reboot drops the connection (255), and a retry would
     # reboot the VM again.
     gcloud compute ssh "$NAME" "${SSH_FLAGS[@]}" --command="sudo systemctl reboot" || true
-    sleep 20
+    sleep "${FDB_LAB_REBOOT_SLEEP:-20}"
     cmd_wait_ssh
     status=0
-    POSITIONAL=(bash fdb-lab-remote-driver.sh --driver-branch "$DRIVER" --verify-only)
+    POSITIONAL=(bash fdb-lab-remote-driver.sh "${DRIVER_ARGS[@]}" --verify-only)
     cmd_run || status=$?
   fi
   [ "$status" -eq 0 ] || note "driver $DRIVER install failed on $NAME (exit $status)"

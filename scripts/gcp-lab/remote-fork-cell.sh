@@ -119,9 +119,11 @@ if [ "$build_status" -eq 0 ]; then
   LD_DEBUG=files LD_DEBUG_OUTPUT="$OUT/cells/$CELL.ld" "${test_cmd[@]}" >"$TEST_OUT" 2>&1 || test_status=$?
   test_seconds=$(( $(date +%s) - test_start ))
   cat "$TEST_OUT"
+  summaries="$(sed -nE 's/.*test result: [a-zA-Z]+\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored.*/\1,\2,\3/p' "$TEST_OUT")"
   while IFS=, read -r p f i; do
+    [ -n "$p" ] || continue
     tests_passed=$((tests_passed + p)) tests_failed=$((tests_failed + f)) tests_ignored=$((tests_ignored + i))
-  done < <(sed -nE 's/.*test result: [a-zA-Z]+\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored.*/\1,\2,\3/p' "$TEST_OUT")
+  done <<<"$summaries"
   # The CUDA libraries the test processes opened, deduplicated.
   cat "$OUT/cells/$CELL.ld".* 2>/dev/null \
     | grep -oE 'file=[^ ;]*(libcuda|libcudart|libcublas|libcublasLt|libnvrtc|libcurand)[^ ;]*' \
@@ -133,11 +135,13 @@ lock_sha="$(sha256sum Cargo.lock 2>/dev/null | cut -d' ' -f1 || echo none)"
 # `cargo tree -i cudarc` refuses to choose when the lockfile holds two
 # cudarc versions (Candle's does), so name the package by its exact spec.
 cudarc_resolved=unknown
-for spec in $(sed -n '/^name = "cudarc"$/{n;s/^version = "\(.*\)"$/cudarc@\1/p}' Cargo.lock 2>/dev/null); do
-  if line="$(cargo tree "${tree_args[@]}" -e normal -i "$spec" --depth 0 2>/dev/null | head -n 1)" && [ -n "$line" ]; then
-    cudarc_resolved="$line"
+specs="$(sed -n '/^name = "cudarc"$/{n;s/^version = "\(.*\)"$/cudarc@\1/p}' Cargo.lock 2>/dev/null || true)"
+while IFS= read -r spec; do
+  [ -n "$spec" ] || continue
+  if tree_out="$(cargo tree "${tree_args[@]}" -e normal -i "$spec" --depth 0 2>/dev/null)" && [ -n "$tree_out" ]; then
+    cudarc_resolved="${tree_out%%$'\n'*}"
   fi
-done
+done <<<"$specs"
 driver_after="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>&1 || true)"
 gpu="$(nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader 2>&1 || true)"
 kernel="$(uname -r)"

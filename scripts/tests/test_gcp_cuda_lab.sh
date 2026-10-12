@@ -18,6 +18,8 @@ case "$*" in
     if [ -n "${STUB_SCP_RESET_ONCE:-}" ] && [ ! -e "$STUB_SCP_RESET_ONCE" ]; then
       : >"$STUB_SCP_RESET_ONCE"; exit 255
     fi ;;
+  *"bash fdb-lab-remote-driver.sh"*--verify-only*) ;;
+  *"bash fdb-lab-remote-driver.sh"*) exit "${STUB_DRIVER_EXIT:-0}" ;;
   *"bash fdb-lab-remote-build.sh"*)
     # Simulate one SSH connection reset (exit 255) before the build starts.
     if [ -n "${STUB_SSH_RESET_ONCE:-}" ] && [ ! -e "$STUB_SSH_RESET_ONCE" ]; then
@@ -46,7 +48,7 @@ expect_refused() {
 }
 
 export FDB_LAB_PROJECT=proj-test
-export FDB_LAB_SSH_RETRY_SLEEP=0 FDB_LAB_SSH_SETTLE_SLEEP=0
+export FDB_LAB_SSH_RETRY_SLEEP=0 FDB_LAB_SSH_SETTLE_SLEEP=0 FDB_LAB_REBOOT_SLEEP=0
 
 # CPU profile: Spot, capped, self-deleting, no GPU, no service account.
 reset_log
@@ -148,6 +150,37 @@ expect_not_in_log "instances create" "driver command"
 expect_not_in_log "instances delete" "driver command"
 expect_refused "driver command without branch" "$LAB" driver --name fdb-lab-t4b --zone us-central1-b
 expect_refused "driver command on foreign VM" "$LAB" driver --name instance-1 --zone us-central1-b --driver 580
+expect_not_in_log "--open" "default driver command"
+expect_not_in_log "--kernel" "default driver command"
+
+# --driver-open and --kernel reach both the install and the post-reboot verify.
+reset_log
+STUB_DRIVER_EXIT=100 "$LAB" driver --name fdb-lab-t4b --zone us-central1-b --driver 615 \
+  --driver-open --kernel 7.0.0-1014-gcp >/dev/null 2>&1 || fail "open driver command failed"
+expect_in_log "bash fdb-lab-remote-driver.sh --driver-branch 615 --open --kernel 7.0.0-1014-gcp" "open driver install"
+expect_in_log "sudo systemctl reboot" "open driver reboots once"
+expect_in_log "bash fdb-lab-remote-driver.sh --driver-branch 615 --open --kernel 7.0.0-1014-gcp --verify-only" "open driver verify"
+reset_log
+STUB_DRIVER_EXIT=100 "$LAB" driver --name fdb-lab-t4b --zone us-central1-b --driver 580 >/dev/null 2>&1 \
+  || fail "default driver reboot path failed"
+expect_in_log "bash fdb-lab-remote-driver.sh --driver-branch 580 --verify-only" "default driver verify"
+expect_not_in_log "--open" "default driver verify"
+
+# A pilot passes the same flags.
+reset_log
+STUB_LABEL=true "$LAB" pilot --profile t4 --zone us-central1-b --driver 595 --driver-open \
+  --kernel 7.0.0-1011-gcp --out "$TMP/out" >/dev/null 2>&1
+expect_in_log "bash fdb-lab-remote-driver.sh --driver-branch 595 --open --kernel 7.0.0-1011-gcp" "open pilot"
+
+# Kernel names are checked before anything runs remotely.
+# shellcheck disable=SC2016 # the literal $(reboot) is the hostile input
+for bad in 7.0.0-1014-generic '7.0.0-1014-gcp;reboot' '$(reboot)' 7.0-1014-gcp ''; do
+  expect_refused "kernel '$bad'" "$LAB" driver --name fdb-lab-t4b --zone us-central1-b --driver 615 --kernel "$bad"
+  expect_not_in_log "compute" "kernel '$bad'"
+done
+expect_refused "bad pilot kernel" "$LAB" pilot --profile t4 --zone us-central1-b --driver 615 --kernel 7.0.0-1014-generic
+expect_refused "open driver on cpu" "$LAB" pilot --profile cpu --zone us-central1-a --driver-open
+expect_refused "kernel on cpu" "$LAB" pilot --profile cpu --zone us-central1-a --kernel 7.0.0-1014-gcp
 
 # The fork-cell script rejects bad cells before touching the machine.
 CELL="$ROOT/scripts/gcp-lab/remote-fork-cell.sh"

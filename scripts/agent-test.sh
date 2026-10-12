@@ -132,6 +132,7 @@ run_tier_suite fast test-scale-ac013-matrix bash scripts/tests/test_scale_ac013_
 run_tier_suite fast test-release-version-surfaces bash scripts/tests/test_release_version_surfaces.sh
 run_tier_suite fast test-platform-capabilities bash scripts/tests/test_platform_capabilities.sh
 run_tier_suite fast test-gcp-cuda-lab bash scripts/tests/test_gcp_cuda_lab.sh
+run_tier_suite fast test-gcp-lab-remote-driver bash scripts/tests/test_gcp_lab_remote_driver.sh
 run_tier_suite fast test-sqlite-dependency-contract bash scripts/tests/test_sqlite_dependency_contract.sh
 run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_truth.sh
 run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_preparation.py

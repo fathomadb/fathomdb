@@ -108,7 +108,7 @@ expect_line "modprobe nvidia" "open loads the module"
 expect_json open true "open"
 expect_json branch '"615"' "open"
 expect_json version '"615.71.09"' "open"
-expect_json packages '["linux-modules-nvidia-615-server-open-7.0.0-1014-gcp", "nvidia-headless-no-dkms-615-server-open", "nvidia-utils-615-server", "libnvidia-compute-615-server"]' "open packages"
+expect_json packages '["linux-modules-nvidia-615-server-open-7.0.0-1014-gcp=1.0", "nvidia-headless-no-dkms-615-server-open=1.0", "nvidia-utils-615-server=1.0", "libnvidia-compute-615-server=1.0"]' "open packages"
 
 # --open with no prebuilt module: DKMS builds the open module.
 STUB_PREBUILT_FAIL=1 run_driver --driver-branch 615 --open
@@ -169,7 +169,7 @@ expect_json method '"verified-after-reboot"' "verify"
 
 # Bad kernel names never reach apt-get.
 for bad in 7.0.0-1014-generic '7.0.0-1014-gcp;reboot' ../7.0.0-1014-gcp ''; do
-  run_driver --driver-branch 615 --open --kernel "$bad"
+  run_driver --driver-branch 615 --open --kernel "$bad" 2>/dev/null
   [ "$RUN_STATUS" -eq 2 ] || fail "kernel '$bad' was accepted (exit $RUN_STATUS)"
   expect_none "apt-get" "kernel '$bad'"
 done

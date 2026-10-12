@@ -13,8 +13,9 @@
 # Usage:
 #   FDB_LAB_PROJECT=<project> scripts/gcp-cuda-lab.sh <command> [options]
 #
-#   create  --profile cpu|t4 --name fdb-lab-<x> --zone <zone> [--max-run 2h]
-#           [--machine-type n1-<...>]   (t4 only; default n1-standard-4)
+#   create  --profile cpu|t4|l4 --name fdb-lab-<x> --zone <zone> [--max-run 2h]
+#           [--machine-type n1-<...>]   (t4: default n1-standard-4;
+#           l4: g2-<...>, default g2-standard-4)
 #           [--on-demand]   (standard provisioning, not preemptible; the
 #           run-time cap and self-delete still apply)
 #   destroy --name fdb-lab-<x> --zone <zone>   (only deletes labeled lab VMs)
@@ -29,11 +30,11 @@
 #           once if the module needs it; --driver-open takes the open kernel
 #           modules, --kernel boots that GCP kernel, e.g. 7.0.0-1014-gcp,
 #           with the driver built for it, sharing the one reboot)
-#   pilot   --profile cpu|t4 --zone <z> [--driver <branch>] [--driver-open]
+#   pilot   --profile cpu|t4|l4 --zone <z> [--driver <branch>] [--driver-open]
 #           [--kernel <release>] [--ref <branch>] [--out <dir>]
 #           [--max-run 2h] [--on-demand] [--keep]
 #           create → wait-ssh → [driver] → remote build + receipt → pull →
-#           destroy. The t4 profile needs --driver (an NVIDIA branch such as
+#           destroy. The t4 and l4 profiles need --driver (an NVIDIA branch such as
 #           580). The VM is destroyed on any exit unless --keep is given.
 #
 # The project is never taken from the active gcloud configuration: set
@@ -116,7 +117,13 @@ profile_flags() {
       # GPUs cannot live-migrate, so host maintenance must terminate the VM.
       PROFILE_FLAGS=(--machine-type="$machine" --boot-disk-size=100GB
         "--accelerator=count=1,type=nvidia-tesla-t4" --maintenance-policy=TERMINATE) ;;
-    *) die "unknown profile '$PROFILE' (expected cpu or t4)" ;;
+    l4)
+      # A G2 machine type carries its L4 itself, so no --accelerator.
+      local machine="${MACHINE_TYPE:-g2-standard-4}"
+      [[ "$machine" =~ ^g2-standard-[0-9]+$ ]] \
+        || die "the l4 profile needs a g2-standard machine type (got '$machine')"
+      PROFILE_FLAGS=(--machine-type="$machine" --boot-disk-size=100GB --maintenance-policy=TERMINATE) ;;
+    *) die "unknown profile '$PROFILE' (expected cpu, t4 or l4)" ;;
   esac
 }
 

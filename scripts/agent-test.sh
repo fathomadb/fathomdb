@@ -333,6 +333,12 @@ run_tier_suite fast test-vendored-cudarc bash scripts/tests/test_vendored_cudarc
 # arm fills the registry cache with `cargo fetch --locked` first.
 run_tier_suite fast test-check-single-cudarc bash scripts/tests/test_check_single_cudarc.sh
 
+# 0.8.28 Slice 31 (AC31-14, D-16): the Linux-normal closure of cudarc-fathomdb
+# must equal the set the cudarc fork recorded for this Cargo.lock
+# (scripts/cudarc-fathomdb-lock-set.json). Hermetic arms use hand-minimal
+# cargo metadata; the real-tree arm runs cargo metadata offline.
+run_tier_suite fast test-check-cudarc-fathomdb-lock-set bash scripts/tests/test_check_cudarc_fathomdb_lock_set.sh
+
 # 0.8.28 Slice 30 (R30-10): the CUDA pool study's environment variables and
 # report lines stay out of tracked files outside dev/.
 run_tier_suite fast test-pool-study-scaffolding-removed bash scripts/tests/test_pool_study_scaffolding_removed.sh

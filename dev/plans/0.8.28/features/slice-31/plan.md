@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 17 — the Candle fork crates publish as 0.11.0 from `K9` (`182ceab0`), not 0.10.4 from `K8` (Q21: replacing candle-core's publicly re-exported cudarc is semver-breaking, R-FK-PUB finding 1); W6 pins the Candle crates `=0.11.0` and the `candle-kernels` git patch at `K9`; R-REQ fixes applied in `requirements.md` (T-REGISTRY moves into W6; § 7 T-POOL-PRODUCT names the Slice 30 GPU tests); revision 16 — `cudarc-fathomdb` 0.19.10 published from `C` on 2026-10-13, before W1–W3, W6 and R-VERIFY, by owner direction (Q17); FathomDB consumes the published registry crates in W6 (`cudarc-fathomdb` 0.19.10 and the Candle crates 0.10.4 from `K8`, Q18) instead of git pins, and `candle-kernels` stays a git patch at a Candle commit; `fathomdb/0.19.10` is `coreyt/cudarc`'s default branch and the upstream proposals are not started (Q17); W1–W3 run in full (Q19); R-PIN approved (Q20); the 0.8.28 release state, board and plan exist; revision 15 — state of the slice on 2026-10-13 (§ 8.1): fork development and qualification done for the pinned commits, remaining fork steps, W0 step 3 done; revision 14 — fork-first order (Q14), CUDA 13.0 toolkit cells on a GCP VM and Spot VMs for test only (Q15), Candle base stays 0.10.2 (Q16), both forks qualified (cudarc `C` = b777f8d, Candle `K` = 853324fc), Candle R-FK-PLAN M6 fixes, the x86 BF16/F8 caveat, FC10 dry run done early, W0 step 7 ledger entries filed; revision 13 — Q13 test-venue rulings (GCP pilot first; AWS arm64 cells to 0.8.29; Jetson on CUDA 13 via CloudJetson); revision 12 — second cudarc proposal (built-major library loading, FC9b, R-PROP2), production loaded-library check (D-18), cloud test venue research pending (Q13); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 18 — R-DES (Opus) APPROVE-WITH-FIXES on `design.md` revision 1, all ten findings applied in `design.md` revision 2 (REVISED AFTER R-DES, ready for W3); owner rulings Q22 (the Quadro K620 is never run; C4 is a hermetic compute-capability floor test; every new `windchill3` process names an RTX 3090 by UUID), Q23 (the D-16 lock-set guard covers the Linux-target normal closure), Q24 (the D-18 stderr line only on refusal; `doctor cuda-libraries` always reports) and Q25 (T-CUDA-COMPAT C3 as a GCP T4 cell with the driver only); the embedder's unused direct `cudarc` dependency is removed; REQ31-10 states the deliberate product changes; revision 17 — the Candle fork crates publish as 0.11.0 from `K9` (`182ceab0`), not 0.10.4 from `K8` (Q21: replacing candle-core's publicly re-exported cudarc is semver-breaking, R-FK-PUB finding 1); W6 pins the Candle crates `=0.11.0` and the `candle-kernels` git patch at `K9`; R-REQ fixes applied in `requirements.md` (T-REGISTRY moves into W6; § 7 T-POOL-PRODUCT names the Slice 30 GPU tests); revision 16 — `cudarc-fathomdb` 0.19.10 published from `C` on 2026-10-13, before W1–W3, W6 and R-VERIFY, by owner direction (Q17); FathomDB consumes the published registry crates in W6 (`cudarc-fathomdb` 0.19.10 and the Candle crates 0.10.4 from `K8`, Q18) instead of git pins, and `candle-kernels` stays a git patch at a Candle commit; `fathomdb/0.19.10` is `coreyt/cudarc`'s default branch and the upstream proposals are not started (Q17); W1–W3 run in full (Q19); R-PIN approved (Q20); the 0.8.28 release state, board and plan exist; revision 15 — state of the slice on 2026-10-13 (§ 8.1): fork development and qualification done for the pinned commits, remaining fork steps, W0 step 3 done; revision 14 — fork-first order (Q14), CUDA 13.0 toolkit cells on a GCP VM and Spot VMs for test only (Q15), Candle base stays 0.10.2 (Q16), both forks qualified (cudarc `C` = b777f8d, Candle `K` = 853324fc), Candle R-FK-PLAN M6 fixes, the x86 BF16/F8 caveat, FC10 dry run done early, W0 step 7 ledger entries filed; revision 13 — Q13 test-venue rulings (GCP pilot first; AWS arm64 cells to 0.8.29; Jetson on CUDA 13 via CloudJetson); revision 12 — second cudarc proposal (built-major library loading, FC9b, R-PROP2), production loaded-library check (D-18), cloud test venue research pending (Q13); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -71,6 +71,10 @@ Nothing in this slice writes to `release/0.8.27`.
 | Q19 | (2026-10-13) W1–W3 run in full, each with its own Opus review, before W6 | § 9 W1–W3; § 15 Q19 |
 | Q20 | (2026-10-13) R-PIN approved | § 9 W6; § 12 R-PIN; § 15 Q20 |
 | Q21 | (2026-10-13) The Candle fork crates publish as 0.11.0, not 0.10.4: 0.10.3 → 0.10.4 would replace candle-core's publicly re-exported cudarc (`pub use cudarc;`, upstream registry `cudarc` 0.19.4 in 0.10.3) with a different crate, `cudarc-fathomdb`, a semver-breaking change (R-FK-PUB finding 1) | § 3; § 8.1; § 9 W6, W8; § 15 Q21 |
+| Q22 | (2026-10-13) The `windchill3` Quadro K620 is never run, including for T-CUDA-COMPAT C4: C4 becomes a hermetic fake-provider test of a probe-time compute-capability floor from the build's `CUDA_COMPUTE_CAP`, checked before any device is built; every new `windchill3` test process names an RTX 3090 by UUID in `CUDA_VISIBLE_DEVICES` | § 7 T-CUDA, T-CUDA-COMPAT C4; § 9 W6; § 15 Q11, Q22; design § 0.1, § 9.2 |
+| Q23 | (2026-10-13) The D-16 `cudarc-fathomdb` lock-set guard covers only the Linux-target normal dependency closure (what the fork compiles), not build/dev or Windows/WASI-only crates | § 15 Q23; design § 7.2 |
+| Q24 | (2026-10-13) The D-18 loaded-library check writes a stderr line only when FathomDB refuses (missing or wrong-major cuBLAS); `doctor cuda-libraries` always reports | § 15 Q24; design § 9.1 |
+| Q25 | (2026-10-13) Explore T-CUDA-COMPAT C3 (no CUDA 12 cuBLAS) on a GCP instance instead of a container image pull: driver only, no CUDA toolkit libraries, with its cost; each VM session needs owner approval; the hermetic injected-load-error test stays | § 7 T-CUDA-COMPAT C3; § 15 Q25; design § 9.3 |
 
 ## 1. Owner direction (2026-10-11)
 
@@ -495,7 +499,8 @@ plan § 6). FathomDB runs:
   | Orin, JetPack 6, 12.6 | present | T-POOL-PRODUCT, T-ORIN |
   | Orin, JetPack 7.2.x, 13.2/13.4 | reflash | UNMEASURED (Q5) |
 
-  Every run pins `CUDA_VISIBLE_DEVICES` to a 3090 and logs the
+  Every run pins `CUDA_VISIBLE_DEVICES` to one RTX 3090 **by UUID**
+  (never `all` or an index; Q22, design § 0.1) and logs the
   driver/`/usr/local/cuda` guard.
 - **T-CUDA-COMPAT** CUDA version support (REQ31-15; policy ADR):
 
@@ -503,8 +508,8 @@ plan § 6). FathomDB runs:
   | --- | --- | --- |
   | C1 PTX driver floor | fast tier, no GPU | every PTX module in the 12.6 build declares `.version` ≤ 8.5 and `.target sm_75` (x86) or `sm_87` (Orin). A release build measured `.version 8.5`, `.target sm_75` on 2026-10-11. NVIDIA lists driver 560.28.03 for CUDA 12.6, which the docs state as the floor. PTX 8.5 maps to the CUDA 12.5 driver (555.42.02) on secondary evidence, untested and not promised. Older drivers cannot be installed on `windchill3`, so no older-driver runtime cell exists |
   | C2 older and newer 12.x cuBLAS | RTX 3090; scratch venv with `nvidia-cublas-cu12` 12.1.x, 12.4.x and 12.9.x (PyPI), reached by `LD_LIBRARY_PATH` | embed and rerank end to end; the receipt names the cuBLAS file actually loaded, from FathomDB's own D-18 report and cross-checked against `/proc/self/maps`, and its reported version, because the system's 12.6 `libcublas.so` is on the loader cache and could be picked silently. A missing symbol in an older cuBLAS is a typed error, recorded as a known gap, never a crash |
-  | C3 CUDA 13 libraries only | `windchill3` Docker with the NVIDIA CDI devices (present). Images `nvidia/cuda:13.0.x-runtime-ubuntu24.04` (no CUDA 12 libraries) and `-devel` (adds an unversioned `libcublas.so` → `.so.13`); pulling them needs owner approval | the 12.6 build never loads a 13.x cuBLAS. It fails with a typed error that names the missing CUDA 12 cuBLAS and the remedy (`pip install nvidia-cublas-cu12`, or the 13.0 artifact once it ships). UNMEASURED if the pull is declined; cudarc CF-REQ-11's unit tests still cover the loader logic |
-  | C4 below the GPU floor | `windchill3` Quadro K620 (sm_50, ordinal 2) | characterize `cuda:2` and `auto` with all devices visible. `auto` must not select the K620, and an explicit request must give a typed error, not a crash or an untyped PTX load failure. If today's behaviour differs, R-DES decides the fix; a new error is public surface and updates `docs/reference/errors.md` and the interface docs |
+  | C3 no CUDA 12 cuBLAS (revision 18, Q25) | a GCP Spot T4 VM (`scripts/gcp-cuda-lab.sh`, profile `t4`, at most 2 h, one owner-approved session) with NVIDIA driver 580 only: no CUDA toolkit, no cuBLAS. Artifacts (the D-18 test binary, the CUDA CLI, model files) are built on `windchill3` from the W6 tree and pushed; nothing is built on the VM (design § 9.3). Replaces revision 17's `windchill3` Docker image pull | the 12.6 build refuses with the typed `cuda_library_unavailable` error naming the missing CUDA 12 cuBLAS and the remedy (`pip install nvidia-cublas-cu12` plus its `lib` directory on `LD_LIBRARY_PATH`); `doctor cuda-libraries` exits 70 with the refusal; then, after the remedy, `doctor cuda-libraries` exits 0 and embed and rerank run on the T4. Estimate: 30-45 minutes, about $0.15-0.20 Spot (at most about $0.55 at the cap, about $1.10 on demand). UNMEASURED if the owner declines the session; the hermetic injected-`LibLoadError` test and the decoy test still cover the refusal |
+  | C4 below the GPU floor (revision 18, Q22) | any host, hermetic; the Quadro K620 is never run | a fake `CudaProvider` reporting a compute capability 5.0 device with the floor 7.5: forced `cuda:N` gives `cuda_incompatible` and `auto` falls back to CPU with `cuda_incompatible`, both without a `probe_cuda` call (no device built); `auto` probes only the lowest visible ordinal; the floor comes from the build's `CUDA_COMPUTE_CAP` (design § 9.2). No new error kind |
   | C5 13.0 build, 13.0 libraries | the T-CUDA 13.0 GCP VM (Q15) | the T-CUDA 13.0 row, plus the loaded-library check of C2 |
 
   **Web evidence (2026-10-11) behind these cells:**
@@ -625,6 +630,14 @@ revision 15 record; this part supersedes them where they differ.
 The 0.8.28 release state, board and plan exist (`4565f23d3`), so W0 step
 3's preflight failure ("no live release") no longer applies.
 
+#### Update 2026-10-13 (revision 18)
+
+W1 and W2 are done: `requirements.md` (REVISED AFTER R-REQ, amended after
+R-DES) and `design.md` revision 2 (REVISED AFTER R-DES). R-DES (Opus)
+approved revision 1 with fixes; its ten findings, its open-point rulings
+and owner rulings Q22–Q25 are applied ([review.md](review.md)). Next: W3
+(`test-plan.md`) → R-TEST, then W6.
+
 #### Update 2026-10-13 (revision 17)
 
 This part supersedes the revision 16 Candle FK5 row where they differ.
@@ -740,6 +753,10 @@ primitive now held in the fork rather than in `test_vendored_cudarc.sh`;
 every vendored-tree statement, including `blast_radius`
 (`ADR-0.8.28-tegra-private-cuda-pool.md:6, 101, 142`), marked superseded.
 Records § 15 Q6's finding and the D-16 lock-drift guard (Q8, option (b)).
+Revision 18: `design.md` revision 2 (REVISED AFTER R-DES) applies R-DES's
+findings and Q22–Q25, adds a second amendment draft for
+`ADR-0.8.28-cuda-version-support-policy.md` (D-18 and the GPU floor) and
+records fork todos FT-1–FT-3 (design § 13.1).
 
 ### W3. Test plan → R-TEST
 
@@ -769,16 +786,19 @@ Same duties for R-FK-PLAN, R-FK-CODE, R-FK-VERIFY and R-FK-PUB.
 1. **RED:** the pinned-override checker and its test, the single-cudarc
    guard and the CUDA release contract each expect fork sources, no
    vendored tree and no `test_vendored_cudarc.sh` tier entry. T-CUDA-COMPAT
-   C1 (the PTX `.version`/`.target` check) and the C4 expectation (no
-   untyped failure on a below-floor GPU) are written red first.
+   C1 (the PTX `.version`/`.target` check) and C4 (the hermetic
+   compute-capability floor test with a fake provider, design § 9.2, Q22)
+   are written red first.
 2. **GREEN** (each pin commit gets R-PIN, approved by the owner, Q20):
    - **Pins and dependency (revision 16: registry form).** Revision 15
      pinned `C` and `K` by git URL and full `rev`; both forks are now
      published (or will be, Q18), so FathomDB consumes the registry crates:
-     - the embedder's aarch64-Linux dependency becomes
-       `cudarc = { package = "cudarc-fathomdb", version = "=0.19.10", optional = true, default-features = false, features = [...] }`
-       (features unchanged; the published crate keeps the
-       `fathomdb-private-pool` marker);
+     - the embedder's aarch64-Linux `cudarc` dependency is **removed**
+       (revision 18, R-DES finding 6, design § 3.2): it is unused (every
+       product `cudarc` path is `candle_core::cuda::cudarc::…`) and its
+       features are a subset of Candle's; `tegra-pool = []`, and
+       `cudarc-fathomdb` 0.19.10 is reached through Candle and checked in
+       `Cargo.lock` by the pinned-override checker;
      - `candle-core`, `candle-nn` and `candle-transformers` move from
        `=0.10.3` to `=0.11.0` (packages `candle-*-fathomdb`, registry;
        revision 17, Q21);
@@ -790,11 +810,13 @@ Same duties for R-FK-PLAN, R-FK-CODE, R-FK-VERIFY and R-FK-PUB.
        `libsqlite3-sys`;
      - regenerate `Cargo.lock`.
 
-     **Exact `=0.19.10` (recommended; D-11 confirms in W2):** the
-     embedder already pins Candle with `=`, and an exact pin keeps any
-     later `cudarc-fathomdb` release out of FathomDB builds until it passes
-     the fork's re-qualification and a new R-PIN (D-16). Candle 0.11.0's
-     `^0.19.10` requirement unifies with it.
+     **Exact pins (D-11, design § 3.2):** the Candle crates stay exact
+     (`=0.11.0`), so a later Candle fork version enters FathomDB builds
+     only through R-PIN. `cudarc-fathomdb` has no manifest pin after
+     revision 18; FathomDB's lock is held at exactly 0.19.10 (crates.io
+     source, published checksum) by the pinned-override checker, and a
+     later version enters only through a reviewed lock change, the
+     lock-set guard and R-PIN (D-16).
 
      **`candle-kernels` at `K9` (ruled by R-REQ, revision 17).** The
      `candle-kernels` tree is the same at `K`, `K8` and `K9` (§ 8.1
@@ -804,7 +826,8 @@ Same duties for R-FK-PLAN, R-FK-CODE, R-FK-VERIFY and R-FK-PUB.
      `K` only) still applies.
 
      **R-PIN checklist:** the registry versions are exactly
-     `cudarc-fathomdb` `=0.19.10` and the three Candle crates `=0.11.0`;
+     `cudarc-fathomdb` 0.19.10 in `Cargo.lock` (no manifest pin, revision
+     18) and the three Candle crates `=0.11.0`;
      `Cargo.lock` has exactly one `cudarc-fathomdb` package, with the
      crates.io registry source, and no registry `cudarc 0.19` on the normal
      dependency tree; `scripts/pinned-override-rot.json` (and its checker)
@@ -1050,8 +1073,10 @@ FathomDB's `review.md` carries one line per fork review.
 - **Q11.** `windchill3`'s Quadro K620 (Maxwell, sm_50) — ruled (owner,
   2026-10-11): no driver that ends its support. R580 is the last such
   branch, so `windchill3` stays on R580. The K620 is below the x86 kernel
-  target (compute capability 7.5), so FathomDB GPU tests use the RTX 3090s,
-  and C4 characterizes the K620 only as an unsupported device.
+  target (compute capability 7.5), so FathomDB GPU tests use the RTX 3090s.
+  Revision 18 (Q22): the K620 is never run, not even for C4, which is a
+  hermetic floor test; every new `windchill3` test process names an RTX
+  3090 by UUID.
 - **Q12.** 12.6 driver floor and CUDA-13-only environments — investigated
   (2026-10-11):
   - **PTX:** a release build's PTX is ISA 8.5 for `sm_75`. NVIDIA lists
@@ -1156,6 +1181,31 @@ FathomDB's `review.md` carries one line per fork review.
   with versions 0.11.0 and a fork `description` on the three crates.
   FathomDB pins the Candle crates `=0.11.0` and the `candle-kernels` git
   patch at `K9`. Steward ledger seq 324.
+
+- **Q22.** The Quadro K620 and C4 — ruled (owner, 2026-10-13, R-DES
+  Q-A): the `windchill3` Quadro K620 is never run, including for
+  T-CUDA-COMPAT C4. C4 becomes hermetic: a fake-provider RED test of a
+  probe-time compute-capability floor taken from the build's
+  `CUDA_COMPUTE_CAP`, checked before any device is built. Every new
+  `windchill3` test process names an RTX 3090 by UUID in
+  `CUDA_VISIBLE_DEVICES`. Design § 0.1 and § 9.2; AC31-15. Steward ledger
+  seq 325.
+- **Q23.** Lock-set closure — ruled (owner, 2026-10-13, R-DES Q-B): the
+  D-16 `cudarc-fathomdb` lock-set guard covers only the Linux-target
+  normal dependency closure (what the fork compiles), not build/dev or
+  Windows/WASI-only crates. Design § 7.2; AC31-14. Steward ledger seq 326.
+- **Q24.** D-18 logging — ruled (owner, 2026-10-13, R-DES Q-C): the
+  loaded-CUDA-library check writes a stderr line only when FathomDB
+  refuses (missing or wrong-major cuBLAS); `doctor cuda-libraries` always
+  reports. Design § 9.1. Steward ledger seq 327.
+- **Q25.** C3 venue — ruled (owner, 2026-10-13, R-DES Q-D): explore
+  running T-CUDA-COMPAT C3 (no CUDA 12 cuBLAS present) on a GCP instance
+  instead of a container image pull; design the cell (driver only, no CUDA
+  toolkit libraries) and its cost; each VM session still needs owner
+  approval; the hermetic injected-load-error test stays. Designed in
+  design § 9.3 (Spot T4, driver 580 only, artifacts built on `windchill3`,
+  30-45 minutes, about $0.15-0.20); AC31-15 makes C3 the GCP cell or
+  UNMEASURED if the owner declines. Steward ledger seq 328.
 
 ## 16. Ledger and follow-ups
 

@@ -83,8 +83,9 @@ Rules:
   trailer (U, L, P, W, D; none on proposal/*); engineering records are D
   commits touching only fathomdb/. Pins name qualified code commits;
   receipts follow as D commits naming them. FathomDB consumes the
-  published registry crates (cudarc-fathomdb =0.19.10 from C, the Candle
-  crates =0.11.0 from K9, plan § 15 Q21) and keeps only candle-kernels as
+  published registry crates (cudarc-fathomdb 0.19.10 from C, reached
+  through Candle and held exactly in Cargo.lock; the Candle crates =0.11.0
+  from K9, plan § 15 Q21; revision 18) and keeps only candle-kernels as
   a git patch at K9 (plan revision 17, § 9 W6). Publish from the qualified
   commits (cudarc from C, Candle from the re-qualified K9).
 - TDD for all code: the failing test first (RED), then the code (GREEN),

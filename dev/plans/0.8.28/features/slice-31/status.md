@@ -1,7 +1,7 @@
 # Slice 31 status
 
-Step log for [plan.md](plan.md) (revision 17; its § 8.1 and the
-"Update 2026-10-13" parts for revisions 16 and 17 give the slice state on
+Step log for [plan.md](plan.md) (revision 18; its § 8.1 and the
+"Update 2026-10-13" parts for revisions 16 to 18 give the slice state on
 2026-10-13). Red and green shas per
 FathomDB step, merge-forward shas, host guards, the fork commits `C` and
 `K`, and the pin-chain checks (plan § 4). Fork-side step logs are in each
@@ -64,7 +64,8 @@ Receipts: cudarc `fathomdb/qualification/` (G1–G6, G8, CI, CF-AC-07a and
 
 ## Next
 
-W1 (`requirements.md`, revised after R-REQ) done; W2 → R-DES, W3 → R-TEST, then W6
+W1 (`requirements.md`) and W2 (`design.md` revision 2, revised after
+R-DES) done; W3 → R-TEST, then W6
 with registry `cudarc-fathomdb` `=0.19.10`, the Candle crates `=0.11.0` and
 the `candle-kernels` git patch at `K9`, under the owner-approved R-PIN
 checklist (plan § 9 W6, Q20, Q21).
@@ -95,3 +96,14 @@ checklist (plan § 9 W6, Q20, Q21).
   The Candle crates 0.11.0 are on crates.io (Candle fork receipt
   `2026-10-13-FK5-publish-182ceab0.md`, record commit `e9c6ed5e`). Next:
   R-DES.
+- 2026-10-13: R-DES (Opus) on `design.md` revision 1 at `1e0537856`:
+  APPROVE-WITH-FIXES, findings 1–10 and seven open-point rulings, all
+  applied with owner rulings Q22–Q25 (steward ledger seq 325–328) in
+  `design.md` revision 2 (REVISED AFTER R-DES, ready for W3),
+  `requirements.md` (REQ31-10, AC31-07, AC31-10, AC31-14, AC31-15) and
+  plan revision 18 ([review.md](review.md)). Main changes: hermetic C4 with
+  an unconditional compute-capability floor; RTX 3090 by UUID for every
+  new `windchill3` process; the embedder's direct `cudarc` dependency
+  removed; `LibraryUnavailable` reached through Candle's re-exported
+  cudarc; the Linux-normal lock-set closure; C3 as a GCP T4 cell (design
+  § 9.3); fork todos FT-1–FT-3 to file when W6 lands. Next: W3 → R-TEST.

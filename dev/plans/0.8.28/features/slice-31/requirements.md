@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — requirements and acceptance criteria (W1)
-status: REVISED AFTER R-REQ (APPROVE-WITH-FIXES); ready for W2
+status: REVISED AFTER R-REQ (APPROVE-WITH-FIXES); amended after R-DES (findings 1, 7, 8, 10; owner rulings Q22–Q25); W2 done
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---
@@ -35,11 +35,12 @@ cudarc fork's CF-REQ/CF-AC (`fathomdb/requirements.md` on `coreyt/cudarc`
 | `candle-core-fathomdb`, `candle-nn-fathomdb`, `candle-transformers-fathomdb` | crates.io 0.11.0, from `K9` (Q21) | not yet published; `K9` dry-run `.crate` SHA-256s in AC31-08 |
 | `candle-kernels` | git patch on `https://github.com/coreyt/candle-fathomdb.git`, full `rev` of `K9`; version 0.10.2 | `git diff 853324fc 182ceab0 -- candle-kernels` is empty |
 
-FathomDB's W6 pins (plan § 9 W6 step 2): the embedder's aarch64-Linux
-`cudarc = { package = "cudarc-fathomdb", version = "=0.19.10", … }`, the
-Candle crates at `=0.11.0`, and a root `[patch.crates-io]` holding only
-`candle-kernels` (git, `rev` = `K9`) and `libsqlite3-sys` (path). Exact
-versus caret for `cudarc-fathomdb` is confirmed by D-11 in W2.
+FathomDB's W6 pins (plan § 9 W6 step 2, revision 18): the Candle crates
+at `=0.11.0`; `cudarc-fathomdb` 0.19.10 reached through Candle and held
+exactly in `Cargo.lock` by the pinned-override checker (D-11 in W2 removed
+the embedder's unused aarch64-Linux `cudarc` dependency, `design.md`
+§ 3.2); and a root `[patch.crates-io]` holding only `candle-kernels` (git,
+`rev` = `K9`) and `libsqlite3-sys` (path).
 
 ## 2. How criteria are judged
 
@@ -240,7 +241,9 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
     - `Cargo.lock` has more than one `cudarc-fathomdb` package, or a
       `cudarc-fathomdb` package whose source is not the crates.io
       registry (for example a git source next to the registry one, or a
-      second version);
+      second version). This condition is enforced once, by the
+      pinned-override checker's lock check (`design.md` § 3.4, R-DES
+      finding 10), not repeated in the single-cudarc guard;
     - for `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`,
       `cargo tree -e normal --target <triple> -p fathomdb-embedder` with
       any of the features `embed-cuda`, `rerank-cuda`, `tegra-pool` has a
@@ -249,7 +252,9 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
       upstream `candle-core` 0.10.2 and a second cudarc, R-FK-PUB
       finding 5, and is unsupported);
   - each failure condition has a red test whose input is a committed
-    fixture lock (with its fixture manifest, for the tree condition);
+    fixture: a lock file for the lock conditions (parsed without `cargo`),
+    a consistent fixture workspace for the tree conditions (`cargo tree
+    --offline --locked` accepts it; `design.md` § 3.5);
   - `Cargo.lock` lists exactly one `cudarc-fathomdb` package, with the
     crates.io registry source;
   - Candle CK-AC-01 at `K`, and at `K8` and `K9` through CK-AC-07 (one
@@ -330,13 +335,39 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
 
 ### REQ31-10 FathomDB product
 
-- **Statement:** `tegra-pool`, the typed errors (`cuda_pool_exhausted`,
-  `cuda_context_lost`), `doctor cuda-allocator` and the early-`cuInit`
-  contract are unchanged; the ADR is amended for the registry consumption
+- **Statement:** Slice 30's product contract is unchanged except for the
+  deliberate changes listed here: who gets the pool and its gates,
+  sizing, settings and reasons; the typed errors `cuda_pool_exhausted` and
+  `cuda_context_lost` and their mapping; `doctor cuda-allocator`
+  (`fathomdb.doctor.cuda-allocator.v1`) and its fields; and the
+  early-`cuInit` contract. The ADR is amended for the registry consumption
   and for fork-held evidence; docs and changelog are updated; no reference
-  to the vendored tree or its test script remains.
-- **Rationale:** the slice replaces a dependency; product behaviour must
-  not change (R30-02 to R30-07, R30-11).
+  to the vendored tree or its test script remains. **Deliberate product
+  changes**, each designed in `design.md` revision 2, recorded in the
+  changelog and, where public, in the interface documents and an ADR
+  amendment, and no others:
+  1. **Close release (N1, `design.md` § 8),** only if its RED shows the
+     pool keeps unused memory after a drop: dropping a FathomDB-built
+     private-pool model synchronizes the decision's context and trims
+     unused pool memory, unless the context is lost;
+  2. **Loaded-library refusal (D-18, `design.md` § 9.1):** a missing or
+     wrong-major cuBLAS or cuRAND is refused before any device is built,
+     with the new kind `cuda_library_unavailable` (CPU under `auto`, an
+     error under forced `cuda:N`) and one stderr line per process, only on
+     refusal (Q24);
+  3. **`CudaDeviceInfo.cuda_libraries`** and the new verb `fathomdb doctor
+     cuda-libraries` (`fathomdb.doctor.cuda-libraries.v1`), which always
+     reports;
+  4. **Compute-capability floor (`design.md` § 9.2, Q22):** a device below
+     the build's `CUDA_COMPUTE_CAP` is refused before any device is built
+     with the existing kind `cuda_incompatible`;
+  5. **Build surface:** `tegra-pool` no longer enables the
+     `fathomdb-private-pool` marker and adds no dependency of its own; the
+     embedder has no direct `cudarc` dependency (`design.md` § 3.2, § 3.3).
+- **Rationale:** the slice replaces a dependency, so Slice 30's behaviour
+  must not change by accident (R30-02 to R30-07, R30-11); the changes
+  above are the CUDA version policy's typed failures (REQ31-15) and the
+  close behaviour, each designed and reviewed (R-DES).
 - **Kind:** product.
 - **AC31-10:**
   - full `./scripts/agent-verify.sh` green in the slice worktree with its
@@ -347,7 +378,7 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
     - `src/rust/crates/fathomdb-embedder/src/cuda_pool_policy_tests.rs`
     - `src/rust/crates/fathomdb-embedder/tests/slice30_cuda_allocator_api.rs`
     - `src/rust/crates/fathomdb-engine/tests/slice30_cuda_error_kinds.rs`
-    - `src/rust/crates/fathomdb-engine/src/rerank_tests.rs`
+    - `src/rust/crates/fathomdb-engine/src/rerank/tests.rs`
     - `src/rust/crates/fathomdb-sdk/tests/cuda_errors.rs`
     - `src/python/tests/test_tegra_pool_early_init.py`
     - `src/python/tests/test_typed_errors.py`
@@ -360,7 +391,11 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
     code forced by the fork API (D-17) that changes no assertion; and the
     teardown assertion of AC31-04, only if R-DES's D-15 fixes it;
   - `git grep -il -e third_party/cudarc -e test_vendored_cudarc -e 'vendored cudarc' -e 'cudarc 0.19.7' -- . ':!dev/plans' ':!dev/adr' ':!dev/todos-and-considerations-ledger.jsonl' ':!CHANGELOG.md'`
-    is empty (plans, ADRs, the ledger and the changelog are history);
+    is empty (plans, ADRs, the ledger and the changelog are history; all
+    nine files above exist at the slice base, checked 2026-10-13, and
+    `rerank/tests.rs` replaces revision 1's nonexistent `rerank_tests.rs`,
+    R-DES finding 8). A test file that runs this `git grep` builds its
+    patterns from pieces so it does not match itself (`design.md` § 3.3);
   - the ADR amendment marks every vendored-tree statement, including
     `blast_radius` (`ADR-0.8.28-tegra-private-cuda-pool.md:6, 101, 142`),
     as superseded; the changelog entry is present.
@@ -479,7 +514,11 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
     compares the resolved dependency set of `cudarc-fathomdb` in
     FathomDB's `Cargo.lock` (names, versions and checksums of its
     dependencies) with the set recorded by the cudarc fork's latest CI
-    receipt run with FathomDB's lock. R-DES (D-16) fixes the guard's path
+    receipt run with FathomDB's lock. The set is the Linux-target normal
+    closure only (owner ruling Q23): for `x86_64-unknown-linux-gnu` and
+    `aarch64-unknown-linux-gnu`, normal edges from `cudarc-fathomdb`, no
+    build or dev edges, no Windows- or WASI-only crates (`design.md`
+    § 7.2). R-DES (D-16) fixes the guard's path
     and the record's format and location; the current receipt
     `2026-10-12-CI-b777f8d.md` states the run but not the set, so the fork
     records the set before the guard goes GREEN. Tests: RED, a fixture
@@ -498,12 +537,19 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
   and obscurely.
 - **Kind:** fork-backed and product.
 - **AC31-15:**
-  - T-CUDA-COMPAT C1, C2 and C4 pass. C3 (the CUDA-13-only Docker image,
-    whose pull needs owner approval, Q13) and C5 (the 13.0 GCP VM session,
-    Q15) pass or are UNMEASURED by owner decision; no other cell may be
-    UNMEASURED;
+  - T-CUDA-COMPAT C1 and C2 pass, and C4 passes: C4 is the hermetic
+    compute-capability floor test (`design.md` § 9.2), never a run on the
+    Quadro K620 (owner ruling Q22). C3 is the GCP cell of `design.md`
+    § 9.3 (a T4 VM with driver 580 only and no cuBLAS: the typed
+    `cuda_library_unavailable` refusal with the remedy, `doctor
+    cuda-libraries` output, then the remedy validated; owner ruling Q25),
+    and C5 is the 13.0 GCP VM session (Q15); each VM session needs owner
+    approval, and C3 and C5 pass or are UNMEASURED if the owner declines
+    the session; no other cell may be UNMEASURED;
   - cudarc CF-AC-11 (CF-REQ-11, built-major library loading) at `C`;
-  - D-18's production check and report pass their RED-first tests;
+  - D-18's production check and report pass their RED-first tests,
+    including the hermetic injected-`LibLoadError` test, which stays
+    whatever happens to C3 (Q25);
   - `docs/embedder.md` states the CUDA library floor (12.x), the driver
     floor (560.28.03 for the 12.6 artifact) and the GPU floor (Turing,
     compute capability 7.5, on x86; Orin on Jetson).
@@ -569,7 +615,7 @@ push-URL and ancestry checks, and the host guard logs.
 ## 6. Changes from plan § 5
 
 - AC31-02, 04, 07 and 14 name the registry pins (`cudarc-fathomdb`
-  `=0.19.10`, Candle `=0.11.0`, Q21) where § 5 names `C`/`K` git pins,
+  0.19.10, Candle `=0.11.0`, Q21) where § 5 names `C`/`K` git pins,
   and add `K8` and `K9` through CK-AC-07.
 - AC31-02 names the four Slice 30 Orin GPU tests (two files; § 5 and
   plan § 7 revision 16 put all four in `tests/tegra_fragmented_va_cuda.rs`,

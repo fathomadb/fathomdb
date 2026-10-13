@@ -82,6 +82,10 @@ setup metadata belongs beside external artifacts, not in a committed receipt.
 
 ## Competitive experiment runner
 
+The [embedded competitor benchmark survey](research/2026-10-13-embedded-competitor-benchmark-survey.md)
+records primary-source workload definitions and a ranked list of candidate
+next tests. It is research, not a result or a registered comparison.
+
 [`configs/competitive/experiment.example.json`](configs/competitive/experiment.example.json)
 shows the single versioned input for a repeatable embedded-product benchmark.
 [`competitive_runner`](competitive_runner.py) verifies the adapter and input

@@ -110,6 +110,20 @@ CUDA_X64_HOST_TOOLKIT_ROOT = "/usr/local/cuda-12.6"
 CUDA_X64_HOST_CUDART_LIBRARY_DIR = (
     "/usr/local/cuda-12.6/targets/x86_64-linux/lib"
 )
+
+
+def cudarc_cuda_version(toolkit_root: str) -> str:
+    """The CUDARC_CUDA_VERSION value for a `/usr/local/cuda-<major>.<minor>` root.
+
+    cudarc reads it as major * 1000 + minor * 10 (12.6 -> "12060"). Deriving
+    it from the toolkit root keeps one literal for the release's CUDA version.
+    """
+    match = re.fullmatch(r"/usr/local/cuda-(\d+)\.(\d+)", toolkit_root)
+    if match is None:
+        raise ValueError(f"unexpected CUDA toolkit root {toolkit_root!r}")
+    return str(int(match.group(1)) * 1000 + int(match.group(2)) * 10)
+
+
 # Measured on the Jetson Orin AGX (design § 2.7): lib64 is a symlink to the
 # aarch64-linux target lib dir, and the driver library lives in an
 # L4T-specific `nvidia/` subdirectory rather than at the bare multiarch path.
@@ -215,6 +229,13 @@ def require_x64_cuda_toolkit_environment(block: str, label: str) -> None:
         block,
         f"LIBRARY_PATH: {CUDA_X64_HOST_CUDART_LIBRARY_DIR}",
         f"{label} CUDART library environment",
+    )
+    # 0.8.28 Slice 31 (D-8W): the binding version is selected only by this
+    # variable (or nvcc), never by a concrete cuda-NNNNN manifest feature.
+    require_fragment(
+        block,
+        f'CUDARC_CUDA_VERSION: "{cudarc_cuda_version(CUDA_X64_HOST_TOOLKIT_ROOT)}"',
+        f"{label} CUDA binding version",
     )
 
 

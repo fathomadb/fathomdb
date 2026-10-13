@@ -11,6 +11,101 @@ trap 'rm -rf "$WORK"' EXIT
 pass() { printf 'PASS  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1" >&2; exit 1; }
 
+# The schema-5 Cargo shape (0.8.28 Slice 31, design § 3.4): the root patch
+# table holds only candle-kernels by git at K9 (plus the SQLite path patch the
+# seed adds); the embedder pins the Candle fork crates exactly and reaches
+# cudarc-fathomdb only through Candle; Cargo.lock holds each fork crate once,
+# from crates.io, with its published checksum.
+write_cargo_shape() {
+  local fixture="$1" mode="$2"
+  python3 - "$fixture" "$mode" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+mode = sys.argv[2]
+git = "https://github.com/coreyt/candle-fathomdb.git"
+k9 = "182ceab0547348993b6dbec4b1aed610dcc8b23f"
+other_rev = "89abcdef0123456789abcdef0123456789abcdef"
+registry = "registry+https://github.com/rust-lang/crates.io-index"
+cudarc_git = "git+https://github.com/coreyt/cudarc.git?rev=b777f8d94eedca8334e9331cf520d554b22544b7#b777f8d94eedca8334e9331cf520d554b22544b7"
+checksums = {
+    "cudarc-fathomdb": "8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2",
+    "candle-core-fathomdb": "b5feacc063f44c77a54cb8b43d03c5e32fa5421f4163f0524194783e21563341",
+    "candle-nn-fathomdb": "69c7432aa63cb543065f49453fa2e258e4dc3bd458abbcb7c150d17e90026200",
+    "candle-transformers-fathomdb": "513008c79a9751ec5fdc08918dcdb1a8872c95e90f7697a9f8c5ef1951e3d222",
+}
+versions = {"cudarc-fathomdb": "0.19.10", "candle-core-fathomdb": "0.11.0",
+            "candle-nn-fathomdb": "0.11.0", "candle-transformers-fathomdb": "0.11.0"}
+
+patch_rev = other_rev if mode == "revision-drift" else k9
+patches = "" if mode == "missing-kernels" else f'candle-kernels = {{ git = "{git}", rev = "{patch_rev}" }}\n'
+if mode == "cudarc-patch":
+    patches += 'cudarc = { path = "local/cudarc" }\n'
+if mode == "candle-git-patch":
+    patches += f'candle-core-fathomdb = {{ git = "{git}", rev = "{k9}" }}\n'
+extra_manifest = ""
+if mode == "replace":
+    extra_manifest = "\n[replace]\n\"other:1.0.0\" = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
+elif mode == "direct-git":
+    extra_manifest = "\n[workspace.dependencies]\nother = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
+(root / "Cargo.toml").write_text(
+    "[workspace]\nresolver = \"2\"\n\n[patch.crates-io]\n" + patches + extra_manifest, encoding="utf-8"
+)
+
+core_requirement = "0.11.0" if mode == "caret" else "=0.11.0"
+embedder = (
+    "[package]\nname = \"fathomdb-embedder\"\nversion = \"0.0.0\"\n\n[dependencies]\n"
+    f'candle-core = {{ package = "candle-core-fathomdb", version = "{core_requirement}", optional = true }}\n'
+    'candle-nn = { package = "candle-nn-fathomdb", version = "=0.11.0", optional = true }\n'
+    'candle-transformers = { package = "candle-transformers-fathomdb", version = "=0.11.0", optional = true, default-features = false }\n'
+)
+if mode == "direct-exact":
+    embedder += 'cudarc = { package = "cudarc-fathomdb", version = "=0.19.10", optional = true }\n'
+elif mode == "direct-own-name":
+    embedder += 'cudarc-fathomdb = { version = "=0.19.10", optional = true }\n'
+elif mode == "direct-target-caret":
+    embedder += (
+        "\n[target.'cfg(all(target_os = \"linux\", target_arch = \"aarch64\"))'.dependencies]\n"
+        'cudarc = { package = "cudarc-fathomdb", version = "0.19.10", optional = true }\n'
+    )
+embedder_path = root / "src/rust/crates/fathomdb-embedder/Cargo.toml"
+embedder_path.parent.mkdir(parents=True, exist_ok=True)
+embedder_path.write_text(embedder, encoding="utf-8")
+
+lock = []
+for name, version in versions.items():
+    source = registry
+    checksum = checksums[name]
+    if name == "cudarc-fathomdb" and mode == "lock-git-source":
+        source, checksum = cudarc_git, None
+    if name == "cudarc-fathomdb" and mode == "lock-checksum":
+        checksum = "0" * 64
+    entry = f'[[package]]\nname = "{name}"\nversion = "{version}"\nsource = "{source}"\n'
+    if checksum:
+        entry += f'checksum = "{checksum}"\n'
+    lock.append(entry)
+if mode == "lock-second-git":
+    lock.append(f'[[package]]\nname = "cudarc-fathomdb"\nversion = "0.19.10"\nsource = "{cudarc_git}"\n')
+if mode == "lock-second-version":
+    lock.append(f'[[package]]\nname = "cudarc-fathomdb"\nversion = "0.19.11"\nsource = "{registry}"\nchecksum = "{"1" * 64}"\n')
+kernels_rev = other_rev if mode == "lock-drift" else k9
+kernels_version = "0.10.3" if mode == "version-drift" else "0.10.2"
+lock.append(f'[[package]]\nname = "candle-kernels"\nversion = "{kernels_version}"\nsource = "git+{git}?rev={kernels_rev}#{kernels_rev}"\n')
+(root / "Cargo.lock").write_text("version = 4\n\n" + "\n".join(lock), encoding="utf-8")
+
+if mode == "metadata-missing-pin":
+    metadata = root / "scripts/pinned-override-rot.json"
+    data = json.loads(metadata.read_text())
+    pins = data.get("cargo_fork_registry_pins", {}).get("pins", [])
+    data.setdefault("cargo_fork_registry_pins", {})["pins"] = [
+        pin for pin in pins if pin.get("package") != "candle-nn-fathomdb"
+    ]
+    metadata.write_text(json.dumps(data), encoding="utf-8")
+PY
+}
+
 make_fixture() {
   local name="$1"
   local mode="$2"
@@ -28,7 +123,7 @@ root = Path(sys.argv[1])
 mode = sys.argv[2]
 metadata = root / "scripts/pinned-override-rot.json"
 data = json.loads(metadata.read_text())
-data["schema_version"] = 4
+data["schema_version"] = 5
 package = "js-yaml"
 version = "4.2.0" if mode == "vulnerable" else "4.3.0"
 if mode == "prerelease":
@@ -92,27 +187,8 @@ metadata.write_text(json.dumps(data), encoding="utf-8")
         package: ">=4.0.0, <5.0.0"
     }}}
 }), encoding="utf-8")
-candle_git = "https://github.com/coreyt/candle-fathomdb.git"
-candle_rev = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
-candle_packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
-candle_versions = {"candle-core-fathomdb": "0.10.3", "candle-kernels": "0.10.2", "candle-nn-fathomdb": "0.10.3", "candle-transformers-fathomdb": "0.10.3"}
-(root / "Cargo.toml").write_text(
-    "[workspace]\nresolver = '2'\n\n[patch.crates-io]\n"
-    + "".join(f'{item} = {{ git = "{candle_git}", rev = "{candle_rev}" }}\n' for item in candle_packages),
-    encoding="utf-8",
-)
-(root / "Cargo.lock").write_text(
-    "version = 4\n\n"
-    + "\n".join(
-        "[[package]]\n"
-        f'name = "{item}"\n'
-        f'version = "{candle_versions[item]}"\n'
-        f'source = "git+{candle_git}?rev={candle_rev}#{candle_rev}"\n'
-        for item in candle_packages
-    ),
-    encoding="utf-8",
-)
 PY
+  write_cargo_shape "$fixture" approved
   printf '%s' "$fixture"
 }
 
@@ -146,40 +222,9 @@ if lock.exists():
 PY
 }
 
-seed_cudarc_fixture() {
-  local fixture="$1"
-  if [ "$fixture" = "$REPO_ROOT" ] || [ -e "$fixture/.omit-cudarc-patch" ]; then
-    return
-  fi
-  mkdir -p "$fixture/third_party/cudarc-0.19.7"
-  if [ ! -e "$fixture/third_party/cudarc-0.19.7/Cargo.toml" ]; then
-    cp -a "$REPO_ROOT/third_party/cudarc-0.19.7/." \
-      "$fixture/third_party/cudarc-0.19.7/"
-  fi
-  python3 - "$fixture" <<'PY'
-from pathlib import Path
-import sys
-
-root = Path(sys.argv[1])
-manifest = root / "Cargo.toml"
-if manifest.exists():
-    text = manifest.read_text(encoding="utf-8")
-    patch = 'cudarc = { path = "third_party/cudarc-0.19.7" }\n'
-    if 'cudarc = ' not in text and "[patch.crates-io]\n" in text:
-        text = text.replace("[patch.crates-io]\n", "[patch.crates-io]\n" + patch, 1)
-        manifest.write_text(text, encoding="utf-8")
-lock = root / "Cargo.lock"
-if lock.exists():
-    text = lock.read_text(encoding="utf-8")
-    if 'name = "cudarc"' not in text:
-        lock.write_text(text + '\n[[package]]\nname = "cudarc"\nversion = "0.19.7"\n', encoding="utf-8")
-PY
-}
-
 run_fixture() {
   local fixture="$1"
   seed_sqlite_fixture "$fixture"
-  seed_cudarc_fixture "$fixture"
   set +e
   OUT="$(bash "$CHECKER" --root "$fixture" 2>&1)"
   RC=$?
@@ -198,7 +243,6 @@ make_and_run_fixture() {
 run_fixture_with_reanchored_snapshot() {
   local fixture="$1"
   seed_sqlite_fixture "$fixture"
-  seed_cudarc_fixture "$fixture"
   local fixture_checker="$fixture/check-pinned-override-rot.py"
   python3 - "$REPO_ROOT/scripts/check-pinned-override-rot.py" "$fixture" "$fixture_checker" <<'PY'
 import hashlib
@@ -431,8 +475,8 @@ expect_failure 'Cargo.toml:workspace.dependencies.workspace-git' \
 expect_failure 'member/Cargo.toml:target.cfg(unix).dependencies.target-git' \
   'Cargo target-specific dependency git override is detected'
 
-# Cargo scope is deliberately a single FathomDB exception, not a general
-# package-ID parser. The fixture permits only the exact three Candle patches.
+# Cargo scope is deliberately a short list of FathomDB exceptions, not a
+# general package-ID parser.
 make_candle_fixture() {
   local name="$1"
   local mode="$2"
@@ -440,70 +484,23 @@ make_candle_fixture() {
   mkdir -p "$fixture/scripts"
   cp "$REPO_ROOT/scripts/pinned-override-rot.json" "$fixture/scripts/pinned-override-rot.json"
   cp "$REPO_ROOT/scripts/pinned-override-advisories.json" "$fixture/scripts/pinned-override-advisories.json"
-  python3 - "$fixture" "$mode" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-mode = sys.argv[2]
-git = "https://github.com/coreyt/candle-fathomdb.git"
-rev = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
-packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
-manifest_packages = packages.copy()
-manifest_revs = {package: rev for package in packages}
-lock_revs = {package: rev for package in packages}
-# The fork moves core, nn and transformers to 0.10.3 for CudaDevice::from_context;
-# candle-kernels keeps the 0.10.2 that crates.io publishes.
-lock_versions = {"candle-core-fathomdb": "0.10.3", "candle-kernels": "0.10.2", "candle-nn-fathomdb": "0.10.3", "candle-transformers-fathomdb": "0.10.3"}
-extra_manifest = ""
-if mode == "missing":
-    manifest_packages.pop()
-elif mode == "missing-kernels":
-    manifest_packages.remove("candle-kernels")
-elif mode == "split":
-    manifest_revs["candle-nn-fathomdb"] = "89abcdef0123456789abcdef0123456789abcdef"
-elif mode == "revision-drift":
-    manifest_revs = {package: "89abcdef0123456789abcdef0123456789abcdef" for package in packages}
-elif mode == "lock-drift":
-    lock_revs["candle-core-fathomdb"] = "89abcdef0123456789abcdef0123456789abcdef"
-elif mode == "version-drift":
-    lock_versions["candle-kernels"] = "0.10.3"
-elif mode == "replace":
-    extra_manifest = "\n[replace]\n\"other:1.0.0\" = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
-elif mode == "direct-git":
-    extra_manifest = "\n[workspace.dependencies]\nother = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
-(root / "package.json").write_text(json.dumps({"overrides": {}}), encoding="utf-8")
-(root / "package-lock.json").write_text(json.dumps({"lockfileVersion": 3, "packages": {}}), encoding="utf-8")
-patches = "".join(
-    f'{package} = {{ git = "{git}", rev = "{manifest_revs[package]}" }}\n'
-    for package in manifest_packages
-)
-(root / "Cargo.toml").write_text(
-    "[workspace]\nresolver = \"2\"\n\n[patch.crates-io]\n" + patches + extra_manifest,
-    encoding="utf-8",
-)
-lock_packages = "\n".join(
-    "[[package]]\n"
-    f'name = "{package}"\n'
-    f'version = "{lock_versions[package]}"\n'
-    f'source = "git+{git}?rev={lock_revs[package]}#{lock_revs[package]}"\n'
-    for package in packages
-)
-(root / "Cargo.lock").write_text("version = 4\n\n" + lock_packages, encoding="utf-8")
-if mode == "config-patch":
-    config_dir = root / ".cargo"
-    config_dir.mkdir()
-    (config_dir / "config.toml").write_text("[patch.crates-io]\n", encoding="utf-8")
-elif mode == "config-unparseable":
-    config_dir = root / ".cargo"
-    config_dir.mkdir()
-    (config_dir / "config").write_text("not = [valid", encoding="utf-8")
-elif mode == "config-ordinary":
-    config_dir = root / ".cargo"
-    config_dir.mkdir()
-    (config_dir / "config.toml").write_text("[build]\ntarget-dir = \"target\"\n", encoding="utf-8")
-PY
+  printf '%s\n' '{"overrides": {}}' >"$fixture/package.json"
+  printf '%s\n' '{"lockfileVersion": 3, "packages": {}}' >"$fixture/package-lock.json"
+  write_cargo_shape "$fixture" "$mode"
+  case "$mode" in
+    config-patch)
+      mkdir -p "$fixture/.cargo"
+      printf '%s\n' '[patch.crates-io]' >"$fixture/.cargo/config.toml"
+      ;;
+    config-unparseable)
+      mkdir -p "$fixture/.cargo"
+      printf '%s' 'not = [valid' >"$fixture/.cargo/config"
+      ;;
+    config-ordinary)
+      mkdir -p "$fixture/.cargo"
+      printf '%s\n' '[build]' 'target-dir = "target"' >"$fixture/.cargo/config.toml"
+      ;;
+  esac
   printf '%s' "$fixture"
 }
 
@@ -515,9 +512,9 @@ make_and_run_candle_fixture() {
 
 make_and_run_candle_fixture approved approved
 if [ "$RC" -ne 0 ]; then
-  fail "approved Candle patch cohort must pass, got rc=$RC output=$OUT"
+  fail "approved schema-5 Cargo shape must pass, got rc=$RC output=$OUT"
 fi
-pass 'approved FathomDB Candle patch cohort passes'
+pass 'approved candle-kernels patch and fork registry pins pass'
 
 sqlite_missing="$(make_candle_fixture sqlite-missing approved)"
 touch "$sqlite_missing/.omit-sqlite-patch"
@@ -563,115 +560,6 @@ run_fixture "$sqlite_path"
 expect_failure 'SQLite patch is not the approved local path source' \
   'SQLite patch path drift is rejected'
 
-# The vendored cudarc carries the Tegra allocator fallback. Its exact tree,
-# local path, licenses, patch note, and local lock entry are all governed.
-cudarc_missing="$(make_candle_fixture cudarc-missing approved)"
-touch "$cudarc_missing/.omit-cudarc-patch"
-run_fixture "$cudarc_missing"
-expect_failure 'missing approved cudarc patch cudarc' \
-  'missing local cudarc allocator patch is rejected'
-
-cudarc_tree="$(make_candle_fixture cudarc-tree approved)"
-run_fixture "$cudarc_tree"
-if [ "$RC" -ne 0 ]; then
-  fail "exact local cudarc vendor tree must pass, got rc=$RC output=$OUT"
-fi
-printf '\n' >>"$cudarc_tree/third_party/cudarc-0.19.7/src/driver/safe/core.rs"
-run_fixture "$cudarc_tree"
-expect_failure 'cudarc vendor tree SHA-256 drift' \
-  'modified vendored cudarc source is rejected'
-
-cudarc_path="$(make_candle_fixture cudarc-path approved)"
-run_fixture "$cudarc_path"
-python3 - "$cudarc_path/Cargo.toml" <<'PY'
-from pathlib import Path
-import sys
-path = Path(sys.argv[1])
-path.write_text(path.read_text().replace(
-    'cudarc = { path = "third_party/cudarc-0.19.7" }',
-    'cudarc = { path = "third_party/unreviewed-cudarc" }',
-))
-PY
-run_fixture "$cudarc_path"
-expect_failure 'cudarc patch is not the approved local path source' \
-  'cudarc patch path drift is rejected'
-
-cudarc_lock="$(make_candle_fixture cudarc-lock approved)"
-run_fixture "$cudarc_lock"
-python3 - "$cudarc_lock/Cargo.lock" <<'PY'
-from pathlib import Path
-import sys
-path = Path(sys.argv[1])
-path.write_text(path.read_text().replace(
-    'name = "cudarc"\nversion = "0.19.7"\n',
-    'name = "cudarc"\nversion = "0.19.7"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\n',
-))
-PY
-run_fixture "$cudarc_lock"
-expect_failure 'cudarc patch has no matching local Cargo.lock package' \
-  'registry cudarc 0.19.7 in Cargo.lock is rejected'
-
-cudarc_license="$(make_candle_fixture cudarc-license approved)"
-run_fixture "$cudarc_license"
-rm "$cudarc_license/third_party/cudarc-0.19.7/LICENSE-APACHE"
-run_fixture "$cudarc_license"
-expect_failure 'cudarc vendor license is missing' \
-  'vendored cudarc without its upstream licenses is rejected'
-
-# The vendored cudarc delta is exactly the reviewed item set, and the patch
-# note gives every item an upstream status and a removal path.
-cudarc_items="$(make_candle_fixture cudarc-items approved)"
-python3 - "$cudarc_items/scripts/pinned-override-rot.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-path = Path(sys.argv[1])
-data = json.loads(path.read_text())
-data["cargo_cudarc_exception"]["patch_items"] = ["1. Allocator fallback"]
-path.write_text(json.dumps(data))
-PY
-run_fixture "$cudarc_items"
-expect_failure 'cargo_cudarc_exception.patch_items must equal' \
-  'a cudarc patch item set other than the reviewed one is rejected'
-
-cudarc_note="$(make_candle_fixture cudarc-note approved)"
-run_fixture "$cudarc_note"
-python3 - "$cudarc_note/third_party/cudarc-0.19.7/FATHOMDB-PATCH.md" <<'PY'
-import sys
-from pathlib import Path
-path = Path(sys.argv[1])
-lines = path.read_text().splitlines(keepends=True)
-path.write_text("".join(
-    line for line in lines if not line.startswith("| 5. Private memory pool primitive |")
-))
-PY
-run_fixture "$cudarc_note"
-expect_failure 'cudarc patch note has no status row for 5. Private memory pool primitive' \
-  'a cudarc patch item without an upstream status and removal path is rejected'
-
-cudarc_blank="$(make_candle_fixture cudarc-blank approved)"
-run_fixture "$cudarc_blank"
-python3 - "$cudarc_blank/third_party/cudarc-0.19.7/FATHOMDB-PATCH.md" <<'PY'
-import re
-import sys
-from pathlib import Path
-path = Path(sys.argv[1])
-text = path.read_text()
-text, count = re.subn(r"^(\| 6\. Feature marker [^|]*\|)[^|]*(\|[^|]*\|)$", r"\1  \2", text, flags=re.MULTILINE)
-assert count == 1
-path.write_text(text)
-PY
-run_fixture "$cudarc_blank"
-expect_failure 'cudarc patch note has no status row for 6. Feature marker' \
-  'a cudarc patch item with a blank upstream status is rejected'
-
-make_and_run_candle_fixture missing missing
-if [ "$RC" -ne 1 ]; then
-  fail "missing Candle patch must fail, got rc=$RC output=$OUT"
-fi
-expect_failure 'missing approved Candle patch candle-transformers-fathomdb' \
-  'missing Candle package from the approved cohort is rejected'
-
 # The kernel patch is the driverless-linkage boundary. Its omission must fail
 # even if the remaining public Candle crates retain their governed source.
 make_and_run_candle_fixture missing-kernels missing-kernels
@@ -679,27 +567,20 @@ if [ "$RC" -ne 1 ]; then
   fail "missing Candle kernel patch must fail, got rc=$RC output=$OUT"
 fi
 expect_failure 'missing approved Candle patch candle-kernels' \
-  'missing Candle kernel from the approved cohort is rejected'
-
-make_and_run_candle_fixture split split
-if [ "$RC" -ne 1 ]; then
-  fail "split Candle revision must fail, got rc=$RC output=$OUT"
-fi
-expect_failure 'Candle patch candle-nn-fathomdb revision is not the approved immutable revision' \
-  'split Candle source revisions are rejected'
+  'missing candle-kernels patch is rejected'
 
 make_and_run_candle_fixture revision-drift revision-drift
 if [ "$RC" -ne 1 ]; then
   fail "Candle revision drift must fail, got rc=$RC output=$OUT"
 fi
-expect_failure 'Candle patch candle-core-fathomdb revision is not the approved immutable revision' \
-  'Candle revision drift is rejected'
+expect_failure 'Candle patch candle-kernels revision is not the approved immutable revision' \
+  'candle_kernels_patch_at_another_rev_is_rejected'
 
 make_and_run_candle_fixture lock-drift lock-drift
 if [ "$RC" -ne 1 ]; then
   fail "Candle lock drift must fail, got rc=$RC output=$OUT"
 fi
-expect_failure 'Candle patch candle-core-fathomdb has no matching Cargo.lock source' \
+expect_failure 'Candle patch candle-kernels has no matching Cargo.lock source' \
   'Candle lock-source drift is rejected'
 
 make_and_run_candle_fixture version-drift version-drift
@@ -742,6 +623,46 @@ if [ "$RC" -ne 1 ]; then
 fi
 expect_failure 'unparseable Cargo config .cargo/config' \
   'unparseable Cargo config is rejected'
+
+# 0.8.28 Slice 31 (schema 5, design § 3.4): the fork crates are exact
+# registry pins. Each arm asserts the checker's message.
+make_and_run_candle_fixture caret caret
+expect_failure 'fork registry pin candle-core-fathomdb: src/rust/crates/fathomdb-embedder/Cargo.toml dependencies.candle-core must require exactly "=0.11.0"' \
+  'fork_registry_pin_with_a_caret_requirement_is_rejected'
+
+for direct in direct-exact direct-target-caret direct-own-name; do
+  make_and_run_candle_fixture "$direct" "$direct"
+  expect_failure 'fork registry pin cudarc-fathomdb is reached only through another pin and must not be declared' \
+    "a_direct_cudarc_fathomdb_dependency_is_rejected ($direct)"
+done
+
+make_and_run_candle_fixture lock-second-git lock-second-git
+expect_failure 'Cargo.lock cudarc-fathomdb 0.19.10 has source git+https://github.com/coreyt/cudarc.git' \
+  'fork_registry_pin_with_a_non_registry_source_in_the_lock_is_rejected'
+
+make_and_run_candle_fixture lock-git-source lock-git-source
+expect_failure 'Cargo.lock cudarc-fathomdb 0.19.10 has source git+https://github.com/coreyt/cudarc.git' \
+  'fork_registry_pin_with_a_git_source_in_the_lock_is_rejected'
+
+make_and_run_candle_fixture lock-checksum lock-checksum
+expect_failure 'Cargo.lock cudarc-fathomdb 0.19.10 checksum is not the published 8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2' \
+  'fork_registry_pin_with_a_different_checksum_is_rejected'
+
+make_and_run_candle_fixture lock-second-version lock-second-version
+expect_failure 'Cargo.lock must hold exactly one cudarc-fathomdb package (0.19.10); found 0.19.10, 0.19.11' \
+  'fork_registry_pin_with_a_second_version_in_the_lock_is_rejected'
+
+make_and_run_candle_fixture metadata-missing-pin metadata-missing-pin
+expect_failure 'cargo_fork_registry_pins.pins must equal the checker-owned fork registry pins' \
+  'missing_fork_registry_pin_is_rejected'
+
+make_and_run_candle_fixture cudarc-patch cudarc-patch
+expect_failure 'unsupported Cargo override/git source Cargo.toml:patch.crates-io.cudarc' \
+  'a_cudarc_patch_entry_is_unsupported'
+
+make_and_run_candle_fixture candle-git-patch candle-git-patch
+expect_failure 'unsupported Cargo override/git source Cargo.toml:patch.crates-io.candle-core-fathomdb' \
+  'a Candle fork crate reintroduced as a git patch is unsupported'
 
 # The real tree is the regression half: after removing obsolete root overrides,
 # the snapshot remains parseable and the gate stays clean without a network.

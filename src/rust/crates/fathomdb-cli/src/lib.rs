@@ -3313,4 +3313,127 @@ mod tests {
             }
         }
     }
+
+    fn library_report(
+        library: &str,
+        opened_as: &str,
+        path: &str,
+        version: &str,
+    ) -> fathomdb_embedder::CudaLibraryReport {
+        fathomdb_embedder::CudaLibraryReport::new(
+            library,
+            opened_as,
+            Some(path.to_owned()),
+            Some(version.to_owned()),
+            12,
+        )
+    }
+
+    #[test]
+    fn doctor_cuda_libraries_parses_as_a_doctor_verb() {
+        for argv in [
+            vec!["fathomdb", "doctor", "cuda-libraries"],
+            vec!["fathomdb", "doctor", "cuda-libraries", "--json"],
+        ] {
+            let json = argv.len() == 4;
+            match Cli::try_parse_from(argv) {
+                Ok(Cli {
+                    command:
+                        Command::Doctor(DoctorArgs { command: DoctorCommand::CudaLibraries(args) }),
+                }) => assert_eq!(args.json, json),
+                other => panic!("unexpected parse: {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn doctor_cuda_libraries_json_has_the_v1_schema_and_every_library() {
+        let diagnostic = fathomdb_embedder::CudaLibrariesDiagnostic::new(
+            12,
+            vec![
+                library_report("driver", "libcuda.so", "/usr/lib/libcuda.so.580.178.04", "13.0"),
+                library_report(
+                    "cublas",
+                    "libcublas.so.12",
+                    "/opt/cuda/libcublas.so.12.6.1.4",
+                    "12.6.1",
+                ),
+                library_report(
+                    "curand",
+                    "libcurand.so.10",
+                    "/opt/cuda/libcurand.so.10.3.7.68",
+                    "10.3.7",
+                ),
+            ],
+            None,
+            vec!["/usr/lib/libcuda.so.580.178.04".to_owned()],
+        );
+        let json: serde_json::Value =
+            serde_json::from_str(&cuda_libraries_output(Some(&diagnostic), true)).expect("JSON");
+        assert_eq!(json["schema_version"], "fathomdb.doctor.cuda-libraries.v1");
+        assert_eq!(json["built"], true);
+        assert_eq!(json["built_major"], 12);
+        let libraries = json["libraries"].as_array().expect("libraries");
+        let names: Vec<&str> =
+            libraries.iter().map(|entry| entry["library"].as_str().unwrap()).collect();
+        assert_eq!(names, ["driver", "cublas", "cublasLt", "curand", "nvrtc"]);
+        let statuses: Vec<&str> =
+            libraries.iter().map(|entry| entry["status"].as_str().unwrap()).collect();
+        assert_eq!(statuses, ["loaded", "loaded", "not_loaded", "loaded", "not_loaded"]);
+        assert_eq!(libraries[1]["opened_as"], "libcublas.so.12");
+        assert_eq!(libraries[1]["path"], "/opt/cuda/libcublas.so.12.6.1.4");
+        assert_eq!(libraries[3]["version"], "10.3.7");
+        assert!(libraries[2]["path"].is_null());
+        assert!(json["refusal"].is_null());
+        assert_eq!(json["maps"], serde_json::json!(["/usr/lib/libcuda.so.580.178.04"]));
+        assert_eq!(cuda_libraries_exit_code(Some(&diagnostic)), exit_code::OK);
+
+        let not_built: serde_json::Value =
+            serde_json::from_str(&cuda_libraries_output(None, true)).expect("JSON");
+        assert_eq!(not_built["built"], false);
+        assert!(not_built["built_major"].is_null());
+        assert_eq!(not_built["libraries"].as_array().map(Vec::len), Some(5));
+        assert_eq!(cuda_libraries_exit_code(None), exit_code::OK);
+    }
+
+    #[test]
+    fn doctor_cuda_libraries_exits_70_on_a_refusal() {
+        let refusal = fathomdb_embedder::CudaLibraryRefusal::new(
+            "cublas",
+            fathomdb_embedder::CudaLibraryRefusalReason::Missing,
+            None,
+            None,
+            12,
+            vec![
+                ("libcublas.so.12".to_owned(), "not found".to_owned()),
+                ("libcublas.so".to_owned(), "not found".to_owned()),
+            ],
+            Vec::new(),
+        );
+        let diagnostic = fathomdb_embedder::CudaLibrariesDiagnostic::new(
+            12,
+            vec![library_report("driver", "libcuda.so", "/usr/lib/libcuda.so.580.178.04", "13.0")],
+            Some(refusal),
+            Vec::new(),
+        );
+        assert_eq!(cuda_libraries_exit_code(Some(&diagnostic)), exit_code::UNRECOVERABLE);
+        let json: serde_json::Value =
+            serde_json::from_str(&cuda_libraries_output(Some(&diagnostic), true)).expect("JSON");
+        let refusal = &json["refusal"];
+        assert_eq!(refusal["kind"], "cuda_library_unavailable");
+        assert_eq!(refusal["library"], "cublas");
+        assert_eq!(refusal["reason"], "missing");
+        assert_eq!(refusal["required_major"], 12);
+        assert_eq!(refusal["tried"][0]["name"], "libcublas.so.12");
+        assert!(
+            refusal["message"].as_str().is_some_and(
+                |message| message.contains("pip install nvidia-cublas-cu12 nvidia-curand-cu12")
+            ),
+            "{refusal}"
+        );
+        assert_eq!(json["libraries"][1]["status"], "refused");
+        let text = cuda_libraries_output(Some(&diagnostic), false);
+        assert!(text.starts_with("doctor cuda-libraries\n"), "{text}");
+        assert!(text.contains("refusal=cublas missing"), "{text}");
+    }
 }

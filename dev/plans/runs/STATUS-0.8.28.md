@@ -25,9 +25,9 @@ Slice 31 (cudarc and Candle forks) is in progress, fork work first:
 
 ## Immediate next action
 
-1. Candle FK5: K8 moves the three Candle crates to 0.10.4 on registry
-   `cudarc-fathomdb` 0.19.10; re-qualify on the RTX 3090 and the Orin
-   (CK-AC-07); R-FK-PUB; publish the three crates in dependency order.
+1. Candle FK5: K9 moves the three Candle crates to 0.11.0 on registry
+   `cudarc-fathomdb` 0.19.10 (re-qualified on the RTX 3090 and the Orin
+   on 2026-10-13); R-FK-PUB re-check; publish the three crates in order.
 2. Slice 31 W1 to W3: requirements, design and test plan, each with its own
    Opus review.
 3. Slice 31 W6: pin the registry crates, delete the vendored cudarc, and run

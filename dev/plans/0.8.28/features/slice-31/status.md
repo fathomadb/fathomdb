@@ -65,7 +65,8 @@ Receipts: cudarc `fathomdb/qualification/` (G1–G6, G8, CI, CF-AC-07a and
 ## Next
 
 W1 (`requirements.md`) and W2 (`design.md` revision 2, revised after
-R-DES) done; W3 → R-TEST, then W6
+R-DES) done; W3 drafted ([test-plan.md](test-plan.md), DRAFT FOR R-TEST);
+next R-TEST, then W6
 with registry `cudarc-fathomdb` `=0.19.10`, the Candle crates `=0.11.0` and
 the `candle-kernels` git patch at `K9`, under the owner-approved R-PIN
 checklist (plan § 9 W6, Q20, Q21).
@@ -107,3 +108,14 @@ checklist (plan § 9 W6, Q20, Q21).
   removed; `LibraryUnavailable` reached through Candle's re-exported
   cudarc; the Linux-normal lock-set closure; C3 as a GCP T4 cell (design
   § 9.3); fork todos FT-1–FT-3 to file when W6 lands. Next: W3 → R-TEST.
+- 2026-10-13: W3 drafted: [test-plan.md](test-plan.md) (DRAFT FOR R-TEST,
+  revision 1): hosts and guards (RTX 3090 by UUID, Orin by git bundle, GCP
+  sessions S-13 and S-C3), the W6 RED-first order R1–R17, a catalogue of
+  every AC31 and plan § 7 topic with exact commands, the qualification
+  runs (G1–G10, G9 in full, the RTX 3090 arm, D-14, usable capacity, C3),
+  traceability, the single-cudarc fixtures verified in a scratch
+  directory, and eleven open points (OP-1: the release contract still pins
+  the Candle git cohort at `859b8ea1`; OP-2: AC31-10's `git grep` must
+  exclude the steward ledger; OP-3: the feature-complete gate selects GPUs
+  by index). T-REGISTRY resolution measured in a scratch consumer with no
+  `[patch]` table. Next: R-TEST.

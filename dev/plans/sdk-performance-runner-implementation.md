@@ -61,11 +61,21 @@ external corpora, models, paid services, or comparative claims.
   separate, and unverified retrieval rows omit timing. Product and SDK receipts
   retain safe hash links; invalid evidence stays visible. The local answerer
   is deterministic and binds the same attempt's retrieval evidence.
+- Latency cases can declare an explicit `scale_tier` in the immutable suite.
+  The result and safe receipt carry that tier. Capacity metrics now include
+  prepared SQLite database/WAL/shared-memory bytes and the largest driver
+  process peak RSS across repetitions, both in bytes. Each repetition retains
+  its underlying observation externally. Peak RSS includes process startup,
+  open, and warmup; it is a capacity observation, not query latency. A request
+  for an unavailable resource metric blocks the cell. Timed and warmup query
+  counts are recorded separately.
 - Source/build provenance remains explicitly unverified for the local smoke.
   Real paired claims require SDK build attestations and a bootstrap equivalence
-  check. The current runner measures three operations; mutation/model isolation,
-  resource attribution, and broader typed operation fixtures remain active
-  acceptance work under BT-AC04, BT-AC06, and BT-AC07.
+  check. The current runner measures three operations; mutation/model isolation
+  and broader typed operation fixtures remain active acceptance work under
+  BT-AC04 and BT-AC06. Memory attribution currently targets Linux; other
+  platforms block a requested memory metric until an equivalent observation
+  exists.
 
 ## Existing contracts and boundaries
 

@@ -99,6 +99,48 @@ def test_closed_plan_and_temporal_instant(tmp_path: Path):
         sdk_benchmark.load_plan(path)
 
 
+def test_scale_tier_is_explicit_and_closed(tmp_path: Path):
+    path = _plan(tmp_path)
+    plan = json.loads(path.read_text())
+    plan["cases"][0]["scale_tier"] = "embedded-10k"
+    path.write_text(json.dumps(plan))
+    assert sdk_benchmark.load_plan(path)[0]["cases"][0]["scale_tier"] == "embedded-10k"
+    plan["cases"][0]["scale_tier"] = "../other"
+    path.write_text(json.dumps(plan))
+    with pytest.raises(ValueError, match="scale_tier"):
+        sdk_benchmark.load_plan(path)
+
+
+def test_resource_metrics_have_units_and_reject_missing_observations(tmp_path: Path):
+    case = json.loads(_plan(tmp_path).read_text())["cases"][0]
+    case["family"] = "latency_capacity"
+    witnesses = [{"database_bytes": 4096}, {"database_bytes": 8192}]
+    repetitions = [
+        {"resources": {"driver_peak_rss_bytes": 12_000}},
+        {"resources": {"driver_peak_rss_bytes": 16_000}},
+    ]
+    assert sdk_benchmark._resource_metrics(case, witnesses, repetitions) == {
+        "database_bytes": 8192,
+        "driver_peak_rss_bytes": 16_000,
+    }
+    with pytest.raises(ValueError, match="resource"):
+        sdk_benchmark._resource_metrics(case, witnesses, [{}, {}])
+
+
+def test_storage_footprint_counts_database_sidecars(tmp_path: Path):
+    database = tmp_path / "benchmark.db"
+    database.write_bytes(b"a" * 7)
+    (tmp_path / "benchmark.db-wal").write_bytes(b"b" * 11)
+    (tmp_path / "benchmark.db-shm").write_bytes(b"c" * 13)
+    assert sdk_benchmark._database_bytes(database) == 31
+
+
+def test_storage_metric_does_not_require_process_memory():
+    assert sdk_benchmark._database_metric(
+        [{"database_bytes": 4096}, {"database_bytes": 8192}]
+    ) == 8192
+
+
 def test_preflight_detects_fixture_drift_without_creating_output(tmp_path: Path):
     path = _plan(tmp_path)
     output = tmp_path / "output"
@@ -424,6 +466,7 @@ def test_seeded_balanced_arm_order_interleaves_repetitions(tmp_path: Path, monke
         (case["id"], sdk) for case in plan["cases"] for sdk in arms
     )
     for result in persisted_results:
+        assert result["work_counts"] == {"timed_queries": 3, "warmup_queries": 0}
         if result["family"] == "retrieval":
             evidence = (
                 tmp_path
@@ -477,6 +520,7 @@ def test_answer_rejects_retrieval_evidence_changed_after_result(
             "family": "answer",
             "operation_id": "answer_pipeline.first_sentence_v1",
             "operation_version": 1,
+            "scale_tier": "embedded-10k",
             "arguments": {"answer_config": {"upstream": {"case_id": "fts-top10"}}},
         },
         arm_binding=plan["arms"][0],
@@ -488,6 +532,7 @@ def test_answer_rejects_retrieval_evidence_changed_after_result(
     )
     assert result["status"] == "blocked"
     assert result["reason"] == "ValueError"
+    assert result["scale_tier"] == "embedded-10k"
     assert captured == [result]
 
 
@@ -716,6 +761,7 @@ def test_answer_case_binds_same_attempt_retrieval_and_scores(tmp_path: Path):
             "family": "answer",
             "operation_id": "answer_pipeline.first_sentence_v1",
             "operation_version": 1,
+            "scale_tier": "embedded-10k",
             "required": True,
             "arguments": {"answer_config": answer_config},
             "setup": "bound-retrieval-v1",
@@ -776,6 +822,7 @@ def test_answer_case_binds_same_attempt_retrieval_and_scores(tmp_path: Path):
         plan_path, tmp_path / "one/suite-manifest.json", tmp_path / "receipts"
     )
     assert report["families"]["answer"]["sdk"][0]["status"] == "complete"
+    assert report["families"]["answer"]["sdk"][0]["scale_tier"] == "embedded-10k"
     evidence_path = tmp_path / "one/fts-top10-python/evidence.json"
     evidence_path.write_text(
         evidence_path.read_text().replace("amber otter", "changed evidence")

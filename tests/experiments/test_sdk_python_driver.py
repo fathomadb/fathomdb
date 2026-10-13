@@ -90,6 +90,8 @@ def test_fts_uses_public_method_and_normalizes_after_timing(tmp_path, monkeypatc
         {"query_id": "q1", "elapsed_ns": 9, "ids": ["l:node-a", "h:digest-b"]}
     ]
     assert result["identity"]["native_sha256"] == native_sha
+    if sys.platform.startswith("linux"):
+        assert result["resources"]["driver_peak_rss_bytes"] > 0
     assert [item[0] for item in calls if isinstance(item, tuple)] == [
         "runtime",
         "open",
@@ -98,6 +100,25 @@ def test_fts_uses_public_method_and_normalizes_after_timing(tmp_path, monkeypatc
     ]
     assert calls[-1] == "close"
     assert calls[2] == ("text", "needle", 1700000000, 2)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux procfs")
+def test_peak_rss_uses_child_process_not_inherited_parent_high_watermark():
+    ballast = bytearray(128 * 1024 * 1024)
+    for offset in range(0, len(ballast), 4096):
+        ballast[offset] = 1
+    code = """
+from experiments.sdk_drivers.python_driver import _peak_rss_bytes
+from pathlib import Path
+actual = _peak_rss_bytes()
+reported = int(next(line for line in Path('/proc/self/status').read_text().splitlines()
+                    if line.startswith('VmHWM:')).split()[1]) * 1024
+print(actual, reported)
+"""
+    child = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    actual, reported = map(int, child.stdout.split())
+    assert abs(actual - reported) < 1024 * 1024
+    assert actual < len(ballast)
 
 
 def test_wrong_extension_hash_blocks_before_open(tmp_path):

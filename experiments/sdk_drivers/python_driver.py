@@ -11,6 +11,7 @@ import hashlib
 import importlib
 import json
 import math
+import platform
 import sys
 import time
 from pathlib import Path
@@ -257,6 +258,21 @@ def _typed_error(exc: Exception, sdk: Any | None) -> dict[str, Any]:
     return {"kind": "driver_failure"}
 
 
+def _peak_rss_bytes() -> int | None:
+    if platform.system() != "Linux":
+        return None
+    try:
+        status = Path("/proc/self/status").read_text(encoding="ascii")
+    except OSError:
+        return None
+    for line in status.splitlines():
+        if line.startswith("VmHWM:"):
+            fields = line.split()
+            if len(fields) == 3 and fields[2] == "kB" and fields[1].isdigit():
+                return int(fields[1]) * 1024
+    return None
+
+
 def execute(request: object, *, sdk: Any | None = None) -> dict[str, Any]:
     """Execute one fixed protocol request; dependency injection is for tests only."""
 
@@ -329,6 +345,9 @@ def execute(request: object, *, sdk: Any | None = None) -> dict[str, Any]:
         if run_error is not None:
             raise run_error
         response.update(status="complete", samples=samples)
+        peak_rss = _peak_rss_bytes()
+        if peak_rss is not None:
+            response["resources"] = {"driver_peak_rss_bytes": peak_rss}
     except Exception as exc:
         response["status"] = "blocked"
         response["samples"] = []

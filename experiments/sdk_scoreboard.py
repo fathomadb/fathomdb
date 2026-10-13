@@ -15,7 +15,10 @@ from experiments import _lib, competitive_product, sdk_answer, sdk_benchmark
 
 FAMILIES = ("latency_capacity", "retrieval", "answer")
 _METRICS = {
-    "latency_capacity": {"p50_ms", "p95_ms", "p99_ms", "queries_per_s"},
+    "latency_capacity": {
+        "p50_ms", "p95_ms", "p99_ms", "queries_per_s",
+        "database_bytes", "driver_peak_rss_bytes",
+    },
     "retrieval": {
         "p50_ms",
         "p95_ms",
@@ -134,6 +137,7 @@ def _projection(execution: dict[str, Any], plan_sha: str) -> dict[str, Any]:
         "family": case["family"],
         "operation_id": case["operation_id"],
         "operation_version": case["operation_version"],
+        **({"scale_tier": case["scale_tier"]} if "scale_tier" in case else {}),
         "sdk": sdk,
         "arguments": sdk_benchmark._safe_arguments(case),
         "sampling": execution["sampling"],
@@ -278,6 +282,7 @@ def _cell(
         "producer": "answer_pipeline" if case["family"] == "answer" else "driver",
         "operation_id": case["operation_id"],
         "operation_version": case["operation_version"],
+        **({"scale_tier": case["scale_tier"]} if "scale_tier" in case else {}),
         "status": entry["status"],
     }.items():
         _require(result.get(field) == expected, f"result {field}")
@@ -391,6 +396,7 @@ def _cell(
         "case_id": case["id"],
         "arm": sdk,
         "axis": "sdk",
+        "scale_tier": case.get("scale_tier"),
         "status": entry["status"],
         "reason": _safe_reason(result.get("reason"))
         if entry["status"] == "blocked"

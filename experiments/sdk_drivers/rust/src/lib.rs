@@ -254,6 +254,18 @@ fn binary_sha256() -> Result<String, DriverError> {
     Ok(format!("{:x}", Sha256::digest(bytes)))
 }
 
+fn peak_rss_bytes() -> Option<u64> {
+    let status = fs::read_to_string("/proc/self/status").ok()?;
+    status.lines().find_map(|line| {
+        line.strip_prefix("VmHWM:")?
+            .split_whitespace()
+            .next()?
+            .parse::<u64>()
+            .ok()?
+            .checked_mul(1024)
+    })
+}
+
 fn identity(native_sha256: Option<&str>) -> Value {
     let mut features = Vec::new();
     if cfg!(feature = "default-embedder") {
@@ -377,7 +389,7 @@ fn run(request: &RunRequest) -> Value {
         response["open_report"] = open_report;
         return response;
     }
-    json!({
+    let mut response = json!({
         "schema_version": SCHEMA,
         "status": "complete",
         "sdk": "rust",
@@ -390,7 +402,11 @@ fn run(request: &RunRequest) -> Value {
         "open_report": open_report,
         "readiness": {"drained": true},
         "closed": true
-    })
+    });
+    if let Some(bytes) = peak_rss_bytes() {
+        response["resources"] = json!({"driver_peak_rss_bytes": bytes});
+    }
+    response
 }
 
 /// Execute one protocol request and return exactly one JSON response value.

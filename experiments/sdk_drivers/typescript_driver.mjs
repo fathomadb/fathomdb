@@ -219,6 +219,16 @@ async function run(request) {
     engine = undefined;
     response.samples = samples;
     response.status = 'complete';
+    if (process.platform === 'linux') {
+      try {
+        const match = /^VmHWM:\s+(\d+)\s+kB$/m.exec(readFileSync('/proc/self/status', 'utf8'));
+        if (match) {
+          response.resources = { driver_peak_rss_bytes: Number(match[1]) * 1024 };
+        }
+      } catch {
+        // A missing procfs observation leaves the requested capacity metric unavailable.
+      }
+    }
   } catch (error) {
     response.error = typedError(error);
   } finally {

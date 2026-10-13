@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -126,6 +127,8 @@ def test_awaited_public_fts_and_loaded_binary_attestation(sandbox, tmp_path):
     response = invoke(tmp_path, driver, request(digest))
     assert response["status"] == "complete"
     assert response["identity"]["native_sha256"] == digest
+    if sys.platform.startswith("linux"):
+        assert response["resources"]["driver_peak_rss_bytes"] > 0
     assert response["effective_options"] == {
         "limit": 3,
         "view": {"valid_as_of": 1700000000},
@@ -139,6 +142,17 @@ def test_awaited_public_fts_and_loaded_binary_attestation(sandbox, tmp_path):
     ]
     assert response["samples"][0]["elapsed_ns"] >= 20_000_000
     assert response["error"] is None
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux procfs")
+def test_peak_rss_uses_node_process_not_inherited_parent_high_watermark(sandbox, tmp_path):
+    ballast = bytearray(192 * 1024 * 1024)
+    for offset in range(0, len(ballast), 4096):
+        ballast[offset] = 1
+    driver, digest = sandbox
+    response = invoke(tmp_path, driver, request(digest))
+    assert response["status"] == "complete"
+    assert response["resources"]["driver_peak_rss_bytes"] < len(ballast)
 
 
 def test_digest_mismatch_blocks_before_query(sandbox, tmp_path):

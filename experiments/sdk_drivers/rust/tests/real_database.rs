@@ -74,6 +74,9 @@ fn real_database_exercises_fts_read_and_graph_sdk_calls() {
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     let response: Value = serde_json::from_slice(&output.stdout).expect("single JSON response");
     assert_eq!(response["status"], "complete", "{response}");
+    if cfg!(target_os = "linux") {
+        assert!(response["resources"]["driver_peak_rss_bytes"].as_u64().unwrap() > 0);
+    }
     assert_eq!(response["samples"][0]["ids"], json!(["l:doc-1"]));
     assert_eq!(response["samples"][0]["query_id"], "q1");
     assert!(response["samples"][0]["elapsed_ns"].as_u64().is_some());

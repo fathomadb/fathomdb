@@ -29,7 +29,10 @@ _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _ID = re.compile(r"[a-z][a-z0-9-]*\Z")
 _FAMILIES = {"latency_capacity", "retrieval", "answer"}
 _METRICS = {
-    "latency_capacity": {"p50_ms", "p95_ms", "p99_ms", "queries_per_s"},
+    "latency_capacity": {
+        "p50_ms", "p95_ms", "p99_ms", "queries_per_s",
+        "database_bytes", "driver_peak_rss_bytes",
+    },
     "retrieval": {"recall_at_10", "mrr", "ndcg_at_10", "negative_abstention"},
     "answer": {
         "answer_accuracy",
@@ -212,20 +215,22 @@ def load_plan(path: str | Path) -> tuple[dict[str, Any], str]:
     seen_cases: set[str] = set()
     registry = sdk_registry.load_registry()
     for position, item in enumerate(cases):
+        case_keys = {
+            "id", "family", "operation_id", "operation_version", "required",
+            "arguments", "setup", "boundary",
+        }
+        if isinstance(item, dict) and "scale_tier" in item:
+            case_keys.add("scale_tier")
         case = _exact(
             item,
             f"cases[{position}]",
-            {
-                "id",
-                "family",
-                "operation_id",
-                "operation_version",
-                "required",
-                "arguments",
-                "setup",
-                "boundary",
-            },
+            case_keys,
         )
+        if "scale_tier" in case and (
+            not isinstance(case["scale_tier"], str)
+            or _ID.fullmatch(case["scale_tier"]) is None
+        ):
+            raise ValueError("case.scale_tier must be a stable lowercase identifier")
         case_id = case["id"]
         if (
             not isinstance(case_id, str)
@@ -687,8 +692,57 @@ def _prepare_repetition(
         "setup_sha256": _digest(prepared.config_path),
         "doctor_sha256": _digest(prepared.doctor_path),
         "database_sha256": _digest(prepared.database_path),
+        "database_bytes": _database_bytes(prepared.database_path),
         "bootstrap": _bootstrap_identity(),
     }
+
+
+def _database_bytes(path: Path) -> int:
+    """Count the SQLite database plus any WAL and shared-memory sidecars."""
+    return sum(
+        candidate.stat().st_size
+        for candidate in (path, Path(f"{path}-wal"), Path(f"{path}-shm"))
+        if candidate.is_file()
+    )
+
+
+def _resource_metrics(
+    case: dict[str, Any],
+    setup_witnesses: list[dict[str, Any]],
+    repetitions: list[dict[str, Any]],
+) -> dict[str, int]:
+    """Attribute storage to prepared state and peak RSS to each driver process."""
+    if case["family"] != "latency_capacity" or not setup_witnesses or (
+        len(setup_witnesses) != len(repetitions)
+    ):
+        raise ValueError("resource observations do not match repetitions")
+    database_size = _database_metric(setup_witnesses)
+    rss_values = [
+        item.get("resources", {}).get("driver_peak_rss_bytes")
+        if isinstance(item.get("resources"), dict) else None
+        for item in repetitions
+    ]
+    if any(
+        isinstance(value, bool) or not isinstance(value, int) or value <= 0
+        for value in rss_values
+    ):
+        raise ValueError("resource observation missing or invalid")
+    return {
+        "database_bytes": database_size,
+        "driver_peak_rss_bytes": max(rss_values),
+    }
+
+
+def _database_metric(setup_witnesses: list[dict[str, Any]]) -> int:
+    if not setup_witnesses:
+        raise ValueError("storage observation missing")
+    values = [item.get("database_bytes") for item in setup_witnesses]
+    if any(
+        isinstance(value, bool) or not isinstance(value, int) or value <= 0
+        for value in values
+    ):
+        raise ValueError("storage observation missing or invalid")
+    return max(values)
 
 
 def _nearest(values: list[float], fraction: float) -> float:
@@ -920,6 +974,15 @@ def _run_cell_repetition(state: dict[str, Any], repetition: int) -> None:
             or identity.get("sdk_version") != arm["sdk_version"]
         ):
             raise ValueError("driver native or SDK identity mismatch")
+        resources = response.get("resources")
+        if resources is not None and (
+            not isinstance(resources, dict)
+            or set(resources) != {"driver_peak_rss_bytes"}
+            or isinstance(resources["driver_peak_rss_bytes"], bool)
+            or not isinstance(resources["driver_peak_rss_bytes"], int)
+            or resources["driver_peak_rss_bytes"] <= 0
+        ):
+            raise ValueError("invalid driver resource observation")
         effective = response.get("effective_options")
         requested_options = {
             key: value for key, value in case["arguments"].items() if key != "query_set"
@@ -935,6 +998,7 @@ def _run_cell_repetition(state: dict[str, Any], repetition: int) -> None:
             {
                 "identity": identity,
                 "effective_options": effective,
+                "resources": resources,
                 "response_sha256": _digest(rep_root / "response.json"),
             }
         )
@@ -962,6 +1026,17 @@ def _finish_cell(state: dict[str, Any]) -> dict[str, Any]:
             metrics, ordered_ids = _aggregate(case, state["all_samples"], fixture)
             oracle_status = _check_oracle(case, fixture, ordered_ids)
             metrics = _publishable_metrics(case, metrics, oracle_status)
+            if case["family"] == "latency_capacity":
+                try:
+                    metrics["database_bytes"] = _database_metric(state["setup_witnesses"])
+                except ValueError:
+                    pass
+                try:
+                    metrics.update(_resource_metrics(
+                        case, state["setup_witnesses"], state["repetitions"]
+                    ))
+                except ValueError:
+                    pass
             required_metrics = set(plan["output"]["metrics"]) & _METRICS[case["family"]]
             if required_metrics - set(metrics):
                 raise ValueError("required metric unavailable at sample count")
@@ -989,6 +1064,7 @@ def _finish_cell(state: dict[str, Any]) -> dict[str, Any]:
         "producer": "driver",
         "operation_id": case["operation_id"],
         "operation_version": case["operation_version"],
+        **({"scale_tier": case["scale_tier"]} if "scale_tier" in case else {}),
         "status": state["status"],
         "reason": state["reason"],
         "metrics": metrics,
@@ -996,6 +1072,14 @@ def _finish_cell(state: dict[str, Any]) -> dict[str, Any]:
         "oracle_status": oracle_status,
         "source_provenance": "unverified",
         "samples": state["all_samples"] if state["status"] == "complete" else [],
+        "work_counts": {
+            "timed_queries": len(state["all_samples"]),
+            "warmup_queries": (
+                len(fixture["queries"])
+                * plan["sampling"]["warmup_per_query"]
+                * len(state["repetitions"])
+            ),
+        },
         "repetitions": state["repetitions"],
         "setup_witnesses": state["setup_witnesses"],
     }
@@ -1075,6 +1159,7 @@ def _persist_cell(
         "family": case["family"],
         "operation_id": case["operation_id"],
         "operation_version": case["operation_version"],
+        **({"scale_tier": case["scale_tier"]} if "scale_tier" in case else {}),
         "sdk": sdk,
         "arguments": _safe_arguments(case),
         "sampling": resolved_sampling,
@@ -1227,7 +1312,6 @@ def _answer_cell(
         )
         result = answer["result"]
         _write_json(cell_root / "answer-samples.json", answer["external_samples"])
-        _write_json(cell_root / "answer-witness.json", answer["witness"])
         required_metrics = set(plan["output"]["metrics"]) & _METRICS["answer"]
         if required_metrics - set(result["metrics"]):
             raise ValueError("required answer metric unavailable")
@@ -1250,6 +1334,13 @@ def _answer_cell(
             "metrics": {},
             "sample_count": 0,
         }
+    if "scale_tier" in case:
+        result["scale_tier"] = case["scale_tier"]
+    if result["status"] == "complete":
+        answer["witness"]["result_sha256"] = hashlib.sha256(
+            sdk_answer.artifact_bytes(result)
+        ).hexdigest()
+        _write_json(cell_root / "answer-witness.json", answer["witness"])
     return _persist_cell(
         plan=plan,
         plan_sha=plan_sha,

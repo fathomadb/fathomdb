@@ -26,6 +26,31 @@ def test_optional_capability_miss_does_not_fail_required_suite():
     ) == ("blocked", 0)
 
 
+def test_scale_tier_is_part_of_safe_comparison_projection():
+    case = {
+        "id": "latency", "family": "latency_capacity", "operation_id": "read.get",
+        "operation_version": 1, "scale_tier": "embedded-10k",
+        "arguments": {"view": {"valid_as_of": 42}},
+    }
+    plan = {
+        "program_track": None, "suite_id": "suite",
+        "fixtures": {"manifest": {"sha256": "a" * 64}},
+        "arms": [{"sdk": "python", "artifact": {"sha256": "b" * 64}}],
+        "sampling": {"repetitions": 2},
+    }
+    arm = {
+        "sdk": "python", "engine_revision": "abc",
+        "dependency_closure_sha256": "c" * 64,
+        "native": {"sha256": "d" * 64}, "driver": {"sha256": "e" * 64},
+    }
+    execution = {
+        "schema_version": "sdk.execution-config.v1", "plan": plan,
+        "arm": arm, "case": case,
+        "sampling": {"repetitions": 2, "timeout_ms": 30000},
+    }
+    assert sdk_scoreboard._projection(execution, "f" * 64)["scale_tier"] == "embedded-10k"
+
+
 def _write(path: Path, value: object) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(

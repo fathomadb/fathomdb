@@ -290,3 +290,26 @@ fn a_successful_load_writes_no_stderr_line() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!stderr.lines().any(|line| line.starts_with("fathomdb-cuda-libraries ")), "{text}");
 }
+
+/// `doctor cuda-libraries` reports the CUDA driver it loaded, not only
+/// cuBLAS and cuRAND (CUDA-07 found the driver entry `not_loaded` while
+/// `libcuda` was mapped).
+#[test]
+fn the_cuda_libraries_diagnostic_reports_the_loaded_driver() {
+    if in_child() {
+        return;
+    }
+    let diagnostic = fathomdb_embedder::cuda_libraries_diagnostic();
+    let maps = std::fs::read_to_string("/proc/self/maps").expect("/proc/self/maps");
+    if !maps.contains("libcuda.so") {
+        live::require_live_or_skip("slice31_cuda_library_major: no CUDA driver library; skipping");
+        return;
+    }
+    let driver = diagnostic
+        .libraries
+        .iter()
+        .find(|report| report.library == "driver")
+        .unwrap_or_else(|| panic!("no driver entry in {:?}", diagnostic.libraries));
+    let path = driver.path.as_deref().expect("the driver's path");
+    assert!(maps.contains(path), "{path} is not mapped: {driver:?}");
+}

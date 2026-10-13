@@ -20,6 +20,7 @@ fork's `fathomdb/review.md` (plan § 12).
 | R-FK-CODE | Candle | FK2 `0d6fa138` | opus | APPROVE-WITH-FIXES; M1 fixed test-first at `853324fc` | Candle `fathomdb/review.md` |
 | R-FK-CODE re-check | Candle | `853324fc` | opus | APPROVE | Candle `fathomdb/review.md` |
 | R-FK-VERIFY | Candle | `853324fc` | opus | APPROVE-WITH-FIXES; fit to pin; F1, F3, F4, F6 fixed at `887e5781`; F2 and F5 carried to FathomDB (plan D-11, T-CUDA) | Candle `fathomdb/review.md` |
+| R-FK-PUB | Candle | `cd64715e` (K8) | opus | APPROVE; finding 1 (re-exported `cudarc` swapped for `cudarc-fathomdb`: semver-breaking) led the owner to renumber to 0.11.0 (Q21), so K9 `182ceab0` is the publication commit, re-qualified (CK-AC-07 at K9); finding 2 carried to AC31-08 (T-REGISTRY); 3–5 fixed at `182ceab0`/`4abb8b38`; 6 exempt | Candle `fathomdb/review.md` at `e302d54c` |
 
 ## FathomDB reviews
 

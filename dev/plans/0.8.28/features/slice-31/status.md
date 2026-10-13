@@ -53,7 +53,7 @@ Receipts: cudarc `fathomdb/qualification/` (G1–G6, G8, CI, CF-AC-07a and
 
 ## Next
 
-W1 (`requirements.md`) → R-REQ, W2 → R-DES, W3 → R-TEST, then W6 with the
+W1 (`requirements.md`, drafted) → R-REQ, W2 → R-DES, W3 → R-TEST, then W6 with the
 owner's R-PIN of `C` and `K`.
 
 ## Log
@@ -61,3 +61,6 @@ owner's R-PIN of `C` and `K`.
 - 2026-10-13: plan revision 16 (registry consumption after the early
   `cudarc-fathomdb` 0.19.10 publication; rulings Q17–Q20); `GOAL.md`
   requires revision 16.
+- 2026-10-13: W1 drafted: [requirements.md](requirements.md) (DRAFT FOR
+  R-REQ), REQ31-01…15 with AC31 sets per review and seven open points.
+  Next: R-REQ.

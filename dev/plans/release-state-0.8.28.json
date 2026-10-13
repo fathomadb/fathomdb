@@ -18,8 +18,8 @@
   "decisions": {
     "unruled": [
       {"id": "d28-09-12-placement", "title": "Place the owner-directed D28-09 to D28-12 items on the 0.8.28 ladder, or move them to a later release."},
+      {"id": "d28-14-slice", "title": "Give D28-14 (filtered direct body FTS) a slice on the 0.8.28 ladder and authorize its implementation."},
       {"id": "d28-01-07-candidates", "title": "Decide whether any D28-01 to D28-07 candidate enters 0.8.28."},
-      {"id": "slice-31-gcp-cuda13-cells", "title": "Approve each GCP VM session for the Slice 31 CUDA 13.0 qualification cells (one session per VM, at most two hours)."},
       {"id": "release-0.8.28-publication", "title": "Authorize tagging and publication of 0.8.28 after the ladder and release qualification pass."}
     ],
     "ruled": [
@@ -29,7 +29,9 @@
       {"id": "slice-31-candle-publish", "title": "Publish candle-core-fathomdb, candle-nn-fathomdb and candle-transformers-fathomdb in dependency order once R-FK-PUB approves; as 0.11.0 from K9, because 0.10.4 would change a re-exported dependency (semver-breaking).", "source": "repository owner 2026-10-13 (seq-320, seq-324)"},
       {"id": "slice-31-w1-w3", "title": "Write requirements, design and test plan as three documents, each with its own Opus review, before W6.", "source": "repository owner 2026-10-13 (seq-321)"},
       {"id": "slice-31-r-pin", "title": "Approve the R-PIN reviews of the cudarc and Candle pins.", "source": "repository owner 2026-10-13 (seq-322)"},
-      {"id": "slice-31-no-proposals-yet", "title": "Do not prepare the upstream cudarc proposals (FC9, FC9b) yet; they carry no FathomDB material.", "source": "repository owner 2026-10-13 (seq-319)"}
+      {"id": "slice-31-no-proposals-yet", "title": "Do not prepare the upstream cudarc proposals (FC9, FC9b) yet; they carry no FathomDB material.", "source": "repository owner 2026-10-13 (seq-319)"},
+      {"id": "slice-31-gcp-sessions", "title": "Approve the two Slice 31 GCP sessions: S-13 (CUDA 13.0 build, n1-standard-8, one build attempt) and S-C3 (missing-library refusal on a Spot T4, test and verification only), each at most two hours.", "source": "repository owner 2026-10-13 (seq-332)"},
+      {"id": "d28-14-placement", "title": "Place filtered direct node and edge body FTS with SearchFilter in 0.8.28 as D28-14; placement only, not implementation or publication.", "source": "repository owner 2026-10-13 (main 2429fefdf seq-303, re-appended as seq-333)"}
     ]
   },
   "release_readiness": null,

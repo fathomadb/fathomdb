@@ -42,8 +42,11 @@ There are <!-- BEGIN GENERATED release-state:0.8.28:status-live-open-count -->FO
 
 - place D28-09 to D28-12 on the ladder, or move them;
 - decide whether any D28-01 to D28-07 candidate enters 0.8.28;
-- approve each GCP VM session for the Slice 31 CUDA 13.0 cells; and
+- give D28-14 (filtered direct body FTS, placed in 0.8.28 at seq-333) a
+  slice and authorize its implementation; and
 - authorize tagging and publication after the ladder and qualification pass.
+
+The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 
 ## Ladder
 

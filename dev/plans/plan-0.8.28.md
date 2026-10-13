@@ -22,7 +22,9 @@ onto forked, published crates:
 
 The other entries in the [draft scope](0.8.28-draft-scope.md) are not on the
 ladder. D28-09 to D28-12 are owner-directed but not yet placed; D28-01 to
-D28-07 are candidates. Both are open decisions in
+D28-07 are candidates. D28-14 (filtered direct node and edge body FTS) is
+placed in 0.8.28 (seq-333) but has no slice yet. All three are open
+decisions in
 `dev/plans/release-state-0.8.28.json`. This plan adds no scope; it indexes
 the slice plans, which are the working authority for their slices.
 

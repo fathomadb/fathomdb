@@ -55,7 +55,8 @@ impl CudaProvider for RecordingProvider {
             Err(
                 CudaProbeError::Incompatible { .. }
                 | CudaProbeError::ProbeFailed { .. }
-                | CudaProbeError::Pool(_),
+                | CudaProbeError::Pool(_)
+                | CudaProbeError::LibraryUnavailable(_),
             ) => Ok(vec![CudaVisibleDevice {
                 visible_ordinal: 0,
                 uuid: "GPU-0".to_owned(),

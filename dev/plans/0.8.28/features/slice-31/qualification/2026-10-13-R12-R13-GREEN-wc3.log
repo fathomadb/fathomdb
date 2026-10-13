@@ -1,0 +1,16 @@
+   Compiling fathomdb-embedder v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/src/rust/crates/fathomdb-embedder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.70s
+     Running tests/slice31_cuda_library_major.rs (target/debug/deps/slice31_cuda_library_major-dc1327c487a9233d)
+
+running 6 tests
+test a_libcublas_so_12_missing_a_required_symbol_is_refused_before_gpu_work ... ok
+test a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work ... ok
+test a_refusal_writes_one_stderr_line ... ok
+test a_successful_load_writes_no_stderr_line ... ok
+test missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy ... ignored, C3 GCP cell
+test the_cuda_library_report_names_the_loaded_files ... cuda_libraries: [CudaLibraryReport { library: "driver", opened_as: "libcuda.so", path: Some("/usr/lib/x86_64-linux-gnu/libcuda.so.580.178.04"), version: Some("13.0"), built_major: 12 }, CudaLibraryReport { library: "cublas", opened_as: "libcublas.so.12", path: Some("/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublas.so.12.6.1.4"), version: Some("12.6.1"), built_major: 12 }, CudaLibraryReport { library: "curand", opened_as: "libcurand.so.10", path: Some("/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcurand.so.10.3.7.68"), version: Some("10.3.7"), built_major: 12 }]
+ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.61s
+
+test-exit=0

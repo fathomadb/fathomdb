@@ -94,13 +94,13 @@ impl CudaLibraryRefusalReason {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CudaLibraryRefusal {
     /// The library: `cublas` or `curand`.
-    pub library: String,
+    pub library: &'static str,
     /// Why it was refused.
     pub reason: CudaLibraryRefusalReason,
     /// The loaded file, when one was found.
-    pub path: Option<String>,
+    pub path: Option<Box<str>>,
     /// The version the loaded file reports, when one was found.
-    pub version: Option<String>,
+    pub version: Option<Box<str>>,
     /// The library's own major that the build needs: 12 for cuBLAS and 10
     /// for cuRAND (`libcurand.so.10`) in a CUDA 12 build.
     pub required_major: u32,
@@ -115,7 +115,7 @@ impl CudaLibraryRefusal {
     /// A refusal record.
     #[must_use]
     pub fn new(
-        library: impl Into<String>,
+        library: &'static str,
         reason: CudaLibraryRefusalReason,
         path: Option<String>,
         version: Option<String>,
@@ -124,10 +124,10 @@ impl CudaLibraryRefusal {
         missing_symbols: Vec<String>,
     ) -> Self {
         Self {
-            library: library.into(),
+            library,
             reason,
-            path,
-            version,
+            path: path.map(String::into_boxed_str),
+            version: version.map(String::into_boxed_str),
             required_major,
             tried,
             missing_symbols,
@@ -226,6 +226,240 @@ pub(crate) fn missing_required_symbols(
 ) -> Vec<String> {
     set.iter().filter(|name| !is_present(name)).map(|name| (*name).to_owned()).collect()
 }
+
+/// The outcome of `doctor cuda-libraries`: the build's CUDA major, every
+/// library the process loaded, and the refusal if one was found.
+///
+/// Non-exhaustive: build one with [`CudaLibrariesDiagnostic::new`].
+#[doc(hidden)]
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CudaLibrariesDiagnostic {
+    /// The CUDA major the libraries were checked against.
+    pub built_major: u32,
+    /// Each library loaded, as the device report lists them.
+    pub libraries: Vec<CudaLibraryReport>,
+    /// The refusal, when a needed library is unusable.
+    pub refusal: Option<CudaLibraryRefusal>,
+}
+
+impl CudaLibrariesDiagnostic {
+    /// A diagnostic record.
+    #[must_use]
+    pub fn new(
+        built_major: u32,
+        libraries: Vec<CudaLibraryReport>,
+        refusal: Option<CudaLibraryRefusal>,
+    ) -> Self {
+        Self { built_major, libraries, refusal }
+    }
+}
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+mod driver {
+    use std::path::Path;
+    use std::sync::Once;
+
+    use candle_core::cuda::cudarc::{self, LibLoadError, LoadedLibrary, RejectReason};
+
+    use super::{
+        missing_required_symbols, CudaLibrariesDiagnostic, CudaLibraryRefusal,
+        CudaLibraryRefusalReason, CudaLibraryReport, REQUIRED_CUBLAS_SYMBOLS,
+        REQUIRED_CURAND_SYMBOLS,
+    };
+
+    /// A library's own major in a build for CUDA `cuda_major`: cuRAND keeps
+    /// soname major 10 (`libcurand.so.10`) across CUDA 12 and 13.
+    fn library_major(library: &str, cuda_major: u32) -> u32 {
+        if library == "curand" {
+            10
+        } else {
+            cuda_major
+        }
+    }
+
+    /// Where the dynamic loader finds `name` first: the first
+    /// `LD_LIBRARY_PATH` directory holding it (canonical path), if any.
+    fn on_library_path(name: &str) -> Option<String> {
+        std::env::var("LD_LIBRARY_PATH")
+            .ok()?
+            .split(':')
+            .filter(|dir| !dir.is_empty())
+            .map(|dir| Path::new(dir).join(name))
+            .find(|candidate| candidate.is_file())
+            .and_then(|candidate| candidate.canonicalize().ok())
+            .map(|path| path.display().to_string())
+    }
+
+    /// Map the fork's load error to a refusal: `WrongMajor` when a candidate
+    /// was found and reported another major, `Missing` otherwise.
+    pub(crate) fn refusal_from_lib_load_error(error: &LibLoadError) -> CudaLibraryRefusal {
+        let wrong = error.tried.iter().find_map(|(name, reason)| match reason {
+            RejectReason::WrongVersion(version)
+            | RejectReason::AlreadyLoadedWrongVersion(version)
+            | RejectReason::WrongMajorDependency { version, .. } => {
+                Some((name, version.to_string()))
+            }
+            _ => None,
+        });
+        let (reason, path, version) = match wrong {
+            Some((name, version)) => {
+                (CudaLibraryRefusalReason::WrongMajor, on_library_path(name), Some(version))
+            }
+            None => (CudaLibraryRefusalReason::Missing, None, None),
+        };
+        CudaLibraryRefusal::new(
+            error.library,
+            reason,
+            path,
+            version,
+            library_major(error.library, error.cuda_major),
+            error.tried.iter().map(|(name, why)| (name.clone(), why.to_string())).collect(),
+            Vec::new(),
+        )
+    }
+
+    fn report(library: &str, loaded: &LoadedLibrary) -> CudaLibraryReport {
+        CudaLibraryReport::new(
+            library,
+            loaded.opened_as.clone(),
+            loaded.path.clone(),
+            loaded.version.map(|version| version.to_string()),
+            loaded.cuda_major,
+        )
+    }
+
+    fn loaded_refusal(
+        loaded: &LoadedLibrary,
+        reason: CudaLibraryRefusalReason,
+        missing_symbols: Vec<String>,
+    ) -> CudaLibraryRefusal {
+        CudaLibraryRefusal::new(
+            loaded.library,
+            reason,
+            loaded.path.clone(),
+            loaded.version.map(|version| version.to_string()),
+            library_major(loaded.library, loaded.cuda_major),
+            vec![(loaded.opened_as.clone(), "opened".to_owned())],
+            missing_symbols,
+        )
+    }
+
+    fn check_cublas() -> Result<LoadedLibrary, CudaLibraryRefusal> {
+        // SAFETY: loads and version-checks the cuBLAS shared library only;
+        // no cuBLAS function is called.
+        unsafe { cudarc::cublas::sys::try_culib() }
+            .map_err(|error| refusal_from_lib_load_error(&error))?;
+        let loaded =
+            cudarc::cublas::sys::loaded_library().expect("cuBLAS is loaded after try_culib");
+        // The fork version-checks every candidate, but a file that reports
+        // another major must never reach a device even if it got through.
+        if loaded.version.is_some_and(|version| version.major != loaded.cuda_major) {
+            return Err(loaded_refusal(&loaded, CudaLibraryRefusalReason::WrongMajor, Vec::new()));
+        }
+        let missing = missing_required_symbols(&REQUIRED_CUBLAS_SYMBOLS, |name| {
+            // SAFETY: looks the symbol up in the already-loaded library; it
+            // is not called.
+            unsafe { cudarc::cublas::sys::is_symbol_present(name) }.unwrap_or(false)
+        });
+        if !missing.is_empty() {
+            return Err(loaded_refusal(&loaded, CudaLibraryRefusalReason::MissingSymbol, missing));
+        }
+        Ok(loaded)
+    }
+
+    fn check_curand() -> Result<LoadedLibrary, CudaLibraryRefusal> {
+        // SAFETY: loads and version-checks the cuRAND shared library only;
+        // no cuRAND function is called.
+        unsafe { cudarc::curand::sys::try_culib() }
+            .map_err(|error| refusal_from_lib_load_error(&error))?;
+        let loaded =
+            cudarc::curand::sys::loaded_library().expect("cuRAND is loaded after try_culib");
+        let missing = missing_required_symbols(&REQUIRED_CURAND_SYMBOLS, |name| {
+            // SAFETY: looks the symbol up in the already-loaded library; it
+            // is not called.
+            unsafe { cudarc::curand::sys::is_symbol_present(name) }.unwrap_or(false)
+        });
+        if !missing.is_empty() {
+            return Err(loaded_refusal(&loaded, CudaLibraryRefusalReason::MissingSymbol, missing));
+        }
+        Ok(loaded)
+    }
+
+    /// The one stderr line a process writes for a refusal (owner ruling Q24).
+    fn refusal_line(refusal: &CudaLibraryRefusal) -> String {
+        let tried: Vec<serde_json::Value> = refusal
+            .tried
+            .iter()
+            .map(|(name, reason)| serde_json::json!({"name": name, "reason": reason}))
+            .collect();
+        let record = serde_json::json!({
+            "kind": refusal.kind(),
+            "library": refusal.library,
+            "reason": refusal.reason.as_str(),
+            "path": refusal.path,
+            "version": refusal.version,
+            "required_major": refusal.required_major,
+            "tried": tried,
+            "missing_symbols": refusal.missing_symbols,
+            "message": refusal.to_string(),
+        });
+        format!("fathomdb-cuda-libraries {record}")
+    }
+
+    /// Check, before any CUDA device is built, that cuBLAS and cuRAND (the
+    /// libraries Candle's device construction loads) are usable for the
+    /// built CUDA major and export every required symbol. A refusal writes
+    /// one stderr line per process.
+    pub(crate) fn require_usable_cuda_libraries() -> Result<(), CudaLibraryRefusal> {
+        static REFUSAL_LINE: Once = Once::new();
+        let outcome = check_cublas().and_then(|_| check_curand()).map(|_| ());
+        if let Err(refusal) = &outcome {
+            REFUSAL_LINE.call_once(|| eprintln!("{}", refusal_line(refusal)));
+        }
+        outcome
+    }
+
+    /// Every CUDA library this process has loaded: the driver, cuBLAS and
+    /// cuRAND, and cuBLASLt or NVRTC only when cudarc loaded them.
+    pub(crate) fn cuda_library_reports() -> Vec<CudaLibraryReport> {
+        [
+            ("driver", cudarc::driver::sys::loaded_library()),
+            ("cublas", cudarc::cublas::sys::loaded_library()),
+            ("cublasLt", cudarc::cublaslt::sys::loaded_library()),
+            ("curand", cudarc::curand::sys::loaded_library()),
+            ("nvrtc", cudarc::nvrtc::sys::loaded_library()),
+        ]
+        .into_iter()
+        .filter_map(|(library, loaded)| loaded.map(|loaded| report(library, &loaded)))
+        .collect()
+    }
+
+    /// `doctor cuda-libraries`: load the driver, run the device check and
+    /// report what loaded. It always reports; a refusal is in the result.
+    pub fn cuda_libraries_diagnostic() -> CudaLibrariesDiagnostic {
+        // SAFETY: locates and loads the CUDA driver library only; no driver
+        // function is called.
+        let _ = unsafe { cudarc::driver::sys::is_culib_present() };
+        let refusal = require_usable_cuda_libraries().err();
+        let libraries = cuda_library_reports();
+        let built_major = cudarc::cublas::sys::loaded_library()
+            .or_else(cudarc::driver::sys::loaded_library)
+            .map_or(12, |loaded| loaded.cuda_major);
+        let built_major = refusal
+            .as_ref()
+            .filter(|refusal| refusal.library == "cublas")
+            .map_or(built_major, |refusal| refusal.required_major);
+        CudaLibrariesDiagnostic::new(built_major, libraries, refusal)
+    }
+}
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+pub use driver::cuda_libraries_diagnostic;
+#[cfg(all(test, any(feature = "embed-cuda", feature = "rerank-cuda")))]
+use driver::refusal_from_lib_load_error;
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+pub(crate) use driver::{cuda_library_reports, require_usable_cuda_libraries};
 
 #[cfg(test)]
 mod tests {

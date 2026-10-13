@@ -6,6 +6,7 @@
 //! the resulting [`DeviceResolution`] exactly once to create the actual
 //! embedder backend.
 
+use crate::cuda_libraries::{CudaLibraryRefusal, CudaLibraryReport};
 use crate::cuda_pool_policy::{CudaAllocatorReport, CudaPoolFailure};
 use std::{fmt, str::FromStr};
 
@@ -113,6 +114,11 @@ pub struct CudaDeviceInfo {
     /// Linux CUDA builds and for providers that do not build a Candle
     /// device; `not_built` without the `tegra-pool` feature.
     pub cuda_allocator: Option<CudaAllocatorReport>,
+    /// The CUDA libraries the probe checked and loaded (driver, cuBLAS,
+    /// cuRAND, and cuBLASLt or NVRTC when loaded): file, version and the
+    /// CUDA major they were checked against. Empty for providers that do
+    /// not build a Candle device.
+    pub cuda_libraries: Vec<CudaLibraryReport>,
 }
 
 impl CudaDeviceInfo {
@@ -134,7 +140,15 @@ impl CudaDeviceInfo {
             compute_capability,
             cuda_toolkit_version,
             cuda_allocator: None,
+            cuda_libraries: Vec::new(),
         }
+    }
+
+    /// The same metadata with `cuda_libraries` replaced.
+    #[must_use]
+    pub fn with_cuda_libraries(mut self, cuda_libraries: Vec<CudaLibraryReport>) -> Self {
+        self.cuda_libraries = cuda_libraries;
+        self
     }
 
     /// The same metadata with `cuda_allocator` replaced.
@@ -181,8 +195,8 @@ pub trait CudaProvider {
     ///
     /// The default is the build's `CUDA_COMPUTE_CAP` (the release contract
     /// value: 75 on x86_64, 87 for Jetson), read at compile time; a developer
-    /// build without it has no floor. A device below the floor is refused as
-    /// [`CudaProbeError::Incompatible`] before `probe_cuda` is called.
+    /// build without it has no floor. A device below the floor is refused
+    /// with reason `cuda_incompatible` before `probe_cuda` is called.
     fn kernel_compute_floor(&self) -> Option<(u32, u32)> {
         option_env!("CUDA_COMPUTE_CAP").and_then(parse_compute_capability_floor)
     }
@@ -231,6 +245,10 @@ pub enum CudaProbeError {
     /// The process allocates from the private CUDA memory pool and the probe
     /// failed with one of its kinds. Resolution never moves to CPU on it.
     Pool(CudaPoolFailure),
+    /// A CUDA library the device needs (cuBLAS or cuRAND) is missing, of
+    /// another major, or lacks a required symbol; checked before the device
+    /// is built (kind `cuda_library_unavailable`).
+    LibraryUnavailable(CudaLibraryRefusal),
 }
 
 /// The device ultimately selected by a successful policy resolution.
@@ -256,6 +274,9 @@ pub enum DeviceResolutionReason {
     /// The platform is ARM64 SBSA, whose CUDA userspace is incompatible with
     /// the Tegra-linked artifact before any CUDA provider is loaded.
     Arm64SbsaUnsupported,
+    /// A CUDA library the device needs was refused before the device was
+    /// built ([`CudaProbeError::LibraryUnavailable`]).
+    CudaLibraryUnavailable,
 }
 
 impl DeviceResolutionReason {
@@ -268,6 +289,7 @@ impl DeviceResolutionReason {
             Self::CudaIncompatible => "cuda_incompatible",
             Self::CudaProbeFailed => "cuda_probe_failed",
             Self::Arm64SbsaUnsupported => "arm64_sbsa_unsupported",
+            Self::CudaLibraryUnavailable => "cuda_library_unavailable",
         }
     }
 }
@@ -420,6 +442,9 @@ pub enum DeviceResolutionError {
     /// `auto` as well as forced CUDA: a private-pool process never moves to
     /// CPU.
     CudaPool(CudaPoolFailure),
+    /// A forced CUDA policy found a CUDA library it needs unusable; the
+    /// refusal names the library, file, version and remedy.
+    CudaLibraryUnavailable { ordinal: usize, refusal: CudaLibraryRefusal },
 }
 
 impl EmbedDevicePolicyError {
@@ -433,6 +458,9 @@ impl EmbedDevicePolicyError {
                 reason.as_str()
             }
             Self::Resolution(DeviceResolutionError::CudaPool(failure)) => failure.kind(),
+            Self::Resolution(DeviceResolutionError::CudaLibraryUnavailable { refusal, .. }) => {
+                refusal.kind()
+            }
         }
     }
 
@@ -442,7 +470,8 @@ impl EmbedDevicePolicyError {
         match self {
             Self::InvalidPolicy(_) => None,
             Self::Resolution(DeviceResolutionError::CudaNotCompiled { ordinal })
-            | Self::Resolution(DeviceResolutionError::ForcedCudaUnavailable { ordinal, .. }) => {
+            | Self::Resolution(DeviceResolutionError::ForcedCudaUnavailable { ordinal, .. })
+            | Self::Resolution(DeviceResolutionError::CudaLibraryUnavailable { ordinal, .. }) => {
                 Some(*ordinal)
             }
             Self::Resolution(DeviceResolutionError::CudaPool(failure)) => failure.ordinal(),
@@ -463,6 +492,10 @@ impl fmt::Display for DeviceResolutionError {
                 write!(formatter, "cuda:{ordinal} requested but unavailable: {reason:?}")
             }
             Self::CudaPool(failure) => failure.fmt(formatter),
+            Self::CudaLibraryUnavailable { ordinal, refusal } => write!(
+                formatter,
+                "cuda:{ordinal} requested but cuda_library_unavailable: {refusal}"
+            ),
         }
     }
 }
@@ -512,6 +545,12 @@ pub fn resolve_embed_device_policy(
                     Err(Unavailable::Reason(reason)) => {
                         Ok(cpu_resolution(requested_policy, cuda_compiled, devices, reason))
                     }
+                    Err(Unavailable::Library(_)) => Ok(cpu_resolution(
+                        requested_policy,
+                        cuda_compiled,
+                        devices,
+                        DeviceResolutionReason::CudaLibraryUnavailable,
+                    )),
                     Err(Unavailable::Pool(failure)) => {
                         Err(DeviceResolutionError::CudaPool(failure))
                     }
@@ -526,6 +565,12 @@ pub fn resolve_embed_device_policy(
             Err(Unavailable::Reason(reason)) => {
                 Ok(cpu_resolution(requested_policy, cuda_compiled, Vec::new(), reason))
             }
+            Err(Unavailable::Library(_)) => Ok(cpu_resolution(
+                requested_policy,
+                cuda_compiled,
+                Vec::new(),
+                DeviceResolutionReason::CudaLibraryUnavailable,
+            )),
             Err(Unavailable::Pool(failure)) => Err(DeviceResolutionError::CudaPool(failure)),
         },
         EmbedDevicePolicy::Cuda(ordinal) => {
@@ -534,6 +579,9 @@ pub fn resolve_embed_device_policy(
                     DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason }
                 }
                 Unavailable::Pool(failure) => DeviceResolutionError::CudaPool(failure),
+                Unavailable::Library(refusal) => {
+                    DeviceResolutionError::CudaLibraryUnavailable { ordinal, refusal }
+                }
             };
             let devices = enumerate(provider).map_err(forced)?;
             match devices.iter().find(|device| device.visible_ordinal == ordinal) {
@@ -603,6 +651,7 @@ pub fn resolve_embed_device_policy_from_env(
 enum Unavailable {
     Reason(DeviceResolutionReason),
     Pool(CudaPoolFailure),
+    Library(CudaLibraryRefusal),
 }
 
 fn enumerate(provider: &mut dyn CudaProvider) -> Result<Vec<CudaVisibleDevice>, Unavailable> {
@@ -616,6 +665,7 @@ fn enumerate(provider: &mut dyn CudaProvider) -> Result<Vec<CudaVisibleDevice>, 
             Err(Unavailable::Reason(DeviceResolutionReason::CudaProbeFailed))
         }
         Err(CudaProbeError::Pool(failure)) => Err(Unavailable::Pool(failure)),
+        Err(CudaProbeError::LibraryUnavailable(refusal)) => Err(Unavailable::Library(refusal)),
     }
 }
 
@@ -646,6 +696,7 @@ fn probe(
             Err(Unavailable::Reason(DeviceResolutionReason::CudaIncompatible))
         }
         Err(CudaProbeError::Pool(failure)) => Err(Unavailable::Pool(failure)),
+        Err(CudaProbeError::LibraryUnavailable(refusal)) => Err(Unavailable::Library(refusal)),
     }
 }
 
@@ -729,6 +780,17 @@ pub fn diagnose_gpu(
                         Some(DeviceResolutionReason::CudaProbeFailed),
                     );
                 }
+                Err(CudaProbeError::LibraryUnavailable(_)) => {
+                    return diagnostic(
+                        policy,
+                        cuda_compiled,
+                        DoctorGpuStatus::ProbeFailed,
+                        forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                        Vec::new(),
+                        None,
+                        Some(DeviceResolutionReason::CudaLibraryUnavailable),
+                    );
+                }
             };
             let selected = match forced_ordinal {
                 Some(ordinal) => {
@@ -793,6 +855,15 @@ pub fn diagnose_gpu(
                     devices,
                     None,
                     Some(DeviceResolutionReason::NoVisibleCudaDevice),
+                ),
+                Err(CudaProbeError::LibraryUnavailable(_)) => diagnostic(
+                    policy,
+                    cuda_compiled,
+                    DoctorGpuStatus::ProbeFailed,
+                    forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                    devices,
+                    None,
+                    Some(DeviceResolutionReason::CudaLibraryUnavailable),
                 ),
                 Ok(_) | Err(CudaProbeError::ProbeFailed { .. } | CudaProbeError::Pool(_)) => {
                     diagnostic(

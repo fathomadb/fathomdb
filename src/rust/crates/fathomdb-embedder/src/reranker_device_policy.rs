@@ -6,7 +6,10 @@
 use std::{fmt, str::FromStr};
 
 use crate::device_policy::below_compute_floor;
-use crate::{CudaDeviceInfo, CudaPoolFailure, CudaProbeError, CudaProvider, CudaVisibleDevice};
+use crate::{
+    CudaDeviceInfo, CudaLibraryRefusal, CudaPoolFailure, CudaProbeError, CudaProvider,
+    CudaVisibleDevice,
+};
 
 /// The sole cross-SDK transport for reranker policy selection.
 pub const ENV_RERANK_DEVICE: &str = "FATHOMDB_RERANK_DEVICE";
@@ -102,6 +105,10 @@ impl RerankerDevicePolicyError {
                 ..
             }) => reason.as_str(),
             Self::Resolution(RerankerDeviceResolutionError::CudaPool(failure)) => failure.kind(),
+            Self::Resolution(RerankerDeviceResolutionError::CudaLibraryUnavailable {
+                refusal,
+                ..
+            }) => refusal.kind(),
             Self::CudaPoolExhausted { .. } => "cuda_pool_exhausted",
             Self::CudaContextLost { .. } => "cuda_context_lost",
             Self::CudaPrivateBuildRefused { .. } => "cuda_private_build_refused",
@@ -117,6 +124,10 @@ impl RerankerDevicePolicyError {
             | Self::CudaPrivateBuildRefused { ordinal, .. } => Some(*ordinal),
             Self::Resolution(RerankerDeviceResolutionError::CudaNotCompiled { ordinal })
             | Self::Resolution(RerankerDeviceResolutionError::ForcedCudaUnavailable {
+                ordinal,
+                ..
+            })
+            | Self::Resolution(RerankerDeviceResolutionError::CudaLibraryUnavailable {
                 ordinal,
                 ..
             }) => Some(*ordinal),
@@ -177,6 +188,9 @@ pub enum RerankerDeviceResolutionReason {
     CudaIncompatible,
     /// CUDA initialization, session construction, or probe failed unexpectedly.
     CudaProbeFailed,
+    /// A CUDA library the device needs was refused before the device was
+    /// built ([`CudaProbeError::LibraryUnavailable`]).
+    CudaLibraryUnavailable,
 }
 
 impl RerankerDeviceResolutionReason {
@@ -188,6 +202,7 @@ impl RerankerDeviceResolutionReason {
             Self::NoVisibleCudaDevice => "no_visible_cuda_device",
             Self::CudaIncompatible => "cuda_incompatible",
             Self::CudaProbeFailed => "cuda_probe_failed",
+            Self::CudaLibraryUnavailable => "cuda_library_unavailable",
         }
     }
 }
@@ -204,6 +219,9 @@ pub enum RerankerDeviceResolutionError {
     /// CPU. [`resolve_reranker_device_policy_from_env`] returns it as the
     /// matching [`RerankerDevicePolicyError`] pool variant.
     CudaPool(CudaPoolFailure),
+    /// CUDA was requested and a CUDA library it needs is unusable; the
+    /// refusal names the library, file, version and remedy.
+    CudaLibraryUnavailable { ordinal: usize, refusal: CudaLibraryRefusal },
 }
 
 impl fmt::Display for RerankerDeviceResolutionError {
@@ -218,6 +236,10 @@ impl fmt::Display for RerankerDeviceResolutionError {
                 "cuda:{ordinal} requested for reranking but unavailable: {reason:?}"
             ),
             Self::CudaPool(failure) => failure.fmt(formatter),
+            Self::CudaLibraryUnavailable { ordinal, refusal } => write!(
+                formatter,
+                "cuda:{ordinal} requested for reranking but cuda_library_unavailable: {refusal}"
+            ),
         }
     }
 }
@@ -291,6 +313,9 @@ pub fn resolve_reranker_device_policy(
                             ));
                         }
                         Err(Unavailable::Reason(reason)) => last_reason = reason,
+                        Err(Unavailable::Library(_)) => {
+                            last_reason = RerankerDeviceResolutionReason::CudaLibraryUnavailable;
+                        }
                         Err(Unavailable::Pool(failure)) => {
                             return Err(RerankerDeviceResolutionError::CudaPool(failure));
                         }
@@ -301,6 +326,12 @@ pub fn resolve_reranker_device_policy(
             Err(Unavailable::Reason(reason)) => {
                 Ok(cpu_resolution(requested_policy, cuda_compiled, vec![], Some(reason)))
             }
+            Err(Unavailable::Library(_)) => Ok(cpu_resolution(
+                requested_policy,
+                cuda_compiled,
+                vec![],
+                Some(RerankerDeviceResolutionReason::CudaLibraryUnavailable),
+            )),
         },
         RerankerDevicePolicy::Cuda(ordinal) => {
             let forced = |unavailable| match unavailable {
@@ -308,6 +339,9 @@ pub fn resolve_reranker_device_policy(
                     RerankerDeviceResolutionError::ForcedCudaUnavailable { ordinal, reason }
                 }
                 Unavailable::Pool(failure) => RerankerDeviceResolutionError::CudaPool(failure),
+                Unavailable::Library(refusal) => {
+                    RerankerDeviceResolutionError::CudaLibraryUnavailable { ordinal, refusal }
+                }
             };
             let devices = enumerate(provider).map_err(forced)?;
             match devices.iter().find(|device| device.visible_ordinal == ordinal) {
@@ -373,6 +407,7 @@ fn selected_resolution(
 enum Unavailable {
     Reason(RerankerDeviceResolutionReason),
     Pool(CudaPoolFailure),
+    Library(CudaLibraryRefusal),
 }
 
 fn unavailable(error: CudaProbeError) -> Unavailable {
@@ -387,6 +422,7 @@ fn unavailable(error: CudaProbeError) -> Unavailable {
             Unavailable::Reason(RerankerDeviceResolutionReason::CudaProbeFailed)
         }
         CudaProbeError::Pool(failure) => Unavailable::Pool(failure),
+        CudaProbeError::LibraryUnavailable(refusal) => Unavailable::Library(refusal),
     }
 }
 

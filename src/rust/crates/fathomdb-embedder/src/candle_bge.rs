@@ -257,6 +257,10 @@ impl CudaProvider for CandleCudaProvider {
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         #[cfg(feature = "embed-cuda")]
         {
+            // D-18: refuse an unusable cuBLAS or cuRAND before the device
+            // (whose construction loads both) is built.
+            crate::cuda_libraries::require_usable_cuda_libraries()
+                .map_err(CudaProbeError::LibraryUnavailable)?;
             let device = crate::cuda_pool_policy::new_cuda_device(ordinal)
                 .map_err(classify_device_build_error)?;
             Tensor::zeros(1, DType::F32, &device).map_err(|error| {
@@ -281,7 +285,8 @@ impl CudaProvider for CandleCudaProvider {
                 visible.compute_capability,
                 None,
             )
-            .with_cuda_allocator(crate::cuda_pool_policy::allocator_report(&device)))
+            .with_cuda_allocator(crate::cuda_pool_policy::allocator_report(&device))
+            .with_cuda_libraries(crate::cuda_libraries::cuda_library_reports()))
         }
 
         #[cfg(not(feature = "embed-cuda"))]

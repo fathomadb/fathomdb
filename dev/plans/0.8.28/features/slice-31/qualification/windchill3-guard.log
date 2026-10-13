@@ -1,2 +1,6 @@
 2026-10-13T21:31:02Z before-r12-red driver=580.178.04 cuda=/usr/local/cuda-12.6
 2026-10-13T21:31:48Z after-r12-red driver=580.178.04 cuda=/usr/local/cuda-12.6
+2026-10-13T21:37:22Z before-prd24 driver=580.178.04 cuda=/usr/local/cuda-12.6
+2026-10-13T21:37:24Z after-prd24 driver=580.178.04 cuda=/usr/local/cuda-12.6
+2026-10-13T21:37:24Z before-r12-green driver=580.178.04 cuda=/usr/local/cuda-12.6
+2026-10-13T21:37:28Z after-r12-green driver=580.178.04 cuda=/usr/local/cuda-12.6

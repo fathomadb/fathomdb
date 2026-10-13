@@ -745,4 +745,31 @@ mod tests {
         assert_eq!(invalid["code"], "FDB_WRITE_VALIDATION");
         assert_eq!(invalid["message"], "non-finite");
     }
+
+    /// 0.8.28 Slice 31 (D-18) — the loaded CUDA libraries reach the binding
+    /// with their file, version and built major, and stay empty when the
+    /// core has none.
+    #[test]
+    fn cuda_library_report_crosses_the_napi_boundary() {
+        let base = fathomdb_embedder::CudaDeviceInfo::new(0, None, None, None, None, None);
+        let loaded = base.clone().with_cuda_libraries(vec![
+            fathomdb_embedder::CudaLibraryReport::new(
+                "cublas",
+                "libcublas.so.12",
+                Some("/opt/cuda/libcublas.so.12.6.1.4".to_string()),
+                Some("12.6.1".to_string()),
+                12,
+            ),
+            fathomdb_embedder::CudaLibraryReport::new("curand", "libcurand.so.10", None, None, 12),
+        ]);
+        let mapped = CudaDeviceInfo::from_rust(&loaded).cuda_libraries;
+        assert_eq!(mapped.len(), 2);
+        assert_eq!(mapped[0].library, "cublas");
+        assert_eq!(mapped[0].opened_as, "libcublas.so.12");
+        assert_eq!(mapped[0].path.as_deref(), Some("/opt/cuda/libcublas.so.12.6.1.4"));
+        assert_eq!(mapped[0].version.as_deref(), Some("12.6.1"));
+        assert_eq!(mapped[0].built_major, 12);
+        assert_eq!(mapped[1].path, None);
+        assert!(CudaDeviceInfo::from_rust(&base).cuda_libraries.is_empty());
+    }
 }

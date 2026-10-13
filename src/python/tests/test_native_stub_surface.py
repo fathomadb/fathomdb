@@ -4,6 +4,7 @@ from fathomdb import _fathomdb
 from fathomdb._fathomdb import (
     CudaAllocatorReport,
     CudaDeviceInfo,
+    CudaLibraryReport,
     Engine,
     ErasureIncompleteError,
     IllegalTransitionError,
@@ -80,3 +81,20 @@ def test_native_stub_declares_the_cuda_allocator_report() -> None:
 
     assert callable(verify)
     assert _fathomdb.CudaAllocatorReport.__name__ == "CudaAllocatorReport"
+
+
+def test_native_stub_declares_the_cuda_library_report() -> None:
+    """0.8.28 Slice 31 (D-18): the native CUDA facts list the loaded libraries."""
+
+    def verify(info: CudaDeviceInfo) -> None:
+        reports: list[CudaLibraryReport] = info.cuda_libraries
+        for report in reports:
+            library: str = report.library
+            opened_as: str = report.opened_as
+            path: str | None = report.path
+            version: str | None = report.version
+            built_major: int = report.built_major
+            _ = (library, opened_as, path, version, built_major)
+
+    assert callable(verify)
+    assert _fathomdb.CudaLibraryReport.__name__ == "CudaLibraryReport"

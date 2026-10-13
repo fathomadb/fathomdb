@@ -8,6 +8,8 @@ experiment.
 
 For priorities, dependencies, and execution sequence, use the
 [overall performance benchmarking and experiments program](PROGRAM.md).
+The proposed [0.8.27 performance testing plan](plans/2026-10-13-fathomdb-0.8.27-performance-testing.md)
+sets out the next local FTS, crud-bench, and answer-quality comparisons.
 `experiments/` remains the append-only execution ledger and receipt store;
 this directory does not duplicate its run records or generated scoreboard.
 The completed campaign's product interpretation lives in

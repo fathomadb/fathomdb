@@ -173,6 +173,31 @@ impl CudaAllocatorReport {
     }
 }
 
+/// One CUDA library the process loaded (0.8.28 Slice 31, D-18).
+#[napi(object)]
+pub struct CudaLibraryReport {
+    /// `driver`, `cublas`, `curand`, `cublasLt` or `nvrtc`.
+    pub library: String,
+    pub opened_as: String,
+    /// Canonical path of the loaded file, comparable with `/proc/self/maps`.
+    pub path: Option<String>,
+    pub version: Option<String>,
+    /// The CUDA major the build checked the library against.
+    pub built_major: u32,
+}
+
+impl CudaLibraryReport {
+    pub(crate) fn from_rust(report: &RustCudaLibraryReport) -> Self {
+        Self {
+            library: report.library.clone(),
+            opened_as: report.opened_as.clone(),
+            path: report.path.clone(),
+            version: report.version.clone(),
+            built_major: report.built_major,
+        }
+    }
+}
+
 /// Safe CUDA provider facts associated with an effective CUDA selection.
 #[napi(object)]
 pub struct CudaDeviceInfo {
@@ -183,6 +208,8 @@ pub struct CudaDeviceInfo {
     pub compute_capability: Option<String>,
     pub cuda_toolkit_version: Option<String>,
     pub cuda_allocator: Option<CudaAllocatorReport>,
+    /// The CUDA libraries the probe checked and loaded; empty off CUDA.
+    pub cuda_libraries: Vec<CudaLibraryReport>,
 }
 
 impl CudaDeviceInfo {
@@ -195,6 +222,7 @@ impl CudaDeviceInfo {
             compute_capability: info.compute_capability.clone(),
             cuda_toolkit_version: info.cuda_toolkit_version.clone(),
             cuda_allocator: info.cuda_allocator.as_ref().map(CudaAllocatorReport::from_rust),
+            cuda_libraries: info.cuda_libraries.iter().map(CudaLibraryReport::from_rust).collect(),
         }
     }
 }

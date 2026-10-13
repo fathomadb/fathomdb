@@ -123,6 +123,7 @@ export {
   GpuAllocationWitness,
   CudaAllocatorReport,
   CudaDeviceInfo,
+  CudaLibraryReport,
   CudaVisibleDevice,
   EffectiveEmbedDevice,
   DeviceResolution,

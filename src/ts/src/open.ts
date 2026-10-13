@@ -248,8 +248,23 @@ export interface CudaAllocatorReport {
 }
 
 /**
+ * One CUDA library the process loaded for a CUDA device (0.8.28 Slice 31).
+ * `library` is `driver`, `cublas`, `curand`, `cublasLt` or `nvrtc`; `path`
+ * is the canonical file and `builtMajor` the CUDA major it was checked
+ * against.
+ */
+export interface CudaLibraryReport {
+  readonly library: string;
+  readonly openedAs: string;
+  readonly path: string | null;
+  readonly version: string | null;
+  readonly builtMajor: number;
+}
+
+/**
  * Safe CUDA provider facts associated with an effective CUDA selection.
- * `cudaAllocator` is `null` off aarch64 Linux CUDA builds.
+ * `cudaAllocator` is `null` off aarch64 Linux CUDA builds; `cudaLibraries`
+ * lists the CUDA libraries the probe checked and loaded.
  */
 export interface CudaDeviceInfo {
   readonly ordinal: number;
@@ -259,6 +274,7 @@ export interface CudaDeviceInfo {
   readonly computeCapability: string | null;
   readonly cudaToolkitVersion: string | null;
   readonly cudaAllocator: CudaAllocatorReport | null;
+  readonly cudaLibraries: readonly CudaLibraryReport[];
 }
 
 /** One CUDA device visible to the process after `CUDA_VISIBLE_DEVICES`. */
@@ -311,6 +327,13 @@ export function mapCudaDeviceInfo(info: NativeCudaDeviceInfo): CudaDeviceInfo {
     computeCapability: info.computeCapability ?? null,
     cudaToolkitVersion: info.cudaToolkitVersion ?? null,
     cudaAllocator: info.cudaAllocator ? mapCudaAllocatorReport(info.cudaAllocator) : null,
+    cudaLibraries: (info.cudaLibraries ?? []).map((report) => ({
+      library: report.library,
+      openedAs: report.openedAs,
+      path: report.path ?? null,
+      version: report.version ?? null,
+      builtMajor: report.builtMajor,
+    })),
   };
 }
 

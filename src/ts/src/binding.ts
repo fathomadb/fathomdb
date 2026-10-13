@@ -569,6 +569,14 @@ export interface NativeCudaAllocatorReport {
   moduleLoadInit: string;
 }
 
+export interface NativeCudaLibraryReport {
+  library: string;
+  openedAs: string;
+  path?: string | null;
+  version?: string | null;
+  builtMajor: number;
+}
+
 export interface NativeCudaDeviceInfo {
   ordinal: number;
   uuid: string | null;
@@ -577,6 +585,7 @@ export interface NativeCudaDeviceInfo {
   computeCapability: string | null;
   cudaToolkitVersion: string | null;
   cudaAllocator?: NativeCudaAllocatorReport | null;
+  cudaLibraries?: NativeCudaLibraryReport[];
 }
 
 export interface NativeCudaVisibleDevice {

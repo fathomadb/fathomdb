@@ -355,6 +355,13 @@ class CudaAllocatorReport:
     release_threshold: str | None
     module_load_init: str
 
+class CudaLibraryReport:
+    library: str
+    opened_as: str
+    path: str | None
+    version: str | None
+    built_major: int
+
 class CudaDeviceInfo:
     ordinal: int
     uuid: str | None
@@ -363,6 +370,7 @@ class CudaDeviceInfo:
     compute_capability: str | None
     cuda_toolkit_version: str | None
     cuda_allocator: CudaAllocatorReport | None
+    cuda_libraries: list[CudaLibraryReport]
 
 class CudaVisibleDevice:
     visible_ordinal: int

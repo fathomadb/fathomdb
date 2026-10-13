@@ -1317,10 +1317,27 @@ class CudaAllocatorReport:
 
 
 @dataclass(frozen=True)
+class CudaLibraryReport:
+    """One CUDA library the process loaded for a CUDA device.
+
+    `library` is `driver`, `cublas`, `curand`, `cublasLt` or `nvrtc`;
+    `path` is the canonical file (comparable with `/proc/self/maps`) and
+    `built_major` the CUDA major the build checked it against.
+    """
+
+    library: str
+    opened_as: str
+    path: str | None
+    version: str | None
+    built_major: int
+
+
+@dataclass(frozen=True)
 class CudaDeviceInfo:
     """Safe CUDA provider facts associated with an effective CUDA selection.
 
     `cuda_allocator` is `None` off aarch64 Linux CUDA builds.
+    `cuda_libraries` lists the CUDA libraries the probe checked and loaded.
     """
 
     ordinal: int
@@ -1330,6 +1347,7 @@ class CudaDeviceInfo:
     compute_capability: str | None
     cuda_toolkit_version: str | None
     cuda_allocator: CudaAllocatorReport | None = None
+    cuda_libraries: tuple[CudaLibraryReport, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1531,6 +1549,7 @@ __all__ = [
     "CounterSnapshot",
     "CudaAllocatorReport",
     "CudaDeviceInfo",
+    "CudaLibraryReport",
     "CudaVisibleDevice",
     "DefaultEmbedderCacheHitEvent",
     "DefaultEmbedderDownloadEvent",

@@ -11,6 +11,7 @@ from fathomdb.errors import (
 from fathomdb.types import (
     CudaAllocatorReport,
     CudaDeviceInfo,
+    CudaLibraryReport,
     CudaVisibleDevice,
     DeviceResolution,
     EffectiveEmbedDevice,
@@ -224,6 +225,16 @@ def _map_cuda_device_info(native: Any) -> CudaDeviceInfo:
                 release_threshold=allocator.release_threshold,
                 module_load_init=allocator.module_load_init,
             )
+        ),
+        cuda_libraries=tuple(
+            CudaLibraryReport(
+                library=report.library,
+                opened_as=report.opened_as,
+                path=report.path,
+                version=report.version,
+                built_major=report.built_major,
+            )
+            for report in getattr(native, "cuda_libraries", ())
         ),
     )
 

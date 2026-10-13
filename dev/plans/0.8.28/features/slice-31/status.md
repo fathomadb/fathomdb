@@ -86,3 +86,12 @@ checklist (plan § 9 W6, Q20, Q21).
   ([review.md](review.md)); new REQ31-16 (REQ-068 through the
   `candle-kernels` patch); T-REGISTRY moves into W6. `requirements.md` is
   REVISED AFTER R-REQ, ready for W2. Next: W2 → R-DES.
+- 2026-10-13: W2 drafted: [design.md](design.md) (DRAFT FOR R-DES,
+  revision 1): D-8W, D-10, D-11 (exact `=0.19.10`/`=0.11.0` registry pins,
+  marker feature dropped, pinned-override schema 5, single-cudarc guard,
+  T-REGISTRY), D-12, D-14, D-15 (Slice 30 teardown assertion kept for
+  0.8.29), D-16 (lock-set guard and fork record format), D-17 (14 call
+  sites, 2 changed), D-18, the ADR amendment draft and seven open points.
+  The Candle crates 0.11.0 are on crates.io (Candle fork receipt
+  `2026-10-13-FK5-publish-182ceab0.md`, record commit `e9c6ed5e`). Next:
+  R-DES.

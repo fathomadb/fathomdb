@@ -1,0 +1,410 @@
+{
+ "x86_64-unknown-linux-gnu": {
+  "packages": [
+   {
+    "id": "path+file:///fixture#fathomdb-embedder@0.8.27",
+    "name": "fathomdb-embedder",
+    "version": "0.8.27",
+    "source": null
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#cudarc-fathomdb@0.19.10",
+    "name": "cudarc-fathomdb",
+    "version": "0.19.10",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#half@2.7.1",
+    "name": "half",
+    "version": "2.7.1",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#float8@0.4.2",
+    "name": "float8",
+    "version": "0.4.2",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#libloading@0.9.0",
+    "name": "libloading",
+    "version": "0.9.0",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+    "name": "cfg-if",
+    "version": "1.0.4",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#crunchy@0.2.5",
+    "name": "crunchy",
+    "version": "0.2.5",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.228",
+    "name": "serde",
+    "version": "1.0.228",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   }
+  ],
+  "resolve": {
+   "nodes": [
+    {
+     "id": "path+file:///fixture#fathomdb-embedder@0.8.27",
+     "deps": [
+      {
+       "name": "cudarc_fathomdb",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#cudarc-fathomdb@0.19.10",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      },
+      {
+       "name": "serde",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.228",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#cudarc-fathomdb@0.19.10",
+     "deps": [
+      {
+       "name": "half",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#half@2.7.1",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      },
+      {
+       "name": "float8",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#float8@0.4.2",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      },
+      {
+       "name": "libloading",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#libloading@0.9.0",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": [
+      "cublas",
+      "cublaslt",
+      "cuda-version-from-build-system",
+      "curand",
+      "driver",
+      "dynamic-loading",
+      "f16",
+      "f8",
+      "nvrtc",
+      "std"
+     ]
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#half@2.7.1",
+     "deps": [
+      {
+       "name": "cfg_if",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      },
+      {
+       "name": "crunchy",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#crunchy@0.2.5",
+       "dep_kinds": [
+        {
+         "kind": "build",
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#float8@0.4.2",
+     "deps": [
+      {
+       "name": "half",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#half@2.7.1",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#libloading@0.9.0",
+     "deps": [
+      {
+       "name": "cfg_if",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+     "deps": [],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#crunchy@0.2.5",
+     "deps": [],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.228",
+     "deps": [],
+     "features": []
+    }
+   ],
+   "root": "path+file:///fixture#fathomdb-embedder@0.8.27"
+  },
+  "version": 1
+ },
+ "aarch64-unknown-linux-gnu": {
+  "packages": [
+   {
+    "id": "path+file:///fixture#fathomdb-embedder@0.8.27",
+    "name": "fathomdb-embedder",
+    "version": "0.8.27",
+    "source": null
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#cudarc-fathomdb@0.19.10",
+    "name": "cudarc-fathomdb",
+    "version": "0.19.10",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#half@2.7.1",
+    "name": "half",
+    "version": "2.7.1",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#float8@0.4.2",
+    "name": "float8",
+    "version": "0.4.2",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#libloading@0.9.0",
+    "name": "libloading",
+    "version": "0.9.0",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+    "name": "cfg-if",
+    "version": "1.0.4",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#crunchy@0.2.5",
+    "name": "crunchy",
+    "version": "0.2.5",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.228",
+    "name": "serde",
+    "version": "1.0.228",
+    "source": "registry+https://github.com/rust-lang/crates.io-index"
+   }
+  ],
+  "resolve": {
+   "nodes": [
+    {
+     "id": "path+file:///fixture#fathomdb-embedder@0.8.27",
+     "deps": [
+      {
+       "name": "cudarc_fathomdb",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#cudarc-fathomdb@0.19.10",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      },
+      {
+       "name": "serde",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.228",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#cudarc-fathomdb@0.19.10",
+     "deps": [
+      {
+       "name": "half",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#half@2.7.1",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      },
+      {
+       "name": "float8",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#float8@0.4.2",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      },
+      {
+       "name": "libloading",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#libloading@0.9.0",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": [
+      "cublas",
+      "cublaslt",
+      "cuda-version-from-build-system",
+      "curand",
+      "driver",
+      "dynamic-loading",
+      "f16",
+      "f8",
+      "nvrtc",
+      "std"
+     ]
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#half@2.7.1",
+     "deps": [
+      {
+       "name": "cfg_if",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      },
+      {
+       "name": "crunchy",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#crunchy@0.2.5",
+       "dep_kinds": [
+        {
+         "kind": "build",
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#float8@0.4.2",
+     "deps": [
+      {
+       "name": "half",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#half@2.7.1",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#libloading@0.9.0",
+     "deps": [
+      {
+       "name": "cfg_if",
+       "pkg": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+       "dep_kinds": [
+        {
+         "kind": null,
+         "target": null
+        }
+       ]
+      }
+     ],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+     "deps": [],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#crunchy@0.2.5",
+     "deps": [],
+     "features": []
+    },
+    {
+     "id": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.228",
+     "deps": [],
+     "features": []
+    }
+   ],
+   "root": "path+file:///fixture#fathomdb-embedder@0.8.27"
+  },
+  "version": 1
+ }
+}

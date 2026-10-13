@@ -51,6 +51,7 @@ case "$1" in
       GLOBAL-01) plan="global-01-native-graphrag.md" ;;
       REASON-01) plan="reason-01-native-hipporag2.md" ;;
       SEARCH-01) plan="search-01-ir-c-baseline.md" ;;
+      COMP-01) plan="comp-01-nfcorpus-fts.md" ;;
       *)
         printf 'track-runner: unknown track ID: %s\n' "$2" >&2
         exit 2

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — goal
-status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 13 and fork plan revisions 2)
+status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 14 and the forks' qualified commits)
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -19,7 +19,7 @@ index first. Read the plan with
 `git show origin/release/0.8.28:dev/plans/0.8.28/features/slice-31/plan.md`
 or from a slice worktree; never switch branches in the primary checkout
 (/home/coreyt/projects/fathomdb). If the committed plan is older than
-revision 13, stop and report. Fork work is governed by each fork's own
+revision 14, stop and report. Fork work is governed by each fork's own
 plan: coreyt/cudarc branch fathomdb/0.19.10, fathomdb/plan.md (clone
 /home/coreyt/projects/fathomdb-forks/cudarc) and coreyt/candle-fathomdb
 branch fathomdb/0.8.28-cudarc-fork, fathomdb/plan.md (clone
@@ -49,8 +49,8 @@ Outcome:
   third_party/cudarc-0.19.7 and every reference to it, keeps exactly one
   cudarc 0.19 in the graph, and is merged into release/0.8.28 after
   qualification on the Jetson AGX Orin (10.83.10.13; ssh/scp approved) and
-  on windchill3 (CUDA 12.6, and CUDA 13.0 if the owner approves its
-  download). FathomDB pins only fork commits whose fork reviews and receipts
+  on windchill3 (CUDA 12.6), with the CUDA 13.0 toolkit cells on an
+  owner-approved GCP VM with driver branch 580 (plan § 15 Q15). FathomDB pins only fork commits whose fork reviews and receipts
   pass (plan § 3.1 pin chain); it does not re-run the forks' own tests.
 - A tidy, unposted cudarc memory-pool proposal on coreyt/cudarc branch
   proposal/mem-pool based on upstream main, with issue and PR drafts in the
@@ -92,17 +92,17 @@ Rules:
   pip nvidia/cu13 wheels, /opt) before concluding something is missing.
 - windchill3 safety (owner rulings Q4, Q6): NEVER install, update or remove
   any NVIDIA driver (it stays 580.178.04; no R615) and NEVER change
-  /usr/local/cuda (stays 12.6). CUDA 13.0 is installed only toolkit-only,
-  user-local, without sudo, into $HOME/opt/cuda-13.0, and selected per
-  command. Record nvidia-smi driver and readlink -f /usr/local/cuda before
+  /usr/local/cuda (stays 12.6). No CUDA 13.0 toolkit is installed on
+  windchill3 (Q15); 13.0 toolkit cells run on a GCP VM, and Spot VMs are
+  for test and verification only, never development. Record nvidia-smi driver and readlink -f /usr/local/cuda before
   and after every install or qualification run; stop on any change.
 - Never write to release/0.8.27 (merging it forward into release/0.8.28 is
   allowed). Never push to Memex or any upstream repository; never open
   upstream issues or PRs. Fork and FathomDB branch pushes need no prompt;
   push explicit refs.
 - Owner actions — stop and ask with the exact command or diff ready, and
-  continue every step that does not depend on them: downloading the CUDA
-  13.0 runfile (plan § 9 W0 step 4); each pinned-rev or registry-version
+  continue every step that does not depend on them: each GCP VM session
+  (plan § 15 Q15); each pinned-rev or registry-version
   advisory review (R-PIN); each crates.io publication (R-PUB, W8); any
   Orin reflash (not in Slice 31; Tegra on CUDA 13 is UNMEASURED, Q5).
 - If the owner declines an owner action: record it in status.md and with

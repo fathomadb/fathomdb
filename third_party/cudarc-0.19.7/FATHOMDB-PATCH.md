@@ -30,7 +30,7 @@ Together they reproduce this tree.
 | 2. Per-device decision | Local only | Removed with item 1, which it serves. |
 | 3. Zero-length synchronous allocation | Local only | Removed with item 1; only the synchronous fallback path needs it. |
 | 4. Tests (`fathomdb_alloc_fallback`) | Local only | Removed with items 1 to 3. |
-| 5. Private memory pool primitive | Proposed upstream, not posted | Drop when Candle's cudarc resolves to a release with `CudaMemPool` and `CudaContext::new_with_mem_pool`; switch FathomDB to the upstream names. The tests (`fathomdb_private_pool`) go with it. |
+| 5. Private memory pool primitive | On the fork `coreyt/cudarc` (`fathomdb/0.19.10`, qualified at `b777f8d`); upstream proposal prepared later, not posted | Drop when Candle's cudarc resolves to a release with `CudaMemPool` and `CudaContext::new_with_mem_pool`; switch FathomDB to the upstream names. The tests (`fathomdb_private_pool`) go with it. |
 | 6. Feature marker `fathomdb-private-pool` | Local only | Removed with item 5; FathomDB stops enabling it in the same change. |
 
 **Scope of items 1 to 4: aarch64 Linux only.** Items 1 to 3 apply only when the crate is

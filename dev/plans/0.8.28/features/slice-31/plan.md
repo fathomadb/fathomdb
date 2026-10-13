@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 13 — Q13 test-venue rulings (GCP pilot first; AWS arm64 cells to 0.8.29; Jetson on CUDA 13 via CloudJetson); revision 12 — second cudarc proposal (built-major library loading, FC9b, R-PROP2), production loaded-library check (D-18), cloud test venue research pending (Q13); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 14 — fork-first order (Q14), CUDA 13.0 toolkit cells on a GCP VM and Spot VMs for test only (Q15), Candle base stays 0.10.2 (Q16), both forks qualified (cudarc `C` = b777f8d, Candle `K` = 853324fc), Candle R-FK-PLAN M6 fixes, the x86 BF16/F8 caveat, FC10 dry run done early, W0 step 7 ledger entries filed; revision 13 — Q13 test-venue rulings (GCP pilot first; AWS arm64 cells to 0.8.29; Jetson on CUDA 13 via CloudJetson); revision 12 — second cudarc proposal (built-major library loading, FC9b, R-PROP2), production loaded-library check (D-18), cloud test venue research pending (Q13); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -60,6 +60,9 @@ Nothing in this slice writes to `release/0.8.27`.
 | Q4 | Never install the R615 driver; it would disable `windchill3` | § 1; § 2.2; § 9 W0 step 4 guard; § 15; fork plans § 1.6 |
 | Q5 | Tegra on CUDA 13 is UNMEASURED in Slice 31; propose doing it before the 0.8.28 release | REQ31-04; § 15; § 16 follow-up |
 | Q6 | Build against CUDA 13.0 without changing `windchill3`'s primary CUDA 12.6; find why 12.x was chosen | § 2.2; § 9 W0 step 4; T-CUDA; § 15 Q6 |
+| Q14 | (2026-10-12) The forked libraries are FathomDB's upstream dependencies, so the fork work is done first | § 8; § 15 Q14 |
+| Q15 | (2026-10-12) The CUDA 13.0 toolkit cells run on a GCP VM with driver branch 580; Spot VMs are for test and verification only, never development; no CUDA 13.0 runfile on `windchill3` | § 2.2; AC31-03b; § 7 T-WS-BUILD, T-CUDA, T-CUDA-COMPAT C5; § 9 W0 step 4; § 15 Q15 |
+| Q16 | (2026-10-12) The Candle fork stays on upstream Candle 0.10.2 (Candle DK-1) | § 14; § 15 Q16; § 16 |
 
 ## 1. Owner direction (2026-10-11)
 
@@ -81,11 +84,12 @@ Nothing in this slice writes to `release/0.8.27`.
 - **CUDA.** The shipping target stays CUDA 12.6 (x86 and Jetson Orin on
   JetPack 6). The cudarc fork proves CUDA 13 compatibility with its full
   compile matrix through 13.4 and its driver-only 13.x GPU tests. FathomDB
-  and Candle prove it with CUDA 13.0 toolkit runs on `windchill3`.
+  and Candle prove it with CUDA 13.0 toolkit runs on a GCP VM with driver
+  branch 580 (Q15; revision 13 said `windchill3`).
 - **`windchill3` is never changed.** Its driver stays 580.178.04, with no
   R615 (Q4). R580 is the last driver branch that supports its Quadro K620
-  (Maxwell), so no later branch is ever installed (Q11). Its primary CUDA stays `/usr/local/cuda` → 12.6 (Q6). CUDA
-  13.0 is installed toolkit-only, user-local, side by side.
+  (Maxwell), so no later branch is ever installed (Q11). Its primary CUDA stays `/usr/local/cuda` → 12.6 (Q6). No
+  CUDA 13.0 toolkit is installed on it (Q15).
 - **Tegra on CUDA 13 is UNMEASURED in Slice 31** (Q5). A follow-up before
   the 0.8.28 release is proposed (§ 16).
 - **Push policy.** Fork and FathomDB branch pushes need no prompt. Never
@@ -109,7 +113,7 @@ Nothing in this slice writes to `release/0.8.27`.
 | **Forks (revision 8):** both are GitHub forks, so a PR opened from them defaults to the upstream base; Actions are enabled on both; cudarc's upstream workflows trigger only on `pull_request` | `gh api repos/coreyt/{cudarc,candle-fathomdb}` |
 | Fork clones `../fathomdb-forks/cudarc` and `../fathomdb-forks/candle-fathomdb` exist, with `upstream` remotes whose push URL is disabled; branches `fathomdb/0.19.10` (from `ec1cac71`) and `fathomdb/0.8.28-cudarc-fork` (from `859b8ea1`) carry the fork plans | `git remote -v`; fork plans |
 | `coreyt/cudarc` `main` = upstream tag `v0.19.10` (`ec1cac71`); 19 CUDA features `cuda-11040`…`13040`; driver functions resolve lazily per function, so a newer-binding build runs on driver 580 until it calls a missing function | cudarc fork plan § 2 |
-| Candle fork: upstream tag `0.10.2` (`7c7a8c57`) + 10 fork commits (10 files, +139/−41); upstream `main` is 0.11.0 on cudarc 0.19.10 (`e6838306`, #3998) | Candle fork plan § 2 |
+| Candle fork: upstream tag `0.10.2` (`7c7a8c57`) + 10 fork commits (10 files, +139/−41). Corrected in revision 14 (Candle fork plan revision 3): upstream 0.11.0 (`31f35b14`) depends on cudarc `^0.19.8`; upstream `main` (`c68b2499`, 2026-10-02) on `^0.19.10` | Candle fork plan § 2 |
 | FathomDB's private-pool path compiles only on aarch64 Linux with `tegra-pool`: the embedder's cudarc dependency is aarch64-Linux-only, `cuda_pool_policy.rs` selects `fallback_only` elsewhere, and `tests/tegra_fragmented_va_cuda.rs` is aarch64-gated; on x86 `doctor cuda-allocator` reports `not_built` | `src/rust/crates/fathomdb-embedder/Cargo.toml:66-72`; `cuda_pool_policy.rs:139,165,1255-1340`; test file line 35 |
 | `cudarc-fathomdb` is unclaimed on crates.io (2026-10-11, API 404) | crates.io API |
 
@@ -161,7 +165,9 @@ CUDARC_CUDA_VERSION=13000`. Driver 580 is CUDA 13.0's own branch (R580), so
 qualification run record the `nvidia-smi` driver version and
 `readlink -f /usr/local/cuda` before and after; any change stops the slice.
 Downloading the runfile is network access beyond the package registries, so
-the owner approves the download (W0 step 4).
+the owner approves the download (W0 step 4). **Revision 14 (Q15):** the
+download was not approved and is not done. The CUDA 13.0 toolkit cells run
+on a GCP VM instead (W0 step 4); the recipe above is kept only as history.
 
 ### 2.3 CUDA 13.x (primary NVIDIA documentation)
 
@@ -311,7 +317,7 @@ it and no open finding. FathomDB does not re-run the fork's tests.
 | --- | --- |
 | **REQ31-01 Fork base.** `fathomdb/0.19.10` is cut from upstream `v0.19.10` (`ec1cac71`; no tag pushed to the fork); the delta is small upstream-style commits. | **AC31-01 (fork-backed):** cudarc CF-AC-01 at `C`. |
 | **REQ31-02 Pool correctness.** The private pool never touches the default or current pool; frees are stream-ordered; `CudaSlice`-owned allocations never outlive the pool; leaked pointers are a documented precondition and the `upgrade_device_ptr` doc is corrected; `maxSize`, threshold and trim behave; zero length works; `Send`/`Sync` justified; multi-stream correct. Candle devices built from a private-pool context use it. | **AC31-02 (fork-backed + product):** cudarc CF-AC-02 and CF-AC-03 at `C`; Candle CK-AC-02 at `K` (this is the x86 runtime evidence of a private-pool context driven through Candle, on RTX 3090); FathomDB's private-pool GPU tests (T-POOL-PRODUCT) pass on the Orin (12.6) against `C`/`K`. FathomDB's pool path is not built on x86 (§ 2), so on RTX 3090 FathomDB asserts only the default allocator path and `doctor cuda-allocator` reporting `not_built` (T-CUDA). |
-| **REQ31-03 CUDA compatibility.** cudarc compiles for all 19 features with default and `no-std` feature sets on Linux and Windows and runs its GPU tests on driver 580 for 12.6, 13.0, 13.2 and 13.4 bindings; Candle and the FathomDB workspace build and run with the 12.6 toolkit and, if approved, the 13.0 toolkit; no removed or deprecated Driver API. | **AC31-03a (fork-backed):** cudarc CF-AC-04a and CF-AC-04b at `C` (G3 is the only runtime evidence for the 13.2+ `CUmemLocation` union path; FathomDB does not run it, I-18). **AC31-03b (fork-backed + product):** Candle CK-AC-05 at `K`; FathomDB T-WS-BUILD and T-CUDA cells for 12.6 and, if the owner approves the CUDA 13.0 download (W0 step 4), 13.0; if declined, the 13.0 toolkit cells are UNMEASURED by owner decision. Workspace runtime for 13.1–13.4 is UNMEASURED by owner ruling Q4. |
+| **REQ31-03 CUDA compatibility.** cudarc compiles for all 19 features with default and `no-std` feature sets on Linux and Windows and runs its GPU tests on driver 580 for 12.6, 13.0, 13.2 and 13.4 bindings; Candle and the FathomDB workspace build and run with the 12.6 toolkit and, if approved, the 13.0 toolkit; no removed or deprecated Driver API. | **AC31-03a (fork-backed):** cudarc CF-AC-04a, CF-AC-04b and CF-AC-04c at `C` (G3 on driver 580, and G5 on a GCP T4 with a newer driver installed on the lab VM only (cudarc ruling Q-F1), are the runtime evidence for the 13.1+ builds, including the 13.2+ `CUmemLocation` union path; FathomDB does not run them, I-18). **AC31-03b (fork-backed + product):** Candle CK-AC-05 at `K`, whose 13.0 toolkit cell K-G2 ran on a GCP T4 with driver 580.178.04 (Q15); FathomDB T-WS-BUILD and T-CUDA cells for 12.6 on `windchill3`, and for 13.0 on a GCP VM with driver branch 580 and the 13.0 toolkit installed on the VM only (Q15); if the owner declines that VM session, the 13.0 cells are UNMEASURED by owner decision. Workspace runtime for 13.1–13.4 is UNMEASURED by owner ruling Q4. |
 | **REQ31-04 Jetson Tegra.** Every Slice 30 gate holds on the Orin (JetPack 6, CUDA 12.6) on the new base. Tegra on CUDA 13 is UNMEASURED in Slice 31 (Q5). | **AC31-04:** cudarc CF-AC-05b and Candle CK-AC-05 (its Orin cell) at `C`/`K` (fork-backed); `qualification.md` re-runs the Slice 30 gate rows on the Orin; `doctor cuda-allocator` reports `private`, 3 GiB; the Tegra/CUDA 13 row reads UNMEASURED citing Q5 and todo `TC-b267d940`. |
 | **REQ31-05 Fallback.** Items 1–4 act only on aarch64 Linux. | **AC31-05 (fork-backed):** cudarc CF-AC-05 at `C`. |
 | **REQ31-06 Vendor excellence.** Upstream APIs used (result-layer `mem_pool`, #544) instead of new bindings; minimal fork deltas; every item has upstream status and removal path in each fork's `FATHOMDB.md`; fork revs never rewritten after a pin; library allocations outside the pool are known (D-14). | **AC31-06:** cudarc CF-AC-06 and Candle CK-AC-03, CK-AC-06 (fork-backed); R-DES records D-10 and D-14; pinned-override gate passes. |
@@ -349,13 +355,24 @@ covers:
     switch.
   - **Guards:** the single-cudarc guard.
   - **Marker feature:** its future.
+  - **Kernel data types (revision 14, Candle R-FK-VERIFY F2):** the x86
+    release build compiles Candle's kernels once at `CUDA_COMPUTE_CAP=75`,
+    and the BF16 and F8 kernels exist only for `__CUDA_ARCH__ >= 800`
+    (`candle-kernels/src/fill.cu:70-87`). So with that build BF16 and F8
+    are unavailable on every GPU, the RTX 3090 included; F16 is present.
+    FathomDB must never select BF16 or F8 on x86 (todo
+    `TC-30847709`). The embedder uses F32 only today. A multi-architecture
+    kernel build (Candle DK-3, todo `TC-323f15b0`) is the way to add them.
 - **D-12 (product) Tegra.** `tegra-pool` selection, `doctor
   cuda-allocator`, and the early-`cuInit` contract on the new base.
 - **D-14 Allocations outside the pool.** cuBLAS/cuBLASLt workspaces,
   static CUDART internals and module loads, measured in the product. Takes
   input from the cudarc fork's D-2, D-7 and D-F3 (upstream PR #595, a
   retained caller-owned cuBLAS workspace) and Candle's DK-4, so R-DES
-  follows R-FK-PLAN.
+  follows R-FK-PLAN. **Candle DK-4 (measured):** the cuBLAS/cuBLASLt
+  workspace and cuRAND state are not allocated from any memory pool, so
+  D-14 measures per-process device memory (VmRSS on the Orin); default-pool
+  counters serve only as a leak check (todo `TC-283d4f3a`).
 - **D-15 Teardown and process lifecycle (product).** A lost context or
   device reset before drop (Slice 30 saw SIGSEGV in `cublasDestroy_v2`),
   pools in statics at exit, and fork after init (H-1).
@@ -415,8 +432,11 @@ cudarc fork (fork plan § 6). Candle's tests are in the Candle fork (fork
 plan § 6). FathomDB runs:
 
 - **T-WS-BUILD** workspace builds with `embed-cuda`/`rerank-cuda`:
-  `CUDARC_CUDA_VERSION=12060` with the 12.6 toolkit; `13000` with the
-  user-local 13.0 toolkit (W0 step 4). Workspace cells needing a 13.1+
+  `CUDARC_CUDA_VERSION=12060` with the 12.6 toolkit on `windchill3`;
+  `13000` on a GCP VM with driver branch 580 and the CUDA 13.0 apt toolkit
+  installed on the VM only (Q15), the same setup as Candle K-G2
+  (`fathomdb/scripts/vm-setup-cuda13.sh` in the Candle fork). The VM gets a
+  source bundle and returns receipts; nothing is developed on it. Workspace cells needing a 13.1+
   `nvcc` are out of scope (Q4/Q6).
 - **T-POOL-PRODUCT** (Orin only: the pool path is built only on aarch64
   Linux with `tegra-pool`, § 2) FathomDB's private-pool GPU tests (the four
@@ -428,7 +448,8 @@ plan § 6). FathomDB runs:
   | Host / toolkit | Needs | Must pass |
   | --- | --- | --- |
   | RTX 3090, driver 580, 12.6 toolkit | present | embed and rerank end to end on the default allocator path; `doctor cuda-allocator` reports `not_built`; full gate |
-  | RTX 3090, driver 580, user-local 13.0 toolkit | W0 step 4 | T-WS-BUILD (13000), embed end to end, `doctor cuda-allocator` reports `not_built` |
+  | GCP T4 (or L4), driver branch 580, CUDA 13.0 toolkit on the VM | owner approval of the VM session (Q15) | T-WS-BUILD (13000), embed end to end, `doctor cuda-allocator` reports `not_built`. An RTX 3090 (sm_86) JIT of 13.0 PTX is not measured; an L4 (sm_89) would cover a post-Turing JIT |
+  | GCP VM, driver 580, only `libcuda.so.1` present (the unversioned `libcuda.so` diverted on the VM, as for cudarc T-DEV (e), ruling Q15a) | the same session | the 12.6 release artifact embeds end to end (Candle R-FK-VERIFY F5: every fork receipt loaded the driver as the unversioned `libcuda.so`) |
   | RTX 3090, 13.1–13.4 builds | R590–R615 drivers, never on `windchill3` (Q4, Q11) | UNMEASURED |
   | Orin, JetPack 6, 12.6 | present | T-POOL-PRODUCT, T-ORIN |
   | Orin, JetPack 7.2.x, 13.2/13.4 | reflash | UNMEASURED (Q5) |
@@ -443,7 +464,7 @@ plan § 6). FathomDB runs:
   | C2 older and newer 12.x cuBLAS | RTX 3090; scratch venv with `nvidia-cublas-cu12` 12.1.x, 12.4.x and 12.9.x (PyPI), reached by `LD_LIBRARY_PATH` | embed and rerank end to end; the receipt names the cuBLAS file actually loaded, from FathomDB's own D-18 report and cross-checked against `/proc/self/maps`, and its reported version, because the system's 12.6 `libcublas.so` is on the loader cache and could be picked silently. A missing symbol in an older cuBLAS is a typed error, recorded as a known gap, never a crash |
   | C3 CUDA 13 libraries only | `windchill3` Docker with the NVIDIA CDI devices (present). Images `nvidia/cuda:13.0.x-runtime-ubuntu24.04` (no CUDA 12 libraries) and `-devel` (adds an unversioned `libcublas.so` → `.so.13`); pulling them needs owner approval | the 12.6 build never loads a 13.x cuBLAS. It fails with a typed error that names the missing CUDA 12 cuBLAS and the remedy (`pip install nvidia-cublas-cu12`, or the 13.0 artifact once it ships). UNMEASURED if the pull is declined; cudarc CF-REQ-11's unit tests still cover the loader logic |
   | C4 below the GPU floor | `windchill3` Quadro K620 (sm_50, ordinal 2) | characterize `cuda:2` and `auto` with all devices visible. `auto` must not select the K620, and an explicit request must give a typed error, not a crash or an untyped PTX load failure. If today's behaviour differs, R-DES decides the fix; a new error is public surface and updates `docs/reference/errors.md` and the interface docs |
-  | C5 13.0 build, 13.0 libraries | RTX 3090; the user-local 13.0 toolkit or the cu13 scratch venv | the T-CUDA 13.0 row, plus the loaded-library check of C2 |
+  | C5 13.0 build, 13.0 libraries | the T-CUDA 13.0 GCP VM (Q15) | the T-CUDA 13.0 row, plus the loaded-library check of C2 |
 
   **Web evidence (2026-10-11) behind these cells:**
   - NVIDIA's minor-version compatibility page lists CUDA 12.x at driver
@@ -479,7 +500,7 @@ plan § 6). FathomDB runs:
 
 ```text
 R0 … R0-rev8 (done; rev8 also served as R-FC-PLAN and R-FK-PLAN part 1)
-→ W0
+→ W0 steps 4, 5, 7 (done, except the step-4 download: Q15)
 → cudarc FC1 → R-FC-REQ → FC2 → R-FC-DES → FC3 → R-FC-TEST → FC4–FC7 → R-FC-CODE → FC8 → R-FC-VERIFY
 → Candle FK2 → R-FK-CODE → FK3 → R-FK-VERIFY        (FK2 needs R-FC-VERIFY and R-FK-PLAN)
 → W6 (R-PIN for C and K; needs R-TEST too) → merge-forward → qualification
@@ -490,6 +511,14 @@ R0 … R0-rev8 (done; rev8 also served as R-FC-PLAN and R-FK-PLAN part 1)
 → Candle FK5 → R-FK-PUB → owner R-PUB → owner publishes the Candle crates
 → W8 step 3 → R-CODE-4 → merge
 ```
+
+**Fork-first (Q14, owner 2026-10-12).** The forks are FathomDB's upstream
+dependencies, so their tracks ran first. State on 2026-10-13: the cudarc
+fork is qualified at `C = b777f8d` (R-FC-VERIFY), the Candle fork at
+`K = 853324fc`, which pins `C` (R-FK-VERIFY). FC10's dry run was run early,
+on the owner's request (cudarc receipt `2026-10-13-CF-AC-07b-b777f8d.md`);
+R-PUB still waits for R-VERIFY. Next: W0 steps 3 and 6, then W1 → R-REQ,
+W2 → R-DES, W3 → R-TEST, then W6 with R-PIN.
 
 Side tracks, each joining only where its gate says:
 
@@ -527,8 +556,13 @@ on them.
    `fathomdb/review.md`). The fork clones and branches already exist and are
    pushed; add the proposal worktree only at FC9.
 4. Toolchains, searched outside PATH. Record the guard (driver 580.178.04,
-   `readlink -f /usr/local/cuda` → 12.6). **Owner approval:** download the
-   CUDA 13.0 runfile; install toolkit-only, user-local, no sudo (§ 2.2).
+   `readlink -f /usr/local/cuda` → 12.6). **Revision 14 (Q15):** the
+   download below was not approved and is not done. The 13.0 toolkit cells
+   (Candle K-G2, done; T-WS-BUILD 13000 and the T-CUDA 13.0 rows) run on a
+   GCP VM with driver branch 580 and the 13.0 toolkit installed on the VM
+   only; each VM session needs owner approval, and Spot VMs are used only
+   for test and verification. Revision 13 text, kept as history:
+   **Owner approval:** download the CUDA 13.0 runfile; install toolkit-only, user-local, no sudo (§ 2.2).
    Never install or update a driver on `windchill3`; never run the runfile
    with sudo or without `--toolkit`; never install apt `cuda`/driver
    packages. Re-check the guard. The download serves cudarc G4, Candle K-G2
@@ -771,7 +805,10 @@ FathomDB's `review.md` carries one line per fork review.
   the cudarc fork's driver-only 13.2/13.4 cells cover the binding layouts
   (with per-test RUN/UNMEASURED accounting); the rest is UNMEASURED.
 - **Tegra on CUDA 13** UNMEASURED (Q5); follow-up proposed (§ 16).
-- **Candle upstream drift** (0.11.0, already on cudarc 0.19.10): Candle DK-1.
+- **Candle upstream drift:** upstream 0.11.0 (`31f35b14`) is on cudarc
+  `^0.19.8` and upstream `main` (`c68b2499`) on `^0.19.10` (revision 13 said
+  0.11.0 was on 0.19.10). Candle DK-1 keeps 0.10.2 (Q16); the rebase is
+  todo `TC-509dc8a6`.
 - **First publish of a new crate name:** crates.io token bootstrap (FC10).
 - **Licensing:** cudarc MIT/Apache-2.0; attribution kept.
 
@@ -877,24 +914,51 @@ FathomDB's `review.md` carries one line per fork review.
       ([cloudjetson.com](https://cloudjetson.com/)), not a local reflash.
       Vet the vendor first: JetPack 7.2 availability, root access, and data
       handling.
+- **Q14.** Order of work — ruled (owner, 2026-10-12): "To me, it seems we
+  should get the 'upstream' work done first, and the forked libraries are
+  upstream dependencies to fathomdb", then "I agree with this sequence of
+  work". The cudarc fork (FC1–FC8) and the Candle fork (FK1–FK3) are
+  qualified first; FathomDB's W1–W3 and W6 follow (§ 8). Steward ledger
+  seq 313.
+- **Q15.** CUDA 13.0 toolkit venue — ruled (owner, 2026-10-12): the 13.0
+  toolkit cells run on a GCP VM with driver branch 580 and NVIDIA's 13.0
+  apt toolkit installed on the VM only; the `windchill3` runfile download
+  is not approved. "Spot instances can only be test and verification, no
+  development (potential code loss)": a VM gets a source bundle and returns
+  receipts. Each new VM session needs owner approval, at most 2 hours wall
+  clock; capacity order Spot T4, then on-demand T4, then L4. Candle K-G2
+  ran this way on 2026-10-13 (19 minutes). **Q15a:** on the lab VM only,
+  the unversioned `libcuda.so` may be moved aside with `dpkg-divert` to
+  test loading with only `libcuda.so.1`. Steward ledger seq 315, 316.
+- **Q16.** Candle base — ruled (owner, 2026-10-12, Candle DK-1): stay on
+  upstream Candle 0.10.2; the rebase onto 0.11.x/main is todo
+  `TC-509dc8a6`. Steward ledger seq 317.
 
 ## 16. Ledger and follow-ups
 
 - Todo `TC-d71a9e36-4509-470e-a677-525ea91193e4`: done in the merge-forward.
 - Todo `TC-b267d940-1add-4d08-a596-a7669ae4a500`: the Q5 Tegra/CUDA 13
   follow-up below.
-- At W0 step 7: record the 2026-10-11 directions (I-17, I-18) and rulings
-  Q4–Q12 with `ledgerwrite`. Set `FATHOMDB-PATCH.md` item 5 to "on fork,
-  not posted" until W6 deletes the file.
-- At FK1, open a todo for whichever Candle DK-1 path is not taken (a rebase
-  onto upstream 0.11.x, which already uses cudarc 0.19.10, or staying on
-  0.10.x).
+- **W0 step 7 (done, 2026-10-13):** I-17, I-18 and rulings Q4–Q16 plus
+  the cudarc fork's Q-F1 are steward ledger seq 303–317 (Q7 is I-17; Q12
+  was an investigation, recorded in § 15). `FATHOMDB-PATCH.md` item 5 reads
+  "on the fork, not posted" until W6 deletes the file.
+- **Candle DK-1 (Q16):** the rebase onto upstream 0.11.x/main is todo
+  `TC-509dc8a6-7d4a-415c-9f4b-f3bb1bd07021` (0.8.29).
 - **Todo for 0.8.29 (Q13):** the AWS `g5g` (Graviton2 + T4G) arm64 cells
-  for the non-Tegra aarch64 path. File it with `ledgerwrite` at W0 step 7.
+  for the non-Tegra aarch64 path: `TC-ff476f59-727e-4e5b-abc8-5cf438c32143`.
 - **Follow-up todo (Q10):** a CUDA 13.0 artifact beside 12.6 in the release
   after 0.8.28 (x86, and Orin on JetPack 7.2 once Q5 is measured), with
-  artifact naming and `auto` selection designed there. File it with
-  `ledgerwrite` at W0 step 7.
+  artifact naming and `auto` selection designed there:
+  `TC-a5afe8b8-3731-4cf6-9150-8e050bc2d313`.
+- **Candle DK-3 (consideration):** multi-architecture kernels (SASS + PTX)
+  for x86, the only way to bring BF16/F8 into the x86 artifact:
+  `TC-323f15b0-4474-490e-8abc-638861d67368`.
+- **Facts recorded for design (watching):** no BF16/F8 in the x86 cc 75
+  build (`TC-30847709-9ccd-4b68-a2ec-c027aa469ae8`); Tegra pool sizing
+  facts (`TC-aea347e9-f3b3-4dbb-b671-4be4b6010012`); Candle allocations
+  outside the pool and how D-14 measures them
+  (`TC-283d4f3a-83fa-4192-a078-32b71e790c9b`).
 - **Proposed follow-up (Q5):** before the 0.8.28 release, qualify Tegra on
   CUDA 13:
   - on a CloudJetson AGX Orin running JetPack 7.2.x (CUDA 13.2, then 13.4
@@ -905,5 +969,7 @@ FathomDB's `review.md` carries one line per fork review.
   - run the cudarc fork's G7 cells and FathomDB's T-ORIN;
   - restore JetPack 6 for the shipping target.
 
-  This needs the owner's reflash decision. Todo
-  `TC-b267d940-1add-4d08-a596-a7669ae4a500` (opened 2026-10-11).
+  Under Q13 this runs on a CloudJetson device after vendor vetting, so no
+  reflash of our Orin is needed. Todo
+  `TC-b267d940-1add-4d08-a596-a7669ae4a500` (opened 2026-10-11, updated
+  2026-10-13; not started).

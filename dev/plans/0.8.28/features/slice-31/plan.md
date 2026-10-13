@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — the private CUDA memory pool on forked cudarc, CUDA 12.6 and 13.x, through crates.io (D28-13) plan
-status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 14 — fork-first order (Q14), CUDA 13.0 toolkit cells on a GCP VM and Spot VMs for test only (Q15), Candle base stays 0.10.2 (Q16), both forks qualified (cudarc `C` = b777f8d, Candle `K` = 853324fc), Candle R-FK-PLAN M6 fixes, the x86 BF16/F8 caveat, FC10 dry run done early, W0 step 7 ledger entries filed; revision 13 — Q13 test-venue rulings (GCP pilot first; AWS arm64 cells to 0.8.29; Jetson on CUDA 13 via CloudJetson); revision 12 — second cudarc proposal (built-major library loading, FC9b, R-PROP2), production loaded-library check (D-18), cloud test venue research pending (Q13); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
+status: APPROVED SLICE SCOPE (owner, 2026-10-11); revision 15 — state of the slice on 2026-10-13 (§ 8.1): fork development and qualification done for the pinned commits, remaining fork steps, W0 step 3 done; revision 14 — fork-first order (Q14), CUDA 13.0 toolkit cells on a GCP VM and Spot VMs for test only (Q15), Candle base stays 0.10.2 (Q16), both forks qualified (cudarc `C` = b777f8d, Candle `K` = 853324fc), Candle R-FK-PLAN M6 fixes, the x86 BF16/F8 caveat, FC10 dry run done early, W0 step 7 ledger entries filed; revision 13 — Q13 test-venue rulings (GCP pilot first; AWS arm64 cells to 0.8.29; Jetson on CUDA 13 via CloudJetson); revision 12 — second cudarc proposal (built-major library loading, FC9b, R-PROP2), production loaded-library check (D-18), cloud test venue research pending (Q13); revision 11 — CUDA version support policy (ADR-0.8.28-cuda-version-support-policy.md), REQ31-15 and T-CUDA-COMPAT, rulings Q10–Q12; revision 10 — owner rulings Q8 (D-16 lock-drift guard (b)) and Q9 (crate name `cudarc-fathomdb`); revision 9 — R0-rev8 fixes; fork-side work planned, performed, reviewed and qualified in each fork (cudarc and Candle fork plans revision 2); W0 merge-forward done at 9fa71e93a
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -515,10 +515,45 @@ R0 … R0-rev8 (done; rev8 also served as R-FC-PLAN and R-FK-PLAN part 1)
 **Fork-first (Q14, owner 2026-10-12).** The forks are FathomDB's upstream
 dependencies, so their tracks ran first. State on 2026-10-13: the cudarc
 fork is qualified at `C = b777f8d` (R-FC-VERIFY), the Candle fork at
-`K = 853324fc`, which pins `C` (R-FK-VERIFY). FC10's dry run was run early,
-on the owner's request (cudarc receipt `2026-10-13-CF-AC-07b-b777f8d.md`);
-R-PUB still waits for R-VERIFY. Next: W0 steps 3 and 6, then W1 → R-REQ,
-W2 → R-DES, W3 → R-TEST, then W6 with R-PIN.
+`K = 853324fc`, which pins `C` (R-FK-VERIFY). § 8.1 gives the full state.
+
+### 8.1 State on 2026-10-13 (revision 15)
+
+**Fork work for the pinned commits is complete.** Both forks are
+developed, tested, reviewed and qualified at the commits FathomDB will pin:
+
+| Fork | Qualified commit | Evidence | Reviews |
+| --- | --- | --- | --- |
+| cudarc (`coreyt/cudarc` `fathomdb/0.19.10`) | `C` = `b777f8d94eedca8334e9331cf520d554b22544b7` | G1–G4 and G5a on `windchill3`, G5b on a GCP T4 (13.1–13.4 builds on a newer driver), G6 on the Orin, G8, a CI receipt with `head_sha` = `C`, CF-AC-07a | R-FC-REQ, R-FC-DES, R-FC-TEST, R-FC-CODE, R-FC-CODE-2, R-FC-VERIFY (APPROVE-WITH-NOTES); no open finding |
+| Candle (`coreyt/candle-fathomdb` `fathomdb/0.8.28-cudarc-fork`) | `K` = `853324fc2b9f813eedceb75bef660a06a413ff5b`, pinning `C` | K-G1 (RTX 3090, 12.6, at 86 and 75), K-G2 (GCP T4, driver 580, CUDA 13.0 toolkit), K-G3 (Orin) | R-FK-PLAN, R-FK-CODE and its re-check, R-FK-VERIFY ("fit to pin"); no open finding |
+
+No code changed after `C` or `K`; later fork commits are records only
+(the slice `status.md` records the pin-chain checks).
+
+**Fork steps still to come:**
+
+| Step | Kind | Waits for | Then |
+| --- | --- | --- | --- |
+| cudarc FC10 | publication preparation | done early on the owner's request (CF-AC-07b, R-FC-PUB APPROVE-WITH-FIXES, findings 2–4 fixed) | owner decision on R-FC-PUB finding 1 (the README's relative `FATHOMDB.md` link resolves against the default branch `main`: change the fork's default branch or accept it); owner R-PUB after R-VERIFY; owner publishes `cudarc-fathomdb` 0.19.10 from `C` |
+| cudarc FC9 | development (proposal branch `proposal/mem-pool` from upstream `main`, RED first, example, benchmark, issue and PR drafts) | the slice merge (§ 8 order) | R-PROP; never posted without owner sign-off |
+| cudarc FC9b | development (`proposal/lib-major`, built-major library loading) | FC9 | R-PROP2; not posted |
+| Candle FK5 | development and re-qualification (K8: registry `cudarc-fathomdb` 0.19.10, version 0.10.4; K-G1, K-G3, CK-AC-01, CK-AC-04, dry runs) | the owner's publication of `cudarc-fathomdb` (crates.io rejects git dependencies) | R-FK-PUB; owner R-PUB; owner publishes the three Candle crates from K8 |
+| cudarc G7 (Tegra on CUDA 13) | test | CloudJetson vetting (Q5, Q13; todo `TC-b267d940`) | UNMEASURED in Slice 31 |
+
+If FathomDB's W6 or its reviews find a defect in a fork, the fix is made in
+that fork and restarts the pin chain there (§ 3.1): fork code review,
+re-qualification, then a new R-PIN.
+
+**FathomDB side:** W0 steps 1, 2, 4 (GCP venue, Q15), 5 and 7 are done; step
+3 is done (worktree `../fathomdb-worktrees/slice-0.8.28-31`, branch
+`slice/0.8.28-31-cudarc-fork`, `status.md` and `review.md` started;
+preflight's one hard failure is that no 0.8.28 release-state file exists
+yet). Step 6 (the slice `.venv`) comes before the first full gate. W1–W3
+have not started.
+
+**Next:** W1 → R-REQ, W2 → R-DES, W3 → R-TEST, then W6 with the owner's
+R-PIN of `C` and `K`, qualification, R-CODE-3 and R-VERIFY, the merge,
+then FC9 and FC9b, then publication (§ 9 W8).
 
 Side tracks, each joining only where its gate says:
 

@@ -114,14 +114,98 @@ workspace and `embed-cuda,rerank-cuda` `cargo check` pass (build only).
   override `kernel_compute_floor()` would be refused in a build with
   `CUDA_COMPUTE_CAP=87`; no Orin window runs those suites.
 
+### W6 Phase C (on the pinned tree)
+
+| Row | RED | GREEN | Observed RED |
+| --- | --- | --- | --- |
+| R12, R12b decoy cuBLAS (3090) | `b564c9671` | `3116da864` | R12: the child panics in the fork's loader (`Unable to dynamically load the "cublas" shared library for CUDA 12. Tried: libcublas.so.12 (wrong version 13.1.1), libcublas.so (wrong version 13.1.1)`); R12b: no panic, the device is built and the F32 matmul runs on the decoy's stub (`matmul ran: [[[0.0, 0.0], …]]`), no refusal |
+| R9 `LibLoadError` mapping, R13 report and stderr line | `42ff7d865` | `3116da864` | E0425/E0599/E0609 (`refusal_from_lib_load_error`, `LibraryUnavailable`, `CudaLibraryUnavailable`, `cuda_libraries` absent) |
+| R10 `doctor cuda-libraries` | `270d9595f` | `e8b0ef299` | E0599 (`DoctorCommand::CudaLibraries`), E0425 (`cuda_libraries_output`, `cuda_libraries_exit_code`) |
+| D-18 report in the bindings | `28671f3b6` | `ae07740ff` | unresolved SDK imports; no `cuda_libraries` on the PyO3 and N-API mirrors; Python `ImportError`; TypeScript TS2305/TS2353 |
+| CUDA-07 driver entry | `a63bd5317` | `c82b18750` | `no driver entry in [CudaLibraryReport { library: "cublas", … }, …]` |
+| D-17 sites 3 and 10 | refactor, no RED | `179af293c` | aarch64-only code, first compiled on the Orin |
+| R6 references | `88e871a57` | `710aa0a23` (after the self-match fix `9b0527efb`) | see Phase A |
+| R16 engine close | characterization | `c678eeb51`, `b220deeaa` | written, `#[ignore]`, compiled on windchill3; first run in Orin window P |
+| R15 Python F1–F5 | characterization | `f4d057136` | written; skip off a Tegra wheel on a Jetson |
+
+Other Phase C commits: docs and interface docs `0440d430a`; ADR
+amendments, index rows 62 and 63 and the changelog `76e992da4`;
+contributor map `2ef33f5ae`; T-CUDA receipt `595dc6a04`; the ONNX
+embedder's `CudaDeviceInfo` literals `b3e39e9bd` (found by the
+feature-complete gate); the feature matrix `9b43d29c1`.
+
+**T-CUDA on the RTX 3090** (receipt
+[2026-10-13-T-CUDA-3090-c82b187505a9.md](qualification/2026-10-13-T-CUDA-3090-c82b187505a9.md);
+GPU `GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b`; guard unchanged in every
+line of [windchill3-guard.log](qualification/windchill3-guard.log)):
+WSB-01 pass; CMP-C1b 11 PTX modules, `.version` ≤ 8.5, `sm_75`; PRD-24
+6 passed; CUDA-01 and CUDA-02 preflight passed (wheel and N-API need no
+`libcudart`); CUDA-03 `not_applicable`; CUDA-04/05/06/11 6 passed, 1
+ignored; CUDA-07 driver, cuBLAS 12.6.1 and cuRAND 10.3.7 loaded from the
+expected real paths; CMP-C2 cuBLAS 12.1.3 and 12.9.2 each load, report,
+embed and rerank on `cuda:0`.
+
+**Further deviations and findings (Phase C).**
+
+- R12b: Candle 0.11.0's F32 matmul calls `cublasGemmStridedBatchedEx`,
+  not `cublasSgemmStridedBatched` (no Candle matmul reaches it), so the
+  test plan's RED path (a matmul panic) did not occur; the GREEN
+  assertion is as specified.
+- R12: the fork version-checks versioned names at `b777f8d` (its `judge`
+  runs for every candidate), contrary to design § 9.1's premise; the
+  refusal comes from the `LibLoadError` (`WrongMajor`), whose file is
+  found on `LD_LIBRARY_PATH`.
+- `CudaLibraryRefusal.library` is `&'static str` and `path`/`version` are
+  `Option<Box<str>>`, to keep the by-value error variants under clippy's
+  `result_large_err` limit.
+- `c-libmajor-wc3` counts 6 passed, 1 ignored (plan: 5 and 1): the CUDA-07
+  driver test was added.
+- CUDA-03 reports `module_load_init` `not_at_load` on x86 (plan: `ran`);
+  the early-`cuInit` hook exists only on aarch64 Linux.
+- CMP-C2 ran without the wheel (the preflight deletes it): the release
+  CLI and the embedder's live test binaries with each cuBLAS wheel on
+  `LD_LIBRARY_PATH`; `c2-embed-rerank.py` was not written.
+- `tests/device_policy.rs` (not frozen) gained the new `CudaProbeError`
+  variant in its fixture's exhaustive match; `ort_bge.rs`'s in-module
+  test literal gained `cuda_libraries`. Compile adaptations, no assertion
+  changed.
+- The preflight witness JSON files are not committed (gitleaks flags
+  their SHA-256 values); the receipt quotes the digests.
+- `docs/reference/errors.md` lists error classes, not kinds; the CUDA
+  kinds stay in `docs/embedder.md`. `dev/interfaces/wire.md` names no CUDA
+  kind and needs no change.
+- Not written: the Rust Orin tests of `src/cuda_pool_slice31_tests.rs`
+  (R14 N1 RED, R15 TDN-01/02, R17 D-12 and D-14 measurements) and N1. They
+  compile only on aarch64 Linux, and windchill3 has no aarch64 Rust target
+  or `rust-src`; they belong to Orin window P. D-17 is likewise compiled
+  first on the Orin.
+
+### Left for the Orin, GCP and the main thread
+
+- **Orin window P** (pin commit or later): write and run R14 (N1 RED) and
+  the R15/R17 Rust tests in `cuda_pool_slice31_tests.rs`; first runs of
+  R16 (`c-engine-close`). First aarch64 compile of D-17 and of every
+  `tegra-pool` path on this tree.
+- **Window A**: POOL-01…05, TDN-01…10 (F1–F5 with the Tegra wheel),
+  ORIN-12…15, REG-b and REG-c (`check-tegra-pool-registry-build.sh` on
+  the Orin), CMP-C1b `sm_87`. **Window B**: G1–G8. **Window C**: G9.
+  The Slice 30 harness copy under `dev/plans/runs/0.8.28-slice-31/harness/`
+  (only `wc3-env.sh` exists) and PERF-03's x86 adaptation are not done.
+- **GCP**: S-C3 (CMP-C3, CUDA-09) and S-13 (WSB-02, CUDA-08, CMP-C5), each
+  on the owner's go-ahead.
+- **cudarc fork FT-3**: Run 2 with `FATHOMDB_LOCK_SHA` =
+  `aa898677f3eff2fb8fb40e2108a1b29072f0e7fa` and the Linux-normal record;
+  then copy it to `scripts/cudarc-fathomdb-lock-set.json` (R3's real-tree
+  arm, and the fast tier, stay RED until then).
+- **Main thread**: the owner's advisory review of the `candle-kernels` rev
+  change (pinned-override posture); FT-1…FT-3 to the todos ledger when W6
+  lands; the R-TEST OP-3 todo (feature-complete gate by UUID).
+
 ## Next
 
-W1 (`requirements.md`) and W2 (`design.md` revision 2, revised after
-R-DES) done; W3 drafted ([test-plan.md](test-plan.md), DRAFT FOR R-TEST);
-next R-TEST, then W6
-with registry `cudarc-fathomdb` `=0.19.10`, the Candle crates `=0.11.0` and
-the `candle-kernels` git patch at `K9`, under the owner-approved R-PIN
-checklist (plan § 9 W6, Q20, Q21).
+W6 on windchill3 is done through Phase C except the Orin-only work (above).
+Next: the cudarc fork's FT-3 record, Orin window P, then windows A–C, the
+GCP sessions on the owner's go-ahead, R-CODE-3 and R-VERIFY.
 
 ## Log
 

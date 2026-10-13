@@ -65,8 +65,11 @@ expect_fail_with 'is not exactly "cudarc-fathomdb v0.19.10"' 'a_path_cudarc_fath
   --root "$FIXTURES/tree/path-cudarc-fathomdb"
 expect_fail_with 'no cudarc-fathomdb line for embed-cuda' 'embed_cuda_without_cudarc_fathomdb_is_rejected' \
   --root "$FIXTURES/tree/no-cudarc-fathomdb"
+# The fixture's own lock must hold the optional cudarc 0.19.4 (Cargo locks
+# every optional dependency), so condition A is pointed at the GREEN lock and
+# this arm exercises condition C's flash-attn exclusion alone.
 expect_pass 'C exclusion: cudarc reachable only through flash-attn passes' \
-  --root "$FIXTURES/tree/flash-attn-only"
+  --root "$FIXTURES/tree/flash-attn-only" --lock "$FIXTURES/lock/ok.lock"
 
 # Condition D (a concrete cuda-NNNNN feature on cudarc-fathomdb, D-8W).
 expect_fail_with 'cudarc-fathomdb feature "cuda-12060"' 'concrete_cuda_feature_on_cudarc_fathomdb_is_rejected' \

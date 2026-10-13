@@ -231,6 +231,98 @@ pub(crate) fn missing_required_symbols(
 mod tests {
     use super::*;
 
+    #[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+    struct RefusingProvider(CudaLibraryRefusal);
+
+    #[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+    impl crate::CudaProvider for RefusingProvider {
+        fn enumerate_visible_cuda_devices(
+            &mut self,
+        ) -> Result<Vec<crate::CudaVisibleDevice>, crate::CudaProbeError> {
+            Ok(vec![crate::CudaVisibleDevice {
+                visible_ordinal: 0,
+                uuid: "GPU-d18".to_owned(),
+                name: "d18".to_owned(),
+                compute_capability: None,
+            }])
+        }
+
+        fn probe_cuda(
+            &mut self,
+            _ordinal: usize,
+        ) -> Result<crate::CudaDeviceInfo, crate::CudaProbeError> {
+            Err(crate::CudaProbeError::LibraryUnavailable(self.0.clone()))
+        }
+    }
+
+    #[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+    #[test]
+    fn a_lib_load_error_for_a_missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy() {
+        use candle_core::cuda::cudarc::{LibLoadError, RejectReason};
+        let error = LibLoadError {
+            library: "cublas",
+            cuda_major: 12,
+            tried: vec![
+                ("libcublas.so".to_owned(), RejectReason::NotFound),
+                ("libcublas.so.12".to_owned(), RejectReason::NotFound),
+            ],
+        };
+        let refusal = refusal_from_lib_load_error(&error);
+        assert_eq!(refusal.reason, CudaLibraryRefusalReason::Missing);
+        assert_eq!(refusal.required_major, 12);
+        assert_eq!(refusal.path, None);
+        let resolution = crate::resolve_embed_device_policy(
+            crate::EmbedDevicePolicy::Cuda(0),
+            true,
+            &mut RefusingProvider(refusal.clone()),
+        )
+        .expect_err("a forced refusal is an error");
+        assert_eq!(
+            resolution,
+            crate::DeviceResolutionError::CudaLibraryUnavailable { ordinal: 0, refusal }
+        );
+        let error = crate::EmbedDevicePolicyError::Resolution(resolution);
+        assert_eq!(error.kind(), "cuda_library_unavailable");
+        let message = error.to_string();
+        for needle in [
+            "pip install nvidia-cublas-cu12 nvidia-curand-cu12",
+            "nvidia.cublas",
+            "nvidia.curand",
+            "LD_LIBRARY_PATH",
+        ] {
+            assert!(message.contains(needle), "{needle:?} missing from {message:?}");
+        }
+    }
+
+    #[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+    #[test]
+    fn a_lib_load_error_for_a_wrong_major_cublas_is_wrong_major() {
+        use candle_core::cuda::cudarc::{LibLoadError, LibVersion, RejectReason};
+        let thirteen = LibVersion { major: 13, minor: 1, patch: Some(1) };
+        let error = LibLoadError {
+            library: "cublas",
+            cuda_major: 12,
+            tried: vec![
+                ("libcublas.so.12".to_owned(), RejectReason::WrongVersion(thirteen)),
+                ("libcublas.so".to_owned(), RejectReason::NotFound),
+            ],
+        };
+        let refusal = refusal_from_lib_load_error(&error);
+        assert_eq!(refusal.reason, CudaLibraryRefusalReason::WrongMajor);
+        assert_eq!(refusal.version.as_deref(), Some("13.1.1"));
+        assert_eq!(refusal.required_major, 12);
+        assert_eq!(
+            refusal.tried[0],
+            ("libcublas.so.12".to_owned(), "wrong version 13.1.1".to_owned())
+        );
+        let curand = refusal_from_lib_load_error(&LibLoadError {
+            library: "curand",
+            cuda_major: 12,
+            tried: vec![("libcurand.so.10".to_owned(), RejectReason::NotFound)],
+        });
+        assert_eq!(curand.required_major, 10, "cuRAND's own major in a CUDA 12 build");
+    }
+
     #[test]
     fn refusal_reason_strings_are_missing_wrong_major_and_missing_symbol() {
         assert_eq!(CudaLibraryRefusalReason::Missing.as_str(), "missing");

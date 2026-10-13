@@ -214,3 +214,79 @@ fn missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy() {
     let lines = stderr.lines().filter(|line| line.starts_with("fathomdb-cuda-libraries ")).count();
     assert_eq!(lines, 1, "exactly one refusal line per process:\n{text}");
 }
+
+/// Every library in the device report was really loaded: its path is in
+/// this process's `/proc/self/maps`. cuRAND reports its own major, 10.
+#[test]
+fn the_cuda_library_report_names_the_loaded_files() {
+    if in_child() {
+        return;
+    }
+    let resolution = resolve_default_embedder_device_from_env().expect("CUDA resolution");
+    let EffectiveEmbedDevice::Cuda(info) = resolution.effective_device else {
+        live::require_live_or_skip("slice31_cuda_library_major: no CUDA device selected; skipping");
+        return;
+    };
+    let maps = std::fs::read_to_string("/proc/self/maps").expect("/proc/self/maps");
+    assert!(!info.cuda_libraries.is_empty(), "the report lists the loaded libraries");
+    for library in ["driver", "cublas", "curand"] {
+        assert!(
+            info.cuda_libraries.iter().any(|report| report.library == library),
+            "{library} missing from {:?}",
+            info.cuda_libraries
+        );
+    }
+    for report in &info.cuda_libraries {
+        let path = report.path.as_deref().expect("a loaded library has a path");
+        assert!(maps.contains(path), "{path} is not mapped in this process: {report:?}");
+        assert_eq!(report.built_major, 12, "{report:?}");
+    }
+    let curand =
+        info.cuda_libraries.iter().find(|report| report.library == "curand").expect("curand");
+    assert!(
+        curand.version.as_deref().is_some_and(|version| version.starts_with("10.")),
+        "{curand:?}"
+    );
+    println!("cuda_libraries: {:?}", info.cuda_libraries);
+}
+
+/// Owner ruling Q24: a refusal writes one `fathomdb-cuda-libraries {json}`
+/// line per process, however often the probe refuses.
+#[test]
+fn a_refusal_writes_one_stderr_line() {
+    if in_child() {
+        child_resolve(false);
+        child_resolve(false);
+        return;
+    }
+    let (dir, _decoy) = build_decoy("decoy_cublas.c");
+    let output = run_child("a_refusal_writes_one_stderr_line", Some(dir.path()));
+    let text = report(&output);
+    if !gpu_visible(&text) {
+        return;
+    }
+    assert!(output.status.success(), "{text}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let lines: Vec<&str> =
+        stderr.lines().filter(|line| line.starts_with("fathomdb-cuda-libraries ")).collect();
+    assert_eq!(lines.len(), 1, "exactly one refusal line for two refusals:\n{text}");
+    assert!(lines[0].contains("\"reason\":\"wrong_major\""), "{}", lines[0]);
+}
+
+/// Regression guard (not a RED): a successful load writes nothing.
+#[test]
+fn a_successful_load_writes_no_stderr_line() {
+    if in_child() {
+        child_resolve(false);
+        return;
+    }
+    let output = run_child("a_successful_load_writes_no_stderr_line", None);
+    let text = report(&output);
+    if !gpu_visible(&text) {
+        return;
+    }
+    assert!(output.status.success(), "{text}");
+    assert!(text.contains("device built"), "the child must build its device:\n{text}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.lines().any(|line| line.starts_with("fathomdb-cuda-libraries ")), "{text}");
+}

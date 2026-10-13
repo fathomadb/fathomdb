@@ -31,6 +31,19 @@ AC-050c) gates merges against this invariant.
   `cuda_allocator` (`fathomdb.types.CudaAllocatorReport`) and TypeScript
   `cudaAllocator` (`CudaAllocatorReport`); and the CLI verb
   `fathomdb doctor cuda-allocator` (`fathomdb.doctor.cuda-allocator.v1`).
+- (Slice 31) A CUDA library check before any GPU device is built: a CUDA 12
+  cuBLAS or cuRAND that is missing, reports another major or lacks a
+  function FathomDB uses is refused with the new device-policy error kind
+  `cuda_library_unavailable` (reasons `missing`, `wrong_major`,
+  `missing_symbol`) and a remedy, instead of a panic; `auto` runs on CPU
+  with that reason. A refusal writes one `fathomdb-cuda-libraries` line to
+  stderr per process.
+- (Slice 31) The loaded CUDA libraries on `CudaDeviceInfo` in every SDK:
+  Rust `cuda_libraries` (`CudaLibraryReport`, `CudaLibraryRefusal`,
+  `CudaLibraryRefusalReason`, re-exported by `fathomdb-sdk`), Python
+  `cuda_libraries` (`fathomdb.types.CudaLibraryReport`) and TypeScript
+  `cudaLibraries`; and the CLI verb `fathomdb doctor cuda-libraries`
+  (`fathomdb.doctor.cuda-libraries.v1`, exit 70 on a refusal).
 
 ### Changed
 
@@ -50,6 +63,27 @@ AC-050c) gates merges against this invariant.
   `RerankerLoadError` gain the CUDA variants; `rerank_passages` returns
   `RerankPassagesError`.
 - The Fathom Candle crates move to 0.10.3 (`candle-kernels` stays 0.10.2).
+- (Slice 31) FathomDB consumes its published fork crates from crates.io:
+  `candle-core-fathomdb`, `candle-nn-fathomdb` and
+  `candle-transformers-fathomdb` 0.11.0 (exact pins), which bring
+  `cudarc-fathomdb` 0.19.10; the vendored cudarc 0.19.7 copy and its test
+  are removed, and only `candle-kernels` stays a git patch (at the Candle
+  fork's `182ceab0`). `tegra-pool` no longer enables the
+  `fathomdb-private-pool` marker and the embedder has no direct `cudarc`
+  dependency, so a downstream build of the published crates can use
+  `tegra-pool` (it links `libcudart` dynamically).
+- (Slice 31) A GPU below the build's compute-capability floor (7.5 on
+  x86_64, 8.7 for Jetson) is refused as `cuda_incompatible` before a device
+  is built; `auto` falls back to CPU. `CudaProvider` gains the provided
+  method `kernel_compute_floor`.
+- (Slice 31) **Breaking (Rust, pre-1.0):** `CudaProbeError`,
+  `DeviceResolutionError`, `RerankerDeviceResolutionError`,
+  `DeviceResolutionReason` and `RerankerDeviceResolutionReason` gain
+  library-unavailable variants, so exhaustive matches on them must add an
+  arm.
+- (Slice 31) Documented floors for the CUDA 12.6 artifacts: NVIDIA driver
+  560.28.03 or later, compute capability 7.5 or later on x86_64, CUDA 12
+  cuBLAS and cuRAND (tested with cuBLAS 12.1 to 12.9).
 
 ## 0.8.27 — 2026-10-10
 

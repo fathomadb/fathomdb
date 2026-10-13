@@ -3,8 +3,8 @@ title: ADR-0.8.28-cuda-version-support-policy
 date: 2026-10-11
 target_release: 0.8.28
 desc: FathomDB GPU artifacts support CUDA 12.x and 13.x libraries on Turing or newer GPUs; 12.6 is the shipping floor, 13.0 the next artifact, 11.x unsupported; CUDA version usage and importance are re-reviewed at every release
-blast_radius: CUDA release artifacts (x86_64 and Jetson); release plans; scripts/release/cuda-artifact-contract.sh; GPU documentation; windchill3 test host
-status: accepted (owner, 2026-10-11)
+blast_radius: CUDA release artifacts (x86_64 and Jetson); release plans; scripts/release/cuda-artifact-contract.sh; GPU documentation; windchill3 test host; fathomdb-embedder device probe; doctor cuda-libraries
+status: accepted (owner, 2026-10-11); amended 2026-10-13 (Slice 31)
 ---
 
 # ADR-0.8.28 — CUDA version support policy
@@ -90,3 +90,48 @@ Facts that bound the choice:
   drivers and lock out R580–R610, including the LTS branch.
 - **Move the single artifact to 13.0 now:** drops JetPack 6 Orin and hosts
   on drivers 555–575.
+
+## Amendment 2026-10-13 — loaded-library check and the GPU floor (0.8.28 Slice 31)
+
+**Context.** Decisions 1 and 5 above set a CUDA 12.x library floor and a
+Turing-or-newer GPU floor; the consequences require a typed, plain
+failure below them. The cudarc fork loads only libraries of the major it
+was built for (`cudarc-fathomdb` item 9), but Candle's device
+construction panics when a library is missing, and each library symbol is
+resolved lazily, so a missing one panics at its first call. Below the
+kernel floor, a GPU would have reached device construction and failed
+late. The owner ruled that the Quadro K620 on `windchill3` is never run
+(Slice 31 Q22), so the floor is tested with injected devices.
+
+**Decision.**
+
+1. **Loaded-library check.** Before building a CUDA device, the embedder
+   and reranker load cuBLAS and cuRAND for the built major and refuse a
+   missing library, a file that reports another major, or a file that
+   lacks a symbol FathomDB or Candle calls (Slice 31 Q26), with the typed
+   kind `cuda_library_unavailable` and a reason (`missing`,
+   `wrong_major`, `missing_symbol`). Under `auto` the component runs on
+   CPU with that reason; under a forced `cuda:N` it is an error carrying
+   the library, path, version, required major and the names tried.
+2. **Remedy text.** For a missing CUDA 12 cuBLAS or cuRAND the message
+   says to `pip install nvidia-cublas-cu12 nvidia-curand-cu12` and put
+   both packages' library directories on `LD_LIBRARY_PATH`, because the
+   loader does not search Python's site-packages on Linux.
+3. **Report.** `CudaDeviceInfo.cuda_libraries` lists the files loaded;
+   `fathomdb doctor cuda-libraries` (`fathomdb.doctor.cuda-libraries.v1`)
+   always reports them; exit 70 on a refusal. Only a refusal writes one
+   stderr line per process (Slice 31 Q24).
+4. **GPU floor at probe time.** A device whose compute capability is
+   below the build's `CUDA_COMPUTE_CAP` (the release contract value: 7.5
+   on x86_64, 8.7 for Jetson) is refused before any device is built, with
+   the existing kind `cuda_incompatible`. `auto` probes only the lowest
+   visible ordinal and falls back to CPU when it is below the floor.
+5. **Tests.** The floor and the library-error mapping are tested
+   hermetically (injected devices and injected load errors); a real host
+   with no CUDA 12 cuBLAS is tested on an owner-approved GCP VM with the
+   driver only, or recorded UNMEASURED.
+
+**Consequences.** New public surface: the `cuda_library_unavailable`
+kind, `CudaDeviceInfo.cuda_libraries` and `doctor cuda-libraries`; the
+new error variants are a pre-1.0 break recorded in the changelog. The
+Tegra pool ADR's Slice 31 amendment (decision 5) points here.

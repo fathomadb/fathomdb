@@ -3,8 +3,8 @@ title: ADR-0.8.28-tegra-private-cuda-pool
 date: 2026-10-08
 target_release: 0.8.28
 desc: On the Jetson AGX Orin 64 GB, every FathomDB CUDA context allocates from one private, capped CUDA memory pool with release threshold 0, behind the non-default tegra-pool feature
-blast_radius: vendored cudarc 0.19.7; Fathom Candle fork 0.10.3; fathomdb-embedder (policy module, device creation, report, early cuInit helper); fathomdb-embedder-api 0.7.0 (EmbedderError); fathomdb-engine, napi, py, sdk and cli errors; doctor cuda-allocator; Tegra release scripts; interface docs
-status: accepted (owner rulings 25–38 and the 2026-10-08 HITL)
+blast_radius: cudarc-fathomdb 0.19.10 (crates.io, from coreyt/cudarc); the Candle fork crates 0.11.0 and candle-kernels by git patch at 182ceab0; fathomdb-embedder (policy module, device creation, report, early cuInit helper); fathomdb-embedder-api 0.7.0 (EmbedderError); fathomdb-engine, napi, py, sdk and cli errors; doctor cuda-allocator; Tegra release scripts; interface docs
+status: accepted (owner rulings 25–38 and the 2026-10-08 HITL); amended 2026-10-13 (Slice 31)
 ---
 
 # ADR-0.8.28 — Tegra private CUDA memory pool
@@ -177,3 +177,100 @@ embedder protocol is unchanged.
   accepted.
 - The 0.8.27 path is unchanged for every build without `tegra-pool` and for
   every target other than aarch64 Linux.
+
+## Amendment 2026-10-13 — consumption through the published fork crates (0.8.28 Slice 31)
+
+**Context.** The decision above is unchanged: who gets the pool, the
+gates, sizing, settings, errors, report and early-`cuInit` contract stand.
+What changes is where the cudarc primitive and its evidence live. Slice 31
+moved the vendored cudarc delta to FathomDB's cudarc fork
+(`coreyt/cudarc`, branch `fathomdb/0.19.10`, rebased on upstream
+v0.19.10) and published it as `cudarc-fathomdb` 0.19.10 from commit
+`b777f8d9`; the Candle fork depends on it and is published as
+`candle-core-fathomdb`, `candle-nn-fathomdb` and
+`candle-transformers-fathomdb` 0.11.0 from `182ceab0` (owner rulings
+Q9, Q17, Q18, Q21).
+
+**Decision.**
+
+1. **Consumption.** `fathomdb-embedder` depends on the Candle fork crates
+   `=0.11.0` and reaches `cudarc-fathomdb` 0.19.10 only through them
+   (`candle_core::cuda::cudarc`); it has no direct `cudarc` dependency, and
+   `tegra-pool` adds none. `Cargo.lock` holds exactly `cudarc-fathomdb`
+   0.19.10 from crates.io, checked by `scripts/check-pinned-override-rot.py`.
+   The root `[patch.crates-io]` keeps only `candle-kernels` by git at
+   `182ceab0`, which carries the static CUDA runtime into FathomDB-built
+   artifacts (ADR-0.8.25-driverless-cuda-runtime-linkage), and
+   `libsqlite3-sys`. Exactly one `cudarc` 0.19 is in the graph,
+   `cudarc-fathomdb`, enforced by `scripts/check-single-cudarc.sh`.
+2. **crates.io consumers get `tegra-pool`.** Because the fork crates are
+   published, a downstream build with `tegra-pool` and no `[patch]` table
+   resolves and builds. `scripts/check-tegra-pool-registry-build.sh`
+   proves it with a path copy of the FathomDB embedder from the tree under
+   test, depending on the published fork crates; it does not build
+   published FathomDB crates, which do not exist until the release. It
+   links the CUDA runtime dynamically through upstream `candle-kernels`
+   0.10.2 and needs `LIBRARY_PATH` set to the CUDA library directory to
+   link; the CPU-loadable guarantee of REQ-068 applies only to
+   FathomDB-built artifacts.
+3. **The marker feature is retired.** `tegra-pool` no longer enables
+   `fathomdb-private-pool`; the package name `cudarc-fathomdb` already
+   rules out upstream cudarc.
+4. **Evidence for the primitive lives in the fork.** The fork's
+   requirements, design, tests, reviews and qualification receipts
+   (`fathomdb/` on `fathomdb/0.19.10`; G1-G6, G8 and the CI receipt at
+   `b777f8d9`) replace `scripts/tests/test_vendored_cudarc.sh`. The item
+   table with upstream status and removal paths is the published crate's
+   `FATHOMDB.md` (items 1-9). FathomDB guards lock drift between its
+   `Cargo.lock` and the fork's last recorded run
+   (`scripts/check-cudarc-fathomdb-lock-set.py`, owner ruling Q8), and
+   records the exact fork versions it relies on in
+   `scripts/pinned-override-rot.json`.
+5. **Library loading.** The fork loads only CUDA libraries of the major it
+   was built for (item 9). FathomDB's check of the loaded libraries, its
+   typed refusal and `doctor cuda-libraries`, and the probe-time
+   compute-capability floor, are CUDA-version-policy decisions, recorded
+   in the amendment of 2026-10-13 to
+   ADR-0.8.28-cuda-version-support-policy.
+6. **Tegra facts (fork measurements, JetPack 6).** A capped pool serves
+   about a third of its `maxSize`, so the 3 GiB default serves about
+   1 GiB; a process has room for about four uncapped pools; `cuMemGetInfo`
+   is not a release signal on Tegra. None changes the sizing rule.
+7. **Why CUDA 12.x** is recorded in ADR-0.8.28-cuda-version-support-policy
+   (Slice 31 plan § 15 Q6).
+
+A close-time release of unused pool memory (Slice 31 design § 8, N1) is
+conditional on a RED measured on the Orin; it is not part of this
+amendment.
+
+**Superseded statements in this ADR.**
+
+- Front matter `blast_radius`, "vendored cudarc 0.19.7; Fathom Candle
+  fork 0.10.3": superseded by `cudarc-fathomdb` 0.19.10 and the Candle
+  fork crates 0.11.0, with `candle-kernels` by git patch.
+- Components, item 1, "The vendored cudarc 0.19.7 gains `CudaMemPool`
+  (create, attribute, trim, raw, destroy on drop) …": superseded. The
+  primitive is in `cudarc-fathomdb` 0.19.10; `attribute` is replaced by
+  typed reads (`reserved_current`, `reserved_high`, `used_current`,
+  `used_high`, `release_threshold`, `max_size`).
+- Components, item 1, "The no-op feature `fathomdb-private-pool` marks
+  the vendored crate. `FATHOMDB-PATCH.md` gives each item an upstream
+  status and removal path, and `scripts/pinned-override-rot.json` lists
+  exactly that set": superseded by decisions 3 and 4 above.
+- Components, item 2, "core, nn and transformers move to 0.10.3 together
+  (candle-kernels stays 0.10.2)": superseded by 0.11.0 from the registry;
+  `candle-kernels` stays 0.10.2, by git patch at `182ceab0`.
+- Components, item 6, "It is supported only in repository and artifact
+  builds, which carry the vendored cudarc; against registry cudarc it
+  fails at resolution with the marker message
+  (`scripts/check-tegra-pool-registry-build.sh`)": superseded by decision
+  2.
+- Components, item 5, the co-resident reset: unchanged; still
+  unsupported in 0.8.28, fix planned for 0.8.29.
+
+**Consequences.** Upgrading cudarc or Candle is a new fork version,
+qualified in the fork, then an exact-version change in FathomDB under
+R-PIN. A fork item that FathomDB relies on cannot change without a
+reviewed change to the pinned-override checker. The new public surface
+of the library check is listed in the CUDA version support policy ADR's
+amendment.

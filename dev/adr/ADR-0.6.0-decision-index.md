@@ -163,8 +163,8 @@ Slice-0 gate before Slices 15 and 25 open.
 
 | # | Category | Candidate decision | HITL verdict | ADR file |
 | - | -------- | ------------------ | ------------ | -------- |
-| 62 | architecture | On the Jetson AGX Orin 64 GB, behind the non-default `tegra-pool` feature, allocate every FathomDB CUDA context from one private capped pool with release threshold 0; decide once at first GPU use, fall back to the 0.8.27 path at the decision and fail closed with typed errors afterwards; amend ADR-0.6.0-embedder-protocol for three `EmbedderError` variants (axis E 0.7.0) | accepted (owner rulings 25–38; 2026-10-08 HITL) | ADR-0.8.28-tegra-private-cuda-pool.md |
-| 63 | release | FathomDB GPU artifacts support CUDA 12.x and 13.x libraries on Turing or newer GPUs; 12.6 is the shipping floor, 13.0 the next artifact, 11.x unsupported; every release re-reviews CUDA usage and importance | accepted (owner, 2026-10-11) | ADR-0.8.28-cuda-version-support-policy.md |
+| 62 | architecture | On the Jetson AGX Orin 64 GB, behind the non-default `tegra-pool` feature, allocate every FathomDB CUDA context from one private capped pool with release threshold 0; decide once at first GPU use, fall back to the 0.8.27 path at the decision and fail closed with typed errors afterwards; amend ADR-0.6.0-embedder-protocol for three `EmbedderError` variants (axis E 0.7.0) | accepted (owner rulings 25–38; 2026-10-08 HITL); amended by Slice 31: published fork crates | ADR-0.8.28-tegra-private-cuda-pool.md |
+| 63 | release | FathomDB GPU artifacts support CUDA 12.x and 13.x libraries on Turing or newer GPUs; 12.6 is the shipping floor, 13.0 the next artifact, 11.x unsupported; every release re-reviews CUDA usage and importance | accepted (owner, 2026-10-11); amended by Slice 31: loaded-library check and GPU floor | ADR-0.8.28-cuda-version-support-policy.md |
 
 ## Categories
 

@@ -72,7 +72,8 @@ def direct_calls(directory: Path, label: str, safe_layer: bool) -> list[str]:
 
 def resolved_sources(root: Path) -> tuple[Path, list[Path]]:
     result = subprocess.run(
-        ["cargo", "metadata", "--offline", "--locked", "--format-version", "1"],
+        ["cargo", "metadata", "--offline", "--locked", "--format-version", "1",
+         "--features", "fathomdb-embedder/embed-cuda,fathomdb-embedder/rerank-cuda"],
         cwd=root, capture_output=True, text=True, check=False,
     )
     if result.returncode != 0:

@@ -31,10 +31,11 @@ pub use cuda_pool_policy::{
 pub use cuda_pool_policy::{cuda_context_state, CudaPrimaryContextState};
 mod device_policy;
 pub use device_policy::{
-    diagnose_gpu, resolve_embed_device_policy, resolve_embed_device_policy_from_env,
-    CudaDeviceInfo, CudaProbeError, CudaProvider, CudaVisibleDevice, DeviceResolution,
-    DeviceResolutionError, DeviceResolutionReason, DoctorGpuDiagnosticResult, DoctorGpuStatus,
-    EffectiveEmbedDevice, EmbedDevicePolicy, EmbedDevicePolicyError, EmbedDevicePolicyParseError,
+    diagnose_gpu, parse_compute_capability_floor, resolve_embed_device_policy,
+    resolve_embed_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
+    CudaVisibleDevice, DeviceResolution, DeviceResolutionError, DeviceResolutionReason,
+    DoctorGpuDiagnosticResult, DoctorGpuStatus, EffectiveEmbedDevice, EmbedDevicePolicy,
+    EmbedDevicePolicyError, EmbedDevicePolicyParseError,
 };
 
 mod reranker_device_policy;

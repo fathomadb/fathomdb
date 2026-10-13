@@ -175,6 +175,29 @@ pub trait CudaProvider {
 
     /// Initialize and minimally probe `ordinal`, returning safe identity facts.
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError>;
+
+    /// The lowest compute capability this build's CUDA kernels run on, as
+    /// `(major, minor)`, or `None` when the build has no floor.
+    ///
+    /// The default is the build's `CUDA_COMPUTE_CAP` (the release contract
+    /// value: 75 on x86_64, 87 for Jetson), read at compile time; a developer
+    /// build without it has no floor. A device below the floor is refused as
+    /// [`CudaProbeError::Incompatible`] before `probe_cuda` is called.
+    fn kernel_compute_floor(&self) -> Option<(u32, u32)> {
+        option_env!("CUDA_COMPUTE_CAP").and_then(parse_compute_capability_floor)
+    }
+}
+
+/// Parse a `CUDA_COMPUTE_CAP` value (`NN` or `NNN`, digits only) into
+/// `(major, minor)`: the last digit is the minor version, the others the
+/// major (`"75"` is 7.5, `"120"` is 12.0). Returns `None` for anything else.
+#[must_use]
+pub fn parse_compute_capability_floor(raw: &str) -> Option<(u32, u32)> {
+    if !(2..=3).contains(&raw.len()) || !raw.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let (major, minor) = raw.split_at(raw.len() - 1);
+    Some((major.parse().ok()?, minor.parse().ok()?))
 }
 
 /// A classified failure while initializing or minimally probing CUDA.

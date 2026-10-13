@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 0.8.28 Slice 31 (AC31-10, AC31-06; design § 3.3): the vendored cudarc tree
-# and the private-pool marker feature are retired. Outside the historical
+# 0.8.28 Slice 31 (AC31-10, AC31-06; design § 3.3): the in-repository copy
+# of the cudarc crate and the private-pool marker feature are retired. Outside the historical
 # records (dev/plans, dev/adr, CHANGELOG.md and the two ledgers) no tracked
 # file names them, and the embedder's tegra-pool feature enables nothing.
 # Each pattern is built from pieces so this file never matches itself.
@@ -25,7 +25,7 @@ vendored_version="cudarc"" 0.19.7"
 if matches="$(git grep -il -e "$vendored_tree" -e "$vendored_test" -e "$vendored_text" \
   -e "$vendored_version" -- . "${HISTORY[@]}")"; then
   count="$(grep -c . <<<"$matches")"
-  fail "no_vendored_cudarc_reference_outside_history: $count file(s) still name the vendored cudarc:
+  fail "no_vendored_cudarc_reference_outside_history: $count file(s) still name the retired in-repository cudarc copy:
 $matches"
 else
   pass 'no_vendored_cudarc_reference_outside_history'

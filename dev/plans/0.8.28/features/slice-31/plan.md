@@ -672,7 +672,9 @@ W1 → R-REQ → W2 → R-DES → W3 → R-TEST            (Q19; may run during 
 → merge-forward → qualification → R-CODE-3 + R-VERIFY → merge
 → W8 step 3 → R-CODE-4 → merge
 FC9 → R-PROP, FC9b → R-PROP2: held until the owner releases them (Q17)
-``` each joining only where its gate says:
+```
+
+Each step joins only where its gate says:
 
 - Candle FK1 → R-FK-PLAN may start after R-FC-DES (it uses the pool API); it
   gates only FK2.

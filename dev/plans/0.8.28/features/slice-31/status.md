@@ -119,3 +119,19 @@ checklist (plan § 9 W6, Q20, Q21).
   exclude the steward ledger; OP-3: the feature-complete gate selects GPUs
   by index). T-REGISTRY resolution measured in a scratch consumer with no
   `[patch]` table. Next: R-TEST.
+- 2026-10-13: R-TEST (Opus) on `test-plan.md` revision 1 at `72a471508`:
+  APPROVE-WITH-FIXES, findings 1–17, rulings on OP-1 to OP-11 and
+  proportionality cuts, all applied with owner rulings Q26–Q28 (steward
+  ledger seq 329–331) in `test-plan.md` revision 2 (REVISED AFTER R-TEST,
+  ready for W6), `design.md` revision 3, `requirements.md` (AC31-02,
+  AC31-04, AC31-10, REQ31-10, REQ31-15, AC31-15) and plan revision 19
+  ([review.md](review.md)). Main changes: embeds and reranks through the
+  CUDA wheel and the embedder's live test binaries (no CLI embed verb);
+  the `libcuda.so.1`-only cell moved to S-C3; D-18 refuses a cuBLAS or
+  cuRAND missing a required symbol (Q26; FathomDB-side check through the
+  fork's `is_symbol_present`, no fork change); the cuBLAS and cuRAND
+  remedy; message-asserting release-contract arms; Orin windows P, A, B
+  and C; `QUAL_QUIET_STRICT=1` for G9; S-13 sizing (Q27); G5's Slice 30
+  equality report-only (Q28). Main-thread todo to ledger: move the
+  feature-complete gate from GPU indices to UUID selection (OP-3). Next:
+  W6.

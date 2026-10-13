@@ -28,6 +28,7 @@ fork's `fathomdb/review.md` (plan § 12).
 | --- | --- | --- | --- | --- |
 | R-REQ | `requirements.md` at `f41563903` (W1) | opus | APPROVE-WITH-FIXES; all findings fixed in the revision after plan revision 17 | below |
 | R-DES | `design.md` revision 1 at `1e0537856` (W2) | opus | APPROVE-WITH-FIXES; all ten findings fixed in `design.md` revision 2 (plan revision 18) | below |
+| R-TEST | `test-plan.md` revision 1 at `72a471508` (W3) | opus | APPROVE-WITH-FIXES; all seventeen findings fixed in `test-plan.md` revision 2, `design.md` revision 3 and plan revision 19 | below |
 
 ### R-REQ (2026-10-13)
 
@@ -110,3 +111,71 @@ Rust engine-level Orin close test is recommended to W3.
   § 9.3).
 
 Next: W3 (`test-plan.md`) → R-TEST.
+
+### R-TEST (2026-10-13)
+
+Opus subagent, read-only, on `test-plan.md` revision 1 (DRAFT FOR
+R-TEST) at `72a471508`, against `requirements.md`, `design.md` revision 2,
+plan revision 18 and the code and scripts it cites. Verdict:
+APPROVE-WITH-FIXES. The fixes are in `test-plan.md` revision 2 (REVISED
+AFTER R-TEST, ready for W6), with matching changes to `design.md`
+(revision 3), `requirements.md` and plan revision 19.
+
+| # | Severity | Finding | Disposition |
+| --- | --- | --- | --- |
+| 1 | High | No embed or rerank CLI verb: `fathomdb-cli` has only `recover` and `doctor` (`lib.rs:100-103`), and the CLI-scope ADR rejects a query surface; `c-s13-run`, `c-s13-libcuda1`, `c-c2`, § 4.6, CUDA-08, CUDA-09, CMP-C5 and design § 9.3 steps 3 and 5 embedded through the CLI | Fixed: on x86 12.6 the CUDA wheel from CUDA-02 in a scratch venv plus `dev/plans/runs/0.8.28-slice-31/harness/c2-embed-rerank.py` (new (W6)); on S-13 and S-C3 the embedder's live test binaries built `--no-run` (`tests/candle_bge.rs`, `candle_reranker::gpu_tests::gpu_loads_and_scores_finite`) with `FATHOMDB_EMBED_DEVICE=cuda:0` and `FATHOMDB_REQUIRE_LIVE=1`; `doctor gpu`, `doctor reranker-gpu` and `doctor cuda-libraries` kept for refusal and floor checks |
+| 2 | High | CUDA-09 on S-13 would refuse: the VM has only the 13.0 cuBLAS | Fixed: CUDA-09 moved to S-C3, after the remedy step: divert `libcuda.so`, repeat the forced embed (cmd `c-c3-libcuda1`; design § 9.3 step 5) |
+| 3 | Medium-High | cuRAND: the remedy named only cuBLAS; cuRAND's major is 10; C2's cuRAND source unrecorded | Fixed: the remedy names `nvidia-cublas-cu12` and `nvidia-curand-cu12` and puts `nvidia/cublas/lib` and `nvidia/curand/lib` on `LD_LIBRARY_PATH` (design § 9.1 item 2); no expectation asserts major 12 for cuRAND; C2 records cuRAND from `windchill3`'s loader cache |
+| 4 | Medium | PRD-24 and CMP-D18 labelled "full", but the full gate builds no `embed-cuda` | Fixed: PRD-24 is build-only on `windchill3` with the exact command `c-prd24`; CMP-D18 is a cross-reference; one `scripts/test-feature-complete.sh` run on `windchill3` added (PRD-33, cmd `c-fc`) |
+| 5 | Medium | Test counts: the C3-only test needs `#[ignore]`; PRD-26 has 7 `doctor_cuda_allocator_*` tests, not 5 | Fixed: `missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy` is `#[ignore = "C3 GCP cell"]`, allowlisted `ignored-by-design`, run on S-C3 with `--ignored --exact`; `windchill3` expects R-TEST's "4 passed; 1 ignored" plus the Q26 test, so "5 passed; 1 ignored"; PRD-26 lists the seven tests (`lib.rs:3170-3301`) |
+| 6 | Medium | R12's RED reason was wrong | Fixed: RED stated as "the child panics in device construction (`cublasCreate_v2` 'Expected function…' via dynamic loading); no `LibraryUnavailable`"; GREEN requires the typed refusal in the child's output. The decoy is also installed as `libcublas.so` so the vendored 0.19.7, which tries the unversioned name first, opens it. Note: the cudarc sources (0.19.7 and `C`) word this panic `Missing symbol cublasCreate_v2: …` |
+| 7 | Medium | `a_successful_load_writes_no_stderr_line` cannot fail on the base | Fixed: called a regression guard; R13's REDs are the report test and the refusal-line test |
+| 8 | Medium | Release-contract arms check only a nonzero exit (`expect_fail`, lines 73-80) | Fixed: new helper `expect_fail_with <message>` used by R4 and R5; R5's RED is "`baseline CUDA contract agrees` fails on the Phase B sha" |
+| 9 | Medium | PRD-21 did not reject every form of a direct dependency or check `tegra-pool = []`; design § 3.4 contradicted itself | Fixed: arm `a_direct_cudarc_fathomdb_dependency_is_rejected` (three fixtures) replaces the caret-only arm; `tomllib` check `features["tegra-pool"] == []` (R6 case, cmd `c-tegra-pool-feature`); design § 3.4: must not be declared, in any form |
+| 10 | Medium | G9 used `G9_STRICT`, which does not exist; the S-sync rule was unstated | Fixed: `QUAL_QUIET_STRICT=1` (`run-gates.sh:21` defaults it to 0); speed-up over S uses the S-sync subset where present (`summaries/g9.txt` line 17) |
+| 11 | Medium | Relative fork paths | Fixed: absolute `/home/coreyt/projects/fathomdb-forks/{cudarc,candle-fathomdb}` in PROC-06, `c-reg-crates`, `c-pin-chain` |
+| 12 | Medium | S-13 sizing (owner Q27) | Fixed: § 1.3 and § 4.7: `--machine-type n1-standard-8` or larger for one build attempt (`gcp-cuda-lab.sh` lines 16-17, 71, 114-116, read only), many VM attempts, 2 h cap, receipts after every cell, owner go-ahead per session |
+| 13 | Low-Medium | `c-pool-lib` and `c-pool-s31` lacked the device policy | Fixed: `FATHOMDB_EMBED_DEVICE=cuda:0` in both |
+| 14 | Low | No Orin window at the pin commit for R14 and the R15/R16 characterization | Fixed: window P, about 20 min, before N1 is written (§ 2, § 4.2) |
+| 15 | Low | PROC-02 and `c-ancestry` were vacuous | Fixed: `c-review-order` finds the commit that introduced the `\| R-TEST \|` row (the bare text `R-TEST` appears earlier) and checks it is an ancestor of the first W6 commit; `c-ancestry` iterates `<slice base>..<tip>` |
+| 16 | Low | Inexact commands | Fixed: `c-c1` takes `OUT_DIR` from `--message-format=json`; `c-c2` pins `nvidia-cublas-cu12==12.1.3.1` and `==12.9.2.10` (PyPI, 2026-10-13) and records `pip freeze`; the 12.4 cell is dropped |
+| 17 | Low | AC31-16's Tegra linkage had no row; CUDA-07 compared a symlinked path | Fixed: ORIN-15 (`scripts/release/check-tegra-wheel-linkage.sh`, cmd `c-tegra-linkage`); CUDA-07 compares real paths |
+
+**Open-point rulings adopted** (test plan § 6): OP-1 the release contract
+keeps only the `candle-kernels` git patch at `K9` and its single git lock
+entry, reads the rev from `scripts/pinned-override-rot.json`, and its arms
+assert messages (design § 1 and § 11 list the checker and its tests);
+OP-2 AC31-10 excludes `dev/steward/steward-ledger.jsonl`; OP-3 the
+feature-complete gate keeps indices 0 and 1 under
+`CUDA_DEVICE_ORDER=PCI_BUS_ID` (the K620 at `61:00.0` is index 2), and
+moving it to UUIDs is a main-thread todo; OP-4 TDN-03 has no counter
+clause; OP-5 REG-c with `FATHOMDB_POOL_MODE=off`, `auto` recorded as
+information; OP-6 confirmed; OP-7 no F4 mutation; OP-8 as written plus
+window P; OP-9 the x86 perf harness in scope with the Node addon only,
+built by `npm run build:native:cuda`, idle check `nvidia-smi --id=<UUID>`,
+no nvgpu fd check; OP-10 `--lock`; OP-11 three Orin windows A, B and C
+(G9 last, `QUAL_QUIET_STRICT=1`, `NO_SWAP=1`, no `cargo` or `rustc`), about
+1 h extra for doubling N.
+
+**Proportionality cuts adopted:** ORIN-11 merged into G1; the CMP-C2 12.4
+cell dropped; REG-e at R-VERIFY cites the Candle FK5 receipt (104, 42 and
+206 files) and runs once, at R-CODE-4; TDN-04, TDN-05, CUDA-10, ORIN-10,
+CMP-C1a, CMP-C4, CMP-D18 and PRD-29 are cross-references only.
+
+**Owner rulings** (steward ledger seq 329–331; plan § 15):
+
+- **Q26:** a CUDA 12 cuBLAS or cuRAND that lacks a symbol FathomDB or
+  Candle needs gives a typed refusal (`LibraryUnavailable`, reason
+  `MissingSymbol`), never a panic. Designed in design § 9.1: FathomDB
+  checks, through the fork's existing `is_symbol_present`, a checked-in
+  set taken from cudarc's `cublas` and `curand` `result` layers (13 and
+  14 names), guarded by `scripts/check-cuda-required-symbols.py`; RED
+  tests R12b (a decoy missing `cublasSgemmStridedBatched`) and R18; no
+  fork change.
+- **Q27:** S-13 may use `n1-standard-8` or larger for one build attempt;
+  many VM attempts; 2 h per session; receipts after every cell; owner
+  go-ahead per session.
+- **Q28:** G5's equality to the Slice 30 hash is report-only, evaluated
+  after the work.
+
+Next: W6.

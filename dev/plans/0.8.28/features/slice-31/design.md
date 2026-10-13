@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — design (W2)
-status: REVISED AFTER R-DES (APPROVE-WITH-FIXES); ready for W3; revision 2 (2026-10-13)
+status: REVISED AFTER R-TEST (APPROVE-WITH-FIXES on test-plan revision 1); ready for W6; revision 3 (2026-10-13)
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---
@@ -25,6 +25,20 @@ through Candle's re-exported cudarc, with a stderr line only on refusal
 (§ 9.1, Q24); T-CUDA-COMPAT C3 is a GCP cell (§ 9.3, Q25); the embedder's
 direct `cudarc` dependency is removed (§ 3.2); the guards' fixtures are
 consistent and each fact has one checker (§§ 3.4, 3.5).
+
+**Revision 3** applies what R-TEST (Opus, APPROVE-WITH-FIXES on
+`test-plan.md` revision 1, [review.md](review.md)) and owner rulings
+Q26–Q28 (steward ledger seq 329–331) change in the design: the release
+contract keeps only the `candle-kernels` git patch at `K9`, read from the
+pinned-override record (§ 1, § 11; R-TEST OP-1); a direct `cudarc-fathomdb`
+dependency must not be declared in any form (§ 3.4); D-18 also refuses a
+CUDA 12 cuBLAS or cuRAND that lacks a symbol FathomDB or Candle calls
+(§ 9.1, Q26); the remedy names both the cuBLAS and the cuRAND wheel
+directories (§ 9.1); the C3 test that needs a host without cuBLAS is
+`#[ignore]` (§ 9.1); the C3 and S-13 cells drive embeds through the
+embedder's live test binaries, because `fathomdb-cli` has no embed or
+rerank verb, and the `libcuda.so.1`-only cell moves into the C3 session
+(§ 9.3).
 
 Pool design topics D-1…D-9, the fork part of D-12, D-13 and D-F1…D-F4 are
 the cudarc fork's (`fathomdb/design.md` revision 4 on `coreyt/cudarc`
@@ -117,7 +131,24 @@ therefore that 3090: the decoy test's RED run, which reaches
   also requires `CUDARC_CUDA_VERSION: "12060"`, derived from the toolkit
   root's `12.6` (one literal, not a second copy).
 - `scripts/tests/test_cuda_release_contract.sh`: a mutation arm that removes
-  the line from one job, RED first.
+  the line from one job, RED first. It asserts the checker's message
+  through a new helper `expect_fail_with <message>`, not only a nonzero
+  exit (today's `expect_fail`, lines 73-80, checks only the exit status).
+- **The release contract's Candle block (revision 3, R-TEST OP-1).**
+  `check-cuda-release-contract.py` pins all four Candle packages to
+  `859b8ea1` by `[patch.crates-io]` git and lock source (`CANDLE_GIT_REV`
+  and `CANDLE_PACKAGES`, lines 120-126; `main`, lines 698-725). W6 reduces
+  it to the static-CUDART fact of REQ31-16: the `candle-kernels` git patch
+  at `K9` and its single git lock entry. The checker reads the `K9` rev
+  from `scripts/pinned-override-rot.json` (`cargo_candle_exception.rev`,
+  § 3.4) instead of holding a third literal, and leaves the three
+  registry Candle crates to the pinned-override checker (one checker per
+  fact). In `test_cuda_release_contract.sh` the arms `rejects a split
+  Candle source selection` (line 540) and `rejects a Candle lockfile that
+  falls back to crates.io` (line 554) are replaced by arms that assert
+  the checker's message with `expect_fail_with`: a `candle-kernels` patch
+  at another rev, a Candle fork crate reintroduced as a git patch, and a
+  `candle-kernels` lock entry from crates.io.
 - `scripts/check-single-cudarc.sh` condition D (§ 3.5).
 - No manifest change for D-8W.
 
@@ -395,8 +426,9 @@ T-REGISTRY (b) builds `tegra-pool` from the registry (§ 3.6).
      declared exactly once across them, in `[dependencies]`, with exactly
      `package` and `version = "=<version>"` (an exact requirement; a caret
      fails). A pin with `"dependency": null` must not be declared in any
-     table; if a later revision reintroduces it, it must be exact (a caret
-     fails);
+     table, in any form: an exact, caret or path requirement, under its
+     own name or under `package =`, all fail (revision 3, R-TEST finding
+     9);
    - `Cargo.lock` has exactly one package of that name, with that version,
      source `registry+https://github.com/rust-lang/crates.io-index` and
      that checksum. **This is the only place that checks the number,
@@ -434,9 +466,13 @@ lock, license, items, note, blank) are deleted with `seed_cudarc_fixture`
 **Tests (new arms in `test_check_pinned_override_rot.sh`).**
 
 - `fork_registry_pin_with_a_caret_requirement_is_rejected`;
-- `a_direct_cudarc_fathomdb_dependency_with_a_caret_is_rejected` (a
-  `cudarc` entry in an aarch64 `[target.'cfg(…)'.dependencies]` table with
-  `version = "0.19.10"`: the checker reads target tables);
+- `a_direct_cudarc_fathomdb_dependency_is_rejected` (revision 3; replaces
+  revision 2's caret-only arm): three fixtures, each rejected: a `cudarc`
+  entry with `package = "cudarc-fathomdb"` and `version = "=0.19.10"` in
+  `[dependencies]`; the same with `version = "0.19.10"` (a caret) in an
+  aarch64 `[target.'cfg(…)'.dependencies]` table (the checker reads target
+  tables); and `cudarc-fathomdb = { version = "=0.19.10" }` under its own
+  name;
 - `fork_registry_pin_with_a_non_registry_source_in_the_lock_is_rejected`
   (the former single-cudarc condition B: a second `cudarc-fathomdb` with a
   `git+https://github.com/coreyt/cudarc.git?rev=…` source);
@@ -448,6 +484,11 @@ lock, license, items, note, blank) are deleted with `seed_cudarc_fixture`
 - `a_cudarc_patch_entry_is_unsupported` (a reintroduced `cudarc` path
   patch fails as an unsupported override);
 - GREEN: the real tree.
+
+The marker feature's emptiness is checked beside the retired-reference
+cases (`test_slice31_retired_cudarc_references.sh`, case
+`the_tegra_pool_feature_is_empty`): `tomllib` reads the embedder manifest
+and requires `features["tegra-pool"] == []` (§ 3.3).
 
 ### 3.5 The single-cudarc guard
 
@@ -1193,13 +1234,19 @@ changelog line.
    `…::cublas::sys::loaded_library()`, `…::curand::sys::loaded_library()`
    and `…::driver::sys::loaded_library()` (safe), and the types
    `candle_core::cuda::cudarc::{LibLoadError, LoadedLibrary, LibVersion,
-   RejectReason}` (`src/lib.rs:237` at `C`). Candle 0.11.0 enables
+   RejectReason}` (`src/lib.rs:237` at `C`), and (revision 3, Q26)
+   `…::cublas::sys::is_symbol_present(name)` and
+   `…::curand::sys::is_symbol_present(name)` (`pub unsafe fn … ->
+   Result<bool, LibLoadError>`; `git show b777f8d:src/cublas/sys/mod.rs`
+   lines 8838-8841, `src/curand/sys/mod.rs` line 602). Candle 0.11.0 enables
    `cublas`, `cublaslt`, `curand`, `nvrtc` and `dynamic-loading` on it
    (§ 0), so these items exist in every `embed-cuda` or `rerank-cuda`
    build.
 2. **Check.** A new embedder module `cuda_libraries.rs` (pure part on every
    host; driver part under `embed-cuda` or `rerank-cuda`) exposes
-   `require_built_major_libraries()`. Both concrete `probe_cuda`
+   `require_usable_cuda_libraries()` (revision 2's
+   `require_built_major_libraries()`, renamed because it now also checks
+   symbols). Both concrete `probe_cuda`
    implementations call it before `new_cuda_device`
    (`candle_bge.rs:257-262`, `candle_reranker.rs:118-121`), after the
    resolver's floor check (§ 9.2). It:
@@ -1212,30 +1259,95 @@ changelog line.
      is opened by its unversioned name; a file named `libcublas.so.12` that
      reports another major is accepted by the fork (cudarc `FATHOMDB.md`
      item 9, "Unversioned names are version-checked") and refused here;
+   - then (revision 3, owner ruling Q26, steward ledger seq 329) requires
+     every symbol of the library's **required symbol set** to be present,
+     by `is_symbol_present(name)` on the library already loaded. A CUDA 12
+     cuBLAS or cuRAND that lacks one is refused with reason
+     `MissingSymbol` and the list of missing names, before any device is
+     built. Without this, a missing symbol panics at its first call
+     (cudarc's `load`, `src/cublas/sys/mod.rs:10-13` at `C`: `panic!("Missing
+     symbol {name}: {e}")`), which for a GEMM symbol is the first embed;
    - maps a failure to a new `CudaProbeError::LibraryUnavailable(
      CudaLibraryRefusal)` (renamed from revision 1's
      `LibraryMajorMismatch`, R-DES finding 5) with `library`, `reason`
      (`CudaLibraryRefusalReason::Missing` when no candidate of the built
-     major loaded, or `WrongMajor` when a loaded file reports another
-     major), `path` (`Option<String>`), `version` (`Option<String>`),
-     `required_major` (`u32`) and `tried` (each name tried, with the fork's
-     `RejectReason` text). The pure function
+     major loaded, `WrongMajor` when a loaded file reports another major,
+     or `MissingSymbol` when a loaded file lacks a required symbol),
+     `path` (`Option<String>`), `version` (`Option<String>`),
+     `required_major` (`u32`; the library's own major, 12 for cuBLAS and
+     10 for cuRAND, as the fork's `LibLoadError.cuda_major` gives it),
+     `tried` (each name tried, with the fork's `RejectReason` text) and
+     `missing_symbols` (`Vec<String>`, empty unless `MissingSymbol`). The pure function
      `refusal_from_lib_load_error(&LibLoadError) -> CudaLibraryRefusal`
      does the mapping (`LibLoadError`'s fields are public, so a test can
      build one).
    - **Message and remedy.** The message names the library, the reason,
      the file and version if one was found, and the major needed. For
-     cuBLAS or cuRAND with reason `Missing` it gives the remedy: "install
-     the CUDA 12 cuBLAS wheel (`pip install nvidia-cublas-cu12`) and put
-     its library directory on `LD_LIBRARY_PATH`, for example
-     `export LD_LIBRARY_PATH=\"$(python3 -c 'import nvidia.cublas as m;
-     print(m.__path__[0])')/lib:$LD_LIBRARY_PATH\"`; the CUDA library
-     loader does not search Python's site-packages on Linux" (and
-     `nvidia-curand-cu12` for cuRAND). For `WrongMajor` it says which file
-     to remove from the search path. The 13.0 artifact is named as the
+     cuBLAS or cuRAND with reason `Missing` it gives one remedy that
+     covers both libraries (revision 3, R-TEST finding 3): "install the
+     CUDA 12 cuBLAS and cuRAND wheels (`pip install nvidia-cublas-cu12
+     nvidia-curand-cu12`) and put both library directories on
+     `LD_LIBRARY_PATH`, for example `export LD_LIBRARY_PATH=\"$(python3 -c
+     'import nvidia.cublas as m; print(m.__path__[0])')/lib:$(python3 -c
+     'import nvidia.curand as m; print(m.__path__[0])')/lib:$LD_LIBRARY_PATH\"`;
+     the CUDA library loader does not search Python's site-packages on
+     Linux". The wheel directories are `nvidia/cublas/lib` and
+     `nvidia/curand/lib`. cuRAND's soname major is 10 (`libcurand.so.10`),
+     so no text or test states major 12 for cuRAND. For `WrongMajor` it
+     says which file to remove from the search path. For `MissingSymbol`
+     it names the missing symbols and says to install a newer CUDA 12
+     copy of that library (the same wheel remedy). The 13.0 artifact is named as the
      alternative only once it ships. This is T-CUDA-COMPAT C3's expected
      message (§ 9.3).
    - The library is never used: the probe fails, so no device is built.
+   - **The required symbol set (Q26).** Every cuBLAS and cuRAND call
+     FathomDB's CUDA path makes goes through Candle 0.11.0, and Candle
+     calls these libraries only through cudarc's `cublas` and `curand`
+     safe and `result` layers (`CudaBlas::new`, `Gemm` for GEMM and
+     strided-batched GEMM, `gemm_strided_batched_ex`, `CudaRng`;
+     `candle-core/src/cuda_backend/device.rs:274-275, 304`, `mod.rs:8,
+     2233, 2539, 2598`). Those layers reach the `sys` functions called in
+     cudarc's `src/cublas/result.rs` and `src/curand/result.rs`, plus the
+     safe-layer calls `cublasSetPointerMode_v2`, `cublasGetPointerMode_v2`
+     and `cublasGemmGroupedBatchedEx`, which Candle never calls
+     (`src/cublas/safe/mod.rs:74, 84`, `safe/grouped_gemm.rs`). So the set
+     is the `sys::cublas*` and `sys::curand*` **function** names called in
+     those two `result.rs` files at `C`. Measured 2026-10-13, 13 cuBLAS
+     names (`cublasCreate_v2`, `cublasDestroy_v2`, `cublasSetStream_v2`,
+     `cublasSgemm_v2`, `cublasDgemm_v2`, `cublasSgemv_v2`,
+     `cublasDgemv_v2`, `cublasSasum_v2`, `cublasDasum_v2`,
+     `cublasGemmEx`, `cublasGemmStridedBatchedEx`,
+     `cublasSgemmStridedBatched`, `cublasDgemmStridedBatched`) and 14
+     cuRAND names (`curandCreateGenerator`, `curandDestroyGenerator`,
+     `curandSetStream`, `curandSetPseudoRandomGeneratorSeed`,
+     `curandSetGeneratorOffset`, `curandGenerate`, `curandGenerateLongLong`,
+     `curandGenerateUniform`, `curandGenerateUniformDouble`,
+     `curandGenerateNormal`, `curandGenerateNormalDouble`,
+     `curandGenerateLogNormal`, `curandGenerateLogNormalDouble`,
+     `curandGeneratePoisson`). These are long-standing entry points; C2's
+     12.1 and 12.9 cells confirm that none of them narrows the 12.1–12.9
+     range. The set is a checked-in constant in `cuda_libraries.rs`
+     (`REQUIRED_CUBLAS_SYMBOLS`, `REQUIRED_CURAND_SYMBOLS`), not derived
+     at run time.
+   - **Drift guard.** A new fast-tier checker
+     `scripts/check-cuda-required-symbols.py` finds the resolved
+     `cudarc-fathomdb` and `candle-core-fathomdb` sources with `cargo
+     metadata --locked --offline` (`manifest_path`) and fails if (a) the
+     constants differ from the `sys::` function names called in
+     cudarc's `cublas/result.rs` and `curand/result.rs`, (b) Candle's
+     sources call a `cublas::sys` or `curand::sys` function directly or a
+     safe-layer method outside the `result` layer (`set_pointer_mode`,
+     `get_pointer_mode`, grouped GEMM), or (c) a FathomDB crate calls a
+     `cublas::sys` or `curand::sys` function. A pin move that changes the
+     set therefore fails the fast tier until the constant is updated.
+   - **Where the check lives, and why not in the fork.** In FathomDB.
+     The fork already exposes `is_symbol_present` at `C`, so no fork
+     change, new `cudarc-fathomdb` version, re-qualification or
+     publication is needed. The fork cannot enumerate missing symbols
+     itself: each `sys` function resolves its symbol lazily in a
+     per-function `OnceLock` and panics on failure (`load`, lines 10-13),
+     and nothing lists the symbols a consumer will call. The consumer
+     knows its call set; the fork does not.
 3. **Resolution.** A new `DeviceResolutionReason::CudaLibraryUnavailable`
    (`"cuda_library_unavailable"`) and the reranker's
    `RerankerDeviceResolutionReason::CudaLibraryUnavailable`. Under `auto`
@@ -1322,30 +1434,74 @@ py `CudaDeviceInfo` and error mapping; the docs and interface files above.
   [("libcublas.so", NotFound), ("libcublas.so.12", NotFound)] }`, passes it
   through `refusal_from_lib_load_error` and the resolution mapping, and
   asserts reason `Missing`, kind `cuda_library_unavailable`, and a message
-  that contains `pip install nvidia-cublas-cu12` and `LD_LIBRARY_PATH`. A
+  that contains `pip install nvidia-cublas-cu12 nvidia-curand-cu12`,
+  `nvidia.cublas`, `nvidia.curand` and `LD_LIBRARY_PATH`. A
   second case with `WrongVersion(13.1.1)` gives `WrongMajor`. RED: the
   function and variant do not exist. It stays whatever happens to C3
   (Q25).
 - `a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work`
   (new `tests/slice31_cuda_library_major.rs`, `embed-cuda`, Linux): a child
-  process with `LD_LIBRARY_PATH` naming a directory with a decoy
-  `libcublas.so.12`, built at test time by `cc` from the fixture
+  process with `LD_LIBRARY_PATH` naming a directory with a decoy cuBLAS,
+  built at test time by `cc` from the fixture
   `tests/fixtures/decoy-cublas/decoy_cublas.c` (it exports
-  `cublasGetProperty`, reporting major 13, and nothing else). Expected:
-  `LibraryUnavailable` with reason `WrongMajor`, the decoy's path, version
-  13 and required major 12. RED today: the fork accepts the versioned name
-  and the probe proceeds to `new_cuda_device(0)`. On `windchill3` the child
-  runs with `CUDA_VISIBLE_DEVICES=<RTX 3090 UUID>` (§ 0.1), so that RED
-  device build is on the 3090; GREEN builds no device.
+  `cublasGetProperty`, reporting major 13, and nothing else) and placed
+  under both `libcublas.so.12` and `libcublas.so`, so that a loader that
+  tries the unversioned name first (the vendored 0.19.7,
+  `third_party/cudarc-0.19.7/src/lib.rs:219`) also opens the decoy rather
+  than the 12.6 copy in `windchill3`'s loader cache. Expected:
+  `LibraryUnavailable` with reason `WrongMajor`, the decoy's path,
+  version 13 and required major 12. **RED (revision 3, R-TEST finding
+  6):** the child panics in device construction (`cublasCreate_v2`
+  'Expected function…' via dynamic loading); no `LibraryUnavailable`.
+  (The cudarc source at `C` and at 0.19.7 words this panic `Missing
+  symbol cublasCreate_v2: …`, from `load`; the RED is the panic and the
+  absence of the refusal, whatever the wording.) The GREEN assertion
+  requires the typed refusal in the child's output, so a panicking child
+  can never pass. On `windchill3` the child runs with
+  `CUDA_VISIBLE_DEVICES=<RTX 3090 UUID>` (§ 0.1); GREEN builds no device.
+- `a_libcublas_so_12_missing_a_required_symbol_is_refused_before_gpu_work`
+  (same file; revision 3, Q26): a second decoy, fixture
+  `tests/fixtures/decoy-cublas/decoy_cublas_missing_symbol.c`, placed the
+  same way, reports version 12.6 through `cublasGetProperty` and exports
+  every name of `REQUIRED_CUBLAS_SYMBOLS` as a stub returning
+  `CUBLAS_STATUS_SUCCESS` (with a non-null handle from
+  `cublasCreate_v2`) **except `cublasSgemmStridedBatched`**. The child
+  resolves forced `cuda:0` through the embedder's `probe_cuda` and, if a
+  device comes back, runs one F32 batched `matmul` of two `2×2×2` Candle
+  tensors on it (Candle's matmul reaches cudarc's
+  `Gemm<f32>::gemm_strided_batched`, that is `cublasSgemmStridedBatched`;
+  W6 confirms the call path in the RED log). **RED:** the probe selects
+  the device and the matmul panics on the missing symbol (`Missing symbol
+  cublasSgemmStridedBatched` on the pinned tree; on the vendored base the
+  same `load` panic); no `LibraryUnavailable`. **GREEN:** the child's
+  output contains `LibraryUnavailable` with reason `MissingSymbol`,
+  `missing_symbols == ["cublasSgemmStridedBatched"]`, the decoy's path and
+  version 12.6; no device built, no matmul run; the child exits 0. The
+  GREEN assertion again requires the typed refusal in the output.
 - `missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy` (same file):
-  the process sees no CUDA 12 cuBLAS. It skips on `windchill3`, whose
-  `/usr/local/cuda` cuBLAS is in the loader cache, unless
-  `FATHOMDB_REQUIRE_LIVE=1`; it runs in the C3 GCP cell (§ 9.3).
+  the process sees no CUDA 12 cuBLAS. It is `#[ignore = "C3 GCP cell"]`
+  (revision 3, R-TEST finding 5), listed in `scripts/test-skip-allowlist.toml`
+  as `ignored-by-design`, and run only in the C3 session with `--ignored
+  --exact` (§ 9.3); it asserts its precondition (no CUDA 12 cuBLAS
+  loadable) and fails if a copy is found. It covers forced `cuda:0`
+  (error kind `cuda_library_unavailable`, reason `Missing`, the remedy
+  text) and `auto` (CPU with reason `cuda_library_unavailable`).
 - `the_cuda_library_report_names_the_loaded_files` (RTX 3090 by UUID, and
-  the Orin): every `path` in the report appears in `/proc/self/maps`.
-- `a_successful_load_writes_no_stderr_line` and
-  `a_refusal_writes_one_stderr_line` (child processes; the second uses the
-  decoy): Q24.
+  the Orin): every `path` in the report appears in `/proc/self/maps`. RED:
+  `CudaDeviceInfo` has no `cuda_libraries` field (compile failure).
+- `a_refusal_writes_one_stderr_line` (child process with the major-13
+  decoy): Q24. RED: no stderr line exists.
+  `a_successful_load_writes_no_stderr_line` is a **regression guard**, not
+  a RED (revision 3, R-TEST finding 7): it cannot fail on the base, which
+  writes no such line.
+- hermetic symbol-check tests in `cuda_libraries.rs` (Q26):
+  `missing_required_symbols_lists_each_absent_name_in_set_order` (the pure
+  function over an injected presence predicate) and
+  `a_missing_symbol_refusal_names_the_symbols_and_the_remedy`.
+- the drift guard's fixture arms (`scripts/tests/test_check_cuda_required_symbols.sh`):
+  `matching_sets_pass`, `a_result_layer_symbol_missing_from_the_constant_fails`,
+  `a_direct_candle_sys_call_fails`, `a_fathomdb_sys_call_fails`, and the
+  real tree.
 - pure tests of the mapping, the reason strings and the doctor JSON
   (`cuda_libraries.rs` unit tests; CLI tests beside the Slice 30
   `doctor cuda-allocator` tests).
@@ -1468,12 +1624,21 @@ the VM. The VM gets (by `gcp-cuda-lab.sh push`):
 - the `slice31_cuda_library_major` test binary (`cargo test --no-run
   --features embed-cuda -p fathomdb-embedder --test
   slice31_cuda_library_major`);
+- the embedder's existing live test binaries, built `--no-run` (revision
+  3, R-TEST finding 1: `fathomdb-cli` has only the `recover` and `doctor`
+  roots, `fathomdb-cli/src/lib.rs:100-103`, and the CLI-scope ADR rejects
+  an application query surface, so no CLI embed or rerank exists): the
+  integration test `tests/candle_bge.rs` (`--features
+  embed-cuda,loader-test-hooks --test candle_bge`), which builds
+  `CandleBgeEmbedder::new()` under `FATHOMDB_EMBED_DEVICE`, and the
+  library test binary with `candle_reranker::gpu_tests::gpu_loads_and_scores_finite`
+  (`--features rerank-cuda --lib`), which loads the reranker on `cuda:0`;
 - the CUDA CLI built as the release CLI archive
   (`scripts/release/seal-cuda-cli-archive.sh`), for `doctor
-  cuda-libraries`, `doctor gpu` and one embed;
-- the x86 CUDA Python wheel from the release build path, if W6 builds it
-  anyway for AC31-16 (optional: the CLI covers the cell);
-- the cached BGE model files, so the cell needs no model download.
+  cuda-libraries`, `doctor gpu` and `doctor reranker-gpu` only (the
+  refusal and floor checks);
+- the cached BGE and reranker model files, so the cell needs no model
+  download.
 
 **Session** (each needs owner approval, Q15, Q25; test and verification
 only, no development on a Spot VM; at most 2 h; capacity order Spot T4,
@@ -1487,22 +1652,37 @@ on-demand T4, then L4):
    `Tesla T4`, driver 580.x, compute capability 7.5; `ldconfig -p | grep
    -c libcublas` is 0 and `find / -xdev -name 'libcublas*'` is empty; no
    `/usr/local/cuda*`; `LD_LIBRARY_PATH` unset.
-3. **Refusal:** `FATHOMDB_REQUIRE_LIVE=1` runs
-   `missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy`; `fathomdb
-   doctor cuda-libraries` exits 70 with `refusal.reason = "missing"`,
-   `library = "cublas"`, the tried names and the remedy text; a forced
-   `cuda:0` embed through the CLI fails with kind
-   `cuda_library_unavailable`, and `auto` embeds on CPU with reason
-   `cuda_library_unavailable`. The stderr line appears once (Q24).
+3. **Refusal:** `FATHOMDB_REQUIRE_LIVE=1 <slice31_cuda_library_major
+   binary> --ignored --exact
+   missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy` (1 passed):
+   forced `cuda:0` fails with kind `cuda_library_unavailable`, reason
+   `missing`, and the remedy text; `auto` resolves to CPU with reason
+   `cuda_library_unavailable`; the stderr line appears once (Q24).
+   `fathomdb doctor cuda-libraries --json` exits 70 with `refusal.reason
+   = "missing"`, `library = "cublas"`, the tried names and the remedy
+   text; `doctor gpu` and `doctor reranker-gpu` are recorded. The
+   live embed test under `FATHOMDB_EMBED_DEVICE=auto` (`<candle_bge
+   binary> --exact embed_returns_unit_norm_vector`) passes on CPU.
 4. **Floor boundary (free evidence):** the T4 is compute capability 7.5,
    the x86 floor, so § 9.2 must admit it: `doctor gpu` does not report
    `cuda_incompatible`.
-5. **Remedy validated:** in a venv, `pip install nvidia-cublas-cu12`
-   (and `nvidia-curand-cu12`; PyPI is a permitted registry), export
-   `LD_LIBRARY_PATH` exactly as the remedy text says, then `doctor
-   cuda-libraries` exits 0 with cuBLAS `loaded` from the venv path, and a
-   forced `cuda:0` embed and rerank succeed on the T4. That also runs the
-   F32-only kernels on sm_75 (§ 3.7).
+5. **Remedy validated:** in a venv, `pip install nvidia-cublas-cu12
+   nvidia-curand-cu12` (exact versions in the receipt; PyPI is a
+   permitted registry), export `LD_LIBRARY_PATH` exactly as the remedy
+   text says (both `nvidia/cublas/lib` and `nvidia/curand/lib`), then
+   `doctor cuda-libraries` exits 0 with cuBLAS `loaded` from the venv's
+   `nvidia/cublas/lib` and cuRAND (major 10) from its `nvidia/curand/lib`.
+   The forced embed and rerank on the T4 are the live test binaries:
+   `FATHOMDB_EMBED_DEVICE=cuda:0 FATHOMDB_REQUIRE_LIVE=1 <candle_bge
+   binary> --exact embed_returns_unit_norm_vector` and
+   `FATHOMDB_REQUIRE_LIVE=1 <lib test binary> --exact
+   candle_reranker::gpu_tests::gpu_loads_and_scores_finite`, each 1
+   passed. That also runs the F32-only kernels on sm_75 (§ 3.7).
+   **Then the `libcuda.so.1`-only cell (CUDA-09, revision 3, R-TEST
+   finding 2; moved from S-13, whose VM has only a 13.0 cuBLAS):** `sudo
+   dpkg-divert --rename --add /usr/lib/x86_64-linux-gnu/libcuda.so` (lab
+   VM only, Q15a), then the same forced embed again, with `grep libcuda
+   /proc/<pid>/maps` (or the D-18 report) showing only `libcuda.so.1`.
 6. **Optional (same session, if time remains):** `pip install
    nvidia-cublas` (the CUDA 13 wheel) instead, with its directory on
    `LD_LIBRARY_PATH`; the refusal must stay `missing` (or `wrong_major` if
@@ -1561,16 +1741,19 @@ hermetic test and the decoy test still cover the refusal logic.
 | `src/rust/crates/fathomdb-embedder/src/cuda_pool_policy.rs` | sites 3, 10; N1; `slice31_tests` module | D-17 |
 | `src/rust/crates/fathomdb-embedder/src/cuda_pool_slice31_tests.rs` | new Orin tests | D-12, D-14, D-15, D-17 |
 | `src/rust/crates/fathomdb-embedder/src/cuda_libraries.rs`, `device_policy.rs`, `reranker_device_policy.rs`, `candle_bge.rs`, `candle_reranker.rs` | D-18 check, report, reasons; the compute-capability floor and `CudaProvider::kernel_compute_floor`; N1 guard field | D-17, D-18, C4 |
-| `src/rust/crates/fathomdb-embedder/tests/slice31_cuda_library_major.rs`, `tests/fixtures/decoy-cublas/decoy_cublas.c`, `tests/slice31_compute_floor.rs` | new tests | D-18, C4 |
+| `src/rust/crates/fathomdb-embedder/tests/slice31_cuda_library_major.rs`, `tests/fixtures/decoy-cublas/decoy_cublas.c`, `tests/fixtures/decoy-cublas/decoy_cublas_missing_symbol.c` (revision 3, Q26), `tests/slice31_compute_floor.rs` | new tests | D-18, C4 |
+| `scripts/check-cuda-required-symbols.py`, `scripts/tests/test_check_cuda_required_symbols.sh`, fixtures (revision 3, Q26) | new drift guard for the required symbol set | D-18 |
+| `scripts/tests/test_slice31_retired_cudarc_references.sh` | new: retired vendored-tree and marker references; `tegra-pool = []` | D-11 |
+| `scripts/test-skip-allowlist.toml`, `scripts/test-feature-matrix.toml` | entries for the new `#[ignore]` (`missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy`, `ignored-by-design`) and platform-excluded targets; the regenerated matrix | D-18, D-15 |
 | `src/rust/crates/fathomdb-engine/tests/slice31_engine_close_cuda.rs` | new Orin test, if W3 and R-TEST keep it (§ 6) | D-15 |
 | `src/rust/crates/fathomdb-cli`, `fathomdb-napi`, `fathomdb-py` | `doctor cuda-libraries`; report and error mapping | D-18 |
 | `src/python/tests/test_tegra_pool_fork_after_init.py` | F1-F5 | D-15 |
 | `scripts/pinned-override-rot.json`, `scripts/check-pinned-override-rot.py`, `scripts/tests/test_check_pinned_override_rot.sh` | schema 5 | D-11 |
 | `scripts/check-single-cudarc.sh`, `scripts/tests/test_check_single_cudarc.sh`, fixtures | new guard | D-11, D-8W |
 | `scripts/check-cudarc-fathomdb-lock-set.py`, `scripts/cudarc-fathomdb-lock-set.json`, `scripts/tests/test_check_cudarc_fathomdb_lock_set.sh`, fixtures | new guard | D-16 |
-| `scripts/check-cuda-release-contract.py`, `scripts/tests/test_cuda_release_contract.sh` | `CUDARC_CUDA_VERSION` | D-8W |
+| `scripts/check-cuda-release-contract.py`, `scripts/tests/test_cuda_release_contract.sh` | `CUDARC_CUDA_VERSION`; the Candle block reduced to the `candle-kernels` git patch at `K9` and its single git lock entry, the rev read from `scripts/pinned-override-rot.json`; arms assert messages through `expect_fail_with` (revision 3, R-TEST OP-1) | D-8W, D-11 |
 | `scripts/check-tegra-pool-registry-build.sh`, `dev/design/release.md` | T-REGISTRY | D-11 |
-| `scripts/agent-test.sh` | drop `test-vendored-cudarc`; add the two guard suites | D-11, D-16 |
+| `scripts/agent-test.sh` | drop `test-vendored-cudarc`; add the fast suites of the single-cudarc, lock-set, PTX-floor and required-symbol guards and the retired-reference test | D-11, D-16, D-18, C1 |
 | `third_party/cudarc-0.19.7/`, `scripts/tests/test_vendored_cudarc.sh` | deleted | plan § 3 |
 | `.gitattributes`, `.markdownlint-cli2.jsonc`, `scripts/agent-lint-md.sh`, `dev/tegra-platform-reference.md` | vendored-tree references removed | plan § 9 W6 |
 | `dev/interfaces/rust.md`, `rust-sdk.md`, `python.md`, `typescript.md`, `cli.md` (`wire.md` checked, § 9.1 item 7); `docs/embedder.md`; `docs/reference/cli.md`; `docs/reference/errors.md` | vendored-cudarc text (rust.md, rust-sdk.md); `tegra-pool` adds no dependency; D-18 surface; the floor as `cuda_incompatible` evidence; floors (REQ31-15); D-12 note | D-11, D-12, D-18, C4 |
@@ -1588,14 +1771,16 @@ hermetic test and the decoy test still cover the refusal logic.
 | lock-set arms (§ 7.2) | `scripts/tests/test_check_cudarc_fathomdb_lock_set.sh` | any | 14 |
 | T-REGISTRY (a)-(d) | `scripts/check-tegra-pool-registry-build.sh` | any (a); Orin (b)-(c) | 08, 16 |
 | compute-floor cases (§ 9.2) | `tests/slice31_compute_floor.rs` | any (hermetic) | 15 |
-| `a_lib_load_error_for_a_missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy` | `src/cuda_libraries.rs` | any (hermetic) | 15 |
+| `a_lib_load_error_for_a_missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy`, `missing_required_symbols_lists_each_absent_name_in_set_order`, `a_missing_symbol_refusal_names_the_symbols_and_the_remedy` | `src/cuda_libraries.rs` | `windchill3`, build only (`embed-cuda` needs `nvcc`); no GPU opened | 15 |
+| required-symbol drift guard arms (§ 9.1, Q26) | `scripts/tests/test_check_cuda_required_symbols.sh` | any | 15 |
 | `gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean` (recommended) | `fathomdb-engine/tests/slice31_engine_close_cuda.rs` | Orin | 04 |
 | `gpu_orin_64_records_the_usable_capacity_of_the_three_gib_pool` | `src/cuda_pool_slice31_tests.rs` | Orin | 04 |
 | `gpu_orin_64_memory_outside_the_private_pool_is_recorded` | same | Orin | 06 |
 | `gpu_orin_64_process_exit_with_the_private_pool_alive_is_clean`, `gpu_orin_64_dropping_the_embedder_then_exiting_is_clean` | same | Orin | 04 |
 | `gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize`, `gpu_orin_64_close_release_also_trims_a_max_threshold_pool` | same | Orin | 02, 04 |
 | F1-F5 | `src/python/tests/test_tegra_pool_fork_after_init.py` | Orin | 04 |
-| `a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work`, `missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy`, `the_cuda_library_report_names_the_loaded_files`, the two stderr cases | `tests/slice31_cuda_library_major.rs` | `windchill3` (RTX 3090 by UUID), Orin, C3 GCP T4 | 15 |
+| `a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work`, `a_libcublas_so_12_missing_a_required_symbol_is_refused_before_gpu_work` (Q26), `the_cuda_library_report_names_the_loaded_files`, the two stderr cases | `tests/slice31_cuda_library_major.rs` | `windchill3` (RTX 3090 by UUID), Orin | 15 |
+| `missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy` (`#[ignore = "C3 GCP cell"]`) | same | C3 GCP T4 only | 15 |
 | T-CUDA-COMPAT C3 session (§ 9.3) | receipts | GCP Spot T4, driver 580 only, owner-approved | 15 |
 
 ## 13. R-DES open points and their rulings
@@ -1769,15 +1954,16 @@ library check and GPU floor".
 >
 > 1. **Loaded-library check.** Before building a CUDA device, the embedder
 >    and reranker load cuBLAS and cuRAND for the built major and refuse a
->    missing library or a file that reports another major, with the typed
+>    missing library, a file that reports another major, or a file that
+>    lacks a symbol FathomDB or Candle calls (Slice 31 Q26), with the typed
 >    kind `cuda_library_unavailable` and a reason (`missing`,
->    `wrong_major`). Under `auto` the component runs on CPU with that
+>    `wrong_major`, `missing_symbol`). Under `auto` the component runs on CPU with that
 >    reason; under a forced `cuda:N` it is an error carrying the library,
 >    path, version, required major and the names tried.
-> 2. **Remedy text.** For a missing CUDA 12 cuBLAS the message says to
->    `pip install nvidia-cublas-cu12` and put that package's library
->    directory on `LD_LIBRARY_PATH`, because the loader does not search
->    Python's site-packages on Linux.
+> 2. **Remedy text.** For a missing CUDA 12 cuBLAS or cuRAND the message
+>    says to `pip install nvidia-cublas-cu12 nvidia-curand-cu12` and put
+>    both packages' library directories on `LD_LIBRARY_PATH`, because the
+>    loader does not search Python's site-packages on Linux.
 > 3. **Report.** `CudaDeviceInfo.cuda_libraries` lists the files loaded;
 >    `fathomdb doctor cuda-libraries` (`fathomdb.doctor.cuda-libraries.v1`)
 >    always reports them; exit 70 on a refusal. Only a refusal writes one

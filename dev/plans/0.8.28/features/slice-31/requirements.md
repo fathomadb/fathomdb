@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — requirements and acceptance criteria (W1)
-status: REVISED AFTER R-REQ (APPROVE-WITH-FIXES); amended after R-DES (findings 1, 7, 8, 10; owner rulings Q22–Q25); W2 done
+status: REVISED AFTER R-REQ (APPROVE-WITH-FIXES); amended after R-DES (findings 1, 7, 8, 10; owner rulings Q22–Q25) and after R-TEST (OP-2, AC31-02 wording; owner rulings Q26 and Q28); W3 done
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---
@@ -119,7 +119,11 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
     gate;
   - on RTX 3090 FathomDB's pool path is not built (plan § 2), so FathomDB
     asserts only the default allocator path and `doctor cuda-allocator`
-    reporting `not_built` (T-CUDA).
+    reporting `"built":false` with reason `not_applicable` (T-CUDA; on x86
+    the device report carries no allocator record and the CLI maps a
+    missing report to `not_applicable`, `fathomdb-cli/src/lib.rs:1194`;
+    the reason `not_built` exists only in aarch64 Linux CUDA builds
+    without `tegra-pool`).
 
 ### REQ31-03 CUDA compatibility
 
@@ -173,7 +177,10 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
     CK-AC-07;
   - product: `qualification.md` re-runs the Slice 30 gate rows G1–G10
     (`slice-30/plan.md` § 4.2; G9 per AC31-13) on the Orin; `doctor
-    cuda-allocator` reports `private`, 3 GiB;
+    cuda-allocator` reports `private`, 3 GiB. In G5 the P-versus-S
+    identity of the embedding hash and rerank scores gates; the equality
+    of those values to Slice 30's (`d9dafb8c410005f3`) is report-only,
+    evaluated after the work (owner ruling Q28, steward ledger seq 331);
   - product (T-TEARDOWN-PRODUCT, D-15) on the Orin, each a named test with
     a nonzero run count:
     - engine close and process exit with the pool alive end cleanly (exit
@@ -351,7 +358,8 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
      private-pool model synchronizes the decision's context and trims
      unused pool memory, unless the context is lost;
   2. **Loaded-library refusal (D-18, `design.md` § 9.1):** a missing or
-     wrong-major cuBLAS or cuRAND is refused before any device is built,
+     wrong-major cuBLAS or cuRAND, or one that lacks a symbol FathomDB or
+     Candle calls (owner ruling Q26), is refused before any device is built,
      with the new kind `cuda_library_unavailable` (CPU under `auto`, an
      error under forced `cuda:N`) and one stderr line per process, only on
      refusal (Q24);
@@ -390,8 +398,9 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
     (the pinned-override test, for the registry pins); a rename in test
     code forced by the fork API (D-17) that changes no assertion; and the
     teardown assertion of AC31-04, only if R-DES's D-15 fixes it;
-  - `git grep -il -e third_party/cudarc -e test_vendored_cudarc -e 'vendored cudarc' -e 'cudarc 0.19.7' -- . ':!dev/plans' ':!dev/adr' ':!dev/todos-and-considerations-ledger.jsonl' ':!CHANGELOG.md'`
-    is empty (plans, ADRs, the ledger and the changelog are history; all
+  - `git grep -il -e third_party/cudarc -e test_vendored_cudarc -e 'vendored cudarc' -e 'cudarc 0.19.7' -- . ':!dev/plans' ':!dev/adr' ':!dev/todos-and-considerations-ledger.jsonl' ':!dev/steward/steward-ledger.jsonl' ':!CHANGELOG.md'`
+    is empty (plans, ADRs, both append-only ledgers and the changelog are
+    history; the steward ledger exclusion was added after R-TEST, OP-2; all
     nine files above exist at the slice base, checked 2026-10-13, and
     `rerank/tests.rs` replaces revision 1's nonexistent `rerank_tests.rs`,
     R-DES finding 8). A test file that runs this `git grep` builds its
@@ -531,8 +540,10 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
 - **Statement** (`ADR-0.8.28-cuda-version-support-policy.md`): the 12.6
   artifact works with any CUDA 12.x cuBLAS from 12.1 to 12.9 on driver 560
   or later and Turing or newer GPUs; it never loads a cuBLAS of another
-  major; an environment with no CUDA 12 cuBLAS, or an unsupported GPU,
-  gets a typed, plain error; the user docs state the floors.
+  major; an environment with no CUDA 12 cuBLAS, a CUDA 12 cuBLAS or
+  cuRAND that lacks a symbol FathomDB or Candle calls (owner ruling Q26),
+  or an unsupported GPU, gets a typed, plain error, never a crash; the
+  user docs state the floors.
 - **Rationale:** owner rulings Q10 and Q12; a cross-major load fails late
   and obscurely.
 - **Kind:** fork-backed and product.
@@ -549,7 +560,11 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
   - cudarc CF-AC-11 (CF-REQ-11, built-major library loading) at `C`;
   - D-18's production check and report pass their RED-first tests,
     including the hermetic injected-`LibLoadError` test, which stays
-    whatever happens to C3 (Q25);
+    whatever happens to C3 (Q25), and the required-symbol check (Q26): a
+    decoy CUDA 12 `libcublas.so.12` that lacks one required symbol gets
+    the typed refusal (`cuda_library_unavailable`, reason
+    `missing_symbol`) where the base panicked; in C2 a missing symbol is
+    therefore a typed refusal, never a crash;
   - `docs/embedder.md` states the CUDA library floor (12.x), the driver
     floor (560.28.03 for the 12.6 artifact) and the GPU floor (Turing,
     compute capability 7.5, on x86; Orin on Jetson).

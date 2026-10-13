@@ -41,6 +41,7 @@ recovery semantics owned by `dev/design/recovery.md`.
 | `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]` | `0` / `65` / `70` |
 | `platform`        | `fathomdb doctor platform [--json]`                                            | `0` / `70`               |
 | `cuda-allocator`  | `fathomdb doctor cuda-allocator [--json]`                                      | `0` / `70`               |
+| `cuda-libraries`  | `fathomdb doctor cuda-libraries [--json]`                                      | `0` / `70`               |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0` / `70` / `71` |
 | `orphan-provenance` | `fathomdb doctor orphan-provenance [--json] <db_path>`                        | `0` / `65` / `70` / `71` |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` — pre-fetch + verify the pinned default-embedder weights so the next open runs offline | see [exit-code classes](#exit-code-classes) |
@@ -131,6 +132,17 @@ CUDA returns `reason: "not_applicable"` without touching CUDA. On a Jetson
 AGX Orin 64 GB with a pool-enabled build it reports `"path":"private"`,
 `"reason":"private_pool"`, a 3 GiB pool and release threshold `"0"`. It exits
 `0`, or `70` when the device probe fails. `doctor gpu` is unchanged.
+
+`fathomdb doctor cuda-libraries [--json]` (0.8.28) reports the CUDA
+libraries this binary loads for a GPU: the driver, cuBLAS and cuRAND (and
+cuBLASLt or NVRTC when loaded), each with the file opened, its path and
+version, and whether one is refused. Its JSON record is
+`fathomdb.doctor.cuda-libraries.v1` with ordered fields `schema_version`,
+`built`, `built_major`, `libraries`, `refusal` and `maps`. A refusal
+(`cuda_library_unavailable`: reason `missing`, `wrong_major` or
+`missing_symbol`) carries the files tried and the remedy, and the command
+exits `70`; otherwise it exits `0`. See
+[GPU acceleration](../embedder.md#cuda-library-and-gpu-requirements).
 
 For a confirmed classic Jetson/Tegra CUDA host, `fathomdb doctor gpu --help`
 prints the exact interim 0.8.27 command: `fathomdb==0.8.27+tegra` from

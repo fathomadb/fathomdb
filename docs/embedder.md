@@ -156,6 +156,49 @@ selects the optional cross-encoder with the same exact `auto` · `cpu` ·
 `cuda:N` grammar. A forced `cuda:N` reranker request fails typed rather than
 running CE on CPU.
 
+### CUDA library and GPU requirements
+
+The CUDA artifacts are built with CUDA 12.6 and need:
+
+- **An NVIDIA driver of 560.28.03 or later** (the CUDA 12.6 minimum). A
+  newer driver, CUDA 13 drivers included, runs them.
+- **A GPU of compute capability 7.5 or later on x86_64** (Turing: GeForce
+  RTX 20 and GTX 16 series, Quadro RTX and T series, Tesla T4, and every
+  later GPU). The Jetson artifacts target the AGX Orin. A GPU below the
+  floor is refused with `cuda_incompatible` before FathomDB builds a device
+  on it. `auto` tries only the first visible GPU, so on a host with an older
+  GPU at index 0 set `CUDA_VISIBLE_DEVICES` to a supported one.
+- **CUDA 12 cuBLAS and cuRAND libraries** (CUDA 12.x; tested with cuBLAS
+  12.1 to 12.9). A CUDA toolkit provides them, as do the PyPI wheels. If
+  one is missing, reports another major, or lacks a function FathomDB uses,
+  FathomDB refuses it before any GPU work with the typed kind
+  `cuda_library_unavailable` (reason `missing`, `wrong_major` or
+  `missing_symbol`): a forced `cuda:N` fails with the library, file,
+  version and remedy, and `auto` runs on CPU with that reason. The process
+  writes one `fathomdb-cuda-libraries {json}` line to stderr. The remedy,
+  which also covers a host with only CUDA 13 libraries:
+
+  ```sh
+  pip install nvidia-cublas-cu12 nvidia-curand-cu12
+  export LD_LIBRARY_PATH="$(python3 -c 'import nvidia.cublas as m; print(m.__path__[0])')/lib:$(python3 -c 'import nvidia.curand as m; print(m.__path__[0])')/lib:$LD_LIBRARY_PATH"
+  ```
+
+  The CUDA library loader does not search Python's site-packages on Linux,
+  so both directories must be on `LD_LIBRARY_PATH`.
+
+`fathomdb doctor cuda-libraries` shows which files a process loads and why
+one is refused ([CLI reference](reference/cli.md)); the open report's CUDA
+device facts list them too (`cuda_libraries` in Rust and Python,
+`cudaLibraries` in TypeScript).
+
+FathomDB-built artifacts (the wheels, npm packages and CLI) link the CUDA
+runtime statically, so their CPU mode loads on a host without `libcudart`.
+A Rust project that builds `fathomdb-embedder` from crates.io with
+`embed-cuda` (or `tegra-pool`) gets the published fork crates and links
+`libcudart` dynamically through upstream `candle-kernels` 0.10.2: set
+`LIBRARY_PATH` to the CUDA library directory to link, and keep `libcudart`
+loadable at run time.
+
 ### Embedding and cross-encoder on one GPU
 
 `FATHOMDB_EMBED_DEVICE=cuda:0` and `FATHOMDB_RERANK_DEVICE=cuda:0` may select
@@ -293,6 +336,10 @@ checks.
     once) or `max` (keep it).
 
   A malformed value turns the pool off; it never stops the process.
+- **Usable size.** On JetPack 6 a capped pool serves about a third of its
+  cap, so the 3 GiB default serves about 1 GiB (FathomDB's peak measured on
+  the Orin was 288 MiB), and `FATHOMDB_POOL_MAXSIZE` buys about a third of
+  its value. A cap near total device memory is not recommended.
 - **When the pool is full**, the request fails with
   `CudaPoolExhaustedError`, and the next request runs normally.
 - **Module-level models keep their memory.** `embed_batch_cls` /

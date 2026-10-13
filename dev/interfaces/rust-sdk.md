@@ -400,6 +400,13 @@ The `cuda_allocator` field of `CudaDeviceInfo` is reachable through
 `OpenReport`; this crate re-exports its report types
 (`CudaAllocatorReport`, `CudaAllocatorPath`, `CudaAllocatorReason`,
 `ReleaseThreshold`, `ModuleLoadInit`). The
+`cuda_libraries` field of `CudaDeviceInfo` (0.8.28 Slice 31) lists the CUDA
+libraries the probe loaded; this crate re-exports `CudaLibraryReport`,
+`CudaLibraryRefusal` and `CudaLibraryRefusalReason`. A refused library is the
+device-policy error kind `cuda_library_unavailable`, carried by
+`EmbedDevicePolicyError` / `RerankerDevicePolicyError` (`ErrorKind::EmbedDevicePolicy`
+/ `ErrorKind::RerankerDevicePolicy`; `dev/interfaces/rust.md` § CUDA library
+check and GPU floor). The
 standalone `embed_batch_cls` and `rerank` models are process singletons:
 on the private pool they hold their memory until the process exits.
 

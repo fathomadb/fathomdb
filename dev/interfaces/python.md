@@ -257,6 +257,16 @@ inventory.
 Slice 30) carries the CUDA allocator decision behind the device (§ Tegra
 private CUDA memory pool).
 
+`CudaDeviceInfo.cuda_libraries: tuple[CudaLibraryReport, ...] = ()` (0.8.28
+Slice 31) lists the CUDA libraries the probe checked and loaded; each frozen
+`fathomdb.types.CudaLibraryReport` has `library`, `opened_as`, `path: str |
+None`, `version: str | None` and `built_major: int`. A CUDA library the device
+needs that is missing, of another major or lacking a required symbol is the
+`EmbedDevicePolicyError` / `RerankerDevicePolicyError` kind
+`cuda_library_unavailable` (forced `cuda:N`), or CPU with that reason under
+`auto`; the message carries the library, file, version and remedy
+(`dev/interfaces/rust.md` § CUDA library check and GPU floor).
+
 This `DeviceResolution` is normal open-time evidence only. The CLI-only
 `DoctorGpuDiagnosticResult` is intentionally distinct: a
 `CudaProbeError::ProbeFailed` may be recorded as automatic CPU open evidence,

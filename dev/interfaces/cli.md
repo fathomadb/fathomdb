@@ -70,6 +70,7 @@ see that ADR's 2026-06-06 amendment).
 | `platform`        | `fathomdb doctor platform [--json]`                                            | `0 / 70`                            |
 | `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]`                                        | `0 / 65 / 70`                       |
 | `cuda-allocator`  | `fathomdb doctor cuda-allocator [--json]`                                      | `0 / 70`                            |
+| `cuda-libraries`  | `fathomdb doctor cuda-libraries [--json]`                                      | `0 / 70`                            |
 | `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `doctor-check-*` = 0 / 70 / 71      |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0 / 70 / 71`      |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` (EU-5b)                                       | `doctor-check-*`                    |
@@ -194,6 +195,25 @@ completed record exits 0; a probe or policy failure (for example a forced
 to stderr and exits 70. The command never exits 65, opens a database, loads
 or downloads a model, or writes configuration. `doctor gpu` v1 is unchanged.
 
+`doctor cuda-libraries` (0.8.28 Slice 31) is a database-free, model-free
+record of the CUDA libraries this binary loads for a CUDA device, made by the
+same check the device probes run (`dev/interfaces/rust.md` § CUDA library
+check and GPU floor). It loads the CUDA driver, cuBLAS and cuRAND and always
+reports. Its JSON object has keys in this order: `schema_version`
+(`"fathomdb.doctor.cuda-libraries.v1"`), `built` (whether this binary has a
+CUDA component), `built_major` (the CUDA major the libraries were checked
+against, or `null`), `libraries` (one entry each for `driver`, `cublas`,
+`cublasLt`, `curand` and `nvrtc`, with `library`, `opened_as`, `path`,
+`version` and `status`: `loaded`, `refused` or `not_loaded`), `refusal`
+(`null`, or `kind` `cuda_library_unavailable`, `library`, `reason`
+`missing` / `wrong_major` / `missing_symbol`, `path`, `version`,
+`required_major`, `tried` as `{name, reason}` objects, `missing_symbols` and
+`message` with the remedy), and `maps` (the CUDA libraries in
+`/proc/self/maps`). Text output is a `doctor cuda-libraries` header with
+`key=value` lines. It exits 70 when a library is refused, else 0, and never
+opens a database or loads a model. A refusal also writes the process's one
+`fathomdb-cuda-libraries {json}` stderr line. `doctor gpu` v1 is unchanged.
+
 Normal `Engine::open` resolution and `doctor gpu` have distinct result mappings.
 Open uses `DeviceResolution`, which may describe automatic CPU selection with a
 `cuda_probe_failed` reason. The CLI produces `DoctorGpuDiagnosticResult` instead;
@@ -213,6 +233,14 @@ code-based. Missing dynamic driver, `CUDA_ERROR_NO_DEVICE`, and
 `CUDA_ERROR_OUT_OF_MEMORY`, and `CUBLAS_STATUS_ALLOC_FAILED` are
 `probe_failed`. Build target, CUDA toolkit, and driver-version provenance are
 artifact-witness facts and are not fields in the doctor v1 schema.
+
+A device whose compute capability is below the build's kernel floor
+(`CUDA_COMPUTE_CAP`: 7.5 for the x86_64 artifacts, 8.7 for Jetson; 0.8.28
+Slice 31) is listed architecture evidence too: it is `cuda_incompatible`
+from the enumerated inventory, before the mapped-device probe builds a
+device. A CUDA library the device needs that the probe refuses
+(`cuda_library_unavailable`, see `doctor cuda-libraries`) is `probe_failed`
+with reason `cuda_library_unavailable`.
 
 The platform-level `arm64_sbsa_unsupported` reason is a separate,
 non-error-derived source of the same `cuda_incompatible` status. It is decided

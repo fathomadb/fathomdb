@@ -1284,6 +1284,67 @@ The decision rule is
   Closing afterwards can still crash; the survival fix is planned for
   0.8.29.
 
+### CUDA library check and GPU floor (0.8.28 Slice 31)
+
+Before a CUDA device is built, `fathomdb-embedder` checks the device against
+the build and the CUDA libraries Candle's device construction loads
+(`dev/adr/ADR-0.8.28-cuda-version-support-policy.md`, amendment of
+2026-10-13):
+
+- **GPU floor.** `CudaProvider` has a provided method
+  `kernel_compute_floor(&self) -> Option<(u32, u32)>` returning the build's
+  `CUDA_COMPUTE_CAP` (read at compile time; 75 for the x86_64 artifacts, 87
+  for Jetson; `None` without it), parsed by the public
+  `parse_compute_capability_floor(&str) -> Option<(u32, u32)>` (`"75"` is
+  7.5, `"120"` is 12.0). Resolution, `diagnose_gpu` and the reranker refuse an
+  enumerated device whose compute capability is below the floor before
+  calling `probe_cuda`: forced `cuda:N` is `ForcedCudaUnavailable { reason:
+  CudaIncompatible }`, `auto` (which probes only the lowest visible ordinal)
+  runs on CPU with `cuda_incompatible`, and `doctor gpu` reports
+  `cuda_incompatible`. An unknown capability or no floor refuses nothing.
+- **Library check.** The concrete probes call the check after the floor and
+  before `new_cuda_device`. It loads cuBLAS and cuRAND for the built CUDA
+  major through `cudarc-fathomdb` (reached as `candle_core::cuda::cudarc`)
+  and refuses a library it cannot load (`missing`), a cuBLAS that reports
+  another major or a candidate rejected for one (`wrong_major`), or a
+  library that lacks one of the cuBLAS or cuRAND functions cudarc's result
+  layers call (`missing_symbol`). The refusal is
+  `CudaProbeError::LibraryUnavailable(CudaLibraryRefusal)`; resolution maps
+  it to `DeviceResolutionReason::CudaLibraryUnavailable` /
+  `RerankerDeviceResolutionReason::CudaLibraryUnavailable`
+  (`"cuda_library_unavailable"`) under `auto` (CPU) and to
+  `DeviceResolutionError::CudaLibraryUnavailable { ordinal, refusal }` /
+  `RerankerDeviceResolutionError::CudaLibraryUnavailable { ordinal, refusal }`
+  under forced CUDA; `EmbedDevicePolicyError::kind()` and
+  `RerankerDevicePolicyError::kind()` return `cuda_library_unavailable`.
+  `doctor gpu` reports `probe_failed` with that reason. A refusal writes one
+  `fathomdb-cuda-libraries {json}` line to stderr per process; a successful
+  load writes nothing.
+- **`CudaLibraryRefusal`** (`#[non_exhaustive]`, `CudaLibraryRefusal::new`):
+  `library: &'static str` (`cublas` or `curand`), `reason:
+  CudaLibraryRefusalReason` (`Missing`, `WrongMajor`, `MissingSymbol`, with
+  `as_str()` names `missing`, `wrong_major`, `missing_symbol`), `path` and
+  `version` (`Option<Box<str>>`), `required_major: u32` (the library's own
+  major: 12 for cuBLAS, 10 for cuRAND in a CUDA 12 build), `tried: Vec<(String,
+  String)>` and `missing_symbols: Vec<String>`. Its `Display` names the
+  library, file, version and major and gives the remedy: for `missing` and
+  `missing_symbol`, `pip install nvidia-cublas-cu12 nvidia-curand-cu12` with
+  both library directories on `LD_LIBRARY_PATH`; for `wrong_major`, the file
+  to remove from the search path.
+- **Report.** `CudaDeviceInfo` carries `cuda_libraries:
+  Vec<CudaLibraryReport>` (`with_cuda_libraries`): the driver, cuBLAS and
+  cuRAND, and cuBLASLt or NVRTC when loaded. `CudaLibraryReport`
+  (`#[non_exhaustive]`, `CudaLibraryReport::new`) has `library`,
+  `opened_as`, `path` (canonical, comparable with `/proc/self/maps`),
+  `version` and `built_major`. These types are re-exported by `fathomdb-sdk`;
+  Python (`cuda_libraries`) and TypeScript (`cudaLibraries`) carry the report.
+- **Breaks.** `CudaProbeError`, `DeviceResolutionError`,
+  `RerankerDeviceResolutionError` and both reason enums are not
+  `#[non_exhaustive]`, so the new variants break exhaustive matches (pre-1.0,
+  recorded in the changelog). `CudaLibrariesDiagnostic` and
+  `cuda_libraries_diagnostic()` (CUDA builds) serve `doctor cuda-libraries`
+  and are binding support, hidden from the docs.
+
 Canonical leaf mapping lives in `design/errors.md`. This file adopts those
 types without renaming them.
 

@@ -345,6 +345,11 @@ run_tier_suite fast test-check-cudarc-fathomdb-lock-set bash scripts/tests/test_
 # checked on windchill3 (sm_75) and the Orin (sm_87).
 run_tier_suite fast test-check-ptx-driver-floor bash scripts/tests/test_check_ptx_driver_floor.sh
 
+# 0.8.28 Slice 31 (Q26): the cuBLAS/cuRAND symbols the embedder requires before
+# building a CUDA device equal the sys functions cudarc's result layers call,
+# and neither Candle nor FathomDB calls a sys function directly.
+run_tier_suite fast test-check-cuda-required-symbols bash scripts/tests/test_check_cuda_required_symbols.sh
+
 # 0.8.28 Slice 30 (R30-10): the CUDA pool study's environment variables and
 # report lines stay out of tracked files outside dev/.
 run_tier_suite fast test-pool-study-scaffolding-removed bash scripts/tests/test_pool_study_scaffolding_removed.sh

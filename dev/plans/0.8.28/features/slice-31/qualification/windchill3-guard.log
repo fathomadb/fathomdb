@@ -10,3 +10,7 @@
 2026-10-13T22:08:27Z after-cuda-03-07 driver=580.178.04 cuda=/usr/local/cuda-12.6
 2026-10-13T22:08:52Z before-driver-red driver=580.178.04 cuda=/usr/local/cuda-12.6
 2026-10-13T22:08:54Z after-driver-red driver=580.178.04 cuda=/usr/local/cuda-12.6
+2026-10-13T22:09:12Z before-libmajor-green2 driver=580.178.04 cuda=/usr/local/cuda-12.6
+2026-10-13T22:09:15Z after-libmajor-green2 driver=580.178.04 cuda=/usr/local/cuda-12.6
+2026-10-13T22:09:34Z before-cuda-07b driver=580.178.04 cuda=/usr/local/cuda-12.6
+2026-10-13T22:09:34Z after-cuda-07b driver=580.178.04 cuda=/usr/local/cuda-12.6

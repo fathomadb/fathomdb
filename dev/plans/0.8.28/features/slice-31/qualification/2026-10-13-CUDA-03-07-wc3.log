@@ -1,0 +1,28 @@
+== guard before
+0, NVIDIA GeForce RTX 3090, 00000000:41:00.0, 580.178.04
+1, NVIDIA GeForce RTX 3090, 00000000:42:00.0, 580.178.04
+2, Quadro K620, 00000000:61:00.0, 580.178.04
+/usr/local/cuda-12.6
+== c-doctor-x86 (CUDA-03)
+{"schema_version":"fathomdb.doctor.cuda-allocator.v1","built":false,"module_load_init":"not_at_load","mode":"auto","path":null,"reason":"not_applicable","pool_max_size_bytes":null,"release_threshold":null,"cuda_context_state":null}
+exit=0
+== c-doctor-libs-wc3 (CUDA-07)
+exit=0
+{"schema_version":"fathomdb.doctor.cuda-libraries.v1","built":true,"built_major":12,"libraries":[{"library":"driver","opened_as":null,"path":null,"version":null,"status":"not_loaded"},{"library":"cublas","opened_as":"libcublas.so.12","path":"/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublas.so.12.6.1.4","version":"12.6.1","status":"loaded"},{"library":"cublasLt","opened_as":null,"path":null,"version":null,"status":"not_loaded"},{"library":"curand","opened_as":"libcurand.so.10","path":"/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcurand.so.10.3.7.68","version":"10.3.7","status":"loaded"},{"library":"nvrtc","opened_as":null,"path":null,"version":null,"status":"not_loaded"}],"refusal":null,"maps":["/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcurand.so.10.3.7.68","/usr/lib/x86_64-linux-gnu/libcuda.so.580.178.04","/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublasLt.so.12.6.1.4","/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublas.so.12.6.1.4"]}
+/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublas.so.12.6.1.4
+/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcurand.so.10.3.7.68
+== guard after
+0, NVIDIA GeForce RTX 3090, 00000000:41:00.0, 580.178.04
+1, NVIDIA GeForce RTX 3090, 00000000:42:00.0, 580.178.04
+2, Quadro K620, 00000000:61:00.0, 580.178.04
+/usr/local/cuda-12.6
+0, NVIDIA GeForce RTX 3090, 00000000:41:00.0, 580.178.04
+1, NVIDIA GeForce RTX 3090, 00000000:42:00.0, 580.178.04
+2, Quadro K620, 00000000:61:00.0, 580.178.04
+/usr/local/cuda-12.6
+{"schema_version":"fathomdb.doctor.cuda-libraries.v1","built":true,"built_major":12,"libraries":[{"library":"driver","opened_as":"libcuda.so","path":"/usr/lib/x86_64-linux-gnu/libcuda.so.580.178.04","version":"13.0","status":"loaded"},{"library":"cublas","opened_as":"libcublas.so.12","path":"/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublas.so.12.6.1.4","version":"12.6.1","status":"loaded"},{"library":"cublasLt","opened_as":null,"path":null,"version":null,"status":"not_loaded"},{"library":"curand","opened_as":"libcurand.so.10","path":"/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcurand.so.10.3.7.68","version":"10.3.7","status":"loaded"},{"library":"nvrtc","opened_as":null,"path":null,"version":null,"status":"not_loaded"}],"refusal":null,"maps":["/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcurand.so.10.3.7.68","/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublasLt.so.12.6.1.4","/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublas.so.12.6.1.4","/usr/lib/x86_64-linux-gnu/libcuda.so.580.178.04"]}
+exit=0
+0, NVIDIA GeForce RTX 3090, 00000000:41:00.0, 580.178.04
+1, NVIDIA GeForce RTX 3090, 00000000:42:00.0, 580.178.04
+2, Quadro K620, 00000000:61:00.0, 580.178.04
+/usr/local/cuda-12.6

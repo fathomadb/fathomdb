@@ -441,9 +441,13 @@ mod driver {
     /// `doctor cuda-libraries`: load the driver, run the device check and
     /// report what loaded. It always reports; a refusal is in the result.
     pub fn cuda_libraries_diagnostic() -> CudaLibrariesDiagnostic {
+        // `is_culib_present` only tries to open the driver; `culib` keeps it
+        // loaded, which is what `loaded_library` reports.
         // SAFETY: locates and loads the CUDA driver library only; no driver
-        // function is called.
-        let _ = unsafe { cudarc::driver::sys::is_culib_present() };
+        // function is called, and `culib` runs only when it can succeed.
+        if unsafe { cudarc::driver::sys::is_culib_present() } {
+            let _ = unsafe { cudarc::driver::sys::culib() };
+        }
         let refusal = require_usable_cuda_libraries().err();
         let libraries = cuda_library_reports();
         let built_major = cudarc::cublas::sys::loaded_library()

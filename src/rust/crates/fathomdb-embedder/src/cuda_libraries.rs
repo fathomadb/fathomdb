@@ -241,6 +241,8 @@ pub struct CudaLibrariesDiagnostic {
     pub libraries: Vec<CudaLibraryReport>,
     /// The refusal, when a needed library is unusable.
     pub refusal: Option<CudaLibraryRefusal>,
+    /// The CUDA libraries mapped into this process (`/proc/self/maps`).
+    pub maps: Vec<String>,
 }
 
 impl CudaLibrariesDiagnostic {
@@ -250,8 +252,9 @@ impl CudaLibrariesDiagnostic {
         built_major: u32,
         libraries: Vec<CudaLibraryReport>,
         refusal: Option<CudaLibraryRefusal>,
+        maps: Vec<String>,
     ) -> Self {
-        Self { built_major, libraries, refusal }
+        Self { built_major, libraries, refusal, maps }
     }
 }
 
@@ -450,7 +453,10 @@ mod driver {
             .as_ref()
             .filter(|refusal| refusal.library == "cublas")
             .map_or(built_major, |refusal| refusal.required_major);
-        CudaLibrariesDiagnostic::new(built_major, libraries, refusal)
+        let maps = std::fs::read_to_string("/proc/self/maps")
+            .map(|maps| crate::cuda_pool_policy::cuda_libraries_in_maps(&maps))
+            .unwrap_or_default();
+        CudaLibrariesDiagnostic::new(built_major, libraries, refusal, maps)
     }
 }
 

@@ -174,6 +174,9 @@ pub enum DoctorCommand {
     /// Report this process's CUDA allocator decision (the Tegra private pool)
     /// without opening an engine.
     CudaAllocator(GpuDoctorArgs),
+    /// Report the CUDA libraries this binary loads (driver, cuBLAS, cuRAND)
+    /// and whether the device check refuses one, without opening an engine.
+    CudaLibraries(GpuDoctorArgs),
     /// Run a structural integrity check against the database.
     CheckIntegrity(CheckIntegrityArgs),
     /// Run bounded integrity checks over dependency and serving-projection authority.
@@ -576,6 +579,7 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
         DoctorCommand::Platform(args) => run_doctor_platform(args),
         DoctorCommand::RerankerGpu(args) => run_doctor_reranker_gpu(args),
         DoctorCommand::CudaAllocator(args) => run_doctor_cuda_allocator(args),
+        DoctorCommand::CudaLibraries(args) => run_doctor_cuda_libraries(args),
         DoctorCommand::CheckIntegrity(args) => {
             let opts = CheckIntegrityOpts {
                 quick: args.quick,
@@ -1312,6 +1316,171 @@ fn run_doctor_cuda_allocator(args: GpuDoctorArgs) -> i32 {
         Err(message) => eprintln!("doctor cuda-allocator: {message}"),
     }
     cuda_allocator_exit_code(&outcome)
+}
+
+const CUDA_LIBRARIES_SCHEMA: &str = "fathomdb.doctor.cuda-libraries.v1";
+
+/// Every library `doctor cuda-libraries` reports, in output order.
+const CUDA_LIBRARY_NAMES: [&str; 5] = ["driver", "cublas", "cublasLt", "curand", "nvrtc"];
+
+#[derive(Serialize)]
+struct DoctorCudaLibrariesJson<'a> {
+    schema_version: &'static str,
+    built: bool,
+    built_major: Option<u32>,
+    libraries: Vec<CudaLibraryJson<'a>>,
+    refusal: Option<CudaLibraryRefusalJson<'a>>,
+    maps: &'a [String],
+}
+
+#[derive(Serialize)]
+struct CudaLibraryJson<'a> {
+    library: &'static str,
+    opened_as: Option<&'a str>,
+    path: Option<&'a str>,
+    version: Option<&'a str>,
+    status: &'static str,
+}
+
+#[derive(Serialize)]
+struct CudaLibraryRefusalJson<'a> {
+    kind: &'static str,
+    library: &'static str,
+    reason: &'static str,
+    path: Option<&'a str>,
+    version: Option<&'a str>,
+    required_major: u32,
+    tried: Vec<CudaLibraryTriedJson<'a>>,
+    missing_symbols: &'a [String],
+    message: String,
+}
+
+#[derive(Serialize)]
+struct CudaLibraryTriedJson<'a> {
+    name: &'a str,
+    reason: &'a str,
+}
+
+fn cuda_libraries_json(
+    diagnostic: Option<&fathomdb_embedder::CudaLibrariesDiagnostic>,
+) -> DoctorCudaLibrariesJson<'_> {
+    const NO_MAPS: &[String] = &[];
+    let refusal = diagnostic.and_then(|diagnostic| diagnostic.refusal.as_ref());
+    let libraries = CUDA_LIBRARY_NAMES
+        .iter()
+        .map(|&library| {
+            let loaded = diagnostic.and_then(|diagnostic| {
+                diagnostic.libraries.iter().find(|report| report.library == library)
+            });
+            if let Some(report) = loaded {
+                CudaLibraryJson {
+                    library,
+                    opened_as: Some(&report.opened_as),
+                    path: report.path.as_deref(),
+                    version: report.version.as_deref(),
+                    status: "loaded",
+                }
+            } else if let Some(refusal) = refusal.filter(|refusal| refusal.library == library) {
+                CudaLibraryJson {
+                    library,
+                    opened_as: None,
+                    path: refusal.path.as_deref(),
+                    version: refusal.version.as_deref(),
+                    status: "refused",
+                }
+            } else {
+                CudaLibraryJson {
+                    library,
+                    opened_as: None,
+                    path: None,
+                    version: None,
+                    status: "not_loaded",
+                }
+            }
+        })
+        .collect();
+    DoctorCudaLibrariesJson {
+        schema_version: CUDA_LIBRARIES_SCHEMA,
+        built: diagnostic.is_some(),
+        built_major: diagnostic.map(|diagnostic| diagnostic.built_major),
+        libraries,
+        refusal: refusal.map(|refusal| CudaLibraryRefusalJson {
+            kind: refusal.kind(),
+            library: refusal.library,
+            reason: refusal.reason.as_str(),
+            path: refusal.path.as_deref(),
+            version: refusal.version.as_deref(),
+            required_major: refusal.required_major,
+            tried: refusal
+                .tried
+                .iter()
+                .map(|(name, reason)| CudaLibraryTriedJson { name, reason })
+                .collect(),
+            missing_symbols: &refusal.missing_symbols,
+            message: refusal.to_string(),
+        }),
+        maps: diagnostic.map_or(NO_MAPS, |diagnostic| diagnostic.maps.as_slice()),
+    }
+}
+
+fn cuda_libraries_output(
+    diagnostic: Option<&fathomdb_embedder::CudaLibrariesDiagnostic>,
+    json_mode: bool,
+) -> String {
+    let json = cuda_libraries_json(diagnostic);
+    if json_mode {
+        let mut output = serde_json::to_string(&json).expect("cuda library fields serialize");
+        output.push('\n');
+        return output;
+    }
+    let mut output = format!(
+        "doctor cuda-libraries\nschema_version={}\nbuilt={}\nbuilt_major={}\n",
+        json.schema_version,
+        json.built,
+        json.built_major.map_or("null".to_owned(), |major| major.to_string()),
+    );
+    for library in &json.libraries {
+        output.push_str(&format!(
+            "library={} status={} opened_as={} path={} version={}\n",
+            library.library,
+            library.status,
+            library.opened_as.unwrap_or("null"),
+            library.path.unwrap_or("null"),
+            library.version.unwrap_or("null"),
+        ));
+    }
+    match &json.refusal {
+        Some(refusal) => {
+            output.push_str(&format!("refusal={} {}\n", refusal.library, refusal.reason));
+            output.push_str(&format!("message={}\n", refusal.message));
+        }
+        None => output.push_str("refusal=null\n"),
+    }
+    for path in json.maps {
+        output.push_str(&format!("maps={path}\n"));
+    }
+    output
+}
+
+fn cuda_libraries_exit_code(
+    diagnostic: Option<&fathomdb_embedder::CudaLibrariesDiagnostic>,
+) -> i32 {
+    if diagnostic.is_some_and(|diagnostic| diagnostic.refusal.is_some()) {
+        exit_code::UNRECOVERABLE
+    } else {
+        exit_code::OK
+    }
+}
+
+/// Load the CUDA driver, cuBLAS and cuRAND as a device probe would and
+/// report each file; a refusal is reported (and exits 70), never hidden.
+fn run_doctor_cuda_libraries(args: GpuDoctorArgs) -> i32 {
+    #[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+    let diagnostic = Some(fathomdb_embedder::cuda_libraries_diagnostic());
+    #[cfg(not(any(feature = "embed-cuda", feature = "rerank-cuda")))]
+    let diagnostic: Option<fathomdb_embedder::CudaLibrariesDiagnostic> = None;
+    print!("{}", cuda_libraries_output(diagnostic.as_ref(), args.json));
+    cuda_libraries_exit_code(diagnostic.as_ref())
 }
 
 #[cfg(feature = "default-reranker")]

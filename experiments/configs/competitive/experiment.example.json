@@ -1,0 +1,49 @@
+{
+  "schema_version": "competitive.experiment.v1",
+  "program_track": null,
+  "run": {
+    "schema_version": "competitive.run.v1",
+    "case_id": "example-local-retrieval",
+    "scoreboard": "retrieval",
+    "product": {"name": "FathomDB", "version": "0.8.27", "deployment": "embedded"},
+    "evidence": {"kind": "local", "reference_url": null},
+    "workload": {
+      "name": "example-corpus",
+      "corpus_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "queries_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "items": 1000,
+      "queries": 100,
+      "search_mode": "fts",
+      "top_k": 10,
+      "filter": "none"
+    },
+    "measurement": {
+      "boundary": "public API call through materialized hits",
+      "cache_state": "steady",
+      "concurrency": 1,
+      "repetitions": 3,
+      "seed": 7
+    },
+    "target_hardware": {
+      "cpu": "published reference CPU model",
+      "cores": 8,
+      "ram_gib": 32,
+      "storage": "NVMe SSD",
+      "gpu": "none"
+    },
+    "settings": {"reader_threads": 1}
+  },
+  "adapter": {
+    "protocol": "competitive.adapter.v1",
+    "id": "retrieval",
+    "path": "/external/adapters/retrieval.py",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "timeout_s": 3600
+  },
+  "inputs": {
+    "corpus": {"path": "/external/corpus.json", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    "queries": {"path": "/external/queries.json", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    "gold": {"path": "/external/gold.json", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}
+  },
+  "output": {"schema_version": "competitive.result.v1", "metrics": ["recall_at_10"]}
+}

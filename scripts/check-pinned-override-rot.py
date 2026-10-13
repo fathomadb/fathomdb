@@ -485,6 +485,29 @@ def cargo_lock_sources(lockfile_path: Path) -> dict[tuple[str, str], set[str]]:
     return sources
 
 
+def sdk_driver_duplicate_patch(root: Path, pin: dict[str, str | None]) -> bool:
+    """Allow the standalone driver to repeat only the approved root sources."""
+    manifest = "experiments/sdk_drivers/rust/Cargo.toml"
+    if pin["manifest"] != manifest or pin["mechanism"] != CANDLE_MECHANISM:
+        return False
+    package = pin["package"]
+    if package == SQLITE_PACKAGE:
+        expected = SQLITE_PATH
+    elif package == CUDARC_PACKAGE:
+        expected = CUDARC_PATH
+    elif package in CANDLE_PACKAGES:
+        return pin["path"] is None and pin["git"] == CANDLE_GIT and pin["rev"] == CANDLE_REV
+    else:
+        return False
+    source = (root / manifest).parent / str(pin["path"])
+    return (
+        pin["git"] is None
+        and pin["rev"] is None
+        and pin["path"] is not None
+        and source.resolve() == (root / expected).resolve()
+    )
+
+
 def validate_cargo_pins(root: Path) -> list[str]:
     """Allow only the reviewed root Candle cohort and local SQLite/cudarc patches."""
     pins = cargo_governed_pins(root)
@@ -495,8 +518,17 @@ def validate_cargo_pins(root: Path) -> list[str]:
     cudarc_key = (CUDARC_MANIFEST, CUDARC_MECHANISM, CUDARC_PACKAGE)
     expected.add(cudarc_key)
     found: set[tuple[str, str, str]] = set()
+    driver_found: set[str] = set()
     for pin in pins:
         label = cargo_pin_label(pin)
+        if pin["manifest"] == "experiments/sdk_drivers/rust/Cargo.toml":
+            if not sdk_driver_duplicate_patch(root, pin):
+                failures.append(f"unsupported Cargo override/git source {label}")
+            elif str(pin["package"]) in driver_found:
+                failures.append(f"duplicate SDK driver Cargo patch {pin['package']}")
+            else:
+                driver_found.add(str(pin["package"]))
+            continue
         key = (str(pin["manifest"]), str(pin["mechanism"]), str(pin["package"]))
         if key not in expected:
             failures.append(f"unsupported Cargo override/git source {label}")
@@ -519,6 +551,10 @@ def validate_cargo_pins(root: Path) -> list[str]:
             failures.append(f"Candle patch {pin['package']} Git source is not the approved source")
         if rev != CANDLE_REV:
             failures.append(f"Candle patch {pin['package']} revision is not the approved immutable revision")
+    if (root / "experiments/sdk_drivers/rust/Cargo.toml").is_file():
+        missing = ({SQLITE_PACKAGE, CUDARC_PACKAGE} | set(CANDLE_PACKAGES)) - driver_found
+        for package in sorted(missing):
+            failures.append(f"missing SDK driver duplicate Cargo patch {package}")
     for manifest, mechanism, package in sorted(expected - found):
         if package == SQLITE_PACKAGE:
             failures.append(f"missing approved SQLite patch {package}")

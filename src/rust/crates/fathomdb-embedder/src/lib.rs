@@ -29,6 +29,7 @@ pub use cuda_pool_policy::{
 // Driver facts for `doctor cuda-allocator`; binding support, not SDK surface.
 #[doc(hidden)]
 pub use cuda_pool_policy::{cuda_context_state, CudaPrimaryContextState};
+mod cuda_libraries;
 mod device_policy;
 pub use device_policy::{
     diagnose_gpu, parse_compute_capability_floor, resolve_embed_device_policy,

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — goal
-status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 16: the forks' qualified commits and the published registry crates)
+status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 17: the forks' qualified commits and the published registry crates, the Candle crates 0.11.0 from K9)
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -19,7 +19,7 @@ index first. Read the plan with
 `git show origin/release/0.8.28:dev/plans/0.8.28/features/slice-31/plan.md`
 or from a slice worktree; never switch branches in the primary checkout
 (/home/coreyt/projects/fathomdb). If the committed plan is older than
-revision 16, stop and report. Fork work is governed by each fork's own
+revision 17, stop and report. Fork work is governed by each fork's own
 plan: coreyt/cudarc branch fathomdb/0.19.10, fathomdb/plan.md (clone
 /home/coreyt/projects/fathomdb-forks/cudarc) and coreyt/candle-fathomdb
 branch fathomdb/0.8.28-cudarc-fork, fathomdb/plan.md (clone
@@ -84,9 +84,9 @@ Rules:
   commits touching only fathomdb/. Pins name qualified code commits;
   receipts follow as D commits naming them. FathomDB consumes the
   published registry crates (cudarc-fathomdb =0.19.10 from C, the Candle
-  crates =0.10.4 from K8) and keeps only candle-kernels as a git patch at
-  the qualified Candle commit (plan revision 16, § 9 W6). Publish from the qualified
-  commits (cudarc from C, Candle from the re-qualified K8).
+  crates =0.11.0 from K9, plan § 15 Q21) and keeps only candle-kernels as
+  a git patch at K9 (plan revision 17, § 9 W6). Publish from the qualified
+  commits (cudarc from C, Candle from the re-qualified K9).
 - TDD for all code: the failing test first (RED), then the code (GREEN),
   then refactor. Test files are read-only during fix-to-spec.
 - Cite primary CUDA release notes and Driver API docs for every CUDA-version

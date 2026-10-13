@@ -1,7 +1,7 @@
 # Slice 31 status
 
-Step log for [plan.md](plan.md) (revision 16; its § 8.1 and the
-"Update 2026-10-13 (revision 16)" part give the slice state on
+Step log for [plan.md](plan.md) (revision 17; its § 8.1 and the
+"Update 2026-10-13" parts for revisions 16 and 17 give the slice state on
 2026-10-13). Red and green shas per
 FathomDB step, merge-forward shas, host guards, the fork commits `C` and
 `K`, and the pin-chain checks (plan § 4). Fork-side step logs are in each
@@ -44,20 +44,30 @@ Receipts: cudarc `fathomdb/qualification/` (G1–G6, G8, CI, CF-AC-07a and
 
 - cudarc FC10 (CF-AC-07b) was run early on the owner's request: receipt
   `2026-10-13-CF-AC-07b-b777f8d.md` (`a6d49c41`, fixes `d3a5a055`).
-  R-FC-PUB: APPROVE-WITH-FIXES; finding 1 (the README's relative
-  `FATHOMDB.md` link resolves against `coreyt/cudarc`'s default branch
-  `main`) is an owner decision before R-PUB. R-PUB waits for R-VERIFY.
+  R-FC-PUB: APPROVE-WITH-FIXES; finding 1 closed by making
+  `fathomdb/0.19.10` the fork's default branch (Q17). By owner direction
+  (Q17) R-PUB was approved before R-VERIFY, and `cudarc-fathomdb` 0.19.10
+  was published from `C` on 2026-10-13 at 14:02Z (receipt
+  `2026-10-13-FC10-publish-b777f8d.md`, fork commit `9b0ef75`).
 - Candle FK5: K8 `cd64715e` (0.10.4 on registry `cudarc-fathomdb` 0.19.10)
   passed CK-AC-07 on the RTX 3090 and the Orin on 2026-10-13 (fork receipt
   `fathomdb/qualification/2026-10-13-CK-AC-07-cd64715e.md`, fork commit
-  `ddff4cbd`); R-FK-PUB is running.
+  `ddff4cbd`). R-FK-PUB approved it apart from finding 1: 0.10.3 → 0.10.4
+  replaces candle-core's re-exported cudarc with `cudarc-fathomdb`, a
+  semver-breaking change. Owner ruling Q21: publish 0.11.0. `K9` =
+  `182ceab0547348993b6dbec4b1aed610dcc8b23f` (record `4abb8b38`) is `K8`
+  with versions 0.11.0 and a fork `description`; it is the publication
+  commit. CK-AC-07 cells at `K9` (control `K8`) are running; the R-FK-PUB
+  re-check of `K9` and the owner's publication of 0.11.0 follow. `K8`'s
+  receipt stands as evidence for the same code. `git diff 853324fc
+  182ceab0 -- candle-kernels` is empty.
 
 ## Next
 
 W1 (`requirements.md`, drafted) → R-REQ, W2 → R-DES, W3 → R-TEST, then W6
-with registry `cudarc-fathomdb` `=0.19.10`, the Candle crates `=0.10.4` and
-the `candle-kernels` git patch at the qualified Candle commit, under the
-owner-approved R-PIN checklist (plan § 9 W6, Q20).
+with registry `cudarc-fathomdb` `=0.19.10`, the Candle crates `=0.11.0` and
+the `candle-kernels` git patch at `K9`, under the owner-approved R-PIN
+checklist (plan § 9 W6, Q20, Q21).
 
 ## Log
 
@@ -67,3 +77,7 @@ owner-approved R-PIN checklist (plan § 9 W6, Q20).
 - 2026-10-13: W1 drafted: [requirements.md](requirements.md) (DRAFT FOR
   R-REQ), REQ31-01…15 with AC31 sets per review and seven open points.
   Next: R-REQ.
+- 2026-10-13: plan revision 17: the Candle fork crates publish as 0.11.0
+  from `K9` (`182ceab0`), not 0.10.4 from `K8` (owner ruling Q21, R-FK-PUB
+  finding 1); W6 pins the Candle crates `=0.11.0` and `candle-kernels` at
+  `K9`; `GOAL.md` and `requirements.md` follow.

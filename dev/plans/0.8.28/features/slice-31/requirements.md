@@ -25,14 +25,15 @@ cudarc fork's CF-REQ/CF-AC (`fathomdb/requirements.md` on `coreyt/cudarc`
 | --- | --- | --- |
 | `C` | cudarc `b777f8d94eedca8334e9331cf520d554b22544b7` on `coreyt/cudarc` `fathomdb/0.19.10` | R-FC-VERIFY APPROVE-WITH-NOTES, no open finding; published as `cudarc-fathomdb` 0.19.10 |
 | `K` | Candle `853324fc2b9f813eedceb75bef660a06a413ff5b` on `coreyt/candle-fathomdb` `fathomdb/0.8.28-cudarc-fork`, pinning `C` by git | R-FK-VERIFY APPROVE-WITH-FIXES ("fit to pin"), all findings disposed |
-| `K8` | Candle `cd64715ead4f86470b195a9010c4f60f7a4c0833` on the same branch (record `6b350638`): `K` with the three crates at 0.10.4 on registry `cudarc-fathomdb` 0.19.10 | FK5: local checks pass; CK-AC-07 GPU cells running; R-FK-PUB and publication follow (Q18) |
+| `K8` | Candle `cd64715ead4f86470b195a9010c4f60f7a4c0833` on the same branch (record `6b350638`): `K` with the three crates at 0.10.4 on registry `cudarc-fathomdb` 0.19.10 | CK-AC-07 passed (fork receipt `fathomdb/qualification/2026-10-13-CK-AC-07-cd64715e.md`, fork commit `ddff4cbd`); R-FK-PUB approved it apart from finding 1; superseded for publication by `K9` (Q21) |
+| `K9` | Candle `182ceab0547348993b6dbec4b1aed610dcc8b23f` on the same branch (record `4abb8b38`): `K8` with the three crates at 0.11.0 and a fork `description`; its `Cargo.lock` differs from `K8`'s only in the three version lines | the publication commit (Q21); CK-AC-07 cells at `K9` (control `K8`) running; R-FK-PUB re-check and publication follow (Q18, Q21) |
 | `cudarc-fathomdb` | crates.io 0.19.10, published 2026-10-13 14:02Z from `C` | registry `.crate` SHA-256 `8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2` equals the dry-run `.crate`; `.cargo_vcs_info.json` sha1 = `C`; all 131 source files match `C` |
-| `candle-core-fathomdb`, `candle-nn-fathomdb`, `candle-transformers-fathomdb` | crates.io 0.10.4, from `K8` | not yet published |
-| `candle-kernels` | git patch on `https://github.com/coreyt/candle-fathomdb.git`, full `rev` of the qualified Candle commit (`K8` or `K`: [§ 7](#7-open-points-for-r-req) item 1); version 0.10.2 | `git diff 853324fc cd64715e -- candle-kernels` is empty |
+| `candle-core-fathomdb`, `candle-nn-fathomdb`, `candle-transformers-fathomdb` | crates.io 0.11.0, from `K9` (Q21) | not yet published |
+| `candle-kernels` | git patch on `https://github.com/coreyt/candle-fathomdb.git`, full `rev` of `K9`; version 0.10.2 | `git diff 853324fc 182ceab0 -- candle-kernels` is empty |
 
 FathomDB's W6 pins (plan § 9 W6 step 2): the embedder's aarch64-Linux
 `cudarc = { package = "cudarc-fathomdb", version = "=0.19.10", … }`, the
-Candle crates at `=0.10.4`, and a root `[patch.crates-io]` holding only
+Candle crates at `=0.11.0`, and a root `[patch.crates-io]` holding only
 `candle-kernels` (git) and `libsqlite3-sys` (path). Exact versus caret for
 `cudarc-fathomdb` is confirmed by D-11 in W2.
 
@@ -46,7 +47,7 @@ Candle crates at `=0.10.4`, and a root `[patch.crates-io]` holding only
   permalink at the receipt commit's sha in `status.md`.
 - **Registry crates carry the fork evidence** when the published crate's
   `.cargo_vcs_info.json` names the qualified commit and its packaged files
-  equal that commit's (for `cudarc-fathomdb`: the FC10 receipt). For `K8`,
+  equal that commit's (for `cudarc-fathomdb`: the FC10 receipt). For `K9`,
   Candle CK-AC-07 is the re-qualification.
 - **Product.** A product criterion passes on FathomDB's own tests and
   receipts (`status.md`, `qualification.md`, CI logs), each test named
@@ -91,11 +92,11 @@ named commit.
     R-FC-VERIFY verified; Candle CK-AC-02 at `K` (test
     `device_on_a_private_pool_context_allocates_from_that_pool`, K-G1 on
     RTX 3090: the x86 runtime evidence of a private-pool context driven
-    through Candle), carried to `K8` by CK-AC-07;
+    through Candle), carried to `K9` by CK-AC-07;
   - product: FathomDB's private-pool GPU tests (T-POOL-PRODUCT: the four
     Slice 30 tests in `tests/tegra_fragmented_va_cuda.rs` and the Slice 30
     product tests) pass on the Orin (CUDA 12.6) against the W6 pins
-    (registry `cudarc-fathomdb` 0.19.10 and Candle 0.10.4), each listed by
+    (registry `cudarc-fathomdb` 0.19.10 and Candle 0.11.0), each listed by
     name with a nonzero run count;
   - on RTX 3090 FathomDB's pool path is not built (plan § 2), so FathomDB
     asserts only the default allocator path and `doctor cuda-allocator`
@@ -139,7 +140,7 @@ named commit.
 - **AC31-04:**
   - fork-backed: cudarc CF-AC-05b at `C` (G6 receipt
     `2026-10-12-G6-b777f8d.md`); Candle CK-AC-05's Orin cell K-G3 at `K`
-    (`2026-10-12-K-G1-K-G3-853324fc.md`), re-run at `K8` by CK-AC-07;
+    (`2026-10-12-K-G1-K-G3-853324fc.md`), re-run at `K9` by CK-AC-07;
   - product: `qualification.md` re-runs the Slice 30 gate rows on the
     Orin; `doctor cuda-allocator` reports `private`, 3 GiB;
   - the Tegra/CUDA 13 row reads UNMEASURED, citing Q5 and todo
@@ -183,7 +184,7 @@ named commit.
     to the registry one, or a second version);
   - `Cargo.lock` lists exactly one `cudarc-fathomdb` package, with the
     crates.io registry source;
-  - Candle CK-AC-01 at `K`, and at `K8` through CK-AC-07 (one
+  - Candle CK-AC-01 at `K`, and at `K9` through CK-AC-07 (one
     `cudarc-fathomdb v0.19.10` node per crate, registry form).
 
 ### REQ31-08 crates.io
@@ -200,10 +201,10 @@ named commit.
     commit `9b0ef75`), with CF-AC-07b
     (`2026-10-13-CF-AC-07b-b777f8d.md`). R-CODE-4 re-checks it from the
     registry.
-  - **Candle half (after the 0.10.4 publication):** the published
+  - **Candle half (after the 0.11.0 publication):** the published
     `candle-core-fathomdb`, `candle-nn-fathomdb` and
-    `candle-transformers-fathomdb` 0.10.4 `.cargo_vcs_info.json` sha1
-    equals `K8`, re-qualified by Candle CK-AC-07 and approved by R-FK-PUB.
+    `candle-transformers-fathomdb` 0.11.0 `.cargo_vcs_info.json` sha1
+    equals `K9`, re-qualified by Candle CK-AC-07 and approved by R-FK-PUB.
   - **Registry build (T-REGISTRY):**
     `scripts/check-tegra-pool-registry-build.sh`, changed RED then GREEN to
     require that a consumer with no patch table builds `tegra-pool`, passes,
@@ -299,11 +300,11 @@ named commit.
   - both fork plans reviewed (R-FC-PLAN, R-FK-PLAN) and every fork review
     recorded with no open finding;
   - `C` is the cudarc commit pinned by the Candle fork at `K`, and the
-    commit named by the registry `cudarc-fathomdb` 0.19.10 that `K8` and
+    commit named by the registry `cudarc-fathomdb` 0.19.10 that `K9` and
     FathomDB depend on;
   - `git diff C <cudarc tip> -- . ':(exclude)fathomdb'` and
     `git diff K <Candle tip> -- . ':(exclude)fathomdb' ':(exclude)FATHOMDB.md'`
-    are empty, or the tips were re-qualified (for `K8`: CK-AC-07);
+    are empty, or the tips were re-qualified (for `K9`: CK-AC-07);
   - the commit-class checks pass (cudarc fork plan § 1.3 over
     `ec1cac71..`, Candle fork plan § 1 over `859b8ea1..`);
   - cudarc CF-AC-07a at `C` shows no `fathomdb/` path in the package
@@ -338,9 +339,9 @@ named commit.
 | Review | Criteria | State (2026-10-13) |
 | --- | --- | --- |
 | R-PIN (owner, approved, Q20) | the AC31-14 pin checklist, per pin commit | W6 |
-| R-VERIFY (with R-CODE-3, before merge) | AC31-01…07, 10, 11, 12 (so far), 13, 14, 15, with T-FORK-EVIDENCE | W6; the GREEN pins wait for the Candle 0.10.4 publication |
+| R-VERIFY (with R-CODE-3, before merge) | AC31-01…07, 10, 11, 12 (so far), 13, 14, 15, with T-FORK-EVIDENCE | W6; the GREEN pins wait for the Candle 0.11.0 publication |
 | R-PROP, R-PROP2 (after merge) | AC31-09 | held by owner direction (Q17) |
-| R-CODE-4 (after publication) | AC31-08, AC31-12 (final), T-REGISTRY | AC31-08 cudarc half evidenced (FC10 receipt); Candle half after the 0.10.4 publication |
+| R-CODE-4 (after publication) | AC31-08, AC31-12 (final), T-REGISTRY | AC31-08 cudarc half evidenced (FC10 receipt); Candle half after the 0.11.0 publication |
 
 ## 5. Traceability
 
@@ -367,8 +368,8 @@ Test-plan topics are plan § 7's names, expanded in `test-plan.md` (W3).
 ## 6. Changes from plan § 5
 
 - AC31-02, 04, 07 and 14 name the registry pins (`cudarc-fathomdb`
-  `=0.19.10`, Candle `=0.10.4`) where § 5 names `C`/`K` git pins, and add
-  `K8` through CK-AC-07.
+  `=0.19.10`, Candle `=0.11.0`) where § 5 names `C`/`K` git pins, and add
+  `K9` through CK-AC-07.
 - AC31-07's second-source test is a git `cudarc-fathomdb` next to the
   registry one, or a second version, instead of a different URL or `rev`.
 - AC31-08 is split into the cudarc half (evidenced) and the Candle half.

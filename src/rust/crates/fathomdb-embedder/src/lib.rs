@@ -30,6 +30,7 @@ pub use cuda_pool_policy::{
 #[doc(hidden)]
 pub use cuda_pool_policy::{cuda_context_state, CudaPrimaryContextState};
 mod cuda_libraries;
+pub use cuda_libraries::{CudaLibraryRefusal, CudaLibraryRefusalReason, CudaLibraryReport};
 mod device_policy;
 pub use device_policy::{
     diagnose_gpu, parse_compute_capability_floor, resolve_embed_device_policy,

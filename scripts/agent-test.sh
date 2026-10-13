@@ -327,6 +327,12 @@ run_tier_suite fast test-check-pinned-override-rot bash scripts/tests/test_check
 # buffers). Pure arms run everywhere; GPU arms SKIP without a CUDA device.
 run_tier_suite fast test-vendored-cudarc bash scripts/tests/test_vendored_cudarc.sh
 
+# 0.8.28 Slice 31 (AC31-07): exactly one cudarc 0.19 in the graph, the
+# registry fork crate cudarc-fathomdb, with no concrete CUDA version feature.
+# Fixture arms run offline against directory-source stand-ins; the real-tree
+# arm fills the registry cache with `cargo fetch --locked` first.
+run_tier_suite fast test-check-single-cudarc bash scripts/tests/test_check_single_cudarc.sh
+
 # 0.8.28 Slice 30 (R30-10): the CUDA pool study's environment variables and
 # report lines stay out of tracked files outside dev/.
 run_tier_suite fast test-pool-study-scaffolding-removed bash scripts/tests/test_pool_study_scaffolding_removed.sh

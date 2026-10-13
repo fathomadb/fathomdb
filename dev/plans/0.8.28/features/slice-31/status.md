@@ -1,7 +1,8 @@
 # Slice 31 status
 
-Step log for [plan.md](plan.md) (revision 15; its § 8.1 gives the slice
-state on 2026-10-13). Red and green shas per
+Step log for [plan.md](plan.md) (revision 16; its § 8.1 and the
+"Update 2026-10-13 (revision 16)" part give the slice state on
+2026-10-13). Red and green shas per
 FathomDB step, merge-forward shas, host guards, the fork commits `C` and
 `K`, and the pin-chain checks (plan § 4). Fork-side step logs are in each
 fork's `fathomdb/status.md`.
@@ -54,3 +55,9 @@ Receipts: cudarc `fathomdb/qualification/` (G1–G6, G8, CI, CF-AC-07a and
 
 W1 (`requirements.md`) → R-REQ, W2 → R-DES, W3 → R-TEST, then W6 with the
 owner's R-PIN of `C` and `K`.
+
+## Log
+
+- 2026-10-13: plan revision 16 (registry consumption after the early
+  `cudarc-fathomdb` 0.19.10 publication; rulings Q17–Q20); `GOAL.md`
+  requires revision 16.

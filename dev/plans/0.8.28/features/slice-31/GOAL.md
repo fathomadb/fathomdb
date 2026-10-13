@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — goal
-status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 14 and the forks' qualified commits)
+status: ACTIVE (owner approved Slice 31 and the W0 merge-forward on 2026-10-11; aligned with plan revision 16: the forks' qualified commits and the published registry crates)
 target_release: 0.8.28
 observed_on: 2026-10-11
 ---
@@ -19,7 +19,7 @@ index first. Read the plan with
 `git show origin/release/0.8.28:dev/plans/0.8.28/features/slice-31/plan.md`
 or from a slice worktree; never switch branches in the primary checkout
 (/home/coreyt/projects/fathomdb). If the committed plan is older than
-revision 14, stop and report. Fork work is governed by each fork's own
+revision 16, stop and report. Fork work is governed by each fork's own
 plan: coreyt/cudarc branch fathomdb/0.19.10, fathomdb/plan.md (clone
 /home/coreyt/projects/fathomdb-forks/cudarc) and coreyt/candle-fathomdb
 branch fathomdb/0.8.28-cudarc-fork, fathomdb/plan.md (clone
@@ -81,9 +81,11 @@ Rules:
   PR from the web UI (the base defaults to upstream). Upstream push URLs
   stay disabled. Every commit on a fathomdb/* branch carries a Fork-Class
   trailer (U, L, P, W, D; none on proposal/*); engineering records are D
-  commits touching only fathomdb/. Pins name qualified code commits, using
-  the identical URL and full 40-character rev in Candle and FathomDB;
-  receipts follow as D commits naming them. Publish from the qualified
+  commits touching only fathomdb/. Pins name qualified code commits;
+  receipts follow as D commits naming them. FathomDB consumes the
+  published registry crates (cudarc-fathomdb =0.19.10 from C, the Candle
+  crates =0.10.4 from K8) and keeps only candle-kernels as a git patch at
+  the qualified Candle commit (plan revision 16, § 9 W6). Publish from the qualified
   commits (cudarc from C, Candle from the re-qualified K8).
 - TDD for all code: the failing test first (RED), then the code (GREEN),
   then refactor. Test files are read-only during fix-to-spec.
@@ -114,7 +116,7 @@ Rules:
   checkout's .venv; never pip install -e or maturin develop against it.
 
 Done when:
-1. Pre-merge: AC31-01..07, 10, 11, 13, 14 and AC31-12 so far pass with
+1. Pre-merge: AC31-01..07, 10, 11, 13, 14, 15 and AC31-12 so far pass with
    evidence in status.md, qualification.md and the forks' receipts; CUDA
    13.1-13.4 runtime cells and Tegra on CUDA 13 are recorded UNMEASURED
    citing owner rulings Q4 and Q5; every fork review through R-FC-VERIFY and
@@ -122,7 +124,8 @@ Done when:
    finding; the slice is merged into release/0.8.28 and its worktree
    removed.
 2. Post-merge: AC31-09 passes and R-PROP is recorded with no open finding;
-   the proposal is not posted.
+   the proposal is not posted. The owner holds FC9 and FC9b (plan § 15
+   Q17); until released, the goal skips this step.
 3. Post-publication (after the owner publishes): R-FC-PUB, R-FK-PUB and
    R-CODE-4 are recorded with no open finding, AC31-08 and AC31-12 (final)
    pass, and the follow-up is merged.

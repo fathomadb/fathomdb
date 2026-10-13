@@ -131,11 +131,15 @@ CUDA_TEGRA_HOST_CUDART_LIB = "/usr/local/cuda-12.6/targets/aarch64-linux/lib"
 CUDA_TEGRA_HOST_DRIVER_LIB = "/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 UPLOAD_RETRY_ACTION = ROOT / ".github/actions/upload-artifact-retry/action.yml"
-CANDLE_GIT_URL = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_GIT_REV = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
-CANDLE_PACKAGES = (
+# 0.8.28 Slice 31 (REQ31-16, OP-1): the only Candle source this contract
+# governs is the candle-kernels git patch that carries the statically linked
+# CUDA runtime into the artifacts. Its source and rev are read from the
+# pinned-override record (one literal); the registry Candle fork crates are
+# the pinned-override checker's.
+PINNED_OVERRIDE_RECORD = ROOT / "scripts/pinned-override-rot.json"
+CANDLE_KERNELS_PACKAGE = "candle-kernels"
+CANDLE_FORK_PACKAGES = (
     "candle-core-fathomdb",
-    "candle-kernels",
     "candle-nn-fathomdb",
     "candle-transformers-fathomdb",
 )
@@ -717,42 +721,54 @@ def require_tegra_napi_route(contract: str) -> None:
 
 
 def main() -> None:
+    record = load_json(PINNED_OVERRIDE_RECORD)
+    candle_exception = record.get("cargo_candle_exception")
+    if not isinstance(candle_exception, dict):
+        fail(f"{PINNED_OVERRIDE_RECORD} has no cargo_candle_exception")
+    candle_git = candle_exception.get("git")
+    candle_rev = candle_exception.get("rev")
+    if not isinstance(candle_git, str) or not isinstance(candle_rev, str):
+        fail("cargo_candle_exception must name the candle-kernels git source and rev")
     workspace_manifest = load_toml(WORKSPACE_MANIFEST)
     patches = workspace_manifest.get("patch")
     if not isinstance(patches, dict):
-        fail("workspace Cargo.toml has no [patch.crates-io] Candle source pin")
+        fail("workspace Cargo.toml has no [patch.crates-io] candle-kernels source pin")
     crates_io_patch = patches.get("crates-io")
     if not isinstance(crates_io_patch, dict):
-        fail("workspace Cargo.toml has no [patch.crates-io] Candle source pin")
-    for package_name in CANDLE_PACKAGES:
-        pin = crates_io_patch.get(package_name)
-        if not isinstance(pin, dict):
-            fail(f"[patch.crates-io] lacks a source pin for {package_name!r}")
-        if pin.get("git") != CANDLE_GIT_URL or pin.get("rev") != CANDLE_GIT_REV:
+        fail("workspace Cargo.toml has no [patch.crates-io] candle-kernels source pin")
+    pin = crates_io_patch.get(CANDLE_KERNELS_PACKAGE)
+    if not isinstance(pin, dict):
+        fail(f"[patch.crates-io] lacks the {CANDLE_KERNELS_PACKAGE!r} source pin")
+    if pin.get("git") != candle_git or pin.get("rev") != candle_rev:
+        fail(
+            f"[patch.crates-io] {CANDLE_KERNELS_PACKAGE} must pin {candle_git}@{candle_rev} "
+            f"(scripts/pinned-override-rot.json cargo_candle_exception); got {pin!r}"
+        )
+    for package_name in CANDLE_FORK_PACKAGES:
+        if package_name in crates_io_patch:
             fail(
-                f"{package_name!r} must pin {CANDLE_GIT_URL}@{CANDLE_GIT_REV}; "
-                f"got {pin!r}"
+                f"[patch.crates-io] must not patch {package_name!r}: the Candle fork crates "
+                "come from crates.io"
             )
 
     lockfile = load_toml(LOCKFILE)
     locked_packages = lockfile.get("package")
     if not isinstance(locked_packages, list):
         fail("Cargo.lock has no package entries")
-    expected_source = f"git+{CANDLE_GIT_URL}?rev={CANDLE_GIT_REV}#{CANDLE_GIT_REV}"
-    for package_name in CANDLE_PACKAGES:
-        entries = [
-            entry
-            for entry in locked_packages
-            if isinstance(entry, dict) and entry.get("name") == package_name
-        ]
-        if len(entries) != 1:
-            fail(f"Cargo.lock must contain exactly one {package_name!r} package; got {len(entries)}")
-        source = entries[0].get("source")
-        if source != expected_source:
-            fail(
-                f"Cargo.lock must resolve {package_name!r} from {expected_source!r}; "
-                f"got {source!r}"
-            )
+    expected_source = f"git+{candle_git}?rev={candle_rev}#{candle_rev}"
+    entries = [
+        entry
+        for entry in locked_packages
+        if isinstance(entry, dict) and entry.get("name") == CANDLE_KERNELS_PACKAGE
+    ]
+    if len(entries) != 1:
+        fail(f"Cargo.lock must contain exactly one {CANDLE_KERNELS_PACKAGE!r} package; got {len(entries)}")
+    source = entries[0].get("source")
+    if source != expected_source:
+        fail(
+            f"Cargo.lock must resolve {CANDLE_KERNELS_PACKAGE!r} from {expected_source!r}; "
+            f"got {source!r}"
+        )
 
     manifest = load_toml(NAPI_MANIFEST)
     features = manifest.get("features")

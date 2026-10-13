@@ -66,6 +66,10 @@ features = ["default-reranker"]
 
 [[entry]]
 crate = "fathomdb-engine"
+features = ["embed-cuda"]
+
+[[entry]]
+crate = "fathomdb-engine"
 features = ["migration-test-hooks"]
 
 [[entry]]

@@ -47,14 +47,17 @@ Receipts: cudarc `fathomdb/qualification/` (G1–G6, G8, CI, CF-AC-07a and
   R-FC-PUB: APPROVE-WITH-FIXES; finding 1 (the README's relative
   `FATHOMDB.md` link resolves against `coreyt/cudarc`'s default branch
   `main`) is an owner decision before R-PUB. R-PUB waits for R-VERIFY.
-- Candle FK5 (K8, 0.10.4 on registry `cudarc-fathomdb`) waits for the
-  owner's publication of `cudarc-fathomdb`: crates.io rejects git
-  dependencies, so K8 cannot be packaged before then.
+- Candle FK5: K8 `cd64715e` (0.10.4 on registry `cudarc-fathomdb` 0.19.10)
+  passed CK-AC-07 on the RTX 3090 and the Orin on 2026-10-13 (fork receipt
+  `fathomdb/qualification/2026-10-13-CK-AC-07-cd64715e.md`, fork commit
+  `ddff4cbd`); R-FK-PUB is running.
 
 ## Next
 
-W1 (`requirements.md`, drafted) → R-REQ, W2 → R-DES, W3 → R-TEST, then W6 with the
-owner's R-PIN of `C` and `K`.
+W1 (`requirements.md`, drafted) → R-REQ, W2 → R-DES, W3 → R-TEST, then W6
+with registry `cudarc-fathomdb` `=0.19.10`, the Candle crates `=0.10.4` and
+the `candle-kernels` git patch at the qualified Candle commit, under the
+owner-approved R-PIN checklist (plan § 9 W6, Q20).
 
 ## Log
 

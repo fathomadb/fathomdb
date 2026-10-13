@@ -13,6 +13,7 @@ make_fixture() {
   local root="$1"
   mkdir -p "$root/.github/workflows" "$root/.github/actions/upload-artifact-retry" "$root/scripts/lib" "$root/scripts/release" "$root/src/rust/crates/fathomdb-napi" "$root/src/ts" "$root/dev/release"
   cp "$REPO_ROOT/Cargo.toml" "$REPO_ROOT/Cargo.lock" "$root/"
+  cp "$REPO_ROOT/scripts/pinned-override-rot.json" "$root/scripts/"
   cp "$REPO_ROOT/.github/workflows/release.yml" "$root/.github/workflows/"
   cp "$REPO_ROOT/.github/actions/upload-artifact-retry/action.yml" "$root/.github/actions/upload-artifact-retry/"
   cp "$REPO_ROOT/scripts/verify-release-gates.sh" "$root/scripts/"
@@ -74,6 +75,21 @@ expect_fail() {
   local root="$1" description="$2"
   if REPO_ROOT="$root" python3 "$CHECKER" >/dev/null 2>&1; then
     printf 'FAIL  %s\n' "$description" >&2
+    exit 1
+  fi
+  printf 'PASS  %s\n' "$description"
+}
+
+# The checker must fail for the stated reason: its stderr must contain the
+# expected message, not merely exit nonzero.
+expect_fail_with() {
+  local root="$1" message="$2" description="$3" output
+  if output="$(REPO_ROOT="$root" python3 "$CHECKER" 2>&1)"; then
+    printf 'FAIL  %s (the checker passed)\n' "$description" >&2
+    exit 1
+  fi
+  if ! grep -Fq -- "$message" <<<"$output"; then
+    printf 'FAIL  %s (expected %s; got: %s)\n' "$description" "$message" "$output" >&2
     exit 1
   fi
   printf 'PASS  %s\n' "$description"
@@ -466,6 +482,44 @@ PY
   expect_fail "$FIXTURE" "rejects $cuda_job without its CUDART static-link search path"
 done
 
+# 0.8.28 Slice 31 (D-8W, AC31-03b): release_cuda_jobs_pin_the_cudarc_binding_version.
+# Each CUDA job selects the cudarc binding version through CUDARC_CUDA_VERSION,
+# derived from the toolkit root's 12.6, never through a manifest feature.
+for cuda_job in \
+  cuda-contract-preflight:cuda-contract-preflight \
+  cuda-package-rehearsal:cuda-package-rehearsal \
+  cuda-reranker-package-rehearsal:cuda-reranker-package-rehearsal \
+  'build-cuda-linux-x64-gnu:canonical CUDA builder'; do
+  job_name="${cuda_job%%:*}"
+  job_label="${cuda_job#*:}"
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$job_name" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+job = sys.argv[2]
+text = path.read_text()
+needle = '      CUDARC_CUDA_VERSION: "12060"\n'
+match = re.search(
+    rf"^  {re.escape(job)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)",
+    text,
+    re.MULTILINE | re.DOTALL,
+)
+if match is None:
+    raise SystemExit(f"fixture lacks CUDA job {job}")
+body = match.group("body")
+if body.count(needle) != 1:
+    raise SystemExit(f"fixture CUDA job {job} must contain exactly one cudarc binding version")
+path.write_text(
+    text[:match.start("body")] + body.replace(needle, "", 1) + text[match.end("body"):]
+)
+PY
+  expect_fail_with "$FIXTURE" "$job_label CUDA binding version is missing 'CUDARC_CUDA_VERSION: \"12060\"'" \
+    "rejects a CUDA job without CUDARC_CUDA_VERSION 12060 ($job_name)"
+done
+
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" <<'PY'
 from pathlib import Path
@@ -525,6 +579,30 @@ path.write_text(text.replace(needle, "", 1))
 PY
 expect_fail "$FIXTURE" 'rejects an N-API CUDA build without a toolkit runtime link search path'
 
+# 0.8.28 Slice 31 (REQ31-16, OP-1): the only Candle source the release
+# contract governs is the candle-kernels git patch that carries the static
+# CUDA runtime, at the rev recorded in scripts/pinned-override-rot.json. The
+# registry Candle fork crates belong to the pinned-override checker.
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/Cargo.toml" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text, count = re.subn(
+    r'^(candle-kernels = \{ git = "https://github\.com/coreyt/candle-fathomdb\.git", rev = ")[0-9a-f]{40}(" \})$',
+    r"\g<1>89abcdef0123456789abcdef0123456789abcdef\g<2>",
+    path.read_text(),
+    flags=re.MULTILINE,
+)
+if count != 1:
+    raise SystemExit("fixture no longer contains exactly one candle-kernels git patch")
+path.write_text(text)
+PY
+expect_fail_with "$FIXTURE" "[patch.crates-io] candle-kernels must pin https://github.com/coreyt/candle-fathomdb.git@182ceab0547348993b6dbec4b1aed610dcc8b23f" \
+  'rejects a candle-kernels patch at a rev other than K9'
+
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/Cargo.toml" <<'PY'
 from pathlib import Path
@@ -532,26 +610,36 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8" }\n'
+needle = "[patch.crates-io]\n"
 if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains exactly one Candle NN source pin")
-path.write_text(text.replace(needle, "", 1))
+    raise SystemExit("fixture no longer contains exactly one [patch.crates-io] table")
+path.write_text(text.replace(
+    needle,
+    needle + 'candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }\n',
+    1,
+))
 PY
-expect_fail "$FIXTURE" 'rejects a split Candle source selection'
+expect_fail_with "$FIXTURE" "[patch.crates-io] must not patch 'candle-core-fathomdb'" \
+  'rejects a Candle fork crate reintroduced as a git patch'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/Cargo.lock" <<'PY'
 from pathlib import Path
+import re
 import sys
 
 path = Path(sys.argv[1])
-text = path.read_text()
-needle = 'source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=859b8ea1a2218e864a0a867b4c3d62b03de75aa8#859b8ea1a2218e864a0a867b4c3d62b03de75aa8"'
-if text.count(needle) != 4:
-    raise SystemExit("fixture no longer contains all four immutable Candle lock sources")
-path.write_text(text.replace(needle, 'source = "registry+https://github.com/rust-lang/crates.io-index"', 1))
+text, count = re.subn(
+    r'(\[\[package\]\]\nname = "candle-kernels"\nversion = "[^"]+"\n)source = "git\+[^"]+"\n',
+    r'\1source = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "' + "1" * 64 + '"\n',
+    path.read_text(),
+)
+if count != 1:
+    raise SystemExit("fixture no longer contains exactly one candle-kernels git lock entry")
+path.write_text(text)
 PY
-expect_fail "$FIXTURE" 'rejects a Candle lockfile that falls back to crates.io'
+expect_fail_with "$FIXTURE" "Cargo.lock must resolve 'candle-kernels' from 'git+https://github.com/coreyt/candle-fathomdb.git?rev=182ceab0547348993b6dbec4b1aed610dcc8b23f#182ceab0547348993b6dbec4b1aed610dcc8b23f'" \
+  'rejects a candle-kernels lock entry from crates.io'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/src/rust/crates/fathomdb-napi/Cargo.toml" <<'PY'

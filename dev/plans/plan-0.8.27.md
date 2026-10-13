@@ -381,10 +381,7 @@ user actually commissioned.
 
 ## Immediate next slice
 
-<!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 160** (`PUBLISH`) — publication to every registry and Pages destination with post-publication proofs
-
-**Remaining ladder:** 160.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+Release 0.8.27 is complete. Slice 160 published every destination and verified the installed packages and retained Tegra Pages artifacts. The publication receipt is in `dev/plans/release-state-0.8.27.json`.
 
 ## Slice ladder: features and refactoring
 

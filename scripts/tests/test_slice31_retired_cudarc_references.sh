@@ -24,7 +24,8 @@ vendored_text="vendored"" cudarc"
 vendored_version="cudarc"" 0.19.7"
 if matches="$(git grep -il -e "$vendored_tree" -e "$vendored_test" -e "$vendored_text" \
   -e "$vendored_version" -- . "${HISTORY[@]}")"; then
-  fail "no_vendored_cudarc_reference_outside_history: $(printf '%s' "$matches" | wc -l | tr -d ' ') file(s) still name the vendored cudarc:
+  count="$(grep -c . <<<"$matches")"
+  fail "no_vendored_cudarc_reference_outside_history: $count file(s) still name the vendored cudarc:
 $matches"
 else
   pass 'no_vendored_cudarc_reference_outside_history'

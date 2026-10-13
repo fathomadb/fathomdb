@@ -31,18 +31,21 @@ run_fixture matching
 pass 'matching_sets_pass'
 
 run_fixture result-symbol-missing
-[ "$RC" -eq 1 ] && grep -Fq 'cuBLAS: called by the result layer but not in REQUIRED_CUBLAS_SYMBOLS: cublasSnrm2_v2' <<<"$OUT" \
-  || fail "a_result_layer_symbol_missing_from_the_constant_fails — rc=$RC: $OUT"
+if [ "$RC" -ne 1 ] || ! grep -Fq 'cuBLAS: called by the result layer but not in REQUIRED_CUBLAS_SYMBOLS: cublasSnrm2_v2' <<<"$OUT"; then
+  fail "a_result_layer_symbol_missing_from_the_constant_fails — rc=$RC: $OUT"
+fi
 pass 'a_result_layer_symbol_missing_from_the_constant_fails'
 
 run_fixture candle-sys-call
-[ "$RC" -eq 1 ] && grep -Fq 'Candle calls cublasSgemm_v2 directly' <<<"$OUT" \
-  || fail "a_direct_candle_sys_call_fails — rc=$RC: $OUT"
+if [ "$RC" -ne 1 ] || ! grep -Fq 'Candle calls cublasSgemm_v2 directly' <<<"$OUT"; then
+  fail "a_direct_candle_sys_call_fails — rc=$RC: $OUT"
+fi
 pass 'a_direct_candle_sys_call_fails'
 
 run_fixture fathomdb-sys-call
-[ "$RC" -eq 1 ] && grep -Fq 'FathomDB calls curandCreateGenerator directly' <<<"$OUT" \
-  || fail "a_fathomdb_sys_call_fails — rc=$RC: $OUT"
+if [ "$RC" -ne 1 ] || ! grep -Fq 'FathomDB calls curandCreateGenerator directly' <<<"$OUT"; then
+  fail "a_fathomdb_sys_call_fails — rc=$RC: $OUT"
+fi
 pass 'a_fathomdb_sys_call_fails'
 
 # The real tree: the resolved cudarc-fathomdb and Candle fork sources from

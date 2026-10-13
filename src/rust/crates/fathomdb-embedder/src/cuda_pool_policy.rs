@@ -1366,23 +1366,6 @@ mod driver {
         DriverFailure { code: candle_driver_code(&error), message: error.to_string() }
     }
 
-    fn pool_attribute(
-        pool: &CudaMemPool,
-        attr: sys::CUmemPool_attribute,
-    ) -> Result<u64, DriverFailure> {
-        let mut value: u64 = 0;
-        // SAFETY: the pool is live; every counter attribute is a cuuint64_t.
-        unsafe {
-            result::mem_pool::get_attribute(
-                pool.raw(),
-                attr,
-                std::ptr::addr_of_mut!(value).cast::<std::ffi::c_void>(),
-            )
-        }
-        .map_err(failure)?;
-        Ok(value)
-    }
-
     /// Releases a retained primary context when dropped, so a panic in the
     /// decision does not leak the reference.
     struct RetainedPrimary(sys::CUdevice);
@@ -1528,12 +1511,11 @@ mod driver {
         }
 
         fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure> {
-            use sys::CUmemPool_attribute::*;
             Ok(PoolCounters {
-                reserved_current: pool_attribute(pool, CU_MEMPOOL_ATTR_RESERVED_MEM_CURRENT)?,
-                reserved_high: pool_attribute(pool, CU_MEMPOOL_ATTR_RESERVED_MEM_HIGH)?,
-                used_current: pool_attribute(pool, CU_MEMPOOL_ATTR_USED_MEM_CURRENT)?,
-                used_high: pool_attribute(pool, CU_MEMPOOL_ATTR_USED_MEM_HIGH)?,
+                reserved_current: pool.reserved_current().map_err(failure)?,
+                reserved_high: pool.reserved_high().map_err(failure)?,
+                used_current: pool.used_current().map_err(failure)?,
+                used_high: pool.used_high().map_err(failure)?,
             })
         }
 

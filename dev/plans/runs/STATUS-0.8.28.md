@@ -13,25 +13,28 @@ file and regenerate; keep evidence and qualification prose here. Started
 ## Current state
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
-Slice 31 (cudarc and Candle forks) is in progress, fork work first:
+Slice 31 (cudarc and Candle forks) is in progress; the fork work is done:
 
 - `cudarc-fathomdb` 0.19.10 is on crates.io, published on 2026-10-13 from
-  the qualified fork commit `b777f8d`. The registry `.crate` matches the
-  dry run byte for byte, and its sources match `b777f8d`
-  (`coreyt/cudarc` `fathomdb/qualification/2026-10-13-FC10-publish-b777f8d.md`).
-- The Candle fork is qualified at `853324fc` (K-G1 RTX 3090, K-G2 GCP T4
-  with CUDA 13.0, K-G3 Orin).
+  the qualified fork commit `b777f8d` (`coreyt/cudarc`
+  `fathomdb/qualification/2026-10-13-FC10-publish-b777f8d.md`).
+- `candle-core-fathomdb`, `candle-nn-fathomdb` and
+  `candle-transformers-fathomdb` 0.11.0 are on crates.io, published on
+  2026-10-13 from Candle fork commit `182ceab0` (K9), re-qualified on the
+  RTX 3090 and the Orin (`coreyt/candle-fathomdb`
+  `fathomdb/qualification/2026-10-13-FK5-publish-182ceab0.md`). 0.11.0, not
+  0.10.4, because the change replaces a re-exported dependency (seq-324).
+- Each registry crate equals its dry run and its sources equal its commit.
+- Slice 31 `requirements.md` is revised after R-REQ.
 - FathomDB still builds against the vendored `third_party/cudarc-0.19.7`.
 
 ## Immediate next action
 
-1. Candle FK5: K9 moves the three Candle crates to 0.11.0 on registry
-   `cudarc-fathomdb` 0.19.10 (re-qualified on the RTX 3090 and the Orin
-   on 2026-10-13); R-FK-PUB re-check; publish the three crates in order.
-2. Slice 31 W1 to W3: requirements, design and test plan, each with its own
+1. Slice 31 W2 design (R-DES) and W3 test plan (R-TEST), each with its own
    Opus review.
-3. Slice 31 W6: pin the registry crates, delete the vendored cudarc, and run
-   the full gate and the GPU regression cells.
+2. Slice 31 W6: pin registry `cudarc-fathomdb` `=0.19.10` and the Candle
+   crates `=0.11.0`, patch `candle-kernels` by git at K9, delete the
+   vendored cudarc, and run the full gate and the GPU regression cells.
 
 ## Open decisions
 

@@ -5,6 +5,7 @@
 
 use std::{fmt, str::FromStr};
 
+use crate::device_policy::below_compute_floor;
 use crate::{CudaDeviceInfo, CudaPoolFailure, CudaProbeError, CudaProvider, CudaVisibleDevice};
 
 /// The sole cross-SDK transport for reranker policy selection.
@@ -401,6 +402,11 @@ fn probe(
     provider: &mut dyn CudaProvider,
     selected: &CudaVisibleDevice,
 ) -> Result<CudaDeviceInfo, Unavailable> {
+    // Checked before `probe_cuda`, which builds the device (C4, design § 9.2).
+    if below_compute_floor(selected.compute_capability.as_deref(), provider.kernel_compute_floor())
+    {
+        return Err(Unavailable::Reason(RerankerDeviceResolutionReason::CudaIncompatible));
+    }
     match provider.probe_cuda(selected.visible_ordinal) {
         Ok(info)
             if info.ordinal == selected.visible_ordinal

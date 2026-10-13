@@ -200,6 +200,25 @@ pub fn parse_compute_capability_floor(raw: &str) -> Option<(u32, u32)> {
     Some((major.parse().ok()?, minor.parse().ok()?))
 }
 
+/// Whether a device's driver-reported compute capability (`"major.minor"`)
+/// is below the build's kernel floor. No floor, or no parseable capability,
+/// is never a refusal: there is no evidence.
+pub(crate) fn below_compute_floor(
+    compute_capability: Option<&str>,
+    floor: Option<(u32, u32)>,
+) -> bool {
+    let (Some(capability), Some(floor)) = (compute_capability, floor) else {
+        return false;
+    };
+    let Some((major, minor)) = capability.split_once('.') else {
+        return false;
+    };
+    match (major.parse::<u32>(), minor.parse::<u32>()) {
+        (Ok(major), Ok(minor)) => (major, minor) < floor,
+        _ => false,
+    }
+}
+
 /// A classified failure while initializing or minimally probing CUDA.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CudaProbeError {
@@ -604,6 +623,12 @@ fn probe(
     provider: &mut dyn CudaProvider,
     selected: &CudaVisibleDevice,
 ) -> Result<CudaDeviceInfo, Unavailable> {
+    // Checked before `probe_cuda`, which builds the device: no path builds a
+    // device whose compute capability the build's kernels cannot run on.
+    if below_compute_floor(selected.compute_capability.as_deref(), provider.kernel_compute_floor())
+    {
+        return Err(Unavailable::Reason(DeviceResolutionReason::CudaIncompatible));
+    }
     match provider.probe_cuda(selected.visible_ordinal) {
         Ok(info)
             if info.ordinal == selected.visible_ordinal
@@ -722,6 +747,20 @@ pub fn diagnose_gpu(
                     Some(DeviceResolutionReason::NoVisibleCudaDevice),
                 );
             };
+            if below_compute_floor(
+                selected.compute_capability.as_deref(),
+                provider.kernel_compute_floor(),
+            ) {
+                return diagnostic(
+                    policy,
+                    cuda_compiled,
+                    DoctorGpuStatus::CudaIncompatible,
+                    forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                    devices,
+                    None,
+                    Some(DeviceResolutionReason::CudaIncompatible),
+                );
+            }
             match provider.probe_cuda(selected.visible_ordinal) {
                 Ok(info)
                     if info.ordinal == selected.visible_ordinal

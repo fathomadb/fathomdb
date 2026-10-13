@@ -830,13 +830,13 @@ def _verify_required_gpu(
     selected = {str(plan["cell"]) for plan in plans}
     if not selected.intersection(gpu_cells):
         return
-    _cuda_environment()
     gpu = _object(resolved.get("gpu"), "gpu")
     expected = gpu.get("cuda_uuid")
     if gpu.get("enabled") is not True or not isinstance(expected, str):
         raise GauntletConfigError(
             "encoding/GPU cells require gpu.enabled=true and a pinned CUDA UUID"
         )
+    _cuda_environment()
     result = subprocess.run(
         ["nvidia-smi", "--query-gpu=uuid,name", "--format=csv,noheader"],
         text=True,

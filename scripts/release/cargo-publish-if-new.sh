@@ -185,6 +185,43 @@ registry_has_version() {
   return 1
 }
 
+# The crates.io API can list a just-published sibling before Cargo's package
+# index can resolve it. Retry only Cargo's exact dependency-propagation error;
+# packaging, authentication, and other publish failures still fail at once.
+publish_with_index_retry() {
+  local attempt=1 max_attempts="${CARGO_PUBLISH_IF_NEW_RETRY_ATTEMPTS:-13}"
+  local interval="${CARGO_PUBLISH_IF_NEW_RETRY_INTERVAL:-15}"
+  local output_file publish_rc tee_rc
+  local -a pipeline_status
+  output_file="$(mktemp)"
+  while :; do
+    set +e
+    cargo "$@" 2>&1 | tee "$output_file"
+    pipeline_status=("${PIPESTATUS[@]}")
+    publish_rc="${pipeline_status[0]}"
+    tee_rc="${pipeline_status[1]}"
+    set -e
+    if [ "$tee_rc" -ne 0 ]; then
+      rm -f "$output_file"
+      return "$tee_rc"
+    fi
+    if [ "$publish_rc" -eq 0 ]; then
+      rm -f "$output_file"
+      return 0
+    fi
+    if [ "$attempt" -ge "$max_attempts" ] \
+       || ! grep -Fq 'failed to select a version for the requirement' "$output_file" \
+       || ! grep -Fq "candidate versions found which didn't match" "$output_file"; then
+      rm -f "$output_file"
+      return "$publish_rc"
+    fi
+    printf 'cargo-publish-if-new: Cargo index dependency version has not propagated; retrying (%d/%d) in %ss\n' \
+      "$attempt" "$max_attempts" "$interval" >&2
+    sleep "$interval"
+    attempt=$((attempt + 1))
+  done
+}
+
 LOCAL_VERSION="$(resolve_local_version)"
 
 # Dependent crates: cannot be dry-run-published because `cargo package`
@@ -243,9 +280,10 @@ case "$rc" in
         # Query overridden + publish-registry mapped: route the publish to the
         # SAME staging host the query hit. A staging/test run is structurally
         # incapable of touching prod crates.io.
-        exec cargo publish -p "$CRATE" \
+        publish_with_index_retry publish -p "$CRATE" \
           --registry "$CARGO_PUBLISH_IF_NEW_PUBLISH_REGISTRY" \
           --token "$CARGO_REGISTRY_TOKEN"
+        exit $?
       fi
       # Query overridden but no publish-registry mapping: FAIL CLOSED. Never run
       # a default-crates.io `cargo publish` when the query was redirected.
@@ -254,7 +292,7 @@ case "$rc" in
       exit 1
     fi
     # Not overridden (real release): publish to crates.io — behaviour unchanged.
-    exec cargo publish -p "$CRATE" --token "$CARGO_REGISTRY_TOKEN"
+    publish_with_index_retry publish -p "$CRATE" --token "$CARGO_REGISTRY_TOKEN"
     ;;
   *)
     exit "$rc"

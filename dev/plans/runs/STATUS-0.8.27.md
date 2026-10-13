@@ -1,17 +1,17 @@
 ---
 title: FathomDB 0.8.27 release status
-status: ACTIVE
+status: CLOSED
 ---
 
 # FathomDB 0.8.27 release status
 
-This board is a generated-view consumer of
-`dev/plans/release-state-0.8.27.json`. Update machine-owned facts in that state
-file and regenerate; keep evidence and qualification prose here.
+**Closed — historical record.** Version 0.8.27 was published on 2026-10-11. The earlier qualification and authorization notes below describe the prepublication state.
+
+The publication receipt is in `dev/plans/release-state-0.8.27.json`.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 160 (PUBLISH), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) · 110 (`a25d063cd3e1642ad08dcc6aed3691b94445fe20`) · 114 (`25115902db8b9b5648c5ceca1823d3cc66fec8e8`) · 115 (`012e132920147396ac195f14af74444dd698f48e`) · 117 (`663ed88cdfedcf741504285ea1890663603115ad`) · 120 (`e05bfd5330beb737b7704300e2752d2b977bb5b8`) · 130 (`58b0bd192f6bc7cc87ea6e8099bfe1c52e68893f`) · 132 (`2996417f0cb78b2dbf5262de53798ae6a263469a`) · 135 (`a815584b3b907596be00c501eca3ec140c3c7c88`) · 140 (`3a69eef82e0381641e5bfbf7dcd8ed25141d97ff`) · 150 (`737d8b5737b0c827b457405076ec319d0aef081e`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+Slice 160 is complete. The tagged 0.8.27 candidate is published to crates.io, PyPI, npm, GitHub Releases, and the Tegra Pages route. The docs Pages site serves and retains the Tegra packages.
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -139,7 +139,7 @@ qualification; Slice 160 owns publication and installed-artifact proof.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 160 (PUBLISH)** — publication to every registry and Pages destination with post-publication proofs. **Remaining ladder:** 160.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | No remaining release action; 0.8.27 publication is complete. |
 
 ## Open decisions
 

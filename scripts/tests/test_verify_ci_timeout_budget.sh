@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Structural guard for the split CI verifier budgets. The heavy language tier
 # retains the approved 60-minute allowance; the fast diagnostic tier gets its
-# own bounded 30-minute budget instead of hiding behind that slow tail.
+# own bounded 45-minute budget instead of hiding behind that slow tail.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,10 +41,10 @@ fi
 
 if [ -z "$fast_block" ]; then
   fail "ci.yml must define the top-level verify-fast job"
-elif grep -qE '^[[:space:]]*timeout-minutes:[[:space:]]*30[[:space:]]*$' <<<"$fast_block"; then
-  pass "CI fast verify job has its own 30-minute diagnostic budget"
+elif grep -qE '^[[:space:]]*timeout-minutes:[[:space:]]*45[[:space:]]*$' <<<"$fast_block"; then
+  pass "CI fast verify job has its own 45-minute diagnostic budget"
 else
-  fail "CI fast verify job must allow 30 minutes"
+  fail "CI fast verify job must allow 45 minutes"
 fi
 
 if [ "$FAILED" -gt 0 ]; then

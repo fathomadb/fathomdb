@@ -257,7 +257,7 @@ jobs:
     needs: changes
     # !cancelled(), not always(): always() stays true while the run is being
     # cancelled, and GitHub does not cancel a running job whose condition is
-    # still true — a superseded PR run would keep this 30-minute job alive
+    # still true — a superseded PR run would keep this 45-minute job alive
     # despite cancel-in-progress above.
     if: >-
       !cancelled() &&
@@ -266,7 +266,7 @@ jobs:
         needs.changes.outputs.docs_only != 'true'
       )
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

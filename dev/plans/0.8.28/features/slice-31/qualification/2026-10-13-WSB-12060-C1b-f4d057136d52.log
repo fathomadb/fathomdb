@@ -1,0 +1,42 @@
+== guard before
+0, NVIDIA GeForce RTX 3090, 00000000:41:00.0, 580.178.04
+1, NVIDIA GeForce RTX 3090, 00000000:42:00.0, 580.178.04
+2, Quadro K620, 00000000:61:00.0, 580.178.04
+/usr/local/cuda-12.6
+CUDA_VISIBLE_DEVICES=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b CUDA_COMPUTE_CAP=75 CUDARC_CUDA_VERSION=12060 CUDA_PATH=/usr/local/cuda-12.6
+Cuda compilation tools, release 12.6, V12.6.68
+Build cuda_12.6.r12.6/compiler.34714021_0
+b887a101a1ea9684a8e64d0bb8a849da6ef4e61a777bdc2ff62062126a8d142a  Cargo.lock
+f4d057136d5233754071625ea5fd586decc9396e
+== cargo build --locked -p fathomdb-embedder --features embed-cuda,rerank-cuda
+   Compiling candle-transformers-fathomdb v0.11.0
+   Compiling fathomdb-embedder v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/src/rust/crates/fathomdb-embedder)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 45.60s
+exit=0
+== cargo build --locked --release -p fathomdb-cli --features embed-cuda,rerank-cuda
+   Compiling fathomdb v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/src/rust/crates/fathomdb)
+   Compiling fathomdb-cli v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/src/rust/crates/fathomdb-cli)
+    Finished `release` profile [optimized] target(s) in 1m 06s
+exit=0
+== cargo test --locked --no-run -p fathomdb-embedder --features embed-cuda,rerank-cuda
+  Executable tests/slice71_reranker_policy.rs (/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/target-cuda/debug/deps/slice71_reranker_policy-99b9ede1f416fd51)
+  Executable tests/slice80_gpu_allocation_witness.rs (/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/target-cuda/debug/deps/slice80_gpu_allocation_witness-2f4d0bee1c6d42d4)
+  Executable tests/tegra_fragmented_va_cuda.rs (/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/target-cuda/debug/deps/tegra_fragmented_va_cuda-96147e7da3faa828)
+exit=0
+== cargo test --locked --no-run -p fathomdb-engine --features embed-cuda,rerank-cuda
+  Executable tests/tc33_fix1_unrenderable_epoch.rs (/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/target-cuda/debug/deps/tc33_fix1_unrenderable_epoch-6e4e78b3c4a9cf25)
+  Executable tests/tc33_fix2_edge_validity_on_search.rs (/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/target-cuda/debug/deps/tc33_fix2_edge_validity_on_search-cbc0754ff77fd7e5)
+  Executable tests/vector_equivalence_probe_fixture_drift.rs (/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/target-cuda/debug/deps/vector_equivalence_probe_fixture_drift-5e64abea609966f2)
+exit=0
+== c-c1
+    Finished `release` profile [optimized] target(s) in 5.52s
+out_dir=/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/target-cuda/release/build/candle-kernels-16f6f00764faaa50/out
+11
+ok ptx-floor: 11 PTX module(s), each .version <= 8.5 and .target sm_75
+c1-exit=0
+== guard after
+0, NVIDIA GeForce RTX 3090, 00000000:41:00.0, 580.178.04
+1, NVIDIA GeForce RTX 3090, 00000000:42:00.0, 580.178.04
+2, Quadro K620, 00000000:61:00.0, 580.178.04
+/usr/local/cuda-12.6
+done

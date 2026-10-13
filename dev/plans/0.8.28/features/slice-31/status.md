@@ -1,6 +1,7 @@
 # Slice 31 status
 
-Step log for [plan.md](plan.md) (revision 14). Red and green shas per
+Step log for [plan.md](plan.md) (revision 15; its § 8.1 gives the slice
+state on 2026-10-13). Red and green shas per
 FathomDB step, merge-forward shas, host guards, the fork commits `C` and
 `K`, and the pin-chain checks (plan § 4). Fork-side step logs are in each
 fork's `fathomdb/status.md`.
@@ -10,6 +11,7 @@ fork's `fathomdb/status.md`.
 | Item | Commit |
 | --- | --- |
 | Slice 31 plan revision 14, `GOAL.md` | `80ae2a18e` on `release/0.8.28` |
+| Slice 31 plan revision 15 (§ 8.1 state) | `eb75e31d5` on `release/0.8.28`, merged into this branch |
 | Merge-forward of `release/0.8.27` (W0 step 2) | `9fa71e93a` |
 | cudarc fork plan | `coreyt/cudarc` `fathomdb/0.19.10`, `fathomdb/plan.md` (tip `d3a5a055`) |
 | Candle fork plan | `coreyt/candle-fathomdb` `fathomdb/0.8.28-cudarc-fork`, `fathomdb/plan.md` (tip `549f3548`) |

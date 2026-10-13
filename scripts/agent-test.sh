@@ -339,6 +339,12 @@ run_tier_suite fast test-check-single-cudarc bash scripts/tests/test_check_singl
 # cargo metadata; the real-tree arm runs cargo metadata offline.
 run_tier_suite fast test-check-cudarc-fathomdb-lock-set bash scripts/tests/test_check_cudarc_fathomdb_lock_set.sh
 
+# 0.8.28 Slice 31 (T-CUDA-COMPAT C1, AC31-15): the PTX driver-floor checker
+# (PTX ISA <= 8.5 for the 12.6 artifact's driver floor; .target equal to the
+# contract compute capability). Fixture arms only; the real build output is
+# checked on windchill3 (sm_75) and the Orin (sm_87).
+run_tier_suite fast test-check-ptx-driver-floor bash scripts/tests/test_check_ptx_driver_floor.sh
+
 # 0.8.28 Slice 30 (R30-10): the CUDA pool study's environment variables and
 # report lines stay out of tracked files outside dev/.
 run_tier_suite fast test-pool-study-scaffolding-removed bash scripts/tests/test_pool_study_scaffolding_removed.sh

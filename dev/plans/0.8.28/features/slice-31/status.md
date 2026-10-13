@@ -64,7 +64,7 @@ Receipts: cudarc `fathomdb/qualification/` (G1–G6, G8, CI, CF-AC-07a and
 
 ## Next
 
-W1 (`requirements.md`, drafted) → R-REQ, W2 → R-DES, W3 → R-TEST, then W6
+W1 (`requirements.md`, revised after R-REQ) done; W2 → R-DES, W3 → R-TEST, then W6
 with registry `cudarc-fathomdb` `=0.19.10`, the Candle crates `=0.11.0` and
 the `candle-kernels` git patch at `K9`, under the owner-approved R-PIN
 checklist (plan § 9 W6, Q20, Q21).
@@ -81,3 +81,8 @@ checklist (plan § 9 W6, Q20, Q21).
   from `K9` (`182ceab0`), not 0.10.4 from `K8` (owner ruling Q21, R-FK-PUB
   finding 1); W6 pins the Candle crates `=0.11.0` and `candle-kernels` at
   `K9`; `GOAL.md` and `requirements.md` follow.
+- 2026-10-13: R-REQ (Opus) on `requirements.md` at `f41563903`:
+  APPROVE-WITH-FIXES, F1–F12 and seven open-point rulings, all applied
+  ([review.md](review.md)); new REQ31-16 (REQ-068 through the
+  `candle-kernels` patch); T-REGISTRY moves into W6. `requirements.md` is
+  REVISED AFTER R-REQ, ready for W2. Next: W2 → R-DES.

@@ -353,7 +353,10 @@ it and no open finding. FathomDB does not re-run the fork's tests.
 
 **AC sets.** R-VERIFY before merge checks AC31-01…07, 10, 11, 12 (so far),
 13, 14 and 15. AC31-09 is checked at R-PROP and R-PROP2 after merge. AC31-08 and AC31-12
-(final) are checked at R-CODE-4 after publication.
+(final) are checked at R-CODE-4 after publication. Revision 17 (R-REQ):
+R-VERIFY also checks AC31-08 (T-REGISTRY runs in W6) and the new AC31-16
+(REQ-068 through the `candle-kernels` patch); R-CODE-4 re-checks AC31-08
+from the registry.
 
 **Revision 16.** `requirements.md` (W1) carries these
 criteria in final form for the registry pins (AC31-02, 07, 08, 14 and
@@ -535,6 +538,10 @@ plan § 6). FathomDB runs:
   `.cargo_vcs_info.json` sha of `cudarc-fathomdb` 0.19.10 is `C` and of
   the Candle crates 0.11.0 is `K9` (revision 17, Q21), and
   `candle-kernels`' git patch `rev` is `K9`.
+- **T-PROCESS** (revision 17, R-REQ) the record and guard checks of
+  AC31-11 and AC31-12: `status.md` and `review.md` entries, the `gh`
+  listings on both forks, the fork push URLs, the ancestry checks against
+  `release/0.8.27`, and the host guard logs.
 - **T-REGISTRY** registry-consumer check (AC31-08). Revision 17 (R-REQ):
   both publications precede W6, so it runs in W6 and at R-VERIFY, and
   R-CODE-4 re-checks it.

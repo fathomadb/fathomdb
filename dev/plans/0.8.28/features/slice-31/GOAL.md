@@ -116,7 +116,7 @@ Rules:
   checkout's .venv; never pip install -e or maturin develop against it.
 
 Done when:
-1. Pre-merge: AC31-01..07, 10, 11, 13, 14, 15 and AC31-12 so far pass with
+1. Pre-merge: AC31-01..08, 10, 11, 13..16 and AC31-12 so far pass with
    evidence in status.md, qualification.md and the forks' receipts; CUDA
    13.1-13.4 runtime cells and Tegra on CUDA 13 are recorded UNMEASURED
    citing owner rulings Q4 and Q5; every fork review through R-FC-VERIFY and
@@ -127,8 +127,8 @@ Done when:
    the proposal is not posted. The owner holds FC9 and FC9b (plan § 15
    Q17); until released, the goal skips this step.
 3. Post-publication (after the owner publishes): R-FC-PUB, R-FK-PUB and
-   R-CODE-4 are recorded with no open finding, AC31-08 and AC31-12 (final)
-   pass, and the follow-up is merged.
+   R-CODE-4 are recorded with no open finding, AC31-08 (re-checked from
+   the registry) and AC31-12 (final) pass, and the follow-up is merged.
 If the owner has not yet published, the goal pauses after step 2 with the
 publication commands and dry-run output ready; it is not failed.
 ```

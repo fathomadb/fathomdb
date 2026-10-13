@@ -23,13 +23,13 @@
       {"id": "release-0.8.28-publication", "title": "Authorize tagging and publication of 0.8.28 after the ladder and release qualification pass."}
     ],
     "ruled": [
-      {"id": "slice-31-fork-first", "title": "Do the cudarc and Candle fork work first, inside each fork, before the FathomDB alignment.", "source": "repository owner 2026-10-12 (Q14)"},
-      {"id": "slice-31-candle-base", "title": "Keep the Candle fork on upstream 0.10.2 for 0.8.28; rebase later.", "source": "repository owner 2026-10-12 (DK-1, Q16)"},
-      {"id": "slice-31-cudarc-publish-now", "title": "Publish cudarc-fathomdb 0.19.10 from b777f8d before FathomDB W1 to W3, W6 and R-VERIFY; make fathomdb/0.19.10 the default branch of coreyt/cudarc.", "source": "repository owner 2026-10-13"},
-      {"id": "slice-31-candle-publish", "title": "Publish candle-core-fathomdb, candle-nn-fathomdb and candle-transformers-fathomdb 0.10.4 in dependency order once R-FK-PUB approves.", "source": "repository owner 2026-10-13"},
-      {"id": "slice-31-w1-w3", "title": "Write requirements, design and test plan as three documents, each with its own Opus review, before W6.", "source": "repository owner 2026-10-13"},
-      {"id": "slice-31-r-pin", "title": "Approve the R-PIN reviews of the cudarc and Candle pins.", "source": "repository owner 2026-10-13"},
-      {"id": "slice-31-no-proposals-yet", "title": "Do not prepare the upstream cudarc proposals (FC9, FC9b) yet; they carry no FathomDB material.", "source": "repository owner 2026-10-13"}
+      {"id": "slice-31-fork-first", "title": "Do the cudarc and Candle fork work first, inside each fork, before the FathomDB alignment.", "source": "repository owner 2026-10-12 (Q14, seq-313)"},
+      {"id": "slice-31-candle-base", "title": "Keep the Candle fork on upstream 0.10.2 for 0.8.28; rebase later.", "source": "repository owner 2026-10-12 (DK-1, Q16, seq-317)"},
+      {"id": "slice-31-cudarc-publish-now", "title": "Publish cudarc-fathomdb 0.19.10 from b777f8d before FathomDB W1 to W3, W6 and R-VERIFY; make fathomdb/0.19.10 the default branch of coreyt/cudarc.", "source": "repository owner 2026-10-13 (seq-318, seq-319)"},
+      {"id": "slice-31-candle-publish", "title": "Publish candle-core-fathomdb, candle-nn-fathomdb and candle-transformers-fathomdb 0.10.4 in dependency order once R-FK-PUB approves.", "source": "repository owner 2026-10-13 (seq-320)"},
+      {"id": "slice-31-w1-w3", "title": "Write requirements, design and test plan as three documents, each with its own Opus review, before W6.", "source": "repository owner 2026-10-13 (seq-321)"},
+      {"id": "slice-31-r-pin", "title": "Approve the R-PIN reviews of the cudarc and Candle pins.", "source": "repository owner 2026-10-13 (seq-322)"},
+      {"id": "slice-31-no-proposals-yet", "title": "Do not prepare the upstream cudarc proposals (FC9, FC9b) yet; they carry no FathomDB material.", "source": "repository owner 2026-10-13 (seq-319)"}
     ]
   },
   "release_readiness": null,

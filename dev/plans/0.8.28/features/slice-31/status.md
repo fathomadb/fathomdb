@@ -26,7 +26,7 @@ fork's `fathomdb/status.md`.
 | 3 Preflight, slice worktree, `status.md`, `review.md` | done: worktree `../fathomdb-worktrees/slice-0.8.28-31` on `slice/0.8.28-31-cudarc-fork` from `origin/release/0.8.28` at `80ae2a18e`. `scripts/preflight.sh --worktree … --min-disk-gb 15`: disk 76 GB free and the checks pass except one hard failure, "release-state discovery failed: no live release": no 0.8.28 release-state file exists yet (plan header: this plan is D28-13's working plan until the 0.8.28 plan, state file and board exist). Recorded, not worked around |
 | 4 Toolchains; CUDA 13.0 | `windchill3` guard: driver 580.178.04, `/usr/local/cuda` → 12.6 (every fork receipt records it before and after). The runfile download was not approved; the 13.0 toolkit cells run on a GCP VM (ruling Q15) |
 | 5 Orin check | done during the fork cells (L4T R36.5.2, 12.6, `~/fathomdb-forks/`) |
-| 6 Slice `.venv` via `scripts/bootstrap.sh` | not yet; before the first full gate |
+| 6 Slice `.venv` via `scripts/bootstrap.sh` | done 2026-10-13 in the slice worktree: `bash scripts/bootstrap.sh` exit 0, `.venv` on Python 3.12.3 with `src/python[dev]` editable; gitleaks, actionlint 1.7.12, shellcheck 0.11.0 and lychee already present, no apt step. Its `npm install` in `src/ts` reordered two keys in `src/ts/package-lock.json`; restored, not committed |
 | 7 Ledger | done in `80ae2a18e`: steward ledger seq 303–317, todos seq 292–299 |
 
 ## Fork commits and the pin chain
@@ -61,6 +61,58 @@ Receipts: cudarc `fathomdb/qualification/` (G1–G6, G8, CI, CF-AC-07a and
   re-check of `K9` and the owner's publication of 0.11.0 follow. `K8`'s
   receipt stands as evidence for the same code. `git diff 853324fc
   182ceab0 -- candle-kernels` is empty.
+
+## W6 (implementer, 2026-10-13)
+
+Test-plan § 2 order. RED is the observed failure; the commit bodies hold
+the full output.
+
+| Row | RED | GREEN | Observed RED |
+| --- | --- | --- | --- |
+| R1 single-cudarc guard | `0fe295edd` (arm rewired `f1a27631d`) | `d3381cc3b`; real-tree arm GREEN at `aa898677f` | `FAIL guard script scripts/check-single-cudarc.sh is absent` |
+| R2 pinned-override schema 5 | `36f48f95b` | `aa898677f` (pin commit) | `UNVERIFIED pinned-override-rot: metadata schema_version must be 4`; each new arm's message absent |
+| R3 lock-set guard | `0ef134ea0` | `f8a2ad147` (hermetic arms); real-tree arm open until the fork records the set | `FAIL guard scripts/check-cudarc-fathomdb-lock-set.py is absent` |
+| R4 `CUDARC_CUDA_VERSION` | `f243750e4` | `229cb0890` | `FAIL rejects a CUDA job without CUDARC_CUDA_VERSION 12060 (cuda-contract-preflight) (the checker passed)` |
+| R5 release-contract Candle block | arms `f243750e4`; RED of record at `aa898677f` | `b9da8c591` | `cuda-release-contract: [patch.crates-io] lacks a source pin for 'candle-core-fathomdb'` (baseline) |
+| R6 retired references | `88e871a57` | partly at `aa898677f`; references commit pending | 15 files, 10 marker lines, `tegra-pool` = `['dep:cudarc', 'cudarc/fathomdb-private-pool']` |
+| R7 PTX floor | `8346b4661` | `fffc6dd0f` | `FAIL checker scripts/check-ptx-driver-floor.py is absent` |
+| R8 compute floor (C4) | `2cc4e9ae0` (compile), `9166d660c` (behaviour) | `26f917eae` | E0432/E0407; then 5 failed: `left: Ok(... compute_capability: Some("5.0") ...) right: Err(ForcedCudaUnavailable { ordinal: 0, reason: CudaIncompatible })` |
+| R9 D-18 pure part | `943e5c9c1` | `a48ef0bc3` | E0425/E0433 (types and constants absent) |
+| R11 T-REGISTRY | old script at `aa898677f` | `68f3233b0` (REG-a GREEN on windchill3) | `[patch.crates-io] must carry exactly one cudarc entry`, rc=1 |
+| R18 required-symbol guard | `9f0e58219` | `b95bcedc2`; real tree `c9d67f2f5` | `FAIL checker scripts/check-cuda-required-symbols.py is absent` |
+
+**Pin commit (Phase B, R-PIN): `aa898677f3eff2fb8fb40e2108a1b29072f0e7fa`,
+pushed 2026-10-13** so the cudarc fork's Run 2 can fetch its `Cargo.lock`
+from `raw.githubusercontent.com` (design § 7.2). `Cargo.lock` SHA-256
+`b887a101a1ea9684a8e64d0bb8a849da6ef4e61a777bdc2ff62062126a8d142a`.
+R-PIN evidence (commit body): one `cudarc-fathomdb` 0.19.10 from crates.io,
+checksum `8780d2fe…caf2`; `candle-{core,nn,transformers}-fathomdb` 0.11.0
+from crates.io with the FK5 checksums; `candle-kernels` 0.10.2 from
+`git+https://github.com/coreyt/candle-fathomdb.git?rev=182ceab0…`; the
+only other `cudarc` is 0.17.8 (ug-cuda); patch table `['candle-kernels',
+'libsqlite3-sys']`; `tegra-pool = []`; no target dependency tables;
+`.cargo_vcs_info.json` sha1 `b777f8d9…` and `182ceab0…`; relied-on items
+1, 2, 3, 5, 9 and K1, K2, K3, K5, K7 present in the fork tables;
+`check-pinned-override-rot.sh` and `check-single-cudarc.sh` ok;
+workspace and `embed-cuda,rerank-cuda` `cargo check` pass (build only).
+
+**Deviations so far.**
+
+- R1: the flash-attn exclusion arm passes `--lock lock/ok.lock`; the
+  fixture's own lock must hold the optional `cudarc` 0.19.4, which trips
+  condition A (`f1a27631d`). The expectation is unchanged.
+- R8: an intermediate commit (`9166d660c`) adds only the trait method and
+  parser, so the behavioural REDs are observed, not only the compile
+  failure.
+- D-18 `required_major`: the design says the fork's
+  `LibLoadError.cuda_major` gives 10 for cuRAND; at `b777f8d` it is the
+  CUDA major (12) for every library, so FathomDB maps cuRAND to its soname
+  major 10 itself.
+- R9's two `LibLoadError` tests and R10 (CLI) need the fork types and the
+  driver part, so they are written RED on the pinned tree (Phase C).
+- Existing policy-test fakes that report compute capability 8.6 and do not
+  override `kernel_compute_floor()` would be refused in a build with
+  `CUDA_COMPUTE_CAP=87`; no Orin window runs those suites.
 
 ## Next
 

@@ -59,22 +59,15 @@ EXTERNAL_SOURCE_ADVISORY_STATUS = "external-source-unassessed"
 EXTERNAL_SOURCE_ADVISORY_SCOPE = "outside the checked-in npm advisory snapshot"
 CANDLE_MANIFEST = "Cargo.toml"
 CANDLE_MECHANISM = "patch.crates-io"
-CANDLE_PACKAGES = (
-    "candle-core-fathomdb",
-    "candle-kernels",
-    "candle-nn-fathomdb",
-    "candle-transformers-fathomdb",
-)
+# 0.8.28 Slice 31: the Candle fork crates come from crates.io (exact registry
+# pins below). The only Candle git patch left is candle-kernels at the fork's
+# 0.11.0 publication commit: it carries the statically linked CUDA runtime
+# into FathomDB-built artifacts (REQ-068, REQ31-16). crates.io publishes
+# candle-kernels 0.10.2, the version the patch replaces.
+CANDLE_PACKAGES = ("candle-kernels",)
 CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_REV = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
-# Core, nn and transformers carry CudaDevice::from_context (0.8.28 Slice 30) as
-# 0.10.3; candle-kernels keeps 0.10.2, the version crates.io publishes.
-CANDLE_VERSIONS = {
-    "candle-core-fathomdb": "0.10.3",
-    "candle-kernels": "0.10.2",
-    "candle-nn-fathomdb": "0.10.3",
-    "candle-transformers-fathomdb": "0.10.3",
-}
+CANDLE_REV = "182ceab0547348993b6dbec4b1aed610dcc8b23f"
+CANDLE_VERSIONS = {"candle-kernels": "0.10.2"}
 SQLITE_MANIFEST = "Cargo.toml"
 SQLITE_MECHANISM = "patch.crates-io"
 SQLITE_PACKAGE = "libsqlite3-sys"
@@ -82,25 +75,54 @@ SQLITE_PATH = "third_party/libsqlite3-sys-0.38.1"
 SQLITE_VERSION = "0.38.1"
 SQLITE_AMALGAMATION_SHA256 = "7e4799907bdc92cff8858db2c52f5a03e136d5989ead6e513c0ef64057baeb9e"
 SQLITE_VENDOR_TREE_SHA256 = "a1dfc60a4703fe523d44497303049e17393dec1b273be2739a2933a87dcbf887"
-CUDARC_MANIFEST = "Cargo.toml"
-CUDARC_MECHANISM = "patch.crates-io"
-CUDARC_PACKAGE = "cudarc"
-CUDARC_PATH = "third_party/cudarc-0.19.7"
-CUDARC_VERSION = "0.19.7"
-# Cargo.lock checksum of the published crate the vendor copy was taken from.
-CUDARC_UPSTREAM_CRATE_SHA256 = "1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc"
-CUDARC_VENDOR_TREE_SHA256 = "bc5bf93bfc0f1db0792c3833ca80d6e0b315cec4909b8dab2847f3dfa86f2af2"
-CUDARC_LICENSE_FILES = ("LICENSE-MIT", "LICENSE-APACHE")
-# The reviewed FATHOMDB-PATCH.md items; the note's status table must give each
-# an upstream status and a removal path.
-CUDARC_PATCH_ITEMS = (
-    "1. Allocator fallback",
-    "2. Per-device decision",
-    "3. Zero-length synchronous allocation",
-    "4. Tests (`fathomdb_alloc_fallback`)",
-    "5. Private memory pool primitive",
-    "6. Feature marker `fathomdb-private-pool`",
-)
+CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
+FORK_PINS_MANIFEST = "src/rust/crates/fathomdb-embedder/Cargo.toml"
+_CANDLE_FORK = {
+    "vcs_sha1": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
+    "repository": "https://github.com/coreyt/candle-fathomdb",
+    "items_record": "FATHOMDB.md (repository root)",
+    "items_relied_on": ["K1", "K2", "K3", "K5", "K7"],
+    "receipt": "fathomdb/qualification/2026-10-13-FK5-publish-182ceab0.md",
+}
+# The exact registry versions of FathomDB's fork crates, with their published
+# .crate SHA-256 (the Cargo.lock checksum) and provenance. A pin whose
+# "dependency" is None is reached only through another pin and must not be
+# declared in the manifest at all; the others are declared once, in
+# [dependencies], as `<dependency> = { package = ..., version = "=<v>" }`.
+FORK_PINS = [
+    {
+        "dependency": None,
+        "package": "cudarc-fathomdb",
+        "version": "0.19.10",
+        "checksum": "8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2",
+        "vcs_sha1": "b777f8d94eedca8334e9331cf520d554b22544b7",
+        "repository": "https://github.com/coreyt/cudarc",
+        "items_record": "FATHOMDB.md (shipped in the crate)",
+        "items_relied_on": ["1", "2", "3", "5", "9"],
+        "receipt": "fathomdb/qualification/2026-10-13-FC10-publish-b777f8d.md",
+    },
+    {
+        "dependency": "candle-core",
+        "package": "candle-core-fathomdb",
+        "version": "0.11.0",
+        "checksum": "b5feacc063f44c77a54cb8b43d03c5e32fa5421f4163f0524194783e21563341",
+        **_CANDLE_FORK,
+    },
+    {
+        "dependency": "candle-nn",
+        "package": "candle-nn-fathomdb",
+        "version": "0.11.0",
+        "checksum": "69c7432aa63cb543065f49453fa2e258e4dc3bd458abbcb7c150d17e90026200",
+        **_CANDLE_FORK,
+    },
+    {
+        "dependency": "candle-transformers",
+        "package": "candle-transformers-fathomdb",
+        "version": "0.11.0",
+        "checksum": "513008c79a9751ec5fdc08918dcdb1a8872c95e90f7697a9f8c5ef1951e3d222",
+        **_CANDLE_FORK,
+    },
+]
 VENDOR_PATCH_NOTE = "FATHOMDB-PATCH.md"
 
 
@@ -240,25 +262,15 @@ def validate_sqlite_exception(metadata: dict[str, Any]) -> None:
     nonempty_string(exception.get("rationale"), "cargo_sqlite_exception.rationale")
 
 
-def validate_cudarc_exception(metadata: dict[str, Any]) -> None:
-    """Authenticate the exact local cudarc allocator patch and its provenance."""
-    exception = metadata.get("cargo_cudarc_exception")
-    if not isinstance(exception, dict):
-        raise Unverified("metadata has no cargo_cudarc_exception object")
-    expected = {
-        "manifest": CUDARC_MANIFEST,
-        "mechanism": CUDARC_MECHANISM,
-        "package": CUDARC_PACKAGE,
-        "path": CUDARC_PATH,
-        "version": CUDARC_VERSION,
-        "upstream_crate_sha256": CUDARC_UPSTREAM_CRATE_SHA256,
-        "vendor_tree_sha256": CUDARC_VENDOR_TREE_SHA256,
-        "patch_items": list(CUDARC_PATCH_ITEMS),
-    }
-    for key, value in expected.items():
-        if exception.get(key) != value:
-            raise Unverified(f"cargo_cudarc_exception.{key} must equal the checker-owned cudarc exception")
-    nonempty_string(exception.get("rationale"), "cargo_cudarc_exception.rationale")
+def validate_fork_registry_pins(metadata: dict[str, Any]) -> None:
+    """Authenticate the exact registry fork pins and their provenance."""
+    pins = metadata.get("cargo_fork_registry_pins")
+    if not isinstance(pins, dict):
+        raise Unverified("metadata has no cargo_fork_registry_pins object")
+    if pins.get("manifest") != FORK_PINS_MANIFEST:
+        raise Unverified("cargo_fork_registry_pins.manifest must equal the checker-owned embedder manifest")
+    if pins.get("pins") != FORK_PINS:
+        raise Unverified("cargo_fork_registry_pins.pins must equal the checker-owned fork registry pins")
 
 
 def advisory_snapshot_path(root: Path, metadata: dict[str, Any]) -> Path:
@@ -337,12 +349,12 @@ def validate_advisories(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def validate_metadata(metadata: dict[str, Any], advisories: list[dict[str, Any]]) -> None:
-    if metadata.get("schema_version") != 4:
-        raise Unverified("metadata schema_version must be 4")
+    if metadata.get("schema_version") != 5:
+        raise Unverified("metadata schema_version must be 5")
     records = records_by_package(metadata)
     validate_candle_exception(metadata)
     validate_sqlite_exception(metadata)
-    validate_cudarc_exception(metadata)
+    validate_fork_registry_pins(metadata)
     scope = metadata.get("scope")
     if not isinstance(scope, dict):
         raise Unverified("metadata has no scope object")
@@ -504,14 +516,12 @@ def cargo_lock_sources(lockfile_path: Path) -> dict[tuple[str, str], set[str]]:
 
 
 def validate_cargo_pins(root: Path) -> list[str]:
-    """Allow only the reviewed root Candle cohort and local SQLite/cudarc patches."""
+    """Allow only the candle-kernels git patch, the local SQLite patch and the fork registry pins."""
     pins = cargo_governed_pins(root)
     failures = cargo_config_failures(root)
     expected = {(CANDLE_MANIFEST, CANDLE_MECHANISM, package) for package in CANDLE_PACKAGES}
     sqlite_key = (SQLITE_MANIFEST, SQLITE_MECHANISM, SQLITE_PACKAGE)
     expected.add(sqlite_key)
-    cudarc_key = (CUDARC_MANIFEST, CUDARC_MECHANISM, CUDARC_PACKAGE)
-    expected.add(cudarc_key)
     found: set[tuple[str, str, str]] = set()
     for pin in pins:
         label = cargo_pin_label(pin)
@@ -527,10 +537,6 @@ def validate_cargo_pins(root: Path) -> list[str]:
             if pin["path"] != SQLITE_PATH or pin["git"] is not None or pin["rev"] is not None:
                 failures.append("SQLite patch is not the approved local path source")
             continue
-        if key == cudarc_key:
-            if pin["path"] != CUDARC_PATH or pin["git"] is not None or pin["rev"] is not None:
-                failures.append("cudarc patch is not the approved local path source")
-            continue
         git = pin["git"]
         rev = pin["rev"]
         if git != CANDLE_GIT:
@@ -540,8 +546,6 @@ def validate_cargo_pins(root: Path) -> list[str]:
     for manifest, mechanism, package in sorted(expected - found):
         if package == SQLITE_PACKAGE:
             failures.append(f"missing approved SQLite patch {package}")
-        elif package == CUDARC_PACKAGE:
-            failures.append(f"missing approved cudarc patch {package}")
         else:
             failures.append(f"missing approved Candle patch {package}")
     lock_sources = cargo_lock_sources(root / "Cargo.lock") if found else {}
@@ -577,48 +581,90 @@ def validate_cargo_pins(root: Path) -> list[str]:
                 failures.append("SQLite vendored amalgamation SHA-256 drift")
             if vendor_tree_digest(source_dir, "SQLite", failures) != SQLITE_VENDOR_TREE_SHA256:
                 failures.append("SQLite vendor tree SHA-256 drift")
-    if cudarc_key in found:
-        cudarc_sources = lock_sources.get((CUDARC_PACKAGE, CUDARC_VERSION), set())
-        if cudarc_sources != {"<local>"}:
-            failures.append("cudarc patch has no matching local Cargo.lock package")
-        source_dir = (root / CUDARC_PATH).resolve()
-        if not source_dir.is_relative_to(root.resolve()):
-            failures.append("cudarc patch escapes the repository root")
-        else:
-            manifest_path = source_dir / "Cargo.toml"
-            try:
-                parsed = _import_tomllib("inspect cudarc vendor manifest").loads(
-                    manifest_path.read_text(encoding="utf-8")
-                )
-            except (OSError, ValueError) as exc:
-                raise Unverified(f"cannot read cudarc vendor manifest {manifest_path}: {exc}") from exc
-            package = parsed.get("package", {})
-            if package.get("name") != CUDARC_PACKAGE or package.get("version") != CUDARC_VERSION:
-                failures.append("cudarc vendor manifest package/version drift")
-            if not all((source_dir / name).is_file() for name in CUDARC_LICENSE_FILES):
-                failures.append("cudarc vendor license is missing")
-            note_path = source_dir / VENDOR_PATCH_NOTE
-            if not note_path.is_file():
-                failures.append("cudarc vendor patch note is missing")
-            else:
-                failures.extend(cudarc_patch_note_failures(note_path.read_text(encoding="utf-8")))
-            if vendor_tree_digest(source_dir, "cudarc", failures) != CUDARC_VENDOR_TREE_SHA256:
-                failures.append("cudarc vendor tree SHA-256 drift")
+    failures.extend(fork_registry_pin_failures(root))
     return failures
 
 
-def cudarc_patch_note_failures(note: str) -> list[str]:
-    """Require a status-table row with a non-empty upstream status and removal path per item."""
-    rows: dict[str, list[str]] = {}
-    for line in note.splitlines():
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if line.lstrip().startswith("|") and len(cells) == 3:
-            rows[cells[0]] = cells[1:]
-    failures = []
-    for item in CUDARC_PATCH_ITEMS:
-        status_and_removal = rows.get(item)
-        if status_and_removal is None or not all(status_and_removal):
-            failures.append(f"cudarc patch note has no status row for {item}")
+def manifest_declarations(manifest: dict[str, Any]) -> list[tuple[str, str, Any]]:
+    """Every dependency declaration: (table, key, spec), target tables included."""
+    found: list[tuple[str, str, Any]] = []
+    kinds = ("dependencies", "dev-dependencies", "build-dependencies")
+    for kind in kinds:
+        for key, spec in (manifest.get(kind) or {}).items():
+            found.append((kind, str(key), spec))
+    for target, tables in (manifest.get("target") or {}).items():
+        if not isinstance(tables, dict):
+            continue
+        for kind in kinds:
+            for key, spec in (tables.get(kind) or {}).items():
+                found.append((f"target.{target}.{kind}", str(key), spec))
+    return found
+
+
+def fork_registry_pin_failures(root: Path) -> list[str]:
+    """Each fork crate: the manifest form and exactly one crates.io lock entry."""
+    tomllib = _import_tomllib("inspect the fork registry pins")
+    failures: list[str] = []
+    manifest_path = root / FORK_PINS_MANIFEST
+    try:
+        manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return [f"fork registry pin manifest {FORK_PINS_MANIFEST} is missing or unparseable"]
+    declarations = manifest_declarations(manifest)
+    for pin in FORK_PINS:
+        package, version, dependency = pin["package"], pin["version"], pin["dependency"]
+        declared = [
+            (table, key, spec) for table, key, spec in declarations
+            if (spec.get("package") if isinstance(spec, dict) and "package" in spec else key) == package
+        ]
+        if dependency is None:
+            for table, key, _spec in declared:
+                failures.append(
+                    f"fork registry pin {package} is reached only through another pin and must not be "
+                    f"declared ({FORK_PINS_MANIFEST} {table}.{key})"
+                )
+        elif not declared:
+            failures.append(f"fork registry pin {package}: {FORK_PINS_MANIFEST} dependencies.{dependency} is not declared")
+        elif len(declared) != 1 or declared[0][0] != "dependencies" or declared[0][1] != dependency:
+            places = ", ".join(f"{table}.{key}" for table, key, _spec in declared)
+            failures.append(
+                f"fork registry pin {package}: {FORK_PINS_MANIFEST} must declare it once, as "
+                f"dependencies.{dependency}; found {places}"
+            )
+        else:
+            spec = declared[0][2]
+            if not isinstance(spec, dict) or spec.get("version") != f"={version}" or any(
+                key in spec for key in ("git", "path", "registry")
+            ):
+                failures.append(
+                    f'fork registry pin {package}: {FORK_PINS_MANIFEST} dependencies.{dependency} must require '
+                    f'exactly "={version}"'
+                )
+    lock_path = root / "Cargo.lock"
+    try:
+        lock = tomllib.loads(lock_path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise Unverified(f"cannot parse Cargo lockfile {lock_path}: {exc}") from exc
+    packages = [entry for entry in lock.get("package", []) if isinstance(entry, dict)]
+    for pin in FORK_PINS:
+        package, version = pin["package"], pin["version"]
+        entries = [entry for entry in packages if entry.get("name") == package]
+        if not entries:
+            failures.append(f"Cargo.lock has no {package} {version} package")
+            continue
+        if len(entries) != 1:
+            found = ", ".join(sorted(str(entry.get("version")) for entry in entries))
+            failures.append(f"Cargo.lock must hold exactly one {package} package ({version}); found {found}")
+        for entry in entries:
+            source = entry.get("source", "<local>")
+            if source != CRATES_IO:
+                failures.append(
+                    f"Cargo.lock {package} {entry.get('version')} has source {source}, not the crates.io registry"
+                )
+            elif entry.get("version") == version and entry.get("checksum") != pin["checksum"]:
+                failures.append(f"Cargo.lock {package} {version} checksum is not the published {pin['checksum']}")
+        if len(entries) == 1 and entries[0].get("version") != version:
+            failures.append(f"Cargo.lock must hold exactly one {package} package ({version}); found {entries[0].get('version')}")
     return failures
 
 
@@ -710,7 +756,7 @@ def main() -> int:
             print(f"FAIL  pinned-override-rot: {failure}", file=sys.stderr)
         return 1
     print(
-        "ok pinned-override-rot: governed npm overrides and approved Candle/SQLite/cudarc patches have exact provenance"
+        "ok pinned-override-rot: governed npm overrides, the candle-kernels and SQLite patches and the fork registry pins have exact provenance"
     )
     return 0
 

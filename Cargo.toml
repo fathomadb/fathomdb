@@ -69,29 +69,17 @@ fathomdb-sdk          = { path = "src/rust/crates/fathomdb-sdk",          versio
 # libsqlite3-sys: published 0.38.1 with the SQLite 3.53.3 Windows WAL path
 # backport (third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md).
 #
-# cudarc: published 0.19.7, the version Candle resolves, vendored so that on
-# aarch64 Linux (Jetson) the CUDA allocator can fall back to synchronous
-# allocation when the device's default memory pool is unavailable. Builds for
-# every other target compile upstream's allocator logic unchanged
-# (third_party/cudarc-0.19.7/FATHOMDB-PATCH.md). Only 0.19.7 is patched;
-# ug-cuda's cudarc 0.17.8 stays on crates.io. Revisit at the next micro release
-# (see dev/todos-and-considerations-ledger.jsonl).
-#
-# Fathom-maintained Candle (core, nn and transformers 0.10.3; candle-kernels
-# 0.10.2) preserves the Linux AArch64 CPU Gemm/F16 fallback and adds
-# `CudaDevice::from_context` for the Tegra private memory pool (0.8.28 Slice
-# 30). Pin core, nn, transformers, and candle-kernels together: the
-# kernel crate owns the CUDART link boundary and must resolve from this exact
-# reviewed revision rather than crates.io. CUDA driver discovery remains
-# dynamic, while the kernel runtime is statically linked so a CPU-mode binding
-# can map on a host without libcudart.
+# candle-kernels: FathomDB's Candle fork at its 0.11.0 publication commit
+# (182ceab0, coreyt/candle-fathomdb). The kernel crate owns the CUDART link
+# boundary: the fork links the CUDA runtime statically so a CPU-mode binding
+# can map on a host without libcudart, while CUDA driver discovery stays
+# dynamic (REQ-068). The Candle fork crates themselves (candle-core-fathomdb,
+# candle-nn-fathomdb, candle-transformers-fathomdb 0.11.0) and cudarc-fathomdb
+# 0.19.10 come from crates.io; the embedder pins the Candle crates exactly and
+# reaches cudarc-fathomdb only through Candle (0.8.28 Slice 31).
 #
 # Root patches apply to workspace builds only; they do not propagate to
 # downstream users of the published Rust crates.
 [patch.crates-io]
 libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }
-cudarc = { path = "third_party/cudarc-0.19.7" }
-candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8" }
-candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8" }
-candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8" }
-candle-transformers-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8" }
+candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }

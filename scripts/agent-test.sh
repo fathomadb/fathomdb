@@ -322,11 +322,6 @@ run_tier_suite fast test-check-sdk-surface-parity python3 scripts/tests/test_che
 # js-yaml@4.2.0 regression and malformed-input fail-closed arms.
 run_tier_suite fast test-check-pinned-override-rot bash scripts/tests/test_check_pinned_override_rot.sh
 
-# 0.8.27 Slice 110: the vendored cudarc's allocator fallback (synchronous
-# allocation when the default memory pool is unavailable, null zero-length
-# buffers). Pure arms run everywhere; GPU arms SKIP without a CUDA device.
-run_tier_suite fast test-vendored-cudarc bash scripts/tests/test_vendored_cudarc.sh
-
 # 0.8.28 Slice 31 (AC31-07): exactly one cudarc 0.19 in the graph, the
 # registry fork crate cudarc-fathomdb, with no concrete CUDA version feature.
 # Fixture arms run offline against directory-source stand-ins; the real-tree

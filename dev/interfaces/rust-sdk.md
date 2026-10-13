@@ -388,9 +388,10 @@ behavior.
 `tegra-pool` (0.8.28) is also forwarded and non-default. It selects the Tegra
 private CUDA memory pool on aarch64 Linux with `embed-cuda` or `rerank-cuda`
 (`dev/interfaces/rust.md` § CUDA private memory pool;
-`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`). It needs the workspace's
-vendored cudarc, so it builds only in this repository and its artifacts;
-against registry cudarc it fails at resolution. Even with it, an SDK process
+`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`). It adds no dependency: the
+pool primitive comes from `cudarc-fathomdb` through the Candle fork crates
+on crates.io, so it also builds downstream of the published crates. Even
+with it, an SDK process
 has no module-load hook: its allocator report says `cuinit_not_at_load` and
 it takes the 0.8.27 allocator path. The pool settings are the environment
 variables `FATHOMDB_POOL_MODE`, `FATHOMDB_POOL_MAXSIZE` and

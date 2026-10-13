@@ -1236,12 +1236,12 @@ The decision rule is
 - **Feature.** `tegra-pool` is non-default. It lives in `fathomdb-embedder`
   and is forwarded by `fathomdb-engine`, `fathomdb`, `fathomdb-sdk`,
   `fathomdb-napi`, `fathomdb-py` and `fathomdb-cli`. It has an effect only on
-  aarch64 Linux with `embed-cuda` or `rerank-cuda`. It is supported only in
-  repository and artifact builds, which carry the vendored cudarc through
-  the workspace `[patch.crates-io]`. A downstream build of the published
-  crates gets registry cudarc, so enabling it fails at resolution with
-  "depends on `cudarc` with feature `fathomdb-private-pool` but `cudarc` does
-  not have that feature" (`scripts/check-tegra-pool-registry-build.sh`).
+  aarch64 Linux with `embed-cuda` or `rerank-cuda`. It adds no dependency:
+  the pool primitive comes from `cudarc-fathomdb` 0.19.10 (FathomDB's cudarc
+  fork, on crates.io), which the embedder reaches only through the Candle
+  fork crates 0.11.0. A downstream build of the published crates with
+  `tegra-pool` resolves and builds from crates.io with no `[patch]` table
+  (`scripts/check-tegra-pool-registry-build.sh`).
 - **Settings**, read once, inside the decision at the first CUDA device
   build; a later change has no effect:
   - `FATHOMDB_POOL_MODE`: `auto` (default), `on` (lifts only the Tegra

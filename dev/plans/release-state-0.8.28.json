@@ -10,7 +10,7 @@
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "ladder": [
     {"slice": 30, "short": "TEGRA-POOL", "title": "Tegra private CUDA memory pool as the aarch64 integrated-GPU default (D28-08)", "depends_on": [], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.28/features/slice-30/plan.md", "dev/plans/0.8.28/features/slice-30/design.md", "dev/plans/0.8.28/features/slice-30/status.md"], "sha": "8d53418d1493090502501180d9223172ae95eaba", "evidence": "Status COMPLETE on release/0.8.28: Opus code review findings CR-1 to CR-6 fixed red then green, AC30-01 to AC30-11 verified, Orin qualification G1, G2, G4 to G7 PASS with G3, G8 and G9 PARTIAL and dispositioned."},
-    {"slice": 31, "short": "CUDARC-FORK", "title": "consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13)", "depends_on": [30], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.28/features/slice-31/plan.md"], "sha": null, "evidence": "Fork-first order done: cudarc-fathomdb 0.19.10 (from b777f8d) and candle-core/nn/transformers-fathomdb 0.11.0 (from Candle K9 182ceab0) published to crates.io on 2026-10-13, each registry crate verified against its commit; W1 requirements revised after R-REQ; next W2 design (R-DES), W3 test plan (R-TEST), then W6."}
+    {"slice": 31, "short": "CUDARC-FORK", "title": "consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13)", "depends_on": [30], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.28/features/slice-31/plan.md"], "sha": null, "evidence": "Fork-first order done: cudarc-fathomdb 0.19.10 (from b777f8d) and candle-core/nn/transformers-fathomdb 0.11.0 (from Candle K9 182ceab0) published to crates.io on 2026-10-13, each registry crate verified against its commit; W1 to W3 revised after R-REQ, R-DES and R-TEST; W6 on windchill3 done at 48c2aa9bf on slice/0.8.28-31-cudarc-fork; next the fork lock-set record, the Orin windows and the GCP sessions."}
   ],
   "landed": [],
   "next_slice": 31,
@@ -18,8 +18,8 @@
   "decisions": {
     "unruled": [
       {"id": "d28-09-12-placement", "title": "Place the owner-directed D28-09 to D28-12 items on the 0.8.28 ladder, or move them to a later release."},
+      {"id": "d28-14-slice", "title": "Give D28-14 (filtered direct body FTS) a slice on the 0.8.28 ladder and authorize its implementation."},
       {"id": "d28-01-07-candidates", "title": "Decide whether any D28-01 to D28-07 candidate enters 0.8.28."},
-      {"id": "slice-31-gcp-cuda13-cells", "title": "Approve each GCP VM session for the Slice 31 CUDA 13.0 qualification cells (one session per VM, at most two hours)."},
       {"id": "release-0.8.28-publication", "title": "Authorize tagging and publication of 0.8.28 after the ladder and release qualification pass."}
     ],
     "ruled": [
@@ -29,12 +29,17 @@
       {"id": "slice-31-candle-publish", "title": "Publish candle-core-fathomdb, candle-nn-fathomdb and candle-transformers-fathomdb in dependency order once R-FK-PUB approves; as 0.11.0 from K9, because 0.10.4 would change a re-exported dependency (semver-breaking).", "source": "repository owner 2026-10-13 (seq-320, seq-324)"},
       {"id": "slice-31-w1-w3", "title": "Write requirements, design and test plan as three documents, each with its own Opus review, before W6.", "source": "repository owner 2026-10-13 (seq-321)"},
       {"id": "slice-31-r-pin", "title": "Approve the R-PIN reviews of the cudarc and Candle pins.", "source": "repository owner 2026-10-13 (seq-322)"},
-      {"id": "slice-31-no-proposals-yet", "title": "Do not prepare the upstream cudarc proposals (FC9, FC9b) yet; they carry no FathomDB material.", "source": "repository owner 2026-10-13 (seq-319)"}
+      {"id": "slice-31-no-proposals-yet", "title": "Do not prepare the upstream cudarc proposals (FC9, FC9b) yet; they carry no FathomDB material.", "source": "repository owner 2026-10-13 (seq-319)"},
+      {"id": "slice-31-gcp-sessions", "title": "Approve the two Slice 31 GCP sessions: S-13 (CUDA 13.0 build, n1-standard-8, one build attempt) and S-C3 (missing-library refusal on a Spot T4, test and verification only), each at most two hours.", "source": "repository owner 2026-10-13 (seq-332)"},
+      {"id": "d28-14-placement", "title": "Place filtered direct node and edge body FTS with SearchFilter in 0.8.28 as D28-14; placement only, not implementation or publication.", "source": "repository owner 2026-10-13 (main 2429fefdf seq-303, re-appended as seq-333)"}
     ]
   },
   "release_readiness": null,
   "published": null,
   "generated_views": [
-    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"}
+    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"},
+    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.28.md", "location": "Immediate next slice", "renders": "the next slice and remaining ladder"},
+    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Current state", "renders": "the next slice and release-branch completion set"},
+    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Immediate next action", "renders": "the lifecycle-aware next action"}
   ]
 }

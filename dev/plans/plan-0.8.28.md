@@ -22,7 +22,9 @@ onto forked, published crates:
 
 The other entries in the [draft scope](0.8.28-draft-scope.md) are not on the
 ladder. D28-09 to D28-12 are owner-directed but not yet placed; D28-01 to
-D28-07 are candidates. Both are open decisions in
+D28-07 are candidates. D28-14 (filtered direct node and edge body FTS) is
+placed in 0.8.28 (seq-333) but has no slice yet. All three are open
+decisions in
 `dev/plans/release-state-0.8.28.json`. This plan adds no scope; it indexes
 the slice plans, which are the working authority for their slices.
 
@@ -76,6 +78,11 @@ Slice numbers between and after 30 and 31 are reserved. A slot stays empty
 unless a placement decision adds a slice; it is never an implicit patch lane.
 
 ## Immediate next slice
+
+<!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 31** (`CUDARC-FORK`) — consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13)
+
+**Remaining ladder:** 31.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slice 31, in progress. Its § 8.1 and its `status.md` on
 `slice/0.8.28-31-cudarc-fork` give the current step.

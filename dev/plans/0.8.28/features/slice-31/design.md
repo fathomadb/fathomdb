@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — design (W2)
-status: revision 4 (2026-10-13), § 14 DRAFT FOR REVIEW (N1 and D-19, owner rulings Q29, Q30); revision 3 sections ready for W6
+status: revision 5 (2026-10-14), § 15 DRAFT FOR REVIEW (pool mode on the SDK surface, owner ruling Q33); § 14 under review (N1 and D-19, owner rulings Q29, Q30); revision 3 sections ready for W6
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---
@@ -43,6 +43,11 @@ rerank verb, and the `libcuda.so.1`-only cell moves into the C3 session
 **Revision 4** adds § 14 after Orin window P: N1 is implemented (owner
 ruling Q29) and D-19 gives a plain Rust process the private pool through
 a first-use init at the allocator decision (owner ruling Q30).
+
+**Revision 5** adds § 15: the pool mode becomes an open setting,
+`cuda_pool`, in every SDK, with `FATHOMDB_POOL_MODE` as the fallback; the
+first mode in force holds for the process, and an open asking for
+another fails (owner ruling Q33).
 
 Pool design topics D-1…D-9, the fork part of D-12, D-13 and D-F1…D-F4 are
 the cudarc fork's (`fathomdb/design.md` revision 4 on `coreyt/cudarc`
@@ -1980,6 +1985,223 @@ needed with (b); not recommended.
 - Unchanged and re-run: Slice 30's hook tests and window A's Node and
   Python rows (the hooks record first, so `ran` stays `ran`).
 
+## 15. Revision 5: the pool mode on the SDK surface (owner ruling Q33)
+
+The owner ruled (2026-10-14, steward ledger Q33) that the pool's on/off
+switch belongs on the SDK surface, with `FATHOMDB_POOL_MODE` kept only as
+the fallback. Today the mode is read from the environment once, at the
+process's first CUDA device build (`CudarcDriver::raw_settings`,
+`cuda_pool_policy.rs`), and the decision is cached for the life of the
+process (`static DECISION: OnceLock`). The ruling adopts the recommended
+shape:
+
+- a per-open setting `cuda_pool` with the values `auto`, `on` and `off`
+  in all three SDKs, and on the CLI verbs that build a CUDA device;
+- precedence: the setting, then `FATHOMDB_POOL_MODE`, then `auto`;
+- the decision stays per process, so a later open that asks for a
+  different mode fails loudly with an error naming the mode already in
+  force; it is never silently ignored;
+- the report says where the mode came from.
+
+§ 14 (N1, D-19) is still under review and is not changed by this
+section; § 15.6 lists where the two meet.
+
+### 15.1 Surface
+
+| Surface | Setting | Unknown value |
+| --- | --- | --- |
+| Rust engine | `EngineConfig::cuda_pool: Option<CudaPoolMode>` | not representable |
+| Rust facade and SDK | the same field, through `EngineConfig` / `OpenOptions::config` | not representable |
+| Python | `EngineConfig.cuda_pool: Literal["auto", "on", "off"] \| None` (`config.py`) | open raises the configuration error before any side effect |
+| TypeScript | `cudaPool?: "auto" \| "on" \| "off"` on the open config (`core.ts`, napi `admin.rs`) | the same |
+| CLI | `--cuda-pool <auto\|on\|off>` on `doctor cuda-allocator`, `doctor gpu`, `doctor reranker-gpu` | clap rejects it, exit 2 |
+
+- **Type.** `CudaPoolMode { Auto, On, Off }` becomes public in
+  `fathomdb-embedder` (today `PoolMode`, `pub(crate)`), with `as_str` and
+  `FromStr` on the strings above, `#[non_exhaustive]`, re-exported by
+  `fathomdb-engine`, `fathomdb` and `fathomdb-sdk`. `None` means "not set
+  by this open".
+- **CLI.** No database verb builds a CUDA device (design-review Q2:
+  `doctor cuda-allocator` is the CLI's only early-init call, and only the
+  three doctor verbs build devices), so the flag goes only on those three.
+  A flag on database verbs would do nothing and is not added.
+- **Validation.** The value is checked with the rest of `EngineConfig`,
+  before the open touches the filesystem or an embedder (the existing
+  rule in `runtime_configuration.rs`). A malformed environment value
+  keeps its present behaviour (pool off, reason `invalid_setting`, never
+  an error); a malformed SDK value is an error, because the caller wrote
+  it in code.
+- **Process-level entry points take no new parameter.** The module-level
+  `embed_batch_cls` / `embedBatchCls`, module-level `rerank`, the SDK's
+  standalone functions, and directly built `CandleBgeEmbedder` /
+  `CandleTinyBertReranker` keep one model per process or are built
+  before any engine. They use the mode already in force, else the
+  environment. A per-call parameter on a cached singleton would conflict
+  on every later call with a different value. Documented in each SDK's
+  reference.
+- **Other pool settings.** `FATHOMDB_POOL_MAXSIZE` and
+  `FATHOMDB_POOL_RELEASE_THRESHOLD` stay environment-only in 0.8.28
+  (Q33 covers the switch only). Open point R5-1.
+
+### 15.2 The process claim
+
+The decision is per process, so the mode is too. A new process-wide
+record, the **claim**, holds the mode in force and its source:
+
+```rust
+pub(crate) struct ModeClaim { mode: CudaPoolMode, source: ModeSource }
+pub enum ModeSource { Sdk, Env, Default } // as_str: "sdk", "env", "default"
+static CLAIM: Mutex<Option<ModeClaim>>;
+```
+
+Rules (one pure function, `claim_mode(current, requested, env) ->
+Result<ModeClaim, ModeConflict>`):
+
+1. **Requested and no claim:** the request becomes the claim
+   (`source = sdk`).
+2. **Requested and a claim:** equal modes pass; different modes are
+   `ModeConflict { requested, claimed, source }`. Modes are compared, not
+   outcomes: `off` against a claimed `auto` conflicts even where `auto`
+   ended in `discrete`. The caller asked for a mode the process cannot
+   give it, and the comparison does not depend on the hardware. Open
+   point R5-2.
+3. **Not requested:** never conflicts. With no claim, the environment
+   value (`source = env`) or `auto` (`source = default`) becomes the
+   claim at the first device build. A malformed environment value claims
+   nothing: the decision falls back with `invalid_setting`, as today.
+4. **The claim is permanent.** It is never released, even when every
+   engine closes, because the decision and its pool are permanent.
+
+**When the claim is taken.**
+
+- **At open.** An open with `cuda_pool` set claims the mode after config
+  validation and before any filesystem, lock or embedder side effect. A
+  conflict is `EngineOpenError::EngineConfiguration(
+  EngineConfigurationError::CudaPoolModeConflict { requested, claimed,
+  source })`. That variant stays `Copy`, and each SDK already maps
+  `EngineConfiguration` to its configuration error class, so there is no
+  new error class. The message names both modes, the source, and how to
+  fix it ("the process already runs with cuda_pool=auto from the
+  environment; open with the same value or omit it").
+- **At the first device build,** when no open claimed (process-level
+  entry points, direct Rust constructors, an engine opened without the
+  setting). `decide_and_build` reads the claim under the decision's own
+  initialisation, so a claim racing a first build cannot change the mode
+  after the decision.
+- **A claim taken by an open that later fails is kept.** The setting was
+  valid, and the next open in a correct program asks for the same mode.
+  Releasing it would need an "unclaimed if no device was built" state,
+  which leaves a window where two threads each believe they set the
+  mode. Open point R5-3.
+
+**The decision reads the claim, not the environment.**
+`PoolDriver::raw_settings()` keeps reading `FATHOMDB_POOL_MAXSIZE` and
+`FATHOMDB_POOL_RELEASE_THRESHOLD`; the mode comes from the claim.
+`pre_device_gates` keeps "`off` wins over a malformed value of any other
+setting".
+
+**Builds without the decision code** (no `tegra-pool`, or not aarch64
+Linux with CUDA): the setting is validated and recorded in the claim, but
+nothing reads it. The claim rules are compiled on every build, so a
+conflicting second open fails on x86 too. This keeps the SDK contract
+identical on every platform, and lets an any-host test prove the claim
+rules. The report there stays `not_built` or `None`.
+
+### 15.3 Report
+
+`CudaAllocatorReport` gains `pool_mode` (`"auto"`, `"on"`, `"off"`) and
+`pool_mode_source` (`"sdk"`, `"env"`, `"default"`), mapped in napi
+(`poolMode`, `poolModeSource`), PyO3 and the CLI JSON. The reason
+`mode_off` is unchanged; with `source = sdk` it means the caller turned
+the pool off in code. A `not_built` report carries the claim too, when
+one exists.
+
+### 15.4 Engine reranker and caller-supplied models
+
+- **Engine reranker singleton** (`rerank.rs`, process-wide, built at the
+  first rerank). It is built under the claim. An engine that set
+  `cuda_pool` has either claimed or failed its open, so its rerank always
+  matches its setting.
+- **A caller-supplied embedder** (`EmbedderChoice::Caller*`) was built
+  before the open. Its device already took the claim (from the
+  environment or default). An open that passes it with a different
+  `cuda_pool` fails with the conflict, which is correct: that embedder
+  is on the other mode.
+
+### 15.5 Docs, interfaces and ADR
+
+- `dev/interfaces/rust.md`, `python.md`, `typescript.md`, `cli.md`: the
+  setting, its values, precedence, the claim and the conflict error.
+  This is AC-074-governed public surface, so the interface docs change in
+  the same change.
+- `docs/embedder.md` settings bullet: "`cuda_pool` on open (`auto`,
+  `on`, `off`); `FATHOMDB_POOL_MODE` when the open does not set it". One
+  sentence on the process rule: the first mode in force holds for the
+  life of the process; a later open asking for another fails.
+- Changelog: the new setting; Rust Orin users can turn the pool off in
+  code.
+- ADR (appendix A) gains decision 9: "The pool mode is an open setting
+  (`cuda_pool`) in every SDK, with `FATHOMDB_POOL_MODE` as the fallback.
+  The first mode in force holds for the process; an open asking for
+  another mode fails with a configuration error (owner ruling Q33)." The
+  ADR's "Settings" component is amended to match.
+
+### 15.6 Where § 15 meets § 14
+
+- **D-19 (Rust reach).** `on` and `auto` in a plain Rust process reach the
+  private pool only once D-19 lands; `off` works without it. Node and
+  Python already reach it.
+- **Early init.** `cuda_pool = off` turns off the pool; it does not stop
+  the Node and Python import-time `cuInit`, which runs before any open
+  and stays controlled by `FATHOMDB_CUDA_EARLY_INIT`. Documented
+  alongside the setting.
+- **Feature implication** (§ 14 resolution 1, if adopted). Once
+  `embed-cuda` implies `tegra-pool`, Rust users lose the compile-time
+  opt-out; `cuda_pool = off` gives them a code-level one again.
+- **N1.** Unaffected: N1 acts only when the decision is private.
+
+### 15.7 Tests (RED first)
+
+- **Pure (any host, `cuda_pool_mode_tests.rs`, new file; the frozen
+  `cuda_pool_policy_tests.rs` is not edited):** `claim_mode` table (all
+  of: no claim and requested; equal; each pair of different modes;
+  not requested with env set, unset and malformed); precedence (SDK over
+  env, env over default); `CudaPoolMode` string round-trip and rejection;
+  `decide_and_build` with a fake driver reads the claim, not the env mode.
+- **Engine (any host):** open with an invalid `cuda_pool` fails before
+  the database file exists; a second open in the same process with a
+  different mode fails with `CudaPoolModeConflict` and the first engine
+  still works; the same mode passes; not setting it never fails.
+  Run in a child process per case (the claim is process-wide).
+- **SDKs (any host):** Python and TypeScript reject an unknown string
+  with the configuration error; a conflicting second open raises the
+  configuration error class with the message naming both modes.
+- **CLI (any host):** `doctor cuda-allocator --cuda-pool off` reports
+  `pool_mode=off`, `pool_mode_source=sdk`.
+- **Orin (window P additions and the parity matrix):** for Rust SDK,
+  Node and Python, each in its own process:
+  `cuda_pool=off` with `FATHOMDB_POOL_MODE=on` gives `mode_off`, source
+  `sdk`; `cuda_pool=on` with `FATHOMDB_POOL_MODE=off` gives
+  `private_pool`; unset with the env unset gives `private_pool`, source
+  `default`; a module-level CLS embed first, then an open with `off`,
+  fails with the conflict.
+- **x86 (RTX 3090 by UUID):** `cuda_pool=on` gives `discrete` (the
+  discrete gate is not lifted by `on`); the conflict rule behaves as on
+  the Orin.
+
+### 15.8 Open points for review
+
+- **R5-1.** Should `max_size` and `release_threshold` also go on the SDK
+  surface now? Recommended: no (Q33 rules on the switch only; adding
+  them doubles the parity matrix).
+- **R5-2.** Compare modes (recommended: simple, hardware-independent) or
+  outcomes (fewer spurious failures on hosts where the pool never
+  engages).
+- **R5-3.** Keep the claim of a failed open (recommended) or release it.
+- **R5-4.** Should a direct Rust `CandleBgeEmbedder` constructor take
+  the mode too, so a Rust user who never opens an engine can set it in
+  code? Recommended: not in 0.8.28; the environment covers it.
+
 ## Appendix A. ADR amendment draft
 
 Text to append to `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md` in W6.
@@ -2054,6 +2276,13 @@ cudarc 0.19.7; Fathom Candle fork 0.10.3"; `status` adds "amended
 >    is not a release signal on Tegra. None changes the sizing rule.
 > 8. **Why CUDA 12.x** is recorded in ADR-0.8.28-cuda-version-support-policy
 >    (Slice 31 plan § 15 Q6).
+> 9. **The pool mode is an open setting.** Every SDK's open takes
+>    `cuda_pool` (`auto`, `on`, `off`); `FATHOMDB_POOL_MODE` applies only
+>    when the open does not set it. The first mode in force holds for the
+>    life of the process; an open asking for another mode fails with a
+>    configuration error naming the mode in force and its source (owner
+>    ruling Q33; Slice 31 design § 15). This amends the "Settings"
+>    component, which named only environment variables.
 >
 > **Superseded statements in this ADR.**
 >

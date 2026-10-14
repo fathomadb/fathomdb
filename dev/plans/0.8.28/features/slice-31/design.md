@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — design (W2)
-status: revision 5 (2026-10-14), § 15 DRAFT FOR REVIEW (pool mode on the SDK surface, owner ruling Q33); § 14 under review (N1 and D-19, owner rulings Q29, Q30); revision 3 sections ready for W6
+status: revision 5 (2026-10-14), § 15 (pool mode on the SDK surface, Q33) and § 14.1 (close contract, Q34) revised after review, awaiting re-review; § 14.2 (D-19, Q30) awaiting R-DES-4 fixes; revision 3 sections ready for W6
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---
@@ -47,7 +47,10 @@ a first-use init at the allocator decision (owner ruling Q30).
 **Revision 5** adds § 15: the pool mode becomes an open setting,
 `cuda_pool`, in every SDK, with `FATHOMDB_POOL_MODE` as the fallback; the
 first mode in force holds for the process, and an open asking for
-another fails (owner ruling Q33).
+another fails (owner ruling Q33). It applies the Fable review of § 15
+(findings 1-11), and rewrites § 14.1 to the owner's close contract (Q34,
+option C): with `max`, freed memory stays reserved while any FathomDB
+model is open and is returned when the last one closes.
 
 Pool design topics D-1…D-9, the fork part of D-12, D-13 and D-F1…D-F4 are
 the cudarc fork's (`fathomdb/design.md` revision 4 on `coreyt/cudarc`
@@ -1840,51 +1843,94 @@ implement N1; Q30, correct R16 and give plain Rust processes the private
 pool without a caller-made init call. This section replaces § 8's "N1 is
 conditional on its RED" and § 13 point 4.
 
-### 14.1 N1, the close release (Q29)
+### 14.1 N1, the close release (Q29, contract ruled by Q34)
 
-- **Function.** `release_unused_private_pool_memory()` in
-  `cuda_pool_policy.rs` (driver part, `tegra-pool` + aarch64 Linux + CUDA
-  only). It does work only when all hold: the decision is `Private`; the
-  dropped model's device has `alloc_mode()` `Private` (a CPU or
-  `other_ordinal` model is skipped); the context is alive by `classify`'s check (primary context
-  active and its id equal to the recorded id). Then it calls
-  `first_context.synchronize()` and `pool.trim_to(0)`. On loss, a missing
-  or fallback decision, or any driver error it does nothing; it never
-  panics (body inside `catch_unwind`, errors discarded).
+**Contract (owner ruling Q34, option C).**
+
+- Threshold `0` (default): freed GPU memory returns to the system
+  automatically; FathomDB never holds freed memory.
+- Threshold `max` (opt-in): freed GPU memory stays reserved for reuse
+  while any FathomDB model is open in the process, and is returned when
+  the last one closes. A process that holds a module-level model
+  (`embed_batch_cls` / `embedBatchCls`, module-level `rerank`, the SDK's
+  standalone functions) or the engine's reranker keeps it until exit,
+  because those models stay open for the process's life.
+
+Q29 was ruled on a single-model child process, where "trim at every
+close" and "trim at the last close" are the same. Q34 settles the
+multi-model case: trimming at every close would take memory from an
+engine still in use (the re-reserve churn `max` exists to avoid) and make
+every close wait on the other engines' in-flight work through the shared
+primary-context synchronize. `max` matches CUDA's meaning: the threshold
+governs automatic release only, and an explicit trim at a lifecycle
+boundary is the sanctioned use.
+
+- **Live-model count.** `PrivateDecision` gains `live_models:
+  AtomicUsize` (crate-private, beside `first_context_handed_out`).
 - **Guard.** A field declared last in `CandleBgeEmbedder` and
-  `CandleTinyBertReranker`, so Rust drops it after `model` and `device`
-  and the trim sees their buffers freed. Off the driver part it is a
+  `CandleTinyBertReranker`. It is created only for a model whose device
+  has `alloc_mode()` `Private` on the decision's ordinal (a CPU or
+  `other_ordinal` model gets an inert guard), and increments the count
+  when created. Because it is declared last, Rust drops it after `model`
+  and `device`, so the model's buffers are already freed when it runs.
+  On drop it decrements; when the count reaches 0 it calls
+  `release_unused_private_pool_memory()`. Off the driver part it is a
   zero-sized no-op.
-- **Close paths that reach it.** (1) Dropping a `CandleBgeEmbedder`;
-  (2) `Engine::close`, which drops the released default-embedder provider
-  after its guard (`runtime_lifecycle.rs:49`), and `Engine`'s `Drop`, which
-  calls `close`; the napi and PyO3 `close` reach the same `Engine::close`;
-  (3) dropping a directly built reranker. Not reached: the engine's
-  reranker singleton (never dropped, ruling 32); a caller-supplied embedder
-  still referenced elsewhere (it trims at its last drop); `close` returning
-  `EngineError::Scheduler` (provider not released).
+- **Release.** `release_unused_private_pool_memory()` in
+  `cuda_pool_policy.rs` (driver part, `tegra-pool` + aarch64 Linux + CUDA
+  only). It acts only when the decision is `Private` and the context is
+  alive by `classify`'s check (primary context active, id equal to the
+  recorded id): `first_context.synchronize()`, then `pool.trim_to(0)`.
+  On loss, a missing or fallback decision, or any driver error it does
+  nothing; it never panics (body inside `catch_unwind`, errors
+  discarded).
+- **Process-lifetime models need no pin.** The engine reranker singleton
+  (`rerank.rs`) and the CLS singletons (napi `embedding.rs:13`, PyO3
+  `embedding.rs:175`, SDK `standalone.rs:102`) live in statics and are
+  never dropped. Their guards keep the count above 0 for the process's
+  life, which is exactly the contract. No pin method is added.
+- **Driver seam.** The synchronize and trim calls go on a new trait,
+  `PoolRelease: PoolDriver`, with no default bodies, so the real driver
+  cannot silently skip them. The frozen `cuda_pool_policy_tests.rs` (AC31-10)
+  and its `FakeDriver` are not edited; the count and release tests use
+  their own fake in a new file.
+- **A model built while the last one closes.** Its guard increments
+  after the decrement reached 0, so the trim may free memory the new
+  model is about to reserve. `trim_to` frees only unused memory, so the
+  new model's buffers are never touched; the cost is one re-reserve.
+- **Close paths that reach it.** (1) Dropping a `CandleBgeEmbedder` or a
+  directly built `CandleTinyBertReranker`; (2) `Engine::close`, which
+  drops the released default-embedder provider (`runtime_lifecycle.rs:49`),
+  and `Engine`'s `Drop`, which calls `close`; the napi and PyO3 `close`
+  reach the same `Engine::close`. A caller-supplied embedder still
+  referenced elsewhere decrements at its last drop. `close` returning
+  `EngineError::Scheduler` releases no provider, so it does not
+  decrement.
 - **Threshold 0.** Window P shows the driver already returns freed memory
-  without a synchronize, so N1 changes no counter; it runs anyway (one
-  synchronize and an empty trim) so close does not depend on that
+  without a synchronize, so the release changes no counter. It runs
+  anyway, at the last close, so close does not depend on that
   unspecified driver timing.
-- **Threshold `max`.** Close now returns all unused reserved memory.
-  `max` therefore means "keep freed memory reserved while models are
-  open; release it at each model close". Another open engine on the same
-  pool keeps its live buffers (`trim_to` frees only unused memory) and
-  re-reserves on demand. The synchronize waits for in-flight work on the
-  device's primary context, so a close concurrent with another engine's
-  embed can wait for that embed. Docs: `docs/embedder.md` (settings
-  bullet), `dev/interfaces/rust.md`, `python.md`, `typescript.md`,
-  changelog line.
-- **Tests (Orin, `cuda_pool_slice31_tests.rs`).** RED:
-  `gpu_orin_64_close_release_also_trims_a_max_threshold_pool`
-  (failing at `e9036a912`, 301989888 bytes). Regression, unchanged:
-  `gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize`
-  (no reason to change it: its assertion is N1's contract at threshold 0).
-  Skip on loss: the context-reset SIGSEGV test stays as is. Engine level:
-  no counter clause (R-TEST OP-4 stands; the counters are `pub(crate)`
-  test readers the engine crate cannot reach); R16 proves the engine close
-  path exits cleanly on the private pool.
+- **Docs.** The two contract sentences above go into `docs/embedder.md`
+  (settings bullet; it already says "Module-level models keep their
+  memory"), `dev/interfaces/rust.md`, `python.md`, `typescript.md`, and
+  a changelog line. ADR appendix A decision 6 becomes the Q34 contract.
+- **Tests.**
+  - Orin (`cuda_pool_slice31_tests.rs`): RED
+    `gpu_orin_64_close_release_also_trims_a_max_threshold_pool`
+    (failing at `e9036a912`, 301989888 bytes; single model, so it is
+    also the last-close case). New RED
+    `gpu_orin_64_max_pool_stays_reserved_until_the_last_model_closes`
+    (two embedders under `max`: drop one, `reserved_current`
+    unchanged; drop the second, 0). Regression, unchanged:
+    `gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize`.
+    The context-reset SIGSEGV test stays as is.
+  - Any host (new `cuda_pool_release_tests.rs`, its own fake): the count
+    rule (inert guard for CPU and other-ordinal models; release only at
+    0; never at 0 while a static holds a guard); release skipped on loss,
+    fallback and driver error; a panic in the release is caught.
+  - Engine level: no counter clause (R-TEST OP-4 stands; the counters
+    are `pub(crate)` test readers); R16 proves the engine close path
+    exits cleanly on the private pool.
 
 ### 14.2 D-19, the private pool for plain Rust processes (Q30)
 
@@ -1987,220 +2033,297 @@ needed with (b); not recommended.
 
 ## 15. Revision 5: the pool mode on the SDK surface (owner ruling Q33)
 
-The owner ruled (2026-10-14, steward ledger Q33) that the pool's on/off
-switch belongs on the SDK surface, with `FATHOMDB_POOL_MODE` kept only as
-the fallback. Today the mode is read from the environment once, at the
-process's first CUDA device build (`CudarcDriver::raw_settings`,
-`cuda_pool_policy.rs`), and the decision is cached for the life of the
-process (`static DECISION: OnceLock`). The ruling adopts the recommended
-shape:
+The owner ruled (2026-10-14, steward ledger seq 339, Q33) that the pool's
+on/off switch belongs on the SDK surface, with `FATHOMDB_POOL_MODE` kept
+only as the fallback. Today the mode is read from the environment once,
+at the process's first CUDA device build (`CudarcDriver::raw_settings`,
+`cuda_pool_policy.rs:1394-1396`), and the decision is cached for the
+life of the process (`static DECISION: OnceLock`, `:1356`). The ruling
+adopts this shape:
 
 - a per-open setting `cuda_pool` with the values `auto`, `on` and `off`
   in all three SDKs, and on the CLI verbs that build a CUDA device;
 - precedence: the setting, then `FATHOMDB_POOL_MODE`, then `auto`;
-- the decision stays per process, so a later open that asks for a
-  different mode fails loudly with an error naming the mode already in
-  force; it is never silently ignored;
-- the report says where the mode came from.
+- the mode is per process, so a later open that asks for a different
+  mode fails loudly with an error naming the mode already in force; it is
+  never silently ignored;
+- the setting and its source are visible to the caller.
 
-§ 14 (N1, D-19) is still under review and is not changed by this
-section; § 15.6 lists where the two meet.
+Revision 5 applies the adversarial review of this section (Fable,
+APPROVE-WITH-FIXES, findings 1-11) and the owner's note that library
+users must be told plainly that settings cannot be mixed in one process
+(§ 15.6).
 
 ### 15.1 Surface
 
 | Surface | Setting | Unknown value |
 | --- | --- | --- |
-| Rust engine | `EngineConfig::cuda_pool: Option<CudaPoolMode>` | not representable |
-| Rust facade and SDK | the same field, through `EngineConfig` / `OpenOptions::config` | not representable |
-| Python | `EngineConfig.cuda_pool: Literal["auto", "on", "off"] \| None` (`config.py`) | open raises the configuration error before any side effect |
-| TypeScript | `cudaPool?: "auto" \| "on" \| "off"` on the open config (`core.ts`, napi `admin.rs`) | the same |
+| Rust engine, facade, SDK | `EngineConfig::cuda_pool: Option<CudaPoolMode>` | not representable |
+| Python | `EngineConfig.cuda_pool: Literal["auto", "on", "off"] \| None` | `ValueError` before any side effect (the SDK's existing pre-native validation class) |
+| TypeScript | `cudaPool?: "auto" \| "on" \| "off"` on the open config | `TypeError` before any side effect (the same) |
 | CLI | `--cuda-pool <auto\|on\|off>` on `doctor cuda-allocator`, `doctor gpu`, `doctor reranker-gpu` | clap rejects it, exit 2 |
 
-- **Type.** `CudaPoolMode { Auto, On, Off }` becomes public in
-  `fathomdb-embedder` (today `PoolMode`, `pub(crate)`), with `as_str` and
-  `FromStr` on the strings above, `#[non_exhaustive]`, re-exported by
-  `fathomdb-engine`, `fathomdb` and `fathomdb-sdk`. `None` means "not set
-  by this open".
-- **CLI.** No database verb builds a CUDA device (design-review Q2:
-  `doctor cuda-allocator` is the CLI's only early-init call, and only the
-  three doctor verbs build devices), so the flag goes only on those three.
-  A flag on database verbs would do nothing and is not added.
-- **Validation.** The value is checked with the rest of `EngineConfig`,
-  before the open touches the filesystem or an embedder (the existing
-  rule in `runtime_configuration.rs`). A malformed environment value
-  keeps its present behaviour (pool off, reason `invalid_setting`, never
-  an error); a malformed SDK value is an error, because the caller wrote
-  it in code.
+- **Type.** The existing `PoolMode { Auto, On, Off }`
+  (`cuda_pool_policy.rs:300`) becomes `pub` with `as_str` and `FromStr`
+  on the strings above, keeps its name inside `fathomdb-embedder` (the
+  frozen `cuda_pool_policy_tests.rs` names it), and is re-exported as
+  `CudaPoolMode` by `fathomdb-engine`, `fathomdb` and `fathomdb-sdk`.
+  It is `Copy` and not `#[non_exhaustive]`, like its sibling setting
+  `ReleaseThreshold`. `None` means "not set by this open".
+- **Read-back.** Each SDK's `engine.config()` returns the requested
+  `cuda_pool`, as it does for the other settings (napi `test_support.rs:21`,
+  Python `config.py`). On a host without the decision code (x86, or no
+  `tegra-pool`) there is no allocator report, so the read-back and the
+  conflict error are how a caller sees the setting.
+- **Plumbing that must change** (each silently drops a string field
+  today):
+  - Python: `_sdk_open.py:50-63` (`_native_engine_config` builds the
+    native dict only from the numeric `_ENGINE_CONFIG_RANGES`); the PyO3
+    field allowlist (`fathomdb-py/src/engine.rs:40-47`) and the
+    `RustEngineConfig` literal (`:50`); `config.py`; `_fathomdb.pyi`.
+  - TypeScript: napi `#[napi(object)] EngineConfig` (`admin.rs:59-65`)
+    gains the string field, and `into_rust` (`:95`); `core.ts` validation
+    (`:105-114`); `binding.ts`.
+  - Rust literals of the full `EngineConfig`: `fathomdb-py/src/engine.rs:50`,
+    `fathomdb-py/src/test_support.rs:87`, `fathomdb-napi/src/admin.rs:95`,
+    `fathomdb-engine/tests/slice90_engine_configuration.rs:21`.
+- **CLI.** No database verb builds a CUDA device, so database verbs take
+  no flag. The three doctor verbs take a flattened `CudaPoolArg`, not a
+  field on the shared `GpuDoctorArgs` (`cli/lib.rs:222`), which
+  `doctor cuda-libraries` also uses. On `doctor gpu` and
+  `doctor reranker-gpu` the flag sets the mode the probe's device build
+  uses; neither prints allocator fields today, and this design adds
+  none.
 - **Process-level entry points take no new parameter.** The module-level
   `embed_batch_cls` / `embedBatchCls`, module-level `rerank`, the SDK's
   standalone functions, and directly built `CandleBgeEmbedder` /
-  `CandleTinyBertReranker` keep one model per process or are built
-  before any engine. They use the mode already in force, else the
-  environment. A per-call parameter on a cached singleton would conflict
-  on every later call with a different value. Documented in each SDK's
-  reference.
+  `CandleTinyBertReranker` are cached for the process or built before
+  any engine. They use the mode in force, else the environment. A
+  per-call parameter on a cached singleton would conflict on every later
+  call with another value.
 - **Other pool settings.** `FATHOMDB_POOL_MAXSIZE` and
-  `FATHOMDB_POOL_RELEASE_THRESHOLD` stay environment-only in 0.8.28
-  (Q33 covers the switch only). Open point R5-1.
+  `FATHOMDB_POOL_RELEASE_THRESHOLD` stay environment-only unless the
+  owner rules otherwise (open point R5-1).
 
-### 15.2 The process claim
+### 15.2 The mode in force
 
-The decision is per process, so the mode is too. A new process-wide
-record, the **claim**, holds the mode in force and its source:
+The decision is per process, so the mode is too:
 
 ```rust
-pub(crate) struct ModeClaim { mode: CudaPoolMode, source: ModeSource }
 pub enum ModeSource { Sdk, Env, Default } // as_str: "sdk", "env", "default"
-static CLAIM: Mutex<Option<ModeClaim>>;
+pub(crate) enum ModeInForce {
+    Valid { mode: PoolMode, source: ModeSource },
+    InvalidEnv, // FATHOMDB_POOL_MODE was malformed at the first build
+}
+static MODE_IN_FORCE: OnceLock<ModeInForce>;
 ```
 
-Rules (one pure function, `claim_mode(current, requested, env) ->
-Result<ModeClaim, ModeConflict>`):
+Rules (one pure function, `resolve_mode(in_force, requested, env) ->
+Result<ModeInForce, ModeConflict>`, tested on every host):
 
-1. **Requested and no claim:** the request becomes the claim
-   (`source = sdk`).
-2. **Requested and a claim:** equal modes pass; different modes are
-   `ModeConflict { requested, claimed, source }`. Modes are compared, not
-   outcomes: `off` against a claimed `auto` conflicts even where `auto`
-   ended in `discrete`. The caller asked for a mode the process cannot
-   give it, and the comparison does not depend on the hardware. Open
-   point R5-2.
-3. **Not requested:** never conflicts. With no claim, the environment
-   value (`source = env`) or `auto` (`source = default`) becomes the
-   claim at the first device build. A malformed environment value claims
-   nothing: the decision falls back with `invalid_setting`, as today.
-4. **The claim is permanent.** It is never released, even when every
-   engine closes, because the decision and its pool are permanent.
+1. **Requested and nothing in force:** the request is set
+   (`Valid { source: Sdk }`).
+2. **Requested and something in force:** an equal `Valid` mode passes. A
+   different mode, or `InvalidEnv`, is `ModeConflict { requested,
+   in_force }`. Modes are compared, not outcomes: `off` against `auto`
+   conflicts even where `auto` ended in `discrete`, so the rule does not
+   depend on the hardware (R5-2).
+3. **Not requested:** never conflicts. With nothing in force, the first
+   device build sets the environment value (`source = env`), `auto`
+   (`source = default`), or `InvalidEnv` for a malformed value. The
+   decision then falls back with `invalid_setting`, as today, and any
+   later explicit request conflicts instead of being silently ignored.
+4. **Permanent.** The mode in force is never cleared, even when every
+   engine closes, because the decision and its pool are permanent. A mode
+   set by an open that later fails is kept (R5-3): the setting was valid,
+   and a correct program asks for the same mode next time.
 
-**When the claim is taken.**
+**Where it is set.**
 
-- **At open.** An open with `cuda_pool` set claims the mode after config
-  validation and before any filesystem, lock or embedder side effect. A
-  conflict is `EngineOpenError::EngineConfiguration(
-  EngineConfigurationError::CudaPoolModeConflict { requested, claimed,
-  source })`. That variant stays `Copy`, and each SDK already maps
-  `EngineConfiguration` to its configuration error class, so there is no
-  new error class. The message names both modes, the source, and how to
-  fix it ("the process already runs with cuda_pool=auto from the
-  environment; open with the same value or omit it").
-- **At the first device build,** when no open claimed (process-level
-  entry points, direct Rust constructors, an engine opened without the
-  setting). `decide_and_build` reads the claim under the decision's own
-  initialisation, so a claim racing a first build cannot change the mode
-  after the decision.
-- **A claim taken by an open that later fails is kept.** The setting was
-  valid, and the next open in a correct program asks for the same mode.
-  Releasing it would need an "unclaimed if no device was built" state,
-  which leaves a window where two threads each believe they set the
-  mode. Open point R5-3.
+- **Open.** Immediately after `ResolvedRuntimeConfiguration::resolve`
+  (`open.rs:516-517`), before the `EmbedderChoice` match, so every arm
+  is covered, and before `open_default_embedder` runs the device-policy
+  probe (`resolve_default_embedder_device_from_env`, `open.rs:566`). That
+  probe builds the process's first CUDA device (`probe_cuda` →
+  `new_cuda_device`, `candle_bge.rs:257-265`), so a later claim point
+  would be too late.
+- **CLI.** Before `probe.run_early_init()` / `resolve_device()`
+  (`cli/lib.rs:1154`, `:1518`).
+- **First device build, when no open set it.** In
+  `CudarcDriver::raw_settings()`, which `decide_and_build` already calls
+  inside `DECISION.get_or_init`: it sets the mode in force from the
+  environment if nothing is set, then returns `RawPoolSettings` whose
+  `mode` is the in-force mode's string. `RawPoolSettings`,
+  `pre_device_gates`, `device_plan` and `decide_and_build` are
+  unchanged, so the frozen tests (which drive a `FakeDriver` whose
+  `raw_settings()` returns `mode = "off"`, `cuda_pool_policy_tests.rs:826-828`,
+  `:917-920`) still pass, and "`off` wins over a malformed value of any
+  other setting" still holds.
 
-**The decision reads the claim, not the environment.**
-`PoolDriver::raw_settings()` keeps reading `FATHOMDB_POOL_MAXSIZE` and
-`FATHOMDB_POOL_RELEASE_THRESHOLD`; the mode comes from the claim.
-`pre_device_gates` keeps "`off` wins over a malformed value of any other
-setting".
+**Concurrency rules.**
+
+- The open and CLI paths set `MODE_IN_FORCE` and never call `decision()`.
+- `raw_settings()` sets it inside `DECISION`'s initialisation. The only
+  ordering is `MODE_IN_FORCE` inside `DECISION`, never the reverse, so
+  there is no deadlock. `OnceLock` already serialises concurrent first
+  builds (`cuda_pool_policy.rs:1071-1085`).
+- An open racing a first build: if the build set the mode first, the open
+  compares against it; if the open set it first, the build reads it.
+  Either way the decision uses the mode in force, and a mismatch fails
+  the open.
+- No test reads `decide_and_build` through the real static; any test of
+  the static runs in a child process (the `CHILD_TEST` pattern,
+  `cuda_pool_slice31_tests.rs:30`).
 
 **Builds without the decision code** (no `tegra-pool`, or not aarch64
-Linux with CUDA): the setting is validated and recorded in the claim, but
-nothing reads it. The claim rules are compiled on every build, so a
-conflicting second open fails on x86 too. This keeps the SDK contract
-identical on every platform, and lets an any-host test prove the claim
-rules. The report there stays `not_built` or `None`.
+Linux with CUDA). `resolve_mode` and `MODE_IN_FORCE` are compiled on
+every build, so a conflicting second open fails on x86 too. The SDK
+contract is the same on every platform, and an any-host test proves it.
 
-### 15.3 Report
+### 15.3 Errors
 
-`CudaAllocatorReport` gains `pool_mode` (`"auto"`, `"on"`, `"off"`) and
-`pool_mode_source` (`"sdk"`, `"env"`, `"default"`), mapped in napi
-(`poolMode`, `poolModeSource`), PyO3 and the CLI JSON. The reason
-`mode_off` is unchanged; with `source = sdk` it means the caller turned
-the pool off in code. A `not_built` report carries the claim too, when
-one exists.
+- **Unknown string:** the SDK's existing pre-native validation class
+  (Python `ValueError`, TypeScript `TypeError`); Rust cannot represent it.
+- **Conflict:** `EngineOpenError::EngineConfiguration(
+  EngineConfigurationError::CudaPoolModeConflict { requested, in_force,
+  source })`. `PoolMode` and `ModeSource` are `Copy`, so the error stays
+  `Copy`. It maps to the existing invalid-argument class in every SDK:
+  napi `INVALID_ARGUMENT` (`errors.rs:540-542`), Python
+  `InvalidArgumentError` (`errors.rs:504-506`), SDK
+  `ErrorKind::InvalidArgument` (`error.rs:319`). The message is Rust's
+  `Display`, shared by every binding: "cuda_pool={requested} conflicts
+  with cuda_pool={in_force} already in force in this process (from
+  {source}); open with the same value or omit it". For `InvalidEnv`:
+  "... conflicts with the invalid FATHOMDB_POOL_MODE this process
+  started with".
 
-### 15.4 Engine reranker and caller-supplied models
+### 15.4 Report
 
-- **Engine reranker singleton** (`rerank.rs`, process-wide, built at the
-  first rerank). It is built under the claim. An engine that set
-  `cuda_pool` has either claimed or failed its open, so its rerank always
-  matches its setting.
-- **A caller-supplied embedder** (`EmbedderChoice::Caller*`) was built
-  before the open. Its device already took the claim (from the
-  environment or default). An open that passes it with a different
+- `CudaAllocatorReport` gains `pool_mode` (`"auto"`, `"on"`, `"off"`,
+  or null for `InvalidEnv`) and `pool_mode_source` (`"sdk"`, `"env"`,
+  `"default"`), mapped in napi (`poolMode`, `poolModeSource`), PyO3 and
+  the CLI JSON. The reason `mode_off` is unchanged; with source `sdk` it
+  means the caller turned the pool off in code.
+- **`doctor cuda-allocator`.** Its record's `mode` field
+  (`cli/lib.rs:1106`, `:1138`, `:1193`, `:1218`, `:1303`; the raw
+  `FATHOMDB_POOL_MODE`, "auto" when unset even if malformed) is replaced
+  by `pool_mode` and `pool_mode_source`. The schema
+  `fathomdb.doctor.cuda-allocator.v1` (`:1088`) is new in 0.8.28 and
+  unpublished, so v1 changes in place with no compatibility field;
+  `cli.md:162-170` changes with it.
+- **x86 and builds without `tegra-pool`.** There is no report
+  (`not_built_report` is compiled only for aarch64 Linux CUDA builds,
+  `cuda_pool_policy.rs:272-298`). The setting is visible through the
+  read-back and the conflict error (§ 15.1).
+- Callers of `CudaAllocatorReport::new` (`pub const fn`, five arguments,
+  `cuda_pool_policy.rs:261`) gain two: `sdk/tests/surface.rs:331`,
+  `embedder/tests/slice30_cuda_allocator_api.rs:27`, `cli/lib.rs:3388`,
+  napi and PyO3 `test_support.rs:440-460`. Binding mappings: napi
+  `types.rs:159-170`, PyO3 `types.rs:245-255`, `types.py:1315`,
+  `_fathomdb.pyi:355`, `open.ts:246`, `:316`.
+
+### 15.5 Engine reranker and caller-supplied models
+
+- **Engine reranker singleton** (process-wide, built at the first
+  rerank). Its device build reads the mode in force. An engine that set
+  `cuda_pool` either set the mode or failed its open, so its rerank
+  always matches its setting.
+- **Caller-supplied embedder** (`EmbedderChoice::Caller*`). It was built
+  before the open, and its device build set the mode from the
+  environment or default. An open passing it with a different
   `cuda_pool` fails with the conflict, which is correct: that embedder
   is on the other mode.
 
-### 15.5 Docs, interfaces and ADR
+### 15.6 Library-user documentation: one mode per process
 
-- `dev/interfaces/rust.md`, `python.md`, `typescript.md`, `cli.md`: the
-  setting, its values, precedence, the claim and the conflict error.
-  This is AC-074-governed public surface, so the interface docs change in
-  the same change.
+Every SDK reference (`docs/` Rust, Python and TypeScript pages, and
+`docs/embedder.md`) carries this note next to the setting, in these
+words or close to them:
+
+> **One pool mode per process.** The first GPU pool mode in force holds
+> for the whole process: set by the first `open` that passes `cuda_pool`,
+> or, if none does, by `FATHOMDB_POOL_MODE` (default `auto`) at the first
+> GPU use. A later `open` asking for a different `cuda_pool` fails with
+> an invalid-argument error that names the mode in force. Closing every
+> engine does not reset it. Opens that omit `cuda_pool` never fail this
+> way. The rule applies on every platform, including machines where the
+> pool never engages (x86, discrete GPUs, CPU-only engines), so the same
+> code behaves the same everywhere.
+>
+> In practice: pick one value per process, or leave it unset. A test
+> suite that runs in one process (for example a single pytest run) must
+> not open engines with different `cuda_pool` values; run such cases in
+> separate processes.
+
+The same note goes in `dev/interfaces/rust.md`, `python.md`,
+`typescript.md` and `cli.md`. It is AC-074-governed surface, so the
+interface docs change in the same change. Also:
+
 - `docs/embedder.md` settings bullet: "`cuda_pool` on open (`auto`,
-  `on`, `off`); `FATHOMDB_POOL_MODE` when the open does not set it". One
-  sentence on the process rule: the first mode in force holds for the
-  life of the process; a later open asking for another fails.
-- Changelog: the new setting; Rust Orin users can turn the pool off in
-  code.
-- ADR (appendix A) gains decision 9: "The pool mode is an open setting
-  (`cuda_pool`) in every SDK, with `FATHOMDB_POOL_MODE` as the fallback.
-  The first mode in force holds for the process; an open asking for
-  another mode fails with a configuration error (owner ruling Q33)." The
-  ADR's "Settings" component is amended to match.
+  `on`, `off`); `FATHOMDB_POOL_MODE` when no open sets it"; the § 14.1
+  `max` contract sentences; and the early-init note ("`cuda_pool = off`
+  turns off the pool; it does not stop the Node and Python import-time
+  `cuInit`, which `FATHOMDB_CUDA_EARLY_INIT` controls").
+- Changelog: the setting; Rust Orin users can turn the pool off in code.
+- ADR appendix A decision 9 (below), and the ADR's "Settings" component
+  amended to match.
 
-### 15.6 Where § 15 meets § 14
+### 15.7 Where § 15 meets § 14
 
 - **D-19 (Rust reach).** `on` and `auto` in a plain Rust process reach the
-  private pool only once D-19 lands; `off` works without it. Node and
-  Python already reach it.
-- **Early init.** `cuda_pool = off` turns off the pool; it does not stop
-  the Node and Python import-time `cuInit`, which runs before any open
-  and stays controlled by `FATHOMDB_CUDA_EARLY_INIT`. Documented
-  alongside the setting.
+  private pool only once D-19 lands; `off` works without it. D-19 runs
+  inside `module_load_init()` at the decision, which the mode in force
+  does not touch. Node and Python already reach it.
+- **Early init.** The Node and Python import-time hooks (napi
+  `cuda_early_init.rs:152-164`, PyO3 `lib.rs:171`) run before any open
+  and are unaffected.
 - **Feature implication** (§ 14 resolution 1, if adopted). Once
   `embed-cuda` implies `tegra-pool`, Rust users lose the compile-time
-  opt-out; `cuda_pool = off` gives them a code-level one again.
-- **N1.** Unaffected: N1 acts only when the decision is private.
+  opt-out; `cuda_pool = off` gives them a code-level one.
+- **N1.** Unaffected: the release acts only when the decision is
+  private.
 
-### 15.7 Tests (RED first)
+### 15.8 Tests (RED first)
 
-- **Pure (any host, `cuda_pool_mode_tests.rs`, new file; the frozen
-  `cuda_pool_policy_tests.rs` is not edited):** `claim_mode` table (all
-  of: no claim and requested; equal; each pair of different modes;
-  not requested with env set, unset and malformed); precedence (SDK over
-  env, env over default); `CudaPoolMode` string round-trip and rejection;
-  `decide_and_build` with a fake driver reads the claim, not the env mode.
-- **Engine (any host):** open with an invalid `cuda_pool` fails before
-  the database file exists; a second open in the same process with a
+- **Any host, pure (new `cuda_pool_mode_tests.rs`; the frozen file is not
+  edited):** the `resolve_mode` table (nothing in force and requested;
+  equal; each pair of different modes; `InvalidEnv` then requested; not
+  requested with env set, unset and malformed); `raw_settings` mode
+  resolution as a pure function `(in_force, env) -> mode string`;
+  `PoolMode` string round-trip and rejection; the conflict `Display`
+  text.
+- **Any host, engine (child process per case):** a second open with a
   different mode fails with `CudaPoolModeConflict` and the first engine
-  still works; the same mode passes; not setting it never fails.
-  Run in a child process per case (the claim is process-wide).
-- **SDKs (any host):** Python and TypeScript reject an unknown string
-  with the configuration error; a conflicting second open raises the
-  configuration error class with the message naming both modes.
-- **CLI (any host):** `doctor cuda-allocator --cuda-pool off` reports
-  `pool_mode=off`, `pool_mode_source=sdk`.
-- **Orin (window P additions and the parity matrix):** for Rust SDK,
-  Node and Python, each in its own process:
-  `cuda_pool=off` with `FATHOMDB_POOL_MODE=on` gives `mode_off`, source
-  `sdk`; `cuda_pool=on` with `FATHOMDB_POOL_MODE=off` gives
-  `private_pool`; unset with the env unset gives `private_pool`, source
-  `default`; a module-level CLS embed first, then an open with `off`,
-  fails with the conflict.
-- **x86 (RTX 3090 by UUID):** `cuda_pool=on` gives `discrete` (the
-  discrete gate is not lifted by `on`); the conflict rule behaves as on
-  the Orin.
+  still works; the same mode passes; omitting it never fails; with
+  `FATHOMDB_POOL_MODE=bogus` and a first build, a later explicit open
+  conflicts; the mode is in force before the device-policy probe runs.
+- **Any host, SDKs:** Python and TypeScript reject an unknown string with
+  `ValueError` / `TypeError` before the database file exists; set →
+  `engine.config()` read-back in Rust, Python and TypeScript; a
+  conflicting second open raises the invalid-argument class with the
+  shared message.
+- **Any host, CLI:** `doctor cuda-allocator --cuda-pool off` with
+  `FATHOMDB_POOL_MODE=on` reports `pool_mode=off`,
+  `pool_mode_source=sdk`; `doctor cuda-libraries` has no `--cuda-pool`.
+- **Orin (window P additions and the parity matrix), for the Rust SDK,
+  Node and Python, each in its own process:** `cuda_pool=off` with
+  `FATHOMDB_POOL_MODE=on` gives `mode_off`, source `sdk`; `cuda_pool=on`
+  with `FATHOMDB_POOL_MODE=off` gives `private_pool`; unset with the env
+  unset gives `private_pool`, source `default`; a module-level CLS embed
+  first, then an open with `off`, fails with the conflict.
+- **x86 (RTX 3090 by UUID):** `cuda_pool=on` opens and embeds; the
+  conflict rule behaves as on the Orin.
 
-### 15.8 Open points for review
+### 15.9 Open points
 
-- **R5-1.** Should `max_size` and `release_threshold` also go on the SDK
-  surface now? Recommended: no (Q33 rules on the switch only; adding
-  them doubles the parity matrix).
-- **R5-2.** Compare modes (recommended: simple, hardware-independent) or
-  outcomes (fewer spurious failures on hosts where the pool never
-  engages).
-- **R5-3.** Keep the claim of a failed open (recommended) or release it.
-- **R5-4.** Should a direct Rust `CandleBgeEmbedder` constructor take
-  the mode too, so a Rust user who never opens an engine can set it in
-  code? Recommended: not in 0.8.28; the environment covers it.
+- **R5-1 (owner).** Move `max_size` and `release_threshold` onto the SDK
+  surface in 0.8.28? Q34 fixes what `max` means, which removes the main
+  reason to wait. Both would use the same mode-in-force rule (one value
+  per process, compared on later opens).
+- **R5-2.** Compare modes, not outcomes: adopted (review agrees).
+- **R5-3.** Keep the mode set by a failed open: adopted (review agrees).
+- **R5-4.** No mode parameter on direct Rust constructors in 0.8.28:
+  adopted (review agrees); the environment covers them.
 
 ## Appendix A. ADR amendment draft
 
@@ -2267,9 +2390,13 @@ cudarc 0.19.7; Fathom Candle fork 0.10.3"; `status` adds "amended
 >    compute-capability floor, are CUDA-version-policy decisions, recorded
 >    in the amendment of 2026-10-<day> to
 >    ADR-0.8.28-cuda-version-support-policy.
-> 6. **Close.** Dropping a FathomDB-built private-pool model synchronizes
->    the decision's context and trims unused pool memory, unless the
->    context is lost. *(Kept only if Slice 31 design § 8 N1 lands.)*
+> 6. **Close.** With threshold `0`, freed memory returns to the system
+>    automatically. With `max`, freed memory stays reserved while any
+>    FathomDB model is open in the process; when the last one closes,
+>    FathomDB synchronizes the decision's context and trims unused pool
+>    memory, unless the context is lost. Module-level models and the
+>    engine reranker stay open for the process's life, so a process
+>    holding one keeps the memory until exit (owner rulings Q29, Q34).
 > 7. **Tegra facts (fork measurements, JetPack 6).** A capped pool serves
 >    about a third of its `maxSize`, so the 3 GiB default serves about
 >    1 GiB; a process has room for about four uncapped pools; `cuMemGetInfo`

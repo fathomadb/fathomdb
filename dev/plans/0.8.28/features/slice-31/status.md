@@ -182,8 +182,8 @@ embed and rerank on `cuda:0`.
 
 ### Left for the Orin, GCP and the main thread
 
-- **Orin windows P and A**: done at `e9036a912` (below). Open: the N1
-  decision and the R16 finding. **Window B** (G1–G8) and **window C**
+- **Orin windows P and A**: done at `e9036a912` (below). N1 and the R16
+  finding are ruled (Q29, Q30); design § 14 awaits review. **Window B** (G1–G8) and **window C**
   (G9): runners ready on the Orin, not run. PERF-03 on the RTX 3090:
   runner written (`run-perf-3090.sh`), not run.
 - **GCP**: S-C3 (CMP-C3, CUDA-09) and S-13 (WSB-02, CUDA-08, CMP-C5), each
@@ -215,12 +215,13 @@ guard unchanged in all 52 lines of
 | Window A | `e9036a912` | POOL-01…04 pass; TDN-06…10 (F1–F5) 5 passed; ORIN-12 5/5; ORIN-15 exit 0 (wheel and `.node`); CMP-C1b 11 PTX modules `sm_87`; REG-b/REG-c exit 0 with the mode `off` and with `auto` |
 | Harness | `6d73dc19b` and the window-runner commit | Slice 30 harness copied and adapted; PERF-03 runner; window B and C runners |
 
-**N1: not implemented, decision needed.** R14's conditional has one test
-passing and one failing. Design § 8's premise (freed bytes stay reserved
-until the next synchronization) is false at the default threshold 0;
-only the opt-in `max` threshold keeps memory after close, which is that
-setting's documented meaning. Implementing N1 would change `max`'s
-meaning; dropping it leaves R14's `max` test failing.
+**N1: ruled.** R14's conditional had one test passing and one failing
+(threshold 0 releases without a synchronize; `max` keeps 301989888
+bytes). Owner ruling Q29 (steward ledger seq 335): implement N1, so close
+also trims a `max` pool. **R16: ruled.** Owner ruling Q30 (seq 336):
+correct R16 and give plain Rust processes the private pool without a
+caller-made init call (design § 14.2, D-19). Design revision 4, § 14,
+is drafted for review; Phase 2 (implementation) waits for it.
 
 **Deviations.** maturin 1.14.1 came from an existing build venv on the
 Orin (the host default is 1.12.6); F1–F5 ran from a copy of the test
@@ -301,3 +302,10 @@ GCP sessions on the owner's go-ahead, R-CODE-3 and R-VERIFY.
   equality report-only (Q28). Main-thread todo to ledger: move the
   feature-complete gate from GPU indices to UUID selection (OP-3). Next:
   W6.
+- 2026-10-13: design revision 4, § 14 (DRAFT FOR REVIEW): N1 implemented
+  per Q29 (close trims the pool at any threshold; no-op on loss or a
+  non-private model); D-19 per Q30 recommends a first-use init at the
+  allocator decision in `fathomdb-embedder` (new `ModuleLoadInit`
+  `ran_at_first_use`; load hooks win; opt-out honoured), rejecting a
+  load-time constructor and a public init API. Next: review, then Phase 2
+  (RED: R14 `max`, corrected R16, new SDK Orin tests).

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — design (W2)
-status: REVISED AFTER R-TEST (APPROVE-WITH-FIXES on test-plan revision 1); ready for W6; revision 3 (2026-10-13)
+status: revision 4 (2026-10-13), § 14 DRAFT FOR REVIEW (N1 and D-19, owner rulings Q29, Q30); revision 3 sections ready for W6
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---
@@ -39,6 +39,10 @@ directories (§ 9.1); the C3 test that needs a host without cuBLAS is
 embedder's live test binaries, because `fathomdb-cli` has no embed or
 rerank verb, and the `libcuda.so.1`-only cell moves into the C3 session
 (§ 9.3).
+
+**Revision 4** adds § 14 after Orin window P: N1 is implemented (owner
+ruling Q29) and D-19 gives a plain Rust process the private pool through
+a first-use init at the allocator decision (owner ruling Q30).
 
 Pool design topics D-1…D-9, the fork part of D-12, D-13 and D-F1…D-F4 are
 the cudarc fork's (`fathomdb/design.md` revision 4 on `coreyt/cudarc`
@@ -1181,9 +1185,8 @@ freed bytes stay reserved until the process's next CUDA work; with
 pool is unaffected (it re-reserves on demand). This is a behaviour change:
 the changelog records it.
 
-N1 is conditional on its RED. If the RED test passes on the base (the
-driver releases without a synchronize), N1 is dropped and the result is
-recorded in `status.md`.
+N1 is implemented by owner ruling Q29; § 14.1 gives its final behaviour
+and tests.
 
 **Evidence.** Vendored `third_party/cudarc-0.19.7/src/driver/safe/mem_pool.rs`
 and `core.rs` (lines above); `git show b777f8d:src/driver/safe/mem_pool.rs`
@@ -1800,8 +1803,8 @@ Revision 1 left seven points to R-DES; R-DES ruled on each
    `cudarc-fathomdb` feature set (§ 0, § 7.2 `root_features`), so the
    crates the lock-set guard records are the crates the fork compiled.
    Recommended; the fork decides (fork todo FT-3).
-4. **N1 (close release) depends on its RED**, as written in § 8: if the
-   RED test passes on the base, N1 is dropped and `status.md` records it.
+4. **N1 (close release)** was ruled to depend on its RED; owner ruling
+   Q29 supersedes that: N1 is implemented (§ 14.1).
 5. **D-18's surface:** keep the typed error, the report field and the
    doctor verb; renamed `LibraryUnavailable` / `cuda_library_unavailable`
    with a reason (R-DES finding 5); the stderr line only on refusal (Q24);
@@ -1822,6 +1825,160 @@ fork decides in its own plan.
 | FT-1 | cudarc | State how `cudarc-fathomdb` numbers a code-changing release on an unchanged upstream base (crates.io will not take 0.19.10 again, and build metadata does not make a new version) | R-DES open point 1 |
 | FT-2 | cudarc | Decide whether to drop item 6 (`fathomdb-private-pool`) before item 5's upstream removal now that no consumer enables it; that needs the item 6 row of `FATHOMDB.md` (removal path "with item 5") changed first | R-DES finding 10, § 3.3 |
 | FT-3 | cudarc | Run 2 compiles FathomDB's resolved feature set and emits the Q23 Linux-normal lock-set record (§ 7.2) after `FATHOMDB_LOCK_SHA` moves to the pushed W6 lock commit | R-DES open point 3, finding 7, Q23 |
+
+## 14. Revision 4: N1 and D-19 (owner rulings Q29, Q30)
+
+Orin window P at `e9036a912` (status.md) found R14 test 1 GREEN without N1
+and test 2 RED, and R16 failing with `path=default_pool`, reason
+`cuinit_not_at_load`. The owner ruled (steward ledger seq 335-336): Q29,
+implement N1; Q30, correct R16 and give plain Rust processes the private
+pool without a caller-made init call. This section replaces § 8's "N1 is
+conditional on its RED" and § 13 point 4.
+
+### 14.1 N1, the close release (Q29)
+
+- **Function.** `release_unused_private_pool_memory()` in
+  `cuda_pool_policy.rs` (driver part, `tegra-pool` + aarch64 Linux + CUDA
+  only). It does work only when all hold: the decision is `Private`; the
+  dropped model's device has `alloc_mode()` `Private` (a CPU or
+  `other_ordinal` model is skipped); the context is alive by `classify`'s check (primary context
+  active and its id equal to the recorded id). Then it calls
+  `first_context.synchronize()` and `pool.trim_to(0)`. On loss, a missing
+  or fallback decision, or any driver error it does nothing; it never
+  panics (body inside `catch_unwind`, errors discarded).
+- **Guard.** A field declared last in `CandleBgeEmbedder` and
+  `CandleTinyBertReranker`, so Rust drops it after `model` and `device`
+  and the trim sees their buffers freed. Off the driver part it is a
+  zero-sized no-op.
+- **Close paths that reach it.** (1) Dropping a `CandleBgeEmbedder`;
+  (2) `Engine::close`, which drops the released default-embedder provider
+  after its guard (`runtime_lifecycle.rs:49`), and `Engine`'s `Drop`, which
+  calls `close`; the napi and PyO3 `close` reach the same `Engine::close`;
+  (3) dropping a directly built reranker. Not reached: the engine's
+  reranker singleton (never dropped, ruling 32); a caller-supplied embedder
+  still referenced elsewhere (it trims at its last drop); `close` returning
+  `EngineError::Scheduler` (provider not released).
+- **Threshold 0.** Window P shows the driver already returns freed memory
+  without a synchronize, so N1 changes no counter; it runs anyway (one
+  synchronize and an empty trim) so close does not depend on that
+  unspecified driver timing.
+- **Threshold `max`.** Close now returns all unused reserved memory.
+  `max` therefore means "keep freed memory reserved while models are
+  open; release it at each model close". Another open engine on the same
+  pool keeps its live buffers (`trim_to` frees only unused memory) and
+  re-reserves on demand. The synchronize waits for in-flight work on the
+  device's primary context, so a close concurrent with another engine's
+  embed can wait for that embed. Docs: `docs/embedder.md` (settings
+  bullet), `dev/interfaces/rust.md`, `python.md`, `typescript.md`,
+  changelog line.
+- **Tests (Orin, `cuda_pool_slice31_tests.rs`).** RED:
+  `gpu_orin_64_close_release_also_trims_a_max_threshold_pool`
+  (failing at `e9036a912`, 301989888 bytes). Regression, unchanged:
+  `gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize`
+  (no reason to change it: its assertion is N1's contract at threshold 0).
+  Skip on loss: the context-reset SIGSEGV test stays as is. Engine level:
+  no counter clause (R-TEST OP-4 stands; the counters are `pub(crate)`
+  test readers the engine crate cannot reach); R16 proves the engine close
+  path exits cleanly on the private pool.
+
+### 14.2 D-19, the private pool for plain Rust processes (Q30)
+
+Today only the N-API registration hook, the PyO3 module init (Tegra
+wheel) and `doctor cuda-allocator` call `run_module_load_early_init`; the
+decision's `init_gate` (`cuda_pool_policy.rs:420`) refuses anything but
+`Ran`, so every Rust process reports `cuinit_not_at_load` (Slice 30
+§ 3.4, § 4.4).
+
+**Option (a): load-time constructor** (`ctor` 0.2.9, already in the lock
+through `napi`, or a hand-written `#[used] #[link_section =
+".init_array"]` static), gated to `tegra-pool` + aarch64 Linux + CUDA.
+Each placement breaks something:
+
+- in `fathomdb-embedder`, it runs inside the Node addon and the Tegra
+  wheel too: a second `cuInit` at `dlopen` with the embedder's unified
+  feature flags, which Slice 30 § 3.4 forbids (each caller passes its own
+  `cfg!` flags); and in the CLI, where `doctor cuda-allocator` promises no
+  CUDA call before its early returns (`dev/interfaces/cli.md`);
+- in `fathomdb` (facade), the CLI links it (same CLI break);
+- in `fathomdb-sdk` only, engine and facade users (R16's own process)
+  still miss the pool.
+
+Wherever it sits, every linking process pays `cuInit` at start (study:
+31.3 ms, +13 MiB RSS) even if it never opens an engine, and takes hazard
+H-1 (Slice 30 § 2.5: a child forked after `cuInit` cannot use CUDA; F1)
+before any FathomDB call. It also adds code before `main`, which Rust
+does not support. Rejected.
+
+**Option (b), recommended: first-use init at the allocator decision.**
+
+- **Where.** `fathomdb-embedder`, at the decision's existing seam
+  `PoolDriver::module_load_init()` (`CudarcDriver`,
+  `cuda_pool_policy.rs:1398`). Every Rust caller (engine, facade, SDK,
+  CLI) reaches it with no code of its own.
+- **Rule** (a pure function `first_use_outcome(recorded, opted_out,
+  init)` in `cuda_driver_init.rs`, tested on every host):
+  1. a recorded load outcome wins and is returned unchanged; no second
+     `cuInit` (so the N-API, PyO3 and CLI hooks, which record before any
+     export or probe runs, keep their behaviour, including `Failed` and
+     `SkippedCpuOnly`);
+  2. none recorded and `FATHOMDB_CUDA_EARLY_INIT=off`: record `OptedOut`
+     (reason `cuinit_opted_out`), so the opt-out means the same in Rust;
+  3. none recorded: call `cuInit` (idempotent); on success record the new
+     `ModuleLoadInit::RanAtFirstUse` (`"ran_at_first_use"`), which
+     `init_gate` admits; on failure record nothing (`not_at_load`, reason
+     `cuinit_not_at_load`). The write is compare-and-set under the existing
+     `MODULE_LOAD_INIT` mutex, so the report, `doctor` and the decision see
+     one value.
+- **Tegra address space.** The constraint is on `cuInit` itself (a 4 GiB
+  hole in [8 GiB, 128 GiB); study "The two failures"), and its known
+  fragmenter is the V8 heap. In a Rust process the first `cuInit` is
+  already the embedder probe's (`candle_bge.rs` `enumerate_visible_cuda_devices`),
+  made before the first device build, so (b) adds no new `cuInit` timing
+  and no new H-1 exposure: 0.8.27 Rust processes initialised at the same
+  point. The one new mapping is the pool (about `maxSize`/3 = 1 GiB
+  contiguous, study Phase 1); if a host has fragmented the window, pool
+  creation fails and the process takes the 0.8.27 path with
+  `pool_create_failed` (Slice 30 § 1 rule 2: never refuse). A Rust host
+  with a fragmented window is UNMEASURED; the fallback covers it.
+- **Policy envs.** The `FATHOMDB_POOL_*` settings are read as before;
+  an exact `cpu` policy builds no CUDA device, so nothing runs.
+- **Other builds.** Without `tegra-pool`, or off aarch64 Linux, the
+  decision code is not compiled: no change (`not_built` / `None`).
+- **Public surface.** `ModuleLoadInit` (new in 0.8.28, unpublished) gains
+  `RanAtFirstUse` and becomes `#[non_exhaustive]`; `as_str` and the
+  Python and TypeScript string sets gain `ran_at_first_use`.
+  `run_module_load_early_init` stays `#[doc(hidden)]`. Doc updates:
+  `dev/interfaces/rust.md` ("No load hook in Rust" becomes "First-use
+  init in Rust"), `rust-sdk.md` (`cuinit_not_at_load` sentence),
+  `cli.md`, `python.md` and `typescript.md` (`module_load_init` values),
+  `docs/embedder.md`, the changelog (Rust and CLI engine processes on the
+  Orin now get the private pool). ADR: Appendix A gains a paragraph
+  amending component 4 ("Rust has no load hook") to the first-use rule,
+  under ruling Q30.
+
+**Option (c): a public, documented init API.** It adds AC-074 governed
+surface and still requires the caller's call, which Q30 rules out. Not
+needed with (b); not recommended.
+
+**Tests, RED first, all GPU tests on the Orin.**
+
+- Pure (any host): `first_use_outcome` table (a recorded value is
+  returned and `init` is not called, for every variant; opted out;
+  success; failure); `init_gate(RanAtFirstUse)` is `Ok`;
+  `RanAtFirstUse.as_str()`; the napi, py and CLI mappings of the new
+  string.
+- R16 corrected (`slice31_engine_close_cuda.rs`, Q30 authorises the edit):
+  the child also prints `module_load_init` and `reason`, and the parent
+  asserts `ran_at_first_use` and `private_pool`; it still calls no init
+  function. RED today on `path=private`.
+- New `fathomdb-sdk/tests/slice31_sdk_first_use_cuda.rs`:
+  `gpu_orin_64_sdk_process_reaches_the_private_pool_without_an_init_call`
+  (child opens through the SDK with the default embedder on `cuda:0`;
+  `path=private`, `ran_at_first_use`, embeds, closes, exit 0) and
+  `gpu_orin_64_sdk_process_with_early_init_off_takes_the_0827_path`
+  (`cuinit_opted_out`, not `private`).
+- Unchanged and re-run: Slice 30's hook tests and window A's Node and
+  Python rows (the hooks record first, so `ran` stays `ran`).
 
 ## Appendix A. ADR amendment draft
 

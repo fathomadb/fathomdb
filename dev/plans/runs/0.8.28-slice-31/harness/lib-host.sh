@@ -125,6 +125,21 @@ host_floor_ok() {
   return 0
 }
 
+# Orin guard (test-plan 1.2): with ORIN_GUARD_LOG set, one line per call
+# with the L4T release and the CUDA symlink target; a change stops the run.
+orin_guard_line() {
+  if [ -z "${ORIN_GUARD_LOG:-}" ]; then return 0; fi
+  local rel cuda
+  rel=$(head -1 /etc/nv_tegra_release)
+  cuda=$(readlink -f /usr/local/cuda)
+  printf '%s %s | %s | %s\n' "$(date -u +%FT%TZ)" "$1" "$rel" "$cuda" >>"$ORIN_GUARD_LOG"
+  case "$rel" in
+    "# R36 (release), REVISION: 5.2,"*) ;;
+    *) echo "GUARD CHANGED: $rel" >&2; return 3 ;;
+  esac
+  if [ "$cuda" != /usr/local/cuda-12.6 ]; then echo "GUARD CHANGED: $cuda" >&2; return 3; fi
+}
+
 power_mode() {
   if [ "$QUAL_HOST" = x86-3090 ]; then
     nvidia-smi --id="$RTX3090_UUID" --query-gpu=power.limit,clocks.max.sm --format=csv,noheader 2>/dev/null

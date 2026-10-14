@@ -52,10 +52,12 @@ for n in $(seq "$first" "$last"); do
   else
     cmd=(node "$@" "$here/pool-consumer.mjs")
   fi
+  orin_guard_line "before-$label-$i" || exit 3
   t0=$(date +%s%N)
   timeout "$QUAL_RUN_TIMEOUT_S" "${cmd[@]}" >"$outdir/run-$i.out" 2>"$outdir/run-$i.err"
   rc=$?
   wall=$((($(date +%s%N) - t0) / 1000000))
+  orin_guard_line "after-$label-$i" || exit 3
   host_json null >"$outdir/run-$i.host-after.json"
   python3 "$here/merge-run.py" "$outdir/run-$i" "$rc" "$wall" "$*" >>"$outdir/summary.txt"
   if ! host_floor_ok || [ "$(power_mode)" != "$mode0" ]; then

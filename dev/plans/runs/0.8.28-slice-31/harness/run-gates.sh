@@ -59,9 +59,13 @@ case $gate in
     : "${FDB_CLI:?set FDB_CLI for the G1 doctor check}"
     mkdir -p "$out/g1/doctor"
     (base_env; unset FATHOMDB_RERANK_DEVICE
+      # shellcheck source=lib-host.sh
+      source "$here/lib-host.sh"
       for i in $(seq -w 1 "$(n 20)"); do
+        orin_guard_line "before-doctor-$i" || exit 3
         flock "$lock" "$FDB_CLI" doctor cuda-allocator --json >"$out/g1/doctor/run-$i.json" 2>"$out/g1/doctor/run-$i.err"
         echo "run-$i rc=$?" >>"$out/g1/doctor/summary.txt"
+        orin_guard_line "after-doctor-$i" || exit 3
       done)
     ;;
   g2)

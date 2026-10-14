@@ -30,6 +30,7 @@ for t in $(seq 1 "$trials"); do
     echo "REFUSED trial $t" | tee -a "$outdir/summary.txt"
     exit 4
   }
+  orin_guard_line "before-trial-$t" || exit 3
   pids=()
   t0=$(date +%s%N)
   for j in $(seq 1 "$k"); do
@@ -64,6 +65,7 @@ for t in $(seq 1 "$trials"); do
     host_json null >"$outdir/run-$t-$j.host-after.json"
     python3 "$here/merge-run.py" "$outdir/run-$t-$j" "$rc" "$wall" "" >>"$outdir/summary.txt"
   done
+  orin_guard_line "after-trial-$t" || exit 3
   if [ "$low" = 1 ] || [ "$(power_mode)" != "$mode0" ]; then
     echo "STOP floor-or-power after trial $t: $(host_json)" | tee -a "$outdir/summary.txt"
     exit 3

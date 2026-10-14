@@ -182,15 +182,10 @@ embed and rerank on `cuda:0`.
 
 ### Left for the Orin, GCP and the main thread
 
-- **Orin window P** (pin commit or later): write and run R14 (N1 RED) and
-  the R15/R17 Rust tests in `cuda_pool_slice31_tests.rs`; first runs of
-  R16 (`c-engine-close`). First aarch64 compile of D-17 and of every
-  `tegra-pool` path on this tree.
-- **Window A**: POOL-01…05, TDN-01…10 (F1–F5 with the Tegra wheel),
-  ORIN-12…15, REG-b and REG-c (`check-tegra-pool-registry-build.sh` on
-  the Orin), CMP-C1b `sm_87`. **Window B**: G1–G8. **Window C**: G9.
-  The Slice 30 harness copy under `dev/plans/runs/0.8.28-slice-31/harness/`
-  (only `wc3-env.sh` exists) and PERF-03's x86 adaptation are not done.
+- **Orin windows P and A**: done at `e9036a912` (below). Open: the N1
+  decision and the R16 finding. **Window B** (G1–G8) and **window C**
+  (G9): runners ready on the Orin, not run. PERF-03 on the RTX 3090:
+  runner written (`run-perf-3090.sh`), not run.
 - **GCP**: S-C3 (CMP-C3, CUDA-09) and S-13 (WSB-02, CUDA-08, CMP-C5), each
   on the owner's go-ahead.
 - **cudarc fork FT-3**: Run 2 with `FATHOMDB_LOCK_SHA` =
@@ -200,6 +195,41 @@ embed and rerank on `cuda:0`.
 - **Main thread**: the owner's advisory review of the `candle-kernels` rev
   change (pinned-override posture); FT-1…FT-3 to the todos ledger when W6
   lands; the R-TEST OP-3 todo (feature-complete gate by UUID).
+
+### W6 Orin windows P and A (2026-10-13, Jetson AGX Orin 64 GB)
+
+Receipts [2026-10-13-ORIN-P-e9036a912442.md](qualification/2026-10-13-ORIN-P-e9036a912442.md)
+and [2026-10-13-ORIN-A-e9036a912442.md](qualification/2026-10-13-ORIN-A-e9036a912442.md);
+guard unchanged in all 52 lines of
+[orin-guard.log](qualification/orin-guard.log).
+
+| Row | Commit | Result |
+| --- | --- | --- |
+| R14, R15, R17 tests written | `e9036a912` | `src/cuda_pool_slice31_tests.rs` and two test-only counter readers; the first aarch64 compile of D-17 and the `tegra-pool` paths passed with no warning |
+| R14 threshold 0 | `e9036a912` | GREEN without N1: `reserved_current` 0 after the drop, no synchronize. The predicted RED did not occur |
+| R14 threshold `max` | `e9036a912` | RED as predicted: `reserved_current` 301989888 after close |
+| R15 TDN-01, TDN-02 | `e9036a912` | characterization, GREEN at `e9036a912` |
+| R16 TDN-03 | `e9036a912` | FAILED: clean close and exit 0, but `path=default_pool`: the test never runs the module-load early `cuInit` (reason `cuinit_not_at_load`). Finding for R-VERIFY; test not edited |
+| R17 ORIN-13 | `e9036a912` | usable 1073741824 bytes (32 × 32 MiB) of the 3 GiB pool: above 576 MiB, no owner trigger |
+| R17 ORIN-14 | `e9036a912` | six stages recorded; default pool 0 at every stage (asserted) |
+| Window A | `e9036a912` | POOL-01…04 pass; TDN-06…10 (F1–F5) 5 passed; ORIN-12 5/5; ORIN-15 exit 0 (wheel and `.node`); CMP-C1b 11 PTX modules `sm_87`; REG-b/REG-c exit 0 with the mode `off` and with `auto` |
+| Harness | `6d73dc19b` and the window-runner commit | Slice 30 harness copied and adapted; PERF-03 runner; window B and C runners |
+
+**N1: not implemented, decision needed.** R14's conditional has one test
+passing and one failing. Design § 8's premise (freed bytes stay reserved
+until the next synchronization) is false at the default threshold 0;
+only the opt-in `max` threshold keeps memory after close, which is that
+setting's documented meaning. Implementing N1 would change `max`'s
+meaning; dropping it leaves R14's `max` test failing.
+
+**Deviations.** maturin 1.14.1 came from an existing build venv on the
+Orin (the host default is 1.12.6); F1–F5 ran from a copy of the test
+file, because `src/python`'s `pythonpath = ["."]` would import the source
+package instead of the wheel, with `pytest` from the user site on
+`PYTHONPATH`; the D-14 CPU control is the same test with
+`FATHOMDB_EMBED_DEVICE=cpu`. The FT-3 lock-set record copy
+(`scripts/cudarc-fathomdb-lock-set.json`) was refused by the session's
+permission check and is not in this branch.
 
 ## Next
 

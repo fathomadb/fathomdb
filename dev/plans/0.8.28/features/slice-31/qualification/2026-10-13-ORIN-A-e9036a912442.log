@@ -1,0 +1,376 @@
+# Orin window A, tip e9036a9124422dbda65702fddc9adb7d9ea5afa1 (runner run-a.sh)
+## run-a.log
+waiting for lock 01:07:19
+lock held 01:07:19
+POOL-01 pool-va rc=0
+POOL-lib gpu_orin_64_builds_every_device_on_a_three_gib_private_pool rc=0
+POOL-lib gpu_orin_64_pool_stays_under_max_size_and_is_empty_after_the_embedder_drops rc=0
+POOL-lib gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults rc=0
+S31 gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize rc=0
+S31 gpu_orin_64_close_release_also_trims_a_max_threshold_pool rc=101
+S31 gpu_orin_64_process_exit_with_the_private_pool_alive_is_clean rc=0
+S31 gpu_orin_64_dropping_the_embedder_then_exiting_is_clean rc=0
+S31 gpu_orin_64_records_the_usable_capacity_of_the_three_gib_pool rc=0
+S31 gpu_orin_64_memory_outside_the_private_pool_is_recorded rc=0
+ORIN-14-cpu d14-cpu-control rc=0
+TDN-03 engine-close rc=101
+TDN-06-10 fork rc=0
+ORIN-12 node-e2e rc=0
+ORIN-15 linkage-wheel rc=0
+ORIN-15 linkage-node rc=0
+CMP-C1b c1 rc=0
+REG-bc reg-off rc=0
+REG-c-info reg-auto rc=0
+WINDOW-A-DONE 01:11:11
+
+## c1.log
+ok ptx-floor: 11 PTX module(s), each .version <= 8.5 and .target sm_87
+
+## d14-cpu-control.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_memory_outside_the_private_pool_is_recorded ... fathomdb-d14 {"stage":"S0","device":"cpu","vm_rss":11436032,"rss_anon":1896448,"rss_file":9539584,"rss_shmem":0,"pool":null,"default_pool":null}
+fathomdb-d14 {"stage":"S2","device":"cpu","vm_rss":159711232,"rss_anon":142970880,"rss_file":16740352,"rss_shmem":0,"pool":null,"default_pool":null}
+fathomdb-d14 {"stage":"S3","device":"cpu","vm_rss":165531648,"rss_anon":146563072,"rss_file":18968576,"rss_shmem":0,"pool":null,"default_pool":null}
+fathomdb-d14 {"stage":"S4","device":"cpu","vm_rss":165531648,"rss_anon":146563072,"rss_file":18968576,"rss_shmem":0,"pool":null,"default_pool":null}
+fathomdb-d14 {"stage":"S5","device":"cpu","vm_rss":58380288,"rss_anon":38768640,"rss_file":19611648,"rss_shmem":0,"pool":null,"default_pool":null}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 29.74s
+
+
+## engine-close.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running tests/slice31_engine_close_cuda.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/slice31_engine_close_cuda-5118142babb1d04b)
+
+running 1 test
+test gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean ... 
+thread 'gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean' (1906864) panicked at src/rust/crates/fathomdb-engine/tests/slice31_engine_close_cuda.rs:86:5:
+status=ExitStatus(unix_wait_status(0))
+--- stdout
+
+running 1 test
+test gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean ... engine-close-child: path=default_pool
+engine-close-child: searched hits=1
+engine-close-child: closed
+
+--- stderr
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.69s
+
+error: test failed, to rerun pass `-p fathomdb-engine --test slice31_engine_close_cuda`
+
+## fork.log
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.0.2, pluggy-1.6.0 -- /home/coreyt/fathomdb-slice31/venv-tip/bin/python
+hypothesis profile 'default'
+rootdir: /home/coreyt/fathomdb-slice31/fork-tests
+configfile: ../../../../dev/null
+plugins: hypothesis-6.152.4, asyncio-1.3.0, anyio-4.13.0, timeout-2.4.0
+asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 5 items
+
+test_tegra_pool_fork_after_init.py::test_forked_child_after_import_forced_cuda_raises_cuda_probe_failed PASSED [ 20%]
+test_tegra_pool_fork_after_init.py::test_forked_child_with_early_init_off_embeds_on_cuda PASSED [ 40%]
+test_tegra_pool_fork_after_init.py::test_forked_child_after_import_auto_falls_back_to_cpu PASSED [ 60%]
+test_tegra_pool_fork_after_init.py::test_forked_child_after_parent_gpu_use_gets_a_typed_error_and_the_parent_still_embeds PASSED [ 80%]
+test_tegra_pool_fork_after_init.py::test_spawned_child_embeds_on_the_private_pool PASSED [100%]
+
+============================== 5 passed in 5.77s ===============================
+
+## gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::tests::gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 4.75s
+
+
+## gpu_orin_64_builds_every_device_on_a_three_gib_private_pool.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::tests::gpu_orin_64_builds_every_device_on_a_three_gib_private_pool ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.12s
+
+
+## gpu_orin_64_close_release_also_trims_a_max_threshold_pool.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_close_release_also_trims_a_max_threshold_pool ... 
+thread 'cuda_pool_policy::slice31_tests::gpu_orin_64_close_release_also_trims_a_max_threshold_pool' (1906712) panicked at src/rust/crates/fathomdb-embedder/src/cuda_pool_slice31_tests.rs:124:5:
+status ExitStatus(unix_wait_status(0))
+stdout:
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_slice31_child ... max-threshold loaded: PoolCounters { reserved_current: 301989888, reserved_high: 301989888, used_current: 132848640, used_high: 254970976 }
+max-threshold dropped (no synchronize): PoolCounters { reserved_current: 301989888, reserved_high: 301989888, used_current: 0, used_high: 254970976 }
+slice31-child: max-threshold reserved_current=301989888
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 6.01s
+
+
+stderr:
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    cuda_pool_policy::slice31_tests::gpu_orin_64_close_release_also_trims_a_max_threshold_pool
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 99 filtered out; finished in 6.13s
+
+error: test failed, to rerun pass `-p fathomdb-embedder --lib`
+
+## gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize ... n1 loaded: PoolCounters { reserved_current: 301989888, reserved_high: 301989888, used_current: 132848640, used_high: 254970976 }
+n1 dropped (no synchronize): PoolCounters { reserved_current: 0, reserved_high: 301989888, used_current: 0, used_high: 254970976 }
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 5.99s
+
+
+## gpu_orin_64_dropping_the_embedder_then_exiting_is_clean.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_dropping_the_embedder_then_exiting_is_clean ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 6.06s
+
+
+## gpu_orin_64_memory_outside_the_private_pool_is_recorded.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_memory_outside_the_private_pool_is_recorded ... fathomdb-d14 {"stage":"S0","device":"cuda","vm_rss":11587584,"rss_anon":1896448,"rss_file":9691136,"rss_shmem":0,"pool":null,"default_pool":null}
+fathomdb-d14 {"stage":"S1","device":"cuda","vm_rss":264970240,"rss_anon":197836800,"rss_file":67133440,"rss_shmem":0,"pool":{"reserved_current":0,"used_current":0,"reserved_high":33554432},"default_pool":{"reserved_current":0,"used_high":0}}
+fathomdb-d14 {"stage":"S2","device":"cuda","vm_rss":422305792,"rss_anon":346472448,"rss_file":75833344,"rss_shmem":0,"pool":{"reserved_current":134217728,"used_current":132848640,"reserved_high":134217728},"default_pool":{"reserved_current":0,"used_high":0}}
+fathomdb-d14 {"stage":"S3","device":"cuda","vm_rss":528834560,"rss_anon":441757696,"rss_file":87076864,"rss_shmem":0,"pool":{"reserved_current":134217728,"used_current":132848640,"reserved_high":134217728},"default_pool":{"reserved_current":0,"used_high":0}}
+fathomdb-d14 {"stage":"S4","device":"cuda","vm_rss":528826368,"rss_anon":441749504,"rss_file":87076864,"rss_shmem":0,"pool":{"reserved_current":134217728,"used_current":132848640,"reserved_high":134217728},"default_pool":{"reserved_current":0,"used_high":0}}
+fathomdb-d14 {"stage":"S5","device":"cuda","vm_rss":382009344,"rss_anon":294813696,"rss_file":87195648,"rss_shmem":0,"pool":{"reserved_current":0,"used_current":0,"reserved_high":134217728},"default_pool":{"reserved_current":0,"used_high":0}}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 5.24s
+
+
+## gpu_orin_64_pool_stays_under_max_size_and_is_empty_after_the_embedder_drops.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::tests::gpu_orin_64_pool_stays_under_max_size_and_is_empty_after_the_embedder_drops ... pool-counters loaded: PoolCounters { reserved_current: 134217728, reserved_high: 301989888, used_current: 132848640, used_high: 254970976 } max_size=3221225472
+pool-counters closed: PoolCounters { reserved_current: 0, reserved_high: 301989888, used_current: 0, used_high: 254970976 }
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 6.04s
+
+
+## gpu_orin_64_process_exit_with_the_private_pool_alive_is_clean.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_process_exit_with_the_private_pool_alive_is_clean ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 6.08s
+
+
+## gpu_orin_64_records_the_usable_capacity_of_the_three_gib_pool.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_records_the_usable_capacity_of_the_three_gib_pool ... fathomdb-capacity {"max_size":3221225472,"usable_bytes":1073741824,"chunks":32}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.31s
+
+
+## linkage-node.log
+
+## linkage-wheel.log
+
+## node-e2e.log
+PASS  run 1/5: import first, 1000000 heap objects, forced cuda:0 open and embed
+PASS  run 2/5: import first, 1000000 heap objects, forced cuda:0 open and embed
+PASS  run 3/5: import first, 1000000 heap objects, forced cuda:0 open and embed
+PASS  run 4/5: import first, 1000000 heap objects, forced cuda:0 open and embed
+PASS  run 5/5: import first, 1000000 heap objects, forced cuda:0 open and embed
+
+## pool-va.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running tests/tegra_fragmented_va_cuda.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/tegra_fragmented_va_cuda-090e46ab0ece35de)
+
+running 1 test
+default memory pool: Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")); stream-ordered allocation: false
+test forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+
+## reg-auto.log
+check-tegra-pool-registry-build: CUDA_COMPUTE_CAP=87
+check-tegra-pool-registry-build: CUDA_PATH=/usr/local/cuda-12.6
+check-tegra-pool-registry-build: PATH=/home/coreyt/.cargo/bin:/usr/local/cuda-12.6/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+check-tegra-pool-registry-build: LIBRARY_PATH=/usr/local/cuda/lib64
+check-tegra-pool-registry-build: (a) resolution with no [patch] table
+  cudarc-fathomdb 0.19.10 registry+https://github.com/rust-lang/crates.io-index
+  candle-core-fathomdb 0.11.0 registry+https://github.com/rust-lang/crates.io-index
+  candle-nn-fathomdb 0.11.0 registry+https://github.com/rust-lang/crates.io-index
+  candle-transformers-fathomdb 0.11.0 registry+https://github.com/rust-lang/crates.io-index
+  candle-kernels 0.10.2 registry+https://github.com/rust-lang/crates.io-index
+  cudarc 0.17.8 registry+https://github.com/rust-lang/crates.io-index (ug-cuda; allowed)
+PASS  (a) the published fork crates resolve from crates.io with no [patch] table
+check-tegra-pool-registry-build: (b) build and link on this Tegra host
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.42s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.79s
+  Executable unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-reg/debug/deps/tegra_pool_registry_consumer-4cf797956e1df037)
+  Executable tests/tegra_fragmented_va_cuda.rs (/home/coreyt/fathomdb-slice31/target-reg/debug/deps/tegra_fragmented_va_cuda-171ac75bf02b81dc)
+PASS  (b) the consumer builds and links tegra-pool from crates.io
+check-tegra-pool-registry-build: (c) forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/tegra_fragmented_va_cuda.rs (/home/coreyt/fathomdb-slice31/target-reg/debug/deps/tegra_fragmented_va_cuda-171ac75bf02b81dc)
+
+running 1 test
+default memory pool: Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")); stream-ordered allocation: false
+test forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+PASS  (c) forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable against the crates.io resolution
+
+## reg-off.log
+check-tegra-pool-registry-build: CUDA_COMPUTE_CAP=87
+check-tegra-pool-registry-build: CUDA_PATH=/usr/local/cuda-12.6
+check-tegra-pool-registry-build: PATH=/home/coreyt/.cargo/bin:/usr/local/cuda-12.6/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+check-tegra-pool-registry-build: LIBRARY_PATH=/usr/local/cuda/lib64
+check-tegra-pool-registry-build: (a) resolution with no [patch] table
+  cudarc-fathomdb 0.19.10 registry+https://github.com/rust-lang/crates.io-index
+  candle-core-fathomdb 0.11.0 registry+https://github.com/rust-lang/crates.io-index
+  candle-nn-fathomdb 0.11.0 registry+https://github.com/rust-lang/crates.io-index
+  candle-transformers-fathomdb 0.11.0 registry+https://github.com/rust-lang/crates.io-index
+  candle-kernels 0.10.2 registry+https://github.com/rust-lang/crates.io-index
+  cudarc 0.17.8 registry+https://github.com/rust-lang/crates.io-index (ug-cuda; allowed)
+PASS  (a) the published fork crates resolve from crates.io with no [patch] table
+check-tegra-pool-registry-build: (b) build and link on this Tegra host
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 51s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.79s
+  Executable unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-reg/debug/deps/tegra_pool_registry_consumer-fcf1b59a938cdbcb)
+  Executable tests/tegra_fragmented_va_cuda.rs (/home/coreyt/fathomdb-slice31/target-reg/debug/deps/tegra_fragmented_va_cuda-0ce3b3a2d098d8d5)
+PASS  (b) the consumer builds and links tegra-pool from crates.io
+check-tegra-pool-registry-build: (c) forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/tegra_fragmented_va_cuda.rs (/home/coreyt/fathomdb-slice31/target-reg/debug/deps/tegra_fragmented_va_cuda-0ce3b3a2d098d8d5)
+
+running 1 test
+default memory pool: Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")); stream-ordered allocation: false
+test forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+PASS  (c) forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable against the crates.io resolution
+
+## runner build-a.sh
+set -u
+. ~/fathomdb-slice31/orin-env.sh
+T=e9036a912442
+SRC=$W/src-$T
+A=$W/artifacts; mkdir -p $A
+export CARGO_TARGET_DIR=$W/target-$T
+orin_guard before-build-a || exit 3
+step() { echo "=== $1 $(date -u +%T)"; }
+cd $SRC
+step pool-va-tests
+cargo test --locked --no-run -p fathomdb-embedder --features embed-cuda --test tegra_fragmented_va_cuda 2>&1 | tail -3
+step cli-c1
+cargo build --locked --release -p fathomdb-cli --features embed-cuda,rerank-cuda,tegra-pool --message-format=json >$A/cli-build.json 2>$A/cli-build.err; echo "cli rc=$?"
+python3 -I -c "import json,sys; d={m[\"out_dir\"] for m in map(json.loads,sys.stdin) if m.get(\"reason\")==\"build-script-executed\" and \"candle-kernels\" in m[\"package_id\"]}; assert len(d)==1, d; print(d.pop())" <$A/cli-build.json >$A/c1-out-dir.txt; echo "c1-outdir rc=$? $(cat $A/c1-out-dir.txt)"
+step wheel
+PATH=$HOME/ci-runs/fathomdb-jetson-local-20260820T120312Z-541352/build-venv/bin:$PATH \
+  bash scripts/release/build-python-cuda-tegra.sh --out $A/wheel --interpreter /usr/bin/python3 2>&1 | tail -12
+rm -rf $W/venv-tip; /usr/bin/python3 -m venv $W/venv-tip && $W/venv-tip/bin/pip install -q --disable-pip-version-check --no-deps --no-index $A/wheel/fathomdb-*.whl; echo "venv rc=$?"
+build_node() { # src target consumer-dir tag
+  local src=$1 tgt=$2 consumer=$3 tag=$4
+  ( . ~/.nvm/nvm.sh >/dev/null && nvm use 25.9.0 >/dev/null
+    cd $src/src/ts && npm ci --no-audit --no-fund >/dev/null 2>&1; echo "npm ci rc=$?"
+    npx tsc -p tsconfig.build.json; echo "tsc rc=$?"
+    CARGO_TARGET_DIR=$tgt npm exec -- napi build --platform --release --cargo-cwd ../rust/crates/fathomdb-napi \
+      --features embed-cuda,rerank-cuda,tegra-pool --js false 2>&1 | tail -3; echo "napi rc=${PIPESTATUS[0]}"
+    rm -rf $A/platform-$tag; cp -a npm/linux-arm64-gnu $A/platform-$tag && cp fathomdb.linux-arm64-gnu.node $A/platform-$tag/
+    rm -rf $A/staging-$tag $consumer
+    bash $SRC/dev/plans/runs/0.8.28-slice-31/harness/stage-installed.sh $src $A/platform-$tag $A/staging-$tag $consumer 2>&1 | tail -5 )
+}
+step node-tip
+build_node $SRC $CARGO_TARGET_DIR $W/node-tip tip
+step node-base
+build_node $W/src-base $W/target-base $W/node-base base
+orin_guard after-build-a || exit 3
+step BUILD-A-DONE
+## runner run-a.sh
+set -u
+. ~/fathomdb-slice31/orin-env.sh
+T=e9036a912442
+SRC=$W/src-$T
+A=$W/artifacts
+export CARGO_TARGET_DIR=$W/target-$T
+L=$W/logs-a; mkdir -p $L
+cd $SRC
+exec 9>/tmp/fathomdb-gpu.lock
+echo "waiting for lock $(date -u +%T)"; flock 9; echo "lock held $(date -u +%T)"
+g() { orin_guard "$1" || { echo GUARD-STOP; exit 3; }; }
+cell() { # id logname cmd...
+  local id=$1 log=$2; shift 2
+  g before-$id
+  "$@" >"$L/$log.log" 2>&1 9>&-
+  local rc=$?
+  echo "$id $log rc=$rc" | tee -a $L/summary.txt
+  g after-$id
+}
+lib() { env FATHOMDB_REQUIRE_LIVE=1 FATHOMDB_EMBED_DEVICE=cuda:0 cargo test --locked -p fathomdb-embedder \
+  --features embed-cuda,tegra-pool --lib -- --ignored --exact "$1" --nocapture --test-threads=1; }
+cell POOL-01 pool-va env FATHOMDB_REQUIRE_LIVE=1 cargo test --locked -p fathomdb-embedder --features embed-cuda \
+  --test tegra_fragmented_va_cuda -- --exact forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable --nocapture
+for t in gpu_orin_64_builds_every_device_on_a_three_gib_private_pool gpu_orin_64_pool_stays_under_max_size_and_is_empty_after_the_embedder_drops gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults; do
+  cell POOL-lib $t lib cuda_pool_policy::tests::$t
+done
+for t in gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize gpu_orin_64_close_release_also_trims_a_max_threshold_pool gpu_orin_64_process_exit_with_the_private_pool_alive_is_clean gpu_orin_64_dropping_the_embedder_then_exiting_is_clean gpu_orin_64_records_the_usable_capacity_of_the_three_gib_pool gpu_orin_64_memory_outside_the_private_pool_is_recorded; do
+  cell S31 $t lib cuda_pool_policy::slice31_tests::$t
+done
+cell ORIN-14-cpu d14-cpu-control env FATHOMDB_REQUIRE_LIVE=1 FATHOMDB_EMBED_DEVICE=cpu cargo test --locked -p fathomdb-embedder \
+  --features embed-cuda,tegra-pool --lib -- --ignored --exact cuda_pool_policy::slice31_tests::gpu_orin_64_memory_outside_the_private_pool_is_recorded --nocapture --test-threads=1
+cell TDN-03 engine-close env FATHOMDB_REQUIRE_LIVE=1 cargo test --locked -p fathomdb-engine --features embed-cuda,tegra-pool \
+  --test slice31_engine_close_cuda -- --ignored --exact gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean --nocapture --test-threads=1
+mkdir -p $W/fork-tests && cp src/python/tests/test_tegra_pool_fork_after_init.py $W/fork-tests/
+cell TDN-06-10 fork bash -c "cd $W/fork-tests && FATHOMDB_REQUIRE_LIVE=1 PYTHONPATH=$HOME/.local/lib/python3.10/site-packages $W/venv-tip/bin/python -m pytest -v -p no:cacheprovider -c /dev/null --rootdir $W/fork-tests test_tegra_pool_fork_after_init.py"
+cell ORIN-12 node-e2e bash -c ". ~/.nvm/nvm.sh >/dev/null && nvm use 25.9.0 >/dev/null && FATHOMDB_TEGRA_NODE_PACKAGE=$W/node-tip/node_modules/fathomdb FATHOMDB_TEGRA_EARLY_CUINIT_RUNS=5 FATHOMDB_REQUIRE_LIVE=1 bash scripts/tests/test_tegra_node_early_cuinit.sh"
+EXT=$(find $A/wheel/unpacked -name "*.so" | head -1)
+cell ORIN-15 linkage-wheel bash scripts/release/check-tegra-wheel-linkage.sh "$EXT"
+cell ORIN-15 linkage-node bash scripts/release/check-tegra-wheel-linkage.sh $W/node-tip/node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
+cell CMP-C1b c1 bash -c "python3 scripts/check-ptx-driver-floor.py --ptx-dir \"\$(cat $A/c1-out-dir.txt)\" --target sm_87 || ~/.local/bin/python3.12 scripts/check-ptx-driver-floor.py --ptx-dir \"\$(cat $A/c1-out-dir.txt)\" --target sm_87"
+cell REG-bc reg-off env CARGO_TARGET_DIR=$W/target-reg LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_REQUIRE_LIVE=1 FATHOMDB_POOL_MODE=off bash scripts/check-tegra-pool-registry-build.sh
+cell REG-c-info reg-auto env -u FATHOMDB_POOL_MODE CARGO_TARGET_DIR=$W/target-reg LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_REQUIRE_LIVE=1 bash scripts/check-tegra-pool-registry-build.sh
+echo "WINDOW-A-DONE $(date -u +%T)"

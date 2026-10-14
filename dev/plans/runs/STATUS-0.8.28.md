@@ -12,8 +12,10 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
+<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 31 (CUDARC-FORK), IN_PROGRESS.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
+
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
-Slice 31 (cudarc and Candle forks) is in progress; the fork work is done:
+Slice 31 (cudarc and Candle forks) is in progress:
 
 - `cudarc-fathomdb` 0.19.10 is on crates.io, published on 2026-10-13 from
   the qualified fork commit `b777f8d` (`coreyt/cudarc`
@@ -25,16 +27,23 @@ Slice 31 (cudarc and Candle forks) is in progress; the fork work is done:
   `fathomdb/qualification/2026-10-13-FK5-publish-182ceab0.md`). 0.11.0, not
   0.10.4, because the change replaces a re-exported dependency (seq-324).
 - Each registry crate equals its dry run and its sources equal its commit.
-- Slice 31 `requirements.md` is revised after R-REQ.
-- FathomDB still builds against the vendored `third_party/cudarc-0.19.7`.
+- W1 to W3 (requirements, design, test plan) are revised after their Opus
+  reviews.
+- W6 on windchill3 is done on `slice/0.8.28-31-cudarc-fork` at `48c2aa9bf`:
+  FathomDB pins the registry fork crates (pin commit `aa898677f`), the
+  vendored cudarc is deleted, and the feature-complete gate and the RTX 3090
+  CUDA cells pass. The lock-set guard waits on the cudarc fork's records-only
+  run.
 
 ## Immediate next action
 
-1. Slice 31 W2 design (R-DES) and W3 test plan (R-TEST), each with its own
-   Opus review.
-2. Slice 31 W6: pin registry `cudarc-fathomdb` `=0.19.10` and the Candle
-   crates `=0.11.0`, patch `candle-kernels` by git at K9, delete the
-   vendored cudarc, and run the full gate and the GPU regression cells.
+| Step | Action |
+| --- | --- |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Continue Slice 31 (CUDARC-FORK)** — consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13). **Remaining ladder:** 31.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
+
+Within Slice 31: the cudarc fork records the W6 lock set (FT-3); then the
+Orin windows P, A, B and C; then the two owner-approved GCP sessions; then
+R-CODE-3 and R-VERIFY.
 
 ## Open decisions
 

@@ -10,7 +10,7 @@
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "ladder": [
     {"slice": 30, "short": "TEGRA-POOL", "title": "Tegra private CUDA memory pool as the aarch64 integrated-GPU default (D28-08)", "depends_on": [], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.28/features/slice-30/plan.md", "dev/plans/0.8.28/features/slice-30/design.md", "dev/plans/0.8.28/features/slice-30/status.md"], "sha": "8d53418d1493090502501180d9223172ae95eaba", "evidence": "Status COMPLETE on release/0.8.28: Opus code review findings CR-1 to CR-6 fixed red then green, AC30-01 to AC30-11 verified, Orin qualification G1, G2, G4 to G7 PASS with G3, G8 and G9 PARTIAL and dispositioned."},
-    {"slice": 31, "short": "CUDARC-FORK", "title": "consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13)", "depends_on": [30], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.28/features/slice-31/plan.md"], "sha": null, "evidence": "Fork-first order done: cudarc-fathomdb 0.19.10 (from b777f8d) and candle-core/nn/transformers-fathomdb 0.11.0 (from Candle K9 182ceab0) published to crates.io on 2026-10-13, each registry crate verified against its commit; W1 requirements revised after R-REQ; next W2 design (R-DES), W3 test plan (R-TEST), then W6."}
+    {"slice": 31, "short": "CUDARC-FORK", "title": "consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13)", "depends_on": [30], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.28/features/slice-31/plan.md"], "sha": null, "evidence": "Fork-first order done: cudarc-fathomdb 0.19.10 (from b777f8d) and candle-core/nn/transformers-fathomdb 0.11.0 (from Candle K9 182ceab0) published to crates.io on 2026-10-13, each registry crate verified against its commit; W1 to W3 revised after R-REQ, R-DES and R-TEST; W6 on windchill3 done at 48c2aa9bf on slice/0.8.28-31-cudarc-fork; next the fork lock-set record, the Orin windows and the GCP sessions."}
   ],
   "landed": [],
   "next_slice": 31,
@@ -37,6 +37,9 @@
   "release_readiness": null,
   "published": null,
   "generated_views": [
-    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"}
+    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"},
+    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.28.md", "location": "Immediate next slice", "renders": "the next slice and remaining ladder"},
+    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Current state", "renders": "the next slice and release-branch completion set"},
+    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Immediate next action", "renders": "the lifecycle-aware next action"}
   ]
 }

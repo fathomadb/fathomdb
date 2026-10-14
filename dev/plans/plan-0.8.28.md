@@ -79,6 +79,11 @@ unless a placement decision adds a slice; it is never an implicit patch lane.
 
 ## Immediate next slice
 
+<!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 31** (`CUDARC-FORK`) — consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13)
+
+**Remaining ladder:** 31.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+
 Slice 31, in progress. Its § 8.1 and its `status.md` on
 `slice/0.8.28-31-cudarc-fork` give the current step.
 

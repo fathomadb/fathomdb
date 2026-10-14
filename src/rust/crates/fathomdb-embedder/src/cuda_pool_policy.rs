@@ -1592,6 +1592,39 @@ mod driver {
         let counters = CudarcDriver.pool_counters(&private.pool)?;
         Ok(Some((counters, private.max_size_bytes)))
     }
+
+    /// The private pool's counters read without any synchronization, so a
+    /// release that waits for the next synchronization point stays visible;
+    /// `None` without a private decision.
+    #[cfg(test)]
+    pub(crate) fn private_pool_counters_unsynchronized(
+    ) -> Result<Option<PoolCounters>, DriverFailure> {
+        let Some(Decision::Private(private)) = DECISION.get() else {
+            return Ok(None);
+        };
+        CudarcDriver.pool_counters(&private.pool).map(Some)
+    }
+
+    /// The device default pool's `reserved_current` and `used_high` on
+    /// `ordinal`. Needs an initialized driver.
+    #[cfg(test)]
+    pub(crate) fn default_pool_counters(ordinal: usize) -> Result<(u64, u64), DriverFailure> {
+        let device = result::device::get(ordinal as i32).map_err(failure)?;
+        // SAFETY: device comes from cuDeviceGet.
+        let pool = unsafe { result::device::get_default_mem_pool(device) }.map_err(failure)?;
+        let read = |attr: sys::CUmemPool_attribute| -> Result<u64, DriverFailure> {
+            let mut value: u64 = 0;
+            // SAFETY: the default pool lives as long as the device; both
+            // attributes are `cuuint64_t`.
+            unsafe { result::mem_pool::get_attribute(pool, attr, (&mut value as *mut u64).cast()) }
+                .map_err(failure)?;
+            Ok(value)
+        };
+        Ok((
+            read(sys::CUmemPool_attribute::CU_MEMPOOL_ATTR_RESERVED_MEM_CURRENT)?,
+            read(sys::CUmemPool_attribute::CU_MEMPOOL_ATTR_USED_MEM_HIGH)?,
+        ))
+    }
 }
 
 #[cfg(all(
@@ -1601,7 +1634,9 @@ mod driver {
     target_arch = "aarch64",
     any(feature = "embed-cuda", feature = "rerank-cuda")
 ))]
-pub(crate) use driver::private_pool_counters;
+pub(crate) use driver::{
+    default_pool_counters, private_pool_counters, private_pool_counters_unsynchronized,
+};
 
 #[cfg(all(
     feature = "tegra-pool",
@@ -1643,3 +1678,7 @@ pub fn cuda_context_state(ordinal: usize) -> Option<CudaPrimaryContextState> {
 #[cfg(test)]
 #[path = "cuda_pool_policy_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "cuda_pool_slice31_tests.rs"]
+mod slice31_tests;

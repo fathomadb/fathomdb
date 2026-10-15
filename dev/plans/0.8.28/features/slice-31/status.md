@@ -257,6 +257,23 @@ run; Orin build directories `src-*`, `target-0bfc3e783713`,
 `target-32295692f56b`, `target-red` and the window scripts and bundles
 under `~/fathomdb-slice31/` are left for removal (about 16 GB).
 
+### Orin G8 soak characterization (2026-10-15)
+
+Window B's Node G8 drift (+12.1 %) was characterized with 60-minute soaks,
+pool on and pool off. The owner accepted G8 as measured (Q39, steward ledger
+seq 345) on the justification in
+[2026-10-15-ORIN-G8-SOAK-32295692f56b.md](qualification/2026-10-15-ORIN-G8-SOAK-32295692f56b.md):
+
+- Python's +1.0 MiB per minute is the harness's per-minute allocator churn,
+  identical with the pool off.
+- Node rises to a bounded plateau with or without the pool; the pool adds
+  a fixed about 40 MiB of unified memory.
+- No errors, mismatches, swap or system memory loss.
+
+The 0.8.29 todo TC-84f7f62d replaces the drift bound with a plateau
+criterion. The harness's G3 median bound now matches the ruled 0.400 MiB
+(`9844eeba8`); window B's Python G3 (median 0.380) passes.
+
 ## Next
 
 W6 on windchill3 is done through Phase C except the Orin-only work (above).

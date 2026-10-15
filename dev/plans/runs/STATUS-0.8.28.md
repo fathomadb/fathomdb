@@ -12,10 +12,11 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 31 (CUDARC-FORK), IN_PROGRESS.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
+**The slice ladder is complete.** Completed on `release/0.8.28`: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`).
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
-Slice 31 (cudarc and Candle forks) is in progress:
+Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
+(qualification: `dev/plans/0.8.28/features/slice-31/qualification.md`):
 
 - `cudarc-fathomdb` 0.19.10 is on crates.io, published on 2026-10-13 from
   the qualified fork commit `b777f8d` (`coreyt/cudarc`
@@ -39,11 +40,11 @@ Slice 31 (cudarc and Candle forks) is in progress:
 
 | Step | Action |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Continue Slice 31 (CUDARC-FORK)** — consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13). **Remaining ladder:** 31.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
+| **Immediate next action** | **Owner decisions:** the open decisions below, then publication of 0.8.28 (Slice 31 plan W8, then R-CODE-4). |
 
-Within Slice 31: the cudarc fork records the W6 lock set (FT-3); then the
-Orin windows P, A, B and C; then the two owner-approved GCP sessions; then
-R-CODE-3 and R-VERIFY.
+Slice 31's qualification is complete: the Orin windows P, A, B and C, the
+RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured
+(Q39); R-CODE-3 and R-VERIFY findings are fixed.
 
 ## Open decisions
 

@@ -1,6 +1,6 @@
 {
   "release": "0.8.28",
-  "release_kind": "active release; Slice 31 in progress; publication not authorized",
+  "release_kind": "active release; Slice 31 complete on the release branch; publication not authorized",
   "board": "dev/plans/runs/STATUS-0.8.28.md",
   "plan": "dev/plans/plan-0.8.28.md",
   "active_ref": "refs/heads/release/0.8.28",
@@ -10,11 +10,11 @@
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "ladder": [
     {"slice": 30, "short": "TEGRA-POOL", "title": "Tegra private CUDA memory pool as the aarch64 integrated-GPU default (D28-08)", "depends_on": [], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.28/features/slice-30/plan.md", "dev/plans/0.8.28/features/slice-30/design.md", "dev/plans/0.8.28/features/slice-30/status.md"], "sha": "8d53418d1493090502501180d9223172ae95eaba", "evidence": "Status COMPLETE on release/0.8.28: Opus code review findings CR-1 to CR-6 fixed red then green, AC30-01 to AC30-11 verified, Orin qualification G1, G2, G4 to G7 PASS with G3, G8 and G9 PARTIAL and dispositioned."},
-    {"slice": 31, "short": "CUDARC-FORK", "title": "consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13)", "depends_on": [30], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.28/features/slice-31/plan.md"], "sha": null, "evidence": "Fork-first order done: cudarc-fathomdb 0.19.10 (from b777f8d) and candle-core/nn/transformers-fathomdb 0.11.0 (from Candle K9 182ceab0) published to crates.io on 2026-10-13, each registry crate verified against its commit; W1 to W3 revised after R-REQ, R-DES and R-TEST; W6 on windchill3 done at 48c2aa9bf on slice/0.8.28-31-cudarc-fork; next the fork lock-set record, the Orin windows and the GCP sessions."}
+    {"slice": 31, "short": "CUDARC-FORK", "title": "consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13)", "depends_on": [30], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.28/features/slice-31/plan.md", "dev/plans/0.8.28/features/slice-31/design.md", "dev/plans/0.8.28/features/slice-31/status.md", "dev/plans/0.8.28/features/slice-31/qualification.md"], "sha": "1ceefddd894c041b0a8622856dc2677be3e49c88", "evidence": "Status COMPLETE on release/0.8.28: FathomDB consumes cudarc-fathomdb 0.19.10 and the Candle fork 0.11.0 from crates.io and the vendored cudarc is deleted; design revision 6 (N1 close release, D-19 probe read, CUDA features imply tegra-pool, SDK pool settings) implemented RED then GREEN; R-CODE-3 and R-VERIFY (Opus) findings fixed; qualification complete: T-CUDA and PERF-03 on the RTX 3090 (new/base 0.899), Orin windows P, A, B and C (G8 accepted as measured, Q39), GCP S-C3 and S-13 (CUDA 13.0) pass; Tegra on CUDA 13 UNMEASURED (Q5). Remaining in the slice plan: W8 publication (owner) and R-CODE-4."}
   ],
   "landed": [],
-  "next_slice": 31,
-  "remaining_ladder": [31],
+  "next_slice": null,
+  "remaining_ladder": [],
   "decisions": {
     "unruled": [
       {"id": "d28-09-12-placement", "title": "Place the owner-directed D28-09 to D28-12 items on the 0.8.28 ladder, or move them to a later release."},
@@ -37,9 +37,6 @@
   "release_readiness": null,
   "published": null,
   "generated_views": [
-    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"},
-    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.28.md", "location": "Immediate next slice", "renders": "the next slice and remaining ladder"},
-    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Current state", "renders": "the next slice and release-branch completion set"},
-    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Immediate next action", "renders": "the lifecycle-aware next action"}
+    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"}
   ]
 }

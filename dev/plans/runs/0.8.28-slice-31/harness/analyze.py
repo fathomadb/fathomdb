@@ -143,7 +143,8 @@ def growth(x: list[float]) -> float | None:
 
 
 def g3(root: str) -> None:
-    limits = {"node": (100, 0.36, 0.44), "py": (50, 0.36, 0.44)}
+    # Median bound 0.400 MiB per cycle: owner ruling 2026-10-08 (slice-30 plan G3; slice-31 test-plan G3).
+    limits = {"node": (100, 0.400, 0.44), "py": (50, 0.400, 0.44)}
     for lang, (cycles, lim_med, lim_max) in limits.items():
         rs = runs(f"{root}/g3/{lang}")
         print(f"G3 {lang}: {outcome_line(rs)} cycles={cycles}")

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — design (W2)
-status: revision 5 (2026-10-14), § 15 (pool mode on the SDK surface, Q33) and § 14.1 (close contract, Q34) revised after review, awaiting re-review; § 14.2 (D-19, Q30) awaiting R-DES-4 fixes; revision 3 sections ready for W6
+status: revision 5 (2026-10-14), § 15 (pool settings on the SDK surface, Q33, Q35) and § 14.1 (close contract, Q34) revised after review, awaiting re-review; § 14.2 (D-19, Q30) awaiting R-DES-4 fixes; revision 3 sections ready for W6
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---
@@ -2031,7 +2031,7 @@ needed with (b); not recommended.
 - Unchanged and re-run: Slice 30's hook tests and window A's Node and
   Python rows (the hooks record first, so `ran` stays `ran`).
 
-## 15. Revision 5: the pool mode on the SDK surface (owner ruling Q33)
+## 15. Revision 5: the pool settings on the SDK surface (owner rulings Q33, Q35)
 
 The owner ruled (2026-10-14, steward ledger seq 339, Q33) that the pool's
 on/off switch belongs on the SDK surface, with `FATHOMDB_POOL_MODE` kept
@@ -2101,9 +2101,9 @@ users must be told plainly that settings cannot be mixed in one process
   any engine. They use the mode in force, else the environment. A
   per-call parameter on a cached singleton would conflict on every later
   call with another value.
-- **Other pool settings.** `FATHOMDB_POOL_MAXSIZE` and
-  `FATHOMDB_POOL_RELEASE_THRESHOLD` stay environment-only unless the
-  owner rules otherwise (open point R5-1).
+- **Other pool settings.** The pool size and release threshold join
+  `cuda_pool` on the same surface under the same rules (owner ruling
+  Q35, § 15.9).
 
 ### 15.2 The mode in force
 
@@ -2234,25 +2234,26 @@ contract is the same on every platform, and an any-host test proves it.
   `cuda_pool` fails with the conflict, which is correct: that embedder
   is on the other mode.
 
-### 15.6 Library-user documentation: one mode per process
+### 15.6 Library-user documentation: one pool configuration per process
 
 Every SDK reference (`docs/` Rust, Python and TypeScript pages, and
 `docs/embedder.md`) carries this note next to the setting, in these
 words or close to them:
 
-> **One pool mode per process.** The first GPU pool mode in force holds
-> for the whole process: set by the first `open` that passes `cuda_pool`,
-> or, if none does, by `FATHOMDB_POOL_MODE` (default `auto`) at the first
-> GPU use. A later `open` asking for a different `cuda_pool` fails with
-> an invalid-argument error that names the mode in force. Closing every
-> engine does not reset it. Opens that omit `cuda_pool` never fail this
-> way. The rule applies on every platform, including machines where the
+> **One pool configuration per process.** The GPU pool settings
+> (`cuda_pool`, `cuda_pool_max_size`, `cuda_pool_release_threshold`) are
+> fixed once per process: by the first `open` that passes any of them,
+> or, if none does, by the `FATHOMDB_POOL_*` environment variables (or
+> their defaults) at the first GPU use. A later `open` that sets one of
+> them to a different value fails with an invalid-argument error naming
+> the setting and the value in force. Closing every engine does not reset
+> them. Opens that omit them never fail this way. The rule applies on every platform, including machines where the
 > pool never engages (x86, discrete GPUs, CPU-only engines), so the same
 > code behaves the same everywhere.
 >
-> In practice: pick one value per process, or leave it unset. A test
+> In practice: pick one set of values per process, or leave them unset. A test
 > suite that runs in one process (for example a single pytest run) must
-> not open engines with different `cuda_pool` values; run such cases in
+> not open engines with different pool settings; run such cases in
 > separate processes.
 
 The same note goes in `dev/interfaces/rust.md`, `python.md`,
@@ -2314,12 +2315,109 @@ interface docs change in the same change. Also:
 - **x86 (RTX 3090 by UUID):** `cuda_pool=on` opens and embeds; the
   conflict rule behaves as on the Orin.
 
-### 15.9 Open points
+### 15.9 Pool size and release threshold on the SDK surface (owner ruling Q35)
 
-- **R5-1 (owner).** Move `max_size` and `release_threshold` onto the SDK
-  surface in 0.8.28? Q34 fixes what `max` means, which removes the main
-  reason to wait. Both would use the same mode-in-force rule (one value
-  per process, compared on later opens).
+The owner ruled (steward ledger seq 341, Q35) that the pool size and the
+release threshold move to the SDK surface in 0.8.28, beside `cuda_pool`,
+with their environment variables as fallbacks and the same
+one-value-per-process rule. Q34 fixed what `max` means (§ 14.1), so the
+threshold goes public with a defined contract.
+
+**Surface** (the same rows as § 15.1):
+
+| Setting | Rust | Python | TypeScript | CLI flag | Fallback |
+| --- | --- | --- | --- | --- | --- |
+| pool size | `cuda_pool_max_size: Option<u64>` (bytes) | `cuda_pool_max_size: int \| None` | `cudaPoolMaxSize?: number` (a safe integer) | `--cuda-pool-max-size <bytes\|<n>G\|<n>M>` | `FATHOMDB_POOL_MAXSIZE` |
+| release threshold | `cuda_pool_release_threshold: Option<ReleaseThreshold>` | `Literal["0", "max"] \| None` | `"0" \| "max"` | `--cuda-pool-release-threshold <0\|max>` | `FATHOMDB_POOL_RELEASE_THRESHOLD` |
+
+- The SDKs take the size as a byte count; only the CLI flag and the
+  environment take the `<n>G` / `<n>M` forms. The threshold uses the
+  strings `"0"` and `"max"` in every SDK, matching
+  `ReleaseThreshold::as_str` and the report, so the value a caller
+  writes is the value they read back. `ReleaseThreshold` is already
+  public (`cuda_pool_policy.rs:170`) and is re-exported beside
+  `CudaPoolMode`.
+- **Validation at open.** The size must be at least 32 MiB
+  (`MAXSIZE_MIN`, `cuda_pool_policy.rs:52`) and, in TypeScript, a safe
+  integer; otherwise Python `ValueError`, TypeScript `TypeError`, Rust
+  `EngineConfigurationError::OutOfRange`. The upper bound (device
+  memory) is known only at the decision: a size above it falls back with
+  `invalid_setting`, as the environment does today, and the report shows
+  it (R5-5).
+
+**The configuration in force.** § 15.2 generalises from the mode to all
+three settings:
+
+```rust
+pub(crate) struct PoolConfigInForce {
+    mode: Field<PoolMode>,
+    max_size: Field<u64>,          // Default = derived from device memory
+    release_threshold: Field<ReleaseThreshold>,
+}
+pub(crate) enum Field<T> { Set { value: T, source: ModeSource }, Default, InvalidEnv }
+static POOL_CONFIG_IN_FORCE: OnceLock<PoolConfigInForce>;
+```
+
+- **Set once, all three together.** The first open that passes any pool
+  setting, or else the first device build, fixes all three: each field
+  is the requested value (`sdk`), else its environment value (`env`),
+  else `Default` (or `InvalidEnv` for a malformed environment value).
+  A malformed environment value for a field the open sets is ignored:
+  the SDK value wins.
+- **Later opens compare field by field.** Each field the open sets must
+  equal the field in force (`Set` with the same value); a field in force
+  as `Default` or `InvalidEnv` conflicts with any explicit value. Fields
+  the open omits never conflict. The conflict error (§ 15.3) names the
+  first conflicting setting:
+  `CudaPoolSettingConflict { setting, requested, in_force, source }`,
+  which replaces `CudaPoolModeConflict`.
+- **`off` still wins.** `pre_device_gates` is unchanged, so `mode = off`
+  turns the pool off even when another field is `InvalidEnv`.
+- **The decision is unchanged.** `CudarcDriver::raw_settings()` renders
+  the configuration in force as `RawPoolSettings` strings (the size in
+  bytes, the threshold as `"0"` / `"max"`, `None` for `Default`, the raw
+  environment string for `InvalidEnv`), so the frozen pipeline parses
+  and gates them exactly as today.
+
+**Report.** `CudaAllocatorReport` already carries `pool_max_size_bytes`
+and `release_threshold` for a private pool (`cuda_pool_policy.rs:252-254`).
+It gains a source per field: `pool_mode_source`,
+`pool_max_size_source`, `pool_release_threshold_source` (`"sdk"`,
+`"env"`, `"default"`, or null when not applicable). The
+`doctor cuda-allocator` record follows (§ 15.4).
+
+**Library-user note.** § 15.6's note becomes "One pool configuration per
+process" and covers all three settings: the first configuration in force
+holds; a later open that sets any of the three to a different value
+fails; opens that omit them never fail.
+
+**Tests** (in addition to § 15.8):
+
+- Any host, pure: the per-field table (each field `Set`, `Default`,
+  `InvalidEnv` against requested equal, different and omitted); mixed
+  sources (mode from the SDK, size from the environment, threshold
+  default); the SDK value winning over a malformed environment value;
+  `raw_settings` rendering of every field state; the size lower bound
+  and the safe-integer check.
+- Any host, engine and SDKs: a second open with a different size or
+  threshold conflicts, naming the setting; read-back of all three
+  settings in Rust, Python and TypeScript.
+- Orin parity matrix, per SDK: `cuda_pool_max_size` from the SDK beats
+  the environment (report `pool_max_size_bytes` and source `sdk`);
+  `cuda_pool_release_threshold = "max"` from the SDK gives the § 14.1
+  contract (two models: reserved memory kept after the first close,
+  returned after the last); a size above device memory gives
+  `invalid_setting`.
+
+### 15.10 Open points
+
+- **R5-1.** Ruled: the pool size and release threshold move to the SDK
+  surface in 0.8.28 (owner ruling Q35, § 15.9).
+- **R5-5.** A pool size above device memory can be found only at the
+  decision, which need not happen inside an open. Recommended: fall back
+  with `invalid_setting` and show it in the report, as the environment
+  does today, rather than fail an open that may not be the one that
+  decided.
 - **R5-2.** Compare modes, not outcomes: adopted (review agrees).
 - **R5-3.** Keep the mode set by a failed open: adopted (review agrees).
 - **R5-4.** No mode parameter on direct Rust constructors in 0.8.28:
@@ -2403,13 +2501,16 @@ cudarc 0.19.7; Fathom Candle fork 0.10.3"; `status` adds "amended
 >    is not a release signal on Tegra. None changes the sizing rule.
 > 8. **Why CUDA 12.x** is recorded in ADR-0.8.28-cuda-version-support-policy
 >    (Slice 31 plan § 15 Q6).
-> 9. **The pool mode is an open setting.** Every SDK's open takes
->    `cuda_pool` (`auto`, `on`, `off`); `FATHOMDB_POOL_MODE` applies only
->    when the open does not set it. The first mode in force holds for the
->    life of the process; an open asking for another mode fails with a
->    configuration error naming the mode in force and its source (owner
->    ruling Q33; Slice 31 design § 15). This amends the "Settings"
->    component, which named only environment variables.
+> 9. **The pool settings are open settings.** Every SDK's open takes
+>    `cuda_pool` (`auto`, `on`, `off`), `cuda_pool_max_size` (bytes) and
+>    `cuda_pool_release_threshold` (`0`, `max`); each
+>    `FATHOMDB_POOL_*` environment variable applies only when the open
+>    does not set its setting. The first configuration in force holds for
+>    the life of the process; an open that sets one of them to another
+>    value fails with an invalid-argument error naming the setting, the
+>    value in force and its source (owner rulings Q33, Q35; Slice 31
+>    design § 15). This amends the "Settings" component, which named only
+>    environment variables.
 >
 > **Superseded statements in this ADR.**
 >

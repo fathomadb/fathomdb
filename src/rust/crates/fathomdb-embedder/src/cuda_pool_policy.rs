@@ -430,18 +430,28 @@ pub(crate) fn parse_pool_mode(raw: Option<&str>) -> Result<PoolMode, InvalidSett
 /// (MiB). Bounds need the device total and are checked with the gates.
 pub(crate) fn parse_max_size(raw: Option<&str>) -> Result<Option<u64>, InvalidSetting> {
     let Some(raw) = raw else { return Ok(None) };
-    let bad = || invalid(ENV_POOL_MAXSIZE, raw, "a byte count, <n>G or <n>M");
+    parse_pool_max_size_bytes(raw)
+        .map(Some)
+        .ok_or_else(|| invalid(ENV_POOL_MAXSIZE, raw, "a byte count, <n>G or <n>M"))
+}
+
+/// The pool-size syntax shared by `FATHOMDB_POOL_MAXSIZE` and the CLI's
+/// `--cuda-pool-max-size`: a byte count, `<n>G` (GiB) or `<n>M` (MiB), in
+/// bytes; `None` when malformed or overflowing. No bounds are checked.
+/// Binding support, not an SDK surface.
+#[doc(hidden)]
+#[must_use]
+pub fn parse_pool_max_size_bytes(raw: &str) -> Option<u64> {
     let (digits, shift) = match raw.as_bytes().last() {
         Some(b'G') => (&raw[..raw.len() - 1], 30),
         Some(b'M') => (&raw[..raw.len() - 1], 20),
         _ => (raw, 0),
     };
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(bad());
+        return None;
     }
-    let value: u64 = digits.parse().map_err(|_| bad())?;
-    let bytes = value.checked_shl(shift).filter(|b| b >> shift == value).ok_or_else(bad)?;
-    Ok(Some(bytes))
+    let value: u64 = digits.parse().ok()?;
+    value.checked_shl(shift).filter(|b| b >> shift == value)
 }
 
 pub(crate) fn parse_release_threshold(

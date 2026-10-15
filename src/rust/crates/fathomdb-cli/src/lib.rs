@@ -272,17 +272,8 @@ fn parse_cuda_pool(raw: &str) -> Result<fathomdb_embedder::PoolMode, String> {
 }
 
 fn parse_cuda_pool_max_size(raw: &str) -> Result<u64, String> {
-    let (digits, shift) = match raw.as_bytes().last() {
-        Some(b'G') => (&raw[..raw.len() - 1], 30),
-        Some(b'M') => (&raw[..raw.len() - 1], 20),
-        _ => (raw, 0),
-    };
-    let bad = || format!("expected a byte count, <n>G or <n>M; got {raw:?}");
-    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Err(bad());
-    }
-    let value: u64 = digits.parse().map_err(|_| bad())?;
-    let bytes = value.checked_shl(shift).filter(|bytes| bytes >> shift == value).ok_or_else(bad)?;
+    let bytes = fathomdb_embedder::parse_pool_max_size_bytes(raw)
+        .ok_or_else(|| format!("expected a byte count, <n>G or <n>M; got {raw:?}"))?;
     if bytes < fathomdb_embedder::CUDA_POOL_MAX_SIZE_MIN {
         return Err(format!(
             "must be at least {} bytes (32 MiB); got {bytes}",

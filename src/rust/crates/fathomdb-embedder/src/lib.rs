@@ -30,7 +30,8 @@ pub use cuda_pool_policy::{
 // The process's pool configuration; engine binding support, not SDK surface.
 #[doc(hidden)]
 pub use cuda_pool_policy::{
-    claim_pool_config, fix_pool_config_from_env, pool_settings_in_force, PoolSettingsInForce,
+    claim_pool_config, fix_pool_config_from_env, parse_pool_max_size_bytes, pool_settings_in_force,
+    PoolSettingsInForce,
 };
 // Driver facts for `doctor cuda-allocator`; binding support, not SDK surface.
 #[doc(hidden)]

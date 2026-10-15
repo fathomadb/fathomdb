@@ -197,12 +197,19 @@ fn gpu_orin_64_slice31_child() {
             let first = loaded_embedder();
             let second = loaded_embedder();
             let before = second.embed("the surviving model").expect("embed before");
+            let open = private_pool_counters_unsynchronized()
+                .expect("pool counters")
+                .expect("private decision");
+            println!("slice31-child: two-models with both open {open:?}");
             drop(first);
             let kept = private_pool_counters_unsynchronized()
                 .expect("pool counters")
                 .expect("private decision");
             println!("slice31-child: two-models after the first close {kept:?}");
-            assert!(kept.reserved_current > 0, "{kept:?}");
+            // Nothing allocates between the two reads, and under `max` only a
+            // trim can release, so a close that trimmed while the second model
+            // is open would lower it: the reservation must be unchanged.
+            assert_eq!(kept.reserved_current, open.reserved_current, "{open:?} -> {kept:?}");
             println!("slice31-child: two-models first-close kept {}", kept.reserved_current);
             let after = second.embed("the surviving model").expect("embed after");
             assert_eq!(before, after, "the surviving model's output must not change");

@@ -161,9 +161,11 @@ pub struct CudaAllocatorReport {
     /// The pool mode in force (`auto`, `on`, `off`); absent for a malformed
     /// `FATHOMDB_POOL_MODE`.
     pub pool_mode: Option<String>,
-    /// `sdk`, `env` or `default`, for the mode, size and threshold in force.
+    /// Where the pool mode in force came from: `sdk`, `env` or `default`.
     pub pool_mode_source: Option<String>,
+    /// Where the pool size in force came from: `sdk`, `env` or `default`.
     pub pool_max_size_source: Option<String>,
+    /// Where the release threshold in force came from: `sdk`, `env` or `default`.
     pub pool_release_threshold_source: Option<String>,
 }
 

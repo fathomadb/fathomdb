@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — design (W2)
-status: revision 5 (2026-10-14), § 15 (pool settings on the SDK surface, Q33, Q35) and § 14.1 (close contract, Q34) re-reviewed (Fable, APPROVE-WITH-FIXES, fixes applied); § 14.2 (D-19, Q30) awaiting R-DES-4 fixes; revision 3 sections ready for W6
+status: revision 6 (2026-10-14), § 14.2 (D-19 probe read, Q36) and § 14.3 (CUDA features imply tegra-pool, Q37) ruled; § 15 (pool settings on the SDK surface, Q33, Q35) and § 14.1 (close contract, Q34) re-reviewed (Fable, APPROVE-WITH-FIXES, fixes applied); revision 3 sections ready for W6
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---
@@ -42,7 +42,14 @@ rerank verb, and the `libcuda.so.1`-only cell moves into the C3 session
 
 **Revision 4** adds § 14 after Orin window P: N1 is implemented (owner
 ruling Q29) and D-19 gives a plain Rust process the private pool through
-a first-use init at the allocator decision (owner ruling Q30).
+a first-use init at the allocator decision (owner ruling Q30; replaced
+by the probe read in revision 6).
+
+**Revision 6** records the owner's rulings on § 14.2 and adds § 14.3.
+Under Q36, a plain Rust process reaches the pool through the `cuInit`
+its embedder probe already made; there is no first-use call. Under Q37,
+`embed-cuda` and `rerank-cuda` imply `tegra-pool` in every crate, and the
+feature name is kept.
 
 **Revision 5** adds § 15: the pool mode becomes an open setting,
 `cuda_pool`, in every SDK, with `FATHOMDB_POOL_MODE` as the fallback; the
@@ -1964,76 +1971,193 @@ H-1 (Slice 30 § 2.5: a child forked after `cuInit` cannot use CUDA; F1)
 before any FathomDB call. It also adds code before `main`, which Rust
 does not support. Rejected.
 
-**Option (b), recommended: first-use init at the allocator decision.**
+**Ruled: the probe read (owner ruling Q36, 2026-10-14).** Revision 4
+proposed a first-use `cuInit` at the decision (option (b) below). The
+owner chose a pure read instead: the decision accepts a `cuInit` that a
+FathomDB probe already made, and FathomDB makes no new call.
 
-- **Where.** `fathomdb-embedder`, at the decision's existing seam
-  `PoolDriver::module_load_init()` (`CudarcDriver`,
-  `cuda_pool_policy.rs:1398`). Every Rust caller (engine, facade, SDK,
-  CLI) reaches it with no code of its own.
-- **Rule** (a pure function `first_use_outcome(recorded, opted_out,
-  init)` in `cuda_driver_init.rs`, tested on every host):
-  1. a recorded load outcome wins and is returned unchanged; no second
-     `cuInit` (so the N-API, PyO3 and CLI hooks, which record before any
-     export or probe runs, keep their behaviour, including `Failed` and
-     `SkippedCpuOnly`);
-  2. none recorded and `FATHOMDB_CUDA_EARLY_INIT=off`: record `OptedOut`
-     (reason `cuinit_opted_out`), so the opt-out means the same in Rust;
-  3. none recorded: call `cuInit` (idempotent); on success record the new
-     `ModuleLoadInit::RanAtFirstUse` (`"ran_at_first_use"`), which
-     `init_gate` admits; on failure record nothing (`not_at_load`, reason
-     `cuinit_not_at_load`). The write is compare-and-set under the existing
-     `MODULE_LOAD_INIT` mutex, so the report, `doctor` and the decision see
-     one value.
-- **Tegra address space.** The constraint is on `cuInit` itself (a 4 GiB
-  hole in [8 GiB, 128 GiB); study "The two failures"), and its known
-  fragmenter is the V8 heap. In a Rust process the first `cuInit` is
-  already the embedder probe's (`candle_bge.rs` `enumerate_visible_cuda_devices`),
-  made before the first device build, so (b) adds no new `cuInit` timing
-  and no new H-1 exposure: 0.8.27 Rust processes initialised at the same
-  point. The one new mapping is the pool (about `maxSize`/3 = 1 GiB
-  contiguous, study Phase 1); if a host has fragmented the window, pool
+- **Why the load-time gate exists.** `cuInit` needs a 4 GiB hole in
+  [8 GiB, 128 GiB) of the Tegra address space (study "The two
+  failures"). Its known fragmenter is the V8 heap. Node therefore has to
+  initialise at load, and the qualification evidence was collected in
+  processes whose hook ran first. A plain Rust process has no V8 heap.
+  Its first `cuInit` is the embedder probe's
+  (`candle_bge.rs` `enumerate_visible_cuda_devices`, recorded as
+  `CudaInitCaller::EmbedderProbe` or `RerankerProbe` in
+  `cuda_driver_init.rs`), made before the first device build, at the same
+  point as in 0.8.27.
+- **Rule.** In `CudarcDriver`'s path the gate admits
+  `ModuleLoadInit::NotAtLoad` when the process's most recent `cuInit`
+  attempt succeeded (`last_cuda_driver_init() ==
+  Some(CudaDriverInit::Initialized)`, any caller). Every other value keeps
+  its current outcome. FathomDB adds no `cuInit` call and no timing
+  change, and H-1 exposure is unchanged.
+- **Frozen tests.** The new input reaches the pipeline through a new
+  `PoolDriver` method (for example `driver_initialized(&self) -> bool`)
+  with a default of `false`, so the frozen file's `FakeDriver` compiles
+  unchanged and keeps today's `cuinit_not_at_load` outcomes. Do not
+  change `decide`'s signature or `init_gate`'s existing arms, and do not
+  widen `module_load_init()`.
+- **Report.** No new `ModuleLoadInit` value. A Rust process that reached
+  the pool reports `module_load_init = not_at_load`, `path = private`,
+  `reason = private_pool`. `ModuleLoadInit` is not made
+  `#[non_exhaustive]` for this.
+- **Reach.** The probe runs before the first device build on every
+  resolver path: the engine's default embedder, a caller's
+  `CandleBgeEmbedder::new()`, the engine reranker, the SDK standalone and
+  CLS helpers, and the CLI doctors. Two constructors skip the probe and
+  stay on the 0.8.27 path, which is safe: the TC5 benchmark's
+  `new_from_local_asset_on_device_attested(ExplicitCandleDevice::Cuda(n))`
+  and `new_from_weights_with_device_resolution` with a caller-built
+  `DeviceResolution`. `rust-sdk.md` names both.
+- **A host that called `cuInit` itself.** The call is idempotent and the
+  read admits it. If the host has already fragmented the window, pool
   creation fails and the process takes the 0.8.27 path with
-  `pool_create_failed` (Slice 30 § 1 rule 2: never refuse). A Rust host
-  with a fragmented window is UNMEASURED; the fallback covers it.
-- **Policy envs.** The `FATHOMDB_POOL_*` settings are read as before;
-  an exact `cpu` policy builds no CUDA device, so nothing runs.
-- **Other builds.** Without `tegra-pool`, or off aarch64 Linux, the
-  decision code is not compiled: no change (`not_built` / `None`).
-- **Public surface.** `ModuleLoadInit` (new in 0.8.28, unpublished) gains
-  `RanAtFirstUse` and becomes `#[non_exhaustive]`; `as_str` and the
-  Python and TypeScript string sets gain `ran_at_first_use`.
-  `run_module_load_early_init` stays `#[doc(hidden)]`. Doc updates:
-  `dev/interfaces/rust.md` ("No load hook in Rust" becomes "First-use
-  init in Rust"), `rust-sdk.md` (`cuinit_not_at_load` sentence),
-  `cli.md`, `python.md` and `typescript.md` (`module_load_init` values),
-  `docs/embedder.md`, the changelog (Rust and CLI engine processes on the
-  Orin now get the private pool). ADR: Appendix A gains a paragraph
-  amending component 4 ("Rust has no load hook") to the first-use rule,
-  under ruling Q30.
+  `pool_create_failed` (Slice 30 § 1 rule 2: never refuse). This case is
+  UNMEASURED; the fallback covers it.
+- **`FATHOMDB_CUDA_EARLY_INIT=off` in Rust** has no effect. It controls
+  the Node and Python load hooks, and Rust has none. The pool opt-out in
+  every SDK is `cuda_pool = off` (§ 15), with `FATHOMDB_POOL_MODE=off` as
+  its fallback.
+- **Other builds.** Off aarch64 Linux the decision code is not compiled,
+  so nothing changes (no report on x86). § 14.3 makes `embed-cuda` and
+  `rerank-cuda` imply `tegra-pool`, so an aarch64 Linux CUDA build always
+  has the decision code.
+- **Docs.** In `dev/interfaces/rust.md`, "No load hook in Rust" becomes
+  "Rust uses the probe's `cuInit`". Also update the
+  `cuinit_not_at_load` sentence in `rust-sdk.md` (plus the two
+  constructors above), `docs/embedder.md`, and the changelog (Rust and CLI
+  engine processes on the 64 GB Orin now get the private pool). ADR:
+  appendix A decision 10.
+
+**Option (b), first-use init at the decision: rejected (Q36).** It
+called `cuInit` at `PoolDriver::module_load_init()` when nothing was
+recorded and added `ModuleLoadInit::RanAtFirstUse`. It was rejected for
+three reasons. It adds a second `cuInit` call site that the probe
+already makes redundant. It records under the module-load caller,
+which is false. It needs a new public report value. It would also have
+made `FATHOMDB_CUDA_EARLY_INIT=off` turn the pool off in Rust, giving
+one variable two meanings, and `cuda_pool = off` is now the switch for
+that.
 
 **Option (c): a public, documented init API.** It adds AC-074 governed
-surface and still requires the caller's call, which Q30 rules out. Not
-needed with (b); not recommended.
+surface and still requires the caller's call, which Q30 rules out.
+Rejected.
 
 **Tests, RED first, all GPU tests on the Orin.**
 
-- Pure (any host): `first_use_outcome` table (a recorded value is
-  returned and `init` is not called, for every variant; opted out;
-  success; failure); `init_gate(RanAtFirstUse)` is `Ok`;
-  `RanAtFirstUse.as_str()`; the napi, py and CLI mappings of the new
-  string.
-- R16 corrected (`slice31_engine_close_cuda.rs`, Q30 authorises the edit):
-  the child also prints `module_load_init` and `reason`, and the parent
-  asserts `ran_at_first_use` and `private_pool`; it still calls no init
-  function. RED today on `path=private`.
-- New `fathomdb-sdk/tests/slice31_sdk_first_use_cuda.rs`:
-  `gpu_orin_64_sdk_process_reaches_the_private_pool_without_an_init_call`
-  (child opens through the SDK with the default embedder on `cuda:0`;
-  `path=private`, `ran_at_first_use`, embeds, closes, exit 0) and
-  `gpu_orin_64_sdk_process_with_early_init_off_takes_the_0827_path`
-  (`cuinit_opted_out`, not `private`).
-- Unchanged and re-run: Slice 30's hook tests and window A's Node and
+- Pure (any host): the gate table. `NotAtLoad` together with "driver
+  initialised" is admitted. `NotAtLoad` without it gives
+  `cuinit_not_at_load`. Every other `ModuleLoadInit` value keeps its
+  outcome whether or not the driver was initialised. The default
+  `PoolDriver` method returns `false`.
+- R16 corrected (`slice31_engine_close_cuda.rs`, Q30 authorises the
+  edit): the child also prints `module_load_init` and `reason`, and the
+  parent asserts `not_at_load`, `path=private` and `private_pool`. The
+  child still calls no init function. Today this is RED on
+  `path=private`.
+- New `fathomdb-sdk/tests/slice31_sdk_probe_init_cuda.rs`:
+  - `gpu_orin_64_sdk_process_reaches_the_private_pool_without_an_init_call`:
+    the child opens through the SDK with the default embedder on
+    `cuda:0`; `path=private`; it embeds, closes and exits 0.
+  - `gpu_orin_64_sdk_process_with_cuda_pool_off_takes_the_0827_path`:
+    `mode_off`, source `sdk`.
+  - `gpu_orin_64_sdk_process_ignores_cuda_early_init_off`: env `off`, no
+    setting; `path=private`.
+- Unchanged and re-run: Slice 30's hook tests, and window A's Node and
   Python rows (the hooks record first, so `ran` stays `ran`).
+
+### 14.3 `embed-cuda` and `rerank-cuda` imply `tegra-pool` (owner ruling Q37)
+
+**Ruling.** In every crate that has a `tegra-pool` feature, `embed-cuda`
+and `rerank-cuda` also enable that crate's own `tegra-pool`. A Rust, CLI,
+Node or Python build with CUDA on aarch64 Linux therefore contains the
+pool decision. The feature name stays.
+
+The implication goes in each crate because Cargo features do not propagate
+upward. If only `fathomdb-embedder` implied `tegra-pool`, `fathomdb-py`'s
+own `tegra-pool` would stay off, and the PyO3 import hook would not be
+compiled: it is gated on that crate feature (`fathomdb-py/src/lib.rs:154-159`,
+`:181-184`, `:201-211`). The Node hook is gated only on aarch64 Linux
+with CUDA (`fathomdb-napi/src/cuda_early_init.rs:32-38`), so it is
+compiled already.
+
+**What it changes, by target.** The pool code is gated on
+`all(feature = "tegra-pool", target_os = "linux", target_arch =
+"aarch64", any(feature = "embed-cuda", feature = "rerank-cuda"))`
+(`cuda_pool_policy.rs:23-28`, `:1330-1335`), so the implication matters
+only on aarch64 Linux:
+
+| Target | Effect |
+| --- | --- |
+| x86_64 (any GPU, the RTX 3090 included) | none: the code is not compiled; no new dependency, lock entry or link requirement |
+| aarch64 Linux with a discrete GPU (Grace, Graviton) | the decision runs and falls back (`discrete`, `not_tegra` or `unmeasured_class`); the report gives that reason instead of `not_built`; one primary-context retain at the first build |
+| Jetson AGX Orin 64 GB | the pool engages (`auto`) |
+
+It adds about 1.7k lines of compiled code on aarch64 and no dependency.
+`LIBRARY_PATH` is not a new requirement: every registry `embed-cuda`
+build needs it, because registry `candle-kernels` links the CUDA runtime
+dynamically (appendix A decision 2, corrected).
+
+**Options considered.**
+
+1. **Keep the opt-in feature (0.8.27 shape).** Rust users who never name
+   `tegra-pool` never get the pool, and Node and Python users do. That
+   repeats the cross-SDK inconsistency the owner ruled out (Q32: one
+   behaviour in every SDK). Rejected.
+2. **Imply it and keep the name (chosen).** A one-line change per feature
+   in `fathomdb-embedder`. The forwarding features in the other crates, the
+   release-contract scripts that name `tegra-pool` and the feature matrix
+   keep working, and a caller who already names the feature is unaffected.
+   The cost is that a Rust build can no longer compile the pool out on
+   aarch64 Linux. `cuda_pool = off` replaces the compile-time opt-out
+   with a run-time one in every SDK (Q33).
+3. **Retire the name and rely on the cfg gates alone.** This is the
+   cleanest end state, but it touches `scripts/test-feature-matrix.toml`,
+   `scripts/agent-lint.sh:88`, `scripts/cuda-artifact-contract.sh`,
+   `scripts/check-cuda-release-contract.py` (`require_tegra_pool_only_in_tegra_sets`)
+   and `scripts/tests/test_cuda_release_contract.sh:125`, `:1135-1151`
+   in a slice whose scope is already full. A later release may retire it.
+   Not chosen for 0.8.28.
+
+Cargo features cannot depend on the target. That is acceptable here
+because the code is already target-gated, so the feature's only effect
+off aarch64 Linux is its name in the resolved feature list.
+
+**Change.**
+
+- `src/rust/crates/fathomdb-embedder/Cargo.toml`: `embed-cuda` and
+  `rerank-cuda` each add `"tegra-pool"`. The `tegra-pool` comment is
+  rewritten to say three things: both CUDA features imply it, naming it
+  explicitly is redundant, and the run-time opt-out is `cuda_pool = off`.
+  The comment cites this section
+  (`dev/plans/0.8.28/features/slice-31/design.md` § 14.3) as the record
+  of the options and of why this one was chosen.
+- The six crates that forward `tegra-pool` (`fathomdb`, `-engine`,
+  `-sdk`, `-cli`, `-napi`, `-py`): each crate's `embed-cuda` and
+  `rerank-cuda`, where it has them, add its own `"tegra-pool"`. Each
+  forwarding comment says this in one line and cites § 14.3.
+- `cuda_pool_policy.rs`: the doc comment on the cfg gate gets one line
+  naming the implication and citing § 14.3.
+- The release contract. `check-cuda-release-contract.py`'s
+  `require_tegra_pool_only_in_tegra_sets` checks the feature strings each
+  artifact build passes, not the resolved features, so the x86 sets still
+  pass. The implementer confirms this by reading the check, and records
+  the reason in the check's docstring: on x86 the implied feature compiles
+  nothing.
+- Docs: in `dev/interfaces/rust.md` and `docs/embedder.md`, `tegra-pool`
+  is "implied by `embed-cuda`/`rerank-cuda`; naming it is accepted and
+  redundant".
+- § 15.2's and § 15.4's "builds without `tegra-pool`" cases reduce to
+  "not aarch64 Linux with CUDA".
+
+**Tests, RED first.** A script test (any host) runs `cargo metadata` and
+checks that, in every crate with a `tegra-pool` feature, `embed-cuda`
+and `rerank-cuda` (where present) each list that crate's `tegra-pool`. It
+also checks that the embedder's `tegra-pool` comment cites § 14.3. The
+existing T-REGISTRY build (`scripts/check-tegra-pool-registry-build.sh`)
+passes with `embed-cuda` alone on the Orin. The Orin tests of § 14.2 run
+in a build that does not name `tegra-pool`.
 
 ## 15. Revision 5: the pool settings on the SDK surface (owner rulings Q33, Q35)
 
@@ -2185,8 +2309,8 @@ Result<ModeInForce, ModeConflict>`, tested on every host):
   the static runs in a child process (the `CHILD_TEST` pattern,
   `cuda_pool_slice31_tests.rs:30`).
 
-**Builds without the decision code** (no `tegra-pool`, or not aarch64
-Linux with CUDA). `resolve_mode` and `MODE_IN_FORCE` are compiled on
+**Builds without the decision code** (not aarch64 Linux with CUDA; since
+§ 14.3, every aarch64 Linux CUDA build has it). `resolve_mode` and `MODE_IN_FORCE` are compiled on
 every build, so a conflicting second open fails on x86 too. The SDK
 contract is the same on every platform, and an any-host test proves it.
 
@@ -2223,7 +2347,9 @@ contract is the same on every platform, and an any-host test proves it.
   `cli.md:162-170` changes with it.
 - **x86.** There is no report. The settings are visible through the
   read-back and the conflict error (§ 15.1).
-- **aarch64 Linux CUDA builds without `tegra-pool`.** They report
+- **aarch64 Linux CUDA builds without `tegra-pool`.** Since § 14.3 no
+  FathomDB crate builds this combination, but a downstream crate depending
+  on the embedder can still reach the cfg arm. Such a build reports
   `not_built` (`not_built_report`, `cuda_pool_policy.rs:272-298`). The
   configuration in force is compiled on every build, so that report
   carries it too: the mode and the three sources, with the size and
@@ -2289,16 +2415,17 @@ interface docs change in the same change. Also:
 
 ### 15.7 Where § 15 meets § 14
 
-- **D-19 (Rust reach).** `on` and `auto` in a plain Rust process reach the
-  private pool only once D-19 lands; `off` works without it. D-19 runs
-  inside `module_load_init()` at the decision, which the mode in force
-  does not touch. Node and Python already reach it.
+- **D-19 (Rust reach, Q36).** In a plain Rust process, `on` and `auto`
+  reach the private pool only once D-19 lands; `off` works without it.
+  D-19 is a read of the probe's recorded `cuInit` at the decision's init
+  gate, and the mode in force does not touch it. Node and Python already
+  reach the pool.
 - **Early init.** The Node and Python import-time hooks (napi
   `cuda_early_init.rs:152-164`, PyO3 `lib.rs:171`) run before any open
   and are unaffected.
-- **Feature implication** (§ 14 resolution 1, if adopted). Once
-  `embed-cuda` implies `tegra-pool`, Rust users lose the compile-time
-  opt-out; `cuda_pool = off` gives them a code-level one.
+- **Feature implication** (§ 14.3, Q37). `embed-cuda` and `rerank-cuda`
+  imply `tegra-pool`, so Rust users lose the compile-time opt-out.
+  `cuda_pool = off` gives them a code-level one.
 - **N1.** Unaffected: the release acts only when the decision is
   private.
 
@@ -2513,15 +2640,17 @@ cudarc 0.19.7; Fathom Candle fork 0.10.3"; `status` adds "amended
 >    Exactly one `cudarc` 0.19 is in the graph, `cudarc-fathomdb`, enforced
 >    by `scripts/check-single-cudarc.sh`.
 > 2. **crates.io consumers get `tegra-pool`.** Because the fork crates are
->    published, a downstream build with `tegra-pool` and no `[patch]` table
->    resolves and builds. `scripts/check-tegra-pool-registry-build.sh`
->    proves it with a path copy of the FathomDB embedder from the tree under
->    test, depending on the published fork crates; it does not build
->    published FathomDB crates, which do not exist until the release. It
->    links the CUDA runtime dynamically through upstream `candle-kernels` 0.10.2 and needs
->    `LIBRARY_PATH` set to the CUDA library directory to link; the
->    CPU-loadable guarantee of REQ-068 applies only to FathomDB-built
->    artifacts.
+>    published, a downstream `embed-cuda` build (which implies
+>    `tegra-pool`, decision 11) with no `[patch]` table resolves and
+>    builds. `scripts/check-tegra-pool-registry-build.sh` proves it with a
+>    path copy of the FathomDB embedder from the tree under test, depending
+>    on the published fork crates; it does not build published FathomDB
+>    crates, which do not exist until the release. Any registry
+>    `embed-cuda` build, with or without `tegra-pool`, links the CUDA
+>    runtime dynamically through upstream `candle-kernels` 0.10.2 and needs
+>    `LIBRARY_PATH` set to the CUDA library directory to link; `tegra-pool`
+>    adds no link requirement of its own. The CPU-loadable guarantee of
+>    REQ-068 applies only to FathomDB-built artifacts.
 > 3. **The marker feature is retired.** `tegra-pool` no longer enables
 >    `fathomdb-private-pool`; the package name `cudarc-fathomdb` already
 >    rules out upstream cudarc.
@@ -2564,6 +2693,24 @@ cudarc 0.19.7; Fathom Candle fork 0.10.3"; `status` adds "amended
 >    value in force and its source (owner rulings Q33, Q35; Slice 31
 >    design § 15). This amends the "Settings" component, which named only
 >    environment variables.
+>
+> 10. **Plain Rust processes reach the pool through the probe's `cuInit`.**
+>     The load-time gate guards against `cuInit` running after the V8 heap
+>     has fragmented the Tegra address space, a Node hazard. In a Rust
+>     process the embedder probe's `cuInit` is the first call, made before
+>     the first device build. The decision therefore admits a process
+>     whose most recent `cuInit` succeeded even if no load hook ran.
+>     FathomDB makes no new `cuInit` call. `FATHOMDB_CUDA_EARLY_INIT`
+>     governs only the Node and Python load hooks, and the pool opt-out is
+>     `cuda_pool = off` (owner ruling Q36; Slice 31 design § 14.2). This
+>     amends component 4, "Rust has no load hook".
+> 11. **The CUDA features imply `tegra-pool`.** In every FathomDB crate
+>     that has the feature, `embed-cuda` and `rerank-cuda` enable
+>     `tegra-pool`. The pool code is compiled only on aarch64 Linux, so x86
+>     builds are unchanged, and the run-time opt-out `cuda_pool = off`
+>     replaces the compile-time one. The feature name is kept for
+>     0.8.28, and a later release may retire it (owner ruling Q37; Slice 31
+>     design § 14.3).
 >
 > **Superseded statements in this ADR.**
 >

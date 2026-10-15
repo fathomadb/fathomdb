@@ -15,7 +15,7 @@ from `32295692f`; later commits do not change runtime pool behaviour.
 | Orin windows P and A, first run (§ 4.2, § 4.5: D-14 stages, ORIN-13 usable capacity) | Orin | pass at `e9036a912` | [ORIN-P](qualification/2026-10-13-ORIN-P-e9036a912442.md), [ORIN-A](qualification/2026-10-13-ORIN-A-e9036a912442.md) |
 | Feature-complete gate (PRD-33) | `windchill3` | pass at `9b43d29c1` | [2026-10-13-FC-9b43d29c13e0.md](qualification/2026-10-13-FC-9b43d29c13e0.md) |
 | Tegra on CUDA 13 | — | UNMEASURED (owner ruling Q5; todo `TC-b267d940`, CloudJetson) | — |
-| PERF-03 (§ 4.4) | `windchill3`, RTX 3090 by UUID | pending | — |
+| PERF-03 (§ 4.4) | `windchill3`, RTX 3090 by UUID | pass at `14ef6f4d0`: steady embed new/base 0.899 [0.889, 0.912], N = 20 per arm; identical embedding hash. The contract build has no reranker, so each process ends at the rerank step after its embed timings; `harness/g9x_embed_only.py` judges the embed measures (rerank not measured) | [2026-10-15-T-PERF-3090-14ef6f4d04e6.md](qualification/2026-10-15-T-PERF-3090-14ef6f4d04e6.md) |
 | S-C3 (§ 4.6) | GCP T4 | pending | — |
 | S-13 (§ 4.7) | GCP | pending | — |
 

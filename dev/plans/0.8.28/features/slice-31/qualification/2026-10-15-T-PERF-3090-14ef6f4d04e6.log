@@ -1,0 +1,209 @@
+# PERF-03 log — tip 14ef6f4d04e64d683535a94e5b3294b2477be6ff vs base 15a4b9464e5dfb34533d31a71e0711e46fb740bc
+
+## Build commands (each arm in its own detached worktree, own CARGO_TARGET_DIR)
+git worktree add --detach /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/perf-new 14ef6f4d0 ; git worktree add --detach /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/perf-base 15a4b9464
+#!/usr/bin/env bash
+# usage: build-arm.sh <copy> <target-dir> <log>
+set -euo pipefail
+copy=$1; tgt=$2
+source ~/.nvm/nvm.sh >/dev/null && nvm use 25.9.0 >/dev/null
+echo "node=$(node --version) npm=$(npm --version) copy=$copy sha=$(git -C $copy rev-parse HEAD) CARGO_TARGET_DIR=$tgt"
+cd "$copy/src/ts"
+npm ci --no-audit --no-fund
+export CARGO_TARGET_DIR=$tgt
+time npm run build:native:cuda
+npx tsc -p tsconfig.build.json
+ls -la fathomdb.linux-x64-gnu.node
+cp fathomdb.linux-x64-gnu.node npm/linux-x64-gnu/
+sha256sum fathomdb.linux-x64-gnu.node npm/linux-x64-gnu/fathomdb.linux-x64-gnu.node
+echo BUILD-OK
+invocations: build-arm.sh $S/perf-new $S/target-new ; build-arm.sh $S/perf-base $S/target-base
+staging: PLATFORM_TRIPLE=linux-x64-gnu stage-installed.sh <copy> <copy>/src/ts/npm/linux-x64-gnu $S/stage-<arm> $S/consumer-<arm>
+
+## Build toolchain lines (new / base)
+node=v25.9.0 npm=11.19.0 copy=/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/perf-new sha=14ef6f4d04e64d683535a94e5b3294b2477be6ff CARGO_TARGET_DIR=/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/target-new
+
+added 4 packages in 451ms
+
+> fathomdb@0.8.27 build:native:cuda
+> bash ../../scripts/release/build-napi-cuda.sh
+
+Cuda compilation tools, release 12.6, V12.6.68
+gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+g++-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+---
+node=v25.9.0 npm=11.19.0 copy=/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/perf-base sha=15a4b9464e5dfb34533d31a71e0711e46fb740bc CARGO_TARGET_DIR=/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/target-base
+
+added 4 packages in 620ms
+
+> fathomdb@0.8.27 build:native:cuda
+> bash ../../scripts/release/build-napi-cuda.sh
+
+Cuda compilation tools, release 12.6, V12.6.68
+gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+g++-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+
+## GPU-stack crates compiled
+new:    Compiling cudarc-fathomdb v0.19.10
+new:    Compiling candle-kernels v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=182ceab0547348993b6dbec4b1aed610dcc8b23f#182ceab0)
+new:    Compiling candle-core-fathomdb v0.11.0
+new:     Finished `release` profile [optimized] target(s) in 1m 24s
+base:    Compiling cudarc v0.19.7 (/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/perf-base/third_party/cudarc-0.19.7)
+base:    Compiling candle-kernels v0.10.2 (https://github.com/coreyt/candle-fathomdb.git?rev=859b8ea1a2218e864a0a867b4c3d62b03de75aa8#859b8ea1)
+base:    Compiling candle-core-fathomdb v0.10.3 (https://github.com/coreyt/candle-fathomdb.git?rev=859b8ea1a2218e864a0a867b4c3d62b03de75aa8#859b8ea1)
+base:     Finished `release` profile [optimized] target(s) in 1m 32s
+
+## Addon / package SHA-256
+529a8f21ebde5b9e07f11fc5a87c1b0388227b62fbf966e47e998f0aaf64863a  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/consumer-new/node_modules/fathomdb-linux-x64-gnu/fathomdb.linux-x64-gnu.node
+651df4a31a583e2ab7c4777f9c9664af0292f96c9fb4a50224c9a824cf65a0ab  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/consumer-base/node_modules/fathomdb-linux-x64-gnu/fathomdb.linux-x64-gnu.node
+31c0600ec584827f8d21acf5c2a0f3de8019d7bfd4ce85aba4d49cbf8ef6dce2  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/stage-new/fathomdb-0.8.27.tgz
+4200e45ba1bccef7d7c4e9a5cc9d1d8f0002dde92f7df85eb3a45dff899c1a85  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/stage-new/fathomdb-linux-x64-gnu-0.8.27.tgz
+5088fe62a4ebb9acff1e595ce5ebf0cfff612e12b7ce1d2566eb99333b610637  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/stage-base/fathomdb-0.8.27.tgz
+15d105747f3b3f49f910681fe7f354150fdc49399fb3385c40d6852a4bcaf198  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/stage-base/fathomdb-linux-x64-gnu-0.8.27.tgz
+
+## Guard log
+2026-10-15T21:02:50Z before-perf-03 driver=580.178.04 cuda=/usr/local/cuda-12.6
+2026-10-15T21:26:15Z after-perf-03 driver=580.178.04 cuda=/usr/local/cuda-12.6
+
+## Cell file (g9x-node.tsv)
+newP node 25.9.0 /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/consumer-new /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/consumer-new/node_modules/fathomdb-linux-x64-gnu/fathomdb.linux-x64-gnu.node CONSUMER_MODE=perf
+baseP node 25.9.0 /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/consumer-base /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/consumer-base/node_modules/fathomdb-linux-x64-gnu/fathomdb.linux-x64-gnu.node CONSUMER_MODE=perf
+
+## Blocks
+seed=20261313 blocks=20 utc_start=2026-10-15T21:02:50Z
+block=1 order=newP baseP 
+block=2 order=baseP newP 
+block=3 order=baseP newP 
+block=4 order=newP baseP 
+block=5 order=baseP newP 
+block=6 order=baseP newP 
+block=7 order=baseP newP 
+block=8 order=newP baseP 
+block=9 order=newP baseP 
+block=10 order=baseP newP 
+block=11 order=baseP newP 
+block=12 order=baseP newP 
+block=13 order=newP baseP 
+block=14 order=newP baseP 
+block=15 order=newP baseP 
+block=16 order=baseP newP 
+block=17 order=baseP newP 
+block=18 order=baseP newP 
+block=19 order=newP baseP 
+block=20 order=baseP newP 
+utc_end=2026-10-15T21:26:15Z
+
+## Series header (newP)
+utc_start=2026-10-15T21:26:10Z
+gpu=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b driver=580.178.04
+kernel=7.0.0-38-generic
+swap_base_kib=8224388
+no_swap=1
+power_mode=350.00 W, 2100 MHz
+label=newP
+count=1
+lang=node
+node_flags=
+artifact_sha256=529a8f21ebde5b9e07f11fc5a87c1b0388227b62fbf966e47e998f0aaf64863a
+node=v25.9.0
+power_mode=350.00 W, 2100 MHz
+CONSUMER_LANG=node
+CONSUMER_MODE=perf
+CUDA_COMPUTE_CAP=75
+CUDA_DEVICE_ORDER=PCI_BUS_ID
+CUDA_PATH=/usr/local/cuda-12.6
+CUDA_VISIBLE_DEVICES=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b
+FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b
+FATHOMDB_DB_SCRATCH=/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/run/dbs
+FATHOMDB_EMBED_DEVICE=cuda:0
+FATHOMDB_MODULE=/tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/perf03/consumer-new/node_modules/fathomdb/dist/index.js
+FATHOMDB_RERANK_DEVICE=cuda:0
+utc_end=2026-10-15T21:26:15Z
+
+## Per-run summaries
+-- newP
+run-000 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=17.3 wall=2524
+run-001 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.2 import_ms=16.9 wall=2496
+run-002 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=18.5 wall=2430
+run-003 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=14.8 wall=2442
+run-004 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=15.3 wall=2413
+run-005 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=18.0 wall=2410
+run-006 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.3 import_ms=14.2 wall=2578
+run-007 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.2 import_ms=18.3 wall=2545
+run-008 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=14.3 wall=2401
+run-009 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=15.2 wall=2546
+run-010 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=14.8 wall=2471
+run-011 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.0 import_ms=17.0 wall=2395
+run-012 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.2 import_ms=14.6 wall=2485
+run-013 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.2 import_ms=14.5 wall=2528
+run-014 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=16.5 wall=2439
+run-015 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=17.8 wall=2439
+run-016 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=14.1 wall=2483
+run-017 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.2 import_ms=18.5 wall=2433
+run-018 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=16.4 wall=2516
+run-019 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=15.3 wall=2430
+run-020 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.1 import_ms=18.8 wall=2419
+-- baseP
+run-001 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=15.3 wall=2474
+run-002 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.6 import_ms=16.0 wall=2531
+run-003 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.4 import_ms=14.5 wall=2507
+run-004 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=18.1 wall=2498
+run-005 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.4 import_ms=14.9 wall=2543
+run-006 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=14.5 wall=2538
+run-007 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=15.5 wall=2552
+run-008 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=17.9 wall=2572
+run-009 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.4 import_ms=17.6 wall=2573
+run-010 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=14.4 wall=2536
+run-011 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=18.0 wall=2498
+run-012 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=15.1 wall=2540
+run-013 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=15.7 wall=2507
+run-014 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.4 import_ms=15.6 wall=2541
+run-015 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=17.8 wall=2522
+run-016 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=15.4 wall=2571
+run-017 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.4 import_ms=17.0 wall=2472
+run-018 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.5 import_ms=14.7 wall=2553
+run-019 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.4 import_ms=17.4 wall=2504
+run-020 rc=1 outcome=fail step=rerank path=None reason=None init=None steady_med=3.4 import_ms=14.6 wall=2469
+
+## analyze.py <series-root> g9x (stock, unmodified)
+PERF-03 RTX 3090 (n new=0, base=0)
+  FAIL: steady-embed median new/base <= 1.05 (95 % CI reported)
+
+## g9x_embed_only.py (analyze.py's runs/per_process/boot/med; accepts runs whose only failure is failedStep=rerank)
+"""PERF-03 analysis using analyze.py's own runs/per_process/boot/med, accepting
+runs whose only failure is the rerank step (x86 release feature set embed-cuda
+has no reranker). Usage: g9x_embed_only.py <harness-dir> <series-root>"""
+import sys
+sys.path.insert(0, sys.argv[1])
+import analyze as A
+root = sys.argv[2]
+def coll(d):
+    acc, n = {}, 0
+    for r in A.runs(d):
+        if not (r.get("outcome") == "pass" or r.get("failedStep") == "rerank"):
+            continue
+        n += 1
+        for k, v in A.per_process(r).items():
+            acc.setdefault(k, []).append(v)
+    return acc, n
+p, np_ = coll(f"{root}/g9x/newP"); b, nb = coll(f"{root}/g9x/baseP")
+print(f"PERF-03 RTX 3090 embed-only (runs used new={np_}, base={nb}; run-000 excluded by A.runs)")
+for m in A.MEASURES:
+    a, c = p.get(m, []), b.get(m, [])
+    if a and c:
+        lo, hi = A.boot(a, c, "ratio")
+        print(f"{m:8} new {A.med(a):8.3f} base {A.med(c):8.3f}  new/base {A.med(a)/A.med(c):.3f} [{lo:.3f}, {hi:.3f}]")
+a, c = p["embed"], b["embed"]
+A.verdict(A.med(a) / A.med(c) <= 1.05, "steady-embed median new/base <= 1.05 (95 % CI reported)")
+
+PERF-03 RTX 3090 embed-only (runs used new=20, base=20; run-000 excluded by A.runs)
+embed    new    3.108 base    3.456  new/base 0.899 [0.889, 0.912]
+b1       new    2.775 base    3.091  new/base 0.898 [0.881, 0.909]
+b8       new    3.352 base    3.668  new/base 0.914 [0.901, 0.922]
+b32      new    5.029 base    5.059  new/base 0.994 [0.985, 1.002]
+b128     new   13.832 base   13.833  new/base 1.000 [0.984, 1.010]
+  PASS: steady-embed median new/base <= 1.05 (95 % CI reported)
+
+## Quiet-host waits: newP 71 lines, baseP 7 lines (all load1 > 2.0 from unrelated non-compiler processes; no cargo/rustc/nvcc/cc1plus at run start)
+WAIT 21:02:51 load1=8.87 
+WAIT 21:24:25 load1=2.10 

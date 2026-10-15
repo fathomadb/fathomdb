@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — design (W2)
-status: revision 5 (2026-10-14), § 15 (pool settings on the SDK surface, Q33, Q35) and § 14.1 (close contract, Q34) revised after review, awaiting re-review; § 14.2 (D-19, Q30) awaiting R-DES-4 fixes; revision 3 sections ready for W6
+status: revision 5 (2026-10-14), § 15 (pool settings on the SDK surface, Q33, Q35) and § 14.1 (close contract, Q34) re-reviewed (Fable, APPROVE-WITH-FIXES, fixes applied); § 14.2 (D-19, Q30) awaiting R-DES-4 fixes; revision 3 sections ready for W6
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---
@@ -1851,7 +1851,9 @@ conditional on its RED" and § 13 point 4.
   automatically; FathomDB never holds freed memory.
 - Threshold `max` (opt-in): freed GPU memory stays reserved for reuse
   while any FathomDB model is open in the process, and is returned when
-  the last one closes. A process that holds a module-level model
+  the last one closes. "Closes" means the model is dropped, which can be
+  shortly after `close` returns, because a scheduler thread may hold the
+  last reference briefly. A process that holds a module-level model
   (`embed_batch_cls` / `embedBatchCls`, module-level `rerank`, the SDK's
   standalone functions) or the engine's reranker keeps it until exit,
   because those models stay open for the process's life.
@@ -1907,9 +1909,11 @@ boundary is the sanctioned use.
   `EngineError::Scheduler` releases no provider, so it does not
   decrement.
 - **Threshold 0.** Window P shows the driver already returns freed memory
-  without a synchronize, so the release changes no counter. It runs
-  anyway, at the last close, so close does not depend on that
-  unspecified driver timing.
+  without a synchronize, so the last-close release changes no counter at
+  this threshold. The release is the `max` mechanism, not a threshold-0
+  guarantee: a process holding a module-level model or the engine
+  reranker never reaches the last close, and at threshold 0 it relies on
+  the driver's automatic release, as 0.8.27 did.
 - **Docs.** The two contract sentences above go into `docs/embedder.md`
   (settings bullet; it already says "Module-level models keep their
   memory"), `dev/interfaces/rust.md`, `python.md`, `typescript.md`, and
@@ -2107,6 +2111,12 @@ users must be told plainly that settings cannot be mixed in one process
 
 ### 15.2 The mode in force
 
+§ 15.9 generalises every name in this section, and in §§ 15.3, 15.4 and
+15.8, to the three-setting form (`PoolConfigInForce`,
+`POOL_CONFIG_IN_FORCE`, `CudaPoolSettingConflict`, `PoolSettingSource`).
+There is exactly one static: two would let the mode and the size be
+fixed at different moments. The mode-only form below states the rules.
+
 The decision is per process, so the mode is too:
 
 ```rust
@@ -2211,12 +2221,16 @@ contract is the same on every platform, and an any-host test proves it.
   `fathomdb.doctor.cuda-allocator.v1` (`:1088`) is new in 0.8.28 and
   unpublished, so v1 changes in place with no compatibility field;
   `cli.md:162-170` changes with it.
-- **x86 and builds without `tegra-pool`.** There is no report
-  (`not_built_report` is compiled only for aarch64 Linux CUDA builds,
-  `cuda_pool_policy.rs:272-298`). The setting is visible through the
+- **x86.** There is no report. The settings are visible through the
   read-back and the conflict error (§ 15.1).
+- **aarch64 Linux CUDA builds without `tegra-pool`.** They report
+  `not_built` (`not_built_report`, `cuda_pool_policy.rs:272-298`). The
+  configuration in force is compiled on every build, so that report
+  carries it too: the mode and the three sources, with the size and
+  threshold null as for any non-private report.
 - Callers of `CudaAllocatorReport::new` (`pub const fn`, five arguments,
-  `cuda_pool_policy.rs:261`) gain two: `sdk/tests/surface.rs:331`,
+  `cuda_pool_policy.rs:261`) gain four (`pool_mode` and the three
+  sources of § 15.9): `sdk/tests/surface.rs:331`,
   `embedder/tests/slice30_cuda_allocator_api.rs:27`, `cli/lib.rs:3388`,
   napi and PyO3 `test_support.rs:440-460`. Binding mappings: napi
   `types.rs:159-170`, PyO3 `types.rs:245-255`, `types.py:1315`,
@@ -2255,6 +2269,10 @@ words or close to them:
 > suite that runs in one process (for example a single pytest run) must
 > not open engines with different pool settings; run such cases in
 > separate processes.
+>
+> A `cuda_pool_max_size` larger than the GPU's memory cannot be checked
+> until the pool is created; the pool is then turned off, and the
+> allocator report's reason is `invalid_setting`.
 
 The same note goes in `dev/interfaces/rust.md`, `python.md`,
 `typescript.md` and `cli.md`. It is AC-074-governed surface, so the
@@ -2339,8 +2357,12 @@ threshold goes public with a defined contract.
   `CudaPoolMode`.
 - **Validation at open.** The size must be at least 32 MiB
   (`MAXSIZE_MIN`, `cuda_pool_policy.rs:52`) and, in TypeScript, a safe
-  integer; otherwise Python `ValueError`, TypeScript `TypeError`, Rust
-  `EngineConfigurationError::OutOfRange`. The upper bound (device
+  integer. The existing classes apply: Python `ValueError`; TypeScript
+  `TypeError` for a non-number and `RangeError` for a non-safe or
+  out-of-range integer (`core.ts:108-114`; `ENGINE_CONFIG_LIMITS` gains
+  `cudaPoolMaxSize: [33554432, Number.MAX_SAFE_INTEGER]`); Rust
+  `EngineConfigurationError::OutOfRange { min: MAXSIZE_MIN, max:
+  u64::MAX }`. The upper bound (device
   memory) is known only at the decision: a size above it falls back with
   `invalid_setting`, as the environment does today, and the report shows
   it (R5-5).
@@ -2354,7 +2376,11 @@ pub(crate) struct PoolConfigInForce {
     max_size: Field<u64>,          // Default = derived from device memory
     release_threshold: Field<ReleaseThreshold>,
 }
-pub(crate) enum Field<T> { Set { value: T, source: ModeSource }, Default, InvalidEnv }
+pub(crate) enum Field<T> {
+    Set { value: T, source: PoolSettingSource },
+    Default,           // max_size only: derived from device memory
+    InvalidEnv(String), // the raw value, rendered unchanged by raw_settings
+}
 static POOL_CONFIG_IN_FORCE: OnceLock<PoolConfigInForce>;
 ```
 
@@ -2364,13 +2390,37 @@ static POOL_CONFIG_IN_FORCE: OnceLock<PoolConfigInForce>;
   else `Default` (or `InvalidEnv` for a malformed environment value).
   A malformed environment value for a field the open sets is ignored:
   the SDK value wins.
+- **Defaults that are constants are values.** The mode's default is
+  `auto` and the threshold's is `0`, so with no request and no
+  environment value they are stored as `Set { value: Auto | Zero,
+  source: Default }`. A later open asking for `auto` or `"0"` therefore
+  passes. Only the size's default, derived from device memory at the
+  decision, is stored as `Default`.
 - **Later opens compare field by field.** Each field the open sets must
-  equal the field in force (`Set` with the same value); a field in force
-  as `Default` or `InvalidEnv` conflicts with any explicit value. Fields
-  the open omits never conflict. The conflict error (§ 15.3) names the
-  first conflicting setting:
-  `CudaPoolSettingConflict { setting, requested, in_force, source }`,
-  which replaces `CudaPoolModeConflict`.
+  equal the field in force (`Set` with the same value, whatever its
+  source); a size in force as `Default`, or any field in force as
+  `InvalidEnv`, conflicts with any explicit value. Fields the open omits
+  never conflict.
+- **The conflict error** replaces § 15.3's `CudaPoolModeConflict`, and
+  stays `Copy` (`runtime_configuration.rs:162`):
+
+  ```rust
+  pub enum CudaPoolSettingValue { Mode(PoolMode), MaxSize(u64), ReleaseThreshold(ReleaseThreshold) }
+  pub enum PoolSettingSource { Sdk, Env, Default } // replaces ModeSource
+  CudaPoolSettingConflict {
+      setting: &'static str,                  // "cuda_pool", "cuda_pool_max_size", "cuda_pool_release_threshold"
+      requested: CudaPoolSettingValue,
+      in_force: Option<CudaPoolSettingValue>, // None: size Default, or InvalidEnv
+      source: Option<PoolSettingSource>,      // None: InvalidEnv
+  }
+  ```
+
+  `Display`, shared by every binding, names the first conflicting
+  setting in one of three forms: "{setting}={requested} conflicts with
+  {setting}={in_force} already in force in this process (from {source})";
+  "... conflicts with the device-derived default {setting} already in
+  force"; "... conflicts with the invalid {ENV_VAR} this process started
+  with". Each ends "open with the same value or omit it".
 - **`off` still wins.** `pre_device_gates` is unchanged, so `mode = off`
   turns the pool off even when another field is `InvalidEnv`.
 - **The decision is unchanged.** `CudarcDriver::raw_settings()` renders
@@ -2394,7 +2444,10 @@ fails; opens that omit them never fail.
 **Tests** (in addition to § 15.8):
 
 - Any host, pure: the per-field table (each field `Set`, `Default`,
-  `InvalidEnv` against requested equal, different and omitted); mixed
+  `InvalidEnv` against requested equal, different and omitted; the
+  mode and threshold in force by default against a request equal to the
+  default, `auto` and `"0"`, which pass; the size in force as `Default`
+  against any explicit size, which conflicts); mixed
   sources (mode from the SDK, size from the environment, threshold
   default); the SDK value winning over a malformed environment value;
   `raw_settings` rendering of every field state; the size lower bound
@@ -2414,10 +2467,10 @@ fails; opens that omit them never fail.
 - **R5-1.** Ruled: the pool size and release threshold move to the SDK
   surface in 0.8.28 (owner ruling Q35, § 15.9).
 - **R5-5.** A pool size above device memory can be found only at the
-  decision, which need not happen inside an open. Recommended: fall back
-  with `invalid_setting` and show it in the report, as the environment
-  does today, rather than fail an open that may not be the one that
-  decided.
+  decision, which need not happen inside an open. Adopted (review
+  agrees): fall back with `invalid_setting` and show it in the report,
+  as the environment does today. It is the one explicit SDK value not
+  honoured loudly, so § 15.6's note says so, and the Orin row stays.
 - **R5-2.** Compare modes, not outcomes: adopted (review agrees).
 - **R5-3.** Keep the mode set by a failed open: adopted (review agrees).
 - **R5-4.** No mode parameter on direct Rust constructors in 0.8.28:

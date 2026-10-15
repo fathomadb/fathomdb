@@ -158,6 +158,13 @@ pub struct CudaAllocatorReport {
     /// `"0"` or `"max"`; absent unless the path is private.
     pub release_threshold: Option<String>,
     pub module_load_init: String,
+    /// The pool mode in force (`auto`, `on`, `off`); absent for a malformed
+    /// `FATHOMDB_POOL_MODE`.
+    pub pool_mode: Option<String>,
+    /// `sdk`, `env` or `default`, for the mode, size and threshold in force.
+    pub pool_mode_source: Option<String>,
+    pub pool_max_size_source: Option<String>,
+    pub pool_release_threshold_source: Option<String>,
 }
 
 impl CudaAllocatorReport {
@@ -169,6 +176,14 @@ impl CudaAllocatorReport {
             pool_max_size_bytes: report.pool_max_size_bytes.map(|bytes| bytes as i64),
             release_threshold: report.release_threshold.map(|t| t.as_str().to_string()),
             module_load_init: report.module_load_init.as_str().to_string(),
+            pool_mode: report.pool_mode.map(|mode| mode.as_str().to_string()),
+            pool_mode_source: report.pool_mode_source.map(|source| source.as_str().to_string()),
+            pool_max_size_source: report
+                .pool_max_size_source
+                .map(|source| source.as_str().to_string()),
+            pool_release_threshold_source: report
+                .pool_release_threshold_source
+                .map(|source| source.as_str().to_string()),
         }
     }
 }

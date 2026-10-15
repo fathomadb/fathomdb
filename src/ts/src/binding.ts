@@ -567,6 +567,10 @@ export interface NativeCudaAllocatorReport {
   poolMaxSizeBytes?: number | null;
   releaseThreshold?: string | null;
   moduleLoadInit: string;
+  poolMode?: string | null;
+  poolModeSource?: string | null;
+  poolMaxSizeSource?: string | null;
+  poolReleaseThresholdSource?: string | null;
 }
 
 export interface NativeCudaLibraryReport {
@@ -668,6 +672,9 @@ interface NativeEngineConfig {
   provenanceRowCap?: number;
   embedderCallTimeoutMs?: number;
   slowThresholdMs?: number;
+  cudaPool?: string;
+  cudaPoolMaxSize?: number;
+  cudaPoolReleaseThreshold?: string;
 }
 
 // Slice 20 (G5/G6) — graph traversal result shapes.

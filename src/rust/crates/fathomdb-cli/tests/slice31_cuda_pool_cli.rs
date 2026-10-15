@@ -45,24 +45,27 @@ fn the_cuda_pool_flag_wins_over_the_environment_in_the_allocator_record() {
     assert_eq!(record["pool_max_size_source"], "default");
     assert_eq!(record["pool_release_threshold_source"], "env");
     assert!(record.get("mode").is_none(), "the raw `mode` field is replaced: {record}");
-    let keys: Vec<&str> = record.as_object().expect("object").keys().map(String::as_str).collect();
-    assert_eq!(
-        keys,
-        [
-            "schema_version",
-            "built",
-            "module_load_init",
-            "pool_mode",
-            "pool_mode_source",
-            "path",
-            "reason",
-            "pool_max_size_bytes",
-            "pool_max_size_source",
-            "release_threshold",
-            "pool_release_threshold_source",
-            "cuda_context_state",
-        ]
-    );
+    // serde_json's map sorts keys, so the order is read from the raw line.
+    let raw = String::from_utf8_lossy(&output.stdout);
+    let positions: Vec<usize> = [
+        "schema_version",
+        "built",
+        "module_load_init",
+        "pool_mode",
+        "pool_mode_source",
+        "path",
+        "reason",
+        "pool_max_size_bytes",
+        "pool_max_size_source",
+        "release_threshold",
+        "pool_release_threshold_source",
+        "cuda_context_state",
+    ]
+    .iter()
+    .map(|key| raw.find(&format!("\"{key}\":")).unwrap_or_else(|| panic!("missing {key}: {raw}")))
+    .collect();
+    assert!(positions.windows(2).all(|pair| pair[0] < pair[1]), "key order: {raw}");
+    assert_eq!(record.as_object().expect("object").len(), positions.len(), "{raw}");
 }
 
 #[test]

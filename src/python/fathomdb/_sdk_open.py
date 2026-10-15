@@ -35,6 +35,9 @@ _KWARG_FIELDS = {
     "provenance_row_cap",
     "embedder_call_timeout_ms",
     "slow_threshold_ms",
+    "cuda_pool",
+    "cuda_pool_max_size",
+    "cuda_pool_release_threshold",
 }
 
 
@@ -44,13 +47,19 @@ _ENGINE_CONFIG_RANGES = {
     "provenance_row_cap": (0, 2**53 - 1),
     "embedder_call_timeout_ms": (1, 2**32 - 1),
     "slow_threshold_ms": (0, 2**53 - 1),
+    "cuda_pool_max_size": (32 << 20, 2**64 - 1),
+}
+
+_ENGINE_CONFIG_CHOICES = {
+    "cuda_pool": ("auto", "on", "off"),
+    "cuda_pool_release_threshold": ("0", "max"),
 }
 
 
-def _native_engine_config(config: EngineConfig) -> dict[str, int | None]:
+def _native_engine_config(config: EngineConfig) -> dict[str, int | str | None]:
     if not isinstance(config, EngineConfig):
         raise TypeError("config must be an EngineConfig")
-    native: dict[str, int | None] = {}
+    native: dict[str, int | str | None] = {}
     for name, (minimum, maximum) in _ENGINE_CONFIG_RANGES.items():
         value = getattr(config, name)
         if value is not None:
@@ -59,6 +68,11 @@ def _native_engine_config(config: EngineConfig) -> dict[str, int | None]:
             if not minimum <= value <= maximum:
                 raise ValueError(f"{name} must be in {minimum}..={maximum}")
         native[name] = value
+    for name, choices in _ENGINE_CONFIG_CHOICES.items():
+        choice = getattr(config, name)
+        if choice is not None and choice not in choices:
+            raise ValueError(f"{name} must be one of {', '.join(choices)}; got {choice!r}")
+        native[name] = choice
     return native
 
 
@@ -224,6 +238,10 @@ def _map_cuda_device_info(native: Any) -> CudaDeviceInfo:
                 pool_max_size_bytes=allocator.pool_max_size_bytes,
                 release_threshold=allocator.release_threshold,
                 module_load_init=allocator.module_load_init,
+                pool_mode=allocator.pool_mode,
+                pool_mode_source=allocator.pool_mode_source,
+                pool_max_size_source=allocator.pool_max_size_source,
+                pool_release_threshold_source=allocator.pool_release_threshold_source,
             )
         ),
         cuda_libraries=tuple(

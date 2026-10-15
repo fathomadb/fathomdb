@@ -62,6 +62,20 @@ pub struct EngineConfig {
     pub provenance_row_cap: Option<f64>,
     pub embedder_call_timeout_ms: Option<f64>,
     pub slow_threshold_ms: Option<f64>,
+    /// `"auto"`, `"on"` or `"off"`.
+    pub cuda_pool: Option<String>,
+    /// Bytes, at least 32 MiB.
+    pub cuda_pool_max_size: Option<f64>,
+    /// `"0"` or `"max"`.
+    pub cuda_pool_release_threshold: Option<String>,
+}
+
+fn invalid_config_string(field: &str, value: &str, expected: &str) -> napi::Error {
+    typed_error(
+        CODE_INVALID_ARGUMENT,
+        format!("engine configuration {field}={value:?}: expected {expected}"),
+        JsonValue::Null,
+    )
 }
 
 pub(crate) fn checked_config_number(
@@ -123,6 +137,29 @@ impl EngineConfig {
                 0,
                 MAX_SAFE,
             )?,
+            cuda_pool: self
+                .cuda_pool
+                .map(|raw| {
+                    raw.parse::<fathomdb_embedder::PoolMode>()
+                        .map_err(|_| invalid_config_string("cuda_pool", &raw, "auto, on or off"))
+                })
+                .transpose()?,
+            cuda_pool_max_size: checked_config_number(
+                "cuda_pool_max_size",
+                self.cuda_pool_max_size,
+                fathomdb_embedder::CUDA_POOL_MAX_SIZE_MIN,
+                MAX_SAFE,
+            )?,
+            cuda_pool_release_threshold: self
+                .cuda_pool_release_threshold
+                .map(|raw| match raw.as_str() {
+                    "0" => Ok(fathomdb_embedder::ReleaseThreshold::Zero),
+                    "max" => Ok(fathomdb_embedder::ReleaseThreshold::Max),
+                    _ => {
+                        Err(invalid_config_string("cuda_pool_release_threshold", &raw, "0 or max"))
+                    }
+                })
+                .transpose()?,
         })
     }
 }

@@ -178,6 +178,9 @@ pub struct CandleBgeEmbedder {
     model: BertModel,
     device: Device,
     pooling: Pooling,
+    // Declared last so it drops after `model` and `device`: the close
+    // release must see the model's buffers already freed.
+    _pool_guard: crate::cuda_pool_policy::PrivatePoolModelGuard,
 }
 
 /// Candle's concrete CUDA probe used by the default embedder.
@@ -675,7 +678,15 @@ impl CandleBgeEmbedder {
         let identity =
             EmbedderIdentity::new(DEFAULT_EMBEDDER_NAME, HF_REVISION, DEFAULT_EMBEDDER_DIM);
 
-        Ok(Self { identity, tokenizer, model, device, pooling: Pooling::Mean })
+        let pool_guard = crate::cuda_pool_policy::PrivatePoolModelGuard::new(&device);
+        Ok(Self {
+            identity,
+            tokenizer,
+            model,
+            device,
+            pooling: Pooling::Mean,
+            _pool_guard: pool_guard,
+        })
     }
 
     /// Select the pooling strategy (default [`Pooling::Mean`]). Does NOT change

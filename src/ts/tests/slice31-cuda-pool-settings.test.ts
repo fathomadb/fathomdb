@@ -37,7 +37,7 @@ test("an unknown pool setting is rejected before creating a database", async () 
     ["cudaPool", 1, TypeError],
     ["cudaPoolMaxSize", "64M", TypeError],
     ["cudaPoolMaxSize", 32 * MIB - 1, RangeError],
-    ["cudaPoolMaxSize", 1.5 * MIB * 64, RangeError],
+    ["cudaPoolMaxSize", 64 * MIB + 0.5, RangeError],
     ["cudaPoolMaxSize", Number.MAX_SAFE_INTEGER + 1, RangeError],
     ["cudaPoolReleaseThreshold", 0, TypeError],
     ["cudaPoolReleaseThreshold", "MAX", TypeError],

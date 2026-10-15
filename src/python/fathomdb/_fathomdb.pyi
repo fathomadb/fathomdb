@@ -354,6 +354,10 @@ class CudaAllocatorReport:
     pool_max_size_bytes: int | None
     release_threshold: str | None
     module_load_init: str
+    pool_mode: str | None
+    pool_mode_source: str | None
+    pool_max_size_source: str | None
+    pool_release_threshold_source: str | None
 
 class CudaLibraryReport:
     library: str
@@ -437,7 +441,7 @@ class Engine:
     def open(
         path: str,
         use_default_embedder: bool = ...,
-        config: dict[str, int | None] | None = ...,
+        config: dict[str, int | str | None] | None = ...,
     ) -> "Engine": ...
     # NOTE: `_configure_vector_kind_for_test`, `_write_vector_for_test`, and
     # `_set_legacy_projection_search_subobjects_for_test`

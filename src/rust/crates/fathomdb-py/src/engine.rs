@@ -26,6 +26,27 @@ pub(super) fn optional_engine_config_value(
     Ok(Some(integer as u64))
 }
 
+/// An optional string setting that must be one of `allowed`.
+fn optional_engine_config_string<T>(
+    config: &Bound<'_, PyDict>,
+    name: &str,
+    parse: impl Fn(&str) -> Option<T>,
+    expected: &str,
+) -> PyResult<Option<T>> {
+    let Some(value) = config.get_item(name)? else {
+        return Ok(None);
+    };
+    if value.is_none() {
+        return Ok(None);
+    }
+    let raw = value
+        .extract::<String>()
+        .map_err(|_| PyValueError::new_err(format!("{name} must be one of {expected}")))?;
+    parse(&raw)
+        .map(Some)
+        .ok_or_else(|| PyValueError::new_err(format!("{name}={raw:?}: expected {expected}")))
+}
+
 pub(super) fn engine_config_from_py(
     config: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<RustEngineConfig> {
@@ -43,6 +64,9 @@ pub(super) fn engine_config_from_py(
                 | "embedder_call_timeout_ms"
                 | "provenance_row_cap"
                 | "slow_threshold_ms"
+                | "cuda_pool"
+                | "cuda_pool_max_size"
+                | "cuda_pool_release_threshold"
         ) {
             return Err(PyTypeError::new_err(format!("unknown engine config field: {name}")));
         }
@@ -72,6 +96,28 @@ pub(super) fn engine_config_from_py(
             "slow_threshold_ms",
             0,
             (1_u64 << 53) - 1,
+        )?,
+        cuda_pool: optional_engine_config_string(
+            config,
+            "cuda_pool",
+            |raw| raw.parse::<fathomdb_embedder::PoolMode>().ok(),
+            "auto, on or off",
+        )?,
+        cuda_pool_max_size: optional_engine_config_value(
+            config,
+            "cuda_pool_max_size",
+            fathomdb_embedder::CUDA_POOL_MAX_SIZE_MIN,
+            u64::MAX,
+        )?,
+        cuda_pool_release_threshold: optional_engine_config_string(
+            config,
+            "cuda_pool_release_threshold",
+            |raw| match raw {
+                "0" => Some(fathomdb_embedder::ReleaseThreshold::Zero),
+                "max" => Some(fathomdb_embedder::ReleaseThreshold::Max),
+                _ => None,
+            },
+            "0 or max",
         )?,
     })
 }

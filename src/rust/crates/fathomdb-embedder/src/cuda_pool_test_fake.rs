@@ -31,7 +31,7 @@ pub(super) struct Fake {
     pub(super) panic_in_trim: AtomicBool,
     pub(super) synchronizes: AtomicUsize,
     pub(super) trims: AtomicUsize,
-    snapshot: Once,
+    pub(super) snapshot: Once,
 }
 
 impl Default for Fake {

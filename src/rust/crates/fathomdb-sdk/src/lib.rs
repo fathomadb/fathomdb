@@ -63,6 +63,10 @@ pub use fathomdb_embedder::{
     EmbedderEvent, GpuAllocationWitness, ModuleLoadInit, ReleaseThreshold,
     RerankerDevicePolicyError, RerankerDeviceResolution,
 };
+// The GPU memory pool settings of `EngineConfig` and their conflict.
+pub use fathomdb_embedder::{
+    CudaPoolSettingConflict, CudaPoolSettingValue, PoolMode as CudaPoolMode, PoolSettingSource,
+};
 pub use fathomdb_embedder_api::{EmbedderError as RuntimeEmbedderError, EmbedderIdentity};
 pub use fathomdb_engine::lifecycle::{
     Event as SubscriberEvent, EventCategory, EventSource, Phase, ProfileRecord, ProjectionStatus,

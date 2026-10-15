@@ -187,6 +187,11 @@ pub use evidence::{
     GraphEvidenceSidecarEntryV1, GraphEvidenceSidecarV1, ResolvedEvidenceV1,
     ResolvedGraphEvidenceV1,
 };
+/// The GPU memory pool settings of [`EngineConfig`] and their conflict.
+pub use fathomdb_embedder::{
+    CudaPoolSettingConflict, CudaPoolSettingValue, PoolMode as CudaPoolMode, PoolSettingSource,
+    ReleaseThreshold,
+};
 pub(crate) use filter::{
     append_node_eligibility_sql, edge_fts_hit_passes_filter, text_hit_passes_filter,
 };

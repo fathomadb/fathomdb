@@ -166,14 +166,14 @@ pub enum DoctorCommand {
     #[command(
         long_about = "Inspect the isolated embedder CUDA provider without opening an engine.\n\nFor a confirmed classic Jetson/Tegra CUDA host, install the exact 0.8.27 build from the first-party index:\n\npython3 -m venv .venv\n. .venv/bin/activate\npython -m pip install --isolated --no-cache-dir --only-binary=:all: --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ 'fathomdb==0.8.27+tegra'\n\nThis Pages route is detection-gated interim hosting. Unsupported targets have no supported Tegra CUDA route."
     )]
-    Gpu(GpuDoctorArgs),
+    Gpu(DeviceDoctorArgs),
     /// Classify Tegra, ARM64 SBSA, and generic AArch64 platforms without opening an engine.
     Platform(PlatformDoctorArgs),
     /// Inspect the isolated cross-encoder CUDA provider without loading a model.
-    RerankerGpu(GpuDoctorArgs),
+    RerankerGpu(DeviceDoctorArgs),
     /// Report this process's CUDA allocator decision (the Tegra private pool)
     /// without opening an engine.
-    CudaAllocator(GpuDoctorArgs),
+    CudaAllocator(DeviceDoctorArgs),
     /// Report the CUDA libraries this binary loads (driver, cuBLAS, cuRAND)
     /// and whether the device check refuses one, without opening an engine.
     CudaLibraries(GpuDoctorArgs),
@@ -223,6 +223,83 @@ pub struct GpuDoctorArgs {
     /// Emit the normative machine-readable diagnostic object.
     #[arg(long)]
     pub json: bool,
+}
+
+/// Argument set for the database-free doctor verbs that build a CUDA device
+/// (`gpu`, `reranker-gpu`, `cuda-allocator`): `--json` and the GPU memory
+/// pool settings for this process.
+#[derive(Debug, Args)]
+pub struct DeviceDoctorArgs {
+    /// Emit the normative machine-readable diagnostic object.
+    #[arg(long)]
+    pub json: bool,
+    #[command(flatten)]
+    pub pool: CudaPoolArg,
+}
+
+/// The GPU memory pool settings for this process, as an SDK open takes them
+/// (0.8.28 Slice 31 § 15). Each flag wins over its `FATHOMDB_POOL_*`
+/// environment variable.
+#[derive(Clone, Copy, Debug, Default, Args)]
+pub struct CudaPoolArg {
+    /// GPU memory pool mode (`auto`, `on`, `off`); overrides FATHOMDB_POOL_MODE.
+    #[arg(long, value_name = "auto|on|off", value_parser = parse_cuda_pool)]
+    pub cuda_pool: Option<fathomdb_embedder::PoolMode>,
+    /// GPU memory pool cap: bytes, `<n>G` or `<n>M`, at least 32 MiB;
+    /// overrides FATHOMDB_POOL_MAXSIZE.
+    #[arg(long, value_name = "bytes|<n>G|<n>M", value_parser = parse_cuda_pool_max_size)]
+    pub cuda_pool_max_size: Option<u64>,
+    /// GPU memory pool release threshold (`0`, `max`); overrides
+    /// FATHOMDB_POOL_RELEASE_THRESHOLD.
+    #[arg(long, value_name = "0|max", value_parser = parse_cuda_pool_release_threshold)]
+    pub cuda_pool_release_threshold: Option<fathomdb_embedder::ReleaseThreshold>,
+}
+
+impl CudaPoolArg {
+    /// Fixes this process's pool configuration before any CUDA device build.
+    fn claim(self) -> Result<(), String> {
+        fathomdb_embedder::claim_pool_config(&fathomdb_embedder::CudaPoolRequest {
+            mode: self.cuda_pool,
+            max_size: self.cuda_pool_max_size,
+            release_threshold: self.cuda_pool_release_threshold,
+        })
+        .map_err(|conflict| conflict.to_string())
+    }
+}
+
+fn parse_cuda_pool(raw: &str) -> Result<fathomdb_embedder::PoolMode, String> {
+    raw.parse().map_err(|error: fathomdb_embedder::UnknownPoolMode| error.to_string())
+}
+
+fn parse_cuda_pool_max_size(raw: &str) -> Result<u64, String> {
+    let (digits, shift) = match raw.as_bytes().last() {
+        Some(b'G') => (&raw[..raw.len() - 1], 30),
+        Some(b'M') => (&raw[..raw.len() - 1], 20),
+        _ => (raw, 0),
+    };
+    let bad = || format!("expected a byte count, <n>G or <n>M; got {raw:?}");
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(bad());
+    }
+    let value: u64 = digits.parse().map_err(|_| bad())?;
+    let bytes = value.checked_shl(shift).filter(|bytes| bytes >> shift == value).ok_or_else(bad)?;
+    if bytes < fathomdb_embedder::CUDA_POOL_MAX_SIZE_MIN {
+        return Err(format!(
+            "must be at least {} bytes (32 MiB); got {bytes}",
+            fathomdb_embedder::CUDA_POOL_MAX_SIZE_MIN
+        ));
+    }
+    Ok(bytes)
+}
+
+fn parse_cuda_pool_release_threshold(
+    raw: &str,
+) -> Result<fathomdb_embedder::ReleaseThreshold, String> {
+    match raw {
+        "0" => Ok(fathomdb_embedder::ReleaseThreshold::Zero),
+        "max" => Ok(fathomdb_embedder::ReleaseThreshold::Max),
+        other => Err(format!("expected 0 or max; got {other:?}")),
+    }
 }
 
 /// Argument set for the database-free `doctor platform` diagnostic.
@@ -749,7 +826,11 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
 }
 
 /// Run the database-free CUDA inventory/allocation-probe diagnostic.
-fn run_doctor_gpu(args: GpuDoctorArgs) -> i32 {
+fn run_doctor_gpu(args: DeviceDoctorArgs) -> i32 {
+    if let Err(message) = args.pool.claim() {
+        eprintln!("doctor gpu: {message}");
+        return exit_code::UNRECOVERABLE;
+    }
     let report = product_gpu_diagnostic();
     let (output, exit_code) = doctor_gpu_outcome(args, &report);
     print!("{output}");
@@ -1026,7 +1107,11 @@ fn platform_diagnostic_output(report: &PlatformReport, json_mode: bool) -> Strin
 
 /// Run the cross-encoder-only diagnostic. It is deliberately a separate verb:
 /// CUDA embedding evidence does not attest cross-encoder or SQLite execution.
-fn run_doctor_reranker_gpu(args: GpuDoctorArgs) -> i32 {
+fn run_doctor_reranker_gpu(args: DeviceDoctorArgs) -> i32 {
+    if let Err(message) = args.pool.claim() {
+        eprintln!("doctor reranker-gpu: {message}");
+        return exit_code::UNRECOVERABLE;
+    }
     #[cfg(feature = "default-reranker")]
     let (outcome, exit) = match fathomdb_embedder::resolve_default_reranker_device_from_env() {
         Ok(resolution) => {
@@ -1103,7 +1188,8 @@ struct CudaAllocatorInputs<'a> {
     rerank_cuda_compiled: bool,
     embed_policy: Option<&'a str>,
     rerank_policy: Option<&'a str>,
-    pool_mode: Option<&'a str>,
+    /// The pool configuration in force, fixed before any CUDA call.
+    pool: fathomdb_embedder::PoolSettingsInForce,
 }
 
 /// Every CUDA action of `doctor cuda-allocator`, so the early returns can be
@@ -1122,7 +1208,7 @@ trait CudaAllocatorProbe {
 struct CudaAllocatorRecord {
     built: bool,
     module_load_init: fathomdb_embedder::ModuleLoadInit,
-    mode: String,
+    pool: fathomdb_embedder::PoolSettingsInForce,
     report: Option<fathomdb_embedder::CudaAllocatorReport>,
     context_state: Option<fathomdb_embedder::CudaPrimaryContextState>,
 }
@@ -1135,7 +1221,7 @@ fn diagnose_cuda_allocator(
     let mut record = CudaAllocatorRecord {
         built: inputs.built,
         module_load_init: fathomdb_embedder::ModuleLoadInit::NotAtLoad,
-        mode: inputs.pool_mode.unwrap_or("auto").to_owned(),
+        pool: inputs.pool,
         report: None,
         context_state: None,
     };
@@ -1167,15 +1253,18 @@ const fn cuda_allocator_exit_code(outcome: &Result<CudaAllocatorRecord, String>)
 }
 
 #[derive(Serialize)]
-struct DoctorCudaAllocatorJson<'a> {
+struct DoctorCudaAllocatorJson {
     schema_version: &'static str,
     built: bool,
     module_load_init: &'static str,
-    mode: &'a str,
+    pool_mode: Option<&'static str>,
+    pool_mode_source: Option<&'static str>,
     path: Option<&'static str>,
     reason: &'static str,
     pool_max_size_bytes: Option<u64>,
+    pool_max_size_source: Option<&'static str>,
     release_threshold: Option<&'static str>,
+    pool_release_threshold_source: Option<&'static str>,
     cuda_context_state: Option<CudaContextStateJson>,
 }
 
@@ -1185,21 +1274,27 @@ struct CudaContextStateJson {
     flags: u32,
 }
 
-fn cuda_allocator_json(record: &CudaAllocatorRecord) -> DoctorCudaAllocatorJson<'_> {
+fn cuda_allocator_json(record: &CudaAllocatorRecord) -> DoctorCudaAllocatorJson {
     let report = record.report.as_ref();
+    let source = |source: Option<fathomdb_embedder::PoolSettingSource>| {
+        source.map(fathomdb_embedder::PoolSettingSource::as_str)
+    };
     DoctorCudaAllocatorJson {
         schema_version: CUDA_ALLOCATOR_SCHEMA,
         built: record.built,
         module_load_init: record.module_load_init.as_str(),
-        mode: &record.mode,
+        pool_mode: record.pool.mode.map(fathomdb_embedder::PoolMode::as_str),
+        pool_mode_source: source(record.pool.mode_source),
         path: report
             .and_then(|report| report.path)
             .map(fathomdb_embedder::CudaAllocatorPath::as_str),
         reason: report.map_or("not_applicable", |report| report.reason.as_str()),
         pool_max_size_bytes: report.and_then(|report| report.pool_max_size_bytes),
+        pool_max_size_source: source(record.pool.max_size_source),
         release_threshold: report
             .and_then(|report| report.release_threshold)
             .map(fathomdb_embedder::ReleaseThreshold::as_str),
+        pool_release_threshold_source: source(record.pool.release_threshold_source),
         cuda_context_state: record.context_state.map(|state| CudaContextStateJson {
             state: if state.active { "active" } else { "inactive" },
             flags: state.flags,
@@ -1215,15 +1310,18 @@ fn cuda_allocator_output(record: &CudaAllocatorRecord, json_mode: bool) -> Strin
         return output;
     }
     format!(
-        "doctor cuda-allocator\nschema_version={}\nbuilt={}\nmodule_load_init={}\nmode={}\npath={}\nreason={}\npool_max_size_bytes={}\nrelease_threshold={}\ncuda_context_state={}\n",
+        "doctor cuda-allocator\nschema_version={}\nbuilt={}\nmodule_load_init={}\npool_mode={}\npool_mode_source={}\npath={}\nreason={}\npool_max_size_bytes={}\npool_max_size_source={}\nrelease_threshold={}\npool_release_threshold_source={}\ncuda_context_state={}\n",
         json.schema_version,
         json.built,
         json.module_load_init,
-        json.mode,
+        json.pool_mode.unwrap_or("null"),
+        json.pool_mode_source.unwrap_or("null"),
         json.path.unwrap_or("null"),
         json.reason,
         json.pool_max_size_bytes.map_or("null".to_owned(), |bytes| bytes.to_string()),
+        json.pool_max_size_source.unwrap_or("null"),
         json.release_threshold.unwrap_or("null"),
+        json.pool_release_threshold_source.unwrap_or("null"),
         json.cuda_context_state
             .map_or("null".to_owned(), |state| format!("{} flags={}", state.state, state.flags)),
     )
@@ -1297,17 +1395,22 @@ impl CudaAllocatorProbe for SystemCudaAllocatorProbe {
 /// Report the CUDA allocator decision this process makes, as an SDK process
 /// would: early returns first (explicit `cpu`, affirmed ARM64 SBSA, no CUDA
 /// feature), then the early `cuInit` helper, then the device probe.
-fn run_doctor_cuda_allocator(args: GpuDoctorArgs) -> i32 {
+fn run_doctor_cuda_allocator(args: DeviceDoctorArgs) -> i32 {
+    // Before any CUDA call: the flag (else the environment) fixes the pool
+    // configuration the probe's device build uses, as an SDK open does.
+    if let Err(message) = args.pool.claim() {
+        eprintln!("doctor cuda-allocator: {message}");
+        return exit_code::UNRECOVERABLE;
+    }
     let embed_policy = std::env::var("FATHOMDB_EMBED_DEVICE").ok();
     let rerank_policy = std::env::var(fathomdb_embedder::ENV_RERANK_DEVICE).ok();
-    let pool_mode = std::env::var("FATHOMDB_POOL_MODE").ok();
     let inputs = CudaAllocatorInputs {
         built: TEGRA_POOL_BUILT,
         embed_cuda_compiled: cfg!(feature = "embed-cuda"),
         rerank_cuda_compiled: cfg!(feature = "rerank-cuda"),
         embed_policy: embed_policy.as_deref(),
         rerank_policy: rerank_policy.as_deref(),
-        pool_mode: pool_mode.as_deref(),
+        pool: fathomdb_embedder::pool_settings_in_force(),
     };
     let outcome =
         diagnose_cuda_allocator(&inputs, &SystemPlatformProbe, &mut SystemCudaAllocatorProbe);
@@ -1493,7 +1596,7 @@ fn policy_name(policy: fathomdb_embedder::RerankerDevicePolicy) -> String {
 }
 
 fn doctor_gpu_outcome(
-    args: GpuDoctorArgs,
+    args: DeviceDoctorArgs,
     report: &fathomdb_embedder::DoctorGpuDiagnosticResult,
 ) -> (String, i32) {
     (doctor_gpu_diagnostic_output(report, args.json), report.exit_code())
@@ -3329,11 +3432,21 @@ mod tests {
             rerank_cuda_compiled: false,
             embed_policy,
             rerank_policy: None,
-            pool_mode: None,
+            pool: default_pool_settings(),
         }
     }
 
-    const NOT_APPLICABLE_JSON: &str = "{\"schema_version\":\"fathomdb.doctor.cuda-allocator.v1\",\"built\":BUILT,\"module_load_init\":\"not_at_load\",\"mode\":\"auto\",\"path\":null,\"reason\":\"not_applicable\",\"pool_max_size_bytes\":null,\"release_threshold\":null,\"cuda_context_state\":null}\n";
+    fn default_pool_settings() -> fathomdb_embedder::PoolSettingsInForce {
+        let default = Some(fathomdb_embedder::PoolSettingSource::Default);
+        fathomdb_embedder::PoolSettingsInForce {
+            mode: Some(fathomdb_embedder::PoolMode::Auto),
+            mode_source: default,
+            max_size_source: default,
+            release_threshold_source: default,
+        }
+    }
+
+    const NOT_APPLICABLE_JSON: &str = "{\"schema_version\":\"fathomdb.doctor.cuda-allocator.v1\",\"built\":BUILT,\"module_load_init\":\"not_at_load\",\"pool_mode\":\"auto\",\"pool_mode_source\":\"default\",\"path\":null,\"reason\":\"not_applicable\",\"pool_max_size_bytes\":null,\"pool_max_size_source\":\"default\",\"release_threshold\":null,\"pool_release_threshold_source\":\"default\",\"cuda_context_state\":null}\n";
 
     #[test]
     fn doctor_cuda_allocator_explicit_cpu_returns_before_any_cuda_call() {
@@ -3379,7 +3492,7 @@ mod tests {
         );
         assert_eq!(
             cuda_allocator_output(&record, false),
-            "doctor cuda-allocator\nschema_version=fathomdb.doctor.cuda-allocator.v1\nbuilt=false\nmodule_load_init=not_at_load\nmode=auto\npath=null\nreason=not_applicable\npool_max_size_bytes=null\nrelease_threshold=null\ncuda_context_state=null\n"
+            "doctor cuda-allocator\nschema_version=fathomdb.doctor.cuda-allocator.v1\nbuilt=false\nmodule_load_init=not_at_load\npool_mode=auto\npool_mode_source=default\npath=null\nreason=not_applicable\npool_max_size_bytes=null\npool_max_size_source=default\nrelease_threshold=null\npool_release_threshold_source=default\ncuda_context_state=null\n"
         );
     }
 
@@ -3391,6 +3504,10 @@ mod tests {
             Some(3 << 30),
             Some(fathomdb_embedder::ReleaseThreshold::Zero),
             fathomdb_embedder::ModuleLoadInit::Ran,
+            Some(fathomdb_embedder::PoolMode::On),
+            Some(fathomdb_embedder::PoolSettingSource::Env),
+            Some(fathomdb_embedder::PoolSettingSource::Default),
+            Some(fathomdb_embedder::PoolSettingSource::Default),
         );
         let mut probe = FixtureAllocatorProbe {
             init: fathomdb_embedder::ModuleLoadInit::Ran,
@@ -3402,18 +3519,19 @@ mod tests {
             calls: Vec::new(),
         };
         let mut inputs = allocator_inputs(true, None);
-        inputs.pool_mode = Some("on");
+        inputs.pool.mode = Some(fathomdb_embedder::PoolMode::On);
+        inputs.pool.mode_source = Some(fathomdb_embedder::PoolSettingSource::Env);
         let record =
             diagnose_cuda_allocator(&inputs, &PlatformFixture::classic_tegra(), &mut probe)
                 .expect("probe succeeds");
         assert_eq!(probe.calls, ["early_init", "resolve_device", "context_state"]);
         assert_eq!(
             cuda_allocator_output(&record, true),
-            "{\"schema_version\":\"fathomdb.doctor.cuda-allocator.v1\",\"built\":true,\"module_load_init\":\"ran\",\"mode\":\"on\",\"path\":\"private\",\"reason\":\"private_pool\",\"pool_max_size_bytes\":3221225472,\"release_threshold\":\"0\",\"cuda_context_state\":{\"state\":\"active\",\"flags\":8}}\n"
+            "{\"schema_version\":\"fathomdb.doctor.cuda-allocator.v1\",\"built\":true,\"module_load_init\":\"ran\",\"pool_mode\":\"on\",\"pool_mode_source\":\"env\",\"path\":\"private\",\"reason\":\"private_pool\",\"pool_max_size_bytes\":3221225472,\"pool_max_size_source\":\"default\",\"release_threshold\":\"0\",\"pool_release_threshold_source\":\"default\",\"cuda_context_state\":{\"state\":\"active\",\"flags\":8}}\n"
         );
         assert_eq!(
             cuda_allocator_output(&record, false),
-            "doctor cuda-allocator\nschema_version=fathomdb.doctor.cuda-allocator.v1\nbuilt=true\nmodule_load_init=ran\nmode=on\npath=private\nreason=private_pool\npool_max_size_bytes=3221225472\nrelease_threshold=0\ncuda_context_state=active flags=8\n"
+            "doctor cuda-allocator\nschema_version=fathomdb.doctor.cuda-allocator.v1\nbuilt=true\nmodule_load_init=ran\npool_mode=on\npool_mode_source=env\npath=private\nreason=private_pool\npool_max_size_bytes=3221225472\npool_max_size_source=default\nrelease_threshold=0\npool_release_threshold_source=default\ncuda_context_state=active flags=8\n"
         );
     }
 
@@ -3437,7 +3555,7 @@ mod tests {
             let state = if has_device { "{\"state\":\"inactive\",\"flags\":0}" } else { "null" };
             assert_eq!(
                 cuda_allocator_output(&record, true),
-                format!("{{\"schema_version\":\"fathomdb.doctor.cuda-allocator.v1\",\"built\":false,\"module_load_init\":\"opted_out\",\"mode\":\"auto\",\"path\":null,\"reason\":\"not_applicable\",\"pool_max_size_bytes\":null,\"release_threshold\":null,\"cuda_context_state\":{state}}}\n")
+                format!("{{\"schema_version\":\"fathomdb.doctor.cuda-allocator.v1\",\"built\":false,\"module_load_init\":\"opted_out\",\"pool_mode\":\"auto\",\"pool_mode_source\":\"default\",\"path\":null,\"reason\":\"not_applicable\",\"pool_max_size_bytes\":null,\"pool_max_size_source\":\"default\",\"release_threshold\":null,\"pool_release_threshold_source\":\"default\",\"cuda_context_state\":{state}}}\n")
             );
         }
     }

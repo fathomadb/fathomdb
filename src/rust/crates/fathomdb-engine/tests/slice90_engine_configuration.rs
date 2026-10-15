@@ -24,6 +24,9 @@ fn requested_configuration_is_retained_without_setter_mutation() {
         embedder_call_timeout_ms: Some(500),
         provenance_row_cap: Some(0),
         slow_threshold_ms: Some(0),
+        cuda_pool: None,
+        cuda_pool_max_size: None,
+        cuda_pool_release_threshold: None,
     };
     let opened = Engine::open_with_choice_and_config(
         database_path(&dir, "configured"),

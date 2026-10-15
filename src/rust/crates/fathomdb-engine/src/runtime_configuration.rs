@@ -155,6 +155,28 @@ pub struct EngineConfig {
     pub provenance_row_cap: Option<u64>,
     /// Slow-operation threshold in milliseconds, `0..=2^53-1`; default `100`.
     pub slow_threshold_ms: Option<u64>,
+    /// The GPU memory pool mode (`auto`, `on`, `off`); `None` leaves it to
+    /// `FATHOMDB_POOL_MODE`, else `auto`. Fixed once per process: see
+    /// [`EngineConfigurationError::CudaPoolSettingConflict`].
+    pub cuda_pool: Option<fathomdb_embedder::PoolMode>,
+    /// The GPU memory pool's cap in bytes, at least 32 MiB; `None` leaves it
+    /// to `FATHOMDB_POOL_MAXSIZE`, else derived from device memory. Fixed
+    /// once per process.
+    pub cuda_pool_max_size: Option<u64>,
+    /// The GPU memory pool's release threshold (`0` or `max`); `None` leaves
+    /// it to `FATHOMDB_POOL_RELEASE_THRESHOLD`, else `0`. Fixed once per
+    /// process.
+    pub cuda_pool_release_threshold: Option<fathomdb_embedder::ReleaseThreshold>,
+}
+
+impl EngineConfig {
+    pub(crate) const fn cuda_pool_request(&self) -> fathomdb_embedder::CudaPoolRequest {
+        fathomdb_embedder::CudaPoolRequest {
+            mode: self.cuda_pool,
+            max_size: self.cuda_pool_max_size,
+            release_threshold: self.cuda_pool_release_threshold,
+        }
+    }
 }
 
 /// Invalid per-engine settings. Process-wide SQLite mode failures use
@@ -165,6 +187,11 @@ pub enum EngineConfigurationError {
     OutOfRange { field: &'static str, value: u64, min: u64, max: u64 },
     /// A derived bounded capacity cannot fit the native platform width.
     CapacityOverflow { field: &'static str },
+    /// A GPU pool setting differs from the one already in force in this
+    /// process. The pool configuration is fixed by the first open that sets
+    /// any pool setting, or else by the environment at the first GPU use,
+    /// and closing every engine does not reset it.
+    CudaPoolSettingConflict(fathomdb_embedder::CudaPoolSettingConflict),
 }
 
 impl Display for EngineConfigurationError {
@@ -176,6 +203,7 @@ impl Display for EngineConfigurationError {
             Self::CapacityOverflow { field } => {
                 write!(f, "engine configuration capacity {field} exceeds the platform width")
             }
+            Self::CudaPoolSettingConflict(conflict) => conflict.fmt(f),
         }
     }
 }
@@ -224,6 +252,15 @@ impl ResolvedRuntimeConfiguration {
             0,
             MAX_SAFE_INTEGER,
         )?;
+        if let Some(max_size) = requested.cuda_pool_max_size {
+            checked_value(
+                "cuda_pool_max_size",
+                Some(max_size),
+                max_size,
+                fathomdb_embedder::CUDA_POOL_MAX_SIZE_MIN,
+                u64::MAX,
+            )?;
+        }
         let scheduler_runtime_threads = usize::try_from(scheduler).map_err(|_| {
             EngineConfigurationError::CapacityOverflow { field: "scheduler_runtime_threads" }
         })?;
@@ -262,6 +299,14 @@ fn checked_value(
         return Err(EngineConfigurationError::OutOfRange { field, value, min, max });
     }
     Ok(value)
+}
+
+/// Fixes the process's GPU pool configuration for this open, or checks it
+/// against the one in force. Runs before any device probe, so the probe's
+/// first CUDA device build uses it.
+pub(crate) fn claim_cuda_pool(config: &EngineConfig) -> Result<(), EngineConfigurationError> {
+    fathomdb_embedder::claim_pool_config(&config.cuda_pool_request())
+        .map_err(EngineConfigurationError::CudaPoolSettingConflict)
 }
 
 impl Engine {
@@ -319,6 +364,7 @@ mod tests {
             embedder_call_timeout_ms: Some(u64::from(u32::MAX)),
             provenance_row_cap: Some(MAX_SAFE_INTEGER),
             slow_threshold_ms: Some(MAX_SAFE_INTEGER),
+            ..EngineConfig::default()
         })
         .unwrap();
         assert_eq!(max.embed_waiting_capacity, 256);

@@ -23,8 +23,14 @@ use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 
 mod cuda_pool_policy;
 pub use cuda_pool_policy::{
-    CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaPoolFailure, ModuleLoadInit,
-    ReleaseThreshold,
+    CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaPoolFailure, CudaPoolRequest,
+    CudaPoolSettingConflict, CudaPoolSettingValue, ModuleLoadInit, PoolMode, PoolSettingSource,
+    ReleaseThreshold, UnknownPoolMode, CUDA_POOL_MAX_SIZE_MIN,
+};
+// The process's pool configuration; engine binding support, not SDK surface.
+#[doc(hidden)]
+pub use cuda_pool_policy::{
+    claim_pool_config, fix_pool_config_from_env, pool_settings_in_force, PoolSettingsInForce,
 };
 // Driver facts for `doctor cuda-allocator`; binding support, not SDK surface.
 #[doc(hidden)]

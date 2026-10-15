@@ -122,6 +122,7 @@ export {
   OpenReport,
   GpuAllocationWitness,
   CudaAllocatorReport,
+  CudaPoolSettingSource,
   CudaDeviceInfo,
   CudaLibraryReport,
   CudaVisibleDevice,

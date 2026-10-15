@@ -34,7 +34,7 @@
 
 use std::fmt;
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Once, OnceLock};
 
 const MIB: u64 = 1 << 20;
@@ -256,19 +256,66 @@ pub struct CudaAllocatorReport {
     pub release_threshold: Option<ReleaseThreshold>,
     /// What the module-load early `cuInit` did.
     pub module_load_init: ModuleLoadInit,
+    /// The pool mode in force; `None` when `FATHOMDB_POOL_MODE` was
+    /// malformed (the reason is then `invalid_setting`).
+    pub pool_mode: Option<PoolMode>,
+    /// Where the mode in force came from.
+    pub pool_mode_source: Option<PoolSettingSource>,
+    /// Where the pool size in force came from (`default`: derived from
+    /// device memory).
+    pub pool_max_size_source: Option<PoolSettingSource>,
+    /// Where the release threshold in force came from.
+    pub pool_release_threshold_source: Option<PoolSettingSource>,
 }
 
 impl CudaAllocatorReport {
     /// A report with every field given.
     #[must_use]
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         path: Option<CudaAllocatorPath>,
         reason: CudaAllocatorReason,
         pool_max_size_bytes: Option<u64>,
         release_threshold: Option<ReleaseThreshold>,
         module_load_init: ModuleLoadInit,
+        pool_mode: Option<PoolMode>,
+        pool_mode_source: Option<PoolSettingSource>,
+        pool_max_size_source: Option<PoolSettingSource>,
+        pool_release_threshold_source: Option<PoolSettingSource>,
     ) -> Self {
-        Self { path, reason, pool_max_size_bytes, release_threshold, module_load_init }
+        Self {
+            path,
+            reason,
+            pool_max_size_bytes,
+            release_threshold,
+            module_load_init,
+            pool_mode,
+            pool_mode_source,
+            pool_max_size_source,
+            pool_release_threshold_source,
+        }
+    }
+
+    /// A report whose pool fields come from the configuration in force.
+    pub(crate) fn with_config_in_force(
+        path: Option<CudaAllocatorPath>,
+        reason: CudaAllocatorReason,
+        pool_max_size_bytes: Option<u64>,
+        release_threshold: Option<ReleaseThreshold>,
+        module_load_init: ModuleLoadInit,
+    ) -> Self {
+        let fields = pool_config_in_force().report_fields();
+        Self::new(
+            path,
+            reason,
+            pool_max_size_bytes,
+            release_threshold,
+            module_load_init,
+            fields.mode,
+            fields.mode_source,
+            fields.max_size_source,
+            fields.release_threshold_source,
+        )
     }
 }
 
@@ -287,22 +334,71 @@ pub(crate) fn not_built_report(
     aarch64_linux_cuda: bool,
     module_load_init: ModuleLoadInit,
 ) -> Option<CudaAllocatorReport> {
-    aarch64_linux_cuda.then_some(CudaAllocatorReport::new(
-        None,
-        CudaAllocatorReason::NotBuilt,
-        None,
-        None,
-        module_load_init,
-    ))
+    aarch64_linux_cuda.then(|| {
+        CudaAllocatorReport::with_config_in_force(
+            None,
+            CudaAllocatorReason::NotBuilt,
+            None,
+            None,
+            module_load_init,
+        )
+    })
 }
 
 // ---- settings ---------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PoolMode {
+/// The pool mode: the `cuda_pool` open setting, or `FATHOMDB_POOL_MODE`
+/// when no open sets it. Re-exported as `CudaPoolMode` by the engine, the
+/// facade and the SDK.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PoolMode {
+    /// The pool engages on the measured class only (the default).
     Auto,
+    /// The pool engages on any integrated GPU that passes the hard gates.
     On,
+    /// No pool: the 0.8.27 allocator path.
     Off,
+}
+
+impl PoolMode {
+    /// Stable name: `"auto"`, `"on"` or `"off"`.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::On => "on",
+            Self::Off => "off",
+        }
+    }
+}
+
+/// A string that is not `auto`, `on` or `off`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UnknownPoolMode {
+    /// The rejected string.
+    pub value: String,
+}
+
+impl fmt::Display for UnknownPoolMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "cuda_pool={:?}: expected auto, on or off", self.value)
+    }
+}
+
+impl std::error::Error for UnknownPoolMode {}
+
+impl std::str::FromStr for PoolMode {
+    type Err = UnknownPoolMode;
+
+    /// Parses the exact strings `auto`, `on` and `off`.
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "auto" => Ok(Self::Auto),
+            "on" => Ok(Self::On),
+            "off" => Ok(Self::Off),
+            other => Err(UnknownPoolMode { value: other.to_owned() }),
+        }
+    }
 }
 
 /// A malformed or out-of-bounds pool setting.
@@ -371,6 +467,344 @@ impl RawPoolSettings {
     }
 }
 
+// ---- the configuration in force (Slice 31 § 15) ------------------------------
+
+/// The smallest pool size an open accepts, in bytes (32 MiB).
+pub const CUDA_POOL_MAX_SIZE_MIN: u64 = MAXSIZE_MIN;
+
+/// Where a pool setting in force came from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PoolSettingSource {
+    /// An open (or a CLI flag) set it.
+    Sdk,
+    /// Its `FATHOMDB_POOL_*` environment variable, because no open set it.
+    Env,
+    /// Neither: the documented default.
+    Default,
+}
+
+impl PoolSettingSource {
+    /// Stable name: `"sdk"`, `"env"` or `"default"`.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Sdk => "sdk",
+            Self::Env => "env",
+            Self::Default => "default",
+        }
+    }
+}
+
+/// One pool setting's value, as a conflict names it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CudaPoolSettingValue {
+    /// `cuda_pool`.
+    Mode(PoolMode),
+    /// `cuda_pool_max_size`, in bytes.
+    MaxSize(u64),
+    /// `cuda_pool_release_threshold`.
+    ReleaseThreshold(ReleaseThreshold),
+}
+
+impl fmt::Display for CudaPoolSettingValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Mode(mode) => f.write_str(mode.as_str()),
+            Self::MaxSize(bytes) => write!(f, "{bytes}"),
+            Self::ReleaseThreshold(threshold) => f.write_str(threshold.as_str()),
+        }
+    }
+}
+
+/// An open asked for a pool setting that differs from the one already in
+/// force in this process. The pool configuration is fixed once per process
+/// (by the first open that passes any pool setting, or else by the
+/// environment at the first GPU use) and never reset.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CudaPoolSettingConflict {
+    /// `"cuda_pool"`, `"cuda_pool_max_size"` or `"cuda_pool_release_threshold"`.
+    pub setting: &'static str,
+    /// The value this open asked for.
+    pub requested: CudaPoolSettingValue,
+    /// The value in force; `None` for a device-derived default size or an
+    /// invalid environment value.
+    pub in_force: Option<CudaPoolSettingValue>,
+    /// Where the value in force came from; `None` for an invalid
+    /// environment value.
+    pub source: Option<PoolSettingSource>,
+}
+
+impl CudaPoolSettingConflict {
+    const fn env_var(setting: &str) -> &'static str {
+        match setting.as_bytes() {
+            b"cuda_pool" => ENV_POOL_MODE,
+            b"cuda_pool_max_size" => ENV_POOL_MAXSIZE,
+            _ => ENV_POOL_RELEASE_THRESHOLD,
+        }
+    }
+}
+
+impl fmt::Display for CudaPoolSettingConflict {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let setting = self.setting;
+        write!(f, "{setting}={} conflicts with ", self.requested)?;
+        match (self.in_force, self.source) {
+            (Some(in_force), Some(source)) => write!(
+                f,
+                "{setting}={in_force} already in force in this process (from {})",
+                source.as_str()
+            )?,
+            (_, Some(_)) => {
+                write!(f, "the device-derived default {setting} already in force")?;
+            }
+            (_, None) => {
+                write!(f, "the invalid {} this process started with", Self::env_var(setting))?
+            }
+        }
+        f.write_str("; open with the same value or omit it")
+    }
+}
+
+impl std::error::Error for CudaPoolSettingConflict {}
+
+/// The pool settings one open asks for; `None` leaves a setting to the
+/// environment (or the configuration already in force).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CudaPoolRequest {
+    /// `cuda_pool`.
+    pub mode: Option<PoolMode>,
+    /// `cuda_pool_max_size`, in bytes (at least [`CUDA_POOL_MAX_SIZE_MIN`]).
+    pub max_size: Option<u64>,
+    /// `cuda_pool_release_threshold`.
+    pub release_threshold: Option<ReleaseThreshold>,
+}
+
+impl CudaPoolRequest {
+    const fn is_empty(&self) -> bool {
+        self.mode.is_none() && self.max_size.is_none() && self.release_threshold.is_none()
+    }
+}
+
+/// One setting in force.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Field<T> {
+    Set {
+        value: T,
+        source: PoolSettingSource,
+    },
+    /// The size only: derived from device memory at the decision.
+    Default,
+    /// The raw environment value, which the decision refuses as before.
+    InvalidEnv(String),
+}
+
+impl<T: Copy + PartialEq> Field<T> {
+    fn source(&self) -> PoolSettingSource {
+        match self {
+            Self::Set { source, .. } => *source,
+            Self::Default => PoolSettingSource::Default,
+            Self::InvalidEnv(_) => PoolSettingSource::Env,
+        }
+    }
+
+    /// `Ok` when an open that asks for `requested` may share this field.
+    fn check(
+        &self,
+        setting: &'static str,
+        requested: Option<T>,
+        value: fn(T) -> CudaPoolSettingValue,
+    ) -> Result<(), CudaPoolSettingConflict> {
+        let Some(requested) = requested else { return Ok(()) };
+        let (in_force, source) = match self {
+            Self::Set { value: in_force, .. } if *in_force == requested => return Ok(()),
+            Self::Set { value: in_force, source } => (Some(value(*in_force)), Some(*source)),
+            Self::Default => (None, Some(PoolSettingSource::Default)),
+            Self::InvalidEnv(_) => (None, None),
+        };
+        Err(CudaPoolSettingConflict { setting, requested: value(requested), in_force, source })
+    }
+}
+
+fn field<T>(
+    requested: Option<T>,
+    raw: Option<&str>,
+    parse: impl Fn(&str) -> Option<T>,
+    default: Option<T>,
+) -> Field<T> {
+    if let Some(value) = requested {
+        return Field::Set { value, source: PoolSettingSource::Sdk };
+    }
+    match raw {
+        Some(raw) => match parse(raw) {
+            Some(value) => Field::Set { value, source: PoolSettingSource::Env },
+            None => Field::InvalidEnv(raw.to_owned()),
+        },
+        None => match default {
+            Some(value) => Field::Set { value, source: PoolSettingSource::Default },
+            None => Field::Default,
+        },
+    }
+}
+
+/// The three pool settings in force for the process.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PoolConfigInForce {
+    pub(crate) mode: Field<PoolMode>,
+    pub(crate) max_size: Field<u64>,
+    pub(crate) release_threshold: Field<ReleaseThreshold>,
+}
+
+/// The report's view of the pool configuration in force. Binding support
+/// for `doctor cuda-allocator`, not an SDK surface.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PoolSettingsInForce {
+    /// The mode; `None` for a malformed `FATHOMDB_POOL_MODE`.
+    pub mode: Option<PoolMode>,
+    /// Where the mode came from.
+    pub mode_source: Option<PoolSettingSource>,
+    /// Where the size came from.
+    pub max_size_source: Option<PoolSettingSource>,
+    /// Where the release threshold came from.
+    pub release_threshold_source: Option<PoolSettingSource>,
+}
+
+impl PoolConfigInForce {
+    /// Each field from the request, else its environment value, else its
+    /// default; a malformed environment value is kept as `InvalidEnv`.
+    fn from_request(request: &CudaPoolRequest, env: &RawPoolSettings) -> Self {
+        Self {
+            mode: field(
+                request.mode,
+                env.mode.as_deref(),
+                |raw| parse_pool_mode(Some(raw)).ok(),
+                Some(PoolMode::Auto),
+            ),
+            max_size: field(
+                request.max_size,
+                env.max_size.as_deref(),
+                |raw| parse_max_size(Some(raw)).ok().flatten(),
+                None,
+            ),
+            release_threshold: field(
+                request.release_threshold,
+                env.release_threshold.as_deref(),
+                |raw| parse_release_threshold(Some(raw)).ok(),
+                Some(ReleaseThreshold::Zero),
+            ),
+        }
+    }
+
+    pub(crate) fn report_fields(&self) -> PoolSettingsInForce {
+        PoolSettingsInForce {
+            mode: match self.mode {
+                Field::Set { value, .. } => Some(value),
+                Field::Default | Field::InvalidEnv(_) => None,
+            },
+            mode_source: Some(self.mode.source()),
+            max_size_source: Some(self.max_size.source()),
+            release_threshold_source: Some(self.release_threshold.source()),
+        }
+    }
+}
+
+/// The configuration that holds after an open asking for `request`: the
+/// one in force when there is one (if every field the open sets matches
+/// it), otherwise a new one. The first conflicting setting, in the order
+/// mode, size, threshold, is the error.
+pub(crate) fn resolve_pool_config(
+    in_force: Option<&PoolConfigInForce>,
+    request: &CudaPoolRequest,
+    env: &RawPoolSettings,
+) -> Result<PoolConfigInForce, CudaPoolSettingConflict> {
+    let Some(in_force) = in_force else {
+        return Ok(PoolConfigInForce::from_request(request, env));
+    };
+    in_force.mode.check("cuda_pool", request.mode, CudaPoolSettingValue::Mode)?;
+    in_force.max_size.check(
+        "cuda_pool_max_size",
+        request.max_size,
+        CudaPoolSettingValue::MaxSize,
+    )?;
+    in_force.release_threshold.check(
+        "cuda_pool_release_threshold",
+        request.release_threshold,
+        CudaPoolSettingValue::ReleaseThreshold,
+    )?;
+    Ok(in_force.clone())
+}
+
+/// The configuration as the strings the decision parses, so the frozen
+/// gate pipeline (and its "`off` wins" rule) sees exactly what it saw when
+/// the settings came only from the environment.
+pub(crate) fn render_raw_settings(config: &PoolConfigInForce) -> RawPoolSettings {
+    fn render<T>(field: &Field<T>, show: impl Fn(&T) -> String) -> Option<String> {
+        match field {
+            Field::Set { value, .. } => Some(show(value)),
+            Field::Default => None,
+            Field::InvalidEnv(raw) => Some(raw.clone()),
+        }
+    }
+    RawPoolSettings {
+        mode: render(&config.mode, |mode| mode.as_str().to_owned()),
+        max_size: render(&config.max_size, u64::to_string),
+        release_threshold: render(&config.release_threshold, |threshold| {
+            threshold.as_str().to_owned()
+        }),
+    }
+}
+
+/// The process's one pool configuration. Never cleared: the decision and
+/// its pool are permanent too.
+static POOL_CONFIG_IN_FORCE: OnceLock<PoolConfigInForce> = OnceLock::new();
+
+fn env_pool_settings() -> RawPoolSettings {
+    RawPoolSettings::from_env(|name| std::env::var(name).ok())
+}
+
+/// Fixes the pool configuration for an open that asks for `request`, or
+/// checks it against the one already in force. An empty request never
+/// fixes and never conflicts. Engine binding support, not an SDK surface:
+/// callers pass their open settings through the engine.
+///
+/// # Errors
+///
+/// [`CudaPoolSettingConflict`] when a setting the request names differs
+/// from the one in force.
+#[doc(hidden)]
+pub fn claim_pool_config(request: &CudaPoolRequest) -> Result<(), CudaPoolSettingConflict> {
+    if request.is_empty() {
+        return Ok(());
+    }
+    let env = env_pool_settings();
+    let in_force =
+        POOL_CONFIG_IN_FORCE.get_or_init(|| PoolConfigInForce::from_request(request, &env));
+    resolve_pool_config(Some(in_force), request, &env).map(|_| ())
+}
+
+/// Fixes the pool configuration from the environment when no open did,
+/// as the process's first CUDA device build does. Binding support.
+#[doc(hidden)]
+pub fn fix_pool_config_from_env() {
+    let _ = pool_config_in_force();
+}
+
+/// The pool configuration in force, fixed from the environment if nothing
+/// fixed it yet. Binding support for `doctor cuda-allocator`.
+#[doc(hidden)]
+#[must_use]
+pub fn pool_settings_in_force() -> PoolSettingsInForce {
+    pool_config_in_force().report_fields()
+}
+
+/// The configuration in force, fixed from the environment if nothing fixed
+/// it yet.
+pub(crate) fn pool_config_in_force() -> &'static PoolConfigInForce {
+    POOL_CONFIG_IN_FORCE.get_or_init(|| {
+        PoolConfigInForce::from_request(&CudaPoolRequest::default(), &env_pool_settings())
+    })
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PoolSettings {
     mode: PoolMode,
@@ -436,6 +870,18 @@ pub(crate) fn pre_device_gates(
     raw: &RawPoolSettings,
     init: ModuleLoadInit,
 ) -> Result<PoolSettings, CudaAllocatorReason> {
+    pre_device_gates_with_probe(raw, init, false)
+}
+
+/// [`pre_device_gates`], admitting [`ModuleLoadInit::NotAtLoad`] when the
+/// driver was already initialized by a FathomDB probe (`probe_ok`): a
+/// process with no load hook (plain Rust) whose first `cuInit` was its own
+/// probe's. Every other load outcome keeps its gate.
+pub(crate) fn pre_device_gates_with_probe(
+    raw: &RawPoolSettings,
+    init: ModuleLoadInit,
+    probe_ok: bool,
+) -> Result<PoolSettings, CudaAllocatorReason> {
     let mode =
         parse_pool_mode(raw.mode.as_deref()).map_err(|_| CudaAllocatorReason::InvalidSetting)?;
     if mode == PoolMode::Off {
@@ -445,7 +891,9 @@ pub(crate) fn pre_device_gates(
         parse_max_size(raw.max_size.as_deref()).map_err(|_| CudaAllocatorReason::InvalidSetting)?;
     let release_threshold = parse_release_threshold(raw.release_threshold.as_deref())
         .map_err(|_| CudaAllocatorReason::InvalidSetting)?;
-    init_gate(init)?;
+    if !(probe_ok && init == ModuleLoadInit::NotAtLoad) {
+        init_gate(init)?;
+    }
     Ok(PoolSettings { mode, max_size, release_threshold })
 }
 
@@ -921,6 +1369,12 @@ pub(crate) trait PoolDriver {
 
     fn raw_settings(&self) -> RawPoolSettings;
     fn module_load_init(&self) -> ModuleLoadInit;
+    /// Whether the process's most recent `cuInit` attempt, by any FathomDB
+    /// caller (in a Rust process, the device probe), succeeded. Admits a
+    /// process with no module-load record (design § 14.2, owner ruling Q36).
+    fn driver_initialized(&self) -> bool {
+        false
+    }
     /// Runs `body` with device `ordinal`'s primary context retained and
     /// current, and releases it afterwards.
     fn with_primary_retained<R>(
@@ -967,6 +1421,9 @@ pub(crate) struct PrivateDecision<P, C> {
     pub(crate) pool: P,
     pub(crate) first_context: C,
     first_context_handed_out: AtomicBool,
+    /// FathomDB models open on this pool (design § 14.1): the close release
+    /// runs when the last one closes.
+    pub(crate) live_models: AtomicUsize,
     /// `cuCtxGetId` of the first context, which is the primary context;
     /// context-loss detection compares the current primary context with it.
     pub(crate) context_id: u64,
@@ -989,14 +1446,16 @@ impl<P, C> Decision<P, C> {
         path: Option<CudaAllocatorPath>,
     ) -> CudaAllocatorReport {
         match self {
-            Self::Private(private) if private.ordinal == ordinal => CudaAllocatorReport::new(
-                path,
-                CudaAllocatorReason::PrivatePool,
-                Some(private.max_size_bytes),
-                Some(private.release_threshold),
-                private.module_load_init,
-            ),
-            Self::Private(private) => CudaAllocatorReport::new(
+            Self::Private(private) if private.ordinal == ordinal => {
+                CudaAllocatorReport::with_config_in_force(
+                    path,
+                    CudaAllocatorReason::PrivatePool,
+                    Some(private.max_size_bytes),
+                    Some(private.release_threshold),
+                    private.module_load_init,
+                )
+            }
+            Self::Private(private) => CudaAllocatorReport::with_config_in_force(
                 path,
                 CudaAllocatorReason::OtherOrdinal,
                 None,
@@ -1004,7 +1463,13 @@ impl<P, C> Decision<P, C> {
                 private.module_load_init,
             ),
             Self::Fallback { reason, module_load_init } => {
-                CudaAllocatorReport::new(path, *reason, None, None, *module_load_init)
+                CudaAllocatorReport::with_config_in_force(
+                    path,
+                    *reason,
+                    None,
+                    None,
+                    *module_load_init,
+                )
             }
         }
     }
@@ -1027,7 +1492,11 @@ pub(crate) fn decide_and_build<D: PoolDriver>(
 ) -> Decision<D::Pool, D::Context> {
     let module_load_init = driver.module_load_init();
     let fallback = |reason| Decision::Fallback { reason, module_load_init };
-    let settings = match pre_device_gates(&driver.raw_settings(), module_load_init) {
+    let settings = match pre_device_gates_with_probe(
+        &driver.raw_settings(),
+        module_load_init,
+        driver.driver_initialized(),
+    ) {
         Ok(settings) => settings,
         Err(reason) => return fallback(reason),
     };
@@ -1054,6 +1523,7 @@ pub(crate) fn decide_and_build<D: PoolDriver>(
             pool,
             first_context,
             first_context_handed_out: AtomicBool::new(false),
+            live_models: AtomicUsize::new(0),
             context_id,
             max_size_bytes,
             release_threshold,
@@ -1133,6 +1603,108 @@ pub(crate) fn build_device<D: PoolDriver>(
         }
         _ => driver.default_device(ordinal).map_err(DeviceBuildError::Default),
     }
+}
+
+// ---- the close release (Slice 31 § 14.1, owner rulings Q29, Q34) ------------
+
+/// The driver calls of the close release. No default bodies, so the real
+/// driver cannot silently skip them.
+pub(crate) trait PoolRelease: PoolDriver {
+    /// Waits for all work on `context` (the device's primary context, which
+    /// every private context shares).
+    fn synchronize(&self, context: &Self::Context) -> Result<(), DriverFailure>;
+    /// Returns the pool's unused memory to the system (`trim_to(0)`).
+    fn trim(&self, pool: &Self::Pool) -> Result<(), DriverFailure>;
+}
+
+/// What one close release did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ReleaseOutcome {
+    /// Another FathomDB model is still open on the pool.
+    StillOpen,
+    /// No private decision: nothing to release.
+    NotPrivate,
+    /// The private context is gone; touching it could fault.
+    ContextLost,
+    /// A driver call failed; the error is discarded.
+    DriverError,
+    /// The release panicked; the panic is caught.
+    Panicked,
+    /// Synchronized and trimmed.
+    Trimmed,
+}
+
+/// Counts a model built on device `ordinal` when it allocates from the
+/// decided private pool (`private_path`). Returns whether it counts; a CPU,
+/// 0.8.27-path or other-ordinal model gets an inert guard.
+pub(crate) fn register_private_model<P, C>(
+    decision: Option<&Decision<P, C>>,
+    ordinal: usize,
+    private_path: bool,
+) -> bool {
+    match private_for(decision, ordinal) {
+        Some(private) if private_path => {
+            private.live_models.fetch_add(1, Ordering::AcqRel);
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Uncounts a closed model; when it was the last one open, releases the
+/// pool's unused memory.
+pub(crate) fn release_private_model<D: PoolRelease>(
+    decision: Option<&Decision<D::Pool, D::Context>>,
+    driver: &D,
+) -> ReleaseOutcome {
+    let Some(private) = decision.and_then(Decision::private) else {
+        return ReleaseOutcome::NotPrivate;
+    };
+    let previous = private
+        .live_models
+        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |live| live.checked_sub(1));
+    match previous {
+        Ok(1) => release_unused_pool_memory(decision, driver),
+        Ok(_) | Err(_) => ReleaseOutcome::StillOpen,
+    }
+}
+
+/// Whether the decision's context is still the device's primary context:
+/// active, with the recorded id. Never creates a context.
+fn context_alive<D: PoolDriver>(
+    driver: &D,
+    private: &PrivateDecision<D::Pool, D::Context>,
+) -> bool {
+    match driver.primary_state(private.ordinal) {
+        Ok(state) if state.active => driver
+            .retained_primary_context_id(private.ordinal)
+            .is_ok_and(|id| id == private.context_id),
+        _ => false,
+    }
+}
+
+/// Synchronizes the decision's context and trims the pool's unused memory,
+/// unless the decision is not private or its context is lost. Errors and
+/// panics are discarded: a model's drop must never fail or unwind.
+pub(crate) fn release_unused_pool_memory<D: PoolRelease>(
+    decision: Option<&Decision<D::Pool, D::Context>>,
+    driver: &D,
+) -> ReleaseOutcome {
+    let Some(private) = decision.and_then(Decision::private) else {
+        return ReleaseOutcome::NotPrivate;
+    };
+    catch_unwind(AssertUnwindSafe(|| {
+        if !context_alive(driver, private) {
+            return ReleaseOutcome::ContextLost;
+        }
+        if driver.synchronize(&private.first_context).is_err()
+            || driver.trim(&private.pool).is_err()
+        {
+            return ReleaseOutcome::DriverError;
+        }
+        ReleaseOutcome::Trimmed
+    }))
+    .unwrap_or(ReleaseOutcome::Panicked)
 }
 
 /// The private decision when its pool belongs to device `ordinal`. A device
@@ -1287,8 +1859,20 @@ mod fallback_only {
     use candle_core::Device;
 
     /// `Device::new_cuda`: without the driver part there is no other path.
+    /// The first build still fixes the pool configuration, so the
+    /// one-configuration-per-process rule holds on every platform.
     pub(crate) fn new_cuda_device(ordinal: usize) -> Result<Device, CudaDeviceError> {
+        super::fix_pool_config_from_env();
         Device::new_cuda(ordinal).map_err(DeviceBuildError::Default)
+    }
+
+    /// Without the driver part no model allocates from a private pool.
+    pub(crate) struct PrivatePoolModelGuard;
+
+    impl PrivatePoolModelGuard {
+        pub(crate) const fn new(_device: &Device) -> Self {
+            Self
+        }
     }
 
     pub(crate) fn forward_failure(
@@ -1332,7 +1916,7 @@ pub(crate) use fallback_only::allocator_report;
         any(feature = "embed-cuda", feature = "rerank-cuda")
     ))
 ))]
-pub(crate) use fallback_only::{forward_failure, new_cuda_device};
+pub(crate) use fallback_only::{forward_failure, new_cuda_device, PrivatePoolModelGuard};
 
 #[cfg(all(
     feature = "tegra-pool",
@@ -1350,9 +1934,10 @@ mod driver {
 
     use super::{
         build_device, candle_driver_code, classify_candle_fault, cuda_libraries_in_maps,
+        pool_config_in_force, register_private_model, release_private_model, render_raw_settings,
         tegra_identity, CudaAllocatorPath, CudaAllocatorReport, CudaDeviceError, CudaPoolFailure,
         CudaPrimaryContextState, Decision, DeviceFacts, DriverFailure, ModuleLoadInit,
-        PoolCounters, PoolDriver, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
+        PoolCounters, PoolDriver, PoolRelease, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
     };
 
     static DECISION: OnceLock<Decision<Arc<CudaMemPool>, Arc<CudaContext>>> = OnceLock::new();
@@ -1393,12 +1978,19 @@ mod driver {
         type Device = Device;
         type DefaultError = candle_core::Error;
 
+        /// The configuration in force, fixed here from the environment when
+        /// no open fixed it (design § 15.2).
         fn raw_settings(&self) -> RawPoolSettings {
-            RawPoolSettings::from_env(|name| std::env::var(name).ok())
+            render_raw_settings(pool_config_in_force())
         }
 
         fn module_load_init(&self) -> ModuleLoadInit {
             crate::cuda_driver_init::recorded_module_load_init()
+        }
+
+        fn driver_initialized(&self) -> bool {
+            crate::cuda_driver_init::last_cuda_driver_init()
+                == Some(crate::cuda_driver_init::CudaDriverInit::Initialized)
         }
 
         fn with_primary_retained<R>(
@@ -1544,6 +2136,47 @@ mod driver {
         }
     }
 
+    impl PoolRelease for CudarcDriver {
+        fn synchronize(&self, context: &Self::Context) -> Result<(), DriverFailure> {
+            context.synchronize().map_err(failure)
+        }
+
+        fn trim(&self, pool: &Self::Pool) -> Result<(), DriverFailure> {
+            pool.trim_to(0).map_err(failure)
+        }
+    }
+
+    /// Counts one FathomDB model on the private pool while it is open. A
+    /// model holds it as its last field, so it drops after the model's
+    /// buffers and device; the last one to drop releases the pool's unused
+    /// memory (design § 14.1). A CPU, 0.8.27-path or other-ordinal model
+    /// holds an inert guard.
+    pub(crate) struct PrivatePoolModelGuard {
+        counted: bool,
+    }
+
+    impl PrivatePoolModelGuard {
+        pub(crate) fn new(device: &Device) -> Self {
+            let counted = device.as_cuda_device().ok().is_some_and(|cuda| {
+                let context = cuda.cuda_stream().context().clone();
+                register_private_model(
+                    DECISION.get(),
+                    context.ordinal(),
+                    context.alloc_mode() == AllocMode::Private,
+                )
+            });
+            Self { counted }
+        }
+    }
+
+    impl Drop for PrivatePoolModelGuard {
+        fn drop(&mut self) {
+            if self.counted {
+                let _ = release_private_model(DECISION.get(), &CudarcDriver);
+            }
+        }
+    }
+
     /// A Candle CUDA device on `ordinal` under the process's allocator
     /// decision, made here on first use.
     pub(crate) fn new_cuda_device(ordinal: usize) -> Result<Device, CudaDeviceError> {
@@ -1646,7 +2279,9 @@ pub(crate) use driver::{
     target_arch = "aarch64",
     any(feature = "embed-cuda", feature = "rerank-cuda")
 ))]
-pub(crate) use driver::{allocator_report, forward_failure, new_cuda_device};
+pub(crate) use driver::{
+    allocator_report, forward_failure, new_cuda_device, PrivatePoolModelGuard,
+};
 
 /// The primary context state of device `ordinal`, for `doctor
 /// cuda-allocator`. Never retains or creates a context. `None` when this

@@ -233,11 +233,16 @@ export interface GpuAllocationWitness {
   readonly embeddedVectorDim: number;
 }
 
+/** Where a GPU pool setting in force came from. */
+export type CudaPoolSettingSource = "sdk" | "env" | "default";
+
 /**
  * The CUDA allocator decision behind one device. Each string is the stable
  * core name: `path` is `private`, `default_pool` or `synchronous` (`null`
  * when unknown); `poolMaxSizeBytes` and `releaseThreshold` are `null` unless
- * the path is private.
+ * the path is private. `poolMode` is the pool mode in force (`null` for a
+ * malformed `FATHOMDB_POOL_MODE`), and each `*Source` says whether a setting
+ * came from an open (`sdk`), its environment variable (`env`) or the default.
  */
 export interface CudaAllocatorReport {
   readonly path: string | null;
@@ -245,6 +250,18 @@ export interface CudaAllocatorReport {
   readonly poolMaxSizeBytes: number | null;
   readonly releaseThreshold: "0" | "max" | null;
   readonly moduleLoadInit: string;
+  readonly poolMode: "auto" | "on" | "off" | null;
+  readonly poolModeSource: CudaPoolSettingSource | null;
+  readonly poolMaxSizeSource: CudaPoolSettingSource | null;
+  readonly poolReleaseThresholdSource: CudaPoolSettingSource | null;
+}
+
+function mapPoolSettingSource(source: string | null | undefined): CudaPoolSettingSource | null {
+  const value = source ?? null;
+  if (value !== null && value !== "sdk" && value !== "env" && value !== "default") {
+    throw new Error(`invalid native CUDA pool setting source: ${value}`);
+  }
+  return value;
 }
 
 /**
@@ -304,6 +321,14 @@ export interface DeviceResolution {
   readonly reason: string | null;
 }
 
+function mapPoolMode(mode: string | null | undefined): "auto" | "on" | "off" | null {
+  const value = mode ?? null;
+  if (value !== null && value !== "auto" && value !== "on" && value !== "off") {
+    throw new Error(`invalid native CUDA pool mode: ${value}`);
+  }
+  return value;
+}
+
 export function mapCudaAllocatorReport(report: NativeCudaAllocatorReport): CudaAllocatorReport {
   const threshold = report.releaseThreshold ?? null;
   if (threshold !== null && threshold !== "0" && threshold !== "max") {
@@ -315,6 +340,10 @@ export function mapCudaAllocatorReport(report: NativeCudaAllocatorReport): CudaA
     poolMaxSizeBytes: report.poolMaxSizeBytes ?? null,
     releaseThreshold: threshold,
     moduleLoadInit: report.moduleLoadInit,
+    poolMode: mapPoolMode(report.poolMode),
+    poolModeSource: mapPoolSettingSource(report.poolModeSource),
+    poolMaxSizeSource: mapPoolSettingSource(report.poolMaxSizeSource),
+    poolReleaseThresholdSource: mapPoolSettingSource(report.poolReleaseThresholdSource),
   };
 }
 

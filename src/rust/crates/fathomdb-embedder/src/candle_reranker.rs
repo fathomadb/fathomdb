@@ -449,6 +449,9 @@ pub struct CandleTinyBertReranker {
     classifier: Linear,
     device: Device,
     resolution: RerankerDeviceResolution,
+    // Declared last so it drops after `model` and `device`: the close
+    // release must see the model's buffers already freed.
+    _pool_guard: crate::cuda_pool_policy::PrivatePoolModelGuard,
 }
 
 impl CandleTinyBertReranker {
@@ -517,7 +520,16 @@ impl CandleTinyBertReranker {
         let classifier = linear(RERANKER_HIDDEN_SIZE, 1, vb.pp("classifier"))
             .map_err(|error| model_load_error(resolution, error, |e| load_failure(e, &device)))?;
 
-        Ok(Self { tokenizer, model, pooler, classifier, device, resolution: resolution.clone() })
+        let pool_guard = crate::cuda_pool_policy::PrivatePoolModelGuard::new(&device);
+        Ok(Self {
+            tokenizer,
+            model,
+            pooler,
+            classifier,
+            device,
+            resolution: resolution.clone(),
+            _pool_guard: pool_guard,
+        })
     }
 
     /// The typed forced-CUDA refusal to return if CUDA model execution fails.

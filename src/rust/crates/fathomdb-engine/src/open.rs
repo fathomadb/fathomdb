@@ -515,6 +515,10 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         ResolvedRuntimeConfiguration::resolve(&config)
             .map_err(EngineOpenError::EngineConfiguration)?;
+        // Before the embedder choice: the default embedder's device probe
+        // builds the process's first CUDA device.
+        crate::runtime_configuration::claim_cuda_pool(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
         match choice {
             EmbedderChoice::Default => Self::open_default_embedder(path, config),
             EmbedderChoice::Caller(embedder) => {
@@ -755,6 +759,9 @@ impl Engine {
         initial_subscriber: Option<Arc<dyn lifecycle::Subscriber>>,
     ) -> Result<OpenedEngine, EngineOpenError> {
         let resolved_config = ResolvedRuntimeConfiguration::resolve(&plan.config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
+        // Every open path passes here; repeating the claim is idempotent.
+        crate::runtime_configuration::claim_cuda_pool(&plan.config)
             .map_err(EngineOpenError::EngineConfiguration)?;
         let config = plan.config.clone();
         // Resolve at open rather than piggybacking on embedding selection. This

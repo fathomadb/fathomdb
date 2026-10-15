@@ -1306,7 +1306,10 @@ class CudaAllocatorReport:
     Each string is the stable core name. `path` is `private`, `default_pool`
     or `synchronous`, and `None` when unknown. `pool_max_size_bytes` and
     `release_threshold` (`"0"` or `"max"`) are `None` unless the path is
-    private.
+    private. `pool_mode` is the pool mode in force (`"auto"`, `"on"`,
+    `"off"`; `None` for a malformed `FATHOMDB_POOL_MODE`), and each
+    `*_source` says whether a setting came from an open (`"sdk"`), its
+    environment variable (`"env"`) or the default (`"default"`).
     """
 
     path: str | None
@@ -1314,6 +1317,10 @@ class CudaAllocatorReport:
     pool_max_size_bytes: int | None
     release_threshold: str | None
     module_load_init: str
+    pool_mode: str | None
+    pool_mode_source: str | None
+    pool_max_size_source: str | None
+    pool_release_threshold_source: str | None
 
 
 @dataclass(frozen=True)

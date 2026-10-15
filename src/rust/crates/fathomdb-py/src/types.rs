@@ -244,6 +244,10 @@ pub(super) struct PyCudaAllocatorReport {
     pub(super) pool_max_size_bytes: Option<u64>,
     pub(super) release_threshold: Option<String>,
     pub(super) module_load_init: String,
+    pub(super) pool_mode: Option<String>,
+    pub(super) pool_mode_source: Option<String>,
+    pub(super) pool_max_size_source: Option<String>,
+    pub(super) pool_release_threshold_source: Option<String>,
 }
 
 impl PyCudaAllocatorReport {
@@ -254,6 +258,14 @@ impl PyCudaAllocatorReport {
             pool_max_size_bytes: report.pool_max_size_bytes,
             release_threshold: report.release_threshold.map(|t| t.as_str().to_string()),
             module_load_init: report.module_load_init.as_str().to_string(),
+            pool_mode: report.pool_mode.map(|mode| mode.as_str().to_string()),
+            pool_mode_source: report.pool_mode_source.map(|source| source.as_str().to_string()),
+            pool_max_size_source: report
+                .pool_max_size_source
+                .map(|source| source.as_str().to_string()),
+            pool_release_threshold_source: report
+                .pool_release_threshold_source
+                .map(|source| source.as_str().to_string()),
         }
     }
 }

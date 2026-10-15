@@ -148,6 +148,10 @@ pub mod admin {
 //   and `ProjectionStatusDenseReadiness` — the pure status facade for the
 //   current projection runtime. Its command spelling is binding-specific;
 //   these types were HITL-signed in steward-ledger seq-247.
+// + 5 types from 0.8.28 Slice 31 § 15 (owner rulings Q33, Q35): the GPU
+//   memory pool settings of `EngineConfig` (`CudaPoolMode`,
+//   `ReleaseThreshold`, `PoolSettingSource`) and their conflict
+//   (`CudaPoolSettingConflict`, `CudaPoolSettingValue`).
 pub use fathomdb_engine::{
     encode_resolved_graph_evidence_v1, ActuationBatchV1, ActuationError, ActuationErrorReason,
     ActuationOperationV1, ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1,
@@ -189,6 +193,10 @@ pub use fathomdb_engine::{
     StructuralInclusionStateV1, StructuralInclusionV1, StructuralLifecycleStateV1,
     StructuralProjectionOriginV1, Subscription, TraceArtifactClassV1, TraceArtifactRoleV1,
     TraceNodeLifecycleV1, TraceReadBoundaryV1, TraversalDirection, WriteProvenanceV1, WriteReceipt,
+};
+pub use fathomdb_engine::{
+    CudaPoolMode, CudaPoolSettingConflict, CudaPoolSettingValue, PoolSettingSource,
+    ReleaseThreshold,
 };
 
 // The operator-seam report types (`dev/interfaces/rust.md` § 2b) — CLI-only,

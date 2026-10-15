@@ -176,6 +176,10 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
                 pool_max_size_bytes=3_221_225_472,
                 release_threshold="max",
                 module_load_init="ran",
+                pool_mode="on",
+                pool_mode_source="sdk",
+                pool_max_size_source="default",
+                pool_release_threshold_source="env",
             )
         ),
         reranker_device_resolution=_native_cuda_resolution(
@@ -185,6 +189,10 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
                 pool_max_size_bytes=None,
                 release_threshold=None,
                 module_load_init="not_at_load",
+                pool_mode=None,
+                pool_mode_source=None,
+                pool_max_size_source=None,
+                pool_release_threshold_source=None,
             )
         ),
         embedder_gpu_allocation_witness=None,
@@ -201,6 +209,10 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
         pool_max_size_bytes=3_221_225_472,
         release_threshold="max",
         module_load_init="ran",
+        pool_mode="on",
+        pool_mode_source="sdk",
+        pool_max_size_source="default",
+        pool_release_threshold_source="env",
     )
     assert report.reranker_device_resolution is not None
     reranker_device = report.reranker_device_resolution.effective_device.cuda_device
@@ -211,6 +223,10 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
         pool_max_size_bytes=None,
         release_threshold=None,
         module_load_init="not_at_load",
+        pool_mode=None,
+        pool_mode_source=None,
+        pool_max_size_source=None,
+        pool_release_threshold_source=None,
     )
 
     native.embedder_device_resolution = _native_cuda_resolution(None)

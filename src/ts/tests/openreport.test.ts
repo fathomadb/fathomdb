@@ -178,6 +178,10 @@ test("openReport maps the CUDA allocator report on CUDA device resolutions", () 
             poolMaxSizeBytes: 3_221_225_472,
             releaseThreshold: "max",
             moduleLoadInit: "ran",
+            poolMode: "on",
+            poolModeSource: "sdk",
+            poolMaxSizeSource: "default",
+            poolReleaseThresholdSource: "env",
           },
         },
       },
@@ -214,6 +218,10 @@ test("openReport maps the CUDA allocator report on CUDA device resolutions", () 
     poolMaxSizeBytes: 3_221_225_472,
     releaseThreshold: "max",
     moduleLoadInit: "ran",
+    poolMode: "on",
+    poolModeSource: "sdk",
+    poolMaxSizeSource: "default",
+    poolReleaseThresholdSource: "env",
   };
   assert.deepEqual(
     report.embedderDeviceResolution?.effectiveDevice.cudaDevice?.cudaAllocator,
@@ -225,6 +233,10 @@ test("openReport maps the CUDA allocator report on CUDA device resolutions", () 
     poolMaxSizeBytes: 3_221_225_472,
     releaseThreshold: "max",
     moduleLoadInit: "ran",
+    poolMode: "on",
+    poolModeSource: "sdk",
+    poolMaxSizeSource: "default",
+    poolReleaseThresholdSource: "env",
   });
   assert.deepEqual(report.rerankerDeviceResolution?.effectiveDevice.cudaDevice?.cudaAllocator, {
     path: null,
@@ -232,6 +244,10 @@ test("openReport maps the CUDA allocator report on CUDA device resolutions", () 
     poolMaxSizeBytes: null,
     releaseThreshold: null,
     moduleLoadInit: "not_at_load",
+    poolMode: null,
+    poolModeSource: null,
+    poolMaxSizeSource: null,
+    poolReleaseThresholdSource: null,
   });
 
   const absent = mapDeviceResolution({

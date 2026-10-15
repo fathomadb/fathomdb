@@ -415,19 +415,21 @@ read back through `Engine::config()`; the environment variables
 With threshold `max`, freed GPU memory stays reserved while any FathomDB
 model is open in the process and is returned when the last one closes.
 
-**One pool configuration per process.** The GPU pool settings are fixed
-once per process: by the first open that passes any of them, or, if none
-does, by the `FATHOMDB_POOL_*` environment variables (or their defaults) at
-the first GPU use. A later open that sets one of them to a different value
-fails with `ErrorKind::InvalidArgument` naming the setting and the value in
-force. Closing every engine does not reset them. Opens that omit them never
-fail this way. The rule applies on every platform, including machines where
-the pool never engages (x86, discrete GPUs, CPU-only engines). In practice:
-pick one set of values per process, or leave them unset; a test binary that
-runs in one process must not open engines with different pool settings. A
-`cuda_pool_max_size` larger than the GPU's memory cannot be checked until
-the pool is created; the pool is then turned off, and the allocator
-report's reason is `invalid_setting`.
+**One pool configuration per process.** The GPU pool settings are fixed once
+per process: by the first open that passes any of them, or, if none does, by
+the `FATHOMDB_POOL_*` environment variables (or their defaults) at the first
+GPU use. A later open that sets one of them to a different value fails with
+`ErrorKind::InvalidArgument` naming the setting and the value in force.
+Closing every engine does not reset them. Opens that omit them never fail this
+way. An open that sets any of them fixes the configuration on every platform,
+including machines where the pool never engages (x86, discrete GPUs, CPU-only
+engines). Whether an open that omits them fixes the configuration depends on
+whether it builds a GPU device; set the same values on every open, or on none.
+In practice: pick one set of values per process, or leave them unset; a test
+binary that runs in one process must not open engines with different pool
+settings. A `cuda_pool_max_size` larger than the GPU's memory cannot be
+checked until the pool is created; the pool is then turned off, and the
+allocator report's reason is `invalid_setting`.
 
 The `cuda_allocator` field of `CudaDeviceInfo` is reachable through
 `OpenReport`; this crate re-exports its report types

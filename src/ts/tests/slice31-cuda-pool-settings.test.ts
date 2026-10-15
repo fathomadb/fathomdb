@@ -77,3 +77,30 @@ test("a conflicting second open raises InvalidArgumentError and the settings rea
   );
   assert.match(out, /done/);
 });
+
+test("a different pool size or release threshold conflicts naming the setting", () => {
+  const out = runChild(`
+    const first = await Engine.open(dir + "/first.sqlite", { engineConfig: { cudaPoolMaxSize: ${64 * MIB} } });
+    for (const engineConfig of [{ cudaPoolMaxSize: ${128 * MIB} }, { cudaPoolReleaseThreshold: "max" }]) {
+      try {
+        await Engine.open(dir + "/other.sqlite", { engineConfig });
+        throw new Error("missing conflict for " + JSON.stringify(engineConfig));
+      } catch (error) {
+        if (!(error instanceof InvalidArgumentError)) throw error;
+        console.log("conflict: " + error.message);
+      }
+    }
+    const same = await Engine.open(dir + "/same.sqlite", { engineConfig: { cudaPoolMaxSize: ${64 * MIB} } });
+    await Promise.all([first.close(), same.close()]);
+    console.log("done");
+  `);
+  assert.match(
+    out,
+    /cuda_pool_max_size=134217728 conflicts with cuda_pool_max_size=67108864 already in force in this process \(from sdk\); open with the same value or omit it/,
+  );
+  assert.match(
+    out,
+    /cuda_pool_release_threshold=max conflicts with cuda_pool_release_threshold=0 already in force in this process \(from default\); open with the same value or omit it/,
+  );
+  assert.match(out, /done/);
+});

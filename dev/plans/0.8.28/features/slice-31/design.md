@@ -2336,8 +2336,11 @@ Result<ModeInForce, ModeConflict>`, tested on every host):
 
 **Builds without the decision code** (not aarch64 Linux with CUDA; since
 § 14.3, every aarch64 Linux CUDA build has it). `resolve_mode` and `MODE_IN_FORCE` are compiled on
-every build, so a conflicting second open fails on x86 too. The SDK
-contract is the same on every platform, and an any-host test proves it.
+every build, so a conflicting second open fails on x86 too, and an any-host
+test proves it. An open that omits the settings fixes them only when a CUDA
+device is built (R-CODE MEDIUM-2): open A with none, then open B with
+`cuda_pool = on`, passes on a CPU host and conflicts on a GPU host whose
+first build fixed `auto`. The library-user note (§ 15.6) says so.
 
 ### 15.3 Errors
 
@@ -2412,9 +2415,11 @@ words or close to them:
 > their defaults) at the first GPU use. A later `open` that sets one of
 > them to a different value fails with an invalid-argument error naming
 > the setting and the value in force. Closing every engine does not reset
-> them. Opens that omit them never fail this way. The rule applies on every platform, including machines where the
-> pool never engages (x86, discrete GPUs, CPU-only engines), so the same
-> code behaves the same everywhere.
+> them. Opens that omit them never fail this way. An open that sets any of
+> them fixes the configuration on every platform, including machines where
+> the pool never engages (x86, discrete GPUs, CPU-only engines). Whether an
+> open that omits them fixes the configuration depends on whether it builds
+> a GPU device; set the same values on every open, or on none.
 >
 > In practice: pick one set of values per process, or leave them unset. A test
 > suite that runs in one process (for example a single pytest run) must

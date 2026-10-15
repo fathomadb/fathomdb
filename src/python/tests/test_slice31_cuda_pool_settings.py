@@ -131,7 +131,7 @@ def test_installed_a_conflicting_second_open_raises_invalid_argument(tmp_path: P
     assert "done" in result.stdout
 
 
-def test_installed_a_different_size_conflicts_naming_the_setting(tmp_path: Path) -> None:
+def test_installed_a_different_threshold_conflicts_naming_the_setting(tmp_path: Path) -> None:
     result = _run_child(
         """
         import sys
@@ -145,6 +145,8 @@ def test_installed_a_different_size_conflicts_naming_the_setting(tmp_path: Path)
             Engine.open(str(root / "second.sqlite"), cuda_pool_release_threshold="max")
         except InvalidArgumentError as error:
             print("conflict:", error)
+        else:
+            raise SystemExit("a different threshold must conflict")
         first.close()
         """,
         tmp_path,
@@ -152,5 +154,34 @@ def test_installed_a_different_size_conflicts_naming_the_setting(tmp_path: Path)
     assert result.returncode == 0, result.stdout + result.stderr
     assert (
         "cuda_pool_release_threshold=max conflicts with cuda_pool_release_threshold=0 "
-        "already in force in this process (from default)"
+        "already in force in this process (from default); open with the same value or omit it"
+    ) in result.stdout, result.stdout
+
+
+def test_installed_a_different_size_conflicts_naming_the_setting(tmp_path: Path) -> None:
+    result = _run_child(
+        """
+        import sys
+        from pathlib import Path
+        from fathomdb import Engine
+        from fathomdb.errors import InvalidArgumentError
+
+        root = Path(sys.argv[1])
+        first = Engine.open(str(root / "first.sqlite"), cuda_pool_max_size=64 << 20)
+        try:
+            Engine.open(str(root / "second.sqlite"), cuda_pool_max_size=128 << 20)
+        except InvalidArgumentError as error:
+            print("conflict:", error)
+        else:
+            raise SystemExit("a different size must conflict")
+        same = Engine.open(str(root / "same.sqlite"), cuda_pool_max_size=64 << 20)
+        same.close()
+        first.close()
+        """,
+        tmp_path,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (
+        "cuda_pool_max_size=134217728 conflicts with cuda_pool_max_size=67108864 "
+        "already in force in this process (from sdk); open with the same value or omit it"
     ) in result.stdout, result.stdout

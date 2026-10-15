@@ -370,9 +370,11 @@ pool mode is `on` and they pass the remaining checks.
   defaults) at the first GPU use. A later open that sets one of them to a
   different value fails with an invalid-argument error naming the setting
   and the value in force. Closing every engine does not reset them. Opens
-  that omit them never fail this way. The rule applies on every platform,
-  including machines where the pool never engages (x86, discrete GPUs,
-  CPU-only engines), so the same code behaves the same everywhere.
+  that omit them never fail this way. An open that sets any of them fixes the
+  configuration on every platform, including machines where the pool never
+  engages (x86, discrete GPUs, CPU-only engines). Whether an open that omits
+  them fixes the configuration depends on whether it builds a GPU device; set
+  the same values on every open, or on none.
 
   In practice: pick one set of values per process, or leave them unset. A
   test suite that runs in one process (for example a single pytest run)

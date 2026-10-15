@@ -1269,27 +1269,30 @@ The decision rule is
 
   `CudaPoolMode` (the embedder's `PoolMode`, with `as_str` and `FromStr` on
   `auto`/`on`/`off`), `ReleaseThreshold`, `PoolSettingSource`,
-  `CudaPoolSettingConflict` and `CudaPoolSettingValue` are re-exported by
+  `CudaPoolSettingConflict`, `CudaPoolSettingValue` and
+  `CUDA_POOL_MAX_SIZE_MIN` are re-exported by
   `fathomdb-engine`, `fathomdb` and `fathomdb-sdk`. A malformed environment
   value turns the pool off with reason `invalid_setting`; it never aborts.
 - **One pool configuration per process.** The GPU pool settings
-  (`cuda_pool`, `cuda_pool_max_size`, `cuda_pool_release_threshold`) are
-  fixed once per process: by the first open that passes any of them, or, if
-  none does, by the `FATHOMDB_POOL_*` environment variables (or their
-  defaults) at the first GPU use. A later open that sets one of them to a
-  different value fails with
+  (`cuda_pool`, `cuda_pool_max_size`, `cuda_pool_release_threshold`) are fixed
+  once per process: by the first open that passes any of them, or, if none
+  does, by the `FATHOMDB_POOL_*` environment variables (or their defaults) at
+  the first GPU use. A later open that sets one of them to a different value
+  fails with
   `EngineOpenError::EngineConfiguration(EngineConfigurationError::CudaPoolSettingConflict(..))`
-  naming the setting, the value in force and its source; the open touches
-  nothing first. Closing every engine does not reset them. Opens that omit
-  them never fail this way. The rule applies on every platform, including
-  machines where the pool never engages (x86, discrete GPUs, CPU-only
-  engines). Pick one set of values per process, or leave them unset; a test
-  suite in one process must not open engines with different pool settings.
-  A `cuda_pool_max_size` larger than the GPU's memory cannot be checked
-  until the pool is created; the pool is then turned off, and the allocator
-  report's reason is `invalid_setting`. Direct `CandleBgeEmbedder` and
-  `CandleTinyBertReranker` constructors take no setting; they use the
-  configuration in force, else the environment.
+  naming the setting, the value in force and its source; the open creates no
+  database file before the check. Closing every engine does not reset them.
+  Opens that omit them never fail this way. An open that sets any of them
+  fixes the configuration on every platform, including machines where the pool
+  never engages (x86, discrete GPUs, CPU-only engines). Whether an open that
+  omits them fixes the configuration depends on whether it builds a GPU
+  device; set the same values on every open, or on none. Pick one set of
+  values per process, or leave them unset; a test suite in one process must
+  not open engines with different pool settings. A `cuda_pool_max_size` larger
+  than the GPU's memory cannot be checked until the pool is created; the pool
+  is then turned off, and the allocator report's reason is `invalid_setting`.
+  Direct `CandleBgeEmbedder` and `CandleTinyBertReranker` constructors take no
+  setting; they use the configuration in force, else the environment.
 - **Report.** `CudaDeviceInfo` is `#[non_exhaustive]` (build it with
   `CudaDeviceInfo::new(..).with_cuda_allocator(..)`) and carries
   `cuda_allocator: Option<CudaAllocatorReport>`. `CudaAllocatorReport` is

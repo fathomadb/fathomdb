@@ -889,17 +889,19 @@ above; Python source builds now do the same (owner ruling Q38). The rule is
   `cuInit`, which `FATHOMDB_CUDA_EARLY_INIT` controls.
 - **One pool configuration per process.** The GPU pool settings are fixed
   once per process: by the first open that passes any of them, or, if none
-  does, by the `FATHOMDB_POOL_*` environment variables (or their defaults)
-  at the first GPU use. A later open that sets one of them to a different
-  value rejects with `InvalidArgumentError` naming the setting and the value
-  in force. Closing every engine does not reset them. Opens that omit them
-  never fail this way. The rule applies on every platform, including
-  machines where the pool never engages (x86, discrete GPUs, CPU-only
-  engines). Pick one set of values per process, or leave them unset; a test
-  suite that runs in one process must not open engines with different pool
-  settings. A `cudaPoolMaxSize` larger than the GPU's memory cannot be
-  checked until the pool is created; the pool is then turned off, and the
-  allocator report's reason is `invalid_setting`.
+  does, by the `FATHOMDB_POOL_*` environment variables (or their defaults) at
+  the first GPU use. A later open that sets one of them to a different value
+  rejects with `InvalidArgumentError` naming the setting and the value in
+  force. Closing every engine does not reset them. Opens that omit them never
+  fail this way. An open that sets any of them fixes the configuration on
+  every platform, including machines where the pool never engages (x86,
+  discrete GPUs, CPU-only engines). Whether an open that omits them fixes the
+  configuration depends on whether it builds a GPU device; set the same values
+  on every open, or on none. Pick one set of values per process, or leave them
+  unset; a test suite that runs in one process must not open engines with
+  different pool settings. A `cudaPoolMaxSize` larger than the GPU's memory
+  cannot be checked until the pool is created; the pool is then turned off,
+  and the allocator report's reason is `invalid_setting`.
 - **Report.** `CudaDeviceInfo.cudaAllocator` is a readonly
   `CudaAllocatorReport | null` (exported from the package root) on the CUDA
   facts of both `embedderDeviceResolution` and `rerankerDeviceResolution`.

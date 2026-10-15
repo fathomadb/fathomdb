@@ -38,9 +38,9 @@ fn sdk_child(mode: &str) {
             fathomdb_sdk::embed_batch_cls(&["a module-level embed first"]).expect("cls embed");
             options.config.cuda_pool = Some(CudaPoolMode::Off);
             let dir = tempfile::tempdir().expect("tempdir");
-            let error = Engine::open(dir.path().join("conflict.sqlite"), options)
-                .err()
-                .expect("an open with a different mode after the first GPU use conflicts");
+            let Err(error) = Engine::open(dir.path().join("conflict.sqlite"), options) else {
+                panic!("an open with a different mode after the first GPU use conflicts");
+            };
             assert_eq!(error.kind(), ErrorKind::InvalidArgument, "{error}");
             println!("sdk-child: conflict {error}");
             std::process::exit(0);

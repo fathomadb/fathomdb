@@ -1995,9 +1995,16 @@ FathomDB probe already made, and FathomDB makes no new call.
 - **Frozen tests.** The new input reaches the pipeline through a new
   `PoolDriver` method (for example `driver_initialized(&self) -> bool`)
   with a default of `false`, so the frozen file's `FakeDriver` compiles
-  unchanged and keeps today's `cuinit_not_at_load` outcomes. Do not
-  change `decide`'s signature or `init_gate`'s existing arms, and do not
-  widen `module_load_init()`.
+  unchanged and keeps today's `cuinit_not_at_load` outcomes. The
+  admission goes in a sibling function, not in `init_gate`: for
+  example, `pre_device_gates_with_probe(raw, init, probe_ok)`, whose
+  `NotAtLoad if probe_ok` arm admits. The existing `pre_device_gates`
+  (`cuda_pool_policy.rs:433-449`) delegates to it with `false`, and
+  `decide_and_build` calls it with `driver.driver_initialized()`. Do not
+  change `decide`'s or `init_gate`'s signature or arms, and do not widen
+  `module_load_init()`.
+- **Supersedes** the Rust row of Slice 30's execution-path table
+  (`dev/plans/0.8.28/features/slice-30/design.md:623`).
 - **Report.** No new `ModuleLoadInit` value. A Rust process that reached
   the pool reports `module_load_init = not_at_load`, `path = private`,
   `reason = private_pool`. `ModuleLoadInit` is not made
@@ -2091,7 +2098,7 @@ only on aarch64 Linux:
 | Target | Effect |
 | --- | --- |
 | x86_64 (any GPU, the RTX 3090 included) | none: the code is not compiled; no new dependency, lock entry or link requirement |
-| aarch64 Linux with a discrete GPU (Grace, Graviton) | the decision runs and falls back (`discrete`, `not_tegra` or `unmeasured_class`); the report gives that reason instead of `not_built`; one primary-context retain at the first build |
+| aarch64 Linux with a discrete GPU (Grace, Graviton) | the decision runs and falls back (`discrete`, `not_tegra` or `unmeasured_class`); the report gives that reason instead of `not_built`; one primary-context retain at the first build. A **source-built Python** extension now runs the import-time `cuInit` (about 31 ms and 13 MiB), with hazard H-1: a `multiprocessing` child forked after `import fathomdb` cannot use CUDA. Node already behaves this way. There is no published artifact for this target |
 | Jetson AGX Orin 64 GB | the pool engages (`auto`) |
 
 It adds about 1.7k lines of compiled code on aarch64 and no dependency.
@@ -2114,7 +2121,7 @@ dynamically (appendix A decision 2, corrected).
    with a run-time one in every SDK (Q33).
 3. **Retire the name and rely on the cfg gates alone.** This is the
    cleanest end state, but it touches `scripts/test-feature-matrix.toml`,
-   `scripts/agent-lint.sh:88`, `scripts/cuda-artifact-contract.sh`,
+   `scripts/agent-lint.sh:88`, `scripts/release/cuda-artifact-contract.sh`,
    `scripts/check-cuda-release-contract.py` (`require_tegra_pool_only_in_tegra_sets`)
    and `scripts/tests/test_cuda_release_contract.sh:125`, `:1135-1151`
    in a slice whose scope is already full. A later release may retire it.
@@ -2137,6 +2144,11 @@ off aarch64 Linux is its name in the resolved feature list.
   `-sdk`, `-cli`, `-napi`, `-py`): each crate's `embed-cuda` and
   `rerank-cuda`, where it has them, add its own `"tegra-pool"`. Each
   forwarding comment says this in one line and cites § 14.3.
+- `scripts/tests/test_tegra_node_early_cuinit.sh:34`: the comment that
+  describes a build without the feature is rewritten.
+- Changelog: in an aarch64 Linux CUDA build on a non-Jetson host, a
+  source-built Python extension runs `cuInit` at import (H-1 applies),
+  as Node already does.
 - `cuda_pool_policy.rs`: the doc comment on the cfg gate gets one line
   naming the implication and citing § 14.3.
 - The release contract. `check-cuda-release-contract.py`'s
@@ -2154,7 +2166,10 @@ off aarch64 Linux is its name in the resolved feature list.
 **Tests, RED first.** A script test (any host) runs `cargo metadata` and
 checks that, in every crate with a `tegra-pool` feature, `embed-cuda`
 and `rerank-cuda` (where present) each list that crate's `tegra-pool`. It
-also checks that the embedder's `tegra-pool` comment cites § 14.3. The
+also checks that the embedder's `tegra-pool` comment cites § 14.3. It
+asserts that the Node hook's cfg (`fathomdb-napi/src/cuda_early_init.rs`)
+does not gain `tegra-pool`, which records the asymmetry this section
+relies on. The
 existing T-REGISTRY build (`scripts/check-tegra-pool-registry-build.sh`)
 passes with `embed-cuda` alone on the Orin. The Orin tests of § 14.2 run
 in a build that does not name `tegra-pool`.

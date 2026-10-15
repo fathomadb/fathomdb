@@ -232,6 +232,31 @@ package instead of the wheel, with `pytest` from the user site on
 (`scripts/cudarc-fathomdb-lock-set.json`) was refused by the session's
 permission check and is not in this branch.
 
+### W6 design revision 6: N1, D-19, the implication and the pool settings (2026-10-15)
+
+Implemented against design revision 6 (`831255b9e`; owner rulings Q33-Q38).
+The frozen `cuda_pool_policy_tests.rs` is byte-identical and passes.
+
+| Topic | RED | GREEN | Evidence |
+| --- | --- | --- | --- |
+| § 14.3 implication (Q37) | `2af2826b4` (script test fails on 14 features) | `b2654de76` | `scripts/tests/test_tegra_pool_implied_by_cuda_features.sh`; release contract adjusted to the cfg reality (only `embed-cuda`/`rerank-cuda` may enable `tegra-pool` in the N-API manifest); `ENABLE=embed-cuda-only` registry row |
+| § 14.1 N1 (Q34) | `514e9dca1` | `0bfc3e783` | `cuda_pool_release_tests.rs` (any host); Orin R14 `max` and the two-model test GREEN |
+| § 14.2 D-19 probe read (Q36) | `514e9dca1` | `0bfc3e783` | `cuda_pool_probe_read_tests.rs`; Orin R16 RED at `514e9dca1` (`cuinit_not_at_load`), GREEN at `32295692f`; SDK children GREEN |
+| § 15 / § 15.9 settings (Q33, Q35) | `514e9dca1` | `0bfc3e783` | `cuda_pool_mode_tests.rs`, `slice31_cuda_pool_settings.rs` (engine), Python, TypeScript and CLI tests; Orin parity matrix |
+| Docs | — | `8aa5b68e7` | interface docs, user docs, ADR amendment decisions 2, 6, 9-11, changelog |
+
+Orin windows P and A re-run at `32295692f`: every cell passed, guard
+unchanged in 104 lines
+([2026-10-15-ORIN-PA-32295692f56b.md](qualification/2026-10-15-ORIN-PA-32295692f56b.md)).
+`venv-tip/`, `node-tip/` and `artifacts/fathomdb` were rebuilt in place;
+`node-base/` is unchanged.
+
+Open: per-SDK post-close pool counters (no binding exposes them; the
+embedder-level tests cover the release); the § 15.8 RTX 3090 row was not
+run; Orin build directories `src-*`, `target-0bfc3e783713`,
+`target-32295692f56b`, `target-red` and the window scripts and bundles
+under `~/fathomdb-slice31/` are left for removal (about 16 GB).
+
 ## Next
 
 W6 on windchill3 is done through Phase C except the Orin-only work (above).
@@ -309,3 +334,6 @@ GCP sessions on the owner's go-ahead, R-CODE-3 and R-VERIFY.
   `ran_at_first_use`; load hooks win; opt-out honoured), rejecting a
   load-time constructor and a public init API. Next: review, then Phase 2
   (RED: R14 `max`, corrected R16, new SDK Orin tests).
+- 2026-10-15: W6 design revision 6 implemented (§§ 14.1-14.3, § 15), RED
+  first; Orin windows P and A and the parity matrix pass at `32295692f`.
+  Next: the main thread's full gate, then windows B and C.

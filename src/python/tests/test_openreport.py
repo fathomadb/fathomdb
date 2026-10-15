@@ -19,8 +19,9 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from fathomdb import Engine
+from fathomdb._sdk_open import _map_cuda_device_info
 from fathomdb.engine import _map_open_report
-from fathomdb.types import CudaAllocatorReport
+from fathomdb.types import CudaAllocatorReport, CudaLibraryReport
 
 
 def test_open_report_returns_native_fields(db_path: str) -> None:
@@ -175,6 +176,10 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
                 pool_max_size_bytes=3_221_225_472,
                 release_threshold="max",
                 module_load_init="ran",
+                pool_mode="on",
+                pool_mode_source="sdk",
+                pool_max_size_source="default",
+                pool_release_threshold_source="env",
             )
         ),
         reranker_device_resolution=_native_cuda_resolution(
@@ -184,6 +189,10 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
                 pool_max_size_bytes=None,
                 release_threshold=None,
                 module_load_init="not_at_load",
+                pool_mode=None,
+                pool_mode_source=None,
+                pool_max_size_source=None,
+                pool_release_threshold_source=None,
             )
         ),
         embedder_gpu_allocation_witness=None,
@@ -200,6 +209,10 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
         pool_max_size_bytes=3_221_225_472,
         release_threshold="max",
         module_load_init="ran",
+        pool_mode="on",
+        pool_mode_source="sdk",
+        pool_max_size_source="default",
+        pool_release_threshold_source="env",
     )
     assert report.reranker_device_resolution is not None
     reranker_device = report.reranker_device_resolution.effective_device.cuda_device
@@ -210,6 +223,10 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
         pool_max_size_bytes=None,
         release_threshold=None,
         module_load_init="not_at_load",
+        pool_mode=None,
+        pool_mode_source=None,
+        pool_max_size_source=None,
+        pool_release_threshold_source=None,
     )
 
     native.embedder_device_resolution = _native_cuda_resolution(None)
@@ -320,3 +337,44 @@ def test_open_signature_returns_engine_handle(db_path: str) -> None:
         assert isinstance(engine, Engine)
     finally:
         engine.close()
+
+
+def test_open_report_maps_the_cuda_library_report() -> None:
+    """0.8.28 Slice 31 (D-18): the CUDA facts list the loaded libraries."""
+
+    resolution = _native_cuda_resolution(None)
+    resolution.effective_device.cuda_device.cuda_libraries = (
+        SimpleNamespace(
+            library="cublas",
+            opened_as="libcublas.so.12",
+            path="/opt/cuda/libcublas.so.12.6.1.4",
+            version="12.6.1",
+            built_major=12,
+        ),
+        SimpleNamespace(
+            library="curand",
+            opened_as="libcurand.so.10",
+            path=None,
+            version=None,
+            built_major=12,
+        ),
+    )
+
+    device = _map_cuda_device_info(resolution.effective_device.cuda_device)
+    assert device is not None
+    assert device.cuda_libraries == (
+        CudaLibraryReport(
+            library="cublas",
+            opened_as="libcublas.so.12",
+            path="/opt/cuda/libcublas.so.12.6.1.4",
+            version="12.6.1",
+            built_major=12,
+        ),
+        CudaLibraryReport(
+            library="curand",
+            opened_as="libcurand.so.10",
+            path=None,
+            version=None,
+            built_major=12,
+        ),
+    )

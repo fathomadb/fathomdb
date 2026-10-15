@@ -18,7 +18,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { Engine, mapOpenReport } from "../src/index.js";
-import type { CudaAllocatorReport } from "../src/index.js";
+import type { CudaAllocatorReport, CudaLibraryReport } from "../src/index.js";
 import { mapDeviceResolution } from "../src/open.js";
 import { freshDbPath } from "./helpers.js";
 
@@ -178,6 +178,10 @@ test("openReport maps the CUDA allocator report on CUDA device resolutions", () 
             poolMaxSizeBytes: 3_221_225_472,
             releaseThreshold: "max",
             moduleLoadInit: "ran",
+            poolMode: "on",
+            poolModeSource: "sdk",
+            poolMaxSizeSource: "default",
+            poolReleaseThresholdSource: "env",
           },
         },
       },
@@ -214,6 +218,10 @@ test("openReport maps the CUDA allocator report on CUDA device resolutions", () 
     poolMaxSizeBytes: 3_221_225_472,
     releaseThreshold: "max",
     moduleLoadInit: "ran",
+    poolMode: "on",
+    poolModeSource: "sdk",
+    poolMaxSizeSource: "default",
+    poolReleaseThresholdSource: "env",
   };
   assert.deepEqual(
     report.embedderDeviceResolution?.effectiveDevice.cudaDevice?.cudaAllocator,
@@ -225,6 +233,10 @@ test("openReport maps the CUDA allocator report on CUDA device resolutions", () 
     poolMaxSizeBytes: 3_221_225_472,
     releaseThreshold: "max",
     moduleLoadInit: "ran",
+    poolMode: "on",
+    poolModeSource: "sdk",
+    poolMaxSizeSource: "default",
+    poolReleaseThresholdSource: "env",
   });
   assert.deepEqual(report.rerankerDeviceResolution?.effectiveDevice.cudaDevice?.cudaAllocator, {
     path: null,
@@ -232,6 +244,10 @@ test("openReport maps the CUDA allocator report on CUDA device resolutions", () 
     poolMaxSizeBytes: null,
     releaseThreshold: null,
     moduleLoadInit: "not_at_load",
+    poolMode: null,
+    poolModeSource: null,
+    poolMaxSizeSource: null,
+    poolReleaseThresholdSource: null,
   });
 
   const absent = mapDeviceResolution({
@@ -329,4 +345,48 @@ test("Engine.open Promise signature unchanged — resolves to just Engine", asyn
   } finally {
     await engine.close();
   }
+});
+
+// 0.8.28 Slice 31 (D-18) — the CUDA facts list the loaded libraries; napi
+// omits a `None` path or version, which maps to null.
+test("device resolution maps the loaded CUDA library report", () => {
+  const resolution = mapDeviceResolution({
+    requestedPolicy: "cuda:0",
+    cudaCompiled: true,
+    effectiveDevice: {
+      kind: "cuda",
+      cudaDevice: {
+        ordinal: 0,
+        uuid: "GPU-3090",
+        name: "RTX 3090",
+        driverVersion: null,
+        computeCapability: "8.6",
+        cudaToolkitVersion: null,
+        cudaLibraries: [
+          {
+            library: "cublas",
+            openedAs: "libcublas.so.12",
+            path: "/opt/cuda/libcublas.so.12.6.1.4",
+            version: "12.6.1",
+            builtMajor: 12,
+          },
+          { library: "curand", openedAs: "libcurand.so.10", builtMajor: 12 },
+        ],
+      },
+    },
+    visibleCudaDevices: [],
+    selectedCudaUuid: "GPU-3090",
+    reason: null,
+  });
+  const expected: CudaLibraryReport[] = [
+    {
+      library: "cublas",
+      openedAs: "libcublas.so.12",
+      path: "/opt/cuda/libcublas.so.12.6.1.4",
+      version: "12.6.1",
+      builtMajor: 12,
+    },
+    { library: "curand", openedAs: "libcurand.so.10", path: null, version: null, builtMajor: 12 },
+  ];
+  assert.deepEqual(resolution.effectiveDevice.cudaDevice?.cudaLibraries, expected);
 });

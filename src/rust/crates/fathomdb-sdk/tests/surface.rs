@@ -334,6 +334,10 @@ fn cuda_allocator_report_is_readable_through_the_sdk() {
             Some(1 << 31),
             Some(ReleaseThreshold::Zero),
             ModuleLoadInit::Ran,
+            Some(fathomdb_sdk::CudaPoolMode::On),
+            Some(fathomdb_sdk::PoolSettingSource::Sdk),
+            Some(fathomdb_sdk::PoolSettingSource::Default),
+            Some(fathomdb_sdk::PoolSettingSource::Env),
         ),
     ));
     let report = info.cuda_allocator.expect("report");
@@ -341,4 +345,35 @@ fn cuda_allocator_report_is_readable_through_the_sdk() {
     assert_eq!(report.reason.as_str(), "private_pool");
     assert_eq!(report.release_threshold.map(ReleaseThreshold::as_str), Some("0"));
     assert_eq!(report.module_load_init.as_str(), "ran");
+    assert_eq!(report.pool_mode.map(fathomdb_sdk::CudaPoolMode::as_str), Some("on"));
+    assert_eq!(report.pool_mode_source.map(fathomdb_sdk::PoolSettingSource::as_str), Some("sdk"));
+}
+
+/// 0.8.28 Slice 31 (D-18) — the loaded-library report and the refusal
+/// record are readable through the SDK alone.
+#[test]
+fn cuda_library_report_is_readable_through_the_sdk() {
+    use fathomdb_sdk::{CudaLibraryRefusal, CudaLibraryRefusalReason, CudaLibraryReport};
+    let info = CudaDeviceInfo::new(0, None, None, None, None, None).with_cuda_libraries(vec![
+        CudaLibraryReport::new(
+            "cublas",
+            "libcublas.so.12",
+            Some("/opt/cuda/libcublas.so.12.6.1.4".to_owned()),
+            Some("12.6.1".to_owned()),
+            12,
+        ),
+    ]);
+    assert_eq!(info.cuda_libraries[0].library, "cublas");
+    assert_eq!(info.cuda_libraries[0].built_major, 12);
+    let refusal = CudaLibraryRefusal::new(
+        "curand",
+        CudaLibraryRefusalReason::Missing,
+        None,
+        None,
+        10,
+        Vec::new(),
+        Vec::new(),
+    );
+    assert_eq!(refusal.kind(), "cuda_library_unavailable");
+    assert_eq!(refusal.reason.as_str(), "missing");
 }

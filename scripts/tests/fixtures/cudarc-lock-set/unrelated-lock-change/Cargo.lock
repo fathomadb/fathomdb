@@ -1,0 +1,53 @@
+version = 4
+
+[[package]]
+name = "fathomdb-embedder"
+version = "0.8.27"
+
+[[package]]
+name = "cudarc-fathomdb"
+version = "0.19.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecdfd9170b437debdfc3174e8f6e03700cd80b79677e42faf8b058c2e9edaa2a"
+
+[[package]]
+name = "half"
+version = "2.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6dae0fe6e4778ebbfc68a3415d1ffc0e383863cb0df479953541384b611d7fba"
+
+[[package]]
+name = "float8"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a25df045f671be9c4d70d716d98329c393883d1ce699a8402869fbf29c95a40f"
+
+[[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a210f6249433df0ad658e69a944093ce9ffc9682fe64419678572e68fb6dfd7b"
+
+[[package]]
+name = "cfg-if"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06849f4c59d3089bdd6c7a6d4a5191bb38118c190de593744d82e36860809730"
+
+[[package]]
+name = "crunchy"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "228383197e0d12f4206bbc8d9ce92c2428866de1c47225d0176ae66862342b53"
+
+[[package]]
+name = "serde"
+version = "1.0.229"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d11d11b1d493a45c6f5c997b0c12be32901dc4ed0ec1a1d89b8f63b62024f52a"
+
+[[package]]
+name = "windows-link"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c02325d9c479e71347bd6b5eb27b5597b45dbeb647f735bf3517acb253da4ef"

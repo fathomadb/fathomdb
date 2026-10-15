@@ -71,3 +71,10 @@ Python wheel and npm package. Without it, `use_default_embedder`,
 `Engine::embed`, and `embed_batch_cls` return typed embedder errors.
 `default-reranker` enables cross-encoder reranking. The `embed-cuda`,
 `rerank-cuda`, `embed-metal`, and `rerank-metal` features select GPU builds.
+On AArch64 Linux, `embed-cuda` and `rerank-cuda` also build the Jetson private
+CUDA memory pool (they imply `tegra-pool`; naming it is redundant). A Rust
+program reaches the pool with no init call of its own, and turns it off with
+`EngineConfig { cuda_pool: Some(CudaPoolMode::Off), .. }` on
+`OpenOptions::config`. The three GPU pool settings, and the rule that one pool
+configuration holds per process, are in
+[configuration](config.md#engine-configuration).

@@ -90,6 +90,9 @@ mod tests {
                     embedder_call_timeout_ms: Some(2_001),
                     provenance_row_cap: Some(0),
                     slow_threshold_ms: Some(7),
+                    cuda_pool: None,
+                    cuda_pool_max_size: None,
+                    cuda_pool_release_threshold: None,
                 }
             );
         });
@@ -443,6 +446,10 @@ mod tests {
                 Some(2 * (1 << 30)),
                 Some(fathomdb_embedder::ReleaseThreshold::Zero),
                 fathomdb_embedder::ModuleLoadInit::SkippedCpuOnly,
+                Some(fathomdb_embedder::PoolMode::Auto),
+                Some(fathomdb_embedder::PoolSettingSource::Default),
+                Some(fathomdb_embedder::PoolSettingSource::Sdk),
+                Some(fathomdb_embedder::PoolSettingSource::Env),
             )));
         let mapped = PyCudaDeviceInfo::from_rust(&private)
             .cuda_allocator
@@ -452,6 +459,10 @@ mod tests {
         assert_eq!(mapped.pool_max_size_bytes, Some(2 * (1 << 30)));
         assert_eq!(mapped.release_threshold.as_deref(), Some("0"));
         assert_eq!(mapped.module_load_init, "skipped_cpu_only");
+        assert_eq!(mapped.pool_mode.as_deref(), Some("auto"));
+        assert_eq!(mapped.pool_mode_source.as_deref(), Some("default"));
+        assert_eq!(mapped.pool_max_size_source.as_deref(), Some("sdk"));
+        assert_eq!(mapped.pool_release_threshold_source.as_deref(), Some("env"));
 
         let not_built =
             base.clone().with_cuda_allocator(Some(fathomdb_embedder::CudaAllocatorReport::new(
@@ -460,6 +471,10 @@ mod tests {
                 None,
                 None,
                 fathomdb_embedder::ModuleLoadInit::NotAtLoad,
+                None,
+                Some(fathomdb_embedder::PoolSettingSource::Env),
+                Some(fathomdb_embedder::PoolSettingSource::Default),
+                Some(fathomdb_embedder::PoolSettingSource::Default),
             )));
         let mapped = PyCudaDeviceInfo::from_rust(&not_built)
             .cuda_allocator
@@ -898,5 +913,32 @@ mod tests {
             });
             assert!(invalid.is_instance_of::<WriteValidationError>(py));
         });
+    }
+
+    /// 0.8.28 Slice 31 (D-18) — the loaded CUDA libraries reach the binding
+    /// with their file, version and built major, and stay empty when the
+    /// core has none.
+    #[test]
+    fn cuda_library_report_crosses_the_pyo3_boundary() {
+        let base = fathomdb_embedder::CudaDeviceInfo::new(0, None, None, None, None, None);
+        let loaded = base.clone().with_cuda_libraries(vec![
+            fathomdb_embedder::CudaLibraryReport::new(
+                "cublas",
+                "libcublas.so.12",
+                Some("/opt/cuda/libcublas.so.12.6.1.4".to_string()),
+                Some("12.6.1".to_string()),
+                12,
+            ),
+            fathomdb_embedder::CudaLibraryReport::new("curand", "libcurand.so.10", None, None, 12),
+        ]);
+        let mapped = PyCudaDeviceInfo::from_rust(&loaded).cuda_libraries;
+        assert_eq!(mapped.len(), 2);
+        assert_eq!(mapped[0].library, "cublas");
+        assert_eq!(mapped[0].opened_as, "libcublas.so.12");
+        assert_eq!(mapped[0].path.as_deref(), Some("/opt/cuda/libcublas.so.12.6.1.4"));
+        assert_eq!(mapped[0].version.as_deref(), Some("12.6.1"));
+        assert_eq!(mapped[0].built_major, 12);
+        assert_eq!(mapped[1].path, None);
+        assert!(PyCudaDeviceInfo::from_rust(&base).cuda_libraries.is_empty());
     }
 }

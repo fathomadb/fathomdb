@@ -158,6 +158,15 @@ pub struct CudaAllocatorReport {
     /// `"0"` or `"max"`; absent unless the path is private.
     pub release_threshold: Option<String>,
     pub module_load_init: String,
+    /// The pool mode in force (`auto`, `on`, `off`); absent for a malformed
+    /// `FATHOMDB_POOL_MODE`.
+    pub pool_mode: Option<String>,
+    /// Where the pool mode in force came from: `sdk`, `env` or `default`.
+    pub pool_mode_source: Option<String>,
+    /// Where the pool size in force came from: `sdk`, `env` or `default`.
+    pub pool_max_size_source: Option<String>,
+    /// Where the release threshold in force came from: `sdk`, `env` or `default`.
+    pub pool_release_threshold_source: Option<String>,
 }
 
 impl CudaAllocatorReport {
@@ -169,6 +178,39 @@ impl CudaAllocatorReport {
             pool_max_size_bytes: report.pool_max_size_bytes.map(|bytes| bytes as i64),
             release_threshold: report.release_threshold.map(|t| t.as_str().to_string()),
             module_load_init: report.module_load_init.as_str().to_string(),
+            pool_mode: report.pool_mode.map(|mode| mode.as_str().to_string()),
+            pool_mode_source: report.pool_mode_source.map(|source| source.as_str().to_string()),
+            pool_max_size_source: report
+                .pool_max_size_source
+                .map(|source| source.as_str().to_string()),
+            pool_release_threshold_source: report
+                .pool_release_threshold_source
+                .map(|source| source.as_str().to_string()),
+        }
+    }
+}
+
+/// One CUDA library the process loaded (0.8.28 Slice 31, D-18).
+#[napi(object)]
+pub struct CudaLibraryReport {
+    /// `driver`, `cublas`, `curand`, `cublasLt` or `nvrtc`.
+    pub library: String,
+    pub opened_as: String,
+    /// Canonical path of the loaded file, comparable with `/proc/self/maps`.
+    pub path: Option<String>,
+    pub version: Option<String>,
+    /// The CUDA major the build checked the library against.
+    pub built_major: u32,
+}
+
+impl CudaLibraryReport {
+    pub(crate) fn from_rust(report: &RustCudaLibraryReport) -> Self {
+        Self {
+            library: report.library.clone(),
+            opened_as: report.opened_as.clone(),
+            path: report.path.clone(),
+            version: report.version.clone(),
+            built_major: report.built_major,
         }
     }
 }
@@ -183,6 +225,8 @@ pub struct CudaDeviceInfo {
     pub compute_capability: Option<String>,
     pub cuda_toolkit_version: Option<String>,
     pub cuda_allocator: Option<CudaAllocatorReport>,
+    /// The CUDA libraries the probe checked and loaded; empty off CUDA.
+    pub cuda_libraries: Vec<CudaLibraryReport>,
 }
 
 impl CudaDeviceInfo {
@@ -195,6 +239,7 @@ impl CudaDeviceInfo {
             compute_capability: info.compute_capability.clone(),
             cuda_toolkit_version: info.cuda_toolkit_version.clone(),
             cuda_allocator: info.cuda_allocator.as_ref().map(CudaAllocatorReport::from_rust),
+            cuda_libraries: info.cuda_libraries.iter().map(CudaLibraryReport::from_rust).collect(),
         }
     }
 }

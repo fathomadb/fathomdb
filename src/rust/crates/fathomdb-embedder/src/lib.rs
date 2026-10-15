@@ -23,18 +23,34 @@ use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 
 mod cuda_pool_policy;
 pub use cuda_pool_policy::{
-    CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaPoolFailure, ModuleLoadInit,
-    ReleaseThreshold,
+    CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaPoolFailure, CudaPoolRequest,
+    CudaPoolSettingConflict, CudaPoolSettingValue, ModuleLoadInit, PoolMode, PoolSettingSource,
+    ReleaseThreshold, UnknownPoolMode, CUDA_POOL_MAX_SIZE_MIN,
+};
+// The process's pool configuration; engine binding support, not SDK surface.
+#[doc(hidden)]
+pub use cuda_pool_policy::{
+    claim_pool_config, fix_pool_config_from_env, parse_pool_max_size_bytes, pool_settings_in_force,
+    PoolSettingsInForce,
 };
 // Driver facts for `doctor cuda-allocator`; binding support, not SDK surface.
 #[doc(hidden)]
 pub use cuda_pool_policy::{cuda_context_state, CudaPrimaryContextState};
+mod cuda_libraries;
+pub use cuda_libraries::{CudaLibraryRefusal, CudaLibraryRefusalReason, CudaLibraryReport};
+// `doctor cuda-libraries` support; binding support, not SDK surface.
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+#[doc(hidden)]
+pub use cuda_libraries::cuda_libraries_diagnostic;
+#[doc(hidden)]
+pub use cuda_libraries::CudaLibrariesDiagnostic;
 mod device_policy;
 pub use device_policy::{
-    diagnose_gpu, resolve_embed_device_policy, resolve_embed_device_policy_from_env,
-    CudaDeviceInfo, CudaProbeError, CudaProvider, CudaVisibleDevice, DeviceResolution,
-    DeviceResolutionError, DeviceResolutionReason, DoctorGpuDiagnosticResult, DoctorGpuStatus,
-    EffectiveEmbedDevice, EmbedDevicePolicy, EmbedDevicePolicyError, EmbedDevicePolicyParseError,
+    diagnose_gpu, parse_compute_capability_floor, resolve_embed_device_policy,
+    resolve_embed_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
+    CudaVisibleDevice, DeviceResolution, DeviceResolutionError, DeviceResolutionReason,
+    DoctorGpuDiagnosticResult, DoctorGpuStatus, EffectiveEmbedDevice, EmbedDevicePolicy,
+    EmbedDevicePolicyError, EmbedDevicePolicyParseError,
 };
 
 mod reranker_device_policy;

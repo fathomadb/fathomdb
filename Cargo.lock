@@ -277,14 +277,15 @@ dependencies = [
 
 [[package]]
 name = "candle-core-fathomdb"
-version = "0.10.3"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=859b8ea1a2218e864a0a867b4c3d62b03de75aa8#859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5feacc063f44c77a54cb8b43d03c5e32fa5421f4163f0524194783e21563341"
 dependencies = [
  "byteorder",
  "candle-kernels",
  "candle-metal-kernels",
  "candle-ug",
- "cudarc 0.19.7",
+ "cudarc-fathomdb",
  "float8",
  "gemm 0.19.0",
  "half",
@@ -307,7 +308,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.10.2"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=859b8ea1a2218e864a0a867b4c3d62b03de75aa8#859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
+source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=182ceab0547348993b6dbec4b1aed610dcc8b23f#182ceab0547348993b6dbec4b1aed610dcc8b23f"
 dependencies = [
  "cudaforge",
 ]
@@ -329,8 +330,9 @@ dependencies = [
 
 [[package]]
 name = "candle-nn-fathomdb"
-version = "0.10.3"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=859b8ea1a2218e864a0a867b4c3d62b03de75aa8#859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69c7432aa63cb543065f49453fa2e258e4dc3bd458abbcb7c150d17e90026200"
 dependencies = [
  "candle-core-fathomdb",
  "candle-metal-kernels",
@@ -346,8 +348,9 @@ dependencies = [
 
 [[package]]
 name = "candle-transformers-fathomdb"
-version = "0.10.3"
-source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=859b8ea1a2218e864a0a867b4c3d62b03de75aa8#859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "513008c79a9751ec5fdc08918dcdb1a8872c95e90f7697a9f8c5ef1951e3d222"
 dependencies = [
  "byteorder",
  "candle-core-fathomdb",
@@ -618,8 +621,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "cudarc"
-version = "0.19.7"
+name = "cudarc-fathomdb"
+version = "0.19.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2"
 dependencies = [
  "float8",
  "half",
@@ -930,7 +935,6 @@ dependencies = [
  "candle-core-fathomdb",
  "candle-nn-fathomdb",
  "candle-transformers-fathomdb",
- "cudarc 0.19.7",
  "dirs",
  "fathomdb-embedder-api",
  "fs2",
@@ -3669,7 +3673,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f0a1fa748f26166778c33b8498255ebb7c6bffb472bcc0a72839e07ebb1d9b5"
 dependencies = [
- "cudarc 0.17.8",
+ "cudarc",
  "half",
  "serde",
  "thiserror 1.0.69",

@@ -1,0 +1,85 @@
+warning: constant `REQUIRED_CUBLAS_SYMBOLS` is never used
+  --> src/rust/crates/fathomdb-embedder/src/cuda_libraries.rs:20:18
+   |
+20 | pub(crate) const REQUIRED_CUBLAS_SYMBOLS: [&str; 13] = [
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `REQUIRED_CURAND_SYMBOLS` is never used
+  --> src/rust/crates/fathomdb-embedder/src/cuda_libraries.rs:40:18
+   |
+40 | pub(crate) const REQUIRED_CURAND_SYMBOLS: [&str; 14] = [
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `missing_required_symbols` is never used
+   --> src/rust/crates/fathomdb-embedder/src/cuda_libraries.rs:223:15
+    |
+223 | pub(crate) fn missing_required_symbols(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `fathomdb-embedder` (lib) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/slice31_cuda_library_major.rs (target/debug/deps/slice31_cuda_library_major-dc1327c487a9233d)
+
+running 3 tests
+test a_libcublas_so_12_missing_a_required_symbol_is_refused_before_gpu_work ... FAILED
+test a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work ... FAILED
+test missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy ... ignored, C3 GCP cell
+
+failures:
+
+---- a_libcublas_so_12_missing_a_required_symbol_is_refused_before_gpu_work stdout ----
+
+thread 'a_libcublas_so_12_missing_a_required_symbol_is_refused_before_gpu_work' (474346) panicked at src/rust/crates/fathomdb-embedder/tests/slice31_cuda_library_major.rs:172:9:
+"LibraryUnavailable" missing from the child output:
+status=ExitStatus(unix_wait_status(0))
+--- stdout
+
+running 1 test
+test a_libcublas_so_12_missing_a_required_symbol_is_refused_before_gpu_work ... d18-child: Ok(DeviceResolution { requested_policy: Cuda(0), cuda_compiled: true, effective_device: Cuda(CudaDeviceInfo { ordinal: 0, uuid: Some("GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b"), name: Some("NVIDIA GeForce RTX 3090"), driver_version: None, compute_capability: Some("8.6"), cuda_toolkit_version: None, cuda_allocator: None }), visible_cuda_devices: [CudaVisibleDevice { visible_ordinal: 0, uuid: "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b", name: "NVIDIA GeForce RTX 3090", compute_capability: Some("8.6") }], selected_cuda_uuid: Some("GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b"), reason: None })
+d18-child: device built on cuda:0
+d18-child: matmul ran: [[[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]]
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.32s
+
+
+--- stderr
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work stdout ----
+
+thread 'a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work' (474360) panicked at src/rust/crates/fathomdb-embedder/tests/slice31_cuda_library_major.rs:130:5:
+the child must exit 0 with a typed refusal; a panic fails:
+status=ExitStatus(unix_wait_status(25856))
+--- stdout
+
+running 1 test
+test a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work ... FAILED
+
+failures:
+
+failures:
+    a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.29s
+
+
+--- stderr
+
+thread 'a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work' (474367) panicked at /home/coreyt/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cudarc-fathomdb-0.19.10/src/lib.rs:778:13:
+Unable to dynamically load the "cublas" shared library for CUDA 12. Tried: libcublas.so.12 (wrong version 13.1.1), libcublas.so (wrong version 13.1.1). Ensure that `LD_LIBRARY_PATH` has the correct path to a CUDA 12 copy of the library.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+
+failures:
+    a_libcublas_so_12_missing_a_required_symbol_is_refused_before_gpu_work
+    a_libcublas_so_12_that_reports_major_13_is_refused_before_gpu_work
+
+test result: FAILED. 0 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.82s
+
+error: test failed, to rerun pass `-p fathomdb-embedder --test slice31_cuda_library_major`
+test-exit=101

@@ -244,6 +244,10 @@ pub(super) struct PyCudaAllocatorReport {
     pub(super) pool_max_size_bytes: Option<u64>,
     pub(super) release_threshold: Option<String>,
     pub(super) module_load_init: String,
+    pub(super) pool_mode: Option<String>,
+    pub(super) pool_mode_source: Option<String>,
+    pub(super) pool_max_size_source: Option<String>,
+    pub(super) pool_release_threshold_source: Option<String>,
 }
 
 impl PyCudaAllocatorReport {
@@ -254,6 +258,42 @@ impl PyCudaAllocatorReport {
             pool_max_size_bytes: report.pool_max_size_bytes,
             release_threshold: report.release_threshold.map(|t| t.as_str().to_string()),
             module_load_init: report.module_load_init.as_str().to_string(),
+            pool_mode: report.pool_mode.map(|mode| mode.as_str().to_string()),
+            pool_mode_source: report.pool_mode_source.map(|source| source.as_str().to_string()),
+            pool_max_size_source: report
+                .pool_max_size_source
+                .map(|source| source.as_str().to_string()),
+            pool_release_threshold_source: report
+                .pool_release_threshold_source
+                .map(|source| source.as_str().to_string()),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "CudaLibraryReport",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub(super) struct PyCudaLibraryReport {
+    pub(super) library: String,
+    pub(super) opened_as: String,
+    pub(super) path: Option<String>,
+    pub(super) version: Option<String>,
+    pub(super) built_major: u32,
+}
+
+impl PyCudaLibraryReport {
+    pub(super) fn from_rust(report: &RustCudaLibraryReport) -> Self {
+        Self {
+            library: report.library.clone(),
+            opened_as: report.opened_as.clone(),
+            path: report.path.clone(),
+            version: report.version.clone(),
+            built_major: report.built_major,
         }
     }
 }
@@ -274,6 +314,7 @@ pub(super) struct PyCudaDeviceInfo {
     pub(super) compute_capability: Option<String>,
     pub(super) cuda_toolkit_version: Option<String>,
     pub(super) cuda_allocator: Option<PyCudaAllocatorReport>,
+    pub(super) cuda_libraries: Vec<PyCudaLibraryReport>,
 }
 
 impl PyCudaDeviceInfo {
@@ -286,6 +327,11 @@ impl PyCudaDeviceInfo {
             compute_capability: info.compute_capability.clone(),
             cuda_toolkit_version: info.cuda_toolkit_version.clone(),
             cuda_allocator: info.cuda_allocator.as_ref().map(PyCudaAllocatorReport::from_rust),
+            cuda_libraries: info
+                .cuda_libraries
+                .iter()
+                .map(PyCudaLibraryReport::from_rust)
+                .collect(),
         }
     }
 }

@@ -233,11 +233,16 @@ export interface GpuAllocationWitness {
   readonly embeddedVectorDim: number;
 }
 
+/** Where a GPU pool setting in force came from. */
+export type CudaPoolSettingSource = "sdk" | "env" | "default";
+
 /**
  * The CUDA allocator decision behind one device. Each string is the stable
  * core name: `path` is `private`, `default_pool` or `synchronous` (`null`
  * when unknown); `poolMaxSizeBytes` and `releaseThreshold` are `null` unless
- * the path is private.
+ * the path is private. `poolMode` is the pool mode in force (`null` for a
+ * malformed `FATHOMDB_POOL_MODE`), and each `*Source` says whether a setting
+ * came from an open (`sdk`), its environment variable (`env`) or the default.
  */
 export interface CudaAllocatorReport {
   readonly path: string | null;
@@ -245,11 +250,38 @@ export interface CudaAllocatorReport {
   readonly poolMaxSizeBytes: number | null;
   readonly releaseThreshold: "0" | "max" | null;
   readonly moduleLoadInit: string;
+  readonly poolMode: "auto" | "on" | "off" | null;
+  readonly poolModeSource: CudaPoolSettingSource | null;
+  readonly poolMaxSizeSource: CudaPoolSettingSource | null;
+  readonly poolReleaseThresholdSource: CudaPoolSettingSource | null;
+}
+
+function mapPoolSettingSource(source: string | null | undefined): CudaPoolSettingSource | null {
+  const value = source ?? null;
+  if (value !== null && value !== "sdk" && value !== "env" && value !== "default") {
+    throw new Error(`invalid native CUDA pool setting source: ${value}`);
+  }
+  return value;
+}
+
+/**
+ * One CUDA library the process loaded for a CUDA device (0.8.28 Slice 31).
+ * `library` is `driver`, `cublas`, `curand`, `cublasLt` or `nvrtc`; `path`
+ * is the canonical file and `builtMajor` the CUDA major it was checked
+ * against.
+ */
+export interface CudaLibraryReport {
+  readonly library: string;
+  readonly openedAs: string;
+  readonly path: string | null;
+  readonly version: string | null;
+  readonly builtMajor: number;
 }
 
 /**
  * Safe CUDA provider facts associated with an effective CUDA selection.
- * `cudaAllocator` is `null` off aarch64 Linux CUDA builds.
+ * `cudaAllocator` is `null` off aarch64 Linux CUDA builds; `cudaLibraries`
+ * lists the CUDA libraries the probe checked and loaded.
  */
 export interface CudaDeviceInfo {
   readonly ordinal: number;
@@ -259,6 +291,7 @@ export interface CudaDeviceInfo {
   readonly computeCapability: string | null;
   readonly cudaToolkitVersion: string | null;
   readonly cudaAllocator: CudaAllocatorReport | null;
+  readonly cudaLibraries: readonly CudaLibraryReport[];
 }
 
 /** One CUDA device visible to the process after `CUDA_VISIBLE_DEVICES`. */
@@ -288,6 +321,14 @@ export interface DeviceResolution {
   readonly reason: string | null;
 }
 
+function mapPoolMode(mode: string | null | undefined): "auto" | "on" | "off" | null {
+  const value = mode ?? null;
+  if (value !== null && value !== "auto" && value !== "on" && value !== "off") {
+    throw new Error(`invalid native CUDA pool mode: ${value}`);
+  }
+  return value;
+}
+
 export function mapCudaAllocatorReport(report: NativeCudaAllocatorReport): CudaAllocatorReport {
   const threshold = report.releaseThreshold ?? null;
   if (threshold !== null && threshold !== "0" && threshold !== "max") {
@@ -299,6 +340,10 @@ export function mapCudaAllocatorReport(report: NativeCudaAllocatorReport): CudaA
     poolMaxSizeBytes: report.poolMaxSizeBytes ?? null,
     releaseThreshold: threshold,
     moduleLoadInit: report.moduleLoadInit,
+    poolMode: mapPoolMode(report.poolMode),
+    poolModeSource: mapPoolSettingSource(report.poolModeSource),
+    poolMaxSizeSource: mapPoolSettingSource(report.poolMaxSizeSource),
+    poolReleaseThresholdSource: mapPoolSettingSource(report.poolReleaseThresholdSource),
   };
 }
 
@@ -311,6 +356,13 @@ export function mapCudaDeviceInfo(info: NativeCudaDeviceInfo): CudaDeviceInfo {
     computeCapability: info.computeCapability ?? null,
     cudaToolkitVersion: info.cudaToolkitVersion ?? null,
     cudaAllocator: info.cudaAllocator ? mapCudaAllocatorReport(info.cudaAllocator) : null,
+    cudaLibraries: (info.cudaLibraries ?? []).map((report) => ({
+      library: report.library,
+      openedAs: report.openedAs,
+      path: report.path ?? null,
+      version: report.version ?? null,
+      builtMajor: report.builtMajor,
+    })),
   };
 }
 

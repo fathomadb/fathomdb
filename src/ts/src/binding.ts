@@ -567,6 +567,18 @@ export interface NativeCudaAllocatorReport {
   poolMaxSizeBytes?: number | null;
   releaseThreshold?: string | null;
   moduleLoadInit: string;
+  poolMode?: string | null;
+  poolModeSource?: string | null;
+  poolMaxSizeSource?: string | null;
+  poolReleaseThresholdSource?: string | null;
+}
+
+export interface NativeCudaLibraryReport {
+  library: string;
+  openedAs: string;
+  path?: string | null;
+  version?: string | null;
+  builtMajor: number;
 }
 
 export interface NativeCudaDeviceInfo {
@@ -577,6 +589,7 @@ export interface NativeCudaDeviceInfo {
   computeCapability: string | null;
   cudaToolkitVersion: string | null;
   cudaAllocator?: NativeCudaAllocatorReport | null;
+  cudaLibraries?: NativeCudaLibraryReport[];
 }
 
 export interface NativeCudaVisibleDevice {
@@ -659,6 +672,9 @@ interface NativeEngineConfig {
   provenanceRowCap?: number;
   embedderCallTimeoutMs?: number;
   slowThresholdMs?: number;
+  cudaPool?: string;
+  cudaPoolMaxSize?: number;
+  cudaPoolReleaseThreshold?: string;
 }
 
 // Slice 20 (G5/G6) — graph traversal result shapes.

@@ -141,6 +141,9 @@ engine-owned knobs from `design/engine.md` in snake_case:
 - `provenance_row_cap`
 - `embedder_call_timeout_ms`
 - `slow_threshold_ms`
+- `cuda_pool` (`"auto"`, `"on"`, `"off"`), `cuda_pool_max_size` (bytes, at
+  least 32 MiB) and `cuda_pool_release_threshold` (`"0"`, `"max"`): the GPU
+  memory pool settings (0.8.28 Slice 31; § Tegra private CUDA memory pool)
 
 The keyword form and `EngineConfig` object form are equivalent. Python
 executor usage remains caller-owned and is not an engine config field.
@@ -257,6 +260,16 @@ inventory.
 Slice 30) carries the CUDA allocator decision behind the device (§ Tegra
 private CUDA memory pool).
 
+`CudaDeviceInfo.cuda_libraries: tuple[CudaLibraryReport, ...] = ()` (0.8.28
+Slice 31) lists the CUDA libraries the probe checked and loaded; each frozen
+`fathomdb.types.CudaLibraryReport` has `library`, `opened_as`, `path: str |
+None`, `version: str | None` and `built_major: int`. A CUDA library the device
+needs that is missing, of another major or lacking a required symbol is the
+`EmbedDevicePolicyError` / `RerankerDevicePolicyError` kind
+`cuda_library_unavailable` (forced `cuda:N`), or CPU with that reason under
+`auto`; the message carries the library, file, version and remedy
+(`dev/interfaces/rust.md` § CUDA library check and GPU floor).
+
 This `DeviceResolution` is normal open-time evidence only. The CLI-only
 `DoctorGpuDiagnosticResult` is intentionally distinct: a
 `CudaProbeError::ProbeFailed` may be recorded as automatic CPU open evidence,
@@ -268,9 +281,11 @@ This is open-time evidence only: it does not add a Python device-setting API.
 
 ### Tegra private CUDA memory pool (0.8.28 Slice 30)
 
-Only the Tegra CUDA wheel (`+tegra`, built with
-`CUDA_PYTHON_FEATURES_TEGRA`, which adds the `tegra-pool` Cargo feature)
-carries the private pool; every other wheel keeps the 0.8.27 allocator. The
+Among the published wheels only the Tegra CUDA wheel (`+tegra`, built with
+`CUDA_PYTHON_FEATURES_TEGRA`) carries the private pool; every other
+published wheel is x86_64 or CPU-only and keeps the 0.8.27 allocator. Since
+0.8.28 Slice 31 `embed-cuda` and `rerank-cuda` imply the `tegra-pool` Cargo
+feature, so any source build with CUDA on aarch64 Linux carries it too. The
 rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
 
 - **Early `cuInit` at import.** The Tegra wheel initialises the CUDA driver
@@ -280,17 +295,49 @@ rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
   `FATHOMDB_CUDA_EARLY_INIT=off` (that exact value). Import never fails
   because of it. The pool is created only if this ran; otherwise the process
   takes the 0.8.27 path.
+- **Non-Jetson aarch64 hosts (as-is, owner ruling Q38).** In an aarch64
+  Linux CUDA build on a host that is not a Jetson (Grace, Graviton, SBSA), a
+  source-built Python extension also runs `cuInit` at import, so the fork
+  hazard H-1 below applies there too. Node already does the same. No
+  published artifact targets these hosts; skipping the import-time `cuInit`
+  there is investigated for 0.8.29.
 - **Fork hazard H-1 (potentially breaking).** After `import fathomdb` the
   driver is initialised, and the CUDA driver is not fork-safe once
   initialised. A `multiprocessing` child created with `fork` after the
   import cannot use CUDA. Use the `spawn` or `forkserver` start methods (the
   Linux default from Python 3.14), or set `FATHOMDB_CUDA_EARLY_INIT=off`.
   Never fork while another thread is inside FathomDB's CUDA initialisation.
-- **Settings.** `FATHOMDB_POOL_MODE` (`auto`, `on`, `off`),
-  `FATHOMDB_POOL_MAXSIZE` (bytes, `<n>G` or `<n>M`) and
-  `FATHOMDB_POOL_RELEASE_THRESHOLD` (`0`, `max`) are read once, at the first
-  CUDA device build; changing them later in the process has no effect. A
-  malformed value turns the pool off and never raises.
+- **Settings.** `EngineConfig.cuda_pool` (`"auto"`, `"on"`, `"off"`),
+  `cuda_pool_max_size` (`int` bytes, at least 32 MiB) and
+  `cuda_pool_release_threshold` (`"0"`, `"max"`), or the same keywords on
+  `Engine.open`, read back through `engine.config`. An unknown string or an
+  out-of-range size raises `ValueError` (a non-integer size `TypeError`)
+  before the native open. `FATHOMDB_POOL_MODE`, `FATHOMDB_POOL_MAXSIZE`
+  (bytes, `<n>G` or `<n>M`) and `FATHOMDB_POOL_RELEASE_THRESHOLD` apply only
+  when no open sets the setting; a malformed environment value turns the
+  pool off and never raises. With `"0"` (default), freed GPU memory returns
+  to the system automatically; FathomDB never holds freed memory. With
+  `"max"`, freed GPU memory stays reserved for reuse while any FathomDB
+  model is open in the process, and is returned when the last one closes
+  ("closes" means the model is dropped, which can be shortly after `close`
+  returns). `cuda_pool="off"` does not stop the import-time `cuInit`, which
+  `FATHOMDB_CUDA_EARLY_INIT` controls.
+- **One pool configuration per process.** The GPU pool settings are fixed
+  once per process: by the first open that passes any of them, or, if none
+  does, by the `FATHOMDB_POOL_*` environment variables (or their defaults) at
+  the first GPU use. A later open that sets one of them to a different value
+  raises `InvalidArgumentError` naming the setting and the value in force.
+  Closing every engine does not reset them. Opens that omit them never fail
+  this way. An open that sets any of them fixes the configuration on every
+  platform, including machines where the pool never engages (x86, discrete
+  GPUs, CPU-only engines). Whether an open that omits them fixes the
+  configuration depends on whether it builds a GPU device; set the same values
+  on every open, or on none. Pick one set of values per process, or leave them
+  unset; a test suite that runs in one process (for example a single pytest
+  run) must not open engines with different pool settings. A
+  `cuda_pool_max_size` larger than the GPU's memory cannot be checked until
+  the pool is created; the pool is then turned off, and the allocator report's
+  reason is `invalid_setting`.
 - **Report.** `CudaDeviceInfo.cuda_allocator` is a frozen-dataclass
   `CudaAllocatorReport | None` (import it from `fathomdb.types`) on the CUDA
   facts of both `embedder_device_resolution` and
@@ -300,13 +347,19 @@ rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
   `pool_max_size_bytes: int | None`, `release_threshold: str | None` (`"0"`
   or `"max"`; both `None` unless the path is private) and
   `module_load_init: str` (`ran`, `opted_out`, `skipped_cpu_only`,
-  `driver_absent`, `failed`, `not_at_load`). It is `None` off aarch64 Linux
+  `driver_absent`, `failed`, `not_at_load`), `pool_mode: str | None` (the
+  mode in force; `None` for a malformed `FATHOMDB_POOL_MODE`) and
+  `pool_mode_source`, `pool_max_size_source`,
+  `pool_release_threshold_source: str | None` (`"sdk"`, `"env"`,
+  `"default"`). `ran` and a Rust process's `not_at_load` with reason
+  `private_pool` mean the same allocator path. It is `None` off aarch64 Linux
   CUDA builds, and has reason `not_built` in an aarch64 Linux CUDA build
   without `tegra-pool`. `fathomdb doctor cuda-allocator --json` reports the
   same decision from the CLI.
 - **Module-level models.** `embed_batch_cls` and `rerank()` load process
   singletons; on the private pool they hold their memory until the process
-  exits. An engine's own embedder returns its memory when the engine closes.
+  exits, and under `"max"` the pool keeps its reservation while one is open.
+  An engine's own embedder returns its memory when the engine closes.
 - **Errors.** `CudaPoolExhaustedError`, `CudaContextLostError` and
   `CudaPrivateBuildRefusedError` (§ Errors).
 - **Context reset is unsupported.** Another library resetting the CUDA

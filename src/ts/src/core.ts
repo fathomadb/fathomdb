@@ -87,6 +87,18 @@ export interface EngineConfig {
   readonly provenanceRowCap?: number;
   readonly embedderCallTimeoutMs?: number;
   readonly slowThresholdMs?: number;
+  /**
+   * GPU memory pool mode; `undefined` leaves it to `FATHOMDB_POOL_MODE`,
+   * else `"auto"`. One pool configuration holds per process: a later open
+   * that sets any of the three `cudaPool*` settings to a different value
+   * rejects with `InvalidArgumentError`; closing every engine does not reset
+   * them.
+   */
+  readonly cudaPool?: "auto" | "on" | "off";
+  /** GPU memory pool cap in bytes, at least 32 MiB (a safe integer). */
+  readonly cudaPoolMaxSize?: number;
+  /** GPU memory pool release threshold, `"0"` (default) or `"max"`. */
+  readonly cudaPoolReleaseThreshold?: "0" | "max";
 }
 
 export const ENGINE_CONFIG_LIMITS = {
@@ -95,6 +107,12 @@ export const ENGINE_CONFIG_LIMITS = {
   provenanceRowCap: [0, Number.MAX_SAFE_INTEGER],
   embedderCallTimeoutMs: [1, 0xffff_ffff],
   slowThresholdMs: [0, Number.MAX_SAFE_INTEGER],
+  cudaPoolMaxSize: [33554432, Number.MAX_SAFE_INTEGER],
+} as const;
+
+const ENGINE_CONFIG_STRINGS = {
+  cudaPool: ["auto", "on", "off"],
+  cudaPoolReleaseThreshold: ["0", "max"],
 } as const;
 
 export function snapshotEngineConfig(value: unknown): EngineConfig {
@@ -111,6 +129,13 @@ export function snapshotEngineConfig(value: unknown): EngineConfig {
     }
     if (!Number.isSafeInteger(requested) || requested < min || requested > max) {
       throw new RangeError(`engineConfig.${field} must be a safe integer in ${min}..=${max}`);
+    }
+  }
+  for (const [field, allowed] of Object.entries(ENGINE_CONFIG_STRINGS)) {
+    const requested = config[field];
+    if (requested === undefined) continue;
+    if (typeof requested !== "string" || !(allowed as readonly string[]).includes(requested)) {
+      throw new TypeError(`engineConfig.${field} must be one of ${allowed.join(", ")}`);
     }
   }
   return Object.freeze(config) as EngineConfig;

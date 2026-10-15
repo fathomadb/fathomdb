@@ -107,7 +107,6 @@ if command -v lychee >/dev/null 2>&1; then
   vendor_link_excludes=(
     --exclude-path third_party/libsqlite3-sys-0.38.1/README.md
     --exclude-path third_party/libsqlite3-sys-0.38.1/Upgrade.md
-    --exclude-path third_party/cudarc-0.19.7/README.md
   )
   if [ "${AGENT_LINK_CHECK:-offline}" = "online" ]; then
     run_capped lint-md-links lychee --offline=false --no-progress "${vendor_link_excludes[@]}" '**/*.md'

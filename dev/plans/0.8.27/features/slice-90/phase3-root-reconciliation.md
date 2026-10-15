@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 0875d2b8486941649d87e3895a0f29d5d00f3993
+lib_rs_blob: ea1062616be0af07b35ca4089e5c606eeb368470
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -27,7 +27,12 @@ and a Slice 114 stale-comment removal changed the whole-file blob to
 `9afaec4a6a42eed8415f531b3e22047a9bf7e242`. Slice 140 then gated the
 retained fixtures, producing `0226b8836c929a30793b8913461f5abf341123c2`.
 0.8.28 Slice 30 added the public `RerankPassagesError` re-export beside
-`rerank_passages`, producing the merged blob above. The 43 root storage fields and approved
+`rerank_passages`, producing `0875d2b8486941649d87e3895a0f29d5d00f3993`.
+0.8.28 Slice 31 added the public GPU pool-setting re-exports from
+`fathomdb_embedder` (`CudaPoolSettingConflict`, `CudaPoolSettingValue`,
+`CudaPoolMode`, `PoolSettingSource`, `ReleaseThreshold`,
+`CUDA_POOL_MAX_SIZE_MIN`), producing the blob
+above. The 43 root storage fields and approved
 root method inventory remain unchanged.
 
 ## Remaining root declarations

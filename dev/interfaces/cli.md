@@ -70,6 +70,7 @@ see that ADR's 2026-06-06 amendment).
 | `platform`        | `fathomdb doctor platform [--json]`                                            | `0 / 70`                            |
 | `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]`                                        | `0 / 65 / 70`                       |
 | `cuda-allocator`  | `fathomdb doctor cuda-allocator [--json]`                                      | `0 / 70`                            |
+| `cuda-libraries`  | `fathomdb doctor cuda-libraries [--json]`                                      | `0 / 70`                            |
 | `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `doctor-check-*` = 0 / 70 / 71      |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0 / 70 / 71`      |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` (EU-5b)                                       | `doctor-check-*`                    |
@@ -158,15 +159,27 @@ database, loads/downloads a model, or writes its current directory/cache.
 model-loader-free record of this process's CUDA allocator decision (the Tegra
 private CUDA memory pool, `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`).
 It emits exactly one compact JSON object with keys in this exact order:
-`schema_version`, `built`, `module_load_init`, `mode`, `path`, `reason`,
-`pool_max_size_bytes`, `release_threshold`, `cuda_context_state`.
+`schema_version`, `built`, `module_load_init`, `pool_mode`,
+`pool_mode_source`, `path`, `reason`, `pool_max_size_bytes`,
+`pool_max_size_source`, `release_threshold`,
+`pool_release_threshold_source`, `cuda_context_state`. (The v1 schema is new
+in 0.8.28 and unpublished; Slice 31 replaced its raw `mode` field in place.)
 
 - `schema_version` is `"fathomdb.doctor.cuda-allocator.v1"`.
 - `built` is whether this binary compiled the private-pool driver part
-  (`tegra-pool` with `embed-cuda` or `rerank-cuda` on aarch64 Linux).
+  (aarch64 Linux with `embed-cuda` or `rerank-cuda`, which imply
+  `tegra-pool`).
 - `module_load_init` is `ran`, `opted_out`, `skipped_cpu_only`,
   `driver_absent`, `failed` or `not_at_load`.
-- `mode` is the `FATHOMDB_POOL_MODE` value as read (`auto` when unset).
+- `module_load_init` models a binding's load hook: the command runs that
+  hook's helper itself, so it reports `ran` where an SDK process reports
+  `not_at_load` (Rust reaches the pool through its device probe's `cuInit`;
+  `dev/interfaces/rust.md`). Both mean the same allocator path.
+- `pool_mode` is the pool mode in force (`auto`, `on`, `off`; `null` for a
+  malformed `FATHOMDB_POOL_MODE`). `pool_mode_source`,
+  `pool_max_size_source` and `pool_release_threshold_source` are `sdk` (a
+  `--cuda-pool*` flag), `env` (its `FATHOMDB_POOL_*` variable) or `default`;
+  they are always present.
 - `path` is `private`, `default_pool`, `synchronous` or `null` (unknown, or
   no CUDA device built).
 - `reason` is a `CudaAllocatorReason` name (`private_pool`, `mode_off`,
@@ -180,10 +193,13 @@ It emits exactly one compact JSON object with keys in this exact order:
 - `cuda_context_state` is `{"state":"active"|"inactive","flags":<u32>}` for
   the probed device's primary context, read without retaining it, or `null`.
 
-The order of work is fixed. An exact `cpu` policy for every compiled CUDA
-component, an affirmed `arm64_sbsa` platform, or a build without a CUDA
-feature returns the frozen `not_applicable` record (`module_load_init:
-"not_at_load"`, every other nullable field `null`) **before any CUDA call**.
+The order of work is fixed. The pool flags (below), else the environment,
+fix this process's pool configuration first, with no CUDA call. An exact
+`cpu` policy for every compiled CUDA component, an affirmed `arm64_sbsa`
+platform, or a build without a CUDA feature returns the frozen
+`not_applicable` record (`module_load_init: "not_at_load"`, the pool mode
+and sources as in force, every other nullable field `null`) **before any
+CUDA call**.
 Otherwise the command runs the shared early-`cuInit` helper, as a binding's
 load hook would, and then the device probe that `doctor gpu` uses, so this
 process makes the allocator decision an SDK process would make. Text output is
@@ -193,6 +209,38 @@ completed record exits 0; a probe or policy failure (for example a forced
 `cuda:N` that cannot be selected) writes `doctor cuda-allocator: <message>`
 to stderr and exits 70. The command never exits 65, opens a database, loads
 or downloads a model, or writes configuration. `doctor gpu` v1 is unchanged.
+
+**GPU memory pool flags (0.8.28 Slice 31).** `doctor gpu`, `doctor
+reranker-gpu` and `doctor cuda-allocator`, the verbs that build a CUDA
+device, take `--cuda-pool <auto|on|off>`, `--cuda-pool-max-size
+<bytes|<n>G|<n>M>` (at least 32 MiB) and `--cuda-pool-release-threshold
+<0|max>`, the SDKs' open settings. Each flag wins over its `FATHOMDB_POOL_*`
+environment variable; an invalid value is a usage error (exit 2). On `doctor
+gpu` and `doctor reranker-gpu` they set the mode the probe's device build
+uses; neither prints allocator fields. `doctor cuda-libraries` and every
+database verb take none: no database verb builds a CUDA device. As in every
+SDK, one pool configuration holds per process (`dev/interfaces/rust.md`
+§ CUDA private memory pool); a CLI process makes one call, so it never
+conflicts.
+
+`doctor cuda-libraries` (0.8.28 Slice 31) is a database-free, model-free
+record of the CUDA libraries this binary loads for a CUDA device, made by the
+same check the device probes run (`dev/interfaces/rust.md` § CUDA library
+check and GPU floor). It loads the CUDA driver, cuBLAS and cuRAND and always
+reports. Its JSON object has keys in this order: `schema_version`
+(`"fathomdb.doctor.cuda-libraries.v1"`), `built` (whether this binary has a
+CUDA component), `built_major` (the CUDA major the libraries were checked
+against, or `null`), `libraries` (one entry each for `driver`, `cublas`,
+`cublasLt`, `curand` and `nvrtc`, with `library`, `opened_as`, `path`,
+`version` and `status`: `loaded`, `refused` or `not_loaded`), `refusal`
+(`null`, or `kind` `cuda_library_unavailable`, `library`, `reason`
+`missing` / `wrong_major` / `missing_symbol`, `path`, `version`,
+`required_major`, `tried` as `{name, reason}` objects, `missing_symbols` and
+`message` with the remedy), and `maps` (the CUDA libraries in
+`/proc/self/maps`). Text output is a `doctor cuda-libraries` header with
+`key=value` lines. It exits 70 when a library is refused, else 0, and never
+opens a database or loads a model. A refusal also writes the process's one
+`fathomdb-cuda-libraries {json}` stderr line. `doctor gpu` v1 is unchanged.
 
 Normal `Engine::open` resolution and `doctor gpu` have distinct result mappings.
 Open uses `DeviceResolution`, which may describe automatic CPU selection with a
@@ -213,6 +261,14 @@ code-based. Missing dynamic driver, `CUDA_ERROR_NO_DEVICE`, and
 `CUDA_ERROR_OUT_OF_MEMORY`, and `CUBLAS_STATUS_ALLOC_FAILED` are
 `probe_failed`. Build target, CUDA toolkit, and driver-version provenance are
 artifact-witness facts and are not fields in the doctor v1 schema.
+
+A device whose compute capability is below the build's kernel floor
+(`CUDA_COMPUTE_CAP`: 7.5 for the x86_64 artifacts, 8.7 for Jetson; 0.8.28
+Slice 31) is listed architecture evidence too: it is `cuda_incompatible`
+from the enumerated inventory, before the mapped-device probe builds a
+device. A CUDA library the device needs that the probe refuses
+(`cuda_library_unavailable`, see `doctor cuda-libraries`) is `probe_failed`
+with reason `cuda_library_unavailable`.
 
 The platform-level `arm64_sbsa_unsupported` reason is a separate,
 non-error-derived source of the same `cuda_incompatible` status. It is decided

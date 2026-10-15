@@ -54,8 +54,10 @@ use candle_core::cuda::cudarc::driver::{result, sys, DriverError};
 use crate::cuda_pool_policy::ModuleLoadInit;
 use crate::{EmbedDevicePolicy, RerankerDevicePolicy};
 
-/// The environment variable that turns the module-load `cuInit` off while
-/// keeping CUDA: open then initialises the driver as before.
+/// The environment variable that turns the Node and Python module-load
+/// `cuInit` off while keeping CUDA: open then initialises the driver as
+/// before. It has no effect in a Rust process, which has no load hook; the
+/// pool opt-out there is the `cuda_pool = off` open setting.
 #[doc(hidden)]
 pub const ENV_CUDA_EARLY_INIT: &str = "FATHOMDB_CUDA_EARLY_INIT";
 

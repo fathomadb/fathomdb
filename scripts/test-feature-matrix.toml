@@ -66,6 +66,10 @@ features = ["default-reranker"]
 
 [[entry]]
 crate = "fathomdb-engine"
+features = ["embed-cuda"]
+
+[[entry]]
+crate = "fathomdb-engine"
 features = ["migration-test-hooks"]
 
 [[entry]]
@@ -104,6 +108,10 @@ features = []
 crate = "fathomdb-sdk"
 features = []
 
+[[entry]]
+crate = "fathomdb-sdk"
+features = ["embed-cuda"]
+
 [[extra]]
 crate = "fathomdb-cli"
 features = ["default-embedder"]
@@ -114,7 +122,7 @@ features = ["default-reranker"]
 
 [[extra]]
 crate = "fathomdb-embedder"
-features = ["default-embedder", "default-reranker", "embed-cuda", "loader-test-hooks", "onnx-embedder", "rerank-cuda", "tc5-benchmark"]
+features = ["default-embedder", "default-reranker", "embed-cuda", "loader-test-hooks", "onnx-embedder", "rerank-cuda", "tc5-benchmark", "tegra-pool"]
 
 [[extra]]
 crate = "fathomdb-embedder"
@@ -123,6 +131,18 @@ features = ["default-reranker"]
 [[extra]]
 crate = "fathomdb-embedder"
 features = ["rerank-cuda"]
+
+[[extra]]
+crate = "fathomdb-napi"
+features = ["default-embedder"]
+
+[[extra]]
+crate = "fathomdb-py"
+features = ["default-embedder"]
+
+[[extra]]
+crate = "fathomdb-sdk"
+features = ["default-embedder"]
 
 [[extra]]
 crate = "fathomdb-tc5-benchmark"

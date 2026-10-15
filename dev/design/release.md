@@ -128,17 +128,24 @@ bump** on `main`. The canonical sequence for either kind of tag:
 6. Annotated tag at the bump commit: `git tag -a v<version>` and
    `git push origin v<version>`.
 
-### Registry-cudarc check for `tegra-pool` (0.8.28)
+### Registry consumption check for `tegra-pool` (0.8.28 Slice 31)
 
-Before a release that changes cudarc, the Candle pins or the `tegra-pool`
-wiring, run `scripts/check-tegra-pool-registry-build.sh` on a host with the
-network and a CUDA toolkit (the Jetson). It builds a scratch downstream
-consumer of `fathomdb-embedder` without the workspace's cudarc patch and
-asserts that `embed-cuda` builds against registry cudarc 0.19.7 while
-`tegra-pool` fails at resolution with the `fathomdb-private-pool` marker
-message (`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`). It keeps the
-Candle patch until the Fathom Candle 0.10.3 crates are on crates.io. It is
-not part of `scripts/agent-verify.sh`.
+Before a release that changes the fork pins (`cudarc-fathomdb`, the Candle
+fork crates) or the `tegra-pool` wiring, run
+`scripts/check-tegra-pool-registry-build.sh`. It builds a scratch downstream
+consumer of a copy of `fathomdb-embedder` with `tegra-pool` and **no
+`[patch]` table**, so every crate comes from crates.io
+(`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`, amendment of 2026-10-13).
+Step (a), on any host with crates.io access, checks that `cudarc-fathomdb`
+0.19.10, the three Candle fork crates 0.11.0 and `candle-kernels` 0.10.2
+resolve from the registry and that no `cudarc` 0.19 does
+(`--resolve-only` runs only this). On the Jetson it then (b) builds and
+links the consumer, with `LIBRARY_PATH` naming the CUDA library directory
+(registry `candle-kernels` links `libcudart` dynamically), and (c) runs the
+copied `tegra_fragmented_va_cuda` test. crates.io consumers get a dynamic
+`libcudart`; REQ-068's CPU-loadable guarantee covers only FathomDB-built
+artifacts, which patch `candle-kernels` to the Candle fork. It is not part
+of `scripts/agent-verify.sh`.
 
 ### New-crate first publish (0.8.27 `fathomdb-sdk`)
 

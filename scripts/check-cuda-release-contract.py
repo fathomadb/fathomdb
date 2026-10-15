@@ -55,7 +55,9 @@ PACKAGE_REHEARSAL_HELPER = ROOT / "scripts/release/cuda-package-rehearsal.sh"
 PACKAGE_REHEARSAL_SMOKE = ROOT / "scripts/release/cuda-package-rehearsal-smoke.sh"
 CUDA_GPU_SELECTION = ROOT / "scripts/lib/cuda-gpu-selection.sh"
 
-NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
+# `tegra-pool` is implied by `embed-cuda` (slice-31 design.md § 14.3); it
+# compiles nothing off aarch64 Linux, so the x86 N-API artifact is unchanged.
+NAPI_CUDA_FEATURE = ["default-embedder", "tegra-pool", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
 PYTHON_CUDA_FEATURES = "pyo3/extension-module,embed-cuda"
 PYTHON_CUDA_FEATURES_TEGRA = "pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool"
@@ -110,6 +112,20 @@ CUDA_X64_HOST_TOOLKIT_ROOT = "/usr/local/cuda-12.6"
 CUDA_X64_HOST_CUDART_LIBRARY_DIR = (
     "/usr/local/cuda-12.6/targets/x86_64-linux/lib"
 )
+
+
+def cudarc_cuda_version(toolkit_root: str) -> str:
+    """The CUDARC_CUDA_VERSION value for a `/usr/local/cuda-<major>.<minor>` root.
+
+    cudarc reads it as major * 1000 + minor * 10 (12.6 -> "12060"). Deriving
+    it from the toolkit root keeps one literal for the release's CUDA version.
+    """
+    match = re.fullmatch(r"/usr/local/cuda-(\d+)\.(\d+)", toolkit_root)
+    if match is None:
+        raise ValueError(f"unexpected CUDA toolkit root {toolkit_root!r}")
+    return str(int(match.group(1)) * 1000 + int(match.group(2)) * 10)
+
+
 # Measured on the Jetson Orin AGX (design § 2.7): lib64 is a symlink to the
 # aarch64-linux target lib dir, and the driver library lives in an
 # L4T-specific `nvidia/` subdirectory rather than at the bare multiarch path.
@@ -117,11 +133,15 @@ CUDA_TEGRA_HOST_CUDART_LIB = "/usr/local/cuda-12.6/targets/aarch64-linux/lib"
 CUDA_TEGRA_HOST_DRIVER_LIB = "/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 UPLOAD_RETRY_ACTION = ROOT / ".github/actions/upload-artifact-retry/action.yml"
-CANDLE_GIT_URL = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_GIT_REV = "859b8ea1a2218e864a0a867b4c3d62b03de75aa8"
-CANDLE_PACKAGES = (
+# 0.8.28 Slice 31 (REQ31-16, OP-1): the only Candle source this contract
+# governs is the candle-kernels git patch that carries the statically linked
+# CUDA runtime into the artifacts. Its source and rev are read from the
+# pinned-override record (one literal); the registry Candle fork crates are
+# the pinned-override checker's.
+PINNED_OVERRIDE_RECORD = ROOT / "scripts/pinned-override-rot.json"
+CANDLE_KERNELS_PACKAGE = "candle-kernels"
+CANDLE_FORK_PACKAGES = (
     "candle-core-fathomdb",
-    "candle-kernels",
     "candle-nn-fathomdb",
     "candle-transformers-fathomdb",
 )
@@ -215,6 +235,13 @@ def require_x64_cuda_toolkit_environment(block: str, label: str) -> None:
         block,
         f"LIBRARY_PATH: {CUDA_X64_HOST_CUDART_LIBRARY_DIR}",
         f"{label} CUDART library environment",
+    )
+    # 0.8.28 Slice 31 (D-8W): the binding version is selected only by this
+    # variable (or nvcc), never by a concrete cuda-NNNNN manifest feature.
+    require_fragment(
+        block,
+        f'CUDARC_CUDA_VERSION: "{cudarc_cuda_version(CUDA_X64_HOST_TOOLKIT_ROOT)}"',
+        f"{label} CUDA binding version",
     )
 
 
@@ -523,6 +550,13 @@ def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
     The private CUDA pool and the import-time early cuInit hook are for
     aarch64 Linux integrated GPUs. Every x86_64 CUDA set and every CPU build
     must refuse the feature; both Tegra tuples carry it with `rerank-cuda`.
+
+    The check reads the feature strings each artifact build passes, not
+    Cargo's resolved features. Since 0.8.28 Slice 31 (design § 14.3, owner
+    ruling Q37) `embed-cuda` and `rerank-cuda` imply `tegra-pool` in every
+    FathomDB crate, so the x86 sets resolve it too; that is still correct,
+    because the pool code is gated on aarch64 Linux and the implied feature
+    compiles nothing on x86.
     """
     require_fragment(
         contract,
@@ -569,10 +603,15 @@ def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
         )
         if TEGRA_FEATURE_SET_REF.search(text):
             fail(f"{label} must not use the Tegra feature set; it belongs to the Tegra build only")
+    # Only the CUDA features may imply it (slice-31 design.md § 14.3): the pool
+    # code is gated on aarch64 Linux with CUDA, so the implication compiles
+    # nothing in an x86 or CPU artifact. Any other feature reaching it is a
+    # Tegra set leaking into a non-Tegra build.
+    implying = {TEGRA_POOL_FEATURE, "embed-cuda", "rerank-cuda"}
     features = load_toml(NAPI_MANIFEST).get("features")
     if isinstance(features, dict):
         for name, members in features.items():
-            if name != TEGRA_POOL_FEATURE and TEGRA_POOL_FEATURE in (members or []):
+            if name not in implying and TEGRA_POOL_FEATURE in (members or []):
                 fail(f"fathomdb-napi feature {name!r} must not enable {TEGRA_POOL_FEATURE!r}")
 def require_tegra_napi_route(contract: str) -> None:
     """Require the Jetson Tegra N-API build to stay on its own contract axis.
@@ -696,42 +735,54 @@ def require_tegra_napi_route(contract: str) -> None:
 
 
 def main() -> None:
+    record = load_json(PINNED_OVERRIDE_RECORD)
+    candle_exception = record.get("cargo_candle_exception")
+    if not isinstance(candle_exception, dict):
+        fail(f"{PINNED_OVERRIDE_RECORD} has no cargo_candle_exception")
+    candle_git = candle_exception.get("git")
+    candle_rev = candle_exception.get("rev")
+    if not isinstance(candle_git, str) or not isinstance(candle_rev, str):
+        fail("cargo_candle_exception must name the candle-kernels git source and rev")
     workspace_manifest = load_toml(WORKSPACE_MANIFEST)
     patches = workspace_manifest.get("patch")
     if not isinstance(patches, dict):
-        fail("workspace Cargo.toml has no [patch.crates-io] Candle source pin")
+        fail("workspace Cargo.toml has no [patch.crates-io] candle-kernels source pin")
     crates_io_patch = patches.get("crates-io")
     if not isinstance(crates_io_patch, dict):
-        fail("workspace Cargo.toml has no [patch.crates-io] Candle source pin")
-    for package_name in CANDLE_PACKAGES:
-        pin = crates_io_patch.get(package_name)
-        if not isinstance(pin, dict):
-            fail(f"[patch.crates-io] lacks a source pin for {package_name!r}")
-        if pin.get("git") != CANDLE_GIT_URL or pin.get("rev") != CANDLE_GIT_REV:
+        fail("workspace Cargo.toml has no [patch.crates-io] candle-kernels source pin")
+    pin = crates_io_patch.get(CANDLE_KERNELS_PACKAGE)
+    if not isinstance(pin, dict):
+        fail(f"[patch.crates-io] lacks the {CANDLE_KERNELS_PACKAGE!r} source pin")
+    if pin.get("git") != candle_git or pin.get("rev") != candle_rev:
+        fail(
+            f"[patch.crates-io] {CANDLE_KERNELS_PACKAGE} must pin {candle_git}@{candle_rev} "
+            f"(scripts/pinned-override-rot.json cargo_candle_exception); got {pin!r}"
+        )
+    for package_name in CANDLE_FORK_PACKAGES:
+        if package_name in crates_io_patch:
             fail(
-                f"{package_name!r} must pin {CANDLE_GIT_URL}@{CANDLE_GIT_REV}; "
-                f"got {pin!r}"
+                f"[patch.crates-io] must not patch {package_name!r}: the Candle fork crates "
+                "come from crates.io"
             )
 
     lockfile = load_toml(LOCKFILE)
     locked_packages = lockfile.get("package")
     if not isinstance(locked_packages, list):
         fail("Cargo.lock has no package entries")
-    expected_source = f"git+{CANDLE_GIT_URL}?rev={CANDLE_GIT_REV}#{CANDLE_GIT_REV}"
-    for package_name in CANDLE_PACKAGES:
-        entries = [
-            entry
-            for entry in locked_packages
-            if isinstance(entry, dict) and entry.get("name") == package_name
-        ]
-        if len(entries) != 1:
-            fail(f"Cargo.lock must contain exactly one {package_name!r} package; got {len(entries)}")
-        source = entries[0].get("source")
-        if source != expected_source:
-            fail(
-                f"Cargo.lock must resolve {package_name!r} from {expected_source!r}; "
-                f"got {source!r}"
-            )
+    expected_source = f"git+{candle_git}?rev={candle_rev}#{candle_rev}"
+    entries = [
+        entry
+        for entry in locked_packages
+        if isinstance(entry, dict) and entry.get("name") == CANDLE_KERNELS_PACKAGE
+    ]
+    if len(entries) != 1:
+        fail(f"Cargo.lock must contain exactly one {CANDLE_KERNELS_PACKAGE!r} package; got {len(entries)}")
+    source = entries[0].get("source")
+    if source != expected_source:
+        fail(
+            f"Cargo.lock must resolve {CANDLE_KERNELS_PACKAGE!r} from {expected_source!r}; "
+            f"got {source!r}"
+        )
 
     manifest = load_toml(NAPI_MANIFEST)
     features = manifest.get("features")

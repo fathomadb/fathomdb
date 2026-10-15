@@ -385,20 +385,65 @@ behavior without features matches a wheel built without those features:
 The README states that `default-embedder` reproduces the shipped wheel and npm
 behavior.
 
-`tegra-pool` (0.8.28) is also forwarded and non-default. It selects the Tegra
-private CUDA memory pool on aarch64 Linux with `embed-cuda` or `rerank-cuda`
-(`dev/interfaces/rust.md` § CUDA private memory pool;
-`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`). It needs the workspace's
-vendored cudarc, so it builds only in this repository and its artifacts;
-against registry cudarc it fails at resolution. Even with it, an SDK process
-has no module-load hook: its allocator report says `cuinit_not_at_load` and
-it takes the 0.8.27 allocator path. The pool settings are the environment
-variables `FATHOMDB_POOL_MODE`, `FATHOMDB_POOL_MAXSIZE` and
-`FATHOMDB_POOL_RELEASE_THRESHOLD`, read once at the first CUDA device build.
+`tegra-pool` (0.8.28) is implied by this crate's `embed-cuda` and
+`rerank-cuda`; naming it is accepted and redundant (0.8.28 Slice 31, owner
+ruling Q37). It selects the Tegra private CUDA memory pool on aarch64 Linux
+and compiles nothing on x86_64 (`dev/interfaces/rust.md` § CUDA private
+memory pool; `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`). It adds no
+dependency: the pool primitive comes from `cudarc-fathomdb` through the
+Candle fork crates on crates.io, so it also builds downstream of the
+published crates.
+
+An SDK process gets the private pool with no init call of its own (owner
+rulings Q30 and Q36). It has no module-load hook; the decision accepts the
+`cuInit` that the SDK's device probe makes when `Engine::open` (with
+`use_default_embedder`), `embed_batch_cls` or `rerank` first uses CUDA. Its
+allocator report says `module_load_init` `not_at_load` with `path` `private`
+and `reason` `private_pool`. `FATHOMDB_CUDA_EARLY_INIT` has no effect here.
+Two `fathomdb-embedder` constructors skip the probe and stay on the 0.8.27
+allocator path, which is safe: the TC5 benchmark's
+`CandleBgeEmbedder::new_from_local_asset_on_device_attested(.., ExplicitCandleDevice::Cuda(n))`
+and `CandleBgeEmbedder::new_from_weights_with_device_resolution` with a
+caller-built `DeviceResolution`. Neither is reachable from this crate.
+
+The pool settings are `EngineConfig::cuda_pool` (`CudaPoolMode`),
+`cuda_pool_max_size` (bytes, at least 32 MiB) and
+`cuda_pool_release_threshold` (`ReleaseThreshold`) on `OpenOptions::config`,
+read back through `Engine::config()`; the environment variables
+`FATHOMDB_POOL_MODE`, `FATHOMDB_POOL_MAXSIZE` and
+`FATHOMDB_POOL_RELEASE_THRESHOLD` apply only when no open sets the setting.
+With threshold `max`, freed GPU memory stays reserved while any FathomDB
+model is open in the process and is returned when the last one closes.
+
+**One pool configuration per process.** The GPU pool settings are fixed once
+per process: by the first open that passes any of them, or, if none does, by
+the `FATHOMDB_POOL_*` environment variables (or their defaults) at the first
+GPU use. A later open that sets one of them to a different value fails with
+`ErrorKind::InvalidArgument` naming the setting and the value in force.
+Closing every engine does not reset them. Opens that omit them never fail this
+way. An open that sets any of them fixes the configuration on every platform,
+including machines where the pool never engages (x86, discrete GPUs, CPU-only
+engines). Whether an open that omits them fixes the configuration depends on
+whether it builds a GPU device; set the same values on every open, or on none.
+In practice: pick one set of values per process, or leave them unset; a test
+binary that runs in one process must not open engines with different pool
+settings. A `cuda_pool_max_size` larger than the GPU's memory cannot be
+checked until the pool is created; the pool is then turned off, and the
+allocator report's reason is `invalid_setting`.
+
 The `cuda_allocator` field of `CudaDeviceInfo` is reachable through
 `OpenReport`; this crate re-exports its report types
 (`CudaAllocatorReport`, `CudaAllocatorPath`, `CudaAllocatorReason`,
-`ReleaseThreshold`, `ModuleLoadInit`). The
+`ReleaseThreshold`, `ModuleLoadInit`, `PoolSettingSource`) and the setting
+types (`CudaPoolMode`, `CudaPoolSettingConflict`, `CudaPoolSettingValue`).
+The
+`cuda_libraries` field of `CudaDeviceInfo` (0.8.28 Slice 31) lists the CUDA
+libraries the probe loaded; this crate re-exports `CudaLibraryReport`,
+`CudaLibraryRefusal` and `CudaLibraryRefusalReason`. A refused library is the
+device-policy error kind `cuda_library_unavailable`, carried by
+`EmbedDevicePolicyError` / `RerankerDevicePolicyError` (`ErrorKind::EmbedDevicePolicy`
+/ `ErrorKind::RerankerDevicePolicy`; `dev/interfaces/rust.md` § CUDA library
+check and GPU floor). The
 standalone `embed_batch_cls` and `rerank` models are process singletons:
 on the private pool they hold their memory until the process exits.
 

@@ -137,6 +137,7 @@ fn resolve_ort_device_policy_with_availability(
                     compute_capability: None,
                     cuda_toolkit_version: None,
                     cuda_allocator: None,
+                    cuda_libraries: Vec::new(),
                 }),
                 None,
             ));
@@ -368,6 +369,7 @@ impl OrtBgeEmbedder {
                         compute_capability: None,
                         cuda_toolkit_version: None,
                         cuda_allocator: None,
+                        cuda_libraries: Vec::new(),
                     }),
                 },
                 visible_cuda_devices: Vec::new(),
@@ -745,6 +747,7 @@ mod tests {
                 compute_capability: None,
                 cuda_toolkit_version: None,
                 cuda_allocator: None,
+                cuda_libraries: Vec::new(),
             }),
             visible_cuda_devices: Vec::new(),
             selected_cuda_uuid: None,

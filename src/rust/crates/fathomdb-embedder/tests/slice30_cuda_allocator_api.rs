@@ -3,7 +3,7 @@
 
 use fathomdb_embedder::{
     CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaDeviceInfo, ModuleLoadInit,
-    ReleaseThreshold, RerankerDevicePolicyError,
+    PoolMode, PoolSettingSource, ReleaseThreshold, RerankerDevicePolicyError,
 };
 
 #[test]
@@ -30,6 +30,10 @@ fn a_constructed_device_info_has_no_allocator_report_until_one_is_attached() {
         Some(3 << 30),
         Some(ReleaseThreshold::Zero),
         ModuleLoadInit::Ran,
+        Some(PoolMode::Auto),
+        Some(PoolSettingSource::Default),
+        Some(PoolSettingSource::Default),
+        Some(PoolSettingSource::Default),
     );
     let info = info.with_cuda_allocator(Some(report.clone()));
     assert_eq!(info.cuda_allocator, Some(report));

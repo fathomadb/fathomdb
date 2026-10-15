@@ -5,8 +5,8 @@ pub(crate) use std::sync::{Arc, Mutex};
 
 pub(crate) use fathomdb_embedder::{
     CudaAllocatorReport as RustCudaAllocatorReport, CudaDeviceInfo as RustCudaDeviceInfo,
-    CudaVisibleDevice as RustCudaVisibleDevice, DeviceResolution as RustDeviceResolution,
-    EffectiveEmbedDevice as RustEffectiveEmbedDevice,
+    CudaLibraryReport as RustCudaLibraryReport, CudaVisibleDevice as RustCudaVisibleDevice,
+    DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
     EffectiveRerankerDevice as RustEffectiveRerankerDevice,
     EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
     GpuAllocationWitness as RustGpuAllocationWitness,

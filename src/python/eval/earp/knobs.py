@@ -1,8 +1,10 @@
 """The knob catalog.
 
 Keyed on **whether a concrete SDK call path exists** -- never on whether a knob
-happens to be an `EngineConfig` field. All five engine settings now reach native
-open; the slow threshold also retains its post-open setter.
+happens to be an `EngineConfig` field. All five per-engine settings now reach
+native open; the slow threshold also retains its post-open setter. The three
+GPU memory pool settings (0.8.28) reach native open too, but are fixed once per
+process, so they are held constant rather than varied per scenario.
 
 Completeness is asserted by two BOUNDED introspections -- over `EngineConfig`'s
 fields and over the search signatures -- each asserting coverage of a known
@@ -64,6 +66,23 @@ CATALOG: tuple[KnobEntry, ...] = (
         call_path="Engine.open(config=).embedder_call_timeout_ms",
         witness="provider_deadline_outcome",
         reason="Sets the absolute queue-plus-service provider deadline.",
+    ),
+    *(
+        KnobEntry(
+            name=name,
+            classification=KnobClass.HELD_CONSTANT,
+            call_path=None,
+            witness=None,
+            reason=(
+                "GPU memory pool setting (0.8.28 Slice 31). It changes only how CUDA "
+                "memory is allocated, never a result, and it is fixed once per "
+                "process: a later open with another value raises "
+                "InvalidArgumentError. A per-scenario value cannot be honoured in a "
+                "process that opens several engines, so EARP leaves it to the "
+                "FATHOMDB_POOL_* environment (or its default) for the whole run."
+            ),
+        )
+        for name in ("cuda_pool", "cuda_pool_max_size", "cuda_pool_release_threshold")
     ),
     KnobEntry(
         name="rerank_depth",

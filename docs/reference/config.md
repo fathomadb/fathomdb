@@ -24,7 +24,7 @@ as too late, with an optional SQLite code. This API does not call
 
 ## Engine configuration
 
-Engine-owned runtime knobs (0.8.27). The same five knobs are exposed by
+Engine-owned runtime knobs (0.8.27; the GPU pool settings 0.8.28). The same knobs are exposed by
 every binding in idiomatic spelling (Python snake_case, TS camelCase,
 Rust snake_case).
 
@@ -40,6 +40,36 @@ cross-binding symmetry pinned by `dev/design/bindings.md` § 6.
 | Embedder deadline | `embedder_call_timeout_ms` | `embedderCallTimeoutMs` | `1..=4,294,967,295` ms | `30,000` ms | One deadline covers queue wait plus provider service on production embedding paths. |
 | Provenance retention | `provenance_row_cap` | `provenanceRowCap` | `0..=2^53-1` rows | `1,000,000` rows | Bounds retained provenance rows; `0` disables retention. |
 | Slow event threshold | `slow_threshold_ms` | `slowThresholdMs` | `0..=2^53-1` ms | `100` ms | Governs operation and SQLite-statement slow signals; `0` accepts every positive duration. |
+| GPU pool mode (0.8.28) | `cuda_pool` | `cudaPool` | `"auto"`, `"on"`, `"off"` | `FATHOMDB_POOL_MODE`, else `"auto"` | The Jetson private CUDA memory pool ([embedder](../embedder.md#jetson-private-cuda-memory-pool)); `"off"` keeps the earlier allocator. |
+| GPU pool cap (0.8.28) | `cuda_pool_max_size` | `cudaPoolMaxSize` | `33,554,432..` bytes | `FATHOMDB_POOL_MAXSIZE`, else 1/20 of device memory (3 GiB on the AGX Orin 64 GB) | The pool's cap; it serves about a third of it on JetPack 6. |
+| GPU pool release threshold (0.8.28) | `cuda_pool_release_threshold` | `cudaPoolReleaseThreshold` | `"0"`, `"max"` | `FATHOMDB_POOL_RELEASE_THRESHOLD`, else `"0"` | `"0"`: freed GPU memory returns to the system automatically. `"max"`: it stays reserved while any FathomDB model is open in the process and is returned when the last one closes. |
+
+The three GPU pool settings take effect only on AArch64 Linux CUDA builds;
+elsewhere they are validated, read back and held to the rule below, but do
+nothing. Rust spells them as `EngineConfig` fields of types `CudaPoolMode`,
+`u64` and `ReleaseThreshold`.
+
+> **One pool configuration per process.** The GPU pool settings
+> (`cuda_pool`, `cuda_pool_max_size`, `cuda_pool_release_threshold`) are
+> fixed once per process: by the first `open` that passes any of them,
+> or, if none does, by the `FATHOMDB_POOL_*` environment variables (or
+> their defaults) at the first GPU use. A later `open` that sets one of
+> them to a different value fails with an invalid-argument error naming
+> the setting and the value in force. Closing every engine does not reset
+> them. Opens that omit them never fail this way. An open that sets any of
+> them fixes the configuration on every platform, including machines where
+> the pool never engages (x86, discrete GPUs, CPU-only engines). Whether an
+> open that omits them fixes the configuration depends on whether it builds
+> a GPU device; set the same values on every open, or on none.
+>
+> In practice: pick one set of values per process, or leave them unset. A
+> test suite that runs in one process (for example a single pytest run)
+> must not open engines with different pool settings; run such cases in
+> separate processes.
+>
+> A `cuda_pool_max_size` larger than the GPU's memory cannot be checked
+> until the pool is created; the pool is then turned off, and the
+> allocator report's reason is `invalid_setting`.
 
 `None` (Python) or an omitted TypeScript field selects the listed default.
 Python rejects booleans as integer settings; TypeScript requires finite safe

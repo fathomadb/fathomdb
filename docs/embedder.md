@@ -156,6 +156,49 @@ selects the optional cross-encoder with the same exact `auto` · `cpu` ·
 `cuda:N` grammar. A forced `cuda:N` reranker request fails typed rather than
 running CE on CPU.
 
+### CUDA library and GPU requirements
+
+The CUDA artifacts are built with CUDA 12.6 and need:
+
+- **An NVIDIA driver of 560.28.03 or later** (the CUDA 12.6 minimum). A
+  newer driver, CUDA 13 drivers included, runs them.
+- **A GPU of compute capability 7.5 or later on x86_64** (Turing: GeForce
+  RTX 20 and GTX 16 series, Quadro RTX and T series, Tesla T4, and every
+  later GPU). The Jetson artifacts target the AGX Orin. A GPU below the
+  floor is refused with `cuda_incompatible` before FathomDB builds a device
+  on it. `auto` tries only the first visible GPU, so on a host with an older
+  GPU at index 0 set `CUDA_VISIBLE_DEVICES` to a supported one.
+- **CUDA 12 cuBLAS and cuRAND libraries** (CUDA 12.x; tested with cuBLAS
+  12.1 to 12.9). A CUDA toolkit provides them, as do the PyPI wheels. If
+  one is missing, reports another major, or lacks a function FathomDB uses,
+  FathomDB refuses it before any GPU work with the typed kind
+  `cuda_library_unavailable` (reason `missing`, `wrong_major` or
+  `missing_symbol`): a forced `cuda:N` fails with the library, file,
+  version and remedy, and `auto` runs on CPU with that reason. The process
+  writes one `fathomdb-cuda-libraries {json}` line to stderr. The remedy,
+  which also covers a host with only CUDA 13 libraries:
+
+  ```sh
+  pip install nvidia-cublas-cu12 nvidia-curand-cu12
+  export LD_LIBRARY_PATH="$(python3 -c 'import nvidia.cublas as m; print(m.__path__[0])')/lib:$(python3 -c 'import nvidia.curand as m; print(m.__path__[0])')/lib:$LD_LIBRARY_PATH"
+  ```
+
+  The CUDA library loader does not search Python's site-packages on Linux,
+  so both directories must be on `LD_LIBRARY_PATH`.
+
+`fathomdb doctor cuda-libraries` shows which files a process loads and why
+one is refused ([CLI reference](reference/cli.md)); the open report's CUDA
+device facts list them too (`cuda_libraries` in Rust and Python,
+`cudaLibraries` in TypeScript).
+
+FathomDB-built artifacts (the wheels, npm packages and CLI) link the CUDA
+runtime statically, so their CPU mode loads on a host without `libcudart`.
+A Rust project that builds `fathomdb-embedder` from crates.io with
+`embed-cuda` (or `tegra-pool`) gets the published fork crates and links
+`libcudart` dynamically through upstream `candle-kernels` 0.10.2: set
+`LIBRARY_PATH` to the CUDA library directory to link, and keep `libcudart`
+loadable at run time.
+
 ### Embedding and cross-encoder on one GPU
 
 `FATHOMDB_EMBED_DEVICE=cuda:0` and `FATHOMDB_RERANK_DEVICE=cuda:0` may select
@@ -264,40 +307,94 @@ such as Grace Hopper, GB10 and SBSA servers, which also build this behaviour.
 
 ### Jetson: private CUDA memory pool
 
-Since 0.8.28, a pool-enabled build on the Jetson AGX Orin 64 GB gives
-FathomDB its own CUDA memory pool, capped at 3 GiB, that hands freed memory
-back to the system at once. Every allocation that fits succeeds, and the
-memory is returned when the work ends, without the slower synchronous path
-described above. The Tegra Python wheel (`fathomdb==<version>+tegra`) is
-built this way; the published npm packages and every other wheel are not, and
-keep the earlier behaviour. Other Jetsons and other AArch64 CUDA hosts keep
-it too unless `FATHOMDB_POOL_MODE=on` is set and they pass the remaining
-checks.
+Since 0.8.28, FathomDB on the Jetson AGX Orin 64 GB has its own CUDA
+memory pool, capped at 3 GiB, that hands freed memory back to the system at
+once. Every allocation that fits succeeds, and the memory is returned when
+the work ends, without the slower synchronous path described above.
+
+Every FathomDB build with CUDA on AArch64 Linux includes the pool:
+`embed-cuda` and `rerank-cuda` imply the `tegra-pool` Cargo feature, and
+naming `tegra-pool` as well is accepted and redundant. That covers the Tegra
+Python wheel (`fathomdb==<version>+tegra`), the Tegra Node package and a Rust
+project built with `embed-cuda`. x86_64 builds compile none of it. Other
+Jetsons and other AArch64 CUDA hosts keep the earlier behaviour unless the
+pool mode is `on` and they pass the remaining checks.
 
 - **Python starts CUDA at import.** The Tegra wheel starts the CUDA driver
   once when `fathomdb` is imported, under the same rules as the Node addon
   above (skipped when every CUDA-capable policy is `cpu`, or with
-  `FATHOMDB_CUDA_EARLY_INIT=off`). The pool is used only if that start-up
-  ran.
+  `FATHOMDB_CUDA_EARLY_INIT=off`). In Python and Node the pool is used
+  only if that start-up ran.
+- **Rust needs no extra call.** A Rust process has no import hook. The pool
+  accepts the CUDA start-up that FathomDB's own device check makes when an
+  engine opens with CUDA, so a Rust program gets the pool without calling
+  anything (its report shows `module_load_init` `not_at_load` with reason
+  `private_pool`). `FATHOMDB_CUDA_EARLY_INIT` has no effect in Rust; turn
+  the pool off with `cuda_pool = off`.
+- **Other AArch64 hosts start CUDA at import too.** On an AArch64 Linux host
+  that is not a Jetson (Grace, Graviton, SBSA servers), a Python extension
+  built from source with CUDA also starts CUDA at import, so the `fork` rule
+  below applies there as well. Node already behaves this way. No published
+  artifact targets these hosts.
 - **`fork` breaks CUDA in children.** After `import fathomdb`, a
   `multiprocessing` child created with the `fork` start method cannot use
   CUDA. Use `spawn` or `forkserver` (the Linux default from Python 3.14), or
   set `FATHOMDB_CUDA_EARLY_INIT=off`. This can break code that worked with
   0.8.27.
-- **Settings**, read once at the first GPU use:
-  - `FATHOMDB_POOL_MODE`: `auto` (default), `on`, or `off` (the earlier
-    behaviour);
-  - `FATHOMDB_POOL_MAXSIZE`: the cap, as bytes, `<n>G` or `<n>M` (at least
-    32 MiB);
-  - `FATHOMDB_POOL_RELEASE_THRESHOLD`: `0` (default, return freed memory at
-    once) or `max` (keep it).
+- **Settings.** Each is an open setting in every SDK (Rust `EngineConfig`,
+  Python `EngineConfig` or keyword, TypeScript `engineConfig`) and a flag
+  on `fathomdb doctor gpu`, `reranker-gpu` and `cuda-allocator`. Its
+  environment variable applies only when no open sets it:
+  - `cuda_pool` (`cudaPool`, `--cuda-pool`): `auto` (default), `on`, or
+    `off` (the earlier behaviour); fallback `FATHOMDB_POOL_MODE`;
+  - `cuda_pool_max_size` (`cudaPoolMaxSize`, `--cuda-pool-max-size`): the
+    cap in bytes, at least 32 MiB (the CLI flag and the environment also
+    take `<n>G` or `<n>M`); fallback `FATHOMDB_POOL_MAXSIZE`;
+  - `cuda_pool_release_threshold` (`cudaPoolReleaseThreshold`,
+    `--cuda-pool-release-threshold`): `0` or `max`; fallback
+    `FATHOMDB_POOL_RELEASE_THRESHOLD`. With `0` (the default), freed GPU
+    memory returns to the system automatically; FathomDB never holds freed
+    memory. With `max`, freed GPU memory stays reserved for reuse while
+    any FathomDB model is open in the process, and is returned when the
+    last one closes. "Closes" means the model is dropped, which can be
+    shortly after `close` returns.
 
-  A malformed value turns the pool off; it never stops the process.
+  A malformed environment value turns the pool off; it never stops the
+  process. `cuda_pool = off` turns the pool off; it does not stop the Node
+  and Python import-time CUDA start-up, which `FATHOMDB_CUDA_EARLY_INIT`
+  controls.
+- **One pool configuration per process.** The GPU pool settings
+  (`cuda_pool`, `cuda_pool_max_size`, `cuda_pool_release_threshold`) are
+  fixed once per process: by the first open that passes any of them, or, if
+  none does, by the `FATHOMDB_POOL_*` environment variables (or their
+  defaults) at the first GPU use. A later open that sets one of them to a
+  different value fails with an invalid-argument error naming the setting
+  and the value in force. Closing every engine does not reset them. Opens
+  that omit them never fail this way. An open that sets any of them fixes the
+  configuration on every platform, including machines where the pool never
+  engages (x86, discrete GPUs, CPU-only engines). Whether an open that omits
+  them fixes the configuration depends on whether it builds a GPU device; set
+  the same values on every open, or on none.
+
+  In practice: pick one set of values per process, or leave them unset. A
+  test suite that runs in one process (for example a single pytest run)
+  must not open engines with different pool settings; run such cases in
+  separate processes.
+
+  A `cuda_pool_max_size` larger than the GPU's memory cannot be checked
+  until the pool is created; the pool is then turned off, and the allocator
+  report's reason is `invalid_setting`.
+- **Usable size.** On JetPack 6 a capped pool serves about a third of its
+  cap, so the 3 GiB default serves about 1 GiB (FathomDB's peak measured on
+  the Orin was 288 MiB), and `FATHOMDB_POOL_MAXSIZE` buys about a third of
+  its value. A cap near total device memory is not recommended.
 - **When the pool is full**, the request fails with
   `CudaPoolExhaustedError`, and the next request runs normally.
 - **Module-level models keep their memory.** `embed_batch_cls` /
-  `embedBatchCls` and module-level `rerank` keep one model for the life of
-  the process, so their pool memory is held until it exits. An engine's own
+  `embedBatchCls`, module-level `rerank`, the Rust SDK's standalone
+  functions and the engine's reranker keep one model for the life of the
+  process, so their pool memory is held until it exits, and under `max` the
+  pool keeps its reservation while one of them is open. An engine's own
   embedder returns its memory when the engine closes.
 - **Do not reset the GPU context underneath FathomDB.** If another library in
   the same process resets the CUDA primary context, FathomDB raises

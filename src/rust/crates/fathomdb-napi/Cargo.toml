@@ -21,12 +21,11 @@ default-embedder = ["fathomdb-engine/default-embedder"]
 # Linux CUDA release artifacts select this opt-in feature. It owns the N-API
 # forwarding edge; the CUDA-capable artifact defaults its runtime policy to
 # `auto`, while explicit `cpu` remains available without rebuilding.
-embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]
-# The Tegra private CUDA memory pool; non-default, effective only on
-# aarch64 Linux with a CUDA feature (fathomdb-embedder `tegra-pool`).
+embed-cuda = ["default-embedder", "tegra-pool", "fathomdb-engine/embed-cuda"]
+# The Tegra private CUDA memory pool; implied by this crate's `embed-cuda` and `rerank-cuda` (slice-31 design.md § 14.3).
 tegra-pool = ["fathomdb-engine/tegra-pool"]
 default-reranker = ["fathomdb-engine/default-reranker"]
-rerank-cuda = ["default-reranker", "fathomdb-engine/rerank-cuda"]
+rerank-cuda = ["default-reranker", "tegra-pool", "fathomdb-engine/rerank-cuda"]
 
 [dependencies]
 fathomdb-embedder.workspace = true

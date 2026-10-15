@@ -1,0 +1,158 @@
+# Orin window P, tip e9036a9124422dbda65702fddc9adb7d9ea5afa1 (runner window-p.sh; build-p: cargo test --no-run, embedder lib and engine test, features embed-cuda,tegra-pool)
+## window-p.log
+waiting for lock 00:52:56
+lock held 00:52:56
+gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize rc=0
+gpu_orin_64_close_release_also_trims_a_max_threshold_pool rc=101
+gpu_orin_64_process_exit_with_the_private_pool_alive_is_clean rc=0
+gpu_orin_64_dropping_the_embedder_then_exiting_is_clean rc=0
+gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean rc=101
+WINDOW-P-DONE 00:53:27
+
+## gpu_orin_64_close_release_also_trims_a_max_threshold_pool.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_close_release_also_trims_a_max_threshold_pool ... 
+thread 'cuda_pool_policy::slice31_tests::gpu_orin_64_close_release_also_trims_a_max_threshold_pool' (1890537) panicked at src/rust/crates/fathomdb-embedder/src/cuda_pool_slice31_tests.rs:124:5:
+status ExitStatus(unix_wait_status(0))
+stdout:
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_slice31_child ... max-threshold loaded: PoolCounters { reserved_current: 301989888, reserved_high: 301989888, used_current: 132848640, used_high: 254970976 }
+max-threshold dropped (no synchronize): PoolCounters { reserved_current: 301989888, reserved_high: 301989888, used_current: 0, used_high: 254970976 }
+slice31-child: max-threshold reserved_current=301989888
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 5.98s
+
+
+stderr:
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    cuda_pool_policy::slice31_tests::gpu_orin_64_close_release_also_trims_a_max_threshold_pool
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 99 filtered out; finished in 6.08s
+
+error: test failed, to rerun pass `-p fathomdb-embedder --lib`
+
+## gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize ... n1 loaded: PoolCounters { reserved_current: 301989888, reserved_high: 301989888, used_current: 132848640, used_high: 254970976 }
+n1 dropped (no synchronize): PoolCounters { reserved_current: 0, reserved_high: 301989888, used_current: 0, used_high: 254970976 }
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 6.26s
+
+
+## gpu_orin_64_dropping_the_embedder_then_exiting_is_clean.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_dropping_the_embedder_then_exiting_is_clean ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 6.12s
+
+
+## gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running tests/slice31_engine_close_cuda.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/slice31_engine_close_cuda-5118142babb1d04b)
+
+running 1 test
+test gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean ... 
+thread 'gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean' (1890677) panicked at src/rust/crates/fathomdb-engine/tests/slice31_engine_close_cuda.rs:86:5:
+status=ExitStatus(unix_wait_status(0))
+--- stdout
+
+running 1 test
+test gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean ... engine-close-child: path=default_pool
+engine-close-child: searched hits=1
+engine-close-child: closed
+
+--- stderr
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.75s
+
+error: test failed, to rerun pass `-p fathomdb-engine --test slice31_engine_close_cuda`
+
+## gpu_orin_64_process_exit_with_the_private_pool_alive_is_clean.log
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-e9036a912442/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_process_exit_with_the_private_pool_alive_is_clean ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 6.08s
+
+
+## runner build-p.sh
+set -u
+. ~/fathomdb-slice31/orin-env.sh
+T=e9036a912442
+cd $W/src-$T
+export CARGO_TARGET_DIR=$W/target-$T
+orin_guard before-build-p
+cargo test --locked --no-run -p fathomdb-embedder --features embed-cuda,tegra-pool --lib 2>&1 | tail -40; echo "rc-emb=${PIPESTATUS[0]}"
+cargo test --locked --no-run -p fathomdb-engine --features embed-cuda,tegra-pool --test slice31_engine_close_cuda 2>&1 | tail -40; echo "rc-eng=${PIPESTATUS[0]}"
+orin_guard after-build-p
+echo BUILD-DONE
+## runner window-p.sh
+set -u
+. ~/fathomdb-slice31/orin-env.sh
+T=e9036a912442
+cd $W/src-$T
+export CARGO_TARGET_DIR=$W/target-$T
+L=$W/logs-p; mkdir -p $L
+exec 9>/tmp/fathomdb-gpu.lock
+echo "waiting for lock $(date -u +%T)"; flock 9; echo "lock held $(date -u +%T)"
+run_lib() { # name
+  orin_guard "before-$1" || exit 3
+  env FATHOMDB_REQUIRE_LIVE=1 FATHOMDB_EMBED_DEVICE=cuda:0 cargo test --locked -p fathomdb-embedder \
+    --features embed-cuda,tegra-pool --lib -- --ignored --exact "cuda_pool_policy::slice31_tests::$1" \
+    --nocapture --test-threads=1 >"$L/$1.log" 2>&1
+  echo "$1 rc=$?" | tee -a $L/summary.txt
+  orin_guard "after-$1" || exit 3
+}
+run_lib gpu_orin_64_dropping_the_embedder_releases_pool_memory_without_a_caller_synchronize
+run_lib gpu_orin_64_close_release_also_trims_a_max_threshold_pool
+run_lib gpu_orin_64_process_exit_with_the_private_pool_alive_is_clean
+run_lib gpu_orin_64_dropping_the_embedder_then_exiting_is_clean
+t=gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean
+orin_guard "before-$t" || exit 3
+env FATHOMDB_REQUIRE_LIVE=1 cargo test --locked -p fathomdb-engine --features embed-cuda,tegra-pool \
+  --test slice31_engine_close_cuda -- --ignored --exact $t --nocapture --test-threads=1 >"$L/$t.log" 2>&1
+echo "$t rc=$?" | tee -a $L/summary.txt
+orin_guard "after-$t" || exit 3
+echo "WINDOW-P-DONE $(date -u +%T)"
+## orin-env.sh
+# Slice 31 Orin build/run env (test-plan § 1.2). Sourced.
+export PATH="$HOME/.cargo/bin:/usr/local/cuda-12.6/bin:$PATH"
+export CUDA_COMPUTE_CAP=87 CUDARC_CUDA_VERSION=12060 CUDA_PATH=/usr/local/cuda-12.6
+export LIBRARY_PATH=/usr/local/cuda/targets/aarch64-linux/lib
+W=$HOME/fathomdb-slice31
+GUARD_LOG=${GUARD_LOG:-$W/guard.log}
+orin_guard() {
+  local rel cuda
+  rel="$(head -1 /etc/nv_tegra_release)"; cuda="$(readlink -f /usr/local/cuda)"
+  printf '%s %s | %s | %s\n' "$(date -u +%FT%TZ)" "$1" "$rel" "$cuda" >>"$GUARD_LOG"
+  case "$rel" in "# R36 (release), REVISION: 5.2,"*) ;; *) echo "GUARD CHANGED: $rel" >&2; return 3;; esac
+  [ "$cuda" = /usr/local/cuda-12.6 ] || { echo "GUARD CHANGED: $cuda" >&2; return 3; }
+}

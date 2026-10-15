@@ -28,6 +28,11 @@ impl Engine {
                     .embedder_call_timeout_ms
                     .map(|value| value as f64),
                 slow_threshold_ms: requested.slow_threshold_ms.map(|value| value as f64),
+                cuda_pool: requested.cuda_pool.map(|mode| mode.as_str().to_string()),
+                cuda_pool_max_size: requested.cuda_pool_max_size.map(|value| value as f64),
+                cuda_pool_release_threshold: requested
+                    .cuda_pool_release_threshold
+                    .map(|threshold| threshold.as_str().to_string()),
             })
         })
     }
@@ -446,6 +451,10 @@ mod tests {
                 Some(3 * (1 << 30)),
                 Some(fathomdb_embedder::ReleaseThreshold::Max),
                 fathomdb_embedder::ModuleLoadInit::Ran,
+                Some(fathomdb_embedder::PoolMode::On),
+                Some(fathomdb_embedder::PoolSettingSource::Sdk),
+                Some(fathomdb_embedder::PoolSettingSource::Default),
+                Some(fathomdb_embedder::PoolSettingSource::Env),
             )));
         let mapped = CudaDeviceInfo::from_rust(&private)
             .cuda_allocator
@@ -455,6 +464,10 @@ mod tests {
         assert_eq!(mapped.pool_max_size_bytes, Some(3 * (1 << 30)));
         assert_eq!(mapped.release_threshold.as_deref(), Some("max"));
         assert_eq!(mapped.module_load_init, "ran");
+        assert_eq!(mapped.pool_mode.as_deref(), Some("on"));
+        assert_eq!(mapped.pool_mode_source.as_deref(), Some("sdk"));
+        assert_eq!(mapped.pool_max_size_source.as_deref(), Some("default"));
+        assert_eq!(mapped.pool_release_threshold_source.as_deref(), Some("env"));
 
         let not_built =
             base.clone().with_cuda_allocator(Some(fathomdb_embedder::CudaAllocatorReport::new(
@@ -463,6 +476,10 @@ mod tests {
                 None,
                 None,
                 fathomdb_embedder::ModuleLoadInit::Failed(100),
+                None,
+                Some(fathomdb_embedder::PoolSettingSource::Env),
+                Some(fathomdb_embedder::PoolSettingSource::Default),
+                Some(fathomdb_embedder::PoolSettingSource::Default),
             )));
         let mapped = CudaDeviceInfo::from_rust(&not_built)
             .cuda_allocator
@@ -744,5 +761,32 @@ mod tests {
             }));
         assert_eq!(invalid["code"], "FDB_WRITE_VALIDATION");
         assert_eq!(invalid["message"], "non-finite");
+    }
+
+    /// 0.8.28 Slice 31 (D-18) — the loaded CUDA libraries reach the binding
+    /// with their file, version and built major, and stay empty when the
+    /// core has none.
+    #[test]
+    fn cuda_library_report_crosses_the_napi_boundary() {
+        let base = fathomdb_embedder::CudaDeviceInfo::new(0, None, None, None, None, None);
+        let loaded = base.clone().with_cuda_libraries(vec![
+            fathomdb_embedder::CudaLibraryReport::new(
+                "cublas",
+                "libcublas.so.12",
+                Some("/opt/cuda/libcublas.so.12.6.1.4".to_string()),
+                Some("12.6.1".to_string()),
+                12,
+            ),
+            fathomdb_embedder::CudaLibraryReport::new("curand", "libcurand.so.10", None, None, 12),
+        ]);
+        let mapped = CudaDeviceInfo::from_rust(&loaded).cuda_libraries;
+        assert_eq!(mapped.len(), 2);
+        assert_eq!(mapped[0].library, "cublas");
+        assert_eq!(mapped[0].opened_as, "libcublas.so.12");
+        assert_eq!(mapped[0].path.as_deref(), Some("/opt/cuda/libcublas.so.12.6.1.4"));
+        assert_eq!(mapped[0].version.as_deref(), Some("12.6.1"));
+        assert_eq!(mapped[0].built_major, 12);
+        assert_eq!(mapped[1].path, None);
+        assert!(CudaDeviceInfo::from_rust(&base).cuda_libraries.is_empty());
     }
 }

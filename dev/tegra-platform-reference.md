@@ -509,9 +509,9 @@ footprint. It is recorded *in* the witness so the verdict stays re-derivable
 
 ### 7.5 Driver access path
 
-The CUDA driver API is reached through cudarc 0.19.7 re-exported by the pinned
-Candle fork. The workspace resolves that cudarc from the vendored, patched copy
-in `third_party/cudarc-0.19.7` (§ 7.7):
+The CUDA driver API is reached through `cudarc-fathomdb` 0.19.10 (FathomDB's
+cudarc fork, published on crates.io), which the Candle fork crates 0.11.0
+re-export as `cudarc` (0.8.28 Slice 31; § 7.7):
 
 ```rust
 candle_core::cuda::cudarc::driver::result::mem_get_info()
@@ -551,8 +551,9 @@ window by accident, so Node forced-CUDA opens failed intermittently while a
 plain Python process usually passed.
 
 - Upstream cudarc selects stream-ordered allocation from the pool attribute
-  alone and its decision field is crate-private. The vendored
-  `third_party/cudarc-0.19.7` therefore allocates synchronously when the
+  alone and its decision field is crate-private. FathomDB's cudarc fork
+  (`cudarc-fathomdb`, items 1-3 of its `FATHOMDB.md`; until 0.8.28 Slice 31 a
+  patched copy in this repository) therefore allocates synchronously when the
   default pool is unavailable. This is compiled only for aarch64 Linux; other
   targets keep upstream's logic. The pool counts as unavailable on
   `CUDA_ERROR_OUT_OF_MEMORY` or `CUDA_ERROR_NOT_SUPPORTED`; other errors fail
@@ -568,7 +569,8 @@ plain Python process usually passed.
   Hopper, GB10, SBSA), which the cfg also covers, and a co-resident library
   calling `cuDevicePrimaryCtxReset` or `cudaDeviceReset`. The patch also
   returns a null pointer for zero-byte synchronous requests, which
-  `cuMemAlloc` rejects. Its `FATHOMDB-PATCH.md` records the delta.
+  `cuMemAlloc` rejects. The fork's `FATHOMDB.md` (shipped in the crate)
+  records each item with its upstream status and removal path.
 - The regression test is
   `src/rust/crates/fathomdb-embedder/tests/tegra_fragmented_va_cuda.rs`. On an
   integrated GPU with the AGX Orin 64 GB's 60–64 GiB of device memory it
@@ -586,9 +588,9 @@ plain Python process usually passed.
   24.7–28.2 ms, stream-ordered 9.2–14.6 ms). The ratios above 2.5 come from
   series with only one to three stream-ordered runs. Which path a process took is
   inferred from that bimodal latency; the product does not report it.
-- Root `[patch.crates-io]` entries do not propagate. A downstream Rust build
-  of the published crates with `embed-cuda` resolves unpatched cudarc and
-  keeps the failure.
+- Since 0.8.28 Slice 31 a downstream Rust build of the published crates
+  resolves `cudarc-fathomdb` from crates.io, so it gets the fallback too; no
+  root `[patch.crates-io]` entry is involved.
 - `cuInit` itself needs an unmapped hole of at least 4 GiB in the window; see
   § 7.8. The allocator fallback cannot help there.
 - **Revisit obligation (user-directed):** revisit this aarch64-Linux-only
@@ -596,7 +598,7 @@ plain Python process usually passed.
   **next micro release** and **loudly at the next minor release**. Check
   whether a newer L4T/CUDA fixes the default-pool/`cuInit` address-space
   behaviour (rerun `minimal_repro.c` and `pool_teardown.c`); whether upstream
-  cudarc gained a fallback or pool API, so the vendored copy can be dropped;
+  cudarc gained a fallback or pool API, so the fork items can be dropped;
   whether V8/Node changed the ARM64 mmap hint mask; and the planned
   explicit-pool work to recover stream-ordered speed. Tracked as todos-ledger
   `TC-9fef1b7c-4442-4c77-b925-992f338c9aac`.

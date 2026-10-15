@@ -1,0 +1,11 @@
+[package]
+name = "cudarc-fathomdb"
+version = "0.19.10"
+edition = "2021"
+
+[lib]
+name = "cudarc"
+path = "src/lib.rs"
+
+[features]
+cuda-12060 = []

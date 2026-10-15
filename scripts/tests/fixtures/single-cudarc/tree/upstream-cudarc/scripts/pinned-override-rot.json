@@ -1,0 +1,7 @@
+{
+  "cargo_fork_registry_pins": {
+    "pins": [
+      {"dependency": null, "package": "cudarc-fathomdb", "version": "0.19.10"}
+    ]
+  }
+}

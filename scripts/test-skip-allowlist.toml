@@ -30,6 +30,28 @@ excluded_on = 'not(all(target_arch = "aarch64", target_os = "linux"))'
 reason = "#![cfg(all(target_os = \"linux\", target_arch = \"aarch64\", feature = \"embed-cuda\"))]: the Jetson default-memory-pool regression maps address-space blockers before cuInit and asserts the default pool is unavailable and the synchronous allocator was selected. It compiles to nothing off aarch64 Linux. On aarch64 Linux it asserts only on the measured target, an integrated cuda:0 with the Jetson AGX Orin 64 GB's 60-64 GiB of device memory. On a host that is not Tegra (no /etc/nv_tegra_release and no nvidia,tegra* device-tree entry) it prints SKIP before mapping any blocker. With no CUDA driver, the toolkit's stub libcuda (CUDA_ERROR_STUB_LIBRARY), no device (CUDA_ERROR_NO_DEVICE), a discrete cuda:0 or another memory size it prints SKIP (a panic under FATHOMDB_REQUIRE_LIVE=1); any other driver failure, cuInit's CUDA_ERROR_OUT_OF_MEMORY included, fails it, and an occupied blocker address fails it only on the measured target."
 
 [[entry]]
+id = "fathomdb-embedder::slice31_cuda_library_major"
+class = "platform-excluded"
+excluded_on = 'not(target_os = "linux")'
+reason = "#![cfg(all(target_os = \"linux\", feature = \"embed-cuda\"))]: the 0.8.28 Slice 31 D-18 tests put decoy cuBLAS files (built by cc) on LD_LIBRARY_PATH in child processes and read /proc/self/maps, so the target compiles to nothing off Linux. On Linux the feature-complete gate runs it on the RTX 3090s."
+
+[[entry]]
+id = "fathomdb-embedder::slice31_cuda_library_major::missing_cuda_12_cublas_is_a_typed_refusal_with_the_remedy"
+class = "ignored-by-design"
+reason = "#[ignore = \"C3 GCP cell\"]: needs a host with an NVIDIA driver and no CUDA 12 cuBLAS at all (T-CUDA-COMPAT C3, design § 9.3); it fails its precondition on any host with a CUDA toolkit, so it runs only in the owner-approved GCP session with --ignored --exact."
+
+[[entry]]
+id = "fathomdb-engine::slice31_engine_close_cuda"
+class = "platform-excluded"
+excluded_on = 'not(target_os = "linux")'
+reason = "#![cfg(all(target_os = \"linux\", feature = \"embed-cuda\"))]: the 0.8.28 Slice 31 engine close test (TDN-03) uses Unix exit statuses and the CUDA embedder, so it compiles to nothing off Linux."
+
+[[entry]]
+id = "fathomdb-engine::slice31_engine_close_cuda::gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean"
+class = "ignored-by-design"
+reason = "#[ignore]: asserts the Tegra private CUDA pool (allocator path private), which exists only on the Jetson AGX Orin 64 GB with a tegra-pool build; it runs in the Slice 31 Orin windows with --ignored --exact (test-plan cmd c-engine-close)."
+
+[[entry]]
 id = "fathomdb-engine::durability_soak"
 class = "platform-excluded"
 excluded_on = "not(unix)"

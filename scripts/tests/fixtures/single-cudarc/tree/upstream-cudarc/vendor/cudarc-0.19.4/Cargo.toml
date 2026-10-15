@@ -1,0 +1,11 @@
+[package]
+name = "cudarc"
+version = "0.19.4"
+edition = "2021"
+
+[lib]
+name = "cudarc"
+path = "src/lib.rs"
+
+[features]
+cuda-12060 = []

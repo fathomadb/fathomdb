@@ -57,8 +57,9 @@ permission or file-access boundary.
 ## Per-engine configuration (0.8.27 Slice 90)
 
 `Engine::open_with_choice_and_config(path, choice, config)` accepts a public
-`EngineConfig` whose five fields are optional `u64` requested values. Omission
-selects the default. `Engine::config()` returns the unchanged requested-open
+`EngineConfig` whose fields are optional requested values: the five `u64`
+fields below and, since 0.8.28 Slice 31, the three GPU memory pool settings
+(§ CUDA private memory pool). Omission selects the default. `Engine::config()` returns the unchanged requested-open
 snapshot; `set_slow_threshold_ms` changes the effective threshold without
 rewriting that snapshot. The older open methods select default settings.
 
@@ -1233,26 +1234,65 @@ model; a load failure of a CUDA pool kind is returned and retried next call.
 The decision rule is
 [`ADR-0.8.28-tegra-private-cuda-pool`](../adr/ADR-0.8.28-tegra-private-cuda-pool.md).
 
-- **Feature.** `tegra-pool` is non-default. It lives in `fathomdb-embedder`
-  and is forwarded by `fathomdb-engine`, `fathomdb`, `fathomdb-sdk`,
-  `fathomdb-napi`, `fathomdb-py` and `fathomdb-cli`. It has an effect only on
-  aarch64 Linux with `embed-cuda` or `rerank-cuda`. It is supported only in
-  repository and artifact builds, which carry the vendored cudarc through
-  the workspace `[patch.crates-io]`. A downstream build of the published
-  crates gets registry cudarc, so enabling it fails at resolution with
-  "depends on `cudarc` with feature `fathomdb-private-pool` but `cudarc` does
-  not have that feature" (`scripts/check-tegra-pool-registry-build.sh`).
-- **Settings**, read once, inside the decision at the first CUDA device
-  build; a later change has no effect:
-  - `FATHOMDB_POOL_MODE`: `auto` (default), `on` (lifts only the Tegra
-    identity and measured-class gates) or `off`;
-  - `FATHOMDB_POOL_MAXSIZE`: bytes, `<n>G` or `<n>M`, from 32 MiB to device
-    total; replaces the derived size (3 GiB on the AGX Orin 64 GB) only after
-    every gate passes;
-  - `FATHOMDB_POOL_RELEASE_THRESHOLD`: `0` (default) or `max`.
+- **Feature.** `tegra-pool` is implied by `embed-cuda`/`rerank-cuda`;
+  naming it is accepted and redundant (0.8.28 Slice 31, owner ruling Q37).
+  It lives in `fathomdb-embedder`, and in `fathomdb-engine`, `fathomdb`,
+  `fathomdb-sdk`, `fathomdb-napi`, `fathomdb-py` and `fathomdb-cli` each
+  crate's own CUDA features enable its own `tegra-pool`. It has an effect
+  only on aarch64 Linux with `embed-cuda` or `rerank-cuda`; on x86_64 it
+  compiles nothing. A Rust build therefore cannot compile the pool out on
+  aarch64 Linux; `cuda_pool = off` is the run-time opt-out. It adds no dependency:
+  the pool primitive comes from `cudarc-fathomdb` 0.19.10 (FathomDB's cudarc
+  fork, on crates.io), which the embedder reaches only through the Candle
+  fork crates 0.11.0. A downstream build of the published crates with
+  `tegra-pool` resolves and builds from crates.io with no `[patch]` table
+  (`scripts/check-tegra-pool-registry-build.sh`).
+- **Settings** (0.8.28 Slice 31, owner rulings Q33 and Q35). `EngineConfig`
+  carries three open settings; each environment variable applies only when
+  no open sets its setting:
+  - `cuda_pool: Option<CudaPoolMode>` (`Auto` default, `On` lifts only the
+    Tegra identity and measured-class gates, `Off`); fallback
+    `FATHOMDB_POOL_MODE`;
+  - `cuda_pool_max_size: Option<u64>`: bytes, at least
+    `CUDA_POOL_MAX_SIZE_MIN` (32 MiB; smaller is
+    `EngineConfigurationError::OutOfRange`), up to device total; replaces
+    the derived size (3 GiB on the AGX Orin 64 GB) only after every gate
+    passes; fallback `FATHOMDB_POOL_MAXSIZE` (bytes, `<n>G` or `<n>M`);
+  - `cuda_pool_release_threshold: Option<ReleaseThreshold>` (`Zero`
+    default, `Max`); fallback `FATHOMDB_POOL_RELEASE_THRESHOLD`. With `0`,
+    freed GPU memory returns to the system automatically; FathomDB never
+    holds freed memory. With `max`, freed GPU memory stays reserved for
+    reuse while any FathomDB model is open in the process, and is returned
+    when the last one closes (a synchronize of the decision's context, then
+    `trim_to(0)`, skipped if the context is lost). "Closes" means the model
+    is dropped, which can be shortly after `close` returns.
 
-  A malformed value turns the pool off with reason `invalid_setting`; it
-  never aborts.
+  `CudaPoolMode` (the embedder's `PoolMode`, with `as_str` and `FromStr` on
+  `auto`/`on`/`off`), `ReleaseThreshold`, `PoolSettingSource`,
+  `CudaPoolSettingConflict`, `CudaPoolSettingValue` and
+  `CUDA_POOL_MAX_SIZE_MIN` are re-exported by
+  `fathomdb-engine`, `fathomdb` and `fathomdb-sdk`. A malformed environment
+  value turns the pool off with reason `invalid_setting`; it never aborts.
+- **One pool configuration per process.** The GPU pool settings
+  (`cuda_pool`, `cuda_pool_max_size`, `cuda_pool_release_threshold`) are fixed
+  once per process: by the first open that passes any of them, or, if none
+  does, by the `FATHOMDB_POOL_*` environment variables (or their defaults) at
+  the first GPU use. A later open that sets one of them to a different value
+  fails with
+  `EngineOpenError::EngineConfiguration(EngineConfigurationError::CudaPoolSettingConflict(..))`
+  naming the setting, the value in force and its source; the open creates no
+  database file before the check. Closing every engine does not reset them.
+  Opens that omit them never fail this way. An open that sets any of them
+  fixes the configuration on every platform, including machines where the pool
+  never engages (x86, discrete GPUs, CPU-only engines). Whether an open that
+  omits them fixes the configuration depends on whether it builds a GPU
+  device; set the same values on every open, or on none. Pick one set of
+  values per process, or leave them unset; a test suite in one process must
+  not open engines with different pool settings. A `cuda_pool_max_size` larger
+  than the GPU's memory cannot be checked until the pool is created; the pool
+  is then turned off, and the allocator report's reason is `invalid_setting`.
+  Direct `CandleBgeEmbedder` and `CandleTinyBertReranker` constructors take no
+  setting; they use the configuration in force, else the environment.
 - **Report.** `CudaDeviceInfo` is `#[non_exhaustive]` (build it with
   `CudaDeviceInfo::new(..).with_cuda_allocator(..)`) and carries
   `cuda_allocator: Option<CudaAllocatorReport>`. `CudaAllocatorReport` is
@@ -1261,21 +1301,36 @@ The decision rule is
   CudaAllocatorReason`, `pool_max_size_bytes: Option<u64>`,
   `release_threshold: Option<ReleaseThreshold>` (`Zero`, `Max`) and
   `module_load_init: ModuleLoadInit` (`Ran`, `OptedOut`, `SkippedCpuOnly`,
-  `DriverAbsent`, `Failed(u32)`, `NotAtLoad`). Each enum has a stable
+  `DriverAbsent`, `Failed(u32)`, `NotAtLoad`), `pool_mode:
+  Option<CudaPoolMode>` (`None` for a malformed `FATHOMDB_POOL_MODE`), and
+  `pool_mode_source`, `pool_max_size_source`, `pool_release_threshold_source:
+  Option<PoolSettingSource>` (`Sdk`, `Env`, `Default`). Each enum has a stable
   `as_str()` name. It is `Some` with `reason: NotBuilt` and `path: None` on
   aarch64 Linux CUDA builds without `tegra-pool`, the built context's real
   allocator with it, and `None` on every other target. These types are
   exported by `fathomdb-embedder` and re-exported by `fathomdb-sdk`; the
   Python (`cuda_allocator`) and TypeScript (`cudaAllocator`) open reports
   carry the same report with each enum as its `as_str()` name.
-- **No load hook in Rust.** Rust has no module-load hook, so a Rust process
-  reports `cuinit_not_at_load` and takes the 0.8.27 path even with
-  `tegra-pool`. `run_module_load_early_init` is binding support (§ Unstable
+- **Rust uses the probe's `cuInit`** (0.8.28 Slice 31, owner ruling Q36).
+  Rust has no module-load hook. The decision admits `NotAtLoad` when the
+  process's most recent `cuInit`, made by FathomDB's own device probe
+  before the first device build, succeeded; FathomDB adds no call. Such a
+  process reports `module_load_init: NotAtLoad`, `path: Private`, `reason:
+  PrivatePool`. `NotAtLoad` with reason `cuinit_not_at_load` remains for a
+  process whose driver no FathomDB probe initialised. `FATHOMDB_CUDA_EARLY_INIT`
+  has no effect in Rust (it governs the Node and Python load hooks);
+  `cuda_pool = off` turns the pool off. A recorded load outcome (Node,
+  Python, `doctor cuda-allocator`) is never overridden by the probe, so a
+  binding whose hook recorded `Failed` or `SkippedCpuOnly` still falls
+  back where a Rust process would reach the pool. `ran` and `not_at_load`
+  with `private_pool` mean the same allocator path.
+  `run_module_load_early_init` stays binding support (§ Unstable
   binding-support items in `fathomdb-embedder`), not re-exported by the
   facade or the SDK.
 - **Module-level models hold pool memory until exit.** The CLS embedder and
-  reranker singletons are never released; an engine's own embedder returns
-  its memory to the pool, and at threshold 0 to the driver, when the engine
+  reranker singletons are never released, so under `max` the pool keeps its
+  reservation while one is open; an engine's own embedder returns its
+  memory to the pool, and at threshold 0 to the driver, when the engine
   closes.
 - **Context reset is unsupported (C7).** If another library in the process
   resets the device's primary context while FathomDB holds a private one,
@@ -1283,6 +1338,67 @@ The decision rule is
   `fathomdb-cuda-context-lost` JSON line is written to stderr per process.
   Closing afterwards can still crash; the survival fix is planned for
   0.8.29.
+
+### CUDA library check and GPU floor (0.8.28 Slice 31)
+
+Before a CUDA device is built, `fathomdb-embedder` checks the device against
+the build and the CUDA libraries Candle's device construction loads
+(`dev/adr/ADR-0.8.28-cuda-version-support-policy.md`, amendment of
+2026-10-13):
+
+- **GPU floor.** `CudaProvider` has a provided method
+  `kernel_compute_floor(&self) -> Option<(u32, u32)>` returning the build's
+  `CUDA_COMPUTE_CAP` (read at compile time; 75 for the x86_64 artifacts, 87
+  for Jetson; `None` without it), parsed by the public
+  `parse_compute_capability_floor(&str) -> Option<(u32, u32)>` (`"75"` is
+  7.5, `"120"` is 12.0). Resolution, `diagnose_gpu` and the reranker refuse an
+  enumerated device whose compute capability is below the floor before
+  calling `probe_cuda`: forced `cuda:N` is `ForcedCudaUnavailable { reason:
+  CudaIncompatible }`, `auto` (which probes only the lowest visible ordinal)
+  runs on CPU with `cuda_incompatible`, and `doctor gpu` reports
+  `cuda_incompatible`. An unknown capability or no floor refuses nothing.
+- **Library check.** The concrete probes call the check after the floor and
+  before `new_cuda_device`. It loads cuBLAS and cuRAND for the built CUDA
+  major through `cudarc-fathomdb` (reached as `candle_core::cuda::cudarc`)
+  and refuses a library it cannot load (`missing`), a cuBLAS that reports
+  another major or a candidate rejected for one (`wrong_major`), or a
+  library that lacks one of the cuBLAS or cuRAND functions cudarc's result
+  layers call (`missing_symbol`). The refusal is
+  `CudaProbeError::LibraryUnavailable(CudaLibraryRefusal)`; resolution maps
+  it to `DeviceResolutionReason::CudaLibraryUnavailable` /
+  `RerankerDeviceResolutionReason::CudaLibraryUnavailable`
+  (`"cuda_library_unavailable"`) under `auto` (CPU) and to
+  `DeviceResolutionError::CudaLibraryUnavailable { ordinal, refusal }` /
+  `RerankerDeviceResolutionError::CudaLibraryUnavailable { ordinal, refusal }`
+  under forced CUDA; `EmbedDevicePolicyError::kind()` and
+  `RerankerDevicePolicyError::kind()` return `cuda_library_unavailable`.
+  `doctor gpu` reports `probe_failed` with that reason. A refusal writes one
+  `fathomdb-cuda-libraries {json}` line to stderr per process; a successful
+  load writes nothing.
+- **`CudaLibraryRefusal`** (`#[non_exhaustive]`, `CudaLibraryRefusal::new`):
+  `library: &'static str` (`cublas` or `curand`), `reason:
+  CudaLibraryRefusalReason` (`Missing`, `WrongMajor`, `MissingSymbol`, with
+  `as_str()` names `missing`, `wrong_major`, `missing_symbol`), `path` and
+  `version` (`Option<Box<str>>`), `required_major: u32` (the library's own
+  major: 12 for cuBLAS, 10 for cuRAND in a CUDA 12 build), `tried: Vec<(String,
+  String)>` and `missing_symbols: Vec<String>`. Its `Display` names the
+  library, file, version and major and gives the remedy: for `missing` and
+  `missing_symbol`, `pip install nvidia-cublas-cu12 nvidia-curand-cu12` with
+  both library directories on `LD_LIBRARY_PATH`; for `wrong_major`, the file
+  to remove from the search path.
+- **Report.** `CudaDeviceInfo` carries `cuda_libraries:
+  Vec<CudaLibraryReport>` (`with_cuda_libraries`): the driver, cuBLAS and
+  cuRAND, and cuBLASLt or NVRTC when loaded. `CudaLibraryReport`
+  (`#[non_exhaustive]`, `CudaLibraryReport::new`) has `library`,
+  `opened_as`, `path` (canonical, comparable with `/proc/self/maps`),
+  `version` and `built_major`. These types are re-exported by `fathomdb-sdk`;
+  Python (`cuda_libraries`) and TypeScript (`cudaLibraries`) carry the report.
+- **Breaks.** `CudaProbeError`, `DeviceResolutionError`,
+  `RerankerDeviceResolutionError` and both reason enums are not
+  `#[non_exhaustive]`, so the new variants break exhaustive matches (pre-1.0,
+  recorded in the changelog). `CudaLibrariesDiagnostic` and
+  `cuda_libraries_diagnostic()` (CUDA builds) serve `doctor cuda-libraries`
+  and are binding support, hidden from the docs.
 
 Canonical leaf mapping lives in `design/errors.md`. This file adopts those
 types without renaming them.

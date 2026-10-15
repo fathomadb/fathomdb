@@ -2146,9 +2146,18 @@ off aarch64 Linux is its name in the resolved feature list.
   forwarding comment says this in one line and cites § 14.3.
 - `scripts/tests/test_tegra_node_early_cuinit.sh:34`: the comment that
   describes a build without the feature is rewritten.
-- Changelog: in an aarch64 Linux CUDA build on a non-Jetson host, a
-  source-built Python extension runs `cuInit` at import (H-1 applies),
-  as Node already does.
+- Documentation of the as-is behaviour (owner ruling Q38). The
+  changelog, `dev/interfaces/python.md` and `docs/embedder.md` state
+  that in an aarch64 Linux CUDA build on a host that is not a Jetson, a
+  source-built Python extension runs `cuInit` at import, so H-1 applies.
+  Node already does the same, and `typescript.md` says so too. No
+  published artifact targets these hosts.
+- **Deferred to 0.8.29 (Q38, todo `TC-4755a9d9`).** The 0.8.29 work
+  investigates skipping the import-time `cuInit` in the Node and Python
+  hooks on hosts that are not Jetsons, so a later probe read would admit
+  the pool. It is not done here, because the requirement this slice
+  started from is that `cuInit` runs at import. The change needs its own
+  design and testing.
 - `cuda_pool_policy.rs`: the doc comment on the cfg gate gets one line
   naming the implication and citing § 14.3.
 - The release contract. `check-cuda-release-contract.py`'s

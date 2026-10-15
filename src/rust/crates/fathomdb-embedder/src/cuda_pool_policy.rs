@@ -114,7 +114,9 @@ pub enum CudaAllocatorReason {
     CuinitDriverAbsent,
     /// The module-load `cuInit` failed.
     CuinitFailed,
-    /// No module-load `cuInit` was recorded (for example, a Rust process).
+    /// No module-load `cuInit` was recorded and no FathomDB device probe had
+    /// initialised the driver (a Rust process whose probe ran reaches the
+    /// pool with `module_load_init` still `NotAtLoad`).
     CuinitNotAtLoad,
     /// The GPU is discrete, not integrated.
     Discrete,
@@ -172,9 +174,11 @@ impl CudaAllocatorReason {
 /// The private pool's release threshold (`FATHOMDB_POOL_RELEASE_THRESHOLD`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ReleaseThreshold {
-    /// Freed memory returns to the driver at each synchronization.
+    /// Freed memory returns to the system automatically; FathomDB never
+    /// holds freed memory.
     Zero,
-    /// The pool keeps everything it has reserved.
+    /// Freed memory stays reserved for reuse while any FathomDB model is open
+    /// in the process, and is returned when the last one closes.
     Max,
 }
 
@@ -211,7 +215,8 @@ pub enum ModuleLoadInit {
     DriverAbsent,
     /// `cuInit` failed with this raw `CUresult`.
     Failed(u32),
-    /// Nothing ran at module load.
+    /// Nothing ran at module load. A Rust process reports this; it reaches
+    /// the pool through its device probe's `cuInit`.
     NotAtLoad,
 }
 
@@ -865,7 +870,9 @@ fn init_gate(init: ModuleLoadInit) -> Result<(), CudaAllocatorReason> {
 }
 
 /// The gates that need no driver call: mode, settings, module-load `cuInit`.
-/// `off` wins over a malformed value of any other setting.
+/// `off` wins over a malformed value of any other setting. The decision
+/// itself calls [`pre_device_gates_with_probe`]; this form reads no probe.
+#[cfg(test)]
 pub(crate) fn pre_device_gates(
     raw: &RawPoolSettings,
     init: ModuleLoadInit,

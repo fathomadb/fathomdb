@@ -2,7 +2,7 @@
 title: ADR-0.8.28-tegra-private-cuda-pool
 date: 2026-10-08
 target_release: 0.8.28
-desc: On the Jetson AGX Orin 64 GB, every FathomDB CUDA context allocates from one private, capped CUDA memory pool with release threshold 0, behind the non-default tegra-pool feature
+desc: On the Jetson AGX Orin 64 GB, every FathomDB CUDA context allocates from one private, capped CUDA memory pool with release threshold 0 by default, behind the tegra-pool feature (implied by embed-cuda and rerank-cuda since Slice 31)
 blast_radius: cudarc-fathomdb 0.19.10 (crates.io, from coreyt/cudarc); the Candle fork crates 0.11.0 and candle-kernels by git patch at 182ceab0; fathomdb-embedder (policy module, device creation, report, early cuInit helper); fathomdb-embedder-api 0.7.0 (EmbedderError); fathomdb-engine, napi, py, sdk and cli errors; doctor cuda-allocator; Tegra release scripts; interface docs
 status: accepted (owner rulings 25–38 and the 2026-10-08 HITL); amended 2026-10-13 (Slice 31)
 ---
@@ -180,9 +180,13 @@ embedder protocol is unchanged.
 
 ## Amendment 2026-10-13 — consumption through the published fork crates (0.8.28 Slice 31)
 
-**Context.** The decision above is unchanged: who gets the pool, the
-gates, sizing, settings, errors, report and early-`cuInit` contract stand.
-What changes is where the cudarc primitive and its evidence live. Slice 31
+**Context.** The decision above stands except where decisions 6 and 9-11
+below say otherwise: who gets the pool, the gates, sizing, errors and the
+Node and Python early-`cuInit` contract are unchanged. Decisions 1-5 change
+where the cudarc primitive and its evidence live; decision 6 adds the close
+release; decisions 9-11 move the settings onto every SDK's open, give plain
+Rust processes the pool, and make the CUDA features imply `tegra-pool`
+(owner rulings Q29, Q30, Q33-Q37). Slice 31
 moved the vendored cudarc delta to FathomDB's cudarc fork
 (`coreyt/cudarc`, branch `fathomdb/0.19.10`, rebased on upstream
 v0.19.10) and published it as `cudarc-fathomdb` 0.19.10 from commit
@@ -204,14 +208,17 @@ Q9, Q17, Q18, Q21).
    `libsqlite3-sys`. Exactly one `cudarc` 0.19 is in the graph,
    `cudarc-fathomdb`, enforced by `scripts/check-single-cudarc.sh`.
 2. **crates.io consumers get `tegra-pool`.** Because the fork crates are
-   published, a downstream build with `tegra-pool` and no `[patch]` table
-   resolves and builds. `scripts/check-tegra-pool-registry-build.sh`
-   proves it with a path copy of the FathomDB embedder from the tree under
-   test, depending on the published fork crates; it does not build
-   published FathomDB crates, which do not exist until the release. It
-   links the CUDA runtime dynamically through upstream `candle-kernels`
-   0.10.2 and needs `LIBRARY_PATH` set to the CUDA library directory to
-   link; the CPU-loadable guarantee of REQ-068 applies only to
+   published, a downstream `embed-cuda` build (which implies `tegra-pool`,
+   decision 11) with no `[patch]` table resolves and builds.
+   `scripts/check-tegra-pool-registry-build.sh` proves it with a path copy
+   of the FathomDB embedder from the tree under test, depending on the
+   published fork crates (`ENABLE=embed-cuda-only` names only
+   `embed-cuda`); it does not build published FathomDB crates, which do
+   not exist until the release. Any registry `embed-cuda` build, with or
+   without `tegra-pool`, links the CUDA runtime dynamically through
+   upstream `candle-kernels` 0.10.2 and needs `LIBRARY_PATH` set to the
+   CUDA library directory to link; `tegra-pool` adds no link requirement
+   of its own. The CPU-loadable guarantee of REQ-068 applies only to
    FathomDB-built artifacts.
 3. **The marker feature is retired.** `tegra-pool` no longer enables
    `fathomdb-private-pool`; the package name `cudarc-fathomdb` already
@@ -232,16 +239,48 @@ Q9, Q17, Q18, Q21).
    compute-capability floor, are CUDA-version-policy decisions, recorded
    in the amendment of 2026-10-13 to
    ADR-0.8.28-cuda-version-support-policy.
-6. **Tegra facts (fork measurements, JetPack 6).** A capped pool serves
+6. **Close.** With threshold `0`, freed memory returns to the system
+   automatically. With `max`, freed memory stays reserved while any
+   FathomDB model is open in the process; when the last one closes,
+   FathomDB synchronizes the decision's context and trims unused pool
+   memory, unless the context is lost. Module-level models and the
+   engine reranker stay open for the process's life, so a process
+   holding one keeps the memory until exit (owner rulings Q29, Q34).
+7. **Tegra facts (fork measurements, JetPack 6).** A capped pool serves
    about a third of its `maxSize`, so the 3 GiB default serves about
    1 GiB; a process has room for about four uncapped pools; `cuMemGetInfo`
    is not a release signal on Tegra. None changes the sizing rule.
-7. **Why CUDA 12.x** is recorded in ADR-0.8.28-cuda-version-support-policy
+8. **Why CUDA 12.x** is recorded in ADR-0.8.28-cuda-version-support-policy
    (Slice 31 plan § 15 Q6).
-
-A close-time release of unused pool memory (Slice 31 design § 8, N1) is
-conditional on a RED measured on the Orin; it is not part of this
-amendment.
+9. **The pool settings are open settings.** Every SDK's open takes
+   `cuda_pool` (`auto`, `on`, `off`), `cuda_pool_max_size` (bytes) and
+   `cuda_pool_release_threshold` (`0`, `max`); each `FATHOMDB_POOL_*`
+   environment variable applies only when the open does not set its
+   setting. The first configuration in force holds for the life of the
+   process; an open that sets one of them to another value fails with an
+   invalid-argument error naming the setting, the value in force and its
+   source (owner rulings Q33, Q35; Slice 31 design § 15). This amends the
+   "Settings" component, which named only environment variables.
+10. **Plain Rust processes reach the pool through the probe's `cuInit`.**
+    The load-time gate guards against `cuInit` running after the V8 heap
+    has fragmented the Tegra address space, a Node hazard. In a Rust
+    process the embedder probe's `cuInit` is the first call, made before
+    the first device build. The decision therefore admits a process whose
+    most recent `cuInit` succeeded even if no load hook ran. FathomDB makes
+    no new `cuInit` call. `FATHOMDB_CUDA_EARLY_INIT` governs only the Node
+    and Python load hooks, and the pool opt-out is `cuda_pool = off` (owner
+    ruling Q36; Slice 31 design § 14.2). This amends component 4, "Rust has
+    no load hook".
+11. **The CUDA features imply `tegra-pool`.** In every FathomDB crate that
+    has the feature, `embed-cuda` and `rerank-cuda` enable `tegra-pool`.
+    The pool code is compiled only on aarch64 Linux, so x86 builds are
+    unchanged, and the run-time opt-out `cuda_pool = off` replaces the
+    compile-time one. The feature name is kept for 0.8.28, and a later
+    release may retire it (owner ruling Q37; Slice 31 design § 14.3). On an
+    aarch64 Linux host that is not a Jetson, a source-built Python
+    extension therefore runs `cuInit` at import, with hazard H-1, as Node
+    already does; this is documented as-is (owner ruling Q38, 0.8.29 todo
+    `TC-4755a9d9`).
 
 **Superseded statements in this ADR.**
 
@@ -265,6 +304,14 @@ amendment.
   fails at resolution with the marker message
   (`scripts/check-tegra-pool-registry-build.sh`)": superseded by decision
   2.
+- Components, item 4, "Rust has no load hook: a Rust process reports
+  `cuinit_not_at_load` and takes the 0.8.27 path": superseded by decision
+  10.
+- Decision, "Settings are environment variables in FathomDB, never in
+  cudarc": superseded by decision 9 (they are open settings, with the
+  environment variables as fallbacks; still never in cudarc).
+- Components, item 6, `tegra-pool` "non-default": superseded by decision
+  11.
 - Components, item 5, the co-resident reset: unchanged; still
   unsupported in 0.8.28, fix planned for 0.8.29.
 

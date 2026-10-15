@@ -15,7 +15,8 @@ AC-050c) gates merges against this invariant.
 ### Added
 
 - A private CUDA memory pool on the Jetson AGX Orin 64 GB, behind the new
-  non-default `tegra-pool` Cargo feature. In `tegra-pool` builds every
+  `tegra-pool` Cargo feature (implied by `embed-cuda` and `rerank-cuda`
+  since Slice 31). In `tegra-pool` builds every
   FathomDB CUDA context allocates from one pool capped at 3 GiB that returns
   freed memory at once; other hosts and builds keep the 0.8.27 allocator.
   The 0.8.28 Tegra Python wheel and governed Tegra Node addon build enable it;
@@ -44,6 +45,26 @@ AC-050c) gates merges against this invariant.
   `cuda_libraries` (`fathomdb.types.CudaLibraryReport`) and TypeScript
   `cudaLibraries`; and the CLI verb `fathomdb doctor cuda-libraries`
   (`fathomdb.doctor.cuda-libraries.v1`, exit 70 on a refusal).
+- (Slice 31) The GPU memory pool settings are open settings in every SDK:
+  `cuda_pool` (`auto`, `on`, `off`), `cuda_pool_max_size` (bytes, at least
+  32 MiB) and `cuda_pool_release_threshold` (`0`, `max`) on Rust
+  `EngineConfig`, Python `EngineConfig` / `Engine.open` keywords and
+  TypeScript `engineConfig` (`cudaPool`, `cudaPoolMaxSize`,
+  `cudaPoolReleaseThreshold`), read back through `engine.config`, and the
+  flags `--cuda-pool`, `--cuda-pool-max-size` and
+  `--cuda-pool-release-threshold` on `fathomdb doctor gpu`,
+  `reranker-gpu` and `cuda-allocator`. The `FATHOMDB_POOL_*` variables
+  apply only when no open sets the setting. One pool configuration holds
+  per process: a later open that sets one to a different value fails with
+  an invalid-argument error (Rust
+  `EngineConfigurationError::CudaPoolSettingConflict`) naming the setting
+  and the value in force, on every platform. Rust users on the Orin can turn
+  the pool off in code (`cuda_pool = off`).
+- (Slice 31) The allocator report carries the pool mode in force and the
+  source (`sdk`, `env`, `default`) of each pool setting; `doctor
+  cuda-allocator` v1 replaces its raw `mode` field with `pool_mode`,
+  `pool_mode_source`, `pool_max_size_source` and
+  `pool_release_threshold_source`.
 
 ### Changed
 
@@ -81,6 +102,27 @@ AC-050c) gates merges against this invariant.
   `DeviceResolutionReason` and `RerankerDeviceResolutionReason` gain
   library-unavailable variants, so exhaustive matches on them must add an
   arm.
+- (Slice 31) `embed-cuda` and `rerank-cuda` imply `tegra-pool` in every
+  FathomDB crate; naming `tegra-pool` is accepted and redundant. x86_64
+  builds compile none of the pool code. On AArch64 Linux a Rust build can
+  no longer compile the pool out; `cuda_pool = off` turns it off at run
+  time. On an AArch64 Linux host that is not a Jetson, a source-built
+  Python extension with CUDA now starts CUDA at import, so a `fork`ed
+  `multiprocessing` child cannot use CUDA there (Node already did this);
+  no published artifact targets these hosts.
+- (Slice 31) Plain Rust (and Rust SDK) processes on the Jetson AGX Orin
+  64 GB get the private pool with no init call: the decision accepts the
+  `cuInit` FathomDB's own device probe made. Their report shows
+  `module_load_init` `not_at_load` with reason `private_pool`.
+  `FATHOMDB_CUDA_EARLY_INIT` has no effect in Rust. No released CLI
+  artifact carries the pool, so the CLI is unchanged in practice; in a
+  source build with CUDA on the Orin only the `doctor gpu` and `doctor
+  reranker-gpu` probes reach it (no database verb builds a CUDA device).
+- (Slice 31) With `FATHOMDB_POOL_RELEASE_THRESHOLD=max`
+  (`cuda_pool_release_threshold = "max"`), freed GPU memory stays reserved
+  while any FathomDB model is open in the process and is returned when the
+  last one closes; before, `max` kept it until exit. Module-level models
+  and the engine's reranker stay open for the process's life.
 - (Slice 31) Documented floors for the CUDA 12.6 artifacts: NVIDIA driver
   560.28.03 or later, compute capability 7.5 or later on x86_64, CUDA 12
   cuBLAS and cuRAND (tested with cuBLAS 12.1 to 12.9).

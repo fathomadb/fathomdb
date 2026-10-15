@@ -37,10 +37,10 @@ recovery semantics owned by `dev/design/recovery.md`.
 | `dump-schema`     | `fathomdb doctor dump-schema`                                                  | `0` / `65` / `70` / `71` |
 | `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `0` / `65` / `70` / `71` |
 | `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `0` / `65` / `70` / `71` |
-| `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `0` / `65` / `70`        |
-| `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]` | `0` / `65` / `70` |
+| `gpu`             | `fathomdb doctor gpu [--json] [pool flags]`                                    | `0` / `65` / `70`        |
+| `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json] [pool flags]` | `0` / `65` / `70` |
 | `platform`        | `fathomdb doctor platform [--json]`                                            | `0` / `70`               |
-| `cuda-allocator`  | `fathomdb doctor cuda-allocator [--json]`                                      | `0` / `70`               |
+| `cuda-allocator`  | `fathomdb doctor cuda-allocator [--json] [pool flags]`                         | `0` / `70`               |
 | `cuda-libraries`  | `fathomdb doctor cuda-libraries [--json]`                                      | `0` / `70`               |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0` / `70` / `71` |
 | `orphan-provenance` | `fathomdb doctor orphan-provenance [--json] <db_path>`                        | `0` / `65` / `70` / `71` |
@@ -125,13 +125,25 @@ unavailable, timed-out, or nonzero Tier 2 result is `unknown` and exits `70`.
 allocator this process uses, as an SDK process would decide it: the Jetson
 private memory pool or the earlier default-pool/synchronous path. Its JSON
 record is `fathomdb.doctor.cuda-allocator.v1` with ordered fields
-`schema_version`, `built`, `module_load_init`, `mode`, `path`, `reason`,
-`pool_max_size_bytes`, `release_threshold`, and `cuda_context_state`. An
+`schema_version`, `built`, `module_load_init`, `pool_mode`,
+`pool_mode_source`, `path`, `reason`, `pool_max_size_bytes`,
+`pool_max_size_source`, `release_threshold`,
+`pool_release_threshold_source`, and `cuda_context_state`; each `*_source`
+is `sdk` (a flag), `env` or `default`. `module_load_init` is `ran` because
+the command runs the Node and Python load hook's helper itself; a Rust SDK
+process on the same path reports `not_at_load`. An
 explicit `cpu` policy, confirmed ARM64 SBSA hardware, or a binary without
 CUDA returns `reason: "not_applicable"` without touching CUDA. On a Jetson
 AGX Orin 64 GB with a pool-enabled build it reports `"path":"private"`,
 `"reason":"private_pool"`, a 3 GiB pool and release threshold `"0"`. It exits
 `0`, or `70` when the device probe fails. `doctor gpu` is unchanged.
+
+The pool flags of `gpu`, `reranker-gpu` and `cuda-allocator` (0.8.28) are
+`--cuda-pool <auto|on|off>`, `--cuda-pool-max-size <bytes|<n>G|<n>M>` (at
+least 32 MiB) and `--cuda-pool-release-threshold <0|max>`, the same settings
+an SDK open takes ([configuration](config.md#engine-configuration)); each
+wins over its `FATHOMDB_POOL_*` variable, and an invalid value exits `2`.
+No database verb builds a GPU device, so none takes them.
 
 `fathomdb doctor cuda-libraries [--json]` (0.8.28) reports the CUDA
 libraries this binary loads for a GPU: the driver, cuBLAS and cuRAND (and

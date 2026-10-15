@@ -1,0 +1,13 @@
+build=0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 10s
+  Executable unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-fc60245a4/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+guard before | # R36 (release), REVISION: 5.2, GCID: 46426093, BOARD: generic, EABI: aarch64, DATE: Thu Jul 16 18:56:22 UTC 2026 | /usr/local/cuda-12.6
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (/home/coreyt/fathomdb-slice31/target-fc60245a4/debug/deps/fathomdb_embedder-ef4219b7fb3c0a68)
+
+running 1 test
+test cuda_pool_policy::slice31_tests::gpu_orin_64_max_pool_stays_reserved_until_the_last_model_closes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 128 filtered out; finished in 12.20s
+
+guard after | # R36 (release), REVISION: 5.2, GCID: 46426093, BOARD: generic, EABI: aarch64, DATE: Thu Jul 16 18:56:22 UTC 2026 | /usr/local/cuda-12.6

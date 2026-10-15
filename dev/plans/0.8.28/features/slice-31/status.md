@@ -33,7 +33,7 @@ fork's `fathomdb/status.md`.
 
 | Fork | Qualified commit | Reviews | Pin-chain check (2026-10-13) |
 | --- | --- | --- | --- |
-| cudarc | `C` = `b777f8d94eedca8334e9331cf520d554b22544b7` | R-FC-VERIFY APPROVE-WITH-NOTES, no open finding | `git diff C d3a5a055 -- . ':(exclude)fathomdb'` is empty; CI receipt `2026-10-12-CI-b777f8d.md` has `head_sha` = `C` |
+| cudarc | `C` = `b777f8d94eedca8334e9331cf520d554b22544b7` | R-FC-VERIFY APPROVE-WITH-NOTES, no open finding | `git diff C a27a9b9 -- . ':(exclude)fathomdb'` is only `.github/workflows/fathomdb-ci.yaml` (FT-3, class W, CI-only; run 38491361439 success at `a27a9b9`; record `7990a37`); CI receipt `2026-10-12-CI-b777f8d.md` has `head_sha` = `C` |
 | Candle | `K` = `853324fc2b9f813eedceb75bef660a06a413ff5b` | R-FK-VERIFY APPROVE-WITH-FIXES ("fit to pin"), all findings disposed | `K`'s root `Cargo.toml` names `cudarc-fathomdb` at `https://github.com/coreyt/cudarc.git`, `rev = "b777f8d94eedca8334e9331cf520d554b22544b7"`. `git diff K 549f3548 -- . ':(exclude)fathomdb'` touches only the root `FATHOMDB.md` (`887e5781`, R-FK-VERIFY F1: its commit table), which no published crate packages; no code changed after `K` |
 
 Receipts: cudarc `fathomdb/qualification/` (G1–G6, G8, CI, CF-AC-07a and
@@ -71,7 +71,7 @@ the full output.
 | --- | --- | --- | --- |
 | R1 single-cudarc guard | `0fe295edd` (arm rewired `f1a27631d`) | `d3381cc3b`; real-tree arm GREEN at `aa898677f` | `FAIL guard script scripts/check-single-cudarc.sh is absent` |
 | R2 pinned-override schema 5 | `36f48f95b` | `aa898677f` (pin commit) | `UNVERIFIED pinned-override-rot: metadata schema_version must be 4`; each new arm's message absent |
-| R3 lock-set guard | `0ef134ea0` | `f8a2ad147` (hermetic arms); real-tree arm open until the fork records the set | `FAIL guard scripts/check-cudarc-fathomdb-lock-set.py is absent` |
+| R3 lock-set guard | `0ef134ea0` | `f8a2ad147` (hermetic arms); real-tree arm GREEN after the record copy `c8234c927` | `FAIL guard scripts/check-cudarc-fathomdb-lock-set.py is absent` |
 | R4 `CUDARC_CUDA_VERSION` | `f243750e4` | `229cb0890` | `FAIL rejects a CUDA job without CUDARC_CUDA_VERSION 12060 (cuda-contract-preflight) (the checker passed)` |
 | R5 release-contract Candle block | arms `f243750e4`; RED of record at `aa898677f` | `b9da8c591` | `cuda-release-contract: [patch.crates-io] lacks a source pin for 'candle-core-fathomdb'` (baseline) |
 | R6 retired references | `88e871a57` | partly at `aa898677f`; references commit pending | 15 files, 10 marker lines, `tegra-pool` = `['dep:cudarc', 'cudarc/fathomdb-private-pool']` |
@@ -229,8 +229,7 @@ file, because `src/python`'s `pythonpath = ["."]` would import the source
 package instead of the wheel, with `pytest` from the user site on
 `PYTHONPATH`; the D-14 CPU control is the same test with
 `FATHOMDB_EMBED_DEVICE=cpu`. The FT-3 lock-set record copy
-(`scripts/cudarc-fathomdb-lock-set.json`) was refused by the session's
-permission check and is not in this branch.
+(`scripts/cudarc-fathomdb-lock-set.json`) landed later in `c8234c927`.
 
 ### W6 design revision 6: N1, D-19, the implication and the pool settings (2026-10-15)
 
@@ -252,8 +251,8 @@ unchanged in 104 lines
 `node-base/` is unchanged.
 
 Open: per-SDK post-close pool counters (no binding exposes them; the
-embedder-level tests cover the release); the § 15.8 RTX 3090 row was not
-run; Orin build directories `src-*`, `target-0bfc3e783713`,
+embedder-level tests cover the release); the § 15.8 RTX 3090 row passed at `392832c72`
+(`slice31_cuda_pool_x86.rs`, 1 passed, RTX 3090 by UUID); Orin build directories `src-*`, `target-0bfc3e783713`,
 `target-32295692f56b`, `target-red` and the window scripts and bundles
 under `~/fathomdb-slice31/` are left for removal (about 16 GB).
 
@@ -274,11 +273,40 @@ The 0.8.29 todo TC-84f7f62d replaces the drift bound with a plateau
 criterion. The harness's G3 median bound now matches the ruled 0.400 MiB
 (`9844eeba8`); window B's Python G3 (median 0.380) passes.
 
+### Full gate, R-CODE-3 and R-VERIFY (2026-10-15)
+
+- Full gate `agent-verify.sh` at `392832c72`: 198 of 202 suites passed.
+  The four failures were inventory drift (feature matrix, slice90 root
+  blob, the EARP config-field classification and package-boundary deltas),
+  fixed in `836af60a1`; those suites and the touched tests were re-run and
+  pass (owner rule: re-run only the failed suites).
+- R-CODE-3 (Opus) fix steps: LOW-4 RED `9e835cf09` → GREEN `51d5df79e`
+  (with LOW-6); LOW-5 `836af60a1`; MEDIUM-1, MEDIUM-2, LOW-3, LOW-7
+  `fc60245a4`. MEDIUM-1 strengthens the Orin two-model test to
+  `assert_eq!` on `reserved_current`; it passed on the Orin at
+  `fc60245a4` (`qualification/2026-10-15-ORIN-M1-fc60245a4.log`).
+- AC31-10 named exception: `slice30_cuda_allocator_api.rs` changed in
+  `0bfc3e783`, forced by the § 15.4 report fields; no assertion changed:
+
+  ```diff
+  -    ReleaseThreshold, RerankerDevicePolicyError,
+  +    PoolMode, PoolSettingSource, ReleaseThreshold, RerankerDevicePolicyError,
+  @@ fn a_constructed_device_info_has_no_allocator_report_until_one_is_attached
+           ModuleLoadInit::Ran,
+  +        Some(PoolMode::Auto),
+  +        Some(PoolSettingSource::Default),
+  +        Some(PoolSettingSource::Default),
+  +        Some(PoolSettingSource::Default),
+       );
+  ```
+
+- R-VERIFY (Opus) at `1f1646f74`: record gaps B1-B7 fixed in the next
+  commit; ACs met except AC31-03b, AC31-13 and AC31-15, which wait on
+  PERF-03, S-C3 and S-13.
+
 ## Next
 
-W6 on windchill3 is done through Phase C except the Orin-only work (above).
-Next: the cudarc fork's FT-3 record, Orin window P, then windows A–C, the
-GCP sessions on the owner's go-ahead, R-CODE-3 and R-VERIFY.
+PERF-03, S-C3 and S-13, then merge into `release/0.8.28`.
 
 ## Log
 

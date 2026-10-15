@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 31 — design (W2)
-status: revision 6 (2026-10-14), § 14.2 (D-19 probe read, Q36) and § 14.3 (CUDA features imply tegra-pool, Q37) ruled; § 15 (pool settings on the SDK surface, Q33, Q35) and § 14.1 (close contract, Q34) re-reviewed (Fable, APPROVE-WITH-FIXES, fixes applied); revision 3 sections ready for W6
+status: revision 6 (2026-10-14; the Fable re-reviews were owner-directed, ledger Q40), § 14.2 (D-19 probe read, Q36) and § 14.3 (CUDA features imply tegra-pool, Q37) ruled; § 15 (pool settings on the SDK surface, Q33, Q35) and § 14.1 (close contract, Q34) re-reviewed (Fable, APPROVE-WITH-FIXES, fixes applied); revision 3 sections ready for W6
 target_release: 0.8.28
 observed_on: 2026-10-13
 ---

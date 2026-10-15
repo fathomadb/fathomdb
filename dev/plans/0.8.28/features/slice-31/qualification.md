@@ -8,9 +8,13 @@ from `32295692f`; later commits do not change runtime pool behaviour.
 | --- | --- | --- | --- |
 | T-CUDA (§ 4.1) | `windchill3`, RTX 3090 by UUID | pass | [2026-10-13-T-CUDA-3090-c82b187505a9.md](qualification/2026-10-13-T-CUDA-3090-c82b187505a9.md) |
 | § 15.8 RTX 3090 row | `windchill3`, RTX 3090 by UUID | pass at `392832c72` (`slice31_cuda_pool_x86.rs`: embed dim 384, mode conflict refused with the documented message) | `status.md` |
-| Orin window P and A (§ 4.2, § 4.5) | Jetson AGX Orin 64 GB | every cell pass at `32295692f`; two-model close test pass again at `fc60245a4` | [2026-10-15-ORIN-PA-32295692f56b.md](qualification/2026-10-15-ORIN-PA-32295692f56b.md) |
+| Orin window P and A (§ 4.2, § 4.5) | Jetson AGX Orin 64 GB | every cell pass at `32295692f`; two-model close test pass again at `fc60245a4` ([log](qualification/2026-10-15-ORIN-M1-fc60245a4.log)) | [2026-10-15-ORIN-PA-32295692f56b.md](qualification/2026-10-15-ORIN-PA-32295692f56b.md) |
 | Orin window B, G1–G8 (§ 4.2) | Orin | G1, G2, G4–G7 pass; G3 pass under the ruled 0.400 bound (Python median 0.380, Node 0.210); G5 Slice 30 equality (report-only, Q28): equal; G8 accepted as measured (Q39) | [2026-10-15-ORIN-BC-32295692f56b.log](qualification/2026-10-15-ORIN-BC-32295692f56b.log), [G8 soak](qualification/2026-10-15-ORIN-G8-SOAK-32295692f56b.md) |
 | Orin window C, G9 (§ 4.3, PERF-01/02) | Orin | pass: Node new/base 0.927–0.998 (embed CI upper 1.070); speed-up over pool off 2.01–4.75; import +2.2 ms; RSS +21 MiB; Python P/S ≤ 1.067 (embed CI upper 1.198, noted); Python import within S + cuInit + 5 ms | [2026-10-15-ORIN-BC-32295692f56b.log](qualification/2026-10-15-ORIN-BC-32295692f56b.log) |
+| Orin G10 (§ 4.2) | full gate and fork | POOL-06 in the full gate at `392832c72`; fork FEV-05 receipt | `status.md`; cudarc `fathomdb/qualification/` |
+| Orin windows P and A, first run (§ 4.2, § 4.5: D-14 stages, ORIN-13 usable capacity) | Orin | pass at `e9036a912` | [ORIN-P](qualification/2026-10-13-ORIN-P-e9036a912442.md), [ORIN-A](qualification/2026-10-13-ORIN-A-e9036a912442.md) |
+| Feature-complete gate (PRD-33) | `windchill3` | pass at `9b43d29c1` | [2026-10-13-FC-9b43d29c13e0.md](qualification/2026-10-13-FC-9b43d29c13e0.md) |
+| Tegra on CUDA 13 | — | UNMEASURED (owner ruling Q5; todo `TC-b267d940`, CloudJetson) | — |
 | PERF-03 (§ 4.4) | `windchill3`, RTX 3090 by UUID | pending | — |
 | S-C3 (§ 4.6) | GCP T4 | pending | — |
 | S-13 (§ 4.7) | GCP | pending | — |

@@ -29,6 +29,12 @@ fork's `fathomdb/review.md` (plan § 12).
 | R-REQ | `requirements.md` at `f41563903` (W1) | opus | APPROVE-WITH-FIXES; all findings fixed in the revision after plan revision 17 | below |
 | R-DES | `design.md` revision 1 at `1e0537856` (W2) | opus | APPROVE-WITH-FIXES; all ten findings fixed in `design.md` revision 2 (plan revision 18) | below |
 | R-TEST | `test-plan.md` revision 1 at `72a471508` (W3) | opus | APPROVE-WITH-FIXES; all seventeen findings fixed in `test-plan.md` revision 2, `design.md` revision 3 and plan revision 19 | below |
+| R-DES-4 | `design.md` revision 4 § 14 at `e8cf01446` | opus | APPROVE-WITH-FIXES; findings and owner rulings Q29-Q32 applied in revision 5 (`3f0c5a468`, `94edbbf1b`) | session record; steward ledger Q29-Q32 |
+| R-DES-15 | `design.md` § 15 at `3f0c5a468` | fable (owner-directed, 2026-10-14: "an *informed* adversarial review by fable-medium"; ledger Q40) | APPROVE-WITH-FIXES, 11 findings (2 HIGH); applied in `94edbbf1b` and `6ce7d7023` | session record |
+| R-DES-15 re-review | `design.md` §§ 14.1, 15 at `6ce7d7023` | fable (Q40) | APPROVE-WITH-FIXES, 8 findings; applied in `0cac82b14` | session record |
+| R-DES-14 re-review | `design.md` revision 6 §§ 14.2, 14.3 at `a1f9bf589` | fable (Q40) | APPROVE-WITH-FIXES; applied in `f144c8210` | session record |
+| R-CODE-3 | implementation of design revision 6, `831255b9e..392832c72` | opus | APPROVE-WITH-FIXES, no HIGH; MEDIUM-1, MEDIUM-2, LOW-3 to LOW-7 all fixed: LOW-4 RED `9e835cf09` → GREEN `51d5df79e` (with LOW-6), LOW-5 `836af60a1`, MEDIUM-1, MEDIUM-2, LOW-3, LOW-7 `fc60245a4`; MEDIUM-1's strengthened Orin test re-run GREEN at `fc60245a4` | `status.md`; `qualification/2026-10-15-ORIN-M1-fc60245a4.log` |
+| R-VERIFY | `1f1646f74` | opus | B1-B7 record gaps, all fixed in the following commit; ACs met except those pending PERF-03, S-C3 and S-13 | `qualification.md` |
 
 ### R-REQ (2026-10-13)
 

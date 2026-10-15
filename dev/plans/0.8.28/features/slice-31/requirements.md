@@ -353,10 +353,12 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
   changes**, each designed in `design.md` revision 2, recorded in the
   changelog and, where public, in the interface documents and an ADR
   amendment, and no others:
-  1. **Close release (N1, `design.md` § 8),** only if its RED shows the
-     pool keeps unused memory after a drop: dropping a FathomDB-built
-     private-pool model synchronizes the decision's context and trims
-     unused pool memory, unless the context is lost;
+  1. **Close release (N1, `design.md` § 8 and § 14.1),** shipped
+     unconditionally by owner rulings Q29 and Q34: dropping a
+     FathomDB-built private-pool model synchronizes the decision's context
+     and trims unused pool memory, unless the context is lost; with a
+     `max` threshold the reservation is kept until the last model on the
+     pool closes;
   2. **Loaded-library refusal (D-18, `design.md` § 9.1):** a missing or
      wrong-major cuBLAS or cuRAND, or one that lacks a symbol FathomDB or
      Candle calls (owner ruling Q26), is refused before any device is built,
@@ -371,7 +373,17 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
      with the existing kind `cuda_incompatible`;
   5. **Build surface:** `tegra-pool` no longer enables the
      `fathomdb-private-pool` marker and adds no dependency of its own; the
-     embedder has no direct `cudarc` dependency (`design.md` § 3.2, § 3.3).
+     embedder has no direct `cudarc` dependency (`design.md` § 3.2, § 3.3);
+  6. **Pool settings on the SDK surface (`design.md` § 15, Q33, Q35):**
+     `cuda_pool`, `cuda_pool_max_size` and `cuda_pool_release_threshold` on
+     every SDK and the CLI, with environment fallback, one configuration per
+     process and the typed `CudaPoolSettingConflict` for a conflicting
+     second open;
+  7. **D-19 probe read (`design.md` § 14.2, Q30, Q36):** a Rust process
+     whose most recent `cuInit` succeeded reaches the private pool without
+     a load-time init call;
+  8. **`embed-cuda` and `rerank-cuda` imply `tegra-pool`** in every crate
+     that has the feature (`design.md` § 14.3, Q37).
 - **Rationale:** the slice replaces a dependency, so Slice 30's behaviour
   must not change by accident (R30-02 to R30-07, R30-11); the changes
   above are the CUDA version policy's typed failures (REQ31-15) and the
@@ -397,7 +409,10 @@ into the slice branch (`git merge-base origin/release/0.8.28 <tip>`).
     inverted, AC31-08); `scripts/tests/test_check_pinned_override_rot.sh`
     (the pinned-override test, for the registry pins); a rename in test
     code forced by the fork API (D-17) that changes no assertion; and the
-    teardown assertion of AC31-04, only if R-DES's D-15 fixes it;
+    teardown assertion of AC31-04, only if R-DES's D-15 fixes it; and
+    `fathomdb-embedder/tests/slice30_cuda_allocator_api.rs`, four new
+    `CudaAllocatorReport::new` arguments and two imports forced by the
+    § 15.4 report fields (Q33, Q35), no assertion changed;
   - `git grep -il -e third_party/cudarc -e test_vendored_cudarc -e 'vendored cudarc' -e 'cudarc 0.19.7' -- . ':!dev/plans' ':!dev/adr' ':!dev/todos-and-considerations-ledger.jsonl' ':!dev/steward/steward-ledger.jsonl' ':!CHANGELOG.md'`
     is empty (plans, ADRs, both append-only ledgers and the changelog are
     history; the steward ledger exclusion was added after R-TEST, OP-2; all

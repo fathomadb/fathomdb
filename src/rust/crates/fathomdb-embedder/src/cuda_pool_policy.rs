@@ -1684,3 +1684,19 @@ mod tests;
 #[cfg(test)]
 #[path = "cuda_pool_slice31_tests.rs"]
 mod slice31_tests;
+
+#[cfg(test)]
+#[path = "cuda_pool_test_fake.rs"]
+mod test_fake;
+
+#[cfg(test)]
+#[path = "cuda_pool_release_tests.rs"]
+mod release_tests;
+
+#[cfg(test)]
+#[path = "cuda_pool_probe_read_tests.rs"]
+mod probe_read_tests;
+
+#[cfg(test)]
+#[path = "cuda_pool_mode_tests.rs"]
+mod mode_tests;

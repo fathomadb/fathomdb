@@ -124,6 +124,20 @@ fn gpu_orin_64_close_release_also_trims_a_max_threshold_pool() {
     assert!(stdout.contains("slice31-child: max-threshold reserved_current=0"), "{report}");
 }
 
+/// N1 under `max` with two models (design § 14.1, owner ruling Q34): the
+/// pool keeps its reservation while any model is open and returns it when
+/// the last one closes; the surviving model's output is unchanged.
+#[test]
+#[ignore = "needs the Jetson AGX Orin 64 GB; run under flock /tmp/fathomdb-gpu.lock"]
+fn gpu_orin_64_max_pool_stays_reserved_until_the_last_model_closes() {
+    let (output, report) = spawn_child("two-models", &[(ENV_POOL_RELEASE_THRESHOLD, "max")]);
+    assert_clean_exit(&output, &report);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("slice31-child: two-models first-close kept"), "{report}");
+    assert!(stdout.contains("slice31-child: two-models identical"), "{report}");
+    assert!(stdout.contains("slice31-child: two-models last-close reserved_current=0"), "{report}");
+}
+
 // ---- R15: D-15, process exit with the pool alive (characterization) -------
 
 /// D-15 item 2: a child builds the embedder, embeds and calls
@@ -178,6 +192,31 @@ fn gpu_orin_64_slice31_child() {
             println!("slice31-child: drop-exit counters {closed:?}");
             assert_eq!(closed.used_current, 0, "{closed:?}");
             println!("slice31-child: drop-exit reserved_current={}", closed.reserved_current);
+        }
+        "two-models" => {
+            let first = loaded_embedder();
+            let second = loaded_embedder();
+            let before = second.embed("the surviving model").expect("embed before");
+            drop(first);
+            let kept = private_pool_counters_unsynchronized()
+                .expect("pool counters")
+                .expect("private decision");
+            println!("slice31-child: two-models after the first close {kept:?}");
+            assert!(kept.reserved_current > 0, "{kept:?}");
+            println!("slice31-child: two-models first-close kept {}", kept.reserved_current);
+            let after = second.embed("the surviving model").expect("embed after");
+            assert_eq!(before, after, "the surviving model's output must not change");
+            println!("slice31-child: two-models identical");
+            drop(second);
+            let closed = private_pool_counters_unsynchronized()
+                .expect("pool counters")
+                .expect("private decision");
+            println!("slice31-child: two-models after the last close {closed:?}");
+            assert_eq!(closed.used_current, 0, "{closed:?}");
+            println!(
+                "slice31-child: two-models last-close reserved_current={}",
+                closed.reserved_current
+            );
         }
         other => panic!("unknown child mode {other}"),
     }

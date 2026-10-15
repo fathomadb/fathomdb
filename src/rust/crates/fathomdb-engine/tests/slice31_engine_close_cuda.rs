@@ -3,13 +3,18 @@
 //! exits with status 0 and no signal. Engine-level close evidence that does
 //! not depend on the Node runtime; no pool-counter clause (R-TEST OP-4).
 //!
+//! Corrected under owner ruling Q30 (design § 14.2): the child calls no
+//! init function, so it reaches the pool only through the `cuInit` its own
+//! device probe made. It reports `module_load_init=not_at_load`,
+//! `path=private` and `reason=private_pool`.
+//!
 //! Orin only: the private pool exists only on the Jetson AGX Orin 64 GB with
 //! a `tegra-pool` build, so the test is `#[ignore]` everywhere and runs in
 //! the Orin windows (test-plan § 4.2, cmd `c-engine-close`):
 //!
 //! ```text
 //! flock /tmp/fathomdb-gpu.lock env FATHOMDB_REQUIRE_LIVE=1 cargo test --locked -p fathomdb-engine \
-//!   --features embed-cuda,tegra-pool --test slice31_engine_close_cuda -- --ignored \
+//!   --features embed-cuda --test slice31_engine_close_cuda -- --ignored \
 //!   --exact gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean --nocapture --test-threads=1
 //! ```
 #![cfg(all(target_os = "linux", feature = "embed-cuda"))]
@@ -31,15 +36,25 @@ fn engine_close_child() {
         Engine::open_with_choice(dir.path().join("slice31.sqlite"), EmbedderChoice::Default)
             .expect("open with the default embedder");
     let resolution = opened.report.embedder_device_resolution.clone().expect("device resolution");
+    let report = match &resolution.effective_device {
+        EffectiveEmbedDevice::Cuda(info) => info.cuda_allocator.clone(),
+        EffectiveEmbedDevice::Cpu => None,
+    };
     let path = match &resolution.effective_device {
-        EffectiveEmbedDevice::Cuda(info) => info
-            .cuda_allocator
+        EffectiveEmbedDevice::Cuda(_) => report
             .as_ref()
             .and_then(|report| report.path)
             .map_or("unknown", CudaAllocatorPath::as_str),
         EffectiveEmbedDevice::Cpu => "cpu",
     };
     println!("engine-close-child: path={path}");
+    if let Some(report) = &report {
+        println!(
+            "engine-close-child: module_load_init={} reason={}",
+            report.module_load_init.as_str(),
+            report.reason.as_str()
+        );
+    }
     let engine = opened.engine;
     let node = PreparedWrite::Node {
         kind: "doc".to_owned(),
@@ -84,6 +99,10 @@ fn gpu_orin_64_engine_close_with_the_private_pool_then_exit_is_clean() {
     assert_eq!(output.status.code(), Some(0), "the child must exit 0:\n{report}");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("engine-close-child: path=private"), "{report}");
+    assert!(
+        stdout.contains("engine-close-child: module_load_init=not_at_load reason=private_pool"),
+        "{report}"
+    );
     assert!(stdout.contains("engine-close-child: searched"), "{report}");
     assert!(stdout.contains("engine-close-child: closed"), "{report}");
 }

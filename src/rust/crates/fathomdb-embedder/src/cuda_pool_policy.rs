@@ -15,7 +15,9 @@
 //! an injected [`PoolDriver`]. The cudarc driver and the process-wide
 //! decision compile only with `tegra-pool` on aarch64 Linux with
 //! `embed-cuda` or `rerank-cuda`. Without them, devices are built with
-//! `Device::new_cuda` exactly as before.
+//! `Device::new_cuda` exactly as before. `embed-cuda` and `rerank-cuda` imply
+//! `tegra-pool` (slice-31 design.md § 14.3), so the gate reduces to aarch64
+//! Linux with CUDA.
 
 // Without the driver part only the report types, `not_built` and the
 // candle-facing wrappers are live; the decision stays compiled so its tests

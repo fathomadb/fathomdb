@@ -42,6 +42,9 @@
 #                                                      on an aarch64 Linux
 #                                                      Tegra host
 #   check-tegra-pool-registry-build.sh --resolve-only  (a) alone
+#   ENABLE=embed-cuda-only (env)  the consumer's dependency names no
+#                     `tegra-pool`, only `embed-cuda`, which implies it
+#                     (slice-31 design.md § 14.3); (a)-(c) must still hold.
 #
 # ENV
 #   CUDA_COMPUTE_CAP  passed to candle-kernels (default 87, the Jetson Orin).
@@ -61,6 +64,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEST_NAME='forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable'
 
 RESOLVE_ONLY=0
+ENABLE="${ENABLE:-tegra-pool}"
+case "$ENABLE" in
+  tegra-pool) DEPENDENCY_FEATURES='features = ["tegra-pool"]' ;;
+  embed-cuda-only) DEPENDENCY_FEATURES='features = []' ;;
+  *) printf 'ENABLE must be tegra-pool or embed-cuda-only; got %s\n' "$ENABLE" >&2; exit 2 ;;
+esac
 case "${1:-}" in
   '') ;;
   --resolve-only) RESOLVE_ONLY=1 ;;
@@ -105,7 +114,7 @@ mkdir -p "$CONSUMER/src" "$CONSUMER/tests/support"
 cp "$SCRATCH/rust-toolchain.toml" "$CONSUMER/"
 cp "$EMBEDDER_TESTS/tegra_fragmented_va_cuda.rs" "$CONSUMER/tests/"
 cp "$EMBEDDER_TESTS/support/live.rs" "$CONSUMER/tests/support/"
-cat >"$CONSUMER/Cargo.toml" <<'TOML'
+cat >"$CONSUMER/Cargo.toml" <<TOML
 [package]
 name = "tegra-pool-registry-consumer"
 version = "0.0.0"
@@ -118,7 +127,7 @@ publish = false
 embed-cuda = ["fathomdb-embedder/embed-cuda"]
 
 [dependencies]
-fathomdb-embedder = { path = "../src/rust/crates/fathomdb-embedder", features = ["tegra-pool"] }
+fathomdb-embedder = { path = "../src/rust/crates/fathomdb-embedder", $DEPENDENCY_FEATURES }
 
 [dev-dependencies]
 candle-core = { package = "candle-core-fathomdb", version = "=0.11.0" }

@@ -30,16 +30,15 @@ default-reranker = ["fathomdb-engine/default-reranker"]
 # A CUDA-capable artifact keeps both runtime paths: unset is `auto`, `cpu` is
 # explicit CPU, and GPU execution is forced with FATHOMDB_EMBED_DEVICE=cuda:N.
 # See dev/design/0.8.23-slice-70-dual-runtime-device-policy.md.
-embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]
-# The Tegra private CUDA memory pool; non-default, effective only on
-# aarch64 Linux with a CUDA feature (fathomdb-embedder `tegra-pool`).
+embed-cuda = ["default-embedder", "tegra-pool", "fathomdb-engine/embed-cuda"]
+# The Tegra private CUDA memory pool; implied by this crate's `embed-cuda` and `rerank-cuda` (slice-31 design.md § 14.3).
 tegra-pool = ["fathomdb-engine/tegra-pool"]
 embed-metal = ["default-embedder", "fathomdb-engine/embed-metal"]
 # 0.8.12 — GPU acceleration for the CE reranker (opt-in; forwards to the engine;
 # default wheel stays CPU). Build: `maturin develop --features
 # pyo3/extension-module,rerank-cuda`; activate via FATHOMDB_RERANK_DEVICE=cuda.
 # The shipped wheel keeps this OFF (release.yml/ci.yml pin explicit feature lists).
-rerank-cuda = ["default-reranker", "fathomdb-engine/rerank-cuda"]
+rerank-cuda = ["default-reranker", "tegra-pool", "fathomdb-engine/rerank-cuda"]
 rerank-metal = ["default-reranker", "fathomdb-engine/rerank-metal"]
 
 [dependencies]

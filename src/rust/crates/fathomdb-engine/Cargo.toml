@@ -55,9 +55,8 @@ default-embedder = ["fathomdb-embedder/default-embedder"]
 # CUDA is an artifact-build capability forwarded to the embedder. A
 # CUDA-capable artifact selects at runtime under strict
 # FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N; unset is `auto` on that artifact.
-embed-cuda = ["default-embedder", "fathomdb-embedder/embed-cuda"]
-# The Tegra private CUDA memory pool; non-default, effective only on
-# aarch64 Linux with a CUDA feature (fathomdb-embedder `tegra-pool`).
+embed-cuda = ["default-embedder", "tegra-pool", "fathomdb-embedder/embed-cuda"]
+# The Tegra private CUDA memory pool; implied by this crate's `embed-cuda` and `rerank-cuda` (slice-31 design.md § 14.3).
 tegra-pool = ["fathomdb-embedder/tegra-pool"]
 embed-metal = ["default-embedder", "fathomdb-embedder/embed-metal"]
 # 0.8.1 Slice 10 (R1): enabling this feature gates the cross-encoder CE
@@ -73,7 +72,7 @@ default-reranker = ["fathomdb-embedder/default-reranker"]
 # 0.8.12 — GPU acceleration for the CE reranker (opt-in; forwards to the
 # embedder; default stays CPU). Activate at runtime via the separate knob
 # FATHOMDB_RERANK_DEVICE=auto|cpu|cuda:N. Mirrors the embed-cuda passthrough.
-rerank-cuda = ["default-reranker", "fathomdb-embedder/rerank-cuda"]
+rerank-cuda = ["default-reranker", "tegra-pool", "fathomdb-embedder/rerank-cuda"]
 rerank-metal = ["default-reranker", "fathomdb-embedder/rerank-metal"]
 # Slice 72: this private aggregate exists only to compile the trusted-runner
 # characterization target and its bounded CE-forward rendezvous. It is not

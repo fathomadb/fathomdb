@@ -648,7 +648,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]\n'
+needle = 'embed-cuda = ["default-embedder", "tegra-pool", "fathomdb-engine/embed-cuda"]\n'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one N-API CUDA forwarding feature")
 path.write_text(text.replace(needle, "", 1))

@@ -30,8 +30,9 @@
 #       npm exec -- napi build --platform --release \
 #         --cargo-cwd ../rust/crates/fathomdb-napi \
 #         --features embed-cuda,rerank-cuda,tegra-pool --js false
-#     `tegra-pool` (0.8.28) gives the addon the private CUDA pool; without it
-#     the addon reports `not_built` and keeps 0.8.27's allocator;
+#     `tegra-pool` (0.8.28) gives the addon the private CUDA pool; since
+#     0.8.28 Slice 31 `embed-cuda` and `rerank-cuda` imply it, so naming it is
+#     redundant (slice-31 design.md § 14.3);
 #   - cuda:0 is an integrated GPU with 60-64 GiB of device memory (the
 #     measured Jetson AGX Orin 64 GB). Another Jetson has a different driver
 #     reservation size, so the heap size that defeats cuInit there is unknown.

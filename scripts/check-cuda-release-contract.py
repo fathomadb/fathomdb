@@ -55,7 +55,9 @@ PACKAGE_REHEARSAL_HELPER = ROOT / "scripts/release/cuda-package-rehearsal.sh"
 PACKAGE_REHEARSAL_SMOKE = ROOT / "scripts/release/cuda-package-rehearsal-smoke.sh"
 CUDA_GPU_SELECTION = ROOT / "scripts/lib/cuda-gpu-selection.sh"
 
-NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
+# `tegra-pool` is implied by `embed-cuda` (slice-31 design.md § 14.3); it
+# compiles nothing off aarch64 Linux, so the x86 N-API artifact is unchanged.
+NAPI_CUDA_FEATURE = ["default-embedder", "tegra-pool", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
 PYTHON_CUDA_FEATURES = "pyo3/extension-module,embed-cuda"
 PYTHON_CUDA_FEATURES_TEGRA = "pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool"
@@ -548,6 +550,13 @@ def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
     The private CUDA pool and the import-time early cuInit hook are for
     aarch64 Linux integrated GPUs. Every x86_64 CUDA set and every CPU build
     must refuse the feature; both Tegra tuples carry it with `rerank-cuda`.
+
+    The check reads the feature strings each artifact build passes, not
+    Cargo's resolved features. Since 0.8.28 Slice 31 (design § 14.3, owner
+    ruling Q37) `embed-cuda` and `rerank-cuda` imply `tegra-pool` in every
+    FathomDB crate, so the x86 sets resolve it too; that is still correct,
+    because the pool code is gated on aarch64 Linux and the implied feature
+    compiles nothing on x86.
     """
     require_fragment(
         contract,
@@ -594,10 +603,15 @@ def require_tegra_pool_only_in_tegra_sets(contract: str) -> None:
         )
         if TEGRA_FEATURE_SET_REF.search(text):
             fail(f"{label} must not use the Tegra feature set; it belongs to the Tegra build only")
+    # Only the CUDA features may imply it (slice-31 design.md § 14.3): the pool
+    # code is gated on aarch64 Linux with CUDA, so the implication compiles
+    # nothing in an x86 or CPU artifact. Any other feature reaching it is a
+    # Tegra set leaking into a non-Tegra build.
+    implying = {TEGRA_POOL_FEATURE, "embed-cuda", "rerank-cuda"}
     features = load_toml(NAPI_MANIFEST).get("features")
     if isinstance(features, dict):
         for name, members in features.items():
-            if name != TEGRA_POOL_FEATURE and TEGRA_POOL_FEATURE in (members or []):
+            if name not in implying and TEGRA_POOL_FEATURE in (members or []):
                 fail(f"fathomdb-napi feature {name!r} must not enable {TEGRA_POOL_FEATURE!r}")
 def require_tegra_napi_route(contract: str) -> None:
     """Require the Jetson Tegra N-API build to stay on its own contract axis.

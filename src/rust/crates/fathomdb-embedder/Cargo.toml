@@ -96,7 +96,7 @@ default-reranker = [
 # Cross-vendor (AMD ROCm / Intel) is NOT a candle backend — that path is a separate
 # `impl Embedder` (ONNX-Runtime) reported via CallerWithDeviceResolution; see
 # dev/design/0.8.1-embedder-gpu-and-portability.md.
-embed-cuda = ["default-embedder", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+embed-cuda = ["default-embedder", "tegra-pool", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 embed-metal = ["default-embedder", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
 # 0.8.12 — GPU acceleration for the CE reranker (opt-in; default build stays CPU
 # so Decision 2 / byte-stability are unaffected). Mirrors `embed-cuda` exactly
@@ -106,7 +106,7 @@ embed-metal = ["default-embedder", "candle-core/metal", "candle-nn/metal", "cand
 # stack is the same Candle bert path, so enabling the cuda backend on the shared
 # candle crates is the only build-side change. Cross-vendor (AMD/Intel) is not a
 # candle backend — out of scope, same as the embedder.
-rerank-cuda = ["default-reranker", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+rerank-cuda = ["default-reranker", "tegra-pool", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 rerank-metal = ["default-reranker", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
 # 0.8.16 Slice 10 — cross-vendor ONNX embedder (`OrtBgeEmbedder`). Pulls the
 # `ort` ONNX-Runtime binding + the shared `tokenizers` stack (for BGE-small
@@ -132,8 +132,12 @@ onnx-embedder = [
 # `embed-cuda` or `rerank-cuda`, the first CUDA device build decides once
 # whether every FathomDB context allocates from one private pool. The pool
 # primitive comes from cudarc-fathomdb through Candle, so the feature adds no
-# dependency of its own and builds from crates.io. Non-default; without it
-# the allocator decision is 0.8.27's.
+# dependency of its own and builds from crates.io.
+# Both CUDA features imply it, so naming it explicitly is redundant; the
+# pool code is compiled only on aarch64 Linux, and the run-time opt-out is
+# the `cuda_pool = off` open setting (FATHOMDB_POOL_MODE=off when no open
+# sets it). The options and the reason for this one are recorded in
+# dev/plans/0.8.28/features/slice-31/design.md § 14.3 (owner ruling Q37).
 tegra-pool = []
 # Exposes `LoaderConfig` constructors/setters and `load_with_config` so
 # integration tests (or downstream test harnesses) can substitute base URLs,

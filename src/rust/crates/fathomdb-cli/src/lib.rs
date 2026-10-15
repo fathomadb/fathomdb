@@ -3584,6 +3584,44 @@ mod tests {
         assert_eq!(cuda_allocator_exit_code(&record), exit_code::OK);
     }
 
+    /// The `--cuda-pool-max-size` flag and `FATHOMDB_POOL_MAXSIZE` share one
+    /// syntax: the flag accepts exactly what the embedder's parser accepts,
+    /// with the same bytes, and adds only the 32 MiB lower bound.
+    #[test]
+    fn the_cuda_pool_max_size_flag_parses_like_the_environment() {
+        for raw in [
+            "33554432",
+            "64M",
+            "1G",
+            "3G",
+            "32M",
+            "31M",
+            "0",
+            "",
+            "G",
+            "M",
+            "3X",
+            "1g",
+            "1 G",
+            "-1M",
+            "+1M",
+            "18446744073709551615",
+            "17179869184G",
+            "18446744073709551616",
+        ] {
+            let env = fathomdb_embedder::parse_pool_max_size_bytes(raw);
+            let flag = parse_cuda_pool_max_size(raw);
+            match env {
+                Some(bytes) if bytes >= fathomdb_embedder::CUDA_POOL_MAX_SIZE_MIN => {
+                    assert_eq!(flag, Ok(bytes), "{raw:?}");
+                }
+                _ => assert!(flag.is_err(), "{raw:?}: env {env:?}, flag {flag:?}"),
+            }
+        }
+        assert_eq!(fathomdb_embedder::parse_pool_max_size_bytes("64M"), Some(64 << 20));
+        assert_eq!(fathomdb_embedder::parse_pool_max_size_bytes("3X"), None);
+    }
+
     #[test]
     fn doctor_cuda_allocator_parses_as_a_doctor_verb() {
         for argv in [

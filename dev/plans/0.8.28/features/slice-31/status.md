@@ -306,7 +306,7 @@ criterion. The harness's G3 median bound now matches the ruled 0.400 MiB
 
 ## Next
 
-PERF-03, S-C3 and S-13, then merge into `release/0.8.28`.
+Qualification complete (PERF-03, S-C3 and S-13 pass). Merge into `release/0.8.28`.
 
 ## Log
 

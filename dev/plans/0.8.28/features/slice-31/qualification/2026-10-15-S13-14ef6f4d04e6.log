@@ -1,0 +1,1200 @@
+2026-10-15T21:30:38Z
+
+### 2026-10-15T21:30:38Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-b --max-run 2h --machine-type n1-standard-16
+Created [https://www.googleapis.com/compute/v1/projects/api-5498240749530952133-752265/zones/us-central1-b/instances/fdb-lab-s13].
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+fdb-lab-s13	us-central1-b	RUNNING
+### exit=0
+
+### 2026-10-15T21:31:47Z $ gcp-cuda-lab.sh wait-ssh --name fdb-lab-s13 --zone us-central1-b
+### exit=0
+
+### 2026-10-15T21:32:29Z $ gcp-cuda-lab.sh driver --name fdb-lab-s13 --zone us-central1-b --driver 580
+gcp-cuda-lab: rebooting fdb-lab-s13 to load the NVIDIA module
+### exit=0
+
+### 2026-10-15T21:35:45Z $ gcp-cuda-lab.sh run --name fdb-lab-s13 --zone us-central1-b -- mkdir -p s13 && cat fdb-lab-receipts/driver.json | grep -E "smi|version|kernel"
+  "kernel": "7.0.0-1014-gcp",
+    "nvidia-kernel-common-580-server=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-kernel-common-580-server-580.178.04=",
+    "nvidia-kernel-source-580-server=580.178.04-0ubuntu0.24.04.1",
+  "proc": "NVRM version: NVIDIA UNIX x86_64 Kernel Module  580.178.04  Tue Jul  7 12:38:21 UTC 2026",
+  "requested_kernel": null,
+  "smi": "Tesla T4, 580.178.04, 7.5",
+  "version": "580.178.04"
+### exit=0
+
+### 2026-10-15T21:35:56Z $ gcp-cuda-lab.sh push --name fdb-lab-s13 --zone us-central1-b /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13-bundle/vm-setup-cuda13.sh vm-setup-cuda13.sh
+### exit=0
+
+### 2026-10-15T21:35:59Z $ gcp-cuda-lab.sh run --name fdb-lab-s13 --zone us-central1-b -- bash vm-setup-cuda13.sh > vm-setup.log 2>&1; echo "setup exit=$?"; tail -40 vm-setup.log
+setup exit=0
+cargo:rerun-if-env-changed=CC
+CC = None
+cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+CRATE_CC_NO_DEFAULTS = None
+cargo:rerun-if-env-changed=CFLAGS
+CFLAGS = None
+cargo:rerun-if-env-changed=HOST_CFLAGS
+HOST_CFLAGS = None
+cargo:rerun-if-env-changed=CFLAGS_x86_64_unknown_linux_gnu
+CFLAGS_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
+CFLAGS_x86_64-unknown-linux-gnu = None
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+Build cuda_13.0.r13.0/compiler.36424714_0
+Tesla T4, 580.178.04, 7.5
+cuda-cccl-13-0 13.0.85-1
+cuda-crt-13-0 13.0.88-1
+cuda-cudart-13-0 13.0.96-1
+cuda-cudart-dev-13-0 13.0.96-1
+cuda-culibos-dev-13-0 13.0.85-1
+cuda-driver-dev-13-0 13.0.96-1
+cuda-keyring 1.1-1
+cuda-nvcc-13-0 13.0.88-1
+cuda-nvrtc-13-0 13.0.88-1
+cuda-nvrtc-dev-13-0 13.0.88-1
+cuda-toolkit-13-0-config-common 13.0.96-1
+cuda-toolkit-13-config-common 13.4.92-1
+cuda-toolkit-config-common 13.4.92-1
+libnvidia-cfg1-580-server:amd64 580.178.04-0ubuntu0.24.04.1
+libnvidia-compute-580-server:amd64 580.178.04-0ubuntu0.24.04.1
+linux-modules-nvidia-580-server-7.0.0-1014-gcp 7.0.0-1014.14~24.04.1+2
+linux-objects-nvidia-580-server-7.0.0-1014-gcp 7.0.0-1014.14~24.04.1+2
+linux-signatures-nvidia-7.0.0-1014-gcp 7.0.0-1014.14~24.04.1+2
+nvidia-compute-utils-580-server 580.178.04-0ubuntu0.24.04.1
+nvidia-firmware-580-server-580.178.04 580.178.04-0ubuntu0.24.04.1
+nvidia-headless-no-dkms-580-server 580.178.04-0ubuntu0.24.04.1
+nvidia-kernel-common-580-server 580.178.04-0ubuntu0.24.04.1
+nvidia-kernel-source-580-server 580.178.04-0ubuntu0.24.04.1
+nvidia-utils-580-server 580.178.04-0ubuntu0.24.04.1
+### exit=0
+
+### 2026-10-15T21:35:56Z $ gcp-cuda-lab.sh push --name fdb-lab-s13 --zone us-central1-b /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13-bundle.tar.zst s13-bundle.tar.zst
+### exit=0
+
+### 2026-10-15T21:49:11Z $ gcp-cuda-lab.sh run --name fdb-lab-s13 --zone us-central1-b -- tar -I zstd -xf s13-bundle.tar.zst && rm -rf s13 && mv s13-bundle s13 && rm s13-bundle.tar.zst && bash s13/run-s13.sh setup && cd s13 && nohup bash run-s13.sh wsb02 >/dev/null 2>&1 & sleep 3; echo started
+ssh: connect to host 34.42.126.182 port 22: Connection timed out
+
+Recommendation: To check for possible causes of SSH connectivity issues and get
+recommendations, rerun the ssh command with the --troubleshoot option.
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-b --troubleshoot
+
+Or, to investigate an IAP tunneling issue:
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-b --troubleshoot --tunnel-through-iap
+
+ERROR: (gcloud.compute.ssh) [/usr/bin/ssh] exited with return code [255].
+gcp-cuda-lab: connection to fdb-lab-s13 failed (attempt 1/3); retrying
+ERROR: (gcloud.compute.ssh) Could not fetch resource:
+ - The resource 'projects/api-5498240749530952133-752265/zones/us-central1-b/instances/fdb-lab-s13' was not found
+
+### exit=1
+TYPE                         STATUS  TIMESTAMP
+insert                       DONE    2026-10-15T14:30:40.078-07:00
+setMetadata                  DONE    2026-10-15T14:31:48.867-07:00
+compute.instances.preempted  DONE    2026-10-15T14:49:16.041-07:00
+
+### 2026-10-15T21:51:53Z $ gcp-cuda-lab.sh status
+WARNING: The following filter keys were not present in any resource : labels.fathomdb-lab
+### exit=0
+2026-10-15T21:51:54Z
+
+### 2026-10-15T21:51:54Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-b --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-b zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-central1-b
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-b' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:52:10Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-a --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-a zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-central1-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-a' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:52:16Z $ gcp-cuda-lab.sh status
+WARNING: The following filter keys were not present in any resource : labels.fathomdb-lab
+### exit=0
+
+### 2026-10-15T21:52:17Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-a --max-run 95m --machine-type n1-standard-8 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-8 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-a zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-8
+      zone: us-central1-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-a' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:52:27Z $ gcp-cuda-lab.sh status
+WARNING: The following filter keys were not present in any resource : labels.fathomdb-lab
+### exit=0
+
+### 2026-10-15T21:52:28Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-c --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-c zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-central1-c
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-c' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:52:35Z $ gcp-cuda-lab.sh status
+WARNING: The following filter keys were not present in any resource : labels.fathomdb-lab
+### exit=0
+
+### 2026-10-15T21:52:36Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-c --max-run 95m --machine-type n1-standard-8 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-8 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-c zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-8
+      zone: us-central1-c
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-c' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:52:43Z $ gcp-cuda-lab.sh status
+WARNING: The following filter keys were not present in any resource : labels.fathomdb-lab
+### exit=0
+
+### 2026-10-15T21:52:44Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-f --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-f zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-central1-f
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-f' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:52:53Z $ gcp-cuda-lab.sh status
+WARNING: The following filter keys were not present in any resource : labels.fathomdb-lab
+### exit=0
+
+### 2026-10-15T21:52:56Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-f --max-run 95m --machine-type n1-standard-8 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-8 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-f zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-8
+      zone: us-central1-f
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-f' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:53:06Z $ gcp-cuda-lab.sh status
+WARNING: The following filter keys were not present in any resource : labels.fathomdb-lab
+### exit=0
+
+### 2026-10-15T21:53:16Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-east1-c --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-east1-c zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-east1-c
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-east1-c' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:53:23Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-east1-d --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-east1-d zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-east1-d
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-east1-d' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:53:32Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-west1-a --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-west1-a zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-west1-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-west1-a' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:53:42Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-west1-b --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-west1-b zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-west1-b
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-west1-b' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:53:51Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-east4-a --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-east4-a zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-east4-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-east4-a' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:54:00Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-west4-a --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-west4-a zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-west4-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-west4-a' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:54:09Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-east1-b --max-run 95m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-east1-b zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-east1-b
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-east1-b' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:54:27Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-east1-c --max-run 95m --machine-type n1-standard-8 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-8 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-east1-c zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-8
+      zone: us-east1-c
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-east1-c' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:54:34Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-west1-b --max-run 95m --machine-type n1-standard-8 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-8 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-west1-b zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-8
+      zone: us-west1-b
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-west1-b' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:54:46Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-east4-a --max-run 95m --machine-type n1-standard-8 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-8 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-east4-a zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-8
+      zone: us-east4-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-east4-a' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:54:52Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-a --max-run 95m --machine-type n1-standard-8 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-8 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-a zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-8
+      zone: us-central1-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-a' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T21:55:03Z $ gcp-cuda-lab.sh create --profile l4 --name fdb-lab-s13 --zone us-central1-a --max-run 95m --machine-type g2-standard-16 --on-demand
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A g2-standard-16 VM instance with 1 nvidia-l4 accelerator(s) is currently
+      unavailable in the us-central1-a zone. Alternatively, you can try your request
+      again with a different VM hardware configuration or at a later time. For more
+      information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-l4:1
+      vmType: g2-standard-16
+      zone: us-central1-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-a' does
+  not have enough resources available to fulfill the request.  'NULL:0/NULL:0/NULL:0
+  (state:STOCKOUT, sub-state:STOCKOUT, resource type:compute)'.
+
+### exit=1
+
+### 2026-10-15T21:55:14Z $ gcp-cuda-lab.sh create --profile l4 --name fdb-lab-s13 --zone us-central1-b --max-run 95m --machine-type g2-standard-16 --on-demand
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A g2-standard-16 VM instance with 1 nvidia-l4 accelerator(s) is currently
+      unavailable in the us-central1-b zone. Alternatively, you can try your request
+      again with a different VM hardware configuration or at a later time. For more
+      information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-l4:1
+      vmType: g2-standard-16
+      zone: us-central1-b
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-b' does
+  not have enough resources available to fulfill the request.  'NULL:0/NULL:0/NULL:0
+  (state:STOCKOUT, sub-state:STOCKOUT, resource type:compute)'.
+
+### exit=1
+
+### 2026-10-15T21:55:28Z $ gcp-cuda-lab.sh create --profile l4 --name fdb-lab-s13 --zone us-central1-c --max-run 95m --machine-type g2-standard-16 --on-demand
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A g2-standard-16 VM instance with 1 nvidia-l4 accelerator(s) is currently
+      unavailable in the us-central1-c zone. Consider trying your request in the us-central1-a
+      zone(s), which currently has capacity to accommodate your request. Alternatively,
+      you can try your request again with a different VM hardware configuration or
+      at a later time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-l4:1
+      vmType: g2-standard-16
+      zone: us-central1-c
+      zonesAvailable: us-central1-a
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-c' does
+  not have enough resources available to fulfill the request.  'NULL:0/NULL:0/NULL:0
+  (state:STOCKOUT, sub-state:STOCKOUT, resource type:compute)'.
+
+### exit=1
+
+### 2026-10-15T21:55:42Z $ gcp-cuda-lab.sh create --profile l4 --name fdb-lab-s13 --zone us-east1-c --max-run 95m --machine-type g2-standard-16 --on-demand
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A g2-standard-16 VM instance with 1 nvidia-l4 accelerator(s) is currently
+      unavailable in the us-east1-c zone. Alternatively, you can try your request
+      again with a different VM hardware configuration or at a later time. For more
+      information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-l4:1
+      vmType: g2-standard-16
+      zone: us-east1-c
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-east1-c' does
+  not have enough resources available to fulfill the request.  'NULL:0/NULL:0/NULL:0
+  (state:STOCKOUT, sub-state:STOCKOUT, resource type:compute)'.
+
+### exit=1
+
+### 2026-10-15T21:55:51Z $ gcp-cuda-lab.sh create --profile l4 --name fdb-lab-s13 --zone us-east4-a --max-run 95m --machine-type g2-standard-16 --on-demand
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A g2-standard-16 VM instance with 1 nvidia-l4 accelerator(s) is currently
+      unavailable in the us-east4-a zone. Alternatively, you can try your request
+      again with a different VM hardware configuration or at a later time. For more
+      information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-l4:1
+      vmType: g2-standard-16
+      zone: us-east4-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-east4-a' does
+  not have enough resources available to fulfill the request.  'NULL:0/NULL:0/NULL:0
+  (state:STOCKOUT, sub-state:STOCKOUT, resource type:compute)'.
+
+### exit=1
+
+### 2026-10-15T21:56:04Z $ gcp-cuda-lab.sh create --profile l4 --name fdb-lab-s13 --zone us-west1-b --max-run 95m --machine-type g2-standard-16 --on-demand
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A g2-standard-16 VM instance with 1 nvidia-l4 accelerator(s) is currently
+      unavailable in the us-west1-b zone. Alternatively, you can try your request
+      again with a different VM hardware configuration or at a later time. For more
+      information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-l4:1
+      vmType: g2-standard-16
+      zone: us-west1-b
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-west1-b' does
+  not have enough resources available to fulfill the request.  'NULL:0/NULL:0/NULL:0
+  (state:STOCKOUT, sub-state:STOCKOUT, resource type:compute)'.
+
+### exit=1
+
+### 2026-10-15T21:56:22Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-c --max-run 95m --machine-type n1-standard-16
+Created [https://www.googleapis.com/compute/v1/projects/api-5498240749530952133-752265/zones/us-central1-c/instances/fdb-lab-s13].
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+fdb-lab-s13	us-central1-c	RUNNING
+### exit=0
+
+### 2026-10-15T21:57:22Z $ gcp-cuda-lab.sh wait-ssh --name fdb-lab-s13 --zone us-central1-c
+### exit=0
+
+### 2026-10-15T21:58:00Z $ gcp-cuda-lab.sh driver --name fdb-lab-s13 --zone us-central1-c --driver 580
+Connection to 34.42.126.182 closed by remote host.
+
+Recommendation: To check for possible causes of SSH connectivity issues and get
+recommendations, rerun the ssh command with the --troubleshoot option.
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-c --troubleshoot
+
+Or, to investigate an IAP tunneling issue:
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-c --troubleshoot --tunnel-through-iap
+
+ERROR: (gcloud.compute.ssh) [/usr/bin/ssh] exited with return code [255].
+gcp-cuda-lab: connection to fdb-lab-s13 failed (attempt 1/3); retrying
+ssh: connect to host 34.42.126.182 port 22: Connection timed out
+
+Recommendation: To check for possible causes of SSH connectivity issues and get
+recommendations, rerun the ssh command with the --troubleshoot option.
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-c --troubleshoot
+
+Or, to investigate an IAP tunneling issue:
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-c --troubleshoot --tunnel-through-iap
+
+ERROR: (gcloud.compute.ssh) [/usr/bin/ssh] exited with return code [255].
+gcp-cuda-lab: connection to fdb-lab-s13 failed (attempt 2/3); retrying
+ERROR: (gcloud.compute.ssh) Could not fetch resource:
+ - The resource 'projects/api-5498240749530952133-752265/zones/us-central1-c/instances/fdb-lab-s13' was not found
+
+gcp-cuda-lab: driver 580 install failed on fdb-lab-s13 (exit 1)
+### exit=1
+
+### 2026-10-15T22:06:44Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-a --max-run 80m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-a zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-central1-a
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-a' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T22:06:55Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-b --max-run 80m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-b zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-central1-b
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-b' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T22:07:04Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-c --max-run 80m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-c zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-central1-c
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-c' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T22:07:13Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-f --max-run 80m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-central1-f zone. Alternatively, you can try
+      your request again with a different VM hardware configuration or at a later
+      time. For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-central1-f
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-central1-f' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T22:07:20Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-east1-c --max-run 80m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-east1-c zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-east1-c
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-east1-c' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T22:07:28Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-west1-b --max-run 80m --machine-type n1-standard-16 --on-demand
+ERROR: (gcloud.compute.instances.create) Could not fetch resource:
+---
+code: ZONE_RESOURCE_POOL_EXHAUSTED
+errorDetails:
+- help:
+    links:
+    - description: Troubleshooting documentation
+      url: https://cloud.google.com/compute/docs/resource-error
+- localizedMessage:
+    locale: en-US
+    message: A n1-standard-16 VM instance with 1 nvidia-tesla-t4 accelerator(s) is
+      currently unavailable in the us-west1-b zone. Alternatively, you can try your
+      request again with a different VM hardware configuration or at a later time.
+      For more information, see the troubleshooting documentation.
+- errorInfo:
+    domain: compute.googleapis.com
+    metadatas:
+      attachment: nvidia-tesla-t4:1
+      vmType: n1-standard-16
+      zone: us-west1-b
+      zonesAvailable: ''
+    reason: resource_availability
+message: The zone 'projects/api-5498240749530952133-752265/zones/us-west1-b' does
+  not have enough resources available to fulfill the request.  Try a different zone,
+  or try again later.
+
+### exit=1
+
+### 2026-10-15T22:07:37Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-s13 --zone us-central1-a --max-run 80m --machine-type n1-standard-16
+Created [https://www.googleapis.com/compute/v1/projects/api-5498240749530952133-752265/zones/us-central1-a/instances/fdb-lab-s13].
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+fdb-lab-s13	us-central1-a	RUNNING
+### exit=0
+
+### 2026-10-15T22:08:25Z $ gcp-cuda-lab.sh wait-ssh --name fdb-lab-s13 --zone us-central1-a
+### exit=0
+
+### 2026-10-15T22:09:02Z $ gcp-cuda-lab.sh driver --name fdb-lab-s13 --zone us-central1-a --driver 580
+
+### 2026-10-15T22:27:07Z $ gcp-cuda-lab.sh run --name fdb-lab-s13 --zone us-central1-a -- uptime; tail -15 fdb-lab-receipts/driver.log; ps aux | grep -E "[a]pt|[d]pkg" | cut -c1-150 | head
+ 22:27:09 up 18 min,  2 users,  load average: 0.00, 0.00, 0.00
+Get:2 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsframe1 amd64 2.42-4ubuntu2.10 [15.7 kB]
+Get:3 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 libbinutils amd64 2.42-4ubuntu2.10 [577 kB]
+Get:4 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 libctf-nobfd0 amd64 2.42-4ubuntu2.10 [98.0 kB]
+Get:5 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 libctf0 amd64 2.42-4ubuntu2.10 [94.5 kB]
+Get:6 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgprofng0 amd64 2.42-4ubuntu2.10 [849 kB]
+Get:7 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 binutils-x86-64-linux-gnu amd64 2.42-4ubuntu2.10 [2463 kB]
+Get:8 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 binutils amd64 2.42-4ubuntu2.10 [18.2 kB]
+Get:9 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpciaccess0 amd64 0.17-3ubuntu0.24.04.3 [19.2 kB]
+Get:10 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 nvidia-firmware-580-server-580.178.04 amd64 580.178.04-0ubuntu0.24.04.1 [76.0 MB]
+Get:11 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 nvidia-kernel-common-580-server amd64 580.178.04-0ubuntu0.24.04.1 [786 kB]
+Get:12 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 libnvidia-cfg1-580-server amd64 580.178.04-0ubuntu0.24.04.1 [161 kB]
+Get:13 http://us-central1.gce.archive.ubuntu.com/ubuntu noble/universe amd64 ocl-icd-libopencl1 amd64 2.3.2-1build1 [38.5 kB]
+Get:14 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 libnvidia-compute-580-server amd64 580.178.04-0ubuntu0.24.04.1 [59.4 MB]
+Get:15 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 linux-signatures-nvidia-7.0.0-1014-gcp amd64 7.0.0-1014.14~24.04.1+2 [17.7 kB]
+Get:16 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 linux-objects-nvidia-580-server-7.0.0-1014-gcp amd64 7.0.0-1014.14~24.04.1+2 [98.2 MB]
+root        2190  0.0  0.0  17164  7136 ?        S    22:09   0:00 sudo apt-get install -yq --no-install-recommends linux-modules-nvidia-580-server-7.
+root        2191  0.0  0.1  96540 86636 ?        S    22:09   0:00 apt-get install -yq --no-install-recommends linux-modules-nvidia-580-server-7.0.0-1
+_apt        2196  0.3  0.0  23316 10512 ?        S    22:09   0:04 /usr/lib/apt/methods/http
+### exit=0
+
+### 2026-10-15T22:27:19Z $ gcp-cuda-lab.sh run --name fdb-lab-s13 --zone us-central1-a -- sudo pkill -f /usr/lib/apt/methods/http; sleep 3; ps aux | grep -c "[a]pt-get"
+
+Recommendation: To check for possible causes of SSH connectivity issues and get
+recommendations, rerun the ssh command with the --troubleshoot option.
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot
+
+Or, to investigate an IAP tunneling issue:
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot --tunnel-through-iap
+
+ERROR: (gcloud.compute.ssh) [/usr/bin/ssh] exited with return code [255].
+gcp-cuda-lab: connection to fdb-lab-s13 failed (attempt 1/3); retrying
+
+Recommendation: To check for possible causes of SSH connectivity issues and get
+recommendations, rerun the ssh command with the --troubleshoot option.
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot
+
+Or, to investigate an IAP tunneling issue:
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot --tunnel-through-iap
+
+ERROR: (gcloud.compute.ssh) [/usr/bin/ssh] exited with return code [255].
+gcp-cuda-lab: connection to fdb-lab-s13 failed (attempt 2/3); retrying
+gcp-cuda-lab: rebooting fdb-lab-s13 to load the NVIDIA module
+
+Recommendation: To check for possible causes of SSH connectivity issues and get
+recommendations, rerun the ssh command with the --troubleshoot option.
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot
+
+Or, to investigate an IAP tunneling issue:
+
+gcloud compute ssh fdb-lab-s13 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot --tunnel-through-iap
+
+ERROR: (gcloud.compute.ssh) [/usr/bin/ssh] exited with return code [255].
+gcp-cuda-lab: connection to fdb-lab-s13 failed (attempt 3/3); retrying
+### exit=255
+gcp-cuda-lab: driver 580 install failed on fdb-lab-s13 (exit 1)
+### exit=1
+
+### 2026-10-15T22:29:04Z $ gcp-cuda-lab.sh run --name fdb-lab-s13 --zone us-central1-a -- tail -5 fdb-lab-receipts/driver.log; ps aux | grep -c "[a]pt-get"
+Get:3 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 libmpc3 amd64 1.3.1-1build1.1 [54.6 kB]
+Get:4 http://us-central1.gce.archive.ubuntu.com/ubuntu noble-updates/main amd64 cpp-13-x86-64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1 [10.7 MB]
+E: Method http has died unexpectedly!
+E: Sub-process http returned an error code (100)
+remote-driver: nvidia-smi still fails after reboot; see driver-diagnostics.txt
+0
+### exit=1
+
+### 2026-10-15T22:29:13Z $ gcp-cuda-lab.sh driver --name fdb-lab-s13 --zone us-central1-a --driver 580
+gcp-cuda-lab: rebooting fdb-lab-s13 to load the NVIDIA module
+gcp-cuda-lab: waiting for SSH on fdb-lab-s13 (attempt 3/40)
+gcp-cuda-lab: waiting for SSH on fdb-lab-s13 (attempt 4/40)
+### exit=0
+
+### 2026-10-15T22:32:02Z $ gcp-cuda-lab.sh push --name fdb-lab-s13 --zone us-central1-a /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13a.tar.zst s13a.tar.zst
+### exit=0
+
+### 2026-10-15T22:32:15Z $ gcp-cuda-lab.sh run --name fdb-lab-s13 --zone us-central1-a -- grep -E "\"smi\"|\"kernel\"|\"method\"" fdb-lab-receipts/driver.json; tar -I zstd -xf s13a.tar.zst && (nohup bash -c "bash s13/vm-setup-cuda13.sh > s13-vm-setup.log 2>&1; echo setup-exit=\$? >> s13-vm-setup.log; bash s13/run-s13.sh setup; bash s13/run-s13.sh wsb02; echo WSB02-FINISHED > s13/out/wsb02.done" >/dev/null 2>&1 &) ; sleep 2; echo started
+  "kernel": "7.0.0-1014-gcp",
+  "method": "verified-after-reboot",
+  "smi": "Tesla T4, 580.178.04, 7.5",
+started
+### exit=0
+
+### 2026-10-15T22:32:27Z $ gcp-cuda-lab.sh push --name fdb-lab-s13 --zone us-central1-a /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13-models.tar.zst s13-models.tar.zst
+### exit=0
+
+### 2026-10-15T22:39:49Z $ gcp-cuda-lab.sh pull --name fdb-lab-s13 --zone us-central1-a s13/out /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13-out
+### exit=0
+
+### 2026-10-15T22:39:53Z $ gcp-cuda-lab.sh pull --name fdb-lab-s13 --zone us-central1-a s13-vm-setup.log /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13-out
+### exit=0
+
+### 2026-10-15T22:39:55Z $ gcp-cuda-lab.sh run --name fdb-lab-s13 --zone us-central1-a -- bash s13/run-s13.sh s13run
+s13run	cuda08-doctor-allocator	FAIL	exit=0; see s13run.log
+s13run	c5-doctor-libs	PASS	exit=0 built_major=13 cublas 13.x loaded from the 13.0 toolkit
+s13run	cuda08-embed	PASS	test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 21.09s
+s13run	cuda08-rerank	PASS	test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 127 filtered out; finished in 3.13s
+s13run	c5-maps	PASS	/usr/local/cuda-13.0/targets/x86_64-linux/lib/libcublas.so.13.1.1.3 /usr/local/cuda-13.0/targets/x86_64-linux/lib/libcublasLt.so.13.1.1.3
+### exit=0
+
+### 2026-10-15T22:40:29Z $ gcp-cuda-lab.sh pull --name fdb-lab-s13 --zone us-central1-a s13/out /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13-out
+### exit=0
+
+### 2026-10-15T22:40:54Z $ gcp-cuda-lab.sh pull --name fdb-lab-s13 --zone us-central1-a fdb-lab-receipts /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13-out
+### exit=0
+
+### 2026-10-15T22:40:57Z $ gcp-cuda-lab.sh destroy --name fdb-lab-s13 --zone us-central1-a
+Deleted [https://www.googleapis.com/compute/v1/projects/api-5498240749530952133-752265/zones/us-central1-a/instances/fdb-lab-s13].
+### exit=0
+2026-10-15T22:41:51Z
+(empty list = no fdb-lab VM)
+(empty = no fdb-lab disk)
+
+### 2026-10-15T21:35:56Z $ gcp-cuda-lab.sh push --name fdb-lab-s13 --zone us-central1-b /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13-bundle.tar.zst s13-bundle.tar.zst
+### exit=0
+
+### 2026-10-15T22:32:27Z $ gcp-cuda-lab.sh push --name fdb-lab-s13 --zone us-central1-a /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/s13-models.tar.zst s13-models.tar.zst
+### exit=0

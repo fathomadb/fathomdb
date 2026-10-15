@@ -16,8 +16,8 @@ from `32295692f`; later commits do not change runtime pool behaviour.
 | Feature-complete gate (PRD-33) | `windchill3` | pass at `9b43d29c1` | [2026-10-13-FC-9b43d29c13e0.md](qualification/2026-10-13-FC-9b43d29c13e0.md) |
 | Tegra on CUDA 13 | — | UNMEASURED (owner ruling Q5; todo `TC-b267d940`, CloudJetson) | — |
 | PERF-03 (§ 4.4) | `windchill3`, RTX 3090 by UUID | pass at `14ef6f4d0`: steady embed new/base 0.899 [0.889, 0.912], N = 20 per arm; identical embedding hash. The contract build has no reranker, so each process ends at the rerank step after its embed timings; `harness/g9x_embed_only.py` judges the embed measures (rerank not measured) | [2026-10-15-T-PERF-3090-14ef6f4d04e6.md](qualification/2026-10-15-T-PERF-3090-14ef6f4d04e6.md) |
-| S-C3 (§ 4.6) | GCP T4 | pending | — |
-| S-13 (§ 4.7) | GCP | pending | — |
+| S-C3 (§ 4.6; CMP-C3, CUDA-09) | GCP Spot T4, driver 580 only | pass at `14ef6f4d0`: missing CUDA 12 cuBLAS refused (typed, doctor exit 70, CPU under `auto`, no `cuda_incompatible` on the 7.5 floor); after the pip remedy cuBLAS 12.6.4 and cuRAND 10.3.7 load and forced embed and rerank pass on the T4; `libcuda.so.1`-only passes; CUDA 13 cuBLAS alone is still refused | [2026-10-15-C3-14ef6f4d04e6.md](qualification/2026-10-15-C3-14ef6f4d04e6.md) |
+| S-13 (§ 4.7; WSB-02, CUDA-08, CMP-C5) | GCP Spot T4, CUDA 13.0 toolkit | pass at `14ef6f4d0`: CUDA 13 build from the registry crates; forced embed and rerank pass; `doctor cuda-libraries` exit 0 with built major 13 and only 13.0 libraries mapped. Deviations in the receipt: `git archive` push, vendored `candle-kernels` | [2026-10-15-S13-14ef6f4d04e6.md](qualification/2026-10-15-S13-14ef6f4d04e6.md) |
 
 The driver and CUDA guard lines were unchanged on every host and run: Orin
 R36 5.2 with `/usr/local/cuda-12.6` (570 window B lines, 328 window C lines,

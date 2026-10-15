@@ -1,0 +1,245 @@
+
+### 2026-10-15T21:03:55Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-c3 --zone us-central1-a --max-run 2h
+Created [https://www.googleapis.com/compute/v1/projects/api-5498240749530952133-752265/zones/us-central1-a/instances/fdb-lab-c3].
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+fdb-lab-c3	us-central1-a	RUNNING
+### exit=0
+
+### 2026-10-15T21:04:36Z $ gcp-cuda-lab.sh wait-ssh --name fdb-lab-c3 --zone us-central1-a
+### exit=0
+
+### 2026-10-15T21:05:30Z $ gcp-cuda-lab.sh driver --name fdb-lab-c3 --zone us-central1-a --driver 580
+Connection to 136.71.47.189 closed by remote host.
+
+Recommendation: To check for possible causes of SSH connectivity issues and get
+recommendations, rerun the ssh command with the --troubleshoot option.
+
+gcloud compute ssh fdb-lab-c3 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot
+
+Or, to investigate an IAP tunneling issue:
+
+gcloud compute ssh fdb-lab-c3 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot --tunnel-through-iap
+
+ERROR: (gcloud.compute.ssh) [/usr/bin/ssh] exited with return code [255].
+gcp-cuda-lab: connection to fdb-lab-c3 failed (attempt 1/3); retrying
+ssh: connect to host 136.71.47.189 port 22: Connection timed out
+
+Recommendation: To check for possible causes of SSH connectivity issues and get
+recommendations, rerun the ssh command with the --troubleshoot option.
+
+gcloud compute ssh fdb-lab-c3 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot
+
+Or, to investigate an IAP tunneling issue:
+
+gcloud compute ssh fdb-lab-c3 --project=api-5498240749530952133-752265 --zone=us-central1-a --troubleshoot --tunnel-through-iap
+
+ERROR: (gcloud.compute.ssh) [/usr/bin/ssh] exited with return code [255].
+gcp-cuda-lab: connection to fdb-lab-c3 failed (attempt 2/3); retrying
+ERROR: (gcloud.compute.ssh) Could not fetch resource:
+ - The resource 'projects/api-5498240749530952133-752265/zones/us-central1-a/instances/fdb-lab-c3' was not found
+
+gcp-cuda-lab: driver 580 install failed on fdb-lab-c3 (exit 1)
+### exit=1
+
+### 2026-10-15T21:08:39Z $ gcp-cuda-lab.sh status
+WARNING: The following filter keys were not present in any resource : labels.fathomdb-lab
+### exit=0
+TYPE                         STATUS  TIMESTAMP                      STATUS_MESSAGE
+insert                       DONE    2026-10-15T14:03:57.507-07:00
+setMetadata                  DONE    2026-10-15T14:04:38.259-07:00
+compute.instances.preempted  DONE    2026-10-15T14:07:14.637-07:00  Instance was preempted.
+
+### 2026-10-15T21:08:47Z $ gcp-cuda-lab.sh create --profile t4 --name fdb-lab-c3 --zone us-central1-b --max-run 2h
+Created [https://www.googleapis.com/compute/v1/projects/api-5498240749530952133-752265/zones/us-central1-b/instances/fdb-lab-c3].
+WARNING: Some requests generated warnings:
+ - Disk size: '100 GB' is larger than image size: '10 GB'. You might need to resize the root repartition manually if the operating system does not support automatic resizing. See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd for details.
+
+fdb-lab-c3	us-central1-b	RUNNING
+### exit=0
+
+### 2026-10-15T21:09:15Z $ gcp-cuda-lab.sh wait-ssh --name fdb-lab-c3 --zone us-central1-b
+### exit=0
+
+### 2026-10-15T21:10:11Z $ gcp-cuda-lab.sh driver --name fdb-lab-c3 --zone us-central1-b --driver 580
+gcp-cuda-lab: rebooting fdb-lab-c3 to load the NVIDIA module
+gcp-cuda-lab: waiting for SSH on fdb-lab-c3 (attempt 2/40)
+### exit=0
+
+### 2026-10-15T21:13:19Z $ gcp-cuda-lab.sh run --name fdb-lab-c3 --zone us-central1-b -- cat fdb-lab-receipts/driver.json; which zstd; df -h / | tail -1
+{
+  "branch": "580",
+  "kernel": "7.0.0-1014-gcp",
+  "method": "verified-after-reboot",
+  "open": false,
+  "packages": [
+    "libnvidia-cfg1-580-server=580.178.04-0ubuntu0.24.04.1",
+    "libnvidia-compute-580-server=580.178.04-0ubuntu0.24.04.1",
+    "linux-modules-nvidia-580-server-7.0.0-1014-gcp=7.0.0-1014.14~24.04.1+2",
+    "linux-objects-nvidia-580-server-7.0.0-1014-gcp=7.0.0-1014.14~24.04.1+2",
+    "nvidia-compute-utils-580-server=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-driver-580-server=",
+    "nvidia-firmware-580-580.178.04=",
+    "nvidia-firmware-580-server-580.178.04=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-headless-no-dkms-580-server=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-kernel-common-580-server=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-kernel-common-580-server-580.178.04=",
+    "nvidia-kernel-source-580-server=580.178.04-0ubuntu0.24.04.1",
+    "nvidia-utils-580-server=580.178.04-0ubuntu0.24.04.1"
+  ],
+  "proc": "NVRM version: NVIDIA UNIX x86_64 Kernel Module  580.178.04  Tue Jul  7 12:38:21 UTC 2026",
+  "requested_kernel": null,
+  "secure_boot": "SecureBoot disabled",
+  "smi": "Tesla T4, 580.178.04, 7.5",
+  "version": "580.178.04"
+}
+/usr/bin/zstd
+/dev/root        96G  4.1G   92G   5% /
+### exit=0
+
+### 2026-10-15T21:13:21Z $ gcp-cuda-lab.sh push --name fdb-lab-c3 --zone us-central1-b /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-bundle.tar.zst c3-bundle.tar.zst
+### exit=0
+
+### 2026-10-15T21:22:33Z $ gcp-cuda-lab.sh run --name fdb-lab-c3 --zone us-central1-b -- tar -I zstd -xf c3-bundle.tar.zst && mv c3-bundle c3 && rm c3-bundle.tar.zst && ls -la c3 c3/bin && sha256sum c3/bin/*
+c3:
+total 36
+drwxrwxr-x 6 coreyt coreyt  4096 Oct 15 21:03 .
+drwxr-x--- 6 coreyt coreyt  4096 Oct 15 21:22 ..
+drwxrwxr-x 2 coreyt coreyt  4096 Oct 15 21:01 bin
+drwxrwxr-x 4 coreyt coreyt  4096 Oct 15 21:01 models
+drwxrwxr-x 2 coreyt coreyt  4096 Oct 15 21:01 out
+-rw-rw-r-- 1 coreyt coreyt 12232 Oct 15 21:03 run-c3.sh
+drwxrwxr-x 2 coreyt coreyt  4096 Oct 15 21:02 wheels
+
+c3/bin:
+total 773352
+drwxrwxr-x 2 coreyt coreyt      4096 Oct 15 21:01 .
+drwxrwxr-x 6 coreyt coreyt      4096 Oct 15 21:03 ..
+-rwxrwxr-x 1 coreyt coreyt 270727688 Oct 15 21:01 candle_bge
+-rwxrwxr-x 1 coreyt coreyt 271576432 Oct 15 21:01 embedder_lib
+-rw-r--r-- 1 coreyt coreyt   8080630 Oct 15 21:01 fathomdb-cli.tar.gz
+-rwxrwxr-x 1 coreyt coreyt 241514704 Oct 15 21:01 slice31_cuda_library_major
+203d8f091bcad20391672076d455505b2a0167221634938426fadff065c451f5  c3/bin/candle_bge
+bdc2df11b8a615f1def017ea07ca840d6a96cb16f1e0212482829f9f9250dfd9  c3/bin/embedder_lib
+7576ab5f44555e94e6cee9a08f02c2eecdfd48250533b4543860698c66a8cab1  c3/bin/fathomdb-cli.tar.gz
+ca5bb25d7fd9a5775a6ca1a646eeeeaa4d0a99033a7691fff2f0ea6cea3c0163  c3/bin/slice31_cuda_library_major
+### exit=0
+203d8f091bcad20391672076d455505b2a0167221634938426fadff065c451f5  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-bundle/bin/candle_bge
+bdc2df11b8a615f1def017ea07ca840d6a96cb16f1e0212482829f9f9250dfd9  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-bundle/bin/embedder_lib
+7576ab5f44555e94e6cee9a08f02c2eecdfd48250533b4543860698c66a8cab1  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-bundle/bin/fathomdb-cli.tar.gz
+ca5bb25d7fd9a5775a6ca1a646eeeeaa4d0a99033a7691fff2f0ea6cea3c0163  /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-bundle/bin/slice31_cuda_library_major
+
+### 2026-10-15T21:22:48Z $ gcp-cuda-lab.sh run --name fdb-lab-c3 --zone us-central1-b -- bash c3/run-c3.sh refusal
+refusal	pre-gpu	PASS	Tesla T4, 580.178.04, 7.5
+refusal	pre-ldconfig-cublas	PASS	count=0
+refusal	pre-find-cublas	PASS	empty
+refusal	pre-no-usr-local-cuda	PASS	none
+refusal	pre-ld-library-path	PASS	unset
+refusal	refusal-ignored-test	PASS	test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 1.81s
+refusal	refusal-doctor-libs	PASS	exit=70 reason=missing library=cublas
+refusal	floor-doctor-gpu	PASS	no cuda_incompatible (exit=70, recorded)
+refusal	floor-doctor-reranker-gpu	PASS	no cuda_incompatible (exit=0, recorded)
+refusal	refusal-auto-embed-cpu	PASS	test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 13.16s
+### exit=0
+
+### 2026-10-15T21:23:15Z $ gcp-cuda-lab.sh pull --name fdb-lab-c3 --zone us-central1-b c3/out /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-out
+### exit=0
+
+### 2026-10-15T21:23:30Z $ gcp-cuda-lab.sh run --name fdb-lab-c3 --zone us-central1-b -- bash c3/run-c3.sh remedy
+remedy	pre-gpu	PASS	Tesla T4, 580.178.04, 7.5
+remedy	pre-ldconfig-cublas	PASS	count=0
+remedy	pre-find-cublas	PASS	empty
+remedy	pre-no-usr-local-cuda	PASS	none
+remedy	pre-ld-library-path	PASS	unset
+remedy	remedy-pip-install	PASS	nvidia-cublas-cu12==12.6.4.1 nvidia-curand-cu12==10.3.7.77
+remedy	remedy-doctor-libs	PASS	exit=0 cublas+curand loaded from the venv
+remedy	remedy-forced-embed	PASS	test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 22.61s
+remedy	remedy-forced-rerank	PASS	test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 116 filtered out; finished in 3.30s
+### exit=0
+
+### 2026-10-15T21:24:47Z $ gcp-cuda-lab.sh pull --name fdb-lab-c3 --zone us-central1-b c3/out /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-out
+### exit=0
+
+### 2026-10-15T21:25:12Z $ gcp-cuda-lab.sh push --name fdb-lab-c3 --zone us-central1-b /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-bundle/run-c3.sh c3/run-c3.sh
+### exit=0
+
+### 2026-10-15T21:25:14Z $ gcp-cuda-lab.sh run --name fdb-lab-c3 --zone us-central1-b -- bash c3/run-c3.sh libcuda1
+libcuda1	pre-gpu	PASS	Tesla T4, 580.178.04, 7.5
+libcuda1	pre-ldconfig-cublas	PASS	count=0
+libcuda1	pre-find-cublas	PASS	only the venv's wheel files
+libcuda1	pre-no-usr-local-cuda	PASS	none
+libcuda1	pre-ld-library-path	PASS	unset
+libcuda1	libcuda1-divert	PASS	only libcuda.so.1 (and its target) remain
+libcuda1	libcuda1-doctor-driver	PASS	exit=0 driver opened_as libcuda.so.1
+libcuda1	libcuda1-forced-embed	PASS	test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 11.31s
+libcuda1	libcuda1-maps	PASS	/usr/lib/x86_64-linux-gnu/libcuda.so.580.178.04 (ld.so lookups libcuda.so=3, libcuda.so.1=4)
+### exit=0
+
+### 2026-10-15T21:25:31Z $ gcp-cuda-lab.sh pull --name fdb-lab-c3 --zone us-central1-b c3/out /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-out
+### exit=0
+
+### 2026-10-15T21:26:01Z $ gcp-cuda-lab.sh push --name fdb-lab-c3 --zone us-central1-b /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-step6.sh c3/step6.sh
+### exit=0
+
+### 2026-10-15T21:26:04Z $ gcp-cuda-lab.sh run --name fdb-lab-c3 --zone us-central1-b -- bash c3/step6.sh; cat c3/out/step6.log
+===== 2026-10-15T21:26:06Z optional step 6: CUDA 13 cuBLAS wheel only
+LD_LIBRARY_PATH at entry: (unset)
+pip exit=0
+nvidia-cublas==13.8.1.7
+nvidia-cuda-nvrtc==13.4.92
+cublas 13 dir: /home/coreyt/c3/venv13/lib/python3.12/site-packages/nvidia/cu13/lib
+total 720124
+-rw-rw-r-- 1 coreyt coreyt  57594520 Oct 15 21:26 libcublas.so.13
+-rw-rw-r-- 1 coreyt coreyt 545528240 Oct 15 21:26 libcublasLt.so.13
+-rw-rw-r-- 1 coreyt coreyt    737960 Oct 15 21:26 libnvblas.so.13
+-rw-rw-r-- 1 coreyt coreyt   7108552 Oct 15 21:26 libnvrtc-builtins.so.13.4
+-rw-rw-r-- 1 coreyt coreyt 126425752 Oct 15 21:26 libnvrtc.so.13
+fathomdb-cuda-libraries {"kind":"cuda_library_unavailable","library":"cublas","message":"CUDA library cublas is unusable (missing) (required major 12); tried libcublas.so.12 (not found), libcublas.so (not found). Remedy: install the CUDA 12 cuBLAS and cuRAND wheels (`pip install nvidia-cublas-cu12 nvidia-curand-cu12`) and put both library directories on `LD_LIBRARY_PATH`, for example `export LD_LIBRARY_PATH=\"$(python3 -c 'import nvidia.cublas as m; print(m.__path__[0])')/lib:$(python3 -c 'import nvidia.curand as m; print(m.__path__[0])')/lib:$LD_LIBRARY_PATH\"`; the CUDA library loader does not search Python's site-packages on Linux","missing_symbols":[],"path":null,"reason":"missing","required_major":12,"tried":[{"name":"libcublas.so.12","reason":"not found"},{"name":"libcublas.so","reason":"not found"}],"version":null}
+{"schema_version":"fathomdb.doctor.cuda-libraries.v1","built":true,"built_major":12,"libraries":[{"library":"driver","opened_as":"libcuda.so.1","path":"/usr/lib/x86_64-linux-gnu/libcuda.so.580.178.04","version":"13.0","status":"loaded"},{"library":"cublas","opened_as":null,"path":null,"version":null,"status":"refused"},{"library":"cublasLt","opened_as":null,"path":null,"version":null,"status":"not_loaded"},{"library":"curand","opened_as":null,"path":null,"version":null,"status":"not_loaded"},{"library":"nvrtc","opened_as":null,"path":null,"version":null,"status":"not_loaded"}],"refusal":{"kind":"cuda_library_unavailable","library":"cublas","reason":"missing","path":null,"version":null,"required_major":12,"tried":[{"name":"libcublas.so.12","reason":"not found"},{"name":"libcublas.so","reason":"not found"}],"missing_symbols":[],"message":"CUDA library cublas is unusable (missing) (required major 12); tried libcublas.so.12 (not found), libcublas.so (not found). Remedy: install the CUDA 12 cuBLAS and cuRAND wheels (`pip install nvidia-cublas-cu12 nvidia-curand-cu12`) and put both library directories on `LD_LIBRARY_PATH`, for example `export LD_LIBRARY_PATH=\"$(python3 -c 'import nvidia.cublas as m; print(m.__path__[0])')/lib:$(python3 -c 'import nvidia.curand as m; print(m.__path__[0])')/lib:$LD_LIBRARY_PATH\"`; the CUDA library loader does not search Python's site-packages on Linux"},"maps":["/usr/lib/x86_64-linux-gnu/libcuda.so.580.178.04"]}
+exit=70
+===== end step 6
+### exit=0
+
+### 2026-10-15T21:26:40Z $ gcp-cuda-lab.sh pull --name fdb-lab-c3 --zone us-central1-b c3/out /tmp/claude-1000/-home-coreyt-projects-fathomdb/a9720f76-333b-48d0-ad12-5233c37b0381/scratchpad/gcp-sessions/c3-out
+### exit=0
+
+### 2026-10-15T21:26:52Z $ gcp-cuda-lab.sh destroy --name fdb-lab-c3 --zone us-central1-b
+Deleted [https://www.googleapis.com/compute/v1/projects/api-5498240749530952133-752265/zones/us-central1-b/instances/fdb-lab-c3].
+### exit=0
+2026-10-15T21:27:50Z
+(empty list = no fdb-lab VM)
+(empty = no fdb-lab disk)
+HEAD=1f1646f7462e232022cddea4ef30986dfd85a430
+CUDA_COMPUTE_CAP=75
+CUDA_DEVICE_ORDER=PCI_BUS_ID
+CUDA_PATH=/usr/local/cuda-12.6
+CUDARC_CUDA_VERSION=12060
+CUDA_VISIBLE_DEVICES=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b
+FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b
+Build cuda_12.6.r12.6/compiler.34714021_0
+cargo 1.95.0 (f2d3ce0bd 2026-03-21)
+rustc 1.95.0 (59807616e 2026-04-14)
+b887a101a1ea9684a8e64d0bb8a849da6ef4e61a777bdc2ff62062126a8d142a  Cargo.lock
+== libmajor: cargo test --locked --no-run -p fathomdb-embedder --features embed-cuda --test slice31_cuda_library_major
+exit=0 secs=2
+   Compiling fathomdb-embedder v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/src/rust/crates/fathomdb-embedder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.61s
+/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/target/debug/deps/slice31_cuda_library_major-f7d6fdf79d832d40
+== candle_bge: cargo test --locked --no-run -p fathomdb-embedder --features embed-cuda,loader-test-hooks --test candle_bge
+exit=0 secs=2
+   Compiling fathomdb-embedder v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/src/rust/crates/fathomdb-embedder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.02s
+/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/target/debug/deps/candle_bge-db432a94be5875d3
+== rerank_lib: cargo test --locked --no-run -p fathomdb-embedder --features rerank-cuda --lib
+exit=0 secs=3
+   Compiling fathomdb-embedder v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/src/rust/crates/fathomdb-embedder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.16s
+/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/target/debug/deps/fathomdb_embedder-68d14a3d51e070b1
+== cli: cargo build --locked --release -p fathomdb-cli --features embed-cuda,rerank-cuda
+exit=0 secs=50
+   Compiling fathomdb v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/src/rust/crates/fathomdb)
+   Compiling fathomdb-cli v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/src/rust/crates/fathomdb-cli)
+    Finished `release` profile [optimized] target(s) in 49.89s
+/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-31/target/release/fathomdb
+BUILD-DONE

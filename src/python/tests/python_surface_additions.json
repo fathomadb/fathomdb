@@ -171,7 +171,97 @@
         "path": "fathomdb.types.CudaLibraryReport.version",
         "signature": "version: str | None"
       }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EngineConfig.cuda_pool",
+        "signature": "cuda_pool: Literal['auto', 'on', 'off'] | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EngineConfig.cuda_pool_max_size",
+        "signature": "cuda_pool_max_size: int | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EngineConfig.cuda_pool_release_threshold",
+        "signature": "cuda_pool_release_threshold: Literal['0', 'max'] | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.config.EngineConfig.cuda_pool",
+        "signature": "cuda_pool: Literal['auto', 'on', 'off'] | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.config.EngineConfig.cuda_pool_max_size",
+        "signature": "cuda_pool_max_size: int | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.config.EngineConfig.cuda_pool_release_threshold",
+        "signature": "cuda_pool_release_threshold: Literal['0', 'max'] | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaAllocatorReport.pool_max_size_source",
+        "signature": "pool_max_size_source: str | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaAllocatorReport.pool_mode",
+        "signature": "pool_mode: str | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaAllocatorReport.pool_mode_source",
+        "signature": "pool_mode_source: str | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 31,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.CudaAllocatorReport.pool_release_threshold_source",
+        "signature": "pool_release_threshold_source: str | None"
+      }
     }
   ],
-  "native_stub_sha256": "6b0db47a9fb8de226433a2e619b70e7b8a968e756d3124e4f94b5d3206a05287"
+  "native_stub_sha256": "86ea8d37227ff5dfb58807a86da22d460831559d3c8781090aea18e8b5ebcc5d"
 }

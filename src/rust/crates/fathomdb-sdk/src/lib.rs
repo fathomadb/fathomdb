@@ -66,6 +66,7 @@ pub use fathomdb_embedder::{
 // The GPU memory pool settings of `EngineConfig` and their conflict.
 pub use fathomdb_embedder::{
     CudaPoolSettingConflict, CudaPoolSettingValue, PoolMode as CudaPoolMode, PoolSettingSource,
+    CUDA_POOL_MAX_SIZE_MIN,
 };
 pub use fathomdb_embedder_api::{EmbedderError as RuntimeEmbedderError, EmbedderIdentity};
 pub use fathomdb_engine::lifecycle::{

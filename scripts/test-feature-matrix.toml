@@ -108,6 +108,10 @@ features = []
 crate = "fathomdb-sdk"
 features = []
 
+[[entry]]
+crate = "fathomdb-sdk"
+features = ["embed-cuda"]
+
 [[extra]]
 crate = "fathomdb-cli"
 features = ["default-embedder"]

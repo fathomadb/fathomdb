@@ -148,7 +148,7 @@ pub mod admin {
 //   and `ProjectionStatusDenseReadiness` — the pure status facade for the
 //   current projection runtime. Its command spelling is binding-specific;
 //   these types were HITL-signed in steward-ledger seq-247.
-// + 5 types from 0.8.28 Slice 31 § 15 (owner rulings Q33, Q35): the GPU
+// + 5 types and `CUDA_POOL_MAX_SIZE_MIN` from 0.8.28 Slice 31 § 15 (owner rulings Q33, Q35): the GPU
 //   memory pool settings of `EngineConfig` (`CudaPoolMode`,
 //   `ReleaseThreshold`, `PoolSettingSource`) and their conflict
 //   (`CudaPoolSettingConflict`, `CudaPoolSettingValue`).
@@ -196,7 +196,7 @@ pub use fathomdb_engine::{
 };
 pub use fathomdb_engine::{
     CudaPoolMode, CudaPoolSettingConflict, CudaPoolSettingValue, PoolSettingSource,
-    ReleaseThreshold,
+    ReleaseThreshold, CUDA_POOL_MAX_SIZE_MIN,
 };
 
 // The operator-seam report types (`dev/interfaces/rust.md` § 2b) — CLI-only,

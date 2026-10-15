@@ -2033,8 +2033,9 @@ FathomDB probe already made, and FathomDB makes no new call.
 - **Docs.** In `dev/interfaces/rust.md`, "No load hook in Rust" becomes
   "Rust uses the probe's `cuInit`". Also update the
   `cuinit_not_at_load` sentence in `rust-sdk.md` (plus the two
-  constructors above), `docs/embedder.md`, and the changelog (Rust and CLI
-  engine processes on the 64 GB Orin now get the private pool). ADR:
+  constructors above), `docs/embedder.md`, and the changelog (on the 64 GB Orin,
+  Rust engine processes and the CLI GPU doctors now get the private pool;
+  no CLI database verb builds a CUDA device). ADR:
   appendix A decision 10.
 
 **Option (b), first-use init at the decision: rejected (Q36).** It

@@ -79,13 +79,13 @@ def test_cli_exits_non_zero_on_drift_or_missing(tmp_path: Path, capsys):
     assert "DRIFT" in out and "fathomdb ndcg@10" in out and "0.3" in out
 
 
-def test_slice_40_baseline_manifest_lists_the_six_benchmarks():
+def test_slice_40_baseline_manifest_lists_the_eight_benchmarks():
     check = _check()
     manifest = check.load_manifest(check.DEFAULT_MANIFEST)
     assert manifest["schema_version"] == "fathomdb.baseline.v1"
     assert [b["id"] for b in manifest["benchmarks"]] == [
         "comp01-nfcorpus", "comp01-hybrid", "comp03-retrieval-sweep", "comp03-answer-v2", "tc5-10k-latency",
-        "comp03-answer-mix",
+        "comp03-answer-mix", "comp02a-10000", "comp02a-17272", "comp02b-10000",
     ]
     for benchmark in manifest["benchmarks"]:
         assert {"inputs", "engine_commit", "wheel_build", "command", "receipt", "metrics"} <= set(benchmark)
@@ -101,6 +101,25 @@ def test_slice_40_baseline_manifest_lists_the_six_benchmarks():
     ]
     assert all(m.get("gate") is False and m["tolerance"] == {"questions": 3, "n": 60} for m in mix["metrics"])
     assert "provisional" in mix["note"], "the evidence policy and mix are expected to change"
+    # Owner ruling Q-H5: COMP-02a and COMP-02b are manifest benchmarks, read from their receipts' metrics.
+    for scale_id in ("comp02a-10000", "comp02a-17272"):
+        scale = next(b for b in manifest["benchmarks"] if b["id"] == scale_id)
+        assert [(m["pointer"], m["tolerance"]) for m in scale["metrics"]] == [
+            ("/medians/0/query_ready_s", {"rel": 0.25}),
+            ("/medians/0/steady_p50_ms", {"rel": 0.25}),
+            ("/medians/0/steady_p95_ms", {"rel": 0.35}),
+        ]
+        assert all(m["name"].startswith("fathomdb ") for m in scale["metrics"])
+        assert scale["summary"].endswith("metrics.json") and scale["receipt"].startswith("comp-02a-")
+    filtered = next(b for b in manifest["benchmarks"] if b["id"] == "comp02b-10000")
+    expected = []
+    for index, cohort in ((0, "c01"), (2, "c10"), (4, "c33")):
+        expected += [(f"fathomdb {cohort} p50", f"/medians/{index}/p50_ms", {"rel": 0.25}),
+                     (f"fathomdb {cohort} p95", f"/medians/{index}/p95_ms", {"rel": 0.35}),
+                     (f"fathomdb {cohort} violations", f"/medians/{index}/violations", {"abs": 0}),
+                     (f"fathomdb {cohort} short results", f"/medians/{index}/short_results", {"abs": 0})]
+    assert [(m["name"], m["pointer"], m["tolerance"]) for m in filtered["metrics"]] == expected
+    assert filtered["receipt"].startswith("comp-02b-comp02b-10000-")
 
 
 def test_latency_harness_keeps_the_diagnostic_cells_and_percentiles():

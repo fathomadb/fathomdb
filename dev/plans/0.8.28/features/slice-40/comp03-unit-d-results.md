@@ -47,7 +47,7 @@ median 247 rounds, of which 2.3 s is embedding.
 | LanceDB FTS | 46 | 0.767 |
 
 Pairwise: FTS − LanceDB +0.050 [0.000, +0.117], three discordant, all won
-by FathomDB; hybrid − FTS −0.017 [−0.050, +0.083]; hybrid − LanceDB +0.033
+by FathomDB; hybrid − FTS −0.017 [−0.083, +0.050]; hybrid − LanceDB +0.033
 [−0.033, +0.100]. v1 at k = 5 was 42/60 for both FTS arms; the depth
 change is the largest mover and is not a paired comparison. Evidence
 length p50 is 20,326 characters, so the 20,000-character cap binds at

@@ -276,6 +276,10 @@ name = "slice40_cohort_prefilter"
 required-features = ["test-hooks"]
 
 [[test]]
+name = "slice40_vector_pool"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "slice30_cuda_error_kinds"
 required-features = ["test-hooks"]
 

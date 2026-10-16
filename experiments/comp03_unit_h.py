@@ -211,7 +211,7 @@ def _summary(measurement: Measurement, rule: Mapping[str, Any]) -> dict[str, Any
     out: dict[str, Any] = {"nfcorpus": dict(measurement["nfcorpus"])}
     for subset in ("selection", "answer_set"):
         mine = [r for r in rows if r["subset"] == subset]
-        metrics = sorted({k for r in mine for k in r if k.startswith("session_")})
+        metrics = sorted({k for r in mine for k in r if k.startswith("session_recall_")})
         out[subset] = {
             "n": len(mine),
             "overall": {m: _count(mine, m) for m in metrics},

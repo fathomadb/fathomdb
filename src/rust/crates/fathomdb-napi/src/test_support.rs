@@ -33,6 +33,10 @@ impl Engine {
                 cuda_pool_release_threshold: requested
                     .cuda_pool_release_threshold
                     .map(|threshold| threshold.as_str().to_string()),
+                query_stop_words: requested
+                    .query_stop_words
+                    .as_ref()
+                    .map(crate::admin::QueryStopWordsConfig::from_rust),
             })
         })
     }

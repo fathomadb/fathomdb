@@ -465,6 +465,8 @@ const PROJECTION_WORKERS: usize = 2;
 pub struct Engine {
     path: PathBuf,
     requested_config: EngineConfig,
+    /// The effective query stop words, shared with every reader worker.
+    query_stop_words: Arc<fathomdb_query::StopWordSet>,
     #[allow(dead_code)]
     resolved_config: ResolvedRuntimeConfiguration,
     next_cursor: AtomicU64,

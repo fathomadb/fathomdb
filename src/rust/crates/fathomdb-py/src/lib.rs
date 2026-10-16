@@ -264,6 +264,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyExpandedNode>()?;
     m.add_class::<PySearchExpandResult>()?;
     m.add_class::<PyRuntimeConfiguration>()?;
+    m.add("DEFAULT_STOP_WORDS_SHA256", fathomdb_engine::DEFAULT_STOP_WORDS_SHA256)?;
     m.add_function(wrap_pyfunction!(admin_configure_runtime, &m)?)?;
     m.add_function(wrap_pyfunction!(admin_configure, &m)?)?;
     // OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle verbs.

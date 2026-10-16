@@ -372,6 +372,7 @@ pub(super) struct PyQueryTrace {
     text_hits: u32,
     graph_hits: u32,
     dropped_edge_hits: u32,
+    stop_words_sha256: String,
 }
 
 impl PyQueryTrace {
@@ -390,6 +391,7 @@ impl PyQueryTrace {
             text_hits: t.text_hits,
             graph_hits: t.graph_hits,
             dropped_edge_hits: t.dropped_edge_hits,
+            stop_words_sha256: t.stop_words_sha256.clone(),
         }
     }
 }

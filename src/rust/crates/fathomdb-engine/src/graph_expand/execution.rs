@@ -22,7 +22,7 @@ use crate::structural_state::structural_dependency_state;
 use crate::temporal::FrozenView;
 use crate::wal_attribution::WalAttributionCollector;
 use crate::write_commit::load_next_cursor;
-use fathomdb_query::compile_text_query;
+use fathomdb_query::{compile_text_query_with, StopWordSet};
 use rusqlite::{Connection, OptionalExtension};
 
 use super::types::{
@@ -600,6 +600,7 @@ fn resolve_seeds(
     request: &GraphExpandRequestV1,
     view: FrozenView,
     filter: &SearchFilter,
+    stop_words: &StopWordSet,
 ) -> Result<Vec<ResolvedGraphSeedV1>, EngineError> {
     match &request.seed {
         GraphSeedV1::Explicit { logical_ids, .. } => logical_ids
@@ -621,7 +622,7 @@ fn resolve_seeds(
             })
             .collect(),
         GraphSeedV1::Query { text, ranked_limit, .. } => {
-            let compiled = compile_text_query(text);
+            let compiled = compile_text_query_with(text, stop_words);
             let mut params = vec![rusqlite::types::Value::Text(compiled.match_expression)];
             if let Some(now) = view.now_param() {
                 params.push(rusqlite::types::Value::Integer(now));
@@ -664,7 +665,9 @@ fn resolve_seeds(
     }
 }
 
-// Reader dispatch keeps each snapshot, evidence, attribution, and test seam explicit.
+/// [`read_graph_expand_with_stop_words_in_tx`] with the built-in stop list,
+/// for in-crate tests that drive the reader transaction directly.
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn read_graph_expand_in_tx(
     reader: &mut Connection,
@@ -673,6 +676,33 @@ pub(crate) fn read_graph_expand_in_tx(
     projection_runtime_state: ProjectionRuntimeStateV1,
     evidence_authority: Option<&crate::evidence::GraphEvidenceAuthority>,
     #[cfg(feature = "test-hooks")] test_controls: &GraphExpandReaderControlsForTest,
+    attribution: &std::sync::Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> Result<GraphExpandResultV1, EngineError> {
+    read_graph_expand_with_stop_words_in_tx(
+        reader,
+        request,
+        frozen_binding,
+        projection_runtime_state,
+        evidence_authority,
+        #[cfg(feature = "test-hooks")]
+        test_controls,
+        &StopWordSet::default(),
+        attribution,
+        worker_idx,
+    )
+}
+
+// Reader dispatch keeps each snapshot, evidence, attribution, and test seam explicit.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn read_graph_expand_with_stop_words_in_tx(
+    reader: &mut Connection,
+    request: &GraphExpandRequestV1,
+    frozen_binding: Option<&frozen_read::FrozenReadBinding>,
+    projection_runtime_state: ProjectionRuntimeStateV1,
+    evidence_authority: Option<&crate::evidence::GraphEvidenceAuthority>,
+    #[cfg(feature = "test-hooks")] test_controls: &GraphExpandReaderControlsForTest,
+    stop_words: &StopWordSet,
     attribution: &std::sync::Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<GraphExpandResultV1, EngineError> {
@@ -708,7 +738,7 @@ pub(crate) fn read_graph_expand_in_tx(
         },
     )?;
     let view = context.view.freeze();
-    let seeds = resolve_seeds(&tx, request, view, &context.eligibility)?;
+    let seeds = resolve_seeds(&tx, request, view, &context.eligibility, stop_words)?;
     let seed_source = match request.seed {
         GraphSeedV1::Query { .. } => GraphSeedSourceV1::Query,
         GraphSeedV1::Explicit { .. } => GraphSeedSourceV1::Explicit,

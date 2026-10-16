@@ -38,6 +38,12 @@ export interface ContextPolicy {
   fullItems?: number;
   compactChars?: number;
   keepRoles?: readonly string[];
+  /**
+   * Item ids that render in the full tier wherever they are selected, without
+   * using a `fullItems` slot, reserving budget or moving in the order. Every
+   * id must match an input item; an unselected match has no effect.
+   */
+  fullIds?: readonly string[];
   expandGroups?: boolean;
   order?: "rank" | "chronological";
 }
@@ -49,6 +55,7 @@ export const DEFAULT_CONTEXT_POLICY: Readonly<Required<ContextPolicy>> = Object.
   fullItems: 3,
   compactChars: 300,
   keepRoles: Object.freeze(["user"]),
+  fullIds: Object.freeze([]),
   expandGroups: true,
   order: "rank",
 });
@@ -71,6 +78,8 @@ export interface ContextPackEntry {
   tier: "full" | "compact" | "omitted";
   chars: number;
   truncated: boolean;
+  /** True when the id is in `fullIds` and the item rendered full only because of it. */
+  forced: boolean;
   renderedIndex: number | null;
   parts: ContextPartEntry[];
 }
@@ -123,6 +132,12 @@ function policyWire(policy: ContextPolicy): Record<string, unknown> {
     wire.compact_chars = safeCount(policy.compactChars, "policy.compactChars (policy.compact_chars)");
   }
   if (policy.keepRoles !== undefined) wire.keep_roles = Array.from(policy.keepRoles);
+  if (policy.fullIds !== undefined) {
+    if (!Array.isArray(policy.fullIds)) {
+      throw new TypeError("policy.fullIds must be an array of item ids");
+    }
+    wire.full_ids = Array.from(policy.fullIds);
+  }
   if (policy.expandGroups !== undefined) wire.expand_groups = policy.expandGroups;
   if (policy.order !== undefined) wire.order = policy.order;
   return wire;
@@ -134,6 +149,7 @@ interface WireEntry {
   tier: "full" | "compact" | "omitted";
   chars: number;
   truncated: boolean;
+  forced: boolean;
   rendered_index: number | null;
   parts: { role: string | null; chars: number; of_chars: number }[];
 }
@@ -150,8 +166,9 @@ interface WireEntry {
  * @throws InvalidArgumentError naming the field, for a zero `budgetChars` or
  *   `itemChars`, a negative, non-integer or non-safe-integer count (NaN,
  *   Infinity and values beyond 2^53 are refused before serialization), an unknown `order`, an empty
- *   or repeated id, or a grouped `context` item without `position` while
- *   `expandGroups` is on.
+ *   or repeated id, an empty, repeated or unknown `fullIds` entry, or a grouped
+ *   `context` item without `position` while `expandGroups` is on.
+ * @throws TypeError when `fullIds` is not an array.
  */
 export function packContext(
   hits: readonly ContextItem[],
@@ -179,6 +196,7 @@ export function packContext(
       tier: entry.tier,
       chars: entry.chars,
       truncated: entry.truncated,
+      forced: entry.forced,
       renderedIndex: entry.rendered_index,
       parts: entry.parts.map((p) => ({ role: p.role, chars: p.chars, ofChars: p.of_chars })),
     })),

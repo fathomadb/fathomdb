@@ -454,6 +454,8 @@ pub struct OpenReport {
     /// failure inside the witness and fails the open, so a zero-valued record
     /// is not reachable here.
     pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
+    /// SHA-256 (lowercase hex) of the engine's effective query stop words.
+    pub stop_words_sha256: String,
 }
 
 impl OpenReport {
@@ -483,6 +485,7 @@ impl OpenReport {
                 .embedder_gpu_allocation_witness
                 .as_ref()
                 .map(GpuAllocationWitness::from_rust),
+            stop_words_sha256: r.stop_words_sha256.clone(),
         }
     }
 }

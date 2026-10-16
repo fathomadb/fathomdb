@@ -67,6 +67,7 @@ pub(super) fn engine_config_from_py(
                 | "cuda_pool"
                 | "cuda_pool_max_size"
                 | "cuda_pool_release_threshold"
+                | "query_stop_words"
         ) {
             return Err(PyTypeError::new_err(format!("unknown engine config field: {name}")));
         }
@@ -119,8 +120,49 @@ pub(super) fn engine_config_from_py(
             },
             "0 or max",
         )?,
-        query_stop_words: None,
+        query_stop_words: query_stop_words_from_py(config)?,
     })
+}
+
+/// `{"base": "fathomdb" | "none", "extra": [str], "keep": [str]}` or `None`;
+/// the core validates the words.
+fn query_stop_words_from_py(
+    config: &Bound<'_, PyDict>,
+) -> PyResult<Option<fathomdb_engine::QueryStopWords>> {
+    let Some(value) = config.get_item("query_stop_words")? else {
+        return Ok(None);
+    };
+    if value.is_none() {
+        return Ok(None);
+    }
+    let setting = value
+        .cast::<PyDict>()
+        .map_err(|_| PyTypeError::new_err("query_stop_words must be a dict"))?;
+    let base = match setting.get_item("base")? {
+        None => fathomdb_engine::StopWordBase::Fathomdb,
+        Some(raw) => match raw
+            .extract::<String>()
+            .map_err(|_| PyTypeError::new_err("query_stop_words.base must be a str"))?
+            .as_str()
+        {
+            "fathomdb" => fathomdb_engine::StopWordBase::Fathomdb,
+            "none" => fathomdb_engine::StopWordBase::None,
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "query_stop_words.base={other:?}: expected fathomdb or none"
+                )))
+            }
+        },
+    };
+    let words = |key: &str| -> PyResult<Vec<String>> {
+        match setting.get_item(key)? {
+            None => Ok(Vec::new()),
+            Some(list) => list.extract::<Vec<String>>().map_err(|_| {
+                PyTypeError::new_err(format!("query_stop_words.{key} must be a list of str"))
+            }),
+        }
+    };
+    Ok(Some(fathomdb_engine::QueryStopWords { base, extra: words("extra")?, keep: words("keep")? }))
 }
 
 #[pyclass(module = "fathomdb._fathomdb", name = "Engine")]

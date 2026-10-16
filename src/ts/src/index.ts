@@ -56,7 +56,13 @@ export {
   encodeRoundBody,
   packContext,
 } from "./context-pack.js";
-export { EngineConfig, EngineOpenOptions, Engine } from "./core.js";
+export {
+  DEFAULT_STOP_WORDS_SHA256,
+  EngineConfig,
+  EngineOpenOptions,
+  Engine,
+  QueryStopWords,
+} from "./core.js";
 export {
   ProjectionReadinessV1,
   ProjectionRuntimeStateV1,

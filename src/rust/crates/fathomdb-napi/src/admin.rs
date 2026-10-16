@@ -68,6 +68,53 @@ pub struct EngineConfig {
     pub cuda_pool_max_size: Option<f64>,
     /// `"0"` or `"max"`.
     pub cuda_pool_release_threshold: Option<String>,
+    /// Query stop words; `None` is the built-in list.
+    pub query_stop_words: Option<QueryStopWordsConfig>,
+}
+
+/// `{ base?: "fathomdb" | "none", extra?: string[], keep?: string[] }`; the
+/// core validates the words.
+#[napi(object)]
+pub struct QueryStopWordsConfig {
+    pub base: Option<String>,
+    pub extra: Option<Vec<String>>,
+    pub keep: Option<Vec<String>>,
+}
+
+impl QueryStopWordsConfig {
+    pub(crate) fn into_rust(self) -> Result<fathomdb_engine::QueryStopWords> {
+        let base = match self.base.as_deref() {
+            None | Some("fathomdb") => fathomdb_engine::StopWordBase::Fathomdb,
+            Some("none") => fathomdb_engine::StopWordBase::None,
+            Some(other) => {
+                return Err(invalid_config_string(
+                    "query_stop_words.base",
+                    other,
+                    "fathomdb or none",
+                ))
+            }
+        };
+        Ok(fathomdb_engine::QueryStopWords {
+            base,
+            extra: self.extra.unwrap_or_default(),
+            keep: self.keep.unwrap_or_default(),
+        })
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    pub(crate) fn from_rust(setting: &fathomdb_engine::QueryStopWords) -> Self {
+        Self {
+            base: Some(
+                match setting.base {
+                    fathomdb_engine::StopWordBase::Fathomdb => "fathomdb",
+                    fathomdb_engine::StopWordBase::None => "none",
+                }
+                .to_string(),
+            ),
+            extra: Some(setting.extra.clone()),
+            keep: Some(setting.keep.clone()),
+        }
+    }
 }
 
 fn invalid_config_string(field: &str, value: &str, expected: &str) -> napi::Error {
@@ -160,7 +207,10 @@ impl EngineConfig {
                     }
                 })
                 .transpose()?,
-            query_stop_words: None,
+            query_stop_words: self
+                .query_stop_words
+                .map(QueryStopWordsConfig::into_rust)
+                .transpose()?,
         })
     }
 }

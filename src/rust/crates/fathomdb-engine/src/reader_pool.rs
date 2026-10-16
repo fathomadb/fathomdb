@@ -506,6 +506,7 @@ fn reader_worker_loop(
     shutdown: Arc<AtomicBool>,
     worker_idx: usize,
     wal_attribution: Arc<WalAttributionCollector>,
+    stop_words: Arc<StopWordSet>,
     ready: SyncSender<()>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
@@ -545,6 +546,7 @@ fn reader_worker_loop(
                     filter.as_deref(),
                     limit,
                     view,
+                    &stop_words,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -562,6 +564,7 @@ fn reader_worker_loop(
                         &mut connection,
                         work,
                         NoEvidenceCapture,
+                        &stop_words,
                         &wal_attribution,
                         worker_idx,
                     )
@@ -582,6 +585,7 @@ fn reader_worker_loop(
                     &mut connection,
                     work,
                     EvidenceCapture::new(frozen, include_explanation),
+                    &stop_words,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -694,7 +698,7 @@ fn reader_worker_loop(
                         Some(graph_expand::count_graph_expand_sql_statement),
                     );
                 }
-                let result = graph_expand::read_graph_expand_in_tx(
+                let result = graph_expand::read_graph_expand_with_stop_words_in_tx(
                     &mut connection,
                     &request.request,
                     request.frozen_binding.as_deref(),
@@ -702,6 +706,7 @@ fn reader_worker_loop(
                     request.evidence_authority.as_ref(),
                     #[cfg(feature = "test-hooks")]
                     &request.test_controls,
+                    &stop_words,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -942,6 +947,7 @@ impl ReaderWorkerPool {
     pub(crate) fn new(
         connections: Vec<Connection>,
         wal_attribution: Arc<WalAttributionCollector>,
+        stop_words: Arc<StopWordSet>,
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
         >,
@@ -956,6 +962,7 @@ impl ReaderWorkerPool {
             let live = Arc::clone(&live_workers);
             let worker_shutdown = Arc::clone(&shutdown);
             let attribution = Arc::clone(&wal_attribution);
+            let worker_stop_words = Arc::clone(&stop_words);
             let ready = ready_tx.clone();
             #[cfg(any(test, feature = "test-hooks"))]
             let worker_connections = Arc::clone(&managed_connections);
@@ -969,6 +976,7 @@ impl ReaderWorkerPool {
                         worker_shutdown,
                         idx,
                         attribution,
+                        worker_stop_words,
                         ready,
                         #[cfg(any(test, feature = "test-hooks"))]
                         worker_connections,
@@ -1289,6 +1297,7 @@ use crate::wal_attribution::{WalAttributionCollector, WalAttributionRole};
 use crate::Engine;
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::ManagedConnectionRegistry;
+use fathomdb_query::StopWordSet;
 use rusqlite::Connection;
 use std::fmt::Formatter;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};

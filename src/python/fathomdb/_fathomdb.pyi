@@ -139,6 +139,7 @@ class QueryTrace:
     text_hits: int
     graph_hits: int
     dropped_edge_hits: int
+    stop_words_sha256: str
 
 class PerHitExplain:
     # 0.8.8 EXP-OBS (Slice 10) — per-hit provenance + score breakdown.
@@ -435,6 +436,7 @@ class OpenReport:
     reranker_device_resolution: DeviceResolution | None
     # `None` means no witness was taken, never "a witness measured nothing".
     embedder_gpu_allocation_witness: GpuAllocationWitness | None
+    stop_words_sha256: str
 
 class Engine:
     @staticmethod
@@ -820,6 +822,8 @@ def search_expand(
     and traversal neighbors appear only in ``search_hits`` (deduplicated).
     """
     ...
+
+DEFAULT_STOP_WORDS_SHA256: str
 
 def _pack_context_json(request: str) -> str:
     """0.8.28 Slice 41 — context pack JSON wire; use ``fathomdb.pack_context``."""

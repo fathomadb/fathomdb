@@ -524,7 +524,7 @@ impl Engine {
         // `InvalidFilter`. Moving it there also removes a per-filtered-search writer
         // lock and the fix-2 concurrent-ADD false-reject (the reader snapshot sees a
         // freshly-added declaration and accepts).
-        let compiled = (!is_frozen).then(|| compile_text_query(query));
+        let compiled = (!is_frozen).then(|| compile_text_query_with(query, &self.query_stop_words));
         // REQ-013 / AC-059b / REQ-055: the cursor returned with a search
         // MUST be derived from the same WAL snapshot the data was read
         // from. Loading `next_cursor` from the writer-side atomic before
@@ -1030,7 +1030,7 @@ impl Engine {
         if query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
         }
-        let compiled = compile_text_query(query);
+        let compiled = compile_text_query_with(query, &self.query_stop_words);
         let candidate_limit =
             self.projection_runtime.shared.search_limit_override.load(Ordering::SeqCst).max(limit);
         let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
@@ -1381,7 +1381,7 @@ use crate::temporal::ReadView;
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::test_hooks::evidence_linearization_hooks;
 use crate::Engine;
-use fathomdb_query::compile_text_query;
+use fathomdb_query::compile_text_query_with;
 use std::sync::atomic::Ordering;
 use std::sync::{mpsc, Arc};
 use std::time::Instant;

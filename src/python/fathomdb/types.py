@@ -1107,6 +1107,10 @@ class QueryTrace:
     #: Edge-FTS candidates excluded only by a node-scoped attribute predicate.
     #: Present on the opt-in ``explain=True`` sidecar so the exclusion is visible.
     dropped_edge_hits: int
+    #: SHA-256 (lowercase hex) of the engine's effective query stop words,
+    #: sorted and joined by newline; ``DEFAULT_STOP_WORDS_SHA256`` for the
+    #: built-in list.
+    stop_words_sha256: str = ""
 
 
 @dataclass(frozen=True)
@@ -1476,6 +1480,9 @@ class OpenReport:
     # failure inside the witness and fails the open, so a zero-valued record is
     # not reachable through this attribute.
     embedder_gpu_allocation_witness: GpuAllocationWitness | None = None
+    #: SHA-256 (lowercase hex) of the engine's effective query stop words, so a
+    #: receipt can record it without running a query.
+    stop_words_sha256: str = ""
 
 
 @dataclass(frozen=True)

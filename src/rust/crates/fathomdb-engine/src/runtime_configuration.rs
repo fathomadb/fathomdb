@@ -223,8 +223,7 @@ impl Display for EngineConfigurationError {
             }
             Self::CudaPoolSettingConflict(conflict) => conflict.fmt(f),
             Self::QueryStopWords { field, index, reason } => {
-                let error =
-                    fathomdb_query::StopWordError { field: *field, index: *index, reason: *reason };
+                let error = fathomdb_query::StopWordError { field, index: *index, reason: *reason };
                 write!(f, "engine configuration {error}")
             }
         }
@@ -307,6 +306,23 @@ impl ResolvedRuntimeConfiguration {
             embed_waiting_capacity,
             projection_admission_capacity,
         })
+    }
+}
+
+/// Validate `query_stop_words` and build the engine's effective set; unset is
+/// the built-in list.
+pub(crate) fn resolve_query_stop_words(
+    config: &EngineConfig,
+) -> Result<fathomdb_query::StopWordSet, EngineConfigurationError> {
+    match &config.query_stop_words {
+        None => Ok(fathomdb_query::StopWordSet::default()),
+        Some(setting) => {
+            setting.validate().map_err(|error| EngineConfigurationError::QueryStopWords {
+                field: error.field,
+                index: error.index,
+                reason: error.reason,
+            })
+        }
     }
 }
 

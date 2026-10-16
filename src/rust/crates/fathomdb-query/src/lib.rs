@@ -45,8 +45,7 @@ const STOPWORDS: &[&str] = &[
 /// FTS5 control character (`*`, `"`, `:`, `^`, `(`, `)`, `,`), so the emitted
 /// tokens are pure literals — the injection-safety property (AC-038).
 #[must_use]
-fn content_tokens(raw: &str) -> Vec<String> {
-    let stop: HashSet<&str> = STOPWORDS.iter().copied().collect();
+fn content_tokens(raw: &str, stop: &StopWordSet) -> Vec<String> {
     let mut seen: HashSet<String> = HashSet::new();
     let mut out: Vec<String> = Vec::new();
     for token in raw.to_lowercase().split(|c: char| !c.is_alphanumeric()) {
@@ -74,8 +73,20 @@ fn content_tokens(raw: &str) -> Vec<String> {
 /// such a query still searches instead of returning nothing.
 #[must_use]
 pub fn compile_text_query(raw: impl Into<String>) -> CompiledQuery {
+    compile_text_query_with(raw, default_stop_words())
+}
+
+fn default_stop_words() -> &'static StopWordSet {
+    static DEFAULT: std::sync::OnceLock<StopWordSet> = std::sync::OnceLock::new();
+    DEFAULT.get_or_init(|| StopWordSet::from_words(STOPWORDS.iter().map(|w| (*w).to_string())))
+}
+
+/// [`compile_text_query`] with an explicit effective stop-word set; with
+/// [`StopWordSet::default`] the output is identical.
+#[must_use]
+pub fn compile_text_query_with(raw: impl Into<String>, stop_words: &StopWordSet) -> CompiledQuery {
     let raw = raw.into();
-    let content = content_tokens(&raw);
+    let content = content_tokens(&raw, stop_words);
     let match_expression = if content.is_empty() {
         raw.split_whitespace()
             .filter(|token| !token.is_empty())
@@ -198,11 +209,19 @@ pub struct StopWordSet {
 
 impl Default for StopWordSet {
     fn default() -> Self {
-        todo!("Slice 41 unit Q")
+        default_stop_words().clone()
     }
 }
 
 impl StopWordSet {
+    fn from_words(words: impl IntoIterator<Item = String>) -> Self {
+        use sha2::{Digest, Sha256};
+        let words: BTreeSet<String> = words.into_iter().collect();
+        let joined = words.iter().map(String::as_str).collect::<Vec<_>>().join("\n");
+        let sha256 = Sha256::digest(joined.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+        Self { words, sha256 }
+    }
+
     /// SHA-256 (lowercase hex) of the words sorted by Unicode scalar value and
     /// joined by `"\n"`.
     #[must_use]
@@ -232,16 +251,69 @@ impl QueryStopWords {
     /// both lists, a `keep` word outside `base` (any `keep` word when `base`
     /// is [`StopWordBase::None`]) or an `extra` word already in `base`.
     pub fn validate(&self) -> Result<StopWordSet, StopWordError> {
-        todo!("Slice 41 unit Q")
+        const EXTRA: &str = "query_stop_words.extra";
+        const KEEP: &str = "query_stop_words.keep";
+        let base: HashSet<&str> = match self.base {
+            StopWordBase::Fathomdb => STOPWORDS.iter().copied().collect(),
+            StopWordBase::None => HashSet::new(),
+        };
+        check_tokens(EXTRA, &self.extra)?;
+        check_tokens(KEEP, &self.keep)?;
+        let extra: HashSet<&str> = self.extra.iter().map(String::as_str).collect();
+        for (index, word) in self.extra.iter().enumerate() {
+            if base.contains(word.as_str()) {
+                return Err(refused(EXTRA, Some(index), StopWordRejection::ExtraAlreadyInBase));
+            }
+        }
+        for (index, word) in self.keep.iter().enumerate() {
+            if extra.contains(word.as_str()) {
+                return Err(refused(KEEP, Some(index), StopWordRejection::InExtraAndKeep));
+            }
+            if !base.contains(word.as_str()) {
+                return Err(refused(KEEP, Some(index), StopWordRejection::KeepNotInBase));
+            }
+        }
+        let keep: HashSet<&str> = self.keep.iter().map(String::as_str).collect();
+        Ok(StopWordSet::from_words(
+            base.iter()
+                .copied()
+                .chain(extra.iter().copied())
+                .filter(|word| !keep.contains(word))
+                .map(str::to_string),
+        ))
     }
 }
 
-/// [`compile_text_query`] with an explicit effective stop-word set; with
-/// [`StopWordSet::default`] the output is identical.
-#[must_use]
-pub fn compile_text_query_with(raw: impl Into<String>, stop_words: &StopWordSet) -> CompiledQuery {
-    let _ = (raw.into(), stop_words);
-    todo!("Slice 41 unit Q")
+fn refused(field: &'static str, index: Option<usize>, reason: StopWordRejection) -> StopWordError {
+    StopWordError { field, index, reason }
+}
+
+/// Per-word and per-list rules shared by `extra` and `keep`: each word is one
+/// token as the compiler would emit it, and no list exceeds its cap or repeats.
+fn check_tokens(field: &'static str, words: &[String]) -> Result<(), StopWordError> {
+    if words.len() > MAX_STOP_WORDS_PER_LIST {
+        return Err(refused(field, None, StopWordRejection::TooMany));
+    }
+    let mut seen: HashSet<&str> = HashSet::new();
+    for (index, word) in words.iter().enumerate() {
+        let reason = if word.is_empty() {
+            Some(StopWordRejection::Empty)
+        } else if word.chars().count() > MAX_STOP_WORD_CHARS {
+            Some(StopWordRejection::TooLong)
+        } else if !word.chars().all(char::is_alphanumeric) {
+            Some(StopWordRejection::NotAlphanumeric)
+        } else if word.to_lowercase() != *word {
+            Some(StopWordRejection::NotLowercase)
+        } else if !seen.insert(word.as_str()) {
+            Some(StopWordRejection::Repeated)
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            return Err(refused(field, Some(index), reason));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -313,6 +313,7 @@ interface NativeQueryTrace {
   textHits: number;
   graphHits: number;
   droppedEdgeHits: number;
+  stopWordsSha256?: string;
 }
 
 export interface NativePerHitExplain {
@@ -655,6 +656,7 @@ export interface NativeOpenReport {
   // 0.8.23 Slice 80.6 (D-80.6-6) — `null` means no witness was taken, never
   // "a witness measured nothing".
   embedderGpuAllocationWitness?: NativeGpuAllocationWitness | null;
+  stopWordsSha256?: string;
 }
 
 interface NativeCounterSnapshot {
@@ -675,6 +677,7 @@ interface NativeEngineConfig {
   cudaPool?: string;
   cudaPoolMaxSize?: number;
   cudaPoolReleaseThreshold?: string;
+  queryStopWords?: { base?: string; extra?: readonly string[]; keep?: readonly string[] };
 }
 
 // Slice 20 (G5/G6) — graph traversal result shapes.

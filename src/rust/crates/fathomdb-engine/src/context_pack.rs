@@ -104,7 +104,8 @@ pub enum ContextSource {
 /// The rule an item was rendered under; `Omitted` means not rendered.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ContextTier {
-    /// Every part rendered (selection index below `full_items`).
+    /// Every part rendered (selection index below `full_items`, or forced by
+    /// `full_ids`).
     Full,
     /// Kept-role parts whole, the rest cut from the shared allowance.
     Compact,
@@ -194,7 +195,9 @@ pub const ROUND_BODY_ROLES: [(Option<&str>, char); 5] = [
 /// Selection is the hits in input order, then, when `expand_groups` is on, for
 /// each hit group in order of its first hit the `context` items of that group
 /// ordered by `position` (input order breaks ties). Selection index `i <
-/// full_items` renders every part; later items keep role-`None` and
+/// full_items`, and any selected item whose id is in `full_ids`, renders every
+/// part; forced items take no `full_items` slot, get no reserved budget and
+/// are never moved. Later items keep role-`None` and
 /// `keep_roles` parts whole and cut the other parts, in order, from one shared
 /// `compact_chars` allowance, dropping any that render nothing. Item text is
 /// the parts joined by `"\n"`, cut to `item_chars` and then to the budget left;
@@ -203,7 +206,8 @@ pub const ROUND_BODY_ROLES: [(Option<&str>, char); 5] = [
 ///
 /// # Errors
 /// [`ContextPackError`] for a zero `budget_chars` or `item_chars`, an empty or
-/// repeated id, or a grouped `context` item without `position` while
+/// repeated id, an empty, repeated or unknown `full_ids` entry (checked after
+/// the item ids), or a grouped `context` item without `position` while
 /// `expand_groups` is on.
 pub fn pack_context(
     hits: &[ContextItem],
@@ -262,6 +266,7 @@ pub fn pack_context(
         }
     }
 
+    let forced_ids: HashSet<&str> = policy.full_ids.iter().map(String::as_str).collect();
     let mut remaining = policy.budget_chars;
     let mut rendered: Vec<(usize, usize, String)> = Vec::new();
     for (index, &global) in selection.iter().enumerate() {
@@ -269,7 +274,8 @@ pub fn pack_context(
             break;
         }
         let item = items[global].0;
-        let full = index < policy.full_items;
+        let forced = index >= policy.full_items && forced_ids.contains(item.id.as_str());
+        let full = index < policy.full_items || forced;
         let mut allowance = policy.compact_chars;
         let mut kept: Vec<(usize, &str)> = Vec::new();
         for (k, part) in item.parts.iter().enumerate() {
@@ -307,6 +313,7 @@ pub fn pack_context(
             left -= shown;
         }
         entry.tier = if full { ContextTier::Full } else { ContextTier::Compact };
+        entry.forced = forced;
         entry.chars = chars;
         entry.truncated = entry.parts.iter().any(|part| part.chars < part.of_chars);
         remaining -= chars;
@@ -363,6 +370,22 @@ fn validate(
                     item.id
                 )));
             }
+        }
+    }
+    let mut forced: HashSet<&str> = HashSet::new();
+    for (i, id) in policy.full_ids.iter().enumerate() {
+        if id.is_empty() {
+            return Err(ContextPackError::new(format!("policy.full_ids[{i}] must not be empty")));
+        }
+        if !forced.insert(id.as_str()) {
+            return Err(ContextPackError::new(format!(
+                "policy.full_ids[{i}] {id:?} repeats an earlier id"
+            )));
+        }
+        if !seen.contains(id.as_str()) {
+            return Err(ContextPackError::new(format!(
+                "policy.full_ids[{i}] {id:?} matches no item in hits or context"
+            )));
         }
     }
     if policy.expand_groups {
@@ -593,6 +616,13 @@ fn parse_policy(value: Option<&Value>) -> Result<ContextPolicy, ContextPackError
             "item_chars" => policy.item_chars = usize_count(value, &path)?,
             "full_items" => policy.full_items = usize_count(value, &path)?,
             "compact_chars" => policy.compact_chars = usize_count(value, &path)?,
+            "full_ids" => {
+                policy.full_ids = array(value, &path)?
+                    .iter()
+                    .enumerate()
+                    .map(|(i, id)| string(id, &format!("{path}[{i}]")))
+                    .collect::<Result<_, _>>()?;
+            }
             "keep_roles" => {
                 policy.keep_roles = array(value, &path)?
                     .iter()
@@ -653,6 +683,7 @@ fn pack_value(pack: &ContextPack) -> Value {
                 "tier": tier_name(entry.tier),
                 "chars": entry.chars,
                 "truncated": entry.truncated,
+                "forced": entry.forced,
                 "rendered_index": entry.rendered_index,
                 "parts": parts,
             })

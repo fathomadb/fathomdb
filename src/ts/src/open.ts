@@ -196,6 +196,11 @@ export interface OpenReport {
    *  failure inside the witness and fails the open, so a zero-valued record is
    *  not reachable here. */
   readonly embedderGpuAllocationWitness: GpuAllocationWitness | null;
+  /**
+   * SHA-256 (lowercase hex) of the engine's effective query stop words, so a
+   * receipt can record it without running a query.
+   */
+  readonly stopWordsSha256: string;
 }
 
 /**
@@ -446,6 +451,7 @@ export function mapOpenReport(r: NativeOpenReport): OpenReport {
     embedderGpuAllocationWitness: r.embedderGpuAllocationWitness
       ? mapGpuAllocationWitness(r.embedderGpuAllocationWitness)
       : null,
+    stopWordsSha256: r.stopWordsSha256 ?? "",
   };
 }
 

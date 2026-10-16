@@ -53,13 +53,20 @@ class ContextItem:
 
 @dataclass(frozen=True)
 class ContextPolicy:
-    """Budget and tier settings; the defaults are the product defaults."""
+    """Budget and tier settings; the defaults are the product defaults.
+
+    ``full_ids`` lists item ids that render in the full tier wherever they are
+    selected, without using a ``full_items`` slot, reserving budget or moving
+    in the order. Every id must match an input item; an unselected match has
+    no effect.
+    """
 
     budget_chars: int = 30000
     item_chars: int = 4000
     full_items: int = 3
     compact_chars: int = 300
     keep_roles: tuple[str, ...] = ("user",)
+    full_ids: tuple[str, ...] = ()
     expand_groups: bool = True
     order: ContextOrder = "rank"
 
@@ -79,7 +86,9 @@ class ContextPackEntry:
 
     ``chars`` counts the item text including the ``"\\n"`` joins between parts.
     ``truncated`` is true when a rendered item shows fewer characters of some
-    part than it has; it is false for omitted items.
+    part than it has; it is false for omitted items. ``forced`` is true when
+    the id is in ``full_ids`` and the item rendered in the full tier only
+    because of it.
     """
 
     id: str
@@ -89,6 +98,7 @@ class ContextPackEntry:
     truncated: bool
     rendered_index: int | None
     parts: tuple[ContextPartEntry, ...]
+    forced: bool = False
 
 
 @dataclass(frozen=True)
@@ -141,12 +151,15 @@ def _policy_wire(policy: ContextPolicy) -> dict[str, Any]:
         raise TypeError(f"policy must be ContextPolicy, got {type(policy).__name__}")
     if isinstance(policy.keep_roles, str):
         raise TypeError("policy.keep_roles must be a sequence of role strings, not a str")
+    if isinstance(policy.full_ids, str):
+        raise TypeError("policy.full_ids must be a sequence of item ids, not a str")
     return {
         "budget_chars": _count_wire(policy.budget_chars),
         "item_chars": _count_wire(policy.item_chars),
         "full_items": _count_wire(policy.full_items),
         "compact_chars": _count_wire(policy.compact_chars),
         "keep_roles": list(policy.keep_roles),
+        "full_ids": list(policy.full_ids),
         "expand_groups": policy.expand_groups,
         "order": policy.order,
     }
@@ -165,6 +178,7 @@ def _pack_from_wire(value: dict[str, Any]) -> ContextPack:
                 chars=entry["chars"],
                 truncated=entry["truncated"],
                 rendered_index=entry["rendered_index"],
+                forced=entry["forced"],
                 parts=tuple(
                     ContextPartEntry(role=p["role"], chars=p["chars"], of_chars=p["of_chars"])
                     for p in entry["parts"]
@@ -189,10 +203,11 @@ def pack_context(
     Raises:
         InvalidArgumentError: the message names the offending field, for a zero
             ``budget_chars`` or ``item_chars``, a negative or non-integer count,
-            an unknown ``order``, an empty or repeated id, or a grouped
+            an unknown ``order``, an empty or repeated id, an empty, repeated
+            or unknown ``policy.full_ids`` entry, or a grouped
             ``context`` item without ``position`` while ``expand_groups`` is on.
         TypeError: an argument is not the documented dataclass, or
-            ``policy.keep_roles`` is a bare ``str``.
+            ``policy.keep_roles`` or ``policy.full_ids`` is a bare ``str``.
     """
     request = {
         "hits": [_item_wire(item) for item in hits],

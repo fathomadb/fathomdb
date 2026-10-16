@@ -515,6 +515,8 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         ResolvedRuntimeConfiguration::resolve(&config)
             .map_err(EngineOpenError::EngineConfiguration)?;
+        crate::runtime_configuration::resolve_query_stop_words(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
         // Before the embedder choice: the default embedder's device probe
         // builds the process's first CUDA device.
         crate::runtime_configuration::claim_cuda_pool(&config)
@@ -760,6 +762,10 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         let resolved_config = ResolvedRuntimeConfiguration::resolve(&plan.config)
             .map_err(EngineOpenError::EngineConfiguration)?;
+        let query_stop_words = Arc::new(
+            crate::runtime_configuration::resolve_query_stop_words(&plan.config)
+                .map_err(EngineOpenError::EngineConfiguration)?,
+        );
         // Every open path passes here; repeating the claim is idempotent.
         crate::runtime_configuration::claim_cuda_pool(&plan.config)
             .map_err(EngineOpenError::EngineConfiguration)?;
@@ -866,6 +872,7 @@ impl Engine {
                 );
                 report.dense_disabled = veq.dense_disabled;
                 report.dense_disabled_reason = veq.reason.clone();
+                report.stop_words_sha256 = query_stop_words.sha256().to_string();
 
                 let mut startup =
                     OpenPostProbeGuard::new(connection, readers, lock, Arc::clone(&embed_dispatch));
@@ -963,6 +970,7 @@ impl Engine {
                     engine: Self {
                         path: canonical_path.clone(),
                         requested_config: config,
+                        query_stop_words: Arc::clone(&query_stop_words),
                         resolved_config,
                         next_cursor: AtomicU64::new(next_cursor),
                         read_visibility_generation: Arc::new(AtomicU64::new(
@@ -987,6 +995,7 @@ impl Engine {
                         reader_pool: ReaderWorkerPool::new(
                             parts.readers,
                             Arc::clone(&wal_attribution),
+                            Arc::clone(&query_stop_words),
                             #[cfg(any(test, feature = "test-hooks"))]
                             Arc::clone(&managed_connections),
                         ),

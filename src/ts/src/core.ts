@@ -99,6 +99,57 @@ export interface EngineConfig {
   readonly cudaPoolMaxSize?: number;
   /** GPU memory pool release threshold, `"0"` (default) or `"max"`. */
   readonly cudaPoolReleaseThreshold?: "0" | "max";
+  /**
+   * Query stop words for this engine; `undefined` is the built-in list. Fixed
+   * at open, not stored in the database, and recorded as `stopWordsSha256` on
+   * the open report and on explain traces.
+   */
+  readonly queryStopWords?: QueryStopWords;
+}
+
+/**
+ * Query stop words: `(base ∪ extra) \ keep`. `base` is `"fathomdb"` (the
+ * built-in list, the default) or `"none"`. Each word is one lowercase
+ * alphanumeric token, at most 64 characters, at most 256 per list, matched
+ * exactly against the query's tokens before stemming and without diacritic
+ * folding (`suggest` does not drop `suggests`). Every `keep` word must be in
+ * `base` and no `extra` word may be; a violation rejects `Engine.open` with
+ * `InvalidArgumentError` naming the field.
+ */
+export interface QueryStopWords {
+  readonly base?: "fathomdb" | "none";
+  readonly extra?: readonly string[];
+  readonly keep?: readonly string[];
+}
+
+/** SHA-256 of the built-in query stop list (sorted, newline-joined). */
+export const DEFAULT_STOP_WORDS_SHA256 =
+  "ac9a853797f038a1d05302bb0ebca4ced9fab9f2b02e211148292d260d6e7367";
+
+function snapshotQueryStopWords(value: unknown): QueryStopWords {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("engineConfig.queryStopWords must be an object");
+  }
+  const setting = value as Record<string, unknown>;
+  const base = setting.base;
+  if (base !== undefined && base !== "fathomdb" && base !== "none") {
+    throw new TypeError("engineConfig.queryStopWords.base must be fathomdb or none");
+  }
+  const words = (field: "extra" | "keep"): readonly string[] | undefined => {
+    const list = setting[field];
+    if (list === undefined) return undefined;
+    if (!Array.isArray(list) || !list.every((word) => typeof word === "string")) {
+      throw new TypeError(`engineConfig.queryStopWords.${field} must be an array of strings`);
+    }
+    return Object.freeze([...list]);
+  };
+  const snapshot: { base?: "fathomdb" | "none"; extra?: readonly string[]; keep?: readonly string[] } = {};
+  if (base !== undefined) snapshot.base = base;
+  const extra = words("extra");
+  if (extra !== undefined) snapshot.extra = extra;
+  const keep = words("keep");
+  if (keep !== undefined) snapshot.keep = keep;
+  return Object.freeze(snapshot);
 }
 
 export const ENGINE_CONFIG_LIMITS = {
@@ -137,6 +188,9 @@ export function snapshotEngineConfig(value: unknown): EngineConfig {
     if (typeof requested !== "string" || !(allowed as readonly string[]).includes(requested)) {
       throw new TypeError(`engineConfig.${field} must be one of ${allowed.join(", ")}`);
     }
+  }
+  if (config.queryStopWords !== undefined) {
+    config.queryStopWords = snapshotQueryStopWords(config.queryStopWords);
   }
   return Object.freeze(config) as EngineConfig;
 }

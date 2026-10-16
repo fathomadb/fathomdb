@@ -2,7 +2,7 @@
   "phase": "0.8.28-slice-40",
   "baseline_sha": "574b09e788b04bbaff6ec949aa3a88de443bf477",
   "branch": "slice/0.8.28-40-fts-ranking-defects",
-  "head_sha": "e683900775f0e012fbc43ca7d6ae3032f7ac158e",
+  "head_sha": "c6723cb4aa59fb76a7924a8245f4930bba678fc8",
   "head_sha_note": "last commit before the commit that adds this file; the output.json commit sits on top",
   "production_fix_sha": "13879d4af55e20646574d013c4cce596f1b18d40",
   "commits": [
@@ -38,7 +38,9 @@
     "f42483b7d2475ebbe16b80a25a78d3a04d2bf85a: Apply the Unit G re-review fixes: derived question counts, arm of record, v4c contingency, renderer caps",
     "43a8589b31e984f57e47cd864a74a711032f4a05: Record Slice 40 Unit G W4/W5: evidence-policy verdict and GREEN run",
     "37070674e: Update Slice 40 closure output for Unit G",
-    "e683900775f0e012fbc43ca7d6ae3032f7ac158e: Record Slice 40 Unit G measurements and the final-head re-runs"
+    "e683900775f0e012fbc43ca7d6ae3032f7ac158e: Record Slice 40 Unit G measurements and the final-head re-runs",
+    "827928e5fa31ee1096536178e91a1d591a1d26f8: Update Slice 40 closure output for the Unit G measurements",
+    "c6723cb4aa59fb76a7924a8245f4930bba678fc8: Record the Slice 40 baseline mix-answer benchmark"
   ],
   "findings_addressed": [
     "F1: AC-038 corpus gains 'vitamin d c 1 ii study' and 'igf 1 d3 b12 trial'; query alphabet gains d3, c, ii, 1; still 100 queries; RED before W4 (40 queries diverged), GREEN after",
@@ -91,7 +93,7 @@
     "release-state JSON, STATUS board, plan ladder (orchestrator-owned)",
     "baseline comparison of the --features test-hooks engine failures (would need a second checkout)"
   ],
-  "next_step_for_orchestrator": "Rule on adding a comp03-answer baseline entry (needs an edit to test_slice_40_baseline_manifest_lists_the_five_benchmarks); review and land both branches.",
+  "next_step_for_orchestrator": "Review and land both branches.",
   "defect_c": {
     "production_fix_sha": "a3830681d",
     "rulings": {
@@ -185,7 +187,7 @@
   "units_efg": {
     "harness_branch": {
       "branch": "slice/0.8.28-40-comp03",
-      "head": "f59472d4c47d594bf85713717e7fae1ed7ea2db6",
+      "head": "5a1d0eb124b2c6eba0be749ac70dd6fc5adf02ca",
       "commits": [
         "9d864e39e5b5652b8351bda4fb4bdc9ccf101660: Add failing tests for Slice 40 Units E, F, G: SDK parity, baseline check, evidence policy and recency",
         "d1bc2c9f6c1a4fa8ce299849808b5b348666e6e6: Add a failing test: the evidence policy must also hold for fathomdb-fts alone",
@@ -204,7 +206,8 @@
         "69bfa97ce08df05683eb5b37af888d6b47aa4890: Record final-head receipt comp-02a-comp02a-17272-20261016T1756Z-eede35ef",
         "cfcdd98f79399decb264b32a962a573fe741b94c: Record final-head receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9",
         "fb658a937e63f2266d2f2f7fb7cf3fddaff98332: Classify the final-head COMP-01/02/03 receipts",
-        "f59472d4c47d594bf85713717e7fae1ed7ea2db6: Record the COMP-03 Unit G result and final-head baseline values"
+        "f59472d4c47d594bf85713717e7fae1ed7ea2db6: Record the COMP-03 Unit G result and final-head baseline values",
+        "5a1d0eb124b2c6eba0be749ac70dd6fc5adf02ca: Add the COMP-03 mix answer run to the Slice 40 baseline as a sixth benchmark"
       ]
     },
     "unit_e": {
@@ -322,7 +325,7 @@
         "comp-02b-latency-20261016T1700Z-4f96fad0",
         "comp-03-retrieval-sweep-20261016T1725Z-17773486"
       ],
-      "baseline": "comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, tc5-10k-latency expected values replaced with final-head values (provenance final); comp03-answer-v2 stays provisional; no comp03-answer entry (test_slice_40_baseline_manifest_lists_the_five_benchmarks pins five ids)",
+      "baseline": "comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, tc5-10k-latency expected values replaced with final-head values (provenance final); comp03-answer-v2 stays provisional; comp03-answer-mix added by owner ruling (53/52/54 of 60, ±3 questions, report-only, provisional); baseline_check PASS on comp03-run-mix",
       "classification": "all new receipts classified and validated; tree validator still fails on pre-existing unclassified comp-03-hermes-answer-20261016T1239Z-2e410a4f"
     }
   }

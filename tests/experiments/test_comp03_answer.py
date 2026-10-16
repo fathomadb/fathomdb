@@ -176,8 +176,9 @@ def test_v2_config_keeps_v1_inputs_and_widens_to_three_arms_at_k10():
     v2 = c3.load_config(V2_CONFIG)
     assert v2["schema_version"] == "comp-03.answer.v2"
     assert v2["selection"]["question_ids"] == v1["selection"]["question_ids"]
-    for key in ("corpus", "document_unit", "evidence", "live"):
+    for key in ("corpus", "evidence", "live"):
         assert v2[key] == v1[key], key
+    assert {k: v for k, v in v2["document_unit"].items() if k != "blank_rounds"} == v1["document_unit"]
     assert v2["retrieval"]["top_k"] == 10
     assert v2["metrics"] == [name.replace("_at_5", "_at_10") for name in v1["metrics"]]
     assert [arm["id"] for arm in v2["arms"]] == ["fathomdb-fts", "fathomdb-hybrid", "lancedb-fts"]
@@ -261,3 +262,97 @@ def test_hybrid_arm_runs_when_the_sweep_verdict_is_adopt(tmp_path: Path, monkeyp
     client, attempt = _gate_run(tmp_path, "adopt")
     assert len(client.calls) == 8, "two questions x two arms x answer and judge"
     assert (attempt / "questions" / "q1" / "fathomdb-hybrid" / "retrieval.json").exists()
+
+
+# --- blank rounds (Unit D fix-1) ----------------------------------------------
+
+
+def _blank_item(qid: str = "qb", *, blank_has_answer: bool = False) -> dict:
+    """One session: a normal round, a whitespace-only round, a normal round."""
+    item = _item(qid, "multi-session")
+    item["haystack_dates"] = ["2023/05/01 (Mon) 09:00"]
+    item["haystack_session_ids"] = ["answer_s1"]
+    item["answer_session_ids"] = ["answer_s1"]
+    item["haystack_sessions"] = [[
+        {"role": "user", "content": "I just moved to Paris last spring!", "has_answer": True},
+        {"role": "assistant", "content": "Congratulations on the move."},
+        {"role": "user", "content": " \n", "has_answer": blank_has_answer},
+        {"role": "assistant", "content": ""},
+        {"role": "user", "content": "Any museum tips?"},
+        {"role": "assistant", "content": "Visit the Orsay early."},
+    ]]
+    return item
+
+
+def test_blank_round_keeps_positional_ids_and_gold():
+    case = c3.convert_question(_blank_item())
+    assert [d["id"] for d in case["docs"]] == ["s000-r000", "s000-r001", "s000-r002"]
+    assert not case["docs"][1]["body"].strip()
+    gold = c3.gold_for(_blank_item(blank_has_answer=True))
+    assert gold["turn_relevant"] == ["s000-r000", "s000-r001"], "a gold-marked blank round stays in the gold"
+
+
+class _RecordingArm:
+    name = "recorder"
+
+    def __init__(self) -> None:
+        self.built: list[list[dict]] = []
+
+    def version(self) -> str:
+        return "0"
+
+    def settings(self) -> dict:
+        return {}
+
+    def build(self, root: Path, docs: list[dict]) -> dict:
+        self.built.append(docs)
+        return {"ingest_ack_s": 0.0, "build_return_s": 0.0}
+
+    def open(self, root: Path) -> list[dict]:
+        return self.built[-1]
+
+    def query(self, handle: list[dict], text: str, cohort: str | None = None, limit: int = 10) -> list[str]:
+        return [d["id"] for d in handle][:limit]
+
+    def close(self, handle: object) -> None:
+        pass
+
+
+def test_retrieve_indexes_no_blank_round_and_records_the_count(tmp_path: Path, monkeypatch):
+    from experiments import comp_fts
+
+    recorder = _RecordingArm()
+    monkeypatch.setitem(comp_fts.ARMS, "recorder", recorder)
+    case = c3.convert_question(_blank_item())
+    result = c3.retrieve("recorder", case, tmp_path, top_k=10, fathomdb_bin=None)
+    assert [d["id"] for d in recorder.built[0]] == ["s000-r000", "s000-r002"]
+    assert result["blank_rounds_skipped"] == 1
+    assert result["documents"] == 2
+    assert [d["id"] for d in case["docs"]] == ["s000-r000", "s000-r001", "s000-r002"], "evidence docs intact"
+    plain = c3.retrieve("recorder", c3.convert_question(_item("q1", "single-session-user")), tmp_path,
+                        top_k=10, fathomdb_bin=None)
+    assert plain["blank_rounds_skipped"] == 0
+
+
+@pytest.mark.parametrize("arm", ["fathomdb", "lancedb"])
+def test_real_store_builds_past_a_blank_round_and_never_returns_it(arm: str, tmp_path: Path):
+    pytest.importorskip(arm)
+    case = c3.convert_question(_blank_item())
+    case["question"] = "moved Paris museum tips"
+    result = c3.retrieve(arm, case, tmp_path, top_k=10, fathomdb_bin=None)
+    assert result["ids"] and "s000-r001" not in result["ids"]
+    assert result["blank_rounds_skipped"] == 1
+
+
+def test_hybrid_store_builds_past_a_blank_round_with_full_coverage(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("FATHOMDB_EMBED_DEVICE", "cpu")
+    _require_default_embedder(tmp_path)
+    case = c3.convert_question(_blank_item())
+    result = c3.retrieve("fathomdb-hybrid", case, tmp_path, top_k=10, fathomdb_bin=None)
+    assert "s000-r001" not in result["ids"]
+    assert result["vector_rows"] == result["documents"] == 2
+
+
+def test_v2_config_states_the_blank_round_rule():
+    v2 = c3.load_config(V2_CONFIG)
+    assert "blank" in v2["document_unit"]["blank_rounds"]

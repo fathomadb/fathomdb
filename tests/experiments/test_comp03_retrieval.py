@@ -197,7 +197,8 @@ def test_sweep_config_is_typed_and_states_the_rule_verbatim(tmp_path: Path):
     assert [arm["product_arm"] for arm in config["arms"]] == ["fathomdb", "fathomdb-hybrid", "lancedb"]
     answer_v1 = c3.load_config(c3.DEFAULT_CONFIG)
     assert config["corpus"] == answer_v1["corpus"]
-    assert config["document_unit"] == answer_v1["document_unit"]
+    assert {k: v for k, v in config["document_unit"].items() if k != "blank_rounds"} == answer_v1["document_unit"]
+    assert "blank" in config["document_unit"]["blank_rounds"]
     assert config["selection"]["rule"] == "all"
     assert config["retrieval"]["top_k"] == 10
     assert config["metrics"]["ks"] == [5, 10]
@@ -349,6 +350,7 @@ def test_sweep_covers_every_question_and_resume_does_no_new_work(tmp_path: Path,
         assert result["arm"] == "fathomdb"
         assert result["settings"] == comp_fts.FathomArm().settings(), "the v1 fts settings record"
     assert summary["arms"]["fathomdb-fts"]["overall"]["n"] == 2, "abstentions are not scored"
+    assert summary["blank_rounds_skipped"] == {"fathomdb-fts": 0}
     assert summary["decision"]["verdict"] == "not_evaluated"
     sweep.sweep(config, dataset_path=dataset, attempt_root=attempt)
     assert len(builds) == 3, "finished questions do no work on rerun"
@@ -377,3 +379,16 @@ def test_sweep_hybrid_arm_records_the_resolved_device_and_writes_a_verdict(tmp_p
     hybrid = json.loads((tmp_path / "attempt" / "questions" / "q1" / "fathomdb-hybrid" / "retrieval.json").read_text())
     assert hybrid["vector_rows"] == hybrid["documents"]
     assert hybrid["drain_s"] >= 0, "embedding time is recorded apart from query latency"
+
+
+def test_sweep_totals_blank_rounds_per_arm(tmp_path: Path):
+    pytest.importorskip("fathomdb")
+    sweep = _retrieval()
+    item = _item("qb", "multi-session")
+    item["haystack_sessions"][1].insert(2, {"role": "user", "content": "  "})
+    dataset = _dataset(tmp_path, [item, _item("q1", "single-session-user")])
+    config = _fts_only_config(sweep, dataset)
+    summary = sweep.sweep(config, dataset_path=dataset, attempt_root=tmp_path / "attempt")
+    assert summary["blank_rounds_skipped"] == {"fathomdb-fts": 1}
+    record = json.loads((tmp_path / "attempt" / "questions" / "qb" / "fathomdb-fts" / "retrieval.json").read_text())
+    assert record["blank_rounds_skipped"] == 1

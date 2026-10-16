@@ -864,6 +864,82 @@ env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_evi
 Lines shortened with "…" lose only the keyword name and path tail. No
 Unit G implementation code exists.
 
+### 5.10 GREEN run for Unit G (W4, 2026-10-16)
+
+Harness at `1419aae4f` (`comp03-slice40`). The tests were committed failing
+at `3b812cce4`, 26 RED, and no test was edited after that.
+
+```text
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_evidence.py tests/experiments/test_comp03_answer.py tests/experiments/test_comp03_retrieval.py tests/experiments/test_comp_fts.py tests/experiments/test_baseline_check.py tests/experiments/test_comp01_nfcorpus.py
+97 passed, 6 warnings
+FATHOMDB_BENCH_NODE=… env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments
+4 failed, 878 passed, 9 skipped
+.venv/bin/ruff check src/python experiments tests/experiments
+All checks passed!
+```
+
+The 4 failures are the pre-existing four named in § 5.8, and nothing else.
+The skip count fell from 12 to 9 because the orchestrator built the SurrealDB
+driver in the harness tree.
+
+**Evidence-policy verdict.**
+
+- Command:
+
+  ```bash
+  python -m experiments.comp03_retrieval evidence \
+    --attempt-root ~/.cache/fathomdb-comp/comp03-sweep-d3 \
+    --dataset <longmemeval_s_cleaned.json> \
+    --answer-config experiments/configs/comp-03/hermes-answer.v2.json \
+    --out experiments/configs/comp-03/evidence-policy-verdict.v1.json
+  ```
+
+  It ran in 6 s. Verdict file SHA-256:
+  `6f9fc2dc32c2796bbee7400788a22280e6b55ce70fcbf2781546b907164a2d2c`.
+- Question counts, derived from the data: 470 scored, 414 selection,
+  60 answer IDs of which 56 are scored.
+- Selection on the 414: **4000/30000/on**, the same as the reviewer's replay.
+- Excluded by the untruncation constraint: every 2000- and 1000-character
+  policy, for every type, both pooled and on `fathomdb-fts` alone.
+
+Table: has-answer in prompt / untruncated, pooled or per arm. The "470
+pooled" column also gives any / all and characters, and equals the
+reviewer's replay wherever it lists a row.
+
+| Policy | 470 pooled any / all / ans / full / chars | selection pooled | selection fts | selection hybrid | selection LanceDB | answer set pooled |
+| --- | --- | --- | --- | --- | --- | --- |
+| 4000/20000/off (current) | 1383 / 1225 / 1321 / 1302 / 27.0M | 1169 / 1153 | 387 / 381 | 395 / 390 | 387 / 382 | 152 / 149 |
+| 4000/20000/on | 1383 / 1225 / 1325 / 1304 / 28.1M | 1173 / 1155 | 387 / 381 | 397 / 391 | 389 / 383 | 152 / 149 |
+| 4000/30000/off | 1388 / 1248 / 1334 / 1328 / 31.3M | 1180 / 1177 | 392 / 391 | 397 / 396 | 391 / 390 | 154 / 151 |
+| **4000/30000/on** | 1388 / 1248 / 1344 / 1338 / 41.8M | 1190 / 1187 | 394 / 393 | 401 / 400 | 395 / 394 | 154 / 151 |
+| 2000/20000/off | 1388 / 1248 / 1334 / 554 / 24.7M | 1180 / 505 | 392 / 167 | 397 / 172 | 391 / 166 | 154 / 49 |
+| 2000/20000/on | 1388 / 1248 / 1344 / 564 / 28.1M | 1190 / 515 | 394 / 170 | 401 / 174 | 395 / 171 | 154 / 49 |
+| 2000/30000/off | 1388 / 1248 / 1334 / 554 / 24.7M | 1180 / 505 | 392 / 167 | 397 / 172 | 391 / 166 | 154 / 49 |
+| 2000/30000/on | 1388 / 1248 / 1353 / 572 / 41.3M | 1198 / 523 | 398 / 173 | 404 / 176 | 396 / 174 | 155 / 49 |
+| 1000/20000/off | 1388 / 1248 / 1334 / 118 / 13.7M | 1180 / 106 | 392 / 35 | 397 / 35 | 391 / 36 | 154 / 12 |
+| 1000/20000/on | 1388 / 1248 / 1358 / 118 / 27.1M | 1203 / 106 | 401 / 35 | 404 / 35 | 398 / 36 | 155 / 12 |
+| 1000/30000/off | 1388 / 1248 / 1334 / 118 / 13.7M | 1180 / 106 | 392 / 35 | 397 / 35 | 391 / 36 | 154 / 12 |
+| 1000/30000/on | 1388 / 1248 / 1369 / 118 / 36.2M | 1211 / 106 | 403 / 35 | 407 / 35 | 401 / 36 | 158 / 12 |
+
+**Answer-set expectation** (N3): the chosen policy minus the current one on
+the 56 scored answer-set questions.
+
+- Pooled: has-answer +2, untruncated +2, gold sessions any and all +4 each,
+  788 more rounds, +1.71M characters.
+- Per arm, has-answer / untruncated: `fathomdb-fts` 0 / 0,
+  `fathomdb-hybrid` +1 / +1, `lancedb-fts` +1 / +1.
+- So v3 vs v2 is expected to be near-null on `fathomdb-fts`. The paid v3
+  result is read against this.
+
+**Configs.** `hermes-answer.v3.json`, `v4a`, `v4b` and `v4c` are committed
+with the verdict's policy, bound by its SHA-256. A stub-client smoke run of
+v3 and v4b through `comp03_answer.run` recorded `rounds_in_prompt` and
+`evidence_round_chars` in the answer rows.
+
+**Not written yet:** `hermes-answer.mix.json`. It needs the v4a and v4b
+verdicts; the commands are `comp03_answer recency-verdict` and
+`comp03_answer mix`.
+
 ## 6. Pre-existing test failures at W5
 
 A failing pre-existing test is not edited; it is listed here verbatim
@@ -1008,6 +1084,14 @@ FAIL  arm 9c (real sweep): rc=1 out=FAIL commission-manifest: `dev/plans/release
 | W-harness ruff (`src/python experiments tests/experiments`) | `All checks passed!` |
 
 No full `agent-verify.sh`: W-slice changed only docs this phase.
+
+### 6.5 Gates for Unit G (phase 5)
+
+| Gate | Result |
+| --- | --- |
+| W-harness ruff | `All checks passed!` |
+| W-harness `./scripts/agent-lint-md.sh` | exit 1 at structure. The only findings are 4 in `experiments/comp_drivers/surrealdb/target/release/build/rust_decimal-…/out/README-lib.md`, a build output of the orchestrator's SurrealDB driver build. Its nested `target/` is not covered by the lint ignore list (which has `target/**` at the root only). Left in place as instructed. The link check did not run |
+| W-slice `./scripts/agent-lint-md.sh` | exit 0 |
 
 ## 7. R1 rulings on the phase 1 open questions
 

@@ -2601,6 +2601,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 text_hits: exp_text_n,
                 graph_hits: exp_graph_n,
                 dropped_edge_hits,
+                stop_words_sha256: String::new(),
             },
             per_hit,
             correlation_id: String::new(),

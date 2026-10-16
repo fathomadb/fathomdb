@@ -120,6 +120,9 @@ pub use fathomdb_engine::{
     StructuralProjectionOriginV1, TraceArtifactClassV1, TraceArtifactRoleV1, TraceNodeLifecycleV1,
     TraceReadBoundaryV1, TraversalDirection, WriteProvenanceV1, WriteReceipt,
 };
+pub use fathomdb_engine::{
+    QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,
+};
 pub use fathomdb_schema::MigrationStepReport;
 
 /// Absence proofs: each core-only route below must not resolve through

@@ -1318,6 +1318,7 @@ impl Engine {
             // 0.8.23 Slice 80.6 (D-80.6-6) — set by `open_with_migrations`
             // only when an opted-in CUDA default-embedder open measured one.
             embedder_gpu_allocation_witness: None,
+            stop_words_sha256: String::new(),
         };
 
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);
@@ -1746,6 +1747,10 @@ pub struct OpenReport {
     /// the model a second time, which is evidence-run behavior and must not be
     /// imposed on ordinary opens (§ 12 non-goals).
     pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
+    /// SHA-256 (lowercase hex) of the effective query stop words this engine
+    /// compiles with ([`DEFAULT_STOP_WORDS_SHA256`](crate::DEFAULT_STOP_WORDS_SHA256)
+    /// for the built-in list), so a receipt can record it without a query.
+    pub stop_words_sha256: String,
 }
 
 #[derive(Debug)]

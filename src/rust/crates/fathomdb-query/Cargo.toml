@@ -14,5 +14,8 @@ rust-version.workspace = true
 [lib]
 path = "src/lib.rs"
 
+[dependencies]
+sha2 = "0.11"
+
 [dev-dependencies]
 proptest = "1"

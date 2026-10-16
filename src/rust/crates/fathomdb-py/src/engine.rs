@@ -119,6 +119,7 @@ pub(super) fn engine_config_from_py(
             },
             "0 or max",
         )?,
+        query_stop_words: None,
     })
 }
 

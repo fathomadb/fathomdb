@@ -58,6 +58,10 @@ pub struct ContextPolicy {
     pub compact_chars: usize,
     /// Roles rendered in full in the compact tier (role `None` always is).
     pub keep_roles: Vec<String>,
+    /// Item ids that render in the full tier wherever they are selected,
+    /// without using a `full_items` slot. Every id must match an input item;
+    /// an unselected match has no effect. Default empty.
+    pub full_ids: Vec<String>,
     /// Append the `context` items of each hit group after the hits.
     pub expand_groups: bool,
     /// Output order of the rendered items; tiers and cuts are decided first.
@@ -81,6 +85,7 @@ impl Default for ContextPolicy {
             full_items: DEFAULT_FULL_ITEMS,
             compact_chars: DEFAULT_COMPACT_CHARS,
             keep_roles: vec!["user".to_string()],
+            full_ids: Vec::new(),
             expand_groups: true,
             order: ContextOrder::Rank,
         }
@@ -125,6 +130,10 @@ pub struct ContextPackEntry {
     pub tier: ContextTier,
     pub chars: usize,
     pub truncated: bool,
+    /// True when the id is in `full_ids` and the item rendered in the full
+    /// tier only because of it; false when its selection index already made
+    /// it full, and false for an item that was not rendered.
+    pub forced: bool,
     pub rendered_index: Option<usize>,
     pub parts: Vec<ContextPartEntry>,
 }
@@ -215,6 +224,7 @@ pub fn pack_context(
             tier: ContextTier::Omitted,
             chars: 0,
             truncated: false,
+            forced: false,
             rendered_index: None,
             parts: item
                 .parts

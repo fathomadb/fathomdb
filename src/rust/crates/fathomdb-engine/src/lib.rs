@@ -200,6 +200,9 @@ pub use fathomdb_embedder::{
     CudaPoolSettingConflict, CudaPoolSettingValue, PoolMode as CudaPoolMode, PoolSettingSource,
     ReleaseThreshold, CUDA_POOL_MAX_SIZE_MIN,
 };
+pub use fathomdb_query::{
+    QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,
+};
 pub(crate) use filter::{
     append_node_eligibility_sql, edge_fts_hit_passes_filter, text_hit_passes_filter,
 };

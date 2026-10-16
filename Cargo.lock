@@ -1010,6 +1010,7 @@ name = "fathomdb-query"
 version = "0.8.27"
 dependencies = [
  "proptest",
+ "sha2 0.11.0",
 ]
 
 [[package]]

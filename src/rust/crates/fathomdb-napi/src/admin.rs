@@ -160,6 +160,7 @@ impl EngineConfig {
                     }
                 })
                 .transpose()?,
+            query_stop_words: None,
         })
     }
 }

@@ -400,8 +400,9 @@ any recommended adjustments". Interface docs and the CHANGELOG are updated.
     list-length error), and `reason: StopWordRejection`, a `Copy`,
     `#[non_exhaustive]` enum (`Empty`, `NotAlphanumeric`, `NotLowercase`,
     `TooLong`, `TooMany`, `Repeated`, `InExtraAndKeep`, `KeepNotInBase`,
-    `ExtraAlreadyInBase`). The `Display` text names the field and index and
-    quotes the word; the error value itself holds no `String`;
+    `ExtraAlreadyInBase`). The `Display` text names the field, the index and
+    the reason; it cannot quote the word, because the value holds no
+    `String`;
   - matching is exact on the compiler's tokens, before FTS5 stemming and
     without diacritic folding (requirements REQ41-Q2);
   - `pub fn compile_text_query_with(raw, &StopWordSet) -> CompiledQuery`;

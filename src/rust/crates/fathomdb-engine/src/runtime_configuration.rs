@@ -172,6 +172,10 @@ pub struct EngineConfig {
     /// it to `FATHOMDB_POOL_RELEASE_THRESHOLD`, else `0`. Fixed once per
     /// process.
     pub cuda_pool_release_threshold: Option<fathomdb_embedder::ReleaseThreshold>,
+    /// Query stop words for every text-query compile of this engine; `None`
+    /// is the built-in list. Validated at open and fixed for the engine's
+    /// life; not stored in the database.
+    pub query_stop_words: Option<fathomdb_query::QueryStopWords>,
 }
 
 impl EngineConfig {
@@ -187,6 +191,7 @@ impl EngineConfig {
 /// Invalid per-engine settings. Process-wide SQLite mode failures use
 /// [`RuntimeConfigurationError`] instead.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum EngineConfigurationError {
     /// A requested value is outside its inclusive accepted range.
     OutOfRange { field: &'static str, value: u64, min: u64, max: u64 },
@@ -197,6 +202,14 @@ pub enum EngineConfigurationError {
     /// any pool setting, or else by the environment at the first GPU use,
     /// and closing every engine does not reset it.
     CudaPoolSettingConflict(fathomdb_embedder::CudaPoolSettingConflict),
+    /// A `query_stop_words` word or list was refused. `field` is
+    /// `query_stop_words.extra` or `query_stop_words.keep`; `index` is the
+    /// word's position, `None` for a whole-list refusal.
+    QueryStopWords {
+        field: &'static str,
+        index: Option<usize>,
+        reason: fathomdb_query::StopWordRejection,
+    },
 }
 
 impl Display for EngineConfigurationError {
@@ -209,6 +222,11 @@ impl Display for EngineConfigurationError {
                 write!(f, "engine configuration capacity {field} exceeds the platform width")
             }
             Self::CudaPoolSettingConflict(conflict) => conflict.fmt(f),
+            Self::QueryStopWords { field, index, reason } => {
+                let error =
+                    fathomdb_query::StopWordError { field: *field, index: *index, reason: *reason };
+                write!(f, "engine configuration {error}")
+            }
         }
     }
 }

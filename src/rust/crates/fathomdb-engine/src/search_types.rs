@@ -252,6 +252,11 @@ pub struct QueryTrace {
     /// node-scoped. Present on the opt-in explanation so this deliberate
     /// filtering never looks like an absent corpus.
     pub dropped_edge_hits: u32,
+    /// SHA-256 (lowercase hex) of the engine's effective query stop words,
+    /// sorted by Unicode scalar value and joined by `"\n"`;
+    /// [`DEFAULT_STOP_WORDS_SHA256`](crate::DEFAULT_STOP_WORDS_SHA256) for the
+    /// built-in list.
+    pub stop_words_sha256: String,
 }
 
 /// 0.8.8 EXP-OBS (Slice 5) — per-hit provenance + score breakdown. One entry per

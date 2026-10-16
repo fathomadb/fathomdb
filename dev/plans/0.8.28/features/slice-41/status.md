@@ -96,7 +96,16 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
      when false" wire alternative was rejected.
 6. `fathomdb-py/src/test_support.rs:87` gains `query_stop_words: None`, a
    compile-required mechanical change; nothing else there changes
-   (orchestrator, P2-R0b).
+   (orchestrator, P2-R0b). The same one-line change was needed in
+   `fathomdb-engine/tests/slice90_engine_configuration.rs:21`, the only other
+   full `EngineConfig` literal in a test (found by `cargo check --workspace
+   --all-targets`); applied under the same reasoning and flagged for the
+   orchestrator. `fathomdb-py/src/engine.rs` (`engine_config_from_py`) is a
+   fourth full literal in binding code.
+7. W2 found AC41-32 clause (i) false for a second forced item: the first
+   forced item spends budget, so a later one can render fewer chars than
+   its compact phase 1 form. Clause (i) is restated for the first forced
+   item only (requirements § 5.5), which is what the property tests.
 
 Pre-existing failures under `test-hooks` (the feature is turned on by
 unification in multi-crate runs), left as they are: `slice135_robustness_first`

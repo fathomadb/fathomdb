@@ -10,7 +10,7 @@
 //! operators over an allowlisted set of JSON paths — rather than an open DSL.
 //! Values are always bound as parameterized SQL and never interpolated.
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QueryAst {
@@ -88,6 +88,164 @@ pub fn compile_text_query(raw: impl Into<String>) -> CompiledQuery {
 
     CompiledQuery { match_expression }
 }
+
+/// SHA-256 (lowercase hex) of the default stop list: the 63 built-in words,
+/// sorted by Unicode scalar value and joined by `"\n"`. A trace or receipt
+/// carrying this value used the default list.
+pub const DEFAULT_STOP_WORDS_SHA256: &str =
+    "ac9a853797f038a1d05302bb0ebca4ced9fab9f2b02e211148292d260d6e7367";
+
+/// Most words accepted in [`QueryStopWords::extra`] and in
+/// [`QueryStopWords::keep`].
+pub const MAX_STOP_WORDS_PER_LIST: usize = 256;
+
+/// Longest accepted stop word, in Unicode scalar values.
+pub const MAX_STOP_WORD_CHARS: usize = 64;
+
+/// The list a [`QueryStopWords`] setting starts from.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
+pub enum StopWordBase {
+    /// The built-in engine list (see [`DEFAULT_STOP_WORDS_SHA256`]).
+    #[default]
+    Fathomdb,
+    /// No words.
+    None,
+}
+
+/// A per-engine query stop-word setting. The effective set is
+/// `(base ∪ extra) \ keep`. Words match the compiler's tokens exactly:
+/// lowercase, alphanumeric, compared before FTS5 stemming and without
+/// diacritic folding, so `suggest` does not drop `suggests` and `cafe` does
+/// not drop `café`. Validate with [`QueryStopWords::validate`].
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
+pub struct QueryStopWords {
+    /// The starting list.
+    pub base: StopWordBase,
+    /// Words added to `base`; none may already be in it.
+    pub extra: Vec<String>,
+    /// Words removed from `base`; each must be in it.
+    pub keep: Vec<String>,
+}
+
+/// Why a stop word or list was refused.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[non_exhaustive]
+pub enum StopWordRejection {
+    /// The word is empty.
+    Empty,
+    /// The word has a character that is not alphanumeric.
+    NotAlphanumeric,
+    /// The word is not equal to its lowercase form.
+    NotLowercase,
+    /// The word is longer than [`MAX_STOP_WORD_CHARS`].
+    TooLong,
+    /// The list is longer than [`MAX_STOP_WORDS_PER_LIST`].
+    TooMany,
+    /// The word repeats an earlier word in the same list.
+    Repeated,
+    /// A `keep` word is also in `extra`.
+    InExtraAndKeep,
+    /// A `keep` word is not in the base list.
+    KeepNotInBase,
+    /// An `extra` word is already in the base list.
+    ExtraAlreadyInBase,
+}
+
+impl StopWordRejection {
+    fn describe(self) -> &'static str {
+        match self {
+            Self::Empty => "must not be empty",
+            Self::NotAlphanumeric => "must contain only alphanumeric characters",
+            Self::NotLowercase => "must be lowercase",
+            Self::TooLong => "must be at most 64 characters",
+            Self::TooMany => "must hold at most 256 words",
+            Self::Repeated => "repeats an earlier word in the list",
+            Self::InExtraAndKeep => "is also in query_stop_words.extra",
+            Self::KeepNotInBase => "is not in the base list",
+            Self::ExtraAlreadyInBase => "is already in the base list",
+        }
+    }
+}
+
+/// A refused [`QueryStopWords`] setting. `field` is
+/// `"query_stop_words.extra"` or `"query_stop_words.keep"`; `index` is the
+/// offending word's position, or `None` when the whole list is refused.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub struct StopWordError {
+    pub field: &'static str,
+    pub index: Option<usize>,
+    pub reason: StopWordRejection,
+}
+
+impl std::fmt::Display for StopWordError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.index {
+            Some(index) => write!(f, "{}[{index}] {}", self.field, self.reason.describe()),
+            None => write!(f, "{} {}", self.field, self.reason.describe()),
+        }
+    }
+}
+
+impl std::error::Error for StopWordError {}
+
+/// A validated effective stop-word set and its SHA-256. [`Default`] is the
+/// built-in list.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StopWordSet {
+    words: BTreeSet<String>,
+    sha256: String,
+}
+
+impl Default for StopWordSet {
+    fn default() -> Self {
+        todo!("Slice 41 unit Q")
+    }
+}
+
+impl StopWordSet {
+    /// SHA-256 (lowercase hex) of the words sorted by Unicode scalar value and
+    /// joined by `"\n"`.
+    #[must_use]
+    pub fn sha256(&self) -> &str {
+        &self.sha256
+    }
+
+    /// Whether `token` is in the set (exact match).
+    #[must_use]
+    pub fn contains(&self, token: &str) -> bool {
+        self.words.contains(token)
+    }
+
+    /// The words in Unicode scalar order.
+    pub fn words(&self) -> impl Iterator<Item = &str> {
+        self.words.iter().map(String::as_str)
+    }
+}
+
+impl QueryStopWords {
+    /// Check the setting and build its effective set.
+    ///
+    /// # Errors
+    /// [`StopWordError`] naming the list and index for an empty, non-
+    /// alphanumeric, non-lowercase or over-long word, a list of more than
+    /// [`MAX_STOP_WORDS_PER_LIST`] words, a repeat within a list, a word in
+    /// both lists, a `keep` word outside `base` (any `keep` word when `base`
+    /// is [`StopWordBase::None`]) or an `extra` word already in `base`.
+    pub fn validate(&self) -> Result<StopWordSet, StopWordError> {
+        todo!("Slice 41 unit Q")
+    }
+}
+
+/// [`compile_text_query`] with an explicit effective stop-word set; with
+/// [`StopWordSet::default`] the output is identical.
+#[must_use]
+pub fn compile_text_query_with(raw: impl Into<String>, stop_words: &StopWordSet) -> CompiledQuery {
+    let _ = (raw.into(), stop_words);
+    todo!("Slice 41 unit Q")
+}
+
+#[cfg(test)]
+mod stop_words_tests;
 
 #[cfg(test)]
 mod tests {

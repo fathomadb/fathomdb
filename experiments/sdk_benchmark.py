@@ -443,7 +443,7 @@ def _verify_pinned(
     for name in ("runtime", "driver", "native", "bootstrap_cli"):
         _verified_binding(arm[name], f"arm.{name}")
     if (
-        wrapper_sha256(arm["sdk"], arm["native"]["sha256"], arm["native"]["path"])
+        wrapper_sha256(arm["sdk"], arm["native"]["sha256"], arm["native"]["path"], arm.get("package_root"))
         != arm["wrapper_sha256"]
     ):
         raise ValueError("SDK public wrapper digest drift")
@@ -1600,6 +1600,9 @@ _DENSE_QUERIES = [
     ("q03", "how do I get to work"),
     ("q04", "where are we travelling"),
     ("q05", "what kind of books do I like"),
+    # Lexical overlap too, so the fused text-plus-vector score is compared.
+    ("q06", "quarterly planning meeting"),
+    ("q07", "Thai green curry"),
 ]
 
 

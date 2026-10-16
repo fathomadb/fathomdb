@@ -1,15 +1,16 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — design
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, findings F1–F6)
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C added 2026-10-16, for review
 target_release: 0.8.28
-observed_on: 2026-10-15
+observed_on: 2026-10-16
 ---
 
 # Slice 40 design
 
-Mechanisms for the two defects in [requirements.md](requirements.md).
-Both are small, local edits to pure functions. No public signature, schema,
-knob or wire shape changes.
+Mechanisms for the three defects in [requirements.md](requirements.md).
+A and B are small, local edits to pure functions; C (§ 2b) moves projected
+search onto the body path's existing rank stream. No public signature,
+schema, knob or wire shape changes.
 
 ## 1. Defect A: one term per arm per body
 
@@ -112,14 +113,122 @@ edge FTS arm (`search.rs`), projected-text search (`search.rs`,
 `read_projected_text_in_tx`), the hybrid path (`search_api.rs`) and graph
 seeding (`graph_expand/execution.rs`).
 
-## 3. Files touched in W4
+## 2b. Defect C: stream projected search in rank order
+
+### 2b.1 Mechanism
+
+`read_projected_text_in_tx` (`search.rs`) gets the body path's shape from
+`read_search_in_tx`:
+
+```text
+node_predicate, filter_predicate, params   # built exactly as today
+if not force_full_sort (test hook):
+    stream_sql = property_fts_rank_stream_sql(node_predicate, filter_predicate, rank_mapping)
+    streamed = tx.prepare(stream_sql)
+                 .and_then(|s| collect_complete_rank_boundary(s.query(params), limit))
+                 .ok()
+match streamed:
+    Some((hits, crossed_tie)) -> negate each hit.score (score = -bm25);
+                                 route projected_rank_stream_tie_completed | _strict_boundary
+    None -> run property_fts_rank_sql and the existing row loop, unchanged;
+            route projected_full_sort_forced | projected_full_sort_fallback
+```
+
+`property_fts_rank_stream_sql` is a new builder in `filter.rs` next to
+`property_fts_rank_sql`:
+
+```sql
+SELECT n.body, n.kind, p.write_cursor, bm25(property_search_index),
+       n.logical_id, n.source_id
+FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
+WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
+  {validity}{eligibility}
+  AND rank MATCH '{rank_mapping}'
+ORDER BY rank
+```
+
+`rank_mapping` is `bm25()`; under `test-hooks` with
+`FATHOMDB_FTS_FAIL_STREAM_FOR_TEST` set it is `missing_ranker()`, the body
+path's hook, so the statement fails at execution. Pinning the per-query
+`rank MATCH 'bm25()'` also overrides any persistent `rank` configuration on
+the table, as on the body path. The parameters are the same vector as the
+full sort's, so `?1`, `?2` and `?3` (`:now`) bind identically.
+
+### 2b.2 Decisions
+
+- **Collector reuse: reorder the stream statement's select list; do not add
+  a row mapper.** `collect_complete_rank_boundary` reads rows through
+  `rank_search_hit_from_row` (body, kind, write_cursor, bm25, logical_id,
+  source_id) and `retain_complete_rank_boundary_candidates` sorts on
+  `hit.score` ascending as **raw bm25**, then `write_cursor`. A mapper that
+  produced the projected score `-bm25` would invert that sort, so the
+  collector needs raw bm25 in `score` either way. Giving the new statement
+  the body path's column order reuses the collector, its tie completion and
+  its Slice 20 tests unchanged, and costs one negation loop in the caller.
+  IEEE 754 negation is exact, so `-bm25` after collection is bit-identical
+  to the fallback's `-bm25`. `id` comes from `derive_stable_id(logical_id,
+  body)` in both mappings; `kind` is `n.kind` in both; `branch` is `Text`
+  and `ce_score` `None` in both.
+- **`property_fts_rank_sql` stays byte-identical.** It remains the fallback
+  and is what `slice35_ranked_eligibility_sql_for_test` pins. The stream
+  builder carries the same `{validity}{eligibility}` fragments.
+- **No SQL `LIMIT`.** The collector stops reading at `limit` once the tie
+  group at the boundary is complete; a SQL `LIMIT` would cut a tie group.
+  The bound is the validated `limit`, so the body path's fixed 100-row
+  window (and its limit-near-100 shortfall) is not copied.
+- **Fallback in the same function and transaction**, as on the body path:
+  any prepare or execution error of the stream yields `None` and the full
+  sort runs. `FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST=1` skips the stream, so
+  tests can compare both statements.
+- **Witnesses reuse the body path's machinery** (`record_fts_route_for_test`,
+  `record_fts_query_plan_for_test`, both `test-hooks` only). Route names
+  carry a `projected_` prefix so a test can tell the two paths apart. The
+  plan is recorded for whichever projected statement runs, so the forced
+  full sort's plan shows the temporary b-tree and the witness is not
+  vacuous.
+- **Why it is correct.** FTS5 `ORDER BY rank` yields rows in ascending
+  `bm25()` order; the node and filter predicates only remove rows, they do
+  not change any row's bm25 (the score is a function of the FTS index, not
+  of the join). So the first `limit` surviving rows plus the rest of the
+  boundary tie group, re-sorted by (bm25, write_cursor), are exactly the
+  first `limit` rows of the full sort.
+
+### 2b.3 What must not change
+
+The full-sort statement and its row loop; `property_fts_rank_sql`;
+`collect_complete_rank_boundary`, `rank_search_hit_from_row` and
+`retain_complete_rank_boundary_candidates`; the body path and hybrid
+search; the projected API, its validation (declared `searchable` FTS
+projection, snapshot attribute validation) and its result shape; the
+projection cursor read.
+
+### 2b.4 Risks
+
+| Risk | Effect | Handling |
+| --- | --- | --- |
+| A tie group straddles the limit | Wrong rows if the stream stopped at `limit` | The collector completes the boundary tie group, then sorts by (bm25, write_cursor) and truncates; AC40-27 checks limits inside three tie groups |
+| `.ok()` hides a real stream error | A broken stream statement silently falls back, so the slice ships green and slow | AC40-28 asserts the stream route and plan on every eligible call; a stream that always fails records `projected_full_sort_fallback` and turns AC40-28 RED |
+| A genuine storage error in the stream | Swallowed, then the full sort hits the same error and returns it | Same behavior as the body path; the full sort's error is the one reported |
+| Very large tie group at the boundary | The collector reads the whole group with bodies | Bounded by the group; same as the body path; still no sort of the full match set |
+| `-0.0` vs `0.0` under `total_cmp` | Different tie order from SQLite | FTS5 bm25 of a matched row is strictly negative (IDF is floored above zero), so it does not arise; the body path shares this property |
+| The planner puts `canonical_nodes` outside the FTS5 table in the inner join | `ORDER BY rank` would need a temporary b-tree again; same rows, no speed-up | The diagnosis's V8 plan shows FTS5 as the outer loop with no temporary b-tree; AC40-28's plan witness fails if that changes. If it is ever needed, `CROSS JOIN` pins the order without changing rows (open question for R1) |
+| Frozen reads | Projected search under a frozen view | Same `FrozenView` predicate and parameters; no new clock read |
+
+## 3. Files touched
 
 | File | Change |
 | --- | --- |
 | `src/rust/crates/fathomdb-engine/src/fusion.rs` | per-arm credited set in `fuse_three_arms`; doc comment states "each arm contributes at most once per body, at its first occurrence's rank" |
 | `src/rust/crates/fathomdb-query/src/lib.rs` | `is_empty()` in place of `len() < 3`; doc comments of `content_tokens` and `compile_text_query` |
 | `src/rust/crates/fathomdb-query/README.md` | "tokens shorter than three characters" removed |
+| `src/rust/crates/fathomdb-engine/src/search.rs` (Defect C, W4 of phase 3) | `read_projected_text_in_tx`: stream first, fallback second, score negation, `test-hooks` route and plan witnesses |
+| `src/rust/crates/fathomdb-engine/src/filter.rs` (Defect C) | new `property_fts_rank_stream_sql`; `property_fts_rank_sql` unchanged |
 | `CHANGELOG.md` | two entries under "0.8.28 — unreleased" (R1 F3): fusion credits a body once per arm (result order can change on corpora with duplicate bodies); the compiler keeps 1–2 character tokens |
+
+Defect C tests (phase 3): `tests/slice40_projected_fts_stream.rs` (new)
+and its `[[test]]` entry in `fathomdb-engine/Cargo.toml`
+(`required-features = ["test-hooks"]`). The CHANGELOG gains a third Fixed
+entry for Defect C at its W4.
 
 Already changed in W2 (tests, see [test-plan.md](test-plan.md)):
 `tests/slice40_fts_ranking.rs` (new), the `fathomdb-query` test module,

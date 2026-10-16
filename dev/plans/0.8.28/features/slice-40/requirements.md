@@ -1,14 +1,16 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — requirements and acceptance criteria
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, findings F1–F6)
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C added 2026-10-16 (owner ruling), for review
 target_release: 0.8.28
-observed_on: 2026-10-15
+observed_on: 2026-10-16
 ---
 
 # Slice 40 requirements and acceptance criteria
 
-Slice 40 fixes two ranking defects in FathomDB's text retrieval. Both were
-found by the COMP-01 benchmark and both are correctness bugs, not tuning.
+Slice 40 fixes three defects in FathomDB's text retrieval. Defects A and B
+are ranking bugs found by the COMP-01 benchmark. Defect C, added by owner
+ruling on 2026-10-16, is a latency bug in `search_projected_text` found by
+COMP-02b; its fix must not change which rows are returned or their order.
 [design.md](design.md) gives the mechanism, [test-plan.md](test-plan.md)
 the tests.
 
@@ -76,6 +78,35 @@ non-alphanumeric characters produces, so the fix must keep an
 `is_empty()` check. The stopword list already holds the one-character
 words that should go ("a", "i").
 
+### 1.3 Defect C, read from the code
+
+Evidence: [comp02b-projected-fts-latency.md](comp02b-projected-fts-latency.md).
+On the 10k TC-5 corpus, `search_projected_text` runs at 82 ms p50 against
+13.9 ms for `search_text_only` on the same database. The median query
+matches 3,806 of 10,000 property rows. Raw sqlite3 timings of the engine's
+statement: 52.0 ms as shipped, 5.2 ms with the same predicate and the FTS5
+rank stream (`rank MATCH 'bm25()' ORDER BY rank LIMIT 10`). The attribute
+filter is not the cost (it makes the query faster by shrinking the sort);
+the two dependency-closure `NOT EXISTS` subqueries cost about 6 ms and are
+not the cause.
+
+`read_projected_text_in_tx` (`search.rs`) prepares `property_fts_rank_sql`
+(`filter.rs`): the FTS5 match joined to `canonical_nodes`, the full
+`FrozenView::node_sql` predicate and the attribute-filter predicate,
+selecting `n.body`, `ORDER BY bm25(property_search_index) ASC,
+p.write_cursor ASC`, with no `LIMIT`. The Rust loop stops after `limit`
+rows, but SQLite has already sorted every matched row, body included, in a
+temporary b-tree. The body path had the same shape until SCALE-02 (HITL
+`seq-268`); `read_search_in_tx` now runs a rank-stream statement
+(`AND rank MATCH 'bm25()' ORDER BY rank`), collects it with
+`collect_complete_rank_boundary`, and keeps the full sort only as a
+fallback (`.ok()` on prepare or execute). The projected path never got
+that change.
+
+The public contract is the doc comment on `Engine::search_projected_text`
+(`search_api.rs`): results "are ordered by property-FTS bm25 ascending then
+write cursor ascending". Scores are `-bm25`.
+
 ## 2. Requirements
 
 **REQ40-01 — once per arm.** In `fuse_three_arms`, each arm (vector, text,
@@ -120,6 +151,37 @@ now has content tokens and takes the content path.
 behavior is corrected in the change that fixes it (list in
 [design.md](design.md) § 5).
 
+**Defect C requirements (R-C1 to R-C6).** The fix changes how projected
+search reaches its rows, never which rows it returns or their order.
+
+**REQ40-C1 — streamed rank path.** `read_projected_text_in_tx` first runs
+the projected statement with `AND rank MATCH 'bm25()' ORDER BY rank` and
+collects it with the boundary-tie completion
+(`collect_complete_rank_boundary(limit)`), so SQLite never sorts the full
+match set.
+
+**REQ40-C2 — identical ordered results.** For every input, the ordered
+`(write_cursor, score, id, kind, body, source_id)` list equals what the
+full-sort statement returns today, including rows tied on bm25 at the
+limit boundary (ties order by `write_cursor` ascending).
+
+**REQ40-C3 — limit honoured exactly.** The collector is bounded by the
+validated `limit` argument (1..=100), not a fixed window. When at least
+`limit` rows match, exactly `limit` come back.
+
+**REQ40-C4 — filter semantics unchanged.** The streamed statement keeps the
+full `FrozenView::node_sql` predicate and the attribute-filter predicate
+from `append_node_eligibility_sql`, byte-identical to the full-sort
+statement's.
+
+**REQ40-C5 — fallback.** If the streamed statement fails to prepare or
+execute, the existing full-sort statement runs, unchanged, in the same read
+transaction, exactly as the body path does.
+
+**REQ40-C6 — nothing else changes.** `search_text_only`, hybrid `search`,
+`property_fts_rank_sql` and its `slice35_ranked_eligibility_sql_for_test`
+seam, the public API and the schema are unchanged.
+
 ## 3. Non-goals
 
 - No BM25 `k1`/`b` tuning and no change to `RRF_K` or the arm weights.
@@ -128,6 +190,10 @@ behavior is corrected in the change that fixes it (list in
 - No near-duplicate detection; only byte-identical bodies are affected, as
   they already are by fusion's dedupe on body.
 - No change to the direct text-only candidate window (§ 4).
+- No fielded title boost through declared `searchable` projections.
+  Potential, deferred by owner ruling 2026-10-16 (`status.md`).
+- No performance assertion in tests for Defect C; the orchestrator
+  measures latency on the 10k corpus after W4.
 - No change to the frozen IR-C experiment harnesses
   (`tests/support/ir_retrieval.rs` and its includers), which document
   themselves as a verbatim historical copy.
@@ -154,8 +220,11 @@ stability. Recorded as a follow-up; AC40-13 guards the default limit.
 
 Each AC is checked by the named test. Engine tests are in
 `src/rust/crates/fathomdb-engine/tests/slice40_fts_ranking.rs` unless
-another file is named; query tests are in the `tests` module of
-`src/rust/crates/fathomdb-query/src/lib.rs`.
+another file is named; the Defect C tests (AC40-27 to AC40-31) are in
+`tests/slice40_projected_fts_stream.rs`, which needs `--features
+test-hooks`; query tests are in the `tests` module of
+`src/rust/crates/fathomdb-query/src/lib.rs`. Defect C's criteria start at
+AC40-27 because AC40-23 to AC40-26 were already assigned.
 
 | AC | Check | Test | REQ |
 | --- | --- | --- | --- |
@@ -184,4 +253,10 @@ another file is named; query tests are in the `tests` module of
 | AC40-23 | No doc still states the old behavior | Review of the files in [design.md](design.md) § 5, plus `rg -n "shorter than three\|≥3 chars\|sub-3-char" src/rust/crates/fathomdb-query src/rust/crates/fathomdb-engine/src` returns nothing | 08 |
 | AC40-25 | End to end: a possessive query ("Cow's milk") ranks the topical row first and does not error | `text_only_possessive_query_ranks_topical_row_first` | 04 |
 | AC40-26 | Unit: possessive and contraction fragments ("s", "t") are content tokens, pinned explicitly | `possessive_and_contraction_fragments_are_content_tokens` | 04, 05 |
+| AC40-27 | Projected search order equals the documented full sort for limits 1, 2, 3, 5, 8, 10, 12, 100 on a corpus with three bm25 tie groups | `projected_search_matches_documented_order_across_tie_boundaries` | C2, C3 |
+| AC40-28 | An eligible projected search records route `projected_rank_stream_strict_boundary` or `projected_rank_stream_tie_completed`, and its query plan has no `USE TEMP B-TREE FOR ORDER BY`; the forced full sort records `projected_full_sort_forced` and its plan does | `projected_search_uses_rank_stream_without_temp_order_by_btree` | C1 |
+| AC40-29 | With the stream statement broken, projected search returns the documented order and records exactly one route, `projected_full_sort_fallback` | `projected_search_falls_back_to_full_sort_when_stream_fails` | C5 |
+| AC40-30 | An attribute-filtered projected search returns only in-cohort rows in the documented order restricted to the cohort; the unfiltered list is unchanged | `projected_search_attribute_filter_keeps_cohort_and_order` | C4 |
+| AC40-31 | Exactly `limit` rows at strict boundaries (2, 8) with 12 matches | `projected_search_returns_exactly_limit_rows_at_strict_boundaries` | C3 |
+| AC40-32 | Body-path and existing projected-search contracts unchanged | existing `slice20_fts_rank_stream.rs`, `slice18_retrieval_result_limits.rs`, `slice45_nested_source_projections.rs`, `slice30_dependency_closure.rs`, `slice80_search_view_paths.rs`, `slice35_eligibility_pretruncation.rs` | C6 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

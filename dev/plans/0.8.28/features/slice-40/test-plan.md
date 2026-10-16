@@ -1,8 +1,8 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — test plan
-status: REVISED AFTER R1 (W3 tests added; W4/W5 results in § 5 and § 6)
+status: REVISED AFTER R1 (W3–W5 results in § 5 and § 6); Defect C tests added 2026-10-16 (§ 3b, § 5.3)
 target_release: 0.8.28
-observed_on: 2026-10-15
+observed_on: 2026-10-16
 ---
 
 # Slice 40 test plan
@@ -95,6 +95,52 @@ test was weakened.
 `prop_content_path_terms_are_alphanumeric` is RED only because the content
 path now covers more queries: under the old compiler "0!" takes the
 fallback and emits `"0!"`.
+
+## 3b. Defect C: `src/rust/crates/fathomdb-engine/tests/slice40_projected_fts_stream.rs` (new)
+
+A new file, not `slice40_fts_ranking.rs`: these tests need the `test-hooks`
+witnesses and statement hooks, so the target is registered with
+`required-features = ["test-hooks"]`, while `slice40_fts_ranking.rs` runs
+in the default build. The tests set process-wide environment variables, so
+they serialize on one lock (recovered after a panic so one RED test does
+not mask the others).
+
+```bash
+cd src/rust
+cargo test -p fathomdb-engine --features test-hooks --test slice40_projected_fts_stream
+```
+
+**Corpus.** Fourteen nodes with a searchable FTS projection `title` and a
+filterable projection `cohort` (alternating `c1`/`c2`). Twelve titles match
+`s40proj` in three groups of identical text, so bm25 ties exactly inside a
+group: A (2 rows, best), T (6 rows), C (4 rows, worst). Writes interleave
+the groups, so write-cursor order differs from bm25 order. Two rows do not
+match.
+
+**Oracle.** The documented contract ("bm25 ascending then write cursor
+ascending", `Engine::search_projected_text`) run as SQL directly against
+the database file after the engine closes: `SELECT p.write_cursor,
+bm25(property_search_index), n.body … WHERE p.attr_name = 'title' AND
+property_search_index MATCH '"s40proj"' ORDER BY bm25(...) ASC,
+p.write_cursor ASC`, with score `-bm25`. It is valid without the engine's
+node predicate because the corpus has no validity windows, supersession,
+non-active states or dependencies, so that predicate admits every row; the
+oracle asserts it sees all 12 matches, the three tie groups, the strict
+gaps between them, and that bm25 order differs from write order. It does
+not share code with either engine statement, so it checks the stream and
+the fallback alike.
+
+| Test | AC | Proves | State now |
+| --- | --- | --- | --- |
+| `projected_search_matches_documented_order_across_tie_boundaries` | 27 | Limits 1, 2, 3, 5, 8, 10, 12, 100 equal the oracle prefix, `(write_cursor, score)` | GREEN (regression net) |
+| `projected_search_uses_rank_stream_without_temp_order_by_btree` | 28 | Routes `projected_rank_stream_strict_boundary` (limit 2) and `projected_rank_stream_tie_completed` (limit 5); plan has no temporary ORDER BY b-tree; forced full sort records `projected_full_sort_forced` with a plan that has one | RED |
+| `projected_search_falls_back_to_full_sort_when_stream_fails` | 29 | With `FATHOMDB_FTS_FAIL_STREAM_FOR_TEST`, the oracle order and exactly one route, `projected_full_sort_fallback` | RED (route); the order part already holds |
+| `projected_search_attribute_filter_keeps_cohort_and_order` | 30 | Filter `cohort = c1`, limits 1, 3, 4 (cohort has 5 matches): only `c1` rows, in oracle order restricted to the cohort; unfiltered list equals the oracle | GREEN (regression net) |
+| `projected_search_returns_exactly_limit_rows_at_strict_boundaries` | 31 | Limits 2 and 8 return exactly 2 and 8 of 12 matches | GREEN (regression net) |
+
+The three GREEN tests pass against the current full-sort implementation,
+as expected: they pin the contract the stream must keep. The two RED tests
+fail because the projected path records no route and no plan today.
 
 ## 4. Existing tests touched
 
@@ -270,6 +316,32 @@ test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 The three `fathomdb-query` lines are the unit tests, `tests/property_template.rs`
 and the doctests. `pr_g9_rrf_fusion` needs `--features test-hooks`.
 
+### 5.3 RED run for Defect C (phase 3, 2026-10-16)
+
+Production code at `1f54bc3b8` (Defects A and B fixed, Defect C not):
+
+```text
+cargo test -p fathomdb-engine --features test-hooks --test slice40_projected_fts_stream
+test projected_search_attribute_filter_keeps_cohort_and_order ... ok
+test projected_search_falls_back_to_full_sort_when_stream_fails ... FAILED
+test projected_search_matches_documented_order_across_tie_boundaries ... ok
+test projected_search_returns_exactly_limit_rows_at_strict_boundaries ... ok
+test projected_search_uses_rank_stream_without_temp_order_by_btree ... FAILED
+
+thread 'projected_search_falls_back_to_full_sort_when_stream_fails' (3515748) panicked at src/rust/crates/fathomdb-engine/tests/slice40_projected_fts_stream.rs:330:5:
+assertion `left == right` failed: a failed stream records exactly one route, the fallback
+  left: []
+ right: ["projected_full_sort_fallback"]
+thread 'projected_search_uses_rank_stream_without_temp_order_by_btree' (3515751) panicked at src/rust/crates/fathomdb-engine/tests/slice40_projected_fts_stream.rs:286:5:
+assertion `left == right` failed: each eligible projected search records the rank-stream route it took
+  left: []
+ right: ["projected_rank_stream_strict_boundary", "projected_rank_stream_tie_completed"]
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+```
+
+`cargo clippy -p fathomdb-engine --features test-hooks --test
+slice40_projected_fts_stream -- -D warnings` is clean.
+
 ## 6. Pre-existing test failures at W5
 
 A failing pre-existing test is not edited; it is listed here verbatim
@@ -369,3 +441,15 @@ The full gate is therefore not green at this head.
 - **Q2.** The candidate-window shortfall at `limit` near 100 stays a
   follow-up; `collect_complete_rank_boundary` is not touched.
 - **Q3.** Yes: the AC-038 corpus gains short-token rows (§ 4, F1).
+
+## 8. Open questions for R1 (phase 3)
+
+- **Q4.** Route names `projected_rank_stream_strict_boundary`,
+  `projected_rank_stream_tie_completed`, `projected_full_sort_forced`,
+  `projected_full_sort_fallback`: acceptable, or reuse the body path's
+  names unprefixed?
+- **Q5.** Should the stream statement pin the join order with `CROSS JOIN`
+  now (design § 2b.4), or rely on the planner and the plan witness?
+- **Q6.** Should `slice35_ranked_eligibility_sql_for_test` also return the
+  new stream statement, so the eligibility-before-ranking check covers it?
+  Left unchanged in the design (REQ40-C6).

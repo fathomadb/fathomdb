@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — status
-status: ACTIVE (W4 GREEN; W5 blocked on two release-state suites outside the slice)
+status: ACTIVE (Defects A, B landed on the branch; Defect C added 2026-10-16, docs and RED tests done, awaiting R1 for phase 3)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -20,6 +20,10 @@ for phase 1 is `output.json` in this directory.
 | W4 | done at `13879d4af`: every Slice 40 test GREEN, no test edited; CHANGELOG `### Fixed` entries (F3) |
 | W5 | engine suite (default features) exit 0, 474 passed; `fathomdb-query` exit 0; lint and lint-md exit 0; `agent-verify.sh` exit 1: Python suites failed on an unclean tree and passed on rerun; `test-check-board-currency` and `test-commission-manifest` fail on the 0.8.28 release-state files from the baseline (Slice 30 and 31 not LANDED, Slice 31 SHA not on the board); needs an orchestrator ruling (test-plan § 6) |
 | R2 | not started |
+| C-W1 Defect C docs | done 2026-10-16: requirements § 1.3, REQ40-C1..C6, AC40-27..32; design § 2b; test-plan § 3b |
+| C-W2 Defect C RED tests | done: `slice40_projected_fts_stream.rs`, 2 RED (route and plan witness, fallback witness), 3 GREEN regression net (test-plan § 5.3) |
+| C-R1 | not started |
+| C-W4 Defect C fix | not started |
 
 ## Follow-ups (not in this slice)
 
@@ -36,17 +40,15 @@ for phase 1 is `output.json` in this directory.
   3:1 text weighting (design § 5).
 - COMP-01 NFCorpus re-run: done, see `nfcorpus-recovery.md` (nDCG@10
   0.3087 → 0.3260, forecast 0.3260).
-- Potential addition to this slice, not added (owner 2026-10-16): fielded
+- Potential addition to this slice, not added, deferred by owner ruling
+  2026-10-16: fielded
   title boost through declared `searchable` projections. On NFCorpus it
   measured +0.002 nDCG@10 with a confidence interval that includes zero
   (`nfcorpus-recovery.md` § hypothesis tests), so it waits for a corpus
   where titles are a real signal.
-- COMP-02b projected-FTS latency: `search_projected_text` runs the
-  pre-SCALE-02 unbounded `ORDER BY bm25(...)` shape with the full node
-  body in the sorter and no `LIMIT`; the body path received the streamed
-  boundary-tie completion (`seq-268`) and the projected path did not.
-  Measured and decomposed in `comp02b-projected-fts-latency.md`. Candidate
-  for this slice or the next; not started.
+- COMP-02b projected-FTS latency: added to this slice as Defect C by owner
+  ruling 2026-10-16 (requirements § 1.3, design § 2b). Evidence in
+  `comp02b-projected-fts-latency.md`.
 
 ## Notes
 

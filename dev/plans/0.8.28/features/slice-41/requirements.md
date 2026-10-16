@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — requirements and acceptance criteria
-status: REVISED AFTER R0 (APPROVE-WITH-FIXES, F1–F15); Q1, Q4, Q5 pending owner ruling
+status: REVISED AFTER R0 (APPROVE-WITH-FIXES, F1–F15) and the owner rulings of 2026-10-16
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -165,8 +165,9 @@ pure function of the inputs.
 ### Role-tagged body (B)
 
 The convention is opt-in. Nothing in FathomDB writes it unless the caller
-calls `encode_round_body`. Pending owner ruling (R0 Q4, Q5): it is a
-stored-bytes format and gets a decision-index row (design § 5).
+calls `encode_round_body`. Owner ruling (2026-10-16, R0 Q4, Q5): it ships
+opt-in with its hazards documented (REQ41-B6). As a stored-bytes format it
+gets a decision-index row, marked "can be revisited" (design § 5).
 
 **REQ41-B1 — encode and decode.** `encode_round_body(parts)` returns a
 body string. `decode_round_body(body)` returns the parts. Decoding is
@@ -226,13 +227,12 @@ The operation-parity map gains the operations, and
 The governed allowlist (`src/conformance/governed-surface-allowlist.json`)
 is HITL-signed: any change to it re-opens the gate. The delta and its
 `_slice41_context_pack_signature` text are drafted in design § 5. The
-allowlist is edited only after the owner signs, as a W4 gate (R0 F2). The
-implementer does not sign it.
+owner approved the four operations, with the R0 adjustments, on 2026-10-16
+(R0 F2). The entry is written at W4, not now, and cites that ruling.
 
 **REQ41-S4 — no search-path change.** No engine search, write, projection
 or schema code changes. The diff touches only the new pure module, the SDK
-bindings, the conformance maps and docs, and the decision-index row if
-the owner rules it (REQ41-B1).
+bindings, the conformance maps and docs, and the decision-index row (REQ41-B1).
 
 ### Measurement (M)
 
@@ -287,8 +287,8 @@ the Python prototype, so it also smoke-tests the harness `pack` mode.
 - An engine-backed variant that fetches group members itself. The caller
   supplies `context`, for example from `read.list` by `source_id`.
 - Fielded BM25F on user and assistant text (report opportunity 8).
-- Changes to how competitor arms render evidence in COMP-03. Pending
-  owner ruling (R0 Q1): in M3, LanceDB stays on the Slice 40 renderer,
+- Changes to how competitor arms render evidence in COMP-03. Owner
+  ruling (2026-10-16, R0 Q1): in M3, LanceDB stays on the Slice 40 renderer,
   and every table labels each arm's renderer. A LanceDB-plus-pack arm (the
   same renderer for every store) is deferred to the next COMP-03 headline
   refresh, which would report a store table and a shipped-path table.
@@ -326,7 +326,7 @@ by hand from REQ41-P2 to P9 and checked by hand.
 | AC41-19 | Embedder test: tagged and plain bodies embed to bit-identical vectors (default embedder, CPU); at least one body is over the 512-token window | B4 |
 | AC41-20 | `context_item_from_hit` decodes tagged hits; untagged hits render as one kept part | B5 |
 | AC41-21 | Cross-SDK: Python, TypeScript and Rust give identical text bytes and provenance on every fixture, ASCII and non-ASCII | S1, S2 |
-| AC41-22 | Interface docs describe the operations and the REQ41-B6 hazards; `check-sdk-surface-parity.py` and the operation-parity oracle pass; the allowlist delta carries the owner's `_slice41_context_pack_signature` | S3, B6 |
+| AC41-22 | Interface docs describe the operations and the REQ41-B6 hazards; `check-sdk-surface-parity.py` and the operation-parity oracle pass; the allowlist entry `_slice41_context_pack_signature` cites the 2026-10-16 owner approval; the decision-index row for the tagged body exists | S3, B1, B6 |
 | AC41-23 | The slice diff touches no engine search, write, projection or schema file (review check and `git diff --stat` listing) | S4 |
 | AC41-24 | M1 table recorded at the Unit H head: the policy is chosen on the selection set by the pre-written rule, the answer set is reported separately, and the SSA guard is met | M1, M2 |
 | AC41-25 | M3 answer run recorded with flips, noise floor and reweighted-500 estimate | M3 |

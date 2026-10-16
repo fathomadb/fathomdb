@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — design
-status: REVISED AFTER R0 (APPROVE-WITH-FIXES, F1–F15); § 3 and § 5 decision-index row pending owner ruling
+status: REVISED AFTER R0 (APPROVE-WITH-FIXES, F1–F15) and the owner rulings of 2026-10-16
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -146,12 +146,12 @@ Other roles are refused. `decode_round_body` treats a body that does not
 start with U+001E as untagged: one part, role none, the whole body. It
 splits a tagged body on `"\n" + U+001E`. A tagged body with a missing or
 unknown code is refused, not guessed. `context_item_from_hit` therefore
-raises on such a body instead of returning a guess.
+raises on such a body instead of returning a guess. Encoding refuses part
+texts that contain U+001E or any of the role codes.
 
-The convention is opt-in: nothing writes it unless the caller encodes.
-Pending owner ruling (R0 Q4, Q5), it is a stored-bytes format and gets a
-decision-index row (§ 5). Encoding refuses part texts that
-contain U+001E or any of the role codes.
+The convention is opt-in: nothing writes it unless the caller encodes. By
+owner ruling (2026-10-16) it ships opt-in, with its hazards documented
+(§ 3.5) and a decision-index row (§ 5), and it can be revisited.
 
 ### 3.2 Why it is FTS-neutral
 
@@ -234,8 +234,8 @@ that this policy reproduces every recorded comp03-run-mix
 `evidence_sha256`. Those records are owner-accepted Slice 40 artifacts, so
 this is a differential check against existing data, not a new oracle.
 
-Pending owner ruling (R0 Q1): the LanceDB arm keeps the Slice 40 renderer
-in M3, and every table names each arm's renderer. A LanceDB-plus-pack arm
+By owner ruling (2026-10-16, R0 Q1): the LanceDB arm keeps the Slice 40
+renderer in M3, and every table names each arm's renderer. A LanceDB-plus-pack arm
 is deferred to the next COMP-03 headline refresh.
 
 ## 5. Public surface
@@ -248,8 +248,10 @@ is deferred to the next COMP-03 headline refresh.
 - `src/conformance/governed-operation-parity.json` gains the four
   operations, and `rust-sdk.md`'s operation count is updated.
 - `src/conformance/governed-surface-allowlist.json` is HITL-signed: any
-  diff re-opens the gate (R0 F2). The implementer does not edit it. This is
-  the delta, for the owner to sign as a W4 gate:
+  diff re-opens the gate (R0 F2). The owner approved adding the four
+  operations, with the R0 adjustments, on 2026-10-16. The entry is still
+  written at W4, not now, and cites that ruling. The signature text to
+  write is:
 
   > `_slice41_context_pack_signature`: the 0.8.28 Slice 41 context pack
   > adds four package-level pure operations in each binding:
@@ -258,22 +260,21 @@ is deferred to the next COMP-03 headline refresh.
   > `decodeRoundBody`, `contextItemFromHit`). They render caller-supplied
   > items within a character budget and encode or decode an opt-in
   > role-tagged body. They open no engine and read or write no database.
-  > Core membership and the recovery denylist are unchanged.
-
-  The four names are added to the allowlist only once that signature is
-  recorded.
+  > Core membership and the recovery denylist are unchanged. Approved by
+  > the owner on 2026-10-16, with the R0 plan-review adjustments.
 - ADR check: ADR-0.8.0 (governed, curated SDK surface) and ADR-0.8.27
   (Rust SDK parity) allow additions with parity, and this slice adds them
   in all three SDKs. Vector identity (decision-index row 11) is untouched.
   No ADR is contradicted. The four operations need no ADR; they need the
   signed allowlist delta, the parity-map rows, the interface docs and the
   CHANGELOG (R0 Q4).
-- Pending owner ruling (R0 Q4, Q5): the role-tagged body is a stored-bytes
-  format in user databases. It cannot be withdrawn without a data
+- Owner ruling (2026-10-16, R0 Q4, Q5): the role-tagged body is a
+  stored-bytes format in user databases. It cannot be withdrawn without a data
   migration, which AGENTS.md § 10 forbids. It therefore gets a row in
   `dev/adr/ADR-0.6.0-decision-index.md` covering the markers, the
-  neutrality guarantees, opt-in use and the § 3.4 fallbacks. A one-page
-  ADR is added only if the owner wants the reasoning on file.
+  neutrality guarantees, opt-in use and the § 3.4 fallbacks, marked "can
+  be revisited". The row is written at W4. A one-page ADR is added only if
+  the owner wants the reasoning on file.
 - Public docs: a short guide section in `docs/guides/` on building
   prompt context from hits, linted by `scripts/agent-lint-docs.sh`.
 
@@ -286,8 +287,9 @@ is deferred to the next COMP-03 headline refresh.
   fixture directory exists yet),
   `src/python/tests/test_context_pack_parity.py` and
   `src/ts/tests/context-pack.test.ts`.
-- Edited, after the owner signs: `src/conformance/governed-surface-allowlist.json`
-  and, if ruled, the decision-index row.
+- Edited at W4, citing the 2026-10-16 owner rulings:
+  `src/conformance/governed-surface-allowlist.json` and
+  `dev/adr/ADR-0.6.0-decision-index.md`.
 - Edited: `fathomdb-engine/src/lib.rs` (module and re-export), the
   `fathomdb-sdk` standalone module and `lib.rs`, the `fathomdb-py` and
   `fathomdb-napi` binding modules, the Python package exports and stubs,

@@ -117,9 +117,9 @@ cached. In that case the gate run must have the model cached.
   query through each SDK, then `pack_context`, then a compare.
 - AC41-22: `check-sdk-surface-parity.py` and the operation-parity oracle
   `test_sdk_surface_parity_oracle.py` pass with the four new operations in
-  the parity map. The allowlist entries land only with the owner's
-  `_slice41_context_pack_signature`. Until then this AC is open and W4
-  cannot close.
+  the parity map and the allowlist. The allowlist entry
+  `_slice41_context_pack_signature` is written at W4 and cites the owner
+  approval of 2026-10-16.
 
 ## 4. Measurements (orchestrator runs them; harness branch)
 
@@ -196,8 +196,8 @@ Any difference blocks `hits` mode, and M3 then uses `caller` mode.
   Unit H. If that run used the same reader, judge, seeds and questions, it
   is the control, and M3 runs only the two pack arm-configs. Otherwise all
   four arm-configs run in one run.
-- **LanceDB:** pending owner ruling (R0 Q1). Not re-run; it stays on the
-  Slice 40 renderer, and every table names each arm's renderer.
+- **LanceDB:** owner ruling 2026-10-16 (R0 Q1). Not re-run; it stays on
+  the Slice 40 renderer, and every table names each arm's renderer.
 - **Questions:** the existing 60-question set. Reader, judge and seeds are
   as in the Slice 40 mix run.
 - **Reported:** accuracy per arm-config and per type, paired flips (pack
@@ -244,8 +244,8 @@ calls the new code, so any difference is noise or a defect elsewhere.
 - **Q3:** plain types.
 - **Q6:** headers not counted; `ContextPack.text_chars` added.
 - **F1:** no `field_path`; the message names the field.
-- **F2:** the allowlist delta is a W4 gate that needs the owner's
-  signature; the implementer does not edit the allowlist.
+- **F2:** the allowlist delta needs the owner's approval (given, see
+  below); the entry is written at W4.
 - **F3:** selection on the non-answer set; the answer set is reported
   separately.
 - **F4:** hand-written AC41-12 fixture plus the AC41-27 differential
@@ -253,9 +253,12 @@ calls the new code, so any difference is noise or a defect elsewhere.
 - **F13:** reuse Slice 40's post-Unit H mix run as the M3 control when the
   reader, judge and seeds match.
 
-Pending owner ruling, written with these defaults:
+Owner rulings (2026-10-16):
 
+- **Allowlist:** approved. The four context-pack operations are added to
+  the governed-surface allowlist with the R0 adjustments. The entry is
+  written at W4 and cites this ruling.
+- **Q4, Q5:** the tagged body format ships opt-in with its hazards
+  documented, and it gets a decision-index row marked "can be revisited".
 - **Q1:** LanceDB stays on the Slice 40 renderer in M3, with the renderer
   labelled in every table. A LanceDB-plus-pack arm is deferred.
-- **Q4, Q5:** the tagged body format is opt-in, its hazards are
-  documented, and it gets a decision-index row as a stored-bytes format.

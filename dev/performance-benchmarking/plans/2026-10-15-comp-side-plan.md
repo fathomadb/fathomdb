@@ -1,6 +1,6 @@
 # COMP-01 / COMP-02 execution side plan
 
-**Status:** COMP-01/02 complete 2026-10-15; COMP-03 run 2026-10-16. A side plan, not part of any release. Owner
+**Status:** COMP-01/02 complete 2026-10-15; COMP-03 and its Unit D run 2026-10-16. A side plan, not part of any release. Owner
 directive: run COMP-01 first, then COMP-02a and COMP-02b; add adapters only
 as needed; no Steward or Orchestrator. Design source: the
 [0.8.27 campaign plan](2026-10-13-fathomdb-0.8.27-performance-testing.md).
@@ -44,6 +44,12 @@ Branch `llm/comp-01`, worktree `fathomdb-worktrees/comp-01`.
    answerer and judge `openai/gpt-5.4` through Airlock (owner 2026-10-16;
    the Hermes reference used gpt-5.4 with a gpt-5.4-mini judge). The run
    resumes from its external attempt directory and writes its receipt.
+9. [x] COMP-03 Unit D for 0.8.28 Slice 40 ([result](../2026-10-16-comp-03-unit-d-result.md),
+   [sweep config](../../../experiments/configs/comp-03/retrieval-sweep.v1.json),
+   [answer config](../../../experiments/configs/comp-03/hermes-answer.v2.json),
+   `experiments/comp03_retrieval.py`): a 500-question retrieval sweep of
+   FathomDB FTS, FathomDB hybrid and LanceDB FTS with a pre-stated adoption
+   rule, then the 60-question answer run at k = 10 with all three arms.
 
 Raw artifacts live outside Git under `~/.cache/fathomdb-comp/`; result notes
 cite their paths.

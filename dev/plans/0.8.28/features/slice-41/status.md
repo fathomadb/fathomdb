@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — status
-status: phase 1 done and reviewed; phase 2 (units F and Q) planned, plan review next
+status: phase 1 done and reviewed; phase 2 (units F and Q) plan reviewed, fixes applied, RED next
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -28,11 +28,11 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
 | Step | Who | What | State |
 | --- | --- | --- | --- |
 | P2-W1 | implementer | Requirements § 5, design § 8–9, test-plan § 8 | done; see the commit log |
-| P2-R0 | reviewer | Plan review | not started |
+| P2-R0 | reviewer | Plan review | APPROVE-WITH-FIXES on `80e4ea954`; F-Q1 to F-Q8 and F-F1 to F-F3 applied to requirements § 5, design § 8–9 and test-plan § 8. Rulings: Q-T1 YES (phase 1 expected entries gain `"forced": false` in the RED commit; the deletion check is recorded here); Q-B1 open-time `EngineConfig` setting, not persisted; per-query override and doctor suggester out of scope |
 | P2-W2 | implementer | RED: new tests and fixture cases | not started |
 | P2-W4 | implementer | GREEN: unit F, then unit Q; allowlist text and pin; docs | not started |
 | P2-R2 | reviewer | Code review | not started |
-| P2-M | orchestrator | MF1 now; MQ1 and MQ2 at the merged head after Unit H | not started |
+| P2-M | orchestrator | MF1 now; MQ1 and MQ2 at the merged head after Unit H | not started. Precondition for AC41-39 at the merged head (Slice 40's H1 RED tests removed) satisfied: reverted at `fb42f612e` |
 
 ## Rules
 

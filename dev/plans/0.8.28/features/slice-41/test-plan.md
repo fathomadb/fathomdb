@@ -350,40 +350,45 @@ would be picked. The binding M1 run at the Unit H head decides.
 ## 8. Phase 2 tests and measurements (planned; none written)
 
 New test files only; no existing test is edited. Expected values are
-derived by hand from requirements § 5.
+derived by hand from requirements § 5. The P2-R0 plan review's findings
+(F-Q1 to F-Q8, F-F1 to F-F3) are applied in requirements § 5 and design
+§ 8–9.
 
 ### 8.1 Unit F
 
 | Test | Where | AC |
 | --- | --- | --- |
-| fixture cases `full_ids_past_full_items`, `full_ids_inside_full_items_and_unselected`, `full_ids_over_budget` | `src/conformance/context-pack-fixtures.json` (new cases appended; existing cases untouched) | 28–30 |
-| fixture error cases for unknown, repeated and empty `full_ids` | same file, `pack_errors` | 31 |
-| `prop_empty_full_ids_is_phase_one`, `prop_forcing_never_lowers_rendered_chars_before_budget` | `fathomdb-engine/tests/slice41_full_ids.rs` (new) | 32 |
+| fixture cases `full_ids_past_full_items`, `full_ids_inside_full_items_and_unselected`, `full_ids_over_budget` (the last includes a forced item the budget omits: `tier = "omitted"`, `forced = false`) | `src/conformance/context-pack-fixtures.json` (new cases appended) | 28–30 |
+| fixture error cases for unknown, repeated and empty `full_ids`, and an id repeated across `hits ∪ context` that is also in `full_ids` (expects the REQ41-P8 error) | same file, `pack_errors` | 31 |
+| `prop_empty_full_ids_is_phase_one`, `prop_forcing_changes_only_forced_and_later_items` (the three AC41-32 clauses) | `fathomdb-engine/tests/slice41_full_ids.rs` (new) | 32 |
 | `every_full_ids_case_matches_through_*` | `fathomdb-sdk/tests/slice41_full_ids.rs`, `src/python/tests/test_context_pack_full_ids.py`, `src/ts/tests/context-pack-full-ids.test.ts` (new) | 33 |
 
 Today's suites already load every `pack_cases` entry. The appended cases
-therefore run there too and fail RED until W4, which is intended. Their
-`items` gain a `forced` field. The phase 1 cases do not carry it, so the
-existing comparators would ignore it. W4 adds `forced` to the wire output,
-and the new parity tests compare it explicitly.
+therefore run there too and fail RED until W4, which is intended.
 
-Open question Q-T1: the existing comparators compare whole objects. If
-`forced` appears in output, the phase 1 cases' expected objects lack it
-and those tests would fail. The plan writes `forced` into the phase 1
-expected objects as `false`. That is a fixture-data edit, not a test-code
-edit, and it needs a ruling.
+Q-T1, ruled YES by the orchestrator on P2-R0: the existing comparators
+compare whole objects (TypeScript `deepStrictEqual`, Rust `assert_eq!` on
+JSON, Python `==`), so the phase 1 expected entries gain `"forced": false`
+in the RED commit, as one mechanical fixture-data edit; no test code
+changes and the comparators are not loosened. The edit is checked by a
+scratch script that deletes every `"forced": false` key and compares the
+result with the previous fixture byte for byte; status.md records the
+result. The phase 1 cases then fail RED too until W4 adds `forced` to the
+wire output.
 
 ### 8.2 Unit Q
 
 | Test | Where | AC |
 | --- | --- | --- |
 | `default_set_compiles_like_today` (fixed query list, including every phase 1 and Slice 40 query-module case) and `prop_default_set_is_identity` | `fathomdb-query` tests module, new `#[cfg(test)] mod stop_words_tests` | 34 |
-| `extra_keep_and_none_bases_shape_the_terms`, `all_stopword_fallback_uses_the_effective_set` | same | 35 |
-| `invalid_settings_are_refused_naming_the_field` (each REQ41-Q2 rule) | same, plus engine open in `fathomdb-engine/tests/slice41_query_stop_words.rs` (new) | 36 |
-| `every_compile_site_honours_the_setting` (text-only, search text branch, frozen search, projected text search, graph-expand query seed; each against a corpus where the three words decide the top hit) | `slice41_query_stop_words.rs` | 37 |
-| `trace_records_the_stop_word_hash`, `default_hash_constant_matches_the_list` | `slice41_query_stop_words.rs`, `fathomdb-query` tests | 38 |
-| Python and TypeScript open-time refusal and hash tests | `test_query_stop_words.py`, `query-stop-words.test.ts` (new) | 36, 38 |
-| cross-SDK case | the Unit E harness suite, on the harness branch (specified for the Unit H owner) | 40 |
+| `extra_keep_and_none_bases_shape_the_terms`, `all_stopword_fallback_uses_the_effective_set`, `matching_is_exact_token` (`suggest` leaves `suggests`; `cafe` leaves `café`) | same | 35 |
+| `invalid_settings_are_refused_naming_the_field` (each REQ41-Q2 rule, including `base = none` with a non-empty `keep`; asserts `field`, `index` and `reason`) | same, plus engine open (`EngineConfigurationError::QueryStopWords`) in `fathomdb-engine/tests/slice41_query_stop_words.rs` (new) | 36 |
+| `invalid_query_stop_words_are_invalid_argument` | `fathomdb-sdk/tests/slice41_query_stop_words.rs` (new), asserting `ErrorKind::InvalidArgument` at open | 36 |
+| `every_compile_site_honours_the_setting` (text-only, search text branch, frozen search, evidence search, projected text search, graph-expand query seed; each against a corpus where the three words decide the top hit; the match expression via `take_slice71_search_statement_trace_for_test` where it reaches the site, else a ranking witness) | `slice41_query_stop_words.rs` | 37 |
+| `trace_records_the_stop_word_hash` (explain trace, graph-evidence trace, open report), `default_hash_constant_matches_the_list` | `slice41_query_stop_words.rs`, `fathomdb-query` tests | 38 |
+| Python and TypeScript open-time refusal and hash tests (explain trace, graph-evidence trace, open report, `DEFAULT_STOP_WORDS_SHA256` equal to the Rust constant's literal) | `test_query_stop_words.py`, `query-stop-words.test.ts` (new) | 36, 38 |
+| in-repo cross-SDK case: `src/conformance/query-stop-words-fixtures.json` (new; small hand-written corpus, the three-word setting, hand-derived top-3 ids with and without it); each SDK asserts the ids and score bits equal to its own default engine queried with the words stripped | `slice41_query_stop_words.rs`, `test_query_stop_words.py`, `query-stop-words.test.ts` | 40 |
+| harness cross-SDK case (equal ids and score bits across the SDKs at measurement scale) | the Unit E harness suite, on the harness branch; run by the Unit H owner and recorded with MQ1; does not gate this slice | 40 (recorded) |
 
 AC41-39 is the existing engine, Python and TypeScript suites, run
 unchanged.
@@ -392,9 +397,14 @@ unchanged.
 
 - **MF1:** `variants.py` (c) and (b) re-run through `pack_context`, with
   `full_ids` for (c), on recorded FTS top-100. Pass: SSA .978 and weighted
-  allfull .962 for (c), and .967 for (b), on the 414 selection set.
+  allfull .962 for (c), and .967 for (b), on the 414 selection set. The
+  expected cost of (c) is SSP .950 (−1 question); that value is not a
+  defect.
 - **MQ1:** the COMP-03 sweep at the merged head with REQ41-Q8's config.
-  Pass: FTS top-10 equal to `simulated_fts_ids` for 500 of 500.
+  Pass: FTS top-10 equal to the harness transform's (the words stripped,
+  default engine) at the same head, for 500 of 500. Informative row:
+  how many of the 500 equal `simulated_fts_ids` (simulated at
+  `5b09afd44`).
 - **MQ2:** the defaults at the merged head. Pass: COMP-03 sweep FTS top-10
   equal to the Slice 40 final-head receipts; COMP-01 FTS ids identical;
   COMP-02a within tolerance.
@@ -407,3 +417,5 @@ unchanged.
 4. Code review.
 5. MF1, which needs no Unit H.
 6. Rebase onto Slice 40 after Unit H, then MQ1 and MQ2 (design § 9.5).
+   The precondition that Slice 40's H1 RED tests are gone is satisfied by
+   their revert at `fb42f612e`.

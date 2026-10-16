@@ -362,7 +362,7 @@ Two caller-side rules restore SSA [M]:
 | --- | ---: | ---: |
 | T3/A0/k30 | .913 | .960 |
 | (b) assistant-reference detector, `full_items = 8` when it fires | .978 | .967 |
-| (c) the rank-1 session's hits in full, up to 10 | .978 | .962 (SSP −1 question) |
+| (c) the rank-1 session's hits in full, up to 10 | .978 | .962 (SSP .950, −1 question) |
 
 Variant (b) is a LongMemEval question-template heuristic. Variant (c) needs
 per-item tier control, which the current `pack_context` cannot express.
@@ -414,10 +414,19 @@ error naming the field (`policy.full_ids[i]`):
 
 An id that matches an input item that is not selected has no effect.
 
+REQ41-P8 validation runs first and F3 after it. A request that fails P8,
+for example an id repeated across `hits ∪ context`, is refused with the
+P8 error naming the P8 field, even when that id is also in `full_ids`.
+
 **REQ41-F4 — provenance.** `ContextPackEntry` gains `forced`: true when the
 item's id is in `full_ids` and the item was rendered in the full tier
 because of it. `forced` is false for an item whose index already put it in
-the full tier.
+the full tier. A forced item that is not rendered has `tier = "omitted"`
+and `forced = false`; this covers an item omitted because the budget is
+spent and an item whose text is whitespace-only. A forced item cut by
+`item_chars` or by the budget left is rendered, so it keeps `tier = "full"`
+and `forced = true`, with `truncated` showing the cut. Every phase 1 entry
+carries `forced = false`.
 
 **REQ41-F5 — parity and surface.** Python `full_ids: tuple[str, ...] = ()`,
 TypeScript `fullIds?: readonly string[]`, Rust `full_ids: Vec<String>`; the
@@ -443,17 +452,30 @@ The effective set is `(base ∪ extra) \ keep`. It is fixed for the life of
 the opened engine.
 
 **REQ41-Q2 — validation at open.** Each word must be a single lowercase
-token in the compiler's own terms: non-empty, every character alphanumeric,
-and equal to its lowercase form. Further rules:
+token in the compiler's own terms: non-empty, every character alphanumeric
+(`char::is_alphanumeric`), and equal to its lowercase form. Further rules:
 
-- at most 256 words in `extra` and in `keep`, each at most 64 characters;
+- at most 256 words in `extra` and in `keep`, each at most 64 characters
+  (Unicode scalar values);
 - no repeats within a list;
 - no word in both `extra` and `keep`;
-- every `keep` word is in `base` (a typo would otherwise be silent);
+- every `keep` word is in `base` (a typo would otherwise be silent). With
+  `base = "none"` the base is empty, so any non-empty `keep` is refused;
 - no `extra` word is already in `base`.
 
-A violation is an open-time configuration error (`InvalidArgumentError` in
-the SDKs) naming the field.
+Matching is exact on the compiler's tokens. The compiler lowercases the
+query, splits it on non-alphanumeric characters and drops a token only when
+it equals a word in the set. This happens before FTS5's porter stemming and
+without diacritic folding, both of which run inside FTS5 afterwards. So
+`extra = ["suggest"]` does not drop `suggests`, and `extra = ["cafe"]` does
+not drop `café`. A caller that wants both forms lists both. The Slice 40
+H1 harness transform used the same exact-token rule, so its recorded
+`simulated_fts_ids` were produced under these semantics.
+
+A violation is an open-time configuration error naming the field: in Rust
+`EngineOpenError::EngineConfiguration(EngineConfigurationError::QueryStopWords { .. })`
+(design § 9.1), and `InvalidArgumentError` in the Python and TypeScript
+SDKs and `ErrorKind::InvalidArgument` in `fathomdb-sdk`.
 
 **REQ41-Q3 — where it applies.** Every query compilation site listed in
 § 5.1 uses the effective set: text-only, the search text branch, frozen
@@ -462,12 +484,26 @@ seeds. Nothing else changes: indexing, the vector branch's query
 embedding, fusion and the all-stopword fallback rule, which now uses the
 effective set.
 
+The BM25F lexical arm (`bm25f_search_inner`) is not a compile site. It
+tokenizes the query through FTS5 with no stop list, so this setting does
+not affect it. `search_api.rs`'s plan witness binds the literal
+`"fixture"`, not a query, and is also unaffected.
+
 **REQ41-Q4 — recorded.**
 
-- `QueryTrace` gains `stop_words_sha256`: the SHA-256 of the effective words,
-  sorted by Unicode scalar value and joined by `"\n"`.
-- The engine exposes the default list's hash as a constant, so receipts can
-  say "default".
+- `QueryTrace` gains `stop_words_sha256`: the lowercase hex SHA-256 of the
+  effective words, sorted by Unicode scalar value and joined by `"\n"`.
+  Every place that builds or maps a `QueryTrace` fills it, including the
+  graph-evidence traces in the Python and napi bindings, which carry the
+  same engine's effective hash (design § 9.1 lists the sites).
+- The default list's hash is a constant, `DEFAULT_STOP_WORDS_SHA256`, in
+  `fathomdb-query` (re-exported by `fathomdb-engine`, the `fathomdb` facade
+  and `fathomdb-sdk`) and as `DEFAULT_STOP_WORDS_SHA256` in the Python and
+  TypeScript packages, so receipts can say "default".
+- The effective hash is on the open report (`OpenReport.stop_words_sha256`
+  / `stopWordsSha256`), so a receipt can record it without running a query.
+  The open report already exists in all three SDKs, so no operation is
+  added.
 - `Engine.config()` (where the SDK has it) echoes the setting.
 
 **REQ41-Q5 — default identity.** With `query_stop_words` unset, every
@@ -477,8 +513,23 @@ search tests pass unchanged. Setting `{"base": "fathomdb"}` with empty
 
 **REQ41-Q6 — parity.** One implementation, in `fathomdb-query`, does the
 validation and the effective-set computation; the bindings convert values
-only. The Unit E cross-SDK suite gains a case: the same store opened with
-the same setting through each SDK returns equal ids and score bits.
+only.
+
+- **In-repo case (gates this slice).** A shared fixture
+  `src/conformance/query-stop-words-fixtures.json` holds a small
+  hand-written corpus, the setting `extra = ["had", "long", "suggest"]`,
+  queries, and the hand-derived top-3 ids with and without the setting
+  (the three words decide the top hit). The Rust engine test, the Python
+  test and the TypeScript test each load it into a fresh store, open it
+  with the setting and assert the hand-derived ids. Each also asserts that
+  every score equals, bit for bit, the score of the same store opened with
+  the defaults and queried with the three words stripped (the harness
+  transform). Score bits are not stored in the fixture, because a captured
+  BM25 value would be an implementation-generated oracle.
+- **Harness case (measurement scale).** The Unit E cross-SDK suite on the
+  harness branch gains the same-store, same-setting case with equal ids and
+  score bits across the three SDKs. The Unit H owner runs it; it is
+  recorded in MQ1, and does not gate this slice's own close.
 
 **REQ41-Q7 — no per-query override, no CLI suggester (this slice).** See
 design § 9.4 for the reasons.
@@ -495,11 +546,20 @@ that worktree.
 
 - **MF1 ($0).** Re-run variant (c) through `pack_context` with `full_ids`:
   the rank-1 session's hits, up to 10. On the 414-question FTS selection set
-  it must reproduce SSA .978 and weighted allfull .962. Run (b) through
+  it must reproduce SSA .978 and weighted allfull .962, at the recorded
+  cost of SSP .950 (−1 question against T3/A0/k30); that SSP value is the
+  expected result, not a defect. Run (b) through
   `full_items = 8` for comparison. This step sets no SDK default.
-- **MQ1 ($0).** COMP-03 sweep with the three words supplied: the FTS top-10
-  for every one of the 500 questions equals the verdict's
-  `simulated_fts_ids`.
+- **MQ1 ($0).** At the merged head, the COMP-03 sweep with the three words
+  supplied through the setting. Pass: for every one of the 500 questions,
+  the FTS top-10 equals the harness transform's top-10 at the same head
+  (strip the three words from the query and search a default engine);
+  500 of 500. The Slice 40 property
+  `test_stripping_words_equals_compiling_with_them_as_stopwords` pins that
+  transform. A second, informative row reports how many of the 500 equal
+  the verdict's `simulated_fts_ids`, which were simulated at engine
+  `5b09afd44`; a difference there is a head difference (H2/H3), not a
+  Unit Q defect.
 - **MQ2 ($0).** With the defaults:
   - COMP-03 sweep FTS top-10 equals the Slice 40 final-head receipts;
   - COMP-01 FTS nDCG@10 and MRR@10 are unchanged (ids identical);
@@ -512,17 +572,17 @@ that worktree.
 | --- | --- | --- |
 | AC41-28 | Fixture: a forced item at selection index past `full_items` renders in full with `forced = true`; non-forced items keep index tiers | F1, F4 |
 | AC41-29 | Fixture: a forced item inside `full_items` has `forced = false`; a forced id matching an unselected `context` item has no effect | F1, F3, F4 |
-| AC41-30 | Fixture: forced items exceeding the budget are cut and omitted in selection order; no reordering | F2 |
-| AC41-31 | Unknown, repeated and empty `full_ids` are refused, naming `policy.full_ids[i]` | F3 |
-| AC41-32 | Property: with `full_ids` empty the output equals phase 1's for every request; adding ids never lowers an item's rendered chars before the budget is reached | F1, F2 |
+| AC41-30 | Fixture: forced items exceeding the budget are cut and omitted in selection order; no reordering; a forced item the budget omits has `tier = "omitted"`, `forced = false` | F2, F4 |
+| AC41-31 | Unknown, repeated and empty `full_ids` are refused, naming `policy.full_ids[i]`; an id repeated across `hits ∪ context` and also listed in `full_ids` gets the REQ41-P8 error | F3 |
+| AC41-32 | Property: with `full_ids` empty the output equals phase 1's for every request. With `full_ids` non-empty, against the same request without it: (i) every rendered forced item's `chars` ≥ its phase 1 `chars`; (ii) every item at selection index < `full_items` is unchanged; (iii) the first non-forced item whose `chars` differs from phase 1 has a selection index after the first forced item | F1, F2 |
 | AC41-33 | Python, TypeScript and Rust match the extended fixture field for field | F5 |
 | AC41-34 | Unit: with no setting, `compile_text_query_with(q, default)` equals `compile_text_query(q)` for a fixed query set; property: equal for any query | Q5 |
-| AC41-35 | Unit: `extra` words are dropped, `keep` words return, `base = none` keeps every token; the all-stopword fallback uses the effective set | Q1, Q3 |
-| AC41-36 | Each REQ41-Q2 violation is refused at open with the field named, in each SDK | Q2 |
-| AC41-37 | Engine: with `extra = [had, long, suggest]`, `search_text_only`, `search` (text branch), frozen search, projected text search and graph-expand query seeds all drop the words (match expression or ranking witness per site) | Q3 |
-| AC41-38 | Explain `stop_words_sha256` equals the default constant when unset or `base = fathomdb` with empty lists, and a different, documented value with extras | Q4 |
+| AC41-35 | Unit: `extra` words are dropped, `keep` words return, `base = none` keeps every token; the all-stopword fallback uses the effective set; matching is exact-token: `extra = ["suggest"]` leaves `suggests`, `extra = ["cafe"]` leaves `café` | Q1, Q2, Q3 |
+| AC41-36 | Each REQ41-Q2 violation, including `base = none` with a non-empty `keep`, is refused at open with the field named: Rust engine (`EngineConfigurationError::QueryStopWords`), `fathomdb-sdk` (`ErrorKind::InvalidArgument`), Python and TypeScript (`InvalidArgumentError`) | Q2 |
+| AC41-37 | Engine: with `extra = [had, long, suggest]`, `search_text_only`, `search` (text branch), frozen search, evidence search, projected text search and graph-expand query seeds all drop the words (match expression via `take_slice71_search_statement_trace_for_test` where it reaches the site, else a ranking witness) | Q3 |
+| AC41-38 | `stop_words_sha256` on the explain trace, the graph-evidence trace and the open report equals `DEFAULT_STOP_WORDS_SHA256` when unset or `base = fathomdb` with empty lists, and equals the hand-computed hash of the effective list with extras; the constant is equal across the three SDKs | Q4 |
 | AC41-39 | Every existing search test passes unchanged (gate run) | Q5 |
-| AC41-40 | Cross-SDK case: one store, one setting, three SDKs, equal ids and score bits | Q6 |
+| AC41-40 | In-repo cross-SDK case (REQ41-Q6): the shared small-corpus fixture gives the hand-derived top-3 ids through the Rust engine, Python and TypeScript, with score bits equal to the in-SDK harness transform; the harness Unit E case is recorded with MQ1 | Q6 |
 | AC41-41 | MF1 recorded | F6 |
-| AC41-42 | MQ1: 500 of 500 FTS top-10 lists equal `simulated_fts_ids` | Q8 |
+| AC41-42 | MQ1: 500 of 500 FTS top-10 lists equal the harness transform's at the same merged head; equality with `simulated_fts_ids` is reported as an informative row | Q8 |
 | AC41-43 | MQ2: defaults unchanged on COMP-03 sweep, COMP-01 and COMP-02a | Q5 |

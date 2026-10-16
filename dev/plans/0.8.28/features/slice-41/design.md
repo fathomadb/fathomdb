@@ -320,18 +320,34 @@ is deferred to the next COMP-03 headline refresh.
 
 - **Policy field.** `ContextPolicy.full_ids` holds item ids; the default is
   empty. The wire field is `full_ids`, a JSON array of strings.
-- **Validation.** It runs before selection, in addition to REQ41-P8. It
-  refuses ids that match no item in `hits ∪ context`, repeats and empty
-  strings, naming `policy.full_ids[i]`.
+- **Validation.** It runs before selection, after REQ41-P8: a request that
+  fails P8 gets the P8 error even when the offending id is also in
+  `full_ids`. It refuses ids that match no item in `hits ∪ context`,
+  repeats and empty strings, naming `policy.full_ids[i]`.
 - **Tiers.** In the walk (§ 2.2 step 2):
   - `full = index < full_items || id ∈ full_ids`;
-  - `entry.forced = id ∈ full_ids && index >= full_items && rendered`.
+  - `entry.forced = id ∈ full_ids && index >= full_items && rendered`,
+    where `rendered` means the entry's tier is not `"omitted"`. A forced
+    item omitted by a spent budget or by whitespace-only text is
+    `"omitted"` with `forced = false`; a forced item cut by `item_chars` or
+    the budget left is `"full"` with `forced = true`.
   - Nothing else in the walk changes. Budget, `item_chars`, whitespace
     omission and ordering are as in phase 1.
+- **What forcing can change (AC41-32).** Forcing raises a forced item's
+  chars, and the extra chars come out of the shared budget, so items
+  walked after it can be cut or omitted. Items walked before the first
+  forced item, which include every item at index < `full_items`, see the
+  same `remaining` as in phase 1 and are unchanged.
 - **SDK types.** Python `full_ids: tuple[str, ...] = ()`; a bare `str` is a
   `TypeError`, as for `keep_roles`. TypeScript `fullIds?: readonly string[]`.
   Rust `full_ids: Vec<String>` (default empty). Provenance gains `forced`
   in every SDK.
+- **Fixture.** The phase 1 expected entries in
+  `src/conformance/context-pack-fixtures.json` gain `"forced": false`, as
+  one mechanical edit in the RED commit (orchestrator ruling Q-T1). The
+  comparators keep comparing whole objects. A scratch check that deletes
+  every `"forced": false` key must reproduce the previous fixture byte for
+  byte; status.md records the result.
 
 ### 8.2 Decisions
 
@@ -377,8 +393,17 @@ any recommended adjustments". Interface docs and the CHANGELOG are updated.
     with `StopWordBase::{Fathomdb, None}`;
   - `StopWordSet`, the validated effective set plus its SHA-256 hex;
   - `StopWordSet::default()`, built from `STOPWORDS`;
-  - `fn validate(&QueryStopWords) -> Result<StopWordSet, StopWordError>`,
-    where the error names the field;
+  - `fn validate(&QueryStopWords) -> Result<StopWordSet, StopWordError>`.
+    `StopWordError` is `Copy`: `field: &'static str`
+    (`"query_stop_words.extra"` or `"query_stop_words.keep"`),
+    `index: Option<usize>` (the offending word's position; `None` for a
+    list-length error), and `reason: StopWordRejection`, a `Copy`,
+    `#[non_exhaustive]` enum (`Empty`, `NotAlphanumeric`, `NotLowercase`,
+    `TooLong`, `TooMany`, `Repeated`, `InExtraAndKeep`, `KeepNotInBase`,
+    `ExtraAlreadyInBase`). The `Display` text names the field and index and
+    quotes the word; the error value itself holds no `String`;
+  - matching is exact on the compiler's tokens, before FTS5 stemming and
+    without diacritic folding (requirements REQ41-Q2);
   - `pub fn compile_text_query_with(raw, &StopWordSet) -> CompiledQuery`;
     `compile_text_query(raw)` becomes `compile_text_query_with(raw,
     &StopWordSet::default())`, so every current caller and test is
@@ -389,11 +414,45 @@ any recommended adjustments". Interface docs and the CHANGELOG are updated.
     of `fathomdb-engine`.
 - **In `fathomdb-engine`:**
   - `EngineConfig` gains `query_stop_words: Option<QueryStopWords>`,
-    validated at open with the other `EngineConfig` checks
-    (`EngineConfigurationError` gains a variant naming the field);
+    validated at open with the other `EngineConfig` checks.
+    `EngineConfig` is not `#[non_exhaustive]`, so a downstream struct
+    literal without `..Default::default()` stops compiling. Pre-1.0 that is
+    accepted, and `rust.md`'s `EngineConfig` entry says so; every in-repo
+    construction already uses `..EngineConfig::default()`;
+  - `EngineConfigurationError` gains
+    `QueryStopWords { field: &'static str, index: Option<usize>, reason: StopWordRejection }`,
+    which keeps the enum `Copy`. Because a variant is being added anyway,
+    the enum is marked `#[non_exhaustive]` now (pre-1.0, no shim), with a
+    line in `rust.md` and `rust-sdk.md`. Every in-repo match on it already
+    has a wildcard or `let … else` (`fathomdb-sdk/src/error.rs:319`, the
+    Python and napi error mappers, the Slice 31 and Slice 90 tests), so
+    nothing in the repo breaks;
   - the resolved `Arc<StopWordSet>` is held on the engine runtime and
     passed to each compile site in requirements § 5.1;
+  - `OpenReport.stop_words_sha256` carries the effective hash;
   - `QueryTrace.stop_words_sha256` is filled from it.
+- **Every `QueryTrace` site (W4 edit list).**
+  - engine: `search_types.rs` (the struct) and `search.rs:2450` (the
+    constructor);
+  - napi: `fathomdb-napi/src/graph_evidence.rs:335/351` (the native
+    `QueryTrace` and its conversion from the engine type), and the native
+    type in `src/ts/src/binding.ts:315`;
+  - Python native: `fathomdb-py/src/graph_evidence.rs:361-377`
+    (`PyQueryTrace`), and the stub `src/python/fathomdb/_fathomdb.pyi:141`;
+  - Python package: `src/python/fathomdb/types.py:1086` (`QueryTrace`) and
+    `src/python/fathomdb/_sdk_search.py:277-305/370` (the attribute and
+    JSON-pointer mappers, `/trace/stopWordsSha256`);
+  - TypeScript: `src/ts/src/search.ts:287` (`QueryTrace`) and its mapper
+    (`search.ts:500/561`);
+  - Rust SDK: the re-exported engine type, nothing to add.
+  The graph-evidence trace carries the same engine's effective hash: one
+  engine has one set.
+- **Docs.** The EXP-OBS field set was ratified in
+  `dev/design/0.8.8-explain-and-telemetry-adr.md` (§ `QueryTrace`); that
+  record gets a dated note that 0.8.28 Slice 41 adds `stop_words_sha256`,
+  and the `QueryTrace` paragraphs in `python.md`, `typescript.md`,
+  `rust.md` and `rust-sdk.md` list the field. The interface docs state the
+  exact-token semantics.
 - **In the SDKs:**
   - Python `EngineConfig.query_stop_words: QueryStopWords | None`
     (frozen dataclass: `base: Literal["fathomdb", "none"] = "fathomdb"`,
@@ -401,9 +460,17 @@ any recommended adjustments". Interface docs and the CHANGELOG are updated.
     accepted as the `Engine.open` keyword;
   - TypeScript `EngineConfig.queryStopWords?: { base?, extra?, keep? }`;
   - Rust SDK `OpenOptions` / `EngineConfig` pass-through;
-  - `QueryTrace.stop_words_sha256` / `stopWordsSha256` in every SDK;
+  - `QueryTrace.stop_words_sha256` / `stopWordsSha256` and
+    `OpenReport.stop_words_sha256` / `stopWordsSha256` in every SDK;
+  - `DEFAULT_STOP_WORDS_SHA256` as a package constant in Python and
+    TypeScript, and re-exported by the `fathomdb` facade and `fathomdb-sdk`.
+    A constant is not an operation, so the governed operation map does not
+    change. The Python declaration registry
+    (`src/python/tests/python_surface_additions.json`) gains the new names,
+    fields and the new native stub hash, by the mechanism phase 1 used
+    (status.md ruling 3). If any existing count pin moves, W4 stops and asks;
   - refusals map to `InvalidArgumentError`, as the other `EngineConfig`
-    range errors do.
+    range errors do, and to `ErrorKind::InvalidArgument` in `fathomdb-sdk`.
 
 ### 9.2 Default identity
 
@@ -455,11 +522,15 @@ The setting lives on `EngineConfig`: it is given at open and not stored.
 
 Slice 41 is cut from Slice 40 at `aea8e0457`, before Unit H.
 
-- **H1 (STOPWORDS).** Per the owner, Slice 40 keeps 63 words. The Unit H1
-  failing tests for `had`, `long` and `suggest` (Slice 40 `ee0c5e917`)
-  then belong to Slice 40's own disposition. If an H1 engine commit landed
-  anyway, the Q2 rule "no `extra` word already in `base`" would make the
-  harness's three-word config fail loudly at open, not double-apply.
+- **H1 (STOPWORDS).** Per the owner, Slice 40 keeps 63 words.
+  Precondition for AC41-39 at the merged head: the Unit H1 failing tests
+  for `had`, `long` and `suggest` (Slice 40 `ee0c5e917`) are gone. This is
+  satisfied: Slice 40 reverted them at `fb42f612e` (a pure revert of
+  `ee0c5e917`, 58 lines removed from `fathomdb-query/src/lib.rs`). The
+  AC-038 private mirror in `fts5_injection_safety.rs` stays at 63 words.
+  If an H1 engine commit landed anyway, the Q2 rule "no `extra` word
+  already in `base`" would make the harness's three-word config fail
+  loudly at open, not double-apply.
 - **H2 (vector fusion pool).** This changes the vector branch's hydrated
   count only. Unit Q changes only MATCH compilation, so the two are
   orthogonal. A textual conflict is possible in `search_api.rs` and
@@ -473,3 +544,6 @@ Slice 41 is cut from Slice 40 at `aea8e0457`, before Unit H.
   AC41-37 (every site drops the words) and AC41-39 (existing tests,
   including Unit H's) are re-run there. MQ1 and MQ2 are measured at that
   merged head, with the harness step REQ41-Q8 applied on the harness branch.
+  MQ1's pass criterion compares two runs at that same head (requirements
+  § 5.4), so it does not assume H2 and H3 leave the FTS text path
+  byte-identical to `5b09afd44`.

@@ -324,7 +324,44 @@ orchestrator, not ruled on here. The gate of record is
 
 ### 6.1 Gates
 
-Recorded below at W5.
+| Gate | Result |
+| --- | --- |
+| `./scripts/agent-lint.sh` | exit 0 (`lint-rust-tegra-pool` skipped: needs aarch64 Linux and CUDA) |
+| `./scripts/agent-lint-md.sh` | exit 0 |
+| `./scripts/agent-verify.sh` at `13879d4af` | exit 1: `registered=202 ran=202 passed=198 failed=4 skipped=0 excluded=0`; `FAILED SUITES: test-check-board-currency test-commission-manifest test-python test-python-native-receipt`; `test-rust rc=0` |
+| `test-python`, `test-python-native-receipt` rerun on the clean tree at `0f3cdc403` (the exact commands `agent-test.sh` runs) | first run `1 failed, 1616 passed, 36 skipped`; second run `1617 passed, 36 skipped`, exit 0; receipt exit 0 |
+
+The two Python suites failed in the full gate because the tree was not
+clean (an uncommitted test-plan edit and the untracked `output.json`):
+
+```text
+E   RuntimeError: candidate artifact build requires a clean worktree:
+E    M dev/plans/0.8.28/features/slice-40/test-plan.md
+E   ?? dev/plans/0.8.28/features/slice-40/output.json
+```
+
+The first clean rerun had one failure, which passed in five isolated runs
+and in the next full run (a race in the logging subscriber test, which
+does not depend on ranking):
+
+```text
+FAILED src/python/tests/test_slice100_logging_subscriber.py::LoggingSubscriberTests::test_handler_database_reentry_is_rejected_without_recursion
+>               self.assertEqual(len(errors), 3)
+E               AssertionError: 6 != 3
+```
+
+**Open, needs an orchestrator ruling: the two release-state suites.**
+They check `dev/plans/release-state-0.8.28.json` and
+`dev/plans/runs/STATUS-0.8.28.md`, which this slice must not edit and has
+not touched (`git diff --name-only 574b09e78..HEAD` names neither). They
+come from the baseline state, not from Slice 40:
+
+```text
+FAIL  real-repository current-board regression: rc=1 out=STALE  0.8.28 Slice 31: dev/plans/release-state-0.8.28.json records landing SHA 1ceefddd894c041b0a8622856dc2677be3e49c88, but the hand-written ladder row at dev/plans/runs/STATUS-0.8.28.md:66 does not cite it (TC-133).
+FAIL  arm 9c (real sweep): rc=1 out=FAIL commission-manifest: `dev/plans/release-state-0.8.28.json` declares end-of-ladder but its ladder is not fully landed (non-LANDED=[30, 31]; absent-from-landed=none).
+```
+
+The full gate is therefore not green at this head.
 
 ## 7. R1 rulings on the phase 1 open questions
 

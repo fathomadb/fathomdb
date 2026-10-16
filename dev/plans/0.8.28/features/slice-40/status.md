@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — status
-status: ACTIVE (R1 APPROVE-WITH-FIXES; W3 done)
+status: ACTIVE (W4 GREEN; W5 blocked on two release-state suites outside the slice)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -17,8 +17,8 @@ for phase 1 is `output.json` in this directory.
 | W2 RED tests | done; 6 RED in `fathomdb-query`, 12 RED in `slice40_fts_ranking.rs`, guards green (test-plan § 5) |
 | R1 | APPROVE-WITH-FIXES on `6360cd61a` (findings F1–F6; Q1 keep positional rank, Q2 follow-up, Q3 add short-token AC-038 rows) |
 | W3 | done: F1 AC-038 short-token rows (RED), F2 possessive tests, F6 design wording; F3 and F4 apply at W4/W5; F5 lockfile restored |
-| W4 | not started |
-| W5 | not started |
+| W4 | done at `13879d4af`: every Slice 40 test GREEN, no test edited; CHANGELOG `### Fixed` entries (F3) |
+| W5 | engine suite (default features) exit 0, 474 passed; `fathomdb-query` exit 0; lint and lint-md exit 0; `agent-verify.sh` exit 1: Python suites failed on an unclean tree and passed on rerun; `test-check-board-currency` and `test-commission-manifest` fail on the 0.8.28 release-state files from the baseline (Slice 30 and 31 not LANDED, Slice 31 SHA not on the board); needs an orchestrator ruling (test-plan § 6) |
 | R2 | not started |
 
 ## Follow-ups (not in this slice)

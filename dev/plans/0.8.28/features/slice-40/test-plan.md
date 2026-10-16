@@ -508,6 +508,21 @@ env FATHOMDB_TC5_INPUTS=~/.cache/fathomdb-comp/tc5-10000 \
     --test slice40_cohort_prefilter -- --ignored cohort_prefilter_timing_report --nocapture
 ```
 
+**Report-only c10 timing, run at the H3 commit `28c3ae0d9`** (review F12;
+no retuning, ruling Q-H3). Release build, `tc5-10000` store, 100 queries
+after one warm pass, limit 10:
+
+| Cohort | Prefilter forced on: p50 / p95 ms | Forced off (Defect C stream): p50 / p95 ms |
+| --- | ---: | ---: |
+| c01 (92 rows) | 13.6 / 22.3 | 31.7 / 50.8 |
+| c10 (968 rows) | 10.8 / 18.1 | 6.2 / 15.5 |
+
+The prefilter wins at c01 and loses at c10, consistent with `T` = 256
+sitting between them. The bundled SQLite plans the cohort conjunct as
+`LIST SUBQUERY` on `canonical_attributes_name_value_idx` with no temp
+ORDER BY b-tree, so the plain `p.write_cursor IN (...)` form shipped and no
+design § 2g.4 fallback form was needed.
+
 ### 3g.5 Existing tests to watch at GREEN
 
 None is edited to pass; any failure is analysed and reported. The review

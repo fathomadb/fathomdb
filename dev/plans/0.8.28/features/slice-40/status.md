@@ -36,7 +36,13 @@ for phase 1 is `output.json` in this directory.
   STOPWORDS; needs its own measurement (R1 F2). First data point on the
   10k TC-5 corpus: 50 of 100 queries carry a fragment, and `"s"` alone
   matches 3,912 of 10,000 documents; the median candidate set per query
-  is 3,806 rows with fragments and 2,744 without.
+  is 3,806 rows with fragments and 2,744 without. Second data point,
+  COMP-03 LongMemEval-S (60 questions): 41 carry a 1–2 character content
+  token after the Defect B fix, almost all short pronouns and particles
+  ("my", "me", "so", "up", "m", "ve"), not the "C"/"D3" cases the fix was
+  for; a retrieval-only rerun on this slice's engine changed 19 of 60
+  top-5 lists (session Recall@5 0.893 → 0.911, MRR 0.848 → 0.841). Extend
+  the list with short pronouns and particles as well as the fragments.
 - The public docs give `Σ 1/(60 + rank)`; the code uses `RRF_K = 30` and
   3:1 text weighting (design § 5).
 - COMP-01 NFCorpus re-run: done, see `nfcorpus-recovery.md` (nDCG@10
@@ -48,8 +54,20 @@ for phase 1 is `output.json` in this directory.
   (`nfcorpus-recovery.md` § hypothesis tests), so it waits for a corpus
   where titles are a real signal.
 - COMP-02b projected-FTS latency: added to this slice as Defect C by owner
-  ruling 2026-10-16 (requirements § 1.3, design § 2b). Evidence in
-  `comp02b-projected-fts-latency.md`.
+  ruling 2026-10-16 (requirements § 1.3, design § 2b). Evidence and the
+  post-fix measurement in `comp02b-projected-fts-latency.md`.
+- Potential addition to this slice, not added, deferred by owner ruling
+  2026-10-16: key the attribute-filter `EXISTS` on the FTS row's cursor
+  (`p.write_cursor`) instead of the node's, so SQLite probes
+  `canonical_attributes` before fetching the node record. Raw SQL on the
+  10k corpus: 19.6 → 12.1 ms p50 at the 1% cohort, neutral at 10% and
+  33%, same row set (`comp02b-projected-fts-latency.md` § after the fix).
+- Potential addition to this slice, not added, deferred by owner ruling
+  2026-10-16: a filter-first plan for very selective attribute filters,
+  which fetches the cohort's cursor set first and ranks only inside it,
+  the way a btree prefilter does. Needed to compete at 1% selectivity,
+  where the rank stream walks about a thousand ranked rows for ten
+  survivors.
 
 ## Notes
 

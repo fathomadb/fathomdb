@@ -3,7 +3,7 @@ title: "COMP-02b projected-FTS latency diagnosis"
 slice: 40
 release: 0.8.28
 date: 2026-10-16
-status: diagnosed, not fixed
+status: fixed at a3830681d (Defect C); measured below
 ---
 
 # COMP-02b projected-FTS latency diagnosis
@@ -111,3 +111,36 @@ projected-search contract tests unchanged.
 
 Scripts: `build_and_time.py` and `decompose.py` in the session scratchpad
 under `comp02b-diag/`; inputs `~/.cache/fathomdb-comp/tc5-10000`.
+
+## After the fix
+
+Same script, same inputs, fresh 10k database, wheel built from
+`a3830681d`:
+
+| Engine call | Before p50 (ms) | After p50 (ms) | After p95 (ms) | SurrealDB p50 (COMP-02b) |
+| --- | ---: | ---: | ---: | ---: |
+| `search_projected_text`, no filter | 82.0 | 4.8 | 6.9 | 149 |
+| `search_projected_text`, filter `c01` (0.92%) | 65.6 | 36.3 | 58.1 | 4.2 |
+| `search_projected_text`, filter `c10` (9.7%) | 68.5 | 14.1 | 20.6 | 22.7 |
+| `search_projected_text`, filter `c33` (33.3%) | 76.7 | 12.4 | 18.5 | 73.9 |
+| `search_text_only`, same database | 13.9 | 13.5 | 20.6 | n/a |
+| `search_projected_text`, single term `meeting` | 26.7 | 2.8 | 3.0 | n/a |
+
+Unfiltered and the 10% and 33% cohorts now beat SurrealDB. The 1% cohort
+still loses: the rank stream walks about a thousand ranked rows, each
+joined to its node record, before ten survive the cohort filter, and
+latency now grows as selectivity falls instead of staying flat.
+
+Raw-SQL variants of the streamed statement at the 1% cohort, same
+predicate and rows:
+
+| Variant | c01 p50 (ms) | c10 | c33 |
+| --- | ---: | ---: | ---: |
+| As shipped: attribute `EXISTS` keyed on `n.write_cursor` | 19.6 | 6.3 | 5.5 |
+| Attribute `EXISTS` keyed on `p.write_cursor` | 12.1 | 5.8 | 5.3 |
+| `p.write_cursor IN (cohort subquery)` | 9.3 | 6.9 | 8.4 |
+
+Keying on the FTS row's cursor lets the planner run the attribute probe
+before the node fetch (its plan shows the subquery ahead of `SEARCH n`)
+and is neutral elsewhere; the `IN` form wins only at 1%. Both are
+recorded as potentials in `status.md`, not applied.

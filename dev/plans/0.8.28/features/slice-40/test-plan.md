@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — test plan
-status: DRAFT (W2 RED tests committed, for review R1)
+status: REVISED AFTER R1 (W3 tests added; W4/W5 results in § 5 and § 6)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -54,6 +54,7 @@ the FTS rank is write order; the byte-identical pair is written 13th and
 | `text_only_duplicate_bodies_still_fill_the_limit` | 13 | End to end, 10 distinct results | GREEN (guard) |
 | `text_only_single_char_token_ranks_matching_row_first` | 14 | "Vitamin D" ranks the "d" row first | RED |
 | `text_only_two_char_and_digit_tokens_rank_matching_rows_first` | 15 | "D3" and "IGF-1" rank their rows first | RED |
+| `text_only_possessive_query_ranks_topical_row_first` (W3, R1 F2) | 25 | "Cow's milk" ranks the cow/milk row first, no error | GREEN (guard) |
 | `text_only_short_tokens_with_fts5_control_syntax_never_error` | 16 | Eight control-syntax queries with short tokens return `Ok` | GREEN (guard) |
 
 The properties compare against `reference_fusion`, a model written from
@@ -72,6 +73,7 @@ must stay green.
 | `stopwords_are_dropped` (renamed) | 20 | "of", "the" dropped | GREEN |
 | `short_stopwords_are_still_dropped` | 20 | "a", "i" dropped; "d" kept | RED |
 | `one_and_two_char_content_tokens_are_kept` | 19 | "c", "1", "d3", "ii" kept | RED |
+| `possessive_and_contraction_fragments_are_content_tokens` (W3, R1 F2) | 26 | "Cow's Milk" gives `"cow" OR "s" OR "milk"`; "don't panic" gives `"don" OR "t" OR "panic"` | RED |
 | `short_token_only_query_takes_the_content_path` | 19 | "D3" gives `"d3"`, "C" gives `"c"` | RED |
 | `empty_split_fragments_are_never_emitted` | 20 | No `""` phrase from separator runs | RED |
 | `duplicate_content_tokens_collapse_in_order` (existing) | — | First-seen de-duplication | GREEN |
@@ -99,9 +101,13 @@ fallback and emits `"0!"`.
 `src/rust/crates/fathomdb-engine/tests/fts5_injection_safety.rs` (AC-038):
 its `content_tokens` reference mirrors the compiler, so its `t.len() >= 3`
 filter becomes `!t.is_empty()` and two comments drop "≥3 chars". The
-fixture corpus has no 1–2 character token, so the test is GREEN before and
-after the fix (AC40-22). Without this edit the mirror would be wrong after
-W4.
+mirror alone would be vacuous, because the original corpus has no 1–2
+character token (R1 F1). W3 therefore adds two corpus rows,
+"vitamin d c 1 ii study" and "igf 1 d3 b12 trial", and adds "d3", "c",
+"ii" and "1" to the query alphabet, so some of the 100 fixture queries mix
+a short token with a long one (for example `delta AND d3`). The fixture
+stays at exactly 100 queries. The test is RED before W4 (the compiler drops
+the short token, the mirror keeps it) and must be GREEN after (AC40-22).
 
 Expected to stay green at W4, with reasons: `pr_g9_rrf_fusion.rs` (no
 in-arm duplicates), `slice23_text_limit_prefix_stability.rs` (asserts prefix
@@ -111,6 +117,9 @@ the same way), `exp_obs_explain.rs` (per-arm ranks are first-occurrence
 already). W5's full gate confirms.
 
 ## 5. RED run at W2 (2026-10-15)
+
+The W2 run is below; the W3 additions are in § 5.1 and the GREEN run in
+§ 5.2.
 
 `cargo test -p fathomdb-query`: 8 passed, 6 failed.
 
@@ -199,12 +208,60 @@ proptest saved the minimal cases to
 `src/rust/crates/fathomdb-engine/tests/slice40_fts_ranking.proptest-regressions`;
 both are committed so the cases replay first.
 
-## 6. Open questions for R1
+### 5.1 RED additions at W3 (R1 F1, F2)
 
-- **Q1.** Positional rank of the first occurrence (chosen; matches explain)
-  or compacted rank after removing duplicates? See design § 1.2.
-- **Q2.** Is the candidate-window shortfall at `limit` near 100
-  (requirements § 4) acceptable as a follow-up?
-- **Q3.** Should AC-038's fixture corpus gain a row with a short token so
-  its parity check exercises short tokens? Left out to keep the locked AC's
-  fixture unchanged; AC40-16 and AC40-18 cover the property.
+`cargo test -p fathomdb-query`: 8 passed, 7 failed (the six of § 5 plus):
+
+```text
+thread 'tests::possessive_and_contraction_fragments_are_content_tokens' (2967378) panicked at src/rust/crates/fathomdb-query/src/lib.rs:134:9:
+assertion `left == right` failed
+  left: "\"cow\" OR \"milk\""
+ right: "\"cow\" OR \"s\" OR \"milk\""
+```
+
+`cargo test -p fathomdb-engine --test slice40_fts_ranking`: 7 passed,
+12 failed (the new `text_only_possessive_query_ranks_topical_row_first`
+passes; it is a guard).
+
+`cargo test -p fathomdb-engine --test fts5_injection_safety`: 1 passed,
+1 failed.
+
+```text
+thread 'fts5_control_syntax_is_safe_and_matches_reference' (2966151) panicked at src/rust/crates/fathomdb-engine/tests/fts5_injection_safety.rs:214:5:
+AC-038: 40 fixture queries diverged from safe-grammar reference; first 3: [
+    (
+        "\"foxtrot c\"",
+```
+
+One divergence in full, verbatim (query, engine bodies, reference bodies):
+
+```text
+    (
+        "delta AND d3",
+        [
+            "alpha delta golf kilo",
+            "delta echo foxtrot",
+        ],
+        [
+            "alpha delta golf kilo",
+            "delta echo foxtrot",
+            "igf 1 d3 b12 trial",
+        ],
+    ),
+```
+
+### 5.2 GREEN run at W4
+
+Recorded at W4 below.
+
+## 6. Pre-existing test failures at W5
+
+Recorded at W5 below. A failing pre-existing test is not edited; it is
+listed here verbatim and the slice stops for a ruling (R1 F4).
+
+## 7. R1 rulings on the phase 1 open questions
+
+- **Q1.** Positional rank of the first occurrence: kept.
+- **Q2.** The candidate-window shortfall at `limit` near 100 stays a
+  follow-up; `collect_complete_rank_boundary` is not touched.
+- **Q3.** Yes: the AC-038 corpus gains short-token rows (§ 4, F1).

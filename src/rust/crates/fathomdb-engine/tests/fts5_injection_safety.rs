@@ -45,6 +45,9 @@ const CORPUS: &[&str] = &[
     "alpha delta golf kilo",
     "bravo echo hotel lima",
     "charlie foxtrot india mike",
+    // Short tokens (1–2 characters) must reach FTS5 as content.
+    "vitamin d c 1 ii study",
+    "igf 1 d3 b12 trial",
 ];
 
 fn fts5_token_set(text: &str) -> HashSet<String> {
@@ -100,9 +103,11 @@ fn fixture_queries() -> Vec<String> {
     // 100 queries — 10 templates × 10 token-substitutions. The
     // alphabet is drawn from the corpus so a fraction of queries
     // intentionally hit non-empty result sets (proves parity is not
-    // vacuously satisfied by all-empty matches).
+    // vacuously satisfied by all-empty matches). It includes 1–2
+    // character tokens, so some queries mix a short token with a long one.
     let tokens = [
-        "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet",
+        "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india",
+        "juliet", "d3", "c", "ii", "1",
     ];
     let templates: &[fn(&str, &str) -> String] = &[
         |a, b| format!("\"{a} {b}\""),

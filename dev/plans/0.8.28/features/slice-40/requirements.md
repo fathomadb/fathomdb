@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — requirements and acceptance criteria
-status: DRAFT (W1, for review R1)
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, findings F1–F6)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -38,7 +38,7 @@ cause") predates that diagnosis and is superseded by it.
   Duplicate documents appeared 164 times in FathomDB top-10s against 65 for
   LanceDB.
 - **Defect B, 1–2 character tokens dropped by the query compiler.** About
-  0.003 (0.3228 to 0.3260 on raw FTS5). It deletes "C" from "Vitamin
+  0.003 (0.3228 to 0.3260 on raw FTS5; p95 latency 2.24 to 2.30 ms). It deletes "C" from "Vitamin
   C-Enriched Bacon", "D", "D2" and "D3" from vitamin D queries, "II" from
   "Physicians' Study II" and "1" from "IGF-1".
 
@@ -180,6 +180,8 @@ another file is named; query tests are in the `tests` module of
 | AC40-19 | Unit: short tokens kept ("c", "1", "d3", "ii"); short-only query takes the content path | `one_and_two_char_content_tokens_are_kept`, `short_token_only_query_takes_the_content_path` | 04, 07 |
 | AC40-20 | Unit: stopwords, including one-character ones, are dropped; empty fragments never emitted | `stopwords_are_dropped`, `short_stopwords_are_still_dropped`, `empty_split_fragments_are_never_emitted` | 04, 05 |
 | AC40-21 | Unit: fallback unchanged for all-stopword queries | `all_stopword_query_falls_back_to_raw_or`, `all_short_stopword_query_still_falls_back_to_raw_or`, `escapes_double_quotes_in_fallback_tokens` | 07 |
-| AC40-22 | AC-038 parity holds with the reference mirror updated to keep short tokens | `fts5_injection_safety.rs`: `fts5_control_syntax_is_safe_and_matches_reference` | 06 |
+| AC40-22 | AC-038 parity holds with short tokens: the corpus has two rows with 1–2 character tokens, the query alphabet has "d3", "c", "ii", "1", and the reference mirror keeps short tokens | `fts5_injection_safety.rs`: `fts5_control_syntax_is_safe_and_matches_reference` | 04, 06 |
 | AC40-23 | No doc still states the old behavior | Review of the files in [design.md](design.md) § 5, plus `rg -n "shorter than three\|≥3 chars\|sub-3-char" src/rust/crates/fathomdb-query src/rust/crates/fathomdb-engine/src` returns nothing | 08 |
-| AC40-24 | The full gate passes | `./scripts/agent-verify.sh` on the final W5 tree | all |
+| AC40-25 | End to end: a possessive query ("Cow's milk") ranks the topical row first and does not error | `text_only_possessive_query_ranks_topical_row_first` | 04 |
+| AC40-26 | Unit: possessive and contraction fragments ("s", "t") are content tokens, pinned explicitly | `possessive_and_contraction_fragments_are_content_tokens` | 04, 05 |
+| AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — design
-status: DRAFT (W1, for review R1)
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, findings F1–F6)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -30,11 +30,21 @@ for each arm (vector, text, graph):
         accumulate(hit, rank0, in_vector, weight)   # unchanged
 ```
 
-The set can reuse the existing body-hash plus collision-check scheme, or a
-`HashSet<&str>` of borrowed bodies taken before the hits move into
-`accumulate`; W4 picks whichever keeps the borrow checker simple without a
-body clone per hit. The accumulator, the `BodySlot` collision handling, the
-sort and the score write-back are untouched.
+The per-arm set holds **entry indices**, not bodies (R1 F6). `accumulate`
+already resolves a hit to its accumulator entry by body hash plus an
+equality check against the stored entry's body (the `BodySlot` scheme).
+Each arm passes its own `HashSet<usize>` of entry indices it has credited:
+
+- the body resolves to an existing entry already in the arm's set: skip;
+- it resolves to an existing entry not in the set: add the term, insert
+  the index;
+- it is a new body: create the entry as today, insert its index.
+
+This is R1's "hash, then confirm equality against the stored entry" with
+the hashing done once, by the lookup that already exists: no body clone or
+second hash per hit, and no false skip on a hash collision because the
+equality check decides. The accumulator, the `BodySlot` collision
+handling, the sort and the score write-back are otherwise untouched.
 
 ### 1.2 Decisions
 
@@ -47,7 +57,7 @@ sort and the score write-back are untouched.
   really were ranked below two rows by FTS5; (3) it is the smallest change.
   Within one arm, both choices give the same order; they differ only in
   cross-arm score weights by at most one rank step per skipped duplicate.
-  Open for the reviewer (test-plan § 5, Q1).
+  R1 ruled Q1: keep the positional first-occurrence rank.
 - **Keep keying on `body`, not `write_cursor`.** The body is the merge
   identity across arms: a vector hit and a text hit of the same row are
   joined by body, and the recall harnesses and explain maps key on
@@ -109,10 +119,12 @@ seeding (`graph_expand/execution.rs`).
 | `src/rust/crates/fathomdb-engine/src/fusion.rs` | per-arm credited set in `fuse_three_arms`; doc comment states "each arm contributes at most once per body, at its first occurrence's rank" |
 | `src/rust/crates/fathomdb-query/src/lib.rs` | `is_empty()` in place of `len() < 3`; doc comments of `content_tokens` and `compile_text_query` |
 | `src/rust/crates/fathomdb-query/README.md` | "tokens shorter than three characters" removed |
+| `CHANGELOG.md` | two entries under "0.8.28 — unreleased" (R1 F3): fusion credits a body once per arm (result order can change on corpora with duplicate bodies); the compiler keeps 1–2 character tokens |
 
 Already changed in W2 (tests, see [test-plan.md](test-plan.md)):
 `tests/slice40_fts_ranking.rs` (new), the `fathomdb-query` test module,
-and the AC-038 reference mirror in `tests/fts5_injection_safety.rs`.
+and `tests/fts5_injection_safety.rs` (AC-038: reference mirror, two
+short-token corpus rows, short tokens in the query alphabet).
 
 ## 4. Risks
 
@@ -122,6 +134,7 @@ and the AC-038 reference mirror in `tests/fts5_injection_safety.rs`.
 | Recall harness baselines (eu7, IR-C) move | A number recorded on a duplicate-bearing corpus can shift | eu7 measures the vector stage only (`vector_stage_only` skips fusion); others are experiment records, not gates |
 | Short tokens add OR terms | More FTS5 work per query; tail latency rises slightly on long queries | The measured gain (0.3228 to 0.3260) outweighs it; the stop list stays, which was the large latency factor |
 | Short tokens add false matches (single letters) | Small; bm25's IDF discounts frequent letters | Measured net gain on NFCorpus |
+| Possessive and contraction fragments become OR terms (R1 F2) | "Cow's Milk" compiles to `"cow" OR "s" OR "milk"`, "don't" to `"don" OR "t"`. "s" and "t" occur in most English rows, so they enlarge the OR candidate set (latency) with near-zero IDF signal | Measured on NFCorpus: nDCG@10 0.3228 to 0.3260 and p95 2.24 to 2.30 ms with short tokens kept, so the net is positive. No stop-list change here; pinned by `possessive_and_contraction_fragments_are_content_tokens` and `text_only_possessive_query_ranks_topical_row_first`; adding s, t, ll, re, ve to `STOPWORDS` is a follow-up needing its own measurement |
 | An existing test encodes the old behaviors | It fails at W4 | W5 runs the full gate; a failing test is analysed, not edited to pass, unless it encodes the ruled-defective behavior (then reported) |
 | Explain and fusion ranks disagree | — | Positional first-occurrence rank keeps them equal (§ 1.2) |
 

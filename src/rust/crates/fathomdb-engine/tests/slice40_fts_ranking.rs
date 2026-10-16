@@ -510,6 +510,34 @@ fn text_only_two_char_and_digit_tokens_rank_matching_rows_first() {
     opened.engine.close().expect("close");
 }
 
+/// AC40-25: a possessive query compiles to "cow" OR "s" OR "milk". The
+/// fragment "s" matches every row with a possessive, but the row carrying
+/// the topical terms still ranks first, and the query does not error.
+#[test]
+fn text_only_possessive_query_ranks_topical_row_first() {
+    let dir = TempDir::new().expect("tempdir");
+    let opened = open(&dir, "slice40_possessive");
+    opened
+        .engine
+        .write(&[
+            node("GOAT", "goat's cheese intake survey"),
+            node("COW", "cow milk intake survey"),
+            node("CHILD", "children's bread intake survey"),
+        ])
+        .expect("write");
+    opened.engine.drain(10_000).expect("drain");
+
+    let result = opened.engine.search_text_only("Cow's milk").expect("search_text_only");
+
+    assert_eq!(
+        result.results.first().map(|h| h.body.as_str()),
+        Some("cow milk intake survey"),
+        "the cow/milk row ranks first; got {:?}",
+        bodies(&result.results)
+    );
+    opened.engine.close().expect("close");
+}
+
 /// AC40-16: short tokens mixed with FTS5 control syntax never raise an error
 /// (AC-038 injection safety with short tokens).
 #[test]

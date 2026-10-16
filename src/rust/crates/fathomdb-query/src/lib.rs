@@ -128,6 +128,20 @@ mod tests {
     }
 
     #[test]
+    fn possessive_and_contraction_fragments_are_content_tokens() {
+        // Splitting on the apostrophe leaves "s" and "t". They are not
+        // stopwords, so they are OR terms; this pins that behavior.
+        assert_eq!(
+            compile_text_query("Cow's Milk").match_expression,
+            "\"cow\" OR \"s\" OR \"milk\""
+        );
+        assert_eq!(
+            compile_text_query("don't panic").match_expression,
+            "\"don\" OR \"t\" OR \"panic\""
+        );
+    }
+
+    #[test]
     fn short_token_only_query_takes_the_content_path() {
         // A query whose only token is short is content, not a fallback: the
         // token is lowercased and emitted as a pure literal.

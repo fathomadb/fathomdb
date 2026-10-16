@@ -713,18 +713,30 @@ H1 and H2 each need a measurement before the engine change, so the RED/GREEN
 order is:
 
 1. Harness RED, then GREEN: `experiments/comp03_unit_h.py`, with its pure
-   rule functions and the `stoplist` and `pool` commands.
+   rule functions and the `stoplist` and `pool` commands. In the same
+   step, the baseline manifest gains `comp02a-10000`, `comp02a-17272` and
+   `comp02b-10000` (owner ruling Q-H5), with the manifest test renamed
+   for eight ids and its new assertions RED first.
 2. The selection runs:
    - `stoplist` runs on CPU, implementer;
-   - `pool` runs on cuda:0, implementer when a 3090 is free, otherwise the
-     orchestrator; the verdict records who ran it.
+   - `pool` runs on cuda:0, orchestrator, with a CUDA wheel built at
+     `5b09afd44` (ruling Q-H4). An implementer worktree creates no GPU
+     environment. The verdict records who ran it.
 
    Both verdict files are committed on the harness branch.
 3. Engine RED, written against the verdicts: the `fathomdb-query` H1
    tests, `slice40_vector_pool.rs` and `slice40_cohort_prefilter.rs`.
 4. Engine GREEN in three commits, H1, H2 then H3, so each gate can revert
-   its own commit.
-5. Scoped checks, then stop for the code review.
+   its own commit. The interface-doc and CHANGELOG edits for H1 and H2 go
+   in the same commits as their code, because both change documented
+   public behaviour.
+5. Scoped checks, plus the report-only c10 timing of § 2g.4, then stop
+   for the code review.
+6. The orchestrator measures each gate at its own commit, in ladder order
+   (requirements, the Unit H gate table): H1 at the H1 commit, H2 at the
+   H2 commit against H1, H3 at the H3 commit against H2. That costs one
+   COMP-02b run and one hybrid sweep more than measuring only at the end;
+   it is the only way a failed gate can be traced to one commit.
 
 ### 2g.2 H1, stop list
 
@@ -739,12 +751,22 @@ order is:
   for nDCG@10 and MRR@10. Both corpora rebuild in under a minute on CPU.
   The pruning loop needs one query pass per step, not one rebuild.
 - **The removal transform.** Lowercase the query, split it on
-  non-alphanumeric characters, drop the words, and join with spaces. The
-  harness keeps a Python copy of the `5b09afd44` stop list in the config
-  (`engine_stopwords`). It uses that copy to detect a query that would
-  lose every content token; the simulation does not cover such a query.
-  `test_stripping_words_equals_compiling_with_them_as_stopwords` pins the
-  equivalence as a `hypothesis` property.
+  non-alphanumeric characters, drop the words, and join with spaces.
+  - The harness keeps a Python copy of the `5b09afd44` stop list in the
+    config (`engine_stopwords`, 63 words). Two tests pin it:
+    `test_stoplist_selection_config_states_the_candidates_and_rule`
+    against the verbatim list, and the engine's
+    `unit_h_words_are_in_the_stop_list_and_content_tokens_are_not`
+    against `STOPWORDS.len()`.
+  - The harness uses that copy to find queries that would lose every
+    content token, against every list the rule evaluates: each word
+    alone, and each pruning step's `L`. The simulation does not cover
+    such a query, so the rule prunes until none remains (REQ40-H1).
+  - `test_stripping_words_equals_compiling_with_them_as_stopwords` pins
+    the equivalence as a `hypothesis` property.
+- **Clause (c).** The combined list's paired Recall-all@10 delta against
+  D3 goes through `comp03_retrieval.bootstrap_ci` (seed 404, 10,000
+  resamples). Point delta ≥ +1 and CI lower bound ≥ 0 are both required.
 - **Engine.** Append the verdict's words to `STOPWORDS`, and extend the
   doc comment with the reason: high-document-frequency question words,
   chosen by the Slice 40 H1 rule. Nothing else in `fathomdb-query`
@@ -758,11 +780,12 @@ order is:
 ### 2g.3 H2, vector pool
 
 - **Harness (`comp03_unit_h.pool`).** For each sweep question, build the
-  hybrid store once, as in `comp03_retrieval`, with the device check and
-  vector coverage. Then run `search(question, limit=P)` for
-  P ∈ {10, 20, 50, 100}, recording the IDs. Pool `P0` at k is
-  `ids[P0][:k]` (§ 1.6), so the rule needs no re-fusion and no copy of
-  the engine's fusion.
+  hybrid store once, through the same functions `comp03_retrieval` uses
+  (store build, device check, vector coverage), imported, not copied.
+  Then call `comp03_answer.retrieve` with the `fathomdb-hybrid` arm at
+  `top_k = P` for P ∈ {10, 20, 50, 100}, recording the IDs. Pool `P0` at
+  k is `ids[P0][:k]` (§ 1.6), so the rule needs no re-fusion and no copy
+  of the engine's fusion.
 - **Engine (`search.rs`).** One line changes, in the vector hydration loop:
 
   ```rust
@@ -772,9 +795,11 @@ order is:
   if results.len() >= final_limit.max(VECTOR_FUSION_POOL) { break; }
   ```
 
-  `VECTOR_FUSION_POOL` is a `pub const` in `search_types.rs`, next to
-  `TOP_K_BIT_CANDIDATES`. It is always ≤ 192, so phase 1 and phase 2
-  already hold enough rows and no SQL changes.
+  `VECTOR_FUSION_POOL` is a `pub(crate) const` in `search_types.rs`, next
+  to `TOP_K_BIT_CANDIDATES`, with a `test-hooks` accessor
+  `vector_fusion_pool_for_test()` for the engine tests (review F10). It
+  is always ≤ 192, so phase 1 and phase 2 already hold enough rows and no
+  SQL changes.
 - **What does not change:**
   - fusion gets the longer vector list and truncates to `final_limit` as
     before;
@@ -807,8 +832,9 @@ order is:
      `property_fts_cohort_stream_sql` (new, `filter.rs`).
   3. Feed its rows to `collect_complete_rank_boundary(limit)`, as the
      Defect C stream does.
-  4. If the statement fails, continue to the Defect C stream, and then
-     the full sort, unchanged.
+  4. If the statement fails, record `projected_cohort_stream_fallback`,
+     then continue to the Defect C stream (which records its own route)
+     and then the full sort, unchanged.
 - **The new statement.** It is `property_fts_rank_stream_sql` plus one
   conjunct before `AND rank MATCH`:
 
@@ -836,24 +862,50 @@ order is:
     `FATHOMDB_FTS_FAIL_COHORT_FOR_TEST`, the latter replacing the cohort
     subquery's table with a missing one, so the statement fails to
     prepare.
+- **If the plan witness fails** (review F9). The probe ran on Python's
+  SQLite 3.45.1; the engine bundles a newer SQLite through
+  `libsqlite3-sys`. With the `IN` conjunct, the planner may drive the loop
+  from the list (per-cursor lookups) and sort by `rank` itself. That is
+  correct, but it adds `USE TEMP B-TREE FOR ORDER BY`, and AC40-84 goes
+  RED. The fallback, in this order:
+  1. write the conjunct as `+p.write_cursor IN (...)`, which keeps the
+     planner from using it as an index constraint;
+  2. otherwise, an `EXISTS(SELECT 1 FROM canonical_attributes ca WHERE
+     ca.write_cursor = p.write_cursor AND …)` keyed on `p` (probe row 4).
+
+  Report which form shipped. The plan witness is never dropped to reach
+  GREEN. Result identity (AC40-85, AC40-90) holds in every form.
+- **Report-only c10 timing** (review F12, ruling Q-H3). An `#[ignore]`d
+  test in `slice40_cohort_prefilter.rs`, `cohort_prefilter_timing_report`,
+  times the cohort and Defect C routes at c01 and c10. It builds a store
+  from `FATHOMDB_TC5_INPUTS` (the `tc5-10000` input pack) and forces each
+  route with the `test-hooks` variable. The implementer runs it once
+  before the code review and records the numbers in the test plan. `T`
+  is not retuned from them without a ruling.
 - **Not changed:**
   - the hybrid `search` path's attribute filtering;
   - `search_text_only`;
-  - the attribute `EXISTS` keying (the row-key potential).
+  - the attribute `EXISTS` keying (the row-key potential), unless the
+    plan-witness fallback above needs it.
 
 ### 2g.5 Risks
 
 | Risk | Effect | Handling |
 | --- | --- | --- |
 | A selected stop word carries meaning in some corpus ("long", "number", "total") | Recall loss there | The rule keeps only words with a measured net gain on COMP-03 and checks NFCorpus; the gate checks both corpora again on the engine |
-| H1 changes hybrid's text branch as well | Hybrid numbers move before H2 | The H2 gate measures H1 and H2 together; REQ40-H6 says what happens if hybrid fails at `P0` = 10 |
+| H1 changes hybrid's text branch as well | Hybrid numbers move before H2 | The H1 gate has a hybrid clause (REQ40-H3 (vi)), measured at the H1 commit. By owner ruling Q-H6, a failure there keeps H1 and is reported for follow-up |
+| Two selected words empty a query only jointly | The engine takes the raw fallback where the simulation did not | The emptiness check runs on every list the rule evaluates (REQ40-H1) |
+| The pool is chosen on the `5b09afd44` engine but ships after H1 | The text branch differs from the one the pool was chosen on | The H2 gate measures at the H2 commit, against the H1 commit, and steps the pool down on failure |
+| The bundled SQLite plans the cohort statement differently from 3.45.1 | AC40-84 RED on the plan witness | The fallback forms in § 2g.4; the witness stays |
 | A larger pool lowers multi-session Recall@10 (analysis: .810 → .777 at 100) | The adopted hybrid arm changes | The rule picks the largest pool that keeps every type within one question; 10 is always available |
 | Pool hydration adds latency | Up to `P0 − limit` extra indexed lookups per hybrid query | Latency is a gate clause; the pool steps down on failure |
-| Existing hybrid tests encode pool = limit | They fail at GREEN | Analysed at GREEN and reported for a ruling; not edited to pass |
+| Existing hybrid tests encode pool = limit | They fail at GREEN | Analysed at GREEN and reported for a ruling; not edited to pass. The review found none that pins `vector_hits == limit` (review F15) |
 | The cohort probe costs time on large cohorts | At most 257 index entries per attribute pair | The gate checks c10, c33 and unfiltered |
 | A stale attribute row (superseded node) inflates the probe count | A plan choice only | The node predicates still apply; AC40-89 |
 
 ### 2g.6 Docs changed by Unit H
+
+Each edit lands in the commit whose behaviour it describes.
 
 - `dev/interfaces/{python,typescript,rust,rust-sdk}.md`, "Search behaviour
   in 0.8.28 (Slice 40)":

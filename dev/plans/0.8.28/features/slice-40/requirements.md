@@ -648,8 +648,19 @@ None is built in this slice.
 
 **Unit H requirements** (added by owner ruling 2026-10-16). Three engine
 changes, H1 to H3. Each one's list, pool size or threshold comes from a rule
-stated here before anything is measured. Each lands as its own commit, so a
-failed gate reverts only that change.
+stated here before anything is measured. Each lands as its own commit, in
+the order H1, H2, H3, and each gate is measured at its own commit against
+the commit before it (review F3), so a failed gate reverts only that
+change:
+
+| Commit | Gate | Measured there | Reference |
+| --- | --- | --- | --- |
+| H1 | REQ40-H3 | COMP-01 FTS; COMP-02a 10k and 17k; COMP-03 sweep, all three arms, hybrid at pool = limit; tc5-10k-latency | the final-head baseline |
+| H2 | REQ40-H6 | COMP-03 sweep; `comp01-hybrid`; COMP-02b 10k (reference for H3); the Unit E cross-SDK suite | the H1-commit measurements |
+| H3 | REQ40-H9 | tc5-10k-latency; COMP-02b 10k | the H2-commit measurements |
+
+The H3 commit is the final commit, so REQ40-H10's re-runs reuse its
+measurements where they exist.
 
 **REQ40-H1 — stop-list selection rule (offline, before the engine
 change).** The rule lives in `experiments/configs/comp-03/stoplist-selection.v1.json`
@@ -673,25 +684,42 @@ change).** The rule lives in `experiments/configs/comp-03/stoplist-selection.v1.
 - **Simulation.** The harness removes the candidate words from the query
   text, then calls `search_text_only` on the `5b09afd44` engine. That
   equals the engine compiling with the extended list, as long as the query
-  keeps at least one content token. A word that leaves any question or
-  NFCorpus query with no content token is excluded: the engine would then
-  take the raw-token fallback, which the simulation does not reproduce.
+  keeps at least one content token.
+  - The config pins `engine_stopwords`, the engine's 63-word list at
+    `5b09afd44` (the 51 original words plus the twelve of REQ40-D5),
+    verbatim. A test pins the copy (AC40-70). The engine test pins
+    `STOPWORDS.len()` as 63 plus the verdict's count (AC40-74), so a drift
+    on either side is a RED test, not a failed measurement (review F5).
+  - **Emptiness is checked against every list the rule evaluates** (review
+    F2): each `w` alone, and every `L` the pruning loop produces. A query
+    with no content token under a list would take the engine's raw-token
+    fallback, which the simulation does not reproduce. A word that empties
+    a question or NFCorpus query on its own is excluded from `K`. While
+    some query is empty under the current `L`, the rule drops from `K` the
+    word with the lowest `ΔnDCG` among the `K` words in such a query (ties:
+    lower `Δall`, then alphabetical). Two words can empty a query only
+    jointly, so this check runs on `L`, not just per word.
 - **Per-word step.** Add each candidate `w` alone to the D3 list and
   measure two deltas:
   - `Δall(w)`: on the selection set, questions gained minus questions lost
     on session Recall-all@10;
   - `ΔnDCG(w)`: the NFCorpus nDCG@10 change.
-- **Keep.** `K = {w : Δall(w) ≥ 1}`.
+- **Keep.** `K = {w : Δall(w) ≥ 1}`. A word with no measured gain is not
+  admitted (ruling Q-H1).
 - **Combined check.** `L` is the D3 list plus `K`. Three conditions:
   - (a) NFCorpus nDCG@10 ≥ 0.3265 − 0.002 and MRR@10 ≥ 0.5312 − 0.005
     (the final-head baseline and its tolerances);
   - (b) for every type, the selection-set session Recall-any@5 count is at
     least the D3 count minus 1;
-  - (c) the selection-set session Recall-all@10 count is at least the D3
-    count plus 1.
-- **Pruning.** While (a) or (b) fails, drop from `K` the word with the
-  lowest `ΔnDCG` (ties: lower `Δall`, then alphabetical) and check
-  again.
+  - (c) on the selection set, the paired session Recall-all@10 delta of
+    `L` against D3 has a point delta of at least +1 question, and a 95%
+    bootstrap CI whose lower bound is ≥ 0 (`comp03_retrieval.bootstrap_ci`,
+    seed 404, 10,000 resamples, as Unit D). This is review F4: the
+    per-word screen alone is a point-estimate rule over 47 candidates.
+- **Pruning.** First apply the emptiness check. Then, while (a) or (b)
+  fails, drop from `K` the word with the lowest `ΔnDCG` (ties: lower
+  `Δall`, then alphabetical), apply the emptiness check again, and recheck.
+  Clause (c) is checked once, on the final `L`.
 - **Outcome.** If `K` empties or (c) fails, the verdict is "not adopted"
   and H1 makes no engine change.
 - **Verdict file.** It records the per-word table, `L`, the combined
@@ -707,20 +735,28 @@ gains exactly the verdict's words.
   - the vector branch's query embedding;
   - `d`, `c`, `d3`, `ii`, `1` and `b12` stay content, and the twelve
     Unit D words stay stopwords.
-- **Updated with it:**
+- **Updated in the same commit:**
   - the AC-038 private stop-list copy in `fts5_injection_safety.rs`
     gains the same words, its fixture unchanged (as ruling Q-D3 did for
     D3);
-  - the interface docs' stop-list sentence;
+  - the interface docs' stop-list sentence, because H1 changes documented
+    public behaviour;
   - a CHANGELOG entry.
 
-**REQ40-H3 — H1 gate (orchestrator, after the code review).** Verbatim:
-*(i) the post-change sweep's `fathomdb-fts` top-10 IDs equal the
-simulation's for every question; (ii) COMP-01 FathomDB nDCG@10 ≥ 0.3265 −
-0.002 and MRR@10 ≥ 0.5312 − 0.005; (iii) COMP-03 sweep `fathomdb-fts`
-per-type session Recall@5 not lower than the baseline beyond one question
-per type; (iv) tc5-10k-latency `body-text-only` and projected p50 not above
-the baseline beyond +25%.* If the gate fails, the H1 commit is reverted.
+**REQ40-H3 — H1 gate (orchestrator, at the H1 commit, after the code
+review).** Verbatim: *(i) the post-change sweep's `fathomdb-fts` top-10 IDs
+equal the simulation's for every question; (ii) COMP-01 FathomDB nDCG@10 ≥
+0.3265 − 0.002 and MRR@10 ≥ 0.5312 − 0.005; (iii) COMP-03 sweep
+`fathomdb-fts` per-type session Recall@5 not lower than the baseline beyond
+one question per type; (iv) tc5-10k-latency `body-text-only` and projected
+p50 not above the baseline beyond +25%; (v) COMP-02a 10k and 17k FathomDB
+query-ready, p50 and p95 within the manifest tolerances; (vi) COMP-03 sweep
+`fathomdb-hybrid`, at pool = limit, per-type session Recall@5 and Recall@10
+not lower than the baseline beyond one question per type.* If clause (i),
+(ii), (iii), (iv) or (v) fails, the H1 commit is reverted. If clause (vi)
+fails, H1 is kept, and the hybrid regression is reported for follow-up
+(owner ruling Q-H6, 2026-10-16). The H2 gate then takes the H1-commit
+hybrid numbers as its reference.
 
 **REQ40-H4 — vector-pool selection rule (offline, before the engine
 change).** The rule lives in
@@ -728,10 +764,21 @@ change).** The rule lives in
 is `vector-pool-verdict.v1.json`.
 
 - **Candidates:** `P0` ∈ {10, 20, 50, 100}.
-- **Measurement.** The `fathomdb-hybrid` arm (the D sweep store, cuda:0)
-  runs `search(question, limit=P)` for P ∈ {10, 20, 50, 100} on the
-  `5b09afd44` engine. By § 1.6 the ranking of pool `P0` at k = 5 and 10 is
-  the first k of the limit-`P0` list.
+- **Measurement.** The orchestrator runs it on cuda:0, with a CUDA wheel
+  built at `5b09afd44` (ruling Q-H4); the exact command is in
+  [test-plan.md](test-plan.md) § 3g.1.
+  - `comp03_unit_h.pool` calls the sweep's own hybrid retrieval
+    (`comp03_answer.retrieve` with the `fathomdb-hybrid` product arm, the
+    same store build, device check and vector coverage check), reused,
+    not copied, with `top_k = P` for P ∈ {10, 20, 50, 100}. That call is
+    `search(text, limit=P)` with rerank depth 0 and no graph arm
+    (`comp_fts.py`), as in the sweep (review F11).
+  - By § 1.6, pool `P0` at k = 5 and 10 ranks as the first k of the
+    limit-`P0` list.
+  - The verdict records the IDs for every P. The self-check the review
+    proposed, `ids[P][:k] == ids[100][:k]`, does not hold on today's
+    engine: pool = limit is exactly what breaks it (16 of 500 questions
+    agree). The in-engine check is REQ40-H6 (iv) instead.
 - **Reference.** `P0` = 10: today's limit-10 ranking, which the sweep and
   the answer runs use.
 - **Constraints** on the selection set (414 questions):
@@ -747,7 +794,9 @@ is `vector-pool-verdict.v1.json`.
 **REQ40-H5 — vector-pool engine change.**
 
 - **The constant.** `VECTOR_FUSION_POOL` (`search_types.rs`) is the
-  verdict's `P0`.
+  verdict's `P0`. It is `pub(crate)`, with a `test-hooks` accessor
+  `vector_fusion_pool_for_test()`, because the contract is the prefix
+  guarantee, not the number (review F10). No public Rust item is added.
 - **The one behavioural change.** The vector branch of `search` hydrates
   up to `max(final_limit, VECTOR_FUSION_POOL)` surviving candidates;
   today it hydrates `final_limit`.
@@ -762,24 +811,29 @@ is `vector-pool-verdict.v1.json`.
 - **Contract.** For one database state and view, with `rerank_depth` 0 and
   no graph arm, `search(limit=k)` returns the first k results of
   `search(limit=k')` for every k < k' ≤ `VECTOR_FUSION_POOL`. Scores are
-  bit-identical. Above the pool the guarantee is not claimed.
+  bit-identical. Above the pool the guarantee is not claimed. The docs
+  state only what AC40-79 tests (ruling Q-H2), although every
+  post-fusion stage reads the untruncated list.
 - **Explain.** The trace's `vector_hits` reports the hydrated count.
-- **Docs.** `dev/interfaces/{python,typescript,rust,rust-sdk}.md`,
+- **Docs, in the H2 commit.** `dev/interfaces/{python,typescript,rust,rust-sdk}.md`,
   `docs/guides/hybrid-search-filtering.md` and the CHANGELOG state the
-  pool and the prefix guarantee.
+  prefix guarantee, which is new public behaviour.
 
-**REQ40-H6 — H2 gate (orchestrator, after the code review).** Verbatim:
-*(i) COMP-03 sweep `fathomdb-hybrid` per-type session Recall@5 and Recall@10
-not lower than the baseline beyond one question per type; (ii)
-`fathomdb-hybrid` COMP-03 warm p50 ≤ baseline × 1.25 and p95 ≤ baseline ×
+**REQ40-H6 — H2 gate (orchestrator, at the H2 commit, after the code
+review).** The reference is the H1-commit measurement. Verbatim: *(i)
+COMP-03 sweep `fathomdb-hybrid` per-type session Recall@5 and Recall@10 not
+lower than at the H1 commit beyond one question per type; (ii)
+`fathomdb-hybrid` COMP-03 warm p50 ≤ H1-commit × 1.25 and p95 ≤ H1-commit ×
 1.35, and `comp01-hybrid` `fathomdb-hybrid` p50 ≤ baseline × 1.25; (iii)
-the Unit E cross-SDK suite equal in every case, SDK and repetition.*
+the Unit E cross-SDK suite equal in every case, SDK and repetition; (iv)
+for every sweep question, the hybrid limit-10 IDs and score bits equal the
+first ten of a limit-`P0` call on the same store.*
 
 - If (i) or (ii) fails, `P0` steps down to the next smaller candidate
   that met REQ40-H4, and the gate is measured again.
-- A failure that remains at `P0` = 10 comes from H1's change to the
-  hybrid text branch. It is reported to the owner and is not reverted
-  automatically.
+- At `P0` = 10, limit 10 ranks exactly as at the H1 commit, so the step
+  down ends there. A failure that remains is not H2's; H1's hybrid clause
+  (REQ40-H3 (vi)) already covers it.
 
 **REQ40-H7 — cohort prefilter switch (H3).** In `read_projected_text_in_tx`,
 when the filter carries at least one attribute pair:
@@ -799,7 +853,16 @@ when the filter carries at least one attribute pair:
   path is unchanged.
 - **Why `T` = 256.** The probe in § 1.6 puts the crossover between 92 and
   968 rows. 256 sits inside that range, on the conservative side for the
-  engine's heavier node predicate.
+  engine's heavier node predicate. `T` is fixed here and is not retuned
+  after measuring (ruling Q-H3).
+- **The cost model is approximate** (review F12). The real trade-off is
+  cohort size against matched-row count: for a query with few matches the
+  Defect C stream is already cheap, and the cohort materialisation is
+  overhead. Before the gate, the implementer records one report-only
+  in-engine timing with the prefilter forced on at c10 (968 rows) on the
+  10k store, so the engine's cost at the next size up is known
+  ([test-plan.md](test-plan.md) § 3g.4). No retuning follows from it
+  without a ruling.
 
 **REQ40-H8 — identity and witnesses.**
 
@@ -817,19 +880,31 @@ when the filter carries at least one attribute pair:
   - `FATHOMDB_FTS_COHORT_PREFILTER_FOR_TEST`: `on` ignores `T`, `off`
     never prefilters.
   - `FATHOMDB_FTS_FAIL_COHORT_FOR_TEST` breaks the cohort statement. The
-    search then falls back to the Defect C stream and records that route.
+    route list is then exactly
+    `["projected_cohort_stream_fallback", "projected_rank_stream_strict_boundary"]`
+    (or `…_tie_completed` for the second entry), so the fallback is
+    observable (review F7).
+  - With `FATHOMDB_FTS_COHORT_PREFILTER_FOR_TEST=off`, or a cohort above
+    `T`, no `projected_cohort_*` route is recorded.
   - The cohort statement's plan has `LIST SUBQUERY` with
     `canonical_attributes_name_value_idx`, and no
-    `USE TEMP B-TREE FOR ORDER BY`.
+    `USE TEMP B-TREE FOR ORDER BY`. The witness is never dropped to reach
+    GREEN; design § 2g.4 gives the fallback if the bundled SQLite plans
+    the statement differently (review F9).
 - **The row-key potential** (attribute `EXISTS` keyed on
   `p.write_cursor`) stays a potential: H3 does not need it.
 
-**REQ40-H9 — H3 gate (orchestrator, after the code review).** Verbatim:
-*tc5-10k-latency `projected-c01` p50 at least 25% below the 29.8 ms
-baseline; `projected-unfiltered`, `projected-c10` and `projected-c33` p50
-and p95 within baseline tolerance; COMP-02b 10k FathomDB c01 p50 lower,
-c10 and c33 within +25%, violations 0, short-result counts unchanged;
-COMP-02a within tolerance.* If the gate fails, the H3 commit is reverted.
+**REQ40-H9 — H3 gate (orchestrator, at the H3 commit, after the code
+review).** The reference is the H2-commit measurement, so H1's change to
+every compiled query is not charged to H3 (review F3). Verbatim:
+*tc5-10k-latency `projected-c01` p50 at least 25% below the H2-commit
+value; `projected-unfiltered`, `projected-c10` and `projected-c33` p50
+and p95 within the manifest tolerances of the H2-commit values; COMP-02b
+10k FathomDB c01 p50 lower than at the H2 commit, c10 and c33 p50 within
++25% and p95 within +35% of the H2 commit, violations 0, short-result
+counts equal to the H2 commit's.* If the gate fails, the H3 commit is
+reverted. The tolerances are the manifest's, with COMP-02b a manifest
+benchmark (owner ruling Q-H5, REQ40-H10).
 
 **REQ40-H10 — re-runs and baseline.** After GREEN and the code review, the
 orchestrator re-runs every benchmark at the Unit H engine commit, with
@@ -843,7 +918,14 @@ receipts:
 - the COMP-03 mix answer run.
 
 The baseline manifest is then updated as [test-plan.md](test-plan.md)
-§ 3g.7 sets out.
+§ 3g.7 sets out. By owner ruling Q-H5 (2026-10-16, review F8), COMP-02a
+(10k and 17k) and COMP-02b (10k) become manifest benchmarks, taking it from
+six to eight ids. They are added in the harness step, before the H1 gate,
+with expected values from the final-head receipts, so REQ40-H3 (v) and
+REQ40-H9 read manifest tolerances.
+`test_slice_40_baseline_manifest_lists_the_six_benchmarks` is renamed for
+eight ids under that ruling, and its new assertions are written RED
+first.
 
 ## 3. Non-goals
 
@@ -973,7 +1055,7 @@ tests are in the `fathomdb-query` test module (AC40-74),
 | AC40-55 | TypeScript and Rust drivers pass the same cases; the suite records every SDK equal to the oracle in every repetition | the TS and Rust driver suites (`test_sdk_typescript_driver.py`, `sdk_drivers/rust/tests`) extended at W4; the suite run by the orchestrator | E1–E3 |
 | AC40-56 | Interface docs describe the three verbs' Slice 40 behaviour; the public RRF formula reads `RRF_K = 30`, 3:1; `agent-lint-docs.sh` passes | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | E4 |
 | AC40-57 | Drift check: PASS inside tolerance, DRIFT outside (absolute, relative and per-question tolerances), MISSING when absent; non-zero exit on DRIFT or MISSING | `test_every_metric_inside_its_tolerance_passes`, `test_a_metric_outside_its_tolerance_drifts`, `test_a_missing_metric_is_reported_and_is_not_a_pass`, `test_question_tolerance_is_one_question_of_the_type_count`, `test_cli_exits_non_zero_on_drift_or_missing` | F3 |
-| AC40-58 | Baseline manifest lists the five benchmarks with inputs, commit, build recipe, command, receipt and tolerances; answer accuracy marked not a gate | `test_slice_40_baseline_manifest_lists_the_five_benchmarks` | F1 |
+| AC40-58 | Baseline manifest lists the six benchmarks with inputs, commit, build recipe, command, receipt and tolerances; answer accuracy marked not a gate; eight benchmarks, with COMP-02a and COMP-02b, after the Unit H harness step (owner ruling Q-H5) | `test_slice_40_baseline_manifest_lists_the_six_benchmarks`, renamed `…_eight_benchmarks` under Q-H5 | F1, H10 |
 | AC40-59 | Latency harness keeps the six diagnostic cells and the script's percentiles | `test_latency_harness_keeps_the_diagnostic_cells_and_percentiles` | F2 |
 | AC40-60 | Receipts record engine commit, native SHA-256 and version; a malformed commit is refused | `test_engine_identity_records_the_commit_and_the_native_digest` | F4 |
 | AC40-61 | Evidence caps: per-round then total, rank order; the baseline policy shows the same rounds as `render_evidence` | `test_caps_apply_per_round_then_total_in_rank_order`, `test_the_baseline_policy_matches_the_answer_harness_renderer` | G1 |
@@ -985,29 +1067,29 @@ tests are in the `fathomdb-query` test module (AC40-74),
 | AC40-67 | Adoption rule, with its boundaries (overall −1 with KU plus temporal flat adopts; KU +1 / temporal −1 adopts) and a per-type report | `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one`, `test_recency_rule_boundaries` | G5 |
 | AC40-68 | v3, v4a, v4b and v4c configs: single-factor steps, provisional verdicts; the verdict file names its inputs (470 scored, 414 selection, 60 answer IDs of which 56 scored) and the expected answer-set delta | `test_v3_v4a_v4b_v4c_configs_add_one_factor_each`, `test_evidence_verdict_file_names_its_inputs` | G2, G5 |
 | AC40-69 | The best-mix config is built from the verdicts on the arm of record; v4c contingency; renderer caps and policy are mutually exclusive | `test_mix_config_follows_the_three_verdicts`, `test_mix_config_follows_the_arm_of_record`, `test_mix_config_needs_v4c_for_chronological_order_alone`, `test_render_evidence_refuses_a_policy_together_with_caps` | G2, G6 |
-| AC40-70 | Stop-list selection config: typed; holds the 47 candidates (no `d`, no `ve`, no current stopword), the 414-question selection set and the rule verbatim; a wrong schema is refused | `test_stoplist_selection_config_states_the_candidates_and_rule` | H1 |
-| AC40-71 | Simulation: removing words harness-side gives the content tokens of compiling with them as stopwords (property); a word that empties a query is excluded | `test_stripping_words_equals_compiling_with_them_as_stopwords`, `test_a_word_that_empties_a_query_is_excluded` | H1 |
-| AC40-72 | Rule: keep `Δall ≥ 1`; combined constraints (a)–(c); pruning order by lowest `ΔnDCG`, then `Δall`, then name; boundaries (exactly −0.002, exactly −1 question, exactly +1); "not adopted" when nothing gains | `test_stoplist_rule_keeps_gaining_words_and_prunes_until_constraints_hold`, `test_stoplist_rule_boundaries`, `test_stoplist_rule_is_not_adopted_when_nothing_gains` | H1 |
+| AC40-70 | Stop-list selection config: typed; holds the 47 candidates (no `d`, no `ve`, no current stopword), `engine_stopwords` equal to the 63-word list at `5b09afd44` verbatim, the 414-question selection set and the rule verbatim, including the emptiness check; a wrong schema is refused | `test_stoplist_selection_config_states_the_candidates_and_rule` | H1 |
+| AC40-71 | Simulation: removing words harness-side gives the content tokens of compiling with them as stopwords (property); a word that empties a query alone is excluded; two words that empty a query only jointly cause the lower-`ΔnDCG` one to be pruned | `test_stripping_words_equals_compiling_with_them_as_stopwords`, `test_a_word_that_empties_a_query_is_excluded` | H1 |
+| AC40-72 | Rule: keep `Δall ≥ 1`; combined constraints (a)–(c), with (c) a point delta ≥ +1 and a bootstrap CI lower bound ≥ 0; pruning order by lowest `ΔnDCG`, then `Δall`, then name; boundaries (exactly −0.002, exactly −1 question, exactly +1, CI lower bound exactly 0); "not adopted" when nothing gains or (c) fails | `test_stoplist_rule_keeps_gaining_words_and_prunes_until_constraints_hold`, `test_stoplist_rule_boundaries`, `test_stoplist_rule_is_not_adopted_when_nothing_gains` | H1 |
 | AC40-73 | Stop-list verdict file names its inputs (414 selection, 56 scored answer-set, 323 NFCorpus queries, engine commit) and the per-word table | `test_stoplist_verdict_names_its_inputs` | H1 |
-| AC40-74 | The verdict's words are stopwords; `d`, `c`, `d3`, `ii`, `1`, `b12` are not; the Unit D twelve stay; each new word alone takes the fallback; the § 1.6 question shapes compile to their content terms | `unit_h_words_are_in_the_stop_list_and_content_tokens_are_not`, `each_unit_h_word_alone_takes_the_fallback`, `unit_h_question_shapes_compile_to_content_terms` | H2 |
+| AC40-74 | The verdict's words are stopwords and `STOPWORDS.len()` is 63 plus their count; `d`, `c`, `d3`, `ii`, `1`, `b12` are not; the Unit D twelve stay; each new word alone, upper-cased, takes the fallback (the raw token keeps its case); the § 1.6 question shapes compile to their content terms | `unit_h_words_are_in_the_stop_list_and_content_tokens_are_not`, `each_unit_h_word_alone_takes_the_fallback`, `unit_h_question_shapes_compile_to_content_terms` | H2 |
 | AC40-75 | The AC-038 private copy gains the same words; every other Slice 40 compiler and engine test passes unchanged | `fts5_injection_safety.rs`; the `fathomdb-query` test module, `slice40_fts_ranking.rs` | H2 |
-| AC40-76 | H1 gate (REQ40-H3) | orchestrator measurement after the code review | H3 |
-| AC40-77 | Pool selection config: typed; candidates {10, 20, 50, 100}, reference 10, the rule verbatim | `test_vector_pool_selection_config_is_typed_and_states_the_rule` | H4 |
+| AC40-76 | H1 gate (REQ40-H3), at the H1 commit | orchestrator measurement after the code review | H3 |
+| AC40-77 | Pool selection config: typed; candidates {10, 20, 50, 100}, reference 10, the rule verbatim; the pool command calls the sweep's hybrid retrieval function, not a copy | `test_vector_pool_selection_config_is_typed_and_states_the_rule` | H4 |
 | AC40-78 | Pool metrics use the first k of the limit-`P` list; the rule picks the largest pool meeting every constraint; the reference always passes; boundaries at exactly −1 question | `test_pool_metrics_use_prefixes_of_the_limit_p_ranking`, `test_pool_rule_picks_the_largest_pool_that_keeps_recall`, `test_pool_rule_boundaries` | H4 |
 | AC40-79 | Hybrid results are prefix-stable up to the pool: for limits k < k' ≤ `VECTOR_FUSION_POOL`, ids and score bits of limit k equal the first k of limit k', on a corpus where today's engine breaks the prefix | `hybrid_results_are_prefix_stable_up_to_the_vector_pool` | H5 |
-| AC40-80 | The vector branch hydrates `min(max(limit, pool), surviving)` rows: explain `vector_hits` at limits below, at and above the pool | `vector_branch_hydrates_the_pool_below_it_and_the_limit_above_it` | H5 |
+| AC40-80 | The vector branch hydrates `min(max(limit, pool), surviving)` rows: explain `vector_hits` at limits below, at and above the pool; the pool is read through `vector_fusion_pool_for_test()` | `vector_branch_hydrates_the_pool_below_it_and_the_limit_above_it` | H5 |
 | AC40-81 | Fused scores still equal `Σ w/(30 + rank)` with text 3 and vector 1, for a body found by both branches with the vector rank beyond `limit` | `fused_score_formula_is_unchanged_with_the_pool` | H5 |
 | AC40-82 | `vector_stage_only` returns `limit` vector hits; the filtered vector branch keeps its cohort; the existing hybrid tests pass unchanged or are reported for a ruling | `vector_stage_only_and_filtered_vector_search_keep_their_contracts`; existing `ga2_vector_stage_seam.rs`, `slice18_retrieval_result_limits.rs`, `pr_g9_rrf_fusion.rs` | H5 |
-| AC40-83 | H2 gate (REQ40-H6), cross-SDK parity included | orchestrator measurement and the Unit E suite after the code review | H6 |
+| AC40-83 | H2 gate (REQ40-H6), at the H2 commit, cross-SDK parity and the in-engine prefix check included | orchestrator measurement and the Unit E suite after the code review | H6 |
 | AC40-84 | A cohort of at most `T` rows takes the cohort route; its plan has `LIST SUBQUERY` on `canonical_attributes_name_value_idx` and no temp B-tree for ORDER BY | `small_cohort_takes_the_cohort_prefilter_route` | H7, H8 |
 | AC40-85 | Cohort route results equal the Defect C stream's and the forced full sort's (ids, score bits, order) for limits 1, 2, 3, 5, 8, 10, 12, 100 across three bm25 tie groups | `cohort_prefilter_results_equal_rank_stream_and_full_sort` | H8 |
 | AC40-86 | Boundary: `T` rows prefilter, `T + 1` rows keep the Defect C stream | `cohort_of_t_rows_prefilters_and_t_plus_one_keeps_the_rank_stream` | H7 |
-| AC40-87 | A failing cohort statement falls back to the Defect C stream with the same results and its route | `cohort_prefilter_failure_falls_back_to_the_rank_stream` | H8 |
+| AC40-87 | A failing cohort statement falls back to the Defect C stream with the same results; the route list is exactly `projected_cohort_stream_fallback` then the Defect C route; forced off records no cohort route | `cohort_prefilter_failure_falls_back_to_the_rank_stream` | H8 |
 | AC40-88 | Two attribute pairs: the smaller cohort prefilters; results equal the forced-off results | `multi_attribute_filter_prefilters_on_the_smallest_cohort` | H7 |
 | AC40-89 | Lifecycle and the other filter fields still apply on the cohort route (superseded node, `kind`) | `cohort_prefilter_keeps_lifecycle_and_other_filter_fields` | H8 |
 | AC40-90 | Property: random corpora, cohorts and limits, the cohort route equals the forced full sort | `prop_cohort_prefilter_matches_the_full_sort` | H8 |
 | AC40-91 | Defect C's tests (AC40-27 to AC40-32) pass unchanged | `slice40_projected_fts_stream.rs` and the AC40-32 list | H8 |
-| AC40-92 | H3 gate (REQ40-H9) | orchestrator measurement after the code review | H9 |
+| AC40-92 | H3 gate (REQ40-H9), at the H3 commit against the H2 commit | orchestrator measurement after the code review | H9 |
 | AC40-93 | Interface docs, the hybrid guide and the CHANGELOG describe H1 to H3; `agent-lint-docs.sh` passes | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | H2, H5 |
 | AC40-94 | Re-runs with receipts at the Unit H commit; baseline manifest updated as test-plan § 3g.7 | orchestrator | H10 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

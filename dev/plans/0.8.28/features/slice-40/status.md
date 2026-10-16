@@ -38,7 +38,8 @@ for phase 1 is `output.json` in this directory.
 | EF-W4/W5 | done: harness `bc4ca421b` (F), `d709db1a8` and `5e6ff1a34` (E); docs here; cross-SDK parity equal in every case and repetition (test-plan § 5.8) |
 | G | review REJECT (F1–F10), revised; re-review APPROVE-WITH-FIXES (N1–N4, v4c) applied; W4 at harness `1419aae4f`: verdict 4000/30000/on (matches the replay), configs v3/v4a/v4b/v4c; W5 green except the four pre-existing failures (test-plan § 5.10, § 6.5); measured (orchestrator): v3 reject, v4a reject, v4b adopt, v4c adopt; mix (4000/30000/on plus chronological, no sentence) FTS 53, hybrid 52, LanceDB 54 of 60; harness records at `f59472d4c` |
 | Final re-runs (engine `5b09afd44`) | COMP-01 13/13 PASS (nDCG@10 FTS 0.3265, hybrid 0.3555, LanceDB 0.3265); COMP-02a 10k FathomDB ready 1.44 s, p50 3.9, p95 12.6 ms vs SurrealDB 4.40 s/146/159; 17k 2.50/6.7/20.8 vs 7.74/252/272; COMP-02b 10k p50 unfiltered 2.9, c33 8.3, c10 9.3, c01 29.7 ms vs SurrealDB 63/19.7/4.1 (c01 short lists 6 per rep, pre-existing, explained in the COMP-02b note: no cohort document holds those query terms after stop words); tc5-10k-latency 5/5 PASS; COMP-03 sweep 30/30 PASS; receipts and baseline on `slice/0.8.28-40-comp03` |
-| H-W1 Unit H docs | done 2026-10-16 (owner ruling): requirements § 1.6, REQ40-H1..H10, AC40-70..94; design § 2g; test-plan § 3g, § 11 (Q-H1..Q-H7); evidence includes a raw-SQL plan probe for H3; awaiting plan review |
+| H-W1 Unit H docs | done 2026-10-16 (owner ruling): requirements § 1.6, REQ40-H1..H10, AC40-70..94; design § 2g; test-plan § 3g, § 11; evidence includes a raw-SQL plan probe for H3 |
+| H-R1 plan review | APPROVE-WITH-FIXES (F1–F15) applied; rulings Q-H1..Q-H4 (coordinator), Q-H5 add COMP-02a/02b to the manifest and Q-H6 keep H1 on a hybrid-only failure (owner, 2026-10-16); Q-H7 moot; awaiting re-check before RED |
 
 ## Follow-ups (not in this slice)
 

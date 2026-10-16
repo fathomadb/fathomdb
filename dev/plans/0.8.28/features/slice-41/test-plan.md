@@ -426,3 +426,43 @@ unchanged.
 6. Rebase onto Slice 40 after Unit H, then MQ1 and MQ2 (design § 9.5).
    The precondition that Slice 40's H1 RED tests are gone is satisfied by
    their revert at `fb42f612e`.
+
+### 8.5 P2-W2 and P2-W4 record (2026-10-16)
+
+- **RED.** `50f0638ed` holds the ruling 5 comparator and fixture-data edits.
+  `51428d28b` holds the new tests, the new fixture cases and a type skeleton
+  so the Rust tests compile. At `51428d28b`:
+  - `fathomdb-query`: 10 of the 29 lib tests fail (`todo!` bodies);
+  - engine `slice41_full_ids`: 3 of 5 fail; `slice41_context_pack`: 13 of
+    24 fail on the JSON-wire half, because the wire did not yet emit `forced`;
+  - `fathomdb-sdk` `slice41_full_ids`: 2 of 2 fail;
+  - Python: collection fails on the missing `DEFAULT_STOP_WORDS_SHA256`
+    export. TypeScript was not run at RED; its new tests name exports that
+    did not exist yet.
+- **GREEN.** Code `b67cc6c6a`, docs
+  and allowlist text `b48550414`, pin `d99ad7f4d`, Python declarations and
+  the EARP catalog `8fb1bfd62`, then the module-boundary row.
+  - `cargo test -p fathomdb-query -p fathomdb-sdk -p fathomdb -p fathomdb-engine`:
+    every target passes except `pr_g8_dangling_edges` (below);
+  - the same crates plus `fathomdb-napi` and `fathomdb-py` with
+    `--features fathomdb-engine/test-hooks`: the known `slice135` fd-count
+    and `tc57_governed_write_race` ×2 failures, plus `pr_g8_dangling_edges`
+    and one `slice40_fresh_database_cutover` run that failed with
+    `DatabaseLocked` and passed 3 of 3 reruns;
+  - Python (`agent-test.sh` flow, candidate rebuilt at the slice head):
+    1695 passed, 36 skipped (network and Tegra), 1 failed:
+    `earp/test_config_resolver.py::test_engine_config_has_exactly_the_known_fields`,
+    which pins the `EngineConfig` field set and needs a ruling (status.md);
+  - TypeScript `npm test`: 588 of 588;
+  - `cargo test -p fathomdb-engine --features default-embedder --test
+    slice41_context_pack`: 25 of 25; `cargo check -p fathomdb-engine
+    --all-targets --features tc5-benchmark,test-hooks,operator`: clean;
+  - `agent-lint.sh`, `agent-lint-md.sh`, `agent-lint-docs.sh`,
+    `pyright -p src/python`, `check-sdk-surface-parity.py` and
+    `check-governed-surface-pin.sh`: pass.
+- **`pr_g8_dangling_edges`** is an ordering race. One of its tests opens a
+  raw `rusqlite` connection, and when that initializes SQLite before the
+  first engine open, every later open in the process fails with
+  `RuntimeConfiguration(TooLate)`. It passes with `--test-threads=1`. The
+  binary built from `80e4ea954` failed 2 of 20 runs and this branch's 10 of
+  20; this slice does not touch SQLite initialization.

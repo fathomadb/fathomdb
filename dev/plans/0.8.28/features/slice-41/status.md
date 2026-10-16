@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — status
-status: phase 1 done and reviewed; phase 2 (units F and Q) plan reviewed, fixes applied, RED next
+status: phase 1 done and reviewed; phase 2 (units F and Q) implemented, code review next
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -29,8 +29,8 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
 | --- | --- | --- | --- |
 | P2-W1 | implementer | Requirements § 5, design § 8–9, test-plan § 8 | done; see the commit log |
 | P2-R0 | reviewer | Plan review | APPROVE-WITH-FIXES on `80e4ea954`; F-Q1 to F-Q8 and F-F1 to F-F3 applied to requirements § 5, design § 8–9 and test-plan § 8. Rulings: Q-T1 YES (phase 1 expected entries gain `"forced": false` in the RED commit; the deletion check is recorded here); Q-B1 open-time `EngineConfig` setting, not persisted; per-query override and doctor suggester out of scope |
-| P2-W2 | implementer | RED: new tests and fixture cases | not started |
-| P2-W4 | implementer | GREEN: unit F, then unit Q; allowlist text and pin; docs | not started |
+| P2-W2 | implementer | RED: new tests and fixture cases | done: ruling 5 edits `50f0638ed`, tests and skeleton `51428d28b`; record in test-plan § 8.5 |
+| P2-W4 | implementer | GREEN: unit F, then unit Q; allowlist text and pin; docs | done: code `b67cc6c6a`, docs and allowlist text `b48550414`, pin `d99ad7f4d`, Python declarations and EARP catalog `8fb1bfd62`, then the module-boundary row; one Python guard test waits on ruling 8 |
 | P2-R2 | reviewer | Code review | not started |
 | P2-M | orchestrator | MF1 now; MQ1 and MQ2 at the merged head after Unit H | not started. Precondition for AC41-39 at the merged head (Slice 40's H1 RED tests removed) satisfied: reverted at `fb42f612e` |
 
@@ -106,6 +106,20 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
    forced item spends budget, so a later one can render fewer chars than
    its compact phase 1 form. Clause (i) is restated for the first forced
    item only (requirements § 5.5), which is what the property tests.
+
+8. Open, needs an orchestrator ruling:
+   `src/python/tests/earp/test_config_resolver.py::test_engine_config_has_exactly_the_known_fields`
+   pins the eight `EngineConfig` fields and says a ninth field must make the
+   catalog's coverage be re-examined. The catalog now classifies
+   `query_stop_words` (semantic, `open_report.stop_words_sha256`), so the
+   companion test `test_every_engine_config_field_has_a_verdict` passes. The
+   guard itself fails until `"query_stop_words"` is added to its set; the
+   test was not edited.
+9. `fathomdb-engine/src/graph_expand/execution.rs` keeps the old
+   `read_graph_expand_in_tx` signature as a `#[cfg(test)]` wrapper over the
+   built-in list, so the in-crate test in `src/evidence.rs` that calls it
+   is unchanged; production dispatch uses
+   `read_graph_expand_with_stop_words_in_tx`.
 
 Pre-existing failures under `test-hooks` (the feature is turned on by
 unification in multi-crate runs), left as they are: `slice135_robustness_first`

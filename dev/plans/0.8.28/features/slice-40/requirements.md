@@ -803,6 +803,8 @@ is `vector-pool-verdict.v1.json`.
   meets them by construction.
 - **Verdict file.** It records the full table, with k = 20 and the
   answer-set questions reported but not used.
+- **Run record** (verdict at harness `f9ae5c27b`: pool 10). The H2 run used
+  two workers. two workers shared the attempt root `~/.cache/fathomdb-comp/h2-pool-selection`: the plan's command on cuda:0 (forward, wrote the verdict) and an orchestrator helper on GPU 1 (scratch `h2_pool_reverse.py`, the same `comp03_answer.retrieve` call and per-question files) that wrote questions 358–500 (143 questions). The verdict's `inputs.runner` and `inputs.device` reflect only the last writer (cuda:0). Cross-check: questions `e6041065`, `gpt4_1d4ab0c9`, `gpt4_7bc6cf22` and `gpt4_fe651585_abs` at pools 10 and 100, recomputed on GPU 0, gave 8/8 identical id lists. The verdict file is not hand-edited.
 
 **REQ40-H5 — vector-pool engine change.**
 

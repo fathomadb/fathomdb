@@ -508,8 +508,9 @@ fn multi_attribute_filter_prefilters_on_the_smallest_cohort() {
 }
 
 /// AC40-89: the node predicates still apply on the cohort route: a superseded
-/// version that kept its attribute row is not returned, and a `kind` filter
-/// still excludes other kinds.
+/// version in the cohort is not returned (its attribute row is purged at
+/// supersede, `write_commit.rs`), and a `kind` filter still excludes other
+/// kinds.
 #[test]
 fn cohort_prefilter_keeps_lifecycle_and_other_filter_fields() {
     let _lock = ENV_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);

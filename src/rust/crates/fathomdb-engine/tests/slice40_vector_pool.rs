@@ -62,16 +62,13 @@ fn pool() -> usize {
     vector_fusion_pool_for_test()
 }
 
-/// The vector rank of the row that is text rank 1: inside the pool but past
-/// the smaller limit the prefix test compares, so today's engine scores it
-/// differently at the two limits. With a pool of 10 the comparison is limit 5
-/// against 10, so the row sits at rank 8.
+/// The vector rank of the row that is text rank 1: inside the pool of 10 but
+/// past limit 5, so a pool cut at the limit scores it differently at limits 5
+/// and 10.
+const X_RANK: usize = 8;
+
 fn x_rank() -> usize {
-    if pool() >= 20 {
-        15
-    } else {
-        8
-    }
+    X_RANK
 }
 
 /// `vector_rows` rows that match the vector only (`v001`…), one row `X` at
@@ -127,8 +124,8 @@ fn hybrid_results_are_prefix_stable_up_to_the_vector_pool() {
     let opened = open(&dir, &corpus(40));
     let engine = &opened.engine;
     let pool = pool();
-    let larger: Vec<usize> = if pool >= 20 { vec![10, pool] } else { vec![pool] };
-    for k_prime in larger {
+    assert_eq!(pool, 10, "the corpus places X for the verdict's pool of 10");
+    for k_prime in [pool] {
         let long = engine.search_with_limit(QUERY, k_prime).expect("search k'");
         for k in [1, 5, 10].into_iter().filter(|k| *k < k_prime) {
             let short = engine.search_with_limit(QUERY, k).expect("search k");
@@ -170,7 +167,8 @@ fn fused_score_formula_is_unchanged_with_the_pool() {
     let dir = TempDir::new().expect("tempdir");
     let opened = open(&dir, &corpus(40));
     let engine = &opened.engine;
-    let limit = if pool() >= 20 { 10 } else { 5 };
+    assert_eq!(pool(), 10, "the corpus places X for the verdict's pool of 10");
+    let limit = 5;
     assert!(x_rank() > limit, "the row's vector rank is beyond the limit");
     let result = engine.search_with_limit(QUERY, limit).expect("search");
     let x = result.results.iter().find(|hit| hit.body.contains("alpha")).expect("X is returned");

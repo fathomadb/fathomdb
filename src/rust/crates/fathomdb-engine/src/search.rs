@@ -355,8 +355,9 @@ pub(crate) fn read_projected_text_in_tx(
 }
 
 /// Largest attribute cohort that takes the cohort-prefiltered rank stream.
-/// Fixed by the Slice 40 H3 rule from a plan probe (the prefilter won at 92
-/// cohort rows and lost at 968); not tuned from engine timings.
+/// Fixed by the Slice 40 H3 rule from a plan probe, before measurement; the
+/// engine timing report in the Slice 40 test plan (§ 3g.4) shows the same
+/// direction. Not tuned from timings.
 const COHORT_PREFILTER_MAX_ROWS: i64 = 256;
 
 #[derive(Clone, Copy, PartialEq, Eq)]

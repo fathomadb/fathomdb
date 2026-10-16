@@ -448,6 +448,12 @@ score bits alone: the vector-rank-15 row scores `3/31` at limit 10 and
 valid failure; do not change the corpus until the order flips (review
 F14). The tests read the pool through `vector_fusion_pool_for_test()`.
 
+As committed (`106af315b`, pool 10), the RED was a compile failure on the
+missing `vector_fusion_pool_for_test` import. With the pool read as 10
+against the pre-H2 engine, the prefix, hydration-count and fused-score
+tests failed on score bits and on `vector_hits` (5, not 10); the corpus
+places the text-rank-1 row at vector rank 8 and compares limit 5 with 10.
+
 | Test | AC |
 | --- | --- |
 | `hybrid_results_are_prefix_stable_up_to_the_vector_pool` (k ∈ {1, 5, 10} against k' ∈ {10, `VECTOR_FUSION_POOL`}: ids and score bits) | 79 |

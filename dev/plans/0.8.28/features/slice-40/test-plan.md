@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — test plan
-status: REVISED AFTER R1 (W3–W5 results in § 5 and § 6); Defect C GREEN (§ 5.4); Unit D RED tests added 2026-10-16 (§ 3c, § 5.5)
+status: REVISED AFTER R1; Defect C and Unit D GREEN (§ 5.4, § 5.6); Units E–G RED tests added 2026-10-16 (§ 3d–3f, § 5.7)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -252,6 +252,90 @@ untouched):
 | `test_gold_changes_leave_hybrid_retrieval_byte_identical` | 37 | RED |
 | `test_hybrid_arm_is_skipped_unless_the_sweep_verdict_is_adopt` | 45 | RED |
 | `test_hybrid_arm_runs_when_the_sweep_verdict_is_adopt` | 45 | RED |
+
+## 3d. Unit E tests (`comp03-slice40` worktree)
+
+```bash
+cd ~/projects/fathomdb-worktrees/comp03-slice40
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_sdk_parity_slice40.py
+```
+
+New file `tests/experiments/test_sdk_parity_slice40.py`, all RED:
+
+| Test | AC |
+| --- | --- |
+| `test_parity_requires_exact_id_score_and_branch_per_hit` | 49 |
+| `test_text_only_parity_fixture_carries_the_slice_40_query_shapes` | 50 |
+| `test_projected_parity_fixture_puts_a_bm25_tie_group_across_the_limit` | 51 |
+| `test_dense_parity_fixture_store_embeds_every_document` | 52 |
+| `test_registry_measures_the_three_slice_40_verbs_with_ordered_hits` | 53 |
+| `test_python_driver_hits_equal_the_python_oracle_on_the_same_database` (text-only, projected) | 54 |
+| `test_python_driver_dense_hits_equal_the_python_oracle` | 54 |
+| `test_pre_existing_requests_without_a_normalizer_still_return_ids_only` | 54 |
+
+These run against the harness `.venv`'s comp-lineage wheel. Parity does not
+depend on the engine version; the slice-head artifacts are for the suite
+run (design § 2d.2).
+
+The TypeScript and Rust driver tests (AC40-55) are written at W4 in their
+existing suites (`tests/experiments/test_sdk_typescript_driver.py`,
+`experiments/sdk_drivers/rust/tests/`). Their pre-existing capability
+assertions pin today's three operations and need the Q-E1 ruling first.
+
+In this worktree there is no RED test for E4: no checker pins the
+interface docs' verb descriptions. `scripts/check-sdk-surface-parity.py`
+checks names and signatures only.
+
+## 3e. Unit F tests (`comp03-slice40` worktree)
+
+```bash
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_baseline_check.py
+```
+
+New file `tests/experiments/test_baseline_check.py`, all RED:
+
+| Test | AC |
+| --- | --- |
+| `test_every_metric_inside_its_tolerance_passes` | 57 |
+| `test_a_metric_outside_its_tolerance_drifts` | 57 |
+| `test_a_missing_metric_is_reported_and_is_not_a_pass` | 57 |
+| `test_question_tolerance_is_one_question_of_the_type_count` | 57 |
+| `test_cli_exits_non_zero_on_drift_or_missing` | 57 |
+| `test_slice_40_baseline_manifest_lists_the_five_benchmarks` | 58 |
+| `test_latency_harness_keeps_the_diagnostic_cells_and_percentiles` | 59 |
+| `test_engine_identity_records_the_commit_and_the_native_digest` | 60 |
+
+The drift cases are hand-written: one inside every tolerance, one outside
+(absolute, relative and per-question), one missing metric.
+
+## 3f. Unit G tests (`comp03-slice40` worktree)
+
+```bash
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_evidence.py
+```
+
+New file `tests/experiments/test_comp03_evidence.py`, all RED, on hand-built
+docs (three sessions, one gold session):
+
+| Test | AC |
+| --- | --- |
+| `test_caps_apply_per_round_then_total_in_rank_order` | 61 |
+| `test_the_baseline_policy_matches_the_answer_harness_renderer` | 61 |
+| `test_expansion_appends_remaining_rounds_of_hit_sessions_by_best_hit_rank` | 62 |
+| `test_expansion_stops_at_the_total_cap` | 62 |
+| `test_prompt_metrics_count_gold_sessions_and_answer_rounds` | 63 |
+| `test_rule_picks_the_highest_all_in_prompt_without_losing_more_than_one_question_per_type` | 63 |
+| `test_rule_breaks_ties_on_fewer_chars_and_keeps_the_baseline_when_nothing_beats_it` | 63 |
+| `test_policy_grid_is_the_stated_twelve_policies` | 63 |
+| `test_chronological_rendering_orders_by_session_date_newest_last_and_keeps_dates` | 64 |
+| `test_chronological_rendering_selects_the_same_rounds_as_rank_order_under_the_cap` | 64 |
+| `test_recency_sentence_is_added_only_when_enabled_and_v2_rendering_is_unchanged` | 64 |
+| `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one` | 65 |
+| `test_v3_and_v4_configs_take_the_policy_from_the_verdict_and_differ_only_in_recency` | 66 |
+| `test_evidence_verdict_file_names_its_inputs` | 66 |
+
+The existing `test_comp03_answer.py` tests (v1 and v2 rendering, prompts,
+runs) are the byte-identity guard for G3 off.
 
 ## 4. Existing tests touched
 
@@ -626,6 +710,42 @@ A smoke of the `comp01-hybrid` cell on three documents
 (`python -m experiments.comp_fts _cell --mode fts --arm fathomdb-hybrid`,
 CPU) recorded `vector_rows` 3, a positive `drain_s` and `Engine.search`.
 
+### 5.7 RED run for Units E, F, G (phase 5, 2026-10-16)
+
+Harness at `e3dce3739` plus the three new files, from the `comp03-slice40`
+worktree root:
+
+```text
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_sdk_parity_slice40.py
+9 failed
+      7 E       AttributeError: module 'experiments.sdk_benchmark' has no attribute 'build_parity_fixture'
+      1 E       AttributeError: module 'experiments.sdk_benchmark' has no attribute 'compare_parity'
+      1 E           AssertionError: engine.search_projected_text
+                    assert 'excluded_with_reason' == 'measure'
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_baseline_check.py
+8 failed
+      6 E       ImportError: cannot import name 'baseline_check' from 'experiments'
+      1 E       ImportError: cannot import name 'comp02b_latency' from 'experiments'
+      1 E       AttributeError: module 'experiments.comp_record' has no attribute 'engine_identity'
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_evidence.py
+14 failed
+      4 E       AttributeError: module 'experiments.comp03_retrieval' has no attribute 'evidence_rounds'
+      2 E       TypeError: render_evidence() got an unexpected keyword argument 'chronological'
+      2 E       AttributeError: module 'experiments.comp03_retrieval' has no attribute 'select_evidence_policy'
+      1 E       TypeError: answer_messages() got an unexpected keyword argument 'recency_instruction'
+      1 E       FileNotFoundError: … experiments/configs/comp-03/hermes-answer.v3.json
+      1 E       FileNotFoundError: … experiments/configs/comp-03/evidence-policy-verdict.v1.json
+      1 E       AttributeError: module 'experiments.comp03_retrieval' has no attribute 'evidence_policy_grid'
+      1 E       AttributeError: module 'experiments.comp03_retrieval' has no attribute 'evidence_metrics'
+      1 E       AttributeError: module 'experiments.comp03_answer' has no attribute 'evaluate_recency_rule'
+```
+
+31 RED, 0 GREEN, 0 skipped. The harness `.venv` opens the default embedder
+on CPU, so the dense tests ran. Ruff is clean on the three files. The
+`FileNotFoundError` lines are shortened with "…"; the rest is verbatim.
+
+## 6. Pre-existing test failures at W5
+
 A failing pre-existing test is not edited; it is listed here verbatim
 (R1 F4). No test was edited at W4 or W5.
 
@@ -795,3 +915,23 @@ FAIL  arm 9c (real sweep): rc=1 out=FAIL commission-manifest: `dev/plans/release
 - **Q-D5.** The NFCorpus informational row runs as a new campaign
   `comp01-hybrid` (`fathomdb` vs `fathomdb-hybrid`), not inside the
   existing `comp01` roster, which is fixed at two arms. Acceptable?
+
+## 10. Open questions for R1 (phase 5)
+
+- **Q-E1.** The Python, TypeScript and Rust driver suites each pin the
+  capability set to today's three operations. Implementing
+  `engine.search_projected_text` and `engine.search` changes it. Update the
+  three assertions to the five operations at W4?
+- **Q-E2.** No SDK exposes a build commit. Record the declared commit plus
+  artifact digests (designed), or add a product build-info accessor in all
+  three SDKs in this slice?
+- **Q-E3.** The TypeScript wrapper digest is computed over the harness
+  tree's `src/ts`. Add a `package_root` so the arm can point at the
+  slice-head package (designed)?
+- **Q-G1.** Apply the evidence-policy rule to counts pooled across the
+  three arms (designed, one policy serves v3), or to `fathomdb-fts` alone?
+- **Q-G2.** The evaluator runs on the 470 scored sweep questions, not only
+  the 60 answer questions. Keep?
+- **Q-F1.** Fill the manifest's expected values from the Unit D
+  measurements, marked `provisional` until your final-head re-measurement
+  (designed), or leave them empty?

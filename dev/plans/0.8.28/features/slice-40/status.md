@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — status
-status: ACTIVE (Defects A, B, C and Unit D GREEN on the branches; awaiting the orchestrator's measurements)
+status: ACTIVE (Defects A–C and Unit D landed; Units E, F, G added 2026-10-16, docs and RED tests done, awaiting review)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -32,6 +32,9 @@ for phase 1 is `output.json` in this directory.
 | D-W4 | done: harness `8ef511554` on `slice/0.8.28-40-comp03` (tests aligned at `34cacdf87`, `c08a25691`); D3 alone at `5b09afd44`, CHANGELOG `8d5d93cef`; all Unit D tests GREEN (test-plan § 5.6) |
 | D-W5 | W-slice: engine default suite 474 passed, lint and lint-md exit 0, `agent-verify.sh` exit 1 on the two release-state suites only; W-harness: COMP tests 37 passed, `tests/experiments` 811 passed with 4 pre-existing failures, ruff clean, `agent-lint.sh` stops at the pre-existing COMP-03 v1 receipt classification (test-plan § 6.3) |
 | D measurements (orchestrator) | not started: D1 sweep on cuda:0, NFCorpus with the D3 wheel plus `comp01-hybrid`, 10k TC-5 latency, D2 answer run |
+| EFG-W1 docs | done 2026-10-16: requirements § 1.5, REQ40-E1..E4, F1..F5, G1..G5, AC40-49..66; design § 2d–2f; test-plan § 3d–3f, § 5.7, § 10 |
+| EFG-W2 RED tests | done on `slice/0.8.28-40-comp03`: 31 RED (`test_sdk_parity_slice40.py` 9, `test_baseline_check.py` 8, `test_comp03_evidence.py` 14); none in this worktree (no doc checker pins verb text) |
+| EFG-R1 | not started; open questions in test-plan § 10 |
 
 ## Follow-ups (not in this slice)
 

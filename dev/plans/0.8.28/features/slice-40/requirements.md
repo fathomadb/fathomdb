@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — requirements and acceptance criteria
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C landed; Unit D revised after its R1 (Q-D1..Q-D5 ruled), W4 done
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C and Unit D landed; Units E, F, G added 2026-10-16 (owner ruling), docs and RED tests for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -13,7 +13,10 @@ ruling on 2026-10-16, is a latency bug in `search_projected_text` found by
 COMP-02b; its fix must not change which rows are returned or their order.
 Unit D, added by owner ruling on 2026-10-16, is the COMP-03 retrieval-lever
 work: a retrieval-only sweep (D1), a three-arm answer run (D2) and a
-stop-list extension (D3). [design.md](design.md) gives the mechanism,
+stop-list extension (D3). Units E (SDK parity and the public-surface
+contract), F (a known-run baseline) and G (evidence budget, session
+completion and recency in the COMP-03 answer harness) were added by owner
+ruling on the same day. [design.md](design.md) gives the mechanism,
 [test-plan.md](test-plan.md) the tests.
 
 ## 1. Evidence
@@ -141,6 +144,59 @@ on the `llm/comp-01` lineage) and the orchestrator's review of it.
   temporal-reasoning 127, multi-session 121, knowledge-update 72,
   single-session-user 64, single-session-assistant 56,
   single-session-preference 30.
+
+### 1.5 Units E, F and G evidence
+
+- **Unit E, SDK parity.** Slice 40 changed behaviour under three public
+  verbs without changing a signature:
+  - `search_text_only`: per-arm dedupe (A), short tokens (B), the stop list
+    (D3);
+  - `search_projected_text`: the rank stream (C);
+  - `search`: dense retrieval through the `vector=True` projection switch
+    (Unit D).
+
+  The existing cross-SDK suite
+  (`dev/performance-benchmarking/2026-10-13-cross-sdk-fts-comparison-result.md`
+  on the comp lineage) checks only ordered IDs from `search_text_only` on 100
+  synthetic single-term documents, against fixture oracles. Facts read from
+  the code on 2026-10-16:
+  - The TypeScript SDK has `useDefaultEmbedder`, `ProjectionSpec.vector`,
+    `searchProjectedText(query, name, filter?, {limit, …view})` and `search`.
+    The Rust SDK has `use_default_embedder`, `configure_projections`,
+    `search`, `search_text_only` and `search_projected_text`. No product gap
+    blocks the three parity cases.
+  - No SDK exposes the engine's build commit. Every build reports version
+    `0.8.27`.
+  - The public docs give the RRF score as `Σ 1/(60 + rank)` in
+    `docs/guides/structured-search-hits.md`,
+    `docs/guides/hybrid-search-filtering.md`,
+    `docs/reference/python-api.md` and `docs/reference/typescript-api.md`.
+    The code uses `RRF_K = 30` with weight 3 for text and 1 for vector and
+    graph.
+  - No checker pins the interface docs' verb descriptions.
+    `scripts/check-sdk-surface-parity.py` checks operation names and
+    signatures only.
+- **Unit F, baseline.** The Unit D numbers came from runs at three engine
+  commits:
+  - NFCorpus D3 at `5b09afd44`;
+  - `comp01-hybrid` and the pre-D3 sweep at `a3830681d`;
+  - the D3 sweep and answer v2 at `5b09afd44`.
+
+  The pre-D3 sweep and both NFCorpus runs have no receipts. The 10k TC-5
+  latency figures came from an unversioned scratchpad script. A later run
+  cannot be checked against them.
+- **Unit G, the COMP-03 misses** (orchestrator's miss analysis of answer
+  v2). The 11 FathomDB FTS misses break down as:
+  - 4 where the gold was cut by the 20,000-character cap or the session
+    was only partly shown;
+  - 4 with the gold present but a wrong answer, including one stale
+    knowledge-update value;
+  - 2 retrieval misses;
+  - 1 abstention.
+
+  The cap was reached on 46 of 60 questions, and the median question showed
+  9 of its 10 rounds. Only 6 of 10 multi-session questions had all their
+  gold sessions in the prompt.
 
 ## 2. Requirements
 
@@ -274,6 +330,134 @@ Nothing else in the compiler changes.
 per-type recall unchanged within CI, 10k TC-5 p95 not higher.* If the gate
 fails, D3 is reverted; it is therefore one commit of its own.
 
+**Unit E requirements.**
+
+**REQ40-E1 — parity cases.** The cross-SDK suite gains three cases, each
+run through the Python, TypeScript and Rust SDKs:
+
+- **(1) `search_text_only`.** The corpus has duplicate bodies. Queries carry
+  1–2 character content tokens, possessive and contraction fragments, and
+  every D3 word.
+- **(2) `search_projected_text`.** Run with and without an attribute
+  filter, on a corpus whose bm25 tie group straddles the limit.
+- **(3) `search` with the `dense` projection declared.** Default embedder,
+  CPU, fixed corpus.
+
+**REQ40-E2 — exact parity.** For every case and repetition, each SDK's
+ordered hits equal the oracle's in `(id, score, branch)`, scores compared
+bit-for-bit. The oracle is the Python SDK run in the coordinator on the
+same database file the SDK just queried. The engine computes every score,
+vector scores included, so any difference is a binding defect, not
+numerical noise.
+
+**REQ40-E3 — the engine under test is this slice's.** All three SDK
+artifacts (Python wheel, TypeScript N-API addon, Rust driver) and the
+bootstrap CLI are built from one recorded engine commit and pinned by
+SHA-256. No SDK exposes a build commit, so the arm manifest records the
+source commit, its clean state at build time and the artifact digests.
+
+**REQ40-E4 — public-surface contract.** `dev/interfaces/python.md`,
+`typescript.md`, `rust.md` and `rust-sdk.md` state, for the three verbs:
+
+- per-arm dedupe;
+- short tokens kept and the extended stop list;
+- the projected rank stream, with the order contract unchanged;
+- the dense-projection switch, and that the full node body is embedded.
+
+The public docs' RRF formula is corrected to `RRF_K = 30` with 3:1
+text-to-vector weighting. `./scripts/agent-lint-docs.sh` passes.
+
+**Unit F requirements.**
+
+**REQ40-F1 — baseline manifest.** `experiments/configs/baselines/slice-40-baseline.v1.json`
+lists, per benchmark:
+
+- inputs identifier and SHA-256;
+- engine commit;
+- wheel build recipe (features, `CUDA_PATH`/`PATH`/`LIBRARY_PATH`,
+  `--compatibility linux`);
+- exact command line;
+- receipt ID or "to be recorded";
+- expected metrics with tolerances: nDCG@10 ±0.002; MRR ±0.005;
+  per-type session recall ±1 question; latency p50 ±25% and p95 ±35% on a
+  quiet host; answer accuracy ±3 questions, recorded as noise, not a gate.
+
+The benchmarks are COMP-01 NFCorpus (fts vs LanceDB), `comp01-hybrid`, the
+COMP-03 retrieval sweep (three arms), COMP-03 answer v2, and 10k TC-5
+projected and body latency.
+
+**REQ40-F2 — latency harness.** `experiments/comp02b_latency.py` turns the
+orchestrator's diagnostic script into a receipt-producing command with the
+same cells (projected unfiltered, cohorts c01, c10 and c33, body
+`search_text_only`, projected single term) and the same percentiles. It has
+no SurrealDB arm.
+
+**REQ40-F3 — drift check.** `experiments/baseline_check.py` takes the
+manifest, a benchmark ID and an attempt's summary or report. It prints PASS,
+DRIFT or MISSING per metric, with measured value, expected value and
+tolerance, and exits non-zero on any DRIFT or MISSING.
+
+**REQ40-F4 — engine identity in receipts.** Every COMP receipt from now on
+records the engine commit (declared at run time, validated as a 40-hex
+SHA), the installed native module's SHA-256 and the version string.
+
+**REQ40-F5 — measured at the final head.** The baseline is re-measured by
+the orchestrator, with receipts, at the final slice head after Units E to
+G land. The Unit D runs are not the baseline.
+
+**Unit G requirements.** All of G is harness-side this round.
+
+**REQ40-G1 — offline evidence evaluator.** `comp03_retrieval` evaluates
+evidence policies on the stored sweep records, with no retrieval and no
+model calls. A policy is `per_round_chars` ∈ {4000, 2000, 1000},
+`total_chars` ∈ {20000, 30000} and `session_expansion` ∈ {off, on}: twelve
+policies.
+
+- Rounds enter the prompt in rank order: per-round cap first, then the
+  total cap, as `render_evidence` does.
+- Session expansion appends, after the top-k rounds, the remaining rounds
+  of each hit session. Sessions go in the order of their best hit's rank,
+  and rounds within a session in position order, until the total cap.
+- Metrics per policy, per type and overall: gold-session-any-in-prompt,
+  gold-session-all-in-prompt, has-answer-round-in-prompt, rounds in prompt,
+  and characters. A round is in the prompt if at least one of its
+  characters is.
+
+**REQ40-G2 — pre-stated policy rule** (in the config): *pick the policy
+with the highest overall gold-session-all-in-prompt such that no type's
+gold-session-any-in-prompt is lower than the current policy's (4000 /
+20000 / off) by more than 1 question; ties broken by fewer chars.* The
+verdict is written to a file that names its inputs.
+
+**REQ40-G3 — recency rendering.** The answer harness can render evidence in
+chronological order by session date, newest last, with dates kept, and add
+one sentence to the answerer prompt: *When the history states different
+values for the same fact at different dates, use the most recent one.*
+
+- Both are off by default.
+- With both off, the rendering and the prompt are byte-identical to v2's.
+- Chronological order reorders the rounds the rank-order cap selected; it
+  does not change which rounds are selected.
+
+**REQ40-G4 — answer configs and rules.**
+
+- `hermes-answer.v3.json` is v2 (three arms, k = 10, the same 60 IDs and
+  models) with the evidence policy from the G1/G2 verdict file, bound by
+  SHA-256.
+- `hermes-answer.v4.json` is v3 with G3 on.
+- v3 vs v2 is reported paired per arm. Gains are expected on multi-session
+  and preference; this is a report, not a gate.
+- v4 vs v3 adopts G3 iff knowledge-update plus temporal correct does not
+  drop and overall does not drop by more than 1 question, with the CI
+  reported.
+
+Receipts and classifications are made as for v2.
+
+**REQ40-G5 — product-side equivalents, named only.** The design states the
+engine-side equivalents (turn-level retrieval units with session expansion;
+a recency-aware ranking pass), so the owner can decide on a product unit.
+None is built in this slice.
+
 ## 3. Non-goals
 
 - No BM25 `k1`/`b` tuning and no change to `RRF_K` or the arm weights.
@@ -293,9 +477,12 @@ fails, D3 is reverted; it is therefore one commit of its own.
 - No change to the frozen IR-C experiment harnesses
   (`tests/support/ir_retrieval.rs` and its includers), which document
   themselves as a verbatim historical copy.
-- No fix to the stale `Σ 1/(60 + rank)` formula in the public docs
-  (`RRF_K` is 30 and the weights are 3:1). Recorded as a follow-up; it is
-  not caused by this slice.
+- The stale `Σ 1/(60 + rank)` formula in the public docs was a non-goal for
+  Defects A to D; Unit E now fixes it (REQ40-E4).
+- Units E to G do not touch the five unclassified pre-existing COMP
+  receipts, landing, the attribute-filter row-key and filter-first
+  potentials, or fielded title boost.
+- No product change for Unit G this round (REQ40-G5).
 
 ## 4. Candidate bound of `search_text_only`: out of scope
 
@@ -320,7 +507,10 @@ another file is named; the Defect C tests (AC40-27 to AC40-31) are in
 `tests/slice40_projected_fts_stream.rs`, which needs `--features
 test-hooks`; query tests are in the `tests` module of
 `src/rust/crates/fathomdb-query/src/lib.rs`. Defect C's criteria start at
-AC40-27 because AC40-23 to AC40-26 were already assigned. Unit D's
+AC40-27 because AC40-23 to AC40-26 were already assigned. Units E to G's
+harness tests (AC40-49 to AC40-66) are in `tests/experiments/test_sdk_parity_slice40.py`,
+`test_baseline_check.py` and `test_comp03_evidence.py` on the comp branch.
+Unit D's
 harness tests (AC40-33 to AC40-45) are in `tests/experiments/test_comp03_retrieval.py`
 and `tests/experiments/test_comp03_answer.py` on the `slice/0.8.28-40-comp03`
 branch; its D3 tests are in the `fathomdb-query` test module.
@@ -374,4 +564,22 @@ branch; its D3 tests are in the `fathomdb-query` test module.
 | AC40-46 | D3: the twelve words are stopwords and `d`, `c`, `d3`, `ii`, `1`, `b12` are not; each word alone takes the fallback; possessive and contraction fragments and the short function words are dropped; short content tokens survive | `unit_d_words_are_in_the_stop_list_and_content_letters_are_not`, `each_unit_d_word_alone_takes_the_fallback`, `possessive_and_contraction_fragments_are_dropped`, `short_function_words_are_dropped`, `short_content_tokens_survive_the_unit_d_stop_list` | D5 |
 | AC40-47 | D3: every other Slice 40 compiler and engine test still passes unchanged; `possessive_and_contraction_fragments_are_content_tokens` is deleted (R1 ruling Q-D1) and the AC-038 private stop-list copy gains the twelve words (Q-D3) | the `fathomdb-query` test module, `slice40_fts_ranking.rs`, `fts5_injection_safety.rs`, `slice40_projected_fts_stream.rs` | D5 |
 | AC40-48 | D3 measurement gate (REQ40-D6) | orchestrator measurement after W4 | D6 |
+| AC40-49 | Parity comparison is exact in `(id, score, branch)`: order, a one-ULP score change, branch, hit count and query set all mismatch | `test_parity_requires_exact_id_score_and_branch_per_hit` | E2 |
+| AC40-50 | Text-only parity fixture: at least two duplicate bodies; every D3 word, the short content tokens `d`, `c`, `d3`, `1`, `ii` and an apostrophe across the queries; deterministic | `test_text_only_parity_fixture_carries_the_slice_40_query_shapes` | E1 |
+| AC40-51 | Projected parity fixture: a bm25 tie group straddles the limit; the filter case returns a strict, non-empty subset | `test_projected_parity_fixture_puts_a_bm25_tie_group_across_the_limit` | E1 |
+| AC40-52 | Dense parity fixture: one vector row per document; `search` returns a `vector` hit | `test_dense_parity_fixture_store_embeds_every_document` | E1 |
+| AC40-53 | Registry measures `search_text_only`, `search_projected_text` and `search`; the latter two normalise to ordered hits | `test_registry_measures_the_three_slice_40_verbs_with_ordered_hits` | E1 |
+| AC40-54 | Python driver emits `(id, score, branch)` hits on request, equal to the Python oracle on the same file, for all three cases; requests without a normalizer still return IDs only | `test_python_driver_hits_equal_the_python_oracle_on_the_same_database` (2 cases), `test_python_driver_dense_hits_equal_the_python_oracle`, `test_pre_existing_requests_without_a_normalizer_still_return_ids_only` | E1, E2 |
+| AC40-55 | TypeScript and Rust drivers pass the same cases; the suite records every SDK equal to the oracle in every repetition | the TS and Rust driver suites (`test_sdk_typescript_driver.py`, `sdk_drivers/rust/tests`) extended at W4; the suite run by the orchestrator | E1–E3 |
+| AC40-56 | Interface docs describe the three verbs' Slice 40 behaviour; the public RRF formula reads `RRF_K = 30`, 3:1; `agent-lint-docs.sh` passes | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | E4 |
+| AC40-57 | Drift check: PASS inside tolerance, DRIFT outside (absolute, relative and per-question tolerances), MISSING when absent; non-zero exit on DRIFT or MISSING | `test_every_metric_inside_its_tolerance_passes`, `test_a_metric_outside_its_tolerance_drifts`, `test_a_missing_metric_is_reported_and_is_not_a_pass`, `test_question_tolerance_is_one_question_of_the_type_count`, `test_cli_exits_non_zero_on_drift_or_missing` | F3 |
+| AC40-58 | Baseline manifest lists the five benchmarks with inputs, commit, build recipe, command, receipt and tolerances; answer accuracy marked not a gate | `test_slice_40_baseline_manifest_lists_the_five_benchmarks` | F1 |
+| AC40-59 | Latency harness keeps the six diagnostic cells and the script's percentiles | `test_latency_harness_keeps_the_diagnostic_cells_and_percentiles` | F2 |
+| AC40-60 | Receipts record engine commit, native SHA-256 and version; a malformed commit is refused | `test_engine_identity_records_the_commit_and_the_native_digest` | F4 |
+| AC40-61 | Evidence caps: per-round then total, rank order; the baseline policy shows the same rounds as `render_evidence` | `test_caps_apply_per_round_then_total_in_rank_order`, `test_the_baseline_policy_matches_the_answer_harness_renderer` | G1 |
+| AC40-62 | Session expansion order and its stop at the cap | `test_expansion_appends_remaining_rounds_of_hit_sessions_by_best_hit_rank`, `test_expansion_stops_at_the_total_cap` | G1 |
+| AC40-63 | Prompt metrics; the twelve-policy grid; the rule with its one-question constraint, tie-break and baseline fallback | `test_prompt_metrics_count_gold_sessions_and_answer_rounds`, `test_policy_grid_is_the_stated_twelve_policies`, `test_rule_picks_the_highest_all_in_prompt_without_losing_more_than_one_question_per_type`, `test_rule_breaks_ties_on_fewer_chars_and_keeps_the_baseline_when_nothing_beats_it` | G1, G2 |
+| AC40-64 | Chronological rendering (newest last, dates kept, same rounds); the recency sentence only when enabled; both off is byte-identical to v2 | `test_chronological_rendering_orders_by_session_date_newest_last_and_keeps_dates`, `test_chronological_rendering_selects_the_same_rounds_as_rank_order_under_the_cap`, `test_recency_sentence_is_added_only_when_enabled_and_v2_rendering_is_unchanged` | G3 |
+| AC40-65 | The recency rule (KU plus temporal does not drop; overall drops by at most 1) | `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one` | G4 |
+| AC40-66 | v3 and v4 configs and the verdict file | `test_v3_and_v4_configs_take_the_policy_from_the_verdict_and_differ_only_in_recency`, `test_evidence_verdict_file_names_its_inputs` | G2, G4 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

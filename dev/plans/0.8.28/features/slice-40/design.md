@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — design
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C landed; § 2c Unit D revised after its R1, W4 done
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C and § 2c Unit D landed; § 2d–2f Units E, F, G added 2026-10-16, for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -388,6 +388,223 @@ one). `d` stays content: it is the vitamin D case Defect B was for, and
 | `possessive_and_contraction_fragments_are_content_tokens` contradicts D3 | Deleted in the D3 commit (Q-D1) |
 | AC-038 mirror goes stale | Its private stop-list copy gains the twelve words in the D3 commit; fixture unchanged (Q-D3) |
 | `fathomdb_test_setup.py` diverges between lineages | Recorded; merge-forward resolves |
+
+## 2d. Unit E: SDK parity and the public-surface contract
+
+### 2d.1 Where it lives
+
+The parity suite extends the comp lineage's cross-SDK harness in
+`comp03-slice40`: `experiments/sdk_benchmark.py`, `sdk_registry.py`, the
+three drivers under `experiments/sdk_drivers/`, and their tests. It is not
+forked. The interface and public docs change in this worktree.
+
+### 2d.2 Building the arms from this slice's engine
+
+The harness worktree's `src/` is the comp lineage's engine, not this
+slice's. Every artifact is therefore built from a clean checkout of the
+slice head (`slice-0.8.28-40`), outside both trees, and pinned by SHA-256
+in its `sdk.arm.v1` manifest:
+
+| Arm | Build | Pinned |
+| --- | --- | --- |
+| Python | `maturin build --release --compatibility linux --features default-embedder` from the slice head; wheel installed into a dedicated venv under `~/.cache/fathomdb-comp/` | the venv's `python`, `_fathomdb*.so`, wrapper digest |
+| TypeScript | `npm ci`, then the N-API release build with `--features default-embedder`, from the slice head's `src/ts`; package copied outside the repository | `node`, the `.node` addon, the package wrapper digest |
+| Rust | `experiments/sdk_drivers/rust/build_against.py --engine-checkout <slice head>`: copies the driver crate to a scratch directory, points `fathomdb-sdk` and the `third_party` patches at the slice checkout, then `cargo build --release --features default-embedder`; `build_manifest.py` attests | the driver binary |
+| Bootstrap CLI | `cargo build --release -p fathomdb-cli --features default-embedder` from the slice head | the `fathomdb` binary |
+
+All four are CPU builds (`cuda_compiled` false). The suite's treatment
+environment forbids `FATHOMDB_*` overrides, so the dense case relies on the
+CPU build, not on `FATHOMDB_EMBED_DEVICE`. A driver whose open report says
+`cuda_compiled` true is refused.
+
+**Engine identity.** No SDK has a build-commit accessor, and every build
+reports `0.8.27`. Each arm's existing `engine_revision` field is therefore
+set by the build step to the slice head's commit, with a clean-tree check,
+and the manifest pins every artifact digest. A product build-info accessor
+(commit, features, `cuda_compiled`) in all three SDKs is a follow-up (Q-E2).
+
+Two harness changes follow:
+
+- `wrapper_sha256("typescript")` hashes the harness tree's `src/ts` today.
+  It gains a `package_root` like Python's `native_path`, so the TypeScript
+  wrapper digest is the slice head's.
+- `sdk_drivers/rust/Cargo.toml` keeps its in-tree path for the existing
+  suite.
+
+### 2d.3 Cases, fixtures and the oracle
+
+`build_parity_fixture(case_id)` is deterministic; its output is written to
+an external fixture file and pinned like the existing synthetic fixture.
+`populate_parity_database(path, fixture)` builds each case's store:
+
+| Case | Store | Call | Limit |
+| --- | --- | --- | --- |
+| `text-only-v1` | plain bodies; two or more byte-identical pairs; rounds with `vitamin d`, `d3`, `c`, `igf 1`, `ii`, possessives | `search_text_only`; queries carry every D3 word, short content tokens and an apostrophe | 10 |
+| `projected-v1` | JSON bodies `{"title", "cohort"}`; `title` SEARCHABLE + FTS, `cohort` FILTERABLE; identical titles form a bm25 tie group across the limit | `search_projected_text`, unfiltered and with `cohort = c1` | 5 |
+| `dense-v1` | plain bodies; `use_default_embedder`; `ProjectionSpec(name="dense", SEARCHABLE, vector=True)` declared before writes; coverage checked | `search` (no rerank, no graph arm) | 10 |
+
+- **Protocol.** A request with `normalizer: "ordered_hits"` makes a driver
+  return `hits: [{id, score, branch}]` per query, in addition to `ids`. A
+  request without it is answered exactly as today.
+- **New operations.** The drivers gain `engine.search_projected_text`
+  (arguments `limit`, `view`, `name`, `filter`) and `engine.search`
+  (`limit`, `view`, `use_default_embedder`). The registry moves both from
+  `excluded_with_reason` to `measure` with normalizer `ordered_hits`.
+- **Oracle.** After each SDK repetition, the coordinator opens the same
+  database file with the in-process Python SDK and runs the same calls.
+  The coordinator must run in the Python arm's venv: its native digest is
+  checked against that arm's.
+- **Comparison.** `compare_parity(oracle, observed)` lists every difference
+  in query set, hit count, order, id, branch, or the exact score. Any
+  difference fails the cell.
+- **Scores.** Scores cross the protocol as JSON numbers. Python `repr`,
+  JavaScript's shortest round-trip and `serde_json` all round-trip binary64
+  exactly, so equal doubles compare equal.
+- **Branches.** Branch names are the SDK wire strings (`text`, `vector`,
+  `text_edge`, `graph_arm`). Each driver maps its SDK's representation to
+  them.
+- **Capability tests (Q-E1).** The Python, TypeScript and Rust driver suites
+  each pin the capability set to the three current operations
+  (`test_capabilities_advertise_only_implemented_operations`,
+  `test_capabilities_is_one_protocol_response`,
+  `capabilities_advertise_only_implemented_operations`). Implementing the
+  two new operations changes that set, so those three assertions need a
+  ruling before W4.
+
+### 2d.4 Public-surface contract
+
+These changes are made with W4.
+
+- **`dev/interfaces/python.md`, `typescript.md`, `rust.md` and
+  `rust-sdk.md`**, for each verb:
+  - `search_text_only`: each fusion arm credits a body once; 1–2
+    character tokens are kept; the stop list includes the twelve Unit D3
+    words.
+  - `search_projected_text`: rows are read in FTS5 rank order with
+    boundary-tie completion, and the order contract (bm25 ascending, then
+    write cursor ascending) is unchanged.
+  - `search`: dense retrieval needs a declared searchable `vector=True`
+    projection; a plain write under the default embedder embeds nothing;
+    the full node body is embedded.
+- **Public docs.** In `docs/guides/structured-search-hits.md`,
+  `docs/guides/hybrid-search-filtering.md`, `docs/reference/python-api.md`
+  and `docs/reference/typescript-api.md`, `Σ 1/(60 + rank)` becomes
+  `Σ_branch w_branch / (30 + rank_branch)`, with `w` = 3 for text and 1
+  for vector and graph. Lint with `./scripts/agent-lint-docs.sh`.
+- **No doc-checker test.** No checker pins verb descriptions, so there is
+  no RED test in this worktree for E4. Review and the docs lint are the
+  check.
+
+## 2e. Unit F: a known-run baseline
+
+- **Manifest.** `experiments/configs/baselines/slice-40-baseline.v1.json`
+  has schema `fathomdb.baseline.v1`, one `engine_commit` and
+  `benchmarks[]`. Each benchmark has `id`, `inputs` (`identifier`,
+  `sha256`), `engine_commit`, `wheel_build` (features, `CUDA_PATH`, `PATH`,
+  `LIBRARY_PATH`, `compatibility: linux`), `command` (exact argv), `receipt`
+  (an ID or `"to be recorded"`) and `metrics[]`.
+- **Metrics.** Each metric is `{name, pointer, expected, tolerance, gate}`.
+  `pointer` is a JSON Pointer into the attempt's `summary.json` or
+  `report.json`. `tolerance` is one of:
+  - `{"abs": x}`: nDCG@10 0.002, MRR 0.005;
+  - `{"rel": x}`: latency p50 0.25, p95 0.35, quiet host;
+  - `{"questions": k, "n": n}`: per-type session recall, k = 1; answer
+    accuracy, k = 3, n = 60, `gate: false`.
+- **Benchmarks.** COMP-01 NFCorpus (`comp01`), `comp01-hybrid`, the COMP-03
+  retrieval sweep (three arms), COMP-03 answer v2, and 10k TC-5 latency
+  (`comp02b_latency`). Expected values are first filled from the Unit D
+  measurements and marked `provisional`. They are replaced by the
+  orchestrator's re-measurement at the final slice head (REQ40-F5); until
+  then every `receipt` reads "to be recorded".
+- **`experiments/baseline_check.py`.** Pure functions `allowed_delta`,
+  `check(entry, summary)` (rows with `name`, `expected`, `measured`,
+  `tolerance` and `status` PASS, DRIFT or MISSING), `load_manifest`, and
+  `main(argv)`. `main` prints one line per metric and returns 1 if any row
+  is DRIFT or MISSING.
+- **`experiments/comp02b_latency.py`.** The orchestrator's diagnostic
+  script, receipt-producing:
+  - build one 10k projected store (`text` SEARCHABLE + FTS, `bench_cohort`
+    FILTERABLE);
+  - one warm pass, then a seeded shuffled pass per cell;
+  - the six `CELLS`, and percentiles exactly as the script (p50 the median,
+    p95 `sorted[int(n × 0.95) − 1]`);
+  - a summary and an `experiments.record.v1` receipt with engine identity.
+- **Engine identity.** `comp_record.engine_identity(commit)` returns
+  `{commit, native_sha256, version}`. The comp runners (`comp_fts run`,
+  `comp03_retrieval run`, `comp03_answer run`, `comp02b_latency run`)
+  require `--engine-commit` and write it into the receipt. Without a
+  product accessor, the commit is declared, and the native digest makes the
+  declaration checkable.
+- **Re-measurement (REQ40-F5).** The pre-D3 sweep and the two NFCorpus runs
+  have no receipts and ran on two engine commits. The baseline is measured
+  at the final slice head, after Units E to G land, by the orchestrator,
+  with receipts.
+
+## 2f. Unit G: evidence budget, session completion and recency
+
+### 2f.1 G1 and G2, offline (`comp03_retrieval`)
+
+- `evidence_policy_grid()` gives the twelve policies; `policy_key(p)` is
+  `"<per_round>/<total>/<on|off>"`.
+- `evidence_rounds(ids, docs, policy)` returns `[(round_id, chars)]` in
+  prompt order:
+  - the top-k IDs in rank order;
+  - with expansion on, then the remaining rounds of each hit session, the
+    sessions ordered by their best hit's rank, rounds by position;
+  - each round capped at `per_round_chars`, then cut to what remains of
+    `total_chars`, stopping when nothing remains.
+
+  This is `render_evidence`'s arithmetic: date headers are not counted.
+- `evidence_metrics(shown, gold)` gives
+  `gold_session_any_in_prompt`, `gold_session_all_in_prompt`,
+  `has_answer_in_prompt`, `rounds_in_prompt` and `chars` per question.
+- `select_evidence_policy(table, baseline)` applies REQ40-G2. It returns
+  the chosen policy and, for each excluded policy, the types that lost
+  more than one question.
+- **Inputs.** The D3 sweep's stored top-10 IDs for all three arms, 470
+  scored questions, with no retrieval and no model calls. The rule is
+  applied to counts pooled across the three arms, because one policy
+  serves all arms in v3 (Q-G1).
+- **Output.** `experiments/configs/comp-03/evidence-policy-verdict.v1.json`
+  records the policy, the baseline, the full twelve-row table, the
+  excluded policies, the sweep summary's SHA-256, the arms and the
+  question count. It is written at W4 by running the evaluator (local, a
+  few seconds).
+
+### 2f.2 G3 (`comp03_answer`)
+
+- `render_evidence(..., chronological=False)`: when true, it takes the
+  rounds rank order selected under the caps and renders them sorted by
+  `(session date, round position)`, newest last, with the `[Session date:
+  …]` headers kept.
+- `answer_messages(case, evidence, *, recency_instruction=False)`: when
+  true, it appends `RECENCY_SENTENCE` to the prompt's first paragraph.
+- Both default off; v2 rendering and prompts are unchanged byte-for-byte.
+- `evaluate_recency_rule(v3_rows, v4_rows, arm, seed)` pairs by question
+  ID. It returns the knowledge-update plus temporal delta, the overall
+  delta with its bootstrap CI, and the REQ40-G4 verdict.
+
+### 2f.3 Configs
+
+- `hermes-answer.v3.json` (schema `comp-03.answer.v3`) is v2 plus:
+  - `evidence.policy` from the verdict file, with
+    `evidence.policy_verdict_sha256`;
+  - `evidence.chronological: false`, `evidence.recency_instruction: false`;
+  - `decision_rule {compare_to: comp-03.answer.v2, report: paired per arm}`.
+- `hermes-answer.v4.json` is v3 with both recency flags true and
+  `decision_rule {compare_to: comp-03.answer.v3, adopt_if: …}`.
+- `load_config` accepts v1, v2 and v3 schemas.
+- Receipts and classifications are made as for v2
+  (`comp03_classification.py`).
+- The orchestrator runs v3 and v4, about $2.3 each.
+
+### 2f.4 Harness-side now, product-side later
+
+| Lever | Harness (this slice) | Product equivalent (owner decision) |
+| --- | --- | --- |
+| Evidence budget | per-round and total caps in `render_evidence` | none; a caller concern |
+| Session completion | session expansion after top-k in the harness | turn-level retrieval units in the engine, plus session expansion as a retrieval option |
+| Recency | chronological rendering and one prompt sentence | a recency-aware ranking pass by fact date in the engine; the existing opt-in G12 recency reweight orders by write cursor, not by session date |
 
 ## 3. Files touched
 

@@ -2,7 +2,7 @@
   "schema_version": "fathomdb.baseline.v1",
   "title": "Slice 40 known-run baseline",
   "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-  "status": "final head: comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, and tc5-10k-latency expected values are the final-head measurements at the engine commit, each with a receipt; comp03-answer-v2 stays provisional (Unit D run, not re-measured)",
+  "status": "final head: comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, and tc5-10k-latency expected values are the final-head measurements at the engine commit, each with a receipt; comp03-answer-v2 stays provisional (Unit D run, not re-measured); comp03-answer-mix is report-only and provisional (the evidence policy and mix may change)",
   "tolerances": {
     "ndcg_at_10": {
       "abs": 0.002
@@ -1023,6 +1023,100 @@
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
             "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
           }
+        }
+      ]
+    },
+    {
+      "id": "comp03-answer-mix",
+      "title": "COMP-03 answer best mix (Unit G), three arms",
+      "inputs": {
+        "identifier": "longmemeval-s-cleaned (500 questions)",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+      },
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "wheel_build": {
+        "tool": "maturin build --release --compatibility linux",
+        "manifest": "src/python/pyproject.toml",
+        "features": [
+          "pyo3/extension-module",
+          "embed-cuda",
+          "default-reranker"
+        ],
+        "env": {
+          "CUDA_PATH": "to be recorded (CUDA 12 toolkit root)",
+          "PATH": "to be recorded ($CUDA_PATH/bin first)",
+          "LIBRARY_PATH": "to be recorded ($CUDA_PATH/lib64)"
+        },
+        "compatibility": "linux"
+      },
+      "command": [
+        "python",
+        "-m",
+        "experiments.comp03_answer",
+        "run",
+        "experiments/configs/comp-03/hermes-answer.mix.json",
+        "--dataset",
+        "<longmemeval_s_cleaned.json>",
+        "--attempt-root",
+        "<new attempt dir>",
+        "--fathomdb-bin",
+        "<CUDA fathomdb CLI matching the wheel>",
+        "--sweep-summary",
+        "<sweep attempt>/summary.json",
+        "--engine-commit",
+        "<engine commit>"
+      ],
+      "env": {
+        "FATHOMDB_EMBED_DEVICE": "cuda:0"
+      },
+      "summary": "<attempt dir>/summary.json",
+      "receipt": "comp-03-hermes-answer-20261016T1747Z-4e56afa9",
+      "note": "report-only, not a gate: \u00b13 questions of 60 (measured identical-config noise 3/60 per arm). The evidence policy and the mix are provisional and expected to change as COMP-03 work continues (multi-session and preference improvements under investigation).",
+      "metrics": [
+        {
+          "name": "fathomdb-fts answer accuracy",
+          "pointer": "/accuracy_by_arm/fathomdb-fts",
+          "expected": 0.8833333333333333,
+          "tolerance": {
+            "questions": 3,
+            "n": 60
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-run-mix/summary.json, receipt comp-03-hermes-answer-20261016T1747Z-4e56afa9"
+          },
+          "gate": false
+        },
+        {
+          "name": "fathomdb-hybrid answer accuracy",
+          "pointer": "/accuracy_by_arm/fathomdb-hybrid",
+          "expected": 0.8666666666666667,
+          "tolerance": {
+            "questions": 3,
+            "n": 60
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-run-mix/summary.json, receipt comp-03-hermes-answer-20261016T1747Z-4e56afa9"
+          },
+          "gate": false
+        },
+        {
+          "name": "lancedb-fts answer accuracy",
+          "pointer": "/accuracy_by_arm/lancedb-fts",
+          "expected": 0.9,
+          "tolerance": {
+            "questions": 3,
+            "n": 60
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-run-mix/summary.json, receipt comp-03-hermes-answer-20261016T1747Z-4e56afa9"
+          },
+          "gate": false
         }
       ]
     }

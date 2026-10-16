@@ -107,3 +107,4 @@ All at engine `5b09afd44`, recorded with `--engine-commit`:
   carries a validated measurement classification.
 - **Baseline:** `configs/baselines/slice-40-baseline.v1.json` now takes its
   expected values from these runs. `comp03-answer-v2` stays provisional.
+  `comp03-answer-mix` records the mix run, report-only and provisional.

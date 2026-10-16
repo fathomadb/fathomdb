@@ -79,12 +79,13 @@ def test_cli_exits_non_zero_on_drift_or_missing(tmp_path: Path, capsys):
     assert "DRIFT" in out and "fathomdb ndcg@10" in out and "0.3" in out
 
 
-def test_slice_40_baseline_manifest_lists_the_five_benchmarks():
+def test_slice_40_baseline_manifest_lists_the_six_benchmarks():
     check = _check()
     manifest = check.load_manifest(check.DEFAULT_MANIFEST)
     assert manifest["schema_version"] == "fathomdb.baseline.v1"
     assert [b["id"] for b in manifest["benchmarks"]] == [
         "comp01-nfcorpus", "comp01-hybrid", "comp03-retrieval-sweep", "comp03-answer-v2", "tc5-10k-latency",
+        "comp03-answer-mix",
     ]
     for benchmark in manifest["benchmarks"]:
         assert {"inputs", "engine_commit", "wheel_build", "command", "receipt", "metrics"} <= set(benchmark)
@@ -94,6 +95,12 @@ def test_slice_40_baseline_manifest_lists_the_five_benchmarks():
             assert metric["pointer"].startswith("/") and "tolerance" in metric
     answer = next(b for b in manifest["benchmarks"] if b["id"] == "comp03-answer-v2")
     assert all(m.get("gate") is False for m in answer["metrics"]), "answer accuracy is noise, not a gate"
+    mix = next(b for b in manifest["benchmarks"] if b["id"] == "comp03-answer-mix")
+    assert [m["pointer"] for m in mix["metrics"]] == [
+        "/accuracy_by_arm/fathomdb-fts", "/accuracy_by_arm/fathomdb-hybrid", "/accuracy_by_arm/lancedb-fts",
+    ]
+    assert all(m.get("gate") is False and m["tolerance"] == {"questions": 3, "n": 60} for m in mix["metrics"])
+    assert "provisional" in mix["note"], "the evidence policy and mix are expected to change"
 
 
 def test_latency_harness_keeps_the_diagnostic_cells_and_percentiles():

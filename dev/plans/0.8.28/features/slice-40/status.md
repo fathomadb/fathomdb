@@ -100,6 +100,8 @@ for phase 1 is `output.json` in this directory.
   parity across stores within noise; see
   `dev/performance-benchmarking/2026-10-16-comp-03-unit-g-result.md` on
   `slice/0.8.28-40-comp03`.
+- Baseline gains `comp03-answer-mix` (owner ruling 2026-10-16): FTS 53, hybrid 52, LanceDB 54 of 60,
+  ±3 questions, report-only; provisional while COMP-03 work continues (harness `5a1d0eb12`).
 - Potential, not added: raise the COMP-03 evidence cap or render evidence
   more compactly; at k = 10 the 20,000-character cap binds (p50 20,326),
   so the depth lever is cap-limited.

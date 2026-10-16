@@ -398,7 +398,7 @@ Both resume per question, as the sweep does.
 | `test_stripping_words_equals_compiling_with_them_as_stopwords` (`hypothesis`: content tokens of the stripped query under the D3 list equal those of the raw query under D3 plus the words) | 71 |
 | `test_a_word_that_empties_a_query_is_excluded` (one word alone; and two words that empty "can you help" only jointly, where the lower-`ΔnDCG` one is pruned) | 71 |
 | `test_stoplist_rule_keeps_gaining_words_and_prunes_until_constraints_hold` | 72 |
-| `test_stoplist_rule_boundaries` (nDCG exactly −0.002 passes, −0.0021 prunes; a type exactly one question down passes, two prunes; Recall-all@10 exactly +1 with CI lower bound exactly 0 adopts; +1 with a negative lower bound, or 0, does not) | 72 |
+| `test_stoplist_rule_boundaries` (nDCG exactly −0.002 passes, −0.0021 prunes; a type exactly one question down passes, two prunes; Recall-all@10 exactly +1 with CI lower bound exactly −1 question adopts; +1 with a lower bound below −1 question, or a point delta of 0, does not; owner ruling N1) | 72 |
 | `test_stoplist_rule_is_not_adopted_when_nothing_gains` | 72 |
 | `test_stoplist_verdict_names_its_inputs` | 73 |
 | `test_vector_pool_selection_config_is_typed_and_states_the_rule` (and the pool command's retrieval is `comp03_answer.retrieve`, the sweep's function) | 77 |
@@ -1389,7 +1389,8 @@ Findings F1 to F15 are applied in these docs. Rulings on the open
 questions:
 
 - **Q-H1.** Keep per-word `Δall ≥ 1`; no zero-gain words. Clause (c)
-  gains the bootstrap CI lower bound ≥ 0 (F4).
+  gains a bootstrap CI lower bound (F4). Owner ruling N1 (2026-10-16)
+  sets it: point delta ≥ +1 question and CI lower bound ≥ −1 question.
 - **Q-H2.** Scope accepted. The docs state only what AC40-79 tests.
 - **Q-H3.** `T` = 256 is fixed, with no retuning. One report-only
   in-engine timing at c10 runs before the gate (F12).
@@ -1408,3 +1409,10 @@ has 63 words (51 plus the twelve of REQ40-D5), counted from `STOPWORDS`;
 the docs use 63. The review's F11 self-check `ids[P][:k] ==
 ids[100][:k]` does not hold on today's engine, because pool = limit is
 the defect. It is replaced by the in-engine prefix check REQ40-H6 (iv).
+
+Re-review at `39d1f67dc`: APPROVE. N1 (owner ruling, 2026-10-16): clause
+(c) is *point delta ≥ +1 question AND paired-bootstrap CI lower bound ≥ −1
+question (bootstrap_ci, seed 404, 10,000 resamples) on Recall-all@10 over
+the selection set*. N2: REQ40-H6 (ii) compares `comp01-hybrid` to the
+final-head baseline. N3: the extra limit-`P0` hybrid pass is budgeted in
+design § 2g.1 step 6.

@@ -737,6 +737,10 @@ order is:
    H2 commit against H1, H3 at the H3 commit against H2. That costs one
    COMP-02b run and one hybrid sweep more than measuring only at the end;
    it is the only way a failed gate can be traced to one commit.
+   - The H2 measurement also needs one extra limit-`P0` hybrid pass over
+     the 500 sweep stores, on cuda:0 at the H2 commit, for REQ40-H6 (iv)
+     (the sweep itself runs at limit 10). Budget it with the H2 sweep
+     (re-review N3).
 
 ### 2g.2 H1, stop list
 
@@ -766,7 +770,10 @@ order is:
     the equivalence as a `hypothesis` property.
 - **Clause (c).** The combined list's paired Recall-all@10 delta against
   D3 goes through `comp03_retrieval.bootstrap_ci` (seed 404, 10,000
-  resamples). Point delta ≥ +1 and CI lower bound ≥ 0 are both required.
+  resamples). Owner ruling N1 (2026-10-16), verbatim: *point delta ≥ +1
+  question AND paired-bootstrap CI lower bound ≥ −1 question
+  (bootstrap_ci, seed 404, 10,000 resamples) on Recall-all@10 over the
+  selection set.* Both are required.
 - **Engine.** Append the verdict's words to `STOPWORDS`, and extend the
   doc comment with the reason: high-document-frequency question words,
   chosen by the Slice 40 H1 rule. Nothing else in `fathomdb-query`

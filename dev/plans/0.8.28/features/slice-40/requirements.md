@@ -711,11 +711,15 @@ change).** The rule lives in `experiments/configs/comp-03/stoplist-selection.v1.
     (the final-head baseline and its tolerances);
   - (b) for every type, the selection-set session Recall-any@5 count is at
     least the D3 count minus 1;
-  - (c) on the selection set, the paired session Recall-all@10 delta of
-    `L` against D3 has a point delta of at least +1 question, and a 95%
-    bootstrap CI whose lower bound is ≥ 0 (`comp03_retrieval.bootstrap_ci`,
-    seed 404, 10,000 resamples, as Unit D). This is review F4: the
-    per-word screen alone is a point-estimate rule over 47 candidates.
+  - (c) owner ruling N1, 2026-10-16, verbatim: *point delta ≥ +1
+    question AND paired-bootstrap CI lower bound ≥ −1 question
+    (bootstrap_ci, seed 404, 10,000 resamples) on Recall-all@10 over the
+    selection set.* The delta is `L` against D3, in questions;
+    `comp03_retrieval.bootstrap_ci` gives the CI of the per-question mean,
+    so the bound in questions is the lower bound times the number of
+    paired questions. This is review F4 as a non-regression bound in D3's
+    sense (re-review N1 option B): it rejects a list whose losses could
+    plausibly exceed its wins and admits a small net gain.
 - **Pruning.** First apply the emptiness check. Then, while (a) or (b)
   fails, drop from `K` the word with the lowest `ΔnDCG` (ties: lower
   `Δall`, then alphabetical), apply the emptiness check again, and recheck.
@@ -824,7 +828,7 @@ review).** The reference is the H1-commit measurement. Verbatim: *(i)
 COMP-03 sweep `fathomdb-hybrid` per-type session Recall@5 and Recall@10 not
 lower than at the H1 commit beyond one question per type; (ii)
 `fathomdb-hybrid` COMP-03 warm p50 ≤ H1-commit × 1.25 and p95 ≤ H1-commit ×
-1.35, and `comp01-hybrid` `fathomdb-hybrid` p50 ≤ baseline × 1.25; (iii)
+1.35, and `comp01-hybrid` `fathomdb-hybrid` p50 ≤ the final-head baseline × 1.25 (`comp01-hybrid` is not measured at the H1 commit); (iii)
 the Unit E cross-SDK suite equal in every case, SDK and repetition; (iv)
 for every sweep question, the hybrid limit-10 IDs and score bits equal the
 first ten of a limit-`P0` call on the same store.*
@@ -1069,7 +1073,7 @@ tests are in the `fathomdb-query` test module (AC40-74),
 | AC40-69 | The best-mix config is built from the verdicts on the arm of record; v4c contingency; renderer caps and policy are mutually exclusive | `test_mix_config_follows_the_three_verdicts`, `test_mix_config_follows_the_arm_of_record`, `test_mix_config_needs_v4c_for_chronological_order_alone`, `test_render_evidence_refuses_a_policy_together_with_caps` | G2, G6 |
 | AC40-70 | Stop-list selection config: typed; holds the 47 candidates (no `d`, no `ve`, no current stopword), `engine_stopwords` equal to the 63-word list at `5b09afd44` verbatim, the 414-question selection set and the rule verbatim, including the emptiness check; a wrong schema is refused | `test_stoplist_selection_config_states_the_candidates_and_rule` | H1 |
 | AC40-71 | Simulation: removing words harness-side gives the content tokens of compiling with them as stopwords (property); a word that empties a query alone is excluded; two words that empty a query only jointly cause the lower-`ΔnDCG` one to be pruned | `test_stripping_words_equals_compiling_with_them_as_stopwords`, `test_a_word_that_empties_a_query_is_excluded` | H1 |
-| AC40-72 | Rule: keep `Δall ≥ 1`; combined constraints (a)–(c), with (c) a point delta ≥ +1 and a bootstrap CI lower bound ≥ 0; pruning order by lowest `ΔnDCG`, then `Δall`, then name; boundaries (exactly −0.002, exactly −1 question, exactly +1, CI lower bound exactly 0); "not adopted" when nothing gains or (c) fails | `test_stoplist_rule_keeps_gaining_words_and_prunes_until_constraints_hold`, `test_stoplist_rule_boundaries`, `test_stoplist_rule_is_not_adopted_when_nothing_gains` | H1 |
+| AC40-72 | Rule: keep `Δall ≥ 1`; combined constraints (a)–(c), with (c) a point delta ≥ +1 and a bootstrap CI lower bound ≥ −1 question (owner ruling N1); pruning order by lowest `ΔnDCG`, then `Δall`, then name; boundaries (exactly −0.002, exactly −1 question, exactly +1, CI lower bound exactly −1 question); "not adopted" when nothing gains or (c) fails | `test_stoplist_rule_keeps_gaining_words_and_prunes_until_constraints_hold`, `test_stoplist_rule_boundaries`, `test_stoplist_rule_is_not_adopted_when_nothing_gains` | H1 |
 | AC40-73 | Stop-list verdict file names its inputs (414 selection, 56 scored answer-set, 323 NFCorpus queries, engine commit) and the per-word table | `test_stoplist_verdict_names_its_inputs` | H1 |
 | AC40-74 | The verdict's words are stopwords and `STOPWORDS.len()` is 63 plus their count; `d`, `c`, `d3`, `ii`, `1`, `b12` are not; the Unit D twelve stay; each new word alone, upper-cased, takes the fallback (the raw token keeps its case); the § 1.6 question shapes compile to their content terms | `unit_h_words_are_in_the_stop_list_and_content_tokens_are_not`, `each_unit_h_word_alone_takes_the_fallback`, `unit_h_question_shapes_compile_to_content_terms` | H2 |
 | AC40-75 | The AC-038 private copy gains the same words; every other Slice 40 compiler and engine test passes unchanged | `fts5_injection_safety.rs`; the `fathomdb-query` test module, `slice40_fts_ranking.rs` | H2 |

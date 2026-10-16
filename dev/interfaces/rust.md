@@ -95,6 +95,14 @@ and native-width capacity overflow return
 `EngineOpenError::EngineConfiguration(EngineConfigurationError)`; process-wide
 SQLite mode failures retain `EngineOpenError::RuntimeConfiguration`.
 
+Since 0.8.28 Slice 41 phase 2, `EngineConfig` also has
+`query_stop_words: Option<QueryStopWords>` (§ Query stop words). `EngineConfig`
+is not `#[non_exhaustive]`, so a downstream struct literal that does not end
+in `..EngineConfig::default()` stops compiling when a field is added; pre-1.0
+this is accepted. `EngineConfigurationError` is `#[non_exhaustive]` since the
+same slice, and gained `QueryStopWords { field, index, reason }`; it stays
+`Copy`. Match it with a wildcard arm.
+
 `scheduler_runtime_threads` starts exactly that many projection workers and
 worker-owned SQLite connections. Projection admission and each dispatcher scan
 are bounded by `scheduler_runtime_threads * PROJECTION_COMMIT_BATCH`, where the
@@ -1668,6 +1676,26 @@ The signatures are unchanged; the behaviour of three search verbs changed.
   search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
   guaranteed.
 
+## Query stop words (0.8.28 Slice 41 phase 2)
+
+`EngineConfig::query_stop_words: Option<QueryStopWords>` sets the query stop
+words for one opened engine. `QueryStopWords { base: StopWordBase, extra:
+Vec<String>, keep: Vec<String> }` (`StopWordBase::{Fathomdb, None}`, default
+`Fathomdb`) gives the effective set `(base ∪ extra) \ keep`; `None` and
+`QueryStopWords::default()` are the built-in list. The types, the validation
+and the effective-set computation live in `fathomdb-query` (`QueryStopWords::validate`,
+`StopWordSet`, `compile_text_query_with`, `DEFAULT_STOP_WORDS_SHA256`) and are
+re-exported by `fathomdb-engine`, the `fathomdb` facade and `fathomdb-sdk`.
+The rules and the exact-token semantics are in [`python.md`](python.md)
+§ Query stop words. A refused setting is
+`EngineOpenError::EngineConfiguration(EngineConfigurationError::QueryStopWords {
+field, index, reason })`, where `field` is `"query_stop_words.extra"` or
+`"query_stop_words.keep"`, `index` is the word's position (`None` for a list
+over 256 words) and `reason` is a `StopWordRejection`. The setting applies to
+every text-query compile of the engine, is not stored in the database, and is
+recorded as `OpenReport::stop_words_sha256` and
+`QueryTrace::stop_words_sha256`.
+
 ## Context pack (0.8.28 Slice 41)
 
 `fathomdb_engine` exposes the pure context-pack module: `pack_context`,
@@ -1676,6 +1704,8 @@ The signatures are unchanged; the behaviour of three search verbs changed.
 used by the Python and TypeScript bindings) and the `Context*` types,
 `ROUND_BODY_MARK`, `ROUND_BODY_ROLES` and the `DEFAULT_*` policy constants.
 Errors are `ContextPackError`, whose `message()` names the field.
+`ContextPolicy::full_ids` and `ContextPackEntry::forced` are the phase 2
+full-render override.
 Applications use the `fathomdb-sdk` spellings in
 [`rust-sdk.md`](rust-sdk.md); the behaviour is in [`python.md`](python.md)
 § Context pack.

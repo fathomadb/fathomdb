@@ -1265,6 +1265,38 @@ The signatures are unchanged; the behaviour of three search verbs changed.
   search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
   guaranteed.
 
+## Query stop words (0.8.28 Slice 41 phase 2)
+
+`EngineConfig.query_stop_words` (also the `Engine.open` keyword) takes a
+frozen `QueryStopWords(base="fathomdb", extra=(), keep=())`. The engine
+compiles every text query with the effective set `(base ∪ extra) \ keep`:
+`search_text_only`, the text branch of `search`, `search_frozen`,
+`search_with_evidence`, `search_projected_text` and graph-expand query
+seeds. Indexing, the vector branch and the BM25F arm are unchanged, and the
+all-stop-word fallback uses the effective set. `None` (the default) is the
+built-in list, and so is `QueryStopWords()`.
+
+- **Fixed at open, not stored.** The setting applies to that opened engine
+  only; nothing is written to the database and no reindex is needed.
+- **Words.** `base` is `"fathomdb"` (the built-in list) or `"none"`. Each
+  word is one token as the compiler emits it: non-empty, alphanumeric,
+  lowercase, at most 64 characters; at most 256 words per list; no repeats;
+  no word in both lists; every `keep` word in `base` (so `base="none"`
+  refuses any `keep`); no `extra` word already in `base`. A violation raises
+  `InvalidArgumentError` at open naming the field, for example
+  `query_stop_words.extra[1]`. A bare `str` for `extra` or `keep`, or a
+  non-`QueryStopWords` value, is `TypeError`; an unknown `base` is
+  `ValueError`.
+- **Exact tokens.** Matching is on the compiler's lowercased tokens, before
+  FTS5's porter stemming and without diacritic folding: `extra=("suggest",)`
+  does not drop `suggests`, and `extra=("cafe",)` does not drop `café`. List
+  both forms to drop both.
+- **Recorded.** `OpenReport.stop_words_sha256` and
+  `result.explanation.trace.stop_words_sha256` carry the lowercase hex
+  SHA-256 of the effective words, sorted by Unicode scalar value and joined
+  by `"\n"`. `fathomdb.DEFAULT_STOP_WORDS_SHA256` is the built-in list's hash.
+  `engine.config.query_stop_words` echoes the setting.
+
 ## Context pack (0.8.28 Slice 41)
 
 Four package-level pure operations render search results into prompt
@@ -1285,6 +1317,7 @@ header=None)` values, where `parts` is a tuple of `ContextPart(role, text)`
 | `full_items` | 3 | Items at selection index below this render every part |
 | `compact_chars` | 300 | Shared allowance for the non-kept parts of a compact item |
 | `keep_roles` | `("user",)` | Roles rendered whole in compact items; role `None` always is |
+| `full_ids` | `()` | Item ids rendered in the full tier wherever they are selected (0.8.28 Slice 41 phase 2) |
 | `expand_groups` | `True` | Append `context` items of each hit group |
 | `order` | `"rank"` | `"rank"` or `"chronological"` |
 
@@ -1296,7 +1329,9 @@ in user turns; set `keep_roles` when answers sit in assistant or tool text.
   group ordered by `position` (ties keep input order). Other `context`
   items are not selected.
 - **Tiers.** Selection index below `full_items` is the full tier: every part,
-  empty ones included. Later items are compact: role-`None` and `keep_roles`
+  empty ones included. A selected item whose id is in `full_ids` is also
+  full; it takes no `full_items` slot, reserves no budget and keeps its place
+  in the selection, so the budget can still cut or omit it. Later items are compact: role-`None` and `keep_roles`
   parts whole, the other parts cut in order from one `compact_chars`
   allowance (joins are not charged); a non-kept part that renders nothing is
   dropped.
@@ -1313,19 +1348,25 @@ in user turns; set `keep_roles` when answers sit in assistant or tool text.
   `chars_used` is the sum of item `chars`; `text_chars` is `len(text)`, so
   `text_chars = chars_used + Σ(len(header) + 1) + 2·(rendered − 1)`. `items`
   holds one `ContextPackEntry(id, source, tier, chars, truncated,
-  rendered_index, parts)` per input item, hits then context, in input order;
+  rendered_index, parts, forced)` per input item, hits then context, in input order;
   `source` is `"hit"` or `"context"`, `tier` is `"full"`, `"compact"` or
   `"omitted"`, and `parts` holds `ContextPartEntry(role, chars, of_chars)`.
   `chars` includes the joins. `truncated` is true when a rendered item shows
   fewer characters of some part than it has; it is false for omitted items.
+  `forced` is true when the id is in `full_ids` and the item rendered full
+  only because of it: false for an item already inside `full_items`, and
+  false for an item that was not rendered.
 - **Characters** are Unicode scalar values (Python `len`).
 - **Errors.** `InvalidArgumentError` whose message names the field (for
   example `policy.budget_chars`, `context[3].position`): a zero
   `budget_chars` or `item_chars`, a negative or non-integer count, an unknown
-  `order`, an empty or repeated id, a grouped `context` item without
+  `order`, an empty or repeated id, an empty, repeated or unknown
+  `full_ids` entry (named `policy.full_ids[i]`; the id checks above run
+  first), a grouped `context` item without
   `position` while `expand_groups` is on, a non-finite or out-of-range count
   (above 2^64 − 1), or a lone surrogate. A non-dataclass argument, or
-  `keep_roles` given as a bare `str`, is `TypeError`.
+  `keep_roles` or `full_ids` given as a bare `str`, is `TypeError`. An id in
+  `full_ids` that names an unselected `context` item has no effect.
 
 ### Role-tagged round body (opt-in)
 

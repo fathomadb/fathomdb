@@ -73,6 +73,15 @@ AC-050c) gates merges against this invariant.
   `context_item_from_hit` (TypeScript camelCase) add an opt-in role-tagged
   node body that ranks like the plain text. Python, TypeScript and Rust
   return identical output.
+- (Slice 41) `ContextPolicy.full_ids` / `fullIds` renders the listed items in
+  full wherever they are selected, without using a `full_items` slot; each
+  provenance entry reports `forced`.
+- (Slice 41) Configurable query stop words: `EngineConfig.query_stop_words` /
+  `queryStopWords` (`base`, `extra`, `keep`) sets the stop list every text
+  query of an opened engine compiles with. It is checked at open, not stored
+  in the database, and recorded as `stop_words_sha256` / `stopWordsSha256` on
+  the open report and the explain trace; `DEFAULT_STOP_WORDS_SHA256` is the
+  built-in list's hash. Unset, compilation is unchanged.
 
 ### Changed
 

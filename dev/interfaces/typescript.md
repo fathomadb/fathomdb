@@ -1317,6 +1317,19 @@ The signatures are unchanged; the behaviour of three search verbs changed.
   search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
   guaranteed.
 
+## Query stop words (0.8.28 Slice 41 phase 2)
+
+`engineConfig.queryStopWords?: { base?: "fathomdb" | "none"; extra?: string[];
+keep?: string[] }` sets the query stop words for one opened engine. It is the
+peer of Python's `EngineConfig.query_stop_words`; [`python.md`](python.md)
+§ Query stop words is the full contract. A word that breaks the rules rejects
+`Engine.open` with `InvalidArgumentError` naming the field; a non-object
+setting, a non-array list, a non-string word or an unknown `base` is
+`TypeError`. `openReport().stopWordsSha256` and
+`result.explanation.trace.stopWordsSha256` carry the effective list's hash,
+`DEFAULT_STOP_WORDS_SHA256` is the built-in list's hash, and
+`engine.config.queryStopWords` echoes the frozen setting.
+
 ## Context pack (0.8.28 Slice 41)
 
 `packContext(hits, policy?, context?)`, `encodeRoundBody(parts)`,
@@ -1329,11 +1342,11 @@ contract, and the output is identical across the three SDKs.
 - **Types.** `ContextPart { role: string | null; text }`,
   `ContextItem { id; parts; group?; position?; orderKey?; header? }`,
   `ContextPolicy` with optional `budgetChars`, `itemChars`, `fullItems`,
-  `compactChars`, `keepRoles`, `expandGroups`, `order` (omitted fields take
-  `DEFAULT_CONTEXT_POLICY`: 30000, 4000, 3, 300, `["user"]`, `true`,
-  `"rank"`), `ContextPack { text; charsUsed; textChars; items }`,
-  `ContextPackEntry { id; source; tier; chars; truncated; renderedIndex;
-  parts }` and `ContextPartEntry { role; chars; ofChars }`.
+  `compactChars`, `keepRoles`, `fullIds`, `expandGroups`, `order` (omitted
+  fields take `DEFAULT_CONTEXT_POLICY`: 30000, 4000, 3, 300, `["user"]`,
+  `[]`, `true`, `"rank"`), `ContextPack { text; charsUsed; textChars; items }`,
+  `ContextPackEntry { id; source; tier; chars; truncated; forced;
+  renderedIndex; parts }` and `ContextPartEntry { role; chars; ofChars }`.
   `ContextHitOptions { group?; position?; orderKey?; header? }`.
 - **Characters** are Unicode scalar values, not UTF-16 code units, so
   `chars`, `ofChars` and `textChars` differ from `string.length` for
@@ -1343,8 +1356,8 @@ contract, and the output is identical across the three SDKs.
   policy counts must be safe integers: NaN, Infinity and values beyond 2^53
   are refused before serialization, and the message gives both the
   TypeScript name and the wire name (`policy.budgetChars
-  (policy.budget_chars)`). `contextItemFromHit`
-  throws `RangeError` for an unknown id space.
+  (policy.budget_chars)`). A non-array `fullIds` is `TypeError`.
+  `contextItemFromHit` throws `RangeError` for an unknown id space.
 - **Tagged bodies** carry the hazards listed in `python.md`; a
   `String.prototype.split(/\r?\n/)` on a tagged body keeps the markers on each
   line, so use `decodeRoundBody`.

@@ -513,6 +513,18 @@ The signatures are unchanged; the behaviour of three search verbs changed.
   search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
   guaranteed.
 
+## Query stop words (0.8.28 Slice 41 phase 2)
+
+`OpenOptions.config.query_stop_words: Option<QueryStopWords>` is the core
+setting, re-exported with `StopWordBase`, `StopWordRejection` and
+`DEFAULT_STOP_WORDS_SHA256` ([`rust.md`](rust.md) § Query stop words;
+[`python.md`](python.md) § Query stop words is the full contract). A refused
+setting is `ErrorKind::InvalidArgument` at open, with a message naming the
+field. `open_report().stop_words_sha256` and the explain trace's
+`stop_words_sha256` carry the effective hash. `EngineConfigurationError` is
+`#[non_exhaustive]` since this slice; SDK error mapping already uses a
+wildcard.
+
 ## Context pack (0.8.28 Slice 41)
 
 The behaviour, the types and the round-body convention are shared with
@@ -521,6 +533,8 @@ contract. The Rust spellings are `ContextPart`, `ContextItem`,
 `ContextPolicy` (`Default` = the product defaults), `ContextOrder::{Rank,
 Chronological}`, `ContextPack`, `ContextPackEntry`, `ContextPartEntry`,
 `ContextSource::{Hit, Context}` and `ContextTier::{Full, Compact, Omitted}`.
+`ContextPolicy::full_ids: Vec<String>` (default empty) and
+`ContextPackEntry::forced` are the phase 2 full-render override.
 `position` is `Option<u64>`; counts are `usize`, so negative counts cannot
 be expressed. Characters are Unicode scalar values (`str::chars`). The
 shared conformance fixture is `src/conformance/context-pack-fixtures.json`.

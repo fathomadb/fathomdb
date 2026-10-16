@@ -29,6 +29,7 @@ from typing import Any, Mapping, Sequence
 from experiments import _lib
 from experiments import comp03_answer
 from experiments import comp_fts
+from experiments import comp_record
 from experiments.comp03_answer import convert_question, gold_for, sha256_file
 
 __all__ = ["convert_question", "gold_for"]
@@ -282,7 +283,8 @@ def summarize(config: Mapping[str, Any], rows: Sequence[Mapping[str, Any]],
 
 
 def write_receipt(config: dict[str, Any], summary: dict[str, Any], *, attempt_root: Path, dataset_path: Path,
-                  base_dir: Path | None, config_path: str | None) -> tuple[str, Path]:
+                  base_dir: Path | None, config_path: str | None,
+                  engine: dict[str, str] | None = None) -> tuple[str, Path]:
     base = base_dir if base_dir is not None else _lib.EXPERIMENTS_DIR
     git = _lib.git_info()
     decision = summary["decision"]
@@ -306,7 +308,8 @@ def write_receipt(config: dict[str, Any], summary: dict[str, Any], *, attempt_ro
         corpus={"source": config["corpus"]["identifier"], "manifest_sha256": None,
                 "datasets": [{"name": dataset_path.name, "sha256": config["corpus"]["sha256"]}]},
         seeds={"bootstrap": config["metrics"]["bootstrap"]["seed"]},
-        env=_lib.env_info(key_deps={arm: block["timing"].get("version") for arm, block in summary["arms"].items()}),
+        env=_lib.env_info(key_deps={arm: block["timing"].get("version") for arm, block in summary["arms"].items()}
+                          | comp_record.engine_key_deps(engine)),
         cost_usd=0.0,
         config_path=config_path,
         artifacts=[{"kind": "external_attempt", "summary_sha256": sha256_file(attempt_root / "summary.json")}],
@@ -326,13 +329,15 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--fathomdb-bin")
     run.add_argument("--max-questions", type=int)
     run.add_argument("--base-dir", type=Path, help="receipt root; defaults to experiments/")
+    run.add_argument("--engine-commit", required=True, help="40-hex source commit of the installed fathomdb build")
     args = parser.parse_args(argv)
+    engine = comp_record.engine_identity(args.engine_commit)
     config = load_config(args.config)
     os.environ.setdefault("FATHOMDB_EMBED_DEVICE", "auto")
     summary = sweep(config, dataset_path=args.dataset, attempt_root=args.attempt_root,
                     fathomdb_bin=args.fathomdb_bin, max_questions=args.max_questions)
     run_id, run_dir = write_receipt(config, summary, attempt_root=args.attempt_root, dataset_path=args.dataset,
-                                    base_dir=args.base_dir, config_path=str(args.config))
+                                    base_dir=args.base_dir, config_path=str(args.config), engine=engine)
     print(json.dumps({"run_id": run_id, "receipt": str(run_dir / "record.json"), "decision": summary["decision"]}))
     return 0
 

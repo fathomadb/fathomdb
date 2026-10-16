@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from experiments import _lib
-from experiments import comp_fts
+from experiments import comp_fts, comp_record
 
 DEFAULT_CONFIG = _lib.EXPERIMENTS_DIR / "configs" / "comp-03" / "hermes-answer.v1.json"
 EXPERIMENT = "comp-03-hermes-answer"
@@ -492,7 +492,7 @@ def _host() -> dict[str, Any]:
 
 def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, client: Any, base_dir: Path | None,
         fathomdb_bin: str | None, config_path: str | None, max_questions: int | None = None,
-        sweep_summary: Path | None = None) -> tuple[str, Path]:
+        sweep_summary: Path | None = None, engine: dict[str, str] | None = None) -> tuple[str, Path]:
     """Execute or resume every stage, then write the receipt and index row."""
     if sha256_file(dataset_path) != config["corpus"]["sha256"]:
         raise Comp03Error("dataset digest does not match the config")
@@ -559,7 +559,7 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
         metrics["arm_gate"] = gate
     _write_json(attempt_root / "summary.json", metrics)
     return write_receipt(config, metrics, attempt_root=attempt_root, dataset_path=dataset_path,
-                         base_dir=base_dir, config_path=config_path)
+                         base_dir=base_dir, config_path=config_path, engine=engine)
 
 
 def _accuracy_only(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[str, Any]:
@@ -613,7 +613,8 @@ def summarize(rows: list[dict[str, Any]], retrieval_rows: list[dict[str, Any]], 
 
 
 def write_receipt(config: dict[str, Any], metrics: dict[str, Any], *, attempt_root: Path, dataset_path: Path,
-                  base_dir: Path | None, config_path: str | None) -> tuple[str, Path]:
+                  base_dir: Path | None, config_path: str | None,
+                  engine: dict[str, str] | None = None) -> tuple[str, Path]:
     base = base_dir if base_dir is not None else _lib.EXPERIMENTS_DIR
     git = _lib.git_info()
     answer = metrics["answer"]
@@ -649,6 +650,7 @@ def write_receipt(config: dict[str, Any], metrics: dict[str, Any], *, attempt_ro
                 "datasets": [{"name": dataset_path.name, "sha256": config["corpus"]["sha256"]}]},
         seeds={"selection": config["selection"]["seed"], "model": config["live"]["seed"]},
         env=_lib.env_info(key_deps={arm: metrics["timing"][arm]["version"] for arm in arms}
+                          | comp_record.engine_key_deps(engine)
                           | {"answerer": config["live"]["answerer"]["model"], "judge": config["live"]["judge"]["model"]}),
         cost_usd=round(metrics["cost_usd"], 4),
         config_path=config_path,
@@ -675,6 +677,7 @@ def main(argv: list[str] | None = None) -> int:
     live.add_argument("--base-dir", type=Path, help="receipt root; defaults to experiments/")
     live.add_argument("--sweep-summary", type=Path,
                       help="COMP-03 retrieval sweep summary.json; gated arms run only on its verdict")
+    live.add_argument("--engine-commit", help="40-hex source commit of the installed fathomdb build (required for run)")
     args = parser.parse_args(argv)
     config = load_config(args.config)
     if args.command == "select":
@@ -682,11 +685,14 @@ def main(argv: list[str] | None = None) -> int:
         picked = select_questions(dataset, per_type=config["selection"]["per_type"], seed=config["selection"]["seed"])
         print(json.dumps({"question_ids": picked, "matches_config": picked == config["selection"]["question_ids"]}))
         return 0
+    if not args.engine_commit:
+        parser.error("run requires --engine-commit")
+    engine = comp_record.engine_identity(args.engine_commit)
     key = os.environ.get("AIRLOCK_VIRTUAL_KEY") or os.environ.get("R2_JUDGE_API_KEY") or ""
     client = AirlockClient(args.airlock_url, key, config["live"]["max_retries"])
     run_id, run_dir = run(config, dataset_path=args.dataset, attempt_root=args.attempt_root, client=client,
                           base_dir=args.base_dir, fathomdb_bin=args.fathomdb_bin, config_path=str(args.config),
-                          max_questions=args.max_questions, sweep_summary=args.sweep_summary)
+                          max_questions=args.max_questions, sweep_summary=args.sweep_summary, engine=engine)
     print(json.dumps({"run_id": run_id, "receipt": str(run_dir / "record.json")}))
     return 0
 

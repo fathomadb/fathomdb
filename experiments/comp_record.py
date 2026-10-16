@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,32 @@ REPORTS = {"comp01": "fts", "comp02a": "scale", "comp02b": "filtered"}
 
 class CompRecordError(RuntimeError):
     pass
+
+
+_COMMIT = re.compile(r"[0-9a-f]{40}")
+
+
+def engine_identity(commit: str) -> dict[str, str]:
+    """The engine a receipt measured: the declared source commit, plus the
+    installed native module's SHA-256 and version string that make the
+    declaration checkable. No SDK exposes a build commit, and every 0.8.2x
+    build reports the same version, so the digest is what tells builds apart.
+    """
+    if not isinstance(commit, str) or not _COMMIT.fullmatch(commit):
+        raise ValueError("engine commit must be a 40-character lowercase hex SHA")
+    import fathomdb
+    from fathomdb import _fathomdb
+
+    native = Path(_fathomdb.__file__).resolve(strict=True)
+    return {"commit": commit, "native_sha256": hashlib.sha256(native.read_bytes()).hexdigest(),
+            "version": fathomdb.__version__}
+
+
+def engine_key_deps(identity: dict[str, str] | None) -> dict[str, str]:
+    """``env.key_deps`` entries recording the engine identity in a receipt."""
+    if identity is None:
+        return {}
+    return {"fathomdb_engine_commit": identity["commit"], "fathomdb_native_sha256": identity["native_sha256"]}
 
 
 def load_config(path: Path) -> dict[str, Any]:
@@ -87,7 +114,7 @@ def _headline(config: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]
 
 
 def record(config: dict[str, Any], *, inputs: Path, out: Path, base_dir: Path | None,
-           config_path: str | None) -> tuple[str, Path]:
+           config_path: str | None, engine: dict[str, str] | None = None) -> tuple[str, Path]:
     verify_inputs(config, inputs)
     metrics = summarize(config, inputs, out)
     base = base_dir if base_dir is not None else _lib.EXPERIMENTS_DIR
@@ -111,7 +138,7 @@ def record(config: dict[str, Any], *, inputs: Path, out: Path, base_dir: Path | 
         corpus={"source": config["inputs"]["source"], "manifest_sha256": config["inputs"]["files"].get("manifest.json"),
                 "datasets": [{"name": k, "sha256": v} for k, v in sorted(config["inputs"]["files"].items())]},
         seeds={"steady_order": "1000 + repetition"},
-        env=_lib.env_info(key_deps=metrics["versions"]),
+        env=_lib.env_info(key_deps=metrics["versions"] | engine_key_deps(engine)),
         cost_usd=0.0,
         config_path=config_path,
         artifacts=artifacts,
@@ -131,6 +158,8 @@ def main(argv: list[str] | None = None) -> int:
         if name == "record":
             cmd.add_argument("--out", type=Path, required=True)
             cmd.add_argument("--base-dir", type=Path)
+            cmd.add_argument("--engine-commit", required=True,
+                             help="40-hex source commit of the installed fathomdb build")
     args = parser.parse_args(argv)
     config = load_config(args.config)
     if args.command == "verify":
@@ -138,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
         print("inputs match config")
         return 0
     run_id, run_dir = record(config, inputs=args.inputs, out=args.out, base_dir=args.base_dir,
-                             config_path=str(args.config))
+                             config_path=str(args.config), engine=engine_identity(args.engine_commit))
     print(json.dumps({"run_id": run_id, "receipt": str(run_dir / "record.json")}))
     return 0
 

@@ -1,0 +1,965 @@
+{
+  "schema_version": "fathomdb.baseline.v1",
+  "title": "Slice 40 known-run baseline",
+  "engine_commit": "to be recorded (final slice head, after Units E to G land)",
+  "status": "provisional: expected values come from the Unit D measurements at the engine commit each metric names; the orchestrator re-measures every benchmark at the final slice head with receipts and replaces them",
+  "tolerances": {
+    "ndcg_at_10": {
+      "abs": 0.002
+    },
+    "mrr": {
+      "abs": 0.005
+    },
+    "per_type_session_recall": {
+      "questions": 1
+    },
+    "latency_p50": {
+      "rel": 0.25,
+      "host": "quiet"
+    },
+    "latency_p95": {
+      "rel": 0.35,
+      "host": "quiet"
+    },
+    "answer_accuracy": {
+      "questions": 3,
+      "gate": false
+    }
+  },
+  "check": "python -m experiments.baseline_check experiments/configs/baselines/slice-40-baseline.v1.json <benchmark id> <summary or report>",
+  "benchmarks": [
+    {
+      "id": "comp01-nfcorpus",
+      "title": "COMP-01 NFCorpus FTS, FathomDB vs LanceDB",
+      "inputs": {
+        "identifier": "nfcorpus-input (BEIR NFCorpus test split)",
+        "sha256": "1895269ad24ec66b3a1fef9de806e6369b1f8f8376ec063f809097a41a315022",
+        "files": {
+          "corpus.json": "1895269ad24ec66b3a1fef9de806e6369b1f8f8376ec063f809097a41a315022",
+          "queries.json": "a352f9ad9b20b8bc75fe37488c681030f1fe31675e733b6e9665d1296bbbe383",
+          "gold.json": "6b226d8849aa2e080edafe3d3ca778931fc8ab68e420f28e7ece7ae26a55e105",
+          "manifest.json": "c2abd951fdba912d0a0fd9bfd5fdbb47ebf209ce51fcd06ff841f4b4006b4266"
+        }
+      },
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "wheel_build": {
+        "tool": "maturin build --release --compatibility linux",
+        "manifest": "src/python/pyproject.toml",
+        "features": [
+          "pyo3/extension-module",
+          "default-embedder",
+          "default-reranker"
+        ],
+        "env": {
+          "CUDA_PATH": null,
+          "PATH": "default",
+          "LIBRARY_PATH": "default"
+        },
+        "compatibility": "linux"
+      },
+      "command": [
+        "python",
+        "-m",
+        "experiments.comp_fts",
+        "run",
+        "--config",
+        "experiments/configs/comp-01/nfcorpus-fts.v1.json",
+        "--inputs",
+        "<nfcorpus-input>",
+        "--out",
+        "<new attempt dir>"
+      ],
+      "record_command": [
+        "python",
+        "-m",
+        "experiments.comp_record",
+        "record",
+        "experiments/configs/comp-01/nfcorpus-fts.v1.json",
+        "--inputs",
+        "<nfcorpus-input>",
+        "--out",
+        "<attempt dir>",
+        "--engine-commit",
+        "<engine commit>"
+      ],
+      "summary": "<attempt dir>/report.json",
+      "receipt": "to be recorded",
+      "metrics": [
+        {
+          "name": "fathomdb ndcg@10",
+          "pointer": "/median_by_arm/fathomdb/ndcg_at_10",
+          "expected": 0.32654556565017173,
+          "tolerance": {
+            "abs": 0.002
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp01-d3/report.json (no receipt)"
+          }
+        },
+        {
+          "name": "lancedb ndcg@10",
+          "pointer": "/median_by_arm/lancedb/ndcg_at_10",
+          "expected": 0.3265000650928575,
+          "tolerance": {
+            "abs": 0.002
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp01-d3/report.json (no receipt)"
+          }
+        },
+        {
+          "name": "fathomdb mrr@10",
+          "pointer": "/median_by_arm/fathomdb/mrr_at_10",
+          "expected": 0.5312496928596,
+          "tolerance": {
+            "abs": 0.005
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp01-d3/report.json (no receipt)"
+          }
+        },
+        {
+          "name": "lancedb mrr@10",
+          "pointer": "/median_by_arm/lancedb/mrr_at_10",
+          "expected": 0.5282581453634085,
+          "tolerance": {
+            "abs": 0.005
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp01-d3/report.json (no receipt)"
+          }
+        },
+        {
+          "name": "fathomdb p50",
+          "pointer": "/median_by_arm/fathomdb/p50_ms",
+          "expected": 1.2577845,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp01-d3/report.json (no receipt)"
+          }
+        },
+        {
+          "name": "fathomdb p95",
+          "pointer": "/median_by_arm/fathomdb/p95_ms",
+          "expected": 5.522993,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp01-d3/report.json (no receipt)"
+          }
+        },
+        {
+          "name": "lancedb p50",
+          "pointer": "/median_by_arm/lancedb/p50_ms",
+          "expected": 1.6146340000000001,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp01-d3/report.json (no receipt)"
+          }
+        },
+        {
+          "name": "lancedb p95",
+          "pointer": "/median_by_arm/lancedb/p95_ms",
+          "expected": 1.954873,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp01-d3/report.json (no receipt)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "comp01-hybrid",
+      "title": "NFCorpus FathomDB FTS vs FathomDB hybrid",
+      "inputs": {
+        "identifier": "nfcorpus-input (BEIR NFCorpus test split)",
+        "sha256": "1895269ad24ec66b3a1fef9de806e6369b1f8f8376ec063f809097a41a315022",
+        "files": {
+          "corpus.json": "1895269ad24ec66b3a1fef9de806e6369b1f8f8376ec063f809097a41a315022",
+          "queries.json": "a352f9ad9b20b8bc75fe37488c681030f1fe31675e733b6e9665d1296bbbe383",
+          "gold.json": "6b226d8849aa2e080edafe3d3ca778931fc8ab68e420f28e7ece7ae26a55e105",
+          "manifest.json": "c2abd951fdba912d0a0fd9bfd5fdbb47ebf209ce51fcd06ff841f4b4006b4266"
+        }
+      },
+      "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
+      "wheel_build": {
+        "tool": "maturin build --release --compatibility linux",
+        "manifest": "src/python/pyproject.toml",
+        "features": [
+          "pyo3/extension-module",
+          "embed-cuda",
+          "default-reranker"
+        ],
+        "env": {
+          "CUDA_PATH": "to be recorded (CUDA 12 toolkit root)",
+          "PATH": "to be recorded ($CUDA_PATH/bin first)",
+          "LIBRARY_PATH": "to be recorded ($CUDA_PATH/lib64)"
+        },
+        "compatibility": "linux"
+      },
+      "command": [
+        "python",
+        "-m",
+        "experiments.comp_fts",
+        "run",
+        "--campaign",
+        "comp01-hybrid",
+        "--inputs",
+        "<nfcorpus-input>",
+        "--out",
+        "<new attempt dir>"
+      ],
+      "summary": "<attempt dir>/report.json (comp_fts score)",
+      "receipt": "to be recorded",
+      "metrics": [
+        {
+          "name": "fathomdb ndcg@10",
+          "pointer": "/median_by_arm/fathomdb/ndcg_at_10",
+          "expected": 0.32596997102971537,
+          "tolerance": {
+            "abs": 0.002
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
+            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid ndcg@10",
+          "pointer": "/median_by_arm/fathomdb-hybrid/ndcg_at_10",
+          "expected": 0.35501644892079837,
+          "tolerance": {
+            "abs": 0.002
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
+            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+          }
+        },
+        {
+          "name": "fathomdb mrr@10",
+          "pointer": "/median_by_arm/fathomdb/mrr_at_10",
+          "expected": 0.5291857093714679,
+          "tolerance": {
+            "abs": 0.005
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
+            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid mrr@10",
+          "pointer": "/median_by_arm/fathomdb-hybrid/mrr_at_10",
+          "expected": 0.5656752174554032,
+          "tolerance": {
+            "abs": 0.005
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
+            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+          }
+        },
+        {
+          "name": "fathomdb p50",
+          "pointer": "/median_by_arm/fathomdb/p50_ms",
+          "expected": 1.333106,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
+            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "comp03-retrieval-sweep",
+      "title": "COMP-03 LongMemEval-S retrieval sweep, three arms",
+      "inputs": {
+        "identifier": "longmemeval-s-cleaned (500 questions)",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+      },
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "wheel_build": {
+        "tool": "maturin build --release --compatibility linux",
+        "manifest": "src/python/pyproject.toml",
+        "features": [
+          "pyo3/extension-module",
+          "embed-cuda",
+          "default-reranker"
+        ],
+        "env": {
+          "CUDA_PATH": "to be recorded (CUDA 12 toolkit root)",
+          "PATH": "to be recorded ($CUDA_PATH/bin first)",
+          "LIBRARY_PATH": "to be recorded ($CUDA_PATH/lib64)"
+        },
+        "compatibility": "linux"
+      },
+      "command": [
+        "python",
+        "-m",
+        "experiments.comp03_retrieval",
+        "run",
+        "experiments/configs/comp-03/retrieval-sweep.v1.json",
+        "--dataset",
+        "<longmemeval_s_cleaned.json>",
+        "--attempt-root",
+        "<new attempt dir>",
+        "--engine-commit",
+        "<engine commit>"
+      ],
+      "env": {
+        "FATHOMDB_EMBED_DEVICE": "cuda:0"
+      },
+      "summary": "<attempt dir>/summary.json",
+      "receipt": "to be recorded (Unit D: comp-03-retrieval-sweep-20261016T1406Z-17773486, provisional)",
+      "metrics": [
+        {
+          "name": "fathomdb-fts session recall@5",
+          "pointer": "/arms/fathomdb-fts/overall/session_recall_any_at_5",
+          "expected": 0.951063829787234,
+          "tolerance": {
+            "questions": 1,
+            "n": 470
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-fts session mrr@10",
+          "pointer": "/arms/fathomdb-fts/overall/session_mrr_at_10",
+          "expected": 0.9106661600810536,
+          "tolerance": {
+            "abs": 0.005
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-fts knowledge-update session recall@5",
+          "pointer": "/arms/fathomdb-fts/per_type/knowledge-update/session_recall_any_at_5",
+          "expected": 1.0,
+          "tolerance": {
+            "questions": 1,
+            "n": 72
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-fts multi-session session recall@5",
+          "pointer": "/arms/fathomdb-fts/per_type/multi-session/session_recall_any_at_5",
+          "expected": 0.9752066115702479,
+          "tolerance": {
+            "questions": 1,
+            "n": 121
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-fts single-session-assistant session recall@5",
+          "pointer": "/arms/fathomdb-fts/per_type/single-session-assistant/session_recall_any_at_5",
+          "expected": 1.0,
+          "tolerance": {
+            "questions": 1,
+            "n": 56
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-fts single-session-preference session recall@5",
+          "pointer": "/arms/fathomdb-fts/per_type/single-session-preference/session_recall_any_at_5",
+          "expected": 0.7333333333333333,
+          "tolerance": {
+            "questions": 1,
+            "n": 30
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-fts single-session-user session recall@5",
+          "pointer": "/arms/fathomdb-fts/per_type/single-session-user/session_recall_any_at_5",
+          "expected": 0.984375,
+          "tolerance": {
+            "questions": 1,
+            "n": 64
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-fts temporal-reasoning session recall@5",
+          "pointer": "/arms/fathomdb-fts/per_type/temporal-reasoning/session_recall_any_at_5",
+          "expected": 0.9133858267716536,
+          "tolerance": {
+            "questions": 1,
+            "n": 127
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-fts query warm p50",
+          "pointer": "/arms/fathomdb-fts/timing/query_warm_p50_ms",
+          "expected": 1.2794984999999999,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-fts query warm p95",
+          "pointer": "/arms/fathomdb-fts/timing/query_warm_p95_ms",
+          "expected": 1.612679,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid session recall@5",
+          "pointer": "/arms/fathomdb-hybrid/overall/session_recall_any_at_5",
+          "expected": 0.9595744680851064,
+          "tolerance": {
+            "questions": 1,
+            "n": 470
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid session mrr@10",
+          "pointer": "/arms/fathomdb-hybrid/overall/session_mrr_at_10",
+          "expected": 0.9287107396149948,
+          "tolerance": {
+            "abs": 0.005
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid knowledge-update session recall@5",
+          "pointer": "/arms/fathomdb-hybrid/per_type/knowledge-update/session_recall_any_at_5",
+          "expected": 0.9861111111111112,
+          "tolerance": {
+            "questions": 1,
+            "n": 72
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid multi-session session recall@5",
+          "pointer": "/arms/fathomdb-hybrid/per_type/multi-session/session_recall_any_at_5",
+          "expected": 0.9752066115702479,
+          "tolerance": {
+            "questions": 1,
+            "n": 121
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid single-session-assistant session recall@5",
+          "pointer": "/arms/fathomdb-hybrid/per_type/single-session-assistant/session_recall_any_at_5",
+          "expected": 1.0,
+          "tolerance": {
+            "questions": 1,
+            "n": 56
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid single-session-preference session recall@5",
+          "pointer": "/arms/fathomdb-hybrid/per_type/single-session-preference/session_recall_any_at_5",
+          "expected": 0.9,
+          "tolerance": {
+            "questions": 1,
+            "n": 30
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid single-session-user session recall@5",
+          "pointer": "/arms/fathomdb-hybrid/per_type/single-session-user/session_recall_any_at_5",
+          "expected": 0.96875,
+          "tolerance": {
+            "questions": 1,
+            "n": 64
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid temporal-reasoning session recall@5",
+          "pointer": "/arms/fathomdb-hybrid/per_type/temporal-reasoning/session_recall_any_at_5",
+          "expected": 0.9212598425196851,
+          "tolerance": {
+            "questions": 1,
+            "n": 127
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid query warm p50",
+          "pointer": "/arms/fathomdb-hybrid/timing/query_warm_p50_ms",
+          "expected": 6.548161,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "fathomdb-hybrid query warm p95",
+          "pointer": "/arms/fathomdb-hybrid/timing/query_warm_p95_ms",
+          "expected": 9.051441,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts session recall@5",
+          "pointer": "/arms/lancedb-fts/overall/session_recall_any_at_5",
+          "expected": 0.9446808510638298,
+          "tolerance": {
+            "questions": 1,
+            "n": 470
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts session mrr@10",
+          "pointer": "/arms/lancedb-fts/overall/session_mrr_at_10",
+          "expected": 0.9016531577169875,
+          "tolerance": {
+            "abs": 0.005
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts knowledge-update session recall@5",
+          "pointer": "/arms/lancedb-fts/per_type/knowledge-update/session_recall_any_at_5",
+          "expected": 1.0,
+          "tolerance": {
+            "questions": 1,
+            "n": 72
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts multi-session session recall@5",
+          "pointer": "/arms/lancedb-fts/per_type/multi-session/session_recall_any_at_5",
+          "expected": 0.9669421487603306,
+          "tolerance": {
+            "questions": 1,
+            "n": 121
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts single-session-assistant session recall@5",
+          "pointer": "/arms/lancedb-fts/per_type/single-session-assistant/session_recall_any_at_5",
+          "expected": 1.0,
+          "tolerance": {
+            "questions": 1,
+            "n": 56
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts single-session-preference session recall@5",
+          "pointer": "/arms/lancedb-fts/per_type/single-session-preference/session_recall_any_at_5",
+          "expected": 0.7333333333333333,
+          "tolerance": {
+            "questions": 1,
+            "n": 30
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts single-session-user session recall@5",
+          "pointer": "/arms/lancedb-fts/per_type/single-session-user/session_recall_any_at_5",
+          "expected": 0.96875,
+          "tolerance": {
+            "questions": 1,
+            "n": 64
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts temporal-reasoning session recall@5",
+          "pointer": "/arms/lancedb-fts/per_type/temporal-reasoning/session_recall_any_at_5",
+          "expected": 0.905511811023622,
+          "tolerance": {
+            "questions": 1,
+            "n": 127
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts query warm p50",
+          "pointer": "/arms/lancedb-fts/timing/query_warm_p50_ms",
+          "expected": 1.6487829999999999,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        },
+        {
+          "name": "lancedb-fts query warm p95",
+          "pointer": "/arms/lancedb-fts/timing/query_warm_p95_ms",
+          "expected": 1.947714,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+          }
+        }
+      ]
+    },
+    {
+      "id": "comp03-answer-v2",
+      "title": "COMP-03 answer v2, three arms, k=10",
+      "inputs": {
+        "identifier": "longmemeval-s-cleaned (500 questions)",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+      },
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "wheel_build": {
+        "tool": "maturin build --release --compatibility linux",
+        "manifest": "src/python/pyproject.toml",
+        "features": [
+          "pyo3/extension-module",
+          "embed-cuda",
+          "default-reranker"
+        ],
+        "env": {
+          "CUDA_PATH": "to be recorded (CUDA 12 toolkit root)",
+          "PATH": "to be recorded ($CUDA_PATH/bin first)",
+          "LIBRARY_PATH": "to be recorded ($CUDA_PATH/lib64)"
+        },
+        "compatibility": "linux"
+      },
+      "command": [
+        "python",
+        "-m",
+        "experiments.comp03_answer",
+        "run",
+        "experiments/configs/comp-03/hermes-answer.v2.json",
+        "--dataset",
+        "<longmemeval_s_cleaned.json>",
+        "--attempt-root",
+        "<new attempt dir>",
+        "--fathomdb-bin",
+        "<CUDA fathomdb CLI matching the wheel>",
+        "--sweep-summary",
+        "<sweep attempt>/summary.json",
+        "--engine-commit",
+        "<engine commit>"
+      ],
+      "env": {
+        "FATHOMDB_EMBED_DEVICE": "cuda:0"
+      },
+      "summary": "<attempt dir>/summary.json",
+      "receipt": "to be recorded (Unit D: comp-03-hermes-answer-20261016T1422Z-c807ed90, provisional)",
+      "note": "answer accuracy is reported as noise, not a gate: \u00b13 questions of 60",
+      "metrics": [
+        {
+          "name": "fathomdb-fts answer accuracy",
+          "pointer": "/accuracy_by_arm/fathomdb-fts",
+          "expected": 0.8166666666666667,
+          "tolerance": {
+            "questions": 3,
+            "n": 60
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-run2/summary.json, receipt comp-03-hermes-answer-20261016T1422Z-c807ed90"
+          },
+          "gate": false
+        },
+        {
+          "name": "fathomdb-hybrid answer accuracy",
+          "pointer": "/accuracy_by_arm/fathomdb-hybrid",
+          "expected": 0.8,
+          "tolerance": {
+            "questions": 3,
+            "n": 60
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-run2/summary.json, receipt comp-03-hermes-answer-20261016T1422Z-c807ed90"
+          },
+          "gate": false
+        },
+        {
+          "name": "lancedb-fts answer accuracy",
+          "pointer": "/accuracy_by_arm/lancedb-fts",
+          "expected": 0.7666666666666667,
+          "tolerance": {
+            "questions": 3,
+            "n": 60
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "comp03-run2/summary.json, receipt comp-03-hermes-answer-20261016T1422Z-c807ed90"
+          },
+          "gate": false
+        }
+      ]
+    },
+    {
+      "id": "tc5-10k-latency",
+      "title": "10k TC-5 projected and body search latency",
+      "inputs": {
+        "identifier": "tc5-10000 (COMP-02b inputs)",
+        "sha256": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+        "files": {
+          "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+          "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+        }
+      },
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "wheel_build": {
+        "tool": "maturin build --release --compatibility linux",
+        "manifest": "src/python/pyproject.toml",
+        "features": [
+          "pyo3/extension-module",
+          "default-embedder",
+          "default-reranker"
+        ],
+        "env": {
+          "CUDA_PATH": null,
+          "PATH": "default",
+          "LIBRARY_PATH": "default"
+        },
+        "compatibility": "linux"
+      },
+      "command": [
+        "python",
+        "-m",
+        "experiments.comp02b_latency",
+        "run",
+        "--inputs",
+        "<tc5-10000>",
+        "--attempt-root",
+        "<new attempt dir>",
+        "--engine-commit",
+        "<engine commit>"
+      ],
+      "summary": "<attempt dir>/summary.json",
+      "receipt": "to be recorded",
+      "note": "p95 expected values are to be recorded at the re-measurement; quiet host only",
+      "metrics": [
+        {
+          "name": "body-text-only p50",
+          "pointer": "/cells/body-text-only/p50_ms",
+          "expected": 9.4,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+          }
+        },
+        {
+          "name": "projected-unfiltered p50",
+          "pointer": "/cells/projected-unfiltered/p50_ms",
+          "expected": 3.0,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+          }
+        },
+        {
+          "name": "projected-c10 p50",
+          "pointer": "/cells/projected-c10/p50_ms",
+          "expected": 11.5,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+          }
+        },
+        {
+          "name": "projected-c33 p50",
+          "pointer": "/cells/projected-c33/p50_ms",
+          "expected": 9.4,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+          }
+        },
+        {
+          "name": "projected-c01 p50",
+          "pointer": "/cells/projected-c01/p50_ms",
+          "expected": 36.5,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "provisional",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+          }
+        }
+      ]
+    }
+  ]
+}

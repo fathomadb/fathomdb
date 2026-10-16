@@ -740,6 +740,24 @@ STALE  0.8.28: the board claims "Ladder remaining: 31" at dev/plans/runs/STATUS-
 FAIL  arm 9c (real sweep): rc=1 out=FAIL commission-manifest: `dev/plans/release-state-0.8.28.json` declares end-of-ladder but its ladder is not fully landed (non-LANDED=[30, 31]; absent-from-landed=none).
 ```
 
+### 6.3 Gates for Unit D (phase 4)
+
+| Gate | Result |
+| --- | --- |
+| W-slice `./scripts/agent-lint.sh` (`8d5d93cef`) | exit 0 (`lint-rust-tegra-pool` skipped: needs aarch64 Linux and CUDA) |
+| W-slice `./scripts/agent-lint-md.sh` | exit 0 |
+| W-slice `./scripts/agent-verify.sh` (clean tree, `e373aeca6`, worktree `.venv`) | exit 1: `registered=202 ran=202 passed=200 failed=2 skipped=0 excluded=0`; `FAILED SUITES: test-check-board-currency test-commission-manifest`; `test-rust rc=0`, `test-python rc=0`, `test-python-native-receipt rc=0` |
+| W-harness `./scripts/agent-lint.sh` (`8ef511554`) | exit 1 at its first step, `FAIL measurement-classification: classification_missing: comp-03-hermes-answer-20261016T1239Z-2e410a4f`. That receipt was committed at `0e246ad31`, before Unit D, and lacks a measurement classification; the script stops there, so its ruff step did not run |
+| W-harness ruff, run directly: `.venv/bin/ruff check src/python experiments tests/experiments` | `All checks passed!` |
+
+The two W-slice failures are the release-state suites of § 6.1 and § 6.2,
+unchanged:
+
+```text
+FAIL  real-repository current-board regression: rc=1 out=STALE  0.8.28 Slice 31: dev/plans/release-state-0.8.28.json records landing SHA 1ceefddd894c041b0a8622856dc2677be3e49c88, but the hand-written ladder row at dev/plans/runs/STATUS-0.8.28.md:66 does not cite it (TC-133).
+FAIL  arm 9c (real sweep): rc=1 out=FAIL commission-manifest: `dev/plans/release-state-0.8.28.json` declares end-of-ladder but its ladder is not fully landed (non-LANDED=[30, 31]; absent-from-landed=none).
+```
+
 ## 7. R1 rulings on the phase 1 open questions
 
 - **Q1.** Positional rank of the first occurrence: kept.

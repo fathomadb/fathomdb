@@ -30,7 +30,7 @@ for phase 1 is `output.json` in this directory.
 | D-W2 D1/D2 RED tests | done on `slice/0.8.28-40-comp03` (worktree `comp03-slice40`): 27 RED, pre-existing 9 pass, 2 skip (no `lancedb` in that `.venv`) |
 | D-R1 | APPROVE-WITH-FIXES on `706bcab91` / `efa10e0c5` / `990f094ad`: Q-D1 delete the superseded test, Q-D2 plain-body hybrid and drop `fathomdb-fts-projected`, Q-D3 sync the AC-038 copy, Q-D4 install `lancedb==0.40.0`, Q-D5 `comp01-hybrid` accepted |
 | D-W4 | done: harness `8ef511554` on `slice/0.8.28-40-comp03` (tests aligned at `34cacdf87`, `c08a25691`); D3 alone at `5b09afd44`, CHANGELOG `8d5d93cef`; all Unit D tests GREEN (test-plan § 5.6) |
-| D-W5 | see test-plan § 6.3 |
+| D-W5 | W-slice: engine default suite 474 passed, lint and lint-md exit 0, `agent-verify.sh` exit 1 on the two release-state suites only; W-harness: COMP tests 37 passed, `tests/experiments` 811 passed with 4 pre-existing failures, ruff clean, `agent-lint.sh` stops at the pre-existing COMP-03 v1 receipt classification (test-plan § 6.3) |
 | D measurements (orchestrator) | not started: D1 sweep on cuda:0, NFCorpus with the D3 wheel plus `comp01-hybrid`, 10k TC-5 latency, D2 answer run |
 
 ## Follow-ups (not in this slice)

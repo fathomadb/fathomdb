@@ -356,3 +356,58 @@ def test_hybrid_store_builds_past_a_blank_round_with_full_coverage(tmp_path: Pat
 def test_v2_config_states_the_blank_round_rule():
     v2 = c3.load_config(V2_CONFIG)
     assert "blank" in v2["document_unit"]["blank_rounds"]
+
+
+# --- store setup failures and CLI identity (Unit D closeout) -------------------
+
+
+def _fake_cli(tmp_path: Path, *, fail: bool = False, cuda_compiled: bool = False) -> Path:
+    """A stand-in ``fathomdb`` CLI answering the doctor verbs ``prepare_test_database`` calls."""
+    import sys
+
+    script = tmp_path / "fake-fathomdb"
+    script.write_text(
+        f"#!{sys.executable}\n"
+        "import json, sys\n"
+        f"if {fail!r}:\n"
+        "    sys.exit(1)\n"
+        "verb = sys.argv[2]\n"
+        f"replies = {{'gpu': {{'cuda_compiled': {cuda_compiled!r}}}, 'warm-cache': {{}},\n"
+        "           'check-integrity': {'status': 'clean'}}\n"
+        "print(json.dumps(replies[verb]))\n"
+    )
+    script.chmod(0o755)
+    return script
+
+
+def test_failed_store_setup_leaves_no_root_and_the_next_attempt_succeeds(tmp_path: Path):
+    pytest.importorskip("fathomdb")
+    case = c3.convert_question(_item("q1", "single-session-user"))
+    work = tmp_path / "work"
+    with pytest.raises(RuntimeError):
+        c3.retrieve("fathomdb", case, work, top_k=5, fathomdb_bin=str(_fake_cli(tmp_path, fail=True)))
+    assert not list(work.glob("*")), "a failed setup leaves no store root behind"
+    result = c3.retrieve("fathomdb", case, work, top_k=5, fathomdb_bin=None)
+    assert result["ids"]
+
+
+def test_store_setup_records_the_cli_that_ran_the_doctor(tmp_path: Path):
+    pytest.importorskip("fathomdb")
+    cli = _fake_cli(tmp_path)
+    case = c3.convert_question(_item("q1", "single-session-user"))
+    result = c3.retrieve("fathomdb", case, tmp_path / "work", top_k=5, fathomdb_bin=str(cli))
+    assert result["setup"]["fathomdb_bin"] == str(cli)
+    assert result["setup"]["fathomdb_bin_sha256"] == c3.sha256_file(cli)
+
+
+def test_hybrid_store_refuses_a_cli_whose_cuda_build_differs_from_the_wheel(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("FATHOMDB_EMBED_DEVICE", "cpu")
+    _require_default_embedder(tmp_path)
+    case = c3.convert_question(_item("q1", "single-session-user"))
+    work = tmp_path / "work"
+    with pytest.raises(c3.Comp03Error, match="cuda_compiled"):
+        c3.retrieve("fathomdb-hybrid", case, work, top_k=5, fathomdb_bin=str(_fake_cli(tmp_path, cuda_compiled=True)))
+    assert not list(work.glob("*")), "a refused setup leaves no store root behind"
+    result = c3.retrieve("fathomdb-hybrid", case, work, top_k=5,
+                         fathomdb_bin=str(_fake_cli(tmp_path, cuda_compiled=False)))
+    assert result["setup"]["cuda_compiled"] is False

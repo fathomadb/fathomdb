@@ -1,8 +1,8 @@
 {
   "schema_version": "fathomdb.baseline.v1",
   "title": "Slice 40 known-run baseline",
-  "engine_commit": "to be recorded (final slice head, after Units E to G land)",
-  "status": "provisional: expected values come from the Unit D measurements at the engine commit each metric names; the orchestrator re-measures every benchmark at the final slice head with receipts and replaces them",
+  "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+  "status": "final head: comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, and tc5-10k-latency expected values are the final-head measurements at the engine commit, each with a receipt; comp03-answer-v2 stays provisional (Unit D run, not re-measured)",
   "tolerances": {
     "ndcg_at_10": {
       "abs": 0.002
@@ -83,7 +83,7 @@
         "<engine commit>"
       ],
       "summary": "<attempt dir>/report.json",
-      "receipt": "to be recorded",
+      "receipt": "comp-01-comp01-3633-20261016T1755Z-b9aa1214",
       "metrics": [
         {
           "name": "fathomdb ndcg@10",
@@ -93,9 +93,9 @@
             "abs": 0.002
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp01-d3/report.json (no receipt)"
+            "source": "final-comp01/report.json, receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214"
           }
         },
         {
@@ -106,9 +106,9 @@
             "abs": 0.002
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp01-d3/report.json (no receipt)"
+            "source": "final-comp01/report.json, receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214"
           }
         },
         {
@@ -119,9 +119,9 @@
             "abs": 0.005
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp01-d3/report.json (no receipt)"
+            "source": "final-comp01/report.json, receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214"
           }
         },
         {
@@ -132,61 +132,61 @@
             "abs": 0.005
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp01-d3/report.json (no receipt)"
+            "source": "final-comp01/report.json, receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214"
           }
         },
         {
           "name": "fathomdb p50",
           "pointer": "/median_by_arm/fathomdb/p50_ms",
-          "expected": 1.2577845,
+          "expected": 1.1195840000000001,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp01-d3/report.json (no receipt)"
+            "source": "final-comp01/report.json, receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214"
           }
         },
         {
           "name": "fathomdb p95",
           "pointer": "/median_by_arm/fathomdb/p95_ms",
-          "expected": 5.522993,
+          "expected": 4.7940155,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp01-d3/report.json (no receipt)"
+            "source": "final-comp01/report.json, receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214"
           }
         },
         {
           "name": "lancedb p50",
           "pointer": "/median_by_arm/lancedb/p50_ms",
-          "expected": 1.6146340000000001,
+          "expected": 1.5409435,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp01-d3/report.json (no receipt)"
+            "source": "final-comp01/report.json, receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214"
           }
         },
         {
           "name": "lancedb p95",
           "pointer": "/median_by_arm/lancedb/p95_ms",
-          "expected": 1.954873,
+          "expected": 1.7951290000000002,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp01-d3/report.json (no receipt)"
+            "source": "final-comp01/report.json, receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214"
           }
         }
       ]
@@ -204,7 +204,7 @@
           "manifest.json": "c2abd951fdba912d0a0fd9bfd5fdbb47ebf209ce51fcd06ff841f4b4006b4266"
         }
       },
-      "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
       "wheel_build": {
         "tool": "maturin build --release --compatibility linux",
         "manifest": "src/python/pyproject.toml",
@@ -233,71 +233,71 @@
         "<new attempt dir>"
       ],
       "summary": "<attempt dir>/report.json (comp_fts score)",
-      "receipt": "to be recorded",
+      "receipt": "comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec",
       "metrics": [
         {
           "name": "fathomdb ndcg@10",
           "pointer": "/median_by_arm/fathomdb/ndcg_at_10",
-          "expected": 0.32596997102971537,
+          "expected": 0.32654556565017173,
           "tolerance": {
             "abs": 0.002
           },
           "provenance": {
-            "status": "provisional",
-            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
-            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp01-hybrid/report.json, receipt comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec"
           }
         },
         {
           "name": "fathomdb-hybrid ndcg@10",
           "pointer": "/median_by_arm/fathomdb-hybrid/ndcg_at_10",
-          "expected": 0.35501644892079837,
+          "expected": 0.3554819298444284,
           "tolerance": {
             "abs": 0.002
           },
           "provenance": {
-            "status": "provisional",
-            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
-            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp01-hybrid/report.json, receipt comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec"
           }
         },
         {
           "name": "fathomdb mrr@10",
           "pointer": "/median_by_arm/fathomdb/mrr_at_10",
-          "expected": 0.5291857093714679,
+          "expected": 0.5312496928596,
           "tolerance": {
             "abs": 0.005
           },
           "provenance": {
-            "status": "provisional",
-            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
-            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp01-hybrid/report.json, receipt comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec"
           }
         },
         {
           "name": "fathomdb-hybrid mrr@10",
           "pointer": "/median_by_arm/fathomdb-hybrid/mrr_at_10",
-          "expected": 0.5656752174554032,
+          "expected": 0.5679111995675463,
           "tolerance": {
             "abs": 0.005
           },
           "provenance": {
-            "status": "provisional",
-            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
-            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp01-hybrid/report.json, receipt comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec"
           }
         },
         {
           "name": "fathomdb p50",
           "pointer": "/median_by_arm/fathomdb/p50_ms",
-          "expected": 1.333106,
+          "expected": 1.0818675,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
-            "engine_commit": "a3830681d57caaa1d10be2c150b63400169bcba4",
-            "source": "comp01-hybrid/report.json (no receipt; latency under GPU/CPU contention)"
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp01-hybrid/report.json, receipt comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec"
           }
         }
       ]
@@ -342,7 +342,7 @@
         "FATHOMDB_EMBED_DEVICE": "cuda:0"
       },
       "summary": "<attempt dir>/summary.json",
-      "receipt": "to be recorded (Unit D: comp-03-retrieval-sweep-20261016T1406Z-17773486, provisional)",
+      "receipt": "comp-03-retrieval-sweep-20261016T1725Z-17773486",
       "metrics": [
         {
           "name": "fathomdb-fts session recall@5",
@@ -353,9 +353,9 @@
             "n": 470
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -366,9 +366,9 @@
             "abs": 0.005
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -380,9 +380,9 @@
             "n": 72
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -394,9 +394,9 @@
             "n": 121
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -408,9 +408,9 @@
             "n": 56
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -422,9 +422,9 @@
             "n": 30
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -436,9 +436,9 @@
             "n": 64
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -450,35 +450,35 @@
             "n": 127
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
           "name": "fathomdb-fts query warm p50",
           "pointer": "/arms/fathomdb-fts/timing/query_warm_p50_ms",
-          "expected": 1.2794984999999999,
+          "expected": 1.274638,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
           "name": "fathomdb-fts query warm p95",
           "pointer": "/arms/fathomdb-fts/timing/query_warm_p95_ms",
-          "expected": 1.612679,
+          "expected": 1.537899,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -490,9 +490,9 @@
             "n": 470
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -503,9 +503,9 @@
             "abs": 0.005
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -517,9 +517,9 @@
             "n": 72
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -531,9 +531,9 @@
             "n": 121
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -545,9 +545,9 @@
             "n": 56
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -559,9 +559,9 @@
             "n": 30
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -573,9 +573,9 @@
             "n": 64
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -587,35 +587,35 @@
             "n": 127
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
           "name": "fathomdb-hybrid query warm p50",
           "pointer": "/arms/fathomdb-hybrid/timing/query_warm_p50_ms",
-          "expected": 6.548161,
+          "expected": 6.36253,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
           "name": "fathomdb-hybrid query warm p95",
           "pointer": "/arms/fathomdb-hybrid/timing/query_warm_p95_ms",
-          "expected": 9.051441,
+          "expected": 6.893088,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -627,9 +627,9 @@
             "n": 470
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -640,9 +640,9 @@
             "abs": 0.005
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -654,9 +654,9 @@
             "n": 72
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -668,9 +668,9 @@
             "n": 121
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -682,9 +682,9 @@
             "n": 56
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -696,9 +696,9 @@
             "n": 30
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -710,9 +710,9 @@
             "n": 64
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
@@ -724,35 +724,35 @@
             "n": 127
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
           "name": "lancedb-fts query warm p50",
           "pointer": "/arms/lancedb-fts/timing/query_warm_p50_ms",
-          "expected": 1.6487829999999999,
+          "expected": 1.5865844999999998,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         },
         {
           "name": "lancedb-fts query warm p95",
           "pointer": "/arms/lancedb-fts/timing/query_warm_p95_ms",
-          "expected": 1.947714,
+          "expected": 1.750121,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "comp03-sweep-d3/summary.json, receipt comp-03-retrieval-sweep-20261016T1406Z-17773486"
+            "source": "final-comp03-sweep/summary.json, receipt comp-03-retrieval-sweep-20261016T1725Z-17773486"
           }
         }
       ]
@@ -891,72 +891,137 @@
         "<engine commit>"
       ],
       "summary": "<attempt dir>/summary.json",
-      "receipt": "to be recorded",
-      "note": "p95 expected values are to be recorded at the re-measurement; quiet host only",
+      "receipt": "comp-02b-latency-20261016T1700Z-4f96fad0",
+      "note": "quiet host only",
       "metrics": [
         {
           "name": "body-text-only p50",
           "pointer": "/cells/body-text-only/p50_ms",
-          "expected": 9.4,
+          "expected": 8.759192016441375,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
           }
         },
         {
           "name": "projected-unfiltered p50",
           "pointer": "/cells/projected-unfiltered/p50_ms",
-          "expected": 3.0,
+          "expected": 2.862214983906597,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
           }
         },
         {
           "name": "projected-c10 p50",
           "pointer": "/cells/projected-c10/p50_ms",
-          "expected": 11.5,
+          "expected": 9.082879987545311,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
           }
         },
         {
           "name": "projected-c33 p50",
           "pointer": "/cells/projected-c33/p50_ms",
-          "expected": 9.4,
+          "expected": 8.22532203164883,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
           }
         },
         {
           "name": "projected-c01 p50",
           "pointer": "/cells/projected-c01/p50_ms",
-          "expected": 36.5,
+          "expected": 29.809448984451592,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
-            "status": "provisional",
+            "status": "final",
             "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "orchestrator 10k TC-5 latency on a quiet host (scratchpad build_and_time.py, no receipt)"
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+          }
+        },
+        {
+          "name": "body-text-only p95",
+          "pointer": "/cells/body-text-only/p95_ms",
+          "expected": 15.675316972192377,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+          }
+        },
+        {
+          "name": "projected-unfiltered p95",
+          "pointer": "/cells/projected-unfiltered/p95_ms",
+          "expected": 5.542906990740448,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+          }
+        },
+        {
+          "name": "projected-c10 p95",
+          "pointer": "/cells/projected-c10/p95_ms",
+          "expected": 16.447036992758512,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+          }
+        },
+        {
+          "name": "projected-c33 p95",
+          "pointer": "/cells/projected-c33/p95_ms",
+          "expected": 13.83436401374638,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+          }
+        },
+        {
+          "name": "projected-c01 p95",
+          "pointer": "/cells/projected-c01/p95_ms",
+          "expected": 48.60262497095391,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
           }
         }
       ]

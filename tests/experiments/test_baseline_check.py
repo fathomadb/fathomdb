@@ -79,7 +79,7 @@ def test_cli_exits_non_zero_on_drift_or_missing(tmp_path: Path, capsys):
     assert "DRIFT" in out and "fathomdb ndcg@10" in out and "0.3" in out
 
 
-def test_slice_40_baseline_manifest_lists_the_eight_benchmarks():
+def test_slice_40_baseline_manifest_lists_the_nine_benchmarks():
     check = _check()
     manifest = check.load_manifest(check.DEFAULT_MANIFEST)
     assert manifest["schema_version"] == "fathomdb.baseline.v1"

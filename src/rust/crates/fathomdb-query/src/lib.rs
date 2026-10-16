@@ -26,12 +26,15 @@ pub struct CompiledQuery {
 /// under OR semantics without carrying topical signal). Mirrors the IR-C
 /// `content-OR` experiment list (`dev/plans/runs/performance-output-and-compare.md`,
 /// 2026-06-10b): the smallest list that lifted exploratory recall with no
-/// exact_fact cost.
+/// exact_fact cost. The last twelve entries are the fragments that splitting
+/// on the apostrophe leaves ('s, n't, 'll, 're, 've, 'm) and short function
+/// words; short content tokens such as "d", "c" or "d3" are not stopwords.
 const STOPWORDS: &[&str] = &[
     "the", "and", "for", "are", "was", "were", "what", "when", "where", "who", "whom", "which",
     "how", "why", "did", "does", "do", "is", "of", "to", "in", "on", "at", "by", "an", "a", "it",
     "its", "this", "that", "these", "those", "with", "from", "as", "be", "or", "if", "about",
-    "into", "over", "than", "then", "they", "them", "their", "you", "your", "we", "our", "i",
+    "into", "over", "than", "then", "they", "them", "their", "you", "your", "we", "our", "i", "s",
+    "t", "ll", "re", "ve", "m", "my", "me", "us", "am", "so", "up",
 ];
 
 /// Content tokens of a query: lowercased, split on non-alphanumeric, empty
@@ -126,20 +129,6 @@ mod tests {
         assert_eq!(
             compiled.match_expression,
             "\"igf\" OR \"1\" OR \"vitamin\" OR \"d3\" OR \"physicians\" OR \"study\" OR \"ii\""
-        );
-    }
-
-    #[test]
-    fn possessive_and_contraction_fragments_are_content_tokens() {
-        // Splitting on the apostrophe leaves "s" and "t". They are not
-        // stopwords, so they are OR terms; this pins that behavior.
-        assert_eq!(
-            compile_text_query("Cow's Milk").match_expression,
-            "\"cow\" OR \"s\" OR \"milk\""
-        );
-        assert_eq!(
-            compile_text_query("don't panic").match_expression,
-            "\"don\" OR \"t\" OR \"panic\""
         );
     }
 

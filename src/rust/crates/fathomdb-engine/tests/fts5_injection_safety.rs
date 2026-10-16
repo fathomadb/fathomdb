@@ -64,7 +64,8 @@ const STOPWORDS: &[&str] = &[
     "the", "and", "for", "are", "was", "were", "what", "when", "where", "who", "whom", "which",
     "how", "why", "did", "does", "do", "is", "of", "to", "in", "on", "at", "by", "an", "a", "it",
     "its", "this", "that", "these", "those", "with", "from", "as", "be", "or", "if", "about",
-    "into", "over", "than", "then", "they", "them", "their", "you", "your", "we", "our", "i",
+    "into", "over", "than", "then", "they", "them", "their", "you", "your", "we", "our", "i", "s",
+    "t", "ll", "re", "ve", "m", "my", "me", "us", "am", "so", "up",
 ];
 
 fn content_tokens(query: &str) -> Vec<String> {

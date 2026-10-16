@@ -477,6 +477,9 @@ The signatures are unchanged; the behaviour of three search verbs changed.
   reading stops once `limit` rows and any rows tied with the last one are
   read, instead of sorting every match. Results and their order are unchanged:
   bm25 ascending, then write order.
+  With an attribute filter whose smallest attribute cohort holds at most 256
+  rows, the rank stream skips rows outside that cohort before reading them;
+  results, scores and order are the same.
 - **Dense retrieval in `Engine::search`**: the vector branch needs a declared
   `SEARCHABLE` projection with `vector: Some(..)` (`Engine::configure_projections`) before the rows are
   written; that declaration enrols the node kind for embedding. Opening with

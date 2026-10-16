@@ -252,6 +252,24 @@ pub(crate) fn read_projected_text_in_tx(
         std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
     #[cfg(not(feature = "test-hooks"))]
     let force_full_sort = false;
+    if !force_full_sort {
+        if let Some(results) = read_projected_cohort_stream(
+            &tx,
+            filter,
+            &node_predicate,
+            &filter_predicate,
+            &params,
+            limit,
+        )? {
+            let projection_cursor = load_projection_cursor(&tx)?;
+            return Ok(SearchResult {
+                projection_cursor,
+                soft_fallback: None,
+                results,
+                explanation: None,
+            });
+        }
+    }
     // Like the body path's rank stream: FTS5 yields rows in bm25 order, so only
     // rows up to the limit's tie group are joined and read, instead of sorting
     // every match with its body. The full sort stays as the fallback.
@@ -334,6 +352,126 @@ pub(crate) fn read_projected_text_in_tx(
     }
     let projection_cursor = load_projection_cursor(&tx)?;
     Ok(SearchResult { projection_cursor, soft_fallback: None, results, explanation: None })
+}
+
+/// Largest attribute cohort that takes the cohort-prefiltered rank stream.
+/// Fixed by the Slice 40 H3 rule from a plan probe (the prefilter won at 92
+/// cohort rows and lost at 968); not tuned from engine timings.
+const COHORT_PREFILTER_MAX_ROWS: i64 = 256;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CohortPrefilterMode {
+    Auto,
+    #[cfg_attr(not(feature = "test-hooks"), allow(dead_code))]
+    On,
+    #[cfg_attr(not(feature = "test-hooks"), allow(dead_code))]
+    Off,
+}
+
+fn cohort_prefilter_mode() -> CohortPrefilterMode {
+    #[cfg(feature = "test-hooks")]
+    match std::env::var("FATHOMDB_FTS_COHORT_PREFILTER_FOR_TEST").as_deref() {
+        Ok("on") => return CohortPrefilterMode::On,
+        Ok("off") => return CohortPrefilterMode::Off,
+        _ => {}
+    }
+    CohortPrefilterMode::Auto
+}
+
+/// The attribute pair with the smallest cohort, first in filter order on ties,
+/// with its count capped at `COHORT_PREFILTER_MAX_ROWS + 1`. Each probe reads
+/// at most that many entries of `canonical_attributes_name_value_idx`.
+fn smallest_cohort<'f>(
+    tx: &rusqlite::Transaction<'_>,
+    filter: &'f SearchFilter,
+) -> Result<Option<(&'f str, &'f str, i64)>, SearchReaderError> {
+    let mut statement = tx.prepare_cached(
+        "SELECT count(*) FROM (SELECT 1 FROM canonical_attributes          WHERE attr_name = ?1 AND attr_value = ?2 LIMIT ?3)",
+    )?;
+    let mut best: Option<(&str, &str, i64)> = None;
+    for (name, value) in &filter.attributes {
+        let count: i64 = statement
+            .query_row(rusqlite::params![name, value, COHORT_PREFILTER_MAX_ROWS + 1], |row| {
+                row.get(0)
+            })?;
+        if best.is_none_or(|(_, _, smallest)| count < smallest) {
+            best = Some((name.as_str(), value.as_str(), count));
+        }
+    }
+    Ok(best)
+}
+
+/// The cohort-prefiltered rank stream, when the filter's smallest attribute
+/// cohort is at most `COHORT_PREFILTER_MAX_ROWS`. `None` means the caller
+/// continues with the Defect C stream: no attribute pair, a cohort above the
+/// threshold, or a cohort statement that failed (recorded as the fallback).
+fn read_projected_cohort_stream(
+    tx: &rusqlite::Transaction<'_>,
+    filter: Option<&SearchFilter>,
+    node_predicate: &str,
+    filter_predicate: &str,
+    params: &[rusqlite::types::Value],
+    limit: usize,
+) -> Result<Option<Vec<SearchHit>>, SearchReaderError> {
+    let mode = cohort_prefilter_mode();
+    let Some(filter) = filter else {
+        return Ok(None);
+    };
+    if mode == CohortPrefilterMode::Off || filter.attributes.is_empty() {
+        return Ok(None);
+    }
+    let Some((name, value, count)) = smallest_cohort(tx, filter)? else {
+        return Ok(None);
+    };
+    if mode == CohortPrefilterMode::Auto && count > COHORT_PREFILTER_MAX_ROWS {
+        return Ok(None);
+    }
+    let mut cohort_params = params.to_vec();
+    cohort_params.push(rusqlite::types::Value::Text(name.to_string()));
+    let name_index = cohort_params.len();
+    cohort_params.push(rusqlite::types::Value::Text(value.to_string()));
+    let value_index = cohort_params.len();
+    #[cfg(feature = "test-hooks")]
+    let attributes_table = if std::env::var_os("FATHOMDB_FTS_FAIL_COHORT_FOR_TEST").is_some() {
+        "missing_cohort_attributes"
+    } else {
+        "canonical_attributes"
+    };
+    #[cfg(not(feature = "test-hooks"))]
+    let attributes_table = "canonical_attributes";
+    let sql = property_fts_cohort_stream_sql(
+        node_predicate,
+        filter_predicate,
+        "bm25()",
+        attributes_table,
+        name_index,
+        value_index,
+    );
+    #[cfg(feature = "test-hooks")]
+    record_fts_query_plan_for_test(tx, &sql, &cohort_params);
+    let streamed = tx.prepare(&sql).and_then(|mut statement| {
+        let mut rows = statement.query(rusqlite::params_from_iter(cohort_params.iter()))?;
+        collect_complete_rank_boundary(&mut rows, limit)
+    });
+    match streamed {
+        Ok((mut results, _crossed_boundary_tie)) => {
+            #[cfg(feature = "test-hooks")]
+            record_fts_route_for_test(if _crossed_boundary_tie {
+                "projected_cohort_stream_tie_completed"
+            } else {
+                "projected_cohort_stream_strict_boundary"
+            });
+            for hit in &mut results {
+                hit.score = -hit.score;
+            }
+            Ok(Some(results))
+        }
+        Err(_) => {
+            #[cfg(feature = "test-hooks")]
+            record_fts_route_for_test("projected_cohort_stream_fallback");
+            Ok(None)
+        }
+    }
 }
 
 // The 8th parameter (`vector_stage_only`) is the additive GA-2 / ◆ B-1
@@ -609,6 +747,7 @@ fn record_fts_query_plan_for_test(
                 "uses_temp_btree_for_order_by": details
                     .iter()
                     .any(|detail| detail.contains("USE TEMP B-TREE FOR ORDER BY")),
+                "details": details,
             })
         });
     if let Ok(observation) = observation {
@@ -2484,9 +2623,10 @@ use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{
     append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
-    build_vector_phase1_sql, edge_fts_rank_sql, hit_attributes_pass_filter, property_fts_rank_sql,
-    property_fts_rank_stream_sql, validate_filter_attributes_on_snapshot, vector_filter_values,
-    SearchFilter, SnapshotFilterError,
+    build_vector_phase1_sql, edge_fts_rank_sql, hit_attributes_pass_filter,
+    property_fts_cohort_stream_sql, property_fts_rank_sql, property_fts_rank_stream_sql,
+    validate_filter_attributes_on_snapshot, vector_filter_values, SearchFilter,
+    SnapshotFilterError,
 };
 use crate::frozen_read::{self, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason};
 use crate::fusion::{

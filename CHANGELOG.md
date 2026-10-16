@@ -159,6 +159,11 @@ AC-050c) gates merges against this invariant.
   rows tied at the boundary are read, as body search already does. Results
   and their order are unchanged. If the streamed statement fails, the
   previous full sort runs.
+- (Slice 40) `search_projected_text` with a selective attribute filter is
+  faster: when the filter's smallest attribute cohort holds at most 256 rows,
+  the rank stream skips rows outside the cohort before joining the node.
+  Results, scores and order are unchanged; larger cohorts and unfiltered
+  searches take the previous stream.
 
 ## 0.8.27 — 2026-10-10
 

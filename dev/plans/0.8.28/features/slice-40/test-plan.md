@@ -310,12 +310,17 @@ The drift cases are hand-written: one inside every tolerance, one outside
 
 ## 3f. Unit G tests (`comp03-slice40` worktree)
 
+Revised after the Unit G review (findings F1–F10). The file was rewritten
+for the new rule, the single-factor runs, the shared evidence implementation
+and the best mix. It replaces the 15 tests committed at `9d864e39e` and
+`d1bc2c9f6`, which were RED and never implemented.
+
 ```bash
 env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_evidence.py
 ```
 
-New file `tests/experiments/test_comp03_evidence.py`, all RED, on hand-built
-docs (three sessions, one gold session):
+All 23 are RED, on hand-built docs (three sessions, one gold session) and
+hand-written policy tables:
 
 | Test | AC |
 | --- | --- |
@@ -323,19 +328,30 @@ docs (three sessions, one gold session):
 | `test_the_baseline_policy_matches_the_answer_harness_renderer` | 61 |
 | `test_expansion_appends_remaining_rounds_of_hit_sessions_by_best_hit_rank` | 62 |
 | `test_expansion_stops_at_the_total_cap` | 62 |
+| `test_expansion_enumerates_blank_rounds_at_zero_chars` (F10) | 62 |
 | `test_prompt_metrics_count_gold_sessions_and_answer_rounds` | 63 |
-| `test_rule_picks_the_highest_all_in_prompt_without_losing_more_than_one_question_per_type` | 63 |
-| `test_rule_breaks_ties_on_fewer_chars_and_keeps_the_baseline_when_nothing_beats_it` | 63 |
+| `test_untruncated_and_char_fraction_metrics_see_a_cut_answer_round` (F1) | 63 |
 | `test_policy_grid_is_the_stated_twelve_policies` | 63 |
-| `test_chronological_rendering_orders_by_session_date_newest_last_and_keeps_dates` | 64 |
-| `test_chronological_rendering_selects_the_same_rounds_as_rank_order_under_the_cap` | 64 |
-| `test_recency_sentence_is_added_only_when_enabled_and_v2_rendering_is_unchanged` | 64 |
-| `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one` | 65 |
-| `test_v3_and_v4_configs_take_the_policy_from_the_verdict_and_differ_only_in_recency` | 66 |
-| `test_evidence_verdict_file_names_its_inputs` | 66 |
+| `test_rule_maximises_has_answer_and_rejects_policies_that_cut_answer_rounds` (F1; the lowest-chars candidate loses on untruncation) | 64 |
+| `test_pooled_tolerance_is_three_counts_and_fts_tolerance_is_one` (F5) | 64 |
+| `test_rule_also_holds_for_fathomdb_fts_alone_and_falls_back_when_the_pooled_winner_breaks_it` (Q-G1) | 64 |
+| `test_rule_breaks_ties_on_fewer_chars_and_keeps_the_baseline_when_nothing_beats_it` | 64 |
+| `test_renderer_shows_exactly_the_evaluator_rounds_with_expansion` (F2) | 65 |
+| `test_evidence_record_digests_the_expanded_text_and_counts_it` (F2) | 65 |
+| `test_chronological_rendering_orders_by_session_date_newest_last_and_keeps_dates` | 66 |
+| `test_chronological_rendering_breaks_date_ties_by_session_then_round_position` (F8) | 66 |
+| `test_chronological_rendering_selects_the_same_rounds_as_rank_order_under_the_cap` | 66 |
+| `test_recency_sentence_is_added_only_when_enabled_and_v2_rendering_is_unchanged` | 66 |
+| `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one` | 67 |
+| `test_recency_rule_boundaries` (F9) | 67 |
+| `test_v3_v4a_v4b_configs_add_one_factor_each` (F3, F6) | 68 |
+| `test_evidence_verdict_file_names_its_inputs` (F4, F7, F10) | 68 |
+| `test_mix_config_follows_the_three_verdicts` (the best mix) | 69 |
 
-The existing `test_comp03_answer.py` tests (v1 and v2 rendering, prompts,
-runs) are the byte-identity guard for G3 off.
+The rule tests do not hard-code the replay's winner (4000/30000/on); each
+fixture's expected policy follows from the rule. The existing
+`test_comp03_answer.py` tests are the byte-identity guard for both factors
+off.
 
 ## 4. Existing tests touched
 
@@ -820,6 +836,29 @@ native digest equals the Python arm's.
 Every cell was `complete` with oracle status `verified`. The first run
 blocked the TypeScript cells with `SDK public wrapper digest drift`: the
 pinned-artifact check did not pass `package_root`. Fixed in `5e6ff1a34`.
+
+### 5.9 RED run for the revised Unit G (2026-10-16)
+
+Harness at `5e6ff1a34` plus the rewritten `test_comp03_evidence.py`:
+
+```text
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_evidence.py
+23 failed
+      6 E       AttributeError: module 'experiments.comp03_retrieval' has no attribute 'evidence_rounds'
+      4 E       AttributeError: module 'experiments.comp03_retrieval' has no attribute 'select_evidence_policy'
+      3 E       TypeError: render_evidence() got an unexpected keyword argument …
+      2 E       AttributeError: module 'experiments.comp03_retrieval' has no attribute 'evidence_metrics'
+      2 E       AttributeError: module 'experiments.comp03_answer' has no attribute 'evaluate_recency_rule'
+      1 E       TypeError: answer_messages() got an unexpected keyword argument …
+      1 E       FileNotFoundError: … experiments/configs/comp-03/hermes-answer.v3.json
+      1 E       FileNotFoundError: … experiments/configs/comp-03/evidence-policy-verdict.v1.json
+      1 E       AttributeError: module 'experiments.comp03_retrieval' has no attribute 'evidence_policy_grid'
+      1 E       AttributeError: module 'experiments.comp03_answer' has no attribute 'evidence_record'
+      1 E       AttributeError: module 'experiments.comp03_answer' has no attribute 'build_mix_config'
+```
+
+Lines shortened with "…" lose only the keyword name and path tail. No
+Unit G implementation code exists.
 
 ## 6. Pre-existing test failures at W5
 

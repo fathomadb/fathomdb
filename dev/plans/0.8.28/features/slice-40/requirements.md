@@ -405,55 +405,118 @@ SHA), the installed native module's SHA-256 and the version string.
 the orchestrator, with receipts, at the final slice head after Units E to
 G land. The Unit D runs are not the baseline.
 
-**Unit G requirements.** All of G is harness-side this round.
+**Unit G requirements** (revised after the Unit G review, findings F1–F10,
+2026-10-16). All of G is harness-side this round.
 
 **REQ40-G1 — offline evidence evaluator.** `comp03_retrieval` evaluates
-evidence policies on the stored sweep records, with no retrieval and no
-model calls. A policy is `per_round_chars` ∈ {4000, 2000, 1000},
-`total_chars` ∈ {20000, 30000} and `session_expansion` ∈ {off, on}: twelve
-policies.
+evidence policies on the stored D3-sweep records
+(`~/.cache/fathomdb-comp/comp03-sweep-d3`), with no retrieval and no model
+calls.
 
-- Rounds enter the prompt in rank order: per-round cap first, then the
-  total cap, as `render_evidence` does.
-- Session expansion appends, after the top-k rounds, the remaining rounds
-  of each hit session. Sessions go in the order of their best hit's rank,
-  and rounds within a session in position order, until the total cap.
-- Metrics per policy, per type and overall: gold-session-any-in-prompt,
-  gold-session-all-in-prompt, has-answer-round-in-prompt, rounds in prompt,
-  and characters. A round is in the prompt if at least one of its
-  characters is.
+- **Policies.** A policy is `per_round_chars` ∈ {4000, 2000, 1000},
+  `total_chars` ∈ {20000, 30000} and `session_expansion` ∈ {off, on}:
+  twelve policies.
+- **Question set.** The 470 scored questions; abstentions are excluded from
+  every gold metric.
+  - The policy is selected on the 410 scored questions that are not among
+    the 60 answer questions.
+  - The 60 are reported separately, so the paid runs are not on the
+    selection set.
+- **Bodies.** Round bodies are re-derived from the dataset with
+  `convert_question`. The verdict binds the dataset's and the sweep
+  summary's SHA-256.
+- **LanceDB records.** LanceDB's record for `gpt4_7fce9456` predates the
+  blank-round filter (253 vs 251 documents). The evaluator renders from
+  converted docs, where the two blank rounds contribute only whitespace, so
+  the effect is nil.
+- **Prompt order.** Rounds enter the prompt in rank order, per-round cap
+  first, then the total cap, as `render_evidence` does.
+  - Session expansion appends, after the top-k rounds, the remaining rounds
+    of each hit session. Sessions go in the order of their best hit's rank,
+    rounds within a session in position order, until the total cap.
+  - Blank rounds are enumerated at 0 characters and not rendered.
+- **Metrics** per policy, per type and overall, per arm and pooled over the
+  three arms:
+  - `gold_session_any_in_prompt`, `gold_session_all_in_prompt`;
+  - `has_answer_in_prompt` (at least one character of a has-answer round
+    shown);
+  - `has_answer_untruncated_in_prompt` (a has-answer round shown in full);
+  - `gold_chars_shown_fraction` (shown characters over full length, summed
+    over the gold rounds);
+  - rounds in prompt, and characters.
 
-**REQ40-G2 — pre-stated policy rule** (in the config): *pick the policy
-with the highest overall gold-session-all-in-prompt such that no type's
-gold-session-any-in-prompt is lower than the current policy's (4000 /
-20000 / off) by more than 1 question; ties broken by fewer chars.* The
-verdict is written to a file that names its inputs.
+**REQ40-G2 — pre-stated policy rule** (in the config): *maximise
+`has_answer_in_prompt` subject to, per type, `has_answer_untruncated_in_prompt`
+not lower than the current policy's (4000 / 20000 / off) by more than the
+tolerance; ties broken by fewer chars.*
 
-**REQ40-G3 — recency rendering.** The answer harness can render evidence in
-chronological order by session date, newest last, with dates kept, and add
-one sentence to the answerer prompt: *When the history states different
-values for the same fact at different dates, use the most recent one.*
+- **Tolerances.**
+  - Pooled over the three arms: 3 counts, one question in every arm.
+  - `fathomdb-fts` alone: 1 count. The per-type constraint must hold both
+    pooled and for `fathomdb-fts` alone.
+  - If the pooled winner breaks the `fathomdb-fts` constraint, the best
+    policy that satisfies both is chosen.
+- **Rule inputs.** `gold_session_any_in_prompt` and
+  `gold_session_all_in_prompt` are reported, not rule inputs.
+  - `any` is monotone in every grid direction, so a constraint on it is
+    vacuous.
+  - `all` is bounded by Recall-all@10 and cannot move with expansion.
+- **Verdict.** It carries the pooled and per-arm tables, for the selection
+  set and for the 60.
 
-- Both are off by default.
-- With both off, the rendering and the prompt are byte-identical to v2's.
-- Chronological order reorders the rounds the rank-order cap selected; it
-  does not change which rounds are selected.
+**REQ40-G3 — recency rendering, as two single factors.** The answer harness
+can:
 
-**REQ40-G4 — answer configs and rules.**
+- (a) add one sentence to the answerer prompt: *When the history states
+  different values for the same fact at different dates, use the most
+  recent one.*
+- (b) render evidence in chronological order by session date, newest last,
+  with dates kept. Rounds on the same date order by session position, then
+  round position.
 
-- `hermes-answer.v3.json` is v2 (three arms, k = 10, the same 60 IDs and
-  models) with the evidence policy from the G1/G2 verdict file, bound by
-  SHA-256.
-- `hermes-answer.v4.json` is v3 with G3 on.
-- v3 vs v2 is reported paired per arm. Gains are expected on multi-session
-  and preference; this is a report, not a gate.
-- v4 vs v3 adopts G3 iff knowledge-update plus temporal correct does not
-  drop and overall does not drop by more than 1 question, with the CI
-  reported.
+Both are off by default. With both off, the rendering and prompt are
+byte-identical to v2's. Chronological order reorders the rounds the
+rank-order cap selected; it does not change which rounds are selected.
 
-Receipts and classifications are made as for v2.
+**REQ40-G4 — one implementation of the evidence rounds.** `comp03_answer`
+renders evidence from a policy by calling `comp03_retrieval`'s
+evidence-rounds function, so the evaluator and the paid runs share one
+definition. `evidence_sha256` covers the expanded text, and every answer row
+records `rounds_in_prompt` and `chars`.
 
-**REQ40-G5 — product-side equivalents, named only.** The design states the
+**REQ40-G5 — answer configs and rules.**
+
+- **Configs.** Each is v2 (three arms, k = 10, the same 60 IDs and models)
+  plus:
+  - `hermes-answer.v3.json`: the G1/G2 policy, bound by the verdict file's
+    SHA-256;
+  - `hermes-answer.v4a.json`: v3 with the sentence;
+  - `hermes-answer.v4b.json`: v4a with chronological order.
+- **Attribution.**
+  - v4a − v3 attributes the sentence.
+  - v4b − v4a attributes chronological order given the sentence.
+  - v3 − v2 is reported per arm.
+- **Adoption rule** (each factor, per arm, paired by question): adopt iff
+  knowledge-update plus temporal correct does not drop and overall does not
+  drop by more than 1 question. The report gives per-type counts and the
+  overall bootstrap CI.
+- **Statistical caveat.** At n = 60 paired, the minimum detectable effect is
+  about 6 net discordant questions. Every v3, v4a and v4b verdict is
+  labelled provisional. Adoption into the best mix is gated on the per-type
+  direction plus the 470-question offline metrics, not on answer-run
+  significance.
+
+**REQ40-G6 — the best mix.** A pure function builds
+`hermes-answer.mix.json` from the three verdicts:
+
+- the evidence policy from G1/G2;
+- the sentence on iff v4a adopts;
+- chronological order on iff v4b adopts and the sentence is on, since v4b
+  measured chronological order only together with the sentence.
+
+That config is the owner's follow-on best-mix run.
+
+**REQ40-G7 — product-side equivalents, named only.** The design states the
 engine-side equivalents (turn-level retrieval units with session expansion;
 a recency-aware ranking pass), so the owner can decide on a product unit.
 None is built in this slice.
@@ -482,7 +545,7 @@ None is built in this slice.
 - Units E to G do not touch the five unclassified pre-existing COMP
   receipts, landing, the attribute-filter row-key and filter-first
   potentials, or fielded title boost.
-- No product change for Unit G this round (REQ40-G5).
+- No product change for Unit G this round (REQ40-G7).
 
 ## 4. Candidate bound of `search_text_only`: out of scope
 
@@ -508,7 +571,7 @@ another file is named; the Defect C tests (AC40-27 to AC40-31) are in
 test-hooks`; query tests are in the `tests` module of
 `src/rust/crates/fathomdb-query/src/lib.rs`. Defect C's criteria start at
 AC40-27 because AC40-23 to AC40-26 were already assigned. Units E to G's
-harness tests (AC40-49 to AC40-66) are in `tests/experiments/test_sdk_parity_slice40.py`,
+harness tests (AC40-49 to AC40-69) are in `tests/experiments/test_sdk_parity_slice40.py`,
 `test_baseline_check.py` and `test_comp03_evidence.py` on the comp branch.
 Unit D's
 harness tests (AC40-33 to AC40-45) are in `tests/experiments/test_comp03_retrieval.py`
@@ -577,9 +640,12 @@ branch; its D3 tests are in the `fathomdb-query` test module.
 | AC40-59 | Latency harness keeps the six diagnostic cells and the script's percentiles | `test_latency_harness_keeps_the_diagnostic_cells_and_percentiles` | F2 |
 | AC40-60 | Receipts record engine commit, native SHA-256 and version; a malformed commit is refused | `test_engine_identity_records_the_commit_and_the_native_digest` | F4 |
 | AC40-61 | Evidence caps: per-round then total, rank order; the baseline policy shows the same rounds as `render_evidence` | `test_caps_apply_per_round_then_total_in_rank_order`, `test_the_baseline_policy_matches_the_answer_harness_renderer` | G1 |
-| AC40-62 | Session expansion order and its stop at the cap | `test_expansion_appends_remaining_rounds_of_hit_sessions_by_best_hit_rank`, `test_expansion_stops_at_the_total_cap` | G1 |
-| AC40-63 | Prompt metrics; the twelve-policy grid; the rule with its one-question constraint, tie-break and baseline fallback | `test_prompt_metrics_count_gold_sessions_and_answer_rounds`, `test_policy_grid_is_the_stated_twelve_policies`, `test_rule_picks_the_highest_all_in_prompt_without_losing_more_than_one_question_per_type`, `test_rule_breaks_ties_on_fewer_chars_and_keeps_the_baseline_when_nothing_beats_it` | G1, G2 |
-| AC40-64 | Chronological rendering (newest last, dates kept, same rounds); the recency sentence only when enabled; both off is byte-identical to v2 | `test_chronological_rendering_orders_by_session_date_newest_last_and_keeps_dates`, `test_chronological_rendering_selects_the_same_rounds_as_rank_order_under_the_cap`, `test_recency_sentence_is_added_only_when_enabled_and_v2_rendering_is_unchanged` | G3 |
-| AC40-65 | The recency rule (KU plus temporal does not drop; overall drops by at most 1) | `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one` | G4 |
-| AC40-66 | v3 and v4 configs and the verdict file | `test_v3_and_v4_configs_take_the_policy_from_the_verdict_and_differ_only_in_recency`, `test_evidence_verdict_file_names_its_inputs` | G2, G4 |
+| AC40-62 | Session expansion order, its stop at the cap, and blank rounds at 0 characters | `test_expansion_appends_remaining_rounds_of_hit_sessions_by_best_hit_rank`, `test_expansion_stops_at_the_total_cap`, `test_expansion_enumerates_blank_rounds_at_zero_chars` | G1 |
+| AC40-63 | Prompt metrics, including untruncated has-answer and the gold-character fraction; the twelve-policy grid | `test_prompt_metrics_count_gold_sessions_and_answer_rounds`, `test_untruncated_and_char_fraction_metrics_see_a_cut_answer_round`, `test_policy_grid_is_the_stated_twelve_policies` | G1 |
+| AC40-64 | Rule: maximise has-answer in prompt; per-type untruncation constraint pooled (3) and for fathomdb-fts (1); fewer chars on ties; the lowest-chars candidate loses on untruncation; the tolerance boundary; baseline fallback | `test_rule_maximises_has_answer_and_rejects_policies_that_cut_answer_rounds`, `test_pooled_tolerance_is_three_counts_and_fts_tolerance_is_one`, `test_rule_also_holds_for_fathomdb_fts_alone_and_falls_back_when_the_pooled_winner_breaks_it`, `test_rule_breaks_ties_on_fewer_chars_and_keeps_the_baseline_when_nothing_beats_it` | G2 |
+| AC40-65 | One implementation: with expansion on, `render_evidence` shows exactly the evaluator's rounds; the evidence record covers the expanded text and counts | `test_renderer_shows_exactly_the_evaluator_rounds_with_expansion`, `test_evidence_record_digests_the_expanded_text_and_counts_it` | G4 |
+| AC40-66 | Chronological rendering (newest last, dates kept, same rounds, date ties by session then round position); the sentence only when enabled; both off byte-identical to v2 | `test_chronological_rendering_orders_by_session_date_newest_last_and_keeps_dates`, `test_chronological_rendering_breaks_date_ties_by_session_then_round_position`, `test_chronological_rendering_selects_the_same_rounds_as_rank_order_under_the_cap`, `test_recency_sentence_is_added_only_when_enabled_and_v2_rendering_is_unchanged` | G3 |
+| AC40-67 | Adoption rule, with its boundaries (overall −1 with KU plus temporal flat adopts; KU +1 / temporal −1 adopts) and a per-type report | `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one`, `test_recency_rule_boundaries` | G5 |
+| AC40-68 | v3, v4a and v4b configs: single-factor steps, provisional verdicts; the verdict file names its inputs (470 scored, 410 selection, 60 reported) | `test_v3_v4a_v4b_configs_add_one_factor_each`, `test_evidence_verdict_file_names_its_inputs` | G2, G5 |
+| AC40-69 | The best-mix config is built from the three verdicts | `test_mix_config_follows_the_three_verdicts` | G6 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

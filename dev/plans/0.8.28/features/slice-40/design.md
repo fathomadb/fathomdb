@@ -542,61 +542,145 @@ These changes are made with W4.
 
 ## 2f. Unit G: evidence budget, session completion and recency
 
+Revised after the Unit G review (REJECT, findings F1–F10, 2026-10-16). The
+review replayed the first rule on the 470 scored sweep questions × 3 arms
+(pooled counts):
+
+| Policy | any | all | has-answer | untruncated | chars |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 4000/20000/off (current) | 1383 | 1225 | 1321 | 1302 | 27.0M |
+| 4000/20000/on | 1383 | 1225 | 1325 | 1304 | 28.1M |
+| 4000/30000/off | 1388 | 1248 | 1334 | 1328 | 31.3M |
+| 4000/30000/on | 1388 | 1248 | 1344 | 1338 | 41.8M |
+| 2000/30000/on | 1388 | 1248 | 1353 | 572 | 41.3M |
+| 1000/20000/off | 1388 | 1248 | 1334 | 118 | 13.7M |
+| 1000/30000/on | 1388 | 1248 | 1369 | 118 | 36.2M |
+
+The has-answer rounds number 893:
+
+- median length 2,534 characters;
+- 851 exceed 1,000 characters, 650 exceed 2,000, 8 exceed 4,000.
+
+**Why the first rule failed.**
+
+- `all` is bounded by Recall-all@10 and cannot move with expansion, so that
+  rule fell to its fewest-characters tie-break and picked 1000/20000/off,
+  which truncates nearly every answer round.
+- Its `any` constraint is vacuous, because `any` is monotone in every grid
+  direction.
+
+The rule below replaces it.
+
 ### 2f.1 G1 and G2, offline (`comp03_retrieval`)
 
-- `evidence_policy_grid()` gives the twelve policies; `policy_key(p)` is
+- **Inputs.**
+  - The D3 sweep attempt root (`~/.cache/fathomdb-comp/comp03-sweep-d3`):
+    each scored question's stored top-10 IDs, all three arms.
+  - The dataset: the evaluator re-derives every round body with
+    `convert_question`.
+  - The verdict binds the dataset SHA-256 and the sweep summary SHA-256.
+  - LanceDB's record for `gpt4_7fce9456` predates the blank-round filter
+    (253 vs 251 documents). The evaluator renders from converted docs,
+    where the two blank rounds contribute only whitespace, so the effect is
+    nil.
+- **Question sets.**
+  - 470 scored questions; abstentions are excluded from every gold metric.
+  - Selection uses the 410 that are not among the 60 answer questions.
+  - The 60 are reported separately, so the paid runs are not on the
+    selection set.
+- **`evidence_policy_grid()` and `policy_key(p)`**: twelve policies, keyed
   `"<per_round>/<total>/<on|off>"`.
-- `evidence_rounds(ids, docs, policy)` returns `[(round_id, chars)]` in
+- **`evidence_rounds(ids, docs, policy)`** returns `[(round_id, chars)]` in
   prompt order:
   - the top-k IDs in rank order;
   - with expansion on, then the remaining rounds of each hit session, the
     sessions ordered by their best hit's rank, rounds by position;
   - each round capped at `per_round_chars`, then cut to what remains of
-    `total_chars`, stopping when nothing remains.
+    `total_chars`, stopping when nothing remains;
+  - blank rounds are listed with 0 characters.
 
   This is `render_evidence`'s arithmetic: date headers are not counted.
-- `evidence_metrics(shown, gold)` gives
-  `gold_session_any_in_prompt`, `gold_session_all_in_prompt`,
-  `has_answer_in_prompt`, `rounds_in_prompt` and `chars` per question.
-- `select_evidence_policy(table, baseline)` applies REQ40-G2. It returns
-  the chosen policy and, for each excluded policy, the types that lost
-  more than one question.
-- **Inputs.** The D3 sweep's stored top-10 IDs for all three arms, 470
-  scored questions, with no retrieval and no model calls. The rule is
-  applied to counts pooled across the three arms, because one policy
-  serves all arms in v3 (Q-G1).
+- **`evidence_metrics(shown, gold, docs)`** gives, per question:
+  - `gold_session_any_in_prompt`, `gold_session_all_in_prompt`;
+  - `has_answer_in_prompt`: any has-answer round with at least one
+    character shown;
+  - `has_answer_untruncated_in_prompt`: any has-answer round shown in full;
+  - `gold_chars_shown_fraction`: shown characters over full length, summed
+    over the session-gold rounds;
+  - `rounds_in_prompt` (rounds with at least one character) and `chars`.
+- **`select_evidence_policy(pooled, baseline, fts=None)`** applies REQ40-G2:
+  - maximise `has_answer_in_prompt` overall;
+  - per type, `has_answer_untruncated_in_prompt` may not fall more than 3
+    pooled counts (1 for `fathomdb-fts` alone) below the baseline policy;
+  - ties go to fewer characters; when nothing qualifies, the baseline.
+
+  It returns the policy and, per excluded policy, the failing types (as
+  `type` for pooled, `fathomdb-fts:type` for the per-arm check). On the
+  replay this rule would pick 4000/30000/on; the tests do not hard-code
+  that.
 - **Output.** `experiments/configs/comp-03/evidence-policy-verdict.v1.json`
-  records the policy, the baseline, the full twelve-row table, the
-  excluded policies, the sweep summary's SHA-256, the arms and the
-  question count. It is written at W4 by running the evaluator (local, a
-  few seconds).
+  records:
+  - the policy, the baseline and the rule;
+  - the pooled and per-arm twelve-row tables for the selection set (410)
+    and for the answer set (60);
+  - the excluded policies;
+  - the dataset and sweep summary SHA-256, the arms, and the question
+    counts.
 
-### 2f.2 G3 (`comp03_answer`)
+### 2f.2 One evidence implementation (`comp03_answer`)
 
-- `render_evidence(..., chronological=False)`: when true, it takes the
-  rounds rank order selected under the caps and renders them sorted by
-  `(session date, round position)`, newest last, with the `[Session date:
-  …]` headers kept.
+- `render_evidence(docs, ids, *, max_item_chars, max_total_chars,
+  policy=None, chronological=False)`.
+  - With `policy` given, the rounds come from
+    `comp03_retrieval.evidence_rounds`, imported inside the function
+    because `comp03_retrieval` imports `comp03_answer`.
+  - Rounds with 0 characters are not rendered.
+  - Without `policy` the v1/v2 path is unchanged.
+- `evidence_record(case, ids, evidence_config)` returns the rendered text,
+  its SHA-256 (`evidence_sha256`, covering the expanded text),
+  `rounds_in_prompt` and `chars`. The answer run writes the last two into
+  each answer row.
+- `chronological=True` renders the selected rounds sorted by
+  `(session date, session position, round position)`, newest last, with the
+  `[Session date: …]` headers kept.
 - `answer_messages(case, evidence, *, recency_instruction=False)`: when
-  true, it appends `RECENCY_SENTENCE` to the prompt's first paragraph.
-- Both default off; v2 rendering and prompts are unchanged byte-for-byte.
-- `evaluate_recency_rule(v3_rows, v4_rows, arm, seed)` pairs by question
-  ID. It returns the knowledge-update plus temporal delta, the overall
-  delta with its bootstrap CI, and the REQ40-G4 verdict.
+  true, `RECENCY_SENTENCE` is appended to the prompt's first paragraph.
+- Both off gives the v2 bytes.
+- `evaluate_recency_rule(base_rows, new_rows, arm, seed)` pairs by question
+  ID. It returns:
+  - the per-type correct counts for both runs;
+  - the knowledge-update plus temporal delta;
+  - the overall delta with its bootstrap CI;
+  - the verdict: adopt iff the KU plus temporal delta ≥ 0 and the overall
+    delta ≥ −1 question.
 
-### 2f.3 Configs
+### 2f.3 Configs and the best mix
 
-- `hermes-answer.v3.json` (schema `comp-03.answer.v3`) is v2 plus:
-  - `evidence.policy` from the verdict file, with
-    `evidence.policy_verdict_sha256`;
-  - `evidence.chronological: false`, `evidence.recency_instruction: false`;
-  - `decision_rule {compare_to: comp-03.answer.v2, report: paired per arm}`.
-- `hermes-answer.v4.json` is v3 with both recency flags true and
-  `decision_rule {compare_to: comp-03.answer.v3, adopt_if: …}`.
-- `load_config` accepts v1, v2 and v3 schemas.
-- Receipts and classifications are made as for v2
-  (`comp03_classification.py`).
-- The orchestrator runs v3 and v4, about $2.3 each.
+- **Schemas.** v3, v4a and v4b use `comp-03.answer.v3`. Each is v2 plus
+  `evidence {policy, policy_verdict_sha256, chronological,
+  recency_instruction}` and `decision_rule {compare_to, rule, provisional:
+  true, mde_net_discordant: 6}`:
+  - v3: the verdict's policy, both flags off, `compare_to` v2 (report
+    only);
+  - v4a: v3 with `recency_instruction` true, `compare_to` v3;
+  - v4b: v4a with `chronological` true, `compare_to` v4a.
+- **Statistical caveat.** At n = 60 paired, the minimum detectable effect is
+  about 6 net discordant questions, so every answer-run verdict is
+  provisional. Adoption into the mix is gated on the per-type direction plus
+  the 470-question offline metrics, not on significance.
+- **`build_mix_config(v3_config, policy_verdict, v4a_verdict, v4b_verdict)`**
+  is pure and returns `hermes-answer.mix.json`:
+  - the verdict's policy;
+  - `recency_instruction` iff v4a adopted;
+  - `chronological` iff v4b adopted and the sentence is on. v4b measured
+    chronological order only together with the sentence, so it is untested
+    alone.
+  - `decision_rule.compare_to` v2, and a `sources` block with the three
+    verdicts' SHA-256.
+
+  The orchestrator writes the file after the three runs.
+- `load_config` accepts v1, v2 and v3 schemas. Receipts and
+  classifications are made as for v2.
 
 ### 2f.4 Harness-side now, product-side later
 

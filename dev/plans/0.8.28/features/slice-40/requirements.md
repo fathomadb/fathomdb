@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — requirements and acceptance criteria
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C and Unit D landed; Units E, F, G added 2026-10-16 (owner ruling), docs and RED tests for review
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C and Unit D landed; Units E, F, G added 2026-10-16 (owner ruling) and landed; Unit H added 2026-10-16 (owner ruling), docs for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -16,7 +16,11 @@ work: a retrieval-only sweep (D1), a three-arm answer run (D2) and a
 stop-list extension (D3). Units E (SDK parity and the public-surface
 contract), F (a known-run baseline) and G (evidence budget, session
 completion and recency in the COMP-03 answer harness) were added by owner
-ruling on the same day. [design.md](design.md) gives the mechanism,
+ruling on the same day. Unit H, added by owner ruling on the same day,
+makes three engine changes: a wider query stop list chosen by a pre-stated
+rule (H1), a hybrid vector candidate pool decoupled from `limit` (H2), and
+a cohort prefilter for selective attribute filters on projected search
+(H3). [design.md](design.md) gives the mechanism,
 [test-plan.md](test-plan.md) the tests.
 
 ## 1. Evidence
@@ -197,6 +201,104 @@ on the `llm/comp-01` lineage) and the orchestrator's review of it.
   The cap was reached on 46 of 60 questions, and the median question showed
   9 of its 10 rounds. Only 6 of 10 multi-session questions had all their
   gold sessions in the prompt.
+
+### 1.6 Unit H evidence
+
+Sources:
+
+- The orchestrator's read-only analysis of 2026-10-16, run on the
+  `5b09afd44` wheel. Its report is `improve/report.md` in the session
+  scratchpad (§ 2, § 3b, § 4, § 5), next to `sweep_query.py`,
+  `sweep100.py`, `refuse.py` and `nfc_check.py`.
+- A raw-SQL plan probe run while writing this document (`h3probe/probe2.py`
+  in the same scratchpad).
+- The code, read on 2026-10-16.
+
+**H1, query stop list.**
+
+- Questions keep high-document-frequency function words that survive the
+  current list: "how MANY siblings DO I HAVE", "CAN you RECOMMEND SOME".
+- Dropping a list of about 50 such words from the question before
+  `search_text_only`, on the same stores, gives session Recall-all@k:
+
+  | Type | all@5 | all@10 | all@20 |
+  | --- | --- | --- | --- |
+  | preference | .733 → .900 | .900 → .933 | .967 → .967 |
+  | multi-session | .545 → .562 | .744 → .785 | .868 → .893 |
+  | temporal | .724 → .717 | .819 → .811 | .890 → .882 |
+  | knowledge-update | .944 → .958 | .986 → .986 | .986 → .986 |
+
+  Paired Recall-all@10: 7 wins, 2 losses.
+- NFCorpus nDCG@10 moves 0.3265 → 0.3253 (−0.0013). 23 of 323 queries
+  change: 7 wins, 5 losses.
+- The list holds `d`, which ruling D3 keeps as content, and `ve`, which D3
+  already made a stopword.
+- `compile_text_query` is the only query compiler. Its callers are:
+  - `search_text_only` (`search_api.rs`);
+  - the text branch of `search` (`search_api.rs`, and `search.rs` for
+    frozen reads);
+  - `search_projected_text` (`search.rs`);
+  - the graph arm's query seed (`graph_expand/execution.rs`).
+
+  The vector branch embeds the raw query. Document indexing never reads
+  the list.
+
+**H2, hybrid vector pool.**
+
+- **The pool is `limit`.** In the vector branch of `search`
+  (`search.rs`), phase 1 and phase 2 already materialise
+  `max(candidate_limit, final_limit, TOP_K_BIT_CANDIDATES = 192)`
+  candidates in exact-L2 order. Hydration then stops at `final_limit`
+  surviving rows (`if results.len() >= final_limit`).
+- **The text branch has no cap.** Under `search` it returns every FTS
+  match: 178 hits at limit 5 in the trace.
+- **Measured effect:**
+  - The trace shows `vector_hits` = limit at limits 5, 10 and 100.
+  - `ids@10 == ids@100[:10]` holds for 16 of 500 questions.
+  - Session Recall-all@10 on multi-session: limit 10 gives .810;
+    limit 100 cut to 10 gives .777.
+  - At k = 20, limit 100 reaches .934, against .868 for FTS.
+- **Fusion weights.** Re-fusing the per-hit ranks with other weights
+  (1:1, `K` = 60, vector-heavy) found no setting that dominates text 3,
+  vector 1, `K` = 30.
+- **Why a pool can be measured on today's engine.** Below 192 the vector
+  list for a pool `P` is the first `P` surviving rows of one fixed
+  ranking. The text branch does not depend on `limit`, and fusion runs
+  before truncation. A pool of `P` at limit `k ≤ P` therefore ranks
+  exactly as today's `search(limit=P)` cut to `k`, with rerank depth 0, no
+  graph arm and the reweights off.
+
+**H3, selective attribute filters on projected search.**
+
+- At the final head, 10k TC-5, FathomDB p50 on the projected cells is:
+  - c01 (92 of 10,000 documents): 29.8 ms, against SurrealDB's 4.1 ms;
+  - c10 (968): 9.1 ms;
+  - c33 (3,327): 8.2 ms;
+  - unfiltered: 2.9 ms.
+- At 1% the Defect C rank stream walks about a thousand ranked rows for
+  ten survivors. Each walked row pays the node join and the attribute
+  `EXISTS` probe.
+- `property_search_index` stores `write_cursor` as an `UNINDEXED` column
+  under FTS5's own rowids, so the FTS5 index cannot be entered from a
+  cohort cursor. The cohort is cheap to read from
+  `canonical_attributes_name_value_idx`.
+- **Probe.** The probe opened the final-head 10k store read-only. It ran
+  Python's SQLite 3.45.1 over the 100 TC-5 queries, compiled with the D3
+  list, using a simplified node predicate. Warm p50 in ms:
+
+  | Plan | c01 | c10 | c33 |
+  | --- | ---: | ---: | ---: |
+  | Defect C rank stream (today) | 14.0 | 3.9 | 3.3 |
+  | Rank stream plus `p.write_cursor IN (cohort)` | 7.7 | 4.7 | 7.0 |
+  | `p.write_cursor IN (cohort)`, sorted, no rank stream | 8.6 | 11.0 | 15.6 |
+  | Attribute `EXISTS` keyed on `p.write_cursor` (the row-key potential) | 12.5 | 4.0 | 3.2 |
+
+  - Every plan returned the same IDs in the same order for every query
+    and cohort.
+  - The prefilter wins at 92 cohort rows and loses at 968, because it
+    materialises the whole cohort.
+  - The probe's node predicate is lighter than the engine's, so its
+    absolute times are lower than the engine's 29.8 ms.
 
 ## 2. Requirements
 
@@ -544,6 +646,205 @@ engine-side equivalents (turn-level retrieval units with session expansion;
 a recency-aware ranking pass), so the owner can decide on a product unit.
 None is built in this slice.
 
+**Unit H requirements** (added by owner ruling 2026-10-16). Three engine
+changes, H1 to H3. Each one's list, pool size or threshold comes from a rule
+stated here before anything is measured. Each lands as its own commit, so a
+failed gate reverts only that change.
+
+**REQ40-H1 — stop-list selection rule (offline, before the engine
+change).** The rule lives in `experiments/configs/comp-03/stoplist-selection.v1.json`
+(harness branch). A pure function evaluates it and writes
+`stoplist-verdict.v1.json`.
+
+- **Candidates (47):** `many`, `much`, `have`, `had`, `has`, `can`,
+  `could`, `would`, `should`, `some`, `any`, `recommend`,
+  `recommendations`, `suggest`, `suggestions`, `give`, `tell`, `know`,
+  `think`, `want`, `need`, `get`, `got`, `total`, `number`, `different`,
+  `also`, `been`, `being`, `just`, `still`, `currently`, `recently`,
+  `there`, `all`, `based`, `help`, `please`, `going`, `make`, `use`,
+  `used`, `using`, `far`, `long`, `often`, `again`. This is the analysis
+  list without `d` (content by ruling D3) and `ve` (already a stopword).
+- **Data:**
+  - The COMP-03 sweep questions on the `fathomdb-fts` arm, with stores
+    built as in the D3 sweep.
+  - The selection set is the 414 scored questions outside the 60-question
+    answer set, the set Unit G used.
+  - NFCorpus: the 323 test queries over the `comp01` inputs.
+- **Simulation.** The harness removes the candidate words from the query
+  text, then calls `search_text_only` on the `5b09afd44` engine. That
+  equals the engine compiling with the extended list, as long as the query
+  keeps at least one content token. A word that leaves any question or
+  NFCorpus query with no content token is excluded: the engine would then
+  take the raw-token fallback, which the simulation does not reproduce.
+- **Per-word step.** Add each candidate `w` alone to the D3 list and
+  measure two deltas:
+  - `Δall(w)`: on the selection set, questions gained minus questions lost
+    on session Recall-all@10;
+  - `ΔnDCG(w)`: the NFCorpus nDCG@10 change.
+- **Keep.** `K = {w : Δall(w) ≥ 1}`.
+- **Combined check.** `L` is the D3 list plus `K`. Three conditions:
+  - (a) NFCorpus nDCG@10 ≥ 0.3265 − 0.002 and MRR@10 ≥ 0.5312 − 0.005
+    (the final-head baseline and its tolerances);
+  - (b) for every type, the selection-set session Recall-any@5 count is at
+    least the D3 count minus 1;
+  - (c) the selection-set session Recall-all@10 count is at least the D3
+    count plus 1.
+- **Pruning.** While (a) or (b) fails, drop from `K` the word with the
+  lowest `ΔnDCG` (ties: lower `Δall`, then alphabetical) and check
+  again.
+- **Outcome.** If `K` empties or (c) fails, the verdict is "not adopted"
+  and H1 makes no engine change.
+- **Verdict file.** It records the per-word table, `L`, the combined
+  metrics on both corpora, and the 56 scored answer-set questions. Those
+  are reported, not used.
+
+**REQ40-H2 — stop-list engine change.** `STOPWORDS` in `fathomdb-query`
+gains exactly the verdict's words.
+
+- **Unchanged:**
+  - query compilation stays the only place the list applies;
+  - document indexing;
+  - the vector branch's query embedding;
+  - `d`, `c`, `d3`, `ii`, `1` and `b12` stay content, and the twelve
+    Unit D words stay stopwords.
+- **Updated with it:**
+  - the AC-038 private stop-list copy in `fts5_injection_safety.rs`
+    gains the same words, its fixture unchanged (as ruling Q-D3 did for
+    D3);
+  - the interface docs' stop-list sentence;
+  - a CHANGELOG entry.
+
+**REQ40-H3 — H1 gate (orchestrator, after the code review).** Verbatim:
+*(i) the post-change sweep's `fathomdb-fts` top-10 IDs equal the
+simulation's for every question; (ii) COMP-01 FathomDB nDCG@10 ≥ 0.3265 −
+0.002 and MRR@10 ≥ 0.5312 − 0.005; (iii) COMP-03 sweep `fathomdb-fts`
+per-type session Recall@5 not lower than the baseline beyond one question
+per type; (iv) tc5-10k-latency `body-text-only` and projected p50 not above
+the baseline beyond +25%.* If the gate fails, the H1 commit is reverted.
+
+**REQ40-H4 — vector-pool selection rule (offline, before the engine
+change).** The rule lives in
+`experiments/configs/comp-03/vector-pool-selection.v1.json`. Its verdict
+is `vector-pool-verdict.v1.json`.
+
+- **Candidates:** `P0` ∈ {10, 20, 50, 100}.
+- **Measurement.** The `fathomdb-hybrid` arm (the D sweep store, cuda:0)
+  runs `search(question, limit=P)` for P ∈ {10, 20, 50, 100} on the
+  `5b09afd44` engine. By § 1.6 the ranking of pool `P0` at k = 5 and 10 is
+  the first k of the limit-`P0` list.
+- **Reference.** `P0` = 10: today's limit-10 ranking, which the sweep and
+  the answer runs use.
+- **Constraints** on the selection set (414 questions):
+  - for every type, the session Recall-any@5 and Recall-any@10 counts are
+    at least the reference minus 1;
+  - overall, the Recall-any@5, Recall-any@10 and Recall-all@10 counts are
+    at least the reference minus 1.
+- **Choice.** The largest `P0` that meets every constraint. The reference
+  meets them by construction.
+- **Verdict file.** It records the full table, with k = 20 and the
+  answer-set questions reported but not used.
+
+**REQ40-H5 — vector-pool engine change.**
+
+- **The constant.** `VECTOR_FUSION_POOL` (`search_types.rs`) is the
+  verdict's `P0`.
+- **The one behavioural change.** The vector branch of `search` hydrates
+  up to `max(final_limit, VECTOR_FUSION_POOL)` surviving candidates;
+  today it hydrates `final_limit`.
+- **Unchanged:**
+  - the phase-1 and phase-2 depth;
+  - the text branch;
+  - RRF: `Σ w/(30 + rank)`, text 3, vector 1;
+  - truncation to `final_limit` after fusion;
+  - the `vector_stage_only` seam, which still truncates the vector
+    list to `final_limit`;
+  - the test-only `search_limit_override`.
+- **Contract.** For one database state and view, with `rerank_depth` 0 and
+  no graph arm, `search(limit=k)` returns the first k results of
+  `search(limit=k')` for every k < k' ≤ `VECTOR_FUSION_POOL`. Scores are
+  bit-identical. Above the pool the guarantee is not claimed.
+- **Explain.** The trace's `vector_hits` reports the hydrated count.
+- **Docs.** `dev/interfaces/{python,typescript,rust,rust-sdk}.md`,
+  `docs/guides/hybrid-search-filtering.md` and the CHANGELOG state the
+  pool and the prefix guarantee.
+
+**REQ40-H6 — H2 gate (orchestrator, after the code review).** Verbatim:
+*(i) COMP-03 sweep `fathomdb-hybrid` per-type session Recall@5 and Recall@10
+not lower than the baseline beyond one question per type; (ii)
+`fathomdb-hybrid` COMP-03 warm p50 ≤ baseline × 1.25 and p95 ≤ baseline ×
+1.35, and `comp01-hybrid` `fathomdb-hybrid` p50 ≤ baseline × 1.25; (iii)
+the Unit E cross-SDK suite equal in every case, SDK and repetition.*
+
+- If (i) or (ii) fails, `P0` steps down to the next smaller candidate
+  that met REQ40-H4, and the gate is measured again.
+- A failure that remains at `P0` = 10 comes from H1's change to the
+  hybrid text branch. It is reported to the owner and is not reverted
+  automatically.
+
+**REQ40-H7 — cohort prefilter switch (H3).** In `read_projected_text_in_tx`,
+when the filter carries at least one attribute pair:
+
+- **Probe.** For each pair, run a bounded count in the reader
+  transaction:
+  `SELECT count(*) FROM (SELECT 1 FROM canonical_attributes WHERE
+  attr_name = ? AND attr_value = ? LIMIT T + 1)`, with
+  `T = COHORT_PREFILTER_MAX_ROWS = 256`. The cost is at most `T + 1`
+  index entries per pair.
+- **Switch.** If the smallest count is ≤ `T`, the search uses the
+  cohort-prefiltered rank stream. That is the Defect C stream statement
+  plus `AND p.write_cursor IN (SELECT write_cursor FROM
+  canonical_attributes WHERE attr_name = ?a AND attr_value = ?v)` for
+  that pair (the first in filter order on ties).
+- **Otherwise,** and for a filter without attribute pairs, the Defect C
+  path is unchanged.
+- **Why `T` = 256.** The probe in § 1.6 puts the crossover between 92 and
+  968 rows. 256 sits inside that range, on the conservative side for the
+  engine's heavier node predicate.
+
+**REQ40-H8 — identity and witnesses.**
+
+- **Same results.** The existing attribute `EXISTS` already implies the
+  prefilter, so the row set and order are unchanged: bm25 ascending, then
+  `write_cursor` ascending, with Defect C's tie completion. Results,
+  scores included, equal the rank stream's and the forced full sort's at
+  every limit.
+- **Lifecycle filtering is untouched.** Stale attribute rows can only
+  enlarge the probe's count, which affects the plan choice, never the
+  results.
+- **Witnesses (`test-hooks`):**
+  - Routes `projected_cohort_stream_strict_boundary` and
+    `projected_cohort_stream_tie_completed`.
+  - `FATHOMDB_FTS_COHORT_PREFILTER_FOR_TEST`: `on` ignores `T`, `off`
+    never prefilters.
+  - `FATHOMDB_FTS_FAIL_COHORT_FOR_TEST` breaks the cohort statement. The
+    search then falls back to the Defect C stream and records that route.
+  - The cohort statement's plan has `LIST SUBQUERY` with
+    `canonical_attributes_name_value_idx`, and no
+    `USE TEMP B-TREE FOR ORDER BY`.
+- **The row-key potential** (attribute `EXISTS` keyed on
+  `p.write_cursor`) stays a potential: H3 does not need it.
+
+**REQ40-H9 — H3 gate (orchestrator, after the code review).** Verbatim:
+*tc5-10k-latency `projected-c01` p50 at least 25% below the 29.8 ms
+baseline; `projected-unfiltered`, `projected-c10` and `projected-c33` p50
+and p95 within baseline tolerance; COMP-02b 10k FathomDB c01 p50 lower,
+c10 and c33 within +25%, violations 0, short-result counts unchanged;
+COMP-02a within tolerance.* If the gate fails, the H3 commit is reverted.
+
+**REQ40-H10 — re-runs and baseline.** After GREEN and the code review, the
+orchestrator re-runs every benchmark at the Unit H engine commit, with
+receipts:
+
+- COMP-01 FTS and hybrid;
+- COMP-02a at 10k and 17k;
+- COMP-02b at 10k;
+- tc5-10k-latency;
+- the COMP-03 sweep;
+- the COMP-03 mix answer run.
+
+The baseline manifest is then updated as [test-plan.md](test-plan.md)
+§ 3g.7 sets out.
+
 ## 3. Non-goals
 
 - No BM25 `k1`/`b` tuning and no change to `RRF_K` or the arm weights.
@@ -569,6 +870,13 @@ None is built in this slice.
   receipts, landing, the attribute-filter row-key and filter-first
   potentials, or fielded title boost.
 - No product change for Unit G this round (REQ40-G7).
+- Unit H does not change `RRF_K`, the branch weights or the fusion
+  formula, document indexing, the hybrid path's attribute filter or
+  `search_text_only`'s candidate window. It does not build tiered
+  evidence rendering, a session-grouped retrieval API, fielded weighting
+  or query rewriting (analysis § 5); those stay owner decisions.
+- Unit H adds the filter-first potential as the cohort prefilter (H3); the
+  attribute-filter row-key potential stays a potential.
 
 ## 4. Candidate bound of `search_text_only`: out of scope
 
@@ -599,7 +907,13 @@ harness tests (AC40-49 to AC40-69) are in `tests/experiments/test_sdk_parity_sli
 Unit D's
 harness tests (AC40-33 to AC40-45) are in `tests/experiments/test_comp03_retrieval.py`
 and `tests/experiments/test_comp03_answer.py` on the `slice/0.8.28-40-comp03`
-branch; its D3 tests are in the `fathomdb-query` test module.
+branch; its D3 tests are in the `fathomdb-query` test module. Unit H's
+harness tests (AC40-70 to AC40-73, AC40-77, AC40-78) are in
+`tests/experiments/test_comp03_unit_h.py` on the comp branch; its engine
+tests are in the `fathomdb-query` test module (AC40-74),
+`tests/slice40_vector_pool.rs` (AC40-79 to AC40-82) and
+`tests/slice40_cohort_prefilter.rs` (AC40-84 to AC40-90), both with
+`--features test-hooks`.
 
 | AC | Check | Test | REQ |
 | --- | --- | --- | --- |
@@ -671,4 +985,29 @@ branch; its D3 tests are in the `fathomdb-query` test module.
 | AC40-67 | Adoption rule, with its boundaries (overall −1 with KU plus temporal flat adopts; KU +1 / temporal −1 adopts) and a per-type report | `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one`, `test_recency_rule_boundaries` | G5 |
 | AC40-68 | v3, v4a, v4b and v4c configs: single-factor steps, provisional verdicts; the verdict file names its inputs (470 scored, 414 selection, 60 answer IDs of which 56 scored) and the expected answer-set delta | `test_v3_v4a_v4b_v4c_configs_add_one_factor_each`, `test_evidence_verdict_file_names_its_inputs` | G2, G5 |
 | AC40-69 | The best-mix config is built from the verdicts on the arm of record; v4c contingency; renderer caps and policy are mutually exclusive | `test_mix_config_follows_the_three_verdicts`, `test_mix_config_follows_the_arm_of_record`, `test_mix_config_needs_v4c_for_chronological_order_alone`, `test_render_evidence_refuses_a_policy_together_with_caps` | G2, G6 |
+| AC40-70 | Stop-list selection config: typed; holds the 47 candidates (no `d`, no `ve`, no current stopword), the 414-question selection set and the rule verbatim; a wrong schema is refused | `test_stoplist_selection_config_states_the_candidates_and_rule` | H1 |
+| AC40-71 | Simulation: removing words harness-side gives the content tokens of compiling with them as stopwords (property); a word that empties a query is excluded | `test_stripping_words_equals_compiling_with_them_as_stopwords`, `test_a_word_that_empties_a_query_is_excluded` | H1 |
+| AC40-72 | Rule: keep `Δall ≥ 1`; combined constraints (a)–(c); pruning order by lowest `ΔnDCG`, then `Δall`, then name; boundaries (exactly −0.002, exactly −1 question, exactly +1); "not adopted" when nothing gains | `test_stoplist_rule_keeps_gaining_words_and_prunes_until_constraints_hold`, `test_stoplist_rule_boundaries`, `test_stoplist_rule_is_not_adopted_when_nothing_gains` | H1 |
+| AC40-73 | Stop-list verdict file names its inputs (414 selection, 56 scored answer-set, 323 NFCorpus queries, engine commit) and the per-word table | `test_stoplist_verdict_names_its_inputs` | H1 |
+| AC40-74 | The verdict's words are stopwords; `d`, `c`, `d3`, `ii`, `1`, `b12` are not; the Unit D twelve stay; each new word alone takes the fallback; the § 1.6 question shapes compile to their content terms | `unit_h_words_are_in_the_stop_list_and_content_tokens_are_not`, `each_unit_h_word_alone_takes_the_fallback`, `unit_h_question_shapes_compile_to_content_terms` | H2 |
+| AC40-75 | The AC-038 private copy gains the same words; every other Slice 40 compiler and engine test passes unchanged | `fts5_injection_safety.rs`; the `fathomdb-query` test module, `slice40_fts_ranking.rs` | H2 |
+| AC40-76 | H1 gate (REQ40-H3) | orchestrator measurement after the code review | H3 |
+| AC40-77 | Pool selection config: typed; candidates {10, 20, 50, 100}, reference 10, the rule verbatim | `test_vector_pool_selection_config_is_typed_and_states_the_rule` | H4 |
+| AC40-78 | Pool metrics use the first k of the limit-`P` list; the rule picks the largest pool meeting every constraint; the reference always passes; boundaries at exactly −1 question | `test_pool_metrics_use_prefixes_of_the_limit_p_ranking`, `test_pool_rule_picks_the_largest_pool_that_keeps_recall`, `test_pool_rule_boundaries` | H4 |
+| AC40-79 | Hybrid results are prefix-stable up to the pool: for limits k < k' ≤ `VECTOR_FUSION_POOL`, ids and score bits of limit k equal the first k of limit k', on a corpus where today's engine breaks the prefix | `hybrid_results_are_prefix_stable_up_to_the_vector_pool` | H5 |
+| AC40-80 | The vector branch hydrates `min(max(limit, pool), surviving)` rows: explain `vector_hits` at limits below, at and above the pool | `vector_branch_hydrates_the_pool_below_it_and_the_limit_above_it` | H5 |
+| AC40-81 | Fused scores still equal `Σ w/(30 + rank)` with text 3 and vector 1, for a body found by both branches with the vector rank beyond `limit` | `fused_score_formula_is_unchanged_with_the_pool` | H5 |
+| AC40-82 | `vector_stage_only` returns `limit` vector hits; the filtered vector branch keeps its cohort; the existing hybrid tests pass unchanged or are reported for a ruling | `vector_stage_only_and_filtered_vector_search_keep_their_contracts`; existing `ga2_vector_stage_seam.rs`, `slice18_retrieval_result_limits.rs`, `pr_g9_rrf_fusion.rs` | H5 |
+| AC40-83 | H2 gate (REQ40-H6), cross-SDK parity included | orchestrator measurement and the Unit E suite after the code review | H6 |
+| AC40-84 | A cohort of at most `T` rows takes the cohort route; its plan has `LIST SUBQUERY` on `canonical_attributes_name_value_idx` and no temp B-tree for ORDER BY | `small_cohort_takes_the_cohort_prefilter_route` | H7, H8 |
+| AC40-85 | Cohort route results equal the Defect C stream's and the forced full sort's (ids, score bits, order) for limits 1, 2, 3, 5, 8, 10, 12, 100 across three bm25 tie groups | `cohort_prefilter_results_equal_rank_stream_and_full_sort` | H8 |
+| AC40-86 | Boundary: `T` rows prefilter, `T + 1` rows keep the Defect C stream | `cohort_of_t_rows_prefilters_and_t_plus_one_keeps_the_rank_stream` | H7 |
+| AC40-87 | A failing cohort statement falls back to the Defect C stream with the same results and its route | `cohort_prefilter_failure_falls_back_to_the_rank_stream` | H8 |
+| AC40-88 | Two attribute pairs: the smaller cohort prefilters; results equal the forced-off results | `multi_attribute_filter_prefilters_on_the_smallest_cohort` | H7 |
+| AC40-89 | Lifecycle and the other filter fields still apply on the cohort route (superseded node, `kind`) | `cohort_prefilter_keeps_lifecycle_and_other_filter_fields` | H8 |
+| AC40-90 | Property: random corpora, cohorts and limits, the cohort route equals the forced full sort | `prop_cohort_prefilter_matches_the_full_sort` | H8 |
+| AC40-91 | Defect C's tests (AC40-27 to AC40-32) pass unchanged | `slice40_projected_fts_stream.rs` and the AC40-32 list | H8 |
+| AC40-92 | H3 gate (REQ40-H9) | orchestrator measurement after the code review | H9 |
+| AC40-93 | Interface docs, the hybrid guide and the CHANGELOG describe H1 to H3; `agent-lint-docs.sh` passes | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | H2, H5 |
+| AC40-94 | Re-runs with receipts at the Unit H commit; baseline manifest updated as test-plan § 3g.7 | orchestrator | H10 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

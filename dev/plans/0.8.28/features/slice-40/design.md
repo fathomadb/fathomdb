@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — design
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C and § 2c Unit D landed; § 2d–2f Units E, F, G added 2026-10-16, for review
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C and § 2c Unit D landed; § 2d–2f Units E, F, G added 2026-10-16 and landed; § 2g Unit H added 2026-10-16, for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -705,6 +705,171 @@ The rule below replaces it.
 | Session completion | session expansion after top-k in the harness | turn-level retrieval units in the engine, plus session expansion as a retrieval option |
 | Recency | chronological rendering and one prompt sentence | a recency-aware ranking pass by fact date in the engine; the existing opt-in G12 recency reweight orders by write cursor, not by session date |
 
+## 2g. Unit H: stop list, vector pool, cohort prefilter
+
+### 2g.1 Order of work
+
+H1 and H2 each need a measurement before the engine change, so the RED/GREEN
+order is:
+
+1. Harness RED, then GREEN: `experiments/comp03_unit_h.py`, with its pure
+   rule functions and the `stoplist` and `pool` commands.
+2. The selection runs:
+   - `stoplist` runs on CPU, implementer;
+   - `pool` runs on cuda:0, implementer when a 3090 is free, otherwise the
+     orchestrator; the verdict records who ran it.
+
+   Both verdict files are committed on the harness branch.
+3. Engine RED, written against the verdicts: the `fathomdb-query` H1
+   tests, `slice40_vector_pool.rs` and `slice40_cohort_prefilter.rs`.
+4. Engine GREEN in three commits, H1, H2 then H3, so each gate can revert
+   its own commit.
+5. Scoped checks, then stop for the code review.
+
+### 2g.2 H1, stop list
+
+- **Harness (`comp03_unit_h.stoplist`).** For each sweep question, build
+  the `fathomdb-fts` store once with `comp03_answer.convert_question`,
+  plain bodies and no embedder. Run `search_text_only(limit=10)` for:
+  - the D3 baseline (the question verbatim);
+  - each candidate alone;
+  - each combined list the pruning loop asks for.
+
+  NFCorpus works the same way over one store, with `comp_fts.score_query`
+  for nDCG@10 and MRR@10. Both corpora rebuild in under a minute on CPU.
+  The pruning loop needs one query pass per step, not one rebuild.
+- **The removal transform.** Lowercase the query, split it on
+  non-alphanumeric characters, drop the words, and join with spaces. The
+  harness keeps a Python copy of the `5b09afd44` stop list in the config
+  (`engine_stopwords`). It uses that copy to detect a query that would
+  lose every content token; the simulation does not cover such a query.
+  `test_stripping_words_equals_compiling_with_them_as_stopwords` pins the
+  equivalence as a `hypothesis` property.
+- **Engine.** Append the verdict's words to `STOPWORDS`, and extend the
+  doc comment with the reason: high-document-frequency question words,
+  chosen by the Slice 40 H1 rule. Nothing else in `fathomdb-query`
+  changes.
+- **Self-check.** At the H1 gate, the post-change sweep must reproduce the
+  simulation's `fathomdb-fts` IDs for every question (REQ40-H3 (i)). A
+  difference would mean the simulation and the compiler disagree. The
+  gate then fails, rather than recording a number the rule did not
+  choose.
+
+### 2g.3 H2, vector pool
+
+- **Harness (`comp03_unit_h.pool`).** For each sweep question, build the
+  hybrid store once, as in `comp03_retrieval`, with the device check and
+  vector coverage. Then run `search(question, limit=P)` for
+  P ∈ {10, 20, 50, 100}, recording the IDs. Pool `P0` at k is
+  `ids[P0][:k]` (§ 1.6), so the rule needs no re-fusion and no copy of
+  the engine's fusion.
+- **Engine (`search.rs`).** One line changes, in the vector hydration loop:
+
+  ```rust
+  // before
+  if results.len() >= final_limit { break; }
+  // after
+  if results.len() >= final_limit.max(VECTOR_FUSION_POOL) { break; }
+  ```
+
+  `VECTOR_FUSION_POOL` is a `pub const` in `search_types.rs`, next to
+  `TOP_K_BIT_CANDIDATES`. It is always ≤ 192, so phase 1 and phase 2
+  already hold enough rows and no SQL changes.
+- **What does not change:**
+  - fusion gets the longer vector list and truncates to `final_limit` as
+    before;
+  - the `vector_stage_only` seam returns `vector_results` and is
+    truncated to `final_limit`, so its output is unchanged;
+  - rerank, the graph arm and the reweights read the fused list, which
+    no longer depends on `limit`. Their outputs can change only where the
+    vector list grew.
+- **Why a constant floor and not a function of `limit`.** With
+  `max(limit, P0)`, every limit up to `P0` sees the same vector list,
+  which gives the prefix property. Limits above `P0` keep today's
+  behaviour.
+- **Explain.** `vector_hits` already counts the hydrated rows, so it now
+  reports the pool.
+- **Cost.** Each extra hydrated row is one indexed `canonical_nodes`
+  lookup by `write_cursor` (`canonical_nodes_write_cursor_idx`). The
+  comment in the loop that says there is no such index is out of date;
+  W4 corrects it.
+
+### 2g.4 H3, cohort prefilter
+
+- **Where.** `read_projected_text_in_tx` (`search.rs`), before the Defect C
+  stream. The steps:
+  1. If `filter.attributes` is non-empty and the switch is not forced
+     off, probe each pair with
+     `SELECT count(*) FROM (SELECT 1 FROM canonical_attributes WHERE
+     attr_name = ?1 AND attr_value = ?2 LIMIT 257)`.
+  2. Take the first pair with the smallest count. If that count is
+     ≤ 256, or the switch is forced on, run
+     `property_fts_cohort_stream_sql` (new, `filter.rs`).
+  3. Feed its rows to `collect_complete_rank_boundary(limit)`, as the
+     Defect C stream does.
+  4. If the statement fails, continue to the Defect C stream, and then
+     the full sort, unchanged.
+- **The new statement.** It is `property_fts_rank_stream_sql` plus one
+  conjunct before `AND rank MATCH`:
+
+  ```sql
+  AND p.write_cursor IN (SELECT write_cursor FROM canonical_attributes
+                         WHERE attr_name = ?{a} AND attr_value = ?{v})
+  ```
+
+  - `?{a}` and `?{v}` bind after the eligibility parameters.
+  - The conjunct references only `p`, so SQLite tests it in `p`'s loop,
+    before the `canonical_nodes` join.
+  - SQLite builds the list subquery once, from the name-value index.
+- **Why a prefiltered stream and not a sorted cohort.**
+  - The probe in § 1.6 timed both. The sorted form was slower at every
+    cohort size (8.6 against 7.7 ms at c01, 11.0 against 4.7 ms at c10).
+  - The prefiltered stream reuses Defect C's tie completion. Result
+    identity then follows from the conjunct being implied by the
+    existing `EXISTS`; no second ordering implementation is needed.
+- **Witnesses** (`test-hooks`), as for Defect C:
+  - `record_fts_route_for_test` with
+    `projected_cohort_stream_strict_boundary` or
+    `projected_cohort_stream_tie_completed`;
+  - `record_fts_query_plan_for_test` on the cohort statement;
+  - `FATHOMDB_FTS_COHORT_PREFILTER_FOR_TEST` (`on` or `off`) and
+    `FATHOMDB_FTS_FAIL_COHORT_FOR_TEST`, the latter replacing the cohort
+    subquery's table with a missing one, so the statement fails to
+    prepare.
+- **Not changed:**
+  - the hybrid `search` path's attribute filtering;
+  - `search_text_only`;
+  - the attribute `EXISTS` keying (the row-key potential).
+
+### 2g.5 Risks
+
+| Risk | Effect | Handling |
+| --- | --- | --- |
+| A selected stop word carries meaning in some corpus ("long", "number", "total") | Recall loss there | The rule keeps only words with a measured net gain on COMP-03 and checks NFCorpus; the gate checks both corpora again on the engine |
+| H1 changes hybrid's text branch as well | Hybrid numbers move before H2 | The H2 gate measures H1 and H2 together; REQ40-H6 says what happens if hybrid fails at `P0` = 10 |
+| A larger pool lowers multi-session Recall@10 (analysis: .810 → .777 at 100) | The adopted hybrid arm changes | The rule picks the largest pool that keeps every type within one question; 10 is always available |
+| Pool hydration adds latency | Up to `P0 − limit` extra indexed lookups per hybrid query | Latency is a gate clause; the pool steps down on failure |
+| Existing hybrid tests encode pool = limit | They fail at GREEN | Analysed at GREEN and reported for a ruling; not edited to pass |
+| The cohort probe costs time on large cohorts | At most 257 index entries per attribute pair | The gate checks c10, c33 and unfiltered |
+| A stale attribute row (superseded node) inflates the probe count | A plan choice only | The node predicates still apply; AC40-89 |
+
+### 2g.6 Docs changed by Unit H
+
+- `dev/interfaces/{python,typescript,rust,rust-sdk}.md`, "Search behaviour
+  in 0.8.28 (Slice 40)":
+  - the stop-list sentence lists the H1 words;
+  - a pool bullet under dense retrieval;
+  - a cohort-prefilter sentence under `search_projected_text`, with the
+    order contract unchanged.
+- `docs/guides/hybrid-search-filtering.md`: one sentence on the vector
+  pool and the prefix guarantee.
+- `CHANGELOG.md`: three entries under 0.8.28:
+  - wider query stop list;
+  - hybrid results prefix-stable up to the pool;
+  - faster projected search under selective attribute filters.
+- `dev/plans/0.8.28/features/slice-40/status.md`: the filter-first
+  potential moves to Unit H; the row-key potential stays.
+
 ## 3. Files touched
 
 | File | Change |
@@ -716,6 +881,10 @@ The rule below replaces it.
 | `src/rust/crates/fathomdb-engine/src/filter.rs` (Defect C) | new `property_fts_rank_stream_sql`; `property_fts_rank_sql` unchanged |
 | `src/rust/crates/fathomdb-query/src/lib.rs` (Unit D3, own commit) | twelve words added to `STOPWORDS` |
 | `comp03-slice40`: `experiments/comp03_retrieval.py` (new), `configs/comp-03/retrieval-sweep.v1.json` (new), `configs/comp-03/hermes-answer.v2.json` (new), `comp03_answer.py`, `comp_fts.py` (new arms and campaign only), `fathomdb_test_setup.py` (`require_embed_device`) | Unit D1, D2 |
+| `src/rust/crates/fathomdb-query/src/lib.rs` (Unit H1, own commit) | the H1 verdict's words added to `STOPWORDS` |
+| `src/rust/crates/fathomdb-engine/src/search_types.rs`, `search.rs` (Unit H2, own commit) | `VECTOR_FUSION_POOL`; the vector hydration loop stops at `max(final_limit, VECTOR_FUSION_POOL)`; the stale index comment corrected |
+| `src/rust/crates/fathomdb-engine/src/search.rs`, `filter.rs` (Unit H3, own commit) | bounded cohort probe, `property_fts_cohort_stream_sql`, cohort route and plan witnesses |
+| `comp03-slice40`: `experiments/comp03_unit_h.py` (new), `configs/comp-03/stoplist-selection.v1.json`, `vector-pool-selection.v1.json` and their verdicts (new) | Unit H1 and H2 selection |
 | `CHANGELOG.md` | two entries under "0.8.28 — unreleased" (R1 F3): fusion credits a body once per arm (result order can change on corpora with duplicate bodies); the compiler keeps 1–2 character tokens |
 
 Defect C tests (phase 3): `tests/slice40_projected_fts_stream.rs` (new)

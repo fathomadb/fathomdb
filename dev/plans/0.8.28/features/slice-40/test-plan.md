@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — test plan
-status: REVISED AFTER R1; Defect C and Unit D GREEN (§ 5.4, § 5.6); Units E–G RED tests added 2026-10-16 (§ 3d–3f, § 5.7)
+status: REVISED AFTER R1; Defect C and Units D–G GREEN (§ 5.4, § 5.6, § 5.8, § 5.10); Unit H tests planned 2026-10-16 (§ 3g, § 11), for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -356,6 +356,181 @@ The rule tests do not hard-code the replay's winner (4000/30000/on); each
 fixture's expected policy follows from the rule. The existing
 `test_comp03_answer.py` tests are the byte-identity guard for both factors
 off.
+
+## 3g. Unit H tests
+
+### 3g.1 Harness (`comp03-slice40` worktree), `tests/experiments/test_comp03_unit_h.py` (new)
+
+```bash
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_unit_h.py
+```
+
+All tests are RED before `comp03_unit_h.py` exists. They run on hand-built
+question records and hand-written per-word tables; none reads the real
+sweep.
+
+| Test | AC |
+| --- | --- |
+| `test_stoplist_selection_config_states_the_candidates_and_rule` | 70 |
+| `test_stripping_words_equals_compiling_with_them_as_stopwords` (`hypothesis`: content tokens of the stripped query under the D3 list equal those of the raw query under D3 plus the words) | 71 |
+| `test_a_word_that_empties_a_query_is_excluded` | 71 |
+| `test_stoplist_rule_keeps_gaining_words_and_prunes_until_constraints_hold` | 72 |
+| `test_stoplist_rule_boundaries` (nDCG exactly −0.002 passes, −0.0021 prunes; a type exactly one question down passes, two prunes; Recall-all@10 exactly +1 adopts, 0 does not) | 72 |
+| `test_stoplist_rule_is_not_adopted_when_nothing_gains` | 72 |
+| `test_stoplist_verdict_names_its_inputs` | 73 |
+| `test_vector_pool_selection_config_is_typed_and_states_the_rule` | 77 |
+| `test_pool_metrics_use_prefixes_of_the_limit_p_ranking` | 78 |
+| `test_pool_rule_picks_the_largest_pool_that_keeps_recall` | 78 |
+| `test_pool_rule_boundaries` (one question down on a type passes, two fails; the reference always passes) | 78 |
+
+The rule tests do not hard-code the real verdicts. Each fixture's expected
+list or pool follows from the rule.
+
+### 3g.2 Engine, H1: `fathomdb-query` test module (this worktree)
+
+These tests are written after the stop-list verdict, since they pin its
+words.
+
+| Test | AC |
+| --- | --- |
+| `unit_h_words_are_in_the_stop_list_and_content_tokens_are_not` (the verdict's words in; `d`, `c`, `d3`, `ii`, `1`, `b12` out; the Unit D twelve still in) | 74 |
+| `each_unit_h_word_alone_takes_the_fallback` | 74 |
+| `unit_h_question_shapes_compile_to_content_terms` ("how many siblings do I have", "can you recommend some", reduced to whichever of their words the verdict keeps) | 74 |
+
+`fts5_injection_safety.rs` gets the same words in its private copy (AC40-75).
+That is the one edit to an existing test, by the precedent of ruling Q-D3.
+
+### 3g.3 Engine, H2: `tests/slice40_vector_pool.rs` (new, `test-hooks`)
+
+The tests use `Engine::open_with_embedder_for_test` and
+`configure_vector_kind_for_test`, as `slice18_retrieval_result_limits.rs`
+does.
+
+The corpus has 40 rows:
+
+- one row whose vector rank is 15 and text rank 1;
+- rows that match the vector only;
+- rows that match the text only.
+
+Against today's engine, the limit-10 ranking is not the first ten of the
+limit-40 ranking, so the prefix test is RED.
+
+| Test | AC |
+| --- | --- |
+| `hybrid_results_are_prefix_stable_up_to_the_vector_pool` (k ∈ {1, 5, 10} against k' ∈ {10, `VECTOR_FUSION_POOL`}: ids and score bits) | 79 |
+| `vector_branch_hydrates_the_pool_below_it_and_the_limit_above_it` (explain `vector_hits` at limit 5, at `VECTOR_FUSION_POOL`, and at `VECTOR_FUSION_POOL + 1` when the pool is below 100) | 80 |
+| `fused_score_formula_is_unchanged_with_the_pool` | 81 |
+| `vector_stage_only_and_filtered_vector_search_keep_their_contracts` | 82 |
+
+If the verdict is `P0` = 10:
+
+- the prefix test runs with k' = 10 only;
+- the corpus moves the disagreement to limit 5 against limit 10, so the
+  test stays RED against today's engine.
+
+### 3g.4 Engine, H3: `tests/slice40_cohort_prefilter.rs` (new, `test-hooks`)
+
+The tests reuse the Defect C fixture shape: a `text` SEARCHABLE projection
+with FTS, a `cohort` FILTERABLE projection, and three bm25 tie groups.
+
+| Test | AC |
+| --- | --- |
+| `small_cohort_takes_the_cohort_prefilter_route` (route and plan witness) | 84 |
+| `cohort_prefilter_results_equal_rank_stream_and_full_sort` (forced on, forced off, forced full sort; limits 1, 2, 3, 5, 8, 10, 12, 100) | 85 |
+| `cohort_of_t_rows_prefilters_and_t_plus_one_keeps_the_rank_stream` (256 and 257 rows) | 86 |
+| `cohort_prefilter_failure_falls_back_to_the_rank_stream` | 87 |
+| `multi_attribute_filter_prefilters_on_the_smallest_cohort` | 88 |
+| `cohort_prefilter_keeps_lifecycle_and_other_filter_fields` (a superseded node with the attribute; a `kind` filter) | 89 |
+| `prop_cohort_prefilter_matches_the_full_sort` (`proptest`, 32 cases, at most 60 rows, random cohort sizes, tie groups and limits) | 90 |
+
+Two tests pass today, because the cohort route does not exist and results
+are already equal:
+
+- `cohort_prefilter_results_equal_rank_stream_and_full_sort` and
+  `prop_cohort_prefilter_matches_the_full_sort` are the regression net.
+- They fail only if the forcing environment variable is ignored. To guard
+  against that, each one asserts its route witness.
+
+`slice40_projected_fts_stream.rs` (AC40-27 to AC40-31) is unchanged. Its
+filter case uses a cohort of four rows, which the new route now takes. The
+test asserts results and the `projected_rank_stream_*` route, so it may go
+RED at GREEN. If it does, it is reported for a ruling: either pin
+`FATHOMDB_FTS_COHORT_PREFILTER_FOR_TEST=off` in that one test, or accept
+both route families. It is not edited without a ruling.
+
+### 3g.5 Existing tests to watch at GREEN
+
+None is edited to pass; any failure is analysed and reported.
+
+- **H2**, tests that fix hybrid order at a limit below the pool on a corpus
+  with more vector rows than the limit:
+  - `pr_g9_rrf_fusion.rs`;
+  - `exp_obs_explain.rs`;
+  - `pr_g12_recency.rs`;
+  - `f9_importance_ranking.rs`;
+  - `pr_g10_reranker*.rs`;
+  - `ga2_vector_stage_seam.rs`;
+  - `slice18_retrieval_result_limits.rs`;
+  - the Python and TypeScript hybrid tests under `src/python/tests` and
+    `src/ts`.
+- **H1:** query-compiler pins with the selected words in the `fathomdb-query`
+  test module, `slice6_tokenizer_experiment.rs`, `cursor_read_after_write.rs`
+  (it reads the compiled SQL), and the cross-SDK text-only fixture (the
+  oracle is computed at run time, so no change is expected).
+- **H3:** `slice40_projected_fts_stream.rs` (above), `slice45_nested_source_projections.rs`,
+  `slice35_eligibility_pretruncation.rs`, `slice30_dependency_closure.rs`,
+  `slice80_search_view_paths.rs`.
+
+### 3g.6 Expected changes at the re-runs
+
+Against the final-head baseline (`slice-40-baseline.v1.json`). The
+direction is the design's expectation; the gate is in REQ40-H3, H6 and H9.
+
+| Benchmark | Metric | H1 | H2 | H3 | Expected |
+| --- | --- | --- | --- | --- | --- |
+| COMP-01 FTS | FathomDB nDCG@10, MRR@10 | small, by the verdict's NFCorpus row | — | — | within −0.002 and −0.005; the verdict gives the exact number |
+| COMP-01 FTS | FathomDB p50, p95 | fewer OR terms | — | — | equal or lower |
+| COMP-01 FTS | LanceDB | — | — | — | unchanged (same inputs, same harness) |
+| comp01-hybrid | `fathomdb-hybrid` nDCG@10, MRR@10 | text branch | pool | — | unknown sign; reported |
+| comp01-hybrid | `fathomdb-hybrid` p50 | — | up to `P0 − 10` more lookups | — | within +25% |
+| COMP-02a 10k, 17k | FathomDB ready, p50, p95 | text compile only | — | — | within tolerance |
+| COMP-02a | SurrealDB | — | — | — | unchanged |
+| COMP-02b 10k | FathomDB c01 p50 | — | — | prefilter | lower, about 45% by the probe |
+| COMP-02b 10k | FathomDB c10, c33 p50 | — | — | probe only | within +25% |
+| COMP-02b 10k | violations, short results | — | — | identity | 0; short results unchanged (c01: 6 per rep, pre-existing) |
+| tc5-10k-latency | `projected-c01` p50 | — | — | prefilter | ≥ 25% below 29.8 ms |
+| tc5-10k-latency | other cells | fewer OR terms | — | probe only | within tolerance |
+| COMP-03 sweep | `fathomdb-fts` per type | by the verdict | — | — | preference and multi-session up, temporal within one question; equals the simulation exactly |
+| COMP-03 sweep | `fathomdb-hybrid` per type | text branch | pool | — | within one question per type at k = 5 and 10 |
+| COMP-03 sweep | `lancedb-fts` | — | — | — | byte-identical IDs |
+| COMP-03 sweep | `fathomdb-hybrid` warm p50, p95 | — | pool | — | within +25%, +35% |
+| COMP-03 mix answer | correct of 60 | FTS retrieval | hybrid retrieval | — | within ±3 (noise); LanceDB within ±3 |
+
+### 3g.7 Baseline-manifest update plan
+
+1. **Before the re-runs.** The gates read the current manifest at the
+   final head (`5b09afd44`, harness `5a1d0eb12`), unchanged.
+2. **New metrics, added when the gates are written.** Adding a metric
+   needs no test change:
+   - `comp01-hybrid`: `fathomdb-hybrid` p50 and p95, needed by REQ40-H6
+     (ii);
+   - `comp03-retrieval-sweep`: `fathomdb-hybrid` session Recall-any@10
+     per type, needed by REQ40-H6 (i).
+
+   Their expected values come from the final-head attempts
+   (`final-comp01-hybrid`, `final-comp03-sweep`), so the gate has a
+   reference.
+3. **After the re-runs and passed gates.** Every benchmark's expected
+   value is replaced by the Unit H measurement, with provenance `final`,
+   the Unit H engine commit and the new receipt. That includes
+   `comp03-answer-mix`, which stays report-only and provisional.
+   Tolerances do not change.
+4. **After a failed gate.** If a gate fails and its commit is reverted,
+   that benchmark keeps its pre-H values and the verdict says why.
+5. **Not covered by the manifest.** COMP-02a and COMP-02b are recorded by
+   receipts only. Adding them as benchmarks would change
+   `test_slice_40_baseline_manifest_lists_the_six_benchmarks` and needs a
+   ruling (§ 11, Q-H5).
 
 ## 4. Existing tests touched
 
@@ -1150,3 +1325,28 @@ No full `agent-verify.sh`: W-slice changed only docs this phase.
 - **Q-F1.** Fill the manifest's expected values from the Unit D
   measurements, marked `provisional` until your final-head re-measurement
   (designed), or leave them empty?
+
+## 11. Open questions for review (Unit H)
+
+- **Q-H1.** The stop-list rule keeps only words with a measured net gain
+  (`Δall ≥ 1`). Words too rare in COMP-03 questions to show a gain are
+  left out, even if they are plain function words. Keep (designed), or
+  also admit zero-gain words that pass the NFCorpus check?
+- **Q-H2.** The pool rule picks the largest of {10, 20, 50, 100} that keeps
+  every type within one question at k = 5 and 10. The prefix guarantee
+  holds only up to the pool, and only with rerank depth 0 and no graph
+  arm. Accept that scope?
+- **Q-H3.** `T` = 256 is fixed from the raw-SQL probe (crossover between 92
+  and 968 rows), not measured in the engine. Accept, or measure the
+  engine's crossover with the `test-hooks` forcing variable before
+  fixing `T`?
+- **Q-H4.** The pool selection run needs cuda:0 for 500 hybrid stores.
+  Implementer when a 3090 is free (designed), or orchestrator?
+- **Q-H5.** COMP-02a and COMP-02b are not benchmarks in the baseline
+  manifest. Add them (one test change: seven or eight ids), or keep them
+  receipt-only (designed)?
+- **Q-H6.** If hybrid fails its gate at `P0` = 10, the cause is H1's text
+  branch. Report to the owner (designed), or revert H1?
+- **Q-H7.** Should `slice40_projected_fts_stream.rs`'s filter case pin the
+  prefilter off, or accept both route families, if it goes RED at GREEN
+  (§ 3g.4)?

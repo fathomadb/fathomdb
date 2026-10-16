@@ -4,7 +4,7 @@
 //! candidates before fusion, so for one database state `search(limit = k)` is
 //! the first k of `search(limit = k')` for every k < k' <= the pool, scores
 //! bit-identical. The pool is read through `vector_fusion_pool_for_test()`;
-//! the H2 verdict (`vector-pool-verdict.v1.json`, harness `f97109be7`) set it
+//! the H2 verdict (`vector-pool-verdict.v1.json`, harness `f9ae5c27b`) set it
 //! to 10, so the prefix property is new for limits below 10.
 //!
 //! The embedder places every document on a line by the number in its body

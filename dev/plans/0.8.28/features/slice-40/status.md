@@ -76,6 +76,19 @@ for phase 1 is `output.json` in this directory.
   where the rank stream walks about a thousand ranked rows for ten
   survivors.
 
+- Unit D measured (orchestrator, 2026-10-16): D3 gate PASS, hybrid
+  verdict ADOPT on both engines, answer v2 FTS 49/60, hybrid 48/60,
+  LanceDB 46/60; see `comp03-unit-d-results.md`.
+- Potential, not added, owner decision pending: a public SDK surface to
+  enrol a node kind for dense vectors without declaring a `searchable`
+  projection. Today a plain write under `use_default_embedder=True`
+  embeds nothing and `search` silently runs FTS only; the only public
+  switch is `ProjectionSpec(..., vector=True)`, which embeds the full node
+  body. Carry to the ledger at landing.
+- Potential, not added: raise the COMP-03 evidence cap or render evidence
+  more compactly; at k = 10 the 20,000-character cap binds (p50 20,326),
+  so the depth lever is cap-limited.
+
 ## Notes
 
 - The worktree's `.venv` bootstrap ran `npm install` in `src/ts`, which

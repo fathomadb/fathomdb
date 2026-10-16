@@ -1667,3 +1667,15 @@ The signatures are unchanged; the behaviour of three search verbs changed.
   rerank depth 0 and no graph arm, a search with limit `k` returns the first `k` results of the same
   search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
   guaranteed.
+
+## Context pack (0.8.28 Slice 41)
+
+`fathomdb_engine` exposes the pure context-pack module: `pack_context`,
+`encode_round_body`, `decode_round_body`, their JSON-wire forms
+(`pack_context_json`, `encode_round_body_json`, `decode_round_body_json`,
+used by the Python and TypeScript bindings) and the `Context*` types,
+`ROUND_BODY_MARK`, `ROUND_BODY_ROLES` and the `DEFAULT_*` policy constants.
+Errors are `ContextPackError`, whose `message()` names the field.
+Applications use the `fathomdb-sdk` spellings in
+[`rust-sdk.md`](rust-sdk.md); the behaviour is in [`python.md`](python.md)
+§ Context pack.

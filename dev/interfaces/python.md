@@ -1264,3 +1264,104 @@ The signatures are unchanged; the behaviour of three search verbs changed.
   `rerank_depth` 0 and no graph arm, a search with limit `k` returns the first `k` results of the same
   search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
   guaranteed.
+
+## Context pack (0.8.28 Slice 41)
+
+Four package-level pure operations render search results into prompt
+context. They open no engine and read or write no database. One Rust
+implementation backs Python, TypeScript and Rust, so the three return
+identical text and provenance; the shared hand-derived fixture is
+`src/conformance/context-pack-fixtures.json`. Owner approval 2026-10-16.
+
+`pack_context(hits, policy=None, context=()) -> ContextPack` takes
+`ContextItem(id, parts, group=None, position=None, order_key=None,
+header=None)` values, where `parts` is a tuple of `ContextPart(role, text)`
+(`role` is any string or `None`), and a `ContextPolicy`:
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `budget_chars` | 30000 | Total item-text characters; at least 1 |
+| `item_chars` | 4000 | Per-item cap; at least 1 |
+| `full_items` | 3 | Items at selection index below this render every part |
+| `compact_chars` | 300 | Shared allowance for the non-kept parts of a compact item |
+| `keep_roles` | `("user",)` | Roles rendered whole in compact items; role `None` always is |
+| `expand_groups` | `True` | Append `context` items of each hit group |
+| `order` | `"rank"` | `"rank"` or `"chronological"` |
+
+The defaults are a product choice. They suit agent memory where answers sit
+in user turns; set `keep_roles` when answers sit in assistant or tool text.
+
+- **Selection.** The hits in input order; then, with `expand_groups`, for
+  each hit `group` in order of its first hit, the `context` items of that
+  group ordered by `position` (ties keep input order). Other `context`
+  items are not selected.
+- **Tiers.** Selection index below `full_items` is the full tier: every part,
+  empty ones included. Later items are compact: role-`None` and `keep_roles`
+  parts whole, the other parts cut in order from one `compact_chars`
+  allowance (joins are not charged); a non-kept part that renders nothing is
+  dropped.
+- **Budget.** Item text is the rendered parts joined by `"\n"`, cut to
+  `item_chars` and then to the budget left. A whitespace-only item is omitted
+  but keeps its selection slot. Selection stops when the budget is spent.
+  Headers and separators are not charged: `budget_chars` bounds item text
+  only.
+- **Order and rendering.** `"chronological"` sorts the rendered items by
+  `(order_key, group, position)`, missing values last for each key, selection
+  index last; tiers and cuts are decided first. Each item renders as
+  `header + "\n" + text` (or `text`), joined by `"\n\n"`.
+- **Result.** `ContextPack(text, chars_used, text_chars, items)`.
+  `chars_used` is the sum of item `chars`; `text_chars` is `len(text)`, so
+  `text_chars = chars_used + Σ(len(header) + 1) + 2·(rendered − 1)`. `items`
+  holds one `ContextPackEntry(id, source, tier, chars, truncated,
+  rendered_index, parts)` per input item, hits then context, in input order;
+  `source` is `"hit"` or `"context"`, `tier` is `"full"`, `"compact"` or
+  `"omitted"`, and `parts` holds `ContextPartEntry(role, chars, of_chars)`.
+  `chars` includes the joins. `truncated` is true when a rendered item shows
+  fewer characters of some part than it has; it is false for omitted items.
+- **Characters** are Unicode scalar values (Python `len`).
+- **Errors.** `InvalidArgumentError` whose message names the field (for
+  example `policy.budget_chars`, `context[3].position`): a zero
+  `budget_chars` or `item_chars`, a negative or non-integer count, an unknown
+  `order`, an empty or repeated id, a grouped `context` item without
+  `position` while `expand_groups` is on, or a lone surrogate. A non-dataclass
+  argument is `TypeError`.
+
+### Role-tagged round body (opt-in)
+
+`encode_round_body(parts) -> str` writes each part as U+001E, a role code and
+the text, joined by `"\n"`:
+
+| Role | Code |
+| --- | --- |
+| `None` | U+0010 |
+| `"user"` | U+0011 |
+| `"assistant"` | U+0012 |
+| `"system"` | U+0013 |
+| `"tool"` | U+0014 |
+
+Other roles, an empty part list, and texts containing U+001E or a role code
+are `InvalidArgumentError`. `decode_round_body(body) -> tuple[ContextPart,
+...]` inverts it; a body that does not start with U+001E is one role-`None`
+part, and a body that starts with U+001E but does not decode is
+`InvalidArgumentError`. `context_item_from_hit(hit, *, group=None,
+position=None, order_key=None, header=None)` sets `id` to the hit's prefixed
+id (`l:`, `h:` or `p:` plus `hit.id.value`) and `parts` to
+`decode_round_body(hit.body)`.
+
+Nothing writes tagged bodies unless the caller encodes them. Removing the
+markers gives the plain `"\n"`-joined texts. The FTS tokenizer
+(`unicode61`) treats the markers as separators, so FTS tokens and scores
+are unchanged; the default embedder's normalizer deletes them, so vectors
+are bit-identical (tested). It is a stored-bytes format: see
+`dev/adr/ADR-0.6.0-decision-index.md`. Hazards:
+
+- Python `str.splitlines()` splits on U+001E (and U+001C, U+001D). Splitting
+  a tagged body into lines glues the role code to the next line and turns
+  each part boundary into a line break; use `decode_round_body`.
+- U+0011 and U+0013 are XON and XOFF: harmless in output, surprising in logs
+  and terminals.
+- C0 controls other than tab, newline and carriage return are illegal in
+  XML 1.0. JSON escapes them (`\u001e`), so the JSON paths are safe.
+- `resolve_evidence` returns the stored bytes, markers included.
+- Per-branch body de-duplication (Slice 40) compares stored bytes. Two rows
+  whose plain texts match but whose tags differ count as different bodies.

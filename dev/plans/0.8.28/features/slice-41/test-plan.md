@@ -268,3 +268,80 @@ Owner rulings (2026-10-16):
   documented, and it gets a decision-index row marked "can be revisited".
 - **Q1:** LanceDB stays on the Slice 40 renderer in M3, with the renderer
   labelled in every table. A LanceDB-plus-pack arm is deferred.
+
+## 7. W2 and W4 record (2026-10-16)
+
+### 7.1 RED at W2 (`86e15e333`, Cargo.lock `338d1da9f`)
+
+The core functions were `todo!()` stubs; the bindings were already thin
+wrappers over them.
+
+| Suite | Result | Why |
+| --- | --- | --- |
+| `fathomdb-engine` `slice41_context_pack` (default features) | 24 of 24 fail | every test reaches a `todo!()` (103 "not yet implemented" panics) |
+| `fathomdb-sdk` `slice41_context_pack` | 4 fail, 1 pass | the stubs; `default_policy_matches_the_documented_defaults` passes (the default is data) |
+| `fathomdb-sdk` `surface` | 15 pass | signatures only |
+| `fathomdb-embedder` `slice41_marker_embedding` (AC41-19) | pass | characterization: no code is needed; the cached default tokenizer deletes the markers |
+| Python `test_context_pack_parity.py` | 42 fail, 3 pass | `PanicException` from the stubs; the default, type-error and export tests pass |
+| TypeScript `context-pack.test.ts` | 43 of 43 fail | `FathomDbPanicError` from the stubs |
+
+### 7.2 GREEN at W4 (core `3e0903d91`)
+
+No test was edited.
+
+| Suite | Result |
+| --- | --- |
+| `fathomdb-engine` `slice41_context_pack` | 24 of 24 pass |
+| `fathomdb-sdk` `slice41_context_pack`, `surface` | 5 and 15 pass (14 existing plus the new signature pin) |
+| `fathomdb-embedder --features default-embedder` `slice41_marker_embedding` | pass, 20 bodies, one over 512 tokens |
+| Python `test_context_pack_parity.py` | 45 of 45 pass |
+| TypeScript `context-pack.test.ts` | 43 of 43 pass |
+
+`tagged_and_plain_corpora_fuse_identically` (`--features default-embedder`)
+fails at the committed `drain(30_000)`: on CPU the two 200-row stores need
+about 100 s to embed, and `drain` returns `Scheduler`. A scratch copy with
+`drain(600_000)` passed: ids, order and fused-score bits were identical on
+all 40 queries. That copy was not committed. Changing the test's timeout
+needs an orchestrator ruling.
+
+### 7.3 AC41-27 differential ($0)
+
+The check was run as a scratch script, not committed, because the harness
+branch is read-only for this slice. `pack_context` with
+`full_items = 10**6`, 4000/30000, expansion on and chronological order,
+over items built from the dataset (SHA-256 checked against the run config),
+reproduced the recorded `evidence_sha256` for 180 of 180 comp03-run-mix
+records: FTS, hybrid and LanceDB 60 each.
+
+### 7.4 M1 preview (engine `5b09afd44`, decides nothing)
+
+This is a scratch script, rendered through `pack_context`. FTS uses the
+recorded FTS top-100 prefix, which is prefix-stable. "Hybrid@100" uses the
+hybrid limit-100 ranking prefix, which is not the native limit-k hybrid arm
+(test-plan § 4.1), so its rows are indicative only. Cells are hasA_allfull;
+the last two columns are weighted allfull and weighted gold-all.
+
+Selection set (414 scored questions; SSU 56, SSA 46, SSP 20, MS 112, KU 63,
+TR 117):
+
+| Arm | Policy | SSU | SSA | SSP | MS | KU | TR | w. allfull | w. gold-all |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| FTS | mix (control) | 1.000 | .978 | .850 | .661 | .952 | .752 | .825 | .875 |
+| FTS | T3/A300/k30 | 1.000 | .913 | .950 | .866 | 1.000 | .906 | .927 | .961 |
+| FTS | T3/A0/k30 | 1.000 | .913 | 1.000 | .929 | 1.000 | .957 | .960 | .961 |
+| FTS | T5/A300/k50 | 1.000 | .913 | .850 | .857 | .984 | .889 | .911 | .972 |
+| FTS | T5/A0/k50 | 1.000 | .913 | 1.000 | .929 | 1.000 | .966 | .962 | .979 |
+| Hybrid@100 | mix (control) | 1.000 | .978 | .950 | .688 | .968 | .786 | .850 | .891 |
+| Hybrid@100 | T3/A300/k30 | 1.000 | .913 | .950 | .902 | 1.000 | .923 | .941 | .970 |
+| Hybrid@100 | T3/A0/k30 | 1.000 | .913 | 1.000 | .955 | 1.000 | .957 | .967 | .970 |
+| Hybrid@100 | T5/A300/k50 | 1.000 | .913 | .850 | .884 | .984 | .915 | .925 | .977 |
+| Hybrid@100 | T5/A0/k50 | 1.000 | .913 | 1.000 | .938 | 1.000 | .966 | .965 | .982 |
+
+Answer set (56 scored), weighted allfull: FTS mix .841, T3/A300 .888,
+T3/A0 .924, T5/A300 .888, T5/A0 .924; Hybrid@100 mix .876, T3/A300 .888,
+T3/A0 .924, T5/A300 .918, T5/A0 .930.
+
+If the § 4.1 rule were applied to this preview, T5/A300/k50 would fail the
+guard on hybrid SSP (.850 against .950 − .02). T3/A0/k30 and T5/A0/k50 tie
+on mean weighted allfull (.9635), and the smaller k wins, so T3/A0/k30
+would be picked. The binding M1 run at the Unit H head decides.

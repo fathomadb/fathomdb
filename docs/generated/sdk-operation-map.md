@@ -11,7 +11,7 @@ signatures, options, return shapes, or error behavior. Use the maintained
 [TypeScript API](../reference/typescript-api.md), and
 [Rust SDK reference](../reference/rust-sdk.md) for those contracts.
 
-Governed operations: **44**. Each language cell is
+Governed operations: **48**. Each language cell is
 `locator` / `spelling`; `engine_static` is on `Engine`,
 `engine_instance` is on an open handle, `package` is standalone,
 and `read`, `graph`, and `admin` name their respective surfaces.
@@ -51,6 +51,10 @@ and `read`, `graph`, and `admin` name their respective surfaces.
 | `graph.neighbors` | live | `graph` / `neighbors` | `graph` / `neighbors` | `graph` / `neighbors` |
 | `graph.search_expand` | live | `graph` / `search_expand` | `graph` / `searchExpand` | `graph` / `search_expand` |
 | `rerank` | live | `package` / `rerank` | `package` / `rerank` | `package` / `rerank` |
+| `pack_context` | live | `package` / `pack_context` | `package` / `packContext` | `package` / `pack_context` |
+| `encode_round_body` | live | `package` / `encode_round_body` | `package` / `encodeRoundBody` | `package` / `encode_round_body` |
+| `decode_round_body` | live | `package` / `decode_round_body` | `package` / `decodeRoundBody` | `package` / `decode_round_body` |
+| `context_item_from_hit` | live | `package` / `context_item_from_hit` | `package` / `contextItemFromHit` | `package` / `context_item_from_hit` |
 | `engine.embed` | live | `engine_instance` / `embed` | `engine_instance` / `embed` | `engine_instance` / `embed` |
 | `read.crossed_boundary_since` | live | `read` / `crossed_boundary_since` | `read` / `crossedBoundarySince` | `read` / `crossed_boundary_since` |
 | `engine.configure_projections` | live | `engine_instance` / `configure_projections` | `engine_instance` / `configureProjections` | `engine_instance` / `configure_projections` |

@@ -65,6 +65,14 @@ AC-050c) gates merges against this invariant.
   cuda-allocator` v1 replaces its raw `mode` field with `pool_mode`,
   `pool_mode_source`, `pool_max_size_source` and
   `pool_release_threshold_source`.
+- (Slice 41) A context pack in every SDK: `pack_context` / `packContext`
+  renders ranked items into prompt text within a character budget, the top
+  items in full and the rest with their user text whole and a short excerpt
+  of the other parts, and returns per-item provenance (tier, characters,
+  truncation). `encode_round_body`, `decode_round_body` and
+  `context_item_from_hit` (TypeScript camelCase) add an opt-in role-tagged
+  node body that ranks like the plain text. Python, TypeScript and Rust
+  return identical output.
 
 ### Changed
 

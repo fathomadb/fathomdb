@@ -42,6 +42,7 @@ nav:
       - Hybrid Search & Filtering: guides/hybrid-search-filtering.md
       - Retrieve by Id: guides/retrieve-by-id.md
       - Frozen Evidence: guides/frozen-evidence.md
+      - Prompt Context: guides/prompt-context.md
   - Release Notes:
       - 0.8.27: release-notes/0.8.27.md
       - 0.8.26: release-notes/0.8.26.md

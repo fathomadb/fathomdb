@@ -134,9 +134,12 @@ context, in input order. Each entry has:
 - `rendered_index`: position in the output, or none;
 - per part: `role`, `chars` and `of_chars`.
 
+Item `chars` counts the `"\n"` joins between rendered parts, so part
+`chars` plus the joins shown equal item `chars`. For a rendered item,
 `truncated` is true when any part has `chars < of_chars`. An item that is
 not reached, or is whitespace-only after rendering, is `"omitted"` with
-`chars = 0`.
+`chars = 0`, every part `chars = 0` and `truncated = false` (W4 decision:
+omission is reported by the tier, not by `truncated`).
 
 **REQ41-P7 — character unit.** Every count and cut is in Unicode scalar
 values (Python `len`, Rust `chars()`), never bytes or UTF-16 code units. A
@@ -309,7 +312,7 @@ by hand from REQ41-P2 to P9 and checked by hand.
 | AC41-02 | Compact items with several non-kept parts share `compact_chars` in part order; a non-kept part that renders 0 chars (empty or cut to empty) is dropped; an empty kept part and an empty full-tier part are kept; `full_items = 0` makes every item compact | P2 |
 | AC41-03 | Tiers follow selection order: with 2 hits and `full_items = 3`, the first expansion item is full and the next is compact | P2, P4 |
 | AC41-04 | Budget: the last item is cut to the remaining characters with a header present, later items are `"omitted"`, `chars_used <= budget_chars` and excludes the header; an item that uses the budget exactly, followed by a whitespace-only item, leaves that item omitted, not rendered empty | P3, P6 |
-| AC41-05 | `item_chars` caps a full-tier item; `truncated` is true and part `chars` sum to item `chars` | P3, P6 |
+| AC41-05 | `item_chars` caps a full-tier item; `truncated` is true and part `chars` plus the joins shown equal item `chars`, including a cut that ends on a join | P3, P6 |
 | AC41-06 | Expansion order: groups by first hit rank, members by `position`, listed hits not repeated | P4 |
 | AC41-07 | Chronological order sorts by `(order_key, group, position)`, with missing values last for each key, without changing tiers or cuts | P5 |
 | AC41-08 | Whitespace-only rendered items are omitted, consume no budget and keep their tier slot | P6, P9 |

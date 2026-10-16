@@ -1316,3 +1316,31 @@ The signatures are unchanged; the behaviour of three search verbs changed.
   `rerankDepth` 0 and no graph arm, a search with limit `k` returns the first `k` results of the same
   search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
   guaranteed.
+
+## Context pack (0.8.28 Slice 41)
+
+`packContext(hits, policy?, context?)`, `encodeRoundBody(parts)`,
+`decodeRoundBody(body)` and `contextItemFromHit(hit, options?)` are
+package-level and synchronous. They are the TypeScript peers of Python's
+`pack_context`, `encode_round_body`, `decode_round_body` and
+`context_item_from_hit`; [`python.md`](python.md) § Context pack is the full
+contract, and the output is identical across the three SDKs.
+
+- **Types.** `ContextPart { role: string | null; text }`,
+  `ContextItem { id; parts; group?; position?; orderKey?; header? }`,
+  `ContextPolicy` with optional `budgetChars`, `itemChars`, `fullItems`,
+  `compactChars`, `keepRoles`, `expandGroups`, `order` (omitted fields take
+  `DEFAULT_CONTEXT_POLICY`: 30000, 4000, 3, 300, `["user"]`, `true`,
+  `"rank"`), `ContextPack { text; charsUsed; textChars; items }`,
+  `ContextPackEntry { id; source; tier; chars; truncated; renderedIndex;
+  parts }` and `ContextPartEntry { role; chars; ofChars }`.
+  `ContextHitOptions { group?; position?; orderKey?; header? }`.
+- **Characters** are Unicode scalar values, not UTF-16 code units, so
+  `chars`, `ofChars` and `textChars` differ from `string.length` for
+  astral-plane text such as emoji.
+- **Errors.** Invalid input throws `InvalidArgumentError` whose message names
+  the field; a lone surrogate is refused the same way. `contextItemFromHit`
+  throws `RangeError` for an unknown id space.
+- **Tagged bodies** carry the hazards listed in `python.md`; a
+  `String.prototype.split(/\r?\n/)` on a tagged body keeps the markers on each
+  line, so use `decodeRoundBody`.

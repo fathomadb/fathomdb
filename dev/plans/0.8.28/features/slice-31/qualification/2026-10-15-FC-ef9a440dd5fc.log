@@ -1,0 +1,76 @@
+== guard before
+0, NVIDIA GeForce RTX 3090, 00000000:41:00.0, 580.178.04
+1, NVIDIA GeForce RTX 3090, 00000000:42:00.0, 580.178.04
+2, Quadro K620, 00000000:61:00.0, 580.178.04
+/usr/local/cuda-12.6
+HEAD=ef9a440dd5fc2b270d30f072ae85c5a20eceeab9
+/dev/nvme0n1p1  937G  829G   61G  94% /
+    Finished `dev` profile [unoptimized] target(s) in 0.13s
+==> nomic-embed-text-v1.5 weights: fetched none (cached)
+==> ONNX Runtime /home/coreyt/.cache/fathomdb/onnxruntime/1.26.0/libonnxruntime.so.1.26.0; model /home/coreyt/.cache/fathomdb/embedders/onnx/bge-small-en-v1.5/model.onnx (cached)
+==> listing fathomdb: workspace ['default', 'operator'] + 1 set(s) + union ['default-embedder', 'default-reranker', 'embed-cuda', 'operator', 'rerank-cuda', 'tegra-pool']
+==> listing fathomdb-cli: workspace ['default'] + 1 set(s) + union ['default-embedder', 'default-reranker', 'embed-cuda', 'rerank-cuda', 'tegra-pool']
+==> listing fathomdb-embedder: workspace ['default'] + 6 set(s) + union ['default-embedder', 'default-reranker', 'embed-cuda', 'loader-test-hooks', 'onnx-embedder', 'rerank-cuda', 'tc5-benchmark', 'tegra-pool']
+==> listing fathomdb-engine: workspace ['default', 'operator', 'test-hooks'] + 14 set(s) + union ['default-embedder', 'default-reranker', 'embed-cuda', 'migration-test-hooks', 'operator', 'rerank-cuda', 'slice72-gpu-tests', 'slice72-test-hooks', 'tc5-benchmark', 'tegra-pool', 'test-hooks']
+==> listing fathomdb-napi: workspace ['default'] + 0 set(s) + union ['default-embedder', 'default-reranker', 'embed-cuda', 'rerank-cuda', 'tegra-pool', 'test-hooks']
+==> listing fathomdb-py: workspace ['default'] + 0 set(s) + union ['default-embedder', 'default-reranker', 'embed-cuda', 'rerank-cuda', 'tegra-pool', 'test-hooks']
+==> listing fathomdb-query: workspace [] + 1 set(s)
+==> listing fathomdb-schema: workspace [] + 1 set(s)
+==> listing fathomdb-sdk: workspace ['default'] + 2 set(s) + union ['default-embedder', 'default-reranker', 'embed-cuda', 'rerank-cuda', 'tegra-pool']
+==> listing fathomdb-tc5-benchmark: workspace ['default'] + 0 set(s) + union ['tc5-benchmark', 'tc5-benchmark-cuda']
+==> fathomdb[none]: 3 test(s) in ['sdk_only_erasure']
+    exit 0 in 1s: 3 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb--none.log
+==> fathomdb-cli[default-embedder]: 1 test(s) in ['cli_warm_cache']
+    exit 0 in 3s: 1 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-cli--default-embedder.log
+==> fathomdb-cli[default-reranker]: 1 test(s) in ['operator_cli']
+    exit 0 in 1s: 1 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-cli--default-reranker.log
+==> fathomdb-embedder[default-embedder]: 10 test(s) in ['lib', 'slice30_cuda_allocator_api']
+    exit 0 in 1s: 10 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-embedder--default-embedder.log
+==> fathomdb-embedder[default-reranker]: 6 test(s) in ['lib', 'slice30_cuda_allocator_api']
+    exit 0 in 8s: 6 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-embedder--default-reranker.log
+==> fathomdb-embedder[embed-cuda]: 14 test(s) in ['lib', 'slice31_cuda_library_major']
+    exit 0 in 4s: 13 passed, 0 failed, 1 ignored; log $S/fc-run4/fathomdb-embedder--embed-cuda.log
+==> fathomdb-embedder[loader-test-hooks]: 22 test(s) in ['candle_bge', 'loader', 'no_engine_dep']
+    exit 0 in 45s: 22 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-embedder--loader-test-hooks.log
+==> fathomdb-embedder[rerank-cuda]: 4 test(s) in ['lib']
+    exit 0 in 4s: 4 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-embedder--rerank-cuda.log
+==> fathomdb-embedder[tc5-benchmark]: 2 test(s) in ['tc5_cache_only_factory']
+    exit 0 in 1s: 2 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-embedder--tc5-benchmark.log
+==> fathomdb-embedder[default-embedder,onnx-embedder]: 21 test(s) in ['candle_onnx_equivalence', 'cross_backend_calibration', 'lib']
+    exit 0 in 191s: 21 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-embedder--default-embedder+onnx-embedder.log
+==> fathomdb-embedder[default-embedder,default-reranker,embed-cuda,loader-test-hooks,onnx-embedder,rerank-cuda,tc5-benchmark,tegra-pool]: 1 test(s) in ['cross_backend_calibration']
+    exit 0 in 42s: 1 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-embedder--default-embedder+default-reranker+embed-cuda+loader-test-hooks+onnx-embedder+rerank-cuda+tc5-benchmark+tegra-pool.log
+==> fathomdb-engine[default-embedder]: 5 test(s) in ['lib', 'nomic_smoke', 'slice70_runtime_policy', 'slice806_gpu_allocation_witness_report']
+    exit 0 in 8s: 5 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-engine--default-embedder.log
+==> fathomdb-engine[default-reranker]: 21 test(s) in ['lib', 'pr_e2_rerank_passages', 'pr_g10_reranker_ce', 'slice71_open_report', 'slice71_rerank_policy']
+    exit 0 in 7s: 21 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-engine--default-reranker.log
+==> fathomdb-engine[embed-cuda]: 2 test(s) in ['slice31_cuda_pool_x86', 'slice31_engine_close_cuda']
+    exit 0 in 4s: 1 passed, 0 failed, 1 ignored; log $S/fc-run4/fathomdb-engine--embed-cuda.log
+==> fathomdb-engine[migration-test-hooks]: 4 test(s) in ['pr_g1_tokenizer_crash_recovery', 'pr_g1_tokenizer_recall', 'slice19_measurement']
+    exit 0 in 1s: 3 passed, 0 failed, 1 ignored; log $S/fc-run4/fathomdb-engine--migration-test-hooks.log
+==> fathomdb-engine[default-embedder,test-hooks]: 7 test(s) in ['eu5a1_plumbing', 'eu5b_lockflip', 'eu8_ir_validation', 'gen_cross_backend_mean_fixture']
+    exit 0 in 15s: 6 passed, 0 failed, 1 ignored; log $S/fc-run4/fathomdb-engine--default-embedder+test-hooks.log
+==> fathomdb-engine[slice72-gpu-tests,test-hooks]: 19 test(s) in ['lib', 'slice72_concurrent_gpu', 'slice72_review_contract', 'slice72_telemetry_contract']
+    exit 0 in 25s: 17 passed, 0 failed, 2 ignored; log $S/fc-run4/fathomdb-engine--slice72-gpu-tests+test-hooks.log
+==> fathomdb-engine[tc5-benchmark,test-hooks]: 4 test(s) in ['lib', 'tc5_vector_stage']
+    exit 0 in 5s: 4 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-engine--tc5-benchmark+test-hooks.log
+==> fathomdb-engine[default-embedder,operator,test-hooks]: 1 test(s) in ['eu7_real_corpus_ac']
+    exit 0 in 1s: 0 passed, 0 failed, 1 ignored; log $S/fc-run4/fathomdb-engine--default-embedder+operator+test-hooks.log
+==> fathomdb-engine[migration-test-hooks,operator,test-hooks]: 5 test(s) in ['provenance_mandatory', 'slice40_projection_generation', 'slice75_schema26_upgrade', 'vector_quant_pack1']
+    exit 0 in 1s: 5 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-engine--migration-test-hooks+operator+test-hooks.log
+==> fathomdb-napi[default-embedder]: 1 test(s) in ['lib']
+    exit 0 in 3s: 1 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-napi--default-embedder.log
+==> fathomdb-py[default-embedder]: 1 test(s) in ['lib']
+    exit 0 in 3s: 1 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-py--default-embedder.log
+==> fathomdb-sdk[embed-cuda]: 9 test(s) in ['lib', 'slice31_sdk_probe_init_cuda']
+    exit 0 in 1s: 1 passed, 0 failed, 8 ignored; log $S/fc-run4/fathomdb-sdk--embed-cuda.log
+==> fathomdb-tc5-benchmark[tc5-benchmark]: 13 test(s) in ['bin:fathomdb-tc5-benchmark']
+    exit 0 in 1s: 13 passed, 0 failed, 0 ignored; log $S/fc-run4/fathomdb-tc5-benchmark--tc5-benchmark.log
+feature-complete: 24 run(s), 177 planned test(s): 162 passed, 0 failed, 15 ignored; 0 failure(s); summary $S/fc-run4/summary.json
+rc=0
+/dev/nvme0n1p1  937G  827G   63G  93% /
+== guard after
+0, NVIDIA GeForce RTX 3090, 00000000:41:00.0, 580.178.04
+1, NVIDIA GeForce RTX 3090, 00000000:42:00.0, 580.178.04
+2, Quadro K620, 00000000:61:00.0, 580.178.04
+/usr/local/cuda-12.6

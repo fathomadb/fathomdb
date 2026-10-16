@@ -35,6 +35,7 @@ fork's `fathomdb/review.md` (plan § 12).
 | R-DES-14 re-review | `design.md` revision 6 §§ 14.2, 14.3 at `a1f9bf589` | fable (Q40) | APPROVE-WITH-FIXES; applied in `f144c8210` | session record |
 | R-CODE-3 | implementation of design revision 6, `831255b9e..392832c72` | opus | APPROVE-WITH-FIXES, no HIGH; MEDIUM-1, MEDIUM-2, LOW-3 to LOW-7 all fixed: LOW-4 RED `9e835cf09` → GREEN `51d5df79e` (with LOW-6), LOW-5 `836af60a1`, MEDIUM-1, MEDIUM-2, LOW-3, LOW-7 `fc60245a4`; MEDIUM-1's strengthened Orin test re-run GREEN at `fc60245a4` | `status.md`; `qualification/2026-10-15-ORIN-M1-fc60245a4.log` |
 | R-VERIFY | `1f1646f74` | opus | B1-B7 record gaps, all fixed in the following commit; ACs met except those pending PERF-03, S-C3 and S-13 | `qualification.md` |
+| R-CODE-4 | `574b09e78` (release/0.8.28 after the merge) | opus | APPROVE: REG-a, REG-e (three Candle crates), REG-f, the pins and PROC-05 to PROC-08 all pass from the registry; two notes fixed on owner direction in `ef9a440dd` (RED `98a661c8a`): the exact `cudarc-fathomdb =0.19.10` pin under `embed-cuda`/`rerank-cuda`, and the registry check exits 2 in full mode on a non-Tegra host; feature-complete gate re-run at `ef9a440dd` | `qualification/2026-10-15-R-CODE-4-574b09e78.log`, `qualification/2026-10-15-FC-ef9a440dd5fc.md` |
 
 ### R-REQ (2026-10-13)
 

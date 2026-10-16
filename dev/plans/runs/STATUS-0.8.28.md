@@ -63,9 +63,9 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | Slice | Scope | Status |
 | ---: | --- | --- |
 | 30 | Tegra private CUDA memory pool (D28-08) | Complete on `release/0.8.28` at `8d53418d1493090502501180d9223172ae95eaba`; [status](../0.8.28/features/slice-30/status.md). |
-| 31 | cudarc and Candle forks from crates.io (D28-13) | In progress; [plan](../0.8.28/features/slice-31/plan.md). Work in `slice/0.8.28-31-cudarc-fork`. |
+| 31 | cudarc and Candle forks from crates.io (D28-13) | Complete on `release/0.8.28` at `1ceefddd894c041b0a8622856dc2677be3e49c88`; R-CODE-4 fixes on `slice/0.8.28-31-post`; [status](../0.8.28/features/slice-31/status.md). |
 
-Ladder remaining: 31 alone, until the open placement decisions add slices.
+Ladder remaining: none, unless the open placement decisions add slices. Integration into `main` is pending publication.
 
 ## Boundaries
 

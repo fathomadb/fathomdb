@@ -4,6 +4,10 @@
   "board": "dev/plans/runs/STATUS-0.8.28.md",
   "plan": "dev/plans/plan-0.8.28.md",
   "active_ref": "refs/heads/release/0.8.28",
+  "completion": {
+    "ref": "origin/release/0.8.28",
+    "main_integration": "PENDING"
+  },
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
   "schema_version": 34,
   "origin_main_schema_version": 34,

@@ -40,6 +40,8 @@ for phase 1 is `output.json` in this directory.
 | Final re-runs (engine `5b09afd44`) | COMP-01 13/13 PASS (nDCG@10 FTS 0.3265, hybrid 0.3555, LanceDB 0.3265); COMP-02a 10k FathomDB ready 1.44 s, p50 3.9, p95 12.6 ms vs SurrealDB 4.40 s/146/159; 17k 2.50/6.7/20.8 vs 7.74/252/272; COMP-02b 10k p50 unfiltered 2.9, c33 8.3, c10 9.3, c01 29.7 ms vs SurrealDB 63/19.7/4.1 (c01 short lists 6 per rep, pre-existing, explained in the COMP-02b note: no cohort document holds those query terms after stop words); tc5-10k-latency 5/5 PASS; COMP-03 sweep 30/30 PASS; receipts and baseline on `slice/0.8.28-40-comp03` |
 | H-W1 Unit H docs | done 2026-10-16 (owner ruling): requirements § 1.6, REQ40-H1..H10, AC40-70..94; design § 2g; test-plan § 3g, § 11; evidence includes a raw-SQL plan probe for H3 |
 | H-R1 plan review | APPROVE-WITH-FIXES (F1–F15) applied; rulings Q-H1..Q-H4 (coordinator), Q-H5 add COMP-02a/02b to the manifest and Q-H6 keep H1 on a hybrid-only failure (owner, 2026-10-16); Q-H7 moot; re-review APPROVE at `39d1f67dc`, N1 owner ruling (clause (c): point ≥ +1 question, CI lower bound ≥ −1 question), N2 and N3 applied |
+| H-W2 harness and H1 selection | harness RED `1e472ba0b`, GREEN `6e3933784`, manifest nine ids `53909c28f`; H1 verdict `3f0789271`: adopt `had`, `long`, `suggest` (+4 questions Recall-all@10, CI +1..+8; NFCorpus nDCG@10 0.3259) |
+| H1 superseded | owner ruling 2026-10-16: the H1 words are not added to the default `STOPWORDS` (stays 63); Slice 41 adds a configurable extra stop-word list, empty by default, and the benchmarks pass `had`, `long`, `suggest` through it; H1 engine RED `ee0c5e917` reverted at `fb42f612e`; H2 gate reference is the final-head baseline |
 
 ## Follow-ups (not in this slice)
 

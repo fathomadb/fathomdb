@@ -709,8 +709,14 @@ The rule below replaces it.
 
 ### 2g.1 Order of work
 
-H1 and H2 each need a measurement before the engine change, so the RED/GREEN
-order is:
+**H1 superseded** (owner ruling 2026-10-16): the H1 words are not added to
+the default `STOPWORDS`, which stays at 63 words. Slice 41 adds a
+configurable extra stop-word list, empty by default, and the benchmarks pass
+`had`, `long` and `suggest` through it. The H1 selection (steps 1 and 2)
+ran and its verdict stays as evidence; the H1 engine steps below are struck.
+
+H1 and H2 each needed a measurement before the engine change, so the
+RED/GREEN order is:
 
 1. Harness RED, then GREEN: `experiments/comp03_unit_h.py`, with its pure
    rule functions and the `stoplist` and `pool` commands. In the same
@@ -724,19 +730,20 @@ order is:
      environment. The verdict records who ran it.
 
    Both verdict files are committed on the harness branch.
-3. Engine RED, written against the verdicts: the `fathomdb-query` H1
-   tests, `slice40_vector_pool.rs` and `slice40_cohort_prefilter.rs`.
-4. Engine GREEN in three commits, H1, H2 then H3, so each gate can revert
-   its own commit. The interface-doc and CHANGELOG edits for H1 and H2 go
-   in the same commits as their code, because both change documented
-   public behaviour.
+3. Engine RED, written against the verdicts: `slice40_vector_pool.rs` and
+   `slice40_cohort_prefilter.rs` (~~the `fathomdb-query` H1 tests~~,
+   superseded).
+4. Engine GREEN in two commits, H2 then H3, so each gate can revert its
+   own commit. The interface-doc and CHANGELOG edits for H2 go in the same
+   commit as its code, because it changes documented public behaviour.
 5. Scoped checks, plus the report-only c10 timing of § 2g.4, then stop
    for the code review.
 6. The orchestrator measures each gate at its own commit, in ladder order
-   (requirements, the Unit H gate table): H1 at the H1 commit, H2 at the
-   H2 commit against H1, H3 at the H3 commit against H2. That costs one
-   COMP-02b run and one hybrid sweep more than measuring only at the end;
-   it is the only way a failed gate can be traced to one commit.
+   (requirements, the Unit H gate table): H2 at the H2 commit against the
+   final-head baseline, H3 at the H3 commit against H2. That costs one
+   COMP-02b run more than measuring only at the end; it is the only way a
+   failed gate can be traced to one commit. The H1-commit hybrid sweep at
+   pool = limit is no longer run.
    - The H2 measurement also needs one extra limit-`P0` hybrid pass over
      the 500 sweep stores, on cuda:0 at the H2 commit, for REQ40-H6 (iv)
      (the sweep itself runs at limit 10). Budget it with the H2 sweep
@@ -774,7 +781,8 @@ order is:
   question AND paired-bootstrap CI lower bound ≥ −1 question
   (bootstrap_ci, seed 404, 10,000 resamples) on Recall-all@10 over the
   selection set.* Both are required.
-- **Engine.** Append the verdict's words to `STOPWORDS`, and extend the
+- **Engine (superseded, owner ruling 2026-10-16; Slice 41 makes the list
+  configurable instead).** Append the verdict's words to `STOPWORDS`, and extend the
   doc comment with the reason: high-document-frequency question words,
   chosen by the Slice 40 H1 rule. Nothing else in `fathomdb-query`
   changes.
@@ -900,9 +908,9 @@ order is:
 | Risk | Effect | Handling |
 | --- | --- | --- |
 | A selected stop word carries meaning in some corpus ("long", "number", "total") | Recall loss there | The rule keeps only words with a measured net gain on COMP-03 and checks NFCorpus; the gate checks both corpora again on the engine |
-| H1 changes hybrid's text branch as well | Hybrid numbers move before H2 | The H1 gate has a hybrid clause (REQ40-H3 (vi)), measured at the H1 commit. By owner ruling Q-H6, a failure there keeps H1 and is reported for follow-up |
+| H1 changes hybrid's text branch as well | Hybrid numbers move before H2 | Moot: H1 is superseded (owner ruling 2026-10-16) and makes no engine change |
 | Two selected words empty a query only jointly | The engine takes the raw fallback where the simulation did not | The emptiness check runs on every list the rule evaluates (REQ40-H1) |
-| The pool is chosen on the `5b09afd44` engine but ships after H1 | The text branch differs from the one the pool was chosen on | The H2 gate measures at the H2 commit, against the H1 commit, and steps the pool down on failure |
+| The pool is chosen on the `5b09afd44` engine | The H2 engine differs only by the pool | The H2 gate measures at the H2 commit, against the final-head baseline, and steps the pool down on failure |
 | The bundled SQLite plans the cohort statement differently from 3.45.1 | AC40-84 RED on the plan witness | The fallback forms in § 2g.4; the witness stays |
 | A larger pool lowers multi-session Recall@10 (analysis: .810 → .777 at 100) | The adopted hybrid arm changes | The rule picks the largest pool that keeps every type within one question; 10 is always available |
 | Pool hydration adds latency | Up to `P0 − limit` extra indexed lookups per hybrid query | Latency is a gate clause; the pool steps down on failure |
@@ -916,14 +924,14 @@ Each edit lands in the commit whose behaviour it describes.
 
 - `dev/interfaces/{python,typescript,rust,rust-sdk}.md`, "Search behaviour
   in 0.8.28 (Slice 40)":
-  - the stop-list sentence lists the H1 words;
+  - ~~the stop-list sentence lists the H1 words~~ (H1 superseded);
   - a pool bullet under dense retrieval;
   - a cohort-prefilter sentence under `search_projected_text`, with the
     order contract unchanged.
 - `docs/guides/hybrid-search-filtering.md`: one sentence on the vector
   pool and the prefix guarantee.
 - `CHANGELOG.md`: three entries under 0.8.28:
-  - wider query stop list;
+  - ~~wider query stop list~~ (H1 superseded);
   - hybrid results prefix-stable up to the pool;
   - faster projected search under selective attribute filters.
 - `dev/plans/0.8.28/features/slice-40/status.md`: the filter-first
@@ -940,7 +948,7 @@ Each edit lands in the commit whose behaviour it describes.
 | `src/rust/crates/fathomdb-engine/src/filter.rs` (Defect C) | new `property_fts_rank_stream_sql`; `property_fts_rank_sql` unchanged |
 | `src/rust/crates/fathomdb-query/src/lib.rs` (Unit D3, own commit) | twelve words added to `STOPWORDS` |
 | `comp03-slice40`: `experiments/comp03_retrieval.py` (new), `configs/comp-03/retrieval-sweep.v1.json` (new), `configs/comp-03/hermes-answer.v2.json` (new), `comp03_answer.py`, `comp_fts.py` (new arms and campaign only), `fathomdb_test_setup.py` (`require_embed_device`) | Unit D1, D2 |
-| `src/rust/crates/fathomdb-query/src/lib.rs` (Unit H1, own commit) | the H1 verdict's words added to `STOPWORDS` |
+| ~~`src/rust/crates/fathomdb-query/src/lib.rs` (Unit H1, own commit)~~ | superseded: no `STOPWORDS` change on Slice 40 (owner ruling 2026-10-16) |
 | `src/rust/crates/fathomdb-engine/src/search_types.rs`, `search.rs` (Unit H2, own commit) | `VECTOR_FUSION_POOL`; the vector hydration loop stops at `max(final_limit, VECTOR_FUSION_POOL)`; the stale index comment corrected |
 | `src/rust/crates/fathomdb-engine/src/search.rs`, `filter.rs` (Unit H3, own commit) | bounded cohort probe, `property_fts_cohort_stream_sql`, cohort route and plan witnesses |
 | `comp03-slice40`: `experiments/comp03_unit_h.py` (new), `configs/comp-03/stoplist-selection.v1.json`, `vector-pool-selection.v1.json` and their verdicts (new) | Unit H1 and H2 selection |

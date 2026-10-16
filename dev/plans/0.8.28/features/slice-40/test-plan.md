@@ -410,10 +410,15 @@ Both resume per question, as the sweep does.
 The rule tests do not hard-code the real verdicts. Each fixture's expected
 list or pool follows from the rule.
 
-### 3g.2 Engine, H1: `fathomdb-query` test module (this worktree)
+### 3g.2 Engine, H1: `fathomdb-query` test module (this worktree) — superseded
 
-These tests are written after the stop-list verdict, since they pin its
-words.
+Superseded by the owner ruling of 2026-10-16: the H1 words are not added to
+the default `STOPWORDS` (Slice 41 makes an extra list configurable). These
+tests were written at `ee0c5e917` and reverted at `fb42f612e`; the table is
+kept for the AC numbering.
+
+These tests were to be written after the stop-list verdict, since they pin
+its words.
 
 | Test | AC |
 | --- | --- |
@@ -522,7 +527,7 @@ pins `vector_hits == limit`, so the H2 list is likely to come back empty.
   - `slice18_retrieval_result_limits.rs`;
   - the Python and TypeScript hybrid tests under `src/python/tests` and
     `src/ts`.
-- **H1:** query-compiler pins with the selected words in the `fathomdb-query`
+- **H1 (superseded, nothing to watch):** query-compiler pins with the selected words in the `fathomdb-query`
   test module, `slice6_tokenizer_experiment.rs`, `cursor_read_after_write.rs`
   (it reads the compiled SQL), and the cross-SDK text-only fixture (the
   oracle is computed at run time, so no change is expected).
@@ -533,12 +538,12 @@ pins `vector_hits == limit`, so the H2 list is likely to come back empty.
 ### 3g.6 Expected changes at the re-runs
 
 Each row is measured at the commit that changes it, against the reference
-in the requirements' gate table: the final-head baseline for H1, the H1
-commit for H2, the H2 commit for H3. The direction is the design's
-expectation; the gate is in REQ40-H3, H6 and H9. COMP-02b runs twice: at the
-H2 commit, which carries H1's change to the compiled query, and at the H3
-commit. The hybrid sweep also runs twice: at the H1 commit (pool = limit)
-and at the H2 commit.
+in the requirements' gate table: the final-head baseline for H2, the H2
+commit for H3. The direction is the design's expectation; the gate is in
+REQ40-H6 and H9. COMP-02b runs twice: at the H2 commit and at the H3
+commit. H1 is superseded (owner ruling 2026-10-16), so its column has no
+measurement and the H1-commit hybrid sweep at pool = limit is not run; the
+column is kept as the plan of record.
 
 | Benchmark | Metric | H1 | H2 | H3 | Expected |
 | --- | --- | --- | --- | --- | --- |
@@ -562,9 +567,9 @@ and at the H2 commit.
 
 ### 3g.7 Baseline-manifest update plan
 
-1. **Before the re-runs.** The H1 gate reads the current manifest at the
-   final head (`5b09afd44`, harness `5a1d0eb12`), unchanged. The H2 and
-   H3 gates read the H1-commit and H2-commit attempts with
+1. **Before the re-runs.** The H2 gate reads the manifest at the final
+   head (`5b09afd44`, with the Q-H5 entries), unchanged (H1 is
+   superseded). The H3 gate reads the H2-commit attempts with
    `baseline_check.py` against a scratch copy of the manifest whose
    expected values are those attempts' values. The scratch copy is not
    committed.
@@ -1408,7 +1413,8 @@ questions:
   miscount). The manifest test may change from six ids to nine; its new assertions are written RED first.
 - **Q-H6.** Owner ruling, 2026-10-16: if hybrid fails its recall clause at
   the H1 commit (REQ40-H3 (vi)), H1 is kept, and the hybrid regression is
-  reported for follow-up. It is not reverted.
+  reported for follow-up. It is not reverted. Moot since H1 was
+  superseded.
 - **Q-H7.** Moot (F1): AC40-30 asserts results only.
 
 The review's F5 named a 72-word list. The engine's list at `5b09afd44`
@@ -1423,3 +1429,10 @@ question (bootstrap_ci, seed 404, 10,000 resamples) on Recall-all@10 over
 the selection set*. N2: REQ40-H6 (ii) compares `comp01-hybrid` to the
 final-head baseline. N3: the extra limit-`P0` hybrid pass is budgeted in
 design § 2g.1 step 6.
+
+**H1 superseded** (owner ruling 2026-10-16): the H1 words (`had`, `long`,
+`suggest`, verdict at harness `3f0789271`) are not added to the default
+`STOPWORDS`, which stays at 63. Slice 41 adds a configurable extra
+stop-word list, empty by default, that the benchmarks fill with these
+words. REQ40-H2, REQ40-H3 and AC40-74 to AC40-76 are superseded; the H2
+gate's reference is the final-head baseline.

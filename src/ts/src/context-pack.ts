@@ -7,6 +7,7 @@
 // astral-plane text.
 
 import { native } from "./binding.js";
+import { InvalidArgumentError } from "./errors.js";
 import { interceptSync } from "./native-call.js";
 import type { SearchHit } from "./search.js";
 
@@ -88,14 +89,26 @@ export interface ContextPack {
 
 const ID_PREFIX: Record<string, string> = { logical: "l:", content: "h:", passage: "p:" };
 
+// JSON.stringify turns NaN and Infinity into null and rounds beyond 2^53, so
+// integer fields are checked here, before the wire can lose them. Policy
+// messages name both the TypeScript and the shared wire spelling.
+function safeCount(value: number, field: string): number {
+  if (!Number.isSafeInteger(value)) {
+    throw new InvalidArgumentError(`${field} must be a safe integer, got ${value}`);
+  }
+  return value;
+}
+
 function partWire(part: ContextPart): Record<string, unknown> {
   return { role: part.role, text: part.text };
 }
 
-function itemWire(item: ContextItem): Record<string, unknown> {
+function itemWire(item: ContextItem, path: string): Record<string, unknown> {
   const wire: Record<string, unknown> = { id: item.id, parts: item.parts.map(partWire) };
   if (item.group !== undefined && item.group !== null) wire.group = item.group;
-  if (item.position !== undefined && item.position !== null) wire.position = item.position;
+  if (item.position !== undefined && item.position !== null) {
+    wire.position = safeCount(item.position, `${path}.position`);
+  }
   if (item.orderKey !== undefined && item.orderKey !== null) wire.order_key = item.orderKey;
   if (item.header !== undefined && item.header !== null) wire.header = item.header;
   return wire;
@@ -103,10 +116,12 @@ function itemWire(item: ContextItem): Record<string, unknown> {
 
 function policyWire(policy: ContextPolicy): Record<string, unknown> {
   const wire: Record<string, unknown> = {};
-  if (policy.budgetChars !== undefined) wire.budget_chars = policy.budgetChars;
-  if (policy.itemChars !== undefined) wire.item_chars = policy.itemChars;
-  if (policy.fullItems !== undefined) wire.full_items = policy.fullItems;
-  if (policy.compactChars !== undefined) wire.compact_chars = policy.compactChars;
+  if (policy.budgetChars !== undefined) wire.budget_chars = safeCount(policy.budgetChars, "policy.budgetChars (policy.budget_chars)");
+  if (policy.itemChars !== undefined) wire.item_chars = safeCount(policy.itemChars, "policy.itemChars (policy.item_chars)");
+  if (policy.fullItems !== undefined) wire.full_items = safeCount(policy.fullItems, "policy.fullItems (policy.full_items)");
+  if (policy.compactChars !== undefined) {
+    wire.compact_chars = safeCount(policy.compactChars, "policy.compactChars (policy.compact_chars)");
+  }
   if (policy.keepRoles !== undefined) wire.keep_roles = Array.from(policy.keepRoles);
   if (policy.expandGroups !== undefined) wire.expand_groups = policy.expandGroups;
   if (policy.order !== undefined) wire.order = policy.order;
@@ -133,7 +148,8 @@ interface WireEntry {
  * (and role-less parts) whole and share `compactChars` among the others.
  *
  * @throws InvalidArgumentError naming the field, for a zero `budgetChars` or
- *   `itemChars`, a negative or non-integer count, an unknown `order`, an empty
+ *   `itemChars`, a negative, non-integer or non-safe-integer count (NaN,
+ *   Infinity and values beyond 2^53 are refused before serialization), an unknown `order`, an empty
  *   or repeated id, or a grouped `context` item without `position` while
  *   `expandGroups` is on.
  */
@@ -143,9 +159,9 @@ export function packContext(
   context: readonly ContextItem[] = [],
 ): ContextPack {
   const request = JSON.stringify({
-    hits: hits.map(itemWire),
+    hits: hits.map((item, i) => itemWire(item, `hits[${i}]`)),
     policy: policyWire(policy),
-    context: context.map(itemWire),
+    context: context.map((item, i) => itemWire(item, `context[${i}]`)),
   });
   const wire = JSON.parse(interceptSync(() => native.packContextJson(request))) as {
     text: string;

@@ -1339,7 +1339,11 @@ contract, and the output is identical across the three SDKs.
   `chars`, `ofChars` and `textChars` differ from `string.length` for
   astral-plane text such as emoji.
 - **Errors.** Invalid input throws `InvalidArgumentError` whose message names
-  the field; a lone surrogate is refused the same way. `contextItemFromHit`
+  the field; a lone surrogate is refused the same way. `position` and the
+  policy counts must be safe integers: NaN, Infinity and values beyond 2^53
+  are refused before serialization, and the message gives both the
+  TypeScript name and the wire name (`policy.budgetChars
+  (policy.budget_chars)`). `contextItemFromHit`
   throws `RangeError` for an unknown id space.
 - **Tagged bodies** carry the hazards listed in `python.md`; a
   `String.prototype.split(/\r?\n/)` on a tagged body keeps the markers on each

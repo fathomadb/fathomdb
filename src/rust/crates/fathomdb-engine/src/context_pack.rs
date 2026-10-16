@@ -60,13 +60,17 @@ pub struct ContextPolicy {
     pub keep_roles: Vec<String>,
     /// Append the `context` items of each hit group after the hits.
     pub expand_groups: bool,
+    /// Output order of the rendered items; tiers and cuts are decided first.
     pub order: ContextOrder,
 }
 
-/// Product defaults: top 3 full, 300-character excerpt, keep user text.
+/// Default [`ContextPolicy::budget_chars`]: total item-text characters.
 pub const DEFAULT_BUDGET_CHARS: usize = 30_000;
+/// Default [`ContextPolicy::item_chars`]: per-item cap.
 pub const DEFAULT_ITEM_CHARS: usize = 4_000;
+/// Default [`ContextPolicy::full_items`]: the top 3 selected items render in full.
 pub const DEFAULT_FULL_ITEMS: usize = 3;
+/// Default [`ContextPolicy::compact_chars`]: 300-character shared excerpt.
 pub const DEFAULT_COMPACT_CHARS: usize = 300;
 
 impl Default for ContextPolicy {
@@ -86,15 +90,20 @@ impl Default for ContextPolicy {
 /// Whether a provenance entry came from `hits` or `context`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ContextSource {
+    /// The item came from `hits`.
     Hit,
+    /// The item came from `context`.
     Context,
 }
 
 /// The rule an item was rendered under; `Omitted` means not rendered.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ContextTier {
+    /// Every part rendered (selection index below `full_items`).
     Full,
+    /// Kept-role parts whole, the rest cut from the shared allowance.
     Compact,
+    /// Not rendered: not reached, not selected, or whitespace-only.
     Omitted,
 }
 
@@ -477,9 +486,12 @@ fn known_fields(
 }
 
 fn count(value: &Value, path: &str) -> Result<u64, ContextPackError> {
-    value
-        .as_u64()
-        .ok_or_else(|| ContextPackError::new(format!("{path} must be a non-negative integer")))
+    value.as_u64().ok_or_else(|| {
+        ContextPackError::new(format!(
+            "{path} must be a non-negative integer (at most {})",
+            u64::MAX
+        ))
+    })
 }
 
 fn usize_count(value: &Value, path: &str) -> Result<usize, ContextPackError> {

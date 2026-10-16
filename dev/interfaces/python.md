@@ -1323,8 +1323,9 @@ in user turns; set `keep_roles` when answers sit in assistant or tool text.
   example `policy.budget_chars`, `context[3].position`): a zero
   `budget_chars` or `item_chars`, a negative or non-integer count, an unknown
   `order`, an empty or repeated id, a grouped `context` item without
-  `position` while `expand_groups` is on, or a lone surrogate. A non-dataclass
-  argument is `TypeError`.
+  `position` while `expand_groups` is on, a non-finite or out-of-range count
+  (above 2^64 − 1), or a lone surrogate. A non-dataclass argument, or
+  `keep_roles` given as a bare `str`, is `TypeError`.
 
 ### Role-tagged round body (opt-in)
 

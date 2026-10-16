@@ -13,6 +13,7 @@ converts values, so Python, TypeScript and Rust return identical output.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Literal
 
@@ -110,6 +111,14 @@ def _dumps(value: Any) -> str:
     return json.dumps(value, ensure_ascii=True)
 
 
+def _count_wire(value: Any) -> Any:
+    # A non-finite float cannot be JSON; forward it as a string so the core
+    # refuses it as a non-integer count naming the field.
+    if isinstance(value, float) and not math.isfinite(value):
+        return repr(value)
+    return value
+
+
 def _part_wire(part: ContextPart) -> dict[str, Any]:
     if not isinstance(part, ContextPart):
         raise TypeError(f"parts must be ContextPart, got {type(part).__name__}")
@@ -123,18 +132,20 @@ def _item_wire(item: ContextItem) -> dict[str, Any]:
     for name in ("group", "position", "order_key", "header"):
         value = getattr(item, name)
         if value is not None:
-            wire[name] = value
+            wire[name] = _count_wire(value) if name == "position" else value
     return wire
 
 
 def _policy_wire(policy: ContextPolicy) -> dict[str, Any]:
     if not isinstance(policy, ContextPolicy):
         raise TypeError(f"policy must be ContextPolicy, got {type(policy).__name__}")
+    if isinstance(policy.keep_roles, str):
+        raise TypeError("policy.keep_roles must be a sequence of role strings, not a str")
     return {
-        "budget_chars": policy.budget_chars,
-        "item_chars": policy.item_chars,
-        "full_items": policy.full_items,
-        "compact_chars": policy.compact_chars,
+        "budget_chars": _count_wire(policy.budget_chars),
+        "item_chars": _count_wire(policy.item_chars),
+        "full_items": _count_wire(policy.full_items),
+        "compact_chars": _count_wire(policy.compact_chars),
         "keep_roles": list(policy.keep_roles),
         "expand_groups": policy.expand_groups,
         "order": policy.order,
@@ -180,7 +191,8 @@ def pack_context(
             ``budget_chars`` or ``item_chars``, a negative or non-integer count,
             an unknown ``order``, an empty or repeated id, or a grouped
             ``context`` item without ``position`` while ``expand_groups`` is on.
-        TypeError: an argument is not the documented dataclass.
+        TypeError: an argument is not the documented dataclass, or
+            ``policy.keep_roles`` is a bare ``str``.
     """
     request = {
         "hits": [_item_wire(item) for item in hits],

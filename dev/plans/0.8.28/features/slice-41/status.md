@@ -21,7 +21,7 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
 | W4 surface | implementer | Write the allowlist entry `_slice41_context_pack_signature` (design § 5) and the decision-index row, both citing the 2026-10-16 owner rulings | done: allowlist and parity map `2ccc6afc6`, re-issued pin `334497e4c`, decision-index row 64 |
 | W5 | implementer | Scoped checks (the full gate waits for the code review) | rulings 1–4 applied; Python suite 1681 passed, 17 skipped |
 | M | orchestrator | AC41-27 differential and M1 preview now; after the Unit H head: M1, § 4.2, M3, § 4.5 | AC41-27 180/180 and the M1 preview done (test-plan § 7.3, § 7.4); the rest waits on Slice 40 Unit H |
-| R2 | codex | Code review | not started |
+| R2 | reviewer | Code review | APPROVE-WITH-FIXES, P3 only, on `24e3215be`. RED tests `e8c581a44` (new files only, no existing test edited); fixes in the following commit: TypeScript refuses non-safe-integer counts host-side; Python refuses a bare-`str` `keep_roles` with `TypeError` (the documented "wrong argument type" class) and forwards non-finite counts so the core names the field; the core names the bound for counts above `u64::MAX`; docstrings on the remaining `pub` items |
 
 ## Rules
 

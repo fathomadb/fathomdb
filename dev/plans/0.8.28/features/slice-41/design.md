@@ -417,8 +417,14 @@ any recommended adjustments". Interface docs and the CHANGELOG are updated.
     validated at open with the other `EngineConfig` checks.
     `EngineConfig` is not `#[non_exhaustive]`, so a downstream struct
     literal without `..Default::default()` stops compiling. Pre-1.0 that is
-    accepted, and `rust.md`'s `EngineConfig` entry says so; every in-repo
-    construction already uses `..EngineConfig::default()`;
+    accepted, and `rust.md`'s `EngineConfig` entry says so. Three in-repo
+    sites build full literals and are W4 edit sites:
+    `fathomdb-napi/src/admin.rs:109` (`into_rust`) and
+    `fathomdb-napi/src/test_support.rs:21` (the requested-config echo), both
+    binding mappings, and `fathomdb-py/src/test_support.rs:87`, a unit test
+    where adding `query_stop_words: None` is a compile-required mechanical
+    change (orchestrator ruling on P2-R0b; nothing else there changes). The
+    rest use `..EngineConfig::default()`;
   - `EngineConfigurationError` gains
     `QueryStopWords { field: &'static str, index: Option<usize>, reason: StopWordRejection }`,
     which keeps the enum `Copy`. Because a variant is being added anyway,

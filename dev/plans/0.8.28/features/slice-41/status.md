@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — status
-status: W2 RED and W4 GREEN done; two test rulings and the Unit H measurements open; code review next
+status: W2 RED and W4 GREEN done; test rulings 1–3 applied (one export pin open); code review next
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -19,7 +19,7 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
 | W2 | implementer | RED tests (test-plan § 2, § 3) | done at `86e15e333` (+ `338d1da9f` Cargo.lock); RED record in test-plan § 7.1 |
 | W4 | implementer | Core module, bindings, parity map, docs; no test edits | done: core `3e0903d91`, surface `2ccc6afc6`, pin `334497e4c`, docs in the following commit; GREEN record in test-plan § 7.2 |
 | W4 surface | implementer | Write the allowlist entry `_slice41_context_pack_signature` (design § 5) and the decision-index row, both citing the 2026-10-16 owner rulings | done: allowlist and parity map `2ccc6afc6`, re-issued pin `334497e4c`, decision-index row 64 |
-| W5 | implementer | Scoped checks (the full gate waits for the code review) | see the report; open: the pinned surface-count tests and the hybrid drain timeout need rulings |
+| W5 | implementer | Scoped checks (the full gate waits for the code review) | rulings 1–3 applied; `test_package_boundary_matches_pre_move_baseline` still open (see Rulings) |
 | M | orchestrator | AC41-27 differential and M1 preview now; after the Unit H head: M1, § 4.2, M3, § 4.5 | AC41-27 180/180 and the M1 preview done (test-plan § 7.3, § 7.4); the rest waits on Slice 40 Unit H |
 | R2 | codex | Code review | not started |
 
@@ -34,3 +34,32 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
   stays small enough to check by hand.
 - This slice does not edit `dev/plans/release-state-0.8.28.json`,
   `dev/plans/runs/STATUS-0.8.28.md` or any generated block.
+
+## Rulings (orchestrator, 2026-10-16, under the owner's approval of the surface)
+
+1. `tagged_and_plain_corpora_fuse_identically`: the drain timeout went from
+   30 s to 600 s. CPU embedding of two 200-row stores takes about 100 s.
+   This is a timing parameter; no assertion changed.
+2. The surface-count pins follow mechanically from the approved surface, and
+   each edit changes only pinned counts and lists:
+   - `src/ts/tests/sdk-surface-parity.test.ts`: 44/44 → 48/48;
+   - `scripts/tests/test_check_sdk_surface_parity.py`: 69 → 77, 44 → 48;
+   - `scripts/tests/test_generated_public_docs.py`: 44 → 48;
+   - `scripts/tests/test_check_governed_surface_pin.sh`: the expected
+     member list, the counts, and a Slice 41 provenance check.
+3. Python baseline: the additions are declared in
+   `src/python/tests/python_surface_additions.json`: 39 declarations under
+   slice 41, plus the new `native_stub_sha256`. With them,
+   `test_python_declarations_match_pre_move_baseline_with_approved_deltas`
+   passes. Still open: `test_package_boundary_matches_pre_move_baseline`
+   compares `fathomdb.__all__` with the frozen baseline export set by set
+   equality, and it does not read the registry. Changing only the constant
+   119 cannot make it pass, so the test is left unchanged pending a further
+   ruling.
+
+Pre-existing failures under `test-hooks` (the feature is turned on by
+unification in multi-crate runs), left as they are: `slice135_robustness_first`
+`slice135_persistent_sqlite_full_preserves_state_until_cap_lifts` (file
+descriptors 7 → 12), and `tc57_governed_write_race` ×2
+(`RuntimeConfiguration(TooLate)`). The Slice 40 worktree's binaries built on
+2026-10-16 fail the same way.

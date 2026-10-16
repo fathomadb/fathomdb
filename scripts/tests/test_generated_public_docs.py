@@ -40,8 +40,8 @@ class GeneratedDocs(unittest.TestCase):
         pages = self.generate()
         text = pages[0].read_text()
         operations = json.loads((self.root / 'src/conformance/governed-operation-parity.json').read_text())['operations']
-        self.assertEqual(len(operations), 44)
-        self.assertEqual(len([line for line in text.splitlines() if line.startswith('| `')]), 44)
+        self.assertEqual(len(operations), 48)
+        self.assertEqual(len([line for line in text.splitlines() if line.startswith('| `')]), 48)
         for operation in operations:
             row = next(line for line in text.splitlines() if line.startswith(f"| `{operation['id']}` |"))
             for language in ('python', 'typescript', 'rust'):

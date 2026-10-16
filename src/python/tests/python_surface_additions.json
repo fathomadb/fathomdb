@@ -261,7 +261,358 @@
         "path": "fathomdb.types.CudaAllocatorReport.pool_release_threshold_source",
         "signature": "pool_release_threshold_source: str | None"
       }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.ContextItem",
+        "signature": "@dataclass(frozen=True) class ContextItem"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextItem.group",
+        "signature": "group: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextItem.header",
+        "signature": "header: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextItem.id",
+        "signature": "id: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextItem.order_key",
+        "signature": "order_key: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextItem.parts",
+        "signature": "parts: tuple[ContextPart, ...] = ()"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextItem.position",
+        "signature": "position: int | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.ContextPack",
+        "signature": "@dataclass(frozen=True) class ContextPack"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPack.chars_used",
+        "signature": "chars_used: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPack.items",
+        "signature": "items: tuple[ContextPackEntry, ...] = field(default_factory=tuple)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPack.text",
+        "signature": "text: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPack.text_chars",
+        "signature": "text_chars: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.ContextPackEntry",
+        "signature": "@dataclass(frozen=True) class ContextPackEntry"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPackEntry.chars",
+        "signature": "chars: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPackEntry.id",
+        "signature": "id: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPackEntry.parts",
+        "signature": "parts: tuple[ContextPartEntry, ...]"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPackEntry.rendered_index",
+        "signature": "rendered_index: int | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPackEntry.source",
+        "signature": "source: ContextSource"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPackEntry.tier",
+        "signature": "tier: ContextTier"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPackEntry.truncated",
+        "signature": "truncated: bool"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.ContextPart",
+        "signature": "@dataclass(frozen=True) class ContextPart"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPart.role",
+        "signature": "role: str | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPart.text",
+        "signature": "text: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.ContextPartEntry",
+        "signature": "@dataclass(frozen=True) class ContextPartEntry"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPartEntry.chars",
+        "signature": "chars: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPartEntry.of_chars",
+        "signature": "of_chars: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPartEntry.role",
+        "signature": "role: str | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.ContextPolicy",
+        "signature": "@dataclass(frozen=True) class ContextPolicy"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPolicy.budget_chars",
+        "signature": "budget_chars: int = 30000"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPolicy.compact_chars",
+        "signature": "compact_chars: int = 300"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPolicy.expand_groups",
+        "signature": "expand_groups: bool = True"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPolicy.full_items",
+        "signature": "full_items: int = 3"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPolicy.item_chars",
+        "signature": "item_chars: int = 4000"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPolicy.keep_roles",
+        "signature": "keep_roles: tuple[str, ...] = ('user',)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ContextPolicy.order",
+        "signature": "order: ContextOrder = 'rank'"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-function",
+        "path": "fathomdb.context_item_from_hit",
+        "signature": "def context_item_from_hit(hit: Any, *, group: str | None=None, position: int | None=None, order_key: str | None=None, header: str | None=None) -> ContextItem"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-function",
+        "path": "fathomdb.decode_round_body",
+        "signature": "def decode_round_body(body: str) -> tuple[ContextPart, ...]"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-function",
+        "path": "fathomdb.encode_round_body",
+        "signature": "def encode_round_body(parts: Iterable[ContextPart]) -> str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "kind": "python-function",
+        "path": "fathomdb.pack_context",
+        "signature": "def pack_context(hits: Iterable[ContextItem], policy: ContextPolicy | None=None, context: Iterable[ContextItem]=()) -> ContextPack"
+      }
     }
   ],
-  "native_stub_sha256": "86ea8d37227ff5dfb58807a86da22d460831559d3c8781090aea18e8b5ebcc5d"
+  "native_stub_sha256": "54bdcd484bd2d2f899a0ffa80a827857237a454e5564f68bf14e3391413f2a98"
 }

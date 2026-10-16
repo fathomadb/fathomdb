@@ -301,8 +301,9 @@ No test was edited.
 fails at the committed `drain(30_000)`: on CPU the two 200-row stores need
 about 100 s to embed, and `drain` returns `Scheduler`. A scratch copy with
 `drain(600_000)` passed: ids, order and fused-score bits were identical on
-all 40 queries. That copy was not committed. Changing the test's timeout
-needs an orchestrator ruling.
+all 40 queries. By orchestrator ruling 1 the committed test now uses
+`drain(600_000)` (a timing parameter; no assertion changed), and the file
+passes 25 of 25 with `--features default-embedder` (102 s).
 
 ### 7.3 AC41-27 differential ($0)
 

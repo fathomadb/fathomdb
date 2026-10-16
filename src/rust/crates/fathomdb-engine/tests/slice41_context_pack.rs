@@ -652,7 +652,7 @@ fn write_corpus(engine: &Engine, tagged: bool) {
         })
         .collect();
     engine.write(&writes).expect("write corpus");
-    engine.drain(30_000).expect("drain");
+    engine.drain(600_000).expect("drain");
 }
 
 const QUERIES: &[&str] = &[

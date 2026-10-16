@@ -8,7 +8,7 @@
 # Slice 22 C5 pair, the explicitly commissioned Slice 30 addition, and the
 # owner-approved 0.8.25 Slice 20/25/30/35/40/45/50/55/60/79 additions — pinned to the exact content of
 # src/conformance/governed-surface-allowlist.json at the provenance commit
-# recorded in the pin (69 allowlist members, 5 core, recovery_denylist unchanged
+# recorded in the pin (77 allowlist members, 5 core, recovery_denylist unchanged
 # at the five REQ-054 names, and 2 runtime controls). A signature keyed to specific content is worth
 # exactly as much as the mechanism that notices when that content moves.
 #
@@ -145,7 +145,7 @@ expect_routes_to_hitl() {
 run_checker
 expect_rc 0 "the real repo's governed surface matches the pin (default args)"
 expect_out 'ok +governed-surface-pin' "the passing run says ok"
-expect_out '69 allowlist / 5 core / 5 recovery_denylist / 2 runtime_controls' \
+expect_out '77 allowlist / 5 core / 5 recovery_denylist / 2 runtime_controls' \
   "the passing run states the pinned counts it verified"
 
 PIN_SHA="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sha256"])' "$REAL_PIN")"
@@ -156,7 +156,7 @@ else
   fail "the real allowlist json no longer matches the pin's sha256 ($REAL_SHA vs $PIN_SHA)"
 fi
 
-# The accumulated signed/approved surface is an exact 69-member shape, not
+# The accumulated signed/approved surface is an exact 77-member shape, not
 # merely a count increase. This rejects a stale pin and a re-pin that swaps an
 # unrelated name while retaining the same count. The full list is deliberately
 # explicit here: it is the reviewable test oracle for the complete accumulated
@@ -223,6 +223,14 @@ expected_allowlist = [
     "graph.search_expand",
     "graph.searchExpand",
     "rerank",
+    "pack_context",
+    "packContext",
+    "encode_round_body",
+    "encodeRoundBody",
+    "decode_round_body",
+    "decodeRoundBody",
+    "context_item_from_hit",
+    "contextItemFromHit",
     "embed",
     "read.crossed_boundary_since",
     "read.crossedBoundarySince",
@@ -243,7 +251,7 @@ expected_allowlist = [
     "read.operational_state_page",
     "read.operationalStatePage",
 ]
-expected_counts = {"allowlist": 69, "core": 5, "recovery_denylist": 5, "runtime_controls": 2}
+expected_counts = {"allowlist": 77, "core": 5, "recovery_denylist": 5, "runtime_controls": 2}
 expected_denylist = ["recover", "restore", "repair", "fix", "rebuild"]
 expected_runtime_controls = ["admin.configure_runtime", "admin.configureRuntime"]
 expected_ac_provenance = "0.8.23 Slice 30"
@@ -268,12 +276,14 @@ expected_slice79_provenance = "approved 0.8.25 Slice 79 under seq-276"
 expected_slice79_comment = "RE-ISSUED 2026-09-10 (HITL steward-ledger seq-276)."
 expected_0826_slice20_provenance = "approved 0.8.26 Slice 20 under seq-290"
 expected_0826_slice20_comment = "0.8.26 Slice 20 — HITL decision seq-290 approved D26-01 option A."
+expected_0828_slice41_provenance = "approved 0.8.28 Slice 41 by owner 2026-10-16"
+expected_0828_slice41_comment = "0.8.28 Slice 41 — owner approval 2026-10-16"
 
 problems = []
 if allowlist.get("allowlist") != expected_allowlist:
-    problems.append("allowlist is not the exact approved 69-member accumulated shape")
+    problems.append("allowlist is not the exact approved 77-member accumulated shape")
 if pin.get("allowlist") != expected_allowlist:
-    problems.append("pin allowlist is not the exact approved 69-member accumulated shape")
+    problems.append("pin allowlist is not the exact approved 77-member accumulated shape")
 if pin.get("counts") != expected_counts:
     problems.append(f"pin counts are {pin.get('counts')!r}, not {expected_counts!r}")
 if allowlist.get("recovery_denylist") != expected_denylist:
@@ -328,10 +338,14 @@ if expected_0826_slice20_provenance not in pin.get("ac", ""):
     problems.append("pin lacks approved 0.8.26 Slice 20 provenance in its ac field")
 if expected_0826_slice20_comment not in "\n".join(pin.get("_comment", [])):
     problems.append("pin lacks approved 0.8.26 Slice 20 provenance in its comment")
+if expected_0828_slice41_provenance not in pin.get("ac", ""):
+    problems.append("pin lacks approved 0.8.28 Slice 41 provenance in its ac field")
+if expected_0828_slice41_comment not in "\n".join(pin.get("_comment", [])):
+    problems.append("pin lacks approved 0.8.28 Slice 41 provenance in its comment")
 
 if problems:
     raise SystemExit("; ".join(problems))
-print("exact approved 69-member accumulated shape and explicit provenance")
+print("exact approved 77-member accumulated shape and explicit provenance")
 PY
 )"
 SLICE60_SHAPE_RC=$?
@@ -339,7 +353,7 @@ set -e
 if [ "$SLICE60_SHAPE_RC" -eq 0 ]; then
   pass "$SLICE60_SHAPE"
 else
-  fail "the pin must retain the exact approved 69-member accumulated shape and explicit provenance: $SLICE60_SHAPE"
+  fail "the pin must retain the exact approved 77-member accumulated shape and explicit provenance: $SLICE60_SHAPE"
 fi
 
 # The pin must really describe the allowlist at its own provenance commit. Reading
@@ -390,7 +404,7 @@ check_fixture "$F"
 expect_rc 1 "an ADDED allowlist member (70) HARD-fails"
 expect_out "'allowlist' diverges from the pin" "added-member names the diverging key"
 expect_out 'ADDED shiny.new_verb' "added-member NAMES the member that appeared"
-expect_out 'Pinned 69 member\(s\), on disk 70' "added-member states pinned-vs-on-disk counts"
+expect_out 'Pinned 77 member\(s\), on disk 78' "added-member states pinned-vs-on-disk counts"
 expect_out 'content differs from the pin' "added-member reports the content-hash divergence too"
 expect_routes_to_hitl "added-member"
 
@@ -400,7 +414,7 @@ mutate "$F" 'd["allowlist"].remove("purge")'
 check_fixture "$F"
 expect_rc 1 "a REMOVED allowlist member (68) HARD-fails"
 expect_out 'REMOVED purge' "removed-member NAMES the member that vanished"
-expect_out 'Pinned 69 member\(s\), on disk 68' "removed-member states pinned-vs-on-disk counts"
+expect_out 'Pinned 77 member\(s\), on disk 76' "removed-member states pinned-vs-on-disk counts"
 expect_routes_to_hitl "removed-member"
 
 # =================== Arm 3 (RED): recovery_denylist widened ===================
@@ -485,7 +499,7 @@ PY
 check_fixture "$F" "$LAZY_PIN"
 expect_rc 1 "a LAZY RE-PIN (hashes updated, signed member list untouched) still HARD-fails"
 expect_out 'ADDED smuggled.verb' "lazy-repin names the smuggled member"
-expect_out 'counts block says 69' "lazy-repin is also caught by the counts assertion"
+expect_out 'counts block says 77' "lazy-repin is also caught by the counts assertion"
 if printf '%s' "$OUT" | grep -q 'content differs from the pin'; then
   fail "lazy-repin's hashes DO match by construction; a hash complaint means the arm is not testing what it claims: $OUT"
 else

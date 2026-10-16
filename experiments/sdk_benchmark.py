@@ -96,9 +96,16 @@ def _wrapper_digest(root: Path, suffixes: set[str]) -> str:
 
 
 def wrapper_sha256(
-    sdk: str, native_sha256: str = "", native_path: str | Path | None = None
+    sdk: str,
+    native_sha256: str = "",
+    native_path: str | Path | None = None,
+    package_root: str | Path | None = None,
 ) -> str:
-    """Digest the public wrapper loaded by the fixed SDK driver."""
+    """Digest the public wrapper loaded by the fixed SDK driver.
+
+    ``package_root`` selects a TypeScript package built outside this checkout;
+    the default is the repository's ``src/ts``.
+    """
     if sdk == "python":
         package = (
             Path(native_path).resolve().parent
@@ -107,7 +114,8 @@ def wrapper_sha256(
         )
         return _wrapper_digest(package, {".py", ".pyi"})
     if sdk == "typescript":
-        return _wrapper_digest(_ROOT / "src/ts", {".js", ".ts", ".json"})
+        root = Path(package_root) if package_root is not None else _ROOT / "src/ts"
+        return _wrapper_digest(root, {".js", ".ts", ".json"})
     if sdk == "rust":
         return native_sha256
     raise ValueError("unknown SDK")
@@ -285,19 +293,27 @@ def load_plan(path: str | Path) -> tuple[dict[str, Any], str]:
         if not isinstance(case["required"], bool):
             raise ValueError("case.required must be boolean")
         if (
-            case["setup"] != "canonical-nodes-v1"
+            case["setup"] not in {"canonical-nodes-v1", *PARITY_SETUPS}
             or case["boundary"] != "sdk_call_to_materialized_result"
         ):
             raise ValueError("unsupported setup or timing boundary")
         operation_id = case["operation_id"]
-        keys = (
-            {"query_set", "limit", "view"}
-            if operation_id == "engine.search_text_only"
-            else {"view"}
-            if operation_id == "read.get"
-            else {"depth", "view"}
-        )
+        keys = {
+            "engine.search_text_only": {"query_set", "limit", "view"},
+            "engine.search_projected_text": {"query_set", "limit", "view", "name", "filter"},
+            "engine.search": {"query_set", "limit", "view", "use_default_embedder"},
+            "read.get": {"view"},
+        }.get(operation_id, {"depth", "view"})
         arguments = _exact(case["arguments"], "case.arguments", keys)
+        if case["setup"] in PARITY_SETUPS:
+            if PARITY_OPERATIONS[case["setup"]] != operation_id:
+                raise ValueError("parity setup does not match its operation")
+        elif operation_id in {"engine.search_projected_text", "engine.search"}:
+            raise ValueError("projected and hybrid search are measured only through parity setups")
+        if operation_id in {"engine.search_projected_text", "engine.search"}:
+            if arguments["query_set"] != "all":
+                raise ValueError("unsupported query_set")
+            _positive_int(arguments["limit"], "arguments.limit")
         if operation_id == "engine.search_text_only":
             if arguments["query_set"] != "all":
                 raise ValueError("unsupported query_set")
@@ -439,7 +455,8 @@ def _load_fixture(binding: dict[str, str]) -> dict[str, Any]:
         fixture,
         "fixture",
         {"schema_version", "corpus", "queries", "gold"}
-        | ({"oracles"} if "oracles" in fixture else set()),
+        | ({"oracles"} if "oracles" in fixture else set())
+        | ({"parity"} if "parity" in fixture else set()),
     )
     if fixture["schema_version"] != "sdk.fixture.v1":
         raise ValueError("fixture version mismatch")
@@ -543,7 +560,9 @@ def _load_arm(sdk: str, binding: dict[str, str]) -> dict[str, Any]:
             "driver",
             "native",
             "bootstrap_cli",
-        },
+        }
+        | ({"package_root"} if isinstance(_read_json(_verified_binding(binding, f"{sdk} arm")), dict)
+           and "package_root" in _read_json(_verified_binding(binding, f"{sdk} arm")) else set()),
     )
     if arm["schema_version"] != "sdk.arm.v1" or arm["sdk"] != sdk:
         raise ValueError("arm schema or SDK mismatch")
@@ -568,8 +587,10 @@ def _load_arm(sdk: str, binding: dict[str, str]) -> dict[str, Any]:
         raise ValueError("only explicit CPU synthetic SDK arms are implemented")
     for name in ("runtime", "driver", "native", "bootstrap_cli"):
         _verified_binding(arm[name], f"arm.{name}")
+    if "package_root" in arm and (sdk != "typescript" or not Path(arm["package_root"]).is_absolute()):
+        raise ValueError("package_root is an absolute TypeScript package directory")
     if (
-        wrapper_sha256(sdk, arm["native"]["sha256"], arm["native"]["path"])
+        wrapper_sha256(sdk, arm["native"]["sha256"], arm["native"]["path"], arm.get("package_root"))
         != arm["wrapper_sha256"]
     ):
         raise ValueError("arm public wrapper digest drift")
@@ -659,18 +680,42 @@ def _invoke_driver(
     return response
 
 
+def parity_fixture(fixture: dict[str, Any]) -> dict[str, Any]:
+    """The parity case carried by a suite fixture, with its corpus and queries."""
+    return {**fixture["parity"], "corpus": fixture["corpus"], "queries": fixture["queries"]}
+
+
+def suite_fixture(parity: dict[str, Any]) -> dict[str, Any]:
+    """An ``sdk.fixture.v1`` document for one parity case (no relevance gold)."""
+    meta = {key: value for key, value in parity.items() if key not in {"corpus", "queries"}}
+    return {"schema_version": "sdk.fixture.v1", "corpus": parity["corpus"], "queries": parity["queries"],
+            "gold": {query["id"]: [] for query in parity["queries"]}, "parity": meta}
+
+
 def _prepare_repetition(
-    root: Path, arm: dict[str, Any], fixture: dict[str, Any], repetition: int
+    root: Path, arm: dict[str, Any], fixture: dict[str, Any], repetition: int,
+    setup: str = "canonical-nodes-v1",
 ) -> tuple[Path, dict[str, Any]]:
+    dense = setup == "parity-dense-v1"
     prepared = prepare_test_database(
         root,
         test_id=f"rep-{repetition}",
         embed_device="cpu",
         rerank_device="cpu",
-        embedder="none",
+        embedder="default" if dense else "none",
+        warm_cache=dense,
         check_reranker=False,
         fathomdb_bin=arm["bootstrap_cli"]["path"],
     )
+    if setup in PARITY_SETUPS:
+        populate_parity_database(prepared.database_path, parity_fixture(fixture))
+        return prepared.database_path, {
+            "setup_sha256": _digest(prepared.config_path),
+            "doctor_sha256": _digest(prepared.doctor_path),
+            "database_sha256": _digest(prepared.database_path),
+            "database_bytes": _database_bytes(prepared.database_path),
+            "bootstrap": _bootstrap_identity(),
+        }
     from fathomdb import Engine
 
     engine = Engine.open(str(prepared.database_path), use_default_embedder=False)
@@ -931,8 +976,10 @@ def _run_cell_repetition(state: dict[str, Any], repetition: int) -> None:
     rep_root.mkdir(mode=0o700)
     try:
         _verify_pinned(plan, state["arm_binding"], arm)
-        database_path, setup_witness = _prepare_repetition(
-            cell_root, arm, fixture, repetition
+        database_path, setup_witness = (
+            _prepare_repetition(cell_root, arm, fixture, repetition, setup=case["setup"])
+            if case["setup"] in PARITY_SETUPS
+            else _prepare_repetition(cell_root, arm, fixture, repetition)
         )
         state["setup_witnesses"].append(setup_witness)
         request = {
@@ -952,7 +999,12 @@ def _run_cell_repetition(state: dict[str, Any], repetition: int) -> None:
             "timeout_ms": 30000,
             "expected_native_sha256": arm["native"]["sha256"],
         }
-        response = _invoke_driver(arm, request, rep_root, 35)
+        parity = case["setup"] in PARITY_SETUPS
+        if parity:
+            request["normalizer"] = "ordered_hits"
+        if "package_root" in arm:
+            request["package_root"] = arm["package_root"]
+        response = _invoke_driver(arm, request, rep_root, 120 if parity else 35)
         _write_json(rep_root / "response.json", response)
         if response.get("status") != "complete":
             state["status"] = "blocked"
@@ -994,19 +1046,48 @@ def _run_cell_repetition(state: dict[str, Any], repetition: int) -> None:
         samples = response.get("samples")
         if not isinstance(samples, list) or len(samples) != len(fixture["queries"]):
             raise ValueError("driver sample count mismatch")
-        state["repetitions"].append(
-            {
-                "identity": identity,
-                "effective_options": effective,
-                "resources": resources,
-                "response_sha256": _digest(rep_root / "response.json"),
-            }
-        )
+        repetition_record = {
+            "identity": identity,
+            "effective_options": effective,
+            "resources": resources,
+            "response_sha256": _digest(rep_root / "response.json"),
+        }
+        if parity:
+            observed = {sample["query_id"]: sample.pop("hits", None) for sample in samples}
+            repetition_record["parity"] = _check_parity_repetition(
+                state, database_path, case, observed, rep_root
+            )
+        state["repetitions"].append(repetition_record)
         state["all_samples"].extend(samples)
         _verify_pinned(plan, state["arm_binding"], arm)
     except Exception as exc:
         state["status"], state["reason"] = "blocked", type(exc).__name__
         (rep_root / "error.log").write_text(str(exc), encoding="utf-8")
+
+
+def _check_parity_repetition(
+    state: dict[str, Any], database_path: Path, case: dict[str, Any],
+    observed: dict[str, Any], rep_root: Path,
+) -> dict[str, Any]:
+    """Compare one SDK repetition's hits with the in-process Python oracle on the same file."""
+    from fathomdb import _fathomdb
+
+    oracle_native = _digest(Path(_fathomdb.__file__).resolve(strict=True))
+    python_arms = [arm for arm in state["plan"]["arms"] if arm["sdk"] == "python"]
+    if python_arms:
+        python_native = _load_arm("python", python_arms[0]["artifact"])["native"]["sha256"]
+        if oracle_native != python_native:
+            raise ValueError("parity oracle is not the Python arm's native build")
+    expected = python_oracle(database_path, parity_fixture(state["fixture"]), filter=case["arguments"]["filter"]
+                             if "filter" in case["arguments"] else None)
+    problems = compare_parity(expected, observed)
+    _write_json(rep_root / "parity.json", {"schema_version": "sdk.parity-check.v1", "oracle_native_sha256":
+                                            oracle_native, "expected": expected, "observed": observed,
+                                            "problems": problems})
+    if problems:
+        raise ValueError(f"parity mismatch: {problems[:3]}")
+    return {"status": "equal", "oracle_native_sha256": oracle_native,
+            "parity_sha256": _digest(rep_root / "parity.json"), "hits": sum(len(v) for v in expected.values())}
 
 
 def _finish_cell(state: dict[str, Any]) -> dict[str, Any]:
@@ -1024,7 +1105,9 @@ def _finish_cell(state: dict[str, Any]) -> dict[str, Any]:
     if state["status"] == "complete":
         try:
             metrics, ordered_ids = _aggregate(case, state["all_samples"], fixture)
-            oracle_status = _check_oracle(case, fixture, ordered_ids)
+            oracle_status = (
+                "verified" if case["setup"] in PARITY_SETUPS else _check_oracle(case, fixture, ordered_ids)
+            )
             metrics = _publishable_metrics(case, metrics, oracle_status)
             if case["family"] == "latency_capacity":
                 try:
@@ -1448,3 +1531,200 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+# --- Slice 40 Unit E: cross-SDK parity cases -------------------------------------------
+
+PARITY_SCHEMA = "sdk.parity-fixture.v1"
+PARITY_SETUPS = {"parity-text-v1": "text-only-v1", "parity-projected-v1": "projected-v1",
+                 "parity-dense-v1": "dense-v1"}
+PARITY_OPERATIONS = {"parity-text-v1": "engine.search_text_only",
+                     "parity-projected-v1": "engine.search_projected_text",
+                     "parity-dense-v1": "engine.search"}
+PARITY_VALID_AS_OF = 1700000000
+_ID_PREFIX = {"logical": "l:", "content": "h:", "passage": "p:"}
+
+_TEXT_ONLY_DOCS = [
+    ("t00", "vitamin d levels in older adults"),
+    ("t01", "vitamin d levels in older adults"),
+    ("t02", "vitamin c rich diet and recovery"),
+    ("t03", "vitamin d3 supplement dosing study"),
+    ("t04", "vitamin d2 supplement dosing study"),
+    ("t05", "serum igf 1 levels measured"),
+    ("t06", "serum igf 2 levels measured"),
+    ("t07", "the physicians study ii trial results"),
+    ("t08", "cow milk intake survey"),
+    ("t09", "cow milk intake survey"),
+    ("t10", "goat cheese intake survey"),
+    ("t11", "my dog likes long walks in the park"),
+    ("t12", "we will meet at the cafe so you are not late"),
+    ("t13", "a b12 deficiency causes fatigue"),
+    ("t14", "notes about the weekly planning meeting"),
+    ("t15", "levels of vitamin c in citrus fruit"),
+]
+_TEXT_ONLY_QUERIES = [
+    ("q01", "Vitamin D levels"),
+    ("q02", "Vitamin C-enriched diet"),
+    ("q03", "D3 dosing study"),
+    ("q04", "IGF-1 levels"),
+    ("q05", "Physicians' Study II"),
+    ("q06", "Cow's milk intake"),
+    ("q07", "don't skip my B12, I'm tired"),
+    ("q08", "we'll meet up so you're not late"),
+    ("q09", "I've told me and us I am up"),
+    ("q10", "planning meeting notes"),
+]
+_PROJECTED_TITLES = {
+    "A": "parity alpha alpha alpha",
+    "T": "parity beta gamma delta",
+    "C": "parity one two three four five six",
+}
+_PROJECTED_PLAN = ["C", "T", "A", "C", "T", "T", "T", "A", "C", "T", "C", "T"]
+_DENSE_DOCS = [
+    ("d00", "I adopted a golden retriever puppy last spring"),
+    ("d01", "My favourite cuisine is Thai food, especially green curry"),
+    ("d02", "The quarterly planning meeting moved to Tuesday"),
+    ("d03", "I started learning the cello in March"),
+    ("d04", "Our flight to Lisbon departs early on Friday"),
+    ("d05", "The garden tomatoes need watering every evening"),
+    ("d06", "I switched my commute from driving to cycling"),
+    ("d07", "My sister is getting married in the autumn"),
+    ("d08", "The laptop battery drains quickly since the update"),
+    ("d09", "I prefer reading science fiction on weekends"),
+    ("d10", "The landlord promised to fix the heating next week"),
+    ("d11", "We booked a cabin by the lake for the holidays"),
+]
+_DENSE_QUERIES = [
+    ("q01", "what pet do I have"),
+    ("q02", "which instrument am I learning"),
+    ("q03", "how do I get to work"),
+    ("q04", "where are we travelling"),
+    ("q05", "what kind of books do I like"),
+]
+
+
+def build_parity_fixture(case_id: str) -> dict[str, Any]:
+    """Deterministic corpus, queries and call shape for one Slice 40 parity case."""
+    if case_id == "text-only-v1":
+        return {
+            "schema_version": PARITY_SCHEMA, "case_id": case_id, "setup": "parity-text-v1",
+            "operation_id": "engine.search_text_only", "limit": 10,
+            "corpus": [{"id": i, "body": b} for i, b in _TEXT_ONLY_DOCS],
+            "queries": [{"id": i, "text": t} for i, t in _TEXT_ONLY_QUERIES],
+        }
+    if case_id == "projected-v1":
+        corpus = [
+            {"id": f"p{index:02d}",
+             "body": json.dumps({"title": _PROJECTED_TITLES[group], "cohort": "c1" if index % 2 == 0 else "c2"},
+                                sort_keys=True)}
+            for index, group in enumerate(_PROJECTED_PLAN)
+        ]
+        return {
+            "schema_version": PARITY_SCHEMA, "case_id": case_id, "setup": "parity-projected-v1",
+            "operation_id": "engine.search_projected_text", "limit": 5, "projection": "title",
+            "filters": [{"id": "unfiltered", "filter": None},
+                        {"id": "cohort-c1", "filter": {"attributes": [["cohort", "c1"]]}}],
+            "corpus": corpus,
+            "queries": [{"id": "q01", "text": "parity"}, {"id": "q02", "text": "PARITY"}],
+        }
+    if case_id == "dense-v1":
+        return {
+            "schema_version": PARITY_SCHEMA, "case_id": case_id, "setup": "parity-dense-v1",
+            "operation_id": "engine.search", "limit": 10,
+            "corpus": [{"id": i, "body": b} for i, b in _DENSE_DOCS],
+            "queries": [{"id": i, "text": t} for i, t in _DENSE_QUERIES],
+        }
+    raise ValueError(f"unknown parity case {case_id}")
+
+
+def populate_parity_database(database_path: str | Path, fixture: dict[str, Any]) -> None:
+    """Write one parity case's store; the dense case declares the vector projection first."""
+    from fathomdb import Engine, ProjectionRole, ProjectionSpec
+
+    dense = fixture["case_id"] == "dense-v1"
+    engine = Engine.open(str(database_path), use_default_embedder=dense)
+    try:
+        if fixture["case_id"] == "projected-v1":
+            engine.configure_projections([
+                ProjectionSpec(name="title", roles=frozenset({ProjectionRole.SEARCHABLE}), fts=True),
+                ProjectionSpec(name="cohort", roles=frozenset({ProjectionRole.FILTERABLE})),
+            ])
+        if dense:
+            engine.configure_projections([
+                ProjectionSpec(name="dense", roles=frozenset({ProjectionRole.SEARCHABLE}), vector=True),
+            ])
+        engine.write([
+            {"kind": "doc", "body": row["body"], "logical_id": row["id"], "source_id": f"sdk:{row['id']}"}
+            for row in fixture["corpus"]
+        ])
+        engine.drain(timeout_s=600)
+    finally:
+        engine.close()
+    if dense:
+        import sqlite3
+
+        with sqlite3.connect(f"file:{database_path}?mode=ro", uri=True) as connection:
+            vectors = connection.execute(
+                "SELECT COUNT(DISTINCT write_cursor) FROM _fathomdb_vector_rows WHERE kind = 'doc'"
+            ).fetchone()[0]
+        if vectors != len(fixture["corpus"]):
+            raise ValueError(f"dense parity store embedded {vectors} of {len(fixture['corpus'])} documents")
+
+
+def parity_hits(results: Any) -> list[dict[str, Any]]:
+    """(id, score, branch) per hit, in order, with the suite's prefixed IDs."""
+    hits = []
+    for hit in results:
+        prefix = _ID_PREFIX.get(hit.id.space)
+        if prefix is None:
+            raise ValueError("unsupported id space")
+        hits.append({"id": prefix + hit.id.value, "score": float(hit.score), "branch": str(hit.branch)})
+    return hits
+
+
+def python_oracle(database_path: str | Path, fixture: dict[str, Any], *,
+                  filter: dict[str, Any] | None) -> dict[str, list[dict[str, Any]]]:
+    """The in-process Python SDK's hits on ``database_path`` for every fixture query."""
+    from fathomdb import Engine, ReadView, SearchFilter
+
+    view = ReadView(valid_as_of=PARITY_VALID_AS_OF)
+    dense = fixture["case_id"] == "dense-v1"
+    engine = Engine.open(str(database_path), use_default_embedder=dense)
+    out: dict[str, list[dict[str, Any]]] = {}
+    try:
+        for query in fixture["queries"]:
+            if fixture["operation_id"] == "engine.search_text_only":
+                result = engine.search_text_only(query["text"], view=view, limit=fixture["limit"])
+            elif fixture["operation_id"] == "engine.search_projected_text":
+                flt = None if filter is None else SearchFilter(
+                    attributes=tuple(tuple(pair) for pair in filter["attributes"]))
+                result = engine.search_projected_text(query["text"], fixture["projection"], flt,
+                                                      view=view, limit=fixture["limit"])
+            else:
+                result = engine.search(query["text"], view=view, limit=fixture["limit"])
+            out[query["id"]] = parity_hits(result.results)
+    finally:
+        engine.close()
+    return out
+
+
+def compare_parity(expected: dict[str, list[dict[str, Any]]],
+                   observed: dict[str, list[dict[str, Any]]]) -> list[str]:
+    """Every difference between two (id, score, branch) hit lists; empty means parity."""
+    problems = []
+    if set(expected) != set(observed):
+        problems.append(f"query set differs: {sorted(set(expected) ^ set(observed))}")
+    for query_id in sorted(set(expected) & set(observed)):
+        want, got = expected[query_id], observed[query_id]
+        if len(want) != len(got):
+            problems.append(f"{query_id}: {len(got)} hits, oracle {len(want)}")
+        for rank, (a, b) in enumerate(zip(want, got), 1):
+            for field in ("id", "branch"):
+                if a[field] != b.get(field):
+                    problems.append(f"{query_id}#{rank} {field}: {b.get(field)!r} vs oracle {a[field]!r}")
+            score = b.get("score")
+            if isinstance(score, int) and not isinstance(score, bool):
+                score = float(score)  # JSON writers may print an integral double without ".0"
+            if not isinstance(score, float) or score.hex() != float(a["score"]).hex():
+                problems.append(f"{query_id}#{rank} score: {score!r} vs oracle {a['score']!r}")
+    return problems

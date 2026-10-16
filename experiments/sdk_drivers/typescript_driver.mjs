@@ -8,9 +8,19 @@ import { basename, isAbsolute } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const protocol = 'sdk.driver.v1';
-const operations = ['engine.search_text_only', 'read.get', 'graph.neighbors'];
-const packageJson = new URL('../../src/ts/package.json', import.meta.url);
-const packageEntry = new URL('../../src/ts/dist/index.js', import.meta.url);
+const operations = [
+  'engine.search_text_only', 'engine.search_projected_text', 'engine.search', 'read.get', 'graph.neighbors',
+];
+const searchOperations = ['engine.search_text_only', 'engine.search_projected_text', 'engine.search'];
+const defaultPackageRoot = new URL('../../src/ts/', import.meta.url);
+
+function packageUrls(request) {
+  // An attested arm may point at a package built from another source tree.
+  const root = typeof request.package_root === 'string'
+    ? new URL(`file://${request.package_root.replace(/\/?$/, '/')}`)
+    : defaultPackageRoot;
+  return { packageJson: new URL('package.json', root), packageEntry: new URL('dist/index.js', root) };
+}
 
 class DriverFailure extends Error {
   constructor(code) {
@@ -41,8 +51,15 @@ function validate(request) {
   keys(request, [
     'schema_version', 'mode', 'sdk', 'operation_id', 'operation_version',
     'database_path', 'queries', 'arguments', 'warmup_per_query', 'timeout_ms',
-    'expected_native_sha256',
+    'expected_native_sha256', 'normalizer', 'package_root',
   ]);
+  if (request.normalizer !== undefined && !['ordered_ids', 'ordered_hits'].includes(request.normalizer)) {
+    throw new DriverFailure('invalid_request');
+  }
+  if (request.package_root !== undefined &&
+      (typeof request.package_root !== 'string' || !isAbsolute(request.package_root))) {
+    throw new DriverFailure('invalid_request');
+  }
   if (request.schema_version !== protocol || request.mode !== 'run-repetition' ||
       request.sdk !== 'typescript' || !operations.includes(request.operation_id) ||
       request.operation_version !== 1) {
@@ -51,13 +68,36 @@ function validate(request) {
   if (typeof request.database_path !== 'string' || !isAbsolute(request.database_path)) {
     throw new DriverFailure('invalid_request');
   }
-  const argumentFields = request.operation_id === 'engine.search_text_only'
-    ? ['limit', 'view']
-    : request.operation_id === 'graph.neighbors' ? ['depth', 'view'] : ['view'];
+  const argumentFields = {
+    'engine.search_text_only': ['limit', 'view'],
+    'engine.search_projected_text': ['limit', 'view', 'name', 'filter'],
+    'engine.search': ['limit', 'view', 'use_default_embedder'],
+    'graph.neighbors': ['depth', 'view'],
+    'read.get': ['view'],
+  }[request.operation_id];
   keys(request.arguments, argumentFields);
+  if (argumentFields.some((key) => !Object.hasOwn(request.arguments, key))) {
+    throw new DriverFailure('invalid_request');
+  }
   keys(request.arguments.view, ['valid_as_of']);
-  if (request.operation_id === 'engine.search_text_only') {
+  if (searchOperations.includes(request.operation_id)) {
     safeInteger(request.arguments.limit, 1, 100);
+  }
+  if (request.operation_id === 'engine.search_projected_text') {
+    if (typeof request.arguments.name !== 'string' || request.arguments.name.length === 0) {
+      throw new DriverFailure('invalid_request');
+    }
+    const filter = request.arguments.filter;
+    if (filter !== null) {
+      keys(filter, ['attributes']);
+      if (!Array.isArray(filter.attributes) || filter.attributes.some((pair) =>
+        !Array.isArray(pair) || pair.length !== 2 || pair.some((v) => typeof v !== 'string'))) {
+        throw new DriverFailure('invalid_request');
+      }
+    }
+  }
+  if (request.operation_id === 'engine.search' && typeof request.arguments.use_default_embedder !== 'boolean') {
+    throw new DriverFailure('invalid_request');
   }
   if (request.operation_id === 'graph.neighbors') {
     safeInteger(request.arguments.depth, 1, 3);
@@ -105,6 +145,16 @@ function normalizeIds(result) {
   });
 }
 
+function normalizeHits(result) {
+  const prefix = { logical: 'l:', content: 'h:', passage: 'p:' };
+  return result.results.map((hit) => {
+    if (typeof hit.score !== 'number' || typeof hit.branch !== 'string') {
+      throw new DriverFailure('invalid_sdk_result');
+    }
+    return { id: prefix[hit.id.space] + hit.id.value, score: hit.score, branch: hit.branch };
+  });
+}
+
 function normalizeNode(node) {
   if (!object(node) || typeof node.logicalId !== 'string' || node.logicalId.length === 0) {
     throw new DriverFailure('invalid_sdk_result');
@@ -113,7 +163,7 @@ function normalizeNode(node) {
 }
 
 function normalizeResult(operationId, result) {
-  if (operationId === 'engine.search_text_only') return normalizeIds(result);
+  if (searchOperations.includes(operationId)) return normalizeIds(result);
   if (operationId === 'read.get') return result === null ? [] : [normalizeNode(result)];
   if (!Array.isArray(result)) throw new DriverFailure('invalid_sdk_result');
   return result.map(normalizeNode);
@@ -122,10 +172,19 @@ function normalizeResult(operationId, result) {
 function publicCall(sdk, engine, request, options, query) {
   switch (request.operation_id) {
     case 'engine.search_text_only': return engine.searchTextOnly(query.text, options);
+    case 'engine.search_projected_text':
+      return engine.searchProjectedText(query.text, request.arguments.name, projectedFilter(request), options);
+    case 'engine.search':
+      return engine.search(query.text, undefined, 0, false, undefined, undefined, false, options);
     case 'read.get': return sdk.read.get(engine, query.text, options);
     case 'graph.neighbors': return sdk.graph.neighbors(engine, query.text, options.depth, 'both', options.view);
     default: throw new DriverFailure('unsupported_operation');
   }
+}
+
+function projectedFilter(request) {
+  const filter = request.arguments.filter;
+  return filter === null ? undefined : { attributes: filter.attributes.map((pair) => [pair[0], pair[1]]) };
 }
 
 function typedError(error) {
@@ -174,6 +233,7 @@ async function run(request) {
     if (Number(process.versions.node.split('.')[0]) !== 25) {
       throw new DriverFailure('unsupported_runtime');
     }
+    const { packageJson, packageEntry } = packageUrls(request);
     const manifest = JSON.parse(readFileSync(packageJson, 'utf8'));
     if (manifest.name !== 'fathomdb' || typeof manifest.version !== 'string') {
       throw new DriverFailure('package_mismatch');
@@ -193,14 +253,15 @@ async function run(request) {
       throw new DriverFailure('native_digest_mismatch');
     }
     const view = { validAsOf: request.arguments.view.valid_as_of };
-    const options = request.operation_id === 'engine.search_text_only'
+    const options = searchOperations.includes(request.operation_id)
       ? { ...view, limit: request.arguments.limit }
       : request.operation_id === 'graph.neighbors'
         ? { view, depth: request.arguments.depth }
         : view;
     response.effective_options = request.arguments;
     sdk.admin.configureRuntime({ sqliteMode: 'performance' });
-    engine = await bounded(() => sdk.Engine.open(request.database_path, { useDefaultEmbedder: false }), deadline);
+    const useDefaultEmbedder = request.operation_id === 'engine.search' && request.arguments.use_default_embedder;
+    engine = await bounded(() => sdk.Engine.open(request.database_path, { useDefaultEmbedder }), deadline);
     if (!object(engine.openReport())) {
       throw new DriverFailure('invalid_open_report');
     }
@@ -213,7 +274,9 @@ async function run(request) {
       const result = await bounded(() => publicCall(sdk, engine, request, options, query), deadline);
       const elapsed = process.hrtime.bigint() - started;
       const ids = normalizeResult(request.operation_id, result);
-      samples.push({ query_id: query.id, elapsed_ns: Number(elapsed), ids });
+      const sample = { query_id: query.id, elapsed_ns: Number(elapsed), ids };
+      if (request.normalizer === 'ordered_hits') sample.hits = normalizeHits(result);
+      samples.push(sample);
     }
     await bounded(() => engine.close(), deadline);
     engine = undefined;

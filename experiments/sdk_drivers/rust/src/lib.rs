@@ -6,15 +6,22 @@ use std::path::Path;
 use std::time::Instant;
 
 use fathomdb_sdk::{
-    admin, graph, read, Engine, NeighborsOptions, NodeRecord, OpenOptions, ReadView,
-    RuntimeSqliteMode, SearchResult, TextSearchOptions, TraversalDirection,
+    admin, graph, read, Engine, NeighborsOptions, NodeRecord, OpenOptions,
+    ProjectedTextSearchOptions, ReadView, RuntimeSqliteMode, SearchFilter, SearchOptions,
+    SearchResult, SoftFallbackBranch, TextSearchOptions, TraversalDirection,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 const SCHEMA: &str = "sdk.driver.v1";
-const OPERATIONS: [&str; 3] = ["engine.search_text_only", "read.get", "graph.neighbors"];
+const OPERATIONS: [&str; 5] = [
+    "engine.search_text_only",
+    "engine.search_projected_text",
+    "engine.search",
+    "read.get",
+    "graph.neighbors",
+];
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -37,6 +44,8 @@ pub struct RunRequest {
     warmup_per_query: u32,
     timeout_ms: u64,
     expected_native_sha256: String,
+    #[serde(default)]
+    normalizer: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -49,6 +58,8 @@ struct Query {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum Arguments {
+    Projected(ProjectedArguments),
+    Hybrid(HybridArguments),
     Fts(FtsArguments),
     Read(ReadArguments),
     Graph(GraphArguments),
@@ -59,6 +70,29 @@ enum Arguments {
 struct FtsArguments {
     limit: usize,
     view: View,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProjectedArguments {
+    limit: usize,
+    view: View,
+    name: String,
+    filter: Option<FilterArgument>,
+}
+
+#[derive(Clone, Debug, Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct FilterArgument {
+    attributes: Vec<(String, String)>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct HybridArguments {
+    limit: usize,
+    view: View,
+    use_default_embedder: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,6 +115,8 @@ struct View {
 }
 
 enum CallOptions {
+    Projected { name: String, options: ProjectedTextSearchOptions },
+    Hybrid(SearchOptions),
     Fts(TextSearchOptions),
     Read(ReadView),
     Graph { depth: u32, options: NeighborsOptions },
@@ -92,7 +128,35 @@ enum NativeResult {
     Graph(Vec<NodeRecord>),
 }
 
+fn branch_name(branch: SoftFallbackBranch) -> &'static str {
+    match branch {
+        SoftFallbackBranch::Vector => "vector",
+        SoftFallbackBranch::Text => "text",
+        SoftFallbackBranch::TextEdge => "text_edge",
+        SoftFallbackBranch::GraphArm => "graph_arm",
+    }
+}
+
 impl NativeResult {
+    fn hits(&self) -> Option<Vec<Value>> {
+        match self {
+            Self::Fts(result) => Some(
+                result
+                    .results
+                    .iter()
+                    .map(|hit| {
+                        json!({
+                            "id": hit.id.to_prefixed(),
+                            "score": hit.score,
+                            "branch": branch_name(hit.branch),
+                        })
+                    })
+                    .collect(),
+            ),
+            _ => None,
+        }
+    }
+
     fn ids(self) -> Vec<String> {
         match self {
             Self::Fts(result) => {
@@ -114,6 +178,10 @@ fn public_call(
     options: &CallOptions,
 ) -> fathomdb_sdk::Result<NativeResult> {
     match options {
+        CallOptions::Projected { name, options } => {
+            engine.search_projected_text(text, name, options.clone()).map(NativeResult::Fts)
+        }
+        CallOptions::Hybrid(options) => engine.search(text, options.clone()).map(NativeResult::Fts),
         CallOptions::Fts(options) => {
             engine.search_text_only(text, options.clone()).map(NativeResult::Fts)
         }
@@ -127,6 +195,26 @@ fn public_call(
 impl Arguments {
     fn call_options(&self) -> CallOptions {
         match self {
+            Self::Projected(args) => CallOptions::Projected {
+                name: args.name.clone(),
+                options: ProjectedTextSearchOptions {
+                    filter: args.filter.as_ref().map(|filter| {
+                        let mut search_filter = SearchFilter::default();
+                        search_filter.attributes = filter.attributes.clone();
+                        search_filter
+                    }),
+                    view: ReadView {
+                        valid_as_of: Some(args.view.valid_as_of),
+                        ..ReadView::default()
+                    },
+                    limit: args.limit,
+                },
+            },
+            Self::Hybrid(args) => CallOptions::Hybrid(SearchOptions {
+                view: ReadView { valid_as_of: Some(args.view.valid_as_of), ..ReadView::default() },
+                limit: args.limit,
+                ..SearchOptions::default()
+            }),
             Self::Fts(args) => CallOptions::Fts(TextSearchOptions {
                 view: ReadView { valid_as_of: Some(args.view.valid_as_of), ..ReadView::default() },
                 limit: args.limit,
@@ -148,8 +236,23 @@ impl Arguments {
         }
     }
 
+    fn use_default_embedder(&self) -> bool {
+        matches!(self, Self::Hybrid(args) if args.use_default_embedder)
+    }
+
     fn json(&self) -> Value {
         match self {
+            Self::Projected(args) => json!({
+                "limit": args.limit,
+                "view": {"valid_as_of": args.view.valid_as_of},
+                "name": args.name,
+                "filter": args.filter,
+            }),
+            Self::Hybrid(args) => json!({
+                "limit": args.limit,
+                "view": {"valid_as_of": args.view.valid_as_of},
+                "use_default_embedder": args.use_default_embedder,
+            }),
             Self::Fts(args) => {
                 json!({"limit": args.limit, "view": {"valid_as_of": args.view.valid_as_of}})
             }
@@ -216,6 +319,9 @@ pub fn parse_request(raw: &str) -> Result<Request, String> {
             match (request.operation_id.as_str(), &request.arguments) {
                 ("engine.search_text_only", Arguments::Fts(args))
                     if (1..=100).contains(&args.limit) => {}
+                ("engine.search_projected_text", Arguments::Projected(args))
+                    if (1..=100).contains(&args.limit) && !args.name.is_empty() => {}
+                ("engine.search", Arguments::Hybrid(args)) if (1..=100).contains(&args.limit) => {}
                 ("read.get", Arguments::Read(_)) => {}
                 ("graph.neighbors", Arguments::Graph(args)) if (1..=3).contains(&args.depth) => {}
                 _ => return Err("invalid operation arguments".into()),
@@ -235,6 +341,10 @@ pub fn parse_request(raw: &str) -> Result<Request, String> {
             }
             if request.timeout_ms == 0 || request.warmup_per_query > 1000 {
                 return Err("invalid timeout or warmup count".into());
+            }
+            if !matches!(request.normalizer.as_deref(), None | Some("ordered_ids" | "ordered_hits"))
+            {
+                return Err("unsupported normalizer".into());
             }
             if request.expected_native_sha256.len() != 64
                 || !request.expected_native_sha256.bytes().all(|c| c.is_ascii_hexdigit())
@@ -333,7 +443,11 @@ fn run(request: &RunRequest) -> Value {
     if let Err(error) = admin::configure_runtime(RuntimeSqliteMode::Performance) {
         return blocked(DriverError::sdk(&error), Some(&native_sha256), Some(request));
     }
-    let engine = match Engine::open(&request.database_path, OpenOptions::default()) {
+    let open_options = OpenOptions {
+        use_default_embedder: request.arguments.use_default_embedder(),
+        ..OpenOptions::default()
+    };
+    let engine = match Engine::open(&request.database_path, open_options) {
         Ok(engine) => engine,
         Err(error) => {
             return blocked(DriverError::sdk(&error), Some(&native_sha256), Some(request))
@@ -367,9 +481,14 @@ fn run(request: &RunRequest) -> Value {
             let elapsed_ns = start.elapsed().as_nanos();
             match result {
                 Ok(result) => {
+                    let hits = result.hits();
                     let ids = result.ids();
-                    samples
-                        .push(json!({"query_id": query.id, "elapsed_ns": elapsed_ns, "ids": ids}));
+                    let mut sample =
+                        json!({"query_id": query.id, "elapsed_ns": elapsed_ns, "ids": ids});
+                    if request.normalizer.as_deref() == Some("ordered_hits") {
+                        sample["hits"] = json!(hits);
+                    }
+                    samples.push(sample);
                 }
                 Err(error) => {
                     failure = Some(DriverError::sdk(&error));

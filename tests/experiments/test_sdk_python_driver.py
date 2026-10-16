@@ -213,6 +213,8 @@ def test_capabilities_advertise_only_implemented_operations():
     assert result["status"] == "complete"
     assert {entry["operation_id"] for entry in result["operations"]} == {
         "engine.search_text_only",
+        "engine.search_projected_text",
+        "engine.search",
         "read.get",
         "graph.neighbors",
     }

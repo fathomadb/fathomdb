@@ -12,9 +12,13 @@ _PARITY = _ROOT / "src/conformance/governed-operation-parity.json"
 
 _MEASURE = {
     "engine.search_text_only",
+    "engine.search_projected_text",
+    "engine.search",
     "read.get",
     "graph.neighbors",
 }
+# Measured operations whose cross-SDK comparison covers (id, score, branch).
+_ORDERED_HITS = {"engine.search_projected_text", "engine.search"}
 _SETUP = {
     "engine.open",
     "admin.configure",
@@ -50,10 +54,8 @@ _OBSERVE = {
     "read.get_many",
 }
 _EXCLUDED = {
-    "engine.search": "configured hybrid fixture and model oracle pending",
     "engine.search_frozen": "frozen-context fixture pending",
     "engine.search_expand_frozen": "frozen graph-evidence fixture pending",
-    "engine.search_projected_text": "named projection fixture pending",
     "engine.search_with_evidence": "evidence oracle pending",
     "engine.resolve_evidence": "evidence resolution fixture pending",
     "engine.resolve_graph_evidence": "graph evidence resolution fixture pending",
@@ -154,7 +156,9 @@ def load_registry(parity_path: str | Path = _PARITY) -> dict[str, dict[str, Any]
             "timing_boundary": "sdk_call_to_materialized_result"
             if disposition == "measure"
             else None,
-            "normalizer": "ordered_ids" if disposition == "measure" else None,
+            "normalizer": ("ordered_hits" if operation_id in _ORDERED_HITS else "ordered_ids")
+            if disposition == "measure"
+            else None,
             "readiness": "fresh_database_drained" if disposition == "measure" else None,
         }
     for operation_id, (python, typescript, rust, disposition) in _EXTRAS.items():

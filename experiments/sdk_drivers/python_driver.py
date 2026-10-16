@@ -21,6 +21,8 @@ from typing import Any
 SCHEMA_VERSION = "sdk.driver.v1"
 _OPERATIONS = (
     ("engine.search_text_only", 1),
+    ("engine.search_projected_text", 1),
+    ("engine.search", 1),
     ("read.get", 1),
     ("graph.neighbors", 1),
 )
@@ -143,10 +145,31 @@ def _decode(request: object) -> dict[str, Any]:
     operation_id = raw["operation_id"]
     expected_args = {
         "engine.search_text_only": {"limit", "view"},
+        "engine.search_projected_text": {"limit", "view", "name", "filter"},
+        "engine.search": {"limit", "view", "use_default_embedder"},
         "read.get": {"view"},
         "graph.neighbors": {"depth", "view"},
     }[operation_id]
     if set(args) != expected_args:
+        raise DriverRefusal("invalid_request")
+    normalizer = raw.get("normalizer", "ordered_ids")
+    if normalizer not in {"ordered_ids", "ordered_hits"}:
+        raise DriverRefusal("invalid_request")
+    name = args.get("name")
+    if "name" in args and (not isinstance(name, str) or not name):
+        raise DriverRefusal("invalid_request")
+    filter_attributes = None
+    if args.get("filter") is not None:
+        flt = _require_dict(args["filter"])
+        pairs = flt.get("attributes")
+        if set(flt) != {"attributes"} or not isinstance(pairs, list) or any(
+            not isinstance(pair, list) or len(pair) != 2 or not all(isinstance(v, str) for v in pair)
+            for pair in pairs
+        ):
+            raise DriverRefusal("invalid_request")
+        filter_attributes = tuple(tuple(pair) for pair in pairs)
+    use_default_embedder = args.get("use_default_embedder", False)
+    if not isinstance(use_default_embedder, bool):
         raise DriverRefusal("invalid_request")
     limit = _require_int(args["limit"], minimum=1) if "limit" in args else None
     depth = _require_int(args["depth"], minimum=1) if "depth" in args else None
@@ -173,6 +196,11 @@ def _decode(request: object) -> dict[str, Any]:
         "timeout_ms": timeout_ms,
         "timeout_s": timeout_s,
         "expected_native_sha256": expected_sha,
+        "normalizer": normalizer,
+        "name": name,
+        "filter": args.get("filter"),
+        "filter_attributes": filter_attributes,
+        "use_default_embedder": use_default_embedder,
     }
 
 
@@ -194,9 +222,19 @@ def _sdk_identity(sdk: Any, expected_sha: str) -> dict[str, str]:
     }
 
 
+def _normalized_hits(result: Any) -> list[dict[str, Any]]:
+    hits: list[dict[str, Any]] = []
+    for hit in result:
+        prefix = _ID_PREFIX.get(hit.id.space)
+        if prefix is None or not isinstance(hit.id.value, str):
+            raise DriverRefusal("unsupported_id_space")
+        hits.append({"id": prefix + hit.id.value, "score": float(hit.score), "branch": str(hit.branch)})
+    return hits
+
+
 def _normalized_ids(result: Any, operation_id: str) -> list[str]:
     ids: list[str] = []
-    if operation_id == "engine.search_text_only":
+    if operation_id in {"engine.search_text_only", "engine.search_projected_text", "engine.search"}:
         for hit in result:
             id_space = hit.id
             prefix = _ID_PREFIX.get(id_space.space)
@@ -220,6 +258,22 @@ def _search_text_only(
     )
 
 
+def _search_projected_text(
+    sdk: Any, engine: Any, text: str, view: Any, options: dict[str, Any]
+) -> tuple[Any, ...]:
+    attributes = options["filter_attributes"]
+    flt = None if attributes is None else sdk.SearchFilter(attributes=attributes)
+    return tuple(
+        engine.search_projected_text(text, options["name"], flt, view=view, limit=options["limit"]).results
+    )
+
+
+def _search(
+    sdk: Any, engine: Any, text: str, view: Any, options: dict[str, Any]
+) -> tuple[Any, ...]:
+    return tuple(engine.search(text, view=view, limit=options["limit"]).results)
+
+
 def _read_get(
     sdk: Any, engine: Any, text: str, view: Any, options: dict[str, Any]
 ) -> tuple[Any, ...]:
@@ -235,6 +289,8 @@ def _graph_neighbors(
 
 _BINDINGS = {
     "engine.search_text_only": _search_text_only,
+    "engine.search_projected_text": _search_projected_text,
+    "engine.search": _search,
     "read.get": _read_get,
     "graph.neighbors": _graph_neighbors,
 }
@@ -309,8 +365,16 @@ def execute(request: object, *, sdk: Any | None = None) -> dict[str, Any]:
             response["effective_options"]["limit"] = decoded["limit"]
         if decoded["depth"] is not None:
             response["effective_options"]["depth"] = decoded["depth"]
+        if decoded["operation_id"] == "engine.search_projected_text":
+            response["effective_options"].update(name=decoded["name"], filter=decoded["filter"])
+        if decoded["operation_id"] == "engine.search":
+            response["effective_options"]["use_default_embedder"] = decoded["use_default_embedder"]
         sdk.admin.configure_runtime(sqlite_mode="performance")
-        engine = sdk.Engine.open(decoded["database_path"])
+        engine = (
+            sdk.Engine.open(decoded["database_path"], use_default_embedder=True)
+            if decoded["use_default_embedder"]
+            else sdk.Engine.open(decoded["database_path"])
+        )
         run_error: Exception | None = None
         samples: list[dict[str, Any]] = []
         try:
@@ -328,13 +392,14 @@ def execute(request: object, *, sdk: Any | None = None) -> dict[str, Any]:
                 start_ns = time.perf_counter_ns()
                 materialized = binding(sdk, engine, query["text"], view, decoded)
                 elapsed_ns = time.perf_counter_ns() - start_ns
-                samples.append(
-                    {
-                        "query_id": query["id"],
-                        "elapsed_ns": elapsed_ns,
-                        "ids": _normalized_ids(materialized, decoded["operation_id"]),
-                    }
-                )
+                sample = {
+                    "query_id": query["id"],
+                    "elapsed_ns": elapsed_ns,
+                    "ids": _normalized_ids(materialized, decoded["operation_id"]),
+                }
+                if decoded["normalizer"] == "ordered_hits":
+                    sample["hits"] = _normalized_hits(materialized)
+                samples.append(sample)
         except Exception as exc:
             run_error = exc
         finally:

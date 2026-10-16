@@ -210,6 +210,8 @@ def test_capabilities_is_one_protocol_response(sandbox, tmp_path):
     assert response["status"] == "complete"
     assert response["operations"] == [
         {"operation_id": "engine.search_text_only", "operation_version": 1},
+        {"operation_id": "engine.search_projected_text", "operation_version": 1},
+        {"operation_id": "engine.search", "operation_version": 1},
         {"operation_id": "read.get", "operation_version": 1},
         {"operation_id": "graph.neighbors", "operation_version": 1},
     ]

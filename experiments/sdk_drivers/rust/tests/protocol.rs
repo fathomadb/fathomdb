@@ -39,6 +39,8 @@ fn capabilities_advertise_only_implemented_operations() {
         response["operations"],
         json!([
             {"operation_id":"engine.search_text_only","operation_version":1},
+            {"operation_id":"engine.search_projected_text","operation_version":1},
+            {"operation_id":"engine.search","operation_version":1},
             {"operation_id":"read.get","operation_version":1},
             {"operation_id":"graph.neighbors","operation_version":1}
         ])

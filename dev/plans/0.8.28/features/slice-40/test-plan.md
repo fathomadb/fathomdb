@@ -272,8 +272,59 @@ and the doctests. `pr_g9_rrf_fusion` needs `--features test-hooks`.
 
 ## 6. Pre-existing test failures at W5
 
-Recorded at W5 below. A failing pre-existing test is not edited; it is
-listed here verbatim and the slice stops for a ruling (R1 F4).
+A failing pre-existing test is not edited; it is listed here verbatim
+(R1 F4). No test was edited at W4 or W5.
+
+**`cargo test -p fathomdb-engine` (default features): exit 0**, 79 test
+binaries, 474 passed, 0 failed, 7 ignored. This includes
+`slice23_text_limit_prefix_stability`, `exp_obs_explain` and the AC-038
+test.
+
+**`cargo test -p fathomdb-engine --features test-hooks` (not a gate
+invocation; run to reach the `test-hooks`-only targets such as
+`pr_g9_rrf_fusion` and `slice71_search_statement_trace`).** The first run
+(fail-fast, host load average 12) stopped in the lib unit tests:
+
+```text
+thread 'slice90_close_review_tests::provider_deadline_starts_after_sqlite_quiescence_and_is_never_renewed' (3050427) panicked at src/rust/crates/fathomdb-engine/src/slice90_close_review_tests.rs:183:5:
+provider drain exceeded one budget: 252.40357ms
+thread 'slice90_post_probe_real_error_tests::real_post_probe_visibility_error_uses_shared_unwind_and_retains_provider_only' (3050442) panicked at src/rust/crates/fathomdb-engine/src/slice90_post_probe_real_error_tests.rs:91:5:
+assertion `left == right` failed: timed-out provider remains counted
+  left: 0
+ right: 1
+```
+
+Both are close-path timing tests. Rerun alone they pass, and the full lib
+suite then passed twice (`test result: ok. 111 passed; 0 failed`).
+Treated as a load-dependent flake unrelated to ranking.
+
+The `--no-fail-fast` run: 211 test binaries, 1303 passed, 10 failed,
+36 ignored. All ten fail outside search ranking:
+
+```text
+pr_g8_dangling_edges (7 of 8): s20_edge_to_one_missing_endpoint_counts_one, s20_default_flag_and_count_commits_the_batch, s20_count_is_sum_over_both_endpoints, s20_edge_to_superseded_node_counts, s20_legacy_null_logical_id_batch_writes_with_defined_count, s20_same_batch_later_inserted_node_is_not_flagged, s20_on_supersession_skips_earlier_keeps_final_active
+  each: open: RuntimeConfiguration(TooLate)
+tc57_governed_write_race (2 of 5): tc57_control_anonymous_write_loop_does_not_race, tc57_repro_governed_write_loop_races_projection_worker
+  each: panicked at src/rust/crates/fathomdb-engine/tests/tc57_governed_write_race.rs:211:6:
+  open: RuntimeConfiguration(TooLate)
+slice135_robustness_first (1 of 7): slice135_persistent_sqlite_full_preserves_state_until_cap_lifts
+  panicked at src/rust/crates/fathomdb-engine/tests/slice135_robustness_first.rs:437:5:
+  assertion `left == right` failed: no persistent descriptor growth
+    left: Some(4)
+   right: Some(33)
+```
+
+These targets pass in the default-feature run above. Nine fail in
+`Engine::open` with `RuntimeConfiguration(TooLate)`, before any search; the
+tenth checks file-descriptor growth. None reaches fusion or the query
+compiler before failing. Whether they also fail at the baseline under
+`--features test-hooks` was not checked (it needs a second checkout). They are recorded for the
+orchestrator, not ruled on here. The gate of record is
+`./scripts/agent-verify.sh` (§ 6.1).
+
+### 6.1 Gates
+
+Recorded below at W5.
 
 ## 7. R1 rulings on the phase 1 open questions
 

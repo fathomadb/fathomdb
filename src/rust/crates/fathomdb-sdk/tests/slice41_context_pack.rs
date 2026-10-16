@@ -68,6 +68,14 @@ fn policy_from(v: &Value) -> ContextPolicy {
                         .map(|r| r.as_str().expect("role").to_string())
                         .collect()
                 }
+                "full_ids" => {
+                    policy.full_ids = value
+                        .as_array()
+                        .expect("full_ids")
+                        .iter()
+                        .map(|id| id.as_str().expect("id").to_string())
+                        .collect()
+                }
                 "expand_groups" => policy.expand_groups = value.as_bool().expect("bool"),
                 "order" => {
                     policy.order = if value == "chronological" {
@@ -98,6 +106,7 @@ fn to_json(pack: &ContextPack) -> Value {
             },
             "chars": e.chars,
             "truncated": e.truncated,
+            "forced": e.forced,
             "rendered_index": e.rendered_index,
             "parts": e.parts.iter().map(|p| json!({"role": p.role, "chars": p.chars, "of_chars": p.of_chars})).collect::<Vec<_>>(),
         })).collect::<Vec<_>>(),

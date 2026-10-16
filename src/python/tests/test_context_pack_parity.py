@@ -98,6 +98,7 @@ def test_default_policy_matches_documented_defaults() -> None:
     policy = ContextPolicy()
     got = {f.name: getattr(policy, f.name) for f in fields(policy)}
     got["keep_roles"] = list(got["keep_roles"])
+    got["full_ids"] = list(got["full_ids"])
     assert got == defaults
 
 

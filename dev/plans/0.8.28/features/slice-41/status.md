@@ -72,6 +72,32 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
    additions. This is the first top-level addition since Slice 130, so the
    mechanism is new; the change is limited to this one test.
 
+5. Phase 2 (orchestrator, 2026-10-16, option A). The phase 1 comparators
+   in TypeScript and Rust list their fields by hand, and every default-policy
+   check lists the policy fields, so Q-T1 alone could not go GREEN. Allowed,
+   each making a comparator or default check cover the new field:
+   - `src/ts/tests/context-pack.test.ts`: `forced` in `asWire`, `full_ids`
+     in the default-policy object;
+   - `fathomdb-engine/tests/slice41_context_pack.rs`: `forced` in
+     `entry_to_json`; `full_ids: Vec::new()` in the proptest literal
+     (compile-required);
+   - `fathomdb-sdk/tests/slice41_context_pack.rs`: `forced` in `to_json`, a
+     `full_ids` arm in `policy_from`;
+   - `src/python/tests/test_context_pack_parity.py`: `full_ids` list
+     normalisation in the default-policy check;
+   - fixture data: `defaults` gains `"full_ids": []` and the 45 phase 1
+     expected entries gain `"forced": false`. Check: deleting every
+     `"forced": false` key (with its trailing comma and space) and the
+     `"full_ids": [],` line reproduces the
+     fixture at `9d66443c0` byte for byte (verified in the RED commit:
+     45 keys, byte-identical);
+   - phase 2 cases live under new keys `full_ids_cases` and
+     `full_ids_errors`, which only the new tests load. The "omit `forced`
+     when false" wire alternative was rejected.
+6. `fathomdb-py/src/test_support.rs:87` gains `query_stop_words: None`, a
+   compile-required mechanical change; nothing else there changes
+   (orchestrator, P2-R0b).
+
 Pre-existing failures under `test-hooks` (the feature is turned on by
 unification in multi-crate runs), left as they are: `slice135_robustness_first`
 `slice135_persistent_sqlite_full_preserves_state_until_cap_lifts` (file

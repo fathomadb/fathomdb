@@ -358,8 +358,8 @@ derived by hand from requirements § 5. The P2-R0 plan review's findings
 
 | Test | Where | AC |
 | --- | --- | --- |
-| fixture cases `full_ids_past_full_items`, `full_ids_inside_full_items_and_unselected`, `full_ids_over_budget` (the last includes a forced item the budget omits: `tier = "omitted"`, `forced = false`) | `src/conformance/context-pack-fixtures.json` (new cases appended) | 28–30 |
-| fixture error cases for unknown, repeated and empty `full_ids`, and an id repeated across `hits ∪ context` that is also in `full_ids` (expects the REQ41-P8 error) | same file, `pack_errors` | 31 |
+| fixture cases `full_ids_past_full_items`, `full_ids_inside_full_items_and_unselected`, `full_ids_over_budget` (the last includes a forced item the budget omits: `tier = "omitted"`, `forced = false`) | `src/conformance/context-pack-fixtures.json`, new key `full_ids_cases` | 28–30 |
+| fixture error cases for unknown, repeated and empty `full_ids`, and an id repeated across `hits ∪ context` that is also in `full_ids` (expects the REQ41-P8 error) | same file, new key `full_ids_errors` | 31 |
 | `prop_empty_full_ids_is_phase_one`, `prop_forcing_changes_only_forced_and_later_items` (the three AC41-32 clauses) | `fathomdb-engine/tests/slice41_full_ids.rs` (new) | 32 |
 | `every_full_ids_case_matches_through_*` | `fathomdb-sdk/tests/slice41_full_ids.rs`, `src/python/tests/test_context_pack_full_ids.py`, `src/ts/tests/context-pack-full-ids.test.ts` (new) | 33 |
 
@@ -375,6 +375,13 @@ scratch script that deletes every `"forced": false` key and compares the
 result with the previous fixture byte for byte; status.md records the
 result. The phase 1 cases then fail RED too until W4 adds `forced` to the
 wire output.
+
+Ruling 5 (status.md, option A): the TypeScript and Rust phase 1
+comparators list fields by hand, so they gain `forced`; the default-policy
+checks gain `full_ids`; the fixture's `defaults` gains `"full_ids": []`.
+The phase 2 cases therefore go under new keys `full_ids_cases` and
+`full_ids_errors`, not `pack_cases` and `pack_errors`: the phase 1 helpers
+do not pass `full_ids`, so they would render those cases wrongly forever.
 
 ### 8.2 Unit Q
 

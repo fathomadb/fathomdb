@@ -123,6 +123,7 @@ fn entry_to_json(entry: &ContextPackEntry) -> Value {
         },
         "chars": entry.chars,
         "truncated": entry.truncated,
+        "forced": entry.forced,
         "rendered_index": entry.rendered_index,
         "parts": entry.parts.iter().map(|p| json!({
             "role": p.role, "chars": p.chars, "of_chars": p.of_chars,
@@ -479,6 +480,7 @@ fn request_strategy() -> impl Strategy<Value = Request> {
                     full_items: full,
                     compact_chars: compact,
                     keep_roles,
+                    full_ids: Vec::new(),
                     expand_groups: expand,
                     order: if chrono { ContextOrder::Chronological } else { ContextOrder::Rank },
                 },

@@ -7,6 +7,7 @@
     "full_items": 3,
     "compact_chars": 300,
     "keep_roles": ["user"],
+    "full_ids": [],
     "expand_groups": true,
     "order": "rank"
   },
@@ -27,9 +28,9 @@
         "chars_used": 19,
         "text_chars": 21,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 13, "truncated": false, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 13, "truncated": false, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 10, "of_chars": 10}]},
-          {"id": "h2", "source": "hit", "tier": "compact", "chars": 6, "truncated": true, "rendered_index": 1,
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 6, "truncated": true, "forced": false, "rendered_index": 1,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 3, "of_chars": 10}]}
         ]
       }
@@ -55,14 +56,14 @@
         "chars_used": 12,
         "text_chars": 14,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "compact", "chars": 8, "truncated": true, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "compact", "chars": 8, "truncated": true, "forced": false, "rendered_index": 0,
            "parts": [
              {"role": "user", "chars": 1, "of_chars": 1},
              {"role": "assistant", "chars": 3, "of_chars": 3},
              {"role": "tool", "chars": 2, "of_chars": 5},
              {"role": "assistant", "chars": 0, "of_chars": 0}
            ]},
-          {"id": "h2", "source": "hit", "tier": "compact", "chars": 4, "truncated": false, "rendered_index": 1,
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 4, "truncated": false, "forced": false, "rendered_index": 1,
            "parts": [{"role": "user", "chars": 0, "of_chars": 0}, {"role": "assistant", "chars": 3, "of_chars": 3}]}
         ]
       }
@@ -82,7 +83,7 @@
         "chars_used": 4,
         "text_chars": 4,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 4, "truncated": false, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 4, "truncated": false, "forced": false, "rendered_index": 0,
            "parts": [
              {"role": "user", "chars": 1, "of_chars": 1},
              {"role": "assistant", "chars": 0, "of_chars": 0},
@@ -110,13 +111,13 @@
         "chars_used": 19,
         "text_chars": 25,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 2}]},
-          {"id": "h2", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "rendered_index": 1,
+          {"id": "h2", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 1,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 2}]},
-          {"id": "c1", "source": "context", "tier": "full", "chars": 5, "truncated": false, "rendered_index": 2,
+          {"id": "c1", "source": "context", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 2,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 2}]},
-          {"id": "c2", "source": "context", "tier": "compact", "chars": 4, "truncated": true, "rendered_index": 3,
+          {"id": "c2", "source": "context", "tier": "compact", "chars": 4, "truncated": true, "forced": false, "rendered_index": 3,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 1, "of_chars": 2}]}
         ]
       }
@@ -138,11 +139,11 @@
         "chars_used": 8,
         "text_chars": 20,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 5, "of_chars": 5}]},
-          {"id": "h2", "source": "hit", "tier": "full", "chars": 3, "truncated": true, "rendered_index": 1,
+          {"id": "h2", "source": "hit", "tier": "full", "chars": 3, "truncated": true, "forced": false, "rendered_index": 1,
            "parts": [{"role": "user", "chars": 3, "of_chars": 5}]},
-          {"id": "h3", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "rendered_index": null,
+          {"id": "h3", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
            "parts": [{"role": "user", "chars": 0, "of_chars": 1}]}
         ]
       }
@@ -163,9 +164,9 @@
         "chars_used": 3,
         "text_chars": 3,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 3, "truncated": false, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 3, "truncated": false, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 3, "of_chars": 3}]},
-          {"id": "h2", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "rendered_index": null,
+          {"id": "h2", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
            "parts": [{"role": "user", "chars": 0, "of_chars": 2}]}
         ]
       }
@@ -185,7 +186,7 @@
         "chars_used": 4,
         "text_chars": 4,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 4, "truncated": true, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 4, "truncated": true, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 1, "of_chars": 4}]}
         ]
       }
@@ -205,7 +206,7 @@
         "chars_used": 3,
         "text_chars": 3,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 3, "truncated": true, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 3, "truncated": true, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 0, "of_chars": 4}]}
         ]
       }
@@ -234,15 +235,15 @@
         "chars_used": 14,
         "text_chars": 26,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "rendered_index": 0, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "h2", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "rendered_index": 1, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "h3", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "rendered_index": 2, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "x1", "source": "context", "tier": "full", "chars": 2, "truncated": false, "rendered_index": 5, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "x2", "source": "context", "tier": "full", "chars": 2, "truncated": false, "rendered_index": 4, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "x3", "source": "context", "tier": "full", "chars": 2, "truncated": false, "rendered_index": 3, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "x4", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "rendered_index": null, "parts": [{"role": "user", "chars": 0, "of_chars": 2}]},
-          {"id": "x5", "source": "context", "tier": "full", "chars": 2, "truncated": false, "rendered_index": 6, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "x6", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "rendered_index": null, "parts": [{"role": "user", "chars": 0, "of_chars": 2}]}
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 0, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "h2", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 1, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "h3", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 2, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x1", "source": "context", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 5, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x2", "source": "context", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 4, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x3", "source": "context", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 3, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x4", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null, "parts": [{"role": "user", "chars": 0, "of_chars": 2}]},
+          {"id": "x5", "source": "context", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 6, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x6", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null, "parts": [{"role": "user", "chars": 0, "of_chars": 2}]}
         ]
       }
     },
@@ -263,8 +264,8 @@
         "chars_used": 2,
         "text_chars": 2,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "rendered_index": 0, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "x1", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "rendered_index": null, "parts": [{"role": "user", "chars": 0, "of_chars": 2}]}
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 0, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x1", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null, "parts": [{"role": "user", "chars": 0, "of_chars": 2}]}
         ]
       }
     },
@@ -287,15 +288,15 @@
         "chars_used": 15,
         "text_chars": 23,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "rendered_index": 3,
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 3,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 2}]},
-          {"id": "h2", "source": "hit", "tier": "compact", "chars": 4, "truncated": true, "rendered_index": 1,
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 4, "truncated": true, "forced": false, "rendered_index": 1,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 1, "of_chars": 2}]},
-          {"id": "h3", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "rendered_index": 4,
+          {"id": "h3", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "forced": false, "rendered_index": 4,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "h4", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "rendered_index": 0,
+          {"id": "h4", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
-          {"id": "h5", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "rendered_index": 2,
+          {"id": "h5", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "forced": false, "rendered_index": 2,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}]}
         ]
       }
@@ -316,9 +317,9 @@
         "chars_used": 1,
         "text_chars": 1,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "rendered_index": null,
+          {"id": "h1", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
            "parts": [{"role": "user", "chars": 0, "of_chars": 3}]},
-          {"id": "h2", "source": "hit", "tier": "compact", "chars": 1, "truncated": true, "rendered_index": 0,
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 1, "truncated": true, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 1, "of_chars": 1}, {"role": "assistant", "chars": 0, "of_chars": 4}]}
         ]
       }
@@ -341,11 +342,11 @@
         "chars_used": 13,
         "text_chars": 17,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "compact", "chars": 6, "truncated": true, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "compact", "chars": 6, "truncated": true, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 3, "of_chars": 3}, {"role": "assistant", "chars": 2, "of_chars": 4}]},
-          {"id": "h2", "source": "hit", "tier": "compact", "chars": 5, "truncated": true, "rendered_index": 1,
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 5, "truncated": true, "forced": false, "rendered_index": 1,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 5}]},
-          {"id": "h3", "source": "hit", "tier": "compact", "chars": 2, "truncated": true, "rendered_index": 2,
+          {"id": "h3", "source": "hit", "tier": "compact", "chars": 2, "truncated": true, "forced": false, "rendered_index": 2,
            "parts": [{"role": "assistant", "chars": 2, "of_chars": 4}]}
         ]
       }
@@ -378,17 +379,17 @@
         "chars_used": 95,
         "text_chars": 238,
         "items": [
-          {"id": "s000-r001", "source": "hit", "tier": "full", "chars": 25, "truncated": false, "rendered_index": 4,
+          {"id": "s000-r001", "source": "hit", "tier": "full", "chars": 25, "truncated": false, "forced": false, "rendered_index": 4,
            "parts": [{"role": "user", "chars": 14, "of_chars": 14}, {"role": "assistant", "chars": 10, "of_chars": 10}]},
-          {"id": "s001-r000", "source": "hit", "tier": "full", "chars": 40, "truncated": true, "rendered_index": 0,
+          {"id": "s001-r000", "source": "hit", "tier": "full", "chars": 40, "truncated": true, "forced": false, "rendered_index": 0,
            "parts": [{"role": "user", "chars": 23, "of_chars": 23}, {"role": "assistant", "chars": 16, "of_chars": 36}]},
-          {"id": "s000-r000", "source": "context", "tier": "full", "chars": 15, "truncated": false, "rendered_index": 3,
+          {"id": "s000-r000", "source": "context", "tier": "full", "chars": 15, "truncated": false, "forced": false, "rendered_index": 3,
            "parts": [{"role": "user", "chars": 8, "of_chars": 8}, {"role": "assistant", "chars": 6, "of_chars": 6}]},
-          {"id": "s000-r002", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "rendered_index": null,
+          {"id": "s000-r002", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
            "parts": [{"role": "user", "chars": 0, "of_chars": 3}, {"role": "assistant", "chars": 0, "of_chars": 0}]},
-          {"id": "s001-r001", "source": "context", "tier": "full", "chars": 3, "truncated": false, "rendered_index": 1,
+          {"id": "s001-r001", "source": "context", "tier": "full", "chars": 3, "truncated": false, "forced": false, "rendered_index": 1,
            "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 0, "of_chars": 0}]},
-          {"id": "s001-r002", "source": "context", "tier": "full", "chars": 12, "truncated": true, "rendered_index": 2,
+          {"id": "s001-r002", "source": "context", "tier": "full", "chars": 12, "truncated": true, "forced": false, "rendered_index": 2,
            "parts": [{"role": "user", "chars": 7, "of_chars": 7}, {"role": "assistant", "chars": 4, "of_chars": 7}]}
         ]
       }
@@ -409,9 +410,9 @@
         "chars_used": 18,
         "text_chars": 20,
         "items": [
-          {"id": "h1", "source": "hit", "tier": "compact", "chars": 15, "truncated": false, "rendered_index": 0,
+          {"id": "h1", "source": "hit", "tier": "compact", "chars": 15, "truncated": false, "forced": false, "rendered_index": 0,
            "parts": [{"role": null, "chars": 15, "of_chars": 15}]},
-          {"id": "h2", "source": "hit", "tier": "compact", "chars": 3, "truncated": true, "rendered_index": 1,
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 3, "truncated": true, "forced": false, "rendered_index": 1,
            "parts": [{"role": "user", "chars": 0, "of_chars": 3}, {"role": "assistant", "chars": 3, "of_chars": 3}]}
         ]
       }

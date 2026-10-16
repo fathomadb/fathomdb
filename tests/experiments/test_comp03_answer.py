@@ -164,3 +164,99 @@ def test_run_writes_record_and_resumes_without_new_calls(tmp_path: Path):
     assert len((tmp_path / "exp" / "index.jsonl").read_text().splitlines()) == 1
     c3.run(config, **kwargs)
     assert len(client.calls) == 8
+
+
+# --- Slice 40 Unit D2: v2 config, three arms, hybrid gate ---------------------
+
+V2_CONFIG = c3.DEFAULT_CONFIG.parent / "hermes-answer.v2.json"
+
+
+def test_v2_config_keeps_v1_inputs_and_widens_to_three_arms_at_k10():
+    v1 = c3.load_config(c3.DEFAULT_CONFIG)
+    v2 = c3.load_config(V2_CONFIG)
+    assert v2["schema_version"] == "comp-03.answer.v2"
+    assert v2["selection"]["question_ids"] == v1["selection"]["question_ids"]
+    for key in ("corpus", "document_unit", "evidence", "live", "metrics"):
+        assert v2[key] == v1[key], key
+    assert v2["retrieval"]["top_k"] == 10
+    assert [arm["id"] for arm in v2["arms"]] == ["fathomdb-fts", "fathomdb-hybrid", "lancedb-fts"]
+    assert [arm["product_arm"] for arm in v2["arms"]] == ["fathomdb", "fathomdb-hybrid", "lancedb"]
+    gated = [arm["id"] for arm in v2["arms"] if arm.get("requires_sweep_verdict") == "adopt"]
+    assert gated == ["fathomdb-hybrid"]
+
+
+def test_arm_order_rotation_reduces_to_the_v1_alternation_for_two_arms():
+    two = ("fathomdb", "lancedb")
+    for index in range(6):
+        assert tuple(c3.arm_order(index, two)) == (two if index % 2 == 0 else two[::-1])
+
+
+def test_arm_order_rotation_puts_each_of_three_arms_in_each_position_once():
+    three = ("fathomdb-fts", "fathomdb-hybrid", "lancedb-fts")
+    for start in range(0, 9, 3):
+        orders = [tuple(c3.arm_order(index, three)) for index in range(start, start + 3)]
+        for position in range(3):
+            assert sorted(order[position] for order in orders) == sorted(three)
+
+
+def _require_default_embedder(tmp_path: Path) -> None:
+    from fathomdb import Engine
+
+    try:
+        Engine.open(str(tmp_path / "probe.sqlite"), use_default_embedder=True).close()
+    except Exception as exc:  # noqa: BLE001 - the reason is printed in the skip
+        reason = f"installed fathomdb wheel cannot open the default embedder: {type(exc).__name__}: {exc}"
+        print(reason)
+        pytest.skip(reason)
+
+
+def test_gold_changes_leave_hybrid_retrieval_byte_identical(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("FATHOMDB_EMBED_DEVICE", "cpu")
+    _require_default_embedder(tmp_path)
+    base = _item("q1", "single-session-user")
+    changed = copy.deepcopy(base)
+    changed["answer"] = "Lyon"
+    changed["answer_session_ids"] = ["sharegpt_s1"]
+    changed["haystack_session_ids"] = ["answer_zz", "sharegpt_zz"]
+    for session in changed["haystack_sessions"]:
+        for turn in session:
+            turn["has_answer"] = not turn.get("has_answer", False)
+    results = []
+    for name, item in (("base", base), ("changed", changed)):
+        case = c3.convert_question(item)
+        results.append(c3.retrieve("fathomdb-hybrid", case, tmp_path / name, top_k=10, fathomdb_bin=None)["ids"])
+    assert results[0] == results[1]
+    assert results[0], "the hybrid arm returns rounds"
+
+
+def _gate_run(tmp_path: Path, verdict: str) -> tuple[_StubClient, Path]:
+    dataset = tmp_path / "lme.json"
+    dataset.write_text(json.dumps([_item("q1", "single-session-user"), _item("q2", "multi-session")]))
+    config = c3.load_config(V2_CONFIG)
+    config["corpus"]["sha256"] = c3.sha256_file(dataset)
+    config["selection"]["question_ids"] = ["q1", "q2"]
+    config["arms"] = [arm for arm in config["arms"] if arm["id"] != "lancedb-fts"]
+    summary = tmp_path / "sweep-summary.json"
+    summary.write_text(json.dumps({"decision": {"verdict": verdict, "clauses": {"a": True, "b": True, "c": True}}}))
+    client = _StubClient()
+    attempt = tmp_path / "attempt"
+    c3.run(config, dataset_path=dataset, attempt_root=attempt, client=client, base_dir=tmp_path / "exp",
+           fathomdb_bin=None, config_path=None, sweep_summary=summary)
+    return client, attempt
+
+
+def test_hybrid_arm_is_skipped_unless_the_sweep_verdict_is_adopt(tmp_path: Path):
+    pytest.importorskip("fathomdb")
+    client, attempt = _gate_run(tmp_path, "reject")
+    assert len(client.calls) == 4, "two questions x one arm x answer and judge"
+    assert not list(attempt.glob("questions/*/fathomdb-hybrid"))
+    retrieval = json.loads((attempt / "questions" / "q1" / "fathomdb-fts" / "retrieval.json").read_text())
+    assert len(retrieval["ids"]) <= 10 and retrieval["arm"] == "fathomdb"
+
+
+def test_hybrid_arm_runs_when_the_sweep_verdict_is_adopt(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("FATHOMDB_EMBED_DEVICE", "cpu")
+    _require_default_embedder(tmp_path)
+    client, attempt = _gate_run(tmp_path, "adopt")
+    assert len(client.calls) == 8, "two questions x two arms x answer and judge"
+    assert (attempt / "questions" / "q1" / "fathomdb-hybrid" / "retrieval.json").exists()

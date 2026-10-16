@@ -47,6 +47,14 @@
 mod actuation;
 mod connection_runtime;
 mod consolidation;
+mod context_pack;
+pub use context_pack::{
+    decode_round_body, decode_round_body_json, encode_round_body, encode_round_body_json,
+    pack_context, pack_context_json, ContextItem, ContextOrder, ContextPack, ContextPackEntry,
+    ContextPackError, ContextPart, ContextPartEntry, ContextPolicy, ContextSource, ContextTier,
+    DEFAULT_BUDGET_CHARS, DEFAULT_COMPACT_CHARS, DEFAULT_FULL_ITEMS, DEFAULT_ITEM_CHARS,
+    ROUND_BODY_MARK, ROUND_BODY_ROLES,
+};
 #[cfg(feature = "operator")]
 mod data_plane_integrity;
 mod dependency;

@@ -821,6 +821,18 @@ def search_expand(
     """
     ...
 
+def _pack_context_json(request: str) -> str:
+    """0.8.28 Slice 41 — context pack JSON wire; use ``fathomdb.pack_context``."""
+    ...
+
+def _encode_round_body_json(parts: str) -> str:
+    """0.8.28 Slice 41 — round-body encode JSON wire; use ``fathomdb.encode_round_body``."""
+    ...
+
+def _decode_round_body_json(body: str) -> str:
+    """0.8.28 Slice 41 — round-body decode JSON wire; use ``fathomdb.decode_round_body``."""
+    ...
+
 def rerank(
     query: str,
     passages: list[dict[str, Any]],

@@ -11,26 +11,28 @@
 use std::sync::Arc;
 
 use fathomdb_sdk::{
-    admin, embed_batch_cls, graph, read, rerank, ActuationBatchV1, ActuationReceiptV1,
-    BoundaryCrossing, ClosureLookupV1, ClosureStatusV1, ConsolidateAxis, ConsolidateReceipt,
-    CounterSnapshot, CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaDeviceInfo,
-    DependencyDerivedLookupV1, DependencyListV1, DependencySourceLookupV1,
-    DependencyTraceRequestV1, DependencyTraceResultV1, DeviceResolution, EmbedderEvent,
-    EmbedderIdentity, EmbeddingReadiness, Engine, EngineConfig, EngineError, EngineOpenError,
-    EraseReport, Error, ErrorKind, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
-    EvidenceSearchResultV1, ExtractDocument, Filter, FilterTerm, FrozenReadContextV1,
-    FrozenSearchOptions, GpuAllocationWitness, GraphEvidenceResolveRequestV1, GraphExpandRequestV1,
-    GraphExpandResultV1, IdSpace, IdSpaceKind, IngestWithExtractorReceipt, LifecycleState,
-    ListOptions, MigrationStepReport, ModuleLoadInit, MutationProjectionStatusRequestV1,
-    MutationProjectionStatusV1, NeighborsOptions, NodeRecord, OpStoreRow, OpenOptions, OpenReport,
-    OperationalStateRecordV1, PageRequestV1, PageV1, Predicate, PreparedWrite,
-    ProjectedTextSearchOptions, ProjectionDelta, ProjectionGenerationStatusV1,
-    ProjectionRuntimeStatus, ProjectionSpec, ReadContextV1, ReadView, ReleaseThreshold,
-    RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution, ResolvedEvidenceV1,
-    ResolvedGraphEvidenceV1, Result, RuntimeConfiguration, RuntimeConfigurationError,
-    RuntimeSqliteMode, SearchExpandOptions, SearchExpandResult, SearchFilter, SearchFilterArg,
-    SearchHit, SearchOptions, SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1,
-    SourceId, Subscriber, SubscriberEvent, TextSearchOptions, TraversalDirection, WriteReceipt,
+    admin, context_item_from_hit, decode_round_body, embed_batch_cls, encode_round_body, graph,
+    pack_context, read, rerank, ActuationBatchV1, ActuationReceiptV1, BoundaryCrossing,
+    ClosureLookupV1, ClosureStatusV1, ConsolidateAxis, ConsolidateReceipt, ContextHitOptions,
+    ContextItem, ContextPack, ContextPart, ContextPolicy, CounterSnapshot, CudaAllocatorPath,
+    CudaAllocatorReason, CudaAllocatorReport, CudaDeviceInfo, DependencyDerivedLookupV1,
+    DependencyListV1, DependencySourceLookupV1, DependencyTraceRequestV1, DependencyTraceResultV1,
+    DeviceResolution, EmbedderEvent, EmbedderIdentity, EmbeddingReadiness, Engine, EngineConfig,
+    EngineError, EngineOpenError, EraseReport, Error, ErrorKind, EvidenceResolveRequestV1,
+    EvidenceSearchRequestV1, EvidenceSearchResultV1, ExtractDocument, Filter, FilterTerm,
+    FrozenReadContextV1, FrozenSearchOptions, GpuAllocationWitness, GraphEvidenceResolveRequestV1,
+    GraphExpandRequestV1, GraphExpandResultV1, IdSpace, IdSpaceKind, IngestWithExtractorReceipt,
+    LifecycleState, ListOptions, MigrationStepReport, ModuleLoadInit,
+    MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NeighborsOptions, NodeRecord,
+    OpStoreRow, OpenOptions, OpenReport, OperationalStateRecordV1, PageRequestV1, PageV1,
+    Predicate, PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta,
+    ProjectionGenerationStatusV1, ProjectionRuntimeStatus, ProjectionSpec, ReadContextV1, ReadView,
+    ReleaseThreshold, RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution,
+    ResolvedEvidenceV1, ResolvedGraphEvidenceV1, Result, RuntimeConfiguration,
+    RuntimeConfigurationError, RuntimeSqliteMode, SearchExpandOptions, SearchExpandResult,
+    SearchFilter, SearchFilterArg, SearchHit, SearchOptions, SearchResult,
+    SourceDependencyRegistrationV1, SourceDependencyV1, SourceId, Subscriber, SubscriberEvent,
+    TextSearchOptions, TraversalDirection, WriteReceipt,
 };
 
 #[test]
@@ -376,4 +378,13 @@ fn cuda_library_report_is_readable_through_the_sdk() {
     );
     assert_eq!(refusal.kind(), "cuda_library_unavailable");
     assert_eq!(refusal.reason.as_str(), "missing");
+}
+
+/// 0.8.28 Slice 41: the context-pack package operations.
+#[test]
+fn context_pack_signatures() {
+    let _: fn(&[ContextItem], &ContextPolicy, &[ContextItem]) -> Result<ContextPack> = pack_context;
+    let _: fn(&[ContextPart]) -> Result<String> = encode_round_body;
+    let _: fn(&str) -> Result<Vec<ContextPart>> = decode_round_body;
+    let _: fn(&SearchHit, ContextHitOptions) -> Result<ContextItem> = context_item_from_hit;
 }

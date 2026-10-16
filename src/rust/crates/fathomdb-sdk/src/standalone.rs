@@ -1,9 +1,10 @@
-//! Package-root operations that need no open engine: passage reranking and
-//! CLS-pooled batch embedding.
+//! Package-root operations that need no open engine: passage reranking,
+//! CLS-pooled batch embedding, and the context pack.
 
 use crate::error::{Error, ErrorKind, Result};
 use crate::guard;
 use crate::options::RerankOptions;
+use fathomdb_engine::{ContextItem, ContextPack, ContextPart, ContextPolicy, SearchHit};
 
 /// One caller-supplied passage for [`rerank`].
 #[derive(Clone, Debug, PartialEq)]
@@ -248,4 +249,66 @@ mod tests {
         });
         assert_eq!(error.kind(), ErrorKind::EmbedderNotConfigured);
     }
+}
+
+/// Optional item fields for [`context_item_from_hit`]; all default to `None`.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ContextHitOptions {
+    pub group: Option<String>,
+    pub position: Option<u64>,
+    pub order_key: Option<String>,
+    pub header: Option<String>,
+}
+
+fn context_pack_error(error: fathomdb_engine::ContextPackError) -> Error {
+    Error::invalid_argument(error.message())
+}
+
+/// Render ranked `hits` (and, with group expansion, `context`) into prompt
+/// context within `policy`'s character budget, with per-item provenance.
+///
+/// # Errors
+/// `InvalidArgument`, with a message naming the field, for a zero
+/// `budget_chars` or `item_chars`, an empty or repeated id, or a grouped
+/// `context` item without `position` while `expand_groups` is on.
+pub fn pack_context(
+    hits: &[ContextItem],
+    policy: &ContextPolicy,
+    context: &[ContextItem],
+) -> Result<ContextPack> {
+    fathomdb_engine::pack_context(hits, policy, context).map_err(context_pack_error)
+}
+
+/// Encode parts as an opt-in role-tagged round body.
+///
+/// # Errors
+/// `InvalidArgument` for an empty part list, a role outside `user`,
+/// `assistant`, `system`, `tool` or `None`, or a part text containing U+001E
+/// or a role code.
+pub fn encode_round_body(parts: &[ContextPart]) -> Result<String> {
+    fathomdb_engine::encode_round_body(parts).map_err(context_pack_error)
+}
+
+/// Decode a body into parts; an untagged body is one part with role `None`.
+///
+/// # Errors
+/// `InvalidArgument` for a body that starts with U+001E but does not decode.
+pub fn decode_round_body(body: &str) -> Result<Vec<ContextPart>> {
+    fathomdb_engine::decode_round_body(body).map_err(context_pack_error)
+}
+
+/// Build a [`ContextItem`] from a search hit: the id is the hit's prefixed id
+/// and the parts are `decode_round_body(hit.body)`.
+///
+/// # Errors
+/// `InvalidArgument` when the hit body starts with U+001E but does not decode.
+pub fn context_item_from_hit(hit: &SearchHit, options: ContextHitOptions) -> Result<ContextItem> {
+    Ok(ContextItem {
+        id: hit.id.to_prefixed(),
+        parts: decode_round_body(&hit.body)?,
+        group: options.group,
+        position: options.position,
+        order_key: options.order_key,
+        header: options.header,
+    })
 }

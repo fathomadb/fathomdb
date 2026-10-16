@@ -886,6 +886,10 @@ export interface NativeModule {
   };
   /** Module-level CLS-pooled batch embedder (Python: `embed_batch_cls`). */
   embedBatchCls(texts: string[]): Promise<number[][]>;
+  /** 0.8.28 Slice 41 — context pack JSON wire (wrapped by `packContext`). */
+  packContextJson(request: string): string;
+  encodeRoundBodyJson(parts: string): string;
+  decodeRoundBodyJson(body: string): string;
   /** Module-level standalone reranker (Python: `rerank`). */
   rerank(
     query: string,

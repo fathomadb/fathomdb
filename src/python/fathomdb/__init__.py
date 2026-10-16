@@ -21,6 +21,18 @@ from fathomdb._fathomdb import ConsolidateReceipt
 from fathomdb._fathomdb import IngestWithExtractorReceipt
 from fathomdb._fathomdb import embed_batch_cls
 from fathomdb._fathomdb import rerank
+from fathomdb._sdk_context_pack import (
+    ContextItem,
+    ContextPack,
+    ContextPackEntry,
+    ContextPart,
+    ContextPartEntry,
+    ContextPolicy,
+    context_item_from_hit,
+    decode_round_body,
+    encode_round_body,
+    pack_context,
+)
 from fathomdb.config import EngineConfig
 from fathomdb.engine import Engine
 from fathomdb.errors import (
@@ -141,6 +153,12 @@ __all__ = [
     "ActuationOperationV1",
     "ActuationReceiptV1",
     "ConsolidateReceipt",
+    "ContextItem",
+    "ContextPack",
+    "ContextPackEntry",
+    "ContextPart",
+    "ContextPartEntry",
+    "ContextPolicy",
     "CanonicalHash",
     "CanonicalWriteProvenanceV1",
     "CounterSnapshot",
@@ -251,9 +269,13 @@ __all__ = [
     "WriteProvenanceV1",
     "__version__",
     "admin",
+    "context_item_from_hit",
+    "decode_round_body",
     "embed_batch_cls",
+    "encode_round_body",
     "errors",
     "graph",
+    "pack_context",
     "read",
     "rerank",
 ]

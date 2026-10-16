@@ -42,6 +42,20 @@ export {
   ConsolidateAxis,
 } from "./write.js";
 export { embedBatchCls, RerankPassage, RerankOptions, RerankResult, rerank } from "./embedding.js";
+export {
+  ContextHitOptions,
+  ContextItem,
+  ContextPack,
+  ContextPackEntry,
+  ContextPart,
+  ContextPartEntry,
+  ContextPolicy,
+  DEFAULT_CONTEXT_POLICY,
+  contextItemFromHit,
+  decodeRoundBody,
+  encodeRoundBody,
+  packContext,
+} from "./context-pack.js";
 export { EngineConfig, EngineOpenOptions, Engine } from "./core.js";
 export {
   ProjectionReadinessV1,

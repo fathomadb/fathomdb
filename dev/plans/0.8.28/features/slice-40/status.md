@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — status
-status: ACTIVE (Defects A, B, C GREEN on the branch; gate red only on the two orchestrator-owned release-state suites)
+status: ACTIVE (Defects A, B, C GREEN on the branch; Unit D added 2026-10-16, docs and RED tests done, awaiting review)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -25,6 +25,11 @@ for phase 1 is `output.json` in this directory.
 | C-R1 | APPROVE-WITH-FIXES on `04bf5e5e6` (Q4 keep `projected_` prefix, Q5 no CROSS JOIN, Q6 seam unchanged; F1–F6 applied) |
 | C-W4 Defect C fix | done at `a3830681d`: stream statement, fallback, witnesses, CHANGELOG; 5/5 Defect C tests GREEN, no test edited |
 | C-W5 | default engine suite 474 passed; F2 test list all green; lint and lint-md exit 0; `agent-verify.sh` exit 1 on `test-check-board-currency` and `test-commission-manifest` only (release-state files, unchanged from W5); test-plan § 5.4, § 6.2 |
+| D-W1 Unit D docs | done 2026-10-16: requirements § 1.4, REQ40-D1..D6, AC40-33..48; design § 2c; test-plan § 3c, § 5.5 |
+| D-W2 D3 RED tests | done: 5 RED in `fathomdb-query` (test-plan § 5.5) |
+| D-W2 D1/D2 RED tests | done on `slice/0.8.28-40-comp03` (worktree `comp03-slice40`): 27 RED, pre-existing 9 pass, 2 skip (no `lancedb` in that `.venv`) |
+| D-R1 | not started; open questions Q-D1..Q-D5 in test-plan § 9 |
+| D-W4 | not started (D3 in its own commit; D1/D2 on the comp branch) |
 
 ## Follow-ups (not in this slice)
 

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — requirements and acceptance criteria
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C added 2026-10-16 (owner ruling), for review
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C landed on the branch; Unit D added 2026-10-16 (owner ruling), for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -11,8 +11,10 @@ Slice 40 fixes three defects in FathomDB's text retrieval. Defects A and B
 are ranking bugs found by the COMP-01 benchmark. Defect C, added by owner
 ruling on 2026-10-16, is a latency bug in `search_projected_text` found by
 COMP-02b; its fix must not change which rows are returned or their order.
-[design.md](design.md) gives the mechanism, [test-plan.md](test-plan.md)
-the tests.
+Unit D, added by owner ruling on 2026-10-16, is the COMP-03 retrieval-lever
+work: a retrieval-only sweep (D1), a three-arm answer run (D2) and a
+stop-list extension (D3). [design.md](design.md) gives the mechanism,
+[test-plan.md](test-plan.md) the tests.
 
 ## 1. Evidence
 
@@ -107,6 +109,39 @@ The public contract is the doc comment on `Engine::search_projected_text`
 (`search_api.rs`): results "are ordered by property-FTS bm25 ascending then
 write cursor ascending". Scores are `-bm25`.
 
+### 1.4 Unit D evidence (COMP-03)
+
+Source: the COMP-03 result note
+(`dev/performance-benchmarking/2026-10-16-comp-03-hermes-answer-result.md`
+on the `llm/comp-01` lineage) and the orchestrator's review of it.
+
+- **Answer accuracy:** FathomDB 0.8.27 and LanceDB both 42/60 on the 60
+  seeded LongMemEval-S questions (top-5 rounds, gpt-5.4 answerer and judge).
+- **FathomDB's 18 misses:**
+  - 6 retrieval misses, 5 of them preference questions (a vocabulary gap
+    between the question and the round that holds the preference);
+  - 10 with the gold round in the prompt but a wrong answer: 4 multi-session
+    counts, 3 knowledge-update, 2 preference, 1 temporal;
+  - 2 missed abstentions.
+- **Retrieval-only rerun on this slice's engine** (Defects A and B fixed):
+  top-5 changed on 19 of 60 questions; session Recall@5 0.893 → 0.911;
+  session MRR 0.848 → 0.841.
+- **Short tokens after Defect B:** 41 of 60 questions carry a 1–2 character
+  content token, nearly all "my", "me", "so", "up", "m", "ve". They are
+  function words and contraction fragments, not the content tokens ("C",
+  "D3", "II", "1") that Defect B set out to keep.
+- **Prior finding behind the pre-stated rule:** EARP found hybrid retrieval
+  null-or-negative on real traces (memory
+  `earp-tiered-run-program-20260809-complete.md`). Hybrid is therefore
+  adopted for the answer run only by a rule stated before the sweep runs
+  (REQ40-D3), not by inspection of its results.
+- **Dataset:** LongMemEval-S cleaned, 500 questions (30 abstention), SHA-256
+  `d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442`,
+  pinned in `hermes-answer.v1.json`. Per type (non-abstention):
+  temporal-reasoning 127, multi-session 121, knowledge-update 72,
+  single-session-user 64, single-session-assistant 56,
+  single-session-preference 30.
+
 ## 2. Requirements
 
 **REQ40-01 — once per arm.** In `fuse_three_arms`, each arm (vector, text,
@@ -182,16 +217,76 @@ transaction, exactly as the body path does.
 `property_fts_rank_sql` and its `slice35_ranked_eligibility_sql_for_test`
 seam, the public API and the schema are unchanged.
 
+**Unit D requirements.** D1 and D2 change the COMP harness only; D3
+changes the product.
+
+**REQ40-D1 — retrieval sweep (D1).** A new harness module runs every
+LongMemEval-S question through the arms `fathomdb-fts`
+(`search_text_only`, v1 store shape), `fathomdb-hybrid` (default embedder,
+`Engine.search`, no rerank, no graph arm), `fathomdb-fts-projected` (the
+hybrid store shape without vectors, `search_text_only`) and `lancedb-fts`
+(reference). Per question and arm it records the top-10 IDs, query latency,
+and build time, with embedding time recorded apart. It reports, overall and
+per question type: session Recall@5 and @10 (any), session Recall-all@5
+and @10, session MRR@10, turn Recall@5 and @10, and a paired bootstrap 95%
+CI for every `fathomdb-hybrid − fathomdb-fts` delta (seed in the config).
+
+**REQ40-D2 — sweep discipline.** A fresh store per question per arm; the
+gold-leak discipline of `comp03_answer` (its `convert_question` and
+`gold_for`, reused, not copied); resumable per question (a finished
+question does no work on rerun); the dataset digest checked against the
+config; the embedding device read from `FATHOMDB_EMBED_DEVICE`, recorded,
+and a CUDA request that resolved to CPU refused; every hybrid store's
+vector coverage checked on the closed database (distinct embedded doc
+cursors == documents written) and a mismatch refused, not reported.
+
+**REQ40-D3 — pre-stated decision rule.** The rule lives in the sweep config
+and is evaluated by a pure function whose verdict is written into the sweep
+summary. Verbatim: *adopt hybrid for the answer run iff (a) preference
+session Recall@5 delta CI lower bound > 0, (b) no other type's delta CI
+upper bound < 0, (c) overall delta ≥ 0.* The delta is
+`fathomdb-hybrid − fathomdb-fts` on session Recall@5 (any) for all three
+clauses.
+
+**REQ40-D4 — three-arm answer run (D2).** `comp03_answer` gains a v2 config
+(`hermes-answer.v2.json`): the same 60 question IDs, models, prompts, caps
+and judge as v1, `top_k` 10 for every arm, arms `fathomdb-fts`,
+`fathomdb-hybrid`, `lancedb-fts`. The hybrid arm runs only when the D1
+sweep verdict is `adopt`. Arm order rotates by question so that, for two
+arms, it is exactly v1's alternation. The v1 config, its receipt and its
+code path are unchanged. A `fathomdb-hybrid` arm is also registered in
+`comp_fts` (campaign `comp01-hybrid`) so the NFCorpus informational row can
+run; the existing `fathomdb` arm is unchanged in every byte.
+
+**REQ40-D5 — stop-list extension (D3).** `STOPWORDS` in `fathomdb-query`
+gains exactly twelve words, in two groups:
+
+- possessive and contraction fragments left by splitting on the apostrophe:
+  `s` ('s), `t` (n't), `ll` ('ll), `re` ('re), `ve` ('ve), `m` ('m);
+- short function words: `my`, `me`, `us`, `am`, `so`, `up`.
+
+`d`, `c`, `d3`, `ii`, `1` and every other short token stay content.
+Nothing else in the compiler changes.
+
+**REQ40-D6 — D3 measurement gate (orchestrator, after W4).** Verbatim:
+*NFCorpus nDCG@10 paired delta vs 0.3260 with CI not below zero, COMP-03
+per-type recall unchanged within CI, 10k TC-5 p95 not higher.* If the gate
+fails, D3 is reverted; it is therefore one commit of its own.
+
 ## 3. Non-goals
 
 - No BM25 `k1`/`b` tuning and no change to `RRF_K` or the arm weights.
-- No change to the stopword list.
+- No change to the stopword list for Defects A to C; Unit D3 extends it
+  (REQ40-D5).
 - No new public API, no new knob, no schema change, no migration.
 - No near-duplicate detection; only byte-identical bodies are affected, as
   they already are by fusion's dedupe on body.
 - No change to the direct text-only candidate window (§ 4).
 - No fielded title boost through declared `searchable` projections.
   Potential, deferred by owner ruling 2026-10-16 (`status.md`).
+- Unit D does not touch the attribute-filter row-key change or the
+  filter-first plan; both stay listed as potentials in `status.md`.
+- No rerank and no graph arm in the hybrid arm.
 - No performance assertion in tests for Defect C; the orchestrator
   measures latency on the 10k corpus after W4.
 - No change to the frozen IR-C experiment harnesses
@@ -224,7 +319,10 @@ another file is named; the Defect C tests (AC40-27 to AC40-31) are in
 `tests/slice40_projected_fts_stream.rs`, which needs `--features
 test-hooks`; query tests are in the `tests` module of
 `src/rust/crates/fathomdb-query/src/lib.rs`. Defect C's criteria start at
-AC40-27 because AC40-23 to AC40-26 were already assigned.
+AC40-27 because AC40-23 to AC40-26 were already assigned. Unit D's
+harness tests (AC40-33 to AC40-45) are in `tests/experiments/test_comp03_retrieval.py`
+and `tests/experiments/test_comp03_answer.py` on the `slice/0.8.28-40-comp03`
+branch; its D3 tests are in the `fathomdb-query` test module.
 
 | AC | Check | Test | REQ |
 | --- | --- | --- | --- |
@@ -259,4 +357,20 @@ AC40-27 because AC40-23 to AC40-26 were already assigned.
 | AC40-30 | An attribute-filtered projected search returns only in-cohort rows in the documented order restricted to the cohort; the unfiltered list is unchanged | `projected_search_attribute_filter_keeps_cohort_and_order` | C4 |
 | AC40-31 | Exactly `limit` rows at strict boundaries (2, 8) with 12 matches | `projected_search_returns_exactly_limit_rows_at_strict_boundaries` | C3 |
 | AC40-32 | Body-path and existing projected-search contracts unchanged | existing `slice20_fts_rank_stream.rs`, `slice18_retrieval_result_limits.rs`, `slice45_nested_source_projections.rs`, `slice30_dependency_closure.rs`, `slice80_search_view_paths.rs`, `slice35_eligibility_pretruncation.rs` | C6 |
+| AC40-33 | Recall-any, Recall-all and MRR on hand-built gold: two answer sessions, one found at 5, both at 10; two rounds of one session do not satisfy Recall-all; `None` without relevant rounds | `test_recall_all_needs_every_answer_session_while_recall_any_needs_one`, `test_two_rounds_of_one_session_do_not_satisfy_recall_all`, `test_metrics_are_none_without_relevant_rounds_and_zero_when_nothing_found` | D1 |
+| AC40-34 | Seeded bootstrap CI; paired deltas are treatment − control overall and per type | `test_bootstrap_ci_is_seeded_and_degenerate_on_constant_differences`, `test_paired_deltas_are_treatment_minus_control_overall_and_per_type` | D1 |
+| AC40-35 | Decision rule: adopt when (a), (b), (c) hold; reject on each failed clause, including the boundary cases lower bound = 0 and overall delta = 0 | `test_decision_rule_adopts_when_all_three_clauses_hold`, `test_decision_rule_rejects_when_any_clause_fails` (4 cases), `test_decision_rule_accepts_an_overall_delta_of_exactly_zero` | D3 |
+| AC40-36 | Sweep config is typed, pins the v1 corpus and document unit, the arms, k = 5 and 10, the bootstrap seed and the rule verbatim; a wrong schema is refused | `test_sweep_config_is_typed_and_states_the_rule_verbatim` | D1, D3 |
+| AC40-37 | Gold-leak discipline: the sweep's `convert_question` and `gold_for` are `comp03_answer`'s; gold changes leave hybrid retrieval byte-identical | `test_sweep_reuses_answer_harness_conversion_and_gold`, `test_gold_changes_leave_hybrid_retrieval_byte_identical` | D2 |
+| AC40-38 | Every question (abstentions included) is retrieved, abstentions are not scored, rerun does no new work, a wrong dataset digest is refused | `test_sweep_covers_every_question_and_resume_does_no_new_work`, `test_sweep_refuses_a_dataset_whose_digest_differs` | D2 |
+| AC40-39 | Device: a CUDA request resolved to CPU (or unresolved) is refused; the sweep records requested and effective device | `test_device_check_refuses_a_cuda_request_that_resolved_to_cpu`, `test_sweep_hybrid_arm_records_the_resolved_device_and_writes_a_verdict` | D2 |
+| AC40-40 | Hybrid store: one vector row per document, at least one `vector` hit, crosses a vocabulary gap FTS cannot; coverage check refuses a store without vectors; build records drain (embedding) time apart | `test_hybrid_arm_store_has_one_vector_row_per_document_and_vector_hits`, `test_vector_coverage_check_refuses_a_store_without_vectors`, `test_sweep_hybrid_arm_records_the_resolved_device_and_writes_a_verdict` | D1, D2 |
+| AC40-41 | `fathomdb-fts-projected`: JSON bodies, no vectors, `search_text_only` | `test_fts_projected_arm_stores_json_bodies_and_searches_text_only` | D1 |
+| AC40-42 | `comp_fts`: the `fathomdb` arm's source and settings are byte-unchanged; `fathomdb-hybrid` and campaign `comp01-hybrid` are registered; the sweep's fts record carries v1's settings | `test_comp_fts_fts_arm_is_byte_unchanged_and_hybrid_arm_is_registered`, `test_sweep_covers_every_question_and_resume_does_no_new_work` | D4 |
+| AC40-43 | v2 answer config keeps v1's questions, corpus, document unit, evidence, models and metrics, widens to three arms at k = 10, gates only the hybrid arm | `test_v2_config_keeps_v1_inputs_and_widens_to_three_arms_at_k10` | D4 |
+| AC40-44 | Arm order: rotation equals v1's alternation for two arms; each of three arms takes each position once per three questions | `test_arm_order_rotation_reduces_to_the_v1_alternation_for_two_arms`, `test_arm_order_rotation_puts_each_of_three_arms_in_each_position_once` | D4 |
+| AC40-45 | Hybrid gate: a `reject` sweep verdict runs no hybrid work; `adopt` runs it; v1 tests unchanged | `test_hybrid_arm_is_skipped_unless_the_sweep_verdict_is_adopt`, `test_hybrid_arm_runs_when_the_sweep_verdict_is_adopt`, the pre-existing `test_comp03_answer.py` tests | D4 |
+| AC40-46 | D3: the twelve words are stopwords and `d`, `c`, `d3`, `ii`, `1`, `b12` are not; each word alone takes the fallback; possessive and contraction fragments and the short function words are dropped; short content tokens survive | `unit_d_words_are_in_the_stop_list_and_content_letters_are_not`, `each_unit_d_word_alone_takes_the_fallback`, `possessive_and_contraction_fragments_are_dropped`, `short_function_words_are_dropped`, `short_content_tokens_survive_the_unit_d_stop_list` | D5 |
+| AC40-47 | D3: every other Slice 40 compiler and engine test still passes unchanged, except `possessive_and_contraction_fragments_are_content_tokens`, whose expectation D3 reverses (needs a ruling, test-plan § 3c) | the `fathomdb-query` test module, `slice40_fts_ranking.rs`, `fts5_injection_safety.rs`, `slice40_projected_fts_stream.rs` | D5 |
+| AC40-48 | D3 measurement gate (REQ40-D6) | orchestrator measurement after W4 | D6 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

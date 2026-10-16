@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — design
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C added 2026-10-16, for review
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C landed; § 2c Unit D added 2026-10-16, for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -220,6 +220,180 @@ projection cursor read.
 | The planner puts `canonical_nodes` outside the FTS5 table in the inner join | `ORDER BY rank` would need a temporary b-tree again; same rows, no speed-up | The diagnosis's V8 plan shows FTS5 as the outer loop with no temporary b-tree; AC40-28's plan witness fails if that changes. If it is ever needed, `CROSS JOIN` pins the order without changing rows (open question for R1) |
 | Frozen reads | Projected search under a frozen view | Same `FrozenView` predicate and parameters; no new clock read |
 
+## 2c. Unit D: COMP-03 retrieval levers
+
+### 2c.1 Where each part lives
+
+| Part | Worktree and branch | Why |
+| --- | --- | --- |
+| D1 sweep, D2 answer v2 | `comp03-slice40`, `slice/0.8.28-40-comp03`, cut from `llm/comp-01` at `0e246ad31` | `release/0.8.28` carries `experiments/` but not the COMP harness (`comp_fts.py`, `comp03_answer.py`, their configs and tests); those exist only on the comp lineage |
+| D3 stop list | `slice-0.8.28-40`, `slice/0.8.28-40-fts-ranking-defects` | product code in `fathomdb-query` |
+
+`experiments/fathomdb_test_setup.py` exists on both lineages. D1 edits it
+on the comp branch only (§ 2c.5), so the two copies diverge until the comp
+lineage merges forward; noted as a risk.
+
+### 2c.2 Store shapes per arm
+
+| Sweep arm | `comp_fts` arm | Store | Query |
+| --- | --- | --- | --- |
+| `fathomdb-fts` | `fathomdb` (unchanged) | plain round text as the body, no embedder, no projection: exactly v1 | `search_text_only(question, limit=10)` |
+| `fathomdb-hybrid` | `fathomdb-hybrid` (new) | `Engine.open(use_default_embedder=True)`; `configure_projections([ProjectionSpec(name="text", roles={SEARCHABLE}, fts=True, vector=True)])` before writes; body `json.dumps({"text": round_text})`; `drain`, then the coverage check | `search(question, limit=10)`: RRF of the vector and text arms (3:1 text), no rerank, no graph arm |
+| `fathomdb-fts-projected` | `fathomdb-fts-projected` (new) | the hybrid store without the embedder or vectors: JSON body, projection `text` with `fts=True` only | `search_text_only(question, limit=10)` |
+| `lancedb-fts` | `lancedb` (unchanged) | as v1 | as v1 |
+
+- A plain `doc` write under `use_default_embedder=True` embeds nothing: no
+  vector kind is enrolled, `_fathomdb_vector_rows` stays empty, and
+  `search` returns text hits only. The public route that enrols the vector
+  kind is `configure_projections` with a `vector=True` searchable
+  projection (orchestrator measurement on the CUDA wheel, 2026-10-16; the
+  test-hooks seam `_configure_vector_kind_for_test` is not used).
+- `fathomdb-fts` and `fathomdb-hybrid` therefore differ in store shape as
+  well as in the vector arm. The paired comparison is "FathomDB as a user
+  would run each mode", not an ablation of the vector arm alone.
+  `fathomdb-fts-projected` measures the store-shape effect on its own and
+  costs no embedding.
+- **What is embedded (read from the code, for R1).** The projection worker
+  embeds `job.body`, the node's full `canonical_nodes.body`
+  (`projection_worker.rs`, `embed_projection_batch` and the pending-job
+  query), not the projected attribute. In the hybrid store the vector arm
+  therefore embeds the JSON string `{"text": "…"}`, and the text arm inside
+  `search` runs over the same JSON string through `search_index`. A CPU
+  probe on the dev wheel also showed a plain-body store with any
+  `vector=True` searchable projection (`name="dense"`, absent from the
+  body) gets one vector row per document and `vector` hits. A plain-body
+  hybrid variant would make the pair a pure vector-arm ablation (open
+  question Q-D2, test-plan § 8).
+
+### 2c.3 Module layout (D1)
+
+New `experiments/comp03_retrieval.py`; config
+`experiments/configs/comp-03/retrieval-sweep.v1.json`.
+
+- `CONFIG_KEYS`, `DEFAULT_CONFIG`, `Comp03RetrievalError`, `load_config`:
+  schema `comp-03.retrieval-sweep.v1`; keys `schema_version`, `campaign`,
+  `corpus` (equal to answer v1's), `selection` (`{"rule": "all"}`),
+  `document_unit` (equal to v1's), `arms` (`id`, `product_arm`),
+  `retrieval` (`top_k` 10), `metrics` (`ks` [5, 10], `bootstrap` {`seed`,
+  `resamples` 10000}), `device` (the env variable name), `decision_rule`,
+  `claim_boundary`.
+- `convert_question`, `gold_for`: re-exported from `comp03_answer` (the
+  same objects).
+- `question_scores(ids, gold, ks)`, `bootstrap_ci(diffs, seed, resamples)`,
+  `paired_deltas(rows, metric, treatment, control, seed, resamples)`,
+  `evaluate_decision_rule(rule, deltas)`: pure.
+- `require_vector_coverage(database_path, documents)`: reads the closed
+  database, returns the count or raises.
+- `sweep(config, dataset_path, attempt_root, max_questions=None)`: writes
+  `questions/<qid>/<arm-id>/retrieval.json` through `comp03_answer.retrieve`
+  (fresh store per question per arm, removed after), then `summary.json`
+  and an `experiments.record.v1` receipt as the existing campaigns do.
+- CLI: `python -m experiments.comp03_retrieval run CONFIG --dataset FILE
+  --attempt-root DIR [--fathomdb-bin PATH] [--max-questions N]`.
+
+### 2c.4 Metric definitions
+
+Gold comes from `gold_for`: `session_relevant` is every round of every
+answer session (round IDs `sNNN-rNNN`, so the session is the `sNNN`
+prefix), `turn_relevant` every round with a `has_answer` turn. Abstention
+questions are retrieved but not scored. Over the top-k IDs:
+
+- **session Recall@k (any):** 1 if any round of any answer session is in
+  the top k, else 0.
+- **session Recall-all@k (new):** 1 if every answer session has at least
+  one of its rounds in the top k, else 0. Two rounds of one answer session
+  do not count for a second session. For a single-session question it
+  equals Recall@k (any); it separates the two on multi-session questions.
+- **session MRR@10:** 1 / rank of the first round of any answer session in
+  the top 10, else 0.
+- **turn Recall@k:** 1 if any `has_answer` round is in the top k, else 0;
+  `None` when the question has no `has_answer` round.
+- **Latency:** the first query and five repeats per store, as
+  `comp03_answer.retrieve` does. For `fathomdb-hybrid` the query latency
+  includes embedding the question.
+- **Build:** `ingest_ack_s` (writes acknowledged), `build_return_s`
+  (through `drain`), and `drain_s = build_return_s − ingest_ack_s`, which
+  for the hybrid arm is the embedding time. `vector_rows` is recorded per
+  question.
+- **Paired bootstrap:** per question, `d = metric(treatment) −
+  metric(control)`; 10,000 resamples of the paired `d` with
+  `random.Random(seed)`, mean of each; the CI is the 2.5th and 97.5th
+  percentiles (indices 249 and 9749, as `comp03_answer.paired_summary`).
+  Overall and per question type.
+
+### 2c.5 Device and completeness checks
+
+- The requested device is `FATHOMDB_EMBED_DEVICE` (`auto`, `cpu`,
+  `cuda:N`). The check that `prepare_test_database`'s `_default_open`
+  already makes (a `cuda:` request must resolve to an effective CUDA device
+  with a selected UUID) moves into a public
+  `fathomdb_test_setup.require_embed_device(resolution, requested)`; both
+  `_default_open` and the hybrid arm call it. It runs once per process on
+  the first hybrid open; the summary records `{"requested", "effective"}`.
+  A refused check stops the sweep: a GPU run that fell back to CPU is never
+  reported.
+- `drain` is a barrier, not proof of embedding (memory
+  `embed-completeness-and-gpu-readiness.md`). After each hybrid build the
+  sweep calls `require_vector_coverage`: `COUNT(DISTINCT write_cursor) FROM
+  _fathomdb_vector_rows WHERE kind = 'doc'` on the closed database must
+  equal the documents written. A mismatch fails the question with an
+  error; it is never recorded as a result.
+
+### 2c.6 Decision rule
+
+Config `decision_rule`: `{"metric": "session_recall_any_at_5", "treatment":
+"fathomdb-hybrid", "control": "fathomdb-fts", "focus_type":
+"single-session-preference"}`. `evaluate_decision_rule(rule, deltas)`
+returns `{"verdict", "clauses": {"a", "b", "c"}}`:
+
+- (a) `per_type[focus].ci[0] > 0`;
+- (b) for every other type, `ci[1] >= 0` (no upper bound below zero);
+- (c) `overall.delta >= 0`;
+- `adopt` iff all three; `not_evaluated` when the sweep lacks either arm.
+
+Preference has 30 questions, so clause (a) needs a large effect to pass;
+that is the rule as stated, not tuned.
+
+### 2c.7 Answer run v2 (D2)
+
+- `load_config` accepts `comp-03.answer.v1` exactly as today and
+  `comp-03.answer.v2`. v2 arm entries carry `id`, `product_arm` (the
+  `comp_fts.ARMS` key) and, for the hybrid arm, `requires_sweep_verdict:
+  "adopt"`. `run` takes `sweep_summary=PATH`; a gated arm runs only when
+  that summary's `decision.verdict` is `adopt`, and the receipt records the
+  summary's SHA-256 and the arms excluded.
+- **Arm order:** `arm_order(index, arms) = arms[index % n:] + arms[:index %
+  n]`. For two arms this is v1's rule (even index A, B; odd B, A); for
+  three, every arm takes every position once in each run of three
+  questions. When the gate excludes the hybrid arm, the two remaining arms
+  rotate as in v1.
+- Metric keys follow `top_k` (`…_at_10`); answer accuracy is reported for
+  every arm pair, each as `a − b` in config order.
+- `fathomdb_test_setup` stores for the hybrid arm, when `--fathomdb-bin`
+  is given, use `embedder="default"`, `warm_cache=True`.
+
+### 2c.8 D3 stop list
+
+Add the twelve words of REQ40-D5 to `STOPWORDS`. The fragments `s t ll re
+ve m` are what splitting on the apostrophe leaves of 's, n't, 'll, 're,
+'ve, 'm; they match most English rows, carry no topic, and on TC-5 `"s"`
+alone matched 3,912 of 10,000 rows. `my me us am so up` are short function
+words that Defect B turned into OR terms (41 of 60 COMP-03 questions carry
+one). `d` stays content: it is the vitamin D case Defect B was for, and
+`short_stopwords_are_still_dropped` pins it. No other compiler change.
+
+### 2c.9 Risks
+
+| Risk | Handling |
+| --- | --- |
+| Hybrid silently equals FTS (no vectors) | Coverage check per store; `vector` hits asserted in a test |
+| CUDA run falls back to CPU | `require_embed_device` refuses; device recorded |
+| Store shape confounds the hybrid delta | `fathomdb-fts-projected` arm; Q-D2 on a plain-body variant |
+| D3 hurts NFCorpus or recall | Measurement gate REQ40-D6; D3 in its own commit for revert |
+| `possessive_and_contraction_fragments_are_content_tokens` contradicts D3 | Ruling needed before W4 (test-plan § 3c) |
+| AC-038 mirror goes stale | Its fixture needs no change; its private stop-list copy needs updating with D3 (test-plan § 3c) |
+| `fathomdb_test_setup.py` diverges between lineages | Recorded; merge-forward resolves |
+
 ## 3. Files touched
 
 | File | Change |
@@ -229,6 +403,8 @@ projection cursor read.
 | `src/rust/crates/fathomdb-query/README.md` | "tokens shorter than three characters" removed |
 | `src/rust/crates/fathomdb-engine/src/search.rs` (Defect C, W4 of phase 3) | `read_projected_text_in_tx`: stream first, fallback second, score negation, `test-hooks` route and plan witnesses |
 | `src/rust/crates/fathomdb-engine/src/filter.rs` (Defect C) | new `property_fts_rank_stream_sql`; `property_fts_rank_sql` unchanged |
+| `src/rust/crates/fathomdb-query/src/lib.rs` (Unit D3, own commit) | twelve words added to `STOPWORDS` |
+| `comp03-slice40`: `experiments/comp03_retrieval.py` (new), `configs/comp-03/retrieval-sweep.v1.json` (new), `configs/comp-03/hermes-answer.v2.json` (new), `comp03_answer.py`, `comp_fts.py` (new arms and campaign only), `fathomdb_test_setup.py` (`require_embed_device`) | Unit D1, D2 |
 | `CHANGELOG.md` | two entries under "0.8.28 — unreleased" (R1 F3): fusion credits a body once per arm (result order can change on corpora with duplicate bodies); the compiler keeps 1–2 character tokens |
 
 Defect C tests (phase 3): `tests/slice40_projected_fts_stream.rs` (new)

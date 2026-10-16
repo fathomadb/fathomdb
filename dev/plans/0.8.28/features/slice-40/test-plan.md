@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — test plan
-status: REVISED AFTER R1 (W3–W5 results in § 5 and § 6); Defect C tests added 2026-10-16 (§ 3b, § 5.3)
+status: REVISED AFTER R1 (W3–W5 results in § 5 and § 6); Defect C GREEN (§ 5.4); Unit D RED tests added 2026-10-16 (§ 3c, § 5.5)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -141,6 +141,110 @@ the fallback alike.
 The three GREEN tests pass against the current full-sort implementation,
 as expected: they pin the contract the stream must keep. The two RED tests
 fail because the projected path records no route and no plan today.
+
+## 3c. Unit D tests
+
+### D3, `fathomdb-query` test module (this worktree)
+
+```bash
+cd src/rust
+cargo test -p fathomdb-query
+```
+
+| Test | AC | State now |
+| --- | --- | --- |
+| `unit_d_words_are_in_the_stop_list_and_content_letters_are_not` | 46 | RED |
+| `each_unit_d_word_alone_takes_the_fallback` (upper-case input tells the fallback from the content path) | 46 | RED |
+| `possessive_and_contraction_fragments_are_dropped` | 46 | RED |
+| `short_function_words_are_dropped` | 46 | RED |
+| `short_content_tokens_survive_the_unit_d_stop_list` | 46 | RED (its inputs carry "my", "so", "up") |
+
+**Conflict needing a ruling before W4.** The existing
+`possessive_and_contraction_fragments_are_content_tokens` (added at W3 for
+R1 F2 to pin that "s" and "t" were content) asserts `"cow" OR "s" OR
+"milk"`. D3 reverses that by design, so after W4 it fails, and
+`possessive_and_contraction_fragments_are_dropped` asserts the opposite.
+"Every existing Slice 40 compiler test still holds unchanged" cannot hold
+for this one test. It was not edited. Proposed ruling: delete it (the
+new test covers the same inputs with the D3 expectation) in the D3
+commit. Every other existing compiler test is unaffected: none of their
+inputs contains one of the twelve words except as a stopword already
+expected to drop, and the property tests read `STOPWORDS` itself.
+
+**Engine tests.** `slice40_fts_ranking.rs` (the "Cow's milk" test still
+ranks the cow row first with `"cow" OR "milk"`), `slice40_projected_fts_stream.rs`
+and `pr_g9_rrf_fusion.rs` use none of the twelve words as content; they
+must stay green at W4.
+
+**AC-038 (`fts5_injection_safety.rs`), read in full.** Its reference model
+keeps a private copy of `STOPWORDS` and of the content-token rule, and its
+parity check compares the engine's result set with that model's for 100
+fixture queries over a 12-row corpus. The query alphabet (`alpha` …
+`juliet`, `d3`, `c`, `ii`, `1`) and the template literals (`NEAR`, `body`,
+`col`, `NOT`, `AND`, `OR`, `5`, `2`, `3`) contain none of the twelve words,
+and neither does the corpus. So the test stays green with or without D3,
+and its fixture (corpus and queries) needs no regeneration. Its private
+stop-list copy, however, would no longer mirror the compiler after D3.
+At W3 the token-rule change was mirrored in that copy (and the corpus was
+extended under R1 F1). Proposed: add the twelve words to the copy in the D3
+commit, with no fixture change. Not touched until ruled, since it is a test
+edit.
+
+### D1 and D2, harness (`comp03-slice40` worktree)
+
+Run from the worktree root with its own `.venv`, as `scripts/agent-test.sh`
+runs the experiment suites (`env PYTHONPATH=. .venv/bin/python -m pytest -q
+tests/experiments/…`); the COMP tests are not in the agent-test list, so
+they run explicitly:
+
+```bash
+cd ~/projects/fathomdb-worktrees/comp03-slice40
+env PYTHONPATH=. .venv/bin/python -m pytest -q \
+  tests/experiments/test_comp03_retrieval.py tests/experiments/test_comp03_answer.py
+```
+
+The worktree's `.venv` (bootstrap of `0e246ad31`) has the dev wheel with
+`default-embedder` on CPU and the cached `bge-small` weights, so no hybrid
+test skips; it does not have `lancedb`, so the two pre-existing
+LanceDB-backed tests skip, and no new test needs LanceDB (the gate tests
+drop the LanceDB arm from their config copy). Hybrid tests skip only when
+`Engine.open(use_default_embedder=True)` fails, printing the reason.
+
+New file `tests/experiments/test_comp03_retrieval.py` (all RED: the module,
+the configs and the new arms do not exist yet):
+
+| Test | AC |
+| --- | --- |
+| `test_sweep_reuses_answer_harness_conversion_and_gold` | 37 |
+| `test_recall_all_needs_every_answer_session_while_recall_any_needs_one` | 33 |
+| `test_two_rounds_of_one_session_do_not_satisfy_recall_all` | 33 |
+| `test_metrics_are_none_without_relevant_rounds_and_zero_when_nothing_found` | 33 |
+| `test_bootstrap_ci_is_seeded_and_degenerate_on_constant_differences` | 34 |
+| `test_paired_deltas_are_treatment_minus_control_overall_and_per_type` | 34 |
+| `test_decision_rule_adopts_when_all_three_clauses_hold` | 35 |
+| `test_decision_rule_rejects_when_any_clause_fails` (a: lower −0.01; a: lower exactly 0; b; c) | 35 |
+| `test_decision_rule_accepts_an_overall_delta_of_exactly_zero` | 35 |
+| `test_sweep_config_is_typed_and_states_the_rule_verbatim` | 36 |
+| `test_device_check_refuses_a_cuda_request_that_resolved_to_cpu` | 39 |
+| `test_comp_fts_fts_arm_is_byte_unchanged_and_hybrid_arm_is_registered` (pins the SHA-256 of `inspect.getsource(FathomArm)` at `0e246ad31` and its settings dict) | 42 |
+| `test_hybrid_arm_store_has_one_vector_row_per_document_and_vector_hits` | 40 |
+| `test_vector_coverage_check_refuses_a_store_without_vectors` | 40 |
+| `test_fts_projected_arm_stores_json_bodies_and_searches_text_only` | 41 |
+| `test_sweep_covers_every_question_and_resume_does_no_new_work` | 38, 42 |
+| `test_sweep_refuses_a_dataset_whose_digest_differs` | 38 |
+| `test_sweep_hybrid_arm_records_the_resolved_device_and_writes_a_verdict` | 39, 40 |
+
+Additions to `tests/experiments/test_comp03_answer.py` (pre-existing tests
+untouched):
+
+| Test | AC | State |
+| --- | --- | --- |
+| `test_v2_config_keeps_v1_inputs_and_widens_to_three_arms_at_k10` | 43 | RED |
+| `test_arm_order_rotation_reduces_to_the_v1_alternation_for_two_arms` | 44 | RED |
+| `test_arm_order_rotation_puts_each_of_three_arms_in_each_position_once` | 44 | RED |
+| `test_gold_changes_leave_hybrid_retrieval_byte_identical` | 37 | RED |
+| `test_hybrid_arm_is_skipped_unless_the_sweep_verdict_is_adopt` | 45 | RED |
+| `test_hybrid_arm_runs_when_the_sweep_verdict_is_adopt` | 45 | RED |
 
 ## 4. Existing tests touched
 
@@ -386,6 +490,60 @@ passes with the new SELECT builder. `cargo clippy -p fathomdb-engine
 --all-targets -- -D warnings` and `cargo clippy -p fathomdb-engine
 --features test-hooks --lib --tests -- -D warnings` are clean.
 
+### 5.5 RED run for Unit D (phase 4, 2026-10-16)
+
+D3, this worktree at `47c54b78d` plus the new tests:
+
+```text
+cargo test -p fathomdb-query
+thread 'tests::each_unit_d_word_alone_takes_the_fallback' (3964612) panicked at src/rust/crates/fathomdb-query/src/lib.rs:167:13:
+assertion `left == right` failed: "s" alone has no content token
+  left: "\"s\""
+ right: "\"S\""
+thread 'tests::possessive_and_contraction_fragments_are_dropped' (3964617) panicked at src/rust/crates/fathomdb-query/src/lib.rs:177:9:
+assertion `left == right` failed
+  left: "\"cow\" OR \"s\" OR \"milk\""
+ right: "\"cow\" OR \"milk\""
+thread 'tests::short_content_tokens_survive_the_unit_d_stop_list' (3964621) panicked at src/rust/crates/fathomdb-query/src/lib.rs:195:9:
+assertion `left == right` failed
+  left: "\"my\" OR \"vitamin\" OR \"d\" OR \"level\""
+ right: "\"vitamin\" OR \"d\" OR \"level\""
+thread 'tests::short_function_words_are_dropped' (3964622) panicked at src/rust/crates/fathomdb-query/src/lib.rs:187:9:
+assertion `left == right` failed
+  left: "\"my\" OR \"dog\" OR \"likes\" OR \"me\" OR \"so\" OR \"take\" OR \"us\" OR \"up\" OR \"hill\" OR \"am\""
+ right: "\"dog\" OR \"likes\" OR \"take\" OR \"hill\""
+thread 'tests::unit_d_words_are_in_the_stop_list_and_content_letters_are_not' (3964626) panicked at src/rust/crates/fathomdb-query/src/lib.rs:154:13:
+"s" must be a stopword
+test result: FAILED. 15 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+Harness, `comp03-slice40` at `0e246ad31` plus the new tests:
+
+```text
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_retrieval.py tests/experiments/test_comp03_answer.py
+SKIPPED [1] tests/experiments/test_comp03_answer.py:129: could not import 'lancedb': No module named 'lancedb'
+SKIPPED [1] tests/experiments/test_comp03_answer.py:149: could not import 'lancedb': No module named 'lancedb'
+27 failed, 9 passed, 2 skipped in 1.26s
+```
+
+The 9 passing are the pre-existing `test_comp03_answer.py` tests; the 2
+skips are its pre-existing LanceDB tests. The 27 failures are every new
+test, by cause:
+
+```text
+     17 E       ImportError: cannot import name 'comp03_retrieval' from 'experiments' (/home/coreyt/projects/fathomdb-worktrees/comp03-slice40/experiments/__init__.py)
+      3 E       KeyError: 'fathomdb-hybrid'
+      3 E       FileNotFoundError: [Errno 2] No such file or directory: '/home/coreyt/projects/fathomdb-worktrees/comp03-slice40/experiments/configs/comp-03/hermes-answer.v2.json'
+      2 E           AttributeError: module 'experiments.comp03_answer' has no attribute 'arm_order'
+      1 E       KeyError: 'fathomdb-fts-projected'
+      1 E           AttributeError: module 'experiments.fathomdb_test_setup' has no attribute 'require_embed_device'
+```
+
+In `test_comp_fts_fts_arm_is_byte_unchanged_and_hybrid_arm_is_registered`
+the source-hash and settings assertions pass; it fails at the missing
+`fathomdb-hybrid` arm. `tests/experiments/test_comp_fts.py` is unchanged
+and still passes (`7 passed, 5 skipped`).
+
 ## 6. Pre-existing test failures at W5
 
 A failing pre-existing test is not edited; it is listed here verbatim
@@ -520,3 +678,22 @@ FAIL  arm 9c (real sweep): rc=1 out=FAIL commission-manifest: `dev/plans/release
 - **Q6.** Should `slice35_ranked_eligibility_sql_for_test` also return the
   new stream statement, so the eligibility-before-ranking check covers it?
   Left unchanged in the design (REQ40-C6).
+
+## 9. Open questions for R1 (phase 4)
+
+- **Q-D1.** `possessive_and_contraction_fragments_are_content_tokens`
+  contradicts D3 (§ 3c). Delete it in the D3 commit?
+- **Q-D2.** The projection worker embeds the full node body, not the
+  projected attribute (design § 2c.2), and a plain-body store with any
+  `vector=True` searchable projection gets one vector row per document.
+  Keep the JSON-body hybrid shape as directed, add a plain-body hybrid
+  variant to the sweep as a pure vector-arm ablation, or switch the hybrid
+  arm to the plain-body shape?
+- **Q-D3.** Update the AC-038 reference model's private stop-list copy in
+  the D3 commit (fixture unchanged)?
+- **Q-D4.** `lancedb` is not installed in the `comp03-slice40` `.venv`.
+  Install `lancedb==0.40.0` there for the real sweep, or run the sweep
+  from a venv that has it?
+- **Q-D5.** The NFCorpus informational row runs as a new campaign
+  `comp01-hybrid` (`fathomdb` vs `fathomdb-hybrid`), not inside the
+  existing `comp01` roster, which is fixed at two arms. Acceptable?

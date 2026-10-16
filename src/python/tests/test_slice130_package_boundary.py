@@ -23,8 +23,19 @@ ADDITIONS = Path(__file__).resolve().parent / "python_surface_additions.json"
 
 def test_package_boundary_matches_pre_move_baseline() -> None:
     baseline = json.loads(BASELINE.read_text())
-    expected_exports = {row["path"] for row in baseline["python_package_exports"]}
-    assert len(fathomdb.__all__) == len(expected_exports) == 119
+    baseline_exports = {row["path"] for row in baseline["python_package_exports"]}
+    assert len(baseline_exports) == 119
+    # Top-level additions since the frozen baseline come from the same
+    # reviewed registry the declaration test uses: paths exactly `fathomdb.<name>`.
+    additions = json.loads(ADDITIONS.read_text())
+    added_exports = {
+        path.removeprefix("fathomdb.")
+        for path in (entry["declaration"]["path"] for entry in additions["additions"])
+        if path.count(".") == 1 and path.startswith("fathomdb.")
+    }
+    assert not added_exports & baseline_exports
+    expected_exports = baseline_exports | added_exports
+    assert len(fathomdb.__all__) == len(expected_exports) == 119 + len(added_exports)
     assert set(fathomdb.__all__) == expected_exports
     for name in expected_exports:
         assert getattr(fathomdb, name) is not None
@@ -114,4 +125,6 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
         + "    ) -> SearchResult: ...\n"
         + suffix
     )
-    assert hashlib.sha256(pre_027_delta_stub.encode()).hexdigest() == additions["native_stub_sha256"]
+    assert (
+        hashlib.sha256(pre_027_delta_stub.encode()).hexdigest() == additions["native_stub_sha256"]
+    )

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — status
-status: W2 RED and W4 GREEN done; test rulings 1–3 applied (one export pin open); code review next
+status: W2 RED and W4 GREEN done; test rulings 1–4 applied; code review next
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -19,7 +19,7 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
 | W2 | implementer | RED tests (test-plan § 2, § 3) | done at `86e15e333` (+ `338d1da9f` Cargo.lock); RED record in test-plan § 7.1 |
 | W4 | implementer | Core module, bindings, parity map, docs; no test edits | done: core `3e0903d91`, surface `2ccc6afc6`, pin `334497e4c`, docs in the following commit; GREEN record in test-plan § 7.2 |
 | W4 surface | implementer | Write the allowlist entry `_slice41_context_pack_signature` (design § 5) and the decision-index row, both citing the 2026-10-16 owner rulings | done: allowlist and parity map `2ccc6afc6`, re-issued pin `334497e4c`, decision-index row 64 |
-| W5 | implementer | Scoped checks (the full gate waits for the code review) | rulings 1–3 applied; `test_package_boundary_matches_pre_move_baseline` still open (see Rulings) |
+| W5 | implementer | Scoped checks (the full gate waits for the code review) | rulings 1–4 applied; Python suite 1681 passed, 17 skipped |
 | M | orchestrator | AC41-27 differential and M1 preview now; after the Unit H head: M1, § 4.2, M3, § 4.5 | AC41-27 180/180 and the M1 preview done (test-plan § 7.3, § 7.4); the rest waits on Slice 40 Unit H |
 | R2 | codex | Code review | not started |
 
@@ -51,11 +51,15 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
    `src/python/tests/python_surface_additions.json`: 39 declarations under
    slice 41, plus the new `native_stub_sha256`. With them,
    `test_python_declarations_match_pre_move_baseline_with_approved_deltas`
-   passes. Still open: `test_package_boundary_matches_pre_move_baseline`
-   compares `fathomdb.__all__` with the frozen baseline export set by set
-   equality, and it does not read the registry. Changing only the constant
-   119 cannot make it pass, so the test is left unchanged pending a further
-   ruling.
+   passes.
+4. `test_package_boundary_matches_pre_move_baseline`: the new names stay
+   top-level, as `rerank` is. The expected export set is now the frozen
+   baseline exports plus the registry's top-level additions, meaning paths
+   that are exactly `fathomdb.<name>`. This is the mechanism the sibling
+   declaration test already uses. The test still asserts the baseline holds
+   119 exports, and `__all__` must have 119 plus the number of registry
+   additions. This is the first top-level addition since Slice 130, so the
+   mechanism is new; the change is limited to this one test.
 
 Pre-existing failures under `test-hooks` (the feature is turned on by
 unification in multi-crate runs), left as they are: `slice135_robustness_first`

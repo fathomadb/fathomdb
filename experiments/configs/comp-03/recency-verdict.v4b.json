@@ -1,0 +1,121 @@
+{
+ "arms": {
+  "fathomdb-fts": {
+   "arm": "fathomdb-fts",
+   "ku_temporal_delta": 2,
+   "n": 60,
+   "overall_ci": [
+    -0.06666666666666667,
+    0.06666666666666667
+   ],
+   "overall_delta": 0,
+   "per_type": {
+    "knowledge-update": {
+     "base": 8,
+     "new": 9
+    },
+    "multi-session": {
+     "base": 5,
+     "new": 4
+    },
+    "single-session-assistant": {
+     "base": 10,
+     "new": 10
+    },
+    "single-session-preference": {
+     "base": 8,
+     "new": 7
+    },
+    "single-session-user": {
+     "base": 9,
+     "new": 9
+    },
+    "temporal-reasoning": {
+     "base": 9,
+     "new": 10
+    }
+   },
+   "provisional": true,
+   "verdict": "adopt"
+  },
+  "fathomdb-hybrid": {
+   "arm": "fathomdb-hybrid",
+   "ku_temporal_delta": 1,
+   "n": 60,
+   "overall_ci": [
+    -0.1,
+    0.03333333333333333
+   ],
+   "overall_delta": -2,
+   "per_type": {
+    "knowledge-update": {
+     "base": 9,
+     "new": 10
+    },
+    "multi-session": {
+     "base": 5,
+     "new": 4
+    },
+    "single-session-assistant": {
+     "base": 10,
+     "new": 10
+    },
+    "single-session-preference": {
+     "base": 8,
+     "new": 7
+    },
+    "single-session-user": {
+     "base": 10,
+     "new": 9
+    },
+    "temporal-reasoning": {
+     "base": 10,
+     "new": 10
+    }
+   },
+   "provisional": true,
+   "verdict": "reject"
+  },
+  "lancedb-fts": {
+   "arm": "lancedb-fts",
+   "ku_temporal_delta": 1,
+   "n": 60,
+   "overall_ci": [
+    0.0,
+    0.11666666666666667
+   ],
+   "overall_delta": 3,
+   "per_type": {
+    "knowledge-update": {
+     "base": 9,
+     "new": 10
+    },
+    "multi-session": {
+     "base": 5,
+     "new": 5
+    },
+    "single-session-assistant": {
+     "base": 10,
+     "new": 10
+    },
+    "single-session-preference": {
+     "base": 8,
+     "new": 9
+    },
+    "single-session-user": {
+     "base": 8,
+     "new": 9
+    },
+    "temporal-reasoning": {
+     "base": 10,
+     "new": 10
+    }
+   },
+   "provisional": true,
+   "verdict": "adopt"
+  }
+ },
+ "base_summary_sha256": "f3e68bc9d5160c05574cccef594947dbcd888fbc7a53843802664f92f2081c9c",
+ "new_summary_sha256": "afa18150030585c98c93dec1b05450d4d95c6ab45fd99f3f87ad3063bb69ee60",
+ "schema_version": "comp-03.factor-verdict.v1"
+}

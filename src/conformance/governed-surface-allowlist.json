@@ -12,6 +12,7 @@
   "_slice55_trace_signature": "The approved 0.8.25 Slice 55 plan adds trace_dependency/traceDependency as a bounded, one-hop governed read under an authenticated frozen context. It adds no reverse state or SDK doctor surface. Core membership and the recovery denylist are unchanged.",
   "_slice20_graph_evidence_signature": "HITL decision seq-290 approved D26-01 option A: graph.expand gains an opt-in evidence sidecar and resolve_graph_evidence/resolveGraphEvidence resolve only its opaque references under frozen authority. This adds two binding-specific governed verb names, no raw-ID lookup, and leaves core and the recovery denylist unchanged.",
   "_slice79_runtime_control_signature": "HITL authorization seq-276 approves exactly admin.configure_runtime and admin.configureRuntime as process-start SQLite runtime controls. They are not application commands, leave allowlist/core/recovery_denylist unchanged, and expose only performance/diagnostics mode selection.",
+  "_slice41_context_pack_signature": "Owner approval 2026-10-16 (0.8.28 Slice 41 plan, with the R0 plan-review adjustments): the context pack adds four package-level pure operations in each binding: pack_context/packContext, encode_round_body/encodeRoundBody, decode_round_body/decodeRoundBody and context_item_from_hit/contextItemFromHit. They render caller-supplied items within a character budget and encode or decode an opt-in role-tagged body. They open no engine and read or write no database. Core membership and the recovery denylist are unchanged.",
   "runtime_controls": [
     "admin.configure_runtime",
     "admin.configureRuntime"
@@ -67,6 +68,14 @@
     "graph.search_expand",
     "graph.searchExpand",
     "rerank",
+    "pack_context",
+    "packContext",
+    "encode_round_body",
+    "encodeRoundBody",
+    "decode_round_body",
+    "decodeRoundBody",
+    "context_item_from_hit",
+    "contextItemFromHit",
     "embed",
     "read.crossed_boundary_since",
     "read.crossedBoundarySince",

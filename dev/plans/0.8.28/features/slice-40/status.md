@@ -28,10 +28,25 @@ for phase 1 is `output.json` in this directory.
   (requirements § 4). Pre-existing; the orchestrator files the ledger
   entry at landing.
 - Consider adding possessive/contraction fragments (s, t, ll, re, ve) to
-  STOPWORDS; needs its own measurement (R1 F2).
+  STOPWORDS; needs its own measurement (R1 F2). First data point on the
+  10k TC-5 corpus: 50 of 100 queries carry a fragment, and `"s"` alone
+  matches 3,912 of 10,000 documents; the median candidate set per query
+  is 3,806 rows with fragments and 2,744 without.
 - The public docs give `Σ 1/(60 + rank)`; the code uses `RRF_K = 30` and
   3:1 text weighting (design § 5).
-- Re-run COMP-01 NFCorpus after the fix to measure the recovered nDCG@10.
+- COMP-01 NFCorpus re-run: done, see `nfcorpus-recovery.md` (nDCG@10
+  0.3087 → 0.3260, forecast 0.3260).
+- Potential addition to this slice, not added (owner 2026-10-16): fielded
+  title boost through declared `searchable` projections. On NFCorpus it
+  measured +0.002 nDCG@10 with a confidence interval that includes zero
+  (`nfcorpus-recovery.md` § hypothesis tests), so it waits for a corpus
+  where titles are a real signal.
+- COMP-02b projected-FTS latency: `search_projected_text` runs the
+  pre-SCALE-02 unbounded `ORDER BY bm25(...)` shape with the full node
+  body in the sorter and no `LIMIT`; the body path received the streamed
+  boundary-tie completion (`seq-268`) and the projected path did not.
+  Measured and decomposed in `comp02b-projected-fts-latency.md`. Candidate
+  for this slice or the next; not started.
 
 ## Notes
 

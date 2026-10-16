@@ -85,13 +85,14 @@ class FakeMeasure:
         }
 
 
-def _base(n_per_type: int = 10) -> dict:
-    """Selection questions all at 0 on Recall-all@10 and at 1 on Recall-any@5, two answer-set questions."""
+def _base(n_per_type: int = 10, all_hits: tuple[str, ...] = ()) -> dict:
+    """Selection questions at 1 on Recall-any@5 and at 0 on Recall-all@10 except ``all_hits``; one answer-set question."""
     base = {}
     for qtype, prefix in ((PREF, "p"), (MULTI, "m"), (TEMP, "t")):
         for i in range(n_per_type):
-            base[f"{prefix}{i}"] = {"question_type": qtype, "subset": "selection",
-                                    "session_recall_all_at_10": 0.0, "session_recall_any_at_5": 1.0}
+            qid = f"{prefix}{i}"
+            base[qid] = {"question_type": qtype, "subset": "selection",
+                         "session_recall_all_at_10": 1.0 if qid in all_hits else 0.0, "session_recall_any_at_5": 1.0}
     base["a0"] = {"question_type": PREF, "subset": "answer_set",
                   "session_recall_all_at_10": 0.0, "session_recall_any_at_5": 1.0}
     return base
@@ -166,7 +167,7 @@ def test_stripping_words_equals_compiling_with_them_as_stopwords(raw, words):
     d3 = ENGINE_STOPWORDS_5B09AFD44
     stripped = h.strip_words(raw, words)
     assert h.content_tokens(stripped, d3) == h.content_tokens(raw, [*d3, *words])
-    if h.content_tokens(raw, [*d3, *words]):
+    if words and h.content_tokens(raw, [*d3, *words]):
         assert h.simulated_query(raw, words, d3) == stripped
     assert h.simulated_query(raw, set(), d3) == raw
 
@@ -214,7 +215,7 @@ def test_a_word_that_empties_a_query_is_excluded():
 
 
 def test_stoplist_rule_keeps_gaining_words_and_prunes_until_constraints_hold():
-    base = _base()
+    base = _base(all_hits=("t2", "t3"))
     effects = {
         "many": {"all": {"p0": 1, "p1": 1}, "ndcg": -0.0005},
         "have": {"all": {"m0": 1}, "ndcg": -0.0020},   # (a) fails with "many": pruned first
@@ -296,7 +297,7 @@ def test_stoplist_rule_rejects_a_list_whose_ci_lower_bound_is_below_minus_one_qu
 
 
 def test_stoplist_rule_is_not_adopted_when_nothing_gains():
-    base = _base()
+    base = _base(all_hits=("p1", "m0"))
     effects = {"many": {"all": {"p0": 1, "p1": -1}}, "have": {"all": {"m0": -1}}}
     measure = FakeMeasure(base, effects)
     result = _select(_small_config(["many", "have"]), measure)

@@ -2,7 +2,7 @@
   "schema_version": "fathomdb.baseline.v1",
   "title": "Slice 40 known-run baseline",
   "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-  "status": "final head: comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, and tc5-10k-latency expected values are the final-head measurements at the engine commit, each with a receipt; comp03-answer-v2 stays provisional (Unit D run, not re-measured); comp03-answer-mix is report-only and provisional (the evidence policy and mix may change)",
+  "status": "final head: comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, and tc5-10k-latency expected values are the final-head measurements at the engine commit, each with a receipt; comp03-answer-v2 stays provisional (Unit D run, not re-measured); comp03-answer-mix is report-only and provisional (the evidence policy and mix may change); comp02a-10000, comp02a-17272 and comp02b-10000 added by owner ruling Q-H5 (2026-10-16) with final-head expected values from their receipts",
   "tolerances": {
     "ndcg_at_10": {
       "abs": 0.002
@@ -1117,6 +1117,420 @@
             "source": "comp03-run-mix/summary.json, receipt comp-03-hermes-answer-20261016T1747Z-4e56afa9"
           },
           "gate": false
+        }
+      ]
+    },
+    {
+      "id": "comp02a-10000",
+      "title": "COMP-02a ingest scale, 10000 TC-5 documents, FathomDB vs SurrealDB",
+      "inputs": {
+        "identifier": "tc5-10000 (COMP-02 TC-5 inputs)",
+        "sha256": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+        "files": {
+          "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+          "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb",
+          "probes.json": "7d7096874c1c21b5a48f622e635fafc491fe03de87929e1844022ba3a219bf12",
+          "manifest.json": "a042ef6b1dac40eb9c9d1e526ec7af706ec1a48ba4abfd7b6577c45538db3e29"
+        }
+      },
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "wheel_build": {
+        "tool": "maturin build --release --compatibility linux",
+        "manifest": "src/python/pyproject.toml",
+        "features": [
+          "pyo3/extension-module",
+          "default-embedder",
+          "default-reranker"
+        ],
+        "env": {
+          "CUDA_PATH": null,
+          "PATH": "default",
+          "LIBRARY_PATH": "default"
+        },
+        "compatibility": "linux"
+      },
+      "command": [
+        "python",
+        "-m",
+        "experiments.comp_fts",
+        "run",
+        "--config",
+        "experiments/configs/comp-02/ingest-scale-10000.v1.json",
+        "--inputs",
+        "<inputs>",
+        "--out",
+        "<new attempt dir>"
+      ],
+      "record_command": [
+        "python",
+        "-m",
+        "experiments.comp_record",
+        "record",
+        "experiments/configs/comp-02/ingest-scale-10000.v1.json",
+        "--inputs",
+        "<inputs>",
+        "--out",
+        "<attempt dir>",
+        "--engine-commit",
+        "<engine commit>"
+      ],
+      "summary": "<receipt dir>/metrics.json",
+      "receipt": "comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7",
+      "note": "quiet host only; added by owner ruling Q-H5 (2026-10-16); medians are sorted by (documents, arm), so index 0 is FathomDB",
+      "metrics": [
+        {
+          "name": "fathomdb query-ready",
+          "pointer": "/medians/0/query_ready_s",
+          "expected": 1.438480309501756,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02a-10000 cells, receipt comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb steady p50",
+          "pointer": "/medians/0/steady_p50_ms",
+          "expected": 3.8770915,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02a-10000 cells, receipt comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb steady p95",
+          "pointer": "/medians/0/steady_p95_ms",
+          "expected": 12.5646865,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02a-10000 cells, receipt comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7 (metrics.json)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "comp02a-17272",
+      "title": "COMP-02a ingest scale, 17272 TC-5 documents, FathomDB vs SurrealDB",
+      "inputs": {
+        "identifier": "tc5-17272 (COMP-02 TC-5 inputs)",
+        "sha256": "674616a5567d392c0d35132d6275f6b98303e77b8374e6ae5d5b586323fc66cc",
+        "files": {
+          "corpus.json": "674616a5567d392c0d35132d6275f6b98303e77b8374e6ae5d5b586323fc66cc",
+          "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb",
+          "probes.json": "647d120d4258647dfe3f6dd28c83a077d58ed09ea3aee38b58babc65838a9405",
+          "manifest.json": "563990a80a1947a6d672c8a59b96aebd129a387634a44778f32df47415bfde74"
+        }
+      },
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "wheel_build": {
+        "tool": "maturin build --release --compatibility linux",
+        "manifest": "src/python/pyproject.toml",
+        "features": [
+          "pyo3/extension-module",
+          "default-embedder",
+          "default-reranker"
+        ],
+        "env": {
+          "CUDA_PATH": null,
+          "PATH": "default",
+          "LIBRARY_PATH": "default"
+        },
+        "compatibility": "linux"
+      },
+      "command": [
+        "python",
+        "-m",
+        "experiments.comp_fts",
+        "run",
+        "--config",
+        "experiments/configs/comp-02/ingest-scale-17272.v1.json",
+        "--inputs",
+        "<inputs>",
+        "--out",
+        "<new attempt dir>"
+      ],
+      "record_command": [
+        "python",
+        "-m",
+        "experiments.comp_record",
+        "record",
+        "experiments/configs/comp-02/ingest-scale-17272.v1.json",
+        "--inputs",
+        "<inputs>",
+        "--out",
+        "<attempt dir>",
+        "--engine-commit",
+        "<engine commit>"
+      ],
+      "summary": "<receipt dir>/metrics.json",
+      "receipt": "comp-02a-comp02a-17272-20261016T1756Z-eede35ef",
+      "note": "quiet host only; added by owner ruling Q-H5 (2026-10-16); medians are sorted by (documents, arm), so index 0 is FathomDB",
+      "metrics": [
+        {
+          "name": "fathomdb query-ready",
+          "pointer": "/medians/0/query_ready_s",
+          "expected": 2.4966652335133404,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02a-17272 cells, receipt comp-02a-comp02a-17272-20261016T1756Z-eede35ef (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb steady p50",
+          "pointer": "/medians/0/steady_p50_ms",
+          "expected": 6.6596775,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02a-17272 cells, receipt comp-02a-comp02a-17272-20261016T1756Z-eede35ef (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb steady p95",
+          "pointer": "/medians/0/steady_p95_ms",
+          "expected": 20.795668999999997,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02a-17272 cells, receipt comp-02a-comp02a-17272-20261016T1756Z-eede35ef (metrics.json)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "comp02b-10000",
+      "title": "COMP-02b filtered FTS at 1/10/33% selectivity, 10k TC-5 documents, FathomDB vs SurrealDB",
+      "inputs": {
+        "identifier": "tc5-10000 (COMP-02 TC-5 inputs)",
+        "sha256": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+        "files": {
+          "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+          "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb",
+          "probes.json": "7d7096874c1c21b5a48f622e635fafc491fe03de87929e1844022ba3a219bf12",
+          "manifest.json": "a042ef6b1dac40eb9c9d1e526ec7af706ec1a48ba4abfd7b6577c45538db3e29"
+        }
+      },
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "wheel_build": {
+        "tool": "maturin build --release --compatibility linux",
+        "manifest": "src/python/pyproject.toml",
+        "features": [
+          "pyo3/extension-module",
+          "default-embedder",
+          "default-reranker"
+        ],
+        "env": {
+          "CUDA_PATH": null,
+          "PATH": "default",
+          "LIBRARY_PATH": "default"
+        },
+        "compatibility": "linux"
+      },
+      "command": [
+        "python",
+        "-m",
+        "experiments.comp_fts",
+        "run",
+        "--config",
+        "experiments/configs/comp-02/filtered-10000.v1.json",
+        "--inputs",
+        "<inputs>",
+        "--out",
+        "<new attempt dir>"
+      ],
+      "record_command": [
+        "python",
+        "-m",
+        "experiments.comp_record",
+        "record",
+        "experiments/configs/comp-02/filtered-10000.v1.json",
+        "--inputs",
+        "<inputs>",
+        "--out",
+        "<attempt dir>",
+        "--engine-commit",
+        "<engine commit>"
+      ],
+      "summary": "<receipt dir>/metrics.json",
+      "receipt": "comp-02b-comp02b-10000-20261016T1757Z-d91933b9",
+      "note": "quiet host only; added by owner ruling Q-H5 (2026-10-16); medians are sorted by (cohort, arm), so indices 0, 2 and 4 are FathomDB at c01, c10 and c33; c01 has 6 short results per repetition (pre-existing)",
+      "metrics": [
+        {
+          "name": "fathomdb c01 p50",
+          "pointer": "/medians/0/p50_ms",
+          "expected": 29.689309,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c01 p95",
+          "pointer": "/medians/0/p95_ms",
+          "expected": 47.8182925,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c01 violations",
+          "pointer": "/medians/0/violations",
+          "expected": 0.0,
+          "tolerance": {
+            "abs": 0
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c01 short results",
+          "pointer": "/medians/0/short_results",
+          "expected": 6.0,
+          "tolerance": {
+            "abs": 0
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c10 p50",
+          "pointer": "/medians/2/p50_ms",
+          "expected": 9.261664,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c10 p95",
+          "pointer": "/medians/2/p95_ms",
+          "expected": 17.2323405,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c10 violations",
+          "pointer": "/medians/2/violations",
+          "expected": 0.0,
+          "tolerance": {
+            "abs": 0
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c10 short results",
+          "pointer": "/medians/2/short_results",
+          "expected": 0.0,
+          "tolerance": {
+            "abs": 0
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c33 p50",
+          "pointer": "/medians/4/p50_ms",
+          "expected": 8.326032999999999,
+          "tolerance": {
+            "rel": 0.25
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c33 p95",
+          "pointer": "/medians/4/p95_ms",
+          "expected": 15.1575045,
+          "tolerance": {
+            "rel": 0.35
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c33 violations",
+          "pointer": "/medians/4/violations",
+          "expected": 0.0,
+          "tolerance": {
+            "abs": 0
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
+        },
+        {
+          "name": "fathomdb c33 short results",
+          "pointer": "/medians/4/short_results",
+          "expected": 0.0,
+          "tolerance": {
+            "abs": 0
+          },
+          "provenance": {
+            "status": "final",
+            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+          }
         }
       ]
     }

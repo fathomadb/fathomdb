@@ -319,7 +319,8 @@ and the best mix. It replaces the 15 tests committed at `9d864e39e` and
 env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_evidence.py
 ```
 
-All 23 are RED, on hand-built docs (three sessions, one gold session) and
+After the re-review (APPROVE-WITH-FIXES, N1–N4 and v4c) the file has 26
+tests, all RED before W4, on hand-built docs (three sessions, one gold session) and
 hand-written policy tables:
 
 | Test | AC |
@@ -344,9 +345,12 @@ hand-written policy tables:
 | `test_recency_sentence_is_added_only_when_enabled_and_v2_rendering_is_unchanged` | 66 |
 | `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one` | 67 |
 | `test_recency_rule_boundaries` (F9) | 67 |
-| `test_v3_v4a_v4b_configs_add_one_factor_each` (F3, F6) | 68 |
-| `test_evidence_verdict_file_names_its_inputs` (F4, F7, F10) | 68 |
+| `test_v3_v4a_v4b_v4c_configs_add_one_factor_each` (F3, F6, v4c) | 68 |
+| `test_evidence_verdict_file_names_its_inputs` (F4, F7, F10, N1, N3) | 68 |
 | `test_mix_config_follows_the_three_verdicts` (the best mix) | 69 |
+| `test_mix_config_follows_the_arm_of_record` (N2) | 69 |
+| `test_mix_config_needs_v4c_for_chronological_order_alone` (v4c) | 69 |
+| `test_render_evidence_refuses_a_policy_together_with_caps` (N4) | 69 |
 
 The rule tests do not hard-code the replay's winner (4000/30000/on); each
 fixture's expected policy follows from the rule. The existing

@@ -36,7 +36,7 @@ for phase 1 is `output.json` in this directory.
 | EFG-W2 RED tests | done on `slice/0.8.28-40-comp03`: 31 RED (`test_sdk_parity_slice40.py` 9, `test_baseline_check.py` 8, `test_comp03_evidence.py` 14); none in this worktree (no doc checker pins verb text) |
 | EFG-R1 | APPROVE on `ad2773e6a` / `9d864e39e` (Q-E1 update the three capability assertions; Q-E2 declared commit plus digests; Q-E3 `package_root`; Q-G1 pooled plus fathomdb-fts; Q-G2 470 questions; Q-F1 provisional pre-fill) |
 | EF-W4/W5 | done: harness `bc4ca421b` (F), `d709db1a8` and `5e6ff1a34` (E); docs here; cross-SDK parity equal in every case and repetition (test-plan § 5.8) |
-| G | held by owner ruling 2026-10-16; review REJECT (F1–F10); requirements, design § 2f and tests revised; 23 RED (test-plan § 5.9); awaiting re-review; no Unit G code written |
+| G | review REJECT (F1–F10), revised; re-review APPROVE-WITH-FIXES (N1–N4, v4c) applied; W4/W5 below |
 
 ## Follow-ups (not in this slice)
 

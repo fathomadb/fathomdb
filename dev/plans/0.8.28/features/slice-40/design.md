@@ -585,9 +585,12 @@ The rule below replaces it.
     nil.
 - **Question sets.**
   - 470 scored questions; abstentions are excluded from every gold metric.
-  - Selection uses the 410 that are not among the 60 answer questions.
-  - The 60 are reported separately, so the paid runs are not on the
-    selection set.
+  - Selection uses the scored questions that are not among the 60 answer
+    IDs: 414, because four of the 60 are abstentions, so 56 are scored.
+  - The answer set (60 IDs, 56 scored) is reported separately, so the paid
+    runs are not on the selection set.
+  - Every count is derived from the dataset, the sweep records and the v2
+    config's question IDs, never hard-coded.
 - **`evidence_policy_grid()` and `policy_key(p)`**: twelve policies, keyed
   `"<per_round>/<total>/<on|off>"`.
 - **`evidence_rounds(ids, docs, policy)`** returns `[(round_id, chars)]` in
@@ -621,16 +624,21 @@ The rule below replaces it.
 - **Output.** `experiments/configs/comp-03/evidence-policy-verdict.v1.json`
   records:
   - the policy, the baseline and the rule;
-  - the pooled and per-arm twelve-row tables for the selection set (410)
-    and for the answer set (60);
+  - the pooled and per-arm twelve-row tables for the selection set (414)
+    and for the answer set (60 IDs, 56 scored);
   - the excluded policies;
+  - `answer_set_expectation`: the chosen policy minus the baseline on the
+    answer set, pooled and per arm, for every metric, the offline
+    expectation the paid v3 result is read against;
   - the dataset and sweep summary SHA-256, the arms, and the question
-    counts.
+    counts `{scored, selection, answer_set_ids, answer_set_scored}`.
 
 ### 2f.2 One evidence implementation (`comp03_answer`)
 
-- `render_evidence(docs, ids, *, max_item_chars, max_total_chars,
-  policy=None, chronological=False)`.
+- `render_evidence(docs, ids, *, max_item_chars=None, max_total_chars=None,
+  policy=None, chronological=False)`. A policy replaces both caps, so passing
+  a policy together with either cap raises `ValueError`. Without a policy,
+  both caps are required.
   - With `policy` given, the rounds come from
     `comp03_retrieval.evidence_rounds`, imported inside the function
     because `comp03_retrieval` imports `comp03_answer`.
@@ -656,29 +664,36 @@ The rule below replaces it.
 
 ### 2f.3 Configs and the best mix
 
-- **Schemas.** v3, v4a and v4b use `comp-03.answer.v3`. Each is v2 plus
+- **Schemas.** v3, v4a, v4b and v4c use `comp-03.answer.v3`. Each is v2 plus
   `evidence {policy, policy_verdict_sha256, chronological,
   recency_instruction}` and `decision_rule {compare_to, rule, provisional:
   true, mde_net_discordant: 6}`:
   - v3: the verdict's policy, both flags off, `compare_to` v2 (report
     only);
   - v4a: v3 with `recency_instruction` true, `compare_to` v3;
-  - v4b: v4a with `chronological` true, `compare_to` v4a.
+  - v4b: v4a with `chronological` true, `compare_to` v4a;
+  - v4c: v3 with `chronological` true alone, `compare_to` v3, run only in
+    the REQ40-G6 contingency.
+- **Arm of record.** Every decision rule names `arm_of_record:
+  fathomdb-fts`; the other arms are reported.
 - **Statistical caveat.** At n = 60 paired, the minimum detectable effect is
   about 6 net discordant questions, so every answer-run verdict is
   provisional. Adoption into the mix is gated on the per-type direction plus
   the 470-question offline metrics, not on significance.
-- **`build_mix_config(v3_config, policy_verdict, v4a_verdict, v4b_verdict)`**
-  is pure and returns `hermes-answer.mix.json`:
-  - the verdict's policy;
-  - `recency_instruction` iff v4a adopted;
-  - `chronological` iff v4b adopted and the sentence is on. v4b measured
-    chronological order only together with the sentence, so it is untested
-    alone.
-  - `decision_rule.compare_to` v2, and a `sources` block with the three
-    verdicts' SHA-256.
-
-  The orchestrator writes the file after the three runs.
+- **`build_mix_config(v3_config, policy_verdict, v4a_verdict, v4b_verdict,
+  v4c_verdict=None, *, arm="fathomdb-fts")`** is pure and returns
+  `hermes-answer.mix.json`. The factor verdicts are per arm (`{"sha256",
+  "arms": {arm: {"verdict", …}}}`), and only the named arm decides.
+  - The verdict's policy.
+  - `recency_instruction` iff v4a adopted on the arm.
+  - With the sentence on, `chronological` iff v4b adopted.
+  - With the sentence off and v4b adopting, `chronological` iff v4c
+    adopted. Without a v4c verdict in that case the function raises.
+  - `decision_rule {compare_to: hermes-answer.v2, arm_of_record, sources}`,
+    with the verdicts' SHA-256 in `sources`.
+- **Commands.** `comp03_answer recency-verdict` writes a factor verdict from
+  two run summaries; `comp03_answer mix` writes the mix file. The
+  orchestrator runs both after the paid runs.
 - `load_config` accepts v1, v2 and v3 schemas. Receipts and
   classifications are made as for v2.
 

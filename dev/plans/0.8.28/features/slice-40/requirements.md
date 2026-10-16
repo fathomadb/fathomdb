@@ -418,10 +418,14 @@ calls.
   twelve policies.
 - **Question set.** The 470 scored questions; abstentions are excluded from
   every gold metric.
-  - The policy is selected on the 410 scored questions that are not among
-    the 60 answer questions.
-  - The 60 are reported separately, so the paid runs are not on the
-    selection set.
+  - The policy is selected on the scored questions that are not among the 60
+    answer questions: 470 − 56 = 414, because the 60 answer IDs include four
+    abstentions (`f685340e_abs`, `e5ba910e_abs`, `bc8a6e93_abs`,
+    `f4f1d8a4_abs`), so 56 of them are scored.
+  - The answer set (60 IDs, 56 scored) is reported separately, so the paid
+    runs are not on the selection set.
+  - The implementation derives every count from the data and hard-codes
+    none.
 - **Bodies.** Round bodies are re-derived from the dataset with
   `convert_question`. The verdict binds the dataset's and the sweep
   summary's SHA-256.
@@ -461,8 +465,16 @@ tolerance; ties broken by fewer chars.*
   - `any` is monotone in every grid direction, so a constraint on it is
     vacuous.
   - `all` is bounded by Recall-all@10 and cannot move with expansion.
-- **Verdict.** It carries the pooled and per-arm tables, for the selection
-  set and for the 60.
+- **Verdict.** It carries the pooled and per-arm tables for the selection
+  set and for the answer set.
+- **Expected answer-set delta.** Next to the selection result, the verdict
+  records the offline delta of the chosen policy over the current one on
+  the answer set, pooled and per arm, so the paid v3 result is read against
+  that expectation. The reviewer's replay picked 4000/30000/on. On the answer
+  set, expansion adds no has-answer round, so v3 vs v2 is expected near-null
+  for the expansion and small for the 30,000 cap.
+- **Renderer caps.** An evidence policy passed to `render_evidence` replaces
+  `max_item_chars` and `max_total_chars`, so passing both is an error.
 
 **REQ40-G3 — recency rendering, as two single factors.** The answer harness
 can:
@@ -491,15 +503,20 @@ records `rounds_in_prompt` and `chars`.
   - `hermes-answer.v3.json`: the G1/G2 policy, bound by the verdict file's
     SHA-256;
   - `hermes-answer.v4a.json`: v3 with the sentence;
-  - `hermes-answer.v4b.json`: v4a with chronological order.
+  - `hermes-answer.v4b.json`: v4a with chronological order;
+  - `hermes-answer.v4c.json`: v3 with chronological order alone, the
+    contingency run of REQ40-G6.
 - **Attribution.**
   - v4a − v3 attributes the sentence.
   - v4b − v4a attributes chronological order given the sentence.
   - v3 − v2 is reported per arm.
-- **Adoption rule** (each factor, per arm, paired by question): adopt iff
+- **Adoption rule** (each factor, paired by question): adopt iff
   knowledge-update plus temporal correct does not drop and overall does not
   drop by more than 1 question. The report gives per-type counts and the
-  overall bootstrap CI.
+  overall bootstrap CI for every arm.
+- **Arm of record.** Each factor's adoption is decided on `fathomdb-fts`, the
+  product arm of record; the other arms are reported in the verdict, not
+  used.
 - **Statistical caveat.** At n = 60 paired, the minimum detectable effect is
   about 6 net discordant questions. Every v3, v4a and v4b verdict is
   labelled provisional. Adoption into the best mix is gated on the per-type
@@ -507,12 +524,18 @@ records `rounds_in_prompt` and `chars`.
   significance.
 
 **REQ40-G6 — the best mix.** A pure function builds
-`hermes-answer.mix.json` from the three verdicts:
+`hermes-answer.mix.json` from the verdicts, on the arm of record
+(`fathomdb-fts` by default, passed explicitly):
 
 - the evidence policy from G1/G2;
 - the sentence on iff v4a adopts;
-- chronological order on iff v4b adopts and the sentence is on, since v4b
-  measured chronological order only together with the sentence.
+- with the sentence on, chronological order on iff v4b adopts, since v4b
+  measured chronological order only together with the sentence;
+- **v4c contingency.** If v4a rejects the sentence but v4b − v4a adopts
+  chronological order, the orchestrator runs v4c (chronological order only,
+  vs v3) before the mix is finalised. Chronological order alone is enabled
+  only by a v4c adopt; without a v4c verdict in that case, building the mix
+  is refused.
 
 That config is the owner's follow-on best-mix run.
 
@@ -646,6 +669,6 @@ branch; its D3 tests are in the `fathomdb-query` test module.
 | AC40-65 | One implementation: with expansion on, `render_evidence` shows exactly the evaluator's rounds; the evidence record covers the expanded text and counts | `test_renderer_shows_exactly_the_evaluator_rounds_with_expansion`, `test_evidence_record_digests_the_expanded_text_and_counts_it` | G4 |
 | AC40-66 | Chronological rendering (newest last, dates kept, same rounds, date ties by session then round position); the sentence only when enabled; both off byte-identical to v2 | `test_chronological_rendering_orders_by_session_date_newest_last_and_keeps_dates`, `test_chronological_rendering_breaks_date_ties_by_session_then_round_position`, `test_chronological_rendering_selects_the_same_rounds_as_rank_order_under_the_cap`, `test_recency_sentence_is_added_only_when_enabled_and_v2_rendering_is_unchanged` | G3 |
 | AC40-67 | Adoption rule, with its boundaries (overall −1 with KU plus temporal flat adopts; KU +1 / temporal −1 adopts) and a per-type report | `test_recency_rule_adopts_unless_ku_plus_temporal_drops_or_overall_drops_by_more_than_one`, `test_recency_rule_boundaries` | G5 |
-| AC40-68 | v3, v4a and v4b configs: single-factor steps, provisional verdicts; the verdict file names its inputs (470 scored, 410 selection, 60 reported) | `test_v3_v4a_v4b_configs_add_one_factor_each`, `test_evidence_verdict_file_names_its_inputs` | G2, G5 |
-| AC40-69 | The best-mix config is built from the three verdicts | `test_mix_config_follows_the_three_verdicts` | G6 |
+| AC40-68 | v3, v4a, v4b and v4c configs: single-factor steps, provisional verdicts; the verdict file names its inputs (470 scored, 414 selection, 60 answer IDs of which 56 scored) and the expected answer-set delta | `test_v3_v4a_v4b_v4c_configs_add_one_factor_each`, `test_evidence_verdict_file_names_its_inputs` | G2, G5 |
+| AC40-69 | The best-mix config is built from the verdicts on the arm of record; v4c contingency; renderer caps and policy are mutually exclusive | `test_mix_config_follows_the_three_verdicts`, `test_mix_config_follows_the_arm_of_record`, `test_mix_config_needs_v4c_for_chronological_order_alone`, `test_render_evidence_refuses_a_policy_together_with_caps` | G2, G6 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

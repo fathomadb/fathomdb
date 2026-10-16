@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — status
-status: ACTIVE (Defects A, B landed on the branch; Defect C added 2026-10-16, docs and RED tests done, awaiting R1 for phase 3)
+status: ACTIVE (Defects A, B, C GREEN on the branch; gate red only on the two orchestrator-owned release-state suites)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -22,8 +22,9 @@ for phase 1 is `output.json` in this directory.
 | R2 | not started |
 | C-W1 Defect C docs | done 2026-10-16: requirements § 1.3, REQ40-C1..C6, AC40-27..32; design § 2b; test-plan § 3b |
 | C-W2 Defect C RED tests | done: `slice40_projected_fts_stream.rs`, 2 RED (route and plan witness, fallback witness), 3 GREEN regression net (test-plan § 5.3) |
-| C-R1 | not started |
-| C-W4 Defect C fix | not started |
+| C-R1 | APPROVE-WITH-FIXES on `04bf5e5e6` (Q4 keep `projected_` prefix, Q5 no CROSS JOIN, Q6 seam unchanged; F1–F6 applied) |
+| C-W4 Defect C fix | done at `a3830681d`: stream statement, fallback, witnesses, CHANGELOG; 5/5 Defect C tests GREEN, no test edited |
+| C-W5 | default engine suite 474 passed; F2 test list all green; lint and lint-md exit 0; `agent-verify.sh` exit 1 on `test-check-board-currency` and `test-commission-manifest` only (release-state files, unchanged from W5); test-plan § 5.4, § 6.2 |
 
 ## Follow-ups (not in this slice)
 

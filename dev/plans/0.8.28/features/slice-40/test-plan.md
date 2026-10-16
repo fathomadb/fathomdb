@@ -485,6 +485,23 @@ FAIL  arm 9c (real sweep): rc=1 out=FAIL commission-manifest: `dev/plans/release
 
 The full gate is therefore not green at this head.
 
+### 6.2 Gates for Defect C (phase 3)
+
+| Gate | Result |
+| --- | --- |
+| `./scripts/agent-lint.sh` (clean tree, `c86471cb3`) | exit 0 (`lint-rust-tegra-pool` skipped: needs aarch64 Linux and CUDA) |
+| `./scripts/agent-lint-md.sh` | exit 0 |
+| `./scripts/agent-verify.sh` (clean tree, `c86471cb3`, worktree `.venv`) | exit 1: `registered=202 ran=202 passed=200 failed=2 skipped=0 excluded=0`; `FAILED SUITES: test-check-board-currency test-commission-manifest`; `test-rust rc=0`, `test-python rc=0`, `test-python-native-receipt rc=0` |
+
+The two failures recur unchanged from § 6.1. They check the 0.8.28
+release-state files, which this slice does not touch:
+
+```text
+FAIL  real-repository current-board regression: rc=1 out=STALE  0.8.28 Slice 31: dev/plans/release-state-0.8.28.json records landing SHA 1ceefddd894c041b0a8622856dc2677be3e49c88, but the hand-written ladder row at dev/plans/runs/STATUS-0.8.28.md:66 does not cite it (TC-133).
+STALE  0.8.28: the board claims "Ladder remaining: 31" at dev/plans/runs/STATUS-0.8.28.md:68, naming slice id(s) {31}, but `remaining_ladder` in dev/plans/release-state-0.8.28.json is {-} (TC-133)
+FAIL  arm 9c (real sweep): rc=1 out=FAIL commission-manifest: `dev/plans/release-state-0.8.28.json` declares end-of-ladder but its ladder is not fully landed (non-LANDED=[30, 31]; absent-from-landed=none).
+```
+
 ## 7. R1 rulings on the phase 1 open questions
 
 - **Q1.** Positional rank of the first occurrence: kept.

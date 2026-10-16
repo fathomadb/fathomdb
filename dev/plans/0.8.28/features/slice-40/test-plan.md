@@ -342,6 +342,50 @@ test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; 
 `cargo clippy -p fathomdb-engine --features test-hooks --test
 slice40_projected_fts_stream -- -D warnings` is clean.
 
+### 5.4 GREEN run for Defect C (W4 at `a3830681d`)
+
+No test edited. Each command from `src/rust`:
+
+```text
+cargo test -p fathomdb-engine --features test-hooks --test slice40_projected_fts_stream
+test projected_search_falls_back_to_full_sort_when_stream_fails ... ok
+test projected_search_attribute_filter_keeps_cohort_and_order ... ok
+test projected_search_returns_exactly_limit_rows_at_strict_boundaries ... ok
+test projected_search_matches_documented_order_across_tie_boundaries ... ok
+test projected_search_uses_rank_stream_without_temp_order_by_btree ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+cargo test -p fathomdb-engine --features test-hooks --test pr_g9_rrf_fusion
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+cargo test -p fathomdb-engine --test slice40_fts_ranking
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+cargo test -p fathomdb-engine --test fts5_injection_safety
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+cargo test -p fathomdb-engine --features test-hooks --test slice35_virtual_mutation_manifest
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+cargo test -p fathomdb-engine --features test-hooks --test slice35_eligibility_pretruncation
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+cargo test -p fathomdb-engine --features test-hooks --test slice20_fts_rank_stream
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+cargo test -p fathomdb-engine --features test-hooks --test slice18_retrieval_result_limits
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+cargo test -p fathomdb-engine --features test-hooks --test slice45_nested_source_projections
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.86s
+cargo test -p fathomdb-engine --features test-hooks --test slice30_dependency_closure
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.23s
+cargo test -p fathomdb-engine --features test-hooks --test slice80_search_view_paths
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+cargo test -p fathomdb-query
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`slice35_eligibility_pretruncation` owns `slice35_ranked_eligibility_sql_for_test`
+and still pins the unchanged fallback statement. `slice35_virtual_mutation_manifest`
+passes with the new SELECT builder. `cargo clippy -p fathomdb-engine
+--all-targets -- -D warnings` and `cargo clippy -p fathomdb-engine
+--features test-hooks --lib --tests -- -D warnings` are clean.
+
 ## 6. Pre-existing test failures at W5
 
 A failing pre-existing test is not edited; it is listed here verbatim
@@ -393,6 +437,12 @@ compiler before failing. Whether they also fail at the baseline under
 `--features test-hooks` was not checked (it needs a second checkout). They are recorded for the
 orchestrator, not ruled on here. The gate of record is
 `./scripts/agent-verify.sh` (§ 6.1).
+
+### 6.0 Defect C (phase 3, at `a3830681d`)
+
+`cargo test -p fathomdb-engine` (default features): exit 0, 79 test
+binaries, 474 passed, 0 failed, 7 ignored. No pre-existing test failed in
+any command of § 5.4. Gate results for phase 3 are in § 6.2.
 
 ### 6.1 Gates
 

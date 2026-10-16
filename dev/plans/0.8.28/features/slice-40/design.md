@@ -186,6 +186,12 @@ full sort's, so `?1`, `?2` and `?3` (`:now`) bind identically.
   plan is recorded for whichever projected statement runs, so the forced
   full sort's plan shows the temporary b-tree and the witness is not
   vacuous.
+- **The regression-net tests run only under `test-hooks`.** AC40-27, 30
+  and 31 need no hook, but they share `slice40_projected_fts_stream.rs`
+  with the witness tests, and by crate convention a file that uses
+  `test-hooks` is a `required-features = ["test-hooks"]` target, so the
+  default `cargo test -p fathomdb-engine` skips the whole file. W5 runs the
+  file explicitly with `--features test-hooks`.
 - **Why it is correct.** FTS5 `ORDER BY rank` yields rows in ascending
   `bm25()` order; the node and filter predicates only remove rows, they do
   not change any row's bm25 (the score is a function of the FTS index, not

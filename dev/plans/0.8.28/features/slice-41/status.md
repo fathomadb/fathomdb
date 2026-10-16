@@ -107,19 +107,28 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
    its compact phase 1 form. Clause (i) is restated for the first forced
    item only (requirements § 5.5), which is what the property tests.
 
-8. Open, needs an orchestrator ruling:
+8. Orchestrator ruling 6 (2026-10-16):
    `src/python/tests/earp/test_config_resolver.py::test_engine_config_has_exactly_the_known_fields`
-   pins the eight `EngineConfig` fields and says a ninth field must make the
-   catalog's coverage be re-examined. The catalog now classifies
-   `query_stop_words` (semantic, `open_report.stop_words_sha256`), so the
-   companion test `test_every_engine_config_field_has_a_verdict` passes. The
-   guard itself fails until `"query_stop_words"` is added to its set; the
-   test was not edited.
+   pins the `EngineConfig` field set. Adding `"query_stop_words"` to it
+   follows mechanically from the owner-ruled surface, the same kind of change
+   as the 44 to 48 operation-count pins; nothing else in the test changes
+   (`03f952b2f`; the file passes 51 of 51). The catalog classifies the knob
+   as semantic, witnessed by `open_report.stop_words_sha256`.
 9. `fathomdb-engine/src/graph_expand/execution.rs` keeps the old
    `read_graph_expand_in_tx` signature as a `#[cfg(test)]` wrapper over the
    built-in list, so the in-crate test in `src/evidence.rs` that calls it
    is unchanged; production dispatch uses
    `read_graph_expand_with_stop_words_in_tx`.
+10. Orchestrator ruling 7 (2026-10-16): the `query_stop_words: None` line
+    in `fathomdb-engine/tests/slice90_engine_configuration.rs:21` (item 6)
+    is approved after the fact as a compile-required one-line change.
+11. The `fathomdb` facade re-exports `QueryStopWords`, `StopWordBase`,
+    `StopWordRejection` and `DEFAULT_STOP_WORDS_SHA256`. These are covered by
+    the owner's 2026-10-16 rulings that added the configurable stop-word
+    list to Slice 41, together with the owner's plan approval (orchestrator,
+    2026-10-16).
+12. The `pr_g8_dangling_edges` failure rate (2 of 20 at `80e4ea954`, 10 of
+    20 on this branch; test-plan § 8.5) is with the code reviewer.
 
 Pre-existing failures under `test-hooks` (the feature is turned on by
 unification in multi-crate runs), left as they are: `slice135_robustness_first`

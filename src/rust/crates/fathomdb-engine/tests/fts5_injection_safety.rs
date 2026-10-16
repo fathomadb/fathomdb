@@ -18,7 +18,7 @@
 //!      FTS5 unicode61-equivalent semantics (lowercase, drop
 //!      non-alphanumerics) and — mirroring the IR-C **content-OR**
 //!      compiler (`fathomdb-query`) — asserts that ANY content
-//!      q-token (≥3 chars, stopwords stripped) appears in the body's
+//!      q-token (any length, stopwords stripped) appears in the body's
 //!      token set. The injection property is unchanged by AND→OR:
 //!      every q-token still reaches SQLite as a literal phrase, so
 //!      control syntax (`*`, `NEAR()`, `^`, `:`, quotes) never acts
@@ -69,14 +69,14 @@ fn content_tokens(query: &str) -> Vec<String> {
     query
         .to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
-        .filter(|t| t.len() >= 3 && !stop.contains(t))
+        .filter(|t| !t.is_empty() && !stop.contains(t))
         .map(|t| t.to_string())
         .collect()
 }
 
 fn safe_reference_matches(query: &str, body: &str) -> bool {
     // Safe-grammar reference, mirroring the content-OR compiler: strip FTS5
-    // syntax to leave alphanumeric content tokens (≥3 chars, stopwords removed),
+    // syntax to leave alphanumeric content tokens (any length, stopwords removed),
     // then surface the body iff ANY content token is present (OR). All-stopword /
     // symbol-only queries fall back to any raw whitespace token — matching the
     // compiler's fallback. Empty query never matches.

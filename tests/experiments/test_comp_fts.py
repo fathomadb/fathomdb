@@ -124,3 +124,16 @@ def test_campaign_config_rejects_drifted_inputs_and_records_a_receipt(tmp_path: 
     receipt = json.loads((run_dir / "record.json").read_text())
     assert receipt["verdict"] == "complete"
     assert receipt["metrics"]["median_by_arm"]["fathomdb"]["ndcg_at_10"] == pytest.approx(1.0)
+
+
+def test_every_campaign_has_a_loadable_config_with_its_arms():
+    from experiments import comp_record
+
+    configs = {}
+    for path in sorted(Path("experiments/configs").glob("comp-0[12]/*.json")):
+        config = comp_record.load_config(path)
+        configs.setdefault(config["harness_campaign"], config)
+    assert set(configs) == set(comp_fts.CAMPAIGNS)
+    for campaign, (arms, report) in comp_fts.CAMPAIGNS.items():
+        assert [arm["id"] for arm in configs[campaign]["arms"]] == list(arms)
+        assert configs[campaign]["report"] == report

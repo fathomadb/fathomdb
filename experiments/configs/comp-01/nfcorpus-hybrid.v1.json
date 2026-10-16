@@ -1,0 +1,55 @@
+{
+  "schema_version": "comp-fts.campaign.v1",
+  "program_track": null,
+  "campaign": "COMP-01",
+  "harness_campaign": "comp01-hybrid",
+  "title": "COMP-01 NFCorpus, FathomDB FTS vs FathomDB hybrid",
+  "inputs": {
+    "dir_hint": "~/.cache/fathomdb-comp/nfcorpus-input",
+    "source": "BEIR NFCorpus test split, data/corpus-data/raw/beir/nfcorpus",
+    "build": "python -m experiments.comp01_nfcorpus --source data/corpus-data/raw/beir/nfcorpus --output <inputs>",
+    "files": {
+      "corpus.json": "1895269ad24ec66b3a1fef9de806e6369b1f8f8376ec063f809097a41a315022",
+      "queries.json": "a352f9ad9b20b8bc75fe37488c681030f1fe31675e733b6e9665d1296bbbe383",
+      "gold.json": "6b226d8849aa2e080edafe3d3ca778931fc8ab68e420f28e7ece7ae26a55e105",
+      "manifest.json": "c2abd951fdba912d0a0fd9bfd5fdbb47ebf209ce51fcd06ff841f4b4006b4266"
+    }
+  },
+  "arms": [
+    {
+      "id": "fathomdb",
+      "version": "0.8.27 (repo build)",
+      "method": "Engine.search_text_only",
+      "tokenizer": "FTS5 porter unicode61 remove_diacritics 2",
+      "embedder": "none"
+    },
+    {
+      "id": "fathomdb-hybrid",
+      "version": "0.8.27 (repo build)",
+      "method": "Engine.search",
+      "embedder": "default (fathomdb-bge-small-en-v1.5)",
+      "projection": "dense: SEARCHABLE + vector; embeds the full node body",
+      "fusion": "RRF, text:vector 3:1",
+      "rerank_depth": 0,
+      "use_graph_arm": false
+    }
+  ],
+  "roster": {
+    "order": "AB/BA/BA/AB",
+    "repetitions": 4,
+    "cell": "one arm x one fresh database, own subprocess; resume skips cells/*.json"
+  },
+  "run": "python -m experiments.comp_fts run --config experiments/configs/comp-01/nfcorpus-hybrid.v1.json --inputs <inputs> --out <new attempt dir>",
+  "report": "fts",
+  "metrics": [
+    "ndcg_at_10",
+    "recall_at_10",
+    "mrr_at_10",
+    "steady_p50_ms",
+    "steady_p95_ms",
+    "disk_mib",
+    "peak_rss_mib"
+  ],
+  "result_note": "dev/performance-benchmarking/2026-10-15-comp-01-nfcorpus-fts-result.md",
+  "claim_boundary": "local paired FathomDB FTS vs hybrid only; top-10; linear-gain nDCG"
+}

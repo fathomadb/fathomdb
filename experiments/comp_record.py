@@ -25,7 +25,7 @@ CONFIG_KEYS = {
     "schema_version", "program_track", "campaign", "harness_campaign", "title", "inputs", "arms",
     "roster", "run", "report", "metrics", "result_note", "claim_boundary",
 }
-REPORTS = {"comp01": "fts", "comp02a": "scale", "comp02b": "filtered"}
+REPORTS = {"comp01": "fts", "comp01-hybrid": "fts", "comp02a": "scale", "comp02b": "filtered"}
 
 
 class CompRecordError(RuntimeError):

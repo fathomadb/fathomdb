@@ -434,6 +434,7 @@ def test_engine_config_has_exactly_the_known_fields() -> None:
         "cuda_pool",
         "cuda_pool_max_size",
         "cuda_pool_release_threshold",
+        "query_stop_words",
     }
 
 

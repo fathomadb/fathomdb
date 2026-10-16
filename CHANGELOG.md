@@ -139,6 +139,12 @@ AC-050c) gates merges against this invariant.
   "Vitamin C", "D3", "II", "1" in "IGF-1"); before, they were dropped from
   the FTS5 query. The stopword list is unchanged, so possessive and
   contraction fragments such as "s" and "t" are now query terms too.
+- (Slice 40) `search_projected_text` no longer sorts every matching row
+  (with its body) before returning the top `limit`: it reads the
+  projection's FTS5 index in rank order and stops once the limit and any
+  rows tied at the boundary are read, as body search already does. Results
+  and their order are unchanged. If the streamed statement fails, the
+  previous full sort runs.
 
 ## 0.8.27 — 2026-10-10
 

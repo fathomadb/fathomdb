@@ -247,7 +247,63 @@ pub(crate) fn read_projected_text_in_tx(
         params.push(rusqlite::types::Value::Integer(now));
     }
     let filter_predicate = append_node_eligibility_sql(filter, "n", &mut params);
+    #[cfg(feature = "test-hooks")]
+    let force_full_sort =
+        std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
+    #[cfg(not(feature = "test-hooks"))]
+    let force_full_sort = false;
+    // Like the body path's rank stream: FTS5 yields rows in bm25 order, so only
+    // rows up to the limit's tie group are joined and read, instead of sorting
+    // every match with its body. The full sort stays as the fallback.
+    let streamed = if force_full_sort {
+        None
+    } else {
+        #[cfg(feature = "test-hooks")]
+        let rank_mapping = if std::env::var_os("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST").is_some() {
+            "missing_ranker()"
+        } else {
+            "bm25()"
+        };
+        #[cfg(not(feature = "test-hooks"))]
+        let rank_mapping = "bm25()";
+        let stream_sql =
+            property_fts_rank_stream_sql(&node_predicate, &filter_predicate, rank_mapping);
+        #[cfg(feature = "test-hooks")]
+        record_fts_query_plan_for_test(&tx, &stream_sql, &params);
+        tx.prepare(&stream_sql)
+            .and_then(|mut statement| {
+                let mut rows = statement.query(rusqlite::params_from_iter(params.iter()))?;
+                collect_complete_rank_boundary(&mut rows, limit)
+            })
+            .ok()
+    };
+    if let Some((mut results, _crossed_boundary_tie)) = streamed {
+        #[cfg(feature = "test-hooks")]
+        record_fts_route_for_test(if _crossed_boundary_tie {
+            "projected_rank_stream_tie_completed"
+        } else {
+            "projected_rank_stream_strict_boundary"
+        });
+        for hit in &mut results {
+            hit.score = -hit.score;
+        }
+        let projection_cursor = load_projection_cursor(&tx)?;
+        return Ok(SearchResult {
+            projection_cursor,
+            soft_fallback: None,
+            results,
+            explanation: None,
+        });
+    }
+    #[cfg(feature = "test-hooks")]
+    record_fts_route_for_test(if force_full_sort {
+        "projected_full_sort_forced"
+    } else {
+        "projected_full_sort_fallback"
+    });
     let sql = property_fts_rank_sql(&node_predicate, &filter_predicate);
+    #[cfg(feature = "test-hooks")]
+    record_fts_query_plan_for_test(&tx, &sql, &params);
     let mut stmt = tx.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
         Ok((
@@ -2429,8 +2485,8 @@ use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{
     append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
     build_vector_phase1_sql, edge_fts_rank_sql, hit_attributes_pass_filter, property_fts_rank_sql,
-    validate_filter_attributes_on_snapshot, vector_filter_values, SearchFilter,
-    SnapshotFilterError,
+    property_fts_rank_stream_sql, validate_filter_attributes_on_snapshot, vector_filter_values,
+    SearchFilter, SnapshotFilterError,
 };
 use crate::frozen_read::{self, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason};
 use crate::fusion::{

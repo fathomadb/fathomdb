@@ -727,6 +727,24 @@ pub(crate) fn property_fts_rank_sql(validity: &str, eligibility: &str) -> String
     )
 }
 
+/// Rank-stream form of [`property_fts_rank_sql`]: the same predicate, read in
+/// FTS5 rank order with no SQL sort. The select list follows the body path's
+/// column order so the rows feed `collect_complete_rank_boundary`.
+pub(crate) fn property_fts_rank_stream_sql(
+    validity: &str,
+    eligibility: &str,
+    rank_mapping: &str,
+) -> String {
+    format!(
+        "SELECT n.body, n.kind, p.write_cursor, bm25(property_search_index), n.logical_id, n.source_id
+         FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
+         WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
+           {validity}{eligibility}
+           AND rank MATCH '{rank_mapping}'
+         ORDER BY rank"
+    )
+}
+
 /// G10 — does a text-branch hit satisfy the filter? The vector branch is
 /// pruned in-SQL; the text branch is constrained here against the same metadata:
 /// `kind` directly, `source_type` via [`resolve_source_type`], and

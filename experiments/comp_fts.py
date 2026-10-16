@@ -50,51 +50,88 @@ def pending(cells: list[str], out: Path) -> list[str]:
 class FathomArm:
     name = "fathomdb"
 
+    def __init__(self) -> None:
+        self.filtered = False
+
     def version(self) -> str:
         import fathomdb
 
         return fathomdb.__version__
 
     def settings(self) -> dict[str, Any]:
+        if self.filtered:
+            return {
+                "method": "Engine.search_projected_text('text', SearchFilter(attributes=bench_cohort))",
+                "projections": "text: SEARCHABLE+fts; bench_cohort: FILTERABLE",
+                "embedder": "none",
+            }
         return {
             "method": "Engine.search_text_only",
             "embedder": "none",
             "query_translation": "native (short-token/stopword removal, OR terms)",
             "dedup": "native body dedup before limit",
+            "tokenizer": "FTS5 porter unicode61 remove_diacritics 2",
         }
 
-    def build(self, root: Path, docs: list[dict[str, str]]) -> dict[str, float]:
-        from fathomdb import Engine
+    def create(self, root: Path) -> Any:
+        from fathomdb import Engine, ProjectionRole, ProjectionSpec
 
-        path = root / "fathomdb.sqlite"
-        rows = [
-            {"kind": "doc", "body": d["body"], "logical_id": d["id"], "source_id": f"c:{d['id']}"}
-            for d in docs
-        ]
+        engine = Engine.open(str(root / "fathomdb.sqlite"), use_default_embedder=False)
+        if self.filtered:
+            engine.configure_projections([
+                ProjectionSpec(name="text", roles=frozenset({ProjectionRole.SEARCHABLE}), fts=True),
+                ProjectionSpec(name="bench_cohort", roles=frozenset({ProjectionRole.FILTERABLE})),
+            ])
+        return engine
+
+    def insert(self, handle: Any, docs: list[dict[str, str]]) -> None:
+        if self.filtered:
+            bodies = [json.dumps({"text": d["body"], "bench_cohort": d["cohort"]}) for d in docs]
+        else:
+            bodies = [d["body"] for d in docs]
+        handle.write([
+            {"kind": "doc", "body": body, "logical_id": d["id"], "source_id": f"c:{d['id']}"}
+            for d, body in zip(docs, bodies)
+        ])
+
+    def finish(self, handle: Any) -> None:
+        handle.drain(timeout_s=1200)
+
+    def build(self, root: Path, docs: list[dict[str, str]]) -> dict[str, float]:
         started = time.perf_counter()
-        engine = Engine.open(str(path), use_default_embedder=False)
-        engine.write(rows)
+        handle = self.create(root)
+        self.insert(handle, docs)
         ack = time.perf_counter()
-        engine.drain(timeout_s=600)
-        drained = time.perf_counter()
-        engine.close()
-        return {"ingest_ack_s": ack - started, "build_return_s": drained - started}
+        self.finish(handle)
+        built = time.perf_counter()
+        self.close(handle)
+        return {"ingest_ack_s": ack - started, "build_return_s": built - started}
 
     def open(self, root: Path) -> Any:
         from fathomdb import Engine
 
         return Engine.open(str(root / "fathomdb.sqlite"), use_default_embedder=False)
 
-    def query(self, handle: Any, text: str) -> list[str]:
-        hits = handle.search_text_only(text, limit=TOP_K).results
+    def query(self, handle: Any, text: str, cohort: str | None = None) -> list[str]:
+        if self.filtered:
+            from fathomdb import SearchFilter
+
+            flt = SearchFilter(attributes=(("bench_cohort", cohort),)) if cohort else None
+            hits = handle.search_projected_text(text, "text", flt, limit=TOP_K).results
+        else:
+            hits = handle.search_text_only(text, limit=TOP_K).results
         return [hit.id.value for hit in hits]
 
     def close(self, handle: Any) -> None:
         handle.close()
 
+    def rss_mib(self, handle: Any) -> float:
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+
 
 class LanceArm:
     name = "lancedb"
+    filtered = False
 
     def version(self) -> str:
         import lancedb
@@ -129,15 +166,133 @@ class LanceArm:
 
         return lancedb.connect(str(root / "lance")).open_table("docs")
 
-    def query(self, handle: Any, text: str) -> list[str]:
+    def query(self, handle: Any, text: str, cohort: str | None = None) -> list[str]:
         rows = handle.search(text, query_type="fts").limit(TOP_K).select(["id"]).to_list()
         return [row["id"] for row in rows]
 
     def close(self, handle: Any) -> None:
         pass
 
+    def rss_mib(self, handle: Any) -> float:
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
 
-ARMS = {arm.name: arm for arm in (FathomArm(), LanceArm())}
+
+SURREAL_DRIVER = Path(__file__).resolve().parent / "comp_drivers/surrealdb/target/release/comp-surrealdb-driver"
+
+
+class _SurrealProcess:
+    """One embedded SurrealDB process; ``ns`` is the engine-side call time."""
+
+    def __init__(self, endpoint: str) -> None:
+        self.proc = subprocess.Popen(
+            [str(SURREAL_DRIVER)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding="utf-8", bufsize=1
+        )
+        self.last_ns = 0
+        self.call({"op": "open", "endpoint": endpoint})
+
+    def call(self, request: dict[str, Any]) -> Any:
+        assert self.proc.stdin and self.proc.stdout
+        self.proc.stdin.write(json.dumps(request, ensure_ascii=False) + "\n")
+        reply = json.loads(self.proc.stdout.readline())
+        if not reply["ok"]:
+            raise RuntimeError(f"surrealdb: {reply['error']}")
+        self.last_ns = reply["ns"]
+        return reply.get("result")
+
+    def sql(self, sql: str, **vars: str) -> Any:
+        return self.call({"op": "query", "sql": sql, "vars": vars})
+
+    def hwm_mib(self) -> float:
+        for line in Path(f"/proc/{self.proc.pid}/status").read_text().splitlines():
+            if line.startswith("VmHWM:"):
+                return int(line.split()[1]) / 1024
+        return 0.0
+
+    def close(self) -> None:
+        self.call({"op": "close"})
+        assert self.proc.stdin
+        self.proc.stdin.close()
+        self.proc.wait(timeout=120)
+
+
+class SurrealArm:
+    name = "surrealdb"
+    # crud-bench's analyzer (src/adapters/surrealdb.rs), BM25, native OR match.
+    SCHEMA = (
+        "DEFINE ANALYZER bench TOKENIZERS blank,class FILTERS lowercase,ascii;"
+        " DEFINE INDEX body_ft ON doc FIELDS body FULLTEXT ANALYZER bench BM25;"
+    )
+
+    def __init__(self) -> None:
+        self.filtered = False
+
+    def version(self) -> str:
+        return "3.3.0 (embedded rocksdb, Rust crate)"
+
+    def settings(self) -> dict[str, Any]:
+        return {
+            "method": "SELECT ... WHERE body @0,OR@ $q ORDER BY search::score(0) DESC LIMIT 10"
+            + (" with AND cohort = $c (btree index)" if self.filtered else ""),
+            "analyzer": "crud-bench: TOKENIZERS blank,class FILTERS lowercase,ascii; BM25",
+            "storage": "rocksdb embedded, library defaults",
+            "timing": "engine-side db.query call through materialized results",
+        }
+
+    def _endpoint(self, root: Path) -> str:
+        return f"rocksdb:{root / 'surreal'}"
+
+    def create(self, root: Path) -> Any:
+        handle = _SurrealProcess(self._endpoint(root))
+        handle.sql(self.SCHEMA)
+        if self.filtered:
+            handle.sql("DEFINE INDEX cohort_idx ON doc FIELDS cohort;")
+        return handle
+
+    def insert(self, handle: Any, docs: list[dict[str, str]]) -> None:
+        rows = [{"id": d["id"], "body": d["body"], "cohort": d.get("cohort", "")} for d in docs]
+        handle.sql(f"INSERT INTO doc {json.dumps(rows, ensure_ascii=False)} RETURN NONE;")
+
+    def finish(self, handle: Any) -> None:
+        deadline = time.monotonic() + 1200
+        while time.monotonic() < deadline:
+            info = handle.sql("INFO FOR INDEX body_ft ON doc;")[0]
+            if info["building"]["status"] == "ready":
+                return
+            time.sleep(0.01)
+        raise TimeoutError("surrealdb fulltext index not ready")
+
+    def build(self, root: Path, docs: list[dict[str, str]]) -> dict[str, float]:
+        started = time.perf_counter()
+        handle = self.create(root)
+        for index in range(0, len(docs), 256):
+            self.insert(handle, docs[index:index + 256])
+        ack = time.perf_counter()
+        self.finish(handle)
+        built = time.perf_counter()
+        self.close(handle)
+        return {"ingest_ack_s": ack - started, "build_return_s": built - started}
+
+    def open(self, root: Path) -> Any:
+        return _SurrealProcess(self._endpoint(root))
+
+    def query(self, handle: Any, text: str, cohort: str | None = None) -> list[str]:
+        where = "body @0,OR@ $q" + (" AND cohort = $c" if cohort else "")
+        vars = {"q": text, **({"c": cohort} if cohort else {})}
+        rows = handle.sql(
+            f"SELECT record::id(id) AS id, search::score(0) AS s FROM doc WHERE {where}"
+            f" ORDER BY s DESC LIMIT {TOP_K};",
+            **vars,
+        )[0]
+        return [row["id"] for row in rows]
+
+    def close(self, handle: Any) -> None:
+        handle.close()
+
+    def rss_mib(self, handle: Any) -> float:
+        return handle.hwm_mib()
+
+
+ARMS = {arm.name: arm for arm in (FathomArm(), LanceArm(), SurrealArm())}
 
 
 # --- one cell (child process) ---------------------------------------------
@@ -193,6 +348,122 @@ def run_cell(arm_name: str, rep: int, inputs: Path, workdir: Path) -> dict[str, 
         "disk_bytes": disk,
         "peak_rss_mib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
         "results": results,
+    }
+
+
+def _timed_pass(arm: Any, handle: Any, queries: list[dict[str, str]], order: list[int],
+                cohort: str | None = None) -> list[dict[str, Any]]:
+    out = []
+    for index in order:
+        q = queries[index]
+        started = time.perf_counter_ns()
+        ids = arm.query(handle, q["text"], cohort) if cohort else arm.query(handle, q["text"])
+        wall_ms = (time.perf_counter_ns() - started) / 1e6
+        engine_ms = handle.last_ns / 1e6 if isinstance(handle, _SurrealProcess) else wall_ms
+        out.append({"query_id": q["id"], "ids": ids, "latency_ms": engine_ms, "wall_ms": wall_ms})
+    return out
+
+
+def _probe_until_ready(arm: Any, handle: Any, probes: list[dict[str, Any]], started: float,
+                       timeout_s: float = 600) -> dict[str, Any]:
+    attempts = 0
+    while True:
+        attempts += 1
+        failing = [p["id"] for p in probes if p["id"] not in arm.query(handle, p["text"])]
+        if not failing:
+            return {"query_ready_s": time.perf_counter() - started, "probe_attempts": attempts, "probe_failing": []}
+        if time.perf_counter() - started > timeout_s:
+            return {"query_ready_s": None, "probe_attempts": attempts, "probe_failing": failing}
+        time.sleep(0.005)
+
+
+def run_scale_cell(arm_name: str, rep: int, inputs: Path, workdir: Path,
+                   batch: int = 256) -> dict[str, Any]:
+    """COMP-02a: batched ingest, true query-ready, reopen, cold/warm/steady passes."""
+    arm = ARMS[arm_name]
+    docs = json.loads((inputs / "corpus.json").read_text(encoding="utf-8"))
+    queries = json.loads((inputs / "queries.json").read_text(encoding="utf-8"))
+    probes = json.loads((inputs / "probes.json").read_text(encoding="utf-8"))
+    if workdir.exists():
+        shutil.rmtree(workdir)
+    workdir.mkdir(parents=True)
+    handle = arm.create(workdir)
+    started = time.perf_counter()
+    for index in range(0, len(docs), batch):
+        arm.insert(handle, docs[index:index + batch])
+    ingest_ack_s = time.perf_counter() - started
+    arm.finish(handle)
+    build_return_s = time.perf_counter() - started
+    ready = _probe_until_ready(arm, handle, probes, started)
+    build_rss = arm.rss_mib(handle)
+    arm.close(handle)
+    opened = time.perf_counter()
+    handle = arm.open(workdir)
+    reopen_s = time.perf_counter() - opened
+    rng = random.Random(2000 + rep)
+    try:
+        started_q = time.perf_counter()
+        first_ids = arm.query(handle, probes[-1]["text"])
+        first_query_after_reopen_s = time.perf_counter() - started_q
+        cold_order = list(range(len(queries)))
+        rng.shuffle(cold_order)
+        cold = _timed_pass(arm, handle, queries, cold_order)
+        _timed_pass(arm, handle, queries, list(range(len(queries))))  # declared warmup
+        steady = []
+        for _ in range(10):
+            order = list(range(len(queries)))
+            rng.shuffle(order)
+            steady.extend(_timed_pass(arm, handle, queries, order))
+        query_rss = arm.rss_mib(handle)
+    finally:
+        arm.close(handle)
+    disk = _disk_bytes(workdir)
+    shutil.rmtree(workdir)
+    return {
+        "arm": arm_name, "version": arm.version(), "settings": arm.settings(), "repetition": rep,
+        "documents": len(docs), "batch_size": batch, "ingest_ack_s": ingest_ack_s,
+        "build_return_s": build_return_s, **ready, "sentinel_id": probes[-1]["id"],
+        "sentinel_found_after_reopen": probes[-1]["id"] in first_ids,
+        "reopen_s": reopen_s, "first_query_after_reopen_s": first_query_after_reopen_s,
+        "disk_bytes": disk, "peak_rss_mib": max(build_rss, query_rss), "cold": cold, "steady": steady,
+    }
+
+
+def run_filtered_cell(arm_name: str, rep: int, inputs: Path, workdir: Path) -> dict[str, Any]:
+    """COMP-02b: one fresh DB; steady filtered FTS at each cohort plus membership check."""
+    arm = ARMS[arm_name]
+    arm.filtered = True
+    docs = json.loads((inputs / "corpus.json").read_text(encoding="utf-8"))
+    queries = json.loads((inputs / "queries.json").read_text(encoding="utf-8"))
+    cohort_of = {d["id"]: d["cohort"] for d in docs}
+    if workdir.exists():
+        shutil.rmtree(workdir)
+    workdir.mkdir(parents=True)
+    build = arm.build(workdir, docs)
+    handle = arm.open(workdir)
+    rng = random.Random(3000 + rep)
+    passes: dict[str, Any] = {}
+    try:
+        for cohort in ("c01", "c10", "c33"):
+            _timed_pass(arm, handle, queries, list(range(len(queries))), cohort)  # warmup
+            order = list(range(len(queries)))
+            rng.shuffle(order)
+            results = _timed_pass(arm, handle, queries, order, cohort)
+            passes[cohort] = {
+                "matching": sum(c == cohort for c in cohort_of.values()),
+                "violations": sum(cohort_of.get(i) != cohort for r in results for i in r["ids"]),
+                "short_results": sum(len(r["ids"]) < TOP_K for r in results),
+                "results": results,
+            }
+        rss = arm.rss_mib(handle)
+    finally:
+        arm.close(handle)
+        arm.filtered = False
+    disk = _disk_bytes(workdir)
+    shutil.rmtree(workdir)
+    return {
+        "arm": arm_name, "version": arm.version(), "repetition": rep, "documents": len(docs),
+        **build, "disk_bytes": disk, "peak_rss_mib": rss, "passes": passes,
     }
 
 
@@ -268,7 +539,12 @@ def score(out: Path, inputs: Path) -> dict[str, Any]:
 
 # --- coordinator -----------------------------------------------------------
 
-CAMPAIGNS = {"comp01": ("fathomdb", "lancedb")}
+CAMPAIGNS = {
+    "comp01": (("fathomdb", "lancedb"), "fts"),
+    "comp02a": (("fathomdb", "surrealdb"), "scale"),
+    "comp02b": (("fathomdb", "surrealdb"), "filtered"),
+}
+CELL_RUNNERS = {"fts": run_cell, "scale": run_scale_cell, "filtered": run_filtered_cell}
 
 
 def _host() -> dict[str, Any]:
@@ -281,7 +557,8 @@ def _host() -> dict[str, Any]:
 
 
 def run(campaign: str, inputs: Path, out: Path, cell: str | None, max_cells: int | None) -> list[str]:
-    cells = roster(CAMPAIGNS[campaign])
+    arms, mode = CAMPAIGNS[campaign]
+    cells = roster(arms)
     todo = pending(cells, out)
     if cell is not None:
         if cell not in cells:
@@ -300,7 +577,7 @@ def run(campaign: str, inputs: Path, out: Path, cell: str | None, max_cells: int
         rep, arm = cell_id.split("-", 1)
         started = time.time()
         proc = subprocess.run(
-            [sys.executable, "-m", "experiments.comp_fts", "_cell", "--arm", arm, "--rep", rep[1:],
+            [sys.executable, "-m", "experiments.comp_fts", "_cell", "--mode", mode, "--arm", arm, "--rep", rep[1:],
              "--inputs", str(inputs), "--out", str(out)],
             capture_output=True, text=True,
         )
@@ -327,6 +604,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--inputs", type=Path, required=True)
     s.add_argument("--out", type=Path, required=True)
     c = sub.add_parser("_cell")
+    c.add_argument("--mode", choices=sorted(CELL_RUNNERS), default="fts")
     c.add_argument("--arm", choices=sorted(ARMS), required=True)
     c.add_argument("--rep", type=int, required=True)
     c.add_argument("--inputs", type=Path, required=True)
@@ -338,7 +616,7 @@ def main(argv: list[str] | None = None) -> int:
         report = score(args.out, args.inputs)
         print(json.dumps(report["median_by_arm"], indent=2, sort_keys=True))
     else:
-        result = run_cell(args.arm, args.rep, args.inputs, args.out / "work" / f"r{args.rep}-{args.arm}")
+        result = CELL_RUNNERS[args.mode](args.arm, args.rep, args.inputs, args.out / "work" / f"r{args.rep}-{args.arm}")
         path = args.out / "cells" / f"r{args.rep}-{args.arm}.json"
         path.write_text(json.dumps(result) + "\n", encoding="utf-8")
     return 0

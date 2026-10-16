@@ -1,6 +1,6 @@
 # COMP-01 / COMP-02 execution side plan
 
-**Status:** active, 2026-10-15. A side plan, not part of any release. Owner
+**Status:** complete, 2026-10-15; COMP-03 not run. A side plan, not part of any release. Owner
 directive: run COMP-01 first, then COMP-02a and COMP-02b; add adapters only
 as needed; no Steward or Orchestrator. Design source: the
 [0.8.27 campaign plan](2026-10-13-fathomdb-0.8.27-performance-testing.md).
@@ -27,13 +27,13 @@ Branch `llm/comp-01`, worktree `fathomdb-worktrees/comp-01`.
    `--cell` / `--max-cells` / resume, scorer (nDCG@10, Recall@10, MRR@10;
    duplicate-body-affected queries reported separately).
 3. [x] COMP-01 smoke, then 8 measured cells, then the [result note](../2026-10-15-comp-01-nfcorpus-fts-result.md).
-4. [ ] COMP-02a: inspect crud-bench and build the SurrealDB embedded arm. Use
+4. [x] COMP-02a ([result](../2026-10-15-comp-02a-ingest-ready-scale-result.md)): inspect crud-bench and build the SurrealDB embedded arm. Use
    SCALE-02 10k, then 17,272 documents. Record ingest-ack, query-ready with
    sentinel and spread probes, reopen, and steady latency.
-5. [ ] COMP-02b: a `bench_cohort` attribute at 1/10/33% selectivity, with
+5. [x] COMP-02b ([result](../2026-10-15-comp-02b-filtered-fts-result.md)): a `bench_cohort` attribute at 1/10/33% selectivity, with
    filtered FTS through FathomDB `search_projected_text` + `SearchFilter`
    versus a SurrealDB filtered FTS query, and a membership check on every hit.
-6. [ ] Result notes for COMP-02a/b, then scoped tests and lint.
+6. [x] Result notes for COMP-02a/b, then scoped tests and lint.
 
 Raw artifacts live outside Git under `~/.cache/fathomdb-comp/`; result notes
 cite their paths.

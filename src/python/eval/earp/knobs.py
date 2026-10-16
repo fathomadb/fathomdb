@@ -85,6 +85,17 @@ CATALOG: tuple[KnobEntry, ...] = (
         for name in ("cuda_pool", "cuda_pool_max_size", "cuda_pool_release_threshold")
     ),
     KnobEntry(
+        name="query_stop_words",
+        classification=KnobClass.SEMANTIC,
+        call_path="Engine.open(config=).query_stop_words",
+        witness="open_report.stop_words_sha256",
+        reason=(
+            "Query stop words (0.8.28 Slice 41): changes which query tokens every "
+            "text-query compile keeps, so it alters text and fused rankings. Fixed "
+            "per opened engine and recorded as a hash on the open report and trace."
+        ),
+    ),
+    KnobEntry(
         name="rerank_depth",
         classification=KnobClass.SEMANTIC,
         call_path="Engine.search(rerank_depth=)",

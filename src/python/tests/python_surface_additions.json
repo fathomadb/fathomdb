@@ -612,7 +612,151 @@
         "path": "fathomdb.pack_context",
         "signature": "def pack_context(hits: Iterable[ContextItem], policy: ContextPolicy | None=None, context: Iterable[ContextItem]=()) -> ContextPack"
       }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.ContextPackEntry.forced",
+        "kind": "python-attribute",
+        "signature": "forced: bool = False"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.ContextPolicy.full_ids",
+        "kind": "python-attribute",
+        "signature": "full_ids: tuple[str, ...] = ()"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.DEFAULT_STOP_WORDS_SHA256",
+        "kind": "python-reexport",
+        "signature": "from fathomdb._fathomdb import DEFAULT_STOP_WORDS_SHA256"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.EngineConfig.query_stop_words",
+        "kind": "python-attribute",
+        "signature": "query_stop_words: QueryStopWords | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.QueryStopWords",
+        "kind": "python-class",
+        "signature": "@dataclass(frozen=True) class QueryStopWords"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.QueryStopWords.base",
+        "kind": "python-attribute",
+        "signature": "base: Literal['fathomdb', 'none'] = 'fathomdb'"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.QueryStopWords.extra",
+        "kind": "python-attribute",
+        "signature": "extra: tuple[str, ...] = ()"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.QueryStopWords.keep",
+        "kind": "python-attribute",
+        "signature": "keep: tuple[str, ...] = ()"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.QueryTrace.stop_words_sha256",
+        "kind": "python-attribute",
+        "signature": "stop_words_sha256: str = ''"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.config.EngineConfig.query_stop_words",
+        "kind": "python-attribute",
+        "signature": "query_stop_words: QueryStopWords | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.config.QueryStopWords",
+        "kind": "python-class",
+        "signature": "@dataclass(frozen=True) class QueryStopWords"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.config.QueryStopWords.base",
+        "kind": "python-attribute",
+        "signature": "base: Literal['fathomdb', 'none'] = 'fathomdb'"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.config.QueryStopWords.extra",
+        "kind": "python-attribute",
+        "signature": "extra: tuple[str, ...] = ()"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.config.QueryStopWords.keep",
+        "kind": "python-attribute",
+        "signature": "keep: tuple[str, ...] = ()"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.types.OpenReport.stop_words_sha256",
+        "kind": "python-attribute",
+        "signature": "stop_words_sha256: str = ''"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 41,
+      "declaration": {
+        "path": "fathomdb.types.QueryTrace.stop_words_sha256",
+        "kind": "python-attribute",
+        "signature": "stop_words_sha256: str = ''"
+      }
     }
   ],
-  "native_stub_sha256": "54bdcd484bd2d2f899a0ffa80a827857237a454e5564f68bf14e3391413f2a98"
+  "native_stub_sha256": "8207f193cd1781c4c866188f29ac6854f6f34e29c183ca842d4a7273f9f442b7"
 }

@@ -38,6 +38,12 @@ each later item. If your answers live in assistant or tool text, add those
 roles to `keep_roles`. Headers are not charged to the budget; `text_chars`
 gives the full length.
 
+To show particular items in full wherever they rank, list their ids in
+`full_ids` (TypeScript `fullIds`), for example every hit from the top hit's
+session. They do not use up `full_items`, and they still count against the
+budget, so a late one can be cut. Each entry's `forced` says whether
+`full_ids` changed its tier.
+
 ## Add the rest of a conversation
 
 Give each item a `group` (for example the session) and a `position`, and pass

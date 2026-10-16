@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — status
-status: ACTIVE (Defects A–C and Unit D landed; Units E, F, G added 2026-10-16, docs and RED tests done, awaiting review)
+status: ACTIVE (Defects A–C and Units D–G landed and measured at engine 5b09afd44; awaiting landing)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -36,7 +36,8 @@ for phase 1 is `output.json` in this directory.
 | EFG-W2 RED tests | done on `slice/0.8.28-40-comp03`: 31 RED (`test_sdk_parity_slice40.py` 9, `test_baseline_check.py` 8, `test_comp03_evidence.py` 14); none in this worktree (no doc checker pins verb text) |
 | EFG-R1 | APPROVE on `ad2773e6a` / `9d864e39e` (Q-E1 update the three capability assertions; Q-E2 declared commit plus digests; Q-E3 `package_root`; Q-G1 pooled plus fathomdb-fts; Q-G2 470 questions; Q-F1 provisional pre-fill) |
 | EF-W4/W5 | done: harness `bc4ca421b` (F), `d709db1a8` and `5e6ff1a34` (E); docs here; cross-SDK parity equal in every case and repetition (test-plan § 5.8) |
-| G | review REJECT (F1–F10), revised; re-review APPROVE-WITH-FIXES (N1–N4, v4c) applied; W4 at harness `1419aae4f`: verdict 4000/30000/on (matches the replay), configs v3/v4a/v4b/v4c; W5 green except the four pre-existing failures (test-plan § 5.10, § 6.5); paid runs v3, v4a, v4b (and v4c if needed) and the mix are the orchestrator's |
+| G | review REJECT (F1–F10), revised; re-review APPROVE-WITH-FIXES (N1–N4, v4c) applied; W4 at harness `1419aae4f`: verdict 4000/30000/on (matches the replay), configs v3/v4a/v4b/v4c; W5 green except the four pre-existing failures (test-plan § 5.10, § 6.5); measured (orchestrator): v3 reject, v4a reject, v4b adopt, v4c adopt; mix (4000/30000/on plus chronological, no sentence) FTS 53, hybrid 52, LanceDB 54 of 60; harness records at `f59472d4c` |
+| Final re-runs (engine `5b09afd44`) | COMP-01 13/13 PASS (nDCG@10 FTS 0.3265, hybrid 0.3555, LanceDB 0.3265); COMP-02a 10k FathomDB ready 1.44 s, p50 3.9, p95 12.6 ms vs SurrealDB 4.40 s/146/159; 17k 2.50/6.7/20.8 vs 7.74/252/272; COMP-02b 10k p50 unfiltered 2.9, c33 8.3, c10 9.3, c01 29.7 ms vs SurrealDB 63/19.7/4.1 (c01 short lists 6 per rep, pre-existing, explained in the COMP-02b note: no cohort document holds those query terms after stop words); tc5-10k-latency 5/5 PASS; COMP-03 sweep 30/30 PASS; receipts and baseline on `slice/0.8.28-40-comp03` |
 
 ## Follow-ups (not in this slice)
 
@@ -95,6 +96,10 @@ for phase 1 is `output.json` in this directory.
   embeds nothing and `search` silently runs FTS only; the only public
   switch is `ProjectionSpec(..., vector=True)`, which embeds the full node
   body. Carry to the ledger at landing.
+- COMP-03 Unit G measured (orchestrator, 2026-10-16): answer accuracy stays at
+  parity across stores within noise; see
+  `dev/performance-benchmarking/2026-10-16-comp-03-unit-g-result.md` on
+  `slice/0.8.28-40-comp03`.
 - Potential, not added: raise the COMP-03 evidence cap or render evidence
   more compactly; at k = 10 the 20,000-character cap binds (p50 20,326),
   so the depth lever is cap-limited.

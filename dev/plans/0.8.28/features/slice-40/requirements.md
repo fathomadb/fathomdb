@@ -924,11 +924,12 @@ receipts:
 The baseline manifest is then updated as [test-plan.md](test-plan.md)
 § 3g.7 sets out. By owner ruling Q-H5 (2026-10-16, review F8), COMP-02a
 (10k and 17k) and COMP-02b (10k) become manifest benchmarks, taking it from
-six to eight ids. They are added in the harness step, before the H1 gate,
+six to nine ids (three ids; "eight" in the first draft was a miscount,
+corrected by the coordinator on 2026-10-16). They are added in the harness step, before the H1 gate,
 with expected values from the final-head receipts, so REQ40-H3 (v) and
 REQ40-H9 read manifest tolerances.
 `test_slice_40_baseline_manifest_lists_the_six_benchmarks` is renamed for
-eight ids under that ruling, and its new assertions are written RED
+nine ids under that ruling, and its new assertions are written RED
 first.
 
 ## 3. Non-goals
@@ -1059,7 +1060,7 @@ tests are in the `fathomdb-query` test module (AC40-74),
 | AC40-55 | TypeScript and Rust drivers pass the same cases; the suite records every SDK equal to the oracle in every repetition | the TS and Rust driver suites (`test_sdk_typescript_driver.py`, `sdk_drivers/rust/tests`) extended at W4; the suite run by the orchestrator | E1–E3 |
 | AC40-56 | Interface docs describe the three verbs' Slice 40 behaviour; the public RRF formula reads `RRF_K = 30`, 3:1; `agent-lint-docs.sh` passes | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | E4 |
 | AC40-57 | Drift check: PASS inside tolerance, DRIFT outside (absolute, relative and per-question tolerances), MISSING when absent; non-zero exit on DRIFT or MISSING | `test_every_metric_inside_its_tolerance_passes`, `test_a_metric_outside_its_tolerance_drifts`, `test_a_missing_metric_is_reported_and_is_not_a_pass`, `test_question_tolerance_is_one_question_of_the_type_count`, `test_cli_exits_non_zero_on_drift_or_missing` | F3 |
-| AC40-58 | Baseline manifest lists the six benchmarks with inputs, commit, build recipe, command, receipt and tolerances; answer accuracy marked not a gate; eight benchmarks, with COMP-02a and COMP-02b, after the Unit H harness step (owner ruling Q-H5) | `test_slice_40_baseline_manifest_lists_the_six_benchmarks`, renamed `…_eight_benchmarks` under Q-H5 | F1, H10 |
+| AC40-58 | Baseline manifest lists the six benchmarks with inputs, commit, build recipe, command, receipt and tolerances; answer accuracy marked not a gate; nine benchmarks, with COMP-02a (10k, 17k) and COMP-02b (10k), after the Unit H harness step (owner ruling Q-H5) | `test_slice_40_baseline_manifest_lists_the_six_benchmarks`, renamed `…_nine_benchmarks` under Q-H5 | F1, H10 |
 | AC40-59 | Latency harness keeps the six diagnostic cells and the script's percentiles | `test_latency_harness_keeps_the_diagnostic_cells_and_percentiles` | F2 |
 | AC40-60 | Receipts record engine commit, native SHA-256 and version; a malformed commit is refused | `test_engine_identity_records_the_commit_and_the_native_digest` | F4 |
 | AC40-61 | Evidence caps: per-round then total, rank order; the baseline policy shows the same rounds as `render_evidence` | `test_caps_apply_per_round_then_total_in_rank_order`, `test_the_baseline_policy_matches_the_answer_harness_renderer` | G1 |

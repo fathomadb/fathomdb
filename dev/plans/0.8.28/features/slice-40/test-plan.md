@@ -405,7 +405,7 @@ Both resume per question, as the sweep does.
 | `test_pool_metrics_use_prefixes_of_the_limit_p_ranking` | 78 |
 | `test_pool_rule_picks_the_largest_pool_that_keeps_recall` | 78 |
 | `test_pool_rule_boundaries` (one question down on a type passes, two fails; the reference always passes) | 78 |
-| `test_slice_40_baseline_manifest_lists_the_eight_benchmarks` (`test_baseline_check.py`, renamed from `…_six_benchmarks` under owner ruling Q-H5; new assertions: the three COMP-02 entries carry FathomDB query-ready, p50 and p95, violations and short results, with the § 3g.7 tolerances) | 58 |
+| `test_slice_40_baseline_manifest_lists_the_nine_benchmarks` (`test_baseline_check.py`, renamed from `…_six_benchmarks` under owner ruling Q-H5; new assertions: the three COMP-02 entries carry FathomDB query-ready, p50 and p95, violations and short results, with the § 3g.7 tolerances) | 58 |
 
 The rule tests do not hard-code the real verdicts. Each fixture's expected
 list or pool follows from the rule.
@@ -586,7 +586,7 @@ and at the H2 commit.
    - COMP-02b violations at abs 0, and short results at abs 0.
 
    `test_slice_40_baseline_manifest_lists_the_six_benchmarks` is renamed
-   for eight ids under that ruling, and its new assertions are written
+   for nine ids under that ruling, and its new assertions are written
    RED first (§ 3g.1).
 
 ## 4. Existing tests touched
@@ -1397,8 +1397,8 @@ questions:
 - **Q-H4.** The orchestrator runs the pool selection on cuda:0, with a
   CUDA wheel it builds at `5b09afd44`. The command is in § 3g.1.
 - **Q-H5.** Owner ruling, 2026-10-16: COMP-02a and COMP-02b join the
-  manifest, six ids to eight (§ 3g.7, item 5). The manifest test may
-  change from six ids to eight; its new assertions are written RED first.
+  manifest, six ids to nine (§ 3g.7, item 5; three ids, "eight" was a
+  miscount). The manifest test may change from six ids to nine; its new assertions are written RED first.
 - **Q-H6.** Owner ruling, 2026-10-16: if hybrid fails its recall clause at
   the H1 commit (REQ40-H3 (vi)), H1 is kept, and the hybrid regression is
   reported for follow-up. It is not reverted.

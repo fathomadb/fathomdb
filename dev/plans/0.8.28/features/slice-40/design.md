@@ -716,7 +716,7 @@ order is:
    rule functions and the `stoplist` and `pool` commands. In the same
    step, the baseline manifest gains `comp02a-10000`, `comp02a-17272` and
    `comp02b-10000` (owner ruling Q-H5), with the manifest test renamed
-   for eight ids and its new assertions RED first.
+   for nine ids and its new assertions RED first.
 2. The selection runs:
    - `stoplist` runs on CPU, implementer;
    - `pool` runs on cuda:0, orchestrator, with a CUDA wheel built at

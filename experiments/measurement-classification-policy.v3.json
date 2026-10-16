@@ -35,6 +35,26 @@
         "sha256": "5d8b3204bdb451a87b61fe96389d6f1553a11f072937d12ccaf3e4cca3eaf15d",
         "plan_id": "slice40-common-v1"
       }
+    },
+    {
+      "run_id": "comp-03-retrieval-sweep-20261016T1406Z-17773486",
+      "record_sha256": "819aa92ddbd4711fc3a276a92173bcd69dcb6ef0e25731bc42a218c0f1adfc55",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-03/comp03-retrieval-sweep-v1-measurement-plan.v1.json",
+        "sha256": "ff29d0671733743bf2347a862db6df426a6f71feccdb7f8510c05e0aee3b8af9",
+        "plan_id": "comp03-retrieval-sweep-v1"
+      }
+    },
+    {
+      "run_id": "comp-03-hermes-answer-20261016T1422Z-c807ed90",
+      "record_sha256": "f8d71bd5a7c18bb2b36803a035ad205fbd3f2c48967e41befa764bd0ebd1733b",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-03/comp03-hermes-answer-v2-measurement-plan.v1.json",
+        "sha256": "8bed1c42e2106a766beb197d9f48ed7c482a162bd9d788b5be0c507bee101a1e",
+        "plan_id": "comp03-hermes-answer-v2"
+      }
     }
   ],
   "external_artifact_locator_amendments": [

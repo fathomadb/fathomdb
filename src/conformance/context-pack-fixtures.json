@@ -585,6 +585,7 @@
     {"name": "full_ids_repeated_id", "ac": "AC41-31", "typed": true, "request": {"policy": {"full_ids": ["h1", "h1"]}, "hits": [{"id": "h1", "parts": []}]}, "message_contains": "policy.full_ids[1]"},
     {"name": "full_ids_empty_id", "ac": "AC41-31", "typed": true, "request": {"policy": {"full_ids": [""]}, "hits": [{"id": "h1", "parts": []}]}, "message_contains": "policy.full_ids[0]"},
     {"name": "p8_error_wins_over_full_ids", "ac": "AC41-31", "typed": true, "request": {"policy": {"full_ids": ["h1"]}, "hits": [{"id": "h1", "parts": []}], "context": [{"id": "h1", "parts": []}]}, "message_contains": "context[0].id", "message_excludes": "full_ids"},
+    {"name": "p8_position_error_wins_over_full_ids", "ac": "AC41-31", "typed": true, "request": {"policy": {"full_ids": ["zz"]}, "hits": [{"id": "h1", "parts": []}], "context": [{"id": "c1", "parts": [], "group": "g"}]}, "message_contains": "context[0].position", "message_excludes": "full_ids"},
     {"name": "full_ids_not_an_array", "ac": "AC41-31", "json_only": true, "request": {"policy": {"full_ids": "h1"}, "hits": [{"id": "h1", "parts": []}]}, "message_contains": "policy.full_ids"},
     {"name": "full_ids_non_string_id", "ac": "AC41-31", "json_only": true, "request": {"policy": {"full_ids": [3]}, "hits": [{"id": "h1", "parts": []}]}, "message_contains": "policy.full_ids[0]"}
   ]

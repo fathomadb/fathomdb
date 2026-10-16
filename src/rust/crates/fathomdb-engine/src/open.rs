@@ -820,6 +820,7 @@ impl Engine {
             plan.migrations,
             allow_populated_legacy_projection_bootstrap,
             &embedder_identity,
+            query_stop_words.sha256(),
             emit_migration_event,
             #[cfg(any(test, feature = "test-hooks"))]
             Arc::clone(&managed_connections),
@@ -872,7 +873,6 @@ impl Engine {
                 );
                 report.dense_disabled = veq.dense_disabled;
                 report.dense_disabled_reason = veq.reason.clone();
-                report.stop_words_sha256 = query_stop_words.sha256().to_string();
 
                 let mut startup =
                     OpenPostProbeGuard::new(connection, readers, lock, Arc::clone(&embed_dispatch));
@@ -1062,11 +1062,13 @@ impl Engine {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn open_locked(
         path: PathBuf,
         migrations: &'static [fathomdb_schema::Migration],
         allow_populated_legacy_projection_bootstrap: bool,
         embedder_identity: &EmbedderIdentity,
+        stop_words_sha256: &str,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
@@ -1327,7 +1329,7 @@ impl Engine {
             // 0.8.23 Slice 80.6 (D-80.6-6) — set by `open_with_migrations`
             // only when an opted-in CUDA default-embedder open measured one.
             embedder_gpu_allocation_witness: None,
-            stop_words_sha256: String::new(),
+            stop_words_sha256: stop_words_sha256.to_string(),
         };
 
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);

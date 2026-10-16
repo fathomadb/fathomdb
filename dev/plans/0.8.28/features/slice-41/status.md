@@ -127,8 +127,18 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
     the owner's 2026-10-16 rulings that added the configurable stop-word
     list to Slice 41, together with the owner's plan approval (orchestrator,
     2026-10-16).
-12. The `pr_g8_dangling_edges` failure rate (2 of 20 at `80e4ea954`, 10 of
-    20 on this branch; test-plan § 8.5) is with the code reviewer.
+12. `pr_g8_dangling_edges` (2 of 20 failing runs at `80e4ea954`, 10 of 20
+    on this branch; test-plan § 8.5): the code reviewer found no mechanism
+    in this slice's diff. It is a test-ordering race that predates the
+    slice; the trigger is the test's raw `Connection::open`, which can
+    initialize SQLite before the first engine open. Follow-up outside this
+    slice; nothing changes here.
+13. Code review fixes (APPROVE-WITH-FIXES, P3 only): P3-5 moves the
+    `full_ids` checks after the REQ41-P8 `expand_groups` position check, so
+    every P8 error comes first (REQ41-F3, design § 8.1). The new fixture case
+    `p8_position_error_wins_over_full_ids` pins the order. P3-6 sets
+    `OpenReport.stop_words_sha256` when the report is built. P3-7 documents
+    the stop-word API in the `fathomdb-query` README.
 
 Pre-existing failures under `test-hooks` (the feature is turned on by
 unification in multi-crate runs), left as they are: `slice135_robustness_first`

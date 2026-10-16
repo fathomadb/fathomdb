@@ -372,6 +372,16 @@ fn validate(
             }
         }
     }
+    if policy.expand_groups {
+        for (i, item) in context.iter().enumerate() {
+            if item.group.is_some() && item.position.is_none() {
+                return Err(ContextPackError::new(format!(
+                    "context[{i}].position is required for a grouped context item while \
+                     policy.expand_groups is on"
+                )));
+            }
+        }
+    }
     let mut forced: HashSet<&str> = HashSet::new();
     for (i, id) in policy.full_ids.iter().enumerate() {
         if id.is_empty() {
@@ -386,16 +396,6 @@ fn validate(
             return Err(ContextPackError::new(format!(
                 "policy.full_ids[{i}] {id:?} matches no item in hits or context"
             )));
-        }
-    }
-    if policy.expand_groups {
-        for (i, item) in context.iter().enumerate() {
-            if item.group.is_some() && item.position.is_none() {
-                return Err(ContextPackError::new(format!(
-                    "context[{i}].position is required for a grouped context item while \
-                     policy.expand_groups is on"
-                )));
-            }
         }
     }
     Ok(())

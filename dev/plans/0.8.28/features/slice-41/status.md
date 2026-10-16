@@ -27,6 +27,9 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
 
 - Planning docs only at W1. No test or code yet.
 - Every expected value in the in-repo fixtures is hand-derived from
-  REQ41-P2 to P9 and checked by hand. Record that here when W2 lands them.
+  REQ41-P2 to P9 and checked by hand. The AC41-12 fixture's expected text
+  is written by hand from the rules and checked against a reading of
+  `render_evidence`, not captured from either implementation. W2 records
+  the derivation below.
 - This slice does not edit `dev/plans/release-state-0.8.28.json`,
   `dev/plans/runs/STATUS-0.8.28.md` or any generated block.

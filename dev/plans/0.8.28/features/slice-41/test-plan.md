@@ -129,7 +129,9 @@ For each of the 60 answer questions, build `caller` items from the
 dataset (design § 4). Pack the recorded comp03-run-mix top-10 ids with
 the mix policy: `full_items = 10**6`, 4000/30000, expansion on,
 chronological. Compare the SHA-256 of `text` with the recorded
-`evidence_sha256`. Every one must match, on every arm whose records exist.
+`evidence_sha256`. Every one must match, on every arm whose records exist:
+FTS, hybrid and LanceDB alike. `caller` items come from the dataset, not
+the store, so the check is store-independent.
 A mismatch is a defect in `pack_context` or in item building, and blocks
 M1.
 
@@ -148,13 +150,17 @@ M1.
 
 Grid:
 
-| Policy | `full_items` | `compact_chars` | k |
-| --- | ---: | ---: | ---: |
-| Slice 40 mix (control) | 10^6 | n/a | 10 |
-| T3/A300/k30 (the SDK default) | 3 | 300 | 30 |
-| T3/A0/k30 | 3 | 0 | 30 |
-| T5/A300/k50 | 5 | 300 | 50 |
-| T5/A0/k50 | 5 | 0 | 50 |
+| Policy | `full_items` | `compact_chars` | k | Prototype FTS weighted allfull |
+| --- | ---: | ---: | ---: | ---: |
+| Slice 40 mix (control) | 10^6 | n/a | 10 | .820 |
+| T3/A300/k30 (the SDK default) | 3 | 300 | 30 | .921 |
+| T3/A0/k30 | 3 | 0 | 30 | not run |
+| T5/A300/k50 | 5 | 300 | 50 | .909 |
+| T5/A0/k50 | 5 | 0 | 50 | .958 |
+
+The last column holds prototype figures from the report (470 questions,
+engine `5b09afd44`, the Python prototype). They are a guide, not M1
+results.
 
 All rows use `budget_chars = 30000`, `item_chars = 4000`, expansion on and
 `keep_roles = ("user",)`.

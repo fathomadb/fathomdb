@@ -85,7 +85,8 @@
       "answer_session_ids",
       "haystack_session_ids",
       "has_answer"
-    ]
+    ],
+    "blank_rounds": "blank (whitespace-only) rounds are not indexed by any arm; round IDs stay positional, so every other round's ID and the gold are unchanged; the count is recorded per question as blank_rounds_skipped"
   },
   "arms": [
     {

@@ -346,13 +346,16 @@ def retrieve(arm_name: str, case: Mapping[str, Any], workdir: Path, *, top_k: in
     """Build one fresh isolated store, query it, record IDs and timings, delete it.
 
     ``arm_name`` is the ``comp_fts.ARMS`` key; ``store_label`` (default
-    ``arm_name``) names the store directory.
+    ``arm_name``) names the store directory. Whitespace-only rounds are not
+    indexed (FathomDB rejects blank bodies, and every arm must index the same
+    set); round IDs stay positional and ``case["docs"]`` is left intact.
     """
     arm = comp_fts.ARMS[arm_name]
+    indexed = [{"id": d["id"], "body": d["body"]} for d in case["docs"] if d["body"].strip()]
     test_id = f"{case['question_id'].lower().replace('_', '-')}-{store_label or arm_name}"
     root, setup = _fresh_root(workdir, test_id, arm_name, fathomdb_bin)
     try:
-        build = arm.build(root, [{"id": d["id"], "body": d["body"]} for d in case["docs"]])
+        build = arm.build(root, indexed)
         handle = arm.open(root)
         try:
             started = time.perf_counter_ns()
@@ -371,7 +374,8 @@ def retrieve(arm_name: str, case: Mapping[str, Any], workdir: Path, *, top_k: in
     finally:
         shutil.rmtree(root, ignore_errors=True)
     return {
-        "arm": arm_name, "version": arm.version(), "settings": arm.settings(), "documents": len(case["docs"]),
+        "arm": arm_name, "version": arm.version(), "settings": arm.settings(), "documents": len(indexed),
+        "blank_rounds_skipped": len(case["docs"]) - len(indexed),
         "ids": ids, "latency_ms": latency_ms, "repeat_latency_ms": repeats, "disk_bytes": disk,
         "setup": setup, **build,
     }

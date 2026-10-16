@@ -276,6 +276,8 @@ def summarize(config: Mapping[str, Any], rows: Sequence[Mapping[str, Any]],
         "deltas": {"treatment": treatment, "control": control, "by_metric": deltas},
         "decision": decision,
         "device": _read_json(device_path) if device_path.exists() else None,
+        "blank_rounds_skipped": {arm_id: sum(r.get("blank_rounds_skipped", 0) for r in arm_results)
+                                 for arm_id, arm_results in results.items()},
     }
 
 

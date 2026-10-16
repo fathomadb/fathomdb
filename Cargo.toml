@@ -75,8 +75,8 @@ fathomdb-sdk          = { path = "src/rust/crates/fathomdb-sdk",          versio
 # can map on a host without libcudart, while CUDA driver discovery stays
 # dynamic (REQ-068). The Candle fork crates themselves (candle-core-fathomdb,
 # candle-nn-fathomdb, candle-transformers-fathomdb 0.11.0) and cudarc-fathomdb
-# 0.19.10 come from crates.io; the embedder pins the Candle crates exactly and
-# reaches cudarc-fathomdb only through Candle (0.8.28 Slice 31).
+# 0.19.10 come from crates.io; the embedder pins all four exactly, and its code
+# reaches cudarc only through Candle's re-export (0.8.28 Slice 31).
 #
 # Root patches apply to workspace builds only; they do not propagate to
 # downstream users of the published Rust crates.

@@ -52,6 +52,52 @@ class = "ignored-by-design"
 reason = "#[ignore]: asserts the Tegra private CUDA pool (allocator path private), which exists only on the Jetson AGX Orin 64 GB with a tegra-pool build; it runs in the Slice 31 Orin windows with --ignored --exact (test-plan cmd c-engine-close)."
 
 [[entry]]
+id = "fathomdb-sdk::slice31_sdk_probe_init_cuda"
+class = "platform-excluded"
+excluded_on = 'not(target_os = "linux")'
+reason = "#![cfg(all(target_os = \"linux\", feature = \"embed-cuda\"))]: the 0.8.28 Slice 31 SDK pool tests (D-19) use Unix exit statuses and the CUDA embedder, so they compile to nothing off Linux."
+
+[[entry]]
+id = "fathomdb-sdk::slice31_sdk_probe_init_cuda::gpu_orin_64_sdk_cuda_pool_on_beats_an_env_off"
+class = "ignored-by-design"
+reason = "#[ignore]: asserts the Tegra private CUDA pool through the SDK, which exists only on the Jetson AGX Orin 64 GB; it runs on the Orin with --ignored (the command in the test file's header)."
+
+[[entry]]
+id = "fathomdb-sdk::slice31_sdk_probe_init_cuda::gpu_orin_64_sdk_module_level_embed_then_an_open_with_off_conflicts"
+class = "ignored-by-design"
+reason = "#[ignore]: asserts the Tegra private CUDA pool through the SDK, which exists only on the Jetson AGX Orin 64 GB; it runs on the Orin with --ignored (the command in the test file's header)."
+
+[[entry]]
+id = "fathomdb-sdk::slice31_sdk_probe_init_cuda::gpu_orin_64_sdk_pool_size_above_device_memory_is_invalid_setting"
+class = "ignored-by-design"
+reason = "#[ignore]: asserts the Tegra private CUDA pool through the SDK, which exists only on the Jetson AGX Orin 64 GB; it runs on the Orin with --ignored (the command in the test file's header)."
+
+[[entry]]
+id = "fathomdb-sdk::slice31_sdk_probe_init_cuda::gpu_orin_64_sdk_pool_size_from_the_sdk_beats_the_env"
+class = "ignored-by-design"
+reason = "#[ignore]: asserts the Tegra private CUDA pool through the SDK, which exists only on the Jetson AGX Orin 64 GB; it runs on the Orin with --ignored (the command in the test file's header)."
+
+[[entry]]
+id = "fathomdb-sdk::slice31_sdk_probe_init_cuda::gpu_orin_64_sdk_process_ignores_cuda_early_init_off"
+class = "ignored-by-design"
+reason = "#[ignore]: asserts the Tegra private CUDA pool through the SDK, which exists only on the Jetson AGX Orin 64 GB; it runs on the Orin with --ignored (the command in the test file's header)."
+
+[[entry]]
+id = "fathomdb-sdk::slice31_sdk_probe_init_cuda::gpu_orin_64_sdk_process_reaches_the_private_pool_without_an_init_call"
+class = "ignored-by-design"
+reason = "#[ignore]: asserts the Tegra private CUDA pool through the SDK, which exists only on the Jetson AGX Orin 64 GB; it runs on the Orin with --ignored (the command in the test file's header)."
+
+[[entry]]
+id = "fathomdb-sdk::slice31_sdk_probe_init_cuda::gpu_orin_64_sdk_process_with_cuda_pool_off_takes_the_0827_path"
+class = "ignored-by-design"
+reason = "#[ignore]: asserts the Tegra private CUDA pool through the SDK, which exists only on the Jetson AGX Orin 64 GB; it runs on the Orin with --ignored (the command in the test file's header)."
+
+[[entry]]
+id = "fathomdb-sdk::slice31_sdk_probe_init_cuda::gpu_orin_64_sdk_release_threshold_max_from_the_sdk"
+class = "ignored-by-design"
+reason = "#[ignore]: asserts the Tegra private CUDA pool through the SDK, which exists only on the Jetson AGX Orin 64 GB; it runs on the Orin with --ignored (the command in the test file's header)."
+
+[[entry]]
 id = "fathomdb-engine::durability_soak"
 class = "platform-excluded"
 excluded_on = "not(unix)"

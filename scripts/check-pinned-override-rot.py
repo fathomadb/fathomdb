@@ -88,10 +88,12 @@ _CANDLE_FORK = {
 # .crate SHA-256 (the Cargo.lock checksum) and provenance. A pin whose
 # "dependency" is None is reached only through another pin and must not be
 # declared in the manifest at all; the others are declared once, in
-# [dependencies], as `<dependency> = { package = ..., version = "=<v>" }`.
+# [dependencies], as `<dependency> = { package = ..., version = "=<v>" }` (or
+# by the package's own name). cudarc-fathomdb is declared although Candle
+# reaches it, because Candle requires it only as a caret requirement.
 FORK_PINS = [
     {
-        "dependency": None,
+        "dependency": "cudarc-fathomdb",
         "package": "cudarc-fathomdb",
         "version": "0.19.10",
         "checksum": "8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2",

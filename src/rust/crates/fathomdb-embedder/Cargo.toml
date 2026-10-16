@@ -38,6 +38,12 @@ thiserror = { version = "1", optional = true }
 candle-core         = { package = "candle-core-fathomdb", version = "=0.11.0", optional = true }
 candle-nn           = { package = "candle-nn-fathomdb", version = "=0.11.0", optional = true }
 candle-transformers = { package = "candle-transformers-fathomdb", version = "=0.11.0", optional = true, default-features = false }
+# The Candle fork crates require cudarc-fathomdb as `0.19.10`, a caret
+# requirement, so a crates.io consumer without a lock file would take any
+# later 0.19.x. This exact pin, enabled by `embed-cuda` and `rerank-cuda`,
+# holds the version qualified with the forks. The embedder never names
+# cudarc itself and the pin enables no features: Candle selects them.
+cudarc-fathomdb     = { version = "=0.19.10", optional = true, default-features = false }
 tokenizers          = { version = "0.20", optional = true, default-features = false, features = ["onig"] }
 
 # 0.8.16 Slice 10 (ADR-0.8.16-onnx-embedder-backend §2) — cross-vendor ONNX
@@ -96,7 +102,7 @@ default-reranker = [
 # Cross-vendor (AMD ROCm / Intel) is NOT a candle backend — that path is a separate
 # `impl Embedder` (ONNX-Runtime) reported via CallerWithDeviceResolution; see
 # dev/design/0.8.1-embedder-gpu-and-portability.md.
-embed-cuda = ["default-embedder", "tegra-pool", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+embed-cuda = ["default-embedder", "tegra-pool", "dep:cudarc-fathomdb", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 embed-metal = ["default-embedder", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
 # 0.8.12 — GPU acceleration for the CE reranker (opt-in; default build stays CPU
 # so Decision 2 / byte-stability are unaffected). Mirrors `embed-cuda` exactly
@@ -106,7 +112,7 @@ embed-metal = ["default-embedder", "candle-core/metal", "candle-nn/metal", "cand
 # stack is the same Candle bert path, so enabling the cuda backend on the shared
 # candle crates is the only build-side change. Cross-vendor (AMD/Intel) is not a
 # candle backend — out of scope, same as the embedder.
-rerank-cuda = ["default-reranker", "tegra-pool", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+rerank-cuda = ["default-reranker", "tegra-pool", "dep:cudarc-fathomdb", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 rerank-metal = ["default-reranker", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
 # 0.8.16 Slice 10 — cross-vendor ONNX embedder (`OrtBgeEmbedder`). Pulls the
 # `ort` ONNX-Runtime binding + the shared `tokenizers` stack (for BGE-small

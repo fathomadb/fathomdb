@@ -141,9 +141,5 @@ crate = "fathomdb-py"
 features = ["default-embedder"]
 
 [[extra]]
-crate = "fathomdb-sdk"
-features = ["default-embedder"]
-
-[[extra]]
 crate = "fathomdb-tc5-benchmark"
 features = ["tc5-benchmark"]

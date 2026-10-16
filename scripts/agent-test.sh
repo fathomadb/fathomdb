@@ -334,6 +334,17 @@ run_tier_suite fast test-check-single-cudarc bash scripts/tests/test_check_singl
 # cargo metadata; the real-tree arm runs cargo metadata offline.
 run_tier_suite fast test-check-cudarc-fathomdb-lock-set bash scripts/tests/test_check_cudarc_fathomdb_lock_set.sh
 
+# 0.8.28 Slice 31 (R-CODE-4): the embedder's CUDA features pin cudarc-fathomdb
+# exactly to the locked version (the Candle fork crates require it only as a
+# caret requirement), and `embed-cuda`/`rerank-cuda` imply `tegra-pool` in
+# every crate (design § 14.3, Q37). Both read cargo metadata offline.
+run_tier_suite fast test-embedder-pins-cudarc-fathomdb bash scripts/tests/test_embedder_pins_cudarc_fathomdb.sh
+run_tier_suite fast test-tegra-pool-implied-by-cuda-features bash scripts/tests/test_tegra_pool_implied_by_cuda_features.sh
+
+# 0.8.28 Slice 31 (R-CODE-4): check-tegra-pool-registry-build.sh refuses full
+# mode with exit 2, before any work, on a host that cannot run (b) and (c).
+run_tier_suite fast test-check-tegra-pool-registry-build bash scripts/tests/test_check_tegra_pool_registry_build.sh
+
 # 0.8.28 Slice 31 (T-CUDA-COMPAT C1, AC31-15): the PTX driver-floor checker
 # (PTX ISA <= 8.5 for the 12.6 artifact's driver floor; .target equal to the
 # contract compute capability). Fixture arms only; the real build output is

@@ -242,7 +242,12 @@ and the same for `candle-nn` and `candle-transformers`. It reaches
 names (`[lib] name = "cudarc"`; Candle K1) and Candle 0.11.0 re-exports
 cudarc (`pub use cudarc;`, Q21). The fork version scheme is the fork's:
 `cudarc-fathomdb` uses the upstream base version (0.19.10), and the Candle
-crates use the fork's own numbers (0.11.0, Q21).
+crates use the fork's own numbers (0.11.0, Q21). After R-CODE-4 the
+embedder manifest also declares `cudarc-fathomdb = "=0.19.10"` (optional,
+no features, enabled by `embed-cuda` and `rerank-cuda`): Candle 0.11.0
+requires it only as `0.19.10`, a caret requirement, so without the exact
+pin a crates.io consumer with no lock file could resolve a later 0.19.x.
+The code still names cudarc only through Candle.
 
 **Evidence.** `git show b777f8d:Cargo.toml` lines 2-3, 28-29; Candle
 `FATHOMDB.md` K1 and K9 rows; cudarc `FATHOMDB.md` "How to depend on it".

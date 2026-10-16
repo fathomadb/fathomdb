@@ -935,6 +935,7 @@ dependencies = [
  "candle-core-fathomdb",
  "candle-nn-fathomdb",
  "candle-transformers-fathomdb",
+ "cudarc-fathomdb",
  "dirs",
  "fathomdb-embedder-api",
  "fs2",

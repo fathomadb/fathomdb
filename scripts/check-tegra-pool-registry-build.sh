@@ -38,9 +38,10 @@
 #   toolkit for (b) and a Jetson GPU for (c).
 #
 # USAGE
-#   check-tegra-pool-registry-build.sh                 (a); plus (b) and (c)
+#   check-tegra-pool-registry-build.sh                 (a), (b) and (c); only
 #                                                      on an aarch64 Linux
-#                                                      Tegra host
+#                                                      Tegra host, elsewhere
+#                                                      it exits 2 before (a)
 #   check-tegra-pool-registry-build.sh --resolve-only  (a) alone
 #   ENABLE=embed-cuda-only (env)  the consumer's dependency names no
 #                     `tegra-pool`, only `embed-cuda`, which implies it
@@ -54,9 +55,12 @@
 #   CARGO_TARGET_DIR  reuse a target directory (default: inside the scratch
 #                     copy, removed on exit).
 #   KEEP_SCRATCH=1    keep the scratch copy for inspection.
+#   FATHOMDB_TEGRA_RELEASE_FILE  the Tegra marker file the host check reads
+#                     (default /etc/nv_tegra_release; tests point it away).
 #
-# Exit 0 when every step that applies to this host holds; 1 otherwise. A
-# step that does not apply is named in the output, never skipped silently.
+# Exit 0 when every requested step holds; 1 when a step fails; 2 on a usage
+# error, including full mode on a host that cannot run (b) and (c), so an
+# exit status of 0 always means the whole requested check ran.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -80,6 +84,17 @@ fail() {
   printf 'FAIL  check-tegra-pool-registry-build: %s\n' "$1" >&2
   exit 1
 }
+
+HOST_OS="$(uname -s)"
+HOST_ARCH="$(uname -m)"
+TEGRA_RELEASE_FILE="${FATHOMDB_TEGRA_RELEASE_FILE:-/etc/nv_tegra_release}"
+if [ "$RESOLVE_ONLY" = "0" ] \
+  && { [ "$HOST_OS" != "Linux" ] || [ "$HOST_ARCH" != "aarch64" ] || [ ! -e "$TEGRA_RELEASE_FILE" ]; }; then
+  printf 'check-tegra-pool-registry-build: (b) and (c) need an aarch64 Linux Tegra host; this host is %s %s.\n' \
+    "$HOST_OS" "$HOST_ARCH" >&2
+  printf 'check-tegra-pool-registry-build: run with --resolve-only for (a) alone.\n' >&2
+  exit 2
+fi
 
 SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/fathomdb-tegra-pool-registry.XXXXXX")"
 cleanup() {
@@ -180,13 +195,6 @@ printf 'PASS  (a) the published fork crates resolve from crates.io with no [patc
 
 if [ "$RESOLVE_ONLY" = "1" ]; then
   printf 'check-tegra-pool-registry-build: --resolve-only: (b) and (c) not run\n'
-  exit 0
-fi
-HOST_OS="$(uname -s)"
-HOST_ARCH="$(uname -m)"
-if [ "$HOST_OS" != "Linux" ] || [ "$HOST_ARCH" != "aarch64" ] || [ ! -e /etc/nv_tegra_release ]; then
-  printf 'check-tegra-pool-registry-build: (b) and (c) need an aarch64 Linux Tegra host; this host is %s %s: not run\n' \
-    "$HOST_OS" "$HOST_ARCH"
   exit 0
 fi
 [ -n "${LIBRARY_PATH:-}" ] || fail '(b) LIBRARY_PATH must name the CUDA library directory (registry candle-kernels links libcudart dynamically)'

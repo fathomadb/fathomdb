@@ -13,8 +13,9 @@ fail() { printf 'FAIL  %s\n' "$1" >&2; exit 1; }
 
 # The schema-5 Cargo shape (0.8.28 Slice 31, design § 3.4): the root patch
 # table holds only candle-kernels by git at K9 (plus the SQLite path patch the
-# seed adds); the embedder pins the Candle fork crates exactly and reaches
-# cudarc-fathomdb only through Candle; Cargo.lock holds each fork crate once,
+# seed adds); the embedder pins the Candle fork crates and cudarc-fathomdb
+# exactly (R-CODE-4: Candle requires cudarc-fathomdb only as a caret
+# requirement); Cargo.lock holds each fork crate once,
 # from crates.io, with its published checksum.
 write_cargo_shape() {
   local fixture="$1" mode="$2"
@@ -61,10 +62,12 @@ embedder = (
     'candle-nn = { package = "candle-nn-fathomdb", version = "=0.11.0", optional = true }\n'
     'candle-transformers = { package = "candle-transformers-fathomdb", version = "=0.11.0", optional = true, default-features = false }\n'
 )
+if mode == "cudarc-caret":
+    embedder += 'cudarc-fathomdb = { version = "0.19.10", optional = true, default-features = false }\n'
+elif mode != "cudarc-undeclared":
+    embedder += 'cudarc-fathomdb = { version = "=0.19.10", optional = true, default-features = false }\n'
 if mode == "direct-exact":
     embedder += 'cudarc = { package = "cudarc-fathomdb", version = "=0.19.10", optional = true }\n'
-elif mode == "direct-own-name":
-    embedder += 'cudarc-fathomdb = { version = "=0.19.10", optional = true }\n'
 elif mode == "direct-target-caret":
     embedder += (
         "\n[target.'cfg(all(target_os = \"linux\", target_arch = \"aarch64\"))'.dependencies]\n"
@@ -630,10 +633,20 @@ make_and_run_candle_fixture caret caret
 expect_failure 'fork registry pin candle-core-fathomdb: src/rust/crates/fathomdb-embedder/Cargo.toml dependencies.candle-core must require exactly "=0.11.0"' \
   'fork_registry_pin_with_a_caret_requirement_is_rejected'
 
-for direct in direct-exact direct-target-caret direct-own-name; do
+# R-CODE-4: the embedder declares cudarc-fathomdb once, by its own name, as an
+# exact pin; Candle's requirement on it is only a caret requirement.
+make_and_run_candle_fixture cudarc-undeclared cudarc-undeclared
+expect_failure 'fork registry pin cudarc-fathomdb: src/rust/crates/fathomdb-embedder/Cargo.toml dependencies.cudarc-fathomdb is not declared' \
+  'an_undeclared_cudarc_fathomdb_pin_is_rejected'
+
+make_and_run_candle_fixture cudarc-caret cudarc-caret
+expect_failure 'fork registry pin cudarc-fathomdb: src/rust/crates/fathomdb-embedder/Cargo.toml dependencies.cudarc-fathomdb must require exactly "=0.19.10"' \
+  'a_caret_cudarc_fathomdb_pin_is_rejected'
+
+for direct in direct-exact direct-target-caret; do
   make_and_run_candle_fixture "$direct" "$direct"
-  expect_failure 'fork registry pin cudarc-fathomdb is reached only through another pin and must not be declared' \
-    "a_direct_cudarc_fathomdb_dependency_is_rejected ($direct)"
+  expect_failure 'fork registry pin cudarc-fathomdb: src/rust/crates/fathomdb-embedder/Cargo.toml must declare it once, as dependencies.cudarc-fathomdb' \
+    "a_second_cudarc_fathomdb_declaration_is_rejected ($direct)"
 done
 
 make_and_run_candle_fixture lock-second-git lock-second-git

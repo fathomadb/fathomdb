@@ -127,6 +127,19 @@ AC-050c) gates merges against this invariant.
   560.28.03 or later, compute capability 7.5 or later on x86_64, CUDA 12
   cuBLAS and cuRAND (tested with cuBLAS 12.1 to 12.9).
 
+### Fixed
+
+- (Slice 40) Search ranking: each fusion arm (vector, text, graph) now
+  credits a body at most once, at the rank of its first occurrence. Before,
+  rows sharing a byte-identical body each added a term, so a duplicated
+  body deep in the text results could outrank the best match. Result order
+  can change on corpora with duplicate bodies; corpora without them rank
+  as before. Agreement between arms still boosts a body.
+- (Slice 40) The text-query compiler keeps 1–2 character tokens ("C" in
+  "Vitamin C", "D3", "II", "1" in "IGF-1"); before, they were dropped from
+  the FTS5 query. The stopword list is unchanged, so possessive and
+  contraction fragments such as "s" and "t" are now query terms too.
+
 ## 0.8.27 — 2026-10-10
 
 **Publication status: pending.** This release has not been tagged or published.

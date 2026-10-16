@@ -34,8 +34,10 @@ const STOPWORDS: &[&str] = &[
     "into", "over", "than", "then", "they", "them", "their", "you", "your", "we", "our", "i",
 ];
 
-/// Content tokens of a query: lowercased, split on non-alphanumeric, ≥3 chars,
-/// stopwords removed, de-duplicated in first-seen order. These are the OR terms
+/// Content tokens of a query: lowercased, split on non-alphanumeric, empty
+/// fragments and stopwords removed, de-duplicated in first-seen order. Tokens
+/// of every length are kept: short tokens such as "c", "d3" or "1" carry query
+/// meaning. These are the OR terms
 /// of the compiled MATCH expression. Splitting on non-alphanumeric drops every
 /// FTS5 control character (`*`, `"`, `:`, `^`, `(`, `)`, `,`), so the emitted
 /// tokens are pure literals — the injection-safety property (AC-038).
@@ -45,7 +47,7 @@ fn content_tokens(raw: &str) -> Vec<String> {
     let mut seen: HashSet<String> = HashSet::new();
     let mut out: Vec<String> = Vec::new();
     for token in raw.to_lowercase().split(|c: char| !c.is_alphanumeric()) {
-        if token.len() < 3 || stop.contains(token) {
+        if token.is_empty() || stop.contains(token) {
             continue;
         }
         if seen.insert(token.to_string()) {
@@ -64,7 +66,7 @@ fn content_tokens(raw: &str) -> Vec<String> {
 /// which any-token-matches and lets `bm25()` rank by overlap, the way the
 /// same-dataset BM25 baselines (EnronQA/QAConv) are run.
 ///
-/// All-stopword / symbol-only / sub-3-char queries (no content tokens) fall back
+/// All-stopword / symbol-only queries (no content tokens) fall back
 /// to an OR over the raw whitespace tokens as injection-safe quoted phrases, so
 /// such a query still searches instead of returning nothing.
 #[must_use]

@@ -252,7 +252,23 @@ One divergence in full, verbatim (query, engine bodies, reference bodies):
 
 ### 5.2 GREEN run at W4
 
-Recorded at W4 below.
+After the W4 change to `fusion.rs` and `fathomdb-query/src/lib.rs`, with no
+test edited:
+
+```text
+cargo test -p fathomdb-query
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+cargo test -p fathomdb-engine --test slice40_fts_ranking --test fts5_injection_safety
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+cargo test -p fathomdb-engine --features test-hooks --test pr_g9_rrf_fusion
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+```
+
+The three `fathomdb-query` lines are the unit tests, `tests/property_template.rs`
+and the doctests. `pr_g9_rrf_fusion` needs `--features test-hooks`.
 
 ## 6. Pre-existing test failures at W5
 

@@ -1,0 +1,53 @@
+{
+  "arms": [
+    {
+      "embedder": "none",
+      "id": "fathomdb",
+      "method": "Engine.search_text_only",
+      "tokenizer": "FTS5 porter unicode61 remove_diacritics 2",
+      "version": "0.8.27 (repo build)"
+    },
+    {
+      "analyzer": "crud-bench: blank,class + lowercase,ascii, BM25",
+      "driver": "experiments/comp_drivers/surrealdb (Cargo.lock committed)",
+      "id": "surrealdb",
+      "query": "body @0,OR@ $q ORDER BY search::score(0) DESC",
+      "version": "3.3.0 (Rust crate, embedded RocksDB)"
+    }
+  ],
+  "campaign": "COMP-02a",
+  "claim_boundary": "our runner with the crud-bench SurrealDB protocol, not a crud-bench run",
+  "harness_campaign": "comp02a",
+  "inputs": {
+    "build": "python -m experiments.comp02_inputs --size 17272 --output <inputs>",
+    "dir_hint": "~/.cache/fathomdb-comp/tc5-17272",
+    "files": {
+      "corpus.json": "674616a5567d392c0d35132d6275f6b98303e77b8374e6ae5d5b586323fc66cc",
+      "manifest.json": "563990a80a1947a6d672c8a59b96aebd129a387634a44778f32df47415bfde74",
+      "probes.json": "647d120d4258647dfe3f6dd28c83a077d58ed09ea3aee38b58babc65838a9405",
+      "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+    },
+    "source": "SCALE-02 qualified TC-5 input pack v1, data/performance-benchmarking/scale-02/inputs/input-pack-v1/tc5"
+  },
+  "metrics": [
+    "ingest_ack_s",
+    "query_ready_s",
+    "reopen_s",
+    "steady_p50_ms",
+    "steady_p95_ms",
+    "steady_p99_ms",
+    "disk_mib",
+    "peak_rss_mib"
+  ],
+  "program_track": null,
+  "report": "scale",
+  "result_note": "dev/performance-benchmarking/2026-10-15-comp-02a-ingest-ready-scale-result.md",
+  "roster": {
+    "cell": "one arm x one fresh database, own subprocess; resume skips cells/*.json",
+    "order": "AB/BA/BA/AB",
+    "repetitions": 4
+  },
+  "run": "python -m experiments.comp_fts run --config experiments/configs/comp-02/ingest-scale-17272.v1.json --inputs <inputs> --out <new attempt dir>",
+  "schema_version": "comp-fts.campaign.v1",
+  "title": "COMP-02a ingest-to-queryable and scale, 17272 TC-5 documents, FathomDB vs SurrealDB"
+}

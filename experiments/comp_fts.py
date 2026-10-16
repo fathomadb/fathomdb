@@ -4,7 +4,7 @@ One cell is one product arm and one fresh-database repetition, executed in its
 own subprocess so peak RSS belongs to that cell alone. A cell writes ordered
 top-k IDs and per-query timings from the same calls; scoring never re-queries.
 
-    python -m experiments.comp_fts run --campaign comp01 --inputs DIR --out DIR
+    python -m experiments.comp_fts run --config CONFIG --inputs DIR --out DIR
         [--cell ID] [--max-cells N]
     python -m experiments.comp_fts score --out DIR
 """
@@ -112,14 +112,14 @@ class FathomArm:
 
         return Engine.open(str(root / "fathomdb.sqlite"), use_default_embedder=False)
 
-    def query(self, handle: Any, text: str, cohort: str | None = None) -> list[str]:
+    def query(self, handle: Any, text: str, cohort: str | None = None, limit: int = TOP_K) -> list[str]:
         if self.filtered:
             from fathomdb import SearchFilter
 
             flt = SearchFilter(attributes=(("bench_cohort", cohort),)) if cohort else None
-            hits = handle.search_projected_text(text, "text", flt, limit=TOP_K).results
+            hits = handle.search_projected_text(text, "text", flt, limit=limit).results
         else:
-            hits = handle.search_text_only(text, limit=TOP_K).results
+            hits = handle.search_text_only(text, limit=limit).results
         return [hit.id.value for hit in hits]
 
     def close(self, handle: Any) -> None:
@@ -166,8 +166,8 @@ class LanceArm:
 
         return lancedb.connect(str(root / "lance")).open_table("docs")
 
-    def query(self, handle: Any, text: str, cohort: str | None = None) -> list[str]:
-        rows = handle.search(text, query_type="fts").limit(TOP_K).select(["id"]).to_list()
+    def query(self, handle: Any, text: str, cohort: str | None = None, limit: int = TOP_K) -> list[str]:
+        rows = handle.search(text, query_type="fts").limit(limit).select(["id"]).to_list()
         return [row["id"] for row in rows]
 
     def close(self, handle: Any) -> None:
@@ -275,12 +275,12 @@ class SurrealArm:
     def open(self, root: Path) -> Any:
         return _SurrealProcess(self._endpoint(root))
 
-    def query(self, handle: Any, text: str, cohort: str | None = None) -> list[str]:
+    def query(self, handle: Any, text: str, cohort: str | None = None, limit: int = TOP_K) -> list[str]:
         where = "body @0,OR@ $q" + (" AND cohort = $c" if cohort else "")
         vars = {"q": text, **({"c": cohort} if cohort else {})}
         rows = handle.sql(
             f"SELECT record::id(id) AS id, search::score(0) AS s FROM doc WHERE {where}"
-            f" ORDER BY s DESC LIMIT {TOP_K};",
+            f" ORDER BY s DESC LIMIT {limit};",
             **vars,
         )[0]
         return [row["id"] for row in rows]
@@ -595,7 +595,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--campaign", choices=sorted(CAMPAIGNS), required=True)
+    r.add_argument("--campaign", choices=sorted(CAMPAIGNS))
+    r.add_argument("--config", type=Path, help="comp-fts.campaign.v1 file; verifies input digests")
     r.add_argument("--inputs", type=Path, required=True)
     r.add_argument("--out", type=Path, required=True)
     r.add_argument("--cell")
@@ -611,7 +612,18 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.command == "run":
-        run(args.campaign, args.inputs, args.out, args.cell, args.max_cells)
+        campaign = args.campaign
+        if args.config is not None:
+            from experiments import comp_record
+
+            config = comp_record.load_config(args.config)
+            comp_record.verify_inputs(config, args.inputs)
+            if campaign not in (None, config["harness_campaign"]):
+                parser.error("--campaign disagrees with --config")
+            campaign = config["harness_campaign"]
+        if campaign is None:
+            parser.error("--campaign or --config is required")
+        run(campaign, args.inputs, args.out, args.cell, args.max_cells)
     elif args.command == "score":
         report = score(args.out, args.inputs)
         print(json.dumps(report["median_by_arm"], indent=2, sort_keys=True))

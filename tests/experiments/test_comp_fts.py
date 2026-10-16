@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -95,3 +96,31 @@ def test_real_filtered_cell_returns_only_the_requested_cohort(arm: str, tmp_path
     top = {r["query_id"]: r["ids"] for r in c33["results"]}
     assert top["q1"] == ["d4"] and top["q2"] == ["d3"]
     assert {r["query_id"]: r["ids"] for r in cell["passes"]["c10"]["results"]} == {"q1": ["d2"], "q2": []}
+
+
+def test_campaign_config_rejects_drifted_inputs_and_records_a_receipt(tmp_path: Path):
+    from experiments import comp_record
+
+    inputs = _inputs(tmp_path)
+    (inputs / "gold.json").write_text(json.dumps({"q1": {"d2": 1}, "q2": {"d3": 1}}))
+    (inputs / "manifest.json").write_text(json.dumps({"queries_with_relevant_duplicate_body": []}))
+    config = comp_record.load_config(Path("experiments/configs/comp-01/nfcorpus-fts.v1.json"))
+    config["inputs"]["files"] = {"corpus.json": "0" * 64}
+    with pytest.raises(comp_record.CompRecordError):
+        comp_record.verify_inputs(config, inputs)
+    config["inputs"]["files"] = {"corpus.json": hashlib.sha256((inputs / "corpus.json").read_bytes()).hexdigest()}
+    out = tmp_path / "out"
+    (out / "cells").mkdir(parents=True)
+    cells = ["r1-fathomdb", "r1-lancedb"]
+    for cell in cells:
+        _available(cell[3:])
+        result = comp_fts.run_cell(cell[3:], 1, inputs, tmp_path / "work")
+        (out / "cells" / f"{cell}.json").write_text(json.dumps(result))
+    (out / "manifest.json").write_text(json.dumps({
+        "campaign": "comp01", "roster": cells, "host": {},
+        "attempts": [{"cell": c, "status": "complete"} for c in cells],
+    }))
+    _, run_dir = comp_record.record(config, inputs=inputs, out=out, base_dir=tmp_path / "exp", config_path=None)
+    receipt = json.loads((run_dir / "record.json").read_text())
+    assert receipt["verdict"] == "complete"
+    assert receipt["metrics"]["median_by_arm"]["fathomdb"]["ndcg_at_10"] == pytest.approx(1.0)

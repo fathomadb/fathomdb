@@ -68,6 +68,13 @@ AC-050c) gates merges against this invariant.
 
 ### Changed
 
+- (Slice 40) The text-query compiler also drops the fragments that
+  splitting on an apostrophe leaves ("s", "t", "ll", "re", "ve", "m", as in
+  "Cow's", "don't", "we'll", "they're", "I've", "I'm") and the short function
+  words "my", "me", "us", "am", "so" and "up". Short content tokens such as
+  "d", "c", "d3", "ii" and "1" are still query terms. A query made only of
+  these words falls back to its raw tokens, as an all-stopword query already
+  did. Text and hybrid result order can change for queries that contain them.
 - **Potentially breaking (Tegra Python wheel only):** importing `fathomdb`
   starts the CUDA driver. A `multiprocessing` child created with `fork` after
   the import cannot use CUDA; use `spawn` or `forkserver`, or set

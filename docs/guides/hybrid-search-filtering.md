@@ -19,6 +19,11 @@ score(body) = Σ_branch  w_branch / (30 + rank_branch(body))
 Each branch counts a body once, at the rank of its first occurrence, so rows
 that share a byte-identical body do not add up within one branch.
 
+The vector branch always fuses at least its ten nearest surviving rows, so a
+search with a limit below 10 ranks as the first results of a limit-10 search,
+scores included (with no rerank and no graph arm). Limits of 10 and above are
+unchanged.
+
 A body that **both** branches rank highly accumulates two terms, so agreement
 pushes it to the top — which is the whole point of hybrid retrieval. RRF fuses
 the *ordinal rank* each branch assigns, never the raw `vec_distance_l2` / `bm25()`

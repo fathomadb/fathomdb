@@ -482,3 +482,9 @@ The signatures are unchanged; the behaviour of three search verbs changed.
   written; that declaration enrols the node kind for embedding. Opening with
   `OpenOptions { use_default_embedder: true, .. }` alone embeds nothing, and `Engine::search` then returns text hits
   only. The engine embeds each node's full body, not the projected attribute.
+- **Vector pool in `Engine::search`**: the vector branch fuses at least its ten nearest
+  surviving rows, whatever the limit. This changes only calls with a limit
+  below 10; limits of 10 and above rank as before. For one database state, with
+  rerank depth 0 and no graph arm, a search with limit `k` returns the first `k` results of the same
+  search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
+  guaranteed.

@@ -316,6 +316,9 @@ pub(crate) use search::retain_complete_rank_boundary_candidates;
 #[cfg(feature = "test-hooks")]
 pub(crate) use search::{append_json_witness_for_test, record_slice71_profile_statement_for_test};
 pub(crate) use search::{prepare_search_statement, CapturedGraphOrigin};
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use search_types::vector_fusion_pool_for_test;
 pub use search_types::{
     Bm25fFieldWeights, Bm25fQueryPlan, Explanation, GraphFrontierStats, PerHitExplain, QueryTrace,
     SearchHit, SearchResult, SoftFallback, SoftFallbackBranch, StructuralDegradationCodeV1,

@@ -75,6 +75,13 @@ AC-050c) gates merges against this invariant.
   "d", "c", "d3", "ii" and "1" are still query terms. A query made only of
   these words falls back to its raw tokens, as an all-stopword query already
   did. Text and hybrid result order can change for queries that contain them.
+- (Slice 40) Hybrid `search` with a limit below 10 now fuses the vector
+  branch's ten nearest surviving rows instead of only `limit` of them, so its
+  results are the first results of a limit-10 search, scores bit-identical
+  (no rerank, no graph arm). Calls with a limit of 10 or more are unchanged.
+  Results and scores of a hybrid search with a limit below 10 can change,
+  and the explain trace's `vector_hits` reports the rows hydrated (at least
+  10 when that many survive).
 - **Potentially breaking (Tegra Python wheel only):** importing `fathomdb`
   starts the CUDA driver. A `multiprocessing` child created with `fork` after
   the import cannot use CUDA; use `spawn` or `forkserver`, or set

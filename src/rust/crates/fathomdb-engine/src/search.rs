@@ -1572,18 +1572,17 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // Why overfetch rather than filtering in SQL: the natural fix is to
             // join `canonical_nodes` into the candidate query, but (i) phase 1
             // is a `vec0` KNN and ADR-0.8.11 D3 forbids demoting it with
-            // non-metadata predicates, and (ii) there is NO index on
-            // `canonical_nodes(write_cursor)`, so an `EXISTS` per candidate
-            // would be a full scan × the whole pool on EVERY query — a
-            // guaranteed cost to fix a degenerate case.
+            // non-metadata predicates, and (ii) an `EXISTS` per candidate
+            // would probe `canonical_nodes_write_cursor_idx` for the whole
+            // pool on EVERY query — a guaranteed cost to fix a degenerate
+            // case.
             //
             // Overfetching is free by comparison: phase 2 already computes
             // `vec_distance_l2` for all `TOP_K_BIT_CANDIDATES` in order to sort
             // them, so raising the LIMIT only returns more of a result set that
             // was already materialized. No extra vec0 work, no schema change,
             // no new index, no second query. The hydration loop below then
-            // stops at `final_limit` SURVIVING hits, so the common case does
-            // exactly as many hydration probes as before.
+            // stops at `max(final_limit, VECTOR_FUSION_POOL)` SURVIVING hits.
             //
             // `max` (not a bare constant) preserves both the test seam's
             // deeper candidate fanout and the caller's requested result limit.
@@ -1629,11 +1628,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // canonical row's OWN `source_id` so a vector hit carries the provenance
         // `erase_source` consumes. These statements already read the canonical
         // row by `write_cursor`, so this is one extra COLUMN on an existing
-        // lookup — NOT an extra query. (A per-hit `WHERE write_cursor = ?`
-        // probe would be a full scan: there is no index on
-        // `canonical_nodes(write_cursor)`. This site already pays that cost by
-        // construction; TC-31 must not add a second one.) Read-only additive
-        // column — row-set, ordering and scores are untouched.
+        // lookup — NOT an extra query. (Each lookup is one probe of
+        // `canonical_nodes_write_cursor_idx`; TC-31 must not add a second
+        // one.) Read-only additive column — row-set, ordering and scores are
+        // untouched.
         // fix-2 (codex §9 [P2]): the validity conjunct comes from
         // `ReadView::validity_sql` — the SAME generator the five read verbs use.
         // It is NOT hand-rolled here: Slice 10's whole design is that the
@@ -1688,11 +1686,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // exact-L2 order, so the caller's cutoff is applied HERE — after
             // the validity/existence filter, not before it. Bounded worst case:
             // at most `TOP_K_BIT_CANDIDATES` hydration probes when nearly every
-            // candidate is filtered out; exactly `final_limit` (i.e. unchanged)
-            // when nothing is. Ordering is unchanged — the surviving rows are
-            // still emitted nearest-first — so on a corpus with no windows this
-            // loop yields byte-identical results to the pre-fix code.
-            if results.len() >= final_limit {
+            // candidate is filtered out; exactly `max(final_limit,
+            // VECTOR_FUSION_POOL)` when nothing is. Ordering is unchanged — the
+            // surviving rows are still emitted nearest-first. The pool floor
+            // makes every limit up to the pool fuse the same vector list, so a
+            // smaller limit is a prefix of a larger one; fusion still truncates
+            // to `final_limit`.
+            if results.len() >= final_limit.max(VECTOR_FUSION_POOL) {
                 break;
             }
             if let Some((kind, body, logical_id, source_id)) = node_stmt
@@ -2509,7 +2509,7 @@ use crate::search_types::{
     QueryTrace, SearchHit, SearchResult, SoftFallback, SoftFallbackBranch,
     StructuralDegradationCodeV1, StructuralInclusionStateV1, StructuralInclusionV1,
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, MAX_SEARCH_RESULT_LIMIT,
-    TOP_K_BIT_CANDIDATES,
+    TOP_K_BIT_CANDIDATES, VECTOR_FUSION_POOL,
 };
 use crate::structural_state::structural_dependency_state;
 #[cfg(feature = "tc5-benchmark")]

@@ -1030,6 +1030,7 @@ dependencies = [
  "fathomdb-embedder-api",
  "fathomdb-engine",
  "fathomdb-schema",
+ "serde_json",
  "tempfile",
 ]
 

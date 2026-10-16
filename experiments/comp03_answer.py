@@ -19,6 +19,7 @@ verdict, which ``--sweep-summary`` supplies.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -72,12 +73,16 @@ V2_ARMS = ["fathomdb-fts", "fathomdb-hybrid", "lancedb-fts"]
 
 def load_config(path: Path) -> dict[str, Any]:
     config = json.loads(Path(path).read_text(encoding="utf-8"))
-    if set(config) != CONFIG_KEYS:
-        raise Comp03Error(f"config keys mismatch: {sorted(set(config) ^ CONFIG_KEYS)}")
+    keys = CONFIG_KEYS | ({"decision_rule"} if config.get("schema_version") == "comp-03.answer.v3" else set())
+    if set(config) != keys:
+        raise Comp03Error(f"config keys mismatch: {sorted(set(config) ^ keys)}")
+    if config.get("schema_version") == "comp-03.answer.v3" and set(config["evidence"]["policy"]) != {
+            "per_round_chars", "total_chars", "session_expansion"}:
+        raise Comp03Error("v3 evidence needs a per_round_chars/total_chars/session_expansion policy")
     if config["schema_version"] == "comp-03.answer.v1":
         if [arm["id"] for arm in config["arms"]] != ["fathomdb", "lancedb"]:
             raise Comp03Error("COMP-03 arms are fathomdb then lancedb")
-    elif config["schema_version"] == "comp-03.answer.v2":
+    elif config["schema_version"] in {"comp-03.answer.v2", "comp-03.answer.v3"}:
         if [arm["id"] for arm in config["arms"]] != V2_ARMS:
             raise Comp03Error(f"COMP-03 v2 arms are {', '.join(V2_ARMS)}")
         if any(product_arm(arm) not in comp_fts.ARMS for arm in config["arms"]):
@@ -180,26 +185,67 @@ def gold_for(item: Mapping[str, Any]) -> dict[str, Any]:
 # --- evidence and prompts ----------------------------------------------------
 
 
+RECENCY_SENTENCE = (
+    "When the history states different values for the same fact at different dates, "
+    "use the most recent one."
+)
+
+
 def render_evidence(docs: Sequence[Mapping[str, Any]], ids: Sequence[str], *,
-                    max_item_chars: int, max_total_chars: int) -> str:
-    """Ordered evidence text: per-item cap first, then a total cap."""
+                    max_item_chars: int | None = None, max_total_chars: int | None = None,
+                    policy: Mapping[str, Any] | None = None, chronological: bool = False) -> str:
+    """Ordered evidence text.
+
+    Without ``policy``: per-item cap first, then a total cap, in rank order (the
+    v1/v2 renderer). With ``policy``: the rounds and characters come from
+    ``comp03_retrieval.evidence_rounds``, which the offline evaluator also uses, and
+    the policy replaces both caps. ``chronological`` renders the selected rounds by
+    session date, newest last, ties by session then round position.
+    """
     by_id = {doc["id"]: doc for doc in docs}
-    remaining = max_total_chars
-    blocks = []
-    for doc_id in ids:
-        if remaining <= 0:
-            break
-        doc = by_id[doc_id]
-        text = doc["body"][:max_item_chars][:remaining]
-        remaining -= len(text)
-        blocks.append(f"[Session date: {doc['date']}]\n{text}")
-    return "\n\n".join(blocks)
+    if policy is not None:
+        if max_item_chars is not None or max_total_chars is not None:
+            raise ValueError("an evidence policy replaces max_item_chars and max_total_chars")
+        from experiments.comp03_retrieval import evidence_rounds  # comp03_retrieval imports this module
+
+        selected = [(by_id[rid], by_id[rid]["body"][:chars])
+                    for rid, chars in evidence_rounds(ids, docs, policy) if chars > 0]
+    else:
+        if max_item_chars is None or max_total_chars is None:
+            raise ValueError("render_evidence needs both caps or a policy")
+        remaining = max_total_chars
+        selected = []
+        for doc_id in ids:
+            if remaining <= 0:
+                break
+            doc = by_id[doc_id]
+            text = doc["body"][:max_item_chars][:remaining]
+            remaining -= len(text)
+            selected.append((doc, text))
+    if chronological:
+        # Round IDs are sNNN-rNNN, so the ID orders by session then round position.
+        selected.sort(key=lambda pair: (pair[0]["date"], pair[0]["id"]))
+    return "\n\n".join(f"[Session date: {doc['date']}]\n{text}" for doc, text in selected)
 
 
-def answer_messages(case: Mapping[str, Any], evidence: str) -> list[dict[str, str]]:
+def evidence_record(case: Mapping[str, Any], ids: Sequence[str], evidence: Mapping[str, Any]) -> dict[str, Any]:
+    """Rendered text under a v3 evidence config, its digest, and its round and character counts."""
+    from experiments.comp03_retrieval import evidence_rounds
+
+    text = render_evidence(case["docs"], ids, policy=evidence["policy"],
+                           chronological=bool(evidence.get("chronological")))
+    shown = evidence_rounds(ids, case["docs"], evidence["policy"])
+    return {"text": text, "evidence_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "rounds_in_prompt": sum(1 for _, chars in shown if chars > 0),
+            "chars": sum(chars for _, chars in shown)}
+
+
+def answer_messages(case: Mapping[str, Any], evidence: str, *,
+                    recency_instruction: bool = False) -> list[dict[str, str]]:
+    instruction = " " + RECENCY_SENTENCE if recency_instruction else ""
     prompt = (
         "I will give you several history chats between you and a user. Please answer the question "
-        "based on the relevant chat history.\n\n"
+        f"based on the relevant chat history.{instruction}\n\n"
         f"History Chats:\n\n{evidence}\n\n"
         f"Current Date: {case['question_date']}\nQuestion: {case['question']}\nAnswer:"
     )
@@ -490,6 +536,16 @@ def _host() -> dict[str, Any]:
     return {**comp_fts._host(), "machine": platform.machine()}
 
 
+def _render_for_run(case: Mapping[str, Any], ids: Sequence[str],
+                    evidence: Mapping[str, Any]) -> tuple[str, dict[str, int]]:
+    """The evidence a run sends, with v3's round and character counts (empty for v1/v2)."""
+    if "policy" in evidence:
+        record = evidence_record(case, ids, evidence)
+        return record["text"], {"rounds_in_prompt": record["rounds_in_prompt"], "evidence_round_chars": record["chars"]}
+    return render_evidence(case["docs"], ids, max_item_chars=evidence["max_item_chars"],
+                           max_total_chars=evidence["max_total_chars"]), {}
+
+
 def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, client: Any, base_dir: Path | None,
         fathomdb_bin: str | None, config_path: str | None, max_questions: int | None = None,
         sweep_summary: Path | None = None, engine: dict[str, str] | None = None) -> tuple[str, Path]:
@@ -524,19 +580,20 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
             if not (adir / "retrieval.json").exists():
                 result = retrieve(products[arm], case, attempt_root / "work", top_k=top_k,
                                   fathomdb_bin=fathomdb_bin, store_label=arm)
-                evidence = render_evidence(case["docs"], result["ids"], max_item_chars=ev["max_item_chars"],
-                                           max_total_chars=ev["max_total_chars"])
+                evidence, counts = _render_for_run(case, result["ids"], ev)
                 result["evidence_sha256"] = hashlib.sha256(evidence.encode("utf-8")).hexdigest()
                 result["evidence_chars"] = len(evidence)
+                result.update(counts)
                 _write_json(adir / "retrieval.json", result)
             retrieval = _read_json(adir / "retrieval.json")
-            evidence = render_evidence(case["docs"], retrieval["ids"], max_item_chars=ev["max_item_chars"],
-                                       max_total_chars=ev["max_total_chars"])
+            evidence, counts = _render_for_run(case, retrieval["ids"], ev)
             if hashlib.sha256(evidence.encode("utf-8")).hexdigest() != retrieval["evidence_sha256"]:
                 raise Comp03Error(f"evidence for {qid}/{arm} no longer matches its retrieval")
             if not (adir / "answer-call.json").exists():
-                call = _model_call(client, live["answerer"], answer_messages(case, evidence), live, spend)
+                messages = answer_messages(case, evidence, recency_instruction=bool(ev.get("recency_instruction")))
+                call = _model_call(client, live["answerer"], messages, live, spend)
                 call["retrieval_ids"], call["evidence_sha256"] = retrieval["ids"], retrieval["evidence_sha256"]
+                call.update(counts)
                 _write_json(adir / "answer-call.json", call)
             answer = _read_json(adir / "answer-call.json")
             if not (adir / "judge-call.json").exists():
@@ -612,6 +669,85 @@ def summarize(rows: list[dict[str, Any]], retrieval_rows: list[dict[str, Any]], 
     return out
 
 
+# --- Unit G: factor verdicts and the best mix -----------------------------------------------
+
+
+def evaluate_recency_rule(base_rows: Sequence[Mapping[str, Any]], new_rows: Sequence[Mapping[str, Any]], *,
+                          arm: str, seed: int) -> dict[str, Any]:
+    """Adopt a factor iff knowledge-update plus temporal correct does not drop and overall
+    does not drop by more than one question, paired by question ID. Always provisional."""
+    base = {r["question_id"]: r for r in base_rows}
+    new = {r["question_id"]: r for r in new_rows}
+    shared = sorted(set(base) & set(new))
+    if not shared:
+        raise Comp03Error("no paired questions")
+    per_type: dict[str, dict[str, int]] = {}
+    for qid in shared:
+        entry = per_type.setdefault(base[qid]["question_type"], {"base": 0, "new": 0})
+        entry["base"] += bool(base[qid][arm])
+        entry["new"] += bool(new[qid][arm])
+    focus = ("knowledge-update", "temporal-reasoning")
+    ku_temporal = sum(per_type.get(t, {"new": 0})["new"] - per_type.get(t, {"base": 0})["base"] for t in focus)
+    diffs = [int(bool(new[q][arm])) - int(bool(base[q][arm])) for q in shared]
+    overall = sum(diffs)
+    rng = random.Random(seed)
+    boots = sorted(statistics.fmean(rng.choices(diffs, k=len(diffs))) for _ in range(10_000))
+    return {
+        "verdict": "adopt" if ku_temporal >= 0 and overall >= -1 else "reject",
+        "arm": arm, "n": len(shared), "per_type": per_type,
+        "ku_temporal_delta": ku_temporal, "overall_delta": overall,
+        "overall_ci": [boots[249], boots[9749]], "provisional": True,
+    }
+
+
+def recency_verdict(base_summary: Mapping[str, Any], new_summary: Mapping[str, Any], *,
+                    arms: Sequence[str], seed: int) -> dict[str, Any]:
+    """One factor's verdict for every arm, from two run summaries (``rows``)."""
+    return {"schema_version": "comp-03.factor-verdict.v1",
+            "arms": {arm: evaluate_recency_rule(base_summary["rows"], new_summary["rows"], arm=arm, seed=seed)
+                     for arm in arms}}
+
+
+def build_mix_config(v3_config: Mapping[str, Any], policy_verdict: Mapping[str, Any],
+                     v4a_verdict: Mapping[str, Any], v4b_verdict: Mapping[str, Any],
+                     v4c_verdict: Mapping[str, Any] | None = None, *, arm: str = "fathomdb-fts") -> dict[str, Any]:
+    """The best-mix answer config from the factor verdicts, decided on ``arm`` alone.
+
+    The sentence is on iff v4a adopted. With it on, chronological order is on iff
+    v4b adopted (v4b measured it together with the sentence). With it off and v4b
+    adopting, chronological order alone needs a v4c verdict; without one this raises.
+    """
+    from experiments.comp03_retrieval import parse_policy_key
+
+    def adopted(verdict: Mapping[str, Any]) -> bool:
+        return verdict["arms"][arm]["verdict"] == "adopt"
+
+    sentence = adopted(v4a_verdict)
+    sources = {"policy_verdict": policy_verdict["sha256"], "v4a_verdict": v4a_verdict["sha256"],
+               "v4b_verdict": v4b_verdict["sha256"]}
+    if sentence:
+        chronological = adopted(v4b_verdict)
+    elif adopted(v4b_verdict):
+        if v4c_verdict is None:
+            raise ValueError("v4a rejected the sentence but v4b adopted chronological order: run v4c first")
+        chronological = adopted(v4c_verdict)
+        sources["v4c_verdict"] = v4c_verdict["sha256"]
+    else:
+        chronological = False
+    mix = copy.deepcopy(dict(v3_config))
+    mix["evidence"] = {**mix["evidence"], "policy": parse_policy_key(policy_verdict["policy"]),
+                       "policy_verdict_sha256": policy_verdict["sha256"],
+                       "recency_instruction": sentence, "chronological": chronological}
+    mix["decision_rule"] = {**mix.get("decision_rule", {}), "compare_to": "hermes-answer.v2",
+                            "arm_of_record": arm, "sources": sources, "provisional": True,
+                            "rule": "the best mix of the Unit G factors, each adopted on the arm of record"}
+    return mix
+
+
+def _verdict_file(path: Path) -> dict[str, Any]:
+    return {**_read_json(path), "sha256": sha256_file(path)}
+
+
 def write_receipt(config: dict[str, Any], metrics: dict[str, Any], *, attempt_root: Path, dataset_path: Path,
                   base_dir: Path | None, config_path: str | None,
                   engine: dict[str, str] | None = None) -> tuple[str, Path]:
@@ -678,7 +814,35 @@ def main(argv: list[str] | None = None) -> int:
     live.add_argument("--sweep-summary", type=Path,
                       help="COMP-03 retrieval sweep summary.json; gated arms run only on its verdict")
     live.add_argument("--engine-commit", help="40-hex source commit of the installed fathomdb build (required for run)")
+    factor = sub.add_parser("recency-verdict", help="a factor verdict from two run summaries")
+    factor.add_argument("--base-summary", type=Path, required=True)
+    factor.add_argument("--new-summary", type=Path, required=True)
+    factor.add_argument("--config", type=Path, required=True, help="the new run's config (arms, seed)")
+    factor.add_argument("--out", type=Path, required=True)
+    mix = sub.add_parser("mix", help="write the best-mix config from the verdicts")
+    mix.add_argument("--v3", type=Path, required=True)
+    mix.add_argument("--policy-verdict", type=Path, required=True)
+    mix.add_argument("--v4a", type=Path, required=True)
+    mix.add_argument("--v4b", type=Path, required=True)
+    mix.add_argument("--v4c", type=Path)
+    mix.add_argument("--arm", default="fathomdb-fts")
+    mix.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
+    if args.command == "recency-verdict":
+        new_config = load_config(args.config)
+        verdict = recency_verdict(_read_json(args.base_summary), _read_json(args.new_summary),
+                                  arms=[arm["id"] for arm in new_config["arms"]], seed=new_config["live"]["seed"])
+        verdict["base_summary_sha256"] = sha256_file(args.base_summary)
+        verdict["new_summary_sha256"] = sha256_file(args.new_summary)
+        _write_json(args.out, verdict)
+        print(json.dumps({arm: v["verdict"] for arm, v in verdict["arms"].items()}))
+        return 0
+    if args.command == "mix":
+        mixed = build_mix_config(load_config(args.v3), _verdict_file(args.policy_verdict), _verdict_file(args.v4a),
+                                 _verdict_file(args.v4b), _verdict_file(args.v4c) if args.v4c else None, arm=args.arm)
+        args.out.write_text(json.dumps(mixed, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps(mixed["evidence"]))
+        return 0
     config = load_config(args.config)
     if args.command == "select":
         dataset = json.loads(args.dataset.read_text(encoding="utf-8"))

@@ -319,6 +319,201 @@ def write_receipt(config: dict[str, Any], summary: dict[str, Any], *, attempt_ro
     return run_id, run_dir
 
 
+# --- Unit G: evidence policies, evaluated offline on the stored sweep records --------------
+
+EVIDENCE_BASELINE = {"per_round_chars": 4000, "total_chars": 20000, "session_expansion": False}
+POOLED_TOLERANCE = 3
+FTS_TOLERANCE = 1
+EVIDENCE_RULE = (
+    "maximise has_answer_in_prompt subject to, per type, has_answer_untruncated_in_prompt not lower than "
+    "the current policy's (4000/20000/off) by more than 3 pooled counts or 1 count for fathomdb-fts alone; "
+    "ties broken by fewer chars"
+)
+COUNT_METRICS = ("gold_session_any_in_prompt", "gold_session_all_in_prompt", "has_answer_in_prompt",
+                 "has_answer_untruncated_in_prompt", "rounds_in_prompt", "chars")
+
+
+def evidence_policy_grid() -> list[dict[str, Any]]:
+    return [{"per_round_chars": per, "total_chars": total, "session_expansion": expansion}
+            for per in (4000, 2000, 1000) for total in (20000, 30000) for expansion in (False, True)]
+
+
+def policy_key(policy: Mapping[str, Any]) -> str:
+    return f"{policy['per_round_chars']}/{policy['total_chars']}/{'on' if policy['session_expansion'] else 'off'}"
+
+
+def parse_policy_key(key: str) -> dict[str, Any]:
+    per, total, expansion = key.split("/")
+    if expansion not in {"on", "off"}:
+        raise ValueError(f"bad policy key {key}")
+    return {"per_round_chars": int(per), "total_chars": int(total), "session_expansion": expansion == "on"}
+
+
+def evidence_rounds(ids: Sequence[str], docs: Sequence[Mapping[str, Any]],
+                    policy: Mapping[str, Any]) -> list[tuple[str, int]]:
+    """The rounds a prompt shows, in order, with the characters each contributes.
+
+    The top-k IDs come first in rank order; with session expansion, the remaining
+    rounds of each hit session follow (sessions by their best hit's rank, rounds
+    by position). Each round is capped at ``per_round_chars`` and then cut to what
+    is left of ``total_chars``; whitespace-only rounds contribute 0 characters.
+    """
+    by_id = {doc["id"]: doc for doc in docs}
+    order = list(ids)
+    if policy["session_expansion"]:
+        listed = set(order)
+        for session in dict.fromkeys(_session(round_id) for round_id in ids):
+            for doc in docs:
+                if _session(doc["id"]) == session and doc["id"] not in listed:
+                    order.append(doc["id"])
+                    listed.add(doc["id"])
+    remaining = policy["total_chars"]
+    shown: list[tuple[str, int]] = []
+    for round_id in order:
+        if remaining <= 0:
+            break
+        body = by_id[round_id]["body"]
+        if not body.strip():
+            shown.append((round_id, 0))
+            continue
+        chars = min(len(body), policy["per_round_chars"], remaining)
+        shown.append((round_id, chars))
+        remaining -= chars
+    return shown
+
+
+def _question_evidence(shown: Sequence[tuple[str, int]], gold: Mapping[str, Any],
+                       docs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    lengths = {doc["id"]: len(doc["body"]) for doc in docs}
+    chars = dict(shown)
+    in_prompt = {round_id for round_id, count in shown if count > 0}
+    session_relevant = list(gold["session_relevant"])
+    answer_sessions = {_session(r) for r in session_relevant}
+    found = {_session(r) for r in session_relevant if r in in_prompt}
+    turn = list(gold["turn_relevant"])
+    gold_shown = sum(chars.get(r, 0) for r in session_relevant)
+    gold_total = sum(lengths[r] for r in session_relevant)
+    return {
+        "gold_session_any_in_prompt": int(bool(found)),
+        "gold_session_all_in_prompt": int(bool(answer_sessions) and found == answer_sessions),
+        "has_answer_in_prompt": int(any(r in in_prompt for r in turn)),
+        "has_answer_untruncated_in_prompt": int(any(r in in_prompt and chars[r] == lengths[r] for r in turn)),
+        "gold_chars_shown_fraction": gold_shown / gold_total if gold_total else 0.0,
+        "rounds_in_prompt": len(in_prompt),
+        "chars": sum(count for _, count in shown),
+        "_gold_chars_shown": gold_shown,
+        "_gold_chars_total": gold_total,
+    }
+
+
+def evidence_metrics(shown: Sequence[tuple[str, int]], gold: Mapping[str, Any],
+                     docs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Per-question prompt metrics for one policy's shown rounds."""
+    return {k: v for k, v in _question_evidence(shown, gold, docs).items() if not k.startswith("_")}
+
+
+def _aggregate_evidence(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    def block(members: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+        out: dict[str, Any] = {name: sum(r[name] for r in members) for name in COUNT_METRICS}
+        shown, total = sum(r["_gold_chars_shown"] for r in members), sum(r["_gold_chars_total"] for r in members)
+        out["gold_chars_shown_fraction"] = shown / total if total else 0.0
+        out["n"] = len(members)
+        return out
+
+    return {"overall": block(rows),
+            "per_type": {t: block([r for r in rows if r["question_type"] == t])
+                         for t in sorted({r["question_type"] for r in rows})}}
+
+
+def select_evidence_policy(pooled: Mapping[str, Any], *, baseline: str,
+                           fts: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Apply the pre-stated rule (REQ40-G2) to pooled and, optionally, fathomdb-fts tables."""
+    def failures(table: Mapping[str, Any], key: str, tolerance: int, label: str) -> list[str]:
+        base = table[baseline]["per_type"]
+        row = table[key]["per_type"]
+        return [f"{label}{qtype}" for qtype in base
+                if row[qtype]["has_answer_untruncated_in_prompt"]
+                < base[qtype]["has_answer_untruncated_in_prompt"] - tolerance]
+
+    excluded: dict[str, list[str]] = {}
+    for key in pooled:
+        failed = failures(pooled, key, POOLED_TOLERANCE, "")
+        if fts is not None:
+            failed += failures(fts, key, FTS_TOLERANCE, "fathomdb-fts:")
+        if failed:
+            excluded[key] = failed
+    candidates = [key for key in pooled if key not in excluded]
+    best = max(candidates, key=lambda key: (pooled[key]["overall"]["has_answer_in_prompt"],
+                                            -pooled[key]["overall"]["chars"]))
+    return {"policy": best, "baseline": baseline, "excluded": excluded, "rule": EVIDENCE_RULE}
+
+
+def evaluate_evidence_policies(attempt_root: Path, dataset_path: Path, answer_ids: Sequence[str],
+                               arms: Sequence[str]) -> dict[str, Any]:
+    """Score every policy on every scored question, for the selection and answer sets."""
+    items = json.loads(Path(dataset_path).read_text(encoding="utf-8"))
+    answer = set(answer_ids)
+    grid = evidence_policy_grid()
+    rows: dict[str, dict[str, dict[str, list[dict[str, Any]]]]] = {
+        subset: {policy_key(policy): {arm: [] for arm in arms} for policy in grid}
+        for subset in ("selection", "answer_set")}
+    counts = {"scored": 0, "selection": 0, "answer_set_ids": len(answer), "answer_set_scored": 0}
+    for item in sorted(items, key=lambda i: i["question_id"]):
+        case, gold = convert_question(item), gold_for(item)
+        if gold["abstention"]:
+            continue
+        counts["scored"] += 1
+        subset = "answer_set" if case["question_id"] in answer else "selection"
+        counts["selection" if subset == "selection" else "answer_set_scored"] += 1
+        for arm in arms:
+            ids = _read_json(attempt_root / "questions" / case["question_id"] / arm / "retrieval.json")["ids"]
+            for policy in grid:
+                metrics = _question_evidence(evidence_rounds(ids, case["docs"], policy), gold, case["docs"])
+                rows[subset][policy_key(policy)][arm].append({**metrics, "question_type": case["question_type"]})
+    tables = {}
+    for subset, by_policy in rows.items():
+        tables[subset] = {
+            "pooled": {key: _aggregate_evidence([r for arm in arms for r in by_arm[arm]])
+                       for key, by_arm in by_policy.items()},
+            "per_arm": {arm: {key: _aggregate_evidence(by_arm[arm]) for key, by_arm in by_policy.items()}
+                        for arm in arms},
+        }
+    return {"tables": tables, "questions": counts}
+
+
+def _overall_delta(table: Mapping[str, Any], policy: str, baseline: str) -> dict[str, Any]:
+    new, base = table[policy]["overall"], table[baseline]["overall"]
+    return {name: new[name] - base[name] for name in (*COUNT_METRICS, "gold_chars_shown_fraction")}
+
+
+def evidence_policy_verdict(attempt_root: Path, dataset_path: Path, answer_ids: Sequence[str],
+                            arms: Sequence[str]) -> dict[str, Any]:
+    """Select the policy on the selection set and record the answer-set expectation."""
+    evaluated = evaluate_evidence_policies(attempt_root, dataset_path, answer_ids, arms)
+    tables = evaluated["tables"]
+    baseline = policy_key(EVIDENCE_BASELINE)
+    selection = tables["selection"]
+    choice = select_evidence_policy(selection["pooled"], baseline=baseline,
+                                    fts=selection["per_arm"].get("fathomdb-fts"))
+    answer_set = tables["answer_set"]
+    return {
+        "schema_version": "comp-03.evidence-policy-verdict.v1",
+        **choice,
+        "selection_set": "scored questions not among the answer-run question IDs",
+        "questions": evaluated["questions"],
+        "arms": list(arms),
+        "dataset_sha256": sha256_file(dataset_path),
+        "sweep_summary_sha256": sha256_file(attempt_root / "summary.json"),
+        "sweep_attempt_root": str(attempt_root),
+        "tables": tables,
+        "answer_set_expectation": {
+            "policy": choice["policy"], "baseline": baseline,
+            "pooled": _overall_delta(answer_set["pooled"], choice["policy"], baseline),
+            "per_arm": {arm: _overall_delta(answer_set["per_arm"][arm], choice["policy"], baseline) for arm in arms},
+        },
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -330,7 +525,22 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--max-questions", type=int)
     run.add_argument("--base-dir", type=Path, help="receipt root; defaults to experiments/")
     run.add_argument("--engine-commit", required=True, help="40-hex source commit of the installed fathomdb build")
+    evidence = sub.add_parser("evidence", help="evaluate evidence policies offline and write the verdict")
+    evidence.add_argument("--attempt-root", type=Path, required=True)
+    evidence.add_argument("--dataset", type=Path, required=True)
+    evidence.add_argument("--answer-config", type=Path, required=True,
+                          help="answer config whose question IDs form the answer set")
+    evidence.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
+    if args.command == "evidence":
+        answer_config = comp03_answer.load_config(args.answer_config)
+        arms = [arm["id"] for arm in answer_config["arms"]]
+        verdict = evidence_policy_verdict(args.attempt_root, args.dataset,
+                                          answer_config["selection"]["question_ids"], arms)
+        args.out.write_text(json.dumps(verdict, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps({"policy": verdict["policy"], "questions": verdict["questions"],
+                          "excluded": verdict["excluded"]}))
+        return 0
     engine = comp_record.engine_identity(args.engine_commit)
     config = load_config(args.config)
     os.environ.setdefault("FATHOMDB_EMBED_DEVICE", "auto")

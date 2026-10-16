@@ -472,13 +472,20 @@ with FTS, a `cohort` FILTERABLE projection, and three bm25 tie groups.
 | `prop_cohort_prefilter_matches_the_full_sort` (`proptest`, 32 cases, at most 60 rows, random cohort sizes, tie groups and limits) | 90 |
 | `cohort_prefilter_timing_report` (`#[ignore]`, report-only: cohort route and Defect C route forced in turn at c01 and c10 on a store built from `FATHOMDB_TC5_INPUTS`; prints p50 and p95) | — |
 
-Two tests pass today, because the cohort route does not exist and results
-are already equal:
+`cohort_prefilter_results_equal_rank_stream_and_full_sort` and
+`prop_cohort_prefilter_matches_the_full_sort` are the regression net: their
+results are already equal today. Each also asserts its route witness, so a
+forcing variable that is ignored fails them, and so both are RED before H3
+(the cohort route does not exist yet).
 
-- `cohort_prefilter_results_equal_rank_stream_and_full_sort` and
-  `prop_cohort_prefilter_matches_the_full_sort` are the regression net.
-- They fail only if the forcing environment variable is ignored. To guard
-  against that, each one asserts its route witness.
+The plan witness gains one field for AC40-84: `details`, the
+`EXPLAIN QUERY PLAN` detail rows in order. The Defect C tests read only
+`uses_temp_btree_for_order_by`, which is unchanged.
+
+The superseded-node case of AC40-89 checks only that a superseded version in
+the cohort is never returned. The attribute projection is maintained at rest
+(`record_lifecycle.rs`), so a superseded version keeps no attribute row to
+inflate the probe.
 
 `slice40_projected_fts_stream.rs` (AC40-27 to AC40-31) is unchanged.
 AC40-30 asserts results only and is unaffected. The cohort route for small

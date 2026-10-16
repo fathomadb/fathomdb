@@ -1,0 +1,1467 @@
+{
+  "schema_version": "measurement.plan.v3",
+  "plan_id": "comp02a-ingest-scale-v1",
+  "components": [
+    {
+      "id": "corpus",
+      "kind": "corpus_gold",
+      "name": "SCALE-02 TC-5 input pack with hashed bench_cohort (comp02_inputs)"
+    },
+    {
+      "id": "body",
+      "kind": "fathomdb_engine_search",
+      "name": "FathomDB Engine.search_text_only over node bodies"
+    },
+    {
+      "id": "surrealdb",
+      "kind": "external_retrieval",
+      "name": "SurrealDB 3.3 embedded RocksDB through experiments/comp_drivers/surrealdb"
+    },
+    {
+      "id": "metric",
+      "kind": "deterministic_metric",
+      "name": "COMP-02 latency percentiles and build, ingest, and reopen medians"
+    }
+  ],
+  "call_paths": [
+    {
+      "id": "body-path",
+      "operation": "Engine.search_text_only",
+      "source_artifact_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "surrealdb-path",
+      "operation": "external_retrieval",
+      "source_artifact_ids": [
+        "metrics"
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "comp02a-arms",
+      "arms": [
+        {
+          "id": "fathomdb-arm",
+          "component_ids": [
+            "body",
+            "corpus",
+            "metric"
+          ],
+          "execution_witness_ids": [
+            "fathomdb-arm-search"
+          ]
+        },
+        {
+          "id": "surrealdb-arm",
+          "component_ids": [
+            "corpus",
+            "metric",
+            "surrealdb"
+          ],
+          "execution_witness_ids": []
+        }
+      ],
+      "shared_component_ids": [
+        "corpus",
+        "metric"
+      ],
+      "differing_component_ids": [
+        "body",
+        "surrealdb"
+      ]
+    }
+  ],
+  "metric_bindings": [
+    {
+      "id": "documents",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/documents",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.0.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.build_return_s_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/build_return_s_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.build_return_s_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/build_return_s_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.cold_p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/cold_p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.cold_p50_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/cold_p50_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.cold_p50_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/cold_p50_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.disk_mib_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/disk_mib_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.disk_mib_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/disk_mib_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.documents",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/documents",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.0.empty_steady",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/empty_steady",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.empty_steady_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/empty_steady_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.empty_steady_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/empty_steady_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.first_query_after_reopen_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/first_query_after_reopen_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.first_query_after_reopen_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/first_query_after_reopen_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.first_query_after_reopen_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/first_query_after_reopen_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.ingest_ack_s_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/ingest_ack_s_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.ingest_ack_s_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/ingest_ack_s_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.peak_rss_mib_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/peak_rss_mib_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.peak_rss_mib_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/peak_rss_mib_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.probe_failing",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/probe_failing",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.probe_failing_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/probe_failing_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.probe_failing_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/probe_failing_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.query_ready_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/query_ready_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.query_ready_s_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/query_ready_s_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.query_ready_s_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/query_ready_s_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.reopen_s_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/reopen_s_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.reopen_s_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/reopen_s_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.sentinel_after_reopen",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/sentinel_after_reopen",
+      "value_type": "boolean",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.steady_p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/steady_p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.steady_p50_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/steady_p50_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.steady_p50_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/steady_p50_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.steady_p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/steady_p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.steady_p95_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/steady_p95_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.steady_p95_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/steady_p95_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.steady_p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/steady_p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.steady_p99_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/steady_p99_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.0.steady_p99_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/steady_p99_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "medians.1.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.build_return_s_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/build_return_s_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.build_return_s_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/build_return_s_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.cold_p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/cold_p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.cold_p50_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/cold_p50_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.cold_p50_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/cold_p50_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.disk_mib_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/disk_mib_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.disk_mib_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/disk_mib_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.documents",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/documents",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.empty_steady",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/empty_steady",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.empty_steady_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/empty_steady_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.empty_steady_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/empty_steady_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.first_query_after_reopen_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/first_query_after_reopen_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.first_query_after_reopen_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/first_query_after_reopen_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.first_query_after_reopen_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/first_query_after_reopen_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.ingest_ack_s_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/ingest_ack_s_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.ingest_ack_s_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/ingest_ack_s_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.peak_rss_mib_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/peak_rss_mib_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.peak_rss_mib_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/peak_rss_mib_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.probe_failing",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/probe_failing",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.probe_failing_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/probe_failing_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.probe_failing_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/probe_failing_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.query_ready_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/query_ready_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.query_ready_s_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/query_ready_s_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.query_ready_s_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/query_ready_s_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.reopen_s_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/reopen_s_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.reopen_s_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/reopen_s_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.sentinel_after_reopen",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/sentinel_after_reopen",
+      "value_type": "boolean",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.steady_p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/steady_p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.steady_p50_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/steady_p50_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.steady_p50_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/steady_p50_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.steady_p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/steady_p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.steady_p95_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/steady_p95_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.steady_p95_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/steady_p95_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.steady_p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/steady_p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.steady_p99_ms_range.0",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/steady_p99_ms_range/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "medians.1.steady_p99_ms_range.1",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/steady_p99_ms_range/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "surrealdb"
+      ],
+      "execution_witness_ids": []
+    }
+  ],
+  "measurement_roots": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointers": [
+        "/documents",
+        "/medians"
+      ]
+    }
+  ],
+  "metric_exclusions": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/5",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/6",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/7",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/host/cores",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/host/cpu",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/host/platform",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/host/python",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/0/reps",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/medians/1/reps",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/5",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/6",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/7",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/versions/fathomdb",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/versions/surrealdb",
+      "reason": "identifier_or_hash"
+    }
+  ],
+  "claims": [
+    {
+      "id": "steady-p50-ms-by-arm",
+      "layer": "data_plane",
+      "metric_ids": [
+        "medians.0.steady_p50_ms",
+        "medians.1.steady_p50_ms"
+      ]
+    }
+  ],
+  "execution_witness_bindings": []
+}

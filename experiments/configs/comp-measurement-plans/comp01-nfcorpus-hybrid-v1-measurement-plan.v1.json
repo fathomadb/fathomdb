@@ -1,0 +1,3039 @@
+{
+  "schema_version": "measurement.plan.v3",
+  "plan_id": "comp01-nfcorpus-hybrid-v1",
+  "components": [
+    {
+      "id": "corpus",
+      "kind": "corpus_gold",
+      "name": "BEIR NFCorpus test split documents, queries, and qrels (comp01_nfcorpus)"
+    },
+    {
+      "id": "fts",
+      "kind": "fathomdb_engine_search",
+      "name": "FathomDB Engine.search_text_only over plain document bodies"
+    },
+    {
+      "id": "hybrid",
+      "kind": "fathomdb_engine_search",
+      "name": "FathomDB Engine.search over plain document bodies with a searchable dense vector projection"
+    },
+    {
+      "id": "metric",
+      "kind": "deterministic_metric",
+      "name": "COMP-01 nDCG, recall, and MRR at 10 plus latency percentiles"
+    }
+  ],
+  "call_paths": [
+    {
+      "id": "fts-path",
+      "operation": "Engine.search_text_only",
+      "source_artifact_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "hybrid-path",
+      "operation": "Engine.search",
+      "source_artifact_ids": [
+        "metrics"
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "comp01-arms",
+      "arms": [
+        {
+          "id": "fathomdb-arm",
+          "component_ids": [
+            "corpus",
+            "fts",
+            "metric"
+          ],
+          "execution_witness_ids": [
+            "fathomdb-arm-search"
+          ]
+        },
+        {
+          "id": "fathomdb-hybrid-arm",
+          "component_ids": [
+            "corpus",
+            "hybrid",
+            "metric"
+          ],
+          "execution_witness_ids": [
+            "fathomdb-hybrid-arm-search"
+          ]
+        }
+      ],
+      "shared_component_ids": [
+        "corpus",
+        "metric"
+      ],
+      "differing_component_ids": [
+        "fts",
+        "hybrid"
+      ]
+    }
+  ],
+  "metric_bindings": [
+    {
+      "id": "affected_queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/affected_queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "cells.0.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.0.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.1.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.2.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.3.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.4.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.5.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.6.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "cells.7.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "documents",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/documents",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "median_by_arm.fathomdb.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "fts",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.build_return_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/build_return_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.disk_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/disk_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.empty_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/empty_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.first_query_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/first_query_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.ingest_ack_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/ingest_ack_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.mrr_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/mrr_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.mrr_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/mrr_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.ndcg_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/ndcg_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.ndcg_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/ndcg_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.p99_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/p99_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.peak_rss_mib",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/peak_rss_mib",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.recall_at_10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.recall_at_10_unaffected",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/recall_at_10_unaffected",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    },
+    {
+      "id": "median_by_arm.fathomdb-hybrid.reopen_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/median_by_arm/fathomdb-hybrid/reopen_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "hybrid",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "fathomdb-hybrid-arm-search"
+      ]
+    }
+  ],
+  "measurement_roots": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointers": [
+        "/affected_queries",
+        "/cells",
+        "/documents",
+        "/median_by_arm"
+      ]
+    }
+  ],
+  "metric_exclusions": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/0/repetition",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/1/repetition",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/2/repetition",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/3/repetition",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/4/repetition",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/5/repetition",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/6/repetition",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/arm",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/7/repetition",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/5",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/6",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells_complete/7",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/host/cores",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/host/cpu",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/host/platform",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/host/python",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/5",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/6",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/roster/7",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/versions/fathomdb",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/versions/fathomdb-hybrid",
+      "reason": "identifier_or_hash"
+    }
+  ],
+  "claims": [
+    {
+      "id": "ndcg-by-arm",
+      "layer": "data_plane",
+      "metric_ids": [
+        "median_by_arm.fathomdb.ndcg_at_10",
+        "median_by_arm.fathomdb-hybrid.ndcg_at_10"
+      ]
+    }
+  ],
+  "execution_witness_bindings": []
+}

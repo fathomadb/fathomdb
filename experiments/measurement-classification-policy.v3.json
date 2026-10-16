@@ -55,6 +55,136 @@
         "sha256": "8bed1c42e2106a766beb197d9f48ed7c482a162bd9d788b5be0c507bee101a1e",
         "plan_id": "comp03-hermes-answer-v2"
       }
+    },
+    {
+      "run_id": "comp-03-retrieval-sweep-20261016T1725Z-17773486",
+      "record_sha256": "f71d36cd5d199642d74bf67b517d15db7c7109c27f7cee06371c7c5df66a4e09",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-03/comp03-retrieval-sweep-v1-measurement-plan.v1.json",
+        "sha256": "ff29d0671733743bf2347a862db6df426a6f71feccdb7f8510c05e0aee3b8af9",
+        "plan_id": "comp03-retrieval-sweep-v1"
+      }
+    },
+    {
+      "run_id": "comp-03-hermes-answer-20261016T1609Z-1c856c71",
+      "record_sha256": "cb2770a54c78c68f1568b237f59df625a1bf238774726c8eac8768eadf28f9cc",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-03/comp03-hermes-answer-v2-measurement-plan.v1.json",
+        "sha256": "8bed1c42e2106a766beb197d9f48ed7c482a162bd9d788b5be0c507bee101a1e",
+        "plan_id": "comp03-hermes-answer-v2"
+      }
+    },
+    {
+      "run_id": "comp-03-hermes-answer-20261016T1609Z-22869ddc",
+      "record_sha256": "1a891a87ebdfba9f7ce23d32e4d895ce435d7f9842f7f90810daccd55ca4246d",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-03/comp03-hermes-answer-v2-measurement-plan.v1.json",
+        "sha256": "8bed1c42e2106a766beb197d9f48ed7c482a162bd9d788b5be0c507bee101a1e",
+        "plan_id": "comp03-hermes-answer-v2"
+      }
+    },
+    {
+      "run_id": "comp-03-hermes-answer-20261016T1610Z-33d78241",
+      "record_sha256": "4cbe2408863e74cd92b6cd9afa78ad5d90c7efce720fc4baab2e6ddac1d4e628",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-03/comp03-hermes-answer-v2-measurement-plan.v1.json",
+        "sha256": "8bed1c42e2106a766beb197d9f48ed7c482a162bd9d788b5be0c507bee101a1e",
+        "plan_id": "comp03-hermes-answer-v2"
+      }
+    },
+    {
+      "run_id": "comp-03-hermes-answer-20261016T1732Z-33d78241",
+      "record_sha256": "2054caa603daa1bf74d377dc2b1718bd81892b5a279f9df75501c7c297452bff",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-03/comp03-hermes-answer-v2-measurement-plan.v1.json",
+        "sha256": "8bed1c42e2106a766beb197d9f48ed7c482a162bd9d788b5be0c507bee101a1e",
+        "plan_id": "comp03-hermes-answer-v2"
+      }
+    },
+    {
+      "run_id": "comp-03-hermes-answer-20261016T1732Z-50579949",
+      "record_sha256": "ff326d0cd2ca90af46a29b26a2bc3b32942e931291e92bc85c095ebfb7be0f80",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-03/comp03-hermes-answer-v2-measurement-plan.v1.json",
+        "sha256": "8bed1c42e2106a766beb197d9f48ed7c482a162bd9d788b5be0c507bee101a1e",
+        "plan_id": "comp03-hermes-answer-v2"
+      }
+    },
+    {
+      "run_id": "comp-03-hermes-answer-20261016T1747Z-4e56afa9",
+      "record_sha256": "b900bbbb3afe1636b1a510227e979c2d6dfed7b15a5c97b56b87cdd96cffdb09",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-03/comp03-hermes-answer-v2-measurement-plan.v1.json",
+        "sha256": "8bed1c42e2106a766beb197d9f48ed7c482a162bd9d788b5be0c507bee101a1e",
+        "plan_id": "comp03-hermes-answer-v2"
+      }
+    },
+    {
+      "run_id": "comp-01-comp01-3633-20261016T1755Z-b9aa1214",
+      "record_sha256": "4f5e5b2459dcb153e9b210f00e1fe0b344bba49102dcd1b460427893d5762a48",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp01-nfcorpus-fts-v1-measurement-plan.v1.json",
+        "sha256": "1ae51a66f44b9246f9fd4a3d3d63899775c1af3a23bd1d55382cf16f88ac338e",
+        "plan_id": "comp01-nfcorpus-fts-v1"
+      }
+    },
+    {
+      "run_id": "comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec",
+      "record_sha256": "8ead2068e6388f7b85a42eea58fd92ca56265eddd3a477232026990fa3d0a203",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp01-nfcorpus-hybrid-v1-measurement-plan.v1.json",
+        "sha256": "acbbff3c2f8204914b392783fa1cdca8e9ed6eabec13b764f1a0b5d530974672",
+        "plan_id": "comp01-nfcorpus-hybrid-v1"
+      }
+    },
+    {
+      "run_id": "comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7",
+      "record_sha256": "5cb25406c311be796ff2f281b1936c1960f235817f386e76e2d5f19daf44613b",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02a-ingest-scale-v1-measurement-plan.v1.json",
+        "sha256": "9b307ee97ac0df6edf94c676f6013e7375444b6af33d9a96ccac5cdf010533dc",
+        "plan_id": "comp02a-ingest-scale-v1"
+      }
+    },
+    {
+      "run_id": "comp-02a-comp02a-17272-20261016T1756Z-eede35ef",
+      "record_sha256": "a663ff430ce8322f094c9bb34fe0e9ecc9ccd30570f47c0ad9a489de4f0d0fe9",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02a-ingest-scale-v1-measurement-plan.v1.json",
+        "sha256": "9b307ee97ac0df6edf94c676f6013e7375444b6af33d9a96ccac5cdf010533dc",
+        "plan_id": "comp02a-ingest-scale-v1"
+      }
+    },
+    {
+      "run_id": "comp-02b-comp02b-10000-20261016T1757Z-d91933b9",
+      "record_sha256": "5a8973fcb244954db1a7964f332c3a92e0eaa6e35b7ac32d71094c7fc3fb843e",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-filtered-v1-measurement-plan.v1.json",
+        "sha256": "c64eef03e3a804b20f46a848e296c13bfa33940890c8a3e6a2595a2a46fcb1e7",
+        "plan_id": "comp02b-filtered-v1"
+      }
+    },
+    {
+      "run_id": "comp-02b-latency-20261016T1700Z-4f96fad0",
+      "record_sha256": "71f121f58beba68c5146c4f8ad8f3e0ce7225847319f5e060c94a7ddd4326463",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-latency-v1-measurement-plan.v1.json",
+        "sha256": "1a251ea94247d622b9ccce61854c8737dda5067d4c11785f2015d7009ac9870b",
+        "plan_id": "comp02b-latency-v1"
+      }
     }
   ],
   "external_artifact_locator_amendments": [

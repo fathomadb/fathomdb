@@ -114,6 +114,23 @@ def test_rule_breaks_ties_on_fewer_chars_and_keeps_the_baseline_when_nothing_bea
     assert _sweep().select_evidence_policy(worse, baseline=base)["policy"] == base
 
 
+def test_rule_also_holds_for_fathomdb_fts_alone_and_falls_back_when_the_pooled_winner_breaks_it():
+    base = "4000/20000/off"
+    pooled = {
+        base: _policy_row(900, {"ms": 300}, 27_000_000),
+        "1000/30000/on": _policy_row(1000, {"ms": 300}, 30_000_000),
+        "2000/30000/on": _policy_row(960, {"ms": 300}, 33_000_000),
+    }
+    fts = {
+        base: _policy_row(300, {"ms": 100}, 9_000_000),
+        "1000/30000/on": _policy_row(330, {"ms": 98}, 10_000_000),
+        "2000/30000/on": _policy_row(320, {"ms": 99}, 11_000_000),
+    }
+    verdict = _sweep().select_evidence_policy(pooled, baseline=base, fts=fts)
+    assert verdict["policy"] == "2000/30000/on", "the pooled winner loses two fts multi-session questions"
+    assert verdict["excluded"] == {"1000/30000/on": ["fathomdb-fts:ms"]}
+
+
 def test_policy_grid_is_the_stated_twelve_policies():
     grid = _sweep().evidence_policy_grid()
     assert len(grid) == 12

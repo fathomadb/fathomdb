@@ -143,6 +143,65 @@ mod tests {
         );
     }
 
+    /// The Unit D additions to the stop list: possessive and contraction
+    /// fragments, then short function words.
+    const UNIT_D_STOPWORDS: [&str; 12] =
+        ["s", "t", "ll", "re", "ve", "m", "my", "me", "us", "am", "so", "up"];
+
+    #[test]
+    fn unit_d_words_are_in_the_stop_list_and_content_letters_are_not() {
+        for word in UNIT_D_STOPWORDS {
+            assert!(STOPWORDS.contains(&word), "{word:?} must be a stopword");
+        }
+        for word in ["d", "c", "d3", "ii", "1", "b12"] {
+            assert!(!STOPWORDS.contains(&word), "{word:?} must stay content");
+        }
+    }
+
+    #[test]
+    fn each_unit_d_word_alone_takes_the_fallback() {
+        // Upper case tells the paths apart: the content path lowercases, the
+        // fallback emits the raw token.
+        for word in UNIT_D_STOPWORDS {
+            let upper = word.to_uppercase();
+            assert_eq!(
+                compile_text_query(upper.as_str()).match_expression,
+                format!("\"{upper}\""),
+                "{word:?} alone has no content token"
+            );
+        }
+    }
+
+    #[test]
+    fn possessive_and_contraction_fragments_are_dropped() {
+        assert_eq!(compile_text_query("Cow's Milk").match_expression, "\"cow\" OR \"milk\"");
+        assert_eq!(compile_text_query("don't panic").match_expression, "\"don\" OR \"panic\"");
+        assert_eq!(
+            compile_text_query("I've said we'll meet if you're free, I'm told").match_expression,
+            "\"said\" OR \"meet\" OR \"free\" OR \"told\""
+        );
+    }
+
+    #[test]
+    fn short_function_words_are_dropped() {
+        assert_eq!(
+            compile_text_query("my dog likes me so I take us up the hill as I am").match_expression,
+            "\"dog\" OR \"likes\" OR \"take\" OR \"hill\""
+        );
+    }
+
+    #[test]
+    fn short_content_tokens_survive_the_unit_d_stop_list() {
+        assert_eq!(
+            compile_text_query("my vitamin D level").match_expression,
+            "\"vitamin\" OR \"d\" OR \"level\""
+        );
+        assert_eq!(
+            compile_text_query("so is IGF-1 up with D3, B12 or C in study II?").match_expression,
+            "\"igf\" OR \"1\" OR \"d3\" OR \"b12\" OR \"c\" OR \"study\" OR \"ii\""
+        );
+    }
+
     #[test]
     fn short_token_only_query_takes_the_content_path() {
         // A query whose only token is short is content, not a fallback: the

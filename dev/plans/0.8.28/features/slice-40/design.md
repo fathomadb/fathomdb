@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — design
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C landed; § 2c Unit D added 2026-10-16, for review
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C landed; § 2c Unit D revised after its R1, W4 done
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -235,35 +235,30 @@ lineage merges forward; noted as a risk.
 
 ### 2c.2 Store shapes per arm
 
+R1 ruling Q-D2: the hybrid arm uses the fts arm's plain bodies, so the
+pair is a pure vector-arm ablation over identical text.
+
 | Sweep arm | `comp_fts` arm | Store | Query |
 | --- | --- | --- | --- |
 | `fathomdb-fts` | `fathomdb` (unchanged) | plain round text as the body, no embedder, no projection: exactly v1 | `search_text_only(question, limit=10)` |
-| `fathomdb-hybrid` | `fathomdb-hybrid` (new) | `Engine.open(use_default_embedder=True)`; `configure_projections([ProjectionSpec(name="text", roles={SEARCHABLE}, fts=True, vector=True)])` before writes; body `json.dumps({"text": round_text})`; `drain`, then the coverage check | `search(question, limit=10)`: RRF of the vector and text arms (3:1 text), no rerank, no graph arm |
-| `fathomdb-fts-projected` | `fathomdb-fts-projected` (new) | the hybrid store without the embedder or vectors: JSON body, projection `text` with `fts=True` only | `search_text_only(question, limit=10)` |
+| `fathomdb-hybrid` | `fathomdb-hybrid` (new) | `Engine.open(use_default_embedder=True)`; `configure_projections([ProjectionSpec(name="dense", roles=frozenset({SEARCHABLE}), vector=True)])` before writes; the same plain bodies; `drain`, then the coverage check | `search(question, limit=10)`: RRF of the vector and text arms (3:1 text), no rerank, no graph arm |
 | `lancedb-fts` | `lancedb` (unchanged) | as v1 | as v1 |
 
-- A plain `doc` write under `use_default_embedder=True` embeds nothing: no
-  vector kind is enrolled, `_fathomdb_vector_rows` stays empty, and
-  `search` returns text hits only. The public route that enrols the vector
-  kind is `configure_projections` with a `vector=True` searchable
-  projection (orchestrator measurement on the CUDA wheel, 2026-10-16; the
-  test-hooks seam `_configure_vector_kind_for_test` is not used).
-- `fathomdb-fts` and `fathomdb-hybrid` therefore differ in store shape as
-  well as in the vector arm. The paired comparison is "FathomDB as a user
-  would run each mode", not an ablation of the vector arm alone.
-  `fathomdb-fts-projected` measures the store-shape effect on its own and
-  costs no embedding.
-- **What is embedded (read from the code, for R1).** The projection worker
-  embeds `job.body`, the node's full `canonical_nodes.body`
-  (`projection_worker.rs`, `embed_projection_batch` and the pending-job
-  query), not the projected attribute. In the hybrid store the vector arm
-  therefore embeds the JSON string `{"text": "…"}`, and the text arm inside
-  `search` runs over the same JSON string through `search_index`. A CPU
-  probe on the dev wheel also showed a plain-body store with any
-  `vector=True` searchable projection (`name="dense"`, absent from the
-  body) gets one vector row per document and `vector` hits. A plain-body
-  hybrid variant would make the pair a pure vector-arm ablation (open
-  question Q-D2, test-plan § 8).
+- **Product finding.** A plain `doc` write under
+  `use_default_embedder=True` embeds nothing: no vector kind is enrolled,
+  `_fathomdb_vector_rows` stays empty, and `search` returns text hits only
+  (orchestrator measurement on the CUDA wheel, 2026-10-16). Declaring a
+  searchable `vector=True` projection is the public switch that enrols the
+  node kind for dense projection. The test-hooks seam
+  `_configure_vector_kind_for_test` is not used.
+- **What is embedded.** The projection worker embeds `job.body`, the
+  node's full `canonical_nodes.body` (`projection_worker.rs`,
+  `embed_projection_batch` and the pending-job query), not a projected
+  attribute. A projection named `dense`, absent from every body, therefore
+  still gives one vector row per document (verified on the CPU dev wheel
+  and on the CUDA wheel, 200 of 200).
+- The `fathomdb-fts-projected` variant of the earlier draft is dropped: it
+  measured a store-shape difference that no longer exists.
 
 ### 2c.3 Module layout (D1)
 
@@ -388,10 +383,10 @@ one). `d` stays content: it is the vitamin D case Defect B was for, and
 | --- | --- |
 | Hybrid silently equals FTS (no vectors) | Coverage check per store; `vector` hits asserted in a test |
 | CUDA run falls back to CPU | `require_embed_device` refuses; device recorded |
-| Store shape confounds the hybrid delta | `fathomdb-fts-projected` arm; Q-D2 on a plain-body variant |
+| Store shape confounds the hybrid delta | Removed by Q-D2: both arms index the same plain bodies |
 | D3 hurts NFCorpus or recall | Measurement gate REQ40-D6; D3 in its own commit for revert |
-| `possessive_and_contraction_fragments_are_content_tokens` contradicts D3 | Ruling needed before W4 (test-plan § 3c) |
-| AC-038 mirror goes stale | Its fixture needs no change; its private stop-list copy needs updating with D3 (test-plan § 3c) |
+| `possessive_and_contraction_fragments_are_content_tokens` contradicts D3 | Deleted in the D3 commit (Q-D1) |
+| AC-038 mirror goes stale | Its private stop-list copy gains the twelve words in the D3 commit; fixture unchanged (Q-D3) |
 | `fathomdb_test_setup.py` diverges between lineages | Recorded; merge-forward resolves |
 
 ## 3. Files touched

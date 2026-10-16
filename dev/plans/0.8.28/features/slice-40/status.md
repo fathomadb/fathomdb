@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — status
-status: ACTIVE (Defects A, B, C GREEN on the branch; Unit D added 2026-10-16, docs and RED tests done, awaiting review)
+status: ACTIVE (Defects A, B, C and Unit D GREEN on the branches; awaiting the orchestrator's measurements)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -28,8 +28,10 @@ for phase 1 is `output.json` in this directory.
 | D-W1 Unit D docs | done 2026-10-16: requirements § 1.4, REQ40-D1..D6, AC40-33..48; design § 2c; test-plan § 3c, § 5.5 |
 | D-W2 D3 RED tests | done: 5 RED in `fathomdb-query` (test-plan § 5.5) |
 | D-W2 D1/D2 RED tests | done on `slice/0.8.28-40-comp03` (worktree `comp03-slice40`): 27 RED, pre-existing 9 pass, 2 skip (no `lancedb` in that `.venv`) |
-| D-R1 | not started; open questions Q-D1..Q-D5 in test-plan § 9 |
-| D-W4 | not started (D3 in its own commit; D1/D2 on the comp branch) |
+| D-R1 | APPROVE-WITH-FIXES on `706bcab91` / `efa10e0c5` / `990f094ad`: Q-D1 delete the superseded test, Q-D2 plain-body hybrid and drop `fathomdb-fts-projected`, Q-D3 sync the AC-038 copy, Q-D4 install `lancedb==0.40.0`, Q-D5 `comp01-hybrid` accepted |
+| D-W4 | done: harness `8ef511554` on `slice/0.8.28-40-comp03` (tests aligned at `34cacdf87`, `c08a25691`); D3 alone at `5b09afd44`, CHANGELOG `8d5d93cef`; all Unit D tests GREEN (test-plan § 5.6) |
+| D-W5 | see test-plan § 6.3 |
+| D measurements (orchestrator) | not started: D1 sweep on cuda:0, NFCorpus with the D3 wheel plus `comp01-hybrid`, 10k TC-5 latency, D2 answer run |
 
 ## Follow-ups (not in this slice)
 

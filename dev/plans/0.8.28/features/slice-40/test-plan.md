@@ -25,6 +25,17 @@ cargo test -p fathomdb-engine --test pr_g9_rrf_fusion
 W5 then runs the full gate, `./scripts/agent-verify.sh`, once on the final
 tree.
 
+The Unit D harness tests run in the `comp03-slice40` worktree from its own
+`.venv`, which gained `lancedb==0.40.0` and `pyarrow==26.0.0`
+(`.venv/bin/pip install lancedb==0.40.0 pyarrow==26.0.0`, R1 ruling Q-D4)
+so the LanceDB-backed tests run instead of skipping:
+
+```bash
+cd ~/projects/fathomdb-worktrees/comp03-slice40
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_retrieval.py tests/experiments/test_comp03_answer.py
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments
+```
+
 ## 2. Engine: `src/rust/crates/fathomdb-engine/tests/slice40_fts_ranking.rs` (new)
 
 Pure-function tests use hand-built `SearchHit` lists. End-to-end tests open
@@ -159,17 +170,14 @@ cargo test -p fathomdb-query
 | `short_function_words_are_dropped` | 46 | RED |
 | `short_content_tokens_survive_the_unit_d_stop_list` | 46 | RED (its inputs carry "my", "so", "up") |
 
-**Conflict needing a ruling before W4.** The existing
+**Superseded test (R1 ruling Q-D1).**
 `possessive_and_contraction_fragments_are_content_tokens` (added at W3 for
-R1 F2 to pin that "s" and "t" were content) asserts `"cow" OR "s" OR
-"milk"`. D3 reverses that by design, so after W4 it fails, and
-`possessive_and_contraction_fragments_are_dropped` asserts the opposite.
-"Every existing Slice 40 compiler test still holds unchanged" cannot hold
-for this one test. It was not edited. Proposed ruling: delete it (the
-new test covers the same inputs with the D3 expectation) in the D3
-commit. Every other existing compiler test is unaffected: none of their
-inputs contains one of the twelve words except as a stopword already
-expected to drop, and the property tests read `STOPWORDS` itself.
+R1 F2 to pin that "s" and "t" were content) asserted `"cow" OR "s" OR
+"milk"`. REQ40-D5 reverses that rule by owner ruling, so the D3 commit
+deletes it; `possessive_and_contraction_fragments_are_dropped` covers the
+same inputs with the D3 expectation. Every other existing compiler test is
+unchanged and passes: none of their inputs contains one of the twelve words
+as content, and the property tests read `STOPWORDS` itself.
 
 **Engine tests.** `slice40_fts_ranking.rs` (the "Cow's milk" test still
 ranks the cow row first with `"cow" OR "milk"`), `slice40_projected_fts_stream.rs`
@@ -183,12 +191,11 @@ fixture queries over a 12-row corpus. The query alphabet (`alpha` …
 `juliet`, `d3`, `c`, `ii`, `1`) and the template literals (`NEAR`, `body`,
 `col`, `NOT`, `AND`, `OR`, `5`, `2`, `3`) contain none of the twelve words,
 and neither does the corpus. So the test stays green with or without D3,
-and its fixture (corpus and queries) needs no regeneration. Its private
-stop-list copy, however, would no longer mirror the compiler after D3.
-At W3 the token-rule change was mirrored in that copy (and the corpus was
-extended under R1 F1). Proposed: add the twelve words to the copy in the D3
-commit, with no fixture change. Not touched until ruled, since it is a test
-edit.
+and its fixture (corpus and queries) needs no regeneration. By R1 ruling
+Q-D3 the D3 commit adds the twelve words to its private stop-list copy so
+the parity oracle stays in sync. Because the fixture corpus and queries
+contain none of the twelve words, the test is green either way and does
+not exercise them; the `fathomdb-query` unit tests are the oracle for D3.
 
 ### D1 and D2, harness (`comp03-slice40` worktree)
 
@@ -229,7 +236,7 @@ the configs and the new arms do not exist yet):
 | `test_comp_fts_fts_arm_is_byte_unchanged_and_hybrid_arm_is_registered` (pins the SHA-256 of `inspect.getsource(FathomArm)` at `0e246ad31` and its settings dict) | 42 |
 | `test_hybrid_arm_store_has_one_vector_row_per_document_and_vector_hits` | 40 |
 | `test_vector_coverage_check_refuses_a_store_without_vectors` | 40 |
-| `test_fts_projected_arm_stores_json_bodies_and_searches_text_only` | 41 |
+| ~~`test_fts_projected_arm_stores_json_bodies_and_searches_text_only`~~ (removed, Q-D2) | 41 |
 | `test_sweep_covers_every_question_and_resume_does_no_new_work` | 38, 42 |
 | `test_sweep_refuses_a_dataset_whose_digest_differs` | 38 |
 | `test_sweep_hybrid_arm_records_the_resolved_device_and_writes_a_verdict` | 39, 40 |
@@ -247,6 +254,26 @@ untouched):
 | `test_hybrid_arm_runs_when_the_sweep_verdict_is_adopt` | 45 | RED |
 
 ## 4. Existing tests touched
+
+**Unit D (phase 4).**
+
+- `fathomdb-query`: `possessive_and_contraction_fragments_are_content_tokens`
+  deleted in the D3 commit `5b09afd44`. It pinned the Defect B rule that
+  "s" and "t" are content; REQ40-D5 supersedes it by owner ruling (Q-D1).
+- `fts5_injection_safety.rs`: the private stop-list copy gains the twelve
+  words in `5b09afd44` (Q-D3); fixture unchanged.
+- Harness RED tests of this phase, before any production code:
+  - `test_fts_projected_arm_stores_json_bodies_and_searches_text_only`
+    removed and the sweep-config arm list cut to three, because Q-D2
+    dropped the `fathomdb-fts-projected` variant (`34cacdf87`); the
+    hybrid store test gained an assertion that the store holds the fts
+    arm's plain bodies.
+  - `test_v2_config_keeps_v1_inputs_and_widens_to_three_arms_at_k10` no
+    longer requires v2's `metrics` list to equal v1's; it requires v1's
+    names with `_at_5` read as `_at_10`, since v2 reports at k = 10
+    (`c08a25691`). The first form would have pinned a stale description.
+
+**Earlier phases.**
 
 `src/rust/crates/fathomdb-engine/tests/fts5_injection_safety.rs` (AC-038):
 its `content_tokens` reference mirrors the compiler, so its `t.len() >= 3`
@@ -544,7 +571,60 @@ the source-hash and settings assertions pass; it fails at the missing
 `fathomdb-hybrid` arm. `tests/experiments/test_comp_fts.py` is unchanged
 and still passes (`7 passed, 5 skipped`).
 
-## 6. Pre-existing test failures at W5
+### 5.6 GREEN run for Unit D (W4, 2026-10-16)
+
+No test edited after the commits listed in § 4.
+
+D3 at `5b09afd44` (CHANGELOG at `8d5d93cef`), from `src/rust`:
+
+```text
+cargo test -p fathomdb-query
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+cargo test -p fathomdb-engine --test slice40_fts_ranking --test fts5_injection_safety
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+cargo test -p fathomdb-engine --features test-hooks --test slice40_projected_fts_stream
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+cargo test -p fathomdb-engine
+exit 0; 79 test binaries; 474 passed, 0 failed, 7 ignored
+```
+
+19 = the 15 tests before Unit D, minus the deleted one, plus the five D3
+tests.
+
+Harness at `8ef511554` (`comp03-slice40`), from the worktree root:
+
+```text
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_retrieval.py tests/experiments/test_comp03_answer.py
+37 passed, 3 warnings in 36.27s
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments
+FAILED tests/experiments/test_locomo_live_executor_review_remediation.py::test_full_grid_combiner_requires_same_release_config_and_exactly_52_unique_cells
+FAILED tests/experiments/test_release_0825_slice71.py::test_checked_in_receipt_binds_manifest_fixture_and_raw_logs
+FAILED tests/experiments/test_release_0825_slice71b.py::test_checked_in_attribution_manifest_is_strict_and_valid
+FAILED tests/experiments/test_scale_02_scale_followup.py::test_config_freezes_two_hypotheses_and_three_points
+4 failed, 811 passed, 23 skipped, 5 warnings in 46.90s
+```
+
+The 37 are 20 collected from `test_comp03_retrieval.py` (17 functions,
+the parametrized reject test counting four) and 17 from
+`test_comp03_answer.py` (11 pre-existing, the two LanceDB tests now
+running, and 6 new). The 3 warnings are LanceDB's `create_fts_index`
+deprecation in the unchanged `LanceArm`. The 4 failures in the whole tree
+fail the same way with the Unit D changes stashed (`4 failed`); none
+touches COMP code:
+
+```text
+E           experiments.locomo_live_executor.LiveExecutorError: PARENT cell receipt parent context exceeds the released bound
+E           AssertionError: assert '73646fdac08d...04045c577e628' == 'd6bfeca0242d...493d5cd706b00'
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/coreyt/projects/fathomdb-worktrees/comp03-slice40/data/performance-benchmarking/scale-02/slice71b/scale02-input.v1.jsonl'
+E               experiments.scale_02_scale_followup.Scale02ScaleFollowupError: dependency digest drifted
+```
+
+A smoke of the `comp01-hybrid` cell on three documents
+(`python -m experiments.comp_fts _cell --mode fts --arm fathomdb-hybrid`,
+CPU) recorded `vector_rows` 3, a positive `drain_s` and `Engine.search`.
 
 A failing pre-existing test is not edited; it is listed here verbatim
 (R1 F4). No test was edited at W4 or W5.

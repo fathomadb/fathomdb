@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — requirements and acceptance criteria
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C landed on the branch; Unit D added 2026-10-16 (owner ruling), for review
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C landed; Unit D revised after its R1 (Q-D1..Q-D5 ruled), W4 done
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -223,9 +223,10 @@ changes the product.
 **REQ40-D1 — retrieval sweep (D1).** A new harness module runs every
 LongMemEval-S question through the arms `fathomdb-fts`
 (`search_text_only`, v1 store shape), `fathomdb-hybrid` (default embedder,
-`Engine.search`, no rerank, no graph arm), `fathomdb-fts-projected` (the
-hybrid store shape without vectors, `search_text_only`) and `lancedb-fts`
-(reference). Per question and arm it records the top-10 IDs, query latency,
+`Engine.search`, no rerank, no graph arm, over the same plain bodies plus a
+searchable `vector=True` projection declaration) and `lancedb-fts`
+(reference). `fathomdb-fts` vs `fathomdb-hybrid` is a pure vector-arm
+ablation over identical text (R1 ruling Q-D2). Per question and arm it records the top-10 IDs, query latency,
 and build time, with embedding time recorded apart. It reports, overall and
 per question type: session Recall@5 and @10 (any), session Recall-all@5
 and @10, session MRR@10, turn Recall@5 and @10, and a paired bootstrap 95%
@@ -364,13 +365,13 @@ branch; its D3 tests are in the `fathomdb-query` test module.
 | AC40-37 | Gold-leak discipline: the sweep's `convert_question` and `gold_for` are `comp03_answer`'s; gold changes leave hybrid retrieval byte-identical | `test_sweep_reuses_answer_harness_conversion_and_gold`, `test_gold_changes_leave_hybrid_retrieval_byte_identical` | D2 |
 | AC40-38 | Every question (abstentions included) is retrieved, abstentions are not scored, rerun does no new work, a wrong dataset digest is refused | `test_sweep_covers_every_question_and_resume_does_no_new_work`, `test_sweep_refuses_a_dataset_whose_digest_differs` | D2 |
 | AC40-39 | Device: a CUDA request resolved to CPU (or unresolved) is refused; the sweep records requested and effective device | `test_device_check_refuses_a_cuda_request_that_resolved_to_cpu`, `test_sweep_hybrid_arm_records_the_resolved_device_and_writes_a_verdict` | D2 |
-| AC40-40 | Hybrid store: one vector row per document, at least one `vector` hit, crosses a vocabulary gap FTS cannot; coverage check refuses a store without vectors; build records drain (embedding) time apart | `test_hybrid_arm_store_has_one_vector_row_per_document_and_vector_hits`, `test_vector_coverage_check_refuses_a_store_without_vectors`, `test_sweep_hybrid_arm_records_the_resolved_device_and_writes_a_verdict` | D1, D2 |
-| AC40-41 | `fathomdb-fts-projected`: JSON bodies, no vectors, `search_text_only` | `test_fts_projected_arm_stores_json_bodies_and_searches_text_only` | D1 |
+| AC40-40 | Hybrid store: the fts arm's plain bodies, one vector row per document, at least one `vector` hit, crosses a vocabulary gap FTS cannot; coverage check refuses a store without vectors; build records drain (embedding) time apart | `test_hybrid_arm_store_has_one_vector_row_per_document_and_vector_hits`, `test_vector_coverage_check_refuses_a_store_without_vectors`, `test_sweep_hybrid_arm_records_the_resolved_device_and_writes_a_verdict` | D1, D2 |
+| AC40-41 | Withdrawn by R1 ruling Q-D2: the `fathomdb-fts-projected` variant was dropped with the JSON-body hybrid shape | — | — |
 | AC40-42 | `comp_fts`: the `fathomdb` arm's source and settings are byte-unchanged; `fathomdb-hybrid` and campaign `comp01-hybrid` are registered; the sweep's fts record carries v1's settings | `test_comp_fts_fts_arm_is_byte_unchanged_and_hybrid_arm_is_registered`, `test_sweep_covers_every_question_and_resume_does_no_new_work` | D4 |
 | AC40-43 | v2 answer config keeps v1's questions, corpus, document unit, evidence, models and metrics, widens to three arms at k = 10, gates only the hybrid arm | `test_v2_config_keeps_v1_inputs_and_widens_to_three_arms_at_k10` | D4 |
 | AC40-44 | Arm order: rotation equals v1's alternation for two arms; each of three arms takes each position once per three questions | `test_arm_order_rotation_reduces_to_the_v1_alternation_for_two_arms`, `test_arm_order_rotation_puts_each_of_three_arms_in_each_position_once` | D4 |
 | AC40-45 | Hybrid gate: a `reject` sweep verdict runs no hybrid work; `adopt` runs it; v1 tests unchanged | `test_hybrid_arm_is_skipped_unless_the_sweep_verdict_is_adopt`, `test_hybrid_arm_runs_when_the_sweep_verdict_is_adopt`, the pre-existing `test_comp03_answer.py` tests | D4 |
 | AC40-46 | D3: the twelve words are stopwords and `d`, `c`, `d3`, `ii`, `1`, `b12` are not; each word alone takes the fallback; possessive and contraction fragments and the short function words are dropped; short content tokens survive | `unit_d_words_are_in_the_stop_list_and_content_letters_are_not`, `each_unit_d_word_alone_takes_the_fallback`, `possessive_and_contraction_fragments_are_dropped`, `short_function_words_are_dropped`, `short_content_tokens_survive_the_unit_d_stop_list` | D5 |
-| AC40-47 | D3: every other Slice 40 compiler and engine test still passes unchanged, except `possessive_and_contraction_fragments_are_content_tokens`, whose expectation D3 reverses (needs a ruling, test-plan § 3c) | the `fathomdb-query` test module, `slice40_fts_ranking.rs`, `fts5_injection_safety.rs`, `slice40_projected_fts_stream.rs` | D5 |
+| AC40-47 | D3: every other Slice 40 compiler and engine test still passes unchanged; `possessive_and_contraction_fragments_are_content_tokens` is deleted (R1 ruling Q-D1) and the AC-038 private stop-list copy gains the twelve words (Q-D3) | the `fathomdb-query` test module, `slice40_fts_ranking.rs`, `fts5_injection_safety.rs`, `slice40_projected_fts_stream.rs` | D5 |
 | AC40-48 | D3 measurement gate (REQ40-D6) | orchestrator measurement after W4 | D6 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

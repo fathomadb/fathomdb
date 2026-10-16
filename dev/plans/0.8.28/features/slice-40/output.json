@@ -2,7 +2,7 @@
   "phase": "0.8.28-slice-40",
   "baseline_sha": "574b09e788b04bbaff6ec949aa3a88de443bf477",
   "branch": "slice/0.8.28-40-fts-ranking-defects",
-  "head_sha": "9cdd3222bb882d509c1014a60853860084a4fb0a",
+  "head_sha": "941ca2b83c2d6a7ca6228127560e2b225f995769",
   "head_sha_note": "last commit before the commit that adds this file; the output.json commit sits on top",
   "production_fix_sha": "13879d4af55e20646574d013c4cce596f1b18d40",
   "commits": [
@@ -11,7 +11,15 @@
     "23cdca4446fe0a5ff06bdbf29102237782751eb8: Apply Slice 40 R1 findings: short-token AC-038 rows, possessive tests, design detail",
     "13879d4af55e20646574d013c4cce596f1b18d40: Credit each fusion arm once per body and keep short query tokens",
     "0f3cdc40337214f9ff01eb51cef0e92b37862489: Record Slice 40 W5 engine-suite observations",
-    "9cdd3222bb882d509c1014a60853860084a4fb0a: Record Slice 40 W5 gate results"
+    "9cdd3222bb882d509c1014a60853860084a4fb0a: Record Slice 40 W5 gate results",
+    "1d0031bc94cb86b265067c3bb9bb6e4ebf1c76e9: Add Slice 40 closure output",
+    "f67ae048b570c012615692bdb4cafe82ecf68e88: Record Slice 40 NFCorpus recovery measurement and durable-approach experiments",
+    "1f54bc3b893dde0ec91cf58e103d3055a25934ce: Record COMP-02b projected-FTS latency diagnosis and Slice 40 potentials",
+    "d01d711df1da96c121336fc9b894aef9ae063c4b: Plan Slice 40 Defect C: stream projected FTS search in rank order",
+    "04bf5e5e615098a186780821bb641b140c4c0995: Add failing Slice 40 tests for the projected FTS rank stream",
+    "a3830681d57caaa1d10be2c150b63400169bcba4: Stream projected FTS search in rank order instead of sorting every match",
+    "c86471cb3fc5b6b05cc58aceb58eadb3434c689c: Record Slice 40 Defect C GREEN run",
+    "941ca2b83c2d6a7ca6228127560e2b225f995769: Record Slice 40 Defect C gate results"
   ],
   "findings_addressed": [
     "F1: AC-038 corpus gains 'vitamin d c 1 ii study' and 'igf 1 d3 b12 trial'; query alphabet gains d3, c, ii, 1; still 100 queries; RED before W4 (40 queries diverged), GREEN after",
@@ -43,17 +51,12 @@
     "agent-lint-md.sh": "exit 0",
     "agent-verify.sh": "exit 1 at 13879d4af: registered=202 ran=202 passed=198 failed=4; FAILED SUITES: test-check-board-currency test-commission-manifest test-python test-python-native-receipt; test-rust rc=0. Python suites failed only on an unclean tree and pass on rerun at 0f3cdc403. The two release-state suites fail on baseline state in release-state-0.8.28.json / STATUS-0.8.28.md (Slices 30 and 31 not LANDED; Slice 31 landing SHA 1ceefddd8 not cited on the board row at STATUS-0.8.28.md:66), files this slice may not edit"
   },
-  "agent_verify_result": "fail (2 orchestrator-owned release-state suites; see gates)",
+  "agent_verify_result": "fail only on the two orchestrator-owned release-state suites (test-check-board-currency, test-commission-manifest); all code suites pass",
   "blockers_encountered": [
     {
       "id": "W5-release-state",
       "description": "test-check-board-currency and test-commission-manifest fail on dev/plans/release-state-0.8.28.json and dev/plans/runs/STATUS-0.8.28.md from the baseline; untouched by this slice",
       "resolution": "stopped for an orchestrator ruling per F4; not edited"
-    },
-    {
-      "id": "W5-python-unclean-tree",
-      "description": "test-python needs a clean worktree; the gate ran with an uncommitted test-plan edit and an untracked output.json",
-      "resolution": "committed and moved output.json aside; reran the exact agent-test commands: pass"
     }
   ],
   "additional_changes_made_in_scope": [
@@ -69,5 +72,48 @@
     "release-state JSON, STATUS board, plan ladder (orchestrator-owned)",
     "baseline comparison of the --features test-hooks engine failures (would need a second checkout)"
   ],
-  "next_step_for_orchestrator": "Rule on the two release-state suite failures (fix the 0.8.28 board/state on release/0.8.28 or accept them as pre-existing), then run R2 codex code review on 9cdd3222b (production change in 13879d4af), add the Slice 40 ladder entry, and file the follow-up ledger entries."
+  "next_step_for_orchestrator": "Measure projected-search latency on the 10k corpus with a wheel built from a3830681d; rule on / fix the two release-state suites on release/0.8.28; run R2 codex review of the slice branch; add the Slice 40 ladder entry.",
+  "defect_c": {
+    "production_fix_sha": "a3830681d",
+    "rulings": {
+      "Q4": "keep projected_ route prefix",
+      "Q5": "no CROSS JOIN",
+      "Q6": "slice35 seam unchanged"
+    },
+    "findings_addressed": [
+      "F1: stream statement keeps p.attr_name = ?1 in WHERE",
+      "F2: explicit test list run and recorded (test-plan § 5.4)",
+      "F3: CHANGELOG third ### Fixed entry",
+      "F4: design § 2b.2 sentence on test-hooks-only regression net",
+      "F5: why-comment at the stream call site only; search_projected_text doc comment unchanged",
+      "F6: no test edited; full lints and agent-verify once on a clean tree"
+    ],
+    "tests_green": {
+      "projected_search_matches_documented_order_across_tie_boundaries": "GREEN (was GREEN)",
+      "projected_search_uses_rank_stream_without_temp_order_by_btree": "GREEN (was RED)",
+      "projected_search_falls_back_to_full_sort_when_stream_fails": "GREEN (was RED)",
+      "projected_search_attribute_filter_keeps_cohort_and_order": "GREEN (was GREEN)",
+      "projected_search_returns_exactly_limit_rows_at_strict_boundaries": "GREEN (was GREEN)"
+    },
+    "test_commands": {
+      "--features test-hooks --test slice40_projected_fts_stream": "ok. 5 passed",
+      "--features test-hooks --test pr_g9_rrf_fusion": "ok. 10 passed",
+      "--test slice40_fts_ranking": "ok. 19 passed",
+      "--test fts5_injection_safety": "ok. 2 passed",
+      "--features test-hooks --test slice35_virtual_mutation_manifest": "ok. 2 passed",
+      "--features test-hooks --test slice35_eligibility_pretruncation": "ok. 3 passed",
+      "--features test-hooks --test slice20_fts_rank_stream": "ok. 3 passed",
+      "--features test-hooks --test slice18_retrieval_result_limits": "ok. 4 passed",
+      "--features test-hooks --test slice45_nested_source_projections": "ok. 10 passed",
+      "--features test-hooks --test slice30_dependency_closure": "ok. 27 passed",
+      "--features test-hooks --test slice80_search_view_paths": "ok. 2 passed",
+      "cargo test -p fathomdb-engine (default)": "exit 0; 474 passed, 0 failed, 7 ignored",
+      "cargo test -p fathomdb-query": "ok. 15 passed; ok. 1 passed; ok. 0 passed"
+    },
+    "gates": {
+      "agent-lint.sh": "exit 0",
+      "agent-lint-md.sh": "exit 0",
+      "agent-verify.sh": "exit 1 at c86471cb3 (clean tree): registered=202 ran=202 passed=200 failed=2; FAILED SUITES: test-check-board-currency test-commission-manifest (release-state files, unchanged from phase 2 W5); test-rust, test-python, test-python-native-receipt pass"
+    }
+  }
 }

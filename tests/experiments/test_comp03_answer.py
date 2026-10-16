@@ -176,9 +176,10 @@ def test_v2_config_keeps_v1_inputs_and_widens_to_three_arms_at_k10():
     v2 = c3.load_config(V2_CONFIG)
     assert v2["schema_version"] == "comp-03.answer.v2"
     assert v2["selection"]["question_ids"] == v1["selection"]["question_ids"]
-    for key in ("corpus", "document_unit", "evidence", "live", "metrics"):
+    for key in ("corpus", "document_unit", "evidence", "live"):
         assert v2[key] == v1[key], key
     assert v2["retrieval"]["top_k"] == 10
+    assert v2["metrics"] == [name.replace("_at_5", "_at_10") for name in v1["metrics"]]
     assert [arm["id"] for arm in v2["arms"]] == ["fathomdb-fts", "fathomdb-hybrid", "lancedb-fts"]
     assert [arm["product_arm"] for arm in v2["arms"]] == ["fathomdb", "fathomdb-hybrid", "lancedb"]
     gated = [arm["id"] for arm in v2["arms"] if arm.get("requires_sweep_verdict") == "adopt"]

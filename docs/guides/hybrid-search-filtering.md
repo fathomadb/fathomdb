@@ -8,12 +8,16 @@ fusion is **Reciprocal Rank Fusion (RRF)**, and `search` accepts an optional
 ## RRF ranking (a documented behavior-compat event)
 
 Each branch produces its own ranked list. RRF scores every result by the sum of
-`1 / (60 + rank)` over the branches that surfaced it (rank is 1-based within a
-branch):
+`w / (30 + rank)` over the branches that surfaced it, where rank is 1-based
+within a branch and the weight `w` is 3 for the text branch and 1 for the vector
+and graph branches:
 
 ```text
-score(body) = Σ_branch  1 / (60 + rank_branch(body))
+score(body) = Σ_branch  w_branch / (30 + rank_branch(body))
 ```
+
+Each branch counts a body once, at the rank of its first occurrence, so rows
+that share a byte-identical body do not add up within one branch.
 
 A body that **both** branches rank highly accumulates two terms, so agreement
 pushes it to the top — which is the whole point of hybrid retrieval. RRF fuses

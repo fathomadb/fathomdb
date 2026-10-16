@@ -339,6 +339,19 @@ runs) are the byte-identity guard for G3 off.
 
 ## 4. Existing tests touched
 
+**Units E and F (phase 5).** Three capability-list assertions are
+superseded by REQ40-E1, owner-directed scope (ruling Q-E1, 2026-10-16), and
+updated in the registry commit `d709db1a8` from three to five operations:
+
+- `tests/experiments/test_sdk_python_driver.py::test_capabilities_advertise_only_implemented_operations`;
+- `tests/experiments/test_sdk_typescript_driver.py::test_capabilities_is_one_protocol_response`;
+- `experiments/sdk_drivers/rust/tests/protocol.rs::capabilities_advertise_only_implemented_operations`.
+
+No other existing test changed. In `test_comp03_evidence.py`, commit
+`d1bc2c9f6` added one Unit G test for the Q-G1 ruling
+(`test_rule_also_holds_for_fathomdb_fts_alone_and_falls_back_when_the_pooled_winner_breaks_it`),
+before the Unit G hold. It is after the reviewer's pin `9d864e39e`.
+
 **Unit D (phase 4).**
 
 - `fathomdb-query`: `possessive_and_contraction_fragments_are_content_tokens`
@@ -744,6 +757,70 @@ env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_evi
 on CPU, so the dense tests ran. Ruff is clean on the three files. The
 `FileNotFoundError` lines are shortened with "…"; the rest is verbatim.
 
+### 5.8 GREEN run for Units E and F (phase 5, 2026-10-16)
+
+Harness at `5e6ff1a34` (`comp03-slice40`), from the worktree root. Node 25
+for the TypeScript driver tests comes from
+`FATHOMDB_BENCH_NODE=$HOME/.nvm/versions/node/v25.9.0/bin/node`.
+
+```text
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_sdk_parity_slice40.py
+9 passed
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_baseline_check.py
+8 passed
+env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_comp03_retrieval.py tests/experiments/test_comp03_answer.py tests/experiments/test_comp_fts.py tests/experiments/test_comp01_nfcorpus.py tests/experiments/test_baseline_check.py
+68 passed, 3 skipped
+FATHOMDB_BENCH_NODE=… env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments/test_sdk_typescript_driver.py
+11 passed, 1 skipped   (the real-SDK test skips: no TS native build in the harness tree)
+cd experiments/sdk_drivers/rust && cargo test --release
+protocol 5 passed; real_database 1 passed
+FATHOMDB_BENCH_NODE=… env PYTHONPATH=. .venv/bin/python -m pytest -q tests/experiments
+19 failed, 849 passed, 12 skipped
+.venv/bin/ruff check src/python experiments tests/experiments
+All checks passed!
+```
+
+The 19 failures in `tests/experiments` are:
+
+- the 15 held Unit G tests in `test_comp03_evidence.py`, RED by design;
+- the same 4 pre-existing failures as in § 6.1, unchanged by name:
+  - `test_locomo_live_executor_review_remediation.py::test_full_grid_combiner_requires_same_release_config_and_exactly_52_unique_cells`
+  - `test_release_0825_slice71.py::test_checked_in_receipt_binds_manifest_fixture_and_raw_logs`
+  - `test_release_0825_slice71b.py::test_checked_in_attribution_manifest_is_strict_and_valid`
+  - `test_scale_02_scale_followup.py::test_config_freezes_two_hypotheses_and_three_points`
+
+**Cross-SDK parity, end to end on CPU (design § 2d.2).**
+
+Artifacts were built in the session scratchpad (`sdk-parity/`) from this
+worktree at `ad2773e6a`, a `git archive` export and `build_against.py`:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Python wheel `fathomdb-0.8.27-cp310-abi3-linux_x86_64.whl` | `7f2cf1a108eb6a4768280026a8b43ab72c9a024f31848eeb9a8b70cf50d0ff52` |
+| Python native `_fathomdb.abi3.so` | `6ef917cb42f7744a172803ec945d21b833cfad42d701c83e6d34f0e865bf16db` |
+| TypeScript native `fathomdb.linux-x64-gnu.node` | `b7691e8973d78d647566b72eea463723e6fa79c7a256b37f0674837b289faec7` |
+| Rust driver (`default-embedder`) | `8d1fe37b099bd9766569bedf6f0515537942c3103ed910fa621e74fb4b5bfab0` |
+| CLI `fathomdb` (`default-embedder`) | `74aebb9892088267…` (full digest in each arm manifest) |
+
+Every SDK reports version `0.8.27`. The arm manifests record
+`engine_revision` `ad2773e6a8293c190e028e04c81b5da291ffaab4`.
+
+Three suites ran, three repetitions each, each repetition on a fresh
+database. Each SDK's ordered `(id, score, branch)` hits were compared
+bit-for-bit with the in-process Python oracle on the same file; the oracle's
+native digest equals the Python arm's.
+
+| Suite / case | Hits per repetition | Python | TypeScript | Rust |
+| --- | ---: | --- | --- | --- |
+| `text-only-v1` / `text-only` (10 queries, limit 10) | 29 (text) | equal ×3 | equal ×3 | equal ×3 |
+| `projected-v1` / `projected-unfiltered` (limit 5, tie across the limit) | 10 (text) | equal ×3 | equal ×3 | equal ×3 |
+| `projected-v1` / `projected-cohort-c1` | 10 (text) | equal ×3 | equal ×3 | equal ×3 |
+| `dense-v1` / `dense-hybrid` (7 queries, limit 10) | 70 (vector representative; q06 and q07 fuse text and vector) | equal ×3 | equal ×3 | equal ×3 |
+
+Every cell was `complete` with oracle status `verified`. The first run
+blocked the TypeScript cells with `SDK public wrapper digest drift`: the
+pinned-artifact check did not pass `package_root`. Fixed in `5e6ff1a34`.
+
 ## 6. Pre-existing test failures at W5
 
 A failing pre-existing test is not edited; it is listed here verbatim
@@ -877,6 +954,17 @@ unchanged:
 FAIL  real-repository current-board regression: rc=1 out=STALE  0.8.28 Slice 31: dev/plans/release-state-0.8.28.json records landing SHA 1ceefddd894c041b0a8622856dc2677be3e49c88, but the hand-written ladder row at dev/plans/runs/STATUS-0.8.28.md:66 does not cite it (TC-133).
 FAIL  arm 9c (real sweep): rc=1 out=FAIL commission-manifest: `dev/plans/release-state-0.8.28.json` declares end-of-ladder but its ladder is not fully landed (non-LANDED=[30, 31]; absent-from-landed=none).
 ```
+
+### 6.4 Gates for Units E and F (phase 5)
+
+| Gate | Result |
+| --- | --- |
+| W-slice `./scripts/agent-lint-docs.sh` | exit 0 |
+| W-slice `./scripts/agent-lint-md.sh` | exit 0 |
+| W-harness `./scripts/agent-lint-md.sh` | exit 2: structure passes; links fail only on the two pre-existing links to the absent, gitignored `data/corpus-data/raw/beir/nfcorpus` (in `plans/2026-10-13-fathomdb-0.8.27-performance-testing.md` and `experiments/research/2026-10-13-embedded-competitor-benchmark-survey.md`), as in phase 4 |
+| W-harness ruff (`src/python experiments tests/experiments`) | `All checks passed!` |
+
+No full `agent-verify.sh`: W-slice changed only docs this phase.
 
 ## 7. R1 rulings on the phase 1 open questions
 

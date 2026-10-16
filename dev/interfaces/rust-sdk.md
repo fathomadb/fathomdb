@@ -455,3 +455,30 @@ the Python and TypeScript SDKs default to: `EvidenceSearchRequestV1`
 pool_n: 0, include_explanation: false, limit: 10}`;
 `DependencyTraceRequestV1::new(..)` already applies the binding bounds
 (`max_relations` 100, `max_work_units` 101) when `with_bounds` is not called.
+
+## Search behaviour in 0.8.28 (Slice 40)
+
+The signatures are unchanged; the behaviour of three search verbs changed.
+
+- **Query compilation** (`Engine::search_text_only`, and the text branch of `Engine::search`):
+  the query is lowercased, split on non-alphanumeric characters, de-duplicated
+  in first-seen order and OR-joined. Tokens of every length are kept, so "C",
+  "D3", "II" and the "1" of "IGF-1" are query terms. A fixed English stop list
+  is dropped. It now also holds the fragments an apostrophe leaves (`s`, `t`,
+  `ll`, `re`, `ve`, `m`) and `my`, `me`, `us`, `am`, `so`, `up`. A query made
+  only of stop words falls back to its raw whitespace tokens.
+- **Fusion** (`Engine::search_text_only`, `Engine::search`): each branch credits a body once, at
+  the rank of its first occurrence, so several rows sharing a byte-identical
+  body no longer outrank the best match. A body found by more than one branch
+  still accumulates one term per branch:
+  `score = Σ_branch w_branch / (30 + rank_branch)`, with `w` 3 for the text
+  branch and 1 for the vector and graph branches.
+- **`Engine::search_projected_text`**: the projection's FTS5 index is read in rank order and
+  reading stops once `limit` rows and any rows tied with the last one are
+  read, instead of sorting every match. Results and their order are unchanged:
+  bm25 ascending, then write order.
+- **Dense retrieval in `Engine::search`**: the vector branch needs a declared
+  `SEARCHABLE` projection with `vector: Some(..)` (`Engine::configure_projections`) before the rows are
+  written; that declaration enrols the node kind for embedding. Opening with
+  `OpenOptions { use_default_embedder: true, .. }` alone embeds nothing, and `Engine::search` then returns text hits
+  only. The engine embeds each node's full body, not the projected attribute.

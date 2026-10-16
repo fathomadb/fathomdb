@@ -34,9 +34,16 @@ for phase 1 is `output.json` in this directory.
 | D measurements (orchestrator) | not started: D1 sweep on cuda:0, NFCorpus with the D3 wheel plus `comp01-hybrid`, 10k TC-5 latency, D2 answer run |
 | EFG-W1 docs | done 2026-10-16: requirements § 1.5, REQ40-E1..E4, F1..F5, G1..G5, AC40-49..66; design § 2d–2f; test-plan § 3d–3f, § 5.7, § 10 |
 | EFG-W2 RED tests | done on `slice/0.8.28-40-comp03`: 31 RED (`test_sdk_parity_slice40.py` 9, `test_baseline_check.py` 8, `test_comp03_evidence.py` 14); none in this worktree (no doc checker pins verb text) |
-| EFG-R1 | not started; open questions in test-plan § 10 |
+| EFG-R1 | APPROVE on `ad2773e6a` / `9d864e39e` (Q-E1 update the three capability assertions; Q-E2 declared commit plus digests; Q-E3 `package_root`; Q-G1 pooled plus fathomdb-fts; Q-G2 470 questions; Q-F1 provisional pre-fill) |
+| EF-W4/W5 | done: harness `bc4ca421b` (F), `d709db1a8` and `5e6ff1a34` (E); docs here; cross-SDK parity equal in every case and repetition (test-plan § 5.8) |
+| G | held by owner ruling 2026-10-16 for a separate review; no Unit G code written |
 
 ## Follow-ups (not in this slice)
+
+- Potential, not in this slice (ruling Q-E2): a build-info accessor
+  (engine commit, features, `cuda_compiled`) in all three SDKs. It is a
+  public-surface change that needs its own interface-doc and parity work.
+  Until then receipts record the declared commit plus artifact digests.
 
 - `search_text_only` can return fewer than `limit` results when `limit` is
   near 100 and the fixed 100-row FTS window holds duplicate rows

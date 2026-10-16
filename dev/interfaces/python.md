@@ -1228,3 +1228,30 @@ are cursor-free. Evidence refuses `include_out_of_window=True` at
 end-exclusive validity to the target, winning edge, and canonical source.
 Post-mint database mutation remains a frozen `state_drifted` failure before
 evidence hydration.
+
+## Search behaviour in 0.8.28 (Slice 40)
+
+The signatures are unchanged; the behaviour of three search verbs changed.
+
+- **Query compilation** (`engine.search_text_only`, and the text branch of `engine.search`):
+  the query is lowercased, split on non-alphanumeric characters, de-duplicated
+  in first-seen order and OR-joined. Tokens of every length are kept, so "C",
+  "D3", "II" and the "1" of "IGF-1" are query terms. A fixed English stop list
+  is dropped. It now also holds the fragments an apostrophe leaves (`s`, `t`,
+  `ll`, `re`, `ve`, `m`) and `my`, `me`, `us`, `am`, `so`, `up`. A query made
+  only of stop words falls back to its raw whitespace tokens.
+- **Fusion** (`engine.search_text_only`, `engine.search`): each branch credits a body once, at
+  the rank of its first occurrence, so several rows sharing a byte-identical
+  body no longer outrank the best match. A body found by more than one branch
+  still accumulates one term per branch:
+  `score = Σ_branch w_branch / (30 + rank_branch)`, with `w` 3 for the text
+  branch and 1 for the vector and graph branches.
+- **`engine.search_projected_text`**: the projection's FTS5 index is read in rank order and
+  reading stops once `limit` rows and any rows tied with the last one are
+  read, instead of sorting every match. Results and their order are unchanged:
+  bm25 ascending, then write order.
+- **Dense retrieval in `engine.search`**: the vector branch needs a declared
+  `SEARCHABLE` projection with `vector=True` (`engine.configure_projections`) before the rows are
+  written; that declaration enrols the node kind for embedding. Opening with
+  `use_default_embedder=True` alone embeds nothing, and `engine.search` then returns text hits
+  only. The engine embeds each node's full body, not the projected attribute.

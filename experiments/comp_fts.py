@@ -129,6 +129,112 @@ class FathomArm:
         return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
 
 
+def vector_row_count(database_path: Path) -> int:
+    """Distinct ``doc`` cursors with a stored vector, read from a closed database."""
+    import sqlite3
+
+    with sqlite3.connect(f"file:{database_path}?mode=ro", uri=True) as connection:
+        return connection.execute(
+            "SELECT COUNT(DISTINCT write_cursor) FROM _fathomdb_vector_rows WHERE kind = 'doc'"
+        ).fetchone()[0]
+
+
+class FathomHybridArm:
+    """FathomDB hybrid search over the ``fathomdb`` arm's plain bodies.
+
+    Declaring a searchable ``vector=True`` projection is the public switch that
+    enrols the ``doc`` kind for dense projection; a plain write under
+    ``use_default_embedder=True`` alone embeds nothing. The projection worker
+    embeds the full node body, so this arm differs from ``fathomdb`` only by
+    the vector arm.
+    """
+
+    name = "fathomdb-hybrid"
+    filtered = False
+
+    def __init__(self) -> None:
+        self.device: dict[str, Any] | None = None
+
+    def version(self) -> str:
+        import fathomdb
+
+        return fathomdb.__version__
+
+    def settings(self) -> dict[str, Any]:
+        return {
+            "method": "Engine.search",
+            "rerank_depth": 0,
+            "use_graph_arm": False,
+            "embedder": "default (fathomdb-bge-small-en-v1.5)",
+            "projection": "dense: SEARCHABLE + vector; embeds the full node body",
+            "body": "plain text, identical to the fathomdb arm",
+            "fusion": "RRF, text:vector 3:1",
+        }
+
+    def _open_engine(self, root: Path) -> Any:
+        from fathomdb import Engine
+
+        from experiments.fathomdb_test_setup import require_embed_device
+
+        engine = Engine.open(str(root / "fathomdb.sqlite"), use_default_embedder=True)
+        resolution = engine.open_report().embedder_device_resolution
+        requested = os.environ.get("FATHOMDB_EMBED_DEVICE", "auto")
+        try:
+            require_embed_device(resolution, requested)
+        except RuntimeError:
+            engine.close()
+            raise
+        self.device = {
+            "requested": requested,
+            "effective": None if resolution is None else resolution.effective_device.kind,
+        }
+        return engine
+
+    def create(self, root: Path) -> Any:
+        from fathomdb import ProjectionRole, ProjectionSpec
+
+        engine = self._open_engine(root)
+        engine.configure_projections([
+            ProjectionSpec(name="dense", roles=frozenset({ProjectionRole.SEARCHABLE}), vector=True),
+        ])
+        return engine
+
+    def insert(self, handle: Any, docs: list[dict[str, str]]) -> None:
+        handle.write([
+            {"kind": "doc", "body": d["body"], "logical_id": d["id"], "source_id": f"c:{d['id']}"}
+            for d in docs
+        ])
+
+    def finish(self, handle: Any) -> None:
+        handle.drain(timeout_s=1200)
+
+    def build(self, root: Path, docs: list[dict[str, str]]) -> dict[str, float]:
+        started = time.perf_counter()
+        handle = self.create(root)
+        self.insert(handle, docs)
+        ack = time.perf_counter()
+        self.finish(handle)
+        built = time.perf_counter()
+        self.close(handle)
+        vectors = vector_row_count(root / "fathomdb.sqlite")
+        if vectors != len(docs):
+            raise RuntimeError(f"hybrid store embedded {vectors} of {len(docs)} documents")
+        return {"ingest_ack_s": ack - started, "build_return_s": built - started, "drain_s": built - ack,
+                "vector_rows": vectors}
+
+    def open(self, root: Path) -> Any:
+        return self._open_engine(root)
+
+    def query(self, handle: Any, text: str, cohort: str | None = None, limit: int = TOP_K) -> list[str]:
+        return [hit.id.value for hit in handle.search(text, limit=limit).results]
+
+    def close(self, handle: Any) -> None:
+        handle.close()
+
+    def rss_mib(self, handle: Any) -> float:
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+
+
 class LanceArm:
     name = "lancedb"
     filtered = False
@@ -292,7 +398,7 @@ class SurrealArm:
         return handle.hwm_mib()
 
 
-ARMS = {arm.name: arm for arm in (FathomArm(), LanceArm(), SurrealArm())}
+ARMS = {arm.name: arm for arm in (FathomArm(), FathomHybridArm(), LanceArm(), SurrealArm())}
 
 
 # --- one cell (child process) ---------------------------------------------
@@ -543,6 +649,7 @@ CAMPAIGNS = {
     "comp01": (("fathomdb", "lancedb"), "fts"),
     "comp02a": (("fathomdb", "surrealdb"), "scale"),
     "comp02b": (("fathomdb", "surrealdb"), "filtered"),
+    "comp01-hybrid": (("fathomdb", "fathomdb-hybrid"), "fts"),
 }
 CELL_RUNNERS = {"fts": run_cell, "scale": run_scale_cell, "filtered": run_filtered_cell}
 

@@ -9,7 +9,11 @@ writes resumable per-question artifacts to an external attempt directory and an
 
     python -m experiments.comp03_answer select CONFIG --dataset FILE
     python -m experiments.comp03_answer run CONFIG --dataset FILE --attempt-root DIR
-        [--fathomdb-bin PATH] [--max-questions N]
+        [--fathomdb-bin PATH] [--max-questions N] [--sweep-summary FILE]
+
+Config ``comp-03.answer.v2`` adds arms with a ``product_arm`` (the
+``comp_fts.ARMS`` key) and arms gated on the COMP-03 retrieval sweep's
+verdict, which ``--sweep-summary`` supplies.
 """
 
 from __future__ import annotations
@@ -63,15 +67,47 @@ def _digest(value: Any) -> str:
     return hashlib.sha256(_lib.canonical_json(value).encode("utf-8")).hexdigest()
 
 
+V2_ARMS = ["fathomdb-fts", "fathomdb-hybrid", "lancedb-fts"]
+
+
 def load_config(path: Path) -> dict[str, Any]:
     config = json.loads(Path(path).read_text(encoding="utf-8"))
     if set(config) != CONFIG_KEYS:
         raise Comp03Error(f"config keys mismatch: {sorted(set(config) ^ CONFIG_KEYS)}")
-    if config["schema_version"] != "comp-03.answer.v1":
+    if config["schema_version"] == "comp-03.answer.v1":
+        if [arm["id"] for arm in config["arms"]] != ["fathomdb", "lancedb"]:
+            raise Comp03Error("COMP-03 arms are fathomdb then lancedb")
+    elif config["schema_version"] == "comp-03.answer.v2":
+        if [arm["id"] for arm in config["arms"]] != V2_ARMS:
+            raise Comp03Error(f"COMP-03 v2 arms are {', '.join(V2_ARMS)}")
+        if any(product_arm(arm) not in comp_fts.ARMS for arm in config["arms"]):
+            raise Comp03Error("every v2 arm names a comp_fts product arm")
+    else:
         raise Comp03Error("unsupported config schema_version")
-    if [arm["id"] for arm in config["arms"]] != ["fathomdb", "lancedb"]:
-        raise Comp03Error("COMP-03 arms are fathomdb then lancedb")
     return config
+
+
+def product_arm(arm: Mapping[str, Any]) -> str:
+    """The ``comp_fts.ARMS`` key behind a config arm; v1 arm IDs are product names."""
+    return arm.get("product_arm", arm["id"])
+
+
+def arm_order(index: int, arms: Sequence[str]) -> list[str]:
+    """Rotate ``arms`` by ``index``: v1's alternation for two arms, a Latin cycle for more."""
+    shift = index % len(arms)
+    return list(arms[shift:]) + list(arms[:shift])
+
+
+def active_arms(config: Mapping[str, Any], sweep_summary: Path | None) -> tuple[list[Mapping[str, Any]], dict[str, Any]]:
+    """Config arms that run, and the gate record. A gated arm needs a matching sweep verdict."""
+    verdict, digest = None, None
+    if sweep_summary is not None:
+        verdict = json.loads(Path(sweep_summary).read_text(encoding="utf-8"))["decision"]["verdict"]
+        digest = sha256_file(Path(sweep_summary))
+    running = [arm for arm in config["arms"]
+               if "requires_sweep_verdict" not in arm or arm["requires_sweep_verdict"] == verdict]
+    excluded = [arm["id"] for arm in config["arms"] if arm not in running]
+    return running, {"sweep_verdict": verdict, "sweep_summary_sha256": digest, "excluded_arms": excluded}
 
 
 # --- inputs ----------------------------------------------------------------
@@ -284,11 +320,17 @@ def paired_summary(rows: Sequence[Mapping[str, Any]], arms: tuple[str, str], *, 
 
 
 def _fresh_root(workdir: Path, test_id: str, arm: str, fathomdb_bin: str | None) -> tuple[Path, dict[str, Any] | None]:
-    if arm == "fathomdb" and fathomdb_bin:
+    if arm in ("fathomdb", "fathomdb-hybrid") and fathomdb_bin:
         from experiments.fathomdb_test_setup import prepare_test_database
 
-        prepared = prepare_test_database(workdir, test_id=test_id, embed_device="cpu", rerank_device="cpu",
-                                         embedder="none", check_reranker=False, fathomdb_bin=fathomdb_bin)
+        if arm == "fathomdb":
+            prepared = prepare_test_database(workdir, test_id=test_id, embed_device="cpu", rerank_device="cpu",
+                                             embedder="none", check_reranker=False, fathomdb_bin=fathomdb_bin)
+        else:
+            prepared = prepare_test_database(workdir, test_id=test_id,
+                                             embed_device=os.environ.get("FATHOMDB_EMBED_DEVICE", "auto"),
+                                             rerank_device="cpu", embedder="default", warm_cache=True,
+                                             check_reranker=False, fathomdb_bin=fathomdb_bin)
         doctor = json.loads(prepared.doctor_path.read_text(encoding="utf-8"))
         return prepared.database_path.parent, {"doctor_sha256": sha256_file(prepared.doctor_path),
                                                "integrity": doctor["integrity"].get("status", doctor["integrity"])}
@@ -300,10 +342,14 @@ def _fresh_root(workdir: Path, test_id: str, arm: str, fathomdb_bin: str | None)
 
 
 def retrieve(arm_name: str, case: Mapping[str, Any], workdir: Path, *, top_k: int,
-             fathomdb_bin: str | None) -> dict[str, Any]:
-    """Build one fresh isolated store, query it, record IDs and timings, delete it."""
+             fathomdb_bin: str | None, store_label: str | None = None) -> dict[str, Any]:
+    """Build one fresh isolated store, query it, record IDs and timings, delete it.
+
+    ``arm_name`` is the ``comp_fts.ARMS`` key; ``store_label`` (default
+    ``arm_name``) names the store directory.
+    """
     arm = comp_fts.ARMS[arm_name]
-    test_id = f"{case['question_id'].lower().replace('_', '-')}-{arm_name}"
+    test_id = f"{case['question_id'].lower().replace('_', '-')}-{store_label or arm_name}"
     root, setup = _fresh_root(workdir, test_id, arm_name, fathomdb_bin)
     try:
         build = arm.build(root, [{"id": d["id"], "body": d["body"]} for d in case["docs"]])
@@ -415,7 +461,8 @@ def _host() -> dict[str, Any]:
 
 
 def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, client: Any, base_dir: Path | None,
-        fathomdb_bin: str | None, config_path: str | None, max_questions: int | None = None) -> tuple[str, Path]:
+        fathomdb_bin: str | None, config_path: str | None, max_questions: int | None = None,
+        sweep_summary: Path | None = None) -> tuple[str, Path]:
     """Execute or resume every stage, then write the receipt and index row."""
     if sha256_file(dataset_path) != config["corpus"]["sha256"]:
         raise Comp03Error("dataset digest does not match the config")
@@ -429,7 +476,9 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
         if len(dataset) >= sel["per_type"] * len(QUESTION_TYPES) else None
     if max_questions is not None:
         qids = qids[:max_questions]
-    arms = tuple(arm["id"] for arm in config["arms"])
+    running, gate = active_arms(config, sweep_summary)
+    arms = tuple(arm["id"] for arm in running)
+    products = {arm["id"]: product_arm(arm) for arm in running}
     live, ev, top_k = config["live"], config["evidence"], config["retrieval"]["top_k"]
     attempt_root.mkdir(parents=True, exist_ok=True)
     _write_json(attempt_root / "config.resolved.json", config)
@@ -438,12 +487,13 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
     for index, qid in enumerate(qids):
         case, gold = convert_question(dataset[qid]), gold_for(dataset[qid])
         qdir = attempt_root / "questions" / qid
-        order = arms if index % 2 == 0 else arms[::-1]
+        order = arm_order(index, arms)
         verdicts: dict[str, bool] = {}
         for arm in order:
             adir = qdir / arm
             if not (adir / "retrieval.json").exists():
-                result = retrieve(arm, case, attempt_root / "work", top_k=top_k, fathomdb_bin=fathomdb_bin)
+                result = retrieve(products[arm], case, attempt_root / "work", top_k=top_k,
+                                  fathomdb_bin=fathomdb_bin, store_label=arm)
                 evidence = render_evidence(case["docs"], result["ids"], max_item_chars=ev["max_item_chars"],
                                            max_total_chars=ev["max_total_chars"])
                 result["evidence_sha256"] = hashlib.sha256(evidence.encode("utf-8")).hexdigest()
@@ -473,20 +523,27 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
         rows.append({"question_id": qid, "question_type": case["question_type"],
                      "abstention": gold["abstention"], **verdicts})
         print(f"[{index + 1}/{len(qids)}] {qid} {verdicts} ${spend['usd']:.2f}", flush=True)
-    metrics = summarize(rows, retrieval_rows, attempt_root, arms, live)
+    metrics = summarize(rows, retrieval_rows, attempt_root, arms, live, k=top_k)
     metrics["selection_matches_seed"] = seeded == list(sel["question_ids"])
+    if config["schema_version"] != "comp-03.answer.v1":
+        metrics["arm_gate"] = gate
     _write_json(attempt_root / "summary.json", metrics)
     return write_receipt(config, metrics, attempt_root=attempt_root, dataset_path=dataset_path,
                          base_dir=base_dir, config_path=config_path)
 
 
+def _accuracy_only(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[str, Any]:
+    n = len(rows)
+    return {"n": n, "accuracy": {arm: (sum(bool(r[arm]) for r in rows) / n if n else 0.0) for arm in arms}}
+
+
 def summarize(rows: list[dict[str, Any]], retrieval_rows: list[dict[str, Any]], attempt_root: Path,
-              arms: tuple[str, str], live: Mapping[str, Any]) -> dict[str, Any]:
+              arms: tuple[str, ...], live: Mapping[str, Any], *, k: int = 5) -> dict[str, Any]:
     retrieval: dict[str, Any] = {}
     for arm in arms:
         mine = [r for r in retrieval_rows if r["arm"] == arm]
         retrieval[arm] = {"n": len(mine)}
-        for key in ("session_recall_any_at_5", "session_mrr_at_5", "turn_recall_any_at_5", "turn_mrr_at_5"):
+        for key in (f"session_recall_any_at_{k}", f"session_mrr_at_{k}", f"turn_recall_any_at_{k}", f"turn_mrr_at_{k}"):
             values = [r[key] for r in mine if r[key] is not None]
             retrieval[arm][key] = statistics.fmean(values) if values else None
             retrieval[arm][f"{key}_n"] = len(values)
@@ -508,14 +565,21 @@ def summarize(rows: list[dict[str, Any]], retrieval_rows: list[dict[str, Any]], 
             "judge_p50_s": statistics.median(c["elapsed_s"] for c in calls["judge"]) if calls["judge"] else None,
             "usd": sum(c["usd"] for stage in calls.values() for c in stage),
         }
-    return {
-        "answer": paired_summary(rows, arms, seed=live["seed"]),
+    out: dict[str, Any] = {
+        "answer": paired_summary(rows, arms[:2], seed=live["seed"]) if len(arms) >= 2 else _accuracy_only(rows, arms),
         "abstention_n": sum(r["abstention"] for r in rows),
         "retrieval": retrieval,
         "timing": timing,
         "cost_usd": sum(t["usd"] for t in timing.values()),
         "rows": rows,
     }
+    if len(arms) > 2:
+        out["answer_pairs"] = {
+            f"{a}_vs_{b}": paired_summary(rows, (a, b), seed=live["seed"])
+            for i, a in enumerate(arms) for b in arms[i + 1:]
+        }
+        out["accuracy_by_arm"] = _accuracy_only(rows, arms)["accuracy"]
+    return out
 
 
 def write_receipt(config: dict[str, Any], metrics: dict[str, Any], *, attempt_root: Path, dataset_path: Path,
@@ -523,15 +587,21 @@ def write_receipt(config: dict[str, Any], metrics: dict[str, Any], *, attempt_ro
     base = base_dir if base_dir is not None else _lib.EXPERIMENTS_DIR
     git = _lib.git_info()
     answer = metrics["answer"]
-    a, b = (arm["id"] for arm in config["arms"])
-    read = (
-        f"{a} {answer['accuracy'][a]:.3f} vs {b} {answer['accuracy'][b]:.3f} answer accuracy on "
-        f"{answer['n']} paired questions (difference {answer['difference']:+.3f}, bootstrap 95% "
-        f"{answer['difference_bootstrap_95'][0]:+.3f}..{answer['difference_bootstrap_95'][1]:+.3f})"
-    )
+    arms = list(metrics["timing"])
+    if len(arms) >= 2:
+        a, b = arms[:2]
+        read = (
+            f"{a} {answer['accuracy'][a]:.3f} vs {b} {answer['accuracy'][b]:.3f} answer accuracy on "
+            f"{answer['n']} paired questions (difference {answer['difference']:+.3f}, bootstrap 95% "
+            f"{answer['difference_bootstrap_95'][0]:+.3f}..{answer['difference_bootstrap_95'][1]:+.3f})"
+        )
+        if len(arms) > 2:
+            read += "; " + ", ".join(f"{arm} {metrics['accuracy_by_arm'][arm]:.3f}" for arm in arms[2:])
+    else:
+        read = f"{arms[0]} {answer['accuracy'][arms[0]]:.3f} answer accuracy on {answer['n']} questions"
     safe_metrics = {k: v for k, v in metrics.items() if k != "rows"}
     safe_metrics["question_outcomes"] = [
-        {"question_id": r["question_id"], a: r[a], b: r[b]} for r in metrics["rows"]
+        {"question_id": r["question_id"], **{arm: r[arm] for arm in arms}} for r in metrics["rows"]
     ]
     run_id, run_dir = _lib.write_record(
         EXPERIMENT,
@@ -541,14 +611,14 @@ def write_receipt(config: dict[str, Any], metrics: dict[str, Any], *, attempt_ro
         verdict="complete" if answer["n"] == len(config["selection"]["question_ids"]) else "partial",
         read=read,
         title="COMP-03 Hermes-style LongMemEval-S answer comparison",
-        headline={"accuracy": answer["accuracy"], "difference": answer["difference"], "n": answer["n"]},
+        headline={"accuracy": answer["accuracy"], "difference": answer.get("difference"), "n": answer["n"]},
         n=answer["n"],
         code={"git_sha": git.get("git_sha"), "dirty": git.get("dirty"), "branch": git.get("branch"),
               "baseline_commit": None},
         corpus={"source": config["corpus"]["identifier"], "manifest_sha256": None,
                 "datasets": [{"name": dataset_path.name, "sha256": config["corpus"]["sha256"]}]},
         seeds={"selection": config["selection"]["seed"], "model": config["live"]["seed"]},
-        env=_lib.env_info(key_deps={arm: metrics["timing"][arm]["version"] for arm in (a, b)}
+        env=_lib.env_info(key_deps={arm: metrics["timing"][arm]["version"] for arm in arms}
                           | {"answerer": config["live"]["answerer"]["model"], "judge": config["live"]["judge"]["model"]}),
         cost_usd=round(metrics["cost_usd"], 4),
         config_path=config_path,
@@ -573,6 +643,8 @@ def main(argv: list[str] | None = None) -> int:
     live.add_argument("--max-questions", type=int)
     live.add_argument("--airlock-url", default="http://127.0.0.1:4000")
     live.add_argument("--base-dir", type=Path, help="receipt root; defaults to experiments/")
+    live.add_argument("--sweep-summary", type=Path,
+                      help="COMP-03 retrieval sweep summary.json; gated arms run only on its verdict")
     args = parser.parse_args(argv)
     config = load_config(args.config)
     if args.command == "select":
@@ -584,7 +656,7 @@ def main(argv: list[str] | None = None) -> int:
     client = AirlockClient(args.airlock_url, key, config["live"]["max_retries"])
     run_id, run_dir = run(config, dataset_path=args.dataset, attempt_root=args.attempt_root, client=client,
                           base_dir=args.base_dir, fathomdb_bin=args.fathomdb_bin, config_path=str(args.config),
-                          max_questions=args.max_questions)
+                          max_questions=args.max_questions, sweep_summary=args.sweep_summary)
     print(json.dumps({"run_id": run_id, "receipt": str(run_dir / "record.json")}))
     return 0
 

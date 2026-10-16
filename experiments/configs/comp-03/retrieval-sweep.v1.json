@@ -1,0 +1,88 @@
+{
+  "schema_version": "comp-03.retrieval-sweep.v1",
+  "program_track": null,
+  "campaign": "COMP-03",
+  "corpus": {
+    "identifier": "longmemeval-s-cleaned",
+    "source": "huggingface xiaowu0162/longmemeval-cleaned@98d7416c24c778c2fee6e6f3006e7a073259d48f longmemeval_s_cleaned.json",
+    "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+    "storage": "external_only"
+  },
+  "selection": {
+    "rule": "all",
+    "note": "every LongMemEval-S question, sorted by question_id; abstention questions are retrieved but not scored"
+  },
+  "document_unit": {
+    "unit": "round",
+    "rule": "one user turn plus the assistant turns that follow it; leading assistant turns form their own round",
+    "id": "s<session position:03d>-r<round position:03d>",
+    "indexed_body": "turn contents joined by newline",
+    "excluded": [
+      "answer",
+      "answer_session_ids",
+      "haystack_session_ids",
+      "has_answer"
+    ]
+  },
+  "arms": [
+    {
+      "id": "fathomdb-fts",
+      "product_arm": "fathomdb",
+      "method": "Engine.search_text_only",
+      "store": "plain round bodies, no embedder, no projection (v1 shape)"
+    },
+    {
+      "id": "fathomdb-hybrid",
+      "product_arm": "fathomdb-hybrid",
+      "method": "Engine.search, rerank_depth 0, no graph arm",
+      "store": "the same plain round bodies plus ProjectionSpec(name='dense', SEARCHABLE, vector=True) declared before writes; the full node body is embedded; vector coverage checked per store"
+    },
+    {
+      "id": "lancedb-fts",
+      "product_arm": "lancedb",
+      "method": "table.search(query_type='fts'), native FTS index, library defaults",
+      "store": "reference"
+    }
+  ],
+  "retrieval": {
+    "top_k": 10,
+    "query": "question text verbatim",
+    "order": "arms rotate by question position (comp03_answer.arm_order)",
+    "store": "fresh store per question per arm, removed after"
+  },
+  "metrics": {
+    "ks": [
+      5,
+      10
+    ],
+    "names": [
+      "session_recall_any_at_k",
+      "session_recall_all_at_k",
+      "session_mrr_at_10",
+      "turn_recall_any_at_k"
+    ],
+    "bootstrap": {
+      "seed": 404,
+      "resamples": 10000,
+      "ci": "2.5th and 97.5th percentile of paired mean differences"
+    },
+    "latency": "first query and five repeats per store; hybrid query latency includes embedding the question",
+    "build": "ingest_ack_s, build_return_s, drain_s (hybrid: embedding time)"
+  },
+  "device": {
+    "env": "FATHOMDB_EMBED_DEVICE",
+    "values": "auto | cpu | cuda:N",
+    "cuda_fallback": "refused: a cuda:N request must resolve to an effective CUDA device with a selected UUID"
+  },
+  "decision_rule": {
+    "metric": "session_recall_any_at_5",
+    "treatment": "fathomdb-hybrid",
+    "control": "fathomdb-fts",
+    "focus_type": "single-session-preference"
+  },
+  "claim_boundary": {
+    "statement": "adopt hybrid for the answer run iff (a) preference session Recall@5 delta CI lower bound > 0, (b) no other type's delta CI upper bound < 0, (c) overall delta >= 0",
+    "reason": "EARP found hybrid null-or-negative on real traces, so adoption is decided by this pre-stated rule",
+    "scope": "retrieval only; no answerer or judge"
+  }
+}

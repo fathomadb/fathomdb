@@ -37,6 +37,18 @@ def _default_doctor(command: list[str], *, env: dict[str, str]) -> str:
     return result.stdout
 
 
+def require_embed_device(resolution: Any, requested: str) -> None:
+    """Refuse an explicit CUDA embed policy that did not select a CUDA device.
+
+    ``resolution`` is ``OpenReport.embedder_device_resolution`` (``None`` when
+    no embedder resolved). ``auto`` and ``cpu`` requests accept any result.
+    """
+    if requested.startswith("cuda:") and (
+        resolution is None or resolution.effective_device.kind != "cuda" or not resolution.selected_cuda_uuid
+    ):
+        raise RuntimeError("explicit CUDA policy did not produce a selected CUDA embedder")
+
+
 def _default_open(path: Path, use_default_embedder: bool) -> dict[str, Any]:
     from fathomdb import Engine
 
@@ -46,9 +58,7 @@ def _default_open(path: Path, use_default_embedder: bool) -> dict[str, Any]:
         resolution = report.embedder_device_resolution
         if use_default_embedder and resolution is None:
             raise RuntimeError("default embedder opened without a device resolution")
-        requested = os.environ["FATHOMDB_EMBED_DEVICE"]
-        if requested.startswith("cuda:") and (resolution is None or resolution.effective_device.kind != "cuda" or not resolution.selected_cuda_uuid):
-            raise RuntimeError("explicit CUDA policy did not produce a selected CUDA embedder")
+        require_embed_device(resolution, os.environ["FATHOMDB_EMBED_DEVICE"])
         return {
             "query_backend": report.query_backend,
             "schema_version_after": report.schema_version_after,

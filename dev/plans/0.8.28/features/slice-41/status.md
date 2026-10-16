@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — status
-status: W2 RED and W4 GREEN done; test rulings 1–4 applied; code review next
+status: phase 1 done and reviewed; phase 2 (units F and Q) planned, plan review next
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -22,6 +22,17 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
 | W5 | implementer | Scoped checks (the full gate waits for the code review) | rulings 1–4 applied; Python suite 1681 passed, 17 skipped |
 | M | orchestrator | AC41-27 differential and M1 preview now; after the Unit H head: M1, § 4.2, M3, § 4.5 | AC41-27 180/180 and the M1 preview done (test-plan § 7.3, § 7.4); the rest waits on Slice 40 Unit H |
 | R2 | reviewer | Code review | APPROVE-WITH-FIXES, P3 only, on `24e3215be`. RED tests `e8c581a44` (new files only, no existing test edited); fixes in the following commit: TypeScript refuses non-safe-integer counts host-side; Python refuses a bare-`str` `keep_roles` with `TypeError` (the documented "wrong argument type" class) and forwards non-finite counts so the core names the field; the core names the bound for counts above `u64::MAX`; docstrings on the remaining `pub` items |
+
+## Phase 2 (owner ruling 2026-10-16)
+
+| Step | Who | What | State |
+| --- | --- | --- | --- |
+| P2-W1 | implementer | Requirements § 5, design § 8–9, test-plan § 8 | done; see the commit log |
+| P2-R0 | reviewer | Plan review | not started |
+| P2-W2 | implementer | RED: new tests and fixture cases | not started |
+| P2-W4 | implementer | GREEN: unit F, then unit Q; allowlist text and pin; docs | not started |
+| P2-R2 | reviewer | Code review | not started |
+| P2-M | orchestrator | MF1 now; MQ1 and MQ2 at the merged head after Unit H | not started |
 
 ## Rules
 

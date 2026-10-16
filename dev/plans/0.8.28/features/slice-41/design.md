@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — design
-status: REVISED AFTER R0 (APPROVE-WITH-FIXES, F1–F15) and the owner rulings of 2026-10-16
+status: phase 1 landed; phase 2 (§ 8 unit F, § 9 unit Q) drafted for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -313,3 +313,163 @@ is deferred to the next COMP-03 headline refresh.
 - **Header cost not budgeted.** About 30 characters per item; 30 items
   add about 900 characters. This is accepted to match the harness, and
   `text_chars` exposes the total.
+
+## 8. Phase 2 unit F: `full_ids`
+
+### 8.1 Mechanism
+
+- **Policy field.** `ContextPolicy.full_ids` holds item ids; the default is
+  empty. The wire field is `full_ids`, a JSON array of strings.
+- **Validation.** It runs before selection, in addition to REQ41-P8. It
+  refuses ids that match no item in `hits ∪ context`, repeats and empty
+  strings, naming `policy.full_ids[i]`.
+- **Tiers.** In the walk (§ 2.2 step 2):
+  - `full = index < full_items || id ∈ full_ids`;
+  - `entry.forced = id ∈ full_ids && index >= full_items && rendered`.
+  - Nothing else in the walk changes. Budget, `item_chars`, whitespace
+    omission and ordering are as in phase 1.
+- **SDK types.** Python `full_ids: tuple[str, ...] = ()`; a bare `str` is a
+  `TypeError`, as for `keep_roles`. TypeScript `fullIds?: readonly string[]`.
+  Rust `full_ids: Vec<String>` (default empty). Provenance gains `forced`
+  in every SDK.
+
+### 8.2 Decisions
+
+- **Forced items are added to the full tier; they do not use a
+  `full_items` slot.** Variant (c) needs "rank tiers as before, plus these
+  ids". Counting forced ids against `full_items` would demote a top-ranked
+  item whenever a forced item exists, which no measured variant wants. A
+  caller that wants a cap passes at most N ids, as (c) does with 10.
+- **No reserved budget and no reordering.** A forced item late in the
+  selection can still be cut. The alternative, reserving budget or moving
+  forced items forward, makes the output depend on how big the forced set
+  is in a way the caller cannot see from rank. Phase 1's
+  selection-order rule stays the single rule. The provenance (`forced`,
+  `chars`, `tier`) shows what happened.
+- **Unknown ids are errors and unselected ids are no-ops.** An unknown id is
+  almost always a caller bug. An id of a `context` item whose group is not
+  expanded is a legitimate "if selected" request.
+- **`forced` is only true when it changed the outcome.** That keeps the
+  audit meaningful.
+
+### 8.3 Harness use (harness branch, specified only)
+
+- **(c)** `full_ids` = the ids of the hits whose group equals the rank-1
+  hit's group, first 10.
+- **(b)** `full_items = 8` when the question matches the
+  assistant-reference patterns of `variants.py`.
+
+Both are harness-side and labelled as heuristics in receipts.
+
+### 8.4 Surface
+
+The operations do not change. The `_slice41_context_pack_signature` text
+gains a sentence for `full_ids`. That edits the allowlist bytes, so the pin
+is re-issued, under the owner's approval of the context-pack surface "and
+any recommended adjustments". Interface docs and the CHANGELOG are updated.
+
+## 9. Phase 2 unit Q: configurable query stop words
+
+### 9.1 Mechanism
+
+- **In `fathomdb-query`:**
+  - `QueryStopWords { base: StopWordBase, extra: Vec<String>, keep: Vec<String> }`,
+    with `StopWordBase::{Fathomdb, None}`;
+  - `StopWordSet`, the validated effective set plus its SHA-256 hex;
+  - `StopWordSet::default()`, built from `STOPWORDS`;
+  - `fn validate(&QueryStopWords) -> Result<StopWordSet, StopWordError>`,
+    where the error names the field;
+  - `pub fn compile_text_query_with(raw, &StopWordSet) -> CompiledQuery`;
+    `compile_text_query(raw)` becomes `compile_text_query_with(raw,
+    &StopWordSet::default())`, so every current caller and test is
+    unchanged;
+  - `pub const DEFAULT_STOP_WORDS_SHA256: &str`, with a unit test that
+    recomputes it from `STOPWORDS`.
+  - `sha2` is added as a dependency. It is already a workspace dependency
+    of `fathomdb-engine`.
+- **In `fathomdb-engine`:**
+  - `EngineConfig` gains `query_stop_words: Option<QueryStopWords>`,
+    validated at open with the other `EngineConfig` checks
+    (`EngineConfigurationError` gains a variant naming the field);
+  - the resolved `Arc<StopWordSet>` is held on the engine runtime and
+    passed to each compile site in requirements § 5.1;
+  - `QueryTrace.stop_words_sha256` is filled from it.
+- **In the SDKs:**
+  - Python `EngineConfig.query_stop_words: QueryStopWords | None`
+    (frozen dataclass: `base: Literal["fathomdb", "none"] = "fathomdb"`,
+    `extra: tuple[str, ...] = ()`, `keep: tuple[str, ...] = ()`), also
+    accepted as the `Engine.open` keyword;
+  - TypeScript `EngineConfig.queryStopWords?: { base?, extra?, keep? }`;
+  - Rust SDK `OpenOptions` / `EngineConfig` pass-through;
+  - `QueryTrace.stop_words_sha256` / `stopWordsSha256` in every SDK;
+  - refusals map to `InvalidArgumentError`, as the other `EngineConfig`
+    range errors do.
+
+### 9.2 Default identity
+
+The default `StopWordSet` holds exactly `STOPWORDS`, and `content_tokens`
+reads the set instead of the constant. With the setting unset, compilation
+does the same work over the same words, so the output is byte-identical
+(AC41-34 property). No existing test changes. The AC-038 private mirror
+in `fts5_injection_safety.rs` stays as it is.
+
+### 9.3 Open-time config, not store-persisted metadata
+
+The setting lives on `EngineConfig`: it is given at open and not stored.
+
+- **Persisting would need a schema change.** The store schema is pinned:
+  `Engine.open` admits only `PRAGMA user_version` 34, and the SDKs have no
+  automatic-upgrade route. Persisting the list needs a new table or column,
+  so schema 35. Every existing store would then need an upgrade, and older
+  SDKs would refuse upgraded stores. Persisting also needs a governed write
+  verb to change it.
+- **Nothing else needs persistence.** Stop words are query-side only, so a
+  store has no index state that depends on them. Per-open configuration is
+  enough for determinism once the hash is in the trace and in receipts.
+- **The risk** is two processes opening one store with different lists and
+  ranking differently. Every result's trace carries the list hash, and the
+  COMP harness records it. The same is true of the other per-open
+  `EngineConfig` knobs.
+- **"One engine table".** The owner's "one engine table for cross-SDK
+  parity" is met by the single `fathomdb-query` implementation, which all
+  three SDKs call. No SDK keeps a copy of the list.
+- **Later.** Persistence can be added, additively and with its own ruling,
+  if a store-bound default is ever needed (open question Q-B1).
+
+### 9.4 Out of scope, with reasons
+
+- **A per-query override.** It would touch every search verb's signature in
+  three SDKs (`search`, `search_text_only`, `search_projected_text`, frozen
+  search, evidence search, graph-expand seeds). It would also weaken the
+  "one list per opened engine" anchor that makes the hash meaningful. No
+  measurement needs it: the harness sets the list per store. If it is ever
+  wanted, it should be a strict subset (`extra_stop_words` for one call),
+  never a replacement.
+- **`fathomdb doctor --stop-words`.** A document-frequency suggester would
+  not have proposed `had`, `long` or `suggest` (6–9% DF), so it does not
+  serve the measured case. It would add a CLI surface and tests for an
+  unmeasured need. It can be a follow-up, read-only, never writing the
+  setting.
+
+### 9.5 Composition with Slice 40 Unit H
+
+Slice 41 is cut from Slice 40 at `aea8e0457`, before Unit H.
+
+- **H1 (STOPWORDS).** Per the owner, Slice 40 keeps 63 words. The Unit H1
+  failing tests for `had`, `long` and `suggest` (Slice 40 `ee0c5e917`)
+  then belong to Slice 40's own disposition. If an H1 engine commit landed
+  anyway, the Q2 rule "no `extra` word already in `base`" would make the
+  harness's three-word config fail loudly at open, not double-apply.
+- **H2 (vector fusion pool).** This changes the vector branch's hydrated
+  count only. Unit Q changes only MATCH compilation, so the two are
+  orthogonal. A textual conflict is possible in `search_api.rs` and
+  `search.rs` imports.
+- **H3 (cohort prefilter).** This edits `read_projected_text_in_tx`, which
+  is also a Unit Q compile site. The edits are adjacent but independent:
+  Q changes the MATCH string bound into the statement, and H3 adds an
+  `IN (cohort)` clause and a probe. The merge is a manual conflict
+  resolution; the behaviour composes.
+- **At merge.** Slice 41 rebases onto the Slice 40 head after Unit H lands.
+  AC41-37 (every site drops the words) and AC41-39 (existing tests,
+  including Unit H's) are re-run there. MQ1 and MQ2 are measured at that
+  merged head, with the harness step REQ41-Q8 applied on the harness branch.

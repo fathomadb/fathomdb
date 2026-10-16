@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — test plan
-status: REVISED AFTER R0 (APPROVE-WITH-FIXES, F1–F15); no test written yet
+status: phase 1 landed (§ 7); phase 2 tests planned (§ 8), none written
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -346,3 +346,64 @@ If the § 4.1 rule were applied to this preview, T5/A300/k50 would fail the
 guard on hybrid SSP (.850 against .950 − .02). T3/A0/k30 and T5/A0/k50 tie
 on mean weighted allfull (.9635), and the smaller k wins, so T3/A0/k30
 would be picked. The binding M1 run at the Unit H head decides.
+
+## 8. Phase 2 tests and measurements (planned; none written)
+
+New test files only; no existing test is edited. Expected values are
+derived by hand from requirements § 5.
+
+### 8.1 Unit F
+
+| Test | Where | AC |
+| --- | --- | --- |
+| fixture cases `full_ids_past_full_items`, `full_ids_inside_full_items_and_unselected`, `full_ids_over_budget` | `src/conformance/context-pack-fixtures.json` (new cases appended; existing cases untouched) | 28–30 |
+| fixture error cases for unknown, repeated and empty `full_ids` | same file, `pack_errors` | 31 |
+| `prop_empty_full_ids_is_phase_one`, `prop_forcing_never_lowers_rendered_chars_before_budget` | `fathomdb-engine/tests/slice41_full_ids.rs` (new) | 32 |
+| `every_full_ids_case_matches_through_*` | `fathomdb-sdk/tests/slice41_full_ids.rs`, `src/python/tests/test_context_pack_full_ids.py`, `src/ts/tests/context-pack-full-ids.test.ts` (new) | 33 |
+
+Today's suites already load every `pack_cases` entry. The appended cases
+therefore run there too and fail RED until W4, which is intended. Their
+`items` gain a `forced` field. The phase 1 cases do not carry it, so the
+existing comparators would ignore it. W4 adds `forced` to the wire output,
+and the new parity tests compare it explicitly.
+
+Open question Q-T1: the existing comparators compare whole objects. If
+`forced` appears in output, the phase 1 cases' expected objects lack it
+and those tests would fail. The plan writes `forced` into the phase 1
+expected objects as `false`. That is a fixture-data edit, not a test-code
+edit, and it needs a ruling.
+
+### 8.2 Unit Q
+
+| Test | Where | AC |
+| --- | --- | --- |
+| `default_set_compiles_like_today` (fixed query list, including every phase 1 and Slice 40 query-module case) and `prop_default_set_is_identity` | `fathomdb-query` tests module, new `#[cfg(test)] mod stop_words_tests` | 34 |
+| `extra_keep_and_none_bases_shape_the_terms`, `all_stopword_fallback_uses_the_effective_set` | same | 35 |
+| `invalid_settings_are_refused_naming_the_field` (each REQ41-Q2 rule) | same, plus engine open in `fathomdb-engine/tests/slice41_query_stop_words.rs` (new) | 36 |
+| `every_compile_site_honours_the_setting` (text-only, search text branch, frozen search, projected text search, graph-expand query seed; each against a corpus where the three words decide the top hit) | `slice41_query_stop_words.rs` | 37 |
+| `trace_records_the_stop_word_hash`, `default_hash_constant_matches_the_list` | `slice41_query_stop_words.rs`, `fathomdb-query` tests | 38 |
+| Python and TypeScript open-time refusal and hash tests | `test_query_stop_words.py`, `query-stop-words.test.ts` (new) | 36, 38 |
+| cross-SDK case | the Unit E harness suite, on the harness branch (specified for the Unit H owner) | 40 |
+
+AC41-39 is the existing engine, Python and TypeScript suites, run
+unchanged.
+
+### 8.3 Measurements ($0)
+
+- **MF1:** `variants.py` (c) and (b) re-run through `pack_context`, with
+  `full_ids` for (c), on recorded FTS top-100. Pass: SSA .978 and weighted
+  allfull .962 for (c), and .967 for (b), on the 414 selection set.
+- **MQ1:** the COMP-03 sweep at the merged head with REQ41-Q8's config.
+  Pass: FTS top-10 equal to `simulated_fts_ids` for 500 of 500.
+- **MQ2:** the defaults at the merged head. Pass: COMP-03 sweep FTS top-10
+  equal to the Slice 40 final-head receipts; COMP-01 FTS ids identical;
+  COMP-02a within tolerance.
+
+### 8.4 Order
+
+1. Plan review.
+2. RED: the new tests and fixture cases.
+3. GREEN: unit F, then unit Q.
+4. Code review.
+5. MF1, which needs no Unit H.
+6. Rebase onto Slice 40 after Unit H, then MQ1 and MQ2 (design § 9.5).

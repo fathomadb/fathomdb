@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — requirements and acceptance criteria
-status: REVISED AFTER R0 (APPROVE-WITH-FIXES, F1–F15) and the owner rulings of 2026-10-16
+status: phase 1 (§ 2–4) landed; phase 2 (§ 5, units F and Q, owner ruling 2026-10-16) drafted for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -233,7 +233,9 @@ is HITL-signed: any change to it re-opens the gate. The delta and its
 owner approved the four operations, with the R0 adjustments, on 2026-10-16
 (R0 F2). The entry is written at W4, not now, and cites that ruling.
 
-**REQ41-S4 — no search-path change.** No engine search, write, projection
+**REQ41-S4 — no search-path change (phase 1).** Phase 2 unit Q (§ 5) is the
+one deliberate exception: it changes query compilation, and its default
+is byte-identical to today (REQ41-Q5). No engine search, write, projection
 or schema code changes. The diff touches only the new pure module, the SDK
 bindings, the conformance maps and docs, and the decision-index row (REQ41-B1).
 
@@ -335,3 +337,192 @@ by hand from REQ41-P2 to P9 and checked by hand.
 | AC41-25 | M3 answer run recorded with flips, noise floor and reweighted-500 estimate | M3 |
 | AC41-26 | COMP-01 13/13 and the COMP-02a 10k run recorded at the slice head | M4 |
 | AC41-27 | Harness differential: on the 60 answer questions, `pack_context(full_items = 10**6)` over the recorded comp03-run-mix top-10 ids reproduces every recorded `evidence_sha256` | P2–P9 |
+
+## 5. Phase 2: full-render override and configurable query stop words
+
+Added by owner ruling on 2026-10-16. Phase 2 has its own plan review,
+failing-tests step (RED), implementation and code review, as phase 1 did.
+
+### 5.1 Evidence
+
+The evidence is the read-only Q&A of 2026-10-16 (orchestrator scratchpad
+`qa-ssa-stop/answer.md`, with `variants.py`). [M] marks measured values,
+[R] values read from recorded files. Rows are FTS top-100, the 414-question
+selection set, a 30,000-character budget and group expansion on.
+
+- **SSA drops from .978 to .913 because of rank [M].** Three SSA answer
+  rounds sit at rank 6, 7 and 14, behind sibling rounds of their own
+  session, so the tiers compact exactly the round that holds the answer.
+  The excerpt length is not the cause: query-aware excerpts gain one
+  question at most.
+
+Two caller-side rules restore SSA [M]:
+
+| Variant | SSA | Weighted allfull |
+| --- | ---: | ---: |
+| T3/A0/k30 | .913 | .960 |
+| (b) assistant-reference detector, `full_items = 8` when it fires | .978 | .967 |
+| (c) the rank-1 session's hits in full, up to 10 | .978 | .962 (SSP −1 question) |
+
+Variant (b) is a LongMemEval question-template heuristic. Variant (c) needs
+per-item tier control, which the current `pack_context` cannot express.
+
+- **The H1 stop words are LongMemEval-specific [R, M].** Slice 40 Unit H1
+  selected `had`, `long` and `suggest`
+  (`experiments/configs/comp-03/stoplist-verdict.v1.json` on
+  `slice/0.8.28-40-comp03`): +4 questions on 414.
+  - They are question-template words. Their document frequency is 6–9% on
+    LongMemEval, 7–21% on NFCorpus and 1–18% on TC-5.
+  - They are inert on NFCorpus and TC-5 only because those query sets
+    almost never contain them (0–1 queries).
+  - Owner ruling: they must not become an engine default, and Slice 40
+    keeps `STOPWORDS` at 63 words.
+- **Stop words are query-side only today.** `fathomdb-query` applies
+  `STOPWORDS` in `compile_text_query` and nowhere else. Indexing never
+  removes words, so a different list needs no reindex.
+- **Where compilation is called today** (`aea8e0457`):
+  - `search_api.rs`: `search_text_only_view_with_limit`, and
+    `search_inner_with_frozen_binding_and_expansion` (the non-frozen search
+    text branch);
+  - `search.rs`: `read_projected_text_in_tx` (projected text search), and
+    `read_search_in_tx` (the reader-side compile used by frozen and
+    evidence search);
+  - `graph_expand/execution.rs`: query seeds.
+
+### 5.2 Unit F: per-item full-render override
+
+**REQ41-F1 — `full_ids`.** `ContextPolicy` gains `full_ids`, a set of item
+ids; it is empty by default. A selected item whose id is in `full_ids`
+renders in the full tier, whatever its selection index. Other items keep
+the REQ41-P2 rule. A forced item does not use one of the `full_items` slots.
+The full tier is therefore the first `full_items` selected items plus every
+selected forced item.
+
+**REQ41-F2 — budget.** Forced items are walked in selection order like
+every other item. They are cut by `item_chars` and by the budget left, and
+they are omitted once the budget is spent. The budget is not reserved for
+them, and selection is never reordered. If forced items alone exceed the
+budget, the earliest-selected ones render and the rest are cut or omitted,
+exactly as full-tier items are today.
+
+**REQ41-F3 — validation.** These are refused with the invalid-argument
+error naming the field (`policy.full_ids[i]`):
+
+- an id that matches no input item;
+- a repeated id;
+- an empty id.
+
+An id that matches an input item that is not selected has no effect.
+
+**REQ41-F4 — provenance.** `ContextPackEntry` gains `forced`: true when the
+item's id is in `full_ids` and the item was rendered in the full tier
+because of it. `forced` is false for an item whose index already put it in
+the full tier.
+
+**REQ41-F5 — parity and surface.** Python `full_ids: tuple[str, ...] = ()`,
+TypeScript `fullIds?: readonly string[]`, Rust `full_ids: Vec<String>`; the
+wire field is `full_ids`. New shared-fixture cases cover REQ41-F1 to F4. The
+allowlist signature text and the pin are updated under the owner's earlier
+approval of the context-pack surface. No operation is added.
+
+**REQ41-F6 — callers own the rules.** No question-pattern detector or
+session rule goes into the SDK. The COMP-03 harness implements (c) through
+`full_ids`, and implements (b) by raising `full_items`, both labelled as
+harness heuristics.
+
+### 5.3 Unit Q: configurable query stop words
+
+**REQ41-Q1 — the setting.** `EngineConfig` gains `query_stop_words`,
+default `None`. When set, it holds:
+
+- `base`: `"fathomdb"` (the engine list, today 63 words) or `"none"`;
+- `extra`: words to add;
+- `keep`: words to remove from `base`.
+
+The effective set is `(base ∪ extra) \ keep`. It is fixed for the life of
+the opened engine.
+
+**REQ41-Q2 — validation at open.** Each word must be a single lowercase
+token in the compiler's own terms: non-empty, every character alphanumeric,
+and equal to its lowercase form. Further rules:
+
+- at most 256 words in `extra` and in `keep`, each at most 64 characters;
+- no repeats within a list;
+- no word in both `extra` and `keep`;
+- every `keep` word is in `base` (a typo would otherwise be silent);
+- no `extra` word is already in `base`.
+
+A violation is an open-time configuration error (`InvalidArgumentError` in
+the SDKs) naming the field.
+
+**REQ41-Q3 — where it applies.** Every query compilation site listed in
+§ 5.1 uses the effective set: text-only, the search text branch, frozen
+search, evidence search, projected text search and graph-expand query
+seeds. Nothing else changes: indexing, the vector branch's query
+embedding, fusion and the all-stopword fallback rule, which now uses the
+effective set.
+
+**REQ41-Q4 — recorded.**
+
+- `QueryTrace` gains `stop_words_sha256`: the SHA-256 of the effective words,
+  sorted by Unicode scalar value and joined by `"\n"`.
+- The engine exposes the default list's hash as a constant, so receipts can
+  say "default".
+- `Engine.config()` (where the SDK has it) echoes the setting.
+
+**REQ41-Q5 — default identity.** With `query_stop_words` unset, every
+compiled MATCH expression is byte-identical to today's, and all existing
+search tests pass unchanged. Setting `{"base": "fathomdb"}` with empty
+`extra` and `keep` gives the same output, and the same hash as unset.
+
+**REQ41-Q6 — parity.** One implementation, in `fathomdb-query`, does the
+validation and the effective-set computation; the bindings convert values
+only. The Unit E cross-SDK suite gains a case: the same store opened with
+the same setting through each SDK returns equal ids and score bits.
+
+**REQ41-Q7 — no per-query override, no CLI suggester (this slice).** See
+design § 9.4 for the reasons.
+
+**REQ41-Q8 — harness step, specified here and done on the harness branch.**
+The COMP-03 config gains
+`query_stop_words: {"base": "fathomdb", "extra": ["had", "long", "suggest"]}`.
+The harness passes it to every FathomDB arm's `Engine.open` and records
+`stop_words_sha256` in each receipt. The Unit H implementer owns
+`slice/0.8.28-40-comp03` and makes the change; this slice does not edit
+that worktree.
+
+### 5.4 Phase 2 measurement
+
+- **MF1 ($0).** Re-run variant (c) through `pack_context` with `full_ids`:
+  the rank-1 session's hits, up to 10. On the 414-question FTS selection set
+  it must reproduce SSA .978 and weighted allfull .962. Run (b) through
+  `full_items = 8` for comparison. This step sets no SDK default.
+- **MQ1 ($0).** COMP-03 sweep with the three words supplied: the FTS top-10
+  for every one of the 500 questions equals the verdict's
+  `simulated_fts_ids`.
+- **MQ2 ($0).** With the defaults:
+  - COMP-03 sweep FTS top-10 equals the Slice 40 final-head receipts;
+  - COMP-01 FTS nDCG@10 and MRR@10 are unchanged (ids identical);
+  - COMP-02a stays within its manifest tolerances.
+- **Order with Unit H.** MQ1 and MQ2 run at the merged head (design § 9.5).
+
+### 5.5 Phase 2 acceptance criteria
+
+| AC | Check | REQ |
+| --- | --- | --- |
+| AC41-28 | Fixture: a forced item at selection index past `full_items` renders in full with `forced = true`; non-forced items keep index tiers | F1, F4 |
+| AC41-29 | Fixture: a forced item inside `full_items` has `forced = false`; a forced id matching an unselected `context` item has no effect | F1, F3, F4 |
+| AC41-30 | Fixture: forced items exceeding the budget are cut and omitted in selection order; no reordering | F2 |
+| AC41-31 | Unknown, repeated and empty `full_ids` are refused, naming `policy.full_ids[i]` | F3 |
+| AC41-32 | Property: with `full_ids` empty the output equals phase 1's for every request; adding ids never lowers an item's rendered chars before the budget is reached | F1, F2 |
+| AC41-33 | Python, TypeScript and Rust match the extended fixture field for field | F5 |
+| AC41-34 | Unit: with no setting, `compile_text_query_with(q, default)` equals `compile_text_query(q)` for a fixed query set; property: equal for any query | Q5 |
+| AC41-35 | Unit: `extra` words are dropped, `keep` words return, `base = none` keeps every token; the all-stopword fallback uses the effective set | Q1, Q3 |
+| AC41-36 | Each REQ41-Q2 violation is refused at open with the field named, in each SDK | Q2 |
+| AC41-37 | Engine: with `extra = [had, long, suggest]`, `search_text_only`, `search` (text branch), frozen search, projected text search and graph-expand query seeds all drop the words (match expression or ranking witness per site) | Q3 |
+| AC41-38 | Explain `stop_words_sha256` equals the default constant when unset or `base = fathomdb` with empty lists, and a different, documented value with extras | Q4 |
+| AC41-39 | Every existing search test passes unchanged (gate run) | Q5 |
+| AC41-40 | Cross-SDK case: one store, one setting, three SDKs, equal ids and score bits | Q6 |
+| AC41-41 | MF1 recorded | F6 |
+| AC41-42 | MQ1: 500 of 500 FTS top-10 lists equal `simulated_fts_ids` | Q8 |
+| AC41-43 | MQ2: defaults unchanged on COMP-03 sweep, COMP-01 and COMP-02a | Q5 |

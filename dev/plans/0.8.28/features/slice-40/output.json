@@ -2,7 +2,7 @@
   "phase": "0.8.28-slice-40",
   "baseline_sha": "574b09e788b04bbaff6ec949aa3a88de443bf477",
   "branch": "slice/0.8.28-40-fts-ranking-defects",
-  "head_sha": "43a8589b31e984f57e47cd864a74a711032f4a05",
+  "head_sha": "e683900775f0e012fbc43ca7d6ae3032f7ac158e",
   "head_sha_note": "last commit before the commit that adds this file; the output.json commit sits on top",
   "production_fix_sha": "13879d4af55e20646574d013c4cce596f1b18d40",
   "commits": [
@@ -36,7 +36,9 @@
     "d093beee3072501ed4c9e1503d1ccb28db7a7e16: Revise Slice 40 Unit G after review: untruncation-constrained policy rule, single-factor recency runs, best mix",
     "cde1fb07dc31f8353aff3a834051bc76dcf8c5e5: Update Slice 40 closure output for Units E, F and the Unit G revision",
     "f42483b7d2475ebbe16b80a25a78d3a04d2bf85a: Apply the Unit G re-review fixes: derived question counts, arm of record, v4c contingency, renderer caps",
-    "43a8589b31e984f57e47cd864a74a711032f4a05: Record Slice 40 Unit G W4/W5: evidence-policy verdict and GREEN run"
+    "43a8589b31e984f57e47cd864a74a711032f4a05: Record Slice 40 Unit G W4/W5: evidence-policy verdict and GREEN run",
+    "37070674e: Update Slice 40 closure output for Unit G",
+    "e683900775f0e012fbc43ca7d6ae3032f7ac158e: Record Slice 40 Unit G measurements and the final-head re-runs"
   ],
   "findings_addressed": [
     "F1: AC-038 corpus gains 'vitamin d c 1 ii study' and 'igf 1 d3 b12 trial'; query alphabet gains d3, c, ii, 1; still 100 queries; RED before W4 (40 queries diverged), GREEN after",
@@ -89,7 +91,7 @@
     "release-state JSON, STATUS board, plan ladder (orchestrator-owned)",
     "baseline comparison of the --features test-hooks engine failures (would need a second checkout)"
   ],
-  "next_step_for_orchestrator": "Run v3, v4a, v4b (v4c only if v4a rejects and v4b adopts) on the arm of record; write factor verdicts with comp03_answer recency-verdict and the mix with comp03_answer mix; re-measure the baseline at the final head with receipts.",
+  "next_step_for_orchestrator": "Rule on adding a comp03-answer baseline entry (needs an edit to test_slice_40_baseline_manifest_lists_the_five_benchmarks); review and land both branches.",
   "defect_c": {
     "production_fix_sha": "a3830681d",
     "rulings": {
@@ -183,7 +185,7 @@
   "units_efg": {
     "harness_branch": {
       "branch": "slice/0.8.28-40-comp03",
-      "head": "1419aae4f4108eaf7c00abde01e22a66466c2be6",
+      "head": "f59472d4c47d594bf85713717e7fae1ed7ea2db6",
       "commits": [
         "9d864e39e5b5652b8351bda4fb4bdc9ccf101660: Add failing tests for Slice 40 Units E, F, G: SDK parity, baseline check, evidence policy and recency",
         "d1bc2c9f6c1a4fa8ce299849808b5b348666e6e6: Add a failing test: the evidence policy must also hold for fathomdb-fts alone",
@@ -192,7 +194,17 @@
         "5e6ff1a348b1a04e8a58787a9a048c4d71f00bcc: Check TypeScript wrapper digests against the attested package root; add fused dense parity queries",
         "fa9d6ad0296505d750817cbd5f7031dfbac2b46f: Rewrite the Unit G tests for the revised rule, one evidence implementation, single-factor runs and the mix",
         "3b812cce4f59e8e9051edccc90ee7d9d90a3bad0: Extend the Unit G tests for the re-review: derived counts, arm of record, v4c, renderer caps",
-        "1419aae4f4108eaf7c00abde01e22a66466c2be6: Implement Unit G: offline evidence-policy evaluator and verdict, policy renderer, recency factors, v3/v4a/v4b/v4c configs, best-mix builder"
+        "1419aae4f4108eaf7c00abde01e22a66466c2be6: Implement Unit G: offline evidence-policy evaluator and verdict, policy renderer, recency factors, v3/v4a/v4b/v4c configs, best-mix builder",
+        "fcef83b84013a47268d951a3a9ba161c2a80b99c: Ignore Markdown under nested cargo target directories",
+        "8295401bb47307523c1351c007370789ea314471: Give the COMP-01 hybrid campaign a typed config so it can be recorded",
+        "7ef4ae8433981b2b5a6304da7033515495122038: Record the COMP-03 Unit G answer runs, mix config, and final re-runs",
+        "2fde9a445d6ecc3a723fe66d9b1d89e0dfb5e109: Record final-head receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214",
+        "6e0a09bdc8ffd0313a17addf5fde731f6706a3d9: Record final-head receipt comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec",
+        "8734a95d413c26abc4b10e4b0b6c501db04131f7: Record final-head receipt comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7",
+        "69bfa97ce08df05683eb5b37af888d6b47aa4890: Record final-head receipt comp-02a-comp02a-17272-20261016T1756Z-eede35ef",
+        "cfcdd98f79399decb264b32a962a573fe741b94c: Record final-head receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9",
+        "fb658a937e63f2266d2f2f7fb7cf3fddaff98332: Classify the final-head COMP-01/02/03 receipts",
+        "f59472d4c47d594bf85713717e7fae1ed7ea2db6: Record the COMP-03 Unit G result and final-head baseline values"
       ]
     },
     "unit_e": {
@@ -227,7 +239,7 @@
       "self_check": "comp01 8/8, comp01-hybrid 5/5, sweep 30/30, answer 3/3 PASS against the Unit D attempts"
     },
     "unit_g": {
-      "status": "implemented (W4) and verified (W5)",
+      "status": "measured (orchestrator runs; records by implementer)",
       "review": "REJECT (F1-F10) -> revised; re-review APPROVE-WITH-FIXES (N1-N4, v4c) applied",
       "verdict": {
         "file": "experiments/configs/comp-03/evidence-policy-verdict.v1.json",
@@ -251,7 +263,35 @@
         "hermes-answer.v4b.json",
         "hermes-answer.v4c.json"
       ],
-      "tests": "test_comp03_evidence.py 26 passed (RED 26 at 3b812cce4)"
+      "tests": "test_comp03_evidence.py 26 passed (RED 26 at 3b812cce4)",
+      "measured": {
+        "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+        "factor_verdicts": {
+          "v3": "reject (recency rule, report-only)",
+          "v4a": "reject",
+          "v4b": "adopt",
+          "v4c": "adopt"
+        },
+        "mix": "policy 4000/30000/on plus chronological, no recency sentence; equals v4c evidence",
+        "correct_of_60": {
+          "v3": "51/50/50",
+          "v3rep": "50/49/49",
+          "v4a": "49/52/50",
+          "v4b": "49/50/53",
+          "v4c": "53/50/54",
+          "mix": "53/52/54"
+        },
+        "noise": "v3 vs v3rep 3 discordant per arm; v4c vs mix 2/4/2",
+        "receipts_kept": [
+          "comp-03-hermes-answer-20261016T1610Z-33d78241 (v3)",
+          "comp-03-hermes-answer-20261016T1732Z-33d78241 (v3rep)",
+          "comp-03-hermes-answer-20261016T1609Z-22869ddc (v4a)",
+          "comp-03-hermes-answer-20261016T1609Z-1c856c71 (v4b)",
+          "comp-03-hermes-answer-20261016T1732Z-50579949 (v4c)",
+          "comp-03-hermes-answer-20261016T1747Z-4e56afa9 (mix)"
+        ],
+        "result_note": "dev/performance-benchmarking/2026-10-16-comp-03-unit-g-result.md (harness branch)"
+      }
     },
     "tests": {
       "tests/experiments": "19 failed (15 then-held Unit G + 4 pre-existing, unchanged names), 849 passed, 12 skipped, before the G rewrite",
@@ -260,7 +300,8 @@
       "ts_driver": "11 passed, 1 skipped",
       "rust_driver": "protocol 5, real_database 1 passed",
       "unit_g_revised": "23 failed (RED by design)",
-      "tests/experiments_final": "4 failed (the four pre-existing), 878 passed, 9 skipped"
+      "tests/experiments_final": "4 failed (the four pre-existing), 878 passed, 9 skipped",
+      "tests/experiments_after_records": "4 failed (the four pre-existing), 884 passed, 20 skipped"
     },
     "gates": {
       "slice agent-lint-docs.sh": "exit 0",
@@ -268,7 +309,21 @@
       "harness agent-lint-md.sh": "exit 2: only the two pre-existing data/corpus-data links",
       "harness ruff": "All checks passed!",
       "agent-verify": "not run (docs-only W-slice change)",
-      "harness agent-lint-md.sh (final)": "exit 1: 4 findings in experiments/comp_drivers/surrealdb/target/.../README-lib.md (orchestrator's driver build output under a nested target/ the lint ignore list does not cover); left in place"
+      "harness agent-lint-md.sh (final)": "exit 2: only the two pre-existing data/corpus-data nfcorpus links (nested target/ ignored since fcef83b84)"
+    },
+    "final_reruns": {
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "receipts": [
+        "comp-01-comp01-3633-20261016T1755Z-b9aa1214",
+        "comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec",
+        "comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7",
+        "comp-02a-comp02a-17272-20261016T1756Z-eede35ef",
+        "comp-02b-comp02b-10000-20261016T1757Z-d91933b9",
+        "comp-02b-latency-20261016T1700Z-4f96fad0",
+        "comp-03-retrieval-sweep-20261016T1725Z-17773486"
+      ],
+      "baseline": "comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, tc5-10k-latency expected values replaced with final-head values (provenance final); comp03-answer-v2 stays provisional; no comp03-answer entry (test_slice_40_baseline_manifest_lists_the_five_benchmarks pins five ids)",
+      "classification": "all new receipts classified and validated; tree validator still fails on pre-existing unclassified comp-03-hermes-answer-20261016T1239Z-2e410a4f"
     }
   }
 }

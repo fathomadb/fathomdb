@@ -2,7 +2,7 @@
   "phase": "0.8.28-slice-40",
   "baseline_sha": "574b09e788b04bbaff6ec949aa3a88de443bf477",
   "branch": "slice/0.8.28-40-fts-ranking-defects",
-  "head_sha": "d093beee3072501ed4c9e1503d1ccb28db7a7e16",
+  "head_sha": "43a8589b31e984f57e47cd864a74a711032f4a05",
   "head_sha_note": "last commit before the commit that adds this file; the output.json commit sits on top",
   "production_fix_sha": "13879d4af55e20646574d013c4cce596f1b18d40",
   "commits": [
@@ -33,7 +33,10 @@
     "269357c5bcaa8aebcc5b52c499533966c93b6fc8: Correct the hybrid-versus-FTS answer interval sign in the Unit D record",
     "ad2773e6a8293c190e028e04c81b5da291ffaab4: Plan Slice 40 Units E, F, G: SDK parity, known-run baseline, evidence and recency levers",
     "cee66c4b80311952d12fd3467b2564308cc74851: Document the Slice 40 search behaviour in the interface docs; correct the public RRF formula",
-    "d093beee3072501ed4c9e1503d1ccb28db7a7e16: Revise Slice 40 Unit G after review: untruncation-constrained policy rule, single-factor recency runs, best mix"
+    "d093beee3072501ed4c9e1503d1ccb28db7a7e16: Revise Slice 40 Unit G after review: untruncation-constrained policy rule, single-factor recency runs, best mix",
+    "cde1fb07dc31f8353aff3a834051bc76dcf8c5e5: Update Slice 40 closure output for Units E, F and the Unit G revision",
+    "f42483b7d2475ebbe16b80a25a78d3a04d2bf85a: Apply the Unit G re-review fixes: derived question counts, arm of record, v4c contingency, renderer caps",
+    "43a8589b31e984f57e47cd864a74a711032f4a05: Record Slice 40 Unit G W4/W5: evidence-policy verdict and GREEN run"
   ],
   "findings_addressed": [
     "F1: AC-038 corpus gains 'vitamin d c 1 ii study' and 'igf 1 d3 b12 trial'; query alphabet gains d3, c, ii, 1; still 100 queries; RED before W4 (40 queries diverged), GREEN after",
@@ -86,7 +89,7 @@
     "release-state JSON, STATUS board, plan ladder (orchestrator-owned)",
     "baseline comparison of the --features test-hooks engine failures (would need a second checkout)"
   ],
-  "next_step_for_orchestrator": "Re-review Unit G at d093beee3 / fa9d6ad02; then the go for Unit G W4. Re-measure the baseline at the final head with receipts.",
+  "next_step_for_orchestrator": "Run v3, v4a, v4b (v4c only if v4a rejects and v4b adopts) on the arm of record; write factor verdicts with comp03_answer recency-verdict and the mix with comp03_answer mix; re-measure the baseline at the final head with receipts.",
   "defect_c": {
     "production_fix_sha": "a3830681d",
     "rulings": {
@@ -180,14 +183,16 @@
   "units_efg": {
     "harness_branch": {
       "branch": "slice/0.8.28-40-comp03",
-      "head": "fa9d6ad0296505d750817cbd5f7031dfbac2b46f",
+      "head": "1419aae4f4108eaf7c00abde01e22a66466c2be6",
       "commits": [
         "9d864e39e5b5652b8351bda4fb4bdc9ccf101660: Add failing tests for Slice 40 Units E, F, G: SDK parity, baseline check, evidence policy and recency",
         "d1bc2c9f6c1a4fa8ce299849808b5b348666e6e6: Add a failing test: the evidence policy must also hold for fathomdb-fts alone",
         "bc4ca421be67157bfce9f98e87808d55df78044f: Add the Slice 40 known-run baseline: manifest, drift check, latency harness, engine identity in receipts",
         "d709db1a89c2ebfd968c35dbbfbcc7562c944aa0: Add cross-SDK parity cases for the verbs Slice 40 changed: fixtures, Python oracle, five-operation drivers",
         "5e6ff1a348b1a04e8a58787a9a048c4d71f00bcc: Check TypeScript wrapper digests against the attested package root; add fused dense parity queries",
-        "fa9d6ad0296505d750817cbd5f7031dfbac2b46f: Rewrite the Unit G tests for the revised rule, one evidence implementation, single-factor runs and the mix"
+        "fa9d6ad0296505d750817cbd5f7031dfbac2b46f: Rewrite the Unit G tests for the revised rule, one evidence implementation, single-factor runs and the mix",
+        "3b812cce4f59e8e9051edccc90ee7d9d90a3bad0: Extend the Unit G tests for the re-review: derived counts, arm of record, v4c, renderer caps",
+        "1419aae4f4108eaf7c00abde01e22a66466c2be6: Implement Unit G: offline evidence-policy evaluator and verdict, policy renderer, recency factors, v3/v4a/v4b/v4c configs, best-mix builder"
       ]
     },
     "unit_e": {
@@ -222,8 +227,31 @@
       "self_check": "comp01 8/8, comp01-hybrid 5/5, sweep 30/30, answer 3/3 PASS against the Unit D attempts"
     },
     "unit_g": {
-      "status": "held then revised after review REJECT (F1-F10); 23 RED; awaiting re-review; no implementation code",
-      "note": "d1bc2c9f6 added one Q-G1 test before the hold; the rewrite fa9d6ad02 supersedes the pinned tests"
+      "status": "implemented (W4) and verified (W5)",
+      "review": "REJECT (F1-F10) -> revised; re-review APPROVE-WITH-FIXES (N1-N4, v4c) applied",
+      "verdict": {
+        "file": "experiments/configs/comp-03/evidence-policy-verdict.v1.json",
+        "sha256": "6f9fc2dc32c2796bbee7400788a22280e6b55ce70fcbf2781546b907164a2d2c",
+        "policy": "4000/30000/on",
+        "matches_reviewer_replay": true,
+        "questions": {
+          "scored": 470,
+          "selection": 414,
+          "answer_set_ids": 60,
+          "answer_set_scored": 56
+        },
+        "answer_set_expectation": {
+          "pooled_has_answer": 2,
+          "fathomdb-fts_has_answer": 0
+        }
+      },
+      "configs": [
+        "hermes-answer.v3.json",
+        "hermes-answer.v4a.json",
+        "hermes-answer.v4b.json",
+        "hermes-answer.v4c.json"
+      ],
+      "tests": "test_comp03_evidence.py 26 passed (RED 26 at 3b812cce4)"
     },
     "tests": {
       "tests/experiments": "19 failed (15 then-held Unit G + 4 pre-existing, unchanged names), 849 passed, 12 skipped, before the G rewrite",
@@ -231,14 +259,16 @@
       "unit_f": "8 passed",
       "ts_driver": "11 passed, 1 skipped",
       "rust_driver": "protocol 5, real_database 1 passed",
-      "unit_g_revised": "23 failed (RED by design)"
+      "unit_g_revised": "23 failed (RED by design)",
+      "tests/experiments_final": "4 failed (the four pre-existing), 878 passed, 9 skipped"
     },
     "gates": {
       "slice agent-lint-docs.sh": "exit 0",
       "slice agent-lint-md.sh": "exit 0",
       "harness agent-lint-md.sh": "exit 2: only the two pre-existing data/corpus-data links",
       "harness ruff": "All checks passed!",
-      "agent-verify": "not run (docs-only W-slice change)"
+      "agent-verify": "not run (docs-only W-slice change)",
+      "harness agent-lint-md.sh (final)": "exit 1: 4 findings in experiments/comp_drivers/surrealdb/target/.../README-lib.md (orchestrator's driver build output under a nested target/ the lint ignore list does not cover); left in place"
     }
   }
 }

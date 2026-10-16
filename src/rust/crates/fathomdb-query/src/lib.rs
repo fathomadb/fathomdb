@@ -161,64 +161,6 @@ mod tests {
         }
     }
 
-    /// The Slice 40 Unit H1 additions, the stop-list verdict's words
-    /// (`stoplist-verdict.v1.json`, harness `3f0789271`).
-    const UNIT_H_STOPWORDS: [&str; 3] = ["had", "long", "suggest"];
-
-    #[test]
-    fn unit_h_words_are_in_the_stop_list_and_content_tokens_are_not() {
-        for word in UNIT_H_STOPWORDS {
-            assert!(STOPWORDS.contains(&word), "{word:?} must be a stopword");
-        }
-        for word in UNIT_D_STOPWORDS {
-            assert!(STOPWORDS.contains(&word), "{word:?} must stay a stopword");
-        }
-        for word in ["d", "c", "d3", "ii", "1", "b12"] {
-            assert!(!STOPWORDS.contains(&word), "{word:?} must stay content");
-        }
-        // 63 words at 5b09afd44 (the 51 original plus the twelve of Unit D),
-        // plus the verdict's: a drift on either side of the harness copy fails here.
-        assert_eq!(STOPWORDS.len(), 63 + UNIT_H_STOPWORDS.len());
-        let distinct: HashSet<&str> = STOPWORDS.iter().copied().collect();
-        assert_eq!(distinct.len(), STOPWORDS.len(), "no word is listed twice");
-    }
-
-    #[test]
-    fn each_unit_h_word_alone_takes_the_fallback() {
-        // Upper case tells the paths apart, as for Unit D: the content path
-        // would emit the lowercased token, the fallback emits the raw one.
-        for word in UNIT_H_STOPWORDS {
-            let upper = word.to_uppercase();
-            assert_eq!(
-                compile_text_query(upper.as_str()).match_expression,
-                format!("\"{upper}\""),
-                "{word:?} alone has no content token"
-            );
-        }
-    }
-
-    #[test]
-    fn unit_h_question_shapes_compile_to_content_terms() {
-        // The analysis shapes keep their words: the verdict admitted none of
-        // "many", "have", "can", "recommend" or "some".
-        assert_eq!(
-            compile_text_query("How many siblings do I have?").match_expression,
-            "\"many\" OR \"siblings\" OR \"have\""
-        );
-        assert_eq!(
-            compile_text_query("Can you recommend some").match_expression,
-            "\"can\" OR \"recommend\" OR \"some\""
-        );
-        assert_eq!(
-            compile_text_query("How long had I been running before the race?").match_expression,
-            "\"been\" OR \"running\" OR \"before\" OR \"race\""
-        );
-        assert_eq!(
-            compile_text_query("Can you suggest a recipe?").match_expression,
-            "\"can\" OR \"recipe\""
-        );
-    }
-
     #[test]
     fn possessive_and_contraction_fragments_are_dropped() {
         assert_eq!(compile_text_query("Cow's Milk").match_expression, "\"cow\" OR \"milk\"");

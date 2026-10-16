@@ -15,6 +15,9 @@
     "node_modules/**",
     "src/ts/node_modules/**",
     "target/**",
+    // Nested cargo build outputs (e.g. experiments/comp_drivers/*/target/)
+    // carry third-party crate READMEs; no tracked .md lives under any target/.
+    "**/target/**",
     "site/**",
     "dist/**",
     "**/dist/**",

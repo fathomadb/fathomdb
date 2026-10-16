@@ -193,12 +193,8 @@ def test_sweep_config_is_typed_and_states_the_rule_verbatim(tmp_path: Path):
     config = sweep.load_config(sweep.DEFAULT_CONFIG)
     assert config["schema_version"] == "comp-03.retrieval-sweep.v1"
     assert set(config) == sweep.CONFIG_KEYS
-    assert [arm["id"] for arm in config["arms"]] == [
-        "fathomdb-fts", "fathomdb-hybrid", "fathomdb-fts-projected", "lancedb-fts",
-    ]
-    assert [arm["product_arm"] for arm in config["arms"]] == [
-        "fathomdb", "fathomdb-hybrid", "fathomdb-fts-projected", "lancedb",
-    ]
+    assert [arm["id"] for arm in config["arms"]] == ["fathomdb-fts", "fathomdb-hybrid", "lancedb-fts"]
+    assert [arm["product_arm"] for arm in config["arms"]] == ["fathomdb", "fathomdb-hybrid", "lancedb"]
     answer_v1 = c3.load_config(c3.DEFAULT_CONFIG)
     assert config["corpus"] == answer_v1["corpus"]
     assert config["document_unit"] == answer_v1["document_unit"]
@@ -281,7 +277,9 @@ def test_hybrid_arm_store_has_one_vector_row_per_document_and_vector_hits(tmp_pa
         cursors = connection.execute(
             "SELECT COUNT(DISTINCT write_cursor) FROM _fathomdb_vector_rows WHERE kind = 'doc'"
         ).fetchone()[0]
+        bodies = [row[0] for row in connection.execute("SELECT body FROM canonical_nodes ORDER BY write_cursor")]
     assert cursors == len(DOCS)
+    assert bodies == [doc["body"] for doc in DOCS], "the hybrid store holds the fts arm's plain bodies"
     assert build["vector_rows"] == len(DOCS)
     handle = hybrid.open(root)
     try:
@@ -308,23 +306,6 @@ def test_vector_coverage_check_refuses_a_store_without_vectors(tmp_path: Path, m
     _require_default_embedder(tmp_path)
     hybrid_root = _built("fathomdb-hybrid", tmp_path)
     assert sweep.require_vector_coverage(hybrid_root / "fathomdb.sqlite", documents=len(DOCS)) == len(DOCS)
-
-
-def test_fts_projected_arm_stores_json_bodies_and_searches_text_only(tmp_path: Path):
-    pytest.importorskip("fathomdb")
-    arm = comp_fts.ARMS["fathomdb-fts-projected"]
-    assert arm.settings()["method"] == "Engine.search_text_only"
-    root = _built("fathomdb-fts-projected", tmp_path)
-    with sqlite3.connect(root / "fathomdb.sqlite") as connection:
-        bodies = [row[0] for row in connection.execute("SELECT body FROM canonical_nodes ORDER BY write_cursor")]
-        vectors = connection.execute("SELECT COUNT(*) FROM _fathomdb_vector_rows").fetchone()[0]
-    assert [json.loads(body) for body in bodies] == [{"text": doc["body"]} for doc in DOCS]
-    assert vectors == 0, "the projected FTS variant does no embedding"
-    handle = arm.open(root)
-    try:
-        assert arm.query(handle, "Thai cuisine", limit=3) == ["d1"]
-    finally:
-        arm.close(handle)
 
 
 # --- sweep run, resume, all questions ------------------------------------------

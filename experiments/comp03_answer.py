@@ -319,22 +319,48 @@ def paired_summary(rows: Sequence[Mapping[str, Any]], arms: tuple[str, str], *, 
 # --- retrieval -----------------------------------------------------------------
 
 
-def _fresh_root(workdir: Path, test_id: str, arm: str, fathomdb_bin: str | None) -> tuple[Path, dict[str, Any] | None]:
-    if arm in ("fathomdb", "fathomdb-hybrid") and fathomdb_bin:
-        from experiments.fathomdb_test_setup import prepare_test_database
+def _cli_identity(fathomdb_bin: str) -> dict[str, Any]:
+    resolved = shutil.which(fathomdb_bin) or fathomdb_bin
+    return {"fathomdb_bin": fathomdb_bin, "fathomdb_bin_sha256": sha256_file(Path(resolved))}
 
-        if arm == "fathomdb":
-            prepared = prepare_test_database(workdir, test_id=test_id, embed_device="cpu", rerank_device="cpu",
-                                             embedder="none", check_reranker=False, fathomdb_bin=fathomdb_bin)
-        else:
-            prepared = prepare_test_database(workdir, test_id=test_id,
-                                             embed_device=os.environ.get("FATHOMDB_EMBED_DEVICE", "auto"),
-                                             rerank_device="cpu", embedder="default", warm_cache=True,
-                                             check_reranker=False, fathomdb_bin=fathomdb_bin)
-        doctor = json.loads(prepared.doctor_path.read_text(encoding="utf-8"))
-        return prepared.database_path.parent, {"doctor_sha256": sha256_file(prepared.doctor_path),
-                                               "integrity": doctor["integrity"].get("status", doctor["integrity"])}
+
+def _prepared_root(workdir: Path, test_id: str, arm: str, fathomdb_bin: str) -> tuple[Path, dict[str, Any]]:
+    from experiments.fathomdb_test_setup import prepare_test_database
+
+    if arm == "fathomdb":
+        prepared = prepare_test_database(workdir, test_id=test_id, embed_device="cpu", rerank_device="cpu",
+                                         embedder="none", check_reranker=False, fathomdb_bin=fathomdb_bin)
+    else:
+        prepared = prepare_test_database(workdir, test_id=test_id,
+                                         embed_device=os.environ.get("FATHOMDB_EMBED_DEVICE", "auto"),
+                                         rerank_device="cpu", embedder="default", warm_cache=True,
+                                         check_reranker=False, fathomdb_bin=fathomdb_bin)
+    doctor = json.loads(prepared.doctor_path.read_text(encoding="utf-8"))
+    setup = {"doctor_sha256": sha256_file(prepared.doctor_path),
+             "integrity": doctor["integrity"].get("status", doctor["integrity"]),
+             **_cli_identity(fathomdb_bin)}
+    if arm == "fathomdb-hybrid":
+        # The doctor evidence must describe the same build as the wheel that embeds.
+        cli_cuda = doctor["gpu"].get("cuda_compiled")
+        wheel_cuda = (doctor["open_report"]["embedder_device_resolution"] or {}).get("cuda_compiled")
+        if cli_cuda != wheel_cuda:
+            raise Comp03Error(f"fathomdb CLI doctor gpu cuda_compiled={cli_cuda} but the wheel's "
+                              f"embedder reports cuda_compiled={wheel_cuda}; use the matching CLI build")
+        setup["cuda_compiled"] = wheel_cuda
+    return prepared.database_path.parent, setup
+
+
+def _fresh_root(workdir: Path, test_id: str, arm: str, fathomdb_bin: str | None) -> tuple[Path, dict[str, Any] | None]:
+    """A new, empty store root; a failed setup removes the root it created."""
     root = workdir / test_id
+    if arm in ("fathomdb", "fathomdb-hybrid") and fathomdb_bin:
+        if root.exists():
+            raise FileExistsError(f"store root already exists: {root}")
+        try:
+            return _prepared_root(workdir, test_id, arm, fathomdb_bin)
+        except BaseException:
+            shutil.rmtree(root, ignore_errors=True)
+            raise
     if root.exists():
         raise FileExistsError(f"store root already exists: {root}")
     root.mkdir(parents=True)

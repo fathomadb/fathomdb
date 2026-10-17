@@ -1,0 +1,186 @@
+{
+  "agent": {
+    "final_turn_tool_choice": "none",
+    "max_model_turns": 8,
+    "max_search_calls": 3,
+    "max_tool_calls": 4,
+    "params": {
+      "gpt-4o-mini": {
+        "max_tokens": 4096,
+        "temperature": 0
+      },
+      "gpt-5-mini": {
+        "max_completion_tokens": 4096,
+        "reasoning_effort": "low"
+      },
+      "gpt-5.4-mini": {
+        "max_completion_tokens": 4096,
+        "reasoning_effort": "low",
+        "request_model_id": "openai/gpt-5.4-mini"
+      }
+    },
+    "prompts": {
+      "guided": {
+        "client_prompt_sha256": "8b6a4bf9f95a1e6e295608f9870ad80006f25d16b1017d82c5badd40dc5b5d2d",
+        "composition": "initialize instructions + blank line + client prompt",
+        "instructions_bytes": 1140,
+        "instructions_sha256": "ec160a83e0b5f7a8cc8a2389b5b934a61fe2e8071004c555df9505754c3aa207",
+        "system_prompt_sha256": "76df778dcdc6838d925619f08c35028bfcc7327581e07bcf00556f835810849e"
+      },
+      "neutral": {
+        "server_instructions": "not sent",
+        "system_prompt_sha256": "b2cea7bf617da474e7cc78a803327a952af3a3c7af94391281642cde4ab697e1"
+      }
+    },
+    "served_model_prefix": {
+      "gpt-4o-mini": "openai/gpt-4o-mini",
+      "gpt-5-mini": "openai/gpt-5-mini",
+      "gpt-5.4-mini": "openai/gpt-5.4-mini"
+    },
+    "system_prompt_sha256": "b2cea7bf617da474e7cc78a803327a952af3a3c7af94391281642cde4ab697e1",
+    "tool_result": "MCP text content block; error text when isError"
+  },
+  "arms": {
+    "A1": {
+      "kind": "single",
+      "mode": "text",
+      "model": "gpt-4o-mini",
+      "status": "complete_run1"
+    },
+    "A2": {
+      "kind": "single",
+      "mode": "hybrid",
+      "model": "gpt-4o-mini",
+      "status": "complete_run1"
+    },
+    "B-4o": {
+      "kind": "agent",
+      "mode": "hybrid",
+      "model": "gpt-4o-mini",
+      "prompt": "neutral",
+      "status": "complete_run1"
+    },
+    "B-4o-guided": {
+      "kind": "agent",
+      "mode": "hybrid",
+      "model": "gpt-4o-mini",
+      "prompt": "guided",
+      "status": "complete"
+    },
+    "B-5.4mini": {
+      "kind": "agent",
+      "mode": "hybrid",
+      "model": "gpt-5.4-mini",
+      "prompt": "neutral",
+      "status": "complete"
+    },
+    "B-5.4mini-guided": {
+      "kind": "agent",
+      "mode": "hybrid",
+      "model": "gpt-5.4-mini",
+      "prompt": "guided",
+      "status": "complete"
+    },
+    "B-5mini": {
+      "kind": "agent",
+      "mode": "hybrid",
+      "model": "gpt-5-mini",
+      "prompt": "neutral",
+      "status": "blocked"
+    }
+  },
+  "bootstrap": {
+    "resamples": 10000,
+    "seed": 20260814
+  },
+  "budget": {
+    "charge": "max(table, route-reported)",
+    "extrapolation_stop_usd": 4.0,
+    "hard_cap_usd": 5.0,
+    "prices_per_mtok": {
+      "gpt-4o-mini": {
+        "cached_input": 0.075,
+        "input": 0.15,
+        "output": 0.6
+      },
+      "gpt-5-mini": {
+        "cached_input": 0.025,
+        "input": 0.25,
+        "output": 2.0
+      },
+      "gpt-5.4-mini": {
+        "cached_input": 0.075,
+        "input": 0.75,
+        "output": 4.5
+      }
+    },
+    "validation_questions": 10
+  },
+  "campaign": "locomo_conv0_mcp_agent_loop",
+  "schema_version": "mcp-agent-loop.v1",
+  "scoring": {
+    "answer_params": {
+      "max_tokens": 4096,
+      "temperature": 0
+    },
+    "answerer_model": "gpt-4o-mini",
+    "evidence_aware": true,
+    "harness_prompts_sha256": "8ebac1ef60e9ab5caf99079fdaac038b85472e81491ed35e2d2655f3927c76c2",
+    "harness_upstream_git_sha": "4b61c5d31b9c668a12b4f5e78064248a02c82d2b",
+    "judge_model": "gpt-4o-mini",
+    "judge_params": {
+      "max_tokens": 4096,
+      "response_format": "json_object",
+      "temperature": 0
+    },
+    "provider": "openai_compatible_airlock",
+    "served_models": {
+      "gpt-4o-mini": "openai/gpt-4o-mini"
+    }
+  },
+  "server": {
+    "binary_sha256": "92d9c8327bfc72a1cfc401d7946d40410157fb8b2dd8643be92c2185985ba89d",
+    "cargo_features": [
+      "embed-cuda"
+    ],
+    "config": {
+      "call_deadline_ms": 120000,
+      "default_store": "conv0",
+      "idle_timeout_secs": 0,
+      "roots": [
+        {
+          "path": "external-stores-dir",
+          "suffix": ".sqlite"
+        }
+      ],
+      "search_mode": "per-arm",
+      "use_default_embedder": true
+    },
+    "device_env": {
+      "CUDA_VISIBLE_DEVICES": "0",
+      "FATHOMDB_EMBED_DEVICE": "cuda:0"
+    },
+    "earlier_binary_sha256": "dea36c50039cf1304f3800f1bbbd593077e211a11eaaf96e7a3a95708df95261",
+    "store": "conv0.sqlite from dev/experiments/mcp-hybrid-vs-keyword (locomo_load, bge-small-en-v1.5)"
+  },
+  "single_search": {
+    "context": "fetched bodies in rank order, no created_at",
+    "fetch": "the returned refs",
+    "search_args": {
+      "limit": 10,
+      "mode": "per arm"
+    }
+  },
+  "workload": {
+    "categories": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "conversation": 0,
+    "dataset_raw_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "questions": 150,
+    "selection": "category 1-4 with at least one evidence id that maps to a turn"
+  }
+}

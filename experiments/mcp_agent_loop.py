@@ -983,6 +983,7 @@ def run_live(args: Any) -> int:
     mcp = McpSession(Path(args.binary), config_path, env=env, stderr_path=out / f"server-{args.arm}.stderr")
     try:
         tools = mcp.list_tools()
+        (out / "instructions.txt").write_text(mcp.instructions or "", encoding="utf-8")
         (out / "tools_list.json").write_text(json.dumps(tools, indent=1, sort_keys=True), encoding="utf-8")
         functions = tools_to_functions(tools)
         if spec["kind"] == "single":
@@ -1265,10 +1266,33 @@ def gpu_evidence(csv_path: Path) -> dict[str, Any]:
     }
 
 
-def resolved_config(*, binary_sha256: str, arm_status: dict[str, str]) -> dict[str, Any]:
-    """The non-secret, path-free configuration recorded in the receipt."""
+def resolved_config(*, binary_sha256: str, arm_status: dict[str, str], instructions: str | None = None,
+                    earlier_binary_sha256: str | None = None) -> dict[str, Any]:
+    """The non-secret, path-free configuration recorded in the receipt.
+
+    ``instructions`` is the server's initialize text the guided arms used;
+    ``earlier_binary_sha256`` is the binary of the run whose arms were included.
+    """
     import hashlib
 
+    def sha(text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()
+
+    prompts: dict[str, Any] = {
+        "neutral": {"system_prompt_sha256": sha(AGENT_SYSTEM_PROMPT), "server_instructions": "not sent"},
+        "guided": {"client_prompt_sha256": sha(GUIDED_CLIENT_PROMPT),
+                   "composition": "initialize instructions + blank line + client prompt"},
+    }
+    if instructions:
+        prompts["guided"].update({
+            "instructions_sha256": sha(instructions), "instructions_bytes": len(instructions.encode()),
+            "system_prompt_sha256": sha(agent_system_prompt("guided", instructions=instructions)),
+        })
+    params = {
+        model: {**({"request_model_id": request_model_id(model)} if model in REQUEST_MODEL_ID else {}),
+                **request_params(model, max_tokens=4096)}
+        for model in ("gpt-4o-mini", "gpt-5-mini", "gpt-5.4-mini")
+    }
     server = server_config(Path("external-stores-dir"), "per-arm")
     return {
         "schema_version": SCHEMA_VERSION,
@@ -1278,7 +1302,8 @@ def resolved_config(*, binary_sha256: str, arm_status: dict[str, str]) -> dict[s
             "selection": "category 1-4 with at least one evidence id that maps to a turn", "questions": 150,
         },
         "server": {
-            "config": server, "binary_sha256": binary_sha256, "cargo_features": ["embed-cuda"],
+            "config": server, "binary_sha256": binary_sha256, "earlier_binary_sha256": earlier_binary_sha256,
+            "cargo_features": ["embed-cuda"],
             "device_env": {"CUDA_VISIBLE_DEVICES": "0", "FATHOMDB_EMBED_DEVICE": "cuda:0"},
             "store": "conv0.sqlite from dev/experiments/mcp-hybrid-vs-keyword (locomo_load, bge-small-en-v1.5)",
         },
@@ -1288,12 +1313,11 @@ def resolved_config(*, binary_sha256: str, arm_status: dict[str, str]) -> dict[s
         "single_search": {"search_args": {"mode": "per arm", "limit": 10}, "fetch": "the returned refs",
                           "context": "fetched bodies in rank order, no created_at"},
         "agent": {
-            "system_prompt_sha256": hashlib.sha256(AGENT_SYSTEM_PROMPT.encode()).hexdigest(),
+            "system_prompt_sha256": sha(AGENT_SYSTEM_PROMPT), "prompts": prompts,
             "max_tool_calls": MAX_TOOL_CALLS, "max_search_calls": MAX_SEARCH_CALLS,
             "max_model_turns": MAX_MODEL_TURNS, "final_turn_tool_choice": "none",
             "tool_result": "MCP text content block; error text when isError",
-            "params": {"gpt-4o-mini": {"temperature": 0, "max_tokens": 4096},
-                       "gpt-5-mini": {"reasoning_effort": "low", "max_completion_tokens": 4096}},
+            "params": params, "served_model_prefix": SERVED_MODEL_PREFIX,
         },
         "scoring": {
             "answerer_model": "gpt-4o-mini", "judge_model": JUDGE_MODEL,
@@ -1336,6 +1360,7 @@ def main(argv: list[str] | None = None) -> int:
     rec.add_argument("--out", required=True)
     rec.add_argument("--binary", required=True)
     rec.add_argument("--include", action="append", default=[], help="earlier run directory")
+    rec.add_argument("--earlier-binary", help="the server binary of the included run")
     rec.add_argument("--arm-status", action="append", default=[], help="ARM=status")
     rec.add_argument("--verdict", required=True)
     rec.add_argument("--read", required=True)
@@ -1360,8 +1385,13 @@ def main(argv: list[str] | None = None) -> int:
         summary["validation_estimate"] = json.loads(validation.read_text(encoding="utf-8"))
     summary["blockers"] = list(args.blocker)
     status = dict(item.split("=", 1) for item in args.arm_status)
-    resolved = resolved_config(binary_sha256=hashlib.sha256(Path(args.binary).read_bytes()).hexdigest(),
-                               arm_status=status)
+    instructions_path = out / "instructions.txt"
+    earlier = (hashlib.sha256(Path(args.earlier_binary).read_bytes()).hexdigest()
+               if args.earlier_binary else None)
+    resolved = resolved_config(
+        binary_sha256=hashlib.sha256(Path(args.binary).read_bytes()).hexdigest(), arm_status=status,
+        instructions=instructions_path.read_text(encoding="utf-8") if instructions_path.is_file() else None,
+        earlier_binary_sha256=earlier)
     run_id, run_dir = write_receipt(out, summary=summary, resolved=resolved, verdict=args.verdict,
                                     read=args.read, ts=datetime.now(timezone.utc).replace(second=0, microsecond=0))
     print(json.dumps({"run_id": run_id, "run_dir": str(run_dir)}))

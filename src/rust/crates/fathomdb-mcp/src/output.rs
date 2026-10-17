@@ -333,9 +333,11 @@ pub struct FeedbackOutput {
     pub reason: Option<NotRecordedReason>,
 }
 
-/// A tool's structured content: its result, or a tool error.
+/// A tool's structured content: its result, or a tool error. Only its schema
+/// is used (as the declared `outputSchema`); values are built per variant.
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 #[serde(untagged)]
+#[allow(dead_code)]
 pub enum ToolResult<T> {
     Ok(T),
     Err(ErrorOutput),

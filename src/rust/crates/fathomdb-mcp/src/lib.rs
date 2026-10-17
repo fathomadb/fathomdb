@@ -15,18 +15,16 @@ pub mod edge;
 mod error;
 mod hooks;
 pub mod names;
-pub mod output;
+mod output;
 mod registry;
 #[cfg(feature = "test-seams")]
 pub mod seams;
 mod session;
-pub mod shape;
-pub mod tools;
+mod shape;
+mod tools;
 
 use std::sync::Arc;
 use std::time::Duration;
-
-pub use error::{ErrorClass, ToolError};
 
 use config::Config;
 use hooks::Hooks;

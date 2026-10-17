@@ -173,7 +173,7 @@ engine column is what §7 must add.
 | Orient | Capped summary of contents and readiness | `read.projections`, `read.projection_status`, `read.embedding_readiness` | Kind enumeration, per-kind and per-class counts | MR-022 |
 | Search | Relevance search, filters, budget, as-of; explain in the same call | `search` and `search_text_only` (reader pool), filter grammar, `ReadView.valid_as_of`, `explain=true` | Exact phrase predicate; bounded count; raw per-arm scores; currency fields on hits; scope | MR-020–023, MR-030–032, MR-040–041 |
 | Fetch | Full content for many references | `read.get`, `read.get_many` (logical ids only); `search_with_evidence` and `resolve_evidence` for passages | Fetch by content or passage id | MR-040.2, MR-042, MR-052 |
-| Expand | Bounded neighbourhood | `graph.expand`, `graph.neighbors`, `search_expand_frozen` | — | MR-053 |
+| Expand | Bounded neighbourhood from an explicit reference | `graph.expand`, `graph.neighbors` (one read each; `search_expand_frozen` is writer-serialised and not a default) | — | MR-053 |
 | Explain | Why a hit ranked | `explain` sidecar | Raw per-arm scores (shared with Search) | MR-031 |
 | Changes | Governed changes since a cursor | Nothing suitable: `read.mutations` reads the op-store; `read.crossed_boundary_since` is keyed by wall-clock | Governed change feed keyed by write cursor and visibility generation | MR-055 |
 | Remember *(write policy only)* | Record, replace, retract | `write` (same logical id replaces), `transition` to `Deleted` | First-class origin field; exact-duplicate rule | MR-060–062 |
@@ -201,34 +201,46 @@ do not retain history (ADR-0.8.25). Two facts shape the adapter:
 
 So the adapter **reports** consistency rather than holding it:
 
-1. **Canonical state, not the full binding.** The state identifier covers the
-   canonical write boundary, read-visibility generation and dependency
-   generation. Projection progress (embedding batches, index builds) is reported
-   as readiness, not as drift, so a background projection worker does not make
-   every read look stale. The validity instant is a separate field, so an
-   unpinned session's identifier does not change merely because time passed
-   (MR-050).
-2. **One engine addition is a prerequisite:** a content-free read of the
-   canonical state on a reader connection (§7). Without it, the identifier is
-   reported `unavailable` and drift labelling is off. Nothing approximates it.
-3. **One SDK read per response.** Each handler issues exactly one governed read,
-   bracketed by two canonical-state reads. The components are monotonic, so equal
-   brackets prove that no canonical commit happened during the read. On a
+1. **The visibility generation is the state.** The engine's read-visibility
+   generation is advanced by triggers on canonical, source, dependency,
+   projection, vector and op-store tables, and explicitly by projection commits
+   that change visibility. Because of that it moves both when records change and
+   when indexing changes what is searchable. That is what an agent needs, since
+   either changes search output. The identifier is derived from it alone. The
+   validity instant is a separate field, so an unpinned session's identifier does
+   not change merely because time passed (MR-050).
+2. **Cause is classified beside it, not proved.** The state read also returns the
+   canonical write boundary and the projection cursor. A label's cause is
+   `canonical` when the write boundary changed, `index` when only the projection
+   cursor changed, and `unspecified` otherwise (for example an in-place
+   lifecycle update). These fields are informational: the write boundary is a
+   `MAX` over four tables and can fall after a purge (MR-051).
+3. **One engine addition is a prerequisite:** a content-free read of those three
+   values on a reader connection (§7). Without it, the identifier is reported
+   `unavailable` and drift labelling is off. Nothing approximates it.
+4. **One SDK read per response.** Each handler issues exactly one governed read,
+   bracketed by two state reads. The proof rests on the generation alone, which
+   is monotonic (it aborts rather than wrap): equal generations in the brackets
+   prove that no visibility-changing commit happened during the read. On a
    mismatch the bridge retries once. A second mismatch returns a drift error and
-   no data (MR-050.3). A handler that needs two reads to be consistent with each
-   other uses an existing frozen composite (for example `search_expand_frozen`)
-   and accepts its writer-lock cost, rather than composing reads itself.
-4. **Labels, not failures.** When a response's state differs from the session's
+   no data (MR-050.3). The frozen composites (`search_frozen`,
+   `search_expand_frozen`) take the writer lock through `freeze_read_context`,
+   so no default tool uses them. The default expand tool expands from an
+   explicit reference with `graph.expand` or `graph.neighbors`, which is one
+   read.
+5. **Labels, not failures.** When a response's state differs from the session's
    previous one, it is answered on the new state and labelled `state_advanced`
-   (MR-051). The agent's own writes produce the same label.
-5. **Continuations re-derive.** A continuation carries the state identifier and
-   the references already returned. On an unchanged state, the page continues
+   with its cause (MR-051). The agent's own writes produce the same label.
+6. **Continuations re-derive.** A continuation is an opaque value authenticated
+   by the adapter. It carries the state identifier and the references already
+   returned, which the ranked-result cap bounds, and no record content
+   (MR-041.5). On an unchanged state, the page continues
    exactly. On an advanced state, the ranked run is repeated on the new state,
    references already returned are dropped, and the page is labelled
    `state_advanced` with the caveat that results which moved earlier may be
    missing (MR-041.4). A continuation fails as drift only when it cannot be
    re-derived.
-6. **Validity instant per call.** It is resolved per call, or pinned for as-of
+7. **Validity instant per call.** It is resolved per call, or pinned for as-of
    sessions (MR-023), so records whose validity starts later appear once it
    arrives.
 
@@ -279,7 +291,7 @@ and each is read-side unless noted. The adapter reports the dependent signal as
 
 | Addition | For | Note |
 | --- | --- | --- |
-| **Content-free canonical-state read on a reader connection** | MR-050, MR-051, MR-041.2/.4 | **The first-release prerequisite.** About one function: the canonical half of the existing state binding, returned as a digest, with no writer lock and no row count. |
+| **Content-free state read on a reader connection** | MR-050, MR-051, MR-041.2/.4 | **The first-release prerequisite.** Returns the existing visibility generation, the canonical write boundary and the projection cursor, with no writer lock and no row count. These are values the engine already maintains, so this is a small read verb. It would also give Python and TypeScript SDK users cheap change detection. |
 | First-class origin field, filterable, on every hit path | MR-010, MR-011 | A data-model addition: an additive column under the no-data-migration rule. Gates the write family. |
 | Scope applied on every read path (preferably a `ReadView` member), stamped on write from policy | MR-014 | Point reads, neighbours, list, aggregates and change feed included. Gates scope binding and the write family. |
 | Validity and supersession fields on search hits | MR-013 | `NodeRecord` has them; `SearchHit` does not. |
@@ -294,7 +306,7 @@ and each is read-side unless noted. The adapter reports the dependent signal as
 | Interruptible search; scope-limited drift signal | MR-033, MR-051 | Quality improvements; not prerequisites. |
 
 Sequencing follows from the table. The first release is read-only and
-unscoped, needs only the canonical-state read, and meets reach, hygiene,
+unscoped, needs only the state read, and meets reach, hygiene,
 readiness, deadlines, as-of, fetch by logical id, expand, budget, determinism,
 state identity, drift labels and typed errors. The other rows land
 independently. `requirements.md` § First-release scope lists the exact split.

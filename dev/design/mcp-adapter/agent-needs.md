@@ -121,8 +121,10 @@ partial-result warning.
 ## Multi-step work
 
 **AN-013 — Know when the world moved.** Across the calls that make up one plan,
-the agent can tell whether consecutive calls read the same store state, and is
-never given one response that mixes two states.
+the agent can tell whether consecutive calls saw the same store, including what
+was searchable. When they did not, it learns, where knowable, whether records
+changed or only indexing progressed. It is never given one response that mixes
+two states.
 *Observed:* the repo's memory records a shared checkout whose branch was stale
 against the session's assumption; "verify state from git" became a rule.
 

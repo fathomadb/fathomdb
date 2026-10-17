@@ -29,11 +29,13 @@ Conventions:
 - **[engine]** marks a requirement that needs a new or extended `fathomdb-sdk`
   verb, under its own ADR, before the adapter can meet it. Until then the
   adapter reports the signal as `unavailable` (MR-032), never an approximation.
-- "Canonical state" means the canonical write boundary, read-visibility
-  generation and dependency generation (the canonical half of the ADR-0.8.25
-  state binding). A canonical commit advances it; background projection work
-  does not. Projection progress is reported as readiness (MR-030, MR-032), not
-  as a state change.
+- "Store state" means the engine's read-visibility generation. Triggers advance
+  it on canonical, source, dependency, projection, vector and op-store tables,
+  so it moves both when records change and when a projection commit changes
+  what is searchable. It is monotonic. The canonical write boundary
+  (`MAX(write_cursor)` over four tables) and the projection cursor are read
+  beside it only to classify the cause. They are not monotonic proofs: the write
+  boundary can fall after a purge.
 - Test seams for delays and blocked calls (MR-003, MR-033) live in the
   adapter's own bridge, behind a test-only feature of the adapter crate; they
   need no engine hook.
@@ -152,9 +154,11 @@ closed), rather than filtering in the adapter.
 - MR-014.3 Counts (MR-022) and change queries (MR-055) in a scoped session
   reflect only records in A.
 - MR-014.4 Launching with a scope configured, on an engine without scoped point
-  reads, fails at startup with a typed error naming the missing capability. The
-  check is a build-time capability of the linked SDK, so it runs before the
-  handshake and does not conflict with MR-003.
+  reads, fails at startup with a typed error naming the missing capability. Two
+  checks apply: a build-time capability of the linked SDK, which runs before
+  the handshake, and a schema check after open (from the open report), whose
+  failure is reported through the MR-003.3 path, since a file can predate the
+  schema step even when the SDK supports it.
 - MR-014.5 Records written through the adapter carry the session's scope as
   stamped by the engine from launch policy, not from the body; an agent cannot
   write into another scope.
@@ -267,15 +271,19 @@ Meets AN-009.
 
 - MR-041.1 For any budget at or above the documented minimum, the estimator
   applied to the serialized structured output does not exceed the budget.
-- MR-041.2 With no canonical commit between pages, following continuations of a
+- MR-041.2 With no state advance between pages, following continuations of a
   search returns every ranked result up to the engine's ranked-result cap (100
   today, `MAX_RANKED_LIMIT`) with no duplicates and no gaps; past the cap the
   response says the cap was reached. **[engine]** for ranked pagination beyond
   the cap.
-- MR-041.4 When a commit landed between pages, the next page is re-derived on
-  the new canonical state, contains no reference already returned, and is
-  labelled `state_advanced` with the caveat that results which moved earlier may
-  be missing (MR-051.3).
+- MR-041.4 When the state advanced between pages, the next page is re-derived on
+  the new state, contains no reference already returned, and is labelled
+  `state_advanced` with the caveat that results which moved earlier may be
+  missing (MR-051.3).
+- MR-041.5 A continuation is an opaque, adapter-authenticated value that the
+  agent passes back unchanged. Its size is bounded because it records at most
+  the ranked-result cap of references. It contains no record content. A
+  tampered continuation fails as invalid request.
 - MR-041.3 With no budget given, the default **[ADR: 4,000]** applies and is
   stated in the tool description.
 
@@ -306,27 +314,31 @@ AN-011.
 ## Multi-step work
 
 **MR-050 — State identity on every response.** Every read response carries a
-state identifier derived from the canonical state only, and the validity
-instant as a separate field, so two responses with equal identifiers read the
-same canonical state. Meets AN-013. **[engine]**: a content-free read of the
-canonical state on a reader connection. `freeze_read_context` is not usable for
-this: it takes the writer-connection lock, and it counts every canonical row.
+state identifier derived from the store state only, and the validity instant as
+a separate field. Two responses with equal identifiers read the same visible
+store, including what was searchable. Meets AN-013. **[engine]**: a
+content-free read, on a reader connection, of the visibility generation, the
+canonical write boundary and the projection cursor. `freeze_read_context` cannot
+serve: it takes the writer-connection lock and counts every canonical row.
 Until the read exists, responses report the identifier as `unavailable`.
 
-- MR-050.1 Two reads with no intervening canonical commit, with different
+- MR-050.1 Two reads with no intervening commit of any kind, with different
   filters and an unpinned validity instant, report the same identifier.
-- MR-050.2 After a canonical commit, the next read reports a different
-  identifier. Background projection work alone does not change it.
-- MR-050.3 No response contains results read from two canonical states. When
-  the adapter cannot show a single state, it returns a drift error and no
-  results.
+- MR-050.2 After a canonical commit, or a projection commit that changes
+  visibility, the next read reports a different identifier.
+- MR-050.3 No response contains results read from two store states. When the
+  adapter cannot show a single state, it returns a drift error and no results.
 
-**MR-051 — Drift is labelled, not hidden.** When the canonical state moved since
-the session's previous read, the response says so, whether the agent's own
-write or another writer moved it. Meets AN-013.
+**MR-051 — Drift is labelled, not hidden.** When the store state moved since the
+session's previous read, the response says so, and gives the cause where it can:
+`canonical` when the write boundary changed, `index` when only the projection
+cursor changed, `unspecified` otherwise. This holds whether the agent's own
+write or another writer moved the state. Meets AN-013.
 
-- MR-051.1 After an external commit, the next read is answered on the new state
-  and carries a `state_advanced` label naming the previous identifier.
+- MR-051.1 After an external canonical commit, the next read is answered on the
+  new state and carries a `state_advanced` label naming the previous identifier,
+  with cause `canonical`. After a background embedding batch alone, the label's
+  cause is `index`.
 - MR-051.2 After a write through the adapter in the same session, the next read
   reflects that write and carries the label.
 - MR-051.3 A continuation issued on an earlier state is re-derived per MR-041.4.
@@ -429,14 +441,14 @@ every structured output validates against its output schema.
 ## First-release scope
 
 The first release ships only what the 0.8.27 SDK supports plus one engine
-addition, the canonical-state read (MR-050). It is read-only, with no scope
+addition, the state read (MR-050). It is read-only, with no scope
 binding.
 
 | Group | Requirements |
 | --- | --- |
-| In the first release, SDK as-is | MR-001, MR-002, MR-003, MR-004, MR-012, MR-021, MR-023, MR-032, MR-033, MR-040, MR-041.1/.3, MR-042.1/.3, MR-043, MR-052, MR-053, MR-060, MR-070, MR-071 |
-| In the first release, needs the canonical-state read | MR-041.2/.4, MR-050, MR-051.1/.3 |
-| Reported `unavailable` until its engine addition lands | MR-010, MR-013, MR-020, MR-022, MR-030, MR-031, MR-042.2, MR-054 candidates, MR-055 |
+| In the first release, SDK as-is | MR-001, MR-002, MR-003, MR-004, MR-012.1, MR-021, MR-023, MR-032, MR-033, MR-040, MR-041.1/.3/.5, MR-042.1/.3, MR-043, MR-052, MR-053, MR-054.2, MR-060, MR-070, MR-071 |
+| In the first release, needs the state read | MR-041.2/.4, MR-050, MR-051.1/.3 |
+| Reported `unavailable` until its engine addition lands | MR-010, MR-012.2 and MR-054.1/.3 (no kind candidates without the kind enumeration), MR-013, MR-020, MR-022, MR-030, MR-031, MR-042.2, MR-055 |
 | Startup refused until its engine addition lands | MR-014 |
 | Not shipped until origin and scope stamping land | MR-011, MR-051.2, MR-061, MR-062 |
 

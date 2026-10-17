@@ -677,6 +677,69 @@ make_and_run_candle_fixture candle-git-patch candle-git-patch
 expect_failure 'unsupported Cargo override/git source Cargo.toml:patch.crates-io.candle-core-fathomdb' \
   'a Candle fork crate reintroduced as a git patch is unsupported'
 
+# The standalone Rust SDK driver (experiments/sdk_drivers/rust) is its own
+# Cargo workspace, so it must repeat the root patch set. It may repeat only the
+# approved root sources: libsqlite3-sys at the vendored path and candle-kernels
+# at the approved revision. A stale copy of an older root set is unsupported.
+write_sdk_driver() {
+  local fixture="$1" mode="$2"
+  python3 - "$fixture" "$mode" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+mode = sys.argv[2]
+git = "https://github.com/coreyt/candle-fathomdb.git"
+k9 = "182ceab0547348993b6dbec4b1aed610dcc8b23f"
+old_rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
+patches = []
+if mode != "missing-sqlite":
+    patches.append('libsqlite3-sys = { path = "../../../third_party/libsqlite3-sys-0.38.1" }')
+if mode != "missing-kernels":
+    patches.append(f'candle-kernels = {{ git = "{git}", rev = "{k9}" }}')
+if mode == "stale-cudarc":
+    patches.append('cudarc = { path = "../../../third_party/cudarc-0.19.7" }')
+if mode == "stale-candle":
+    patches.append(f'candle-core-fathomdb = {{ git = "{git}", rev = "{old_rev}" }}')
+driver = root / "experiments/sdk_drivers/rust/Cargo.toml"
+driver.parent.mkdir(parents=True, exist_ok=True)
+driver.write_text(
+    "[package]\nname = \"fathomdb-sdk-benchmark-driver\"\nversion = \"0.1.0\"\n\n[workspace]\n\n"
+    "[patch.crates-io]\n" + "\n".join(patches) + "\n",
+    encoding="utf-8",
+)
+PY
+}
+
+make_and_run_driver_fixture() {
+  local name="$1" mode="$2" fixture
+  fixture="$(make_candle_fixture "$name" approved)"
+  write_sdk_driver "$fixture" "$mode"
+  run_fixture "$fixture"
+}
+
+make_and_run_driver_fixture driver-approved approved
+if [ "$RC" -ne 0 ]; then
+  fail "SDK driver repeating only the approved root patches must pass, got rc=$RC output=$OUT"
+fi
+pass 'SDK driver duplicating the approved sqlite and candle-kernels patches passes'
+
+make_and_run_driver_fixture driver-stale-cudarc stale-cudarc
+expect_failure 'unsupported Cargo override/git source experiments/sdk_drivers/rust/Cargo.toml:patch.crates-io.cudarc' \
+  'SDK driver with the stale vendored cudarc patch is rejected'
+
+make_and_run_driver_fixture driver-stale-candle stale-candle
+expect_failure 'unsupported Cargo override/git source experiments/sdk_drivers/rust/Cargo.toml:patch.crates-io.candle-core-fathomdb' \
+  'SDK driver with a stale Candle fork git patch is rejected'
+
+make_and_run_driver_fixture driver-missing-sqlite missing-sqlite
+expect_failure 'missing SDK driver duplicate Cargo patch libsqlite3-sys' \
+  'SDK driver missing the sqlite duplicate is rejected'
+
+make_and_run_driver_fixture driver-missing-kernels missing-kernels
+expect_failure 'missing SDK driver duplicate Cargo patch candle-kernels' \
+  'SDK driver missing the candle-kernels duplicate is rejected'
+
 # The real tree is the regression half: after removing obsolete root overrides,
 # the snapshot remains parseable and the gate stays clean without a network.
 run_fixture "$REPO_ROOT"

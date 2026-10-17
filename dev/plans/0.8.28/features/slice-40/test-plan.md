@@ -696,6 +696,23 @@ failure is the shared page cache and not the fixture.
 - Its fixture suite: 44 PASS.
 - The amalgamation digest is unchanged.
 
+**Scoped checks at I-W5** (on `65e6eff7e`, covering Units J and I):
+
+- `cargo clippy -p fathomdb-engine --all-targets -- -D warnings`: exit 0;
+  the same with `--features test-hooks,operator`: exit 0.
+- `cargo test -p fathomdb-engine --no-fail-fast`: exit 0.
+- `cargo test -p fathomdb-engine --features test-hooks,operator
+  --no-fail-fast`: exit 101 on one test only, the known pre-existing
+  `slice135_persistent_sqlite_full_preserves_state_until_cap_lifts`
+  (fd count `Some(8)` against `Some(24)`). Every other target passed,
+  including `tc57_governed_write_race` and `pr_g8_dangling_edges`.
+- `check-pinned-override-rot.sh`: ok; `agent-lint.sh`: exit 0, skipping
+  only the Tegra pool lint, which needs aarch64; `agent-lint-md.sh` and
+  `agent-lint-docs.sh`: exit 0.
+- Not run: `reader_page_cache_timing_report` (§ 3h.3, release build on
+  the tc5 inputs). It is left for the orchestrator's measurement step
+  under the no-benchmark instruction.
+
 ### 3h.2 Pins and docs
 
 - `cargo test -p fathomdb-engine --test runtime_configuration` stays in

@@ -299,3 +299,25 @@ fn quoted_name(name: &str) -> String {
     let prefix: String = name.chars().take(64).collect();
     format!("{prefix:?}")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use fathomdb_sdk::EngineError;
+
+    // No read path the adapter calls can produce these without an engine
+    // change (the engine raises them from embed and operator verbs), so the
+    // mapping is checked directly.
+    #[test]
+    fn embedder_errors_map_to_not_ready_embedder_not_ready() {
+        for (error, detail) in [
+            (EngineError::EmbedderNotConfigured, "EmbedderNotConfiguredError"),
+            (EngineError::KindNotVectorIndexed, "KindNotVectorIndexedError"),
+        ] {
+            let mapped = ToolError::from_sdk("notes", &SdkError::Engine(error));
+            assert_eq!(mapped.class, ErrorClass::NotReady);
+            assert_eq!(mapped.code, "embedder_not_ready");
+            assert_eq!(mapped.detail, Some(detail));
+        }
+    }
+}

@@ -13,6 +13,36 @@
       "run_id": "measurement-classification-native-search-20260903T2255Z-b5f420c4",
       "record_sha256": "4f393460aab1be0ce7e58765879e0a2718c25ba747c69d8b4241b8c875d740ff",
       "reason": "invalid_ancillary_locator_quarantined"
+    },
+    {
+      "run_id": "comp-03-hermes-answer-20261016T1239Z-2e410a4f",
+      "record_sha256": "00ec2967fc7dc269c0744ebc56a0153ab385f50b8a757b97fba6a5a78fa7eb08",
+      "reason": "runner_code_unrecoverable_superseded",
+      "rationale": "The v1 COMP-03 answer run (FathomDB vs LanceDB, top-5, 0.700 vs 0.700) was measured from a dirty tree: its runner experiments/comp03_answer.py is not in the recorded commit 6b4bd8e1 and was first committed with the receipt at 0e246ad31, so the measured code cannot be asserted and the run cannot be classified against it. The external attempt ~/.cache/fathomdb-comp/comp03-run1/summary.json still matches the receipt's summary digest (checked 2026-10-17). The v2 receipts supersede the run."
+    },
+    {
+      "run_id": "comp-01-comp01-3633-20261016T1240Z-b9aa1214",
+      "record_sha256": "52bfd67dc48690401794ed754a9660f4e29a34fad0f411e71525d8cc3a3ca647",
+      "reason": "runner_code_unrecoverable_superseded",
+      "rationale": "Recorded from a dirty tree: the recorder experiments/comp_record.py is not in the recorded commit 6b4bd8e1 and was first committed with the receipt at 0e246ad31, so the measured code cannot be asserted and the run cannot be classified against it. The external attempt ~/.cache/fathomdb-comp/comp01-run1 still matches the receipt's manifest and every cell digest (checked 2026-10-17). The final-head receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214 supersedes it."
+    },
+    {
+      "run_id": "comp-02a-comp02a-10000-20261016T1240Z-09ac6bd7",
+      "record_sha256": "9059070c37b04e30561d0c9893b0cdb0479070cdf91fe30c305af59a20aaa048",
+      "reason": "runner_code_unrecoverable_superseded",
+      "rationale": "Recorded from a dirty tree: the recorder experiments/comp_record.py is not in the recorded commit 6b4bd8e1 and was first committed with the receipt at 0e246ad31, so the measured code cannot be asserted and the run cannot be classified against it. The external attempt ~/.cache/fathomdb-comp/comp02a-10000 still matches the receipt's manifest and every cell digest (checked 2026-10-17). The final-head receipt comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7 supersedes it."
+    },
+    {
+      "run_id": "comp-02a-comp02a-17272-20261016T1240Z-eede35ef",
+      "record_sha256": "e07902084394f75dc7a0b63167f343184cbf1ba7e50ff44bf3e01c8bb747cbc9",
+      "reason": "runner_code_unrecoverable_superseded",
+      "rationale": "Recorded from a dirty tree: the recorder experiments/comp_record.py is not in the recorded commit 6b4bd8e1 and was first committed with the receipt at 0e246ad31, so the measured code cannot be asserted and the run cannot be classified against it. The external attempt ~/.cache/fathomdb-comp/comp02a-17272 still matches the receipt's manifest and every cell digest (checked 2026-10-17). The final-head receipt comp-02a-comp02a-17272-20261016T1756Z-eede35ef supersedes it."
+    },
+    {
+      "run_id": "comp-02b-comp02b-10000-20261016T1240Z-d91933b9",
+      "record_sha256": "6b9c97dc7a7b3d11f673091c847dd64d9123aec696be725c383b0e5bdfdcbc5d",
+      "reason": "runner_code_unrecoverable_superseded",
+      "rationale": "Recorded from a dirty tree: the recorder experiments/comp_record.py is not in the recorded commit 6b4bd8e1 and was first committed with the receipt at 0e246ad31, so the measured code cannot be asserted and the run cannot be classified against it. The external attempt ~/.cache/fathomdb-comp/comp02b-10000 still matches the receipt's manifest and every cell digest (checked 2026-10-17). The final-head receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 supersedes it."
     }
   ],
   "postcutover_plan_amendments": [

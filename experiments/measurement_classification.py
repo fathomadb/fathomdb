@@ -28,6 +28,36 @@ LEGACY_PLAN_VERSION = "measurement.plan.v1"
 CLASSIFIER_VERSION = "1"
 SIDECAR_NAME = "measurement-classification.v2.json"
 LEGACY_SIDECAR_NAME = "measurement-classification.v1.json"
+QUARANTINE_SCHEMA_VERSION = "measurement.classification.quarantine.v1"
+RUNNER_UNRECOVERABLE_REASON = "runner_code_unrecoverable_superseded"
+# The explicit list of receipts that may be quarantined because their runner is
+# not in their recorded commit. Each entry names the missing runner paths and the
+# receipts that supersede the run; nothing outside this list takes the reason.
+RUNNER_UNRECOVERABLE_RUNS: dict[str, dict[str, list[str]]] = {
+    "comp-03-hermes-answer-20261016T1239Z-2e410a4f": {
+        "missing_runner_paths": ["experiments/comp03_answer.py"],
+        "superseded_by": [
+            "comp-03-hermes-answer-20261016T1422Z-c807ed90",
+            "comp-03-hermes-answer-20261016T1609Z-1c856c71",
+        ],
+    },
+    **{
+        f"{campaign}-20261016T1240Z-{suffix}": {
+            "missing_runner_paths": ["experiments/comp_record.py"],
+            "superseded_by": [f"{campaign}-20261016T{final}Z-{suffix}"],
+        }
+        for campaign, suffix, final in (
+            ("comp-01-comp01-3633", "b9aa1214", "1755"),
+            ("comp-02a-comp02a-10000", "09ac6bd7", "1756"),
+            ("comp-02a-comp02a-17272", "eede35ef", "1756"),
+            ("comp-02b-comp02b-10000", "d91933b9", "1757"),
+        )
+    },
+}
+QUARANTINE_KEYS = {
+    "schema_version", "run_id", "reason", "record_sha256", "recorded_commit", "recorded_dirty",
+    "missing_runner_paths", "external_summary_sha256", "superseded_by", "rationale",
+}
 POLICY_NAME = "measurement-classification-policy.v2.json"
 POLICY_VERSION = "measurement.classification-policy.v2"
 CURRENT_POLICY_NAME = "measurement-classification-policy.v3.json"
@@ -1048,6 +1078,120 @@ def _parse_external_locator_amendments(values: Any) -> dict[str, dict[str, Any]]
     return amendments
 
 
+def _parse_superseded_postcutover_runs(values: Any) -> dict[str, dict[str, Any]]:
+    """Superseded runs by id. ``runner_code_unrecoverable_superseded`` is accepted
+    only for a run on ``RUNNER_UNRECOVERABLE_RUNS`` and needs a rationale."""
+    rows = _list(values, "superseded post-cutover runs")
+    result: dict[str, dict[str, Any]] = {}
+    for index, value in enumerate(rows):
+        reason = value.get("reason") if isinstance(value, dict) else None
+        keys = {"run_id", "record_sha256", "reason"}
+        if reason == RUNNER_UNRECOVERABLE_REASON:
+            keys = keys | {"rationale"}
+        entry = _closed(value, keys, f"superseded post-cutover runs[{index}]")
+        run_id = _nonempty_string(entry["run_id"], "superseded run id")
+        if entry["reason"] == RUNNER_UNRECOVERABLE_REASON:
+            if run_id not in RUNNER_UNRECOVERABLE_RUNS:
+                raise ClassificationError(f"{run_id} is not on the runner-unrecoverable list")
+            _nonempty_string(entry["rationale"], "superseded run rationale")
+        elif entry["reason"] != "invalid_ancillary_locator_quarantined":
+            raise ClassificationError("unsupported superseded run reason")
+        _nonempty_string(entry["record_sha256"], "superseded record SHA-256")
+        if run_id in result:
+            raise ClassificationError("duplicate superseded post-cutover run id")
+        result[run_id] = entry
+    return result
+
+
+def _runner_absent(repository_root: Path, commit: str, path: str) -> bool:
+    completed = subprocess.run(
+        ["git", "cat-file", "-e", f"{commit}:{path}"], cwd=repository_root, check=False, capture_output=True
+    )
+    return completed.returncode != 0
+
+
+def runner_unrecoverable_quarantine(
+    repository_root: str | Path, run_id: str, *, external_summary_sha256: str, rationale: str
+) -> dict[str, Any]:
+    """Build the quarantine sidecar for a listed run, checking its evidence."""
+    root = Path(repository_root).resolve()
+    listed = RUNNER_UNRECOVERABLE_RUNS.get(run_id)
+    if listed is None:
+        raise ClassificationError(f"{run_id} is not on the runner-unrecoverable list")
+    record_path = root / "experiments" / "runs" / run_id / "record.json"
+    record = _load_json(record_path, "quarantined record")
+    document = {
+        "schema_version": QUARANTINE_SCHEMA_VERSION, "run_id": run_id, "reason": RUNNER_UNRECOVERABLE_REASON,
+        "record_sha256": _sha256_bytes(record_path.read_bytes()),
+        "recorded_commit": record["code"]["git_sha"], "recorded_dirty": record["code"]["dirty"],
+        "missing_runner_paths": list(listed["missing_runner_paths"]),
+        "external_summary_sha256": external_summary_sha256,
+        "superseded_by": list(listed["superseded_by"]), "rationale": rationale,
+    }
+    _validate_quarantine_evidence(document, root)
+    return document
+
+
+def _validate_quarantine_evidence(document: dict[str, Any], root: Path) -> None:
+    row = _closed(document, QUARANTINE_KEYS, "runner-unrecoverable quarantine")
+    if row["schema_version"] != QUARANTINE_SCHEMA_VERSION or row["reason"] != RUNNER_UNRECOVERABLE_REASON:
+        raise ClassificationError("unsupported runner-unrecoverable quarantine")
+    listed = RUNNER_UNRECOVERABLE_RUNS.get(row["run_id"])
+    if listed is None:
+        raise ClassificationError(f"{row['run_id']} is not on the runner-unrecoverable list")
+    if row["missing_runner_paths"] != listed["missing_runner_paths"] or row["superseded_by"] != listed["superseded_by"]:
+        raise ClassificationError("quarantine differs from the runner-unrecoverable list")
+    _nonempty_string(row["rationale"], "quarantine rationale")
+    run_dir = root / "experiments" / "runs" / row["run_id"]
+    record_path = run_dir / "record.json"
+    record = _load_json(record_path, "quarantined record")
+    if record.get("run_id") != row["run_id"] or _sha256_bytes(record_path.read_bytes()) != row["record_sha256"]:
+        raise ClassificationError("quarantined record differs")
+    if record["code"]["git_sha"] != row["recorded_commit"] or record["code"]["dirty"] is not True \
+            or row["recorded_dirty"] is not True:
+        raise ClassificationError("quarantine needs the record's dirty recorded commit")
+    for path in row["missing_runner_paths"]:
+        if not _runner_absent(root, row["recorded_commit"], path):
+            raise ClassificationError(f"{path} is present at {row['recorded_commit']}; classify the run instead")
+    # The record's pinned digest of its external attempt: the summary for a COMP-03
+    # answer receipt, the manifest for a comp_record receipt.
+    artifacts = record.get("artifacts", [])
+    pinned = [a.get("summary_sha256") for a in artifacts if a.get("kind") == "external_attempt"]
+    pinned += [a.get("sha256") for a in artifacts if a.get("kind") == "manifest"]
+    if pinned != [row["external_summary_sha256"]]:
+        raise ClassificationError("quarantine summary digest differs from the record's external attempt")
+    for superseding in row["superseded_by"]:
+        superseding_dir = root / "experiments" / "runs" / superseding
+        other = _load_json(superseding_dir / "record.json", "superseding record")
+        if other.get("experiment") != record.get("experiment") or not (superseding_dir / SIDECAR_NAME).is_file():
+            raise ClassificationError(f"{superseding} is not a classified receipt of the same experiment")
+
+
+def validate_runner_unrecoverable_quarantine(
+    document: dict[str, Any], *, repository_root: str | Path, entry: dict[str, Any]
+) -> None:
+    """Accept a listed run's quarantine sidecar under its policy entry only."""
+    if entry.get("reason") != RUNNER_UNRECOVERABLE_REASON or entry.get("run_id") != document.get("run_id"):
+        raise ClassificationError("quarantine needs a runner_code_unrecoverable_superseded policy entry")
+    _parse_superseded_postcutover_runs([entry])
+    _validate_quarantine_evidence(document, Path(repository_root).resolve())
+    if entry["record_sha256"] != document["record_sha256"]:
+        raise ClassificationError("superseded record SHA-256 mismatch")
+
+
+def write_runner_unrecoverable_quarantine(
+    run_dir: str | Path, document: dict[str, Any], *, repository_root: str | Path
+) -> Path:
+    """Validate and publish a listed run's quarantine as its legacy-named sidecar."""
+    _validate_quarantine_evidence(document, Path(repository_root).resolve())
+    destination = Path(run_dir) / LEGACY_SIDECAR_NAME
+    payload = (canonical_json(document) + "\n").encode("utf-8")
+    if destination.is_file() and destination.read_bytes() != payload:
+        raise ClassificationError("measurement_classification_conflict")
+    destination.write_bytes(payload)
+    return destination
+
+
 def _parse_misclassified_postcutover_runs(values: Any) -> dict[str, dict[str, Any]]:
     rows = _list(values, "misclassified post-cutover runs")
     result: dict[str, dict[str, Any]] = {}
@@ -1217,28 +1361,9 @@ def validate_repository(repository_root: str | Path) -> None:
     manifest = _load_json(manifest_path, "historical manifest")
     _validate_historical_manifest(root, experiments_dir, manifest, prefix_rows)
 
-    superseded_values = _list(
-        policy["superseded_postcutover_runs"], "superseded post-cutover runs"
-    )
-    superseded_records: dict[str, str] = {}
-    for index, value in enumerate(superseded_values):
-        entry = _closed(
-            value,
-            {"run_id", "record_sha256", "reason"},
-            f"superseded post-cutover runs[{index}]",
-        )
-        if entry["reason"] != "invalid_ancillary_locator_quarantined":
-            raise ClassificationError("unsupported superseded run reason")
-        run_id = _nonempty_string(entry["run_id"], "superseded run id")
-        record_sha256 = _nonempty_string(
-            entry["record_sha256"], "superseded record SHA-256"
-        )
-        if run_id in superseded_records:
-            raise ClassificationError("duplicate superseded post-cutover run id")
-        superseded_records[run_id] = record_sha256
+    superseded_entries = _parse_superseded_postcutover_runs(policy["superseded_postcutover_runs"])
+    superseded_records = {run_id: entry["record_sha256"] for run_id, entry in superseded_entries.items()}
     superseded = set(superseded_records)
-    if len(superseded) != len(superseded_values):
-        raise ClassificationError("duplicate superseded post-cutover run id")
 
     amendments = _parse_postcutover_plan_amendments(
         policy["postcutover_plan_amendments"]
@@ -1283,6 +1408,13 @@ def validate_repository(repository_root: str | Path) -> None:
             if _sha256_bytes(sidecar_path.read_bytes()) != quarantine["sidecar_sha256"]:
                 raise ClassificationError("quarantined sidecar SHA-256 mismatch")
             observed_quarantined.add(run_id)
+            continue
+        if superseded_entries.get(run_id, {}).get("reason") == RUNNER_UNRECOVERABLE_REASON:
+            observed_superseded.add(run_id)
+            quarantine_sidecar = _load_json(run_dir / LEGACY_SIDECAR_NAME, "runner-unrecoverable quarantine")
+            validate_runner_unrecoverable_quarantine(
+                quarantine_sidecar, repository_root=root, entry=superseded_entries[run_id]
+            )
             continue
         if run_id not in superseded and _validate_external_locator_amendment(
             record_path, record, locator_amendments

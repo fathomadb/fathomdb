@@ -372,7 +372,18 @@ impl Spawned {
         }
     }
 
+    /// `tools/call` with a progress token, so a call to a store that is
+    /// still opening waits for it (design §4) instead of returning
+    /// `not_ready` at once.
     pub fn call(&mut self, tool: &str, args: Value) -> Value {
+        let token = format!("p{}", self.next_id);
+        let params = json!({"name": tool, "arguments": args, "_meta": {"progressToken": token}});
+        let response = self.request("tools/call", params);
+        response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"))
+    }
+
+    /// `tools/call` without a progress token.
+    pub fn call_without_progress(&mut self, tool: &str, args: Value) -> Value {
         let response = self.request("tools/call", json!({"name": tool, "arguments": args}));
         response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"))
     }

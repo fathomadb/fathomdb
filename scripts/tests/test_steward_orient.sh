@@ -635,7 +635,7 @@ if ! grep -qE '6f23|aaaa-4bbb|8bbb-0000' <<<"$OUT"; then
 else
   fail "arm 4c (full UUID printed): out=$OUT"
 fi
-if grep -iE 'uuid' <<<"$OUT" | grep -qF 'ledgerwatch --project'; then
+if grep -qiE 'uuid.*ledgerwatch --project' <<<"$OUT"; then
   pass "the TODOS section says UUID ids are prefixes and where the full ids live"
 else
   fail "arm 4c (prefix note): out=$OUT"

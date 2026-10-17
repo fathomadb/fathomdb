@@ -43,11 +43,12 @@ Conventions:
 ## Reach and protocol hygiene
 
 **MR-001 — Local stdio launch.** A harness can launch the adapter as a local
-process over MCP stdio, pointing at one database file, with no network
-listener. Meets AN-018.
+process over MCP stdio, configured with a store registry (MR-005) rather than
+one database file, with no network listener. Meets AN-018.
 
-- MR-001.1 Launching the binary with a database path and completing the MCP
-  `initialize` handshake succeeds against a fresh and an existing database.
+- MR-001.1 Launching the binary with a registry naming a fresh and an existing
+  database, and completing the MCP `initialize` handshake, succeeds; both
+  stores are then usable.
 - MR-001.2 While running, the process holds no listening socket.
 - MR-001.3 The adapter passes the official MCP conformance server scenarios
   applicable to stdio and the tools capability.
@@ -63,30 +64,57 @@ warm-up and model download, and when a handler panics. Meets AN-018.
   succeeds.
 - MR-002.3 All diagnostics go to stderr or to the host's registered subscriber.
 
-**MR-003 — Responsive before the engine is ready.** The handshake and
-`tools/list` complete without waiting for engine open, migration or embedder
-warm-up; tool calls made before the engine is ready return a typed not-ready
-result. Meets AN-012, AN-018.
+**MR-003 — Responsive before a store is ready.** The handshake and
+`tools/list` complete without waiting for any engine open, migration or embedder
+warm-up; tool calls made to a store before it is ready return a typed not-ready
+result for that store only. Meets AN-012, AN-018.
 
 - MR-003.1 With engine open delayed indefinitely by the bridge's test seam,
   `initialize` and `tools/list` complete within 1 s. (Harness handshake
   timeouts are the harness's; 10 s is the assumed minimum.)
 - MR-003.2 A search issued during warm-up returns not-ready with the phase
   named, not an error and not an empty result.
-- MR-003.3 When open fails (lock held, corruption, migration refusal), every
-  tool call returns the typed open error with its remedy, and stderr carries the
-  same; the process does not exit until the harness closes it.
+- MR-003.3 When a store's open fails (lock held, corruption, migration refusal),
+  every call to that store returns the typed open error with its remedy, and
+  stderr carries the same; calls to other stores are unaffected, and the process
+  does not exit until the harness closes it.
 
-**MR-004 — Embeddable in the owning process.** An application that holds an
-open `Engine` can serve the same tools over a transport it chooses, so the
-application and its agents share one store without a second opener. Meets
-AN-018.
+**MR-004 — Embeddable in a Rust host.** A Rust application that holds open
+`Engine`s can register them in the adapter's store registry and serve the tools
+over a transport it chooses, so the application and its agents share stores
+without a second opener. Embedded mode is a Rust API only; the Python and
+TypeScript bindings do not expose it (owner decision, 2026-10-17). Meets AN-018.
 
-- MR-004.1 A Rust application holding an open `Engine` serves the tool set over
-  an in-memory transport; a client on that transport completes a search; no
-  second `Engine::open` of the file occurs.
-- MR-004.2 Starting the standalone adapter against a file another process holds
-  yields the typed lock error per MR-003.3, naming the database path.
+- MR-004.1 A Rust application holding two open `Engine`s registers both under
+  names, serves the tool set over an in-memory transport, and a client completes
+  a search against each; no second `Engine::open` of either file occurs.
+- MR-004.2 A standalone call to a store whose file another process holds yields
+  the typed lock error per MR-003.3, naming the store, and other stores keep
+  working.
+
+**MR-005 — Addressable stores.** The adapter serves any number of FathomDB
+database files. The operator defines which files are addressable, either as
+named entries or as a root directory whose database files are addressable by
+relative name. The agent addresses a store by that name on every call, or
+through a session default, and can list the addressable stores. The agent never
+supplies a filesystem path. Meets AN-020.
+
+- MR-005.1 With a registry of three stores, the same tool called with each store
+  name returns that store's records only.
+- MR-005.2 A listing tool returns every addressable store name, with its
+  open/closed and readiness state, and no filesystem paths.
+- MR-005.3 A name that is not addressable, including one containing path
+  separators, `..`, or an absolute path, fails as invalid request, and no file
+  outside the registry is opened or created.
+- MR-005.4 A store is opened on first use and closed after an idle period
+  **[ADR]**, which releases its sidecar lock so its owning application can open
+  it. At most **[ADR]** stores are open at once; beyond that, the least recently
+  used idle store is closed first.
+- MR-005.5 The agent cannot create a new database file unless the operator's
+  registry explicitly allows creation for that name.
+- MR-005.6 All state identity, cursors and continuations (MR-041, MR-050,
+  MR-055) are per store. A continuation or cursor issued for one store fails as
+  invalid request on another.
 
 ## Trust and scope
 
@@ -205,6 +233,25 @@ validity instant instead of now. Meets AN-006.
   window and not at one outside it, for both search and fetch.
 - MR-023.2 Responses state the validity instant they were answered at.
 
+**MR-024 — "This hit was used" feedback.** An agent can report which results
+from a search it actually used. The adapter records the report and does
+nothing else with it: no ranking, filtering or default changes because of it.
+What FathomDB later does with the signal is undecided (owner, 2026-10-17).
+Meets AN-021.
+
+- MR-024.1 A feedback call that names a search response and some of its
+  references is accepted. When the operator has enabled telemetry, the report
+  reaches the engine's existing feedback record (`record_feedback`) with label
+  source `agent`.
+- MR-024.2 With telemetry disabled, the call returns `not_recorded` with that
+  reason, not an error.
+- MR-024.3 Search output for the same request on the same state is
+  byte-identical before and after any amount of feedback (MR-043).
+- MR-024.4 Feedback is available in read-only mode, because it writes only to
+  the telemetry sink and not to the database (MR-060.1 still holds).
+- MR-024.5 Feedback naming a response from another store, or references not in
+  that response, fails as invalid request.
+
 ## Stopping
 
 **MR-030 — Completeness signal.** Every searching or enumerating response states
@@ -265,8 +312,9 @@ a fetch tool returns full content for references. Meets AN-009.
   read of the same records under the same view.
 
 **MR-041 — Caller-set budget with continuation.** A caller can set a response
-budget measured by the adapter's estimator **[ADR: serialized bytes ÷ 4,
-versioned]**; the response fits, says it was cut, and carries a continuation.
+budget measured by the adapter's estimator, serialized bytes ÷ 4 (owner
+decision, 2026-10-17, as a starting rule of thumb; versioned so it can change).
+The response fits, says it was cut, and carries a continuation.
 Meets AN-009.
 
 - MR-041.1 For any budget at or above the documented minimum, the estimator
@@ -446,7 +494,7 @@ binding.
 
 | Group | Requirements |
 | --- | --- |
-| In the first release, SDK as-is | MR-001, MR-002, MR-003, MR-004, MR-012.1, MR-021, MR-023, MR-032, MR-033, MR-040, MR-041.1/.3/.5, MR-042.1/.3, MR-043, MR-052, MR-053, MR-054.2, MR-060, MR-070, MR-071 |
+| In the first release, SDK as-is | MR-001, MR-002, MR-003, MR-004, MR-005, MR-012.1, MR-021, MR-023, MR-024, MR-032, MR-033, MR-040, MR-041.1/.3/.5, MR-042.1/.3, MR-043, MR-052, MR-053, MR-054.2, MR-060, MR-070, MR-071 |
 | In the first release, needs the state read | MR-041.2/.4, MR-050, MR-051.1/.3 |
 | Reported `unavailable` until its engine addition lands | MR-010, MR-012.2 and MR-054.1/.3 (no kind candidates without the kind enumeration), MR-013, MR-020, MR-022, MR-030, MR-031, MR-042.2, MR-055 |
 | Startup refused until its engine addition lands | MR-014 |
@@ -475,3 +523,5 @@ binding.
 | AN-017 | MR-060, MR-061, MR-062 |
 | AN-018 | MR-001, MR-002, MR-003, MR-004 |
 | AN-019 | MR-014 |
+| AN-020 | MR-005 |
+| AN-021 | MR-024 |

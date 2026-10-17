@@ -33,7 +33,7 @@ inputs:
 | Governed surface is the contract; public surface changes need an ADR (`AGENTS.md` §1) | The adapter is a client of `fathomdb-sdk` and adds no engine semantics. Missing capability arrives as SDK verbs under their own ADRs (§7), usable by every SDK, never as adapter-private SQL. |
 | Application query verbs stay out of the operator CLI (ADR-0.6.0-cli-scope) | A separate crate and binary; the operator CLI is unchanged. See §1.1: the adopting ADR must address this ADR explicitly. |
 | Sync engine surface (ADR-0.6.0-async-surface) | Async lives only inside the adapter's protocol edge; engine calls cross into blocking threads. |
-| One process owns a database file (sidecar lock ADRs) | Two deployment modes, embedded and standalone (§3). Sharing a file between an application and a separately launched adapter is impossible by design, and the architecture says so rather than working around it. |
+| One process owns a database file (sidecar lock ADRs) | Two deployment modes, embedded and standalone (§3). A file is never open in two processes at once. The standalone registry opens stores lazily and closes idle ones, so a store moves between an application and the adapter by hand-off, never by sharing (§3.1). |
 | Deterministic, explainable retrieval; no model in the read path | The adapter shapes and labels. It never re-ranks with a model, summarises, or rewrites results. |
 | Frozen reads are reproduce-or-fail, not retained snapshots (ADR-0.8.25) | Consistency is reported (state identity and drift labels), not held (§5). |
 | JSON Schema 2020-12 (ADR-0.6.0-json-schema-policy) | Tool schemas are generated as 2020-12 (rmcp uses schemars 1.x). |
@@ -86,16 +86,21 @@ or amends cli-scope. It also amends ADR-0.6.0-crate-topology for the new crate.
 │  │                              │  blocking hand-off, deadlines,   │
 │  │                              │  error mapping                   │
 │  └──────────────┬───────────────┘                                  │
-└─────────────────┼──────────────────────────────────────────────────┘
-                  ▼
-      fathomdb-sdk  (governed, sync)  ──▶  fathomdb-engine
+│  ┌──────────────▼───────────────┐                                  │
+│  │ Store registry               │  name → file, lazy open,         │
+│  │                              │  idle close, open-store cap      │
+│  └───┬──────────┬──────────┬────┘                                  │
+└──────┼──────────┼──────────┼───────────────────────────────────────┘
+       ▼          ▼          ▼
+    Engine A   Engine B   Engine C   (fathomdb-sdk, governed, sync; one per file)
 ```
 
 - **Protocol edge.** The only module that names `rmcp` types. rmcp is pinned
   with `=`; an upgrade touches this module only.
-- **Session.** One per MCP connection. Holds the last state identifier and
-  cursor it reported, the validity instant (now, or a pinned as-of instant), and
-  effective defaults. It holds no result sets.
+- **Session.** One per MCP connection. Holds an optional default store and, per
+  store, the last state identifier and cursor it reported. It also holds the
+  validity instant (now, or a pinned as-of instant) and effective defaults. It
+  holds no result sets.
 - **Launch policy.** Fixed by the operator: read-only or write-enabled, the
   origin class stamped on writes, the scope (MR-014), the admission cap. No tool
   can change it (MR-011, MR-014, MR-060).
@@ -105,35 +110,71 @@ or amends cli-scope. It also amends ADR-0.6.0-crate-topology for the new crate.
   output. It does not depend on rmcp, so it can later be extracted into a crate
   that the Python and TypeScript SDKs reuse; agent-shaped output then need not
   be MCP-only.
-- **Engine bridge.** Owns the readiness gate (§3), admission control and
-  deadlines (§3), the hand-off to blocking threads, and the mapping from SDK
+- **Engine bridge.** Owns the per-store readiness gate (§3), admission control
+  and deadlines (§3), the hand-off to blocking threads, and the mapping from SDK
   `ErrorKind` to the MR-054 classes.
+- **Store registry.** Maps the store names the agent uses to database files the
+  operator made addressable (§3.1). It opens engines on first use, closes idle
+  ones, and enforces the open-store cap. In embedded mode the host registers its
+  own open engines under names, and the registry never opens or closes those.
 
 ## 3. Deployment, startup and threads
 
 ### Modes
 
-| Mode | Who opens the `Engine` | Transport | Use |
+| Mode | Who opens each `Engine` | Transport | Use |
 | --- | --- | --- | --- |
-| **Standalone** | The `fathomdb-mcp` binary, as sole opener | stdio | A store owned by the agent itself: harness-launched memory for Claude Code, OpenClaw, Hermes. |
-| **Embedded** | The host application, which lends its open `Engine` | Any rmcp transport the host chooses | A store owned by an application (for example Memex) that its agents also use (MR-004). |
+| **Standalone** | The `fathomdb-mcp` binary, through its store registry | stdio | Harness-launched access to any number of operator-addressable stores: Claude Code, OpenClaw, Hermes. |
+| **Embedded** | A Rust host application, which registers its open `Engine`s by name | Any rmcp transport the host chooses | Stores owned by a Rust application that its agents also use (MR-004). |
 
-The common topology "the application owns the file and a harness also launches
-a standalone adapter on it" is excluded by the sidecar lock. AN-018 is met for
-application-owned stores only through embedded mode. Embedded mode is a Rust API
-first; whether the Python and TypeScript bindings expose it is a **blocking**
-question for the adopting ADR (§10), because most consumers are Python or
-TypeScript applications.
+Embedded mode is a Rust API only. The Python and TypeScript bindings do not
+expose it (owner decision, 2026-10-17): the purpose is to expose databases over
+MCP, not to grow new language bindings. A Python or TypeScript application
+shares a store with agents by releasing it to a standalone adapter, which can
+reach it because the registry closes idle stores and does not hold every file
+open (§3.1).
+
+### 3.1 Store addressing
+
+The adapter is never tied to one database file (owner directive, 2026-10-17;
+MR-005).
+
+- **The operator defines what is addressable.** The launch configuration names
+  stores explicitly (name → file), or names a root directory whose FathomDB
+  database files are addressable by relative name, or both. The agent addresses
+  stores only by name. A name never resolves outside the registry: names with
+  path separators, `..` or absolute paths are rejected before any filesystem
+  access. Creating a new file needs explicit per-name permission.
+- **Every tool takes a store.** Each call names a store, or relies on the
+  session default. An orient-family tool lists the addressable stores with their
+  open/closed and readiness state, and never their paths.
+- **Lazy open, idle close, capped.** A store opens on its first call and closes
+  after an idle period. Closing releases the sidecar lock, so the owning
+  application can take the file back. At most a capped number of stores are
+  open at once, and the least recently used idle store is closed first. Each open
+  `Engine` owns its own embedder provider and executors (ADR-0.8.27 runtime
+  topology), so every open store costs model memory and threads; that cost is
+  what the cap bounds.
+- **Lock conflicts are per store.** A store whose file another process holds
+  answers with the typed lock error and its remedy. Other stores keep working.
+- **Per-store state.** State identity, cursors, continuations and feedback all
+  name their store and are rejected on any other (MR-005.6).
+- **Shared configuration.** Launch policy (read-only, origin class, admission
+  cap) applies to every store unless the registry entry overrides it. Overrides
+  may only narrow, never widen.
 
 ### Startup
 
-1. The edge serves `initialize` and `tools/list` at once; the tool list is
-   static (MR-012.1), so it does not need the engine.
-2. `Engine::open` runs on a blocking thread in parallel. It takes the sidecar
-   lock first, then migrates and warms the embedder.
-3. Until open completes, the readiness gate answers tool calls with not-ready
-   naming the phase (MR-003.2). If open fails, the gate answers every call with
-   the typed open error and remedy, and logs it to stderr (MR-003.3).
+1. The edge serves `initialize` and `tools/list` at once. The tool list is
+   static (MR-012.1) and the registry is configuration, so neither needs an
+   engine.
+2. A store's `Engine::open` runs on a blocking thread when the store is first
+   used, or eagerly at launch for stores the operator marks as eager. Open takes
+   the sidecar lock first, then migrates and warms the embedder.
+3. Until a store's open completes, the readiness gate answers calls to it with
+   not-ready naming the phase (MR-003.2). If open fails, the gate answers every
+   call to that store with the typed open error and remedy, and logs it to
+   stderr (MR-003.3).
 
 This keeps a slow embedder load or a model download from tripping the harness's
 handshake timeout.
@@ -177,6 +218,15 @@ engine column is what §7 must add.
 | Explain | Why a hit ranked | `explain` sidecar | Raw per-arm scores (shared with Search) | MR-031 |
 | Changes | Governed changes since a cursor | Nothing suitable: `read.mutations` reads the op-store; `read.crossed_boundary_since` is keyed by wall-clock | Governed change feed keyed by write cursor and visibility generation | MR-055 |
 | Remember *(write policy only)* | Record, replace, retract | `write` (same logical id replaces), `transition` to `Deleted` | First-class origin field; exact-duplicate rule | MR-060–062 |
+| Stores | List addressable stores; set the session default | Store registry (adapter), `open_report` | — | MR-005 |
+| Feedback | "This hit was used" | `record_feedback` with label source `agent`, behind opt-in telemetry | — | MR-024 |
+
+Feedback is recorded and has no other effect. What FathomDB does with it is
+deliberately undecided (owner, 2026-10-17), so nothing in ranking, defaults or
+determinism may depend on it until a separate decision says so. The engine's
+feedback verb keys hits by numeric id and a telemetry query id. The adapter
+keeps that mapping inside the authenticated response context, so the agent
+names a response and references, never internal ids.
 
 Few tools with typed options, `search` over `list`, and a concise default with a
 detailed mode, per `dev/notes/agent-tools-regrade-of-query-interfaces.md`.
@@ -347,12 +397,23 @@ independently. `requirements.md` § First-release scope lists the exact split.
 
 ## 10. Open questions for the adopting ADR
 
-1. **Blocking:** embedded mode through the Python and TypeScript bindings, since
-   most consumers are Python or TypeScript applications and the lock rules out a
-   second opener.
-2. Distribution of the binary: crates.io only, or bundled with the wheel and npm
-   package so harness configuration needs no Rust toolchain.
-3. Whether agents may send "this hit was used" feedback through the adapter to
-   the existing `record_feedback` and opt-in telemetry.
-4. The estimator: the proposal fixes serialized bytes ÷ 4 (portable,
-   model-agnostic); a bundled tokenizer is the alternative.
+Resolved by the owner on 2026-10-17:
+
+- Embedded mode is Rust-only and is not exposed through the Python or
+  TypeScript bindings.
+- The adapter addresses many stores and is never tied to one file (§3.1).
+- "This hit was used" feedback is accepted and recorded; its use is undecided
+  (MR-024).
+- The budget estimator starts as serialized bytes ÷ 4 (MR-041).
+
+Still open:
+
+1. Distribution of the binary. Options are prebuilt release binaries (with
+   `cargo binstall`), `cargo install` from crates.io, a binary carried in the
+   Python wheel (`uvx` or `pipx`), npm platform packages (`npx`), and OS package
+   managers. The choice interacts with CUDA and Jetson variants.
+2. Defaults for the idle-close period and the open-store cap, given that each
+   open store loads its own embedder.
+3. Whether a Python or TypeScript application that owns a store needs a
+   hand-off protocol with a standalone adapter beyond "close it and let the
+   adapter open it", for example when both want the store at once.

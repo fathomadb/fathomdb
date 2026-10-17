@@ -154,12 +154,18 @@ its say; and recording the same fact twice does not create two.
 *Observed:* the session's memory rules: check for an existing entry and update
 it rather than duplicate; delete memories that turn out to be wrong.
 
+**AN-021 — Say what helped.** The agent can report which results it actually
+used, cheaply and without changing what later searches return.
+*Observed:* owner decision 2026-10-17 to accept the signal before deciding its
+use; the engine already has a `record_feedback` path behind opt-in telemetry.
+
 ## Reach and scope
 
-**AN-018 — Reach the store the application uses.** The agent's harness can
-attach, through the standard agent tool protocol and with no network service
-or bespoke glue, to the same store the owning application reads and writes,
-with nothing on the protocol channel except protocol messages.
+**AN-018 — Reach the stores through the standard protocol.** The agent's
+harness can attach, through the standard agent tool protocol and with no
+network service or bespoke glue, to FathomDB stores, including stores an
+application owns, with nothing on the protocol channel except protocol
+messages.
 *Observed:* the session's harness discovers tools by name over MCP; FathomDB's
 consumers (Memex, OpenClaw, Hermes) own their stores; the July market report
 names the missing MCP server as the largest integration gap. *Constraint:* the
@@ -173,3 +179,10 @@ owner and scope mapped through declared exact projections.
 *Tension, accepted:* an out-of-scope record must look absent, so for it the
 agent cannot tell "valid, no match" apart from "outside my scope" (AN-015).
 Hiding existence wins.
+
+**AN-020 — Address more than one store.** The agent can reach any of the
+stores the operator made available — for example one per project or per user —
+through one attached tool server, by name, and can list them. It is never tied
+to a single database file and never handles filesystem paths.
+*Observed:* owner directive 2026-10-17: "an MCP cannot get tied to a single
+fathom/sqlite data file."

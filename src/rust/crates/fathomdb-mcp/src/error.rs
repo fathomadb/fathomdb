@@ -279,8 +279,8 @@ fn graph_error(error: &SdkError) -> ToolError {
         Some(GraphExpansionErrorReasonV1::GraphExpansionBoundExceeded) => ToolError::new(
             ErrorClass::InvalidRequest,
             "bound_exceeded",
-            "the expansion exceeded its work bound (1000 edges examined)".to_string(),
-            "lower max_depth, pass fewer refs, or restrict edge_kinds",
+            "the expansion exceeded its work bound (10000 edges examined)".to_string(),
+            "reduce max_depth or choose a less-connected seed",
         ),
         Some(GraphExpansionErrorReasonV1::GraphProjectionUnavailable) => ToolError::new(
             ErrorClass::NotReady,

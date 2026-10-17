@@ -149,8 +149,10 @@ default `out`), `max_depth` (0..3, default 1), `limit` (1..50, default 20),
 `edge_kinds`, `target_kinds`, `as_of`, `max_tokens`. Calls `graph.expand` with
 an `Explicit` seed, a `Current` read context, `include_explanation: true` (for
 hop counts), `result_limit = limit`, and
-`max_work_units = 1000` (the engine accepts 1..10,000; the adapter fixes 1,000
-so one call stays well inside the deadline). The ranges are the engine's own
+`max_work_units = 10000`, the engine maximum; the call deadline bounds the time.
+A seed whose expansion examines more edges fails as
+`invalid_request/bound_exceeded` (edge and target kinds are filtered after the
+edges are counted, so they do not help). The ranges are the engine's own
 validation bounds. Result adds `targets` in engine order, each `{ref, kind,
 hop_count, terminal_edge_kind, body, body_cut}` (hop count and edge kind from
 `GraphOriginV1`; bodies budgeted like `fetch`), `complete` (the

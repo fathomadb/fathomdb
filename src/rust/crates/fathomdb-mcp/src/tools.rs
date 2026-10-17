@@ -34,8 +34,9 @@ use crate::shape::{self, CanonicalSearch};
 
 /// The engine's ranked-result cap (`MAX_RANKED_LIMIT`).
 pub(crate) const MAX_RANKED: usize = 100;
-/// Work bound the adapter fixes for one expansion (interface §4 `expand`).
-pub(crate) const EXPAND_WORK_UNITS: u64 = 1_000;
+/// Work bound for one expansion: the engine maximum. The call deadline
+/// bounds the time it may take (interface §4 `expand`).
+pub(crate) const EXPAND_WORK_UNITS: u64 = 10_000;
 const MAX_FETCH_REFS: usize = 50;
 const MAX_EXPAND_REFS: usize = 10;
 const MIN_MAX_TOKENS: u64 = 256;

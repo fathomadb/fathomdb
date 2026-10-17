@@ -535,8 +535,16 @@ def run_scale_cell(arm_name: str, rep: int, inputs: Path, workdir: Path,
     }
 
 
+FILTERED_COHORTS = ("c01", "c10", "c33")
+
+
 def run_filtered_cell(arm_name: str, rep: int, inputs: Path, workdir: Path) -> dict[str, Any]:
-    """COMP-02b: one fresh DB; steady filtered FTS at each cohort plus membership check."""
+    """COMP-02b: one fresh DB; steady filtered FTS at each cohort plus membership check.
+
+    Each cohort pass runs on its own open of the store, closed before the next
+    pass: one heavy read can slow later queries on the same open engine, so a
+    shared open would charge the c01 pass to c10 and c33.
+    """
     arm = ARMS[arm_name]
     arm.filtered = True
     docs = json.loads((inputs / "corpus.json").read_text(encoding="utf-8"))
@@ -545,31 +553,37 @@ def run_filtered_cell(arm_name: str, rep: int, inputs: Path, workdir: Path) -> d
     if workdir.exists():
         shutil.rmtree(workdir)
     workdir.mkdir(parents=True)
-    build = arm.build(workdir, docs)
-    handle = arm.open(workdir)
     rng = random.Random(3000 + rep)
     passes: dict[str, Any] = {}
+    rss = 0.0
     try:
-        for cohort in ("c01", "c10", "c33"):
-            _timed_pass(arm, handle, queries, list(range(len(queries))), cohort)  # warmup
-            order = list(range(len(queries)))
-            rng.shuffle(order)
-            results = _timed_pass(arm, handle, queries, order, cohort)
+        build = arm.build(workdir, docs)
+        for open_index, cohort in enumerate(FILTERED_COHORTS):
+            handle = arm.open(workdir)
+            try:
+                _timed_pass(arm, handle, queries, list(range(len(queries))), cohort)  # warmup
+                order = list(range(len(queries)))
+                rng.shuffle(order)
+                results = _timed_pass(arm, handle, queries, order, cohort)
+                rss = max(rss, arm.rss_mib(handle))
+            finally:
+                arm.close(handle)
             passes[cohort] = {
+                "open_index": open_index,
                 "matching": sum(c == cohort for c in cohort_of.values()),
                 "violations": sum(cohort_of.get(i) != cohort for r in results for i in r["ids"]),
                 "short_results": sum(len(r["ids"]) < TOP_K for r in results),
                 "results": results,
             }
-        rss = arm.rss_mib(handle)
     finally:
-        arm.close(handle)
         arm.filtered = False
     disk = _disk_bytes(workdir)
     shutil.rmtree(workdir)
     return {
         "arm": arm_name, "version": arm.version(), "repetition": rep, "documents": len(docs),
         **build, "disk_bytes": disk, "peak_rss_mib": rss, "passes": passes,
+        "measurement": {"method": "fresh_open_per_cohort", "opens": len(FILTERED_COHORTS),
+                        "cohort_order": list(FILTERED_COHORTS)},
     }
 
 

@@ -1,0 +1,50 @@
+{
+  "schema_version": "comp-fts.campaign.v1",
+  "program_track": null,
+  "campaign": "COMP-02b",
+  "harness_campaign": "comp02b",
+  "title": "COMP-02b filtered FTS at 1/10/33% selectivity, 10k TC-5 documents, FathomDB vs SurrealDB (fresh open per cohort)",
+  "inputs": {
+    "dir_hint": "~/.cache/fathomdb-comp/tc5-10000",
+    "source": "SCALE-02 qualified TC-5 input pack v1 with hashed bench_cohort",
+    "build": "python -m experiments.comp02_inputs --size 10000 --output <inputs>",
+    "files": {
+      "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+      "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb",
+      "probes.json": "7d7096874c1c21b5a48f622e635fafc491fe03de87929e1844022ba3a219bf12",
+      "manifest.json": "a042ef6b1dac40eb9c9d1e526ec7af706ec1a48ba4abfd7b6577c45538db3e29"
+    }
+  },
+  "arms": [
+    {
+      "id": "fathomdb",
+      "version": "0.8.27 (repo build)",
+      "method": "Engine.search_projected_text('text', SearchFilter(attributes=bench_cohort))",
+      "tokenizer": "FTS5 porter unicode61 remove_diacritics 2",
+      "embedder": "none"
+    },
+    {
+      "id": "surrealdb",
+      "version": "3.3.0 (Rust crate, embedded RocksDB)",
+      "driver": "experiments/comp_drivers/surrealdb (Cargo.lock committed)",
+      "analyzer": "crud-bench: blank,class + lowercase,ascii, BM25",
+      "query": "body @0,OR@ $q AND cohort = $c ORDER BY search::score(0) DESC; btree on cohort"
+    }
+  ],
+  "roster": {
+    "order": "AB/BA/BA/AB",
+    "repetitions": 4,
+    "cell": "one arm x one fresh database, own subprocess; fresh open per cohort pass (c01, c10, c33), closed before the next; resume skips cells/*.json"
+  },
+  "run": "python -m experiments.comp_fts run --config experiments/configs/comp-02/filtered-10000.v2.json --inputs <inputs> --out <new attempt dir>",
+  "report": "filtered",
+  "metrics": [
+    "p50_ms",
+    "p95_ms",
+    "violations",
+    "short_results",
+    "selectivity"
+  ],
+  "result_note": "dev/performance-benchmarking/2026-10-15-comp-02b-filtered-fts-result.md",
+  "claim_boundary": "filtered FTS only; vector KNN unsupported in 0.8.27 public API"
+}

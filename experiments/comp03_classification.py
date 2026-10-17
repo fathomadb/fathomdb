@@ -217,9 +217,14 @@ def _latency_component(cell: str) -> str:
     return "body" if cell == "body-text-only" else "projected"
 
 
+def _latency_plan_id(metrics: dict[str, Any]) -> str:
+    """v1 summaries timed every cell on one open; v2 opens the store per cell, so it gets its own plan."""
+    return "comp02b-latency-v2" if metrics.get("schema_version") == "comp-02b.latency.summary.v2" else "comp02b-latency-v1"
+
+
 def _latency_leaf(parts: list[str], value: Any, metrics: dict[str, Any]) -> tuple[str, Any]:
     head = parts[0]
-    if head == "schema_version":
+    if head in {"schema_version", "measurement"}:
         return "exclude", "run_control"
     if head == "inputs":
         return "exclude", "identifier_or_hash"
@@ -276,7 +281,7 @@ def _shape(record: dict[str, Any]) -> dict[str, Any]:
                 "comparisons": [("latency-projected-vs-body", [("latency-projected", "projected"),
                                                                ("latency-body", "body")])],
                 "claims": _claim("latency-p50-by-cell", "data_plane", r"cells\.[^.]+\.p50_ms"),
-                "witness_count": counts, "plan_id": "comp02b-latency-v1", "plan_dir": "experiments/configs/comp-measurement-plans",
+                "witness_count": counts, "plan_id": _latency_plan_id(metrics), "plan_dir": "experiments/configs/comp-measurement-plans",
                 "runners": RUNNERS[experiment]}
     if experiment == "comp-03-retrieval-sweep":
         return {"rule": _sweep_leaf, "components": ["corpus", "fts", "hybrid", "lancedb", "metric"],

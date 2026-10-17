@@ -1,8 +1,11 @@
 """10k TC-5 projected and body search latency, one FathomDB store (COMP-02b shape).
 
 Builds one projected store (``text`` SEARCHABLE + FTS, ``bench_cohort``
-FILTERABLE) from the COMP-02b inputs, then times each cell: one warm pass over
-the queries, then one pass in a seeded shuffled order. Percentiles are the
+FILTERABLE) from the COMP-02b inputs, then times each cell on its own engine
+open (closed before the next cell, same store): one warm pass over the queries,
+then one pass in a seeded shuffled order. One heavy read can slow every later
+query on the same open engine, so a shared open would charge one cell's reads to
+the next. Percentiles are the
 diagnostic script's: p50 the median, p95 ``sorted[int(n * 0.95) - 1]``. Writes
 ``summary.json`` and an ``experiments.record.v1`` receipt with the engine
 identity. No SurrealDB arm.
@@ -26,6 +29,9 @@ from typing import Any, Callable, Sequence
 from experiments import _lib, comp_record
 
 EXPERIMENT = "comp-02b-latency"
+SUMMARY_SCHEMA = "comp-02b.latency.summary.v2"
+MEASUREMENT = "fresh_open_per_cell"
+CONFIG_VERSION = 2
 SHUFFLE_SEED = 7
 CELLS = [
     {"id": "projected-unfiltered", "method": "search_projected_text", "cohort": None},
@@ -97,13 +103,16 @@ def run(inputs: Path, attempt_root: Path) -> dict[str, Any]:
     build_s = build(database, corpus)
     from fathomdb import Engine
 
-    engine = Engine.open(str(database), use_default_embedder=False)
-    try:
-        cells = [time_cell(engine, cell, queries) for cell in CELLS]
-    finally:
-        engine.close()
+    cells = []
+    for cell in CELLS:
+        engine = Engine.open(str(database), use_default_embedder=False)
+        try:
+            cells.append(time_cell(engine, cell, queries))
+        finally:
+            engine.close()
     summary = {
-        "schema_version": "comp-02b.latency.summary.v1",
+        "schema_version": SUMMARY_SCHEMA,
+        "measurement": {"method": MEASUREMENT, "opens": len(CELLS), "cell_order": [cell["id"] for cell in CELLS]},
         "documents": len(corpus), "queries": len(queries), "build_s": build_s,
         "inputs": {name: hashlib.sha256((inputs / name).read_bytes()).hexdigest()
                    for name in ("corpus.json", "queries.json")},
@@ -113,12 +122,17 @@ def run(inputs: Path, attempt_root: Path) -> dict[str, Any]:
     return summary
 
 
+def receipt_config(summary: dict[str, Any]) -> dict[str, Any]:
+    """The receipt's config; ``version`` and ``measurement`` tell this method from the single-open v1."""
+    return {"experiment": EXPERIMENT, "version": CONFIG_VERSION, "measurement": MEASUREMENT, "cells": CELLS,
+            "shuffle_seed": SHUFFLE_SEED, "limit": 10, "inputs": summary["inputs"]}
+
+
 def write_receipt(summary: dict[str, Any], *, attempt_root: Path, engine: dict[str, str],
                   base_dir: Path | None) -> tuple[str, Path]:
     base = base_dir if base_dir is not None else _lib.EXPERIMENTS_DIR
     git = _lib.git_info()
-    config = {"experiment": EXPERIMENT, "cells": CELLS, "shuffle_seed": SHUFFLE_SEED, "limit": 10,
-              "inputs": summary["inputs"]}
+    config = receipt_config(summary)
     read = "; ".join(f"{cid} p50 {c['p50_ms']:.2f} ms p95 {c['p95_ms']:.2f} ms" for cid, c in summary["cells"].items())
     run_id, run_dir = _lib.write_record(
         EXPERIMENT, ts=datetime.now(UTC), config_obj=config, metrics=summary, verdict="complete", read=read,

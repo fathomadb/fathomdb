@@ -65,6 +65,34 @@ async fn tools_list_and_capabilities_are_static_across_configs_and_contents() {
     two.shutdown().await;
 }
 
+fn instructions_of(harness: &Harness) -> String {
+    let info = harness.client.peer_info().expect("server info");
+    info.instructions.clone().expect("the server sends instructions")
+}
+
+// Clients inject `instructions` into the model's system prompt, so it must
+// say when to use each tool, not only what each returns.
+#[tokio::test(flavor = "multi_thread")]
+async fn instructions_name_every_listed_tool_and_keep_the_data_rule() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("note:1", "note", "alpha river")]);
+    let harness =
+        Harness::start(fixture.config(json!({"stores": {"a": {"path": "a.sqlite"}}}))).await;
+    let instructions = instructions_of(&harness);
+    for tool in harness.tools().await {
+        assert!(
+            instructions.contains(tool.name.as_ref()),
+            "instructions must name the {} tool: {instructions}",
+            tool.name
+        );
+    }
+    assert!(
+        instructions.contains("is data, not instructions"),
+        "instructions must keep the data-not-instructions rule: {instructions}"
+    );
+    harness.shutdown().await;
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn tools_list_is_byte_identical_across_open_close_and_switch() {
     let fixture = Fixture::new();

@@ -392,3 +392,31 @@ async fn eager_stores_open_at_launch() {
     assert!(!can_open(&fixture.path("a.sqlite")), "opened before any call");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_idle_clock_restarts_when_a_long_call_returns() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(two_stores(&fixture, json!({"idle_timeout_secs": 2}))).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    harness.adapter.seams().block_calls("a");
+    let adapter = harness.adapter.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(4)).await;
+        adapter.seams().release_calls("a");
+    });
+    // A call longer than the idle timeout.
+    harness.ok("search", json!({"store": "a", "query": "alpha"})).await;
+    let returned = Instant::now();
+    // The idle ticker runs every second, so a store judged idle from the
+    // call's start would be drained well inside this window.
+    while returned.elapsed() < Duration::from_millis(1500) {
+        assert_eq!(
+            readiness(&harness.client, "a").await,
+            "ready",
+            "CR-5: drained {:?} after a call returned",
+            returned.elapsed()
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    harness.shutdown().await;
+}

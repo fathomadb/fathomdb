@@ -1,0 +1,353 @@
+//! Search (design §9 order 6): text and hybrid paths, filters, as-of and
+//! the validity instant (MR-023), snippet cap (MR-040.1), completeness and
+//! degradation (MR-030.1, MR-032), continuations (MR-041.2/.5), budget
+//! (MR-041.1/.3) and references (MR-042.1/.3).
+
+mod common;
+
+use std::time::Duration;
+
+use common::{node, refs, text_of, wait_for_readiness, windowed_node, Fixture, Harness};
+use fathomdb_sdk::PreparedWrite;
+use serde_json::{json, Value};
+
+fn river_notes(count: usize) -> Vec<PreparedWrite> {
+    (0..count)
+        .map(|i| node(&format!("note:{i:03}"), "note", &format!("river crossing entry number {i}")))
+        .collect()
+}
+
+async fn harness_with(writes: Vec<PreparedWrite>, extra: Value) -> (Fixture, Harness) {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", writes);
+    let mut config = json!({"stores": {"a": {"path": "a.sqlite"}}, "default_store": "a"});
+    for (key, value) in extra.as_object().unwrap() {
+        config[key] = value.clone();
+    }
+    let harness = Harness::start(fixture.config(config)).await;
+    (fixture, harness)
+}
+
+fn tokens(bytes: usize) -> u64 {
+    (bytes as u64).div_ceil(4)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn text_mode_returns_lexical_hits_with_references_and_provenance() {
+    let (_fixture, harness) = harness_with(
+        vec![
+            node("note:1", "note", "alpha river crossing"),
+            node("doc:2", "doc", "unrelated words entirely"),
+        ],
+        json!({}),
+    )
+    .await;
+    let result = harness.call("search", json!({"query": "river"})).await;
+    let found = result.structured_content.clone().unwrap();
+    assert_eq!(found["mode"], "text");
+    assert_eq!(found["store"], "a");
+    assert_eq!(found["verdict"], "unavailable");
+    assert_eq!(found["state"], json!({"status": "unavailable"}));
+    assert_eq!(found["degradation"], json!([]));
+    let hit = &found["results"][0];
+    assert_eq!(hit["ref"], "l:note:1", "MR-042.1: the logical id verbatim");
+    assert_eq!(hit["kind"], "note");
+    assert_eq!(hit["snippet"], "alpha river crossing");
+    assert_eq!(hit["snippet_cut"], false);
+    assert_eq!(hit["source_id"], "fixture");
+    assert_eq!(hit["arm"], "text");
+    assert!(hit["score"].is_number());
+    assert_eq!(found["results"].as_array().unwrap().len(), 1);
+    assert_eq!(found["completeness"], "complete");
+    let response_id = found["response_id"].as_str().unwrap();
+    assert!(response_id.starts_with("r1-") && response_id.len() == 3 + 16, "{response_id}");
+    let text = text_of(&result);
+    assert!(text.contains("l:note:1") && text.contains("\"alpha river crossing\""), "{text}");
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn hybrid_mode_without_an_embedder_returns_lexical_hits_and_names_the_vector_arm() {
+    let (_fixture, harness) =
+        harness_with(vec![node("note:1", "note", "alpha river crossing")], json!({})).await;
+    let found = harness.ok("search", json!({"query": "river", "mode": "hybrid"})).await;
+    assert_eq!(found["mode"], "hybrid");
+    assert_eq!(refs(&found), vec!["l:note:1"]);
+    // MR-032.1: the vector arm and why it did not run.
+    assert_eq!(found["degradation"], json!([{"arm": "vector", "reason": "embedder_unavailable"}]));
+    // MR-032.3: never `complete` while an arm that could contribute is degraded.
+    assert_eq!(found["completeness"], "partial");
+    let empty = harness.ok("search", json!({"query": "zebra", "mode": "hybrid"})).await;
+    assert_eq!(empty["completeness"], "empty_not_ready", "MR-030.3");
+    let text_empty = harness.ok("search", json!({"query": "zebra"})).await;
+    assert_eq!(text_empty["completeness"], "empty");
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn filters_are_hybrid_only_and_constrain_hybrid_results() {
+    let (_fixture, harness) = harness_with(
+        vec![
+            node("note:1", "note", "river crossing one"),
+            node("doc:1", "doc", "river crossing two"),
+        ],
+        json!({}),
+    )
+    .await;
+    for filter in [
+        json!({"kind": "note"}),
+        json!({"source_type": "x"}),
+        json!({"status": "open"}),
+        json!({"created_after": 1}),
+        json!({"attributes": {"a": "b"}}),
+    ] {
+        let mut args = json!({"query": "river", "mode": "text"});
+        for (key, value) in filter.as_object().unwrap() {
+            args[key] = value.clone();
+        }
+        let error = harness.err("search", args).await;
+        assert_eq!(error["code"], "bad_argument", "{filter}: {error}");
+    }
+    let found =
+        harness.ok("search", json!({"query": "river", "mode": "hybrid", "kind": "doc"})).await;
+    assert_eq!(refs(&found), vec!["l:doc:1"]);
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn as_of_selects_the_validity_window_and_is_reported() {
+    let t1 = 1_700_000_000_i64;
+    let t2 = 1_800_000_000_i64;
+    let (_fixture, harness) = harness_with(
+        vec![windowed_node("note:w", "windowed river record", Some(t1), Some(t2))],
+        json!({}),
+    )
+    .await;
+    for mode in ["text", "hybrid"] {
+        let inside =
+            harness.ok("search", json!({"query": "river", "mode": mode, "as_of": t1 + 10})).await;
+        assert_eq!(refs(&inside), vec!["l:note:w"], "{mode}");
+        assert_eq!(inside["validity_instant"], t1 + 10, "MR-023.2");
+        let before =
+            harness.ok("search", json!({"query": "river", "mode": mode, "as_of": t1 - 1})).await;
+        assert!(refs(&before).is_empty(), "{mode}: not before the window");
+        let after =
+            harness.ok("search", json!({"query": "river", "mode": mode, "as_of": t2})).await;
+        assert!(refs(&after).is_empty(), "{mode}: the upper bound is exclusive");
+    }
+    let now = harness.ok("search", json!({"query": "river"})).await;
+    let instant = now["validity_instant"].as_i64().expect("never null");
+    let wall = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
+    assert!((wall - instant).abs() <= 5, "unpinned calls are answered at now");
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn snippets_are_capped_on_character_boundaries() {
+    let long: String = "é".repeat(500) + " river";
+    let (_fixture, harness) = harness_with(
+        vec![node("note:long", "note", &format!("river {long}"))],
+        json!({"snippet_chars": 50}),
+    )
+    .await;
+    let found = harness.ok("search", json!({"query": "river"})).await;
+    let snippet = found["results"][0]["snippet"].as_str().unwrap();
+    assert_eq!(snippet.chars().count(), 50, "MR-040.1");
+    assert_eq!(found["results"][0]["snippet_cut"], true);
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_default_snippet_cap_is_300_characters() {
+    let body = format!("river {}", "word ".repeat(400));
+    let (_fixture, harness) = harness_with(vec![node("note:long", "note", &body)], json!({})).await;
+    let found = harness.ok("search", json!({"query": "river"})).await;
+    for hit in found["results"].as_array().unwrap() {
+        assert!(hit["snippet"].as_str().unwrap().chars().count() <= 300);
+    }
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn completeness_reports_limit_reached_and_complete() {
+    let (_fixture, harness) = harness_with(river_notes(5), json!({})).await;
+    let exact = harness.ok("search", json!({"query": "river", "limit": 5})).await;
+    assert_eq!(exact["completeness"], "limit_reached");
+    let fewer = harness.ok("search", json!({"query": "river", "limit": 6})).await;
+    assert_eq!(fewer["completeness"], "complete", "MR-030.1");
+    assert_eq!(fewer["continuation"], Value::Null);
+    harness.shutdown().await;
+}
+
+async fn follow(harness: &Harness, first: Value, max_tokens: Option<u64>) -> Vec<String> {
+    let mut collected = refs(&first);
+    let mut page = first;
+    let mut rounds = 0;
+    while let Some(handle) = page["continuation"].as_str().map(str::to_string) {
+        let mut args = json!({"continuation": handle});
+        if let Some(max_tokens) = max_tokens {
+            args["max_tokens"] = json!(max_tokens);
+        }
+        page = harness.ok("search", args).await;
+        collected.extend(refs(&page));
+        rounds += 1;
+        assert!(rounds < 200, "continuations must terminate");
+    }
+    collected
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn continuations_page_without_gaps_or_duplicates_up_to_the_ranked_cap() {
+    let (_fixture, harness) = harness_with(river_notes(130), json!({"idle_timeout_secs": 0})).await;
+    let all = harness
+        .ok("search", json!({"query": "river", "limit": 100, "max_tokens": 1_000_000}))
+        .await;
+    let expected = refs(&all);
+    assert_eq!(expected.len(), 100);
+
+    let first = harness.ok("search", json!({"query": "river", "limit": 10})).await;
+    assert_eq!(first["completeness"], "limit_reached");
+    let continuation = first["continuation"].as_str().unwrap();
+    assert!(continuation.starts_with("c1-") && continuation.len() == 3 + 16);
+    let paged = follow(&harness, first, None).await;
+    assert_eq!(paged, expected, "MR-041.2: same order, no gaps, no duplicates");
+
+    // Budget cuts page the same ranked list.
+    let cut = harness.ok("search", json!({"query": "river", "limit": 20, "max_tokens": 600})).await;
+    assert_eq!(cut["completeness"], "cut_by_budget");
+    assert_eq!(cut["budget"]["cut"], true);
+    let budgeted = follow(&harness, cut, Some(600)).await;
+    assert_eq!(budgeted, expected);
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn continuations_are_stale_after_a_reopen_tampered_or_mixed_with_arguments() {
+    let (_fixture, harness) = harness_with(river_notes(30), json!({"idle_timeout_secs": 1})).await;
+    let first = harness.ok("search", json!({"query": "river", "limit": 10})).await;
+    let handle = first["continuation"].as_str().unwrap().to_string();
+
+    let mixed = harness.err("search", json!({"continuation": handle, "limit": 5})).await;
+    assert_eq!(mixed["code"], "bad_argument");
+    let mut tampered = handle.clone();
+    let last = tampered.pop().unwrap();
+    tampered.push(if last == '0' { '1' } else { '0' });
+    let error = harness.err("search", json!({"continuation": tampered})).await;
+    assert_eq!(error["code"], "stale_handle", "MR-041.5");
+    assert_eq!(error["remedy"], "re-run the search");
+
+    assert!(wait_for_readiness(&harness.client, "a", "closed", Duration::from_secs(5)).await);
+    let error = harness.err("search", json!({"continuation": handle})).await;
+    assert_eq!(error["code"], "stale_handle", "a new epoch invalidates continuations");
+    harness.shutdown().await;
+}
+
+fn assert_fits(result: &rmcp::model::CallToolResult, max_tokens: u64) {
+    let structured = result.structured_content.clone().unwrap();
+    let text = text_of(result);
+    let whole = serde_json::to_string(&structured).unwrap().len() + text.len();
+    assert!(tokens(whole) <= max_tokens, "MR-041.1: {} > {max_tokens}", tokens(whole));
+    let mut without = structured.clone();
+    without.as_object_mut().unwrap().remove("budget");
+    let used = tokens(serde_json::to_string(&without).unwrap().len() + text.len());
+    assert_eq!(structured["budget"]["used_tokens"], used, "used_tokens excludes budget itself");
+    assert_eq!(structured["budget"]["max_tokens"], max_tokens);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn every_response_fits_its_budget() {
+    let long_notes: Vec<PreparedWrite> = (0..40)
+        .map(|i| {
+            node(
+                &format!("note:{i}"),
+                "note",
+                &format!("river {i} {}", "long body text ".repeat(40)),
+            )
+        })
+        .collect();
+    let (_fixture, harness) = harness_with(long_notes, json!({"idle_timeout_secs": 0})).await;
+    for max_tokens in [256_u64, 300, 512, 1000, 2500, 4000, 20_000] {
+        for explain in [false, true] {
+            for mode in ["text", "hybrid"] {
+                let result = harness
+                    .call(
+                        "search",
+                        json!({"query": "river", "limit": 40, "max_tokens": max_tokens, "explain": explain, "mode": mode}),
+                    )
+                    .await;
+                assert_ne!(result.is_error, Some(true));
+                assert_fits(&result, max_tokens);
+            }
+        }
+    }
+    // MR-041.3: the documented default applies when max_tokens is omitted.
+    let result = harness.call("search", json!({"query": "river", "limit": 40})).await;
+    assert_fits(&result, 4000);
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn invalid_arguments_are_typed_invalid_requests() {
+    let (_fixture, harness) = harness_with(river_notes(2), json!({})).await;
+    for args in [
+        json!({}),
+        json!({"query": ""}),
+        json!({"query": "   "}),
+        json!({"query": "river", "limit": 0}),
+        json!({"query": "river", "limit": 101}),
+        json!({"query": "river", "max_tokens": 255}),
+        json!({"query": "river", "mode": "vector"}),
+        json!({"query": "river", "include_superseded": true}),
+        json!({"query": "river", "colour": "blue"}),
+    ] {
+        let error = harness.err("search", args.clone()).await;
+        assert_eq!(error["class"], "invalid_request", "{args}: {error}");
+        assert_eq!(error["code"], "bad_argument", "{args}: {error}");
+    }
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn explain_attaches_a_per_hit_explanation_without_run_varying_ids() {
+    let (_fixture, harness) = harness_with(river_notes(3), json!({})).await;
+    let hybrid =
+        harness.ok("search", json!({"query": "river", "mode": "hybrid", "explain": true})).await;
+    let explanation = &hybrid["explanation"];
+    assert!(explanation["trace"]["k"].is_number(), "{explanation}");
+    let per_hit = explanation["per_hit"].as_array().unwrap();
+    assert_eq!(per_hit.len(), hybrid["results"].as_array().unwrap().len());
+    for (entry, hit) in per_hit.iter().zip(hybrid["results"].as_array().unwrap()) {
+        assert_eq!(entry["ref"], hit["ref"]);
+    }
+    let serialized = serde_json::to_string(&hybrid).unwrap();
+    assert!(!serialized.contains("correlation_id"), "engine correlation ids vary run to run");
+    let text = harness.ok("search", json!({"query": "river", "explain": true})).await;
+    assert_eq!(text["explanation"], json!({"status": "unavailable", "reason": "text_mode"}));
+    let plain = harness.ok("search", json!({"query": "river"})).await;
+    assert!(plain.get("explanation").is_none());
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn identical_requests_give_identical_output_and_references_survive_restarts() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", river_notes(12));
+    let config = json!({"stores": {"a": {"path": "a.sqlite"}}, "default_store": "a"});
+    let args = json!({"query": "river", "limit": 5, "as_of": 1_900_000_000});
+    let first = Harness::start(fixture.config(config.clone())).await;
+    let one = first.call("search", args.clone()).await;
+    let two = first.call("search", args.clone()).await;
+    assert_eq!(one.structured_content, two.structured_content);
+    assert_eq!(text_of(&one), text_of(&two));
+    first.shutdown().await;
+    let second = Harness::start(fixture.config(config)).await;
+    let three = second.call("search", args).await;
+    // MR-042.3: the same records yield the same references after a restart.
+    assert_eq!(
+        refs(one.structured_content.as_ref().unwrap()),
+        refs(three.structured_content.as_ref().unwrap())
+    );
+    assert_eq!(one.structured_content, three.structured_content);
+    second.shutdown().await;
+}

@@ -51,6 +51,54 @@ pub fn mean(values: &[f64]) -> f64 {
     values.iter().sum::<f64>() / values.len() as f64
 }
 
+/// A paired-bootstrap estimate: the observed mean difference and the
+/// percentile 95% interval of the resampled means.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BootstrapCi {
+    pub mean: f64,
+    pub low: f64,
+    pub high: f64,
+}
+
+/// SplitMix64: a small fixed-seed generator so the interval is reproducible
+/// without a `rand` dependency.
+pub struct SplitMix64(u64);
+
+impl SplitMix64 {
+    pub fn new(seed: u64) -> Self {
+        Self(seed)
+    }
+
+    pub fn next_u64(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    /// Uniform in `0..n` (`n > 0`), by rejection so there is no modulo bias.
+    pub fn below(&mut self, n: u64) -> u64 {
+        let _ = n;
+        0
+    }
+}
+
+/// Nearest-rank percentile of an ascending slice: the value at rank
+/// `ceil(q * len)`, clamped to `1..=len`. 0 for an empty slice.
+pub fn percentile(sorted: &[f64], q: f64) -> f64 {
+    let _ = (sorted, q);
+    0.0
+}
+
+/// Paired bootstrap over per-query differences (`hybrid - text`): draw
+/// `resamples` resamples of the queries with replacement, take each mean, and
+/// report the 2.5th and 97.5th nearest-rank percentiles.
+pub fn paired_bootstrap_ci(diffs: &[f64], resamples: usize, seed: u64) -> BootstrapCi {
+    let _ = (diffs, resamples, seed);
+    BootstrapCi { mean: 0.0, low: 0.0, high: 0.0 }
+}
+
 fn relevant_in_top(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> usize {
     let mut seen = BTreeSet::new();
     ranked
@@ -145,5 +193,62 @@ mod tests {
         assert!(close(hit_at_k(&refs(&["x", "b"]), &relevant, 1), 0.0));
         assert!(close(hit_at_k(&refs(&["x", "b"]), &relevant, 2), 1.0));
         assert!(close(hit_at_k(&[], &relevant, 1), 0.0));
+    }
+
+    #[test]
+    fn percentile_is_nearest_rank() {
+        let sorted: Vec<f64> = (1..=100).map(f64::from).collect();
+        assert!(close(percentile(&sorted, 0.025), 3.0));
+        assert!(close(percentile(&sorted, 0.975), 98.0));
+        assert!(close(percentile(&sorted, 0.5), 50.0));
+        assert!(close(percentile(&sorted, 0.0), 1.0));
+        assert!(close(percentile(&sorted, 1.0), 100.0));
+        assert!(close(percentile(&[], 0.5), 0.0));
+    }
+
+    #[test]
+    fn below_stays_in_range_and_covers_it() {
+        let mut rng = SplitMix64::new(7);
+        let mut seen = [false; 3];
+        for _ in 0..300 {
+            let value = rng.below(3);
+            assert!(value < 3);
+            seen[value as usize] = true;
+        }
+        assert_eq!(seen, [true, true, true]);
+    }
+
+    #[test]
+    fn bootstrap_of_a_constant_difference_is_that_constant() {
+        let ci = paired_bootstrap_ci(&[0.25; 5], 1_000, 42);
+        assert_eq!(ci, BootstrapCi { mean: 0.25, low: 0.25, high: 0.25 });
+    }
+
+    #[test]
+    fn bootstrap_of_zero_and_one_spans_zero_to_one() {
+        // Resample means of two queries are 0, 0.5 or 1 with probability
+        // 1/4, 1/2, 1/4, so the 2.5th and 97.5th percentiles are 0 and 1.
+        let ci = paired_bootstrap_ci(&[0.0, 1.0], 2_000, 42);
+        assert!(close(ci.mean, 0.5));
+        assert!(close(ci.low, 0.0));
+        assert!(close(ci.high, 1.0));
+    }
+
+    #[test]
+    fn bootstrap_is_reproducible_for_a_seed_and_brackets_the_mean() {
+        let diffs = [1.0, 2.0, 3.0, -1.0, 0.0, 0.5];
+        let first = paired_bootstrap_ci(&diffs, 1_000, 9);
+        assert_eq!(first, paired_bootstrap_ci(&diffs, 1_000, 9));
+        assert!(close(first.mean, 5.5 / 6.0));
+        assert!(first.low < first.mean && first.mean < first.high);
+        assert!(first.low >= -1.0 && first.high <= 3.0);
+    }
+
+    #[test]
+    fn bootstrap_of_no_queries_is_zero() {
+        assert_eq!(
+            paired_bootstrap_ci(&[], 1_000, 1),
+            BootstrapCi { mean: 0.0, low: 0.0, high: 0.0 }
+        );
     }
 }

@@ -210,3 +210,56 @@ async fn embedded_continuations_are_marked_inexact() {
     adapter.shutdown().await;
     one.close().unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_rejected_duplicate_registration_leaves_the_hosts_telemetry_sink_alone() {
+    let fixture = Fixture::new();
+    fixture.store(
+        "one.sqlite",
+        vec![node("note:1", "note", "alpha river"), node("note:2", "note", "beta river")],
+    );
+    let one = Arc::new(Engine::open(fixture.path("one.sqlite"), OpenOptions::default()).unwrap());
+    let adapter = Adapter::new(fixture.config(json!({"telemetry_dir": "telemetry"}))).unwrap();
+    adapter.register_engine("one", one.clone()).unwrap();
+    let client = connect(&adapter).await;
+    let first =
+        common::ok(&client, "search", json!({"store": "one", "query": "alpha", "mode": "hybrid"}))
+            .await;
+    assert!(adapter.register_engine("one", one.clone()).is_err(), "duplicate refused");
+    let second =
+        common::ok(&client, "search", json!({"store": "one", "query": "beta", "mode": "hybrid"}))
+            .await;
+    let recorded = common::ok(
+        &client,
+        "feedback",
+        json!({"store": "one", "response_id": first["response_id"], "used": ["l:note:1"]}),
+    )
+    .await;
+    assert_eq!(recorded["status"], "recorded");
+    let sink = fixture.path("telemetry").join(format!("one.{}.1.jsonl", std::process::id()));
+    let records: Vec<serde_json::Value> = std::fs::read_to_string(&sink)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    let ids: Vec<&str> = records
+        .iter()
+        .filter(|record| record["type"] == "event")
+        .map(|record| record["query_id"].as_str().unwrap())
+        .collect();
+    let mut unique = ids.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    assert_eq!(unique.len(), ids.len(), "the rejected call restarted the sink: {ids:?}");
+    // The feedback joins the first search's capture event, not the second's.
+    let label = records.iter().find(|record| record["type"] == "feedback").unwrap();
+    let event = records
+        .iter()
+        .find(|record| record["type"] == "event" && record["query_id"] == label["query_id"])
+        .unwrap();
+    assert_eq!(event["result_stable_ids"], json!(common::refs(&first)));
+    assert_ne!(common::refs(&first), common::refs(&second));
+    let _ = client.cancel().await;
+    adapter.shutdown().await;
+    one.close().unwrap();
+}

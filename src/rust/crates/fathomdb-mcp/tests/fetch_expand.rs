@@ -22,6 +22,19 @@ async fn harness_with(fixture: &Fixture, writes: Vec<PreparedWrite>) -> Harness 
     .await
 }
 
+/// As [`harness_with`], with a generous call deadline for the large-graph
+/// tests, so a slow runner cannot turn a full scan into timeout/deadline.
+async fn harness_with_long_deadline(fixture: &Fixture, writes: Vec<PreparedWrite>) -> Harness {
+    fixture.store("a.sqlite", writes);
+    Harness::start(fixture.config(json!({
+        "stores": {"a": {"path": "a.sqlite"}},
+        "default_store": "a",
+        "idle_timeout_secs": 0,
+        "call_deadline_ms": 60000
+    })))
+    .await
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn fetch_returns_one_item_per_reference_in_request_order() {
     let fixture = Fixture::new();
@@ -347,7 +360,7 @@ fn hub_with_leaves(leaves: usize) -> Vec<PreparedWrite> {
 #[tokio::test(flavor = "multi_thread")]
 async fn expand_from_a_seed_with_1500_edges_returns_the_limit() {
     let fixture = Fixture::new();
-    let harness = harness_with(&fixture, hub_with_leaves(1_500)).await;
+    let harness = harness_with_long_deadline(&fixture, hub_with_leaves(1_500)).await;
     let expanded = harness.ok("expand", json!({"refs": ["l:hub"], "limit": 5})).await;
     assert_eq!(expanded["targets"].as_array().unwrap().len(), 5, "{expanded}");
     assert_eq!(expanded["bound"], "result_limit");
@@ -357,7 +370,7 @@ async fn expand_from_a_seed_with_1500_edges_returns_the_limit() {
 #[tokio::test(flavor = "multi_thread")]
 async fn expand_past_the_engine_work_bound_is_bound_exceeded() {
     let fixture = Fixture::new();
-    let harness = harness_with(&fixture, hub_with_leaves(10_001)).await;
+    let harness = harness_with_long_deadline(&fixture, hub_with_leaves(10_001)).await;
     let error = harness.err("expand", json!({"refs": ["l:hub"], "limit": 5})).await;
     assert_eq!(error["class"], "invalid_request", "{error}");
     assert_eq!(error["code"], "bound_exceeded");

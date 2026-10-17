@@ -180,7 +180,10 @@ pub(crate) struct Registry {
     me: Weak<Registry>,
 }
 
-const SHUTDOWN_BOUND: Duration = Duration::from_secs(60);
+/// How long shutdown waits beyond the call deadline for stores to drain: an
+/// abandoned call cannot outlive its deadline by more than this unless it
+/// is stuck, and a stuck call must not hold the process open.
+const SHUTDOWN_MARGIN: Duration = Duration::from_secs(5);
 
 impl Registry {
     pub(crate) fn new(config: Arc<Config>, hooks: Hooks) -> Arc<Registry> {
@@ -624,7 +627,8 @@ impl Registry {
                     .map(|slot| slot.changed.subscribe())
             };
             let Some(mut changed) = pending else { return };
-            let Some(remaining) = SHUTDOWN_BOUND.checked_sub(started.elapsed()) else {
+            let bound = Duration::from_millis(self.config.call_deadline_ms) + SHUTDOWN_MARGIN;
+            let Some(remaining) = bound.checked_sub(started.elapsed()) else {
                 tracing::warn!("shutdown: stores still busy after the bound; exiting anyway");
                 return;
             };

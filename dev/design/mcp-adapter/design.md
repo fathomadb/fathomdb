@@ -123,7 +123,9 @@ closed ──open()──▶ opening ──ok──▶ ready ──idle/switch�
   thread returns. That is how admission (MR-033.2) and idle (MR-005.4) both see
   them.
 - **Shutdown.** When stdin closes, the edge stops accepting calls and the
-  registry drains every open slot before exit.
+  registry drains every open slot before exit. It waits at most
+  `call_deadline_ms` + 5 s; a store whose abandoned call is still running
+  after that is left to process exit.
 
 ## 5. Apply-on-open list (MR-006.2)
 

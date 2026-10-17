@@ -1079,26 +1079,37 @@ def _parse_external_locator_amendments(values: Any) -> dict[str, dict[str, Any]]
 
 
 def _parse_superseded_postcutover_runs(values: Any) -> dict[str, dict[str, Any]]:
-    """Superseded runs by id. ``runner_code_unrecoverable_superseded`` is accepted
-    only for a run on ``RUNNER_UNRECOVERABLE_RUNS`` and needs a rationale."""
+    """Superseded runs by id; the only reason is ``invalid_ancillary_locator_quarantined``."""
     rows = _list(values, "superseded post-cutover runs")
     result: dict[str, dict[str, Any]] = {}
     for index, value in enumerate(rows):
-        reason = value.get("reason") if isinstance(value, dict) else None
-        keys = {"run_id", "record_sha256", "reason"}
-        if reason == RUNNER_UNRECOVERABLE_REASON:
-            keys = keys | {"rationale"}
-        entry = _closed(value, keys, f"superseded post-cutover runs[{index}]")
-        run_id = _nonempty_string(entry["run_id"], "superseded run id")
-        if entry["reason"] == RUNNER_UNRECOVERABLE_REASON:
-            if run_id not in RUNNER_UNRECOVERABLE_RUNS:
-                raise ClassificationError(f"{run_id} is not on the runner-unrecoverable list")
-            _nonempty_string(entry["rationale"], "superseded run rationale")
-        elif entry["reason"] != "invalid_ancillary_locator_quarantined":
+        entry = _closed(value, {"run_id", "record_sha256", "reason"}, f"superseded post-cutover runs[{index}]")
+        if entry["reason"] != "invalid_ancillary_locator_quarantined":
             raise ClassificationError("unsupported superseded run reason")
+        run_id = _nonempty_string(entry["run_id"], "superseded run id")
         _nonempty_string(entry["record_sha256"], "superseded record SHA-256")
         if run_id in result:
             raise ClassificationError("duplicate superseded post-cutover run id")
+        result[run_id] = entry
+    return result
+
+
+def _parse_runner_unrecoverable_runs(values: Any) -> dict[str, dict[str, Any]]:
+    """Runner-unrecoverable runs by id: each on ``RUNNER_UNRECOVERABLE_RUNS``, with a rationale."""
+    rows = _list(values, "runner-unrecoverable runs")
+    result: dict[str, dict[str, Any]] = {}
+    for index, value in enumerate(rows):
+        entry = _closed(value, {"run_id", "record_sha256", "reason", "rationale"},
+                        f"runner-unrecoverable runs[{index}]")
+        if entry["reason"] != RUNNER_UNRECOVERABLE_REASON:
+            raise ClassificationError("unsupported runner-unrecoverable reason")
+        run_id = _nonempty_string(entry["run_id"], "runner-unrecoverable run id")
+        if run_id not in RUNNER_UNRECOVERABLE_RUNS:
+            raise ClassificationError(f"{run_id} is not on the runner-unrecoverable list")
+        _nonempty_string(entry["rationale"], "runner-unrecoverable rationale")
+        _nonempty_string(entry["record_sha256"], "runner-unrecoverable record SHA-256")
+        if run_id in result:
+            raise ClassificationError("duplicate runner-unrecoverable run id")
         result[run_id] = entry
     return result
 
@@ -1173,7 +1184,7 @@ def validate_runner_unrecoverable_quarantine(
     """Accept a listed run's quarantine sidecar under its policy entry only."""
     if entry.get("reason") != RUNNER_UNRECOVERABLE_REASON or entry.get("run_id") != document.get("run_id"):
         raise ClassificationError("quarantine needs a runner_code_unrecoverable_superseded policy entry")
-    _parse_superseded_postcutover_runs([entry])
+    _parse_runner_unrecoverable_runs([entry])
     _validate_quarantine_evidence(document, Path(repository_root).resolve())
     if entry["record_sha256"] != document["record_sha256"]:
         raise ClassificationError("superseded record SHA-256 mismatch")
@@ -1332,6 +1343,8 @@ def validate_repository(repository_root: str | Path) -> None:
     }
     if policy_v3:
         policy_keys.add("misclassified_postcutover_runs")
+        if "runner_unrecoverable_runs" in policy:  # optional: absent means none
+            policy_keys.add("runner_unrecoverable_runs")
     _closed(
         policy,
         policy_keys,
@@ -1364,6 +1377,11 @@ def validate_repository(repository_root: str | Path) -> None:
     superseded_entries = _parse_superseded_postcutover_runs(policy["superseded_postcutover_runs"])
     superseded_records = {run_id: entry["record_sha256"] for run_id, entry in superseded_entries.items()}
     superseded = set(superseded_records)
+    runner_unrecoverable = _parse_runner_unrecoverable_runs(
+        policy.get("runner_unrecoverable_runs", []) if policy_v3 else []
+    )
+    if set(runner_unrecoverable) & superseded:
+        raise ClassificationError("runner-unrecoverable runs overlap the superseded inventory")
 
     amendments = _parse_postcutover_plan_amendments(
         policy["postcutover_plan_amendments"]
@@ -1383,8 +1401,9 @@ def validate_repository(repository_root: str | Path) -> None:
         experiments_dir=experiments_dir,
         index_path=index_path,
         prefix_lines=index_policy["prefix_lines"],
-        superseded_run_ids=superseded,
+        superseded_run_ids=superseded | set(runner_unrecoverable),
     )
+    observed_runner_unrecoverable: set[str] = set()
     observed_superseded: set[str] = set()
     observed_amendments: set[str] = set()
     observed_locator_amendments: set[str] = set()
@@ -1409,11 +1428,11 @@ def validate_repository(repository_root: str | Path) -> None:
                 raise ClassificationError("quarantined sidecar SHA-256 mismatch")
             observed_quarantined.add(run_id)
             continue
-        if superseded_entries.get(run_id, {}).get("reason") == RUNNER_UNRECOVERABLE_REASON:
-            observed_superseded.add(run_id)
+        if run_id in runner_unrecoverable:
+            observed_runner_unrecoverable.add(run_id)
             quarantine_sidecar = _load_json(run_dir / LEGACY_SIDECAR_NAME, "runner-unrecoverable quarantine")
             validate_runner_unrecoverable_quarantine(
-                quarantine_sidecar, repository_root=root, entry=superseded_entries[run_id]
+                quarantine_sidecar, repository_root=root, entry=runner_unrecoverable[run_id]
             )
             continue
         if run_id not in superseded and _validate_external_locator_amendment(
@@ -1443,6 +1462,8 @@ def validate_repository(repository_root: str | Path) -> None:
         )
     if observed_superseded != superseded:
         raise ClassificationError("superseded post-cutover inventory is not closed")
+    if observed_runner_unrecoverable != set(runner_unrecoverable):
+        raise ClassificationError("runner-unrecoverable inventory is not closed")
     _validate_closed_amendment_inventory(observed_amendments, amendments)
     if observed_locator_amendments != set(locator_amendments):
         raise ClassificationError("external locator amendment inventory is not closed")

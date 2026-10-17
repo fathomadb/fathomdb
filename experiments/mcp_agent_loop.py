@@ -36,6 +36,38 @@ AGENT_SYSTEM_PROMPT = (
     "Use them to answer the user's question. Answer concisely. "
     "If the memory does not contain the answer, say that you do not know."
 )
+# The guided variant's client half; the server half is the live initialize
+# ``instructions``, prepended as a real MCP client does.
+GUIDED_CLIENT_PROMPT = (
+    "You answer questions from a memory store reached through the FathomDB tools. Always search before "
+    "answering, even if you think the memory will not have it. Use the key names, objects and events from "
+    "the question as the query, and keep the default limit of 10. Snippets show only the start of each "
+    "record; when a result looks relevant but its snippet is cut off or does not show the answer, fetch it. "
+    "If the first search misses, rephrase (synonyms, the other person's name, a related event) and search "
+    "again. Records may begin with a timestamp: use it to resolve relative times like \"last week\" into "
+    "absolute dates. Answer concisely from what you retrieved. Say you do not know only after at least two "
+    "searches found nothing relevant."
+)
+PROMPT_VARIANTS = ("neutral", "guided")
+
+
+def agent_system_prompt(variant: str, *, instructions: str | None) -> str:
+    """The agent's system prompt for a prompt variant.
+
+    ``neutral`` is the run-1 prompt and ignores ``instructions``. ``guided`` is
+    the server's initialize ``instructions``, a blank line, then
+    ``GUIDED_CLIENT_PROMPT``; it raises ``ValueError`` when the server sent no
+    instructions. Any other variant raises ``ValueError``.
+    """
+    if variant == "neutral":
+        return AGENT_SYSTEM_PROMPT
+    if variant == "guided":
+        if instructions is None or not instructions.strip():
+            raise ValueError("the guided prompt needs the server's initialize instructions")
+        return instructions + "\n\n" + GUIDED_CLIENT_PROMPT
+    raise ValueError(f"unknown prompt variant {variant!r}")
+
+
 MAX_TOOL_CALLS = 4
 MAX_SEARCH_CALLS = 3
 MAX_MODEL_TURNS = 8
@@ -45,6 +77,7 @@ MAX_MODEL_TURNS = 8
 PRICES_PER_MTOK: dict[str, dict[str, float]] = {
     "gpt-4o-mini": {"input": 0.15, "cached_input": 0.075, "output": 0.60},
     "gpt-5-mini": {"input": 0.25, "cached_input": 0.025, "output": 2.00},
+    "gpt-5.4-mini": {"input": 0.75, "cached_input": 0.075, "output": 4.50},
 }
 
 
@@ -508,16 +541,43 @@ BOOTSTRAP_RESAMPLES = 10_000
 ARM_SPECS: dict[str, dict[str, str]] = {
     "A1": {"kind": "single", "mode": "text", "model": "gpt-4o-mini"},
     "A2": {"kind": "single", "mode": "hybrid", "model": "gpt-4o-mini"},
-    "B-4o": {"kind": "agent", "mode": "hybrid", "model": "gpt-4o-mini"},
-    "B-5mini": {"kind": "agent", "mode": "hybrid", "model": "gpt-5-mini"},
+    "B-4o": {"kind": "agent", "mode": "hybrid", "model": "gpt-4o-mini", "prompt": "neutral"},
+    "B-5mini": {"kind": "agent", "mode": "hybrid", "model": "gpt-5-mini", "prompt": "neutral"},
+    "B-5.4mini": {"kind": "agent", "mode": "hybrid", "model": "gpt-5.4-mini", "prompt": "neutral"},
+    "B-4o-guided": {"kind": "agent", "mode": "hybrid", "model": "gpt-4o-mini", "prompt": "guided"},
+    "B-5.4mini-guided": {"kind": "agent", "mode": "hybrid", "model": "gpt-5.4-mini", "prompt": "guided"},
 }
 JUDGE_MODEL = "gpt-4o-mini"
 # The route must serve exactly the requested model; an alias remap stops the run.
-SERVED_MODEL_PREFIX = {"gpt-4o-mini": "openai/gpt-4o-mini", "gpt-5-mini": "openai/gpt-5-mini"}
+SERVED_MODEL_PREFIX = {
+    "gpt-4o-mini": "openai/gpt-4o-mini", "gpt-5-mini": "openai/gpt-5-mini", "gpt-5.4-mini": "openai/gpt-5.4-mini",
+}
 
 
 class ServedModelMismatch(RuntimeError):
     """Raised when the route answers with a different model than requested."""
+
+
+# Labels whose route model id differs from the label.
+REQUEST_MODEL_ID = {"gpt-5.4-mini": "openai/gpt-5.4-mini"}
+
+
+def request_model_id(model: str) -> str:
+    """The model id sent to the route for a model label."""
+    return REQUEST_MODEL_ID.get(model, model)
+
+
+def request_params(model: str, *, max_tokens: int) -> dict[str, Any]:
+    """Sampling parameters: reasoning models run at effort ``low``; others at temperature 0."""
+    if model.startswith("gpt-5"):
+        return {"reasoning_effort": "low", "max_completion_tokens": max_tokens}
+    return {"temperature": 0, "max_tokens": max_tokens}
+
+
+def check_served_model(model: str, served: str | None) -> None:
+    """Raise ``ServedModelMismatch`` unless ``served`` starts with the model's provider id."""
+    if served is None or not served.startswith(SERVED_MODEL_PREFIX[model]):
+        raise ServedModelMismatch(f"route served {served!r} for requested {model!r}")
 
 
 def load_harness_prompts(checkout: Path) -> Any:
@@ -634,6 +694,7 @@ class McpSession:
             "clientInfo": {"name": "mcp-agent-loop", "version": "1"},
         })
         self.server_info = init["result"].get("serverInfo", {})
+        self.instructions: str | None = init["result"].get("instructions")
         self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
 
     def _send(self, message: dict[str, Any]) -> None:
@@ -713,13 +774,8 @@ class ChatClient:
                  json_object: bool = False, max_tokens: int = 4096) -> ModelTurn:
         """One metered completion; raises ``BudgetExceeded`` before the call when the cap is reached."""
         self.ledger.check()
-        kwargs: dict[str, Any] = {"model": model, "messages": messages}
-        if model.startswith("gpt-5"):
-            kwargs["reasoning_effort"] = "low"
-            kwargs["max_completion_tokens"] = max_tokens
-        else:
-            kwargs["temperature"] = 0
-            kwargs["max_tokens"] = max_tokens
+        kwargs: dict[str, Any] = {"model": request_model_id(model), "messages": messages,
+                                  **request_params(model, max_tokens=max_tokens)}
         if functions is not None:
             kwargs["tools"] = functions
             kwargs["tool_choice"] = tool_choice or "auto"
@@ -742,8 +798,7 @@ class ChatClient:
         self.ledger.record(arm=self.arm, qid=qid, role=role, model=model, usage=usage,
                            route_cost_usd=route_cost_usd, served_model=served)
         self.served.setdefault(model, set()).add(str(served))
-        if served is None or not served.startswith(SERVED_MODEL_PREFIX[model]):
-            raise ServedModelMismatch(f"route served {served!r} for requested {model!r}")
+        check_served_model(model, served)
         message = response.choices[0].message
         calls = [ToolCall(id=c.id, name=c.function.name, arguments=c.function.arguments or "")
                  for c in (message.tool_calls or [])]
@@ -844,7 +899,7 @@ def _single_search(question: Question, *, mcp: McpSession, mode: str, grader: Gr
 
 
 def _agent(question: Question, *, mcp: McpSession, functions: list[dict[str, Any]], model: str,
-           grader: Grader) -> dict[str, Any]:
+           system_prompt: str, grader: Grader) -> dict[str, Any]:
     calls: list[dict[str, Any]] = []
     # The session default is per server; reset it so one question's use_store cannot leak into the next.
     mcp.call_tool("use_store", {"store": "conv0"})
@@ -876,7 +931,7 @@ def _agent(question: Question, *, mcp: McpSession, functions: list[dict[str, Any
         results.append(info)
         return text, is_error
 
-    trace = run_agent_loop(question.question, system_prompt=AGENT_SYSTEM_PROMPT, functions=functions,
+    trace = run_agent_loop(question.question, system_prompt=system_prompt, functions=functions,
                            model_turn=model_turn, call_tool=call_tool)
     generated = extract_answer(trace.final_answer)
     verdict = grader.judge(question, generated, calls)
@@ -907,6 +962,8 @@ def server_config(stores_dir: Path, mode: str) -> dict[str, Any]:
 
 def run_live(args: Any) -> int:
     """Run one arm against the live server and route, checkpointing each question."""
+    import hashlib
+
     spec = ARM_SPECS[args.arm]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -926,14 +983,23 @@ def run_live(args: Any) -> int:
     mcp = McpSession(Path(args.binary), config_path, env=env, stderr_path=out / f"server-{args.arm}.stderr")
     try:
         tools = mcp.list_tools()
+        (out / "instructions.txt").write_text(mcp.instructions or "", encoding="utf-8")
         (out / "tools_list.json").write_text(json.dumps(tools, indent=1, sort_keys=True), encoding="utf-8")
         functions = tools_to_functions(tools)
         if spec["kind"] == "single":
             def process(question: Question) -> dict[str, Any]:
                 return _single_search(question, mcp=mcp, mode=spec["mode"], grader=grader)
         else:
+            system_prompt = agent_system_prompt(spec["prompt"], instructions=mcp.instructions)
+            prompt_record = {"arm": args.arm, "variant": spec["prompt"],
+                             "system_prompt_sha256": hashlib.sha256(system_prompt.encode()).hexdigest(),
+                             "instructions_sha256": hashlib.sha256((mcp.instructions or "").encode()).hexdigest(),
+                             "instructions_bytes": len((mcp.instructions or "").encode())}
+            (out / f"prompt-{args.arm}.json").write_text(json.dumps(prompt_record, indent=1), encoding="utf-8")
+
             def process(question: Question) -> dict[str, Any]:
-                return _agent(question, mcp=mcp, functions=functions, model=spec["model"], grader=grader)
+                return _agent(question, mcp=mcp, functions=functions, model=spec["model"],
+                              system_prompt=system_prompt, grader=grader)
         checkpoint = ArmCheckpoint(out / "arms" / args.arm)
         processed = run_arm(questions, lambda q: {"arm": args.arm, **process(q)}, checkpoint,
                             resume=args.resume, ledger=ledger)
@@ -1042,26 +1108,43 @@ def _histogram_str(values: list[Any]) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
-PAIRS = (("A2", "A1"), ("B-4o", "A2"), ("B-5mini", "A2"), ("B-5mini", "B-4o"))
+PAIRS = (
+    ("A2", "A1"), ("B-4o", "A2"), ("B-5mini", "A2"), ("B-5mini", "B-4o"),
+    ("B-5.4mini", "B-4o"), ("B-4o-guided", "B-4o"), ("B-5.4mini-guided", "B-5.4mini"),
+    ("B-4o-guided", "A2"), ("B-5.4mini-guided", "A2"), ("B-5.4mini", "A2"),
+)
 # A heuristic for "the answer says the memory lacks it"; reported as a rough rate only.
 ABSTENTION_PHRASE = re.compile(
     r"(do not know|don't know|does not (contain|provide|specify|mention)|not (specified|mentioned|available)"
     r"|no (specific )?information)", re.IGNORECASE)
 
 
-def summarize(out: Path, *, seed: int = BOOTSTRAP_SEED, resamples: int = BOOTSTRAP_RESAMPLES) -> dict[str, Any]:
-    """Content-free aggregates over every arm's checkpoints and the spend ledger."""
+def summarize(out: Path, *, include: Iterable[Path] = (), seed: int = BOOTSTRAP_SEED,
+              resamples: int = BOOTSTRAP_RESAMPLES) -> dict[str, Any]:
+    """Content-free aggregates over every arm's checkpoints and the spend ledgers.
+
+    ``include`` names earlier run directories whose arms and ledgers join this
+    run's; an arm with checkpoints in two directories raises ``ValueError``.
+    ``ledger_usd.this_run`` is the spend of ``out`` alone.
+    """
     import hashlib
 
     arms: dict[str, dict[str, dict[str, Any]]] = {}
-    for arm in ARM_SPECS:
-        results = ArmCheckpoint(out / "arms" / arm).load_all()
-        if results:
+    ledger_totals: dict[str, float] = {}
+    run_dirs = [out, *include]
+    for run_dir in run_dirs:
+        for arm in ARM_SPECS:
+            results = ArmCheckpoint(run_dir / "arms" / arm).load_all()
+            if not results:
+                continue
+            if arm in arms:
+                raise ValueError(f"arm {arm} has checkpoints in more than one run directory")
             arms[arm] = results
-    ledger = CostLedger(out / "ledger", cap_usd=float("inf"))
-    ledger_totals = ledger.arm_totals()
+        for arm, usd in CostLedger(run_dir / "ledger", cap_usd=float("inf")).arm_totals().items():
+            ledger_totals[arm] = ledger_totals.get(arm, 0.0) + usd
     summary: dict[str, Any] = {"arms": {}, "paired": {}, "ledger_usd": {
-        "by_arm": dict(sorted(ledger_totals.items())), "total": ledger.total_usd()}}
+        "by_arm": dict(sorted(ledger_totals.items())), "total": sum(ledger_totals.values()),
+        "this_run": CostLedger(out / "ledger", cap_usd=float("inf")).total_usd()}}
     rows: list[list[Any]] = []
     for arm, results in arms.items():
         ordered = sorted(results)
@@ -1183,10 +1266,33 @@ def gpu_evidence(csv_path: Path) -> dict[str, Any]:
     }
 
 
-def resolved_config(*, binary_sha256: str, arm_status: dict[str, str]) -> dict[str, Any]:
-    """The non-secret, path-free configuration recorded in the receipt."""
+def resolved_config(*, binary_sha256: str, arm_status: dict[str, str], instructions: str | None = None,
+                    earlier_binary_sha256: str | None = None) -> dict[str, Any]:
+    """The non-secret, path-free configuration recorded in the receipt.
+
+    ``instructions`` is the server's initialize text the guided arms used;
+    ``earlier_binary_sha256`` is the binary of the run whose arms were included.
+    """
     import hashlib
 
+    def sha(text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()
+
+    prompts: dict[str, Any] = {
+        "neutral": {"system_prompt_sha256": sha(AGENT_SYSTEM_PROMPT), "server_instructions": "not sent"},
+        "guided": {"client_prompt_sha256": sha(GUIDED_CLIENT_PROMPT),
+                   "composition": "initialize instructions + blank line + client prompt"},
+    }
+    if instructions:
+        prompts["guided"].update({
+            "instructions_sha256": sha(instructions), "instructions_bytes": len(instructions.encode()),
+            "system_prompt_sha256": sha(agent_system_prompt("guided", instructions=instructions)),
+        })
+    params = {
+        model: {**({"request_model_id": request_model_id(model)} if model in REQUEST_MODEL_ID else {}),
+                **request_params(model, max_tokens=4096)}
+        for model in ("gpt-4o-mini", "gpt-5-mini", "gpt-5.4-mini")
+    }
     server = server_config(Path("external-stores-dir"), "per-arm")
     return {
         "schema_version": SCHEMA_VERSION,
@@ -1196,7 +1302,8 @@ def resolved_config(*, binary_sha256: str, arm_status: dict[str, str]) -> dict[s
             "selection": "category 1-4 with at least one evidence id that maps to a turn", "questions": 150,
         },
         "server": {
-            "config": server, "binary_sha256": binary_sha256, "cargo_features": ["embed-cuda"],
+            "config": server, "binary_sha256": binary_sha256, "earlier_binary_sha256": earlier_binary_sha256,
+            "cargo_features": ["embed-cuda"],
             "device_env": {"CUDA_VISIBLE_DEVICES": "0", "FATHOMDB_EMBED_DEVICE": "cuda:0"},
             "store": "conv0.sqlite from dev/experiments/mcp-hybrid-vs-keyword (locomo_load, bge-small-en-v1.5)",
         },
@@ -1206,12 +1313,11 @@ def resolved_config(*, binary_sha256: str, arm_status: dict[str, str]) -> dict[s
         "single_search": {"search_args": {"mode": "per arm", "limit": 10}, "fetch": "the returned refs",
                           "context": "fetched bodies in rank order, no created_at"},
         "agent": {
-            "system_prompt_sha256": hashlib.sha256(AGENT_SYSTEM_PROMPT.encode()).hexdigest(),
+            "system_prompt_sha256": sha(AGENT_SYSTEM_PROMPT), "prompts": prompts,
             "max_tool_calls": MAX_TOOL_CALLS, "max_search_calls": MAX_SEARCH_CALLS,
             "max_model_turns": MAX_MODEL_TURNS, "final_turn_tool_choice": "none",
             "tool_result": "MCP text content block; error text when isError",
-            "params": {"gpt-4o-mini": {"temperature": 0, "max_tokens": 4096},
-                       "gpt-5-mini": {"reasoning_effort": "low", "max_completion_tokens": 4096}},
+            "params": params, "served_model_prefix": SERVED_MODEL_PREFIX,
         },
         "scoring": {
             "answerer_model": "gpt-4o-mini", "judge_model": JUDGE_MODEL,
@@ -1249,9 +1355,12 @@ def main(argv: list[str] | None = None) -> int:
     est.add_argument("--out", required=True)
     summ = sub.add_parser("summarize")
     summ.add_argument("--out", required=True)
+    summ.add_argument("--include", action="append", default=[], help="earlier run directory")
     rec = sub.add_parser("receipt")
     rec.add_argument("--out", required=True)
     rec.add_argument("--binary", required=True)
+    rec.add_argument("--include", action="append", default=[], help="earlier run directory")
+    rec.add_argument("--earlier-binary", help="the server binary of the included run")
     rec.add_argument("--arm-status", action="append", default=[], help="ARM=status")
     rec.add_argument("--verdict", required=True)
     rec.add_argument("--read", required=True)
@@ -1263,21 +1372,26 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(estimate(Path(args.out)), indent=1))
         return 0
     if args.command == "summarize":
-        print(json.dumps(summarize(Path(args.out)), indent=1))
+        print(json.dumps(summarize(Path(args.out), include=[Path(p) for p in args.include]), indent=1))
         return 0
     import hashlib
     from datetime import datetime, timezone
 
     out = Path(args.out)
-    summary = summarize(out)
+    summary = summarize(out, include=[Path(p) for p in args.include])
     summary["gpu"] = gpu_evidence(out / "gpu.csv")
     validation = out / "estimate-10.json"
     if validation.is_file():
         summary["validation_estimate"] = json.loads(validation.read_text(encoding="utf-8"))
     summary["blockers"] = list(args.blocker)
     status = dict(item.split("=", 1) for item in args.arm_status)
-    resolved = resolved_config(binary_sha256=hashlib.sha256(Path(args.binary).read_bytes()).hexdigest(),
-                               arm_status=status)
+    instructions_path = out / "instructions.txt"
+    earlier = (hashlib.sha256(Path(args.earlier_binary).read_bytes()).hexdigest()
+               if args.earlier_binary else None)
+    resolved = resolved_config(
+        binary_sha256=hashlib.sha256(Path(args.binary).read_bytes()).hexdigest(), arm_status=status,
+        instructions=instructions_path.read_text(encoding="utf-8") if instructions_path.is_file() else None,
+        earlier_binary_sha256=earlier)
     run_id, run_dir = write_receipt(out, summary=summary, resolved=resolved, verdict=args.verdict,
                                     read=args.read, ts=datetime.now(timezone.utc).replace(second=0, microsecond=0))
     print(json.dumps({"run_id": run_id, "run_dir": str(run_dir)}))

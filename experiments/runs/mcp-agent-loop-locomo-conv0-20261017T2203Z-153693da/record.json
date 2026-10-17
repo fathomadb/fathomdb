@@ -1,0 +1,1260 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "mcp-agent-loop-locomo-conv0-20261017T2203Z-153693da",
+  "experiment": "mcp-agent-loop-locomo-conv0",
+  "title": "mcp-agent-loop-locomo-conv0",
+  "verdict": "complete",
+  "read": "Six arms on 150 conv-0 questions: B-4o-guided 0.960 and B-5.4mini-guided 0.953 beat A2 hybrid 0.853 (+0.107 [+0.047, +0.167]; +0.100 [+0.047, +0.160]). Guidance lifts B-4o 0.787 to 0.960 (+0.173 [+0.113, +0.240]) and B-5.4mini 0.880 to 0.953 (+0.073 [+0.027, +0.127]). Run-2 spend $1.149.",
+  "code": {
+    "git_sha": "a969b95c77552188241c68a8f1d01d11d6919805",
+    "dirty": false,
+    "branch": "exp/mcp-agent-guided",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "153693da9104c22715f83366d0d5a3a017ab4f303b8617d70185b487f3cb8fcd",
+    "path": null,
+    "resolved": {
+      "schema_version": "mcp-agent-loop.v1",
+      "campaign": "locomo_conv0_mcp_agent_loop",
+      "workload": {
+        "dataset_raw_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+        "conversation": 0,
+        "categories": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "selection": "category 1-4 with at least one evidence id that maps to a turn",
+        "questions": 150
+      },
+      "server": {
+        "config": {
+          "roots": [
+            {
+              "path": "external-stores-dir",
+              "suffix": ".sqlite"
+            }
+          ],
+          "default_store": "conv0",
+          "use_default_embedder": true,
+          "idle_timeout_secs": 0,
+          "call_deadline_ms": 120000,
+          "search_mode": "per-arm"
+        },
+        "binary_sha256": "92d9c8327bfc72a1cfc401d7946d40410157fb8b2dd8643be92c2185985ba89d",
+        "earlier_binary_sha256": "dea36c50039cf1304f3800f1bbbd593077e211a11eaaf96e7a3a95708df95261",
+        "cargo_features": [
+          "embed-cuda"
+        ],
+        "device_env": {
+          "CUDA_VISIBLE_DEVICES": "0",
+          "FATHOMDB_EMBED_DEVICE": "cuda:0"
+        },
+        "store": "conv0.sqlite from dev/experiments/mcp-hybrid-vs-keyword (locomo_load, bge-small-en-v1.5)"
+      },
+      "arms": {
+        "A1": {
+          "kind": "single",
+          "mode": "text",
+          "model": "gpt-4o-mini",
+          "status": "complete_run1"
+        },
+        "A2": {
+          "kind": "single",
+          "mode": "hybrid",
+          "model": "gpt-4o-mini",
+          "status": "complete_run1"
+        },
+        "B-4o": {
+          "kind": "agent",
+          "mode": "hybrid",
+          "model": "gpt-4o-mini",
+          "prompt": "neutral",
+          "status": "complete_run1"
+        },
+        "B-5mini": {
+          "kind": "agent",
+          "mode": "hybrid",
+          "model": "gpt-5-mini",
+          "prompt": "neutral",
+          "status": "blocked"
+        },
+        "B-5.4mini": {
+          "kind": "agent",
+          "mode": "hybrid",
+          "model": "gpt-5.4-mini",
+          "prompt": "neutral",
+          "status": "complete"
+        },
+        "B-4o-guided": {
+          "kind": "agent",
+          "mode": "hybrid",
+          "model": "gpt-4o-mini",
+          "prompt": "guided",
+          "status": "complete"
+        },
+        "B-5.4mini-guided": {
+          "kind": "agent",
+          "mode": "hybrid",
+          "model": "gpt-5.4-mini",
+          "prompt": "guided",
+          "status": "complete"
+        }
+      },
+      "single_search": {
+        "search_args": {
+          "mode": "per arm",
+          "limit": 10
+        },
+        "fetch": "the returned refs",
+        "context": "fetched bodies in rank order, no created_at"
+      },
+      "agent": {
+        "system_prompt_sha256": "b2cea7bf617da474e7cc78a803327a952af3a3c7af94391281642cde4ab697e1",
+        "prompts": {
+          "neutral": {
+            "system_prompt_sha256": "b2cea7bf617da474e7cc78a803327a952af3a3c7af94391281642cde4ab697e1",
+            "server_instructions": "not sent"
+          },
+          "guided": {
+            "client_prompt_sha256": "8b6a4bf9f95a1e6e295608f9870ad80006f25d16b1017d82c5badd40dc5b5d2d",
+            "composition": "initialize instructions + blank line + client prompt",
+            "instructions_sha256": "ec160a83e0b5f7a8cc8a2389b5b934a61fe2e8071004c555df9505754c3aa207",
+            "instructions_bytes": 1140,
+            "system_prompt_sha256": "76df778dcdc6838d925619f08c35028bfcc7327581e07bcf00556f835810849e"
+          }
+        },
+        "max_tool_calls": 4,
+        "max_search_calls": 3,
+        "max_model_turns": 8,
+        "final_turn_tool_choice": "none",
+        "tool_result": "MCP text content block; error text when isError",
+        "params": {
+          "gpt-4o-mini": {
+            "temperature": 0,
+            "max_tokens": 4096
+          },
+          "gpt-5-mini": {
+            "reasoning_effort": "low",
+            "max_completion_tokens": 4096
+          },
+          "gpt-5.4-mini": {
+            "request_model_id": "openai/gpt-5.4-mini",
+            "reasoning_effort": "low",
+            "max_completion_tokens": 4096
+          }
+        },
+        "served_model_prefix": {
+          "gpt-4o-mini": "openai/gpt-4o-mini",
+          "gpt-5-mini": "openai/gpt-5-mini",
+          "gpt-5.4-mini": "openai/gpt-5.4-mini"
+        }
+      },
+      "scoring": {
+        "answerer_model": "gpt-4o-mini",
+        "judge_model": "gpt-4o-mini",
+        "provider": "openai_compatible_airlock",
+        "served_models": {
+          "gpt-4o-mini": "openai/gpt-4o-mini"
+        },
+        "evidence_aware": true,
+        "harness_upstream_git_sha": "4b61c5d31b9c668a12b4f5e78064248a02c82d2b",
+        "harness_prompts_sha256": "8ebac1ef60e9ab5caf99079fdaac038b85472e81491ed35e2d2655f3927c76c2",
+        "answer_params": {
+          "temperature": 0,
+          "max_tokens": 4096
+        },
+        "judge_params": {
+          "temperature": 0,
+          "max_tokens": 4096,
+          "response_format": "json_object"
+        }
+      },
+      "budget": {
+        "validation_questions": 10,
+        "extrapolation_stop_usd": 4.0,
+        "hard_cap_usd": 5.0,
+        "prices_per_mtok": {
+          "gpt-4o-mini": {
+            "input": 0.15,
+            "cached_input": 0.075,
+            "output": 0.6
+          },
+          "gpt-5-mini": {
+            "input": 0.25,
+            "cached_input": 0.025,
+            "output": 2.0
+          },
+          "gpt-5.4-mini": {
+            "input": 0.75,
+            "cached_input": 0.075,
+            "output": 4.5
+          }
+        },
+        "charge": "max(table, route-reported)"
+      },
+      "bootstrap": {
+        "seed": 20260814,
+        "resamples": 10000
+      }
+    }
+  },
+  "corpus": {
+    "source": "LOCOMO",
+    "manifest_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "datasets": []
+  },
+  "seeds": {
+    "bootstrap": "20260814"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "harness_prompts_sha256": "8ebac1ef60e9ab5caf99079fdaac038b85472e81491ed35e2d2655f3927c76c2"
+    }
+  },
+  "metrics": {
+    "arms": {
+      "B-5.4mini": {
+        "overall": {
+          "n": 150,
+          "accuracy": 0.88,
+          "ci95": [
+            0.8266666666666667,
+            0.9266666666666666
+          ]
+        },
+        "by_category": {
+          "1": {
+            "n": 32,
+            "accuracy": 0.75,
+            "ci95": [
+              0.59375,
+              0.90625
+            ]
+          },
+          "2": {
+            "n": 37,
+            "accuracy": 0.972972972972973,
+            "ci95": [
+              0.918918918918919,
+              1.0
+            ]
+          },
+          "3": {
+            "n": 11,
+            "accuracy": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "4": {
+            "n": 70,
+            "accuracy": 0.8714285714285714,
+            "ci95": [
+              0.7857142857142857,
+              0.9428571428571428
+            ]
+          }
+        },
+        "gold_hit_rate": 0.68,
+        "abstention_phrase_rate": 0.0,
+        "abstention_phrase_accuracy": null,
+        "judge_evidence_aware_rate": 0.9933333333333333,
+        "tokens_by_role": {
+          "agent": {
+            "calls": 383,
+            "input_tokens": 698625,
+            "cached_input_tokens": 483840,
+            "output_tokens": 24459,
+            "reasoning_tokens": 9952,
+            "cost_usd": 0.30744225000000003,
+            "route_cost_usd": 0.30744225000000003
+          },
+          "judge": {
+            "calls": 150,
+            "input_tokens": 138920,
+            "cached_input_tokens": 0,
+            "output_tokens": 6464,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.024716400000000006,
+            "route_cost_usd": 0.024716400000000003
+          }
+        },
+        "ledger_usd": 0.33215864999999967,
+        "tool_usage": {
+          "tool_calls_per_question": {
+            "1": 90,
+            "2": 31,
+            "3": 23,
+            "4": 6
+          },
+          "searches_per_question": {
+            "1": 117,
+            "2": 19,
+            "3": 14
+          },
+          "mean_searches": 1.3133333333333332,
+          "mean_tool_calls": 1.6333333333333333,
+          "per_tool": {
+            "search": {
+              "calls": 197,
+              "questions_using": 150,
+              "per_question": {
+                "1": 117,
+                "2": 19,
+                "3": 14
+              }
+            },
+            "fetch": {
+              "calls": 28,
+              "questions_using": 28,
+              "per_question": {
+                "0": 122,
+                "1": 28
+              }
+            },
+            "expand": {
+              "calls": 7,
+              "questions_using": 7,
+              "per_question": {
+                "0": 143,
+                "1": 7
+              }
+            },
+            "orient": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "list_stores": {
+              "calls": 10,
+              "questions_using": 10,
+              "per_question": {
+                "0": 140,
+                "1": 10
+              }
+            },
+            "use_store": {
+              "calls": 3,
+              "questions_using": 3,
+              "per_question": {
+                "0": 147,
+                "1": 3
+              }
+            },
+            "feedback": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            }
+          },
+          "searched_again_rate": 0.22,
+          "rephrased_rate": 1.0,
+          "first_search_verbatim_rate": 0.0,
+          "no_search_rate": 0.0,
+          "no_search_accuracy": null,
+          "search_limit_values": {
+            "10": 46,
+            "20": 6,
+            "5": 145
+          },
+          "mode_override_rate": 1.0,
+          "mode_values": {
+            "hybrid": 41,
+            "text": 156
+          },
+          "orient_rate": 0.0,
+          "fetch_rate": 0.18666666666666668,
+          "expand_calls_with_targets": 0,
+          "expand_calls_ok": 7,
+          "other_store_rate": 0.0,
+          "budget_hit_rate": 0.04,
+          "turn_cap_rate": 0.0,
+          "not_executed_calls": 0,
+          "tool_errors": 0,
+          "error_codes": {},
+          "agent_turns_per_question": {
+            "2": 92,
+            "3": 38,
+            "4": 15,
+            "5": 5
+          }
+        },
+        "accuracy_by_gold_hit": {
+          "True": 0.9607843137254902,
+          "False": 0.7083333333333334
+        }
+      },
+      "B-4o-guided": {
+        "overall": {
+          "n": 150,
+          "accuracy": 0.96,
+          "ci95": [
+            0.9266666666666666,
+            0.9866666666666667
+          ]
+        },
+        "by_category": {
+          "1": {
+            "n": 32,
+            "accuracy": 0.96875,
+            "ci95": [
+              0.90625,
+              1.0
+            ]
+          },
+          "2": {
+            "n": 37,
+            "accuracy": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "3": {
+            "n": 11,
+            "accuracy": 0.8181818181818182,
+            "ci95": [
+              0.5454545454545454,
+              1.0
+            ]
+          },
+          "4": {
+            "n": 70,
+            "accuracy": 0.9571428571428572,
+            "ci95": [
+              0.9,
+              1.0
+            ]
+          }
+        },
+        "gold_hit_rate": 0.7133333333333334,
+        "abstention_phrase_rate": 0.006666666666666667,
+        "abstention_phrase_accuracy": 0.0,
+        "judge_evidence_aware_rate": 0.9933333333333333,
+        "tokens_by_role": {
+          "agent": {
+            "calls": 470,
+            "input_tokens": 1168135,
+            "cached_input_tokens": 615040,
+            "output_tokens": 20752,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.1415434499999999,
+            "route_cost_usd": 0.14154344999999993
+          },
+          "judge": {
+            "calls": 150,
+            "input_tokens": 145300,
+            "cached_input_tokens": 1024,
+            "output_tokens": 6869,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.025839599999999994,
+            "route_cost_usd": 0.025839599999999994
+          }
+        },
+        "ledger_usd": 0.16738304999999998,
+        "tool_usage": {
+          "tool_calls_per_question": {
+            "2": 112,
+            "3": 31,
+            "4": 7
+          },
+          "searches_per_question": {
+            "1": 135,
+            "2": 12,
+            "3": 3
+          },
+          "mean_searches": 1.12,
+          "mean_tool_calls": 2.3,
+          "per_tool": {
+            "search": {
+              "calls": 168,
+              "questions_using": 150,
+              "per_question": {
+                "1": 135,
+                "2": 12,
+                "3": 3
+              }
+            },
+            "fetch": {
+              "calls": 154,
+              "questions_using": 147,
+              "per_question": {
+                "0": 3,
+                "1": 140,
+                "2": 7
+              }
+            },
+            "expand": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "orient": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "list_stores": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "use_store": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "feedback": {
+              "calls": 23,
+              "questions_using": 23,
+              "per_question": {
+                "0": 127,
+                "1": 23
+              }
+            }
+          },
+          "searched_again_rate": 0.1,
+          "rephrased_rate": 1.0,
+          "first_search_verbatim_rate": 0.0,
+          "no_search_rate": 0.0,
+          "no_search_accuracy": null,
+          "search_limit_values": {
+            "10": 168
+          },
+          "mode_override_rate": 0.0,
+          "mode_values": {
+            "None": 168
+          },
+          "orient_rate": 0.0,
+          "fetch_rate": 0.98,
+          "expand_calls_with_targets": 0,
+          "expand_calls_ok": 0,
+          "other_store_rate": 0.0,
+          "budget_hit_rate": 0.04666666666666667,
+          "turn_cap_rate": 0.0,
+          "not_executed_calls": 0,
+          "tool_errors": 1,
+          "error_codes": {
+            "invalid_request/bad_argument": 1
+          },
+          "agent_turns_per_question": {
+            "3": 136,
+            "4": 8,
+            "5": 6
+          }
+        },
+        "accuracy_by_gold_hit": {
+          "True": 1.0,
+          "False": 0.8604651162790697
+        }
+      },
+      "B-5.4mini-guided": {
+        "overall": {
+          "n": 150,
+          "accuracy": 0.9533333333333334,
+          "ci95": [
+            0.9133333333333333,
+            0.9866666666666667
+          ]
+        },
+        "by_category": {
+          "1": {
+            "n": 32,
+            "accuracy": 0.90625,
+            "ci95": [
+              0.78125,
+              1.0
+            ]
+          },
+          "2": {
+            "n": 37,
+            "accuracy": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "3": {
+            "n": 11,
+            "accuracy": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "4": {
+            "n": 70,
+            "accuracy": 0.9428571428571428,
+            "ci95": [
+              0.8857142857142857,
+              0.9857142857142858
+            ]
+          }
+        },
+        "gold_hit_rate": 0.78,
+        "abstention_phrase_rate": 0.0,
+        "abstention_phrase_accuracy": null,
+        "judge_evidence_aware_rate": 0.9933333333333333,
+        "tokens_by_role": {
+          "agent": {
+            "calls": 519,
+            "input_tokens": 1272742,
+            "cached_input_tokens": 723456,
+            "output_tokens": 35223,
+            "reasoning_tokens": 16444,
+            "cost_usd": 0.6247272000000004,
+            "route_cost_usd": 0.6247272000000004
+          },
+          "judge": {
+            "calls": 150,
+            "input_tokens": 140379,
+            "cached_input_tokens": 2048,
+            "output_tokens": 6499,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.024802649999999996,
+            "route_cost_usd": 0.024802649999999996
+          }
+        },
+        "ledger_usd": 0.6495298499999999,
+        "tool_usage": {
+          "tool_calls_per_question": {
+            "1": 23,
+            "2": 55,
+            "3": 45,
+            "4": 27
+          },
+          "searches_per_question": {
+            "1": 103,
+            "2": 39,
+            "3": 8
+          },
+          "mean_searches": 1.3666666666666667,
+          "mean_tool_calls": 2.506666666666667,
+          "per_tool": {
+            "search": {
+              "calls": 205,
+              "questions_using": 150,
+              "per_question": {
+                "1": 103,
+                "2": 39,
+                "3": 8
+              }
+            },
+            "fetch": {
+              "calls": 72,
+              "questions_using": 65,
+              "per_question": {
+                "0": 85,
+                "1": 58,
+                "2": 7
+              }
+            },
+            "expand": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "orient": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "list_stores": {
+              "calls": 92,
+              "questions_using": 92,
+              "per_question": {
+                "0": 58,
+                "1": 92
+              }
+            },
+            "use_store": {
+              "calls": 7,
+              "questions_using": 7,
+              "per_question": {
+                "0": 143,
+                "1": 7
+              }
+            },
+            "feedback": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            }
+          },
+          "searched_again_rate": 0.31333333333333335,
+          "rephrased_rate": 1.0,
+          "first_search_verbatim_rate": 0.0,
+          "no_search_rate": 0.0,
+          "no_search_accuracy": null,
+          "search_limit_values": {
+            "10": 205
+          },
+          "mode_override_rate": 0.9533333333333334,
+          "mode_values": {
+            "None": 11,
+            "hybrid": 57,
+            "text": 137
+          },
+          "orient_rate": 0.0,
+          "fetch_rate": 0.43333333333333335,
+          "expand_calls_with_targets": 0,
+          "expand_calls_ok": 0,
+          "other_store_rate": 0.0,
+          "budget_hit_rate": 0.18,
+          "turn_cap_rate": 0.0,
+          "not_executed_calls": 2,
+          "tool_errors": 5,
+          "error_codes": {
+            "invalid_request/bad_argument": 5
+          },
+          "agent_turns_per_question": {
+            "2": 24,
+            "3": 57,
+            "4": 45,
+            "5": 24
+          }
+        },
+        "accuracy_by_gold_hit": {
+          "True": 1.0,
+          "False": 0.7878787878787878
+        }
+      },
+      "A1": {
+        "overall": {
+          "n": 150,
+          "accuracy": 0.8266666666666667,
+          "ci95": [
+            0.7666666666666667,
+            0.8866666666666667
+          ]
+        },
+        "by_category": {
+          "1": {
+            "n": 32,
+            "accuracy": 0.8125,
+            "ci95": [
+              0.6875,
+              0.9375
+            ]
+          },
+          "2": {
+            "n": 37,
+            "accuracy": 0.7567567567567568,
+            "ci95": [
+              0.6216216216216216,
+              0.8918918918918919
+            ]
+          },
+          "3": {
+            "n": 11,
+            "accuracy": 0.8181818181818182,
+            "ci95": [
+              0.5454545454545454,
+              1.0
+            ]
+          },
+          "4": {
+            "n": 70,
+            "accuracy": 0.8714285714285714,
+            "ci95": [
+              0.7857142857142857,
+              0.9428571428571428
+            ]
+          }
+        },
+        "gold_hit_rate": 0.6466666666666666,
+        "abstention_phrase_rate": 0.04666666666666667,
+        "abstention_phrase_accuracy": 0.7142857142857143,
+        "judge_evidence_aware_rate": 0.9933333333333333,
+        "tokens_by_role": {
+          "answerer": {
+            "calls": 150,
+            "input_tokens": 312067,
+            "cached_input_tokens": 153472,
+            "output_tokens": 63318,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.07329045000000002,
+            "route_cost_usd": 0.07329045000000002
+          },
+          "judge": {
+            "calls": 150,
+            "input_tokens": 138762,
+            "cached_input_tokens": 0,
+            "output_tokens": 6507,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.024718500000000004,
+            "route_cost_usd": 0.024718500000000004
+          }
+        },
+        "ledger_usd": 0.09800895,
+        "search_degradation_count": 0,
+        "completeness": {
+          "complete": 2,
+          "limit_reached": 148
+        }
+      },
+      "A2": {
+        "overall": {
+          "n": 150,
+          "accuracy": 0.8533333333333334,
+          "ci95": [
+            0.7933333333333333,
+            0.9066666666666666
+          ]
+        },
+        "by_category": {
+          "1": {
+            "n": 32,
+            "accuracy": 0.78125,
+            "ci95": [
+              0.625,
+              0.90625
+            ]
+          },
+          "2": {
+            "n": 37,
+            "accuracy": 0.8648648648648649,
+            "ci95": [
+              0.7567567567567568,
+              0.972972972972973
+            ]
+          },
+          "3": {
+            "n": 11,
+            "accuracy": 0.8181818181818182,
+            "ci95": [
+              0.5454545454545454,
+              1.0
+            ]
+          },
+          "4": {
+            "n": 70,
+            "accuracy": 0.8857142857142857,
+            "ci95": [
+              0.8,
+              0.9571428571428572
+            ]
+          }
+        },
+        "gold_hit_rate": 0.7,
+        "abstention_phrase_rate": 0.04,
+        "abstention_phrase_accuracy": 0.5,
+        "judge_evidence_aware_rate": 0.9933333333333333,
+        "tokens_by_role": {
+          "answerer": {
+            "calls": 150,
+            "input_tokens": 313112,
+            "cached_input_tokens": 153472,
+            "output_tokens": 63927,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.07381260000000002,
+            "route_cost_usd": 0.07381260000000002
+          },
+          "judge": {
+            "calls": 150,
+            "input_tokens": 138764,
+            "cached_input_tokens": 0,
+            "output_tokens": 6431,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.0246732,
+            "route_cost_usd": 0.0246732
+          }
+        },
+        "ledger_usd": 0.0984858,
+        "search_degradation_count": 0,
+        "completeness": {
+          "limit_reached": 150
+        }
+      },
+      "B-4o": {
+        "overall": {
+          "n": 150,
+          "accuracy": 0.7866666666666666,
+          "ci95": [
+            0.72,
+            0.8466666666666667
+          ]
+        },
+        "by_category": {
+          "1": {
+            "n": 32,
+            "accuracy": 0.8125,
+            "ci95": [
+              0.65625,
+              0.9375
+            ]
+          },
+          "2": {
+            "n": 37,
+            "accuracy": 0.8648648648648649,
+            "ci95": [
+              0.7567567567567568,
+              0.972972972972973
+            ]
+          },
+          "3": {
+            "n": 11,
+            "accuracy": 0.45454545454545453,
+            "ci95": [
+              0.18181818181818182,
+              0.7272727272727273
+            ]
+          },
+          "4": {
+            "n": 70,
+            "accuracy": 0.7857142857142857,
+            "ci95": [
+              0.6857142857142857,
+              0.8714285714285714
+            ]
+          }
+        },
+        "gold_hit_rate": 0.5533333333333333,
+        "abstention_phrase_rate": 0.25333333333333335,
+        "abstention_phrase_accuracy": 0.34210526315789475,
+        "judge_evidence_aware_rate": 0.9933333333333333,
+        "tokens_by_role": {
+          "agent": {
+            "calls": 302,
+            "input_tokens": 485653,
+            "cached_input_tokens": 179840,
+            "output_tokens": 7964,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.06413835000000002,
+            "route_cost_usd": 0.06413835000000002
+          },
+          "judge": {
+            "calls": 150,
+            "input_tokens": 140274,
+            "cached_input_tokens": 1024,
+            "output_tokens": 6726,
+            "reasoning_tokens": 0,
+            "cost_usd": 0.02499989999999998,
+            "route_cost_usd": 0.02499989999999998
+          }
+        },
+        "ledger_usd": 0.08913824999999997,
+        "tool_usage": {
+          "tool_calls_per_question": {
+            "0": 12,
+            "1": 125,
+            "2": 12,
+            "3": 1
+          },
+          "searches_per_question": {
+            "0": 12,
+            "1": 125,
+            "2": 12,
+            "3": 1
+          },
+          "mean_searches": 1.0133333333333334,
+          "mean_tool_calls": 1.0133333333333334,
+          "per_tool": {
+            "search": {
+              "calls": 152,
+              "questions_using": 138,
+              "per_question": {
+                "0": 12,
+                "1": 125,
+                "2": 12,
+                "3": 1
+              }
+            },
+            "fetch": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "expand": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "orient": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "list_stores": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "use_store": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            },
+            "feedback": {
+              "calls": 0,
+              "questions_using": 0,
+              "per_question": {
+                "0": 150
+              }
+            }
+          },
+          "searched_again_rate": 0.08666666666666667,
+          "rephrased_rate": 1.0,
+          "first_search_verbatim_rate": 0.0,
+          "no_search_rate": 0.08,
+          "no_search_accuracy": 0.16666666666666666,
+          "search_limit_values": {
+            "1": 22,
+            "10": 10,
+            "5": 119,
+            "None": 1
+          },
+          "mode_override_rate": 0.02666666666666667,
+          "mode_values": {
+            "None": 148,
+            "hybrid": 3,
+            "text": 1
+          },
+          "orient_rate": 0.0,
+          "fetch_rate": 0.0,
+          "expand_calls_with_targets": 0,
+          "expand_calls_ok": 0,
+          "other_store_rate": 0.0,
+          "budget_hit_rate": 0.0,
+          "turn_cap_rate": 0.0,
+          "not_executed_calls": 0,
+          "tool_errors": 0,
+          "error_codes": {},
+          "agent_turns_per_question": {
+            "1": 12,
+            "2": 125,
+            "3": 12,
+            "4": 1
+          }
+        },
+        "accuracy_by_gold_hit": {
+          "True": 0.9759036144578314,
+          "False": 0.5522388059701493
+        }
+      }
+    },
+    "paired": {
+      "A2 - A1": {
+        "n": 150,
+        "difference": 0.02666666666666667,
+        "ci95": [
+          -0.02666666666666667,
+          0.08
+        ],
+        "left_only_correct": 11,
+        "right_only_correct": 7
+      },
+      "B-4o - A2": {
+        "n": 150,
+        "difference": -0.06666666666666667,
+        "ci95": [
+          -0.14,
+          0.013333333333333334
+        ],
+        "left_only_correct": 13,
+        "right_only_correct": 23
+      },
+      "B-5.4mini - B-4o": {
+        "n": 150,
+        "difference": 0.09333333333333334,
+        "ci95": [
+          0.013333333333333334,
+          0.18
+        ],
+        "left_only_correct": 28,
+        "right_only_correct": 14
+      },
+      "B-4o-guided - B-4o": {
+        "n": 150,
+        "difference": 0.17333333333333334,
+        "ci95": [
+          0.11333333333333333,
+          0.24
+        ],
+        "left_only_correct": 27,
+        "right_only_correct": 1
+      },
+      "B-5.4mini-guided - B-5.4mini": {
+        "n": 150,
+        "difference": 0.07333333333333333,
+        "ci95": [
+          0.02666666666666667,
+          0.12666666666666668
+        ],
+        "left_only_correct": 13,
+        "right_only_correct": 2
+      },
+      "B-4o-guided - A2": {
+        "n": 150,
+        "difference": 0.10666666666666667,
+        "ci95": [
+          0.04666666666666667,
+          0.16666666666666666
+        ],
+        "left_only_correct": 19,
+        "right_only_correct": 3
+      },
+      "B-5.4mini-guided - A2": {
+        "n": 150,
+        "difference": 0.1,
+        "ci95": [
+          0.04666666666666667,
+          0.16
+        ],
+        "left_only_correct": 18,
+        "right_only_correct": 3
+      },
+      "B-5.4mini - A2": {
+        "n": 150,
+        "difference": 0.02666666666666667,
+        "ci95": [
+          -0.04666666666666667,
+          0.1
+        ],
+        "left_only_correct": 17,
+        "right_only_correct": 13
+      }
+    },
+    "ledger_usd": {
+      "by_arm": {
+        "A1": 0.09800895,
+        "A2": 0.0984858,
+        "B-4o": 0.08913824999999997,
+        "B-4o-guided": 0.16738304999999998,
+        "B-5.4mini": 0.33215864999999967,
+        "B-5.4mini-guided": 0.6495298499999999
+      },
+      "total": 1.4347045499999995,
+      "this_run": 1.14907155
+    },
+    "score_manifest_sha256": "0ad469ae3d2f020dc8c21a1d932d7c96343e5753d2082f3d75a1009a32c4f5e0",
+    "bootstrap": {
+      "seed": 20260814,
+      "resamples": 10000,
+      "method": "percentile, two-sided 95%"
+    },
+    "gpu": {
+      "available": true,
+      "fathomdb_mcp_samples": 1917,
+      "fathomdb_mcp_peak_mib_by_gpu_index": {
+        "0": 436
+      },
+      "peak_utilization_pct_by_gpu_index": {
+        "0": 52,
+        "1": 0,
+        "2": 56
+      }
+    },
+    "validation_estimate": {
+      "arms": {
+        "B-4o-guided": {
+          "questions": 10,
+          "usd": 0.011052450000000002,
+          "usd_per_question": 0.0011052450000000001,
+          "extrapolated_usd": 0.16578675,
+          "tokens_per_question": {
+            "agent": {
+              "input": 7951.9,
+              "cached": 4556.8,
+              "output": 137.1,
+              "reasoning": 0.0
+            },
+            "judge": {
+              "input": 952.8,
+              "cached": 0.0,
+              "output": 48.4,
+              "reasoning": 0.0
+            }
+          }
+        },
+        "B-5.4mini": {
+          "questions": 10,
+          "usd": 0.024530700000000003,
+          "usd_per_question": 0.0024530700000000003,
+          "extrapolated_usd": 0.3679605,
+          "tokens_per_question": {
+            "agent": {
+              "input": 4606.7,
+              "cached": 2713.6,
+              "output": 148.5,
+              "reasoning": 55.2
+            },
+            "judge": {
+              "input": 901.7,
+              "cached": 0.0,
+              "output": 43.7,
+              "reasoning": 0.0
+            }
+          }
+        },
+        "B-5.4mini-guided": {
+          "questions": 10,
+          "usd": 0.0353742,
+          "usd_per_question": 0.0035374200000000003,
+          "extrapolated_usd": 0.530613,
+          "tokens_per_question": {
+            "agent": {
+              "input": 8978.8,
+              "cached": 6515.2,
+              "output": 230.8,
+              "reasoning": 102.4
+            },
+            "judge": {
+              "input": 912.4,
+              "cached": 0.0,
+              "output": 42.7,
+              "reasoning": 0.0
+            }
+          }
+        }
+      },
+      "extrapolated_total_usd": 1.06436025,
+      "spent_usd": 0.07095735
+    },
+    "blockers": [
+      "B-5mini not run: the Airlock route maps gpt-5-mini to openai/gpt-5.4-mini; run 2 ran openai/gpt-5.4-mini as its own arms, labelled gpt-5.4-mini"
+    ]
+  },
+  "cost_usd": 1.434705,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [],
+  "review": null,
+  "open_questions": []
+}

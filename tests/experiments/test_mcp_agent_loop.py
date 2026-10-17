@@ -25,6 +25,12 @@ def test_reasoning_tokens_bill_as_output_once() -> None:
     assert mal.cost_usd("gpt-5-mini", usage) == pytest.approx((1000 * 0.25 + 300 * 2.00) / 1e6)
 
 
+def test_gpt_5_4_mini_bills_at_its_table_prices() -> None:
+    # 800 uncached * 0.75 + 200 cached * 0.075 + 300 out (incl. 200 reasoning) * 4.50, per million.
+    usage = mal.Usage(input_tokens=1000, cached_input_tokens=200, output_tokens=300, reasoning_tokens=200)
+    assert mal.cost_usd("gpt-5.4-mini", usage) == pytest.approx((800 * 0.75 + 200 * 0.075 + 300 * 4.50) / 1e6)
+
+
 def test_unknown_model_has_no_price() -> None:
     with pytest.raises(KeyError):
         mal.cost_usd("not-a-model", mal.Usage(1, 0, 1, 0))
@@ -319,3 +325,131 @@ def test_bootstrap_ci_is_deterministic_for_a_seed() -> None:
     assert first == mal.bootstrap_ci(values, seed=7, resamples=2000)
     assert first[0] <= sum(values) / len(values) <= first[1]
     assert mal.bootstrap_ci([1.0] * 5, seed=1, resamples=100) == (1.0, 1.0)
+
+
+# --- prompt variants ---------------------------------------------------------
+
+
+def test_guided_prompt_is_the_server_instructions_then_the_client_prompt() -> None:
+    instructions = "FathomDB memory stores, read-only. Always search first."
+    prompt = mal.agent_system_prompt("guided", instructions=instructions)
+    assert prompt == instructions + "\n\n" + mal.GUIDED_CLIENT_PROMPT
+    assert mal.GUIDED_CLIENT_PROMPT.startswith("You answer questions from a memory store")
+
+
+def test_neutral_prompt_excludes_the_server_instructions() -> None:
+    prompt = mal.agent_system_prompt("neutral", instructions="FathomDB memory stores, read-only.")
+    assert prompt == mal.AGENT_SYSTEM_PROMPT
+    assert "FathomDB" not in prompt
+
+
+@pytest.mark.parametrize("instructions", [None, "", "   "])
+def test_guided_prompt_refuses_missing_instructions(instructions: str | None) -> None:
+    with pytest.raises(ValueError):
+        mal.agent_system_prompt("guided", instructions=instructions)
+
+
+def test_agent_arms_carry_their_prompt_variant_and_model() -> None:
+    expected = {
+        "B-4o": ("neutral", "gpt-4o-mini"),
+        "B-5.4mini": ("neutral", "gpt-5.4-mini"),
+        "B-4o-guided": ("guided", "gpt-4o-mini"),
+        "B-5.4mini-guided": ("guided", "gpt-5.4-mini"),
+    }
+    for arm, (variant, model) in expected.items():
+        spec = mal.ARM_SPECS[arm]
+        assert (spec["kind"], spec["mode"], spec["prompt"], spec["model"]) == ("agent", "hybrid", variant, model)
+
+
+# --- summary across runs -----------------------------------------------------
+
+
+def _checkpoint(run: Path, arm: str, scores: list[float]) -> None:
+    store = mal.ArmCheckpoint(run / "arms" / arm)
+    for i, score in enumerate(scores):
+        result = {"arm": arm, "category": 1 + i % 4, "score": score, "gold_hit_any": score == 1.0,
+                  "answer": "a", "judge": {"evidence_aware": True}, "calls": []}
+        if mal.ARM_SPECS[arm]["kind"] == "agent":
+            result.update({"tool_log": [], "tool_results": [], "n_searches": 0, "search_verbatim": [],
+                           "forced_reason": None})
+        else:
+            result.update({"degradation": [], "completeness": "limit_reached"})
+        store.save(f"conv0_q{i}", result)
+
+
+def test_summary_merges_arms_and_spend_from_an_earlier_run(tmp_path: Path) -> None:
+    run1, run2 = tmp_path / "run1", tmp_path / "run2"
+    _checkpoint(run1, "A2", [1.0, 1.0, 0.0, 1.0])
+    _checkpoint(run1, "B-4o", [1.0, 0.0, 0.0, 1.0])
+    _checkpoint(run2, "B-4o-guided", [1.0, 1.0, 1.0, 1.0])
+    mal.CostLedger(run1 / "ledger", cap_usd=5.0).record(
+        arm="B-4o", qid="conv0_q0", role="agent", model="gpt-4o-mini", usage=mal.Usage(1000, 0, 0, 0),
+        route_cost_usd=None)
+    mal.CostLedger(run2 / "ledger", cap_usd=5.0).record(
+        arm="B-4o-guided", qid="conv0_q0", role="agent", model="gpt-4o-mini", usage=mal.Usage(2000, 0, 0, 0),
+        route_cost_usd=None)
+    summary = mal.summarize(run2, include=[run1], resamples=200)
+    assert set(summary["arms"]) == {"A2", "B-4o", "B-4o-guided"}
+    assert summary["paired"]["B-4o-guided - B-4o"]["difference"] == pytest.approx(0.5)
+    assert summary["paired"]["B-4o-guided - A2"]["difference"] == pytest.approx(0.25)
+    assert summary["ledger_usd"]["by_arm"] == pytest.approx({"B-4o": 150e-6, "B-4o-guided": 300e-6})
+    assert summary["ledger_usd"]["total"] == pytest.approx(450e-6)
+    assert summary["ledger_usd"]["this_run"] == pytest.approx(300e-6)
+
+
+def test_summary_refuses_an_arm_present_in_two_runs(tmp_path: Path) -> None:
+    run1, run2 = tmp_path / "run1", tmp_path / "run2"
+    _checkpoint(run1, "B-4o", [1.0])
+    _checkpoint(run2, "B-4o", [0.0])
+    with pytest.raises(ValueError):
+        mal.summarize(run2, include=[run1], resamples=200)
+
+
+def test_receipt_config_records_both_prompts_both_binaries_and_gpt_5_4_mini() -> None:
+    import hashlib
+
+    def sha(text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()
+
+    config = mal.resolved_config(binary_sha256="run2-bin", arm_status={}, instructions="Use search.",
+                                 earlier_binary_sha256="run1-bin")
+    prompts = config["agent"]["prompts"]
+    assert prompts["neutral"]["system_prompt_sha256"] == sha(mal.AGENT_SYSTEM_PROMPT)
+    assert prompts["guided"]["client_prompt_sha256"] == sha(mal.GUIDED_CLIENT_PROMPT)
+    assert prompts["guided"]["instructions_sha256"] == sha("Use search.")
+    assert prompts["guided"]["system_prompt_sha256"] == sha("Use search.\n\n" + mal.GUIDED_CLIENT_PROMPT)
+    assert config["server"]["binary_sha256"] == "run2-bin"
+    assert config["server"]["earlier_binary_sha256"] == "run1-bin"
+    assert config["agent"]["params"]["gpt-5.4-mini"] == {
+        "request_model_id": "openai/gpt-5.4-mini", "reasoning_effort": "low", "max_completion_tokens": 4096}
+
+
+# --- model routing -----------------------------------------------------------
+
+
+@pytest.mark.parametrize("served", ["openai/gpt-5.4-mini", "openai/gpt-5.4-mini-2026-03-17"])
+def test_served_model_guard_accepts_gpt_5_4_mini(served: str) -> None:
+    mal.check_served_model("gpt-5.4-mini", served)
+
+
+@pytest.mark.parametrize("served", [None, "openai/gpt-5-mini", "openai/gpt-4o-mini", "gpt-5.4-mini",
+                                    "openrouter/openai/gpt-5.4-mini"])
+def test_served_model_guard_rejects_other_models_for_gpt_5_4_mini(served: str | None) -> None:
+    with pytest.raises(mal.ServedModelMismatch):
+        mal.check_served_model("gpt-5.4-mini", served)
+
+
+def test_gpt_5_4_mini_is_requested_by_its_provider_id() -> None:
+    assert mal.request_model_id("gpt-5.4-mini") == "openai/gpt-5.4-mini"
+    assert mal.request_model_id("gpt-4o-mini") == "gpt-4o-mini"
+
+
+def test_gpt_5_4_mini_runs_at_low_reasoning_effort() -> None:
+    params = mal.request_params("gpt-5.4-mini", max_tokens=4096)
+    assert params == {"reasoning_effort": "low", "max_completion_tokens": 4096}
+    assert mal.request_params("gpt-4o-mini", max_tokens=4096) == {"temperature": 0, "max_tokens": 4096}
+
+
+def test_served_model_guard_still_rejects_the_gpt_5_mini_remap() -> None:
+    with pytest.raises(mal.ServedModelMismatch):
+        mal.check_served_model("gpt-5-mini", "openai/gpt-5.4-mini")

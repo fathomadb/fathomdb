@@ -131,7 +131,12 @@ function policyWire(policy: ContextPolicy): Record<string, unknown> {
   if (policy.compactChars !== undefined) {
     wire.compact_chars = safeCount(policy.compactChars, "policy.compactChars (policy.compact_chars)");
   }
-  if (policy.keepRoles !== undefined) wire.keep_roles = Array.from(policy.keepRoles);
+  if (policy.keepRoles !== undefined) {
+    if (!Array.isArray(policy.keepRoles)) {
+      throw new TypeError("policy.keepRoles must be an array of role strings");
+    }
+    wire.keep_roles = Array.from(policy.keepRoles);
+  }
   if (policy.fullIds !== undefined) {
     if (!Array.isArray(policy.fullIds)) {
       throw new TypeError("policy.fullIds must be an array of item ids");

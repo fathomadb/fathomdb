@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 41 — status
-status: phase 1 done and reviewed; phase 2 (units F and Q) implemented, code review next
+status: phase 1 and phase 2 (units F and Q) done and reviewed; landing review LAND, its P3 items fixed
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -31,7 +31,7 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
 | P2-R0 | reviewer | Plan review | APPROVE-WITH-FIXES on `80e4ea954`; F-Q1 to F-Q8 and F-F1 to F-F3 applied to requirements § 5, design § 8–9 and test-plan § 8. Rulings: Q-T1 YES (phase 1 expected entries gain `"forced": false` in the RED commit; the deletion check is recorded here); Q-B1 open-time `EngineConfig` setting, not persisted; per-query override and doctor suggester out of scope |
 | P2-W2 | implementer | RED: new tests and fixture cases | done: ruling 5 edits `50f0638ed`, tests and skeleton `51428d28b`; record in test-plan § 8.5 |
 | P2-W4 | implementer | GREEN: unit F, then unit Q; allowlist text and pin; docs | done: code `b67cc6c6a`, docs and allowlist text `b48550414`, pin `d99ad7f4d`, Python declarations and EARP catalog `8fb1bfd62`, then the module-boundary row; one Python guard test waits on ruling 8 |
-| P2-R2 | reviewer | Code review | not started |
+| P2-R2 | reviewer | Code review | APPROVE-WITH-FIXES (P3 only); fixes in `b296615d1` (item 13). Landing review (Fable-medium, the fallback reviewer for codex): LAND with P3-1 to P3-3, fixed (item 15) |
 | P2-M | orchestrator | MF1 now; MQ1 and MQ2 at the merged head after Unit H | not started. Precondition for AC41-39 at the merged head (Slice 40's H1 RED tests removed) satisfied: reverted at `fb42f612e` |
 
 ## Rules
@@ -152,6 +152,12 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
       mode with its retrieval-identity check (test-plan § 4.2; M3 uses
       `caller` items), and the Unit E cross-SDK score-bits harness case
       (REQ41-Q6).
+
+15. Landing review P3 fixes: P3-1 TypeScript refuses a non-array
+    `keepRoles` with `TypeError`, as Python does for a bare `str` and as
+    `fullIds` already was; P3-2 this file's front matter and the P2-R2 row;
+    P3-3 the `fathomdb-sdk` `pack_context` docstring lists the `full_ids`
+    refusals.
 
 Pre-existing failures under `test-hooks` (the feature is turned on by
 unification in multi-crate runs), left as they are: `slice135_robustness_first`

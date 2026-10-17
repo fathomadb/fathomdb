@@ -269,8 +269,10 @@ fn context_pack_error(error: fathomdb_engine::ContextPackError) -> Error {
 ///
 /// # Errors
 /// `InvalidArgument`, with a message naming the field, for a zero
-/// `budget_chars` or `item_chars`, an empty or repeated id, or a grouped
-/// `context` item without `position` while `expand_groups` is on.
+/// `budget_chars` or `item_chars`, an empty or repeated id, a grouped
+/// `context` item without `position` while `expand_groups` is on, or a
+/// `full_ids` entry that is empty, repeated or matches no item in `hits` or
+/// `context` (named `policy.full_ids[i]`, checked after the other rules).
 pub fn pack_context(
     hits: &[ContextItem],
     policy: &ContextPolicy,

@@ -64,11 +64,11 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | ---: | --- | --- |
 | 30 | Tegra private CUDA memory pool (D28-08) | Complete on `release/0.8.28` at `8d53418d1493090502501180d9223172ae95eaba`; [status](../0.8.28/features/slice-30/status.md). |
 | 31 | cudarc and Candle forks from crates.io (D28-13) | Complete on `release/0.8.28` at `1ceefddd894c041b0a8622856dc2677be3e49c88`; R-CODE-4 fixes on `slice/0.8.28-31-post`; [status](../0.8.28/features/slice-31/status.md). |
-| 40 | FTS ranking, latency and page-cache defects (COMP benchmarks) | In progress on `slice/0.8.28-40-fts-ranking-defects`, not landed; [status](../0.8.28/features/slice-40/status.md). |
-| 41 | SDK context pack, full-render override, configurable query stop words | Planned on `slice/0.8.28-41-sdk-evidence-helper` (docs there; reserved here). Depends on Slice 40; lands before Slice 42. |
+| 40 | FTS ranking, latency and page-cache defects (COMP benchmarks) | Complete on `release/0.8.28` at `869d6a9e100d40841efc5cb56688040f4b645e42`; Unit I gate passed and ADR-0.8.28-sqlite-per-connection-page-cache accepted; [status](../0.8.28/features/slice-40/status.md). |
+| 41 | SDK context pack, full-render override, configurable query stop words | Complete on `release/0.8.28` at `0ec01bc22197c641566830ef7b5ee6f446994f21`; [status](../0.8.28/features/slice-41/status.md). |
 | 42 | slice135 descriptor check (todos ledger seq 312, `TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`); published-Rust page-cache investigation (todos ledger seq 313, `TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`) | Planned; plan review R1 APPROVE-WITH-FIXES applied; [plan](../0.8.28/features/slice-42/plan.md). Depends on Slice 40; lands after Slice 41. |
 
-Ladder remaining: 40, 41, 42. Slices 41 and 42 were added by owner rulings on 2026-10-16; 41 lands before 42.
+Ladder remaining: 42. Slices 41 and 42 were added by owner rulings on 2026-10-16.
 
 ## Boundaries
 

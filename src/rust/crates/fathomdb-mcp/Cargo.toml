@@ -45,5 +45,8 @@ rmcp = { version = "=3.5.1", features = ["client", "transport-async-rw"] }
 # Read-only digest of canonical and op-store rows for the MR-060.1 test. Test
 # code only; the adapter itself never links rusqlite (MR-070.2).
 rusqlite = { version = "0.40", features = ["bundled", "fallible_uint"] }
+# Exact float parsing in the test client, so re-serializing a received
+# structuredContent reproduces the server's bytes (budget assertions).
+serde_json = { version = "1", features = ["float_roundtrip"] }
 tempfile = "3"
 toml = "1"

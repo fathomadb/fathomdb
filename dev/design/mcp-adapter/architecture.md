@@ -147,9 +147,13 @@ handshake timeout.
   answers the client (MR-033.1), but its blocking thread runs to completion and
   still holds a reader-pool slot.
 - So that abandoned work cannot exhaust the engine, the bridge admits at most
-  N engine calls in flight, with N below the reader-pool size (8 today) and
-  owned by the ADR. Excess calls wait up to the deadline, then return busy
+  N engine calls in flight, and an abandoned call counts against N until its
+  thread actually returns. In standalone mode N defaults below the reader-pool
+  size (8 today). In embedded mode the host sets N, since its own reads draw on
+  the same pool. Excess calls wait up to the deadline, then return busy
   (MR-033.2). Interruptible search is an engine follow-up (§7).
+- The bridge's open and call paths carry a test seam behind an adapter-only
+  feature, for MR-003 and MR-033 tests, so no engine test hook is needed.
 - Writes serialise on the engine's single writer; the adapter adds no
   concurrency of its own.
 
@@ -167,7 +171,7 @@ engine column is what §7 must add.
 | Family | Purpose | Today in `fathomdb-sdk` | Needs from §7 | MR |
 | --- | --- | --- | --- | --- |
 | Orient | Capped summary of contents and readiness | `read.projections`, `read.projection_status`, `read.embedding_readiness` | Kind enumeration, per-kind and per-class counts | MR-022 |
-| Search | Relevance search, filters, scope, budget, as-of | `search`, `search_text_only`, `search_frozen`, filter grammar, `ReadView.valid_as_of` | Exact phrase predicate; bounded count; raw per-arm scores; currency fields on hits | MR-020–023, MR-030–032, MR-040–041 |
+| Search | Relevance search, filters, budget, as-of; explain in the same call | `search` and `search_text_only` (reader pool), filter grammar, `ReadView.valid_as_of`, `explain=true` | Exact phrase predicate; bounded count; raw per-arm scores; currency fields on hits; scope | MR-020–023, MR-030–032, MR-040–041 |
 | Fetch | Full content for many references | `read.get`, `read.get_many` (logical ids only); `search_with_evidence` and `resolve_evidence` for passages | Fetch by content or passage id | MR-040.2, MR-042, MR-052 |
 | Expand | Bounded neighbourhood | `graph.expand`, `graph.neighbors`, `search_expand_frozen` | — | MR-053 |
 | Explain | Why a hit ranked | `explain` sidecar | Raw per-arm scores (shared with Search) | MR-031 |
@@ -189,29 +193,48 @@ do not retain history (ADR-0.8.25). Two facts shape the adapter:
   family takes a frozen context; `read.get`, `read.list` and `graph.*` take a
   `ReadView` only.
 
+- `freeze_read_context` takes the **writer-connection lock** and counts every
+  canonical row. It is a coordination tool for multi-read plans, not a cheap
+  probe. Calling it per read would serialise the adapter behind the single
+  writer, and behind the host's writes in embedded mode, which defeats the
+  reader pool.
+
 So the adapter **reports** consistency rather than holding it:
 
-1. Each response carries a state identifier computed from the state binding and
-   validity instant only, not from the token or its eligibility. Equal
-   identifiers mean the same state, whatever the filters (MR-050).
-2. Each call reads one state. Search-family calls freeze and consume a context
-   within the call, so a single response never mixes states (MR-050.3). For
-   non-frozen verbs, the bridge obtains the binding with `freeze_read_context`
-   before and after the read; if it moved, it retries once and otherwise answers
-   with a drift label. A cheaper binding read is an engine nicety, not a
-   prerequisite.
-3. When a call's state differs from the session's previous one, the response is
-   answered on the new state and labelled `state_advanced` (MR-051). The
-   agent's own writes are labelled the same way, so they are visible to it at
-   once.
-4. Continuations embed the state identifier. A continuation on an old state
-   fails as drift with a remedy (MR-051.3), so pages never mix states.
-5. The validity instant is resolved per call (or pinned for as-of sessions,
-   MR-023), so records whose validity starts later appear when it arrives.
+1. **Canonical state, not the full binding.** The state identifier covers the
+   canonical write boundary, read-visibility generation and dependency
+   generation. Projection progress (embedding batches, index builds) is reported
+   as readiness, not as drift, so a background projection worker does not make
+   every read look stale. The validity instant is a separate field, so an
+   unpinned session's identifier does not change merely because time passed
+   (MR-050).
+2. **One engine addition is a prerequisite:** a content-free read of the
+   canonical state on a reader connection (§7). Without it, the identifier is
+   reported `unavailable` and drift labelling is off. Nothing approximates it.
+3. **One SDK read per response.** Each handler issues exactly one governed read,
+   bracketed by two canonical-state reads. The components are monotonic, so equal
+   brackets prove that no canonical commit happened during the read. On a
+   mismatch the bridge retries once. A second mismatch returns a drift error and
+   no data (MR-050.3). A handler that needs two reads to be consistent with each
+   other uses an existing frozen composite (for example `search_expand_frozen`)
+   and accepts its writer-lock cost, rather than composing reads itself.
+4. **Labels, not failures.** When a response's state differs from the session's
+   previous one, it is answered on the new state and labelled `state_advanced`
+   (MR-051). The agent's own writes produce the same label.
+5. **Continuations re-derive.** A continuation carries the state identifier and
+   the references already returned. On an unchanged state, the page continues
+   exactly. On an advanced state, the ranked run is repeated on the new state,
+   references already returned are dropped, and the page is labelled
+   `state_advanced` with the caveat that results which moved earlier may be
+   missing (MR-041.4). A continuation fails as drift only when it cannot be
+   re-derived.
+6. **Validity instant per call.** It is resolved per call, or pinned for as-of
+   sessions (MR-023), so records whose validity starts later appear once it
+   arrives.
 
 A scope-limited drift signal, one that ignores commits outside the session's
-eligibility, would reduce `state_advanced` noise under a busy writer; it is an
-engine follow-up (§7), not a prerequisite.
+eligibility, would cut `state_advanced` noise further under a busy writer. It
+is an engine follow-up (§7).
 
 ## 6. Trust and scope model
 
@@ -220,19 +243,28 @@ engine follow-up (§7), not a prerequisite.
   entitlement and never from the body. A body-derived projection is rejected as
   an interim: any ingested document could carry a body field claiming `owner`
   (MR-010.4). Until the field exists, every result reports `unclassified`.
-- **The write family waits for the origin field.** The first release is
-  read-only; write tools ship only once adapter writes can be stamped by policy
-  (MR-011, MR-060). This also gives the read path a measured quality baseline
-  (MR-021) before agents start writing.
-- **Scope uses the engine's eligibility.** The operator's scope is expressed over
-  declared exact projections, which ADR-0.8.25 anticipates for owner and scope.
-  The bridge joins it into every call's eligibility, so it reaches the
-  engine before truncation and no tool argument can remove it (MR-014). A
+- **The write family waits for engine-stamped origin and scope.** The first
+  release is read-only. Write tools ship only once the engine stamps both origin
+  class and scope from launch policy, never from the body (MR-011, MR-014.5,
+  MR-060). A body-path scope has the same hole as a body-path origin: an agent
+  or an ingested document could write itself into another scope. Waiting also
+  gives the read path a measured quality baseline (MR-021) before agents start
+  writing.
+- **Scope is enforced in the engine on every read path, or not offered.** Today
+  eligibility reaches only the search family; point reads, neighbours, list
+  predicates, aggregates and change queries take none. The adapter does not
+  filter in its own code (MR-070), so a scope can only be honoured once the
+  engine applies it everywhere. Until then the adapter fails closed and refuses
+  to start with a scope configured (MR-014.4). The preferred engine form is a
+  scope member of `ReadView`, so every view-taking verb honours it natively. A
   reference outside scope reads as not found.
 - **Content stays data.** Tool descriptions, server instructions and error
-  templates are compile-time constants. Kind and field names in errors come
-  only from operator or registry declarations, never from agent-written records
-  (MR-012.2, MR-054.3). The text rendering marks content as quoted data.
+  templates are compile-time constants. Kind names in errors come from the
+  engine's kind enumeration, set by writers and not by content. In write mode,
+  adapter writes are confined to the operator's launch allow-list of kinds, so
+  an agent cannot mint a name that other sessions would see echoed. Field names
+  come from the projection registry (MR-012.2, MR-054.3). The text rendering
+  marks content as quoted data.
 - **Least privilege.** Read-only by default; write tools absent, not refusing.
   No SQL, admin, purge or erasure tools: erasure stays an application and
   operator action through the SDK and CLI.
@@ -247,7 +279,9 @@ and each is read-side unless noted. The adapter reports the dependent signal as
 
 | Addition | For | Note |
 | --- | --- | --- |
-| First-class origin field, filterable, on every hit path | MR-010, MR-011 | The one data-model addition; additive column under the no-data-migration rule. Gates the write family. |
+| **Content-free canonical-state read on a reader connection** | MR-050, MR-051, MR-041.2/.4 | **The first-release prerequisite.** About one function: the canonical half of the existing state binding, returned as a digest, with no writer lock and no row count. |
+| First-class origin field, filterable, on every hit path | MR-010, MR-011 | A data-model addition: an additive column under the no-data-migration rule. Gates the write family. |
+| Scope applied on every read path (preferably a `ReadView` member), stamped on write from policy | MR-014 | Point reads, neighbours, list, aggregates and change feed included. Gates scope binding and the write family. |
 | Validity and supersession fields on search hits | MR-013 | `NodeRecord` has them; `SearchHit` does not. |
 | Kind enumeration; per-kind and per-class counts; time bounds | MR-022, MR-054 | Read-side aggregates. |
 | Bounded match count and saturation on search and list | MR-030 | Read-side. |
@@ -259,10 +293,11 @@ and each is read-side unless noted. The adapter reports the dependent signal as
 | Exact-duplicate rule on write | MR-062 | Engine-owned normalization. |
 | Interruptible search; scope-limited drift signal | MR-033, MR-051 | Quality improvements; not prerequisites. |
 
-Sequencing follows from the table: a first read-only release meets the reach,
-hygiene, scope, as-of, fetch-by-logical-id, expand, budget, determinism, drift
-and error requirements with the SDK as it is; the rest arrive as the engine
-rows land.
+Sequencing follows from the table. The first release is read-only and
+unscoped, needs only the canonical-state read, and meets reach, hygiene,
+readiness, deadlines, as-of, fetch by logical id, expand, budget, determinism,
+state identity, drift labels and typed errors. The other rows land
+independently. `requirements.md` § First-release scope lists the exact split.
 
 ## 8. Versioning and change control
 

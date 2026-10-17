@@ -168,3 +168,6 @@ scoped it to (for example one user's or one project's), and cannot widen that
 scope through any request. Scope is distinct from origin class.
 *Observed:* no direct observation in this session; ADR-0.8.25 anticipates
 owner and scope mapped through declared exact projections.
+*Tension, accepted:* an out-of-scope record must look absent, so for it the
+agent cannot tell "valid, no match" apart from "outside my scope" (AN-015).
+Hiding existence wins.

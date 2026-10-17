@@ -29,9 +29,14 @@ Conventions:
 - **[engine]** marks a requirement that needs a new or extended `fathomdb-sdk`
   verb, under its own ADR, before the adapter can meet it. Until then the
   adapter reports the signal as `unavailable` (MR-032), never an approximation.
-- "Store state" means the frozen-read state binding: canonical write boundary,
-  read-visibility generation, dependency generation and projection digests
-  (ADR-0.8.25). Any committed write advances it.
+- "Canonical state" means the canonical write boundary, read-visibility
+  generation and dependency generation (the canonical half of the ADR-0.8.25
+  state binding). A canonical commit advances it; background projection work
+  does not. Projection progress is reported as readiness (MR-030, MR-032), not
+  as a state change.
+- Test seams for delays and blocked calls (MR-003, MR-033) live in the
+  adapter's own bridge, behind a test-only feature of the adapter crate; they
+  need no engine hook.
 
 ## Reach and protocol hygiene
 
@@ -61,8 +66,9 @@ warm-up and model download, and when a handler panics. Meets AN-018.
 warm-up; tool calls made before the engine is ready return a typed not-ready
 result. Meets AN-012, AN-018.
 
-- MR-003.1 With engine open artificially delayed beyond the handshake timeout
-  *(ADR: 10 s)*, `initialize` and `tools/list` still complete within 1 s.
+- MR-003.1 With engine open delayed indefinitely by the bridge's test seam,
+  `initialize` and `tools/list` complete within 1 s. (Harness handshake
+  timeouts are the harness's; 10 s is the assumed minimum.)
 - MR-003.2 A search issued during warm-up returns not-ready with the phase
   named, not an error and not an empty result.
 - MR-003.3 When open fails (lock held, corruption, migration refusal), every
@@ -111,8 +117,12 @@ Meets AN-002.
 
 - MR-012.1 `tools/list` and server instructions are byte-identical across two
   databases with different contents.
-- MR-012.2 No error message contains record content or any kind or field name
-  not declared by the operator or the projection registry.
+- MR-012.2 No error message contains record content. Kind names in errors come
+  only from the engine's kind enumeration (MR-022), whose kinds are set by
+  writers, never by content; field names come only from the projection
+  registry. In write mode, adapter writes may use only kinds on the operator's
+  launch allow-list, so an agent cannot mint a kind name that other sessions'
+  errors would echo.
 
 **MR-013 — Currency on every result.** Every result states its validity window
 relative to the response's validity instant and whether a newer record
@@ -126,13 +136,28 @@ today; `NodeRecord` reads do.
 - MR-013.2 Under the default view, neither appears in search results.
 
 **MR-014 — Operator-bound scope.** The operator can bind an adapter session to
-a scope expressed over declared exact projections; every tool honours it, and
-no tool argument can widen it. Meets AN-019.
+a scope; every tool honours it inside the engine, and no tool argument can
+widen it. Meets AN-019. **[engine]**: today eligibility reaches only the search
+family; `read.get`, `read.get_many`, `read.list` predicates, `graph.neighbors`,
+aggregates and change queries take none. Until the engine applies scope to
+every read path, the adapter refuses to start with a scope configured (fails
+closed), rather than filtering in the adapter.
 
 - MR-014.1 With a session bound to scope A, no read tool returns a record
-  outside A, including by direct reference.
-- MR-014.2 A call that passes a filter or reference outside A behaves as if
-  the record does not exist (not found), and does not disclose its existence.
+  outside A, including by direct reference and through neighbours of an
+  in-scope record.
+- MR-014.2 A reference or filter outside A yields not found, indistinguishable
+  from a record that does not exist. This is a deliberate exception to AN-015's
+  "valid, no match" distinction.
+- MR-014.3 Counts (MR-022) and change queries (MR-055) in a scoped session
+  reflect only records in A.
+- MR-014.4 Launching with a scope configured, on an engine without scoped point
+  reads, fails at startup with a typed error naming the missing capability. The
+  check is a build-time capability of the linked SDK, so it runs before the
+  handshake and does not conflict with MR-003.
+- MR-014.5 Records written through the adapter carry the session's scope as
+  stamped by the engine from launch policy, not from the body; an agent cannot
+  write into another scope.
 
 ## Finding
 
@@ -216,12 +241,13 @@ response names what ran, what did not, and why. Meets AN-007.
 **[ADR: 10 s]** with what it has, labelled per MR-032, or a typed timeout.
 Meets AN-012.
 
-- MR-033.1 With an engine call artificially blocked past the deadline, the tool
-  returns a typed timeout at the deadline, and the adapter keeps serving other
-  calls.
+- MR-033.1 With an engine call blocked past the deadline by the bridge's test
+  seam, the tool returns a typed timeout at the deadline, and the adapter keeps
+  serving other calls.
 - MR-033.2 The number of engine calls in flight never exceeds the adapter's
-  admission cap **[ADR]**, which is below the engine reader-pool size; excess
-  calls wait or return a typed busy result.
+  admission cap **[ADR]**; excess calls wait or return a typed busy result. In
+  standalone mode the default cap is below the engine reader-pool size; in
+  embedded mode the host sets it, because the host shares the same pool.
 
 ## Context economy
 
@@ -241,10 +267,15 @@ Meets AN-009.
 
 - MR-041.1 For any budget at or above the documented minimum, the estimator
   applied to the serialized structured output does not exceed the budget.
-- MR-041.2 Following continuations of a search returns every ranked result up to
-  the engine's ranked-result cap (100 today, `MAX_RANKED_LIMIT`), with no
-  duplicates and no gaps, against one store state; past the cap the response
-  says the cap was reached. **[engine]** for ranked pagination beyond the cap.
+- MR-041.2 With no canonical commit between pages, following continuations of a
+  search returns every ranked result up to the engine's ranked-result cap (100
+  today, `MAX_RANKED_LIMIT`) with no duplicates and no gaps; past the cap the
+  response says the cap was reached. **[engine]** for ranked pagination beyond
+  the cap.
+- MR-041.4 When a commit landed between pages, the next page is re-derived on
+  the new canonical state, contains no reference already returned, and is
+  labelled `state_advanced` with the caveat that results which moved earlier may
+  be missing (MR-051.3).
 - MR-041.3 With no budget given, the default **[ADR: 4,000]** applies and is
   stated in the tool description.
 
@@ -269,31 +300,38 @@ AN-011.
   unchanged database with the validity instant pinned, yields byte-identical
   `structuredContent` and text.
 - MR-043.2 With the validity instant unpinned, the two outputs differ only in
-  the fields the interface document names as time-derived (the validity instant,
-  and any identifier derived from it); the list of such fields is closed and
-  tested.
+  the validity-instant field, and in results whose validity window boundary
+  fell between the two calls. No identifier is derived from the instant.
 
 ## Multi-step work
 
 **MR-050 — State identity on every response.** Every read response carries a
-state identifier derived from the store state and validity instant only, so two
-responses with equal identifiers read the same state. Meets AN-013.
+state identifier derived from the canonical state only, and the validity
+instant as a separate field, so two responses with equal identifiers read the
+same canonical state. Meets AN-013. **[engine]**: a content-free read of the
+canonical state on a reader connection. `freeze_read_context` is not usable for
+this: it takes the writer-connection lock, and it counts every canonical row.
+Until the read exists, responses report the identifier as `unavailable`.
 
-- MR-050.1 Two reads with no intervening commit, with different filters, report
-  the same state identifier.
-- MR-050.2 After any commit, the next read reports a different identifier.
-- MR-050.3 No single response contains results read from two store states.
+- MR-050.1 Two reads with no intervening canonical commit, with different
+  filters and an unpinned validity instant, report the same identifier.
+- MR-050.2 After a canonical commit, the next read reports a different
+  identifier. Background projection work alone does not change it.
+- MR-050.3 No response contains results read from two canonical states. When
+  the adapter cannot show a single state, it returns a drift error and no
+  results.
 
-**MR-051 — Drift is labelled, not hidden.** When the state moved since the
-session's previous read, the response says so, whether caused by the agent's
-own write or by another writer. Meets AN-013.
+**MR-051 — Drift is labelled, not hidden.** When the canonical state moved since
+the session's previous read, the response says so, whether the agent's own
+write or another writer moved it. Meets AN-013.
 
 - MR-051.1 After an external commit, the next read is answered on the new state
   and carries a `state_advanced` label naming the previous identifier.
 - MR-051.2 After a write through the adapter in the same session, the next read
   reflects that write and carries the label.
-- MR-051.3 A continuation issued on an earlier state fails as drift with a
-  remedy, rather than mixing states.
+- MR-051.3 A continuation issued on an earlier state is re-derived per MR-041.4.
+  It fails as drift only when it cannot be re-derived, for example because the
+  request's own parameters became invalid.
 
 **MR-052 — Batched references.** A caller can fetch many references in one call,
 against one state, with per-item results and errors. Meets AN-014.
@@ -315,8 +353,8 @@ busy, conflict, internal) and carries a stable code and one-line remedy;
 errors for unknown kinds, fields and references list the nearest valid
 candidates. Meets AN-015. **[engine]** for kind enumeration (MR-022).
 
-- MR-054.1 A search naming kind `notes` where kind `note` is declared fails as
-  invalid request and names `note`.
+- MR-054.1 A search naming kind `notes` on a store whose kind enumeration
+  contains `note` fails as invalid request and names `note`.
 - MR-054.2 A well-formed reference to a missing record fails as not found,
   distinct from a malformed reference (invalid request).
 - MR-054.3 Candidates are drawn only from operator- or registry-declared names
@@ -345,8 +383,10 @@ enables writing at launch; with writing disabled, write tools are absent from
 **MR-061 — Remember, replace, retract.** With writing enabled, a caller can
 record a fact, replace a record by reference, and retract a record by reference;
 each returns the resulting reference and a cursor. Every record the adapter
-writes has a logical id, so it can later be replaced or retracted. Meets
-AN-017.
+writes has a logical id, so it can later be replaced or retracted, and a kind
+from the operator's launch allow-list. Meets AN-017. The write family is not in
+the first release: it waits for engine-stamped origin class (MR-011) and scope
+(MR-014.5).
 
 - MR-061.1 A remembered fact is returned by a following search in the same
   session (with the MR-051.2 label).
@@ -370,11 +410,12 @@ scope. Meets AN-017. **[engine]** for the match rule.
 
 **MR-070 — Governed semantics preserved.** Every tool is implemented over the
 governed `fathomdb-sdk` surface; no tool returns a record that the equivalent
-SDK call, under the same view, would hide.
+SDK call, under the same view and eligibility, would hide. The adapter never
+filters records itself.
 
 - MR-070.1 For a fixture with erased, retracted, superseded and out-of-validity
   records, each read tool returns exactly the records the equivalent SDK call
-  returns under the same `ReadView`.
+  returns under the same `ReadView` and eligibility.
 - MR-070.2 The adapter crate's manifest depends on `fathomdb-sdk` and on no
   other FathomDB crate, nor on `rusqlite`, checked by a manifest lint.
 
@@ -384,6 +425,20 @@ every structured output validates against its output schema.
 - MR-071.1 Every `structuredContent` in the test suite validates against its
   tool's declared `outputSchema`.
 - MR-071.2 All schemas are JSON Schema draft 2020-12.
+
+## First-release scope
+
+The first release ships only what the 0.8.27 SDK supports plus one engine
+addition, the canonical-state read (MR-050). It is read-only, with no scope
+binding.
+
+| Group | Requirements |
+| --- | --- |
+| In the first release, SDK as-is | MR-001, MR-002, MR-003, MR-004, MR-012, MR-021, MR-023, MR-032, MR-033, MR-040, MR-041.1/.3, MR-042.1/.3, MR-043, MR-052, MR-053, MR-060, MR-070, MR-071 |
+| In the first release, needs the canonical-state read | MR-041.2/.4, MR-050, MR-051.1/.3 |
+| Reported `unavailable` until its engine addition lands | MR-010, MR-013, MR-020, MR-022, MR-030, MR-031, MR-042.2, MR-054 candidates, MR-055 |
+| Startup refused until its engine addition lands | MR-014 |
+| Not shipped until origin and scope stamping land | MR-011, MR-051.2, MR-061, MR-062 |
 
 ## Traceability
 

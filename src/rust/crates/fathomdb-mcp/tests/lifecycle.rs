@@ -166,9 +166,15 @@ async fn a_locked_store_reports_the_typed_lock_error_and_other_stores_keep_worki
     assert_eq!(again["structuredContent"]["error"]["code"], "database_locked", "{again}");
 
     // MR-006.6: once the lock is gone the next call retries and succeeds.
+    // The retry the raw call started (after draining b) may finish either
+    // side of the release, so wait for it to settle, failed or ready.
     holder.close().unwrap();
     drop(holder);
-    assert!(wait_for_readiness(&harness.client, "a", "failed", Duration::from_secs(5)).await);
+    let settle = Instant::now() + Duration::from_secs(10);
+    while !matches!(readiness(&harness.client, "a").await.as_str(), "failed" | "ready") {
+        assert!(Instant::now() < settle, "the retry never settled");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
     let found = harness.ok("search", json!({"store": "a", "query": "alpha"})).await;
     assert_eq!(found["results"][0]["ref"], "l:note:a");
     harness.shutdown().await;

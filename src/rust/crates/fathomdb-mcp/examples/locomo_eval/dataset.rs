@@ -6,8 +6,16 @@
 /// (a bare `D`) are dropped. Whether an id exists in the conversation is the
 /// caller's check.
 pub fn normalize_evidence(raw: &str) -> Vec<String> {
-    let _ = raw;
-    Vec::new()
+    raw.split(|c: char| c == ';' || c.is_whitespace()).filter_map(canonical_id).collect()
+}
+
+fn canonical_id(token: &str) -> Option<String> {
+    let rest = token.strip_prefix('D')?;
+    let rest = rest.strip_prefix(':').unwrap_or(rest);
+    let (session, turn) = rest.split_once(':')?;
+    let session: u32 = session.parse().ok()?;
+    let turn: u32 = turn.parse().ok()?;
+    Some(format!("D{session}:{turn}"))
 }
 
 #[cfg(test)]

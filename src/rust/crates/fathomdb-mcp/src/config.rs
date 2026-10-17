@@ -10,7 +10,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-use crate::names::{validate_store_name, NameError};
+use crate::names::validate_store_name;
+pub use crate::names::NameError;
 
 /// Default search path (`search_mode`).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -36,6 +37,7 @@ impl SearchMode {
 /// One explicit `stores` entry. `path` is absolute after parsing.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StoreEntry {
+    /// The database file.
     pub path: PathBuf,
     /// Whether the adapter may create the file when it is missing.
     pub create: bool,
@@ -47,15 +49,20 @@ pub struct StoreEntry {
 /// `suffix` is addressable by its name without the suffix.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Root {
+    /// The directory scanned (not recursively).
     pub path: PathBuf,
+    /// File-name suffix that makes a file addressable; default `.sqlite`.
     pub suffix: String,
 }
 
 /// Where an addressable name points.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Resolution {
+    /// The database file.
     pub path: PathBuf,
+    /// Whether the adapter may create the file (explicit entries only).
     pub create: bool,
+    /// Whether the store opens at launch (explicit entries only).
     pub eager: bool,
 }
 
@@ -64,8 +71,11 @@ pub struct Resolution {
 /// is also the starting point for embedded use (MR-004).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config {
+    /// Explicit stores by name; these win over root names.
     pub stores: BTreeMap<String, StoreEntry>,
+    /// Directories whose database files are addressable by name.
     pub roots: Vec<Root>,
+    /// Session default store when a call omits `store`; must be addressable.
     pub default_store: Option<String>,
     /// Seconds a store may stay idle before it is closed; 0 never closes.
     pub idle_timeout_secs: u64,
@@ -79,7 +89,10 @@ pub struct Config {
     pub default_max_tokens: u32,
     /// Snippet cap in characters (MR-040.1).
     pub snippet_chars: u32,
+    /// Search path when a call omits `mode`.
     pub search_mode: SearchMode,
+    /// Open every store with the pinned default embedder (needs the
+    /// `default-embedder` feature); required for `search_mode: hybrid`.
     pub use_default_embedder: bool,
     /// When set, a fresh telemetry sink is enabled on every open (MR-024.7).
     pub telemetry_dir: Option<PathBuf>,
@@ -107,6 +120,7 @@ impl Default for Config {
 /// An invalid configuration. The message names the key at fault.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigError {
+    /// One line naming the key at fault and the rule it breaks.
     pub message: String,
 }
 

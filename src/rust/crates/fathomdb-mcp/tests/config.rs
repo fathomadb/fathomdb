@@ -6,8 +6,8 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use fathomdb_mcp::config::NameError;
 use fathomdb_mcp::config::{Config, Resolution, SearchMode};
-use fathomdb_mcp::names::{validate_store_name, NameError};
 
 fn parse(json: &str, base: &Path) -> Result<Config, String> {
     Config::from_json_str(json, base).map_err(|error| error.to_string())
@@ -143,12 +143,13 @@ fn store_names_follow_the_grammar() {
     let dir = tempfile::tempdir().unwrap();
     let base = dir.path();
     for name in ["notes", "a", "A9", "a.b-c_d", &"x".repeat(64)] {
-        assert_eq!(validate_store_name(name), Ok(()), "{name}");
+        // Well formed, so resolution gets past the grammar to the registry.
+        assert_eq!(Config::default().resolve(name), Err(NameError::Unknown), "{name}");
     }
     for name in
         ["", ".", "..", "-a", "_a", ".a", "a/b", "a\\b", "/abs", "a b", "é", &"x".repeat(65)]
     {
-        assert_eq!(validate_store_name(name), Err(NameError::BadName), "{name:?}");
+        assert_eq!(Config::default().resolve(name), Err(NameError::BadName), "{name:?}");
     }
     let message = invalid(r#"{"stores": {"a/b": {"path": "x.sqlite"}}}"#, base);
     assert!(message.contains("a/b"), "{message}");

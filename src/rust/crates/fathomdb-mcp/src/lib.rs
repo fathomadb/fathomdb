@@ -14,7 +14,7 @@ pub mod config;
 pub mod edge;
 mod error;
 mod hooks;
-pub mod names;
+mod names;
 mod output;
 mod registry;
 #[cfg(feature = "test-seams")]

@@ -366,3 +366,23 @@ async fn expand_past_the_engine_work_bound_is_bound_exceeded() {
     assert!(error["message"].as_str().unwrap().contains("10000"), "{error}");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn expand_names_the_budget_when_it_drops_targets() {
+    let fixture = Fixture::new();
+    let mut writes = vec![node("hub", "topic", "hub")];
+    for i in 0..10 {
+        writes.push(node(&format!("leaf:{i}"), "note", &"long leaf body ".repeat(100)));
+        writes.push(edge("link", "hub", &format!("leaf:{i}")));
+    }
+    let harness = harness_with(&fixture, writes).await;
+    let expanded = harness.ok("expand", json!({"refs": ["l:hub"], "max_tokens": 256})).await;
+    let kept = expanded["targets"].as_array().unwrap().len();
+    assert!(kept < 10, "the budget must drop targets for this test: kept {kept}");
+    assert_eq!(expanded["bound"], "budget", "CR-7: {expanded}");
+    assert_eq!(expanded["budget"]["cut"], true);
+    let roomy = harness.ok("expand", json!({"refs": ["l:hub"], "max_tokens": 100_000})).await;
+    assert_eq!(roomy["targets"].as_array().unwrap().len(), 10);
+    assert_eq!(roomy["bound"], serde_json::Value::Null);
+    harness.shutdown().await;
+}

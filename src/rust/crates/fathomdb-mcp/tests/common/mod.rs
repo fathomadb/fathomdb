@@ -365,6 +365,12 @@ impl Spawned {
     }
 
     pub fn request(&mut self, method: &str, params: Value) -> Value {
+        let line = self.request_raw(method, params);
+        serde_json::from_str(&line).expect("JSON-RPC response")
+    }
+
+    /// The response line exactly as the server wrote it.
+    pub fn request_raw(&mut self, method: &str, params: Value) -> String {
         let id = self.next_id;
         self.next_id += 1;
         let line =
@@ -376,7 +382,7 @@ impl Spawned {
                     let message: Value = serde_json::from_str(&line)
                         .unwrap_or_else(|_| panic!("stdout line is not JSON: {line}"));
                     if message["id"] == json!(id) {
-                        return message;
+                        return line;
                     }
                 }
                 Err(RecvTimeoutError::Timeout) => panic!("no response to {method}"),
@@ -395,6 +401,13 @@ impl Spawned {
         let params = json!({"name": tool, "arguments": args, "_meta": {"progressToken": token}});
         let response = self.request("tools/call", params);
         response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"))
+    }
+
+    /// `tools/call` with a progress token; the response line as written.
+    pub fn call_raw(&mut self, tool: &str, args: Value) -> String {
+        let token = format!("p{}", self.next_id);
+        let params = json!({"name": tool, "arguments": args, "_meta": {"progressToken": token}});
+        self.request_raw("tools/call", params)
     }
 
     /// `tools/call` without a progress token.

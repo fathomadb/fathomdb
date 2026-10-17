@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — requirements and acceptance criteria
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C and Unit D landed; Units E, F, G added 2026-10-16 (owner ruling) and landed; Unit H added 2026-10-16 (owner ruling), docs for review
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C and Unit D landed; Units E, F, G added 2026-10-16 (owner ruling) and landed; Unit H added 2026-10-16 (owner ruling), code committed; Unit I added 2026-10-16 (owner ruling), docs for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -20,7 +20,9 @@ ruling on the same day. Unit H, added by owner ruling on the same day,
 makes three engine changes: a wider query stop list chosen by a pre-stated
 rule (H1), a hybrid vector candidate pool decoupled from `limit` (H2), and
 a cohort prefilter for selective attribute filters on projected search
-(H3). [design.md](design.md) gives the mechanism,
+(H3). Unit I, added by owner ruling on the same day, gives each SQLite
+connection its own page cache, so one heavy read no longer slows every
+later read on the same engine. [design.md](design.md) gives the mechanism,
 [test-plan.md](test-plan.md) the tests.
 
 ## 1. Evidence
@@ -299,6 +301,139 @@ Sources:
     materialises the whole cohort.
   - The probe's node predicate is lighter than the engine's, so its
     absolute times are lower than the engine's 29.8 ms.
+
+### 1.7 Unit I evidence
+
+Sources:
+
+- The orchestrator's diagnosis of 2026-10-16 on the H3 engine. Its probe
+  scripts are in the session scratchpad under `diag-lat/` (`cells.py`,
+  `dose.py`, `reopen.py`, `cheap.py`, `rawsql.py`, and the
+  `cache_status_per_worker_for_test` probe in `zz_diag_order.rs`).
+- The bundled SQLite 3.53.2 source
+  (`third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c`) and its build
+  script, read on 2026-10-16.
+- Two probes run while writing this document, in the same scratchpad: a
+  raw-SQLite probe (`pcache-probe/`, eight reader connections) and an
+  engine probe (`zz_unit_i_probe.rs`, run on this branch and then
+  removed). Each ran once with the vendored build flags and once with
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`.
+
+**What the orchestrator measured** (10k TC-5 store, 100 queries):
+
+- After one selective projected search (c01, the Defect C route, about
+  1,000 ranked rows with large bodies), `search_text_only` p50 on the
+  same open engine went from 3.6 ms to about 9 ms. It stayed there for
+  every later pass until the engine was reopened. After a reopen it was
+  3.6 ms again.
+- One c01 query is enough. The slowdown is per page read, so it is
+  about 2.5× across query shapes.
+- The H3 cohort route reduces the effect but does not remove it: body
+  p50 after one c01 query on the cohort route is 6.0 ms.
+- `cache_status_per_worker_for_test` after the c01 query: the reader
+  that ran it holds about 22.5 MB of page cache. Most of the other seven
+  hold about one page, and they do not regrow.
+- Results are unchanged. The page cache changes only whether a page
+  comes from SQLite's memory or from the operating system.
+
+**Mechanism, read from the SQLite source.**
+
+- The build script passes `-DSQLITE_ENABLE_MEMORY_MANAGEMENT`
+  (`build.rs`, line 135). `pcache1Init` then sets
+  `pcache1.separateCache = 0` unconditionally. Every page cache in the
+  process joins one global `PGroup` ("mode 2"). The source comment:
+  *"Always use a unified cache (mode-2) if ENABLE_MEMORY_MANAGEMENT"*.
+  Without the flag, a thread-safe build with the default configuration
+  gives each connection its own `PGroup` ("mode 1").
+- In mode 2 there is one LRU list of unpinned pages for all
+  connections. `PGroup.nMaxPage` is the sum of every connection's
+  `cache_size` page limit.
+- `pcache1FetchStage2`, step 4: when a cache needs a new page and holds
+  `nMax` pages or more, it recycles the tail of the **group** LRU. That
+  is the least recently used unpinned page of any connection. The
+  page moves to the fetching cache, so its page count grows past its
+  own `nMax`. The other cache shrinks.
+- `pcache1Unpin`: when the group holds more pages than `nMaxPage`, an
+  unpinned page is freed at once instead of joining the LRU.
+- A starved cache is below its own `nMax`, so it never recycles. It
+  allocates a new page, the group goes over `nMaxPage`, and the page is
+  freed again on unpin. It stays at about one page until the large
+  cache gives pages back. That happens only on that connection's close,
+  a `cache_size` change or a shrink.
+- FathomDB sets no `cache_size`, so each connection has SQLite's default
+  (`-2000`, 2,000 KiB). The engine opens one writer, eight readers, the
+  projection dispatcher and the projection workers. That is about
+  eleven 2,000 KiB budgets, which matches the 22.5 MB held by one reader.
+
+**Probes.**
+
+- Raw SQLite, 5,000 rows of 4 KB. Each of eight readers first scans
+  its own 300 rows; then reader 0 scans the whole table:
+
+  | Build | Reader 0 cache after the scan | Readers 1–7 cache after it | Later pass, misses per reader 1–7 |
+  | --- | ---: | --- | --- |
+  | vendored flags (mode 2) | 13,167 KiB | 5 KiB each; 3 of 7 still about 5–136 KiB after three more passes | 0, 0, 0, 0, 274, 304, 305 |
+  | flag undefined (mode 1) | 2,053 KiB | 1,297–1,301 KiB, unchanged | 0 for every reader |
+
+- The same probe with `PRAGMA cache_size` set on every reader. At
+  `-2000` (the default, set explicitly) the result is the same as
+  mode 2 above. At `-8000` reader 0 takes 19,338 KiB and leaves the
+  others at 5 KiB. They regrow only because the group's sum of limits
+  (eight times 8 MB) is larger than this 20 MB table. On the 150 MB
+  TC-5 store it would not be, so a larger `cache_size` only delays
+  the effect.
+- `sqlite3_db_release_memory` on reader 0 after the heavy scan frees
+  every unpinned page in the group, its own and every other reader's.
+- Engine probe: a store of eight 40-document warm sets and one
+  100-document heavy set with 40 KB bodies. Each reader runs its own
+  warm query three times; then one reader runs the heavy query, then
+  every reader runs its warm query again:
+
+  | Build | Heavy reader's cache after the heavy query | Other readers' misses on the next warm pass |
+  | --- | ---: | --- |
+  | vendored flags (mode 2) | 4,378 KiB | 108, 108, 108, 16, 0, 0, 0 |
+  | flag undefined (mode 1) | 2,053 KiB | 0 for every reader |
+
+  The third warm pass had 0 misses on every reader in both builds.
+
+**What else the flag does in this build** (as read):
+
+- `sqlite3_release_memory()` is a no-op without it. FathomDB never calls
+  it.
+- With it, a failed allocation retries after a malloc alarm. That runs
+  only when a soft heap limit is set and memory statistics are on.
+  FathomDB sets no heap limit, and its default `Performance` runtime
+  mode turns memory statistics off (`SQLITE_CONFIG_MEMSTATUS = 0`,
+  `runtime_configuration.rs`).
+- In mode 2 every page fetch and unpin takes the global
+  `SQLITE_MUTEX_STATIC_LRU`. In mode 1 the group mutex is null. The
+  0.7.0 performance notes attributed a measured share of concurrent
+  read cycles to `pcache1` mutex acquires
+  (`dev/notes/performance-whitepaper-notes.md` § 12.4,
+  `ADR-0.7.0-ac020-architectural-lever.md` option 1). Unit I does not
+  claim a gain from this; the gate measures it.
+
+**Reach.** The workspace patch `libsqlite3-sys =
+{ path = "third_party/libsqlite3-sys-0.38.1" }` covers every artifact
+built from this repository: the Python wheel, the npm addon and the CLI.
+Root patches do not reach downstream users of the published Rust crates
+(`Cargo.toml`). Those builds resolve the registry `libsqlite3-sys`
+0.38.1, which keeps the flag. That build script honours
+`LIBSQLITE3_FLAGS`, and a `-U` entry is passed through after the
+built-in `-D` list (`build.rs`, lines 120–131).
+
+**Effect on published numbers.** Both latency harnesses timed several
+cells on one open engine:
+
+- `comp02b_latency.py` timed six cells in the order unfiltered, c01,
+  c10, c33, body, single-term. The manifest's `body-text-only` p50
+  (8.76 ms) and the c10 and c33 values were therefore measured after
+  c01.
+- The COMP-02b campaign ran c01, then c10, then c33 on one open.
+
+The harness fix (`comp03-slice40`) opens the store afresh for each cell
+and each cohort (test-plan § 3h.4). Its numbers are a new measurement
+method and are not comparable with the manifest's values.
 
 ## 2. Requirements
 
@@ -945,6 +1080,132 @@ superseded REQ40-H3 (v)) read manifest tolerances.
 nine ids under that ruling, and its new assertions are written RED
 first.
 
+**Unit I requirements** (added by owner ruling 2026-10-16). One heavy read
+must not slow every later read on the same engine (§ 1.7). Unit I lands
+as one engine commit after the H3 commit, and its gate is measured
+against the H3 commit, so a failed gate reverts only Unit I. Every
+number here is fixed before measurement.
+
+**REQ40-I1 — one page cache per connection.** Workspace builds of the
+bundled SQLite compile without `SQLITE_ENABLE_MEMORY_MANAGEMENT`, so
+`pcache1` gives each connection its own page-cache group (mode 1):
+
+- the one `.flag("-DSQLITE_ENABLE_MEMORY_MANAGEMENT")` line is removed
+  from `third_party/libsqlite3-sys-0.38.1/build.rs`;
+- no other compile flag changes, and `sqlite3.c` is not touched (the
+  amalgamation digest stays
+  `7e4799907bdc92cff8858db2c52f5a03e136d5989ead6e513c0ef64057baeb9e`);
+- the vendored-tree digest changes. The new value is recorded in
+  `FATHOMDB-PATCH.md` (which also gains a section for this change),
+  `scripts/pinned-override-rot.json` (digest and rationale) and the
+  `SQLITE_VENDOR_TREE_SHA256` constant in
+  `scripts/check-pinned-override-rot.py`, and
+  `scripts/check-pinned-override-rot.sh` passes;
+- `dev/design/pinned-override-rot-guard.md` names both changes of the
+  vendored crate.
+
+**REQ40-I2 — a heavy read cannot take another reader's cache.** On a
+store built by the test (§ 3h of the test plan), with each reader's
+working set below its cache budget:
+
+- (i) after one reader runs a read that touches more pages than its
+  budget, that reader's `SQLITE_DBSTATUS_CACHE_USED` is at most 1.10 ×
+  2,048,000 bytes (SQLite's default `cache_size`, `-2000`, which the
+  engine keeps);
+- (ii) the next pass of every other reader over its own working set has
+  zero `SQLITE_DBSTATUS_CACHE_MISS` delta, as its pass just before the
+  heavy read did;
+- (iii) the bundled SQLite reports
+  `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT") == 0`;
+- (iv) every pass returns the same ids before and after the heavy read.
+
+(i), (ii) and (iii) fail on today's build; § 1.7 gives the probe that
+shows it. The assertions use counters, not timing.
+
+**REQ40-I3 — no public surface and no memory change.**
+
+- No `EngineConfig` knob, no new API, no `PRAGMA cache_size` change.
+  Each connection keeps the 2,000 KiB default.
+- The memory ceiling is unchanged. Today it is the group's sum of
+  limits (about eleven 2,000 KiB budgets), which one reader can hold alone.
+  After Unit I each connection is held to its own 2,000 KiB, and the sum is
+  the same. Tegra and Jetson targets build the same `build.rs`, so the
+  same holds there.
+- Results do not change (REQ40-I2 (iv); gate clause (iv)).
+
+**REQ40-I4 — published Rust crates, stated.** Root patches do not reach
+downstream Rust consumers (§ 1.7). The rest of this requirement depends
+on ruling Q-I1 (test-plan § 12). As drafted:
+
+- `dev/interfaces/rust.md` and `dev/interfaces/rust-sdk.md`, under
+  "SQLite runtime configuration", say:
+  - artifacts built from this repository use one page cache per
+    connection;
+  - a Rust build that resolves the registry `libsqlite3-sys` keeps
+    SQLite's shared page cache, where one large read can slow later
+    reads until the engine is reopened;
+  - `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time
+    gives the same behaviour as the workspace build.
+- No runtime check or mitigation in the engine.
+- `CHANGELOG.md` gains one `### Fixed` entry under 0.8.28.
+
+**REQ40-I5 — report-only timing in a release build** (as F12 for H3).
+An `#[ignore]`d test, `reader_page_cache_timing_report`, builds a store
+from `FATHOMDB_TC5_INPUTS` (the `tc5-10000` input pack) and runs:
+
+1. two body passes over the 100 queries;
+2. one c01 `search_projected_text` query, on the Defect C route and,
+   separately, on the cohort route, each on a fresh open;
+3. three more body passes.
+
+It prints each pass's p50 and p95, and each reader's `cache_used_bytes`
+and `cache_miss` delta. The implementer runs it with
+`--release` at the H3 commit and at the Unit I commit, and records the
+output in the test plan (§ 3h.3). It gates nothing.
+
+**REQ40-I6 — Unit I gate** (orchestrator, at the Unit I commit, after
+the code review). The reference is the H3 commit, measured with the
+same harness method. The baseline engine `5b09afd44` is measured too,
+for the record, but not gated. Verbatim:
+
+- *(i) `reader_page_cache_timing_report` at the Unit I commit: each of
+  the three body passes after the c01 query has p50 at most 1.15 × the
+  second body pass before it, on both routes;*
+- *(ii) tc5-10k-latency (fresh open per cell): every cell's p50 within
+  +25% and p95 within +35% of the H3 commit, or lower; short-result
+  counts equal to the H3 commit's;*
+- *(iii) COMP-02b 10k (fresh open per cohort): FathomDB c01, c10 and
+  c33 p50 within +25% and p95 within +35% of the H3 commit, or lower;
+  violations 0; short-result counts equal to the H3 commit's;*
+- *(iv) COMP-01 FTS nDCG@10 and the COMP-03 sweep's FTS-arm metrics
+  equal to the H3 commit's to every printed digit; COMP-01 hybrid and
+  the sweep's hybrid arm within the manifest tolerances of the H3
+  commit; COMP-02a 10k and 17k FathomDB query-ready, p50 and p95 within
+  the manifest tolerances of the H3 commit, or lower.*
+
+If (i), (ii) or (iii) fails, the Unit I commit is reverted. A failure in
+(iv) is analysed first: a changed result would be a defect, because a
+page cache cannot change results.
+
+**REQ40-I7 — measurement method and baseline.**
+
+- The harness fix (`comp03-slice40`, test-plan § 3h.4) is the method for
+  every Unit I measurement:
+  - the tc5-10k-latency summary is schema
+    `comp-02b.latency.summary.v2`, with config version 2 and
+    `measurement = fresh_open_per_cell`;
+  - COMP-02b runs from `experiments/configs/comp-02/filtered-10000.v2.json`
+    and records `fresh_open_per_cohort` per cell.
+- The baseline manifest's tc5-10k-latency and comp02b-10000 values were
+  measured with the single-open method. After a passed gate, those two
+  entries take:
+  - the Unit I values as expected values;
+  - the v2 commands (`filtered-10000.v2.json`);
+  - a note naming the method change.
+
+  Their tolerances do not change. The other entries change only
+  through REQ40-H10's re-run.
+
 ## 3. Non-goals
 
 - No BM25 `k1`/`b` tuning and no change to `RRF_K` or the arm weights.
@@ -977,6 +1238,10 @@ first.
   or query rewriting (analysis § 5); those stay owner decisions.
 - Unit H adds the filter-first potential as the cohort prefilter (H3); the
   attribute-filter row-key potential stays a potential.
+- Unit I does not add a page-cache knob, change `cache_size`, install a
+  custom page cache (`SQLITE_CONFIG_PCACHE2`) or change any other SQLite
+  compile flag. It adds no runtime mitigation for published Rust crates
+  unless ruling Q-I1 asks for one.
 
 ## 4. Candidate bound of `search_text_only`: out of scope
 
@@ -1110,4 +1375,14 @@ tests are in the `fathomdb-query` test module (AC40-74),
 | AC40-92 | H3 gate (REQ40-H9), at the H3 commit against the H2 commit | orchestrator measurement after the code review | H9 |
 | AC40-93 | Interface docs, the hybrid guide and the CHANGELOG describe H2 and H3 (H1 superseded: no stop-list doc change on Slice 40); `agent-lint-docs.sh` passes | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | H2, H5 |
 | AC40-94 | Re-runs with receipts at the Unit H commit; baseline manifest updated as test-plan § 3g.7 | orchestrator | H10 |
+| AC40-95 | The bundled SQLite is built without `SQLITE_ENABLE_MEMORY_MANAGEMENT`: `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT") == 0` | `bundled_sqlite_keeps_a_page_cache_per_connection` (`tests/slice40_reader_page_cache.rs`) | I1, I2 |
+| AC40-96 | After one reader runs a read larger than its cache budget, that reader's `CACHE_USED` is at most 1.10 × 2,048,000 bytes | `a_heavy_read_stays_inside_its_own_page_cache` | I2 |
+| AC40-97 | After that read, every other reader's next pass over its own working set has zero `CACHE_MISS` delta (as its pass before the read did), and every pass returns the same ids | `other_readers_keep_their_page_caches_after_a_heavy_read` | I2 |
+| AC40-98 | The vendored-tree digest is the same in `FATHOMDB-PATCH.md`, `pinned-override-rot.json` and the checker constant; the amalgamation digest is unchanged; the checker passes | `./scripts/check-pinned-override-rot.sh` and its fixture tests | I1 |
+| AC40-99 | `rust.md`, `rust-sdk.md`, `pinned-override-rot-guard.md`, `FATHOMDB-PATCH.md` and the CHANGELOG describe the change and the published-crate reach (REQ40-I4 as ruled under Q-I1); no knob, no `cache_size` change | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | I3, I4 |
+| AC40-100 | The report-only timing ran in a release build at the H3 commit and at the Unit I commit; its output is in the test plan | `reader_page_cache_timing_report` (`#[ignore]`) | I5 |
+| AC40-101 | Latency harness: each cell is timed on its own engine open, closed before the next; summary v2 records the method, the open count and the cell order; receipt config version 2; a v2 summary is classified under plan `comp02b-latency-v2` and a v1 summary still under `comp02b-latency-v1` | `test_latency_harness_times_each_cell_on_its_own_open`, `test_latency_receipt_config_names_the_measurement_method`, `test_classification_reads_a_v2_latency_summary_under_its_own_plan` (`comp03-slice40`) | I7 |
+| AC40-102 | COMP-02b: each cohort pass runs on its own open, closed before the next, and records its open index and the cohort order; the seeded query orders equal the single-open method's; `filtered-10000.v2.json` keeps v1's inputs and arms | `test_filtered_cell_times_each_cohort_on_its_own_open`, `test_filtered_cohort_orders_match_the_single_open_method`, `test_comp02b_v2_config_names_the_fresh_open_per_cohort_method` (`comp03-slice40`) | I7 |
+| AC40-103 | Unit I gate (REQ40-I6), at the Unit I commit against the H3 commit | orchestrator measurement after the code review | I6 |
+| AC40-104 | After a passed gate, the tc5-10k-latency and comp02b-10000 manifest entries take the Unit I values, the v2 commands and a method note; tolerances unchanged | orchestrator; `test_baseline_check.py` | I7 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

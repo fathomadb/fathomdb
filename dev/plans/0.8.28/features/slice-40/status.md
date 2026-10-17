@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — status
-status: ACTIVE (Defects A–C and Units D–G landed and measured at engine 5b09afd44; Unit H added 2026-10-16, docs for review)
+status: ACTIVE (Defects A–C and Units D–G landed and measured at engine 5b09afd44; Unit H added 2026-10-16, code committed; Unit I added 2026-10-16, docs for review)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -42,6 +42,8 @@ for phase 1 is `output.json` in this directory.
 | H-R1 plan review | APPROVE-WITH-FIXES (F1–F15) applied; rulings Q-H1..Q-H4 (coordinator), Q-H5 add COMP-02a/02b to the manifest and Q-H6 keep H1 on a hybrid-only failure (owner, 2026-10-16); Q-H7 moot; re-review APPROVE at `39d1f67dc`, N1 owner ruling (clause (c): point ≥ +1 question, CI lower bound ≥ −1 question), N2 and N3 applied |
 | H-W2 harness and H1 selection | harness RED `1e472ba0b`, GREEN `6e3933784`, manifest nine ids `53909c28f`; H1 verdict `3f0789271`: adopt `had`, `long`, `suggest` (+4 questions Recall-all@10, CI +1..+8; NFCorpus nDCG@10 0.3259); H2 pool verdict `f9ae5c27b`: pool 10 (pools 20/50/100 excluded on overall Recall-all@10, 373 vs 370/369/367). Provenance: two workers shared the attempt root `~/.cache/fathomdb-comp/h2-pool-selection`: the plan's command on cuda:0 (forward, wrote the verdict) and an orchestrator helper on GPU 1 (scratch `h2_pool_reverse.py`, the same `comp03_answer.retrieve` call and per-question files) that wrote questions 358–500 (143 questions). The verdict's `inputs.runner` and `inputs.device` reflect only the last writer (cuda:0). Cross-check: questions `e6041065`, `gpt4_1d4ab0c9`, `gpt4_7bc6cf22` and `gpt4_fe651585_abs` at pools 10 and 100, recomputed on GPU 0, gave 8/8 identical id lists. The verdict file is not hand-edited |
 | H1 superseded | owner ruling 2026-10-16: the H1 words are not added to the default `STOPWORDS` (stays 63); Slice 41 adds a configurable extra stop-word list, empty by default, and the benchmarks pass `had`, `long`, `suggest` through it; H1 engine RED `ee0c5e917` reverted at `fb42f612e`; H2 gate reference is the final-head baseline |
+| I-W1 Unit I docs | done 2026-10-16 (owner ruling): requirements § 1.7, REQ40-I1..I7, AC40-95..104; design § 2h; test-plan § 3h, § 12 (Q-I1..Q-I4). Mechanism read from the bundled SQLite source and confirmed by a raw-SQLite and an engine probe, each RED with the vendored flags and GREEN with `-USQLITE_ENABLE_MEMORY_MANAGEMENT`; plan review pending |
+| I harness (`comp03-slice40`) | fresh open per latency cell and per COMP-02b cohort: RED `d18b9c01a`, GREEN `d52d5d4a5`; summary v2, config v2, plan `comp02b-latency-v2`, `filtered-10000.v2.json`; `tests/experiments` 907 passed with the four known failures (test-plan § 3h.4) |
 
 ## Follow-ups (not in this slice)
 

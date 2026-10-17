@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — design
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C and § 2c Unit D landed; § 2d–2f Units E, F, G added 2026-10-16 and landed; § 2g Unit H added 2026-10-16, for review
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); § 2b Defect C and § 2c Unit D landed; § 2d–2f Units E, F, G added 2026-10-16 and landed; § 2g Unit H added 2026-10-16, code committed; § 2h Unit I added 2026-10-16, for review
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -937,6 +937,176 @@ Each edit lands in the commit whose behaviour it describes.
 - `dev/plans/0.8.28/features/slice-40/status.md`: the filter-first
   potential moves to Unit H; the row-key potential stays.
 
+## 2h. Unit I: one page cache per connection
+
+### 2h.1 Mechanism
+
+Requirements § 1.7 gives the source reading and the probes. In short:
+
+- `-DSQLITE_ENABLE_MEMORY_MANAGEMENT` forces `pcache1` into one global
+  page-cache group for every connection in the process.
+- A cache that is at its own `cache_size` limit recycles the group's
+  least recently used page, which can belong to another connection. So
+  the reader that runs a heavy read takes the others' pages.
+- Once the group holds its sum of limits, a page unpinned by a cache
+  below its own limit is freed at once. The robbed readers stay at
+  about one page until the large cache gives pages back.
+
+The defect is the build flag, not FathomDB's reader code. No reader
+setting fixes it inside mode 2:
+
+- `cache_size` changes only the group's sum and the point at which a
+  cache starts recycling (§ 1.7: `-2000` reproduces it, `-8000` delays
+  it).
+- `PRAGMA shrink_memory` or `sqlite3_db_release_memory` empties every
+  connection's cache.
+
+### 2h.2 Options
+
+| Option | What it does | For | Against |
+| --- | --- | --- | --- |
+| **A. Drop the flag** (chosen) | Remove one line from the vendored `build.rs`; `pcache1` then gives each connection its own group | Removes the cause. No runtime code. Each connection keeps its own 2,000 KiB, so the ceiling is unchanged. No group mutex on page fetch and unpin. Tegra and Jetson build the same script | Changes the vendored-tree digest (three pins). Reaches only builds from this repository, not published Rust crates (§ 2h.4) |
+| B. `LIBSQLITE3_FLAGS=-U…` in `.cargo/config.toml` `[env]` | The same compile result without editing the vendored crate | Same effect as A, no digest change | The flag lives outside the authenticated vendored tree. A caller's environment can override it, and the checker does not authenticate it. Same reach as A |
+| C. Fixed `PRAGMA cache_size` on every reader | Sets each reader's limit | One line in the reader open loop | Does not fix it (§ 1.7). A larger value moves the threshold and raises the ceiling by eight times the increase |
+| D. Shrink after a heavy read | `sqlite3_db_release_memory` when a reader's `CACHE_USED` passes its budget | Works with the registry crate | Empties every connection's cache, so every reader starts cold. Needs a `CACHE_USED` probe after each read. Treats the symptom |
+| E. Custom page cache (`SQLITE_CONFIG_PCACHE2`) | Install FathomDB's own `sqlite3_pcache_methods2` before `sqlite3_initialize` | Works with any `libsqlite3-sys`; could also remove the global mutex | 400–600 lines of unsafe FFI by the 0.7.0 estimate (`ADR-0.7.0-ac020-architectural-lever.md`, option 1). It re-implements SQLite's cache and adds a crash risk on the read path |
+| F. `SQLITE_CONFIG_PAGECACHE` | A start-time page buffer | — | Does not change the group choice: under the flag, `separateCache` is 0 regardless |
+| G. Soft heap limit | `sqlite3_soft_heap_limit64` puts the cache under pressure, so every cache recycles from the group | No build change | Has no effect today: the malloc alarm runs only with memory statistics on, and the default `Performance` mode turns them off. In `Diagnostics` mode the whole process would be capped, embedder included |
+
+Option A is chosen. Option D or E is the only route to published Rust
+crates without their build flags; ruling Q-I1 decides whether either is
+wanted.
+
+### 2h.3 The change
+
+- `third_party/libsqlite3-sys-0.38.1/build.rs`: delete
+  `.flag("-DSQLITE_ENABLE_MEMORY_MANAGEMENT")` in the bundled branch.
+  The SQLCipher and WASI branches do not add it, so nothing else
+  changes.
+- Pins (REQ40-I1): recompute the vendored-tree digest with the
+  checker's `vendor_tree_digest` (all files but `FATHOMDB-PATCH.md`,
+  sorted relative paths, each file's SHA-256). Write it to:
+  - `FATHOMDB-PATCH.md`;
+  - `scripts/pinned-override-rot.json` (`vendor_tree_sha256`, plus one
+    sentence in `rationale`);
+  - `SQLITE_VENDOR_TREE_SHA256` in `scripts/check-pinned-override-rot.py`.
+
+  The amalgamation digest does not change. `FATHOMDB-PATCH.md` gains a
+  section "Per-connection page caches". It gives the removed flag, the
+  `pcache1Init` comment that explains it, and a pointer to this design.
+- The flag is not replaced by a FathomDB compile-option marker. The
+  Windows patch needed `FATHOMDB_WIN_VERBATIM_SHM_SAFE` because no
+  SQLite option told the two builds apart.
+  `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT")` already
+  does, and AC40-95 reads it.
+- No engine source changes. `open.rs`, `reader_pool.rs` and
+  `connection_runtime.rs` stay as they are, unless Q-I1 asks for option
+  D.
+
+### 2h.4 Public surface and docs
+
+- **No knob.** Each connection's limit stays SQLite's default, and the
+  sum is today's. A reader `cache_size` knob would be a public-surface
+  change needing parity work in three SDKs and an interface update. It
+  would also be a memory decision for Tegra and Jetson targets.
+  Neither is needed to fix the defect. If a larger reader cache is
+  wanted later, it needs its own measurement and ruling.
+- **Memory ceiling.** Before: up to the group sum (about eleven
+  2,000 KiB budgets, about 22.5 MB) in total, all of which one reader
+  can hold.
+  After: each connection up to its own 2,000 KiB, and the same total. On
+  the 10k TC-5 store the eight readers can now hold about 16 MB of distinct
+  pages between them. Before, one reader held most of the group and
+  the others held almost nothing.
+- **Docs** (REQ40-I4, in the Unit I commit):
+  - `dev/interfaces/rust.md` and `dev/interfaces/rust-sdk.md`, one
+    paragraph under "SQLite runtime configuration";
+  - `CHANGELOG.md` `### Fixed`: *"A large read no longer slows later
+    reads on the same engine. Each SQLite connection now has its own
+    page cache (the bundled build drops
+    `SQLITE_ENABLE_MEMORY_MANAGEMENT`). Rust builds that resolve the
+    registry `libsqlite3-sys` need
+    `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` for the same
+    behaviour."*;
+  - `dev/design/pinned-override-rot-guard.md`: the vendored crate now
+    carries two changes;
+  - `FATHOMDB-PATCH.md` (§ 2h.3).
+
+  The Python and TypeScript interface docs do not change. Their
+  artifacts are built in this workspace and no call changes.
+- **Published Rust crates.** Their builds keep the shared cache unless
+  the consumer sets the flag. The defect is a latency loss; results are
+  correct. As drafted, Unit I documents the flag and stops there. Q-I1
+  asks the owner whether to add option D for those builds. Its trigger
+  would be `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT") == 1`
+  at open, and it would add code to the open path.
+
+### 2h.5 Tests
+
+- `tests/slice40_reader_page_cache.rs` (new, `test-hooks`, `[[test]]`
+  entry in `fathomdb-engine/Cargo.toml`):
+  - **AC40-95**: reads `rusqlite::ffi::sqlite3_compileoption_used`;
+  - **AC40-96 and AC40-97**, the store and the reader passes:
+    - eight warm sets of 40 documents with about 3 KB bodies, each
+      found by its own term;
+    - one heavy set of 100 documents with about 40 KB bodies, found by
+      one term;
+    - drained, closed, reopened;
+    - `next_reader_worker_index_for_test` pins each query to a reader:
+      eight consecutive queries visit the eight readers in order;
+    - the counters come from `cache_status_per_worker_for_test`.
+
+    The same shape as the engine probe in § 1.7 goes RED today on both
+    assertions and GREEN with the flag undefined.
+- `reader_page_cache_timing_report` (`#[ignore]`, REQ40-I5) in the same
+  file. It follows the `diag_order_effect` probe in `diag-lat/`.
+- The pinned-override checker and its fixture tests cover the digests
+  (AC40-98).
+- No existing test changes. The only other user of these counters is
+  the `#[ignore]`d G.3.5 diagnostic in `perf_gates.rs`, which asserts
+  only the reader count.
+
+### 2h.6 Measurement
+
+The orchestrator measures three engines with the harness fixed in
+`comp03-slice40` (fresh open per cell and per cohort):
+
+- `5b09afd44`, the baseline (for the record);
+- the H3 commit (the reference);
+- the Unit I commit.
+
+REQ40-I6 is the gate. The fixed harness measures the clean state, so it
+shows only side effects of Unit I there, such as the dropped group
+mutex. The defect itself shows in the timing report (gate clause (i)).
+It shows in a single-open harness too, which the fix retired on
+purpose: every number there depended on cell order.
+
+### 2h.7 Slice 41
+
+Slice 41 also edits the engine open path (the configurable extra
+stop-word list) and rebases onto Slice 40. Unit I as drafted touches
+`build.rs`, the three pins, docs and a new test file, but no open-path
+source, so the rebase sees no source conflict there. Two things change
+under Slice 41 after the rebase:
+
+- the vendored-tree digest;
+- latency baselines measured before Unit I. Slice 41 benchmark numbers
+  taken on a pre-Unit I engine are not comparable with numbers after
+  the rebase.
+
+If Q-I1 rules for option D, its open-path hook lands before Slice 41
+rebases, and Slice 41's open-path edits rebase over it.
+
+### 2h.8 Risks
+
+| Risk | Effect | Handling |
+| --- | --- | --- |
+| Mode 1 frees memory less eagerly across connections | An idle reader keeps its 2,000 KiB while another could use it | Bounded by the unchanged per-connection limit; total unchanged |
+| A connection relied on recycling other caches' pages | Its own hit rate drops to what its own 2,000 KiB gives | That is the design point of `cache_size`; the gate measures every benchmark |
+| The engine probe's numbers depend on fixture sizes | The regression test could pass for the wrong reason | AC40-97 also asserts a zero-miss pass before the heavy read; AC40-96 bounds the heavy reader; AC40-95 pins the build |
+| Published Rust crates keep the defect | Rust consumers see the slowdown | Documented flag; Q-I1 |
+| A later `libsqlite3-sys` bump reintroduces the flag | The defect returns | AC40-95 fails on any build that has it |
+
 ## 3. Files touched
 
 | File | Change |
@@ -952,6 +1122,10 @@ Each edit lands in the commit whose behaviour it describes.
 | `src/rust/crates/fathomdb-engine/src/search_types.rs`, `search.rs` (Unit H2, own commit) | `VECTOR_FUSION_POOL`; the vector hydration loop stops at `max(final_limit, VECTOR_FUSION_POOL)`; the stale index comment corrected |
 | `src/rust/crates/fathomdb-engine/src/search.rs`, `filter.rs` (Unit H3, own commit) | bounded cohort probe, `property_fts_cohort_stream_sql`, cohort route and plan witnesses |
 | `comp03-slice40`: `experiments/comp03_unit_h.py` (new), `configs/comp-03/stoplist-selection.v1.json`, `vector-pool-selection.v1.json` and their verdicts (new) | Unit H1 and H2 selection |
+| `third_party/libsqlite3-sys-0.38.1/build.rs`, `FATHOMDB-PATCH.md`; `scripts/pinned-override-rot.json`, `scripts/check-pinned-override-rot.py` (Unit I, own commit) | drop `SQLITE_ENABLE_MEMORY_MANAGEMENT`; new vendored-tree digest in the three pins |
+| `src/rust/crates/fathomdb-engine/tests/slice40_reader_page_cache.rs` (new), `fathomdb-engine/Cargo.toml` `[[test]]` (Unit I) | AC40-95 to AC40-97 and the report-only timing |
+| `dev/interfaces/rust.md`, `dev/interfaces/rust-sdk.md`, `dev/design/pinned-override-rot-guard.md`, `CHANGELOG.md` (Unit I) | per-connection page caches; published-crate reach |
+| `comp03-slice40`: `experiments/comp02b_latency.py`, `comp_fts.py`, `comp03_classification.py`, `configs/comp-02/filtered-10000.v2.json` (new) (Unit I harness, `d52d5d4a5`) | fresh open per latency cell and per COMP-02b cohort; summary v2, config v2 |
 | `CHANGELOG.md` | two entries under "0.8.28 — unreleased" (R1 F3): fusion credits a body once per arm (result order can change on corpora with duplicate bodies); the compiler keeps 1–2 character tokens |
 
 Defect C tests (phase 3): `tests/slice40_projected_fts_stream.rs` (new)

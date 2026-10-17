@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — test plan
-status: REVISED AFTER R1; Defect C and Units D–G GREEN (§ 5.4, § 5.6, § 5.8, § 5.10); Unit H tests planned 2026-10-16 (§ 3g, § 11), for review
+status: REVISED AFTER R1; Defect C and Units D–G GREEN (§ 5.4, § 5.6, § 5.8, § 5.10); Unit H tests planned 2026-10-16 (§ 3g, § 11), for review; Unit I tests planned 2026-10-16 (§ 3h, § 12), for review; Unit I harness GREEN (§ 3h.4)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -621,6 +621,123 @@ column is kept as the plan of record.
    `test_slice_40_baseline_manifest_lists_the_six_benchmarks` is renamed
    for nine ids under that ruling, and its new assertions are written
    RED first (§ 3g.1).
+
+## 3h. Unit I tests
+
+### 3h.1 Engine: `tests/slice40_reader_page_cache.rs` (new, `test-hooks`)
+
+The file gets a `[[test]]` entry in `fathomdb-engine/Cargo.toml` with
+`required-features = ["test-hooks"]`.
+
+**Fixture** (design § 2h.5): eight warm sets of 40 documents with about
+3 KB bodies, set `w` found by term `s40iw{w}`, and one heavy set of 100
+documents with about 40 KB bodies, found by `s40ih`. Built, drained,
+closed and reopened. One *pass* is eight consecutive
+`search_text_only_with_limit(s40iw{w}, 100)` calls, where `w` is the
+value of `next_reader_worker_index_for_test()` before each call, so each
+reader runs its own set.
+
+| Test | Steps and assertions | AC |
+| --- | --- | --- |
+| `bundled_sqlite_keeps_a_page_cache_per_connection` | `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT") == 0` | 95 |
+| `a_heavy_read_stays_inside_its_own_page_cache` | Three passes. Precondition: the third pass has zero `cache_miss` delta on every reader. Then `s40ih` at limit 100 on the next reader `a`, which returns 100 rows. Assert: reader `a`'s `cache_used_bytes` ≤ 1.10 × 2,048,000 | 96 |
+| `other_readers_keep_their_page_caches_after_a_heavy_read` | As above, then one more pass. Assert: every reader other than `a` has zero `cache_miss` delta on that pass, and every pass returns the same ids as the first | 97 |
+| `reader_page_cache_timing_report` (`#[ignore]`) | REQ40-I5; prints only | 100 |
+
+**RED today, as probed** (requirements § 1.7, engine probe, same shape):
+
+- the heavy reader holds 4,378 KiB, against a bound of 2,252,800 bytes;
+- readers 1 to 4 then miss 108, 108, 108 and 16 pages on their next pass;
+- the compile option is 1.
+
+With the flag undefined (`LIBSQLITE3_FLAGS`, separate target directory),
+the same probe gave 2,053 KiB, zero misses on every other reader and
+option 0. The precondition (zero misses on the third pass) held in both
+builds. The RED run at W2 is recorded here when it happens.
+
+### 3h.2 Pins and docs
+
+- `./scripts/check-pinned-override-rot.sh` with its fixture tests
+  (AC40-98).
+- `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh`
+  (AC40-99).
+
+### 3h.3 Report-only timing (REQ40-I5)
+
+```bash
+cd src/rust
+FATHOMDB_TC5_INPUTS=~/.cache/fathomdb-comp/tc5-10000 \
+  cargo test --release -p fathomdb-engine --features test-hooks \
+  --test slice40_reader_page_cache -- --ignored reader_page_cache_timing_report --nocapture
+```
+
+Run at the H3 commit (the test file copied in, uncommitted there) and at
+the Unit I commit. Output: *not run yet*.
+
+### 3h.4 Harness (`comp03-slice40`): fresh open per cell and per cohort
+
+Done before the plan review, by owner direction, because it is
+measurement correctness only. RED `d18b9c01a`, GREEN `d52d5d4a5`, in
+`tests/experiments/test_comp02b_isolation.py`. The tests spy on the
+real engine's `Engine.open` and `close` and on the engine that serves
+each search; the database is real.
+
+| Test | AC | RED → GREEN |
+| --- | --- | --- |
+| `test_latency_harness_times_each_cell_on_its_own_open` (one open per cell, in cell order, each closed before the next; summary v2 `measurement` block) | 101 | one open for all six cells → six |
+| `test_latency_receipt_config_names_the_measurement_method` (`version` 2, `measurement`) | 101 | no `receipt_config` → present |
+| `test_classification_reads_a_v2_latency_summary_under_its_own_plan` (v2 → `comp02b-latency-v2`, `measurement` leaves excluded as run control; v1 → `comp02b-latency-v1`) | 101 | v1 plan for both → split |
+| `test_filtered_cell_times_each_cohort_on_its_own_open` (three opens after the build, four queries each; `open_index`; `measurement` block) | 102 | one open → three |
+| `test_filtered_cohort_orders_match_the_single_open_method` (the seeded shuffles are the v1 sequence) | 102 | GREEN at RED (regression net) |
+| `test_comp02b_v2_config_names_the_fresh_open_per_cohort_method` | 102 | no v2 config → present |
+
+Schema notes:
+
+- **Latency summary v2.** `comp-02b.latency.summary.v2` adds a top-level
+  `measurement` block (`method`, `opens`, `cell_order`). The
+  `/cells/<id>/p50_ms` and `/cells/<id>/p95_ms` pointers that
+  `baseline_check` reads are unchanged. The receipt config gains
+  `version: 2` and `measurement: fresh_open_per_cell`, so its digest
+  differs from v1. The classifier gives v2 summaries plan
+  `comp02b-latency-v2`, so classifying a new receipt does not rewrite
+  the v1 plan file that the committed receipts reference.
+- **COMP-02b cells.** Each cell gains `measurement` (`method`, `opens`,
+  `cohort_order`), and each pass gains `open_index`. `comp02_report`
+  reads neither, so the campaign metrics (`medians`, `/medians/N/…`)
+  keep their shape. `peak_rss_mib` is now the maximum over the three
+  opens.
+- **COMP-02b config.** `filtered-10000.v2.json` is a new file. v1 stays
+  byte-unchanged, because classification checks each committed receipt
+  against its config file's digest. The baseline manifest still names
+  v1 in its command until REQ40-I7's update.
+
+Runs at `d52d5d4a5`:
+
+- the four COMP test files: 42 passed;
+- `tests/experiments`: 907 passed, 20 skipped, and the four known
+  failures (`test_locomo_live_executor_review_remediation`,
+  `test_release_0825_slice71`, `test_release_0825_slice71b`,
+  `test_scale_02_scale_followup`);
+- `ruff check experiments tests/experiments`: clean.
+
+### 3h.5 Measurements (orchestrator; REQ40-I6)
+
+Each engine gets its own wheel: `5b09afd44`, the H3 commit and the
+Unit I commit. Every run uses the harness at `d52d5d4a5` or later.
+
+```bash
+cd ~/projects/fathomdb-worktrees/comp03-slice40
+python -m experiments.comp02b_latency run --inputs ~/.cache/fathomdb-comp/tc5-10000 \
+  --attempt-root <new dir> --engine-commit <engine sha>
+python -m experiments.comp_fts run --config experiments/configs/comp-02/filtered-10000.v2.json \
+  --inputs ~/.cache/fathomdb-comp/tc5-10000 --out <new dir>
+python -m experiments.comp_record record experiments/configs/comp-02/filtered-10000.v2.json \
+  --inputs ~/.cache/fathomdb-comp/tc5-10000 --out <that dir> --engine-commit <engine sha>
+```
+
+Then COMP-01 FTS and hybrid, COMP-02a 10k and 17k, and the COMP-03 sweep
+at the H3 commit and the Unit I commit, by the manifest's commands, for
+clause (iv).
 
 ## 4. Existing tests touched
 
@@ -1457,3 +1574,36 @@ design § 2g.1 step 6.
 stop-word list, empty by default, that the benchmarks fill with these
 words. REQ40-H2, REQ40-H3 and AC40-74 to AC40-76 are superseded; the H2
 gate's reference is the final-head baseline.
+
+## 12. Open questions for the Unit I plan review
+
+- **Q-I1. Published Rust crates.** Builds that resolve the registry
+  `libsqlite3-sys` keep the shared cache. Options:
+  - (a) document `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`
+    only (drafted);
+  - (b) also add option D (design § 2h.2): when
+    `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT") == 1`, shrink
+    a reader's cache after a read that leaves it above its budget. That
+    is open-path code, and every reader's cache is emptied each time;
+  - (c) option E, a custom page cache, as its own slice.
+
+  Recommendation: (a).
+- **Q-I2. Thresholds.** These are fixed here before measurement:
+  - AC40-96 bounds the heavy reader at 1.10 × 2,048,000 bytes. The
+    probe gave 2,053 KiB with the fix and 4,378 KiB without it.
+  - Gate clause (i) allows 1.15 × the pre-read body p50; the defect
+    gives about 2.5×.
+
+  Confirm or set others.
+- **Q-I3. A permanent interference cell.** The fixed harness measures
+  the clean state only. Should `comp02b_latency.py` also gain a cell
+  timed on the same open after one c01 query (`body-after-c01`), so the
+  defect stays visible in a benchmark and not only in the report-only
+  Rust test? It would be a new manifest metric and needs a ruling.
+  Recommendation: yes, as a follow-up after this gate.
+- **Q-I4. Manifest timing.** REQ40-I7 changes the tc5-10k-latency and
+  comp02b-10000 commands and values only after a passed gate. Until
+  then, `baseline_check` against those entries compares a v2
+  measurement with v1 values. Confirm that the Unit I gate reads the H3
+  commit's v2 attempts through a scratch manifest copy, as § 3g.7 item 1
+  does for H3.

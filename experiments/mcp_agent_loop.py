@@ -996,6 +996,8 @@ def _agent_usage(results: dict[str, dict[str, Any]]) -> dict[str, Any]:
             mode_values[str(mode)] = mode_values.get(str(mode), 0) + 1
         override_flags.append(any(mode is not None for mode in modes))
         other_store_flags.append(any(info.get("store") not in (None, "conv0") for info in result["tool_results"]))
+    limits = _histogram_str([c["arguments"].get("limit") for r in results.values() for c in r["tool_log"]
+                             if c["executed"] and c["name"] == "search" and isinstance(c["arguments"], dict)])
     expand_targets = [info.get("targets", 0) for r in results.values() for info in r["tool_results"]
                       if info["name"] == "expand" and not info["is_error"]]
     searches_per_q = [r["n_searches"] for r in results.values()]
@@ -1011,6 +1013,8 @@ def _agent_usage(results: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "first_search_verbatim_rate": _rate([r["search_verbatim"][0] for r in results.values()
                                              if r["search_verbatim"]]),
         "no_search_rate": _rate([n == 0 for n in searches_per_q]),
+        "no_search_accuracy": _rate([r["score"] == 1.0 for r in results.values() if r["n_searches"] == 0]),
+        "search_limit_values": limits,
         "mode_override_rate": _rate(override_flags),
         "mode_values": dict(sorted(mode_values.items())),
         "orient_rate": _rate([per > 0 for per in (
@@ -1039,6 +1043,10 @@ def _histogram_str(values: list[Any]) -> dict[str, int]:
 
 
 PAIRS = (("A2", "A1"), ("B-4o", "A2"), ("B-5mini", "A2"), ("B-5mini", "B-4o"))
+# A heuristic for "the answer says the memory lacks it"; reported as a rough rate only.
+ABSTENTION_PHRASE = re.compile(
+    r"(do not know|don't know|does not (contain|provide|specify|mention)|not (specified|mentioned|available)"
+    r"|no (specific )?information)", re.IGNORECASE)
 
 
 def summarize(out: Path, *, seed: int = BOOTSTRAP_SEED, resamples: int = BOOTSTRAP_RESAMPLES) -> dict[str, Any]:
@@ -1068,6 +1076,9 @@ def summarize(out: Path, *, seed: int = BOOTSTRAP_SEED, resamples: int = BOOTSTR
             "overall": _accuracy_block(scores, seed=seed, resamples=resamples),
             "by_category": by_category,
             "gold_hit_rate": _rate([bool(results[q]["gold_hit_any"]) for q in ordered]),
+            "abstention_phrase_rate": _rate([bool(ABSTENTION_PHRASE.search(results[q]["answer"])) for q in ordered]),
+            "abstention_phrase_accuracy": _rate([results[q]["score"] == 1.0 for q in ordered
+                                                 if ABSTENTION_PHRASE.search(results[q]["answer"])]),
             "judge_evidence_aware_rate": _rate([bool(results[q]["judge"]["evidence_aware"]) for q in ordered]),
             "tokens_by_role": _token_totals(results),
             "ledger_usd": ledger_totals.get(arm, 0.0),
@@ -1147,8 +1158,78 @@ def write_receipt(out: Path, *, summary: dict[str, Any], resolved: dict[str, Any
     return run_id, run_dir
 
 
+def gpu_evidence(csv_path: Path) -> dict[str, Any]:
+    """Peak ``fathomdb-mcp`` device memory and GPU utilization from the 1 Hz ``nvidia-smi`` samples."""
+    index_of: dict[str, str] = {}
+    peak_util: dict[str, int] = {}
+    peak_mib: dict[str, int] = {}
+    samples = 0
+    if not csv_path.is_file():
+        return {"available": False}
+    for line in csv_path.read_text(encoding="utf-8").splitlines():
+        parts = [part.strip() for part in line.split(",")]
+        if len(parts) >= 6 and parts[1] == "gpu":
+            index_of[parts[3]] = parts[2]
+            util = int(parts[4].split()[0])
+            peak_util[parts[2]] = max(peak_util.get(parts[2], 0), util)
+        elif len(parts) >= 6 and parts[1] == "app" and parts[4].endswith("fathomdb-mcp-cuda"):
+            samples += 1
+            peak_mib[parts[2]] = max(peak_mib.get(parts[2], 0), int(parts[5].split()[0]))
+    return {
+        "available": True,
+        "fathomdb_mcp_samples": samples,
+        "fathomdb_mcp_peak_mib_by_gpu_index": {index_of.get(uuid, uuid): mib for uuid, mib in peak_mib.items()},
+        "peak_utilization_pct_by_gpu_index": dict(sorted(peak_util.items())),
+    }
+
+
+def resolved_config(*, binary_sha256: str, arm_status: dict[str, str]) -> dict[str, Any]:
+    """The non-secret, path-free configuration recorded in the receipt."""
+    import hashlib
+
+    server = server_config(Path("external-stores-dir"), "per-arm")
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "campaign": "locomo_conv0_mcp_agent_loop",
+        "workload": {
+            "dataset_raw_sha256": DATASET_RAW_SHA256, "conversation": 0, "categories": [1, 2, 3, 4],
+            "selection": "category 1-4 with at least one evidence id that maps to a turn", "questions": 150,
+        },
+        "server": {
+            "config": server, "binary_sha256": binary_sha256, "cargo_features": ["embed-cuda"],
+            "device_env": {"CUDA_VISIBLE_DEVICES": "0", "FATHOMDB_EMBED_DEVICE": "cuda:0"},
+            "store": "conv0.sqlite from dev/experiments/mcp-hybrid-vs-keyword (locomo_load, bge-small-en-v1.5)",
+        },
+        "arms": {
+            arm: {**spec, "status": arm_status.get(arm, "not_run")} for arm, spec in ARM_SPECS.items()
+        },
+        "single_search": {"search_args": {"mode": "per arm", "limit": 10}, "fetch": "the returned refs",
+                          "context": "fetched bodies in rank order, no created_at"},
+        "agent": {
+            "system_prompt_sha256": hashlib.sha256(AGENT_SYSTEM_PROMPT.encode()).hexdigest(),
+            "max_tool_calls": MAX_TOOL_CALLS, "max_search_calls": MAX_SEARCH_CALLS,
+            "max_model_turns": MAX_MODEL_TURNS, "final_turn_tool_choice": "none",
+            "tool_result": "MCP text content block; error text when isError",
+            "params": {"gpt-4o-mini": {"temperature": 0, "max_tokens": 4096},
+                       "gpt-5-mini": {"reasoning_effort": "low", "max_completion_tokens": 4096}},
+        },
+        "scoring": {
+            "answerer_model": "gpt-4o-mini", "judge_model": JUDGE_MODEL,
+            "provider": "openai_compatible_airlock",
+            "served_models": {"gpt-4o-mini": "openai/gpt-4o-mini"},
+            "evidence_aware": True, "harness_upstream_git_sha": HARNESS_UPSTREAM_SHA,
+            "harness_prompts_sha256": HARNESS_PROMPTS_SHA256,
+            "answer_params": {"temperature": 0, "max_tokens": 4096},
+            "judge_params": {"temperature": 0, "max_tokens": 4096, "response_format": "json_object"},
+        },
+        "budget": {"validation_questions": 10, "extrapolation_stop_usd": 4.0, "hard_cap_usd": 5.0,
+                   "prices_per_mtok": PRICES_PER_MTOK, "charge": "max(table, route-reported)"},
+        "bootstrap": {"seed": BOOTSTRAP_SEED, "resamples": BOOTSTRAP_RESAMPLES},
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
-    """CLI: ``run`` one arm, ``estimate`` spend, ``summarize`` results."""
+    """CLI: ``run`` one arm, ``estimate`` spend, ``summarize`` results, write the ``receipt``."""
     import argparse
 
     parser = argparse.ArgumentParser(description="MCP agent-loop LoCoMo evaluation")
@@ -1168,13 +1249,38 @@ def main(argv: list[str] | None = None) -> int:
     est.add_argument("--out", required=True)
     summ = sub.add_parser("summarize")
     summ.add_argument("--out", required=True)
+    rec = sub.add_parser("receipt")
+    rec.add_argument("--out", required=True)
+    rec.add_argument("--binary", required=True)
+    rec.add_argument("--arm-status", action="append", default=[], help="ARM=status")
+    rec.add_argument("--verdict", required=True)
+    rec.add_argument("--read", required=True)
+    rec.add_argument("--blocker", action="append", default=[])
     args = parser.parse_args(argv)
     if args.command == "run":
         return run_live(args)
     if args.command == "estimate":
         print(json.dumps(estimate(Path(args.out)), indent=1))
         return 0
-    print(json.dumps(summarize(Path(args.out)), indent=1))
+    if args.command == "summarize":
+        print(json.dumps(summarize(Path(args.out)), indent=1))
+        return 0
+    import hashlib
+    from datetime import datetime, timezone
+
+    out = Path(args.out)
+    summary = summarize(out)
+    summary["gpu"] = gpu_evidence(out / "gpu.csv")
+    validation = out / "estimate-10.json"
+    if validation.is_file():
+        summary["validation_estimate"] = json.loads(validation.read_text(encoding="utf-8"))
+    summary["blockers"] = list(args.blocker)
+    status = dict(item.split("=", 1) for item in args.arm_status)
+    resolved = resolved_config(binary_sha256=hashlib.sha256(Path(args.binary).read_bytes()).hexdigest(),
+                               arm_status=status)
+    run_id, run_dir = write_receipt(out, summary=summary, resolved=resolved, verdict=args.verdict,
+                                    read=args.read, ts=datetime.now(timezone.utc).replace(second=0, microsecond=0))
+    print(json.dumps({"run_id": run_id, "run_dir": str(run_dir)}))
     return 0
 
 

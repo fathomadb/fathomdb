@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: ea1062616be0af07b35ca4089e5c606eeb368470
+lib_rs_blob: d7065f6f041f547a1d124182983f17268a379145
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -31,15 +31,20 @@ retained fixtures, producing `0226b8836c929a30793b8913461f5abf341123c2`.
 0.8.28 Slice 31 added the public GPU pool-setting re-exports from
 `fathomdb_embedder` (`CudaPoolSettingConflict`, `CudaPoolSettingValue`,
 `CudaPoolMode`, `PoolSettingSource`, `ReleaseThreshold`,
-`CUDA_POOL_MAX_SIZE_MIN`), producing the blob
-above. The 43 root storage fields and approved
-root method inventory remain unchanged.
+`CUDA_POOL_MAX_SIZE_MIN`), producing `ea1062616be0af07b35ca4089e5c606eeb368470`.
+0.8.28 Slice 40 H2 added the `test-hooks` re-export
+`vector_fusion_pool_for_test`, producing `35b302ee926d5bb3e1bcda6895e130f73a022162`.
+0.8.28 Slice 41 added the `context_pack` module and its re-exports, the
+`fathomdb_query` stop-word re-exports (`QueryStopWords`, `StopWordBase`,
+`StopWordRejection`, `DEFAULT_STOP_WORDS_SHA256`) and the root storage field
+`query_stop_words`, producing the blob above. The root storage fields are
+now 44; the approved root method inventory is unchanged.
 
 ## Remaining root declarations
 
 | Declaration | Disposition |
 | --- | --- |
-| `Engine` and its 43 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
+| `Engine` and its 44 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
 | `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |
 | `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |
 | `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
@@ -47,12 +52,12 @@ root method inventory remain unchanged.
 | `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved public, doc-hidden arbitrary writer-SQL column fixtures under `any(test, test-hooks)`. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
 | `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |
 
-The exact 43 storage fields are grouped here to prevent a generic
+The exact 44 storage fields are grouped here to prevent a generic
 "remaining state" exemption:
 
 | Storage role | Root field names |
 | --- | --- |
-| Identity and admission state | `path`, `requested_config`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence`, `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusals` |
+| Identity and admission state | `path`, `requested_config`, `query_stop_words`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence`, `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusals` |
 | Connections and lifecycle | `closed`, `close_lock`, `lock`, `connection`, `reader_pool`, `profile_contexts`, `reader_lookaside_rcs`, `managed_connections`, `writer_connection_registration`, `actual_checkpoint_observations`, `binding_native_state_observations`, `wal_attribution` |
 | Projection and write state | `next_cursor`, `read_visibility_generation`, `projection_generation_status_cache`, `mutation_projection_status_cache`, `projection_generation_status_full_owner_scan_count`, `projection_runtime`, `provenance_row_cap` |
 | Embed dispatch state | `runtime_embedder`, `embed_dispatch` |

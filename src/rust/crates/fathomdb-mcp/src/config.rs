@@ -1,28 +1,50 @@
-//! Launch configuration (`dev/interfaces/mcp.md` §2).
+//! Launch configuration (`dev/interfaces/mcp.md` §2;
+//! ADR-0.6.0-operator-config-json-only). Parsing is strict: unknown keys,
+//! wrong types and out-of-range values are all invalid, and each error names
+//! the offending key.
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::names::NameError;
+use serde_json::{Map, Value};
 
-/// Default search path.
+use crate::names::{validate_store_name, NameError};
+
+/// Default search path (`search_mode`).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SearchMode {
+    /// `search_text_only`: lexical only, never embeds the query.
     #[default]
     Text,
+    /// Hybrid `search`.
     Hybrid,
 }
 
-/// One explicit `stores` entry.
+impl SearchMode {
+    /// The wire spelling (`"text"` / `"hybrid"`).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Text => "text",
+            Self::Hybrid => "hybrid",
+        }
+    }
+}
+
+/// One explicit `stores` entry. `path` is absolute after parsing.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StoreEntry {
     pub path: PathBuf,
+    /// Whether the adapter may create the file when it is missing.
     pub create: bool,
+    /// Whether the store opens at launch.
     pub eager: bool,
 }
 
-/// One `roots` entry.
+/// One `roots` entry: every regular file directly in `path` ending in
+/// `suffix` is addressable by its name without the suffix.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Root {
     pub path: PathBuf,
@@ -37,33 +59,61 @@ pub struct Resolution {
     pub eager: bool,
 }
 
-/// A validated launch configuration.
+/// A validated launch configuration. Field meanings and defaults are those of
+/// `dev/interfaces/mcp.md` §2. `Config::default()` equals parsing `{}`, which
+/// is also the starting point for embedded use (MR-004).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config {
     pub stores: BTreeMap<String, StoreEntry>,
     pub roots: Vec<Root>,
     pub default_store: Option<String>,
+    /// Seconds a store may stay idle before it is closed; 0 never closes.
     pub idle_timeout_secs: u64,
+    /// Always 1 in this release (MR-005.7).
     pub max_open_stores: u32,
+    /// Engine calls in flight per store, including abandoned ones (MR-033.2).
     pub admission_cap: u32,
+    /// Per tool call deadline (MR-033.1).
     pub call_deadline_ms: u64,
+    /// Budget when a call omits `max_tokens` (MR-041.3).
     pub default_max_tokens: u32,
+    /// Snippet cap in characters (MR-040.1).
     pub snippet_chars: u32,
     pub search_mode: SearchMode,
     pub use_default_embedder: bool,
+    /// When set, a fresh telemetry sink is enabled on every open (MR-024.7).
     pub telemetry_dir: Option<PathBuf>,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        todo!()
+        Self {
+            stores: BTreeMap::new(),
+            roots: Vec::new(),
+            default_store: None,
+            idle_timeout_secs: 60,
+            max_open_stores: 1,
+            admission_cap: 4,
+            call_deadline_ms: 10_000,
+            default_max_tokens: 4_000,
+            snippet_chars: 300,
+            search_mode: SearchMode::Text,
+            use_default_embedder: false,
+            telemetry_dir: None,
+        }
     }
 }
 
-/// An invalid configuration.
+/// An invalid configuration. The message names the key at fault.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigError {
     pub message: String,
+}
+
+impl ConfigError {
+    fn new(message: impl Into<String>) -> Self {
+        Self { message: message.into() }
+    }
 }
 
 impl fmt::Display for ConfigError {
@@ -74,24 +124,316 @@ impl fmt::Display for ConfigError {
 
 impl std::error::Error for ConfigError {}
 
+const TOP_LEVEL_KEYS: &[&str] = &[
+    "stores",
+    "roots",
+    "default_store",
+    "idle_timeout_secs",
+    "max_open_stores",
+    "admission_cap",
+    "call_deadline_ms",
+    "default_max_tokens",
+    "snippet_chars",
+    "search_mode",
+    "use_default_embedder",
+    "telemetry_dir",
+    "write",
+    "scope",
+];
+
 impl Config {
-    /// Parse and validate `text`.
-    pub fn from_json_str(_text: &str, _base_dir: &Path) -> Result<Config, ConfigError> {
-        todo!()
+    /// Parse and validate `text`; relative paths resolve against `base_dir`.
+    ///
+    /// # Errors
+    /// [`ConfigError`] naming the key for malformed JSON, unknown keys, wrong
+    /// types, out-of-range values, values fixed in this release
+    /// (`max_open_stores`, `write`, `scope`), bad store names, a root that is
+    /// not a directory, a non-addressable `default_store`, and
+    /// `search_mode: "hybrid"` without `use_default_embedder`.
+    pub fn from_json_str(text: &str, base_dir: &Path) -> Result<Config, ConfigError> {
+        let value: Value = serde_json::from_str(text)
+            .map_err(|error| ConfigError::new(format!("config is not valid JSON: {error}")))?;
+        let Value::Object(object) = value else {
+            return Err(ConfigError::new("config must be a JSON object"));
+        };
+        reject_unknown(&object, TOP_LEVEL_KEYS, "")?;
+        let defaults = Config::default();
+        let config = Config {
+            stores: parse_stores(object.get("stores"), base_dir)?,
+            roots: parse_roots(object.get("roots"), base_dir)?,
+            default_store: optional_string(&object, "default_store")?,
+            idle_timeout_secs: integer(&object, "idle_timeout_secs", defaults.idle_timeout_secs)?,
+            max_open_stores: narrow(
+                &object,
+                "max_open_stores",
+                u64::from(defaults.max_open_stores),
+            )?,
+            admission_cap: narrow(&object, "admission_cap", u64::from(defaults.admission_cap))?,
+            call_deadline_ms: integer(&object, "call_deadline_ms", defaults.call_deadline_ms)?,
+            default_max_tokens: narrow(
+                &object,
+                "default_max_tokens",
+                u64::from(defaults.default_max_tokens),
+            )?,
+            snippet_chars: narrow(&object, "snippet_chars", u64::from(defaults.snippet_chars))?,
+            search_mode: parse_search_mode(object.get("search_mode"))?,
+            use_default_embedder: boolean(&object, "use_default_embedder", false)?,
+            telemetry_dir: optional_string(&object, "telemetry_dir")?
+                .map(|path| absolutize(base_dir, &path)),
+        };
+        if boolean(&object, "write", false)? {
+            return Err(ConfigError::new("write: must be false in this release (read-only)"));
+        }
+        match object.get("scope") {
+            None | Some(Value::Null) => {}
+            Some(_) => {
+                return Err(ConfigError::new(
+                    "scope: must be null in this release; the engine does not yet apply scope \
+                     to every read path (MR-014.4)",
+                ))
+            }
+        }
+        config.validate_ranges()?;
+        if let Some(name) = &config.default_store {
+            if config.resolve(name).is_err() {
+                return Err(ConfigError::new(format!(
+                    "default_store: {name:?} is not an addressable store"
+                )));
+            }
+        }
+        Ok(config)
     }
 
-    /// Read and validate the file at `path`.
-    pub fn load(_path: &Path) -> Result<Config, ConfigError> {
-        todo!()
+    /// Read and validate the file at `path`; relative paths resolve against
+    /// its directory.
+    ///
+    /// # Errors
+    /// [`ConfigError`] when the file cannot be read or is invalid.
+    pub fn load(path: &Path) -> Result<Config, ConfigError> {
+        let text = fs::read_to_string(path).map_err(|error| {
+            ConfigError::new(format!("cannot read config {}: {error}", path.display()))
+        })?;
+        let absolute = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            std::env::current_dir()
+                .map_err(|error| ConfigError::new(format!("cannot resolve config path: {error}")))?
+                .join(path)
+        };
+        let base = absolute.parent().map(Path::to_path_buf).unwrap_or_default();
+        Self::from_json_str(&text, &base)
     }
 
-    /// Resolve an addressable name.
-    pub fn resolve(&self, _name: &str) -> Result<Resolution, NameError> {
-        todo!()
+    fn validate_ranges(&self) -> Result<(), ConfigError> {
+        if self.max_open_stores != 1 {
+            return Err(ConfigError::new("max_open_stores: must be 1 in this release (MR-005.7)"));
+        }
+        if !(1..8).contains(&self.admission_cap) {
+            return Err(ConfigError::new(
+                "admission_cap: must be in 1..=7 (below the reader pool)",
+            ));
+        }
+        if self.call_deadline_ms < 100 {
+            return Err(ConfigError::new("call_deadline_ms: must be at least 100"));
+        }
+        if self.default_max_tokens < 256 {
+            return Err(ConfigError::new("default_max_tokens: must be at least 256"));
+        }
+        if !(40..=2000).contains(&self.snippet_chars) {
+            return Err(ConfigError::new("snippet_chars: must be in 40..=2000"));
+        }
+        if self.search_mode == SearchMode::Hybrid && !self.use_default_embedder {
+            return Err(ConfigError::new(
+                "search_mode: \"hybrid\" requires use_default_embedder: true",
+            ));
+        }
+        Ok(())
     }
 
-    /// Every addressable name, sorted.
+    /// Resolve an addressable name. Explicit `stores` entries win over root
+    /// files. The grammar is checked first, so a path-like name never reaches
+    /// the filesystem.
+    ///
+    /// # Errors
+    /// [`NameError::BadName`] for a name outside the grammar,
+    /// [`NameError::Unknown`] for a well-formed name that is not addressable.
+    pub fn resolve(&self, name: &str) -> Result<Resolution, NameError> {
+        validate_store_name(name)?;
+        if let Some(entry) = self.stores.get(name) {
+            return Ok(Resolution {
+                path: entry.path.clone(),
+                create: entry.create,
+                eager: entry.eager,
+            });
+        }
+        for root in &self.roots {
+            let candidate = root.path.join(format!("{name}{}", root.suffix));
+            if is_regular_file(&candidate) {
+                return Ok(Resolution { path: candidate, create: false, eager: false });
+            }
+        }
+        Err(NameError::Unknown)
+    }
+
+    /// Every addressable name, sorted and deduplicated. Root directories are
+    /// scanned at call time, so files added later become addressable.
+    #[must_use]
     pub fn addressable_names(&self) -> Vec<String> {
-        todo!()
+        let mut names: Vec<String> = self.stores.keys().cloned().collect();
+        for root in &self.roots {
+            let Ok(entries) = fs::read_dir(&root.path) else { continue };
+            for entry in entries.flatten() {
+                let Some(file_name) = entry.file_name().to_str().map(str::to_string) else {
+                    continue;
+                };
+                let Some(name) = file_name.strip_suffix(root.suffix.as_str()) else { continue };
+                if validate_store_name(name).is_ok() && is_regular_file(&entry.path()) {
+                    names.push(name.to_string());
+                }
+            }
+        }
+        names.sort();
+        names.dedup();
+        names
     }
+}
+
+// Symlinks are not followed: a root may only expose files that are physically
+// inside it.
+fn is_regular_file(path: &Path) -> bool {
+    fs::symlink_metadata(path).map(|metadata| metadata.file_type().is_file()).unwrap_or(false)
+}
+
+fn absolutize(base_dir: &Path, path: &str) -> PathBuf {
+    let path = Path::new(path);
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        base_dir.join(path)
+    }
+}
+
+fn reject_unknown(
+    object: &Map<String, Value>,
+    known: &[&str],
+    prefix: &str,
+) -> Result<(), ConfigError> {
+    for key in object.keys() {
+        if !known.contains(&key.as_str()) {
+            return Err(ConfigError::new(format!("{prefix}{key}: unknown key")));
+        }
+    }
+    Ok(())
+}
+
+fn integer(object: &Map<String, Value>, key: &str, default: u64) -> Result<u64, ConfigError> {
+    match object.get(key) {
+        None => Ok(default),
+        Some(value) => value
+            .as_u64()
+            .ok_or_else(|| ConfigError::new(format!("{key}: must be a non-negative integer"))),
+    }
+}
+
+fn narrow(object: &Map<String, Value>, key: &str, default: u64) -> Result<u32, ConfigError> {
+    u32::try_from(integer(object, key, default)?)
+        .map_err(|_| ConfigError::new(format!("{key}: value is too large")))
+}
+
+fn boolean(object: &Map<String, Value>, key: &str, default: bool) -> Result<bool, ConfigError> {
+    match object.get(key) {
+        None => Ok(default),
+        Some(Value::Bool(value)) => Ok(*value),
+        Some(_) => Err(ConfigError::new(format!("{key}: must be a boolean"))),
+    }
+}
+
+fn optional_string(object: &Map<String, Value>, key: &str) -> Result<Option<String>, ConfigError> {
+    match object.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(value)) => Ok(Some(value.clone())),
+        Some(_) => Err(ConfigError::new(format!("{key}: must be a string or null"))),
+    }
+}
+
+fn parse_search_mode(value: Option<&Value>) -> Result<SearchMode, ConfigError> {
+    match value {
+        None => Ok(SearchMode::Text),
+        Some(Value::String(mode)) if mode == "text" => Ok(SearchMode::Text),
+        Some(Value::String(mode)) if mode == "hybrid" => Ok(SearchMode::Hybrid),
+        Some(_) => Err(ConfigError::new("search_mode: must be \"text\" or \"hybrid\"")),
+    }
+}
+
+fn parse_stores(
+    value: Option<&Value>,
+    base_dir: &Path,
+) -> Result<BTreeMap<String, StoreEntry>, ConfigError> {
+    let Some(value) = value else { return Ok(BTreeMap::new()) };
+    let Value::Object(entries) = value else {
+        return Err(ConfigError::new(
+            "stores: must be an object of name -> {path, create?, eager?}",
+        ));
+    };
+    let mut stores = BTreeMap::new();
+    for (name, entry) in entries {
+        if validate_store_name(name).is_err() {
+            return Err(ConfigError::new(format!(
+                "stores: {name:?} is not a valid store name (^[A-Za-z0-9][A-Za-z0-9._-]{{0,63}}$)"
+            )));
+        }
+        let Value::Object(entry) = entry else {
+            return Err(ConfigError::new(format!("stores.{name}: must be an object")));
+        };
+        reject_unknown(entry, &["path", "create", "eager"], &format!("stores.{name}."))?;
+        let Some(Value::String(path)) = entry.get("path") else {
+            return Err(ConfigError::new(format!("stores.{name}.path: required string")));
+        };
+        stores.insert(
+            name.clone(),
+            StoreEntry {
+                path: absolutize(base_dir, path),
+                create: boolean(entry, "create", false)
+                    .map_err(|error| ConfigError::new(format!("stores.{name}.{error}")))?,
+                eager: boolean(entry, "eager", false)
+                    .map_err(|error| ConfigError::new(format!("stores.{name}.{error}")))?,
+            },
+        );
+    }
+    Ok(stores)
+}
+
+fn parse_roots(value: Option<&Value>, base_dir: &Path) -> Result<Vec<Root>, ConfigError> {
+    let Some(value) = value else { return Ok(Vec::new()) };
+    let Value::Array(entries) = value else {
+        return Err(ConfigError::new("roots: must be an array of {path, suffix?}"));
+    };
+    let mut roots = Vec::new();
+    for (index, entry) in entries.iter().enumerate() {
+        let Value::Object(entry) = entry else {
+            return Err(ConfigError::new(format!("roots[{index}]: must be an object")));
+        };
+        reject_unknown(entry, &["path", "suffix"], &format!("roots[{index}]."))?;
+        let Some(Value::String(path)) = entry.get("path") else {
+            return Err(ConfigError::new(format!("roots[{index}].path: required string")));
+        };
+        let suffix = match entry.get("suffix") {
+            None => ".sqlite".to_string(),
+            Some(Value::String(suffix)) if !suffix.is_empty() => suffix.clone(),
+            Some(_) => {
+                return Err(ConfigError::new(format!(
+                    "roots[{index}].suffix: must be a non-empty string"
+                )))
+            }
+        };
+        let path = absolutize(base_dir, path);
+        if !path.is_dir() {
+            return Err(ConfigError::new(format!(
+                "roots[{index}].path: {} is not a directory",
+                path.display()
+            )));
+        }
+        roots.push(Root { path, suffix });
+    }
+    Ok(roots)
 }

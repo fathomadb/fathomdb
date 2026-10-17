@@ -18,8 +18,10 @@ pub fn precision_at_k(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> f
 /// Relevant references among the first `k` of `ranked`, divided by the gold
 /// set size.
 pub fn recall_at_k(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> f64 {
-    let _ = (ranked, gold, k);
-    0.0
+    if gold.is_empty() {
+        return 0.0;
+    }
+    relevant_in_top(ranked, gold, k) as f64 / gold.len() as f64
 }
 
 fn relevant_in_top(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> usize {

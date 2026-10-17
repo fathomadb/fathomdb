@@ -9,9 +9,11 @@ or exceed plain BM25 (`mode: "text"`) on precision@3? The config default is
 
 **Verdict: yes.** On LoCoMo, hybrid precision@3 is 0.2066 and text precision@3
 is 0.1860, a paired difference of +0.0206 (95% CI [+0.0141, +0.0269]). Hybrid
-also beats text on recall@5, recall@10 and MRR@10, with every confidence
-interval above zero. Hit@1 is +0.0163, and its interval [-0.0007, +0.0332]
-just includes zero. **Recommendation:** under MR-021.2, the evidence allows
+also beats text on gold coverage@5 and @10, hit@5 and @10, MRR@10 and
+nDCG@10, with every confidence interval above zero. Hit@1 is +0.0163, and its
+interval [-0.0007, +0.0332] just includes zero. Scored with the SDK LoCoMo
+runner's definitions, the MCP text path matches the SDK FTS baseline (see
+[Comparison with the SDK LoCoMo baseline](#comparison-with-the-sdk-locomo-baseline)). **Recommendation:** under MR-021.2, the evidence allows
 `search_mode: "hybrid"` as the default for stores opened with the default
 embedder. This experiment does not change the config default. The adopting
 ADR should cite these numbers and the caveats below.
@@ -174,15 +176,28 @@ order, and averaged over queries. Definitions
 (`examples/locomo_eval/metrics.rs`, unit-tested against hand-computed cases):
 
 - **precision@3:** relevant refs in the top 3, divided by 3. The divisor is 3
-  even when fewer results came back.
-- **recall@k:** relevant refs in the top k, divided by |gold|.
+  even when fewer results came back. Ceiling 0.4629 on this query set.
+- **gold coverage@k** (fraction of gold recalled): relevant refs in the top k,
+  divided by |gold|. A query with three gold turns that finds one scores 0.33.
+  The evaluator and the result files call this `recall@k`. It is **not** the
+  `R@k` the SDK LoCoMo runner reports; that is hit@k below.
+- **hit@k:** 1 when at least one relevant ref is in the top k, else 0. This is
+  what `experiments/locomo_metrics.py` reports as `R@k` / `r_at_k`.
 - **MRR@10:** the mean of 1 / (rank of the first relevant ref in the top 10),
-  or 0 when there is none.
-- **hit@1:** 1 when the top ref is relevant.
+  or 0 when there is none. Same definition as the SDK runner.
+- **nDCG@10:** binary relevance per returned ref, discounted by log2(rank + 1),
+  divided by the ideal DCG of min(|gold|, 10) relevant refs. Same definition as
+  the SDK runner.
+
+Gold coverage, precision@3, MRR@10 and hit@1 come from the Rust evaluator.
+hit@5, hit@10 and nDCG@10 were computed afterwards from `results/per_query.jsonl`
+with a Python script using the SDK runner's definitions, with a paired
+percentile bootstrap (10,000 resamples, seed 20261017). That is the same
+procedure, but a different random generator from the evaluator's.
 
 ### Text versus hybrid (each cell is text / hybrid)
 
-| Slice | n | precision@3 | recall@5 | recall@10 | MRR@10 | hit@1 |
+| Slice | n | precision@3 | coverage@5 | coverage@10 | MRR@10 | hit@1 |
 | --- | --- | --- | --- | --- | --- | --- |
 | **overall** | 1,536 | 0.1860 / **0.2066** | 0.5336 / **0.5858** | 0.6121 / **0.6552** | 0.4603 / **0.4937** | 0.3613 / **0.3776** |
 | 1 multi-hop | 282 | 0.1489 / 0.2139 | 0.2243 / 0.3089 | 0.3154 / 0.3909 | 0.3001 / 0.3890 | 0.1950 / 0.2482 |
@@ -195,7 +210,7 @@ order, and averaged over queries. Definitions
 The CI is a paired percentile bootstrap over queries: 10,000 resamples, seed
 20261017.
 
-| Slice | precision@3 | recall@5 | recall@10 | MRR@10 | hit@1 |
+| Slice | precision@3 | coverage@5 | coverage@10 | MRR@10 | hit@1 |
 | --- | --- | --- | --- | --- | --- |
 | **overall** | **+0.0206 [+0.0141, +0.0269]** | +0.0522 [+0.0382, +0.0661] | +0.0430 [+0.0322, +0.0541] | +0.0335 [+0.0215, +0.0452] | +0.0163 [-0.0007, +0.0332] |
 | 1 multi-hop | +0.0650 [+0.0449, +0.0851] | +0.0845 [+0.0600, +0.1106] | +0.0755 [+0.0525, +0.0994] | +0.0889 [+0.0610, +0.1173] | +0.0532 [+0.0142, +0.0922] |
@@ -208,6 +223,47 @@ text on 58, and 1,331 tie. For MRR@10 the split is 349, 180 and 1,007. The
 gain is largest on multi-hop questions, where vocabulary mismatch between the
 question and the turns is most common. Single-hop and temporal gains are
 small but positive.
+
+### hit@k and nDCG@10 (SDK runner definitions)
+
+Each cell is text / hybrid, then hybrid minus text with its 95% CI.
+
+| Slice | n | hit@5 | hit@10 | nDCG@10 |
+| --- | --- | --- | --- | --- |
+| **overall** | 1,536 | 0.5938 / **0.6530**; +0.0592 [+0.0430, +0.0755] | 0.6777 / **0.7285**; +0.0508 [+0.0378, +0.0638] | 0.4792 / **0.5131**; +0.0338 [+0.0245, +0.0428] |
+| 1 multi-hop | 282 | 0.4397 / 0.5745; +0.1348 [+0.0887, +0.1844] | 0.5674 / 0.6844; +0.1170 [+0.0816, +0.1560] | 0.2432 / 0.3182; +0.0749 [+0.0572, +0.0932] |
+| 2 temporal | 321 | 0.6760 / 0.7072; +0.0312 [+0.0000, +0.0623] | 0.7321 / 0.7632; +0.0312 [+0.0125, +0.0530] | 0.5815 / 0.6006; +0.0191 [+0.0023, +0.0362] |
+| 3 open-domain | 92 | 0.3587 / 0.3913; +0.0326 [-0.0109, +0.0870] | 0.4130 / 0.4348; +0.0217 [-0.0326, +0.0761] | 0.2209 / 0.2426; +0.0217 [-0.0056, +0.0491] |
+| 4 single-hop | 841 | 0.6397 / 0.6873; +0.0476 [+0.0262, +0.0690] | 0.7229 / 0.7622; +0.0392 [+0.0238, +0.0559] | 0.5476 / 0.5746; +0.0270 [+0.0132, +0.0409] |
+
+## Comparison with the SDK LoCoMo baseline
+
+The SDK-based LoCoMo runner's turn-level FTS baseline
+(`experiments/runs/locomo-capability-a0-baseline-20260814T2311Z-d4a71071`)
+scores the same 1,536 questions: categories 1–4, with the 4 empty-evidence
+items excluded. It indexes one turn per document, uses FTS only, and keeps the
+top 10. Under its definitions:
+
+| Metric (SDK name) | SDK FTS baseline | MCP text | MCP hybrid |
+| --- | --- | --- | --- |
+| hit@1 (`R@1`) | 0.3438 | 0.3613 | 0.3776 |
+| hit@5 (`R@5`) | 0.5931 | 0.5938 | 0.6530 |
+| hit@10 (`R@10`) | 0.6673 | 0.6777 | 0.7285 |
+| MRR | 0.4463 | 0.4603 | 0.4937 |
+| nDCG@10 | 0.4653 | 0.4792 | 0.5131 |
+
+The MCP text path matches the SDK FTS baseline: it is 0.1 to 1.8 points higher
+on every metric, so nothing is lost by going through MCP. A plausible but
+unverified reason for the small edge is that this loader adds the session date
+and the image caption to each turn's body. The earlier draft of this README
+read as worse than the SDK runs for one reason: it labelled gold coverage as
+"recall", and the SDK runner's `R@k` is hit@k.
+
+Not comparable: the 0.752 in
+`experiments/runs/fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be`
+(Mem0 0.672). That number is end-to-end answer accuracy. gpt-4o-mini answers
+from the top 10 hits and an LLM judge grades the answer. It is not a retrieval
+metric, and a correct answer does not require a gold turn in the context.
 
 ### Health of the run
 
@@ -225,7 +281,9 @@ small but positive.
 
 Raw per-query results are in `results/per_query.jsonl` (1.3 MB). Each line
 carries the refs in rank order, the arms, completeness, degradation and the
-per-query metrics. `results/summary.json` holds every table above. The other
+per-query metrics. `results/summary.json` holds the evaluator's tables; its
+`recall@k` keys are gold coverage. The hit@k and nDCG@10 tables are not in it;
+they were recomputed from `per_query.jsonl` as described under Metrics. The other
 two result files are `results/load.jsonl` (completeness per store) and
 `results/gpu.json`.
 

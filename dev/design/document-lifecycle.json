@@ -1172,6 +1172,159 @@
       "successor": null
     },
     {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-01-store-state-read.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-01-store-state-read",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-01-store-state-read.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-02-telemetry-query-id-uniqueness.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-02-telemetry-query-id-uniqueness",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-02-telemetry-query-id-uniqueness.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-03-hybrid-search-degradation.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-03-hybrid-search-degradation",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-03-hybrid-search-degradation.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-04-graph-expand-completeness.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-04-graph-expand-completeness",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-04-graph-expand-completeness.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-05-kind-enumeration-and-counts.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-05-kind-enumeration-and-counts",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-05-kind-enumeration-and-counts.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-06-currency-fields-on-reads.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-06-currency-fields-on-reads",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-06-currency-fields-on-reads.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-07-open-without-create.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-07-open-without-create",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-07-open-without-create.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-08-text-search-observability.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-08-text-search-observability",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-08-text-search-observability.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-09-interruptible-reads.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-09-interruptible-reads",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-09-interruptible-reads.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-10-write-trust-origin-and-scope.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-10-write-trust-origin-and-scope",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-10-write-trust-origin-and-scope.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-11-typed-argument-refusals.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-11-typed-argument-refusals",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-11-typed-argument-refusals.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-12-result-set-extent.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-12-result-set-extent",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-12-result-set-extent.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-13-raw-arm-scores.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-13-raw-arm-scores",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-13-raw-arm-scores.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-14-exact-phrase-predicate.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-14-exact-phrase-predicate",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-14-exact-phrase-predicate.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-15-fetch-by-content-id.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-15-fetch-by-content-id",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-15-fetch-by-content-id.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-16-governed-change-feed.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-16-governed-change-feed",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-16-governed-change-feed.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/README.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-engine-proposals",
+      "role": "index",
+      "owner": "dev/design/mcp-adapter/engine-proposals/README.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
       "path": "dev/design/mcp-adapter/requirements.md",
       "class": "proposal",
       "topic": "mcp-adapter-requirements",

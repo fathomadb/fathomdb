@@ -11,6 +11,7 @@ struct State {
     open_blocked: BTreeSet<String>,
     calls_blocked: BTreeSet<String>,
     panicking_tools: BTreeSet<String>,
+    panicking_calls: BTreeSet<String>,
 }
 
 /// Injectable delays and faults, shared by every clone.
@@ -69,13 +70,13 @@ impl Seams {
     }
 
     /// Make every later engine call on `store` panic on its blocking thread.
-    pub fn panic_calls(&self, _store: &str) {
-        todo!()
+    pub fn panic_calls(&self, store: &str) {
+        self.state().panicking_calls.insert(store.to_string());
     }
 
     /// Undo [`Seams::panic_calls`].
-    pub fn stop_panicking_calls(&self, _store: &str) {
-        todo!()
+    pub fn stop_panicking_calls(&self, store: &str) {
+        self.state().panicking_calls.remove(store);
     }
 
     pub(crate) fn before_open(&self, store: &str) {
@@ -84,6 +85,9 @@ impl Seams {
 
     pub(crate) fn before_call(&self, store: &str) {
         self.wait_while(|state| state.calls_blocked.contains(store));
+        if self.state().panicking_calls.contains(store) {
+            panic!("test seam: forced panic in an engine call on {store}");
+        }
     }
 
     pub(crate) fn tool_panics(&self, tool: &str) -> bool {

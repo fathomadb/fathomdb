@@ -143,6 +143,18 @@ AC-050c) gates merges against this invariant.
 
 ### Fixed
 
+- (Slice 40) A large read no longer slows later reads on the same engine.
+  Each SQLite connection now has its own page cache: the bundled build
+  drops `SQLITE_ENABLE_MEMORY_MANAGEMENT`, which made one connection's
+  heavy read take the other connections' cached pages until the engine was
+  reopened (about 2.5× slower reads afterwards). Results are unchanged. The
+  page-cache ceiling is unchanged (2,000 KiB per connection, twelve
+  connections per engine by default), but resident page memory can now
+  rise toward it, up to about 24 MB per engine. Rust builds that resolve
+  the registry `libsqlite3-sys` keep the shared cache until a release
+  contains rusqlite commit `f31f7324`; until then,
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives
+  the same behaviour.
 - (Slice 40) Search ranking: each fusion arm (vector, text, graph) now
   credits a body at most once, at the rank of its first occurrence. Before,
   rows sharing a byte-identical body each added a term, so a duplicated

@@ -456,6 +456,19 @@ pool_n: 0, include_explanation: false, limit: 10}`;
 `DependencyTraceRequestV1::new(..)` already applies the binding bounds
 (`max_relations` 100, `max_work_units` 101) when `with_bounds` is not called.
 
+## SQLite runtime configuration
+
+SQLite page cache (0.8.28 Slice 40). Artifacts built from this repository
+(the Python wheel, the npm addon and the CLI) build the bundled SQLite without
+`SQLITE_ENABLE_MEMORY_MANAGEMENT`, so each SQLite connection keeps its own
+page cache of SQLite's default 2,000 KiB. A Rust build that resolves the
+registry `libsqlite3-sys` keeps SQLite's shared page cache, where one large
+read can slow later reads until the engine is reopened. rusqlite removed the
+flag upstream (commit `f31f7324`); Rust consumers get the fix from the first
+`libsqlite3-sys` release that contains it, and until then
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives the
+same behaviour as the workspace build.
+
 ## Search behaviour in 0.8.28 (Slice 40)
 
 The signatures are unchanged; the behaviour of three search verbs changed.

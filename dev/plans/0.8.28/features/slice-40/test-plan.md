@@ -684,6 +684,18 @@ slice40_reader_page_cache`): 3 failed, 1 ignored (the timing report).
 The precondition (zero misses on the third warm pass) held, so each
 failure is the shared page cache and not the fixture.
 
+**GREEN at I-W4**: 3 passed, 1 ignored, no test edited. Other results:
+
+- `runtime_configuration`: 8 passed, including
+  `diagnostics_preserves_memory_controls`, the 1,024-byte hard-heap-limit
+  test.
+- `check-pinned-override-rot.sh`: ok, with the new vendored-tree digest
+  `ba21fdceb02dc7d7224a81d1b44e9c114c39d6a0ae0000c4f4b0b320c658fdeb`.
+  The digest was recomputed with the checker's method, which reproduces
+  the old pin `a1dfc60a…` from the old `build.rs`.
+- Its fixture suite: 44 PASS.
+- The amalgamation digest is unchanged.
+
 ### 3h.2 Pins and docs
 
 - `cargo test -p fathomdb-engine --test runtime_configuration` stays in
@@ -793,7 +805,9 @@ Method:
 
 The investigation's list (§ 1.5 of its proposal) was read file by file.
 
-| File | Test or helper | Verdict |
+Line numbers are at `0460e68dc`.
+
+| File | Test or helper (lines at `0460e68dc`) | Verdict |
 | --- | --- | --- |
 | `pr_g8_dangling_edges.rs` | `s20_endpoint_probe_hits_partial_index_no_scan` (raw open l.239) | **guard**; l.121 and l.161 follow an engine open |
 | `tc57_governed_write_race.rs` | `wal_pair` (l.544), used by the three `tc57_mechanism_*` tests | **guard** in `wal_pair` |

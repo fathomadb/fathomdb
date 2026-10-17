@@ -65,7 +65,8 @@ come, so a pin outlives its reason and silently holds the tree back.
   revision, or lock-source disagreement fails. Two local vendor copies are
   admitted only at their exact path, version, licenses, local `Cargo.lock`
   package, and checker-owned vendored-tree digest: `libsqlite3-sys` 0.38.1
-  with the SQLite Windows WAL path backport (plus its amalgamation digest),
+  with the SQLite Windows WAL path backport (plus its amalgamation digest)
+  and the bundled build without `SQLITE_ENABLE_MEMORY_MANAGEMENT`;
   and `cudarc` 0.19.7 with the Tegra allocator fallback, compiled only for
   aarch64 Linux (plus its upstream
   crate checksum and patch note). Any other Cargo `[patch]`, `[replace]`, or

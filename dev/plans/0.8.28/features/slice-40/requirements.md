@@ -1360,7 +1360,7 @@ open after an outside initialization still fails closed with `TooLate`.
 
 **REQ40-J5 — measured.** Each of the five guarded binaries is looped in
 parallel before and after the guards (test-plan § 3i.3). After the
-guards, 0 of 30 runs fail for each binary under default
+guards, 0 of 30 runs fail with `TooLate` for each binary under default
 features and under `test-hooks`.
 
 ## 3. Non-goals

@@ -70,7 +70,7 @@ struct Slot {
     info: Option<Arc<OpenInfo>>,
     in_flight: Arc<AtomicUsize>,
     idle: Arc<Notify>,
-    last_used: Instant,
+    last_used: LastUsed,
     last_error: Option<ToolError>,
     changed: watch::Sender<u64>,
 }
@@ -86,7 +86,7 @@ impl Slot {
             info: None,
             in_flight: Arc::new(AtomicUsize::new(0)),
             idle: Arc::new(Notify::new()),
-            last_used: Instant::now(),
+            last_used: LastUsed::default(),
             last_error: None,
             changed: watch::channel(0).0,
         }
@@ -105,6 +105,27 @@ impl Slot {
             (Phase::Closed, Some(_)) => "failed",
             (phase, _) => phase.as_str(),
         }
+    }
+}
+
+/// When a store last admitted or finished a call. Shared with its guards,
+/// which stamp it on release without taking the registry mutex.
+#[derive(Clone)]
+struct LastUsed(Arc<Mutex<Instant>>);
+
+impl Default for LastUsed {
+    fn default() -> Self {
+        Self(Arc::new(Mutex::new(Instant::now())))
+    }
+}
+
+impl LastUsed {
+    fn touch(&self) {
+        *self.0.lock().unwrap_or_else(|poison| poison.into_inner()) = Instant::now();
+    }
+
+    fn get(&self) -> Instant {
+        *self.0.lock().unwrap_or_else(|poison| poison.into_inner())
     }
 }
 
@@ -131,10 +152,14 @@ pub(crate) struct StoreGuard {
     pub(crate) info: Arc<OpenInfo>,
     in_flight: Arc<AtomicUsize>,
     idle: Arc<Notify>,
+    last_used: LastUsed,
 }
 
 impl Drop for StoreGuard {
     fn drop(&mut self) {
+        // Stamp before releasing the slot, so the idle clock never sees a
+        // finished call as idle since its start (FIX-1 CR-5).
+        self.last_used.touch();
         if self.in_flight.fetch_sub(1, Ordering::SeqCst) == 1 {
             self.idle.notify_waiters();
         }
@@ -316,7 +341,7 @@ impl Registry {
                             return Err(ToolError::busy(name));
                         }
                         slot.in_flight.fetch_add(1, Ordering::SeqCst);
-                        slot.last_used = Instant::now();
+                        slot.last_used.touch();
                         return Ok(StoreGuard {
                             name: name.to_string(),
                             epoch: slot.epoch,
@@ -324,6 +349,7 @@ impl Registry {
                             info: slot.info.clone().expect("ready slots hold open info"),
                             in_flight: slot.in_flight.clone(),
                             idle: slot.idle.clone(),
+                            last_used: slot.last_used.clone(),
                         });
                     }
                     Phase::Closed => {
@@ -377,7 +403,12 @@ impl Registry {
                 other.as_str() != name && slot.managed() && slot.phase != Phase::Closed
             })
             .map(|(other, slot)| {
-                (other.clone(), slot.phase, slot.in_flight.load(Ordering::SeqCst), slot.last_used)
+                (
+                    other.clone(),
+                    slot.phase,
+                    slot.in_flight.load(Ordering::SeqCst),
+                    slot.last_used.get(),
+                )
             })
             .collect();
         let mut waits = Vec::new();
@@ -463,7 +494,7 @@ impl Registry {
                 slot.info = Some(Arc::new(info));
                 slot.epoch = epoch;
                 slot.phase = Phase::Ready;
-                slot.last_used = Instant::now();
+                slot.last_used.touch();
                 slot.last_error = None;
                 slot.bump();
                 if shutting_down {
@@ -559,7 +590,7 @@ impl Registry {
                 slot.managed()
                     && slot.phase == Phase::Ready
                     && slot.in_flight.load(Ordering::SeqCst) == 0
-                    && slot.last_used.elapsed() >= timeout
+                    && slot.last_used.get().elapsed() >= timeout
             })
             .map(|(name, _)| name.clone())
             .collect();

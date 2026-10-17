@@ -12,7 +12,7 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
-**The slice ladder is complete.** Completed on `release/0.8.28`: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`).
+**Slices 40 and 42 are open.** Completed on `release/0.8.28`: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`).
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
 Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
@@ -40,7 +40,7 @@ Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
 
 | Step | Action |
 | --- | --- |
-| **Immediate next action** | **Owner decisions:** the open decisions below, then publication of 0.8.28 (Slice 31 plan W8, then R-CODE-4). |
+| **Immediate next action** | **Continue Slice 40, and review the Slice 42 plan.** Then the open decisions below, then publication of 0.8.28 (Slice 31 plan W8, then R-CODE-4). |
 
 Slice 31's qualification is complete: the Orin windows P, A, B and C, the
 RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured
@@ -64,8 +64,10 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | ---: | --- | --- |
 | 30 | Tegra private CUDA memory pool (D28-08) | Complete on `release/0.8.28` at `8d53418d1493090502501180d9223172ae95eaba`; [status](../0.8.28/features/slice-30/status.md). |
 | 31 | cudarc and Candle forks from crates.io (D28-13) | In progress; [plan](../0.8.28/features/slice-31/plan.md). Work in `slice/0.8.28-31-cudarc-fork`. |
+| 40 | FTS ranking, latency and page-cache defects (COMP benchmarks) | In progress on `slice/0.8.28-40-fts-ranking-defects`, not landed; [status](../0.8.28/features/slice-40/status.md). |
+| 42 | slice135 descriptor check; published-Rust page-cache investigation (ledger seq 312, 313) | Planned, plan review next; [plan](../0.8.28/features/slice-42/plan.md). Depends on Slice 40. |
 
-Ladder remaining: 31 alone, until the open placement decisions add slices.
+Ladder remaining: 40, 42. Slice 42 was added by owner ruling on 2026-10-16.
 
 ## Boundaries
 

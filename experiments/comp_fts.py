@@ -401,6 +401,88 @@ class SurrealArm:
 ARMS = {arm.name: arm for arm in (FathomArm(), FathomHybridArm(), LanceArm(), SurrealArm())}
 
 
+# --- per-open engine settings (0.8.28 Slice 41, REQ41-Q8) ---------------------------
+
+ENGINE_CONFIG_KEYS = {"query_stop_words"}
+QUERY_STOP_WORDS_KEYS = {"base", "extra", "keep"}
+
+
+def _engine_kwargs(engine_config: dict[str, Any]) -> dict[str, Any]:
+    """``Engine.open`` keyword arguments for a JSON engine setting."""
+    from fathomdb import QueryStopWords
+
+    stop = engine_config["query_stop_words"]
+    return {"query_stop_words": QueryStopWords(base=stop.get("base", "fathomdb"),
+                                               extra=tuple(stop.get("extra", ())),
+                                               keep=tuple(stop.get("keep", ())))}
+
+
+class ConfiguredFathomArm(FathomArm):
+    """The ``fathomdb`` arm opened with per-open engine settings; everything else is the arm's."""
+
+    def __init__(self, engine_config: dict[str, Any]) -> None:
+        super().__init__()
+        self.engine_config = engine_config
+
+    def settings(self) -> dict[str, Any]:
+        return {**super().settings(), "engine_config": self.engine_config}
+
+    def create(self, root: Path) -> Any:
+        return self.open(root)
+
+    def open(self, root: Path) -> Any:
+        from fathomdb import Engine
+
+        return Engine.open(str(root / "fathomdb.sqlite"), use_default_embedder=False,
+                           **_engine_kwargs(self.engine_config))
+
+
+class ConfiguredFathomHybridArm(FathomHybridArm):
+    """The ``fathomdb-hybrid`` arm opened with per-open engine settings."""
+
+    def __init__(self, engine_config: dict[str, Any]) -> None:
+        super().__init__()
+        self.engine_config = engine_config
+
+    def settings(self) -> dict[str, Any]:
+        return {**super().settings(), "engine_config": self.engine_config}
+
+    def _open_engine(self, root: Path) -> Any:
+        from fathomdb import Engine
+
+        from experiments.fathomdb_test_setup import require_embed_device
+
+        engine = Engine.open(str(root / "fathomdb.sqlite"), use_default_embedder=True,
+                             **_engine_kwargs(self.engine_config))
+        resolution = engine.open_report().embedder_device_resolution
+        requested = os.environ.get("FATHOMDB_EMBED_DEVICE", "auto")
+        try:
+            require_embed_device(resolution, requested)
+        except RuntimeError:
+            engine.close()
+            raise
+        self.device = {
+            "requested": requested,
+            "effective": None if resolution is None else resolution.effective_device.kind,
+        }
+        return engine
+
+
+def configured_arm(arm_name: str, engine_config: dict[str, Any] | None) -> Any:
+    """``ARMS[arm_name]``, or a copy that opens with ``engine_config`` (FathomDB arms only)."""
+    if not engine_config:
+        return ARMS[arm_name]
+    if set(engine_config) - ENGINE_CONFIG_KEYS:
+        raise ValueError(f"unsupported engine settings: {sorted(set(engine_config) - ENGINE_CONFIG_KEYS)}")
+    if set(engine_config["query_stop_words"]) - QUERY_STOP_WORDS_KEYS:
+        raise ValueError("query_stop_words takes base, extra and keep")
+    if arm_name == "fathomdb":
+        return ConfiguredFathomArm(engine_config)
+    if arm_name == "fathomdb-hybrid":
+        return ConfiguredFathomHybridArm(engine_config)
+    raise ValueError(f"engine settings apply to FathomDB arms only, not {arm_name}")
+
+
 # --- one cell (child process) ---------------------------------------------
 
 

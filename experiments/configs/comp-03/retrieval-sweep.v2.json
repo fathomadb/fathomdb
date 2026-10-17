@@ -1,0 +1,141 @@
+{
+  "schema_version": "comp-03.retrieval-sweep.v2",
+  "program_track": null,
+  "campaign": "COMP-03",
+  "corpus": {
+    "identifier": "longmemeval-s-cleaned",
+    "source": "huggingface xiaowu0162/longmemeval-cleaned@98d7416c24c778c2fee6e6f3006e7a073259d48f longmemeval_s_cleaned.json",
+    "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+    "storage": "external_only"
+  },
+  "selection": {
+    "rule": "all",
+    "note": "every LongMemEval-S question, sorted by question_id; abstention questions are retrieved but not scored"
+  },
+  "document_unit": {
+    "unit": "round",
+    "rule": "one user turn plus the assistant turns that follow it; leading assistant turns form their own round",
+    "id": "s<session position:03d>-r<round position:03d>",
+    "indexed_body": "turn contents joined by newline",
+    "excluded": [
+      "answer",
+      "answer_session_ids",
+      "haystack_session_ids",
+      "has_answer"
+    ],
+    "blank_rounds": "blank (whitespace-only) rounds are not indexed by any arm; round IDs stay positional, so every other round's ID and the gold are unchanged; the count is recorded per question as blank_rounds_skipped"
+  },
+  "arms": [
+    {
+      "id": "fathomdb-fts",
+      "product_arm": "fathomdb",
+      "method": "Engine.search_text_only",
+      "store": "plain round bodies, no embedder, no projection (v1 shape)",
+      "variants": [
+        {
+          "id": "fathomdb-fts-stopwords",
+          "engine_config": {
+            "query_stop_words": {
+              "base": "fathomdb",
+              "extra": [
+                "had",
+                "long",
+                "suggest"
+              ]
+            }
+          },
+          "method": "Engine.search_text_only on the same store, reopened with EngineConfig.query_stop_words (REQ41-Q8)"
+        }
+      ]
+    },
+    {
+      "id": "fathomdb-hybrid",
+      "product_arm": "fathomdb-hybrid",
+      "method": "Engine.search, rerank_depth 0, no graph arm",
+      "store": "the same plain round bodies plus ProjectionSpec(name='dense', SEARCHABLE, vector=True) declared before writes; the full node body is embedded; vector coverage checked per store",
+      "variants": [
+        {
+          "id": "fathomdb-hybrid-stopwords",
+          "engine_config": {
+            "query_stop_words": {
+              "base": "fathomdb",
+              "extra": [
+                "had",
+                "long",
+                "suggest"
+              ]
+            }
+          },
+          "method": "Engine.search on the same store, reopened with EngineConfig.query_stop_words (REQ41-Q8)"
+        }
+      ]
+    },
+    {
+      "id": "lancedb-fts",
+      "product_arm": "lancedb",
+      "method": "table.search(query_type='fts'), native FTS index, library defaults",
+      "store": "reference"
+    }
+  ],
+  "retrieval": {
+    "top_k": 10,
+    "query": "question text verbatim",
+    "order": "arms rotate by question position (comp03_answer.arm_order)",
+    "store": "fresh store per question per arm, removed after",
+    "extra_limits": [
+      30,
+      50
+    ],
+    "limits": "each store is queried at top_k (timed, five repeats) and at every extra_limits value (ids_at, for the Slice 41 M1 evaluator, which needs each policy's own k because hybrid is not prefix-stable)",
+    "variants": "a variant reopens its arm's store after the default queries, with its engine_config, and is scored as its own arm; its store build is the parent's, so it differs from the parent only by the query setting; its timings follow a warm reopen and are not comparable to the parent's first-query latency"
+  },
+  "metrics": {
+    "ks": [
+      5,
+      10
+    ],
+    "names": [
+      "session_recall_any_at_k",
+      "session_recall_all_at_k",
+      "session_mrr_at_10",
+      "turn_recall_any_at_k"
+    ],
+    "bootstrap": {
+      "seed": 404,
+      "resamples": 10000,
+      "ci": "2.5th and 97.5th percentile of paired mean differences"
+    },
+    "latency": "first query and five repeats per store; hybrid query latency includes embedding the question",
+    "build": "ingest_ack_s, build_return_s, drain_s (hybrid: embedding time)"
+  },
+  "device": {
+    "env": "FATHOMDB_EMBED_DEVICE",
+    "values": "auto | cpu | cuda:N",
+    "cuda_fallback": "refused: a cuda:N request must resolve to an effective CUDA device with a selected UUID"
+  },
+  "decision_rule": {
+    "metric": "session_recall_any_at_5",
+    "treatment": "fathomdb-hybrid",
+    "control": "fathomdb-fts",
+    "focus_type": "single-session-preference"
+  },
+  "claim_boundary": {
+    "statement": "adopt hybrid for the answer run iff (a) preference session Recall@5 delta CI lower bound > 0, (b) no other type's delta CI upper bound < 0, (c) overall delta >= 0",
+    "reason": "EARP found hybrid null-or-negative on real traces, so adoption is decided by this pre-stated rule",
+    "scope": "retrieval only; no answerer or judge",
+    "slice41": "the stop-word variants and ids_at serve Slice 41 MQ1, MQ2 and M1; the decision rule still compares the default fathomdb-hybrid and fathomdb-fts arms"
+  },
+  "mq1": {
+    "arm": "fathomdb-fts",
+    "variant": "fathomdb-fts-stopwords",
+    "words": [
+      "had",
+      "long",
+      "suggest"
+    ],
+    "engine_stopwords": "experiments/configs/comp-03/stoplist-selection.v1.json",
+    "simulated_fts_ids": "experiments/configs/comp-03/stoplist-verdict.v1.json",
+    "pass": "REQ41 MQ1: for every question, the variant's top-10 equals the harness transform's top-10 (comp03_unit_h.simulated_query on the same store opened with the defaults); 500 of 500. The engine list's hash must equal the installed DEFAULT_STOP_WORDS_SHA256.",
+    "informative": "the count of questions whose variant top-10 equals the stoplist verdict's simulated_fts_ids (simulated at engine 5b09afd44); a difference there is a head difference, not a Unit Q defect"
+  }
+}

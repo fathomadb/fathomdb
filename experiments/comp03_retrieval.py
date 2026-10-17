@@ -37,12 +37,14 @@ __all__ = ["convert_question", "gold_for"]
 DEFAULT_CONFIG = _lib.EXPERIMENTS_DIR / "configs" / "comp-03" / "retrieval-sweep.v1.json"
 EXPERIMENT = "comp-03-retrieval-sweep"
 SCHEMA = "comp-03.retrieval-sweep.v1"
+SCHEMA_V2 = "comp-03.retrieval-sweep.v2"
 ARM_IDS = ["fathomdb-fts", "fathomdb-hybrid", "lancedb-fts"]
 CONFIG_KEYS = {
     "schema_version", "program_track", "campaign", "corpus", "selection", "document_unit",
     "arms", "retrieval", "metrics", "device", "decision_rule", "claim_boundary",
 }
 RULE_KEYS = {"metric", "treatment", "control", "focus_type"}
+MQ1_KEYS = {"arm", "variant", "words", "engine_stopwords", "simulated_fts_ids", "pass", "informative"}
 
 
 class Comp03RetrievalError(RuntimeError):
@@ -51,10 +53,16 @@ class Comp03RetrievalError(RuntimeError):
 
 def load_config(path: Path) -> dict[str, Any]:
     config = json.loads(Path(path).read_text(encoding="utf-8"))
-    if set(config) != CONFIG_KEYS:
-        raise Comp03RetrievalError(f"config keys mismatch: {sorted(set(config) ^ CONFIG_KEYS)}")
-    if config["schema_version"] != SCHEMA:
+    v2 = config.get("schema_version") == SCHEMA_V2
+    keys = CONFIG_KEYS | ({"mq1"} if v2 else set())
+    if set(config) != keys:
+        raise Comp03RetrievalError(f"config keys mismatch: {sorted(set(config) ^ keys)}")
+    if config["schema_version"] not in {SCHEMA, SCHEMA_V2}:
         raise Comp03RetrievalError("unsupported config schema_version")
+    if v2:
+        _check_v2(config)
+    elif any("variants" in arm or "engine_config" in arm for arm in config["arms"]):
+        raise Comp03RetrievalError("v1 arms take no variants or engine settings")
     if [arm["id"] for arm in config["arms"]] != ARM_IDS:
         raise Comp03RetrievalError(f"sweep arms are {', '.join(ARM_IDS)}")
     if any(arm["product_arm"] not in comp_fts.ARMS for arm in config["arms"]):
@@ -62,6 +70,74 @@ def load_config(path: Path) -> dict[str, Any]:
     if set(config["decision_rule"]) != RULE_KEYS:
         raise Comp03RetrievalError("decision_rule needs metric, treatment, control, focus_type")
     return config
+
+
+def _check_v2(config: Mapping[str, Any]) -> None:
+    """Slice 41: stop-word query variants of the FathomDB arms, extra limits, and MQ1."""
+    variant_ids = [v["id"] for arm in config["arms"] for v in arm.get("variants", [])]
+    arm_ids = [arm["id"] for arm in config["arms"]]
+    if len(set(variant_ids + arm_ids)) != len(variant_ids + arm_ids):
+        raise Comp03RetrievalError("arm and variant IDs must be distinct")
+    for arm in config["arms"]:
+        for variant in arm.get("variants", []):
+            comp_fts.configured_arm(arm["product_arm"], variant["engine_config"])
+    limits = config["retrieval"].get("extra_limits", [])
+    if any(limit <= config["retrieval"]["top_k"] for limit in limits) or limits != sorted(set(limits)):
+        raise Comp03RetrievalError("extra_limits ascend and exceed top_k")
+    mq1 = config["mq1"]
+    if set(mq1) != MQ1_KEYS:
+        raise Comp03RetrievalError(f"mq1 keys mismatch: {sorted(set(mq1) ^ MQ1_KEYS)}")
+    owner = next((arm for arm in config["arms"] if arm["id"] == mq1["arm"]), None)
+    variant = next((v for v in (owner or {}).get("variants", []) if v["id"] == mq1["variant"]), None)
+    if owner is None or owner["product_arm"] != "fathomdb" or variant is None:
+        raise Comp03RetrievalError("mq1 names a variant of the fathomdb FTS arm")
+    stop = variant["engine_config"]["query_stop_words"]
+    if stop.get("base", "fathomdb") != "fathomdb" or stop.get("keep") or list(stop["extra"]) != list(mq1["words"]):
+        raise Comp03RetrievalError("the mq1 variant adds exactly mq1.words to the built-in list")
+
+
+def _repo_path(value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else _lib.EXPERIMENTS_DIR.parent / path
+
+
+def check_engine_stopwords(words: Sequence[str]) -> None:
+    """The transform's engine list must be the installed engine's built-in list."""
+    import hashlib
+
+    import fathomdb
+
+    digest = hashlib.sha256("\n".join(sorted(set(words))).encode("utf-8")).hexdigest()
+    if digest != fathomdb.DEFAULT_STOP_WORDS_SHA256:
+        raise Comp03RetrievalError(
+            f"engine_stopwords hash {digest} is not the installed DEFAULT_STOP_WORDS_SHA256 "
+            f"{fathomdb.DEFAULT_STOP_WORDS_SHA256}")
+
+
+def derived_result(result: Mapping[str, Any], variant_id: str) -> dict[str, Any]:
+    """A variant's retrieval record: the parent store's build fields with the variant's IDs and timings."""
+    variant = result["variants"][variant_id]
+    shared = {k: result[k] for k in ("arm", "version", "documents", "blank_rounds_skipped", "disk_bytes", "setup",
+                                     "ingest_ack_s", "build_return_s", "drain_s", "vector_rows") if k in result}
+    return {**shared, **{k: variant[k] for k in ("settings", "engine_config", "stop_words_sha256", "ids", "ids_at",
+                                                 "latency_ms", "repeat_latency_ms")},
+            "variant_of": result.get("store_arm"), "store": "the parent arm's store, reopened with engine_config"}
+
+
+def mq1_table(results: Mapping[str, Mapping[str, Any]], *, variant: str,
+              simulated: Mapping[str, Sequence[str]]) -> dict[str, Any]:
+    """MQ1: the setting's top-k against the harness transform's, per question; ``simulated`` is informative."""
+    differing = sorted(qid for qid, r in results.items() if r["variants"][variant]["ids"] != r["transform"]["ids"])
+    sim = [qid for qid in results if qid in simulated]
+    return {
+        "questions": len(results),
+        "equal_transform": len(results) - len(differing),
+        "differing_transform": differing,
+        "pass": bool(results) and not differing,
+        "simulated": {"questions": len(sim),
+                      "equal": sum(results[q]["variants"][variant]["ids"] == list(simulated[q]) for q in sim),
+                      "informative": True},
+    }
 
 
 # --- metrics -----------------------------------------------------------------
@@ -210,30 +286,66 @@ def sweep(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, fat
     if max_questions is not None:
         items = items[:max_questions]
     arms = [(arm["id"], arm["product_arm"]) for arm in config["arms"]]
+    by_id = {arm["id"]: arm for arm in config["arms"]}
     top_k, ks = config["retrieval"]["top_k"], config["metrics"]["ks"]
+    extra_limits = tuple(config["retrieval"].get("extra_limits", ()))
+    mq1 = config.get("mq1")
+    transform = None
+    if mq1 is not None and mq1["arm"] in by_id:
+        engine_stopwords = _read_json(_repo_path(mq1["engine_stopwords"]))["engine_stopwords"]
+        check_engine_stopwords(engine_stopwords)
+        transform = {"words": list(mq1["words"]), "engine_stopwords": engine_stopwords}
     attempt_root.mkdir(parents=True, exist_ok=True)
     _write_json(attempt_root / "config.resolved.json", config)
     rows: list[dict[str, Any]] = []
-    results: dict[str, list[dict[str, Any]]] = {arm_id: [] for arm_id, _ in arms}
+    results: dict[str, list[dict[str, Any]]] = {}
+    for arm in config["arms"]:
+        results[arm["id"]] = []
+        for variant in arm.get("variants", []):
+            results[variant["id"]] = []
+    mq1_results: dict[str, dict[str, Any]] = {}
     for index, item in enumerate(items):
         case, gold = convert_question(item), gold_for(item)
         qid = case["question_id"]
         for arm_id, product in comp03_answer.arm_order(index, arms):
             path = attempt_root / "questions" / qid / arm_id / "retrieval.json"
+            variants = by_id[arm_id].get("variants", [])
             if not path.exists():
+                kwargs: dict[str, Any] = {}
+                if extra_limits:
+                    kwargs["extra_limits"] = extra_limits
+                if variants:
+                    kwargs["variants"] = variants
+                if transform is not None and arm_id == mq1["arm"]:
+                    kwargs["transform"] = transform
                 result = comp03_answer.retrieve(product, case, attempt_root / "work", top_k=top_k,
-                                                fathomdb_bin=fathomdb_bin, store_label=arm_id)
+                                                fathomdb_bin=fathomdb_bin, store_label=arm_id, **kwargs)
                 if "vector_rows" in result and result["vector_rows"] != result["documents"]:
                     raise Comp03RetrievalError(f"{qid}/{arm_id}: incomplete vector coverage")
                 _record_device(attempt_root, getattr(comp_fts.ARMS[product], "device", None))
+                result["store_arm"] = arm_id
                 _write_json(path, result)
             result = _read_json(path)
-            results[arm_id].append(result)
-            if not gold["abstention"]:
-                rows.append({"question_id": qid, "question_type": case["question_type"], "arm": arm_id,
-                             **question_scores(result["ids"], gold, ks)})
+            scored = [(arm_id, result)]
+            for variant in variants:
+                vpath = attempt_root / "questions" / qid / variant["id"] / "retrieval.json"
+                if not vpath.exists():
+                    _write_json(vpath, derived_result(result, variant["id"]))
+                scored.append((variant["id"], _read_json(vpath)))
+            if transform is not None and arm_id == mq1["arm"]:
+                mq1_results[qid] = result
+            for scored_id, scored_result in scored:
+                results[scored_id].append(scored_result)
+                if not gold["abstention"]:
+                    rows.append({"question_id": qid, "question_type": case["question_type"], "arm": scored_id,
+                                 **question_scores(scored_result["ids"], gold, ks)})
         print(f"[{index + 1}/{len(items)}] {qid}", flush=True)
     summary = summarize(config, rows, results, attempt_root)
+    if transform is not None:
+        verdict = _read_json(_repo_path(mq1["simulated_fts_ids"]))
+        summary["mq1"] = {**mq1_table(mq1_results, variant=mq1["variant"],
+                                      simulated=verdict.get("simulated_fts_ids", {})),
+                          "variant": mq1["variant"], "words": list(mq1["words"])}
     _write_json(attempt_root / "summary.json", summary)
     return summary
 
@@ -259,6 +371,7 @@ def summarize(config: Mapping[str, Any], rows: Sequence[Mapping[str, Any]],
                          for t in sorted({r["question_type"] for r in mine})},
             "timing": _timing(arm_results),
             "questions": len(arm_results),
+            "stop_words_sha256": sorted({r["stop_words_sha256"] for r in arm_results if r.get("stop_words_sha256")}),
         }
     treatment, control = rule["treatment"], rule["control"]
     deltas: dict[str, Any] = {}
@@ -271,7 +384,8 @@ def summarize(config: Mapping[str, Any], rows: Sequence[Mapping[str, Any]],
                     "reason": f"sweep lacks {treatment} or {control}"}
     device_path = attempt_root / "device.json"
     return {
-        "schema_version": "comp-03.retrieval-sweep.summary.v1",
+        "schema_version": ("comp-03.retrieval-sweep.summary.v2" if config["schema_version"] == SCHEMA_V2
+                           else "comp-03.retrieval-sweep.summary.v1"),
         "questions": max((len(v) for v in results.values()), default=0),
         "arms": arms_out,
         "deltas": {"treatment": treatment, "control": control, "by_metric": deltas},

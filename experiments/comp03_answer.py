@@ -72,7 +72,34 @@ V2_ARMS = ["fathomdb-fts", "fathomdb-hybrid", "lancedb-fts"]
 
 
 def load_config(path: Path) -> dict[str, Any]:
-    config = json.loads(Path(path).read_text(encoding="utf-8"))
+    return load_config_obj(json.loads(Path(path).read_text(encoding="utf-8")))
+
+
+V4_EVIDENCE_KEYS = {"renderer", "item_source", "pack"}
+
+
+def _check_v4(config: Mapping[str, Any]) -> None:
+    """Slice 41 M3: free arm IDs, each with its retrieval depth, pack evidence, renderer label and settings."""
+    ids = [arm["id"] for arm in config["arms"]]
+    if len(set(ids)) != len(ids) or not ids:
+        raise Comp03Error("v4 arm IDs must be distinct")
+    for arm in config["arms"]:
+        if product_arm(arm) not in comp_fts.ARMS:
+            raise Comp03Error(f"{arm['id']}: unknown product arm")
+        if not isinstance(arm.get("top_k"), int) or not isinstance(arm.get("renderer"), str):
+            raise Comp03Error(f"{arm['id']}: v4 arms need an integer top_k and a renderer label")
+        evidence = arm.get("evidence", {})
+        if set(evidence) - {"harness_rule"} != V4_EVIDENCE_KEYS or evidence["renderer"] != "pack_context" \
+                or evidence["item_source"] != "caller":
+            raise Comp03Error(f"{arm['id']}: v4 evidence is pack_context over caller items")
+        try:
+            comp_fts.configured_arm(product_arm(arm), arm.get("engine_config"))
+        except ValueError as exc:
+            raise Comp03Error(f"{arm['id']}: {exc}") from exc
+
+
+def load_config_obj(config: dict[str, Any]) -> dict[str, Any]:
+    """Validate a config object (``load_config`` reads one from a file); returns it."""
     keys = CONFIG_KEYS | ({"decision_rule"} if config.get("schema_version") == "comp-03.answer.v3" else set())
     if set(config) != keys:
         raise Comp03Error(f"config keys mismatch: {sorted(set(config) ^ keys)}")
@@ -82,6 +109,8 @@ def load_config(path: Path) -> dict[str, Any]:
     if config["schema_version"] == "comp-03.answer.v1":
         if [arm["id"] for arm in config["arms"]] != ["fathomdb", "lancedb"]:
             raise Comp03Error("COMP-03 arms are fathomdb then lancedb")
+    elif config["schema_version"] == "comp-03.answer.v4":
+        _check_v4(config)
     elif config["schema_version"] in {"comp-03.answer.v2", "comp-03.answer.v3"}:
         if [arm["id"] for arm in config["arms"]] != V2_ARMS:
             raise Comp03Error(f"COMP-03 v2 arms are {', '.join(V2_ARMS)}")
@@ -413,43 +442,102 @@ def _fresh_root(workdir: Path, test_id: str, arm: str, fathomdb_bin: str | None)
     return root, None
 
 
+def _stop_words_sha256(handle: Any) -> str | None:
+    report = getattr(handle, "open_report", None)
+    return None if report is None else report().stop_words_sha256
+
+
+def _timed_queries(arm: Any, handle: Any, question: str, top_k: int, label: str) -> tuple[list[str], float, list[float]]:
+    started = time.perf_counter_ns()
+    ids = arm.query(handle, question, limit=top_k)
+    latency_ms = (time.perf_counter_ns() - started) / 1e6
+    repeats = []
+    for _ in range(REPEATS):
+        started = time.perf_counter_ns()
+        again = arm.query(handle, question, limit=top_k)
+        repeats.append((time.perf_counter_ns() - started) / 1e6)
+        if again != ids:
+            raise Comp03Error(f"{label} returned unstable results")
+    return ids, latency_ms, repeats
+
+
+def _ids_at(arm: Any, handle: Any, question: str, ids: list[str], top_k: int,
+            extra_limits: Sequence[int]) -> dict[str, list[str]]:
+    out = {str(top_k): ids}
+    for limit in extra_limits:
+        out[str(limit)] = arm.query(handle, question, limit=limit)
+    return out
+
+
 def retrieve(arm_name: str, case: Mapping[str, Any], workdir: Path, *, top_k: int,
-             fathomdb_bin: str | None, store_label: str | None = None) -> dict[str, Any]:
+             fathomdb_bin: str | None, store_label: str | None = None,
+             engine_config: Mapping[str, Any] | None = None, extra_limits: Sequence[int] = (),
+             variants: Sequence[Mapping[str, Any]] = (),
+             transform: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Build one fresh isolated store, query it, record IDs and timings, delete it.
 
     ``arm_name`` is the ``comp_fts.ARMS`` key; ``store_label`` (default
     ``arm_name``) names the store directory. Whitespace-only rounds are not
     indexed (FathomDB rejects blank bodies, and every arm must index the same
     set); round IDs stay positional and ``case["docs"]`` is left intact.
+
+    Slice 41: ``engine_config`` opens the store with per-open engine settings
+    (``comp_fts.configured_arm``); ``extra_limits`` adds the IDs at each further
+    limit under ``ids_at``. Each of ``variants`` (``{"id", "engine_config"}``)
+    reopens the same store with its settings and records its own IDs, limits
+    and timings. ``transform`` (``{"words", "engine_stopwords"}``) queries the
+    default-opened store with the H1 removal transform (MQ1).
     """
-    arm = comp_fts.ARMS[arm_name]
+    arm = comp_fts.configured_arm(arm_name, dict(engine_config) if engine_config else None)
     indexed = [{"id": d["id"], "body": d["body"]} for d in case["docs"] if d["body"].strip()]
     test_id = f"{case['question_id'].lower().replace('_', '-')}-{store_label or arm_name}"
     root, setup = _fresh_root(workdir, test_id, arm_name, fathomdb_bin)
+    question = case["question"]
+    label = f"{arm_name} for {case['question_id']}"
+    extra: dict[str, Any] = {}
     try:
         build = arm.build(root, indexed)
         handle = arm.open(root)
         try:
-            started = time.perf_counter_ns()
-            ids = arm.query(handle, case["question"], limit=top_k)
-            latency_ms = (time.perf_counter_ns() - started) / 1e6
-            repeats = []
-            for _ in range(REPEATS):
-                started = time.perf_counter_ns()
-                again = arm.query(handle, case["question"], limit=top_k)
-                repeats.append((time.perf_counter_ns() - started) / 1e6)
-                if again != ids:
-                    raise Comp03Error(f"{arm_name} returned unstable results for {case['question_id']}")
+            ids, latency_ms, repeats = _timed_queries(arm, handle, question, top_k, label)
+            if extra_limits:
+                extra["ids_at"] = _ids_at(arm, handle, question, ids, top_k, extra_limits)
+            sha = _stop_words_sha256(handle)
+            if sha is not None:
+                extra["stop_words_sha256"] = sha
+            if transform is not None:
+                from experiments.comp03_unit_h import simulated_query
+
+                text = simulated_query(question, transform["words"], transform["engine_stopwords"])
+                extra["transform"] = {"query": text, "ids": arm.query(handle, text, limit=top_k)}
         finally:
             arm.close(handle)
+        if variants:
+            extra["variants"] = {}
+        for variant in variants:
+            varm = comp_fts.configured_arm(arm_name, dict(variant["engine_config"]))
+            vhandle = varm.open(root)
+            try:
+                vids, vlatency, vrepeats = _timed_queries(varm, vhandle, question, top_k,
+                                                          f"{label} ({variant['id']})")
+                extra["variants"][variant["id"]] = {
+                    "engine_config": dict(variant["engine_config"]), "settings": varm.settings(),
+                    "stop_words_sha256": _stop_words_sha256(vhandle), "ids": vids,
+                    "ids_at": _ids_at(varm, vhandle, question, vids, top_k, extra_limits),
+                    "latency_ms": vlatency, "repeat_latency_ms": vrepeats,
+                }
+            finally:
+                varm.close(vhandle)
         disk = comp_fts._disk_bytes(root)
     finally:
         shutil.rmtree(root, ignore_errors=True)
+    if engine_config:
+        extra["engine_config"] = dict(engine_config)
     return {
         "arm": arm_name, "version": arm.version(), "settings": arm.settings(), "documents": len(indexed),
         "blank_rounds_skipped": len(case["docs"]) - len(indexed),
         "ids": ids, "latency_ms": latency_ms, "repeat_latency_ms": repeats, "disk_bytes": disk,
-        "setup": setup, **build,
+        "setup": setup, **build, **extra,
     }
 
 
@@ -537,8 +625,17 @@ def _host() -> dict[str, Any]:
 
 
 def _render_for_run(case: Mapping[str, Any], ids: Sequence[str],
-                    evidence: Mapping[str, Any]) -> tuple[str, dict[str, int]]:
-    """The evidence a run sends, with v3's round and character counts (empty for v1/v2)."""
+                    evidence: Mapping[str, Any], item: Mapping[str, Any] | None = None) -> tuple[str, dict[str, int]]:
+    """The evidence a run sends, with v3's round and character counts (empty for v1/v2).
+
+    v4 arms render through ``pack_context`` from the dataset ``item`` (Slice 41).
+    """
+    if evidence.get("renderer") == "pack_context":
+        from experiments import comp03_pack
+
+        record = comp03_pack.evidence_record(item, ids, evidence)
+        return record["text"], {"rounds_in_prompt": record["rounds_in_prompt"],
+                                "evidence_round_chars": record["chars"], "forced_full": record["forced"]}
     if "policy" in evidence:
         record = evidence_record(case, ids, evidence)
         return record["text"], {"rounds_in_prompt": record["rounds_in_prompt"], "evidence_round_chars": record["chars"]}
@@ -566,6 +663,9 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
     arms = tuple(arm["id"] for arm in running)
     products = {arm["id"]: product_arm(arm) for arm in running}
     live, ev, top_k = config["live"], config["evidence"], config["retrieval"]["top_k"]
+    arm_spec = {arm["id"]: arm for arm in running}
+    arm_ev = {arm["id"]: arm.get("evidence", ev) for arm in running}
+    arm_k = {arm["id"]: arm.get("top_k", top_k) for arm in running}
     attempt_root.mkdir(parents=True, exist_ok=True)
     _write_json(attempt_root / "config.resolved.json", config)
     spend = {"usd": sum(_read_json(p)["usd"] for p in attempt_root.glob("questions/*/*/*-call.json"))}
@@ -578,15 +678,16 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
         for arm in order:
             adir = qdir / arm
             if not (adir / "retrieval.json").exists():
-                result = retrieve(products[arm], case, attempt_root / "work", top_k=top_k,
-                                  fathomdb_bin=fathomdb_bin, store_label=arm)
-                evidence, counts = _render_for_run(case, result["ids"], ev)
+                kwargs = {"engine_config": arm_spec[arm]["engine_config"]} if arm_spec[arm].get("engine_config") else {}
+                result = retrieve(products[arm], case, attempt_root / "work", top_k=arm_k[arm],
+                                  fathomdb_bin=fathomdb_bin, store_label=arm, **kwargs)
+                evidence, counts = _render_for_run(case, result["ids"], arm_ev[arm], dataset[qid])
                 result["evidence_sha256"] = hashlib.sha256(evidence.encode("utf-8")).hexdigest()
                 result["evidence_chars"] = len(evidence)
                 result.update(counts)
                 _write_json(adir / "retrieval.json", result)
             retrieval = _read_json(adir / "retrieval.json")
-            evidence, counts = _render_for_run(case, retrieval["ids"], ev)
+            evidence, counts = _render_for_run(case, retrieval["ids"], arm_ev[arm], dataset[qid])
             if hashlib.sha256(evidence.encode("utf-8")).hexdigest() != retrieval["evidence_sha256"]:
                 raise Comp03Error(f"evidence for {qid}/{arm} no longer matches its retrieval")
             if not (adir / "answer-call.json").exists():
@@ -614,6 +715,12 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
     metrics["selection_matches_seed"] = seeded == list(sel["question_ids"])
     if config["schema_version"] != "comp-03.answer.v1":
         metrics["arm_gate"] = gate
+    if config["schema_version"] == "comp-03.answer.v4":
+        renderers = {arm: arm_spec[arm]["renderer"] for arm in arms}
+        metrics["renderer_by_arm"] = renderers
+        for table in ("timing", "retrieval"):
+            for arm in arms:
+                metrics[table][arm]["renderer"] = renderers[arm]
     _write_json(attempt_root / "summary.json", metrics)
     return write_receipt(config, metrics, attempt_root=attempt_root, dataset_path=dataset_path,
                          base_dir=base_dir, config_path=config_path, engine=engine)

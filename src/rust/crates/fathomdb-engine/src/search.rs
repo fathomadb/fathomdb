@@ -220,10 +220,11 @@ pub(crate) fn read_projected_text_in_tx(
     filter: Option<&SearchFilter>,
     limit: usize,
     view: ReadView,
+    stop_words: &StopWordSet,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> ProjectedTextReaderResponse {
-    let compiled = compile_text_query(query);
+    let compiled = compile_text_query_with(query, stop_words);
     let frozen = view.freeze();
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let registry = load_projection_registry(&tx)?;
@@ -571,6 +572,7 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
     work: SearchReaderWork,
     capture: C,
+    stop_words: &StopWordSet,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<C::Output, SearchReaderError> {
@@ -597,6 +599,7 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
         work.frozen_binding.as_deref(),
         work.frozen_query_runtime.as_deref(),
         work.expand_depth,
+        stop_words,
         attribution,
         worker_idx,
         capture,
@@ -1535,6 +1538,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     frozen_query_runtime: Option<&FrozenQueryRuntime>,
     expand_depth: Option<u32>,
+    stop_words: &StopWordSet,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
     mut capture: C,
@@ -1616,7 +1620,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         if raw_query.trim().is_empty() || raw_query.as_bytes().contains(&0) {
             return Err(SearchReaderError::WriteValidation);
         }
-        owned_compiled = compile_text_query(raw_query);
+        owned_compiled = compile_text_query_with(raw_query, stop_words);
         let raw_vector = search_query_vector(&runtime.embed_dispatch, raw_query)
             .map_err(SearchReaderError::Evidence)?;
         owned_query_vector_bin = match raw_vector.as_ref() {
@@ -2601,6 +2605,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 text_hits: exp_text_n,
                 graph_hits: exp_graph_n,
                 dropped_edge_hits,
+                stop_words_sha256: stop_words.sha256().to_string(),
             },
             per_hit,
             correlation_id: String::new(),
@@ -2664,7 +2669,7 @@ use crate::wal_attribution::WalAttributionCollector;
 use crate::write_commit::load_next_cursor;
 use fathomdb_embedder::RerankerDevicePolicyError;
 use fathomdb_embedder_api::EmbedderIdentity;
-use fathomdb_query::compile_text_query;
+use fathomdb_query::{compile_text_query_with, StopWordSet};
 use rusqlite::{params, CachedStatement, Connection, OptionalExtension, Statement};
 use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};

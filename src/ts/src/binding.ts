@@ -313,6 +313,7 @@ interface NativeQueryTrace {
   textHits: number;
   graphHits: number;
   droppedEdgeHits: number;
+  stopWordsSha256?: string;
 }
 
 export interface NativePerHitExplain {
@@ -655,6 +656,7 @@ export interface NativeOpenReport {
   // 0.8.23 Slice 80.6 (D-80.6-6) — `null` means no witness was taken, never
   // "a witness measured nothing".
   embedderGpuAllocationWitness?: NativeGpuAllocationWitness | null;
+  stopWordsSha256?: string;
 }
 
 interface NativeCounterSnapshot {
@@ -675,6 +677,7 @@ interface NativeEngineConfig {
   cudaPool?: string;
   cudaPoolMaxSize?: number;
   cudaPoolReleaseThreshold?: string;
+  queryStopWords?: { base?: string; extra?: readonly string[]; keep?: readonly string[] };
 }
 
 // Slice 20 (G5/G6) — graph traversal result shapes.
@@ -886,6 +889,10 @@ export interface NativeModule {
   };
   /** Module-level CLS-pooled batch embedder (Python: `embed_batch_cls`). */
   embedBatchCls(texts: string[]): Promise<number[][]>;
+  /** 0.8.28 Slice 41 — context pack JSON wire (wrapped by `packContext`). */
+  packContextJson(request: string): string;
+  encodeRoundBodyJson(parts: string): string;
+  decodeRoundBodyJson(body: string): string;
   /** Module-level standalone reranker (Python: `rerank`). */
   rerank(
     query: string,

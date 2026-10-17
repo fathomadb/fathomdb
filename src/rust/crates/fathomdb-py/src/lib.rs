@@ -139,6 +139,8 @@ mod graph_evidence;
 use graph_evidence::*;
 mod embedding;
 use embedding::*;
+mod context_pack;
+use context_pack::*;
 #[cfg(any(test, feature = "test-hooks"))]
 mod test_support;
 #[cfg(any(test, feature = "test-hooks"))]
@@ -262,6 +264,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyExpandedNode>()?;
     m.add_class::<PySearchExpandResult>()?;
     m.add_class::<PyRuntimeConfiguration>()?;
+    m.add("DEFAULT_STOP_WORDS_SHA256", fathomdb_engine::DEFAULT_STOP_WORDS_SHA256)?;
     m.add_function(wrap_pyfunction!(admin_configure_runtime, &m)?)?;
     m.add_function(wrap_pyfunction!(admin_configure, &m)?)?;
     // OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle verbs.
@@ -303,6 +306,10 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // 0.8.2 Slice E2 — standalone rerank over an arbitrary passage list.
     m.add_function(wrap_pyfunction!(rerank, &m)?)?;
     m.add_function(wrap_pyfunction!(embed_batch_cls, &m)?)?;
+    // 0.8.28 Slice 41 — context pack JSON wire (wrapped by fathomdb._sdk_context_pack).
+    m.add_function(wrap_pyfunction!(_pack_context_json, &m)?)?;
+    m.add_function(wrap_pyfunction!(_encode_round_body_json, &m)?)?;
+    m.add_function(wrap_pyfunction!(_decode_round_body_json, &m)?)?;
 
     #[cfg(any(test, feature = "test-hooks"))]
     m.add_function(wrap_pyfunction!(force_panic_for_test, &m)?)?;

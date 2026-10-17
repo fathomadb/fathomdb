@@ -198,6 +198,11 @@ pub use fathomdb_engine::{
     CudaPoolMode, CudaPoolSettingConflict, CudaPoolSettingValue, PoolSettingSource,
     ReleaseThreshold, CUDA_POOL_MAX_SIZE_MIN,
 };
+// 0.8.28 Slice 41 phase 2 (unit Q): the `EngineConfig::query_stop_words`
+// setting, its refusal reason, and the default list's hash.
+pub use fathomdb_engine::{
+    QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,
+};
 
 // The operator-seam report types (`dev/interfaces/rust.md` § 2b) — CLI-only,
 // gated behind `operator`. The backing `Engine` methods are operator-gated in

@@ -36,7 +36,7 @@ The checker also refuses these routes to the core:
 
 Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
 against the `rust` endpoints of `src/conformance/governed-operation-parity.json`
-(44/44 live operations).
+(48/48 live operations).
 
 ## Translation rules
 
@@ -223,6 +223,10 @@ impls for both. `Unified` is lowered through the public
 | `admin.configure` | `admin::configure(engine, name: &str, body: &str) -> Result<WriteReceipt>` | `write(&[PreparedWrite::AdminSchema { name, kind: "latest_state", schema_json: body, retention_json: "{}" }])` |
 | — | `admin::configure_runtime(sqlite_mode: RuntimeSqliteMode) -> Result<RuntimeConfiguration>` | `fathomdb_engine::configure_runtime` |
 | `rerank` | `rerank(query: &str, passages: &[RerankPassage], rerank_depth: usize, options: RerankOptions) -> Result<Vec<RerankResult>>`. Takes `RerankPassage { id: u64, body: String, score: f64 }` and returns `RerankResult { id: u64, score: f64, ce_score: Option<f64> }`. A non-finite `alpha` is `InvalidArgument`, matching TypeScript. A non-finite passage `score` is `WriteValidation`, following Python and napi; a reranker refusal from the core's `RerankPassagesError` keeps its typed kind (`RerankerDevicePolicy` or a CUDA pool kind). This is a deliberate exception to rule 6, because the TypeScript wrapper's `RangeError` is a host-side check. | `fathomdb_engine::rerank_passages` |
+| `pack_context` | `pack_context(hits: &[ContextItem], policy: &ContextPolicy, context: &[ContextItem]) -> Result<ContextPack>`. Pure; no engine. Invalid input is `InvalidArgument` whose message names the field. See § Context pack. | `fathomdb_engine::pack_context` |
+| `encode_round_body` | `encode_round_body(parts: &[ContextPart]) -> Result<String>`. | `fathomdb_engine::encode_round_body` |
+| `decode_round_body` | `decode_round_body(body: &str) -> Result<Vec<ContextPart>>`. | `fathomdb_engine::decode_round_body` |
+| `context_item_from_hit` | `context_item_from_hit(hit: &SearchHit, options: ContextHitOptions) -> Result<ContextItem>`. `ContextHitOptions { group, position, order_key, header }` defaults to all `None`. | `IdSpace::to_prefixed` plus `decode_round_body` |
 | — | `embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>>`. With `default-embedder`: empty input returns `[]`; the embedder is a process singleton cached only on success. CUDA pool failures during load or embedding retain their typed CUDA kinds and details; other load failures are `EmbedderNotConfigured`, and other embedding failures are `Embedder`. Without the feature, every call, including one with empty input, returns `EmbedderNotConfigured`. | `CandleBgeEmbedder::new()?.with_pooling(Pooling::Cls)` then `Embedder::embed_batch` |
 
 The namespace functions take `&Engine` first, as the Python and TypeScript
@@ -508,3 +512,29 @@ The signatures are unchanged. The following search behaviour changed or is clari
   rerank depth 0 and no graph arm, a search with limit `k` returns the first `k` results of the same
   search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
   guaranteed.
+
+## Query stop words (0.8.28 Slice 41 phase 2)
+
+`OpenOptions.config.query_stop_words: Option<QueryStopWords>` is the core
+setting, re-exported with `StopWordBase`, `StopWordRejection` and
+`DEFAULT_STOP_WORDS_SHA256` ([`rust.md`](rust.md) § Query stop words;
+[`python.md`](python.md) § Query stop words is the full contract). A refused
+setting is `ErrorKind::InvalidArgument` at open, with a message naming the
+field. `open_report().stop_words_sha256` and the explain trace's
+`stop_words_sha256` carry the effective hash. `EngineConfigurationError` is
+`#[non_exhaustive]` since this slice; SDK error mapping already uses a
+wildcard.
+
+## Context pack (0.8.28 Slice 41)
+
+The behaviour, the types and the round-body convention are shared with
+Python and TypeScript; [`python.md`](python.md) § Context pack is the full
+contract. The Rust spellings are `ContextPart`, `ContextItem`,
+`ContextPolicy` (`Default` = the product defaults), `ContextOrder::{Rank,
+Chronological}`, `ContextPack`, `ContextPackEntry`, `ContextPartEntry`,
+`ContextSource::{Hit, Context}` and `ContextTier::{Full, Compact, Omitted}`.
+`ContextPolicy::full_ids: Vec<String>` (default empty) and
+`ContextPackEntry::forced` are the phase 2 full-render override.
+`position` is `Option<u64>`; counts are `usize`, so negative counts cannot
+be expressed. Characters are Unicode scalar values (`str::chars`). The
+shared conformance fixture is `src/conformance/context-pack-fixtures.json`.

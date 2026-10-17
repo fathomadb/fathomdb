@@ -346,6 +346,7 @@ pub struct QueryTrace {
     pub text_hits: u32,
     pub graph_hits: u32,
     pub dropped_edge_hits: u32,
+    pub stop_words_sha256: String,
 }
 
 impl QueryTrace {
@@ -364,6 +365,7 @@ impl QueryTrace {
             text_hits: t.text_hits,
             graph_hits: t.graph_hits,
             dropped_edge_hits: t.dropped_edge_hits,
+            stop_words_sha256: t.stop_words_sha256.clone(),
         }
     }
 }

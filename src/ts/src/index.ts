@@ -42,7 +42,27 @@ export {
   ConsolidateAxis,
 } from "./write.js";
 export { embedBatchCls, RerankPassage, RerankOptions, RerankResult, rerank } from "./embedding.js";
-export { EngineConfig, EngineOpenOptions, Engine } from "./core.js";
+export {
+  ContextHitOptions,
+  ContextItem,
+  ContextPack,
+  ContextPackEntry,
+  ContextPart,
+  ContextPartEntry,
+  ContextPolicy,
+  DEFAULT_CONTEXT_POLICY,
+  contextItemFromHit,
+  decodeRoundBody,
+  encodeRoundBody,
+  packContext,
+} from "./context-pack.js";
+export {
+  DEFAULT_STOP_WORDS_SHA256,
+  EngineConfig,
+  EngineOpenOptions,
+  Engine,
+  QueryStopWords,
+} from "./core.js";
 export {
   ProjectionReadinessV1,
   ProjectionRuntimeStateV1,

@@ -12,6 +12,24 @@ from typing import Literal
 
 
 @dataclass(frozen=True)
+class QueryStopWords:
+    """Query stop words for one opened engine: ``(base ∪ extra) \\ keep``.
+
+    ``base`` is ``"fathomdb"`` (the built-in list) or ``"none"``. Each word is
+    one lowercase alphanumeric token, at most 64 characters, at most 256 per
+    list, matched exactly against the query's tokens before stemming and
+    without diacritic folding (``suggest`` does not drop ``suggests``). Every
+    ``keep`` word must be in ``base`` and no ``extra`` word may be. The engine
+    checks the words at open and raises ``InvalidArgumentError`` naming the
+    field; the setting is not stored in the database.
+    """
+
+    base: Literal["fathomdb", "none"] = "fathomdb"
+    extra: tuple[str, ...] = ()
+    keep: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class EngineConfig:
     """Engine-owned runtime knobs.
 
@@ -34,6 +52,9 @@ class EngineConfig:
     cuda_pool: Literal["auto", "on", "off"] | None = None
     cuda_pool_max_size: int | None = None
     cuda_pool_release_threshold: Literal["0", "max"] | None = None
+    #: Query stop words; ``None`` is the built-in list. Fixed at open and
+    #: recorded as ``stop_words_sha256`` on the open report and on traces.
+    query_stop_words: QueryStopWords | None = None
 
 
-__all__ = ["EngineConfig"]
+__all__ = ["EngineConfig", "QueryStopWords"]

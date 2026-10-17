@@ -7,7 +7,9 @@ pub use codec::{
     decode_graph_expand_request_v1, decode_graph_expand_result_v1, encode_graph_expand_request_v1,
     encode_graph_expand_result_v1,
 };
+#[cfg(test)]
 pub(super) use execution::read_graph_expand_in_tx;
+pub(super) use execution::read_graph_expand_with_stop_words_in_tx;
 #[cfg(feature = "test-hooks")]
 pub(super) use execution::{count_graph_expand_sql_statement, GraphExpandReaderControlsForTest};
 #[cfg(feature = "test-hooks")]

@@ -299,6 +299,11 @@ export interface QueryTrace {
   graphHits: number;
   /** Edge-FTS candidates excluded only by a node-scoped attribute predicate. */
   droppedEdgeHits: number;
+  /**
+   * SHA-256 (lowercase hex) of the engine's effective query stop words, sorted
+   * and joined by newline; {@link DEFAULT_STOP_WORDS_SHA256} for the built-in list.
+   */
+  stopWordsSha256: string;
 }
 
 /**
@@ -498,6 +503,9 @@ export function mapCandidateNativeExplanation(
   const textHits = u32(trace.textHits, "/trace/textHits");
   const graphHits = u32(trace.graphHits, "/trace/graphHits");
   const droppedEdgeHits = u32(trace.droppedEdgeHits, "/trace/droppedEdgeHits");
+  // Additive 0.8.28 field: an older native trace without it maps to "".
+  const stopWordsSha256 = trace.stopWordsSha256 ?? "";
+  if (typeof stopWordsSha256 !== "string") invalid("/trace/stopWordsSha256");
   if (
     value.correlationId !== undefined &&
     (typeof value.correlationId !== "string" ||
@@ -559,6 +567,7 @@ export function mapCandidateNativeExplanation(
       textHits,
       graphHits,
       droppedEdgeHits,
+      stopWordsSha256,
     },
     perHit,
     correlationId: value.correlationId,

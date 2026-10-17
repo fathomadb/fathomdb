@@ -30,4 +30,5 @@ rerank-cuda = ["default-reranker", "tegra-pool", "fathomdb-engine/rerank-cuda"]
 rerank-metal = ["default-reranker", "fathomdb-engine/rerank-metal"]
 
 [dev-dependencies]
+serde_json = "1"
 tempfile = "3"

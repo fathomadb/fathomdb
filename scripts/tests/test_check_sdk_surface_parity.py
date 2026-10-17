@@ -167,8 +167,8 @@ class ParityValidatorTests(unittest.TestCase):
         ) as handle:
             companion = json.load(handle)
         checker.validate_contract(signed, companion)
-        self.assertEqual(len(signed["allowlist"]), 69)
-        self.assertEqual(len(checker.live_canonical_ids(companion)), 44)
+        self.assertEqual(len(signed["allowlist"]), 77)
+        self.assertEqual(len(checker.live_canonical_ids(companion)), 48)
 
     def test_one_sided_removal_fails(self) -> None:
         self.assert_observed_invalid(
@@ -364,7 +364,7 @@ class RustSdkObserverTests(unittest.TestCase):
             checker.validate_observed(companion, "rust", observed),
             checker.live_canonical_ids(companion),
         )
-        self.assertEqual(len(observed), 44)
+        self.assertEqual(len(observed), 48)
 
     def test_cli_observes_rust_crate(self) -> None:
         self.assertEqual(checker.main(["--binding", "rust", "--rust-crate", str(RUST_SDK)]), 0)

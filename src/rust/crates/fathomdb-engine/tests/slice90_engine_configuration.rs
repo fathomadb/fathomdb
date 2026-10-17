@@ -27,6 +27,7 @@ fn requested_configuration_is_retained_without_setter_mutation() {
         cuda_pool: None,
         cuda_pool_max_size: None,
         cuda_pool_release_threshold: None,
+        query_stop_words: None,
     };
     let opened = Engine::open_with_choice_and_config(
         database_path(&dir, "configured"),

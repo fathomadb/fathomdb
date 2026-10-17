@@ -1,0 +1,592 @@
+{
+  "_comment": "0.8.28 Slice 41 context-pack conformance fixtures. Every expected value is written by hand from requirements REQ41-P2..P9 and REQ41-B1..B5 (dev/plans/0.8.28/features/slice-41/requirements.md) and checked by hand; none is captured from code. `typed` marks error cases a typed SDK API can express; `json_only` marks cases only the JSON wire can express. The Rust, Python and TypeScript suites load this file and compare text bytes and every provenance field. Policies are scaled down (small budgets) so the rules are visible at hand-checkable sizes.",
+  "schema_version": "fathomdb.context-pack-fixtures/v1",
+  "defaults": {
+    "budget_chars": 30000,
+    "item_chars": 4000,
+    "full_items": 3,
+    "compact_chars": 300,
+    "keep_roles": ["user"],
+    "full_ids": [],
+    "expand_groups": true,
+    "order": "rank"
+  },
+  "pack_cases": [
+    {
+      "name": "tiers_basic",
+      "ac": "AC41-01",
+      "request": {
+        "policy": {"full_items": 1, "compact_chars": 3},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": "Q1"}, {"role": "assistant", "text": "Answer one"}]},
+          {"id": "h2", "parts": [{"role": "user", "text": "Q2"}, {"role": "assistant", "text": "Answer two"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "Q1\nAnswer one\n\nQ2\nAns",
+        "chars_used": 19,
+        "text_chars": 21,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 13, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 10, "of_chars": 10}]},
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 6, "truncated": true, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 3, "of_chars": 10}]}
+        ]
+      }
+    },
+    {
+      "name": "shared_allowance_and_empty_parts",
+      "ac": "AC41-02",
+      "request": {
+        "policy": {"full_items": 0, "compact_chars": 5},
+        "hits": [
+          {"id": "h1", "parts": [
+            {"role": "user", "text": "U"},
+            {"role": "assistant", "text": "abc"},
+            {"role": "tool", "text": "defgh"},
+            {"role": "assistant", "text": ""}
+          ]},
+          {"id": "h2", "parts": [{"role": "user", "text": ""}, {"role": "assistant", "text": "xyz"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "U\nabc\nde\n\n\nxyz",
+        "chars_used": 12,
+        "text_chars": 14,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "compact", "chars": 8, "truncated": true, "forced": false, "rendered_index": 0,
+           "parts": [
+             {"role": "user", "chars": 1, "of_chars": 1},
+             {"role": "assistant", "chars": 3, "of_chars": 3},
+             {"role": "tool", "chars": 2, "of_chars": 5},
+             {"role": "assistant", "chars": 0, "of_chars": 0}
+           ]},
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 4, "truncated": false, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 0, "of_chars": 0}, {"role": "assistant", "chars": 3, "of_chars": 3}]}
+        ]
+      }
+    },
+    {
+      "name": "full_tier_keeps_empty_parts",
+      "ac": "AC41-02",
+      "request": {
+        "policy": {"full_items": 1},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": "a"}, {"role": "assistant", "text": ""}, {"role": "assistant", "text": "b"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "a\n\nb",
+        "chars_used": 4,
+        "text_chars": 4,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 4, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [
+             {"role": "user", "chars": 1, "of_chars": 1},
+             {"role": "assistant", "chars": 0, "of_chars": 0},
+             {"role": "assistant", "chars": 1, "of_chars": 1}
+           ]}
+        ]
+      }
+    },
+    {
+      "name": "tiers_follow_selection_index",
+      "ac": "AC41-03",
+      "request": {
+        "policy": {"full_items": 3, "compact_chars": 1},
+        "hits": [
+          {"id": "h1", "group": "g1", "position": 0, "parts": [{"role": "user", "text": "u1"}, {"role": "assistant", "text": "a1"}]},
+          {"id": "h2", "group": "g1", "position": 2, "parts": [{"role": "user", "text": "u2"}, {"role": "assistant", "text": "a2"}]}
+        ],
+        "context": [
+          {"id": "c1", "group": "g1", "position": 1, "parts": [{"role": "user", "text": "u3"}, {"role": "assistant", "text": "a3"}]},
+          {"id": "c2", "group": "g1", "position": 3, "parts": [{"role": "user", "text": "u4"}, {"role": "assistant", "text": "a4"}]}
+        ]
+      },
+      "expected": {
+        "text": "u1\na1\n\nu2\na2\n\nu3\na3\n\nu4\na",
+        "chars_used": 19,
+        "text_chars": 25,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 2}]},
+          {"id": "h2", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 2}]},
+          {"id": "c1", "source": "context", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 2,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 2}]},
+          {"id": "c2", "source": "context", "tier": "compact", "chars": 4, "truncated": true, "forced": false, "rendered_index": 3,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 1, "of_chars": 2}]}
+        ]
+      }
+    },
+    {
+      "name": "budget_cut_with_headers",
+      "ac": "AC41-04",
+      "request": {
+        "policy": {"budget_chars": 8, "full_items": 10},
+        "hits": [
+          {"id": "h1", "header": "[H1]", "parts": [{"role": "user", "text": "abcde"}]},
+          {"id": "h2", "header": "[H2]", "parts": [{"role": "user", "text": "fghij"}]},
+          {"id": "h3", "parts": [{"role": "user", "text": "k"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "[H1]\nabcde\n\n[H2]\nfgh",
+        "chars_used": 8,
+        "text_chars": 20,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 5, "of_chars": 5}]},
+          {"id": "h2", "source": "hit", "tier": "full", "chars": 3, "truncated": true, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 3, "of_chars": 5}]},
+          {"id": "h3", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
+           "parts": [{"role": "user", "chars": 0, "of_chars": 1}]}
+        ]
+      }
+    },
+    {
+      "name": "exact_budget_then_whitespace_item",
+      "ac": "AC41-04",
+      "request": {
+        "policy": {"budget_chars": 3},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": "abc"}]},
+          {"id": "h2", "parts": [{"role": "user", "text": "  "}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "abc",
+        "chars_used": 3,
+        "text_chars": 3,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 3, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 3, "of_chars": 3}]},
+          {"id": "h2", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
+           "parts": [{"role": "user", "chars": 0, "of_chars": 2}]}
+        ]
+      }
+    },
+    {
+      "name": "item_chars_cap",
+      "ac": "AC41-05",
+      "request": {
+        "policy": {"item_chars": 4, "full_items": 10},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": "ab"}, {"role": "assistant", "text": "cdef"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "ab\nc",
+        "chars_used": 4,
+        "text_chars": 4,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 4, "truncated": true, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 1, "of_chars": 4}]}
+        ]
+      }
+    },
+    {
+      "name": "item_chars_cut_at_join",
+      "ac": "AC41-05",
+      "request": {
+        "policy": {"item_chars": 3, "full_items": 10},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": "ab"}, {"role": "assistant", "text": "cdef"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "ab\n",
+        "chars_used": 3,
+        "text_chars": 3,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 3, "truncated": true, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 0, "of_chars": 4}]}
+        ]
+      }
+    },
+    {
+      "name": "expansion_order",
+      "ac": "AC41-06",
+      "request": {
+        "policy": {"full_items": 10},
+        "hits": [
+          {"id": "h1", "group": "B", "position": 5, "parts": [{"role": "user", "text": "h1"}]},
+          {"id": "h2", "group": "A", "position": 0, "parts": [{"role": "user", "text": "h2"}]},
+          {"id": "h3", "parts": [{"role": "user", "text": "h3"}]}
+        ],
+        "context": [
+          {"id": "x1", "group": "A", "position": 2, "parts": [{"role": "user", "text": "x1"}]},
+          {"id": "x2", "group": "B", "position": 1, "parts": [{"role": "user", "text": "x2"}]},
+          {"id": "x3", "group": "B", "position": 0, "parts": [{"role": "user", "text": "x3"}]},
+          {"id": "x4", "group": "C", "position": 0, "parts": [{"role": "user", "text": "x4"}]},
+          {"id": "x5", "group": "A", "position": 2, "parts": [{"role": "user", "text": "x5"}]},
+          {"id": "x6", "parts": [{"role": "user", "text": "x6"}]}
+        ]
+      },
+      "expected": {
+        "text": "h1\n\nh2\n\nh3\n\nx3\n\nx2\n\nx1\n\nx5",
+        "chars_used": 14,
+        "text_chars": 26,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 0, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "h2", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 1, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "h3", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 2, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x1", "source": "context", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 5, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x2", "source": "context", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 4, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x3", "source": "context", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 3, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x4", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null, "parts": [{"role": "user", "chars": 0, "of_chars": 2}]},
+          {"id": "x5", "source": "context", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 6, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x6", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null, "parts": [{"role": "user", "chars": 0, "of_chars": 2}]}
+        ]
+      }
+    },
+    {
+      "name": "expansion_off",
+      "ac": "AC41-06",
+      "request": {
+        "policy": {"full_items": 10, "expand_groups": false},
+        "hits": [
+          {"id": "h1", "group": "A", "position": 1, "parts": [{"role": "user", "text": "h1"}]}
+        ],
+        "context": [
+          {"id": "x1", "group": "A", "parts": [{"role": "user", "text": "x1"}]}
+        ]
+      },
+      "expected": {
+        "text": "h1",
+        "chars_used": 2,
+        "text_chars": 2,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 0, "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "x1", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null, "parts": [{"role": "user", "chars": 0, "of_chars": 2}]}
+        ]
+      }
+    },
+    {
+      "name": "chronological_order",
+      "ac": "AC41-07",
+      "request": {
+        "policy": {"full_items": 1, "compact_chars": 1, "expand_groups": false, "order": "chronological"},
+        "hits": [
+          {"id": "h1", "order_key": "2023/05/02", "group": "s1", "position": 0, "parts": [{"role": "user", "text": "aa"}, {"role": "assistant", "text": "bb"}]},
+          {"id": "h2", "order_key": "2023/05/01", "group": "s2", "position": 3, "parts": [{"role": "user", "text": "cc"}, {"role": "assistant", "text": "dd"}]},
+          {"id": "h3", "parts": [{"role": "user", "text": "ee"}]},
+          {"id": "h4", "order_key": "2023/05/01", "group": "s2", "position": 1, "parts": [{"role": "user", "text": "ff"}]},
+          {"id": "h5", "order_key": "2023/05/01", "parts": [{"role": "user", "text": "gg"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "ff\n\ncc\nd\n\ngg\n\naa\nbb\n\nee",
+        "chars_used": 15,
+        "text_chars": 23,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 5, "truncated": false, "forced": false, "rendered_index": 3,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 2}]},
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 4, "truncated": true, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 1, "of_chars": 2}]},
+          {"id": "h3", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "forced": false, "rendered_index": 4,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "h4", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "h5", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "forced": false, "rendered_index": 2,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}]}
+        ]
+      }
+    },
+    {
+      "name": "whitespace_item_keeps_its_slot",
+      "ac": "AC41-08",
+      "request": {
+        "policy": {"budget_chars": 100, "full_items": 1, "compact_chars": 0},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": " \n "}]},
+          {"id": "h2", "parts": [{"role": "user", "text": "q"}, {"role": "assistant", "text": "long"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "q",
+        "chars_used": 1,
+        "text_chars": 1,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
+           "parts": [{"role": "user", "chars": 0, "of_chars": 3}]},
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 1, "truncated": true, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 1, "of_chars": 1}, {"role": "assistant", "chars": 0, "of_chars": 4}]}
+        ]
+      }
+    },
+    {
+      "name": "scalar_values_on_non_ascii_text",
+      "ac": "AC41-10",
+      "utf16_length": 21,
+      "request": {
+        "policy": {"full_items": 0, "compact_chars": 2},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": "é😀"}, {"role": "assistant", "text": "😀🇫🇷x"}]},
+          {"id": "h2", "parts": [{"role": "user", "text": "日本"}, {"role": "assistant", "text": "語テキスト"}]},
+          {"id": "h3", "parts": [{"role": "assistant", "text": "👩‍💻!"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "é😀\n😀🇫\n\n日本\n語テ\n\n👩‍",
+        "chars_used": 13,
+        "text_chars": 17,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "compact", "chars": 6, "truncated": true, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 3, "of_chars": 3}, {"role": "assistant", "chars": 2, "of_chars": 4}]},
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 5, "truncated": true, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 5}]},
+          {"id": "h3", "source": "hit", "tier": "compact", "chars": 2, "truncated": true, "forced": false, "rendered_index": 2,
+           "parts": [{"role": "assistant", "chars": 2, "of_chars": 4}]}
+        ]
+      }
+    },
+    {
+      "name": "slice40_renderer_shape",
+      "ac": "AC41-12",
+      "_derivation": "Hand-derived against a reading of comp03_answer.render_evidence + comp03_retrieval.evidence_rounds (policy per_round_chars/total_chars/session_expansion=on, chronological): hits s000-r001 then s001-r000; expansion appends s000 then s001 rounds in position order; per round min(len, item_chars, remaining), whitespace-only rounds 0; render by (date, id) as '[Session date: D]\\n' + text joined by blank lines. Caps scaled to item_chars 40 / budget 95.",
+      "request": {
+        "policy": {"budget_chars": 95, "item_chars": 40, "full_items": 1000000, "expand_groups": true, "order": "chronological"},
+        "hits": [
+          {"id": "s000-r001", "group": "s000", "position": 1, "order_key": "2023/01/02", "header": "[Session date: 2023/01/02]",
+           "parts": [{"role": "user", "text": "My cat is Tom."}, {"role": "assistant", "text": "Nice name."}]},
+          {"id": "s001-r000", "group": "s001", "position": 0, "order_key": "2023/01/01", "header": "[Session date: 2023/01/01]",
+           "parts": [{"role": "user", "text": "I moved to Oslo in May."}, {"role": "assistant", "text": "abcdefghijklmnopqrstuvwxyz0123456789"}]}
+        ],
+        "context": [
+          {"id": "s000-r000", "group": "s000", "position": 0, "order_key": "2023/01/02", "header": "[Session date: 2023/01/02]",
+           "parts": [{"role": "user", "text": "Hi there"}, {"role": "assistant", "text": "Hello!"}]},
+          {"id": "s000-r002", "group": "s000", "position": 2, "order_key": "2023/01/02", "header": "[Session date: 2023/01/02]",
+           "parts": [{"role": "user", "text": "   "}, {"role": "assistant", "text": ""}]},
+          {"id": "s001-r001", "group": "s001", "position": 1, "order_key": "2023/01/01", "header": "[Session date: 2023/01/01]",
+           "parts": [{"role": "user", "text": "Ok"}, {"role": "assistant", "text": ""}]},
+          {"id": "s001-r002", "group": "s001", "position": 2, "order_key": "2023/01/01", "header": "[Session date: 2023/01/01]",
+           "parts": [{"role": "user", "text": "Bye now"}, {"role": "assistant", "text": "Goodbye"}]}
+        ]
+      },
+      "expected": {
+        "text": "[Session date: 2023/01/01]\nI moved to Oslo in May.\nabcdefghijklmnop\n\n[Session date: 2023/01/01]\nOk\n\n\n[Session date: 2023/01/01]\nBye now\nGood\n\n[Session date: 2023/01/02]\nHi there\nHello!\n\n[Session date: 2023/01/02]\nMy cat is Tom.\nNice name.",
+        "chars_used": 95,
+        "text_chars": 238,
+        "items": [
+          {"id": "s000-r001", "source": "hit", "tier": "full", "chars": 25, "truncated": false, "forced": false, "rendered_index": 4,
+           "parts": [{"role": "user", "chars": 14, "of_chars": 14}, {"role": "assistant", "chars": 10, "of_chars": 10}]},
+          {"id": "s001-r000", "source": "hit", "tier": "full", "chars": 40, "truncated": true, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 23, "of_chars": 23}, {"role": "assistant", "chars": 16, "of_chars": 36}]},
+          {"id": "s000-r000", "source": "context", "tier": "full", "chars": 15, "truncated": false, "forced": false, "rendered_index": 3,
+           "parts": [{"role": "user", "chars": 8, "of_chars": 8}, {"role": "assistant", "chars": 6, "of_chars": 6}]},
+          {"id": "s000-r002", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
+           "parts": [{"role": "user", "chars": 0, "of_chars": 3}, {"role": "assistant", "chars": 0, "of_chars": 0}]},
+          {"id": "s001-r001", "source": "context", "tier": "full", "chars": 3, "truncated": false, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 0, "of_chars": 0}]},
+          {"id": "s001-r002", "source": "context", "tier": "full", "chars": 12, "truncated": true, "forced": false, "rendered_index": 2,
+           "parts": [{"role": "user", "chars": 7, "of_chars": 7}, {"role": "assistant", "chars": 4, "of_chars": 7}]}
+        ]
+      }
+    },
+    {
+      "name": "role_none_and_custom_keep_roles",
+      "ac": "AC41-20",
+      "request": {
+        "policy": {"full_items": 0, "compact_chars": 0, "keep_roles": ["assistant"]},
+        "hits": [
+          {"id": "h1", "parts": [{"role": null, "text": "plain body text"}]},
+          {"id": "h2", "parts": [{"role": "user", "text": "uuu"}, {"role": "assistant", "text": "aaa"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "plain body text\n\naaa",
+        "chars_used": 18,
+        "text_chars": 20,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "compact", "chars": 15, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [{"role": null, "chars": 15, "of_chars": 15}]},
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 3, "truncated": true, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 0, "of_chars": 3}, {"role": "assistant", "chars": 3, "of_chars": 3}]}
+        ]
+      }
+    },
+    {
+      "name": "nothing_to_render",
+      "ac": "AC41-09",
+      "request": {"hits": []},
+      "expected": {"text": "", "chars_used": 0, "text_chars": 0, "items": []}
+    }
+  ],
+  "pack_errors": [
+    {"name": "zero_budget", "typed": true, "request": {"policy": {"budget_chars": 0}, "hits": []}, "message_contains": "policy.budget_chars"},
+    {"name": "zero_item_chars", "typed": true, "request": {"policy": {"item_chars": 0}, "hits": []}, "message_contains": "policy.item_chars"},
+    {"name": "negative_full_items", "request": {"policy": {"full_items": -1}, "hits": []}, "message_contains": "policy.full_items"},
+    {"name": "non_integer_compact_chars", "request": {"policy": {"compact_chars": 1.5}, "hits": []}, "message_contains": "policy.compact_chars"},
+    {"name": "unknown_order", "request": {"policy": {"order": "random"}, "hits": []}, "message_contains": "policy.order"},
+    {"name": "empty_id", "typed": true, "request": {"hits": [{"id": "a", "parts": []}, {"id": "", "parts": []}]}, "message_contains": "hits[1].id"},
+    {"name": "duplicate_id_across_lists", "typed": true, "request": {"hits": [{"id": "a", "parts": []}], "context": [{"id": "a", "parts": []}]}, "message_contains": "context[0].id"},
+    {"name": "grouped_context_without_position", "typed": true, "request": {"hits": [{"id": "a", "group": "g", "parts": []}], "context": [{"id": "b", "group": "g", "parts": []}]}, "message_contains": "context[0].position"},
+    {"name": "negative_position", "request": {"hits": [{"id": "a", "position": -2, "parts": []}]}, "message_contains": "hits[0].position"},
+    {"name": "unknown_policy_field", "json_only": true, "request": {"policy": {"bogus": 1}, "hits": []}, "message_contains": "policy.bogus"},
+    {"name": "unknown_item_field", "json_only": true, "request": {"hits": [{"id": "a", "parts": [], "score": 1}]}, "message_contains": "hits[0].score"},
+    {"name": "non_string_role", "json_only": true, "request": {"hits": [{"id": "a", "parts": [{"role": 3, "text": "x"}]}]}, "message_contains": "hits[0].parts[0].role"}
+  ],
+  "round_bodies": [
+    {"name": "user_and_assistant", "parts": [{"role": "user", "text": "Hello"}, {"role": "assistant", "text": "Hi\nthere"}],
+     "body": "\u001e\u0011Hello\n\u001e\u0012Hi\nthere", "plain": "Hello\nHi\nthere"},
+    {"name": "role_none", "parts": [{"role": null, "text": "x"}], "body": "\u001e\u0010x", "plain": "x"},
+    {"name": "system_empty_then_tool", "parts": [{"role": "system", "text": ""}, {"role": "tool", "text": "t"}],
+     "body": "\u001e\u0013\n\u001e\u0014t", "plain": "\nt"},
+    {"name": "trailing_newline_in_text", "parts": [{"role": "user", "text": "a\n"}, {"role": "assistant", "text": "b"}],
+     "body": "\u001e\u0011a\n\n\u001e\u0012b", "plain": "a\n\nb"}
+  ],
+  "untagged_bodies": [
+    {"name": "plain_text", "body": "plain\ntext", "parts": [{"role": null, "text": "plain\ntext"}]},
+    {"name": "empty", "body": "", "parts": [{"role": null, "text": ""}]}
+  ],
+  "encode_errors": [
+    {"name": "no_parts", "parts": [], "message_contains": "parts"},
+    {"name": "unknown_role", "parts": [{"role": "bot", "text": "x"}], "message_contains": "parts[0].role"},
+    {"name": "marker_in_text", "parts": [{"role": "user", "text": "a\u001eb"}], "message_contains": "parts[0].text"},
+    {"name": "role_code_in_text", "parts": [{"role": "user", "text": "ok"}, {"role": "assistant", "text": "x\u0012y"}], "message_contains": "parts[1].text"}
+  ],
+  "decode_errors": [
+    {"name": "missing_role_code", "body": "\u001e", "message_contains": "body"},
+    {"name": "unknown_role_code", "body": "\u001eXhi", "message_contains": "body"},
+    {"name": "stray_marker", "body": "\u001e\u0011a\u001eb", "message_contains": "body"},
+    {"name": "role_code_in_part_text", "body": "\u001e\u0011a\u0013b", "message_contains": "body"}
+  ],
+  "full_ids_cases": [
+    {
+      "name": "full_ids_past_full_items",
+      "ac": "AC41-28",
+      "_derivation": "REQ41-F1/F4. full_items 1: h1 (index 0) is full, 2+1+10 = 13. h2 (index 1) is compact: user kept, assistant cut to compact_chars 2 ('An'), 2+1+2 = 5. h3 (index 2) is in full_ids, so it renders full (13) and forced is true; it uses no full_items slot. chars_used 31; text_chars 31 + two 2-char separators = 35.",
+      "request": {
+        "policy": {"full_items": 1, "compact_chars": 2, "full_ids": ["h3"]},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": "Q1"}, {"role": "assistant", "text": "Answer one"}]},
+          {"id": "h2", "parts": [{"role": "user", "text": "Q2"}, {"role": "assistant", "text": "Answer two"}]},
+          {"id": "h3", "parts": [{"role": "user", "text": "Q3"}, {"role": "assistant", "text": "Answer six"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "Q1\nAnswer one\n\nQ2\nAn\n\nQ3\nAnswer six",
+        "chars_used": 31,
+        "text_chars": 35,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 13, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 10, "of_chars": 10}]},
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 5, "truncated": true, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 10}]},
+          {"id": "h3", "source": "hit", "tier": "full", "chars": 13, "truncated": false, "forced": true, "rendered_index": 2,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 10, "of_chars": 10}]}
+        ]
+      }
+    },
+    {
+      "name": "full_ids_inside_full_items_and_unselected",
+      "ac": "AC41-29",
+      "_derivation": "REQ41-F1/F3/F4. Selection is h1, h2, then group s1's context c1; c2 is in group s2, which no hit has, so it is not selected. h1 (index 0) is listed in full_ids but full_items 1 already makes it full, so forced is false (13). h2 (index 1) compact 'Q2\\nAn' (5). c1 (index 2) compact 'U1\\nRe' (5). c2 is listed in full_ids but unselected: no effect, omitted, forced false. chars_used 23; text_chars 23 + 4 = 27.",
+      "request": {
+        "policy": {"full_items": 1, "compact_chars": 2, "full_ids": ["h1", "c2"]},
+        "hits": [
+          {"id": "h1", "group": "s1", "parts": [{"role": "user", "text": "Q1"}, {"role": "assistant", "text": "Answer one"}]},
+          {"id": "h2", "parts": [{"role": "user", "text": "Q2"}, {"role": "assistant", "text": "Answer two"}]}
+        ],
+        "context": [
+          {"id": "c1", "group": "s1", "position": 0, "parts": [{"role": "user", "text": "U1"}, {"role": "assistant", "text": "Reply"}]},
+          {"id": "c2", "group": "s2", "position": 0, "parts": [{"role": "user", "text": "U2"}, {"role": "assistant", "text": "Reply"}]}
+        ]
+      },
+      "expected": {
+        "text": "Q1\nAnswer one\n\nQ2\nAn\n\nU1\nRe",
+        "chars_used": 23,
+        "text_chars": 27,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 13, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 10, "of_chars": 10}]},
+          {"id": "h2", "source": "hit", "tier": "compact", "chars": 5, "truncated": true, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 10}]},
+          {"id": "c1", "source": "context", "tier": "compact", "chars": 5, "truncated": true, "forced": false, "rendered_index": 2,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 5}]},
+          {"id": "c2", "source": "context", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
+           "parts": [{"role": "user", "chars": 0, "of_chars": 2}, {"role": "assistant", "chars": 0, "of_chars": 5}]}
+        ]
+      }
+    },
+    {
+      "name": "full_ids_over_budget",
+      "ac": "AC41-30",
+      "_derivation": "REQ41-F2/F4. budget 20, full_items 0, compact_chars 0. h1 (index 0) compact: the assistant part renders 0 and is dropped, text 'Q1' (2), remaining 18. h2 forced full 'Q2\\nLong reply' (13), remaining 5. h3 forced full, cut to the 5 left: user 2, join 1, assistant 2 ('Q3\\nLo'); it is rendered, so tier full, forced true, truncated true; remaining 0. h4 is forced but the budget is spent: omitted, forced false. Selection order is kept. chars_used 20; text_chars 20 + 4 = 24.",
+      "request": {
+        "policy": {"budget_chars": 20, "full_items": 0, "compact_chars": 0, "full_ids": ["h2", "h3", "h4"]},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": "Q1"}, {"role": "assistant", "text": "Long reply"}]},
+          {"id": "h2", "parts": [{"role": "user", "text": "Q2"}, {"role": "assistant", "text": "Long reply"}]},
+          {"id": "h3", "parts": [{"role": "user", "text": "Q3"}, {"role": "assistant", "text": "Long reply"}]},
+          {"id": "h4", "parts": [{"role": "user", "text": "Q4"}, {"role": "assistant", "text": "Long reply"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "Q1\n\nQ2\nLong reply\n\nQ3\nLo",
+        "chars_used": 20,
+        "text_chars": 24,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "compact", "chars": 2, "truncated": true, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 0, "of_chars": 10}]},
+          {"id": "h2", "source": "hit", "tier": "full", "chars": 13, "truncated": false, "forced": true, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 10, "of_chars": 10}]},
+          {"id": "h3", "source": "hit", "tier": "full", "chars": 5, "truncated": true, "forced": true, "rendered_index": 2,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}, {"role": "assistant", "chars": 2, "of_chars": 10}]},
+          {"id": "h4", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
+           "parts": [{"role": "user", "chars": 0, "of_chars": 2}, {"role": "assistant", "chars": 0, "of_chars": 10}]}
+        ]
+      }
+    },
+    {
+      "name": "full_ids_whitespace_item",
+      "ac": "AC41-30",
+      "_derivation": "REQ41-F4 with the phase 1 whitespace rule. full_items 1. h1 full 'Q1' (2). h2 (index 1) is forced, but its full text ' ' is whitespace-only: omitted, chars 0, forced false; the index still advances. h3 (index 2) compact, its only part is the kept user part 'Q3' (2), rendered_index 1. chars_used 4; text_chars 4 + 2 = 6.",
+      "request": {
+        "policy": {"full_items": 1, "full_ids": ["h2"]},
+        "hits": [
+          {"id": "h1", "parts": [{"role": "user", "text": "Q1"}]},
+          {"id": "h2", "parts": [{"role": "user", "text": " "}]},
+          {"id": "h3", "parts": [{"role": "user", "text": "Q3"}]}
+        ],
+        "context": []
+      },
+      "expected": {
+        "text": "Q1\n\nQ3",
+        "chars_used": 4,
+        "text_chars": 6,
+        "items": [
+          {"id": "h1", "source": "hit", "tier": "full", "chars": 2, "truncated": false, "forced": false, "rendered_index": 0,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}]},
+          {"id": "h2", "source": "hit", "tier": "omitted", "chars": 0, "truncated": false, "forced": false, "rendered_index": null,
+           "parts": [{"role": "user", "chars": 0, "of_chars": 1}]},
+          {"id": "h3", "source": "hit", "tier": "compact", "chars": 2, "truncated": false, "forced": false, "rendered_index": 1,
+           "parts": [{"role": "user", "chars": 2, "of_chars": 2}]}
+        ]
+      }
+    }
+  ],
+  "full_ids_errors": [
+    {"name": "full_ids_unknown_id", "ac": "AC41-31", "typed": true, "request": {"policy": {"full_ids": ["zz"]}, "hits": [{"id": "h1", "parts": []}]}, "message_contains": "policy.full_ids[0]"},
+    {"name": "full_ids_repeated_id", "ac": "AC41-31", "typed": true, "request": {"policy": {"full_ids": ["h1", "h1"]}, "hits": [{"id": "h1", "parts": []}]}, "message_contains": "policy.full_ids[1]"},
+    {"name": "full_ids_empty_id", "ac": "AC41-31", "typed": true, "request": {"policy": {"full_ids": [""]}, "hits": [{"id": "h1", "parts": []}]}, "message_contains": "policy.full_ids[0]"},
+    {"name": "p8_error_wins_over_full_ids", "ac": "AC41-31", "typed": true, "request": {"policy": {"full_ids": ["h1"]}, "hits": [{"id": "h1", "parts": []}], "context": [{"id": "h1", "parts": []}]}, "message_contains": "context[0].id", "message_excludes": "full_ids"},
+    {"name": "p8_position_error_wins_over_full_ids", "ac": "AC41-31", "typed": true, "request": {"policy": {"full_ids": ["zz"]}, "hits": [{"id": "h1", "parts": []}], "context": [{"id": "c1", "parts": [], "group": "g"}]}, "message_contains": "context[0].position", "message_excludes": "full_ids"},
+    {"name": "full_ids_not_an_array", "ac": "AC41-31", "json_only": true, "request": {"policy": {"full_ids": "h1"}, "hits": [{"id": "h1", "parts": []}]}, "message_contains": "policy.full_ids"},
+    {"name": "full_ids_non_string_id", "ac": "AC41-31", "json_only": true, "request": {"policy": {"full_ids": [3]}, "hits": [{"id": "h1", "parts": []}]}, "message_contains": "policy.full_ids[0]"}
+  ]
+}

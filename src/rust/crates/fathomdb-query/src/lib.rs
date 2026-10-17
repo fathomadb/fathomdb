@@ -10,7 +10,7 @@
 //! operators over an allowlisted set of JSON paths — rather than an open DSL.
 //! Values are always bound as parameterized SQL and never interpolated.
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QueryAst {
@@ -45,8 +45,7 @@ const STOPWORDS: &[&str] = &[
 /// FTS5 control character (`*`, `"`, `:`, `^`, `(`, `)`, `,`), so the emitted
 /// tokens are pure literals — the injection-safety property (AC-038).
 #[must_use]
-fn content_tokens(raw: &str) -> Vec<String> {
-    let stop: HashSet<&str> = STOPWORDS.iter().copied().collect();
+fn content_tokens(raw: &str, stop: &StopWordSet) -> Vec<String> {
     let mut seen: HashSet<String> = HashSet::new();
     let mut out: Vec<String> = Vec::new();
     for token in raw.to_lowercase().split(|c: char| !c.is_alphanumeric()) {
@@ -74,8 +73,20 @@ fn content_tokens(raw: &str) -> Vec<String> {
 /// such a query still searches instead of returning nothing.
 #[must_use]
 pub fn compile_text_query(raw: impl Into<String>) -> CompiledQuery {
+    compile_text_query_with(raw, default_stop_words())
+}
+
+fn default_stop_words() -> &'static StopWordSet {
+    static DEFAULT: std::sync::OnceLock<StopWordSet> = std::sync::OnceLock::new();
+    DEFAULT.get_or_init(|| StopWordSet::from_words(STOPWORDS.iter().map(|w| (*w).to_string())))
+}
+
+/// [`compile_text_query`] with an explicit effective stop-word set; with
+/// [`StopWordSet::default`] the output is identical.
+#[must_use]
+pub fn compile_text_query_with(raw: impl Into<String>, stop_words: &StopWordSet) -> CompiledQuery {
     let raw = raw.into();
-    let content = content_tokens(&raw);
+    let content = content_tokens(&raw, stop_words);
     let match_expression = if content.is_empty() {
         raw.split_whitespace()
             .filter(|token| !token.is_empty())
@@ -88,6 +99,225 @@ pub fn compile_text_query(raw: impl Into<String>) -> CompiledQuery {
 
     CompiledQuery { match_expression }
 }
+
+/// SHA-256 (lowercase hex) of the default stop list: the 63 built-in words,
+/// sorted by Unicode scalar value and joined by `"\n"`. A trace or receipt
+/// carrying this value used the default list.
+pub const DEFAULT_STOP_WORDS_SHA256: &str =
+    "ac9a853797f038a1d05302bb0ebca4ced9fab9f2b02e211148292d260d6e7367";
+
+/// Most words accepted in [`QueryStopWords::extra`] and in
+/// [`QueryStopWords::keep`].
+pub const MAX_STOP_WORDS_PER_LIST: usize = 256;
+
+/// Longest accepted stop word, in Unicode scalar values.
+pub const MAX_STOP_WORD_CHARS: usize = 64;
+
+/// The list a [`QueryStopWords`] setting starts from.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
+pub enum StopWordBase {
+    /// The built-in engine list (see [`DEFAULT_STOP_WORDS_SHA256`]).
+    #[default]
+    Fathomdb,
+    /// No words.
+    None,
+}
+
+/// A per-engine query stop-word setting. The effective set is
+/// `(base ∪ extra) \ keep`. Words match the compiler's tokens exactly:
+/// lowercase, alphanumeric, compared before FTS5 stemming and without
+/// diacritic folding, so `suggest` does not drop `suggests` and `cafe` does
+/// not drop `café`. Validate with [`QueryStopWords::validate`].
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
+pub struct QueryStopWords {
+    /// The starting list.
+    pub base: StopWordBase,
+    /// Words added to `base`; none may already be in it.
+    pub extra: Vec<String>,
+    /// Words removed from `base`; each must be in it.
+    pub keep: Vec<String>,
+}
+
+/// Why a stop word or list was refused.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[non_exhaustive]
+pub enum StopWordRejection {
+    /// The word is empty.
+    Empty,
+    /// The word has a character that is not alphanumeric.
+    NotAlphanumeric,
+    /// The word is not equal to its lowercase form.
+    NotLowercase,
+    /// The word is longer than [`MAX_STOP_WORD_CHARS`].
+    TooLong,
+    /// The list is longer than [`MAX_STOP_WORDS_PER_LIST`].
+    TooMany,
+    /// The word repeats an earlier word in the same list.
+    Repeated,
+    /// A `keep` word is also in `extra`.
+    InExtraAndKeep,
+    /// A `keep` word is not in the base list.
+    KeepNotInBase,
+    /// An `extra` word is already in the base list.
+    ExtraAlreadyInBase,
+}
+
+impl StopWordRejection {
+    fn describe(self) -> &'static str {
+        match self {
+            Self::Empty => "must not be empty",
+            Self::NotAlphanumeric => "must contain only alphanumeric characters",
+            Self::NotLowercase => "must be lowercase",
+            Self::TooLong => "must be at most 64 characters",
+            Self::TooMany => "must hold at most 256 words",
+            Self::Repeated => "repeats an earlier word in the list",
+            Self::InExtraAndKeep => "is also in query_stop_words.extra",
+            Self::KeepNotInBase => "is not in the base list",
+            Self::ExtraAlreadyInBase => "is already in the base list",
+        }
+    }
+}
+
+/// A refused [`QueryStopWords`] setting. `field` is
+/// `"query_stop_words.extra"` or `"query_stop_words.keep"`; `index` is the
+/// offending word's position, or `None` when the whole list is refused.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub struct StopWordError {
+    pub field: &'static str,
+    pub index: Option<usize>,
+    pub reason: StopWordRejection,
+}
+
+impl std::fmt::Display for StopWordError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.index {
+            Some(index) => write!(f, "{}[{index}] {}", self.field, self.reason.describe()),
+            None => write!(f, "{} {}", self.field, self.reason.describe()),
+        }
+    }
+}
+
+impl std::error::Error for StopWordError {}
+
+/// A validated effective stop-word set and its SHA-256. [`Default`] is the
+/// built-in list.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StopWordSet {
+    words: BTreeSet<String>,
+    sha256: String,
+}
+
+impl Default for StopWordSet {
+    fn default() -> Self {
+        default_stop_words().clone()
+    }
+}
+
+impl StopWordSet {
+    fn from_words(words: impl IntoIterator<Item = String>) -> Self {
+        use sha2::{Digest, Sha256};
+        let words: BTreeSet<String> = words.into_iter().collect();
+        let joined = words.iter().map(String::as_str).collect::<Vec<_>>().join("\n");
+        let sha256 = Sha256::digest(joined.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+        Self { words, sha256 }
+    }
+
+    /// SHA-256 (lowercase hex) of the words sorted by Unicode scalar value and
+    /// joined by `"\n"`.
+    #[must_use]
+    pub fn sha256(&self) -> &str {
+        &self.sha256
+    }
+
+    /// Whether `token` is in the set (exact match).
+    #[must_use]
+    pub fn contains(&self, token: &str) -> bool {
+        self.words.contains(token)
+    }
+
+    /// The words in Unicode scalar order.
+    pub fn words(&self) -> impl Iterator<Item = &str> {
+        self.words.iter().map(String::as_str)
+    }
+}
+
+impl QueryStopWords {
+    /// Check the setting and build its effective set.
+    ///
+    /// # Errors
+    /// [`StopWordError`] naming the list and index for an empty, non-
+    /// alphanumeric, non-lowercase or over-long word, a list of more than
+    /// [`MAX_STOP_WORDS_PER_LIST`] words, a repeat within a list, a word in
+    /// both lists, a `keep` word outside `base` (any `keep` word when `base`
+    /// is [`StopWordBase::None`]) or an `extra` word already in `base`.
+    pub fn validate(&self) -> Result<StopWordSet, StopWordError> {
+        const EXTRA: &str = "query_stop_words.extra";
+        const KEEP: &str = "query_stop_words.keep";
+        let base: HashSet<&str> = match self.base {
+            StopWordBase::Fathomdb => STOPWORDS.iter().copied().collect(),
+            StopWordBase::None => HashSet::new(),
+        };
+        check_tokens(EXTRA, &self.extra)?;
+        check_tokens(KEEP, &self.keep)?;
+        let extra: HashSet<&str> = self.extra.iter().map(String::as_str).collect();
+        for (index, word) in self.extra.iter().enumerate() {
+            if base.contains(word.as_str()) {
+                return Err(refused(EXTRA, Some(index), StopWordRejection::ExtraAlreadyInBase));
+            }
+        }
+        for (index, word) in self.keep.iter().enumerate() {
+            if extra.contains(word.as_str()) {
+                return Err(refused(KEEP, Some(index), StopWordRejection::InExtraAndKeep));
+            }
+            if !base.contains(word.as_str()) {
+                return Err(refused(KEEP, Some(index), StopWordRejection::KeepNotInBase));
+            }
+        }
+        let keep: HashSet<&str> = self.keep.iter().map(String::as_str).collect();
+        Ok(StopWordSet::from_words(
+            base.iter()
+                .copied()
+                .chain(extra.iter().copied())
+                .filter(|word| !keep.contains(word))
+                .map(str::to_string),
+        ))
+    }
+}
+
+fn refused(field: &'static str, index: Option<usize>, reason: StopWordRejection) -> StopWordError {
+    StopWordError { field, index, reason }
+}
+
+/// Per-word and per-list rules shared by `extra` and `keep`: each word is one
+/// token as the compiler would emit it, and no list exceeds its cap or repeats.
+fn check_tokens(field: &'static str, words: &[String]) -> Result<(), StopWordError> {
+    if words.len() > MAX_STOP_WORDS_PER_LIST {
+        return Err(refused(field, None, StopWordRejection::TooMany));
+    }
+    let mut seen: HashSet<&str> = HashSet::new();
+    for (index, word) in words.iter().enumerate() {
+        let reason = if word.is_empty() {
+            Some(StopWordRejection::Empty)
+        } else if word.chars().count() > MAX_STOP_WORD_CHARS {
+            Some(StopWordRejection::TooLong)
+        } else if !word.chars().all(char::is_alphanumeric) {
+            Some(StopWordRejection::NotAlphanumeric)
+        } else if word.to_lowercase() != *word {
+            Some(StopWordRejection::NotLowercase)
+        } else if !seen.insert(word.as_str()) {
+            Some(StopWordRejection::Repeated)
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            return Err(refused(field, Some(index), reason));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod stop_words_tests;
 
 #[cfg(test)]
 mod tests {

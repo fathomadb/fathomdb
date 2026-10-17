@@ -115,6 +115,10 @@ UNAVAILABLE = {
     "engine.ingest_with_extractor": {"boundary": "provider", "reason": "No independently qualified extraction provider/command or credentials supplied; fake provider output is not a provider qualification.", "owner": "Slice 135 provider exercise"},
     "engine.consolidate_with_provider": {"boundary": "provider", "reason": "No independently qualified consolidation provider/command or credentials supplied; deterministic fabricated LLM output would not qualify real-provider behavior.", "owner": "Slice 135 provider exercise"},
     "rerank": {"boundary": "standalone_model", "reason": "Standalone cross-encoder model identity and offline availability are not qualified by this wheel exercise; no database boundary exists.", "owner": "Slice 135 standalone reranker qualification"},
+    "pack_context": {"boundary": "pure_function", "reason": "Package-level pure function: it renders caller items and opens no engine or database, so this real-database wheel exercise has no boundary to execute; behaviour is covered by the shared-fixture parity suites.", "owner": "0.8.28 Slice 41 context-pack parity tests"},
+    "encode_round_body": {"boundary": "pure_function", "reason": "Package-level pure function: it encodes parts to a body string and opens no engine or database, so this real-database wheel exercise has no boundary to execute; behaviour is covered by the shared-fixture parity suites.", "owner": "0.8.28 Slice 41 context-pack parity tests"},
+    "decode_round_body": {"boundary": "pure_function", "reason": "Package-level pure function: it decodes a body string and opens no engine or database, so this real-database wheel exercise has no boundary to execute; behaviour is covered by the shared-fixture parity suites.", "owner": "0.8.28 Slice 41 context-pack parity tests"},
+    "context_item_from_hit": {"boundary": "pure_function", "reason": "Package-level pure function over an already-returned SearchHit; it reads no database itself, and this exercise has no independently executed refusal case for it; behaviour is covered by the shared-fixture parity suites.", "owner": "0.8.28 Slice 41 context-pack parity tests"},
 }
 
 

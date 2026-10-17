@@ -47,6 +47,14 @@
 mod actuation;
 mod connection_runtime;
 mod consolidation;
+mod context_pack;
+pub use context_pack::{
+    decode_round_body, decode_round_body_json, encode_round_body, encode_round_body_json,
+    pack_context, pack_context_json, ContextItem, ContextOrder, ContextPack, ContextPackEntry,
+    ContextPackError, ContextPart, ContextPartEntry, ContextPolicy, ContextSource, ContextTier,
+    DEFAULT_BUDGET_CHARS, DEFAULT_COMPACT_CHARS, DEFAULT_FULL_ITEMS, DEFAULT_ITEM_CHARS,
+    ROUND_BODY_MARK, ROUND_BODY_ROLES,
+};
 #[cfg(feature = "operator")]
 mod data_plane_integrity;
 mod dependency;
@@ -191,6 +199,9 @@ pub use evidence::{
 pub use fathomdb_embedder::{
     CudaPoolSettingConflict, CudaPoolSettingValue, PoolMode as CudaPoolMode, PoolSettingSource,
     ReleaseThreshold, CUDA_POOL_MAX_SIZE_MIN,
+};
+pub use fathomdb_query::{
+    QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,
 };
 pub(crate) use filter::{
     append_node_eligibility_sql, edge_fts_hit_passes_filter, text_hit_passes_filter,
@@ -454,6 +465,8 @@ const PROJECTION_WORKERS: usize = 2;
 pub struct Engine {
     path: PathBuf,
     requested_config: EngineConfig,
+    /// The effective query stop words, shared with every reader worker.
+    query_stop_words: Arc<fathomdb_query::StopWordSet>,
     #[allow(dead_code)]
     resolved_config: ResolvedRuntimeConfiguration,
     next_cursor: AtomicU64,

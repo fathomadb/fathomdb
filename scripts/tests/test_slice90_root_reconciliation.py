@@ -130,7 +130,7 @@ class RootReconciliationTest(unittest.TestCase):
         inventory = (ROOT / "dev/plans/0.8.27/features/slice-90/phase3-root-reconciliation.md").read_text()
         section = inventory.split("| Storage role | Root field names |", 1)[1].split("Root also composes", 1)[0]
         documented = re.findall(r"`([a-z_][a-z_0-9]*)`", section)
-        self.assertEqual(len(actual), 43)
+        self.assertEqual(len(actual), 44)
         self.assertCountEqual(documented, actual)
         blob = hashlib.sha1(b"blob " + str(len(source_bytes)).encode() + b"\0" + source_bytes).hexdigest()
         self.assertIn("lib_rs_blob: " + blob, inventory)

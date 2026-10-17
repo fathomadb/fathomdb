@@ -296,6 +296,10 @@ def _map_candidate_native_explanation(value: Any, native_results: Sequence[Any])
     embedder_id = getattr(trace, "embedder_id", None)
     if not isinstance(embedder_id, str):
         _invalid_explanation("/trace/embedderId")
+    # Additive 0.8.28 field: an older native trace without it maps to "".
+    stop_words_sha256 = getattr(trace, "stop_words_sha256", "")
+    if not isinstance(stop_words_sha256, str):
+        _invalid_explanation("/trace/stopWordsSha256")
     counts = [
         require_u32(getattr(trace, name, None), path)
         for name, path in (
@@ -368,6 +372,7 @@ def _map_candidate_native_explanation(value: Any, native_results: Sequence[Any])
             text_hits=counts[1],
             graph_hits=counts[2],
             dropped_edge_hits=counts[3],
+            stop_words_sha256=stop_words_sha256,
         ),
         per_hit=mapped,
         correlation_id=correlation,

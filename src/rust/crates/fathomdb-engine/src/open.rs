@@ -515,6 +515,8 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         ResolvedRuntimeConfiguration::resolve(&config)
             .map_err(EngineOpenError::EngineConfiguration)?;
+        crate::runtime_configuration::resolve_query_stop_words(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
         // Before the embedder choice: the default embedder's device probe
         // builds the process's first CUDA device.
         crate::runtime_configuration::claim_cuda_pool(&config)
@@ -760,6 +762,10 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         let resolved_config = ResolvedRuntimeConfiguration::resolve(&plan.config)
             .map_err(EngineOpenError::EngineConfiguration)?;
+        let query_stop_words = Arc::new(
+            crate::runtime_configuration::resolve_query_stop_words(&plan.config)
+                .map_err(EngineOpenError::EngineConfiguration)?,
+        );
         // Every open path passes here; repeating the claim is idempotent.
         crate::runtime_configuration::claim_cuda_pool(&plan.config)
             .map_err(EngineOpenError::EngineConfiguration)?;
@@ -814,6 +820,7 @@ impl Engine {
             plan.migrations,
             allow_populated_legacy_projection_bootstrap,
             &embedder_identity,
+            query_stop_words.sha256(),
             emit_migration_event,
             #[cfg(any(test, feature = "test-hooks"))]
             Arc::clone(&managed_connections),
@@ -963,6 +970,7 @@ impl Engine {
                     engine: Self {
                         path: canonical_path.clone(),
                         requested_config: config,
+                        query_stop_words: Arc::clone(&query_stop_words),
                         resolved_config,
                         next_cursor: AtomicU64::new(next_cursor),
                         read_visibility_generation: Arc::new(AtomicU64::new(
@@ -987,6 +995,7 @@ impl Engine {
                         reader_pool: ReaderWorkerPool::new(
                             parts.readers,
                             Arc::clone(&wal_attribution),
+                            Arc::clone(&query_stop_words),
                             #[cfg(any(test, feature = "test-hooks"))]
                             Arc::clone(&managed_connections),
                         ),
@@ -1053,11 +1062,13 @@ impl Engine {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn open_locked(
         path: PathBuf,
         migrations: &'static [fathomdb_schema::Migration],
         allow_populated_legacy_projection_bootstrap: bool,
         embedder_identity: &EmbedderIdentity,
+        stop_words_sha256: &str,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
@@ -1318,6 +1329,7 @@ impl Engine {
             // 0.8.23 Slice 80.6 (D-80.6-6) — set by `open_with_migrations`
             // only when an opted-in CUDA default-embedder open measured one.
             embedder_gpu_allocation_witness: None,
+            stop_words_sha256: stop_words_sha256.to_string(),
         };
 
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);
@@ -1746,6 +1758,10 @@ pub struct OpenReport {
     /// the model a second time, which is evidence-run behavior and must not be
     /// imposed on ordinary opens (§ 12 non-goals).
     pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
+    /// SHA-256 (lowercase hex) of the effective query stop words this engine
+    /// compiles with ([`DEFAULT_STOP_WORDS_SHA256`](crate::DEFAULT_STOP_WORDS_SHA256)
+    /// for the built-in list), so a receipt can record it without a query.
+    pub stop_words_sha256: String,
 }
 
 #[derive(Debug)]

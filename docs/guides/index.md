@@ -12,5 +12,7 @@ Guides cover the current public surface.
   (`read.collection` / `read.mutations`).
 - [Frozen evidence](frozen-evidence.md) — choose frozen ranking, exact source
   evidence, or canonical pagination without weakening read authority.
+- [Prompt context from search hits](prompt-context.md) — render ranked hits
+  into prompt text within a character budget with `pack_context`.
 
 See also [Erasure](../operations/erasure.md) for `purge` / `erase_source`.

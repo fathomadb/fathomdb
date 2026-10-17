@@ -22,6 +22,7 @@ configuration-case helpers test-hooks,operator,default-embedder,default-reranker
 reported actuation
 reported actuation::tests
 reported consolidation
+reported context_pack
 reported connection_runtime
 reported data_plane_integrity
 reported dependency
@@ -139,6 +140,7 @@ field projection_generation_status_cache root
 field projection_generation_status_full_owner_scan_count root
 field projection_runtime root
 field provenance_row_cap root
+field query_stop_words runtime_configuration
 field read_visibility_generation root
 field reader_lookaside_rcs root
 field reader_pool reader_pool

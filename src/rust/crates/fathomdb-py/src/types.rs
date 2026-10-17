@@ -566,6 +566,8 @@ pub(super) struct PyOpenReport {
     /// failure inside the witness and fails the open, so a zero-valued record
     /// is not reachable here.
     pub(super) embedder_gpu_allocation_witness: Option<PyGpuAllocationWitness>,
+    /// SHA-256 (lowercase hex) of the engine's effective query stop words.
+    pub(super) stop_words_sha256: String,
 }
 
 impl PyOpenReport {
@@ -601,6 +603,7 @@ impl PyOpenReport {
                 .embedder_gpu_allocation_witness
                 .as_ref()
                 .map(PyGpuAllocationWitness::from_rust),
+            stop_words_sha256: r.stop_words_sha256.clone(),
         }
     }
 }

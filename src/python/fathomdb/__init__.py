@@ -20,8 +20,21 @@ from fathomdb import admin, errors, graph, read
 from fathomdb._fathomdb import ConsolidateReceipt
 from fathomdb._fathomdb import IngestWithExtractorReceipt
 from fathomdb._fathomdb import embed_batch_cls
+from fathomdb._fathomdb import DEFAULT_STOP_WORDS_SHA256
 from fathomdb._fathomdb import rerank
-from fathomdb.config import EngineConfig
+from fathomdb._sdk_context_pack import (
+    ContextItem,
+    ContextPack,
+    ContextPackEntry,
+    ContextPart,
+    ContextPartEntry,
+    ContextPolicy,
+    context_item_from_hit,
+    decode_round_body,
+    encode_round_body,
+    pack_context,
+)
+from fathomdb.config import EngineConfig, QueryStopWords
 from fathomdb.engine import Engine
 from fathomdb.errors import (
     DependencyTraceError,
@@ -141,6 +154,13 @@ __all__ = [
     "ActuationOperationV1",
     "ActuationReceiptV1",
     "ConsolidateReceipt",
+    "ContextItem",
+    "ContextPack",
+    "ContextPackEntry",
+    "ContextPart",
+    "ContextPartEntry",
+    "DEFAULT_STOP_WORDS_SHA256",
+    "ContextPolicy",
     "CanonicalHash",
     "CanonicalWriteProvenanceV1",
     "CounterSnapshot",
@@ -175,6 +195,7 @@ __all__ = [
     "EvidenceSidecarEntryV1",
     "Engine",
     "EngineConfig",
+    "QueryStopWords",
     "Filter",
     "IngestWithExtractorReceipt",
     "ExpandedNode",
@@ -251,9 +272,13 @@ __all__ = [
     "WriteProvenanceV1",
     "__version__",
     "admin",
+    "context_item_from_hit",
+    "decode_round_body",
     "embed_batch_cls",
+    "encode_round_body",
     "errors",
     "graph",
+    "pack_context",
     "read",
     "rerank",
 ]

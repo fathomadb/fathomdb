@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast
 
-from fathomdb.config import EngineConfig
+from fathomdb.config import EngineConfig, QueryStopWords
 from fathomdb.errors import (
     FrozenReadError,
 )
@@ -38,6 +38,7 @@ _KWARG_FIELDS = {
     "cuda_pool",
     "cuda_pool_max_size",
     "cuda_pool_release_threshold",
+    "query_stop_words",
 }
 
 
@@ -56,10 +57,10 @@ _ENGINE_CONFIG_CHOICES = {
 }
 
 
-def _native_engine_config(config: EngineConfig) -> dict[str, int | str | None]:
+def _native_engine_config(config: EngineConfig) -> dict[str, Any]:
     if not isinstance(config, EngineConfig):
         raise TypeError("config must be an EngineConfig")
-    native: dict[str, int | str | None] = {}
+    native: dict[str, Any] = {}
     for name, (minimum, maximum) in _ENGINE_CONFIG_RANGES.items():
         value = getattr(config, name)
         if value is not None:
@@ -73,7 +74,27 @@ def _native_engine_config(config: EngineConfig) -> dict[str, int | str | None]:
         if choice is not None and choice not in choices:
             raise ValueError(f"{name} must be one of {', '.join(choices)}; got {choice!r}")
         native[name] = choice
+    native["query_stop_words"] = _native_query_stop_words(config.query_stop_words)
     return native
+
+
+def _native_query_stop_words(setting: object) -> dict[str, Any] | None:
+    # Shape checks only; the engine validates the words themselves.
+    if setting is None:
+        return None
+    if not isinstance(setting, QueryStopWords):
+        raise TypeError("query_stop_words must be a QueryStopWords")
+    if setting.base not in ("fathomdb", "none"):
+        raise ValueError(f"query_stop_words.base must be fathomdb or none; got {setting.base!r}")
+    lists: dict[str, list[str]] = {}
+    for name in ("extra", "keep"):
+        words = getattr(setting, name)
+        if isinstance(words, str) or not isinstance(words, (tuple, list)):
+            raise TypeError(f"query_stop_words.{name} must be a sequence of str, not a str")
+        if not all(isinstance(word, str) for word in words):
+            raise TypeError(f"query_stop_words.{name} must hold only str")
+        lists[name] = list(words)
+    return {"base": setting.base, "extra": lists["extra"], "keep": lists["keep"]}
 
 
 def _frozen_trace_error(reason: str, path: str) -> NoReturn:
@@ -351,6 +372,7 @@ def _map_open_report(native: Any) -> OpenReport:
             if gpu_allocation_witness is None
             else _map_gpu_allocation_witness(gpu_allocation_witness)
         ),
+        stop_words_sha256=getattr(native, "stop_words_sha256", ""),
     )
 
 

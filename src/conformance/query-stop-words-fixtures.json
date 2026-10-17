@@ -1,0 +1,40 @@
+{
+  "_comment": "0.8.28 Slice 41 unit Q cross-SDK fixture (REQ41-Q6, AC41-36, AC41-38, AC41-40). The corpus, queries and expected ids are written by hand; the ids follow from which documents share a non-stop content token with the query (FTS5 bm25, OR semantics), and the order from the number of matched terms. Hashes are SHA-256 of the effective words sorted by Unicode scalar value and joined by newline, computed independently with Python hashlib. Score bits are deliberately not stored: each SDK compares the configured engine's scores with its own default engine queried with the words stripped (the harness transform).",
+  "schema_version": "fathomdb.query-stop-words-fixtures/v1",
+  "setting": {"base": "fathomdb", "extra": ["had", "long", "suggest"], "keep": []},
+  "default_sha256": "ac9a853797f038a1d05302bb0ebca4ced9fab9f2b02e211148292d260d6e7367",
+  "setting_sha256": "4e1a05394b998ef1234cf0ff24a1692b33832f675a6cdadf131cd32c17964d99",
+  "corpus": [
+    {"logical_id": "s41q-a", "body": "had long suggest"},
+    {"logical_id": "s41q-b", "body": "dentist flossing"},
+    {"logical_id": "s41q-c", "body": "garden plan tomatoes"},
+    {"logical_id": "s41q-d", "body": "weather report"}
+  ],
+  "queries": [
+    {
+      "query": "how long had the dentist suggest flossing",
+      "stripped_query": "how the dentist flossing",
+      "default_ids": ["s41q-a", "s41q-b"],
+      "setting_ids": ["s41q-b"],
+      "_derivation": "Default terms long, had, dentist, suggest, flossing ('how', 'the' are built-in stop words): s41q-a matches three terms, s41q-b two, so a ranks first. With the setting the terms are dentist, flossing: only s41q-b matches."
+    },
+    {
+      "query": "suggest a garden plan",
+      "stripped_query": "a garden plan",
+      "default_ids": ["s41q-c", "s41q-a"],
+      "setting_ids": ["s41q-c"],
+      "_derivation": "Default terms suggest, garden, plan ('a' is a built-in stop word): s41q-c matches two terms, s41q-a one. With the setting the terms are garden, plan: only s41q-c matches."
+    }
+  ],
+  "invalid_settings": [
+    {"name": "empty_word", "setting": {"extra": [""]}, "message_contains": "query_stop_words.extra[0]"},
+    {"name": "not_alphanumeric", "setting": {"extra": ["don't"]}, "message_contains": "query_stop_words.extra[0]"},
+    {"name": "not_lowercase", "setting": {"extra": ["Had"]}, "message_contains": "query_stop_words.extra[0]"},
+    {"name": "too_long", "setting": {"extra": ["xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"]}, "message_contains": "query_stop_words.extra[0]"},
+    {"name": "repeated_word", "setting": {"extra": ["had", "had"]}, "message_contains": "query_stop_words.extra[1]"},
+    {"name": "extra_already_in_base", "setting": {"extra": ["the"]}, "message_contains": "query_stop_words.extra[0]"},
+    {"name": "word_in_extra_and_keep", "setting": {"extra": ["had"], "keep": ["had"]}, "message_contains": "query_stop_words.keep[0]"},
+    {"name": "keep_not_in_base", "setting": {"keep": ["hadd"]}, "message_contains": "query_stop_words.keep[0]"},
+    {"name": "keep_with_base_none", "setting": {"base": "none", "keep": ["the"]}, "message_contains": "query_stop_words.keep[0]"}
+  ]
+}

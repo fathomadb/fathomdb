@@ -2,7 +2,7 @@
   "schema_version": "fathomdb.baseline.v1",
   "title": "Slice 40 known-run baseline",
   "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-  "status": "final head: comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, and tc5-10k-latency expected values are the final-head measurements at the engine commit, each with a receipt; comp03-answer-v2 stays provisional (Unit D run, not re-measured); comp03-answer-mix is report-only and provisional (the evidence policy and mix may change); comp02a-10000, comp02a-17272 and comp02b-10000 added by owner ruling Q-H5 (2026-10-16) with final-head expected values from their receipts",
+  "status": "final head: comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, and tc5-10k-latency expected values are the final-head measurements at the engine commit, each with a receipt; comp03-answer-v2 stays provisional (Unit D run, not re-measured); comp03-answer-mix is report-only and provisional (the evidence policy and mix may change); comp02a-10000, comp02a-17272 and comp02b-10000 added by owner ruling Q-H5 (2026-10-16) with final-head expected values from their receipts; tc5-10k-latency and comp02b-10000 take the Slice 40 Unit I values at d10ad65d5 with the v2 fresh-open method (REQ40-I7, AC40-104), each with a receipt",
   "tolerances": {
     "ndcg_at_10": {
       "abs": 0.002
@@ -802,7 +802,7 @@
       },
       "summary": "<attempt dir>/summary.json",
       "receipt": "to be recorded (Unit D: comp-03-hermes-answer-20261016T1422Z-c807ed90, provisional)",
-      "note": "answer accuracy is reported as noise, not a gate: \u00b13 questions of 60",
+      "note": "answer accuracy is reported as noise, not a gate: ±3 questions of 60",
       "metrics": [
         {
           "name": "fathomdb-fts answer accuracy",
@@ -862,7 +862,7 @@
           "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
         }
       },
-      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
       "wheel_build": {
         "tool": "maturin build --release --compatibility linux",
         "manifest": "src/python/pyproject.toml",
@@ -891,137 +891,137 @@
         "<engine commit>"
       ],
       "summary": "<attempt dir>/summary.json",
-      "receipt": "comp-02b-latency-20261016T1700Z-4f96fad0",
-      "note": "quiet host only",
+      "receipt": "comp-02b-latency-20261017T1509Z-2412d988",
+      "note": "quiet host only; Unit I values (REQ40-I7, AC40-104) at d10ad65d5 with the v2 method: summary schema comp-02b.latency.summary.v2, measurement fresh_open_per_cell (each cell on its own engine open, after its own warm run); v1 (one open for every cell) and v2 numbers are not comparable; tolerances unchanged",
       "metrics": [
         {
           "name": "body-text-only p50",
           "pointer": "/cells/body-text-only/p50_ms",
-          "expected": 8.759192016441375,
+          "expected": 3.2888635178096592,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         },
         {
           "name": "projected-unfiltered p50",
           "pointer": "/cells/projected-unfiltered/p50_ms",
-          "expected": 2.862214983906597,
+          "expected": 2.747739985352382,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         },
         {
           "name": "projected-c10 p50",
           "pointer": "/cells/projected-c10/p50_ms",
-          "expected": 9.082879987545311,
+          "expected": 4.05415499699302,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         },
         {
           "name": "projected-c33 p50",
           "pointer": "/cells/projected-c33/p50_ms",
-          "expected": 8.22532203164883,
+          "expected": 2.9991850024089217,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         },
         {
           "name": "projected-c01 p50",
           "pointer": "/cells/projected-c01/p50_ms",
-          "expected": 29.809448984451592,
+          "expected": 6.796625006245449,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         },
         {
           "name": "body-text-only p95",
           "pointer": "/cells/body-text-only/p95_ms",
-          "expected": 15.675316972192377,
+          "expected": 5.967631994280964,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         },
         {
           "name": "projected-unfiltered p95",
           "pointer": "/cells/projected-unfiltered/p95_ms",
-          "expected": 5.542906990740448,
+          "expected": 5.281644989736378,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         },
         {
           "name": "projected-c10 p95",
           "pointer": "/cells/projected-c10/p95_ms",
-          "expected": 16.447036992758512,
+          "expected": 6.836263986770064,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         },
         {
           "name": "projected-c33 p95",
           "pointer": "/cells/projected-c33/p95_ms",
-          "expected": 13.83436401374638,
+          "expected": 5.704745999537408,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         },
         {
           "name": "projected-c01 p95",
           "pointer": "/cells/projected-c01/p95_ms",
-          "expected": 48.60262497095391,
+          "expected": 10.306074982509017,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-latency/summary.json, receipt comp-02b-latency-20261016T1700Z-4f96fad0"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-latency/summary.json, receipt comp-02b-latency-20261017T1509Z-2412d988"
           }
         }
       ]
@@ -1071,7 +1071,7 @@
       },
       "summary": "<attempt dir>/summary.json",
       "receipt": "comp-03-hermes-answer-20261016T1747Z-4e56afa9",
-      "note": "report-only, not a gate: \u00b13 questions of 60 (measured identical-config noise 3/60 per arm). The evidence policy and the mix are provisional and expected to change as COMP-03 work continues (multi-session and preference improvements under investigation).",
+      "note": "report-only, not a gate: ±3 questions of 60 (measured identical-config noise 3/60 per arm). The evidence policy and the mix are provisional and expected to change as COMP-03 work continues (multi-session and preference improvements under investigation).",
       "metrics": [
         {
           "name": "fathomdb-fts answer accuracy",
@@ -1331,7 +1331,7 @@
           "manifest.json": "a042ef6b1dac40eb9c9d1e526ec7af706ec1a48ba4abfd7b6577c45538db3e29"
         }
       },
-      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
       "wheel_build": {
         "tool": "maturin build --release --compatibility linux",
         "manifest": "src/python/pyproject.toml",
@@ -1353,7 +1353,7 @@
         "experiments.comp_fts",
         "run",
         "--config",
-        "experiments/configs/comp-02/filtered-10000.v1.json",
+        "experiments/configs/comp-02/filtered-10000.v2.json",
         "--inputs",
         "<inputs>",
         "--out",
@@ -1364,7 +1364,7 @@
         "-m",
         "experiments.comp_record",
         "record",
-        "experiments/configs/comp-02/filtered-10000.v1.json",
+        "experiments/configs/comp-02/filtered-10000.v2.json",
         "--inputs",
         "<inputs>",
         "--out",
@@ -1373,33 +1373,33 @@
         "<engine commit>"
       ],
       "summary": "<receipt dir>/metrics.json",
-      "receipt": "comp-02b-comp02b-10000-20261016T1757Z-d91933b9",
-      "note": "quiet host only; added by owner ruling Q-H5 (2026-10-16); medians are sorted by (cohort, arm), so indices 0, 2 and 4 are FathomDB at c01, c10 and c33; c01 has 6 short results per repetition (pre-existing)",
+      "receipt": "comp-02b-comp02b-10000-20261017T1510Z-19d8c470",
+      "note": "quiet host only; added by owner ruling Q-H5 (2026-10-16); Unit I values (REQ40-I7, AC40-104) at d10ad65d5 with filtered-10000.v2.json: a fresh open per cohort pass (c01, c10, c33) for both arms, each timed run after its own warm run; v1 and v2 numbers are not comparable; medians are sorted by (cohort, arm), so indices 0, 2 and 4 are FathomDB at c01, c10 and c33; c01 has 6 short results per repetition (pre-existing); tolerances unchanged",
       "metrics": [
         {
           "name": "fathomdb c01 p50",
           "pointer": "/medians/0/p50_ms",
-          "expected": 29.689309,
+          "expected": 6.5537255000000005,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
           "name": "fathomdb c01 p95",
           "pointer": "/medians/0/p95_ms",
-          "expected": 47.8182925,
+          "expected": 10.003969,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
@@ -1411,8 +1411,8 @@
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
@@ -1424,34 +1424,34 @@
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
           "name": "fathomdb c10 p50",
           "pointer": "/medians/2/p50_ms",
-          "expected": 9.261664,
+          "expected": 3.7664555,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
           "name": "fathomdb c10 p95",
           "pointer": "/medians/2/p95_ms",
-          "expected": 17.2323405,
+          "expected": 6.6802545,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
@@ -1463,8 +1463,8 @@
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
@@ -1476,34 +1476,34 @@
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
           "name": "fathomdb c33 p50",
           "pointer": "/medians/4/p50_ms",
-          "expected": 8.326032999999999,
+          "expected": 2.987172,
           "tolerance": {
             "rel": 0.25
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
           "name": "fathomdb c33 p95",
           "pointer": "/medians/4/p95_ms",
-          "expected": 15.1575045,
+          "expected": 5.6283905,
           "tolerance": {
             "rel": 0.35
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
@@ -1515,8 +1515,8 @@
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         },
         {
@@ -1528,8 +1528,8 @@
           },
           "provenance": {
             "status": "final",
-            "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
-            "source": "final-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9 (metrics.json)"
+            "engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+            "source": "ui-s40-comp02b-10000 cells, receipt comp-02b-comp02b-10000-20261017T1510Z-19d8c470 (metrics.json)"
           }
         }
       ]

@@ -1,0 +1,774 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "comp-03-hermes-answer-20261017T0308Z-0f2856e9",
+  "experiment": "comp-03-hermes-answer",
+  "title": "COMP-03 Hermes-style LongMemEval-S answer comparison",
+  "verdict": "complete",
+  "read": "fathomdb-fts-pack 0.933 vs fathomdb-hybrid-pack 0.900 answer accuracy on 60 paired questions (difference +0.033, bootstrap 95% -0.033..+0.100)",
+  "code": {
+    "git_sha": "9332c2468d2e1a7e55bd42da192d48a6a75df681",
+    "dirty": false,
+    "branch": "slice/0.8.28-40-comp03",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "0f2856e927b323685ddf97b0968b3a47bd521dcc3d220201cd40fe6a214a266f",
+    "path": "/tmp/claude-1000/-home-coreyt-projects-fathomdb/88b3dde6-4831-4ff9-a66b-ca910b3cdcac/scratchpad/pa-offline/hermes-answer.m3.json",
+    "resolved": {
+      "arms": [
+        {
+          "engine_config": {
+            "query_stop_words": {
+              "base": "fathomdb",
+              "extra": [
+                "had",
+                "long",
+                "suggest"
+              ]
+            }
+          },
+          "evidence": {
+            "item_source": "caller",
+            "pack": {
+              "budget_chars": 30000,
+              "compact_chars": 0,
+              "expand_groups": true,
+              "full_items": 5,
+              "item_chars": 4000,
+              "keep_roles": [
+                "user"
+              ],
+              "order": "chronological"
+            },
+            "renderer": "pack_context"
+          },
+          "id": "fathomdb-fts-pack",
+          "method": "Engine.search_text_only",
+          "product_arm": "fathomdb",
+          "renderer": "pack_context T5/A0/k50 (caller items)",
+          "setup": "fathomdb_test_setup, embedder none, cpu; plain round bodies (v1 store shape)",
+          "top_k": 50
+        },
+        {
+          "engine_config": {
+            "query_stop_words": {
+              "base": "fathomdb",
+              "extra": [
+                "had",
+                "long",
+                "suggest"
+              ]
+            }
+          },
+          "evidence": {
+            "item_source": "caller",
+            "pack": {
+              "budget_chars": 30000,
+              "compact_chars": 0,
+              "expand_groups": true,
+              "full_items": 5,
+              "item_chars": 4000,
+              "keep_roles": [
+                "user"
+              ],
+              "order": "chronological"
+            },
+            "renderer": "pack_context"
+          },
+          "id": "fathomdb-hybrid-pack",
+          "method": "Engine.search, rerank_depth 0, no graph arm",
+          "product_arm": "fathomdb-hybrid",
+          "renderer": "pack_context T5/A0/k50 (caller items)",
+          "setup": "fathomdb_test_setup, embedder default, FATHOMDB_EMBED_DEVICE; plain round bodies plus ProjectionSpec(name='dense', SEARCHABLE, vector=True); vector coverage checked per store",
+          "top_k": 50
+        }
+      ],
+      "campaign": "COMP-03",
+      "claim_boundary": {
+        "control": "the post-Unit H Slice 40 mix answer run",
+        "lancedb": "not re-run; it stays on the Slice 40 renderer (owner ruling 2026-10-16, R0 Q1)",
+        "statement": "REQ41-M3: a no-regression check of pack_context against the Slice 40 mix on the FathomDB FTS and hybrid arms; noise floor about 3 of 60 flips per arm"
+      },
+      "corpus": {
+        "identifier": "longmemeval-s-cleaned",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+        "source": "huggingface xiaowu0162/longmemeval-cleaned@98d7416c24c778c2fee6e6f3006e7a073259d48f longmemeval_s_cleaned.json",
+        "storage": "external_only"
+      },
+      "document_unit": {
+        "blank_rounds": "blank (whitespace-only) rounds are not indexed by any arm; round IDs stay positional, so every other round's ID and the gold are unchanged; the count is recorded per question as blank_rounds_skipped",
+        "excluded": [
+          "answer",
+          "answer_session_ids",
+          "haystack_session_ids",
+          "has_answer"
+        ],
+        "id": "s<session position:03d>-r<round position:03d>",
+        "indexed_body": "turn contents joined by newline",
+        "rule": "one user turn plus the assistant turns that follow it; leading assistant turns form their own round",
+        "unit": "round"
+      },
+      "evidence": {
+        "pack_choice": {
+          "adopted": true,
+          "policy": "T5/A0/k50"
+        },
+        "recency_instruction": false,
+        "renderer": "per arm (arms[].evidence)"
+      },
+      "live": {
+        "answerer": {
+          "input_usd_per_million": 2.5,
+          "max_tokens": 1024,
+          "model": "openai/gpt-5.4",
+          "output_usd_per_million": 15.0,
+          "prompt": "LongMemEval reading prompt (comp03_answer.answer_messages)"
+        },
+        "judge": {
+          "input_usd_per_million": 2.5,
+          "max_tokens": 16,
+          "model": "openai/gpt-5.4",
+          "output_usd_per_million": 15.0,
+          "prompt": "LongMemEval evaluate_qa per-type answer check, blinded to product"
+        },
+        "max_retries": 4,
+        "max_usd": 15.0,
+        "route": "Airlock loopback http://127.0.0.1:4000, OpenAI upstream",
+        "seed": 0,
+        "temperature": 0
+      },
+      "metrics": [
+        "answer_accuracy_paired",
+        "answer_accuracy_per_type",
+        "session_recall_any_at_10",
+        "session_mrr_at_10",
+        "turn_recall_any_at_10",
+        "turn_mrr_at_10",
+        "retrieval_latency_ms",
+        "answer_latency_s",
+        "judge_latency_s",
+        "cost_usd"
+      ],
+      "program_track": null,
+      "retrieval": {
+        "order": "arms rotate by question position: arm_order(index, arms) = arms[index % n:] + arms[:index % n]; for two arms this is v1's AB/BA alternation",
+        "per_arm": "each arm's top_k is its retrieval depth; retrieval metrics use top_k 10",
+        "query": "question text verbatim",
+        "top_k": 10
+      },
+      "schema_version": "comp-03.answer.v4",
+      "selection": {
+        "per_type": 10,
+        "question_ids": [
+          "184da446",
+          "42ec0761",
+          "6a1eabeb",
+          "89941a93",
+          "89941a94",
+          "b6019101",
+          "c6853660",
+          "ce6d2d27",
+          "eace081b",
+          "f685340e_abs",
+          "09ba9854",
+          "4f54b7c9",
+          "67e0d0f2",
+          "8979f9ec",
+          "8e91e7d9",
+          "d23cf73b",
+          "e5ba910e_abs",
+          "e6041065",
+          "gpt4_372c3eed",
+          "gpt4_f2262a51",
+          "3249768e",
+          "352ab8bd",
+          "41275add",
+          "4c36ccef",
+          "6ae235be",
+          "70b3e69b",
+          "71a3fd6b",
+          "ceb54acb",
+          "e3fc4d6e",
+          "e8a79c70",
+          "06878be2",
+          "1a1907b4",
+          "1c0ddc50",
+          "1da05512",
+          "505af2f5",
+          "6b7dfb22",
+          "75832dbd",
+          "95228167",
+          "b6025781",
+          "d6233ab6",
+          "21436231",
+          "29f2956b",
+          "545bd2b5",
+          "6ade9755",
+          "6f9b354f",
+          "86f00804",
+          "bc8a6e93_abs",
+          "c14c00dd",
+          "e01b8e2f",
+          "f4f1d8a4_abs",
+          "4dfccbf7",
+          "gpt4_65aabe59",
+          "gpt4_68e94287",
+          "gpt4_6dc9b45b",
+          "gpt4_78cf46a3",
+          "gpt4_7a0daae1",
+          "gpt4_7bc6cf22",
+          "gpt4_98f46fc6",
+          "gpt4_d31cdae3",
+          "gpt4_e414231e"
+        ],
+        "rule": "random.Random(f'{seed}:{type}').sample(sorted ids of type, per_type), sorted within type; types sorted",
+        "seed": 303
+      }
+    }
+  },
+  "corpus": {
+    "source": "longmemeval-s-cleaned",
+    "manifest_sha256": null,
+    "datasets": [
+      {
+        "name": "longmemeval_s_cleaned.json",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+      }
+    ]
+  },
+  "seeds": {
+    "selection": 303,
+    "model": 0
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb-fts-pack": "0.8.27",
+      "fathomdb-hybrid-pack": "0.8.27",
+      "fathomdb_engine_commit": "1bfd861afa5eb0626710969f3f971ab3a0e4e08e",
+      "fathomdb_native_sha256": "434c0d0ab406ef072aae2e3179b20e840ce65b360389ab45540f3e52ce855e3d",
+      "answerer": "openai/gpt-5.4",
+      "judge": "openai/gpt-5.4"
+    }
+  },
+  "metrics": {
+    "answer": {
+      "n": 60,
+      "accuracy": {
+        "fathomdb-fts-pack": 0.9333333333333333,
+        "fathomdb-hybrid-pack": 0.9
+      },
+      "difference": 0.03333333333333333,
+      "difference_bootstrap_95": [
+        -0.03333333333333333,
+        0.1
+      ],
+      "discordant": {
+        "fathomdb-fts-pack_only": 3,
+        "fathomdb-hybrid-pack_only": 1
+      },
+      "per_type": {
+        "knowledge-update": {
+          "fathomdb-fts-pack": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          },
+          "fathomdb-hybrid-pack": {
+            "correct": 8,
+            "n": 10,
+            "rate": 0.8,
+            "wilson_95": [
+              0.49015684672072335,
+              0.9433190520193067
+            ]
+          }
+        },
+        "multi-session": {
+          "fathomdb-fts-pack": {
+            "correct": 8,
+            "n": 10,
+            "rate": 0.8,
+            "wilson_95": [
+              0.49015684672072335,
+              0.9433190520193067
+            ]
+          },
+          "fathomdb-hybrid-pack": {
+            "correct": 8,
+            "n": 10,
+            "rate": 0.8,
+            "wilson_95": [
+              0.49015684672072335,
+              0.9433190520193067
+            ]
+          }
+        },
+        "single-session-assistant": {
+          "fathomdb-fts-pack": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          },
+          "fathomdb-hybrid-pack": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          }
+        },
+        "single-session-preference": {
+          "fathomdb-fts-pack": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          },
+          "fathomdb-hybrid-pack": {
+            "correct": 8,
+            "n": 10,
+            "rate": 0.8,
+            "wilson_95": [
+              0.49015684672072335,
+              0.9433190520193067
+            ]
+          }
+        },
+        "single-session-user": {
+          "fathomdb-fts-pack": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          },
+          "fathomdb-hybrid-pack": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          }
+        },
+        "temporal-reasoning": {
+          "fathomdb-fts-pack": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          },
+          "fathomdb-hybrid-pack": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    "abstention_n": 4,
+    "retrieval": {
+      "fathomdb-fts-pack": {
+        "n": 56,
+        "session_recall_any_at_10": 0.9642857142857143,
+        "session_recall_any_at_10_n": 56,
+        "session_mrr_at_10": 0.8585530045351474,
+        "session_mrr_at_10_n": 56,
+        "turn_recall_any_at_10": 0.9107142857142857,
+        "turn_recall_any_at_10_n": 56,
+        "turn_mrr_at_10": 0.6394770408163265,
+        "turn_mrr_at_10_n": 56,
+        "renderer": "pack_context T5/A0/k50 (caller items)"
+      },
+      "fathomdb-hybrid-pack": {
+        "n": 56,
+        "session_recall_any_at_10": 0.9464285714285714,
+        "session_recall_any_at_10_n": 56,
+        "session_mrr_at_10": 0.880952380952381,
+        "session_mrr_at_10_n": 56,
+        "turn_recall_any_at_10": 0.9285714285714286,
+        "turn_recall_any_at_10_n": 56,
+        "turn_mrr_at_10": 0.6517857142857143,
+        "turn_mrr_at_10_n": 56,
+        "renderer": "pack_context T5/A0/k50 (caller items)"
+      }
+    },
+    "timing": {
+      "fathomdb-fts-pack": {
+        "version": "0.8.27",
+        "retrieval_first_p50_ms": 1.528286,
+        "retrieval_warm_p50_ms": 1.413354,
+        "retrieval_warm_p95_ms": 1.743078,
+        "build_p50_s": 0.034769836987834424,
+        "evidence_chars_p50": 33175.5,
+        "answer_p50_s": 1.4399816795194056,
+        "judge_p50_s": 0.6948155484860763,
+        "usd": 1.2805225,
+        "renderer": "pack_context T5/A0/k50 (caller items)"
+      },
+      "fathomdb-hybrid-pack": {
+        "version": "0.8.27",
+        "retrieval_first_p50_ms": 6.929544,
+        "retrieval_warm_p50_ms": 6.7215425,
+        "retrieval_warm_p95_ms": 7.099826,
+        "build_p50_s": 2.330450395005755,
+        "evidence_chars_p50": 33175.5,
+        "answer_p50_s": 1.4340192895033397,
+        "judge_p50_s": 0.7166491684911307,
+        "usd": 1.3032775,
+        "renderer": "pack_context T5/A0/k50 (caller items)"
+      }
+    },
+    "cost_usd": 2.5838,
+    "selection_matches_seed": true,
+    "arm_gate": {
+      "sweep_verdict": "adopt",
+      "sweep_summary_sha256": "36e0cae8e578b45eac8823c5f3e45d6286df69cd3e2b94100882ac019224a176",
+      "excluded_arms": []
+    },
+    "renderer_by_arm": {
+      "fathomdb-fts-pack": "pack_context T5/A0/k50 (caller items)",
+      "fathomdb-hybrid-pack": "pack_context T5/A0/k50 (caller items)"
+    },
+    "question_outcomes": [
+      {
+        "question_id": "184da446",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "42ec0761",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "6a1eabeb",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "89941a93",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "89941a94",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "b6019101",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": false
+      },
+      {
+        "question_id": "c6853660",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "ce6d2d27",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "eace081b",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "f685340e_abs",
+        "fathomdb-fts-pack": false,
+        "fathomdb-hybrid-pack": false
+      },
+      {
+        "question_id": "09ba9854",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": false
+      },
+      {
+        "question_id": "4f54b7c9",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "67e0d0f2",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "8979f9ec",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "8e91e7d9",
+        "fathomdb-fts-pack": false,
+        "fathomdb-hybrid-pack": false
+      },
+      {
+        "question_id": "d23cf73b",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "e5ba910e_abs",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "e6041065",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_372c3eed",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_f2262a51",
+        "fathomdb-fts-pack": false,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "3249768e",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "352ab8bd",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "41275add",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "4c36ccef",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "6ae235be",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "70b3e69b",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "71a3fd6b",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "ceb54acb",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "e3fc4d6e",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "e8a79c70",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "06878be2",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "1a1907b4",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "1c0ddc50",
+        "fathomdb-fts-pack": false,
+        "fathomdb-hybrid-pack": false
+      },
+      {
+        "question_id": "1da05512",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "505af2f5",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "6b7dfb22",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "75832dbd",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": false
+      },
+      {
+        "question_id": "95228167",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "b6025781",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "d6233ab6",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "21436231",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "29f2956b",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "545bd2b5",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "6ade9755",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "6f9b354f",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "86f00804",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "bc8a6e93_abs",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "c14c00dd",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "e01b8e2f",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "f4f1d8a4_abs",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "4dfccbf7",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_65aabe59",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_68e94287",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_6dc9b45b",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_78cf46a3",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_7a0daae1",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_7bc6cf22",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_98f46fc6",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_d31cdae3",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      },
+      {
+        "question_id": "gpt4_e414231e",
+        "fathomdb-fts-pack": true,
+        "fathomdb-hybrid-pack": true
+      }
+    ]
+  },
+  "cost_usd": 2.5838,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_attempt",
+      "summary_sha256": "a5134b1c30545ac666a333c94afd7d9074bb3fe7b67ffc83f7fe73b910f588a0"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

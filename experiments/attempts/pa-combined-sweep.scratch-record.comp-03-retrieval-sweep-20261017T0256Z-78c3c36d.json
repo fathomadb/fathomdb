@@ -1,0 +1,1342 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "comp-03-retrieval-sweep-20261017T0256Z-78c3c36d",
+  "experiment": "comp-03-retrieval-sweep",
+  "title": "COMP-03 LongMemEval-S retrieval sweep, FathomDB FTS vs hybrid",
+  "verdict": "complete",
+  "read": "decision adopt on session_recall_any_at_5: hybrid − fts +0.009 (95% -0.009..+0.026, n=470)",
+  "code": {
+    "git_sha": "9332c2468d2e1a7e55bd42da192d48a6a75df681",
+    "dirty": false,
+    "branch": "slice/0.8.28-40-comp03",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "78c3c36d498cd1bcabb2dfa11bc3796647d19982834092f13f6f3d9f4b60aead",
+    "path": "/home/coreyt/projects/fathomdb-worktrees/comp03-slice40/experiments/configs/comp-03/retrieval-sweep.v2.json",
+    "resolved": {
+      "schema_version": "comp-03.retrieval-sweep.v2",
+      "program_track": null,
+      "campaign": "COMP-03",
+      "corpus": {
+        "identifier": "longmemeval-s-cleaned",
+        "source": "huggingface xiaowu0162/longmemeval-cleaned@98d7416c24c778c2fee6e6f3006e7a073259d48f longmemeval_s_cleaned.json",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+        "storage": "external_only"
+      },
+      "selection": {
+        "rule": "all",
+        "note": "every LongMemEval-S question, sorted by question_id; abstention questions are retrieved but not scored"
+      },
+      "document_unit": {
+        "unit": "round",
+        "rule": "one user turn plus the assistant turns that follow it; leading assistant turns form their own round",
+        "id": "s<session position:03d>-r<round position:03d>",
+        "indexed_body": "turn contents joined by newline",
+        "excluded": [
+          "answer",
+          "answer_session_ids",
+          "haystack_session_ids",
+          "has_answer"
+        ],
+        "blank_rounds": "blank (whitespace-only) rounds are not indexed by any arm; round IDs stay positional, so every other round's ID and the gold are unchanged; the count is recorded per question as blank_rounds_skipped"
+      },
+      "arms": [
+        {
+          "id": "fathomdb-fts",
+          "product_arm": "fathomdb",
+          "method": "Engine.search_text_only",
+          "store": "plain round bodies, no embedder, no projection (v1 shape)",
+          "variants": [
+            {
+              "id": "fathomdb-fts-stopwords",
+              "engine_config": {
+                "query_stop_words": {
+                  "base": "fathomdb",
+                  "extra": [
+                    "had",
+                    "long",
+                    "suggest"
+                  ]
+                }
+              },
+              "method": "Engine.search_text_only on the same store, reopened with EngineConfig.query_stop_words (REQ41-Q8)"
+            }
+          ]
+        },
+        {
+          "id": "fathomdb-hybrid",
+          "product_arm": "fathomdb-hybrid",
+          "method": "Engine.search, rerank_depth 0, no graph arm",
+          "store": "the same plain round bodies plus ProjectionSpec(name='dense', SEARCHABLE, vector=True) declared before writes; the full node body is embedded; vector coverage checked per store",
+          "variants": [
+            {
+              "id": "fathomdb-hybrid-stopwords",
+              "engine_config": {
+                "query_stop_words": {
+                  "base": "fathomdb",
+                  "extra": [
+                    "had",
+                    "long",
+                    "suggest"
+                  ]
+                }
+              },
+              "method": "Engine.search on the same store, reopened with EngineConfig.query_stop_words (REQ41-Q8)"
+            }
+          ]
+        },
+        {
+          "id": "lancedb-fts",
+          "product_arm": "lancedb",
+          "method": "table.search(query_type='fts'), native FTS index, library defaults",
+          "store": "reference"
+        }
+      ],
+      "retrieval": {
+        "top_k": 10,
+        "query": "question text verbatim",
+        "order": "arms rotate by question position (comp03_answer.arm_order)",
+        "store": "fresh store per question per arm, removed after",
+        "extra_limits": [
+          30,
+          50
+        ],
+        "limits": "each store is queried at top_k (timed, five repeats) and at every extra_limits value (ids_at, for the Slice 41 M1 evaluator, which needs each policy's own k because hybrid is not prefix-stable)",
+        "variants": "a variant reopens its arm's store after the default queries, with its engine_config, and is scored as its own arm; its store build is the parent's, so it differs from the parent only by the query setting; its timings follow a warm reopen and are not comparable to the parent's first-query latency"
+      },
+      "metrics": {
+        "ks": [
+          5,
+          10
+        ],
+        "names": [
+          "session_recall_any_at_k",
+          "session_recall_all_at_k",
+          "session_mrr_at_10",
+          "turn_recall_any_at_k"
+        ],
+        "bootstrap": {
+          "seed": 404,
+          "resamples": 10000,
+          "ci": "2.5th and 97.5th percentile of paired mean differences"
+        },
+        "latency": "first query and five repeats per store; hybrid query latency includes embedding the question",
+        "build": "ingest_ack_s, build_return_s, drain_s (hybrid: embedding time)"
+      },
+      "device": {
+        "env": "FATHOMDB_EMBED_DEVICE",
+        "values": "auto | cpu | cuda:N",
+        "cuda_fallback": "refused: a cuda:N request must resolve to an effective CUDA device with a selected UUID"
+      },
+      "decision_rule": {
+        "metric": "session_recall_any_at_5",
+        "treatment": "fathomdb-hybrid",
+        "control": "fathomdb-fts",
+        "focus_type": "single-session-preference"
+      },
+      "claim_boundary": {
+        "statement": "adopt hybrid for the answer run iff (a) preference session Recall@5 delta CI lower bound > 0, (b) no other type's delta CI upper bound < 0, (c) overall delta >= 0",
+        "reason": "EARP found hybrid null-or-negative on real traces, so adoption is decided by this pre-stated rule",
+        "scope": "retrieval only; no answerer or judge",
+        "slice41": "the stop-word variants and ids_at serve Slice 41 MQ1, MQ2 and M1; the decision rule still compares the default fathomdb-hybrid and fathomdb-fts arms"
+      },
+      "mq1": {
+        "arm": "fathomdb-fts",
+        "variant": "fathomdb-fts-stopwords",
+        "words": [
+          "had",
+          "long",
+          "suggest"
+        ],
+        "engine_stopwords": "experiments/configs/comp-03/stoplist-selection.v1.json",
+        "simulated_fts_ids": "experiments/configs/comp-03/stoplist-verdict.v1.json",
+        "pass": "REQ41 MQ1: for every question, the variant's top-10 equals the harness transform's top-10 (comp03_unit_h.simulated_query on the same store opened with the defaults); 500 of 500. The engine list's hash must equal the installed DEFAULT_STOP_WORDS_SHA256.",
+        "informative": "the count of questions whose variant top-10 equals the stoplist verdict's simulated_fts_ids (simulated at engine 5b09afd44); a difference there is a head difference, not a Unit Q defect"
+      }
+    }
+  },
+  "corpus": {
+    "source": "longmemeval-s-cleaned",
+    "manifest_sha256": null,
+    "datasets": [
+      {
+        "name": "longmemeval_s_cleaned.json",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+      }
+    ]
+  },
+  "seeds": {
+    "bootstrap": 404
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb-fts": "0.8.27",
+      "fathomdb-fts-stopwords": "0.8.27",
+      "fathomdb-hybrid": "0.8.27",
+      "fathomdb-hybrid-stopwords": "0.8.27",
+      "lancedb-fts": "0.40.0",
+      "fathomdb_engine_commit": "1bfd861afa5eb0626710969f3f971ab3a0e4e08e",
+      "fathomdb_native_sha256": "434c0d0ab406ef072aae2e3179b20e840ce65b360389ab45540f3e52ce855e3d"
+    }
+  },
+  "metrics": {
+    "schema_version": "comp-03.retrieval-sweep.summary.v2",
+    "questions": 500,
+    "arms": {
+      "fathomdb-fts": {
+        "overall": {
+          "n": 470,
+          "session_recall_any_at_5": 0.951063829787234,
+          "session_recall_any_at_5_n": 470,
+          "session_recall_all_at_5": 0.7808510638297872,
+          "session_recall_all_at_5_n": 470,
+          "turn_recall_any_at_5": 0.8723404255319149,
+          "turn_recall_any_at_5_n": 470,
+          "session_recall_any_at_10": 0.9851063829787234,
+          "session_recall_any_at_10_n": 470,
+          "session_recall_all_at_10": 0.8765957446808511,
+          "session_recall_all_at_10_n": 470,
+          "turn_recall_any_at_10": 0.9425531914893617,
+          "turn_recall_any_at_10_n": 470,
+          "session_mrr_at_10": 0.9106661600810536,
+          "session_mrr_at_10_n": 470
+        },
+        "per_type": {
+          "knowledge-update": {
+            "n": 72,
+            "session_recall_any_at_5": 1.0,
+            "session_recall_any_at_5_n": 72,
+            "session_recall_all_at_5": 0.9444444444444444,
+            "session_recall_all_at_5_n": 72,
+            "turn_recall_any_at_5": 0.9722222222222222,
+            "turn_recall_any_at_5_n": 72,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 72,
+            "session_recall_all_at_10": 0.9861111111111112,
+            "session_recall_all_at_10_n": 72,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 72,
+            "session_mrr_at_10": 1.0,
+            "session_mrr_at_10_n": 72
+          },
+          "multi-session": {
+            "n": 121,
+            "session_recall_any_at_5": 0.9752066115702479,
+            "session_recall_any_at_5_n": 121,
+            "session_recall_all_at_5": 0.5454545454545454,
+            "session_recall_all_at_5_n": 121,
+            "turn_recall_any_at_5": 0.8760330578512396,
+            "turn_recall_any_at_5_n": 121,
+            "session_recall_any_at_10": 0.9917355371900827,
+            "session_recall_any_at_10_n": 121,
+            "session_recall_all_at_10": 0.743801652892562,
+            "session_recall_all_at_10_n": 121,
+            "turn_recall_any_at_10": 0.9421487603305785,
+            "turn_recall_any_at_10_n": 121,
+            "session_mrr_at_10": 0.9159320477502296,
+            "session_mrr_at_10_n": 121
+          },
+          "single-session-assistant": {
+            "n": 56,
+            "session_recall_any_at_5": 1.0,
+            "session_recall_any_at_5_n": 56,
+            "session_recall_all_at_5": 1.0,
+            "session_recall_all_at_5_n": 56,
+            "turn_recall_any_at_5": 0.9285714285714286,
+            "turn_recall_any_at_5_n": 56,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 56,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 56,
+            "turn_recall_any_at_10": 0.9821428571428571,
+            "turn_recall_any_at_10_n": 56,
+            "session_mrr_at_10": 1.0,
+            "session_mrr_at_10_n": 56
+          },
+          "single-session-preference": {
+            "n": 30,
+            "session_recall_any_at_5": 0.7333333333333333,
+            "session_recall_any_at_5_n": 30,
+            "session_recall_all_at_5": 0.7333333333333333,
+            "session_recall_all_at_5_n": 30,
+            "turn_recall_any_at_5": 0.6333333333333333,
+            "turn_recall_any_at_5_n": 30,
+            "session_recall_any_at_10": 0.9,
+            "session_recall_any_at_10_n": 30,
+            "session_recall_all_at_10": 0.9,
+            "session_recall_all_at_10_n": 30,
+            "turn_recall_any_at_10": 0.8,
+            "turn_recall_any_at_10_n": 30,
+            "session_mrr_at_10": 0.611005291005291,
+            "session_mrr_at_10_n": 30
+          },
+          "single-session-user": {
+            "n": 64,
+            "session_recall_any_at_5": 0.984375,
+            "session_recall_any_at_5_n": 64,
+            "session_recall_all_at_5": 0.984375,
+            "session_recall_all_at_5_n": 64,
+            "turn_recall_any_at_5": 0.96875,
+            "turn_recall_any_at_5_n": 64,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 64,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 64,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 64,
+            "session_mrr_at_10": 0.9704861111111112,
+            "session_mrr_at_10_n": 64
+          },
+          "temporal-reasoning": {
+            "n": 127,
+            "session_recall_any_at_5": 0.9133858267716536,
+            "session_recall_any_at_5_n": 127,
+            "session_recall_all_at_5": 0.7244094488188977,
+            "session_recall_all_at_5_n": 127,
+            "turn_recall_any_at_5": 0.7952755905511811,
+            "turn_recall_any_at_5_n": 127,
+            "session_recall_any_at_10": 0.9763779527559056,
+            "session_recall_any_at_10_n": 127,
+            "session_recall_all_at_10": 0.8188976377952756,
+            "session_recall_all_at_10_n": 127,
+            "turn_recall_any_at_10": 0.8976377952755905,
+            "turn_recall_any_at_10_n": 127,
+            "session_mrr_at_10": 0.8562523434570679,
+            "session_mrr_at_10_n": 127
+          }
+        },
+        "timing": {
+          "version": "0.8.27",
+          "query_first_p50_ms": 1.304173,
+          "query_warm_p50_ms": 1.2745920000000002,
+          "query_warm_p95_ms": 1.571273,
+          "build_p50_s": 0.0453185755177401
+        },
+        "questions": 500,
+        "stop_words_sha256": [
+          "ac9a853797f038a1d05302bb0ebca4ced9fab9f2b02e211148292d260d6e7367"
+        ]
+      },
+      "fathomdb-fts-stopwords": {
+        "overall": {
+          "n": 470,
+          "session_recall_any_at_5": 0.9553191489361702,
+          "session_recall_any_at_5_n": 470,
+          "session_recall_all_at_5": 0.7851063829787234,
+          "session_recall_all_at_5_n": 470,
+          "turn_recall_any_at_5": 0.8765957446808511,
+          "turn_recall_any_at_5_n": 470,
+          "session_recall_any_at_10": 0.9872340425531915,
+          "session_recall_any_at_10_n": 470,
+          "session_recall_all_at_10": 0.8851063829787233,
+          "session_recall_all_at_10_n": 470,
+          "turn_recall_any_at_10": 0.9446808510638298,
+          "turn_recall_any_at_10_n": 470,
+          "session_mrr_at_10": 0.9136068895643363,
+          "session_mrr_at_10_n": 470
+        },
+        "per_type": {
+          "knowledge-update": {
+            "n": 72,
+            "session_recall_any_at_5": 1.0,
+            "session_recall_any_at_5_n": 72,
+            "session_recall_all_at_5": 0.9444444444444444,
+            "session_recall_all_at_5_n": 72,
+            "turn_recall_any_at_5": 0.9722222222222222,
+            "turn_recall_any_at_5_n": 72,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 72,
+            "session_recall_all_at_10": 0.9861111111111112,
+            "session_recall_all_at_10_n": 72,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 72,
+            "session_mrr_at_10": 1.0,
+            "session_mrr_at_10_n": 72
+          },
+          "multi-session": {
+            "n": 121,
+            "session_recall_any_at_5": 0.9752066115702479,
+            "session_recall_any_at_5_n": 121,
+            "session_recall_all_at_5": 0.5454545454545454,
+            "session_recall_all_at_5_n": 121,
+            "turn_recall_any_at_5": 0.8760330578512396,
+            "turn_recall_any_at_5_n": 121,
+            "session_recall_any_at_10": 0.9917355371900827,
+            "session_recall_any_at_10_n": 121,
+            "session_recall_all_at_10": 0.7603305785123967,
+            "session_recall_all_at_10_n": 121,
+            "turn_recall_any_at_10": 0.9421487603305785,
+            "turn_recall_any_at_10_n": 121,
+            "session_mrr_at_10": 0.9184113865932048,
+            "session_mrr_at_10_n": 121
+          },
+          "single-session-assistant": {
+            "n": 56,
+            "session_recall_any_at_5": 1.0,
+            "session_recall_any_at_5_n": 56,
+            "session_recall_all_at_5": 1.0,
+            "session_recall_all_at_5_n": 56,
+            "turn_recall_any_at_5": 0.9285714285714286,
+            "turn_recall_any_at_5_n": 56,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 56,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 56,
+            "turn_recall_any_at_10": 0.9821428571428571,
+            "turn_recall_any_at_10_n": 56,
+            "session_mrr_at_10": 1.0,
+            "session_mrr_at_10_n": 56
+          },
+          "single-session-preference": {
+            "n": 30,
+            "session_recall_any_at_5": 0.8,
+            "session_recall_any_at_5_n": 30,
+            "session_recall_all_at_5": 0.8,
+            "session_recall_all_at_5_n": 30,
+            "turn_recall_any_at_5": 0.7,
+            "turn_recall_any_at_5_n": 30,
+            "session_recall_any_at_10": 0.9333333333333333,
+            "session_recall_any_at_10_n": 30,
+            "session_recall_all_at_10": 0.9333333333333333,
+            "session_recall_all_at_10_n": 30,
+            "turn_recall_any_at_10": 0.8333333333333334,
+            "turn_recall_any_at_10_n": 30,
+            "session_mrr_at_10": 0.6470767195767196,
+            "session_mrr_at_10_n": 30
+          },
+          "single-session-user": {
+            "n": 64,
+            "session_recall_any_at_5": 0.984375,
+            "session_recall_any_at_5_n": 64,
+            "session_recall_all_at_5": 0.984375,
+            "session_recall_all_at_5_n": 64,
+            "turn_recall_any_at_5": 0.96875,
+            "turn_recall_any_at_5_n": 64,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 64,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 64,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 64,
+            "session_mrr_at_10": 0.9704861111111112,
+            "session_mrr_at_10_n": 64
+          },
+          "temporal-reasoning": {
+            "n": 127,
+            "session_recall_any_at_5": 0.9133858267716536,
+            "session_recall_any_at_5_n": 127,
+            "session_recall_all_at_5": 0.7244094488188977,
+            "session_recall_all_at_5_n": 127,
+            "turn_recall_any_at_5": 0.7952755905511811,
+            "turn_recall_any_at_5_n": 127,
+            "session_recall_any_at_10": 0.9763779527559056,
+            "session_recall_any_at_10_n": 127,
+            "session_recall_all_at_10": 0.8267716535433071,
+            "session_recall_all_at_10_n": 127,
+            "turn_recall_any_at_10": 0.8976377952755905,
+            "turn_recall_any_at_10_n": 127,
+            "session_mrr_at_10": 0.8562523434570679,
+            "session_mrr_at_10_n": 127
+          }
+        },
+        "timing": {
+          "version": "0.8.27",
+          "query_first_p50_ms": 1.2119375,
+          "query_warm_p50_ms": 1.2617414999999998,
+          "query_warm_p95_ms": 1.560311,
+          "build_p50_s": 0.0453185755177401
+        },
+        "questions": 500,
+        "stop_words_sha256": [
+          "4e1a05394b998ef1234cf0ff24a1692b33832f675a6cdadf131cd32c17964d99"
+        ]
+      },
+      "fathomdb-hybrid": {
+        "overall": {
+          "n": 470,
+          "session_recall_any_at_5": 0.9595744680851064,
+          "session_recall_any_at_5_n": 470,
+          "session_recall_all_at_5": 0.7808510638297872,
+          "session_recall_all_at_5_n": 470,
+          "turn_recall_any_at_5": 0.8872340425531915,
+          "turn_recall_any_at_5_n": 470,
+          "session_recall_any_at_10": 0.9851063829787234,
+          "session_recall_any_at_10_n": 470,
+          "session_recall_all_at_10": 0.9,
+          "session_recall_all_at_10_n": 470,
+          "turn_recall_any_at_10": 0.9553191489361702,
+          "turn_recall_any_at_10_n": 470,
+          "session_mrr_at_10": 0.9287107396149948,
+          "session_mrr_at_10_n": 470
+        },
+        "per_type": {
+          "knowledge-update": {
+            "n": 72,
+            "session_recall_any_at_5": 0.9861111111111112,
+            "session_recall_any_at_5_n": 72,
+            "session_recall_all_at_5": 0.9027777777777778,
+            "session_recall_all_at_5_n": 72,
+            "turn_recall_any_at_5": 0.9583333333333334,
+            "turn_recall_any_at_5_n": 72,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 72,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 72,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 72,
+            "session_mrr_at_10": 0.9745370370370371,
+            "session_mrr_at_10_n": 72
+          },
+          "multi-session": {
+            "n": 121,
+            "session_recall_any_at_5": 0.9752066115702479,
+            "session_recall_any_at_5_n": 121,
+            "session_recall_all_at_5": 0.5537190082644629,
+            "session_recall_all_at_5_n": 121,
+            "turn_recall_any_at_5": 0.8760330578512396,
+            "turn_recall_any_at_5_n": 121,
+            "session_recall_any_at_10": 0.9917355371900827,
+            "session_recall_any_at_10_n": 121,
+            "session_recall_all_at_10": 0.8099173553719008,
+            "session_recall_all_at_10_n": 121,
+            "turn_recall_any_at_10": 0.9421487603305785,
+            "turn_recall_any_at_10_n": 121,
+            "session_mrr_at_10": 0.9391971664698937,
+            "session_mrr_at_10_n": 121
+          },
+          "single-session-assistant": {
+            "n": 56,
+            "session_recall_any_at_5": 1.0,
+            "session_recall_any_at_5_n": 56,
+            "session_recall_all_at_5": 1.0,
+            "session_recall_all_at_5_n": 56,
+            "turn_recall_any_at_5": 0.9464285714285714,
+            "turn_recall_any_at_5_n": 56,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 56,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 56,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 56,
+            "session_mrr_at_10": 1.0,
+            "session_mrr_at_10_n": 56
+          },
+          "single-session-preference": {
+            "n": 30,
+            "session_recall_any_at_5": 0.9,
+            "session_recall_any_at_5_n": 30,
+            "session_recall_all_at_5": 0.9,
+            "session_recall_all_at_5_n": 30,
+            "turn_recall_any_at_5": 0.8333333333333334,
+            "turn_recall_any_at_5_n": 30,
+            "session_recall_any_at_10": 0.9333333333333333,
+            "session_recall_any_at_10_n": 30,
+            "session_recall_all_at_10": 0.9333333333333333,
+            "session_recall_all_at_10_n": 30,
+            "turn_recall_any_at_10": 0.9,
+            "turn_recall_any_at_10_n": 30,
+            "session_mrr_at_10": 0.7937037037037037,
+            "session_mrr_at_10_n": 30
+          },
+          "single-session-user": {
+            "n": 64,
+            "session_recall_any_at_5": 0.96875,
+            "session_recall_any_at_5_n": 64,
+            "session_recall_all_at_5": 0.96875,
+            "session_recall_all_at_5_n": 64,
+            "turn_recall_any_at_5": 0.953125,
+            "turn_recall_any_at_5_n": 64,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 64,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 64,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 64,
+            "session_mrr_at_10": 0.957093253968254,
+            "session_mrr_at_10_n": 64
+          },
+          "temporal-reasoning": {
+            "n": 127,
+            "session_recall_any_at_5": 0.9212598425196851,
+            "session_recall_any_at_5_n": 127,
+            "session_recall_all_at_5": 0.7086614173228346,
+            "session_recall_all_at_5_n": 127,
+            "turn_recall_any_at_5": 0.8110236220472441,
+            "turn_recall_any_at_5_n": 127,
+            "session_recall_any_at_10": 0.968503937007874,
+            "session_recall_any_at_10_n": 127,
+            "session_recall_all_at_10": 0.8267716535433071,
+            "session_recall_all_at_10_n": 127,
+            "turn_recall_any_at_10": 0.9133858267716536,
+            "turn_recall_any_at_10_n": 127,
+            "session_mrr_at_10": 0.8788932633420822,
+            "session_mrr_at_10_n": 127
+          }
+        },
+        "timing": {
+          "version": "0.8.27",
+          "query_first_p50_ms": 6.507249,
+          "query_warm_p50_ms": 6.3533764999999995,
+          "query_warm_p95_ms": 7.394726,
+          "build_p50_s": 2.374058443499962,
+          "drain_p50_s": 2.210742074501468
+        },
+        "questions": 500,
+        "stop_words_sha256": [
+          "ac9a853797f038a1d05302bb0ebca4ced9fab9f2b02e211148292d260d6e7367"
+        ]
+      },
+      "fathomdb-hybrid-stopwords": {
+        "overall": {
+          "n": 470,
+          "session_recall_any_at_5": 0.9617021276595744,
+          "session_recall_any_at_5_n": 470,
+          "session_recall_all_at_5": 0.7787234042553192,
+          "session_recall_all_at_5_n": 470,
+          "turn_recall_any_at_5": 0.8872340425531915,
+          "turn_recall_any_at_5_n": 470,
+          "session_recall_any_at_10": 0.9872340425531915,
+          "session_recall_any_at_10_n": 470,
+          "session_recall_all_at_10": 0.9042553191489362,
+          "session_recall_all_at_10_n": 470,
+          "turn_recall_any_at_10": 0.9574468085106383,
+          "turn_recall_any_at_10_n": 470,
+          "session_mrr_at_10": 0.9293287740628167,
+          "session_mrr_at_10_n": 470
+        },
+        "per_type": {
+          "knowledge-update": {
+            "n": 72,
+            "session_recall_any_at_5": 0.9861111111111112,
+            "session_recall_any_at_5_n": 72,
+            "session_recall_all_at_5": 0.9027777777777778,
+            "session_recall_all_at_5_n": 72,
+            "turn_recall_any_at_5": 0.9583333333333334,
+            "turn_recall_any_at_5_n": 72,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 72,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 72,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 72,
+            "session_mrr_at_10": 0.9745370370370371,
+            "session_mrr_at_10_n": 72
+          },
+          "multi-session": {
+            "n": 121,
+            "session_recall_any_at_5": 0.9834710743801653,
+            "session_recall_any_at_5_n": 121,
+            "session_recall_all_at_5": 0.5619834710743802,
+            "session_recall_all_at_5_n": 121,
+            "turn_recall_any_at_5": 0.8760330578512396,
+            "turn_recall_any_at_5_n": 121,
+            "session_recall_any_at_10": 0.9917355371900827,
+            "session_recall_any_at_10_n": 121,
+            "session_recall_all_at_10": 0.8181818181818182,
+            "session_recall_all_at_10_n": 121,
+            "turn_recall_any_at_10": 0.9421487603305785,
+            "turn_recall_any_at_10_n": 121,
+            "session_mrr_at_10": 0.940771349862259,
+            "session_mrr_at_10_n": 121
+          },
+          "single-session-assistant": {
+            "n": 56,
+            "session_recall_any_at_5": 1.0,
+            "session_recall_any_at_5_n": 56,
+            "session_recall_all_at_5": 1.0,
+            "session_recall_all_at_5_n": 56,
+            "turn_recall_any_at_5": 0.9464285714285714,
+            "turn_recall_any_at_5_n": 56,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 56,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 56,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 56,
+            "session_mrr_at_10": 1.0,
+            "session_mrr_at_10_n": 56
+          },
+          "single-session-preference": {
+            "n": 30,
+            "session_recall_any_at_5": 0.9,
+            "session_recall_any_at_5_n": 30,
+            "session_recall_all_at_5": 0.9,
+            "session_recall_all_at_5_n": 30,
+            "turn_recall_any_at_5": 0.8333333333333334,
+            "turn_recall_any_at_5_n": 30,
+            "session_recall_any_at_10": 0.9666666666666667,
+            "session_recall_any_at_10_n": 30,
+            "session_recall_all_at_10": 0.9666666666666667,
+            "session_recall_all_at_10_n": 30,
+            "turn_recall_any_at_10": 0.9333333333333333,
+            "turn_recall_any_at_10_n": 30,
+            "session_mrr_at_10": 0.7970370370370371,
+            "session_mrr_at_10_n": 30
+          },
+          "single-session-user": {
+            "n": 64,
+            "session_recall_any_at_5": 0.96875,
+            "session_recall_any_at_5_n": 64,
+            "session_recall_all_at_5": 0.96875,
+            "session_recall_all_at_5_n": 64,
+            "turn_recall_any_at_5": 0.953125,
+            "turn_recall_any_at_5_n": 64,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 64,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 64,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 64,
+            "session_mrr_at_10": 0.957093253968254,
+            "session_mrr_at_10_n": 64
+          },
+          "temporal-reasoning": {
+            "n": 127,
+            "session_recall_any_at_5": 0.9212598425196851,
+            "session_recall_any_at_5_n": 127,
+            "session_recall_all_at_5": 0.6929133858267716,
+            "session_recall_all_at_5_n": 127,
+            "turn_recall_any_at_5": 0.8110236220472441,
+            "turn_recall_any_at_5_n": 127,
+            "session_recall_any_at_10": 0.968503937007874,
+            "session_recall_any_at_10_n": 127,
+            "session_recall_all_at_10": 0.8267716535433071,
+            "session_recall_all_at_10_n": 127,
+            "turn_recall_any_at_10": 0.9133858267716536,
+            "turn_recall_any_at_10_n": 127,
+            "session_mrr_at_10": 0.8788932633420822,
+            "session_mrr_at_10_n": 127
+          }
+        },
+        "timing": {
+          "version": "0.8.27",
+          "query_first_p50_ms": 18.666646,
+          "query_warm_p50_ms": 6.405181000000001,
+          "query_warm_p95_ms": 7.411316,
+          "build_p50_s": 2.374058443499962,
+          "drain_p50_s": 2.210742074501468
+        },
+        "questions": 500,
+        "stop_words_sha256": [
+          "4e1a05394b998ef1234cf0ff24a1692b33832f675a6cdadf131cd32c17964d99"
+        ]
+      },
+      "lancedb-fts": {
+        "overall": {
+          "n": 470,
+          "session_recall_any_at_5": 0.9446808510638298,
+          "session_recall_any_at_5_n": 470,
+          "session_recall_all_at_5": 0.7680851063829788,
+          "session_recall_all_at_5_n": 470,
+          "turn_recall_any_at_5": 0.8702127659574468,
+          "turn_recall_any_at_5_n": 470,
+          "session_recall_any_at_10": 0.9829787234042553,
+          "session_recall_any_at_10_n": 470,
+          "session_recall_all_at_10": 0.8787234042553191,
+          "session_recall_all_at_10_n": 470,
+          "turn_recall_any_at_10": 0.9404255319148936,
+          "turn_recall_any_at_10_n": 470,
+          "session_mrr_at_10": 0.9016531577169875,
+          "session_mrr_at_10_n": 470
+        },
+        "per_type": {
+          "knowledge-update": {
+            "n": 72,
+            "session_recall_any_at_5": 1.0,
+            "session_recall_any_at_5_n": 72,
+            "session_recall_all_at_5": 0.9444444444444444,
+            "session_recall_all_at_5_n": 72,
+            "turn_recall_any_at_5": 0.9722222222222222,
+            "turn_recall_any_at_5_n": 72,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 72,
+            "session_recall_all_at_10": 0.9861111111111112,
+            "session_recall_all_at_10_n": 72,
+            "turn_recall_any_at_10": 1.0,
+            "turn_recall_any_at_10_n": 72,
+            "session_mrr_at_10": 0.9907407407407407,
+            "session_mrr_at_10_n": 72
+          },
+          "multi-session": {
+            "n": 121,
+            "session_recall_any_at_5": 0.9669421487603306,
+            "session_recall_any_at_5_n": 121,
+            "session_recall_all_at_5": 0.5454545454545454,
+            "session_recall_all_at_5_n": 121,
+            "turn_recall_any_at_5": 0.8677685950413223,
+            "turn_recall_any_at_5_n": 121,
+            "session_recall_any_at_10": 0.9917355371900827,
+            "session_recall_any_at_10_n": 121,
+            "session_recall_all_at_10": 0.7355371900826446,
+            "session_recall_all_at_10_n": 121,
+            "turn_recall_any_at_10": 0.9421487603305785,
+            "turn_recall_any_at_10_n": 121,
+            "session_mrr_at_10": 0.9187786960514233,
+            "session_mrr_at_10_n": 121
+          },
+          "single-session-assistant": {
+            "n": 56,
+            "session_recall_any_at_5": 1.0,
+            "session_recall_any_at_5_n": 56,
+            "session_recall_all_at_5": 1.0,
+            "session_recall_all_at_5_n": 56,
+            "turn_recall_any_at_5": 0.9285714285714286,
+            "turn_recall_any_at_5_n": 56,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 56,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 56,
+            "turn_recall_any_at_10": 0.9642857142857143,
+            "turn_recall_any_at_10_n": 56,
+            "session_mrr_at_10": 1.0,
+            "session_mrr_at_10_n": 56
+          },
+          "single-session-preference": {
+            "n": 30,
+            "session_recall_any_at_5": 0.7333333333333333,
+            "session_recall_any_at_5_n": 30,
+            "session_recall_all_at_5": 0.7333333333333333,
+            "session_recall_all_at_5_n": 30,
+            "turn_recall_any_at_5": 0.6333333333333333,
+            "turn_recall_any_at_5_n": 30,
+            "session_recall_any_at_10": 0.9333333333333333,
+            "session_recall_any_at_10_n": 30,
+            "session_recall_all_at_10": 0.9333333333333333,
+            "session_recall_all_at_10_n": 30,
+            "turn_recall_any_at_10": 0.8,
+            "turn_recall_any_at_10_n": 30,
+            "session_mrr_at_10": 0.5159126984126984,
+            "session_mrr_at_10_n": 30
+          },
+          "single-session-user": {
+            "n": 64,
+            "session_recall_any_at_5": 0.96875,
+            "session_recall_any_at_5_n": 64,
+            "session_recall_all_at_5": 0.96875,
+            "session_recall_all_at_5_n": 64,
+            "turn_recall_any_at_5": 0.953125,
+            "turn_recall_any_at_5_n": 64,
+            "session_recall_any_at_10": 1.0,
+            "session_recall_any_at_10_n": 64,
+            "session_recall_all_at_10": 1.0,
+            "session_recall_all_at_10_n": 64,
+            "turn_recall_any_at_10": 0.984375,
+            "turn_recall_any_at_10_n": 64,
+            "session_mrr_at_10": 0.946875,
+            "session_mrr_at_10_n": 64
+          },
+          "temporal-reasoning": {
+            "n": 127,
+            "session_recall_any_at_5": 0.905511811023622,
+            "session_recall_any_at_5_n": 127,
+            "session_recall_all_at_5": 0.6850393700787402,
+            "session_recall_all_at_5_n": 127,
+            "turn_recall_any_at_5": 0.8031496062992126,
+            "turn_recall_any_at_5_n": 127,
+            "session_recall_any_at_10": 0.9606299212598425,
+            "session_recall_any_at_10_n": 127,
+            "session_recall_all_at_10": 0.8267716535433071,
+            "session_recall_all_at_10_n": 127,
+            "turn_recall_any_at_10": 0.905511811023622,
+            "turn_recall_any_at_10_n": 127,
+            "session_mrr_at_10": 0.8597956505436821,
+            "session_mrr_at_10_n": 127
+          }
+        },
+        "timing": {
+          "version": "0.40.0",
+          "query_first_p50_ms": 4.3511655000000005,
+          "query_warm_p50_ms": 1.649545,
+          "query_warm_p95_ms": 2.118457,
+          "build_p50_s": 0.037651857535820454
+        },
+        "questions": 500,
+        "stop_words_sha256": []
+      }
+    },
+    "deltas": {
+      "treatment": "fathomdb-hybrid",
+      "control": "fathomdb-fts",
+      "by_metric": {
+        "session_recall_any_at_5": {
+          "overall": {
+            "delta": 0.00851063829787234,
+            "ci": [
+              -0.00851063829787234,
+              0.02553191489361702
+            ],
+            "n": 470
+          },
+          "per_type": {
+            "knowledge-update": {
+              "delta": -0.013888888888888888,
+              "ci": [
+                -0.041666666666666664,
+                0.0
+              ],
+              "n": 72
+            },
+            "multi-session": {
+              "delta": 0.0,
+              "ci": [
+                -0.03305785123966942,
+                0.03305785123966942
+              ],
+              "n": 121
+            },
+            "single-session-assistant": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 56
+            },
+            "single-session-preference": {
+              "delta": 0.16666666666666666,
+              "ci": [
+                0.03333333333333333,
+                0.3
+              ],
+              "n": 30
+            },
+            "single-session-user": {
+              "delta": -0.015625,
+              "ci": [
+                -0.046875,
+                0.0
+              ],
+              "n": 64
+            },
+            "temporal-reasoning": {
+              "delta": 0.007874015748031496,
+              "ci": [
+                -0.031496062992125984,
+                0.047244094488188976
+              ],
+              "n": 127
+            }
+          }
+        },
+        "session_recall_all_at_5": {
+          "overall": {
+            "delta": 0.0,
+            "ci": [
+              -0.02553191489361702,
+              0.02553191489361702
+            ],
+            "n": 470
+          },
+          "per_type": {
+            "knowledge-update": {
+              "delta": -0.041666666666666664,
+              "ci": [
+                -0.09722222222222222,
+                0.013888888888888888
+              ],
+              "n": 72
+            },
+            "multi-session": {
+              "delta": 0.008264462809917356,
+              "ci": [
+                -0.05785123966942149,
+                0.0743801652892562
+              ],
+              "n": 121
+            },
+            "single-session-assistant": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 56
+            },
+            "single-session-preference": {
+              "delta": 0.16666666666666666,
+              "ci": [
+                0.03333333333333333,
+                0.3
+              ],
+              "n": 30
+            },
+            "single-session-user": {
+              "delta": -0.015625,
+              "ci": [
+                -0.046875,
+                0.0
+              ],
+              "n": 64
+            },
+            "temporal-reasoning": {
+              "delta": -0.015748031496062992,
+              "ci": [
+                -0.06299212598425197,
+                0.031496062992125984
+              ],
+              "n": 127
+            }
+          }
+        },
+        "turn_recall_any_at_5": {
+          "overall": {
+            "delta": 0.014893617021276596,
+            "ci": [
+              -0.010638297872340425,
+              0.04042553191489362
+            ],
+            "n": 470
+          },
+          "per_type": {
+            "knowledge-update": {
+              "delta": -0.013888888888888888,
+              "ci": [
+                -0.05555555555555555,
+                0.027777777777777776
+              ],
+              "n": 72
+            },
+            "multi-session": {
+              "delta": 0.0,
+              "ci": [
+                -0.049586776859504134,
+                0.049586776859504134
+              ],
+              "n": 121
+            },
+            "single-session-assistant": {
+              "delta": 0.017857142857142856,
+              "ci": [
+                0.0,
+                0.05357142857142857
+              ],
+              "n": 56
+            },
+            "single-session-preference": {
+              "delta": 0.2,
+              "ci": [
+                0.06666666666666667,
+                0.36666666666666664
+              ],
+              "n": 30
+            },
+            "single-session-user": {
+              "delta": -0.015625,
+              "ci": [
+                -0.046875,
+                0.0
+              ],
+              "n": 64
+            },
+            "temporal-reasoning": {
+              "delta": 0.015748031496062992,
+              "ci": [
+                -0.047244094488188976,
+                0.07874015748031496
+              ],
+              "n": 127
+            }
+          }
+        },
+        "session_recall_any_at_10": {
+          "overall": {
+            "delta": 0.0,
+            "ci": [
+              -0.00851063829787234,
+              0.00851063829787234
+            ],
+            "n": 470
+          },
+          "per_type": {
+            "knowledge-update": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 72
+            },
+            "multi-session": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 121
+            },
+            "single-session-assistant": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 56
+            },
+            "single-session-preference": {
+              "delta": 0.03333333333333333,
+              "ci": [
+                -0.06666666666666667,
+                0.13333333333333333
+              ],
+              "n": 30
+            },
+            "single-session-user": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 64
+            },
+            "temporal-reasoning": {
+              "delta": -0.007874015748031496,
+              "ci": [
+                -0.023622047244094488,
+                0.0
+              ],
+              "n": 127
+            }
+          }
+        },
+        "session_recall_all_at_10": {
+          "overall": {
+            "delta": 0.023404255319148935,
+            "ci": [
+              0.00425531914893617,
+              0.04468085106382979
+            ],
+            "n": 470
+          },
+          "per_type": {
+            "knowledge-update": {
+              "delta": 0.013888888888888888,
+              "ci": [
+                0.0,
+                0.041666666666666664
+              ],
+              "n": 72
+            },
+            "multi-session": {
+              "delta": 0.06611570247933884,
+              "ci": [
+                0.01652892561983471,
+                0.12396694214876033
+              ],
+              "n": 121
+            },
+            "single-session-assistant": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 56
+            },
+            "single-session-preference": {
+              "delta": 0.03333333333333333,
+              "ci": [
+                -0.06666666666666667,
+                0.13333333333333333
+              ],
+              "n": 30
+            },
+            "single-session-user": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 64
+            },
+            "temporal-reasoning": {
+              "delta": 0.007874015748031496,
+              "ci": [
+                -0.031496062992125984,
+                0.047244094488188976
+              ],
+              "n": 127
+            }
+          }
+        },
+        "turn_recall_any_at_10": {
+          "overall": {
+            "delta": 0.01276595744680851,
+            "ci": [
+              -0.00425531914893617,
+              0.029787234042553193
+            ],
+            "n": 470
+          },
+          "per_type": {
+            "knowledge-update": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 72
+            },
+            "multi-session": {
+              "delta": 0.0,
+              "ci": [
+                -0.03305785123966942,
+                0.03305785123966942
+              ],
+              "n": 121
+            },
+            "single-session-assistant": {
+              "delta": 0.017857142857142856,
+              "ci": [
+                0.0,
+                0.05357142857142857
+              ],
+              "n": 56
+            },
+            "single-session-preference": {
+              "delta": 0.1,
+              "ci": [
+                -0.03333333333333333,
+                0.23333333333333334
+              ],
+              "n": 30
+            },
+            "single-session-user": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 64
+            },
+            "temporal-reasoning": {
+              "delta": 0.015748031496062992,
+              "ci": [
+                -0.031496062992125984,
+                0.06299212598425197
+              ],
+              "n": 127
+            }
+          }
+        },
+        "session_mrr_at_10": {
+          "overall": {
+            "delta": 0.018044579533941237,
+            "ci": [
+              0.001417595406957108,
+              0.03517646065518406
+            ],
+            "n": 470
+          },
+          "per_type": {
+            "knowledge-update": {
+              "delta": -0.025462962962962965,
+              "ci": [
+                -0.05787037037037038,
+                0.0
+              ],
+              "n": 72
+            },
+            "multi-session": {
+              "delta": 0.023265118719664177,
+              "ci": [
+                -0.010953692771874591,
+                0.05724124360487997
+              ],
+              "n": 121
+            },
+            "single-session-assistant": {
+              "delta": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 56
+            },
+            "single-session-preference": {
+              "delta": 0.1826984126984127,
+              "ci": [
+                0.07936507936507936,
+                0.29825396825396827
+              ],
+              "n": 30
+            },
+            "single-session-user": {
+              "delta": -0.013392857142857144,
+              "ci": [
+                -0.05022321428571429,
+                0.015625
+              ],
+              "n": 64
+            },
+            "temporal-reasoning": {
+              "delta": 0.022640919885014373,
+              "ci": [
+                -0.01200474940632421,
+                0.05860829896262967
+              ],
+              "n": 127
+            }
+          }
+        }
+      }
+    },
+    "decision": {
+      "verdict": "adopt",
+      "clauses": {
+        "a": true,
+        "b": true,
+        "c": true
+      },
+      "rule": {
+        "metric": "session_recall_any_at_5",
+        "treatment": "fathomdb-hybrid",
+        "control": "fathomdb-fts",
+        "focus_type": "single-session-preference"
+      }
+    },
+    "device": {
+      "effective": "cuda",
+      "requested": "cuda:0"
+    },
+    "blank_rounds_skipped": {
+      "fathomdb-fts": 2,
+      "fathomdb-fts-stopwords": 2,
+      "fathomdb-hybrid": 2,
+      "fathomdb-hybrid-stopwords": 2,
+      "lancedb-fts": 2
+    },
+    "mq1": {
+      "questions": 500,
+      "equal_transform": 500,
+      "differing_transform": [],
+      "pass": true,
+      "simulated": {
+        "questions": 500,
+        "equal": 500,
+        "informative": true
+      },
+      "variant": "fathomdb-fts-stopwords",
+      "words": [
+        "had",
+        "long",
+        "suggest"
+      ]
+    }
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_attempt",
+      "summary_sha256": "36e0cae8e578b45eac8823c5f3e45d6286df69cd3e2b94100882ac019224a176"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

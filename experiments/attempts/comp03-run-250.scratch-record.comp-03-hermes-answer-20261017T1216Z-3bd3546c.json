@@ -1,0 +1,2068 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "comp-03-hermes-answer-20261017T1216Z-3bd3546c",
+  "experiment": "comp-03-hermes-answer",
+  "title": "COMP-03 Hermes-style LongMemEval-S answer comparison",
+  "verdict": "complete",
+  "read": "fathomdb-fts-pack 0.856 vs lancedb-fts 0.784 answer accuracy on 250 paired questions (difference +0.072, bootstrap 95% +0.028..+0.116)",
+  "code": {
+    "git_sha": "fc26c75fff7189e00450b79d49ef34c6e85bb307",
+    "dirty": false,
+    "branch": "slice/0.8.28-40-comp03",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "3bd3546c5ac4f8784728d6d3c6ea07b236a69b8a71d6adf89500d87a133d4363",
+    "path": "/home/coreyt/projects/fathomdb-worktrees/comp03-slice40/experiments/configs/comp-03/hermes-answer.250.json",
+    "resolved": {
+      "arms": [
+        {
+          "engine_config": {
+            "query_stop_words": {
+              "base": "fathomdb",
+              "extra": [
+                "had",
+                "long",
+                "suggest"
+              ]
+            }
+          },
+          "evidence": {
+            "item_source": "caller",
+            "pack": {
+              "budget_chars": 30000,
+              "compact_chars": 0,
+              "expand_groups": true,
+              "full_items": 5,
+              "item_chars": 4000,
+              "keep_roles": [
+                "user"
+              ],
+              "order": "chronological"
+            },
+            "renderer": "pack_context"
+          },
+          "id": "fathomdb-fts-pack",
+          "method": "Engine.search_text_only",
+          "product_arm": "fathomdb",
+          "renderer": "pack_context T5/A0/k50 (caller items)",
+          "setup": "fathomdb_test_setup, embedder none, cpu; plain round bodies (v1 store shape)",
+          "top_k": 50
+        },
+        {
+          "id": "lancedb-fts",
+          "product_arm": "lancedb",
+          "method": "table.search(query_type='fts'), native FTS index, library defaults",
+          "top_k": 10,
+          "renderer": "comp03_answer.render_evidence Slice 40 mix",
+          "evidence": {
+            "renderer": "comp03_answer.render_evidence",
+            "policy": {
+              "per_round_chars": 4000,
+              "total_chars": 30000,
+              "session_expansion": true
+            },
+            "chronological": true
+          }
+        }
+      ],
+      "campaign": "COMP-03",
+      "claim_boundary": {
+        "statement": "paired answer accuracy on 250 LongMemEval-S questions in the full-500 type mix: FathomDB FTS (pack_context T5/A0/k50, query stop words had/long/suggest) minus LanceDB FTS (Slice 40 mix renderer); each arm keeps its own renderer, so this compares shipped paths, not stores",
+        "reuse": "the pinned 60 reuse the M3 (pa-m3) and mix (comp03-run-mix) answers when reader, judge, seeds, prompts and evidence policy match; reused answers are marked in the receipt"
+      },
+      "corpus": {
+        "identifier": "longmemeval-s-cleaned",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+        "source": "huggingface xiaowu0162/longmemeval-cleaned@98d7416c24c778c2fee6e6f3006e7a073259d48f longmemeval_s_cleaned.json",
+        "storage": "external_only"
+      },
+      "document_unit": {
+        "blank_rounds": "blank (whitespace-only) rounds are not indexed by any arm; round IDs stay positional, so every other round's ID and the gold are unchanged; the count is recorded per question as blank_rounds_skipped",
+        "excluded": [
+          "answer",
+          "answer_session_ids",
+          "haystack_session_ids",
+          "has_answer"
+        ],
+        "id": "s<session position:03d>-r<round position:03d>",
+        "indexed_body": "turn contents joined by newline",
+        "rule": "one user turn plus the assistant turns that follow it; leading assistant turns form their own round",
+        "unit": "round"
+      },
+      "evidence": {
+        "renderer": "per arm (arms[].evidence)",
+        "recency_instruction": false
+      },
+      "live": {
+        "route": "Airlock loopback http://127.0.0.1:4000, OpenAI upstream",
+        "answerer": {
+          "model": "openai/gpt-5.4",
+          "prompt": "LongMemEval reading prompt (comp03_answer.answer_messages)",
+          "max_tokens": 1024,
+          "input_usd_per_million": 2.5,
+          "output_usd_per_million": 15.0
+        },
+        "judge": {
+          "model": "openai/gpt-5.4",
+          "prompt": "LongMemEval evaluate_qa per-type answer check, blinded to product",
+          "max_tokens": 16,
+          "input_usd_per_million": 2.5,
+          "output_usd_per_million": 15.0
+        },
+        "temperature": 0,
+        "seed": 0,
+        "max_usd": 15.0,
+        "max_retries": 4,
+        "ceiling_usd": 11.5,
+        "question_usd_estimate": 0.06,
+        "ceiling_rule": "before a question that needs any model call, stop if this run's spend (reused calls excluded) plus max(question_usd_estimate, the largest per-question spend so far) exceeds ceiling_usd; rerun to resume"
+      },
+      "metrics": [
+        "answer_accuracy_paired",
+        "answer_accuracy_per_type",
+        "session_recall_any_at_10",
+        "session_mrr_at_10",
+        "turn_recall_any_at_10",
+        "turn_mrr_at_10",
+        "retrieval_latency_ms",
+        "answer_latency_s",
+        "judge_latency_s",
+        "cost_usd"
+      ],
+      "program_track": null,
+      "retrieval": {
+        "order": "arms rotate by question position: arm_order(index, arms) = arms[index % n:] + arms[:index % n]; for two arms this is v1's AB/BA alternation",
+        "per_arm": "each arm's top_k is its retrieval depth; retrieval metrics use top_k 10",
+        "query": "question text verbatim",
+        "top_k": 10
+      },
+      "schema_version": "comp-03.answer.v5",
+      "selection": {
+        "rule": "the 60 pinned answer-set IDs first, in their order; then, for each type in name order, sorted(random.Random(f'{seed}:{type}').sample(sorted IDs of the type not already pinned, quota - pinned of the type)). Abstention questions are members of their type, as in the 60-set rule.",
+        "rounding": "quota_t = floor(250 * n_t / 500), then the leftover questions go one each to the largest fractional parts, ties broken by type name ascending (largest-remainder rounding)",
+        "seed": 250,
+        "total": 250,
+        "quotas": {
+          "knowledge-update": 39,
+          "multi-session": 67,
+          "single-session-assistant": 28,
+          "single-session-preference": 15,
+          "single-session-user": 35,
+          "temporal-reasoning": 66
+        },
+        "base": {
+          "config": "experiments/configs/comp-03/hermes-answer.mix.json",
+          "question_ids_sha256": "8d7fa91970b09b008de39ee8259de012c82bc1eda041919667d04a31e721f4c9"
+        },
+        "base_count": 60,
+        "question_ids": [
+          "184da446",
+          "42ec0761",
+          "6a1eabeb",
+          "89941a93",
+          "89941a94",
+          "b6019101",
+          "c6853660",
+          "ce6d2d27",
+          "eace081b",
+          "f685340e_abs",
+          "09ba9854",
+          "4f54b7c9",
+          "67e0d0f2",
+          "8979f9ec",
+          "8e91e7d9",
+          "d23cf73b",
+          "e5ba910e_abs",
+          "e6041065",
+          "gpt4_372c3eed",
+          "gpt4_f2262a51",
+          "3249768e",
+          "352ab8bd",
+          "41275add",
+          "4c36ccef",
+          "6ae235be",
+          "70b3e69b",
+          "71a3fd6b",
+          "ceb54acb",
+          "e3fc4d6e",
+          "e8a79c70",
+          "06878be2",
+          "1a1907b4",
+          "1c0ddc50",
+          "1da05512",
+          "505af2f5",
+          "6b7dfb22",
+          "75832dbd",
+          "95228167",
+          "b6025781",
+          "d6233ab6",
+          "21436231",
+          "29f2956b",
+          "545bd2b5",
+          "6ade9755",
+          "6f9b354f",
+          "86f00804",
+          "bc8a6e93_abs",
+          "c14c00dd",
+          "e01b8e2f",
+          "f4f1d8a4_abs",
+          "4dfccbf7",
+          "gpt4_65aabe59",
+          "gpt4_68e94287",
+          "gpt4_6dc9b45b",
+          "gpt4_78cf46a3",
+          "gpt4_7a0daae1",
+          "gpt4_7bc6cf22",
+          "gpt4_98f46fc6",
+          "gpt4_d31cdae3",
+          "gpt4_e414231e",
+          "031748ae",
+          "06db6396",
+          "07741c45",
+          "08e075c7",
+          "0977f2af",
+          "0ddfec37",
+          "18bc8abd",
+          "2698e78f",
+          "2698e78f_abs",
+          "26bdc477",
+          "3ba21379",
+          "41698283",
+          "45dc21b6",
+          "5c40ec5b",
+          "603deb26",
+          "618f13b2",
+          "69fee5aa",
+          "6a27ffc2",
+          "6aeb4375",
+          "71315a70",
+          "830ce83f",
+          "852ce960",
+          "8fb83627",
+          "945e3d21",
+          "9bbe84a2",
+          "a1eacc2a",
+          "a2f3aa27",
+          "c7dc5443",
+          "f9e8c073",
+          "00ca467f",
+          "09ba9854_abs",
+          "0ea62687",
+          "129d1232",
+          "157a136e",
+          "1a8a66a6",
+          "21d02d0d",
+          "2311e44b",
+          "2318644b",
+          "27016adc",
+          "2e6d26dc",
+          "3c1045c8",
+          "3fe836c9",
+          "46a3abf7",
+          "4bc144e2",
+          "51c32626",
+          "60036106",
+          "60159905",
+          "60472f9c",
+          "60bf93ed",
+          "61f8c8f8",
+          "6456829e",
+          "6456829e_abs",
+          "6c49646a",
+          "7024f17c",
+          "73d42213",
+          "7405e8b1",
+          "80ec1f4f_abs",
+          "81507db6",
+          "87f22b4a",
+          "88432d0a_abs",
+          "91b15a6e",
+          "9aaed6a3",
+          "9d25d4e0",
+          "a08a253f",
+          "a3332713",
+          "a346bb18",
+          "a96c20ee_abs",
+          "a9f6b44c",
+          "b3c15d39",
+          "ba358f49_abs",
+          "bb7c3b45",
+          "c2ac3c61",
+          "e3038f8c",
+          "edced276",
+          "edced276_abs",
+          "eeda8a6d_abs",
+          "ef66a6e5",
+          "efc3f7c2",
+          "f35224e0",
+          "gpt4_2ba83207",
+          "gpt4_31ff4165",
+          "gpt4_731e37d7",
+          "gpt4_a56e767c",
+          "gpt4_ab202e7f",
+          "gpt4_d84a3211",
+          "gpt4_e05b82a6",
+          "16c90bf4",
+          "1b9b7252",
+          "3e321797",
+          "5809eb10",
+          "58470ed2",
+          "65240037",
+          "7e00a6cb",
+          "8752c811",
+          "89527b6b",
+          "8cf51dda",
+          "b759caee",
+          "c8f1aeed",
+          "d596882b",
+          "dc439ea3",
+          "e982271f",
+          "f523d9fe",
+          "fca762bc",
+          "fea54f57",
+          "07b6f563",
+          "1d4e3b97",
+          "35a27287",
+          "a89d7624",
+          "d24813b1",
+          "0862e8bf_abs",
+          "118b2229",
+          "15745da0",
+          "15745da0_abs",
+          "19b5f2b3_abs",
+          "1faac195",
+          "29f2956b_abs",
+          "311778f1",
+          "3b6f954b",
+          "577d4d32",
+          "5d3d2817",
+          "66f24dbb",
+          "6b168ec8",
+          "726462e0",
+          "8e9d538c",
+          "a06e4cfe",
+          "a82c026e",
+          "ad7109d1",
+          "af8d2e46",
+          "b86304ba",
+          "c19f7a0b",
+          "c8c3f81d",
+          "caf9ead2",
+          "f8c5f88b",
+          "faba32e5",
+          "0bb5a684",
+          "0bc8ad93",
+          "2c63a862",
+          "6613b389",
+          "6e984301",
+          "71017277",
+          "8c18457d",
+          "9a707b81",
+          "a3045048",
+          "a3838d2b",
+          "af082822",
+          "b29f3365",
+          "b9cfe692",
+          "c8090214",
+          "cc6d1ec1",
+          "d01c6aa8",
+          "dcfa8644",
+          "eac54adc",
+          "f0853d11",
+          "gpt4_0a05b494",
+          "gpt4_0b2f1d21",
+          "gpt4_1916e0ea",
+          "gpt4_1a1dc16d",
+          "gpt4_1d80365e",
+          "gpt4_2312f94c",
+          "gpt4_2655b836",
+          "gpt4_2d58bcd6",
+          "gpt4_2f56ae70",
+          "gpt4_385a5000",
+          "gpt4_483dd43c",
+          "gpt4_4929293b",
+          "gpt4_4cd9eba1",
+          "gpt4_4fc4f797",
+          "gpt4_59149c78",
+          "gpt4_61e13b3c",
+          "gpt4_68e94288",
+          "gpt4_7ca326fa",
+          "gpt4_7de946e7",
+          "gpt4_85da3956",
+          "gpt4_88806d6e",
+          "gpt4_8c8961ae",
+          "gpt4_93159ced",
+          "gpt4_93f6379c",
+          "gpt4_a1b77f9c",
+          "gpt4_a2d1d1f6",
+          "gpt4_b4a80587",
+          "gpt4_d9af6064",
+          "gpt4_e061b84f",
+          "gpt4_e061b84g",
+          "gpt4_e072b769",
+          "gpt4_ec93e27f",
+          "gpt4_f420262c",
+          "gpt4_f420262d",
+          "gpt4_f49edff3",
+          "gpt4_fe651585",
+          "gpt4_fe651585_abs"
+        ],
+        "question_ids_sha256": "48991be3a16b75214889fc18ec0b0d75cbe9f8baca056b288db30a8ea3fa6919"
+      },
+      "reuse": [
+        {
+          "arm": "fathomdb-fts-pack",
+          "source_attempt_root": "~/.cache/fathomdb-comp/pa-m3",
+          "source_arm": "fathomdb-fts-pack"
+        },
+        {
+          "arm": "lancedb-fts",
+          "source_attempt_root": "~/.cache/fathomdb-comp/comp03-run-mix",
+          "source_arm": "lancedb-fts"
+        }
+      ]
+    }
+  },
+  "corpus": {
+    "source": "longmemeval-s-cleaned",
+    "manifest_sha256": null,
+    "datasets": [
+      {
+        "name": "longmemeval_s_cleaned.json",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+      }
+    ]
+  },
+  "seeds": {
+    "selection": 250,
+    "model": 0
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb-fts-pack": "0.8.27",
+      "lancedb-fts": "0.40.0",
+      "fathomdb_engine_commit": "1bfd861afa5eb0626710969f3f971ab3a0e4e08e",
+      "fathomdb_native_sha256": "434c0d0ab406ef072aae2e3179b20e840ce65b360389ab45540f3e52ce855e3d",
+      "answerer": "openai/gpt-5.4",
+      "judge": "openai/gpt-5.4"
+    }
+  },
+  "metrics": {
+    "answer": {
+      "n": 250,
+      "accuracy": {
+        "fathomdb-fts-pack": 0.856,
+        "lancedb-fts": 0.784
+      },
+      "difference": 0.072,
+      "difference_bootstrap_95": [
+        0.028,
+        0.116
+      ],
+      "discordant": {
+        "fathomdb-fts-pack_only": 26,
+        "lancedb-fts_only": 8
+      },
+      "per_type": {
+        "knowledge-update": {
+          "fathomdb-fts-pack": {
+            "correct": 32,
+            "n": 39,
+            "rate": 0.8205128205128205,
+            "wilson_95": [
+              0.6733164837555724,
+              0.9102284818853
+            ]
+          },
+          "lancedb-fts": {
+            "correct": 31,
+            "n": 39,
+            "rate": 0.7948717948717948,
+            "wilson_95": [
+              0.6446572703687138,
+              0.8922040980208888
+            ]
+          }
+        },
+        "multi-session": {
+          "fathomdb-fts-pack": {
+            "correct": 55,
+            "n": 67,
+            "rate": 0.8208955223880597,
+            "wilson_95": [
+              0.7125228638737021,
+              0.8944651205874056
+            ]
+          },
+          "lancedb-fts": {
+            "correct": 43,
+            "n": 67,
+            "rate": 0.6417910447761194,
+            "wilson_95": [
+              0.5221828769475225,
+              0.7460211161864552
+            ]
+          }
+        },
+        "single-session-assistant": {
+          "fathomdb-fts-pack": {
+            "correct": 28,
+            "n": 28,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8793527963418923,
+              1.0
+            ]
+          },
+          "lancedb-fts": {
+            "correct": 28,
+            "n": 28,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8793527963418923,
+              1.0
+            ]
+          }
+        },
+        "single-session-preference": {
+          "fathomdb-fts-pack": {
+            "correct": 13,
+            "n": 15,
+            "rate": 0.8666666666666667,
+            "wilson_95": [
+              0.6211750079348376,
+              0.9626395301086407
+            ]
+          },
+          "lancedb-fts": {
+            "correct": 13,
+            "n": 15,
+            "rate": 0.8666666666666667,
+            "wilson_95": [
+              0.6211750079348376,
+              0.9626395301086407
+            ]
+          }
+        },
+        "single-session-user": {
+          "fathomdb-fts-pack": {
+            "correct": 34,
+            "n": 35,
+            "rate": 0.9714285714285714,
+            "wilson_95": [
+              0.8546659090672868,
+              0.9949386386341466
+            ]
+          },
+          "lancedb-fts": {
+            "correct": 33,
+            "n": 35,
+            "rate": 0.9428571428571428,
+            "wilson_95": [
+              0.8139261926062996,
+              0.984187170385956
+            ]
+          }
+        },
+        "temporal-reasoning": {
+          "fathomdb-fts-pack": {
+            "correct": 52,
+            "n": 66,
+            "rate": 0.7878787878787878,
+            "wilson_95": [
+              0.6748670057937918,
+              0.8692213312431603
+            ]
+          },
+          "lancedb-fts": {
+            "correct": 48,
+            "n": 66,
+            "rate": 0.7272727272727273,
+            "wilson_95": [
+              0.6095754555973323,
+              0.8199679683792089
+            ]
+          }
+        }
+      }
+    },
+    "abstention_n": 18,
+    "retrieval": {
+      "fathomdb-fts-pack": {
+        "n": 232,
+        "session_recall_any_at_10": 0.9870689655172413,
+        "session_recall_any_at_10_n": 232,
+        "session_mrr_at_10": 0.9151512041598248,
+        "session_mrr_at_10_n": 232,
+        "turn_recall_any_at_10": 0.9439655172413793,
+        "turn_recall_any_at_10_n": 232,
+        "turn_mrr_at_10": 0.7213019978106184,
+        "turn_mrr_at_10_n": 232,
+        "renderer": "pack_context T5/A0/k50 (caller items)"
+      },
+      "lancedb-fts": {
+        "n": 232,
+        "session_recall_any_at_10": 0.978448275862069,
+        "session_recall_any_at_10_n": 232,
+        "session_mrr_at_10": 0.9024168719211823,
+        "session_mrr_at_10_n": 232,
+        "turn_recall_any_at_10": 0.9439655172413793,
+        "turn_recall_any_at_10_n": 232,
+        "turn_mrr_at_10": 0.7185601395730705,
+        "turn_mrr_at_10_n": 232,
+        "renderer": "comp03_answer.render_evidence Slice 40 mix"
+      }
+    },
+    "timing": {
+      "fathomdb-fts-pack": {
+        "version": "0.8.27",
+        "retrieval_first_p50_ms": 1.4594055,
+        "retrieval_warm_p50_ms": 1.363012,
+        "retrieval_warm_p95_ms": 1.743078,
+        "build_p50_s": 0.03427225147606805,
+        "evidence_chars_p50": 33216.5,
+        "answer_p50_s": 1.3360978679847904,
+        "judge_p50_s": 0.6936194644949865,
+        "usd": 3.9238975,
+        "reused_usd": 1.2805225,
+        "renderer": "pack_context T5/A0/k50 (caller items)"
+      },
+      "lancedb-fts": {
+        "version": "0.40.0",
+        "retrieval_first_p50_ms": 4.3407775,
+        "retrieval_warm_p50_ms": 1.6101595,
+        "retrieval_warm_p95_ms": 1.786958,
+        "build_p50_s": 0.038274304009974,
+        "evidence_chars_p50": 30531.0,
+        "answer_p50_s": 1.278472766483901,
+        "judge_p50_s": 0.7020668584736995,
+        "usd": 3.3538125,
+        "reused_usd": 1.112885,
+        "renderer": "comp03_answer.render_evidence Slice 40 mix"
+      }
+    },
+    "cost_usd": 7.27771,
+    "selection_matches_seed": true,
+    "arm_gate": {
+      "sweep_verdict": null,
+      "sweep_summary_sha256": null,
+      "excluded_arms": []
+    },
+    "reuse": {
+      "fathomdb-fts-pack": {
+        "source": {
+          "attempt_root": "~/.cache/fathomdb-comp/pa-m3",
+          "arm": "fathomdb-fts-pack"
+        },
+        "questions": [
+          "06878be2",
+          "09ba9854",
+          "184da446",
+          "1a1907b4",
+          "1c0ddc50",
+          "1da05512",
+          "21436231",
+          "29f2956b",
+          "3249768e",
+          "352ab8bd",
+          "41275add",
+          "42ec0761",
+          "4c36ccef",
+          "4dfccbf7",
+          "4f54b7c9",
+          "505af2f5",
+          "545bd2b5",
+          "67e0d0f2",
+          "6a1eabeb",
+          "6ade9755",
+          "6ae235be",
+          "6b7dfb22",
+          "6f9b354f",
+          "70b3e69b",
+          "71a3fd6b",
+          "75832dbd",
+          "86f00804",
+          "8979f9ec",
+          "89941a93",
+          "89941a94",
+          "8e91e7d9",
+          "95228167",
+          "b6019101",
+          "b6025781",
+          "bc8a6e93_abs",
+          "c14c00dd",
+          "c6853660",
+          "ce6d2d27",
+          "ceb54acb",
+          "d23cf73b",
+          "d6233ab6",
+          "e01b8e2f",
+          "e3fc4d6e",
+          "e5ba910e_abs",
+          "e6041065",
+          "e8a79c70",
+          "eace081b",
+          "f4f1d8a4_abs",
+          "f685340e_abs",
+          "gpt4_372c3eed",
+          "gpt4_65aabe59",
+          "gpt4_68e94287",
+          "gpt4_6dc9b45b",
+          "gpt4_78cf46a3",
+          "gpt4_7a0daae1",
+          "gpt4_7bc6cf22",
+          "gpt4_98f46fc6",
+          "gpt4_d31cdae3",
+          "gpt4_e414231e",
+          "gpt4_f2262a51"
+        ],
+        "usd": 1.2805225
+      },
+      "lancedb-fts": {
+        "source": {
+          "attempt_root": "~/.cache/fathomdb-comp/comp03-run-mix",
+          "arm": "lancedb-fts"
+        },
+        "questions": [
+          "06878be2",
+          "09ba9854",
+          "184da446",
+          "1a1907b4",
+          "1c0ddc50",
+          "1da05512",
+          "21436231",
+          "29f2956b",
+          "3249768e",
+          "352ab8bd",
+          "41275add",
+          "42ec0761",
+          "4c36ccef",
+          "4dfccbf7",
+          "4f54b7c9",
+          "505af2f5",
+          "545bd2b5",
+          "67e0d0f2",
+          "6a1eabeb",
+          "6ade9755",
+          "6ae235be",
+          "6b7dfb22",
+          "6f9b354f",
+          "70b3e69b",
+          "71a3fd6b",
+          "75832dbd",
+          "86f00804",
+          "8979f9ec",
+          "89941a93",
+          "89941a94",
+          "8e91e7d9",
+          "95228167",
+          "b6019101",
+          "b6025781",
+          "bc8a6e93_abs",
+          "c14c00dd",
+          "c6853660",
+          "ce6d2d27",
+          "ceb54acb",
+          "d23cf73b",
+          "d6233ab6",
+          "e01b8e2f",
+          "e3fc4d6e",
+          "e5ba910e_abs",
+          "e6041065",
+          "e8a79c70",
+          "eace081b",
+          "f4f1d8a4_abs",
+          "f685340e_abs",
+          "gpt4_372c3eed",
+          "gpt4_65aabe59",
+          "gpt4_68e94287",
+          "gpt4_6dc9b45b",
+          "gpt4_78cf46a3",
+          "gpt4_7a0daae1",
+          "gpt4_7bc6cf22",
+          "gpt4_98f46fc6",
+          "gpt4_d31cdae3",
+          "gpt4_e414231e",
+          "gpt4_f2262a51"
+        ],
+        "usd": 1.112885
+      }
+    },
+    "cost_ceiling": {
+      "ceiling_usd": 11.5,
+      "spend_usd": 7.27771
+    },
+    "renderer_by_arm": {
+      "fathomdb-fts-pack": "pack_context T5/A0/k50 (caller items)",
+      "lancedb-fts": "comp03_answer.render_evidence Slice 40 mix"
+    },
+    "question_outcomes": [
+      {
+        "question_id": "184da446",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "42ec0761",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6a1eabeb",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "89941a93",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "89941a94",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "b6019101",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "c6853660",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "ce6d2d27",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "eace081b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "f685340e_abs",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "09ba9854",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "4f54b7c9",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "67e0d0f2",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "8979f9ec",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "8e91e7d9",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "d23cf73b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e5ba910e_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e6041065",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_372c3eed",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_f2262a51",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "3249768e",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "352ab8bd",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "41275add",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "4c36ccef",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6ae235be",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "70b3e69b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "71a3fd6b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "ceb54acb",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e3fc4d6e",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e8a79c70",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "06878be2",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "1a1907b4",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "1c0ddc50",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "1da05512",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "505af2f5",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6b7dfb22",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "75832dbd",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "95228167",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "b6025781",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "d6233ab6",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "21436231",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "29f2956b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "545bd2b5",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6ade9755",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6f9b354f",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "86f00804",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "bc8a6e93_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "c14c00dd",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e01b8e2f",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "f4f1d8a4_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "4dfccbf7",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_65aabe59",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_68e94287",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_6dc9b45b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_78cf46a3",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_7a0daae1",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_7bc6cf22",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_98f46fc6",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_d31cdae3",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_e414231e",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "031748ae",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "06db6396",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "07741c45",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "08e075c7",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "0977f2af",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "0ddfec37",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "18bc8abd",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "2698e78f",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "2698e78f_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "26bdc477",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "3ba21379",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "41698283",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "45dc21b6",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "5c40ec5b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "603deb26",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "618f13b2",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "69fee5aa",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "6a27ffc2",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6aeb4375",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "71315a70",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "830ce83f",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "852ce960",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "8fb83627",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "945e3d21",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "9bbe84a2",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "a1eacc2a",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "a2f3aa27",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "c7dc5443",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "f9e8c073",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "00ca467f",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "09ba9854_abs",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "0ea62687",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "129d1232",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "157a136e",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "1a8a66a6",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "21d02d0d",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "2311e44b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "2318644b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "27016adc",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "2e6d26dc",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "3c1045c8",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "3fe836c9",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "46a3abf7",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "4bc144e2",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "51c32626",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "60036106",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "60159905",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "60472f9c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "60bf93ed",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "61f8c8f8",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6456829e",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6456829e_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6c49646a",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "7024f17c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "73d42213",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "7405e8b1",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "80ec1f4f_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "81507db6",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "87f22b4a",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "88432d0a_abs",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "91b15a6e",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "9aaed6a3",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "9d25d4e0",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "a08a253f",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "a3332713",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "a346bb18",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "a96c20ee_abs",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "a9f6b44c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "b3c15d39",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "ba358f49_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "bb7c3b45",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "c2ac3c61",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e3038f8c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "edced276",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "edced276_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "eeda8a6d_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "ef66a6e5",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "efc3f7c2",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "f35224e0",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_2ba83207",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_31ff4165",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_731e37d7",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_a56e767c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_ab202e7f",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_d84a3211",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_e05b82a6",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "16c90bf4",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "1b9b7252",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "3e321797",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "5809eb10",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "58470ed2",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "65240037",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "7e00a6cb",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "8752c811",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "89527b6b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "8cf51dda",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "b759caee",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "c8f1aeed",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "d596882b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "dc439ea3",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e982271f",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "f523d9fe",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "fca762bc",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "fea54f57",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "07b6f563",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "1d4e3b97",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "35a27287",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "a89d7624",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "d24813b1",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "0862e8bf_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "118b2229",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "15745da0",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "15745da0_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "19b5f2b3_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "1faac195",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "29f2956b_abs",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "311778f1",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "3b6f954b",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "577d4d32",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "5d3d2817",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "66f24dbb",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6b168ec8",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "726462e0",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "8e9d538c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "a06e4cfe",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "a82c026e",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "ad7109d1",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "af8d2e46",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "b86304ba",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "c19f7a0b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "c8c3f81d",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "caf9ead2",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "f8c5f88b",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "faba32e5",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "0bb5a684",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "0bc8ad93",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "2c63a862",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "6613b389",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6e984301",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "71017277",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "8c18457d",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "9a707b81",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "a3045048",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "a3838d2b",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "af082822",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "b29f3365",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "b9cfe692",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "c8090214",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "cc6d1ec1",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "d01c6aa8",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "dcfa8644",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "eac54adc",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "f0853d11",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_0a05b494",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_0b2f1d21",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_1916e0ea",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_1a1dc16d",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_1d80365e",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_2312f94c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_2655b836",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_2d58bcd6",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_2f56ae70",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_385a5000",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_483dd43c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_4929293b",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_4cd9eba1",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_4fc4f797",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_59149c78",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_61e13b3c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_68e94288",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_7ca326fa",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_7de946e7",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_85da3956",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_88806d6e",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_8c8961ae",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_93159ced",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_93f6379c",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_a1b77f9c",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_a2d1d1f6",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_b4a80587",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_d9af6064",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_e061b84f",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_e061b84g",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_e072b769",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_ec93e27f",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_f420262c",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_f420262d",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_f49edff3",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_fe651585",
+        "fathomdb-fts-pack": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_fe651585_abs",
+        "fathomdb-fts-pack": false,
+        "lancedb-fts": false
+      }
+    ]
+  },
+  "cost_usd": 7.2777,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_attempt",
+      "summary_sha256": "c57d0ab3142b063160e9e3516bca03da7b29bc0939e15980a17d8f1378ce2c1e"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

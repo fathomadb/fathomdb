@@ -144,3 +144,8 @@ aedd649a5b054dcbf33b6a9747a38664ca95943b2f05b3b34042fbddcf3b152e  final-comp03-s
 4780e94e15eba2c8fe99f52705e94dd40f478ed09703ec71434936e93ccec2b0  pa-combined-sweep.tar.gz
 02c49ffa27dbd25a1eefe86bccc4fcb2cad62d2dca8e391d443470fc14f92f4e  scratch-receipts.tar.gz
 ```
+
+## Added after packing
+
+- `ui-h3-sweep.tar.gz` and `ui-s40-sweep.tar.gz`: the Unit I gate retrieval sweeps (harness 821e649e5, exported; no receipt). Summary SHA-256 c61418eb… and 8fa6cfa6….
+- `*.scratch-record.*.json`: scratch receipts kept as plain data, not registered (the 250 run, M3 and the combined sweep need classifier rules first).

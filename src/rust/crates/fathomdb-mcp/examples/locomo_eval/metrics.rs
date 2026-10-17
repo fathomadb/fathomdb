@@ -79,24 +79,44 @@ impl SplitMix64 {
 
     /// Uniform in `0..n` (`n > 0`), by rejection so there is no modulo bias.
     pub fn below(&mut self, n: u64) -> u64 {
-        let _ = n;
-        0
+        let zone = u64::MAX - u64::MAX % n;
+        loop {
+            let value = self.next_u64();
+            if value < zone {
+                return value % n;
+            }
+        }
     }
 }
 
 /// Nearest-rank percentile of an ascending slice: the value at rank
 /// `ceil(q * len)`, clamped to `1..=len`. 0 for an empty slice.
 pub fn percentile(sorted: &[f64], q: f64) -> f64 {
-    let _ = (sorted, q);
-    0.0
+    if sorted.is_empty() {
+        return 0.0;
+    }
+    let rank = (q * sorted.len() as f64).ceil() as usize;
+    sorted[rank.clamp(1, sorted.len()) - 1]
 }
 
 /// Paired bootstrap over per-query differences (`hybrid - text`): draw
 /// `resamples` resamples of the queries with replacement, take each mean, and
 /// report the 2.5th and 97.5th nearest-rank percentiles.
 pub fn paired_bootstrap_ci(diffs: &[f64], resamples: usize, seed: u64) -> BootstrapCi {
-    let _ = (diffs, resamples, seed);
-    BootstrapCi { mean: 0.0, low: 0.0, high: 0.0 }
+    let observed = mean(diffs);
+    if diffs.is_empty() || resamples == 0 {
+        return BootstrapCi { mean: observed, low: observed, high: observed };
+    }
+    let mut rng = SplitMix64::new(seed);
+    let n = diffs.len() as u64;
+    let mut means: Vec<f64> = (0..resamples)
+        .map(|_| {
+            let total: f64 = (0..n).map(|_| diffs[rng.below(n) as usize]).sum();
+            total / n as f64
+        })
+        .collect();
+    means.sort_by(f64::total_cmp);
+    BootstrapCi { mean: observed, low: percentile(&means, 0.025), high: percentile(&means, 0.975) }
 }
 
 fn relevant_in_top(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> usize {

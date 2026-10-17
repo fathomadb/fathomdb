@@ -35,3 +35,11 @@ for (const value of bad) {
     });
   }
 }
+
+test("a non-array keepRoles is a TypeError, not split into characters", () => {
+  const hits: ContextItem[] = [{ id: "a", parts: part }];
+  assert.throws(
+    () => packContext(hits, { keepRoles: "assistant" as unknown as string[] } as ContextPolicy),
+    (err: unknown) => err instanceof TypeError && err.message.includes("policy.keepRoles"),
+  );
+});

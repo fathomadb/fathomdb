@@ -1,0 +1,162 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "comp-02b-latency-20261017T1223Z-2412d988",
+  "experiment": "comp-02b-latency",
+  "title": "10k TC-5 projected and body search latency",
+  "verdict": "complete",
+  "read": "projected-unfiltered p50 2.75 ms p95 5.28 ms; projected-c01 p50 6.80 ms p95 10.31 ms; projected-c10 p50 4.05 ms p95 6.84 ms; projected-c33 p50 3.00 ms p95 5.70 ms; body-text-only p50 3.29 ms p95 5.97 ms; projected-single-term p50 0.95 ms p95 1.01 ms",
+  "code": {
+    "git_sha": "fc26c75fff7189e00450b79d49ef34c6e85bb307",
+    "dirty": false,
+    "branch": "slice/0.8.28-40-comp03",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "2412d9881118cda56d5ada986b70eb2ff94d6212f9a36d82bb3da7248cf40553",
+    "path": null,
+    "resolved": {
+      "experiment": "comp-02b-latency",
+      "version": 2,
+      "measurement": "fresh_open_per_cell",
+      "cells": [
+        {
+          "id": "projected-unfiltered",
+          "method": "search_projected_text",
+          "cohort": null
+        },
+        {
+          "id": "projected-c01",
+          "method": "search_projected_text",
+          "cohort": "c01"
+        },
+        {
+          "id": "projected-c10",
+          "method": "search_projected_text",
+          "cohort": "c10"
+        },
+        {
+          "id": "projected-c33",
+          "method": "search_projected_text",
+          "cohort": "c33"
+        },
+        {
+          "id": "body-text-only",
+          "method": "search_text_only",
+          "cohort": null
+        },
+        {
+          "id": "projected-single-term",
+          "method": "search_projected_text",
+          "cohort": null,
+          "query": "meeting",
+          "queries": 20
+        }
+      ],
+      "shuffle_seed": 7,
+      "limit": 10,
+      "inputs": {
+        "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+        "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+      }
+    }
+  },
+  "corpus": {
+    "source": "tc5-10000 (COMP-02b inputs)",
+    "manifest_sha256": null,
+    "datasets": [
+      {
+        "name": "corpus.json",
+        "sha256": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc"
+      },
+      {
+        "name": "queries.json",
+        "sha256": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+      }
+    ]
+  },
+  "seeds": {
+    "shuffle": 7
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.27",
+      "fathomdb_engine_commit": "d10ad65d59b06a0aaee0b06d8476bc82a74155c0",
+      "fathomdb_native_sha256": "f34bcfcb012ed807c0e66d2c212f68884a129470334c993598432283791d64d0"
+    }
+  },
+  "metrics": {
+    "schema_version": "comp-02b.latency.summary.v2",
+    "measurement": {
+      "method": "fresh_open_per_cell",
+      "opens": 6,
+      "cell_order": [
+        "projected-unfiltered",
+        "projected-c01",
+        "projected-c10",
+        "projected-c33",
+        "body-text-only",
+        "projected-single-term"
+      ]
+    },
+    "documents": 10000,
+    "queries": 100,
+    "build_s": 2.568240294000134,
+    "inputs": {
+      "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+      "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+    },
+    "cells": {
+      "projected-unfiltered": {
+        "n": 100,
+        "p50_ms": 2.747739985352382,
+        "p95_ms": 5.281644989736378,
+        "short_results": 0
+      },
+      "projected-c01": {
+        "n": 100,
+        "p50_ms": 6.796625006245449,
+        "p95_ms": 10.306074982509017,
+        "short_results": 6
+      },
+      "projected-c10": {
+        "n": 100,
+        "p50_ms": 4.05415499699302,
+        "p95_ms": 6.836263986770064,
+        "short_results": 0
+      },
+      "projected-c33": {
+        "n": 100,
+        "p50_ms": 2.9991850024089217,
+        "p95_ms": 5.704745999537408,
+        "short_results": 0
+      },
+      "body-text-only": {
+        "n": 100,
+        "p50_ms": 3.2888635178096592,
+        "p95_ms": 5.967631994280964,
+        "short_results": 0
+      },
+      "projected-single-term": {
+        "n": 20,
+        "p50_ms": 0.9459285065531731,
+        "p95_ms": 1.006432983558625,
+        "short_results": 0
+      }
+    }
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_attempt",
+      "summary_sha256": "81224c220a8422deab414e8459ec21b0dd404a50c73897cba82e34b59df744f4"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

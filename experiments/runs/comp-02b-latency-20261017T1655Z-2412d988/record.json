@@ -1,0 +1,162 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "comp-02b-latency-20261017T1655Z-2412d988",
+  "experiment": "comp-02b-latency",
+  "title": "10k TC-5 projected and body search latency",
+  "verdict": "complete",
+  "read": "body-text-only p50 3.46 ms p95 6.26 ms; projected-c01 p50 30.85 ms p95 48.11 ms; projected-c10 p50 5.89 ms p95 14.44 ms; projected-c33 p50 3.25 ms p95 5.82 ms; projected-single-term p50 0.95 ms p95 1.08 ms; projected-unfiltered p50 2.86 ms p95 5.51 ms",
+  "code": {
+    "git_sha": "fc26c75fff7189e00450b79d49ef34c6e85bb307",
+    "dirty": false,
+    "branch": "HEAD",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "2412d9881118cda56d5ada986b70eb2ff94d6212f9a36d82bb3da7248cf40553",
+    "path": null,
+    "resolved": {
+      "experiment": "comp-02b-latency",
+      "version": 2,
+      "measurement": "fresh_open_per_cell",
+      "cells": [
+        {
+          "id": "projected-unfiltered",
+          "method": "search_projected_text",
+          "cohort": null
+        },
+        {
+          "id": "projected-c01",
+          "method": "search_projected_text",
+          "cohort": "c01"
+        },
+        {
+          "id": "projected-c10",
+          "method": "search_projected_text",
+          "cohort": "c10"
+        },
+        {
+          "id": "projected-c33",
+          "method": "search_projected_text",
+          "cohort": "c33"
+        },
+        {
+          "id": "body-text-only",
+          "method": "search_text_only",
+          "cohort": null
+        },
+        {
+          "id": "projected-single-term",
+          "method": "search_projected_text",
+          "cohort": null,
+          "query": "meeting",
+          "queries": 20
+        }
+      ],
+      "shuffle_seed": 7,
+      "limit": 10,
+      "inputs": {
+        "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+        "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+      }
+    }
+  },
+  "corpus": {
+    "source": "tc5-10000 (COMP-02b inputs)",
+    "manifest_sha256": null,
+    "datasets": [
+      {
+        "name": "corpus.json",
+        "sha256": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc"
+      },
+      {
+        "name": "queries.json",
+        "sha256": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+      }
+    ]
+  },
+  "seeds": {
+    "shuffle": 7
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.27",
+      "fathomdb_engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "fathomdb_native_sha256": "9bda8cd2fb4eeb19e8292c97a29913afd7b356821d4ebf04cffc6bb0b57faebf"
+    }
+  },
+  "metrics": {
+    "build_s": 2.4699410920147784,
+    "cells": {
+      "body-text-only": {
+        "n": 100,
+        "p50_ms": 3.4597505000419915,
+        "p95_ms": 6.25623797532171,
+        "short_results": 0
+      },
+      "projected-c01": {
+        "n": 100,
+        "p50_ms": 30.852589523419738,
+        "p95_ms": 48.10722102411091,
+        "short_results": 6
+      },
+      "projected-c10": {
+        "n": 100,
+        "p50_ms": 5.894794507184997,
+        "p95_ms": 14.43992997519672,
+        "short_results": 0
+      },
+      "projected-c33": {
+        "n": 100,
+        "p50_ms": 3.247925516916439,
+        "p95_ms": 5.824672000017017,
+        "short_results": 0
+      },
+      "projected-single-term": {
+        "n": 20,
+        "p50_ms": 0.9451269870623946,
+        "p95_ms": 1.082736998796463,
+        "short_results": 0
+      },
+      "projected-unfiltered": {
+        "n": 100,
+        "p50_ms": 2.8577024932019413,
+        "p95_ms": 5.514464981388301,
+        "short_results": 0
+      }
+    },
+    "documents": 10000,
+    "inputs": {
+      "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+      "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+    },
+    "measurement": {
+      "cell_order": [
+        "projected-unfiltered",
+        "projected-c01",
+        "projected-c10",
+        "projected-c33",
+        "body-text-only",
+        "projected-single-term"
+      ],
+      "method": "fresh_open_per_cell",
+      "opens": 6
+    },
+    "queries": 100,
+    "schema_version": "comp-02b.latency.summary.v2"
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_attempt",
+      "summary_sha256": "d5ba7c74cf073e76a81df6c62f5b6777998764b8521c4f16d06be7975b68db7e"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

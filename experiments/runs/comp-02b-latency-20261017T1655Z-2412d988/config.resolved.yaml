@@ -1,0 +1,45 @@
+{
+  "cells": [
+    {
+      "cohort": null,
+      "id": "projected-unfiltered",
+      "method": "search_projected_text"
+    },
+    {
+      "cohort": "c01",
+      "id": "projected-c01",
+      "method": "search_projected_text"
+    },
+    {
+      "cohort": "c10",
+      "id": "projected-c10",
+      "method": "search_projected_text"
+    },
+    {
+      "cohort": "c33",
+      "id": "projected-c33",
+      "method": "search_projected_text"
+    },
+    {
+      "cohort": null,
+      "id": "body-text-only",
+      "method": "search_text_only"
+    },
+    {
+      "cohort": null,
+      "id": "projected-single-term",
+      "method": "search_projected_text",
+      "queries": 20,
+      "query": "meeting"
+    }
+  ],
+  "experiment": "comp-02b-latency",
+  "inputs": {
+    "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+    "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+  },
+  "limit": 10,
+  "measurement": "fresh_open_per_cell",
+  "shuffle_seed": 7,
+  "version": 2
+}

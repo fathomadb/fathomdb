@@ -1,0 +1,401 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "comp-02b-comp02b-10000-20261017T1659Z-19d8c470",
+  "experiment": "comp-02b-comp02b-10000",
+  "title": "COMP-02b filtered FTS at 1/10/33% selectivity, 10k TC-5 documents, FathomDB vs SurrealDB (fresh open per cohort)",
+  "verdict": "complete",
+  "read": "COMP-02b filtered FTS at 1/10/33% selectivity, 10k TC-5 documents, FathomDB vs SurrealDB (fresh open per cohort); result note dev/performance-benchmarking/2026-10-15-comp-02b-filtered-fts-result.md",
+  "code": {
+    "git_sha": "49f45364a20e1046a34c5e6cfccb0b8a72b78be5",
+    "dirty": false,
+    "branch": "bench/0.8.28-comp-benchmark-data",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "19d8c4704c4fa8212cb21ba808d8ba8c4057d4070c6d5c270dee3e530a5f0f0f",
+    "path": "experiments/configs/comp-02/filtered-10000.v2.json",
+    "resolved": {
+      "schema_version": "comp-fts.campaign.v1",
+      "program_track": null,
+      "campaign": "COMP-02b",
+      "harness_campaign": "comp02b",
+      "title": "COMP-02b filtered FTS at 1/10/33% selectivity, 10k TC-5 documents, FathomDB vs SurrealDB (fresh open per cohort)",
+      "inputs": {
+        "dir_hint": "~/.cache/fathomdb-comp/tc5-10000",
+        "source": "SCALE-02 qualified TC-5 input pack v1 with hashed bench_cohort",
+        "build": "python -m experiments.comp02_inputs --size 10000 --output <inputs>",
+        "files": {
+          "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+          "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb",
+          "probes.json": "7d7096874c1c21b5a48f622e635fafc491fe03de87929e1844022ba3a219bf12",
+          "manifest.json": "a042ef6b1dac40eb9c9d1e526ec7af706ec1a48ba4abfd7b6577c45538db3e29"
+        }
+      },
+      "arms": [
+        {
+          "id": "fathomdb",
+          "version": "0.8.27 (repo build)",
+          "method": "Engine.search_projected_text('text', SearchFilter(attributes=bench_cohort))",
+          "tokenizer": "FTS5 porter unicode61 remove_diacritics 2",
+          "embedder": "none"
+        },
+        {
+          "id": "surrealdb",
+          "version": "3.3.0 (Rust crate, embedded RocksDB)",
+          "driver": "experiments/comp_drivers/surrealdb (Cargo.lock committed)",
+          "analyzer": "crud-bench: blank,class + lowercase,ascii, BM25",
+          "query": "body @0,OR@ $q AND cohort = $c ORDER BY search::score(0) DESC; btree on cohort"
+        }
+      ],
+      "roster": {
+        "order": "AB/BA/BA/AB",
+        "repetitions": 4,
+        "cell": "one arm x one fresh database, own subprocess; fresh open per cohort pass (c01, c10, c33), closed before the next, for both arms; each pass's timed run follows its own warm run on the same open; v1 and v2 numbers are not comparable for either arm; peak_rss_mib is the maximum over the three opens; resume skips cells/*.json"
+      },
+      "run": "python -m experiments.comp_fts run --config experiments/configs/comp-02/filtered-10000.v2.json --inputs <inputs> --out <new attempt dir>",
+      "report": "filtered",
+      "metrics": [
+        "p50_ms",
+        "p95_ms",
+        "violations",
+        "short_results",
+        "selectivity"
+      ],
+      "result_note": "dev/performance-benchmarking/2026-10-15-comp-02b-filtered-fts-result.md",
+      "claim_boundary": "filtered FTS only; vector KNN unsupported in 0.8.27 public API"
+    }
+  },
+  "corpus": {
+    "source": "SCALE-02 qualified TC-5 input pack v1 with hashed bench_cohort",
+    "manifest_sha256": "a042ef6b1dac40eb9c9d1e526ec7af706ec1a48ba4abfd7b6577c45538db3e29",
+    "datasets": [
+      {
+        "name": "corpus.json",
+        "sha256": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc"
+      },
+      {
+        "name": "manifest.json",
+        "sha256": "a042ef6b1dac40eb9c9d1e526ec7af706ec1a48ba4abfd7b6577c45538db3e29"
+      },
+      {
+        "name": "probes.json",
+        "sha256": "7d7096874c1c21b5a48f622e635fafc491fe03de87929e1844022ba3a219bf12"
+      },
+      {
+        "name": "queries.json",
+        "sha256": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+      }
+    ]
+  },
+  "seeds": {
+    "steady_order": "1000 + repetition"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.27",
+      "surrealdb": "3.3.0 (embedded rocksdb, Rust crate)",
+      "fathomdb_engine_commit": "417eac27d6ae8ae78ec1cc497bb8d0ee189d255b",
+      "fathomdb_native_sha256": "b24f68a64b4fe6c6ce5588f49b64ef453e7fcad127d1d1245f2650d851c62570"
+    }
+  },
+  "metrics": {
+    "roster": [
+      "r1-fathomdb",
+      "r1-surrealdb",
+      "r2-surrealdb",
+      "r2-fathomdb",
+      "r3-surrealdb",
+      "r3-fathomdb",
+      "r4-fathomdb",
+      "r4-surrealdb"
+    ],
+    "cells_complete": [
+      "r1-fathomdb",
+      "r1-surrealdb",
+      "r2-fathomdb",
+      "r2-surrealdb",
+      "r3-fathomdb",
+      "r3-surrealdb",
+      "r4-fathomdb",
+      "r4-surrealdb"
+    ],
+    "host": {
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "cores": 24,
+      "python": "3.12.3",
+      "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39"
+    },
+    "medians": [
+      {
+        "cohort": "c01",
+        "arm": "fathomdb",
+        "reps": 4,
+        "selectivity": 0.0092,
+        "selectivity_range": [
+          0.0092,
+          0.0092
+        ],
+        "violations": 0.0,
+        "violations_range": [
+          0,
+          0
+        ],
+        "short_results": 6.0,
+        "short_results_range": [
+          6,
+          6
+        ],
+        "p50_ms": 12.123481,
+        "p50_ms_range": [
+          12.003474,
+          12.309742
+        ],
+        "p95_ms": 18.748931499999998,
+        "p95_ms_range": [
+          18.559969,
+          19.028486
+        ],
+        "p99_ms": 21.107711000000002,
+        "p99_ms_range": [
+          20.744941,
+          21.451717
+        ]
+      },
+      {
+        "cohort": "c01",
+        "arm": "surrealdb",
+        "reps": 4,
+        "selectivity": 0.0092,
+        "selectivity_range": [
+          0.0092,
+          0.0092
+        ],
+        "violations": 0.0,
+        "violations_range": [
+          0,
+          0
+        ],
+        "short_results": 0.0,
+        "short_results_range": [
+          0,
+          0
+        ],
+        "p50_ms": 3.9723604999999997,
+        "p50_ms_range": [
+          3.827737,
+          4.058092
+        ],
+        "p95_ms": 5.032855,
+        "p95_ms_range": [
+          4.936142,
+          5.391223
+        ],
+        "p99_ms": 5.61692,
+        "p99_ms_range": [
+          5.412363,
+          5.976379
+        ]
+      },
+      {
+        "cohort": "c10",
+        "arm": "fathomdb",
+        "reps": 4,
+        "selectivity": 0.0968,
+        "selectivity_range": [
+          0.0968,
+          0.0968
+        ],
+        "violations": 0.0,
+        "violations_range": [
+          0,
+          0
+        ],
+        "short_results": 0.0,
+        "short_results_range": [
+          0,
+          0
+        ],
+        "p50_ms": 5.1282005,
+        "p50_ms_range": [
+          4.822097,
+          6.117435
+        ],
+        "p95_ms": 14.743173500000001,
+        "p95_ms_range": [
+          14.147747,
+          15.646391
+        ],
+        "p99_ms": 17.6800365,
+        "p99_ms_range": [
+          17.554509,
+          17.727956
+        ]
+      },
+      {
+        "cohort": "c10",
+        "arm": "surrealdb",
+        "reps": 4,
+        "selectivity": 0.0968,
+        "selectivity_range": [
+          0.0968,
+          0.0968
+        ],
+        "violations": 0.0,
+        "violations_range": [
+          0,
+          0
+        ],
+        "short_results": 0.0,
+        "short_results_range": [
+          0,
+          0
+        ],
+        "p50_ms": 19.979148000000002,
+        "p50_ms_range": [
+          19.888221,
+          20.171477
+        ],
+        "p95_ms": 22.982355,
+        "p95_ms_range": [
+          22.319437,
+          23.195333
+        ],
+        "p99_ms": 24.021720000000002,
+        "p99_ms_range": [
+          23.116113,
+          24.848859
+        ]
+      },
+      {
+        "cohort": "c33",
+        "arm": "fathomdb",
+        "reps": 4,
+        "selectivity": 0.3327,
+        "selectivity_range": [
+          0.3327,
+          0.3327
+        ],
+        "violations": 0.0,
+        "violations_range": [
+          0,
+          0
+        ],
+        "short_results": 0.0,
+        "short_results_range": [
+          0,
+          0
+        ],
+        "p50_ms": 3.1698079999999997,
+        "p50_ms_range": [
+          3.10492,
+          3.203757
+        ],
+        "p95_ms": 5.811287,
+        "p95_ms_range": [
+          5.770259,
+          6.001276
+        ],
+        "p99_ms": 6.4173925,
+        "p99_ms_range": [
+          6.22042,
+          6.727309
+        ]
+      },
+      {
+        "cohort": "c33",
+        "arm": "surrealdb",
+        "reps": 4,
+        "selectivity": 0.3327,
+        "selectivity_range": [
+          0.3327,
+          0.3327
+        ],
+        "violations": 0.0,
+        "violations_range": [
+          0,
+          0
+        ],
+        "short_results": 0.0,
+        "short_results_range": [
+          0,
+          0
+        ],
+        "p50_ms": 65.07019700000001,
+        "p50_ms_range": [
+          63.838293,
+          67.164662
+        ],
+        "p95_ms": 71.9369585,
+        "p95_ms_range": [
+          69.889784,
+          73.666083
+        ],
+        "p99_ms": 75.7111845,
+        "p99_ms_range": [
+          71.022095,
+          77.185877
+        ]
+      }
+    ],
+    "versions": {
+      "fathomdb": "0.8.27",
+      "surrealdb": "3.3.0 (embedded rocksdb, Rust crate)"
+    },
+    "documents": 10000
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "manifest",
+      "sha256": "ea19889d9e3acfc945ae9ef922da2690fd09fc633a8e761a95c62cd854989464"
+    },
+    {
+      "kind": "cell",
+      "name": "r1-fathomdb",
+      "sha256": "3428a1c8671acf8c936e686dbe84deda9abe681fc4ebcac7a5d606c978653fbf"
+    },
+    {
+      "kind": "cell",
+      "name": "r1-surrealdb",
+      "sha256": "80e38687be8db66b720cef2055f8092af35668cdd6ebdf2609f11f963c240f0c"
+    },
+    {
+      "kind": "cell",
+      "name": "r2-fathomdb",
+      "sha256": "2e469591e80a4b9a6eafefa55b973af78c34bcfa962c4196f77ab48537ef861d"
+    },
+    {
+      "kind": "cell",
+      "name": "r2-surrealdb",
+      "sha256": "a81fa96b4ea7d932aeb8aac1adec57961046f7d0fd6bcc34524c72660527b80f"
+    },
+    {
+      "kind": "cell",
+      "name": "r3-fathomdb",
+      "sha256": "18c08be1e3db55615978307517f514a8a0f71fc7cae6f3c59789501cd426a7e0"
+    },
+    {
+      "kind": "cell",
+      "name": "r3-surrealdb",
+      "sha256": "8ec854af645b9bbaac6c257fa13b1b98726aad18d43fb09bb1b931434d7ebb2d"
+    },
+    {
+      "kind": "cell",
+      "name": "r4-fathomdb",
+      "sha256": "3e3da0fdb8f6ead6545b3926e2047a3f805db4fba3fbd298bf9885b33d50d120"
+    },
+    {
+      "kind": "cell",
+      "name": "r4-surrealdb",
+      "sha256": "f96b7792a5f2b4c1a8299bbb5bced9fac9e03f0d352ce75403a683dde53f7bc7"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

@@ -237,6 +237,86 @@
         "sha256": "c64eef03e3a804b20f46a848e296c13bfa33940890c8a3e6a2595a2a46fcb1e7",
         "plan_id": "comp02b-filtered-v1"
       }
+    },
+    {
+      "run_id": "comp-02b-latency-20261017T1653Z-2412d988",
+      "record_sha256": "93a27407ce851275528693cf8d28c17acceef672fec877b97f226f826b72a5b7",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-latency-v2-measurement-plan.v1.json",
+        "sha256": "34767f66b7f82e5c8049049301e4d851883ec6c8d4268e9380a523036bf73309",
+        "plan_id": "comp02b-latency-v2"
+      }
+    },
+    {
+      "run_id": "comp-02b-latency-20261017T1654Z-2412d988",
+      "record_sha256": "81523cf2dd5361670ab2fc20f46a7bc0261e4ab6bcecdabcb7898b3d2f0c963c",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-latency-v2-measurement-plan.v1.json",
+        "sha256": "34767f66b7f82e5c8049049301e4d851883ec6c8d4268e9380a523036bf73309",
+        "plan_id": "comp02b-latency-v2"
+      }
+    },
+    {
+      "run_id": "comp-02b-latency-20261017T1655Z-2412d988",
+      "record_sha256": "546b017338cbbb7ed92ded5e9d9bcd56b0db18645b0ecedca181180fbe3757f1",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-latency-v2-measurement-plan.v1.json",
+        "sha256": "34767f66b7f82e5c8049049301e4d851883ec6c8d4268e9380a523036bf73309",
+        "plan_id": "comp02b-latency-v2"
+      }
+    },
+    {
+      "run_id": "comp-02b-latency-20261017T1656Z-4f96fad0",
+      "record_sha256": "1252acb7d9a9baf5e7cbf4f49c2822a0e0dc4de1f937866c505bf3de8833e3c8",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-latency-v1-measurement-plan.v1.json",
+        "sha256": "1a251ea94247d622b9ccce61854c8737dda5067d4c11785f2015d7009ac9870b",
+        "plan_id": "comp02b-latency-v1"
+      }
+    },
+    {
+      "run_id": "comp-02b-latency-20261017T1657Z-4f96fad0",
+      "record_sha256": "dbf4295d8e937669d99827dfc825cae31bb5f279fe67432bbbc1087dce6bece3",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-latency-v1-measurement-plan.v1.json",
+        "sha256": "1a251ea94247d622b9ccce61854c8737dda5067d4c11785f2015d7009ac9870b",
+        "plan_id": "comp02b-latency-v1"
+      }
+    },
+    {
+      "run_id": "comp-02b-latency-20261017T1658Z-4f96fad0",
+      "record_sha256": "6cd32319181382e7364949a0b2c4ee1045130639a8d4c6b11f97834712c778f8",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-latency-v1-measurement-plan.v1.json",
+        "sha256": "1a251ea94247d622b9ccce61854c8737dda5067d4c11785f2015d7009ac9870b",
+        "plan_id": "comp02b-latency-v1"
+      }
+    },
+    {
+      "run_id": "comp-02b-comp02b-10000-20261017T1659Z-19d8c470",
+      "record_sha256": "8ab7d52ebc963f84443dff72379d58f4a0e2b98ac412fd6d22896748e4fa4249",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-filtered-v1-measurement-plan.v1.json",
+        "sha256": "c64eef03e3a804b20f46a848e296c13bfa33940890c8a3e6a2595a2a46fcb1e7",
+        "plan_id": "comp02b-filtered-v1"
+      }
+    },
+    {
+      "run_id": "comp-02b-comp02b-10000-20261017T1700Z-19d8c470",
+      "record_sha256": "690285a78057bc6a867408513483ca5f5da5ca28bcc3afbd7975411d931cf74b",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-filtered-v1-measurement-plan.v1.json",
+        "sha256": "c64eef03e3a804b20f46a848e296c13bfa33940890c8a3e6a2595a2a46fcb1e7",
+        "plan_id": "comp02b-filtered-v1"
+      }
     }
   ],
   "external_artifact_locator_amendments": [

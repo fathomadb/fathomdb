@@ -1,0 +1,53 @@
+//! Retrieval metrics over one ranked list of references and a gold set.
+//!
+//! `ranked` is in rank order (rank 1 first); duplicates count once, at their
+//! first rank. `gold` is the set of relevant references and is never empty for
+//! a scored query.
+
+use std::collections::BTreeSet;
+
+/// Relevant references among the first `k` of `ranked`, divided by `k` (not by
+/// the number returned: a list shorter than `k` is penalized).
+pub fn precision_at_k(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> f64 {
+    let _ = (ranked, gold, k);
+    0.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn refs(items: &[&str]) -> Vec<String> {
+        items.iter().map(|item| (*item).to_string()).collect()
+    }
+
+    fn gold(items: &[&str]) -> BTreeSet<String> {
+        items.iter().map(|item| (*item).to_string()).collect()
+    }
+
+    fn close(a: f64, b: f64) -> bool {
+        (a - b).abs() < 1e-12
+    }
+
+    #[test]
+    fn precision_counts_relevant_in_the_top_k_over_k() {
+        let ranked = refs(&["a", "x", "b", "c"]);
+        let relevant = gold(&["a", "b", "z"]);
+        assert!(close(precision_at_k(&ranked, &relevant, 3), 2.0 / 3.0));
+        assert!(close(precision_at_k(&ranked, &relevant, 1), 1.0));
+        assert!(close(precision_at_k(&ranked, &relevant, 2), 0.5));
+    }
+
+    #[test]
+    fn precision_divides_by_k_when_fewer_results_return() {
+        let ranked = refs(&["a"]);
+        assert!(close(precision_at_k(&ranked, &gold(&["a"]), 3), 1.0 / 3.0));
+        assert!(close(precision_at_k(&[], &gold(&["a"]), 3), 0.0));
+    }
+
+    #[test]
+    fn precision_counts_a_duplicate_reference_once() {
+        let ranked = refs(&["a", "a", "b"]);
+        assert!(close(precision_at_k(&ranked, &gold(&["a"]), 3), 1.0 / 3.0));
+    }
+}

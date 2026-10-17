@@ -106,14 +106,50 @@ supplies a filesystem path. Meets AN-020.
 - MR-005.3 A name that is not addressable, including one containing path
   separators, `..`, or an absolute path, fails as invalid request, and no file
   outside the registry is opened or created.
-- MR-005.4 A store is opened on first use and closed after an idle period
-  **[ADR]**, which releases its sidecar lock. At most **[ADR]** stores are open at once; beyond that, the least recently
-  used idle store is closed first.
+- MR-005.4 A store is opened on first use and closed after it has been idle for
+  the configured timeout, which releases its sidecar lock. The timeout is
+  configurable, defaults to 60 seconds, and 0 means never close (owner
+  decision, 2026-10-17). Any call to the store resets the idle clock. A store
+  with calls in flight, including abandoned ones still running, is never idle.
+- MR-005.7 **One open store at a time** (owner decision, 2026-10-17). A call to
+  store B while store A is open closes A, once A has no calls in flight, and
+  then opens B. Calls to A that arrive during the switch wait or return busy;
+  they never run against B. The open-store limit is a registry setting fixed at
+  1 in this release; the registry manages a set of open stores internally, so
+  raising the limit later changes configuration, not structure.
 - MR-005.5 The agent cannot create a new database file unless the operator's
   registry explicitly allows creation for that name.
 - MR-005.6 All state identity, cursors and continuations (MR-041, MR-050,
   MR-055) are per store. A continuation or cursor issued for one store fails as
   invalid request on another.
+
+**MR-006 — Clean reconnection.** When a closed store is used again, the adapter
+reopens it and restores every piece of per-engine and per-session state, so the
+agent sees no difference except labelled changes the store itself underwent.
+Reconnection needs no MCP-level refresh. Meets AN-013, AN-018.
+
+- MR-006.1 After an idle close and reopen, every tool behaves as before the
+  close, against the same database, with the same launch policy.
+- MR-006.2 Engine-level settings the adapter applied at open — telemetry sink,
+  diagnostics subscriber, profiling and slow-query thresholds — are re-applied
+  on every reopen; a test asserts each is active after reopen.
+- MR-006.3 A continuation, cursor or state identifier issued before the close
+  is honoured after reopen exactly as if the store had stayed open: if the store
+  is unchanged, the next page continues; if another process changed it while
+  closed, the response carries `state_advanced` (MR-051).
+- MR-006.4 During reopen the store reports not-ready with phase `reopening`
+  (MR-003.2), and a call that carries an MCP progress token receives progress
+  notifications until the store is ready.
+- MR-006.5 Feedback (MR-024) naming a response issued before the close returns
+  `not_recorded` with reason `store_reopened`, never an error. The engine accepts
+  only query ids issued by the current telemetry sink, and each open creates a
+  new sink nonce, so such feedback cannot be recorded.
+- MR-006.6 A failed reopen (for example, another process took the lock while
+  the store was closed) yields the typed open error for that store, and the next
+  call retries the open; it does not stay failed for the life of the process.
+- MR-006.7 `tools/list` and server capabilities are byte-identical before and
+  after any close, reopen or store switch, so no `notifications/tools/list_changed`
+  is sent or needed.
 
 ## Trust and scope
 
@@ -250,6 +286,11 @@ Meets AN-021.
   the telemetry sink and not to the database (MR-060.1 still holds).
 - MR-024.5 Feedback naming a response from another store, or references not in
   that response, fails as invalid request.
+- MR-024.6 Under concurrent searches, feedback is attributed to the search that
+  produced the named response. **[engine]**: today the only way to get a query
+  id is `last_telemetry_query_id`, which is engine-wide, so concurrent searches
+  can swap ids. Until search returns its own query id, the adapter serialises
+  telemetry-captured searches per store.
 
 ## Stopping
 
@@ -493,8 +534,8 @@ binding.
 
 | Group | Requirements |
 | --- | --- |
-| In the first release, SDK as-is | MR-001, MR-002, MR-003, MR-004, MR-005, MR-012.1, MR-021, MR-023, MR-024, MR-032, MR-033, MR-040, MR-041.1/.3/.5, MR-042.1/.3, MR-043, MR-052, MR-053, MR-054.2, MR-060, MR-070, MR-071 |
-| In the first release, needs the state read | MR-041.2/.4, MR-050, MR-051.1/.3 |
+| In the first release, SDK as-is | MR-001, MR-002, MR-003, MR-004, MR-005, MR-006 (except .3), MR-012.1, MR-021, MR-023, MR-024, MR-032, MR-033, MR-040, MR-041.1/.3/.5, MR-042.1/.3, MR-043, MR-052, MR-053, MR-054.2, MR-060, MR-070, MR-071 |
+| In the first release, needs the state read | MR-006.3, MR-041.2/.4, MR-050, MR-051.1/.3 |
 | Reported `unavailable` until its engine addition lands | MR-010, MR-012.2 and MR-054.1/.3 (no kind candidates without the kind enumeration), MR-013, MR-020, MR-022, MR-030, MR-031, MR-042.2, MR-055 |
 | Startup refused until its engine addition lands | MR-014 |
 | Not shipped until origin and scope stamping land | MR-011, MR-051.2, MR-061, MR-062 |
@@ -522,5 +563,5 @@ binding.
 | AN-017 | MR-060, MR-061, MR-062 |
 | AN-018 | MR-001, MR-002, MR-003, MR-004 |
 | AN-019 | MR-014 |
-| AN-020 | MR-005 |
+| AN-020 | MR-005, MR-006 |
 | AN-021 | MR-024 |

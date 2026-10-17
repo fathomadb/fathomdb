@@ -142,12 +142,15 @@ MR-005).
 - **Every tool takes a store.** Each call names a store, or relies on the
   session default. An orient-family tool lists the addressable stores with their
   open/closed and readiness state, and never their paths.
-- **Lazy open, idle close, capped.** A store opens on its first call and closes
-  after an idle period, which releases its sidecar lock. At most a capped number of stores are
-  open at once, and the least recently used idle store is closed first. Each open
-  `Engine` owns its own embedder provider and executors (ADR-0.8.27 runtime
-  topology), so every open store costs model memory and threads; that cost is
-  what the cap bounds.
+- **Lazy open, idle close, one at a time.** A store opens on its first call and
+  closes once idle for the configured timeout (default 60 s; 0 never closes),
+  which releases its sidecar lock. **This release supports one open store at a
+  time** (owner decision, 2026-10-17): using another store closes the current
+  one first (§3.2). The registry still keeps a set of open stores with a limit
+  and least-recently-used choice, with the limit fixed at 1, so supporting more
+  later is configuration, not restructuring. Each open `Engine` owns its own
+  embedder provider and executors (ADR-0.8.27 runtime topology), so every open
+  store costs model memory and threads; that cost is what the limit bounds.
 - **Lock conflicts are per store.** A store whose file another process holds
   answers with the typed lock error and its remedy. Other stores keep working.
 - **Per-store state.** State identity, cursors, continuations and feedback all
@@ -155,6 +158,56 @@ MR-005).
 - **Shared configuration.** Launch policy (read-only, origin class, admission
   cap) applies to every store unless the registry entry overrides it. Overrides
   may only narrow, never widen.
+
+### 3.2 Store lifecycle and reconnection
+
+Each store moves through `closed → opening → ready → draining → closed`. A
+failed open returns to `closed` and records its error, so the next call retries
+(MR-006.6).
+
+- **Idle.** Every call resets the idle clock. A store with calls in flight is
+  never idle, and that includes abandoned calls whose blocking threads are still
+  running (§3, admission). A timeout of 0 disables the clock.
+- **Draining and close.** On idle expiry or a store switch, the store stops
+  admitting calls, waits for in-flight calls to return, then calls
+  `Engine::drain` and `Engine::close` on a blocking thread. Calls that arrive
+  while it drains wait or return busy, and never run against another store.
+- **Switching.** With the limit at 1, a call to store B while A is open drains
+  and closes A, then opens B. The switch is serialised: nothing is ever open on
+  two files at once.
+
+What a reopen must restore, and where it lives:
+
+| State | Owner | Survives close? | On reopen |
+| --- | --- | --- | --- |
+| Frozen-read key, visibility generation, write cursor | Database file | Yes | Nothing to do: tokens, state identifiers and cursors stay valid. |
+| Continuation authentication key | Adapter process | Yes, within the process | Nothing to do. After a process restart, old continuations fail as invalid request with a remedy. |
+| Session's last state identifier and cursor, per store | Adapter session | Yes | Compared on the next read. If another process changed the store while it was closed, the response is labelled `state_advanced` (MR-006.3). |
+| Telemetry sink (`enable_telemetry`) | Engine instance | No | Re-applied from launch policy. Each sink has a new nonce, so pre-close feedback returns `not_recorded` (MR-006.5). |
+| Diagnostics subscriber (`attach_subscriber`), profiling, slow-query threshold | Engine instance | No | Re-applied from launch policy (MR-006.2). |
+| Embedder warm-up, open report, readiness | Engine instance | No | Recomputed; the store reports not-ready, phase `reopening`, until done (MR-006.4). |
+| Admission count, idle clock | Adapter bridge | Reset | Start from zero for the new engine. |
+
+All re-applied settings come from one per-store "apply on open" list in the
+bridge, so first open and reopen take the same path. A test asserts each entry
+is active after reopen.
+
+**On the rmcp side, reconnection needs no protocol refresh.** That is a
+deliberate result of the design, not an omission:
+
+- Tool names, schemas and descriptions are static and do not depend on which
+  store is open (MR-012.1), so no `notifications/tools/list_changed` is sent.
+- Server capabilities are fixed at `initialize`.
+- Stores are listed through a tool, not as MCP resources, so there is no
+  resource list to invalidate.
+- MCP sessions are independent of engine lifetime: the MCP connection stays up
+  while stores close and reopen underneath it.
+
+The only rmcp traffic that reconnection causes is progress notifications during
+a reopen, for calls that supplied a progress token (MR-006.4). If a later version
+exposes stores or spilled results as MCP resources, then `resources/list_changed`
+on open and close and `resources/updated` on state changes would become
+required, and this section must be revised.
 
 ### Startup
 
@@ -347,6 +400,7 @@ and each is read-side unless noted. The adapter reports the dependent signal as
 | Governed change feed keyed by write cursor and visibility generation | MR-055 | No suitable verb exists. |
 | Exact-duplicate rule on write | MR-062 | Engine-owned normalization. |
 | Interruptible search; scope-limited drift signal | MR-033, MR-051 | Quality improvements; not prerequisites. |
+| Search returns its own telemetry query id | MR-024.6 | `last_telemetry_query_id` is engine-wide; until this lands the adapter serialises telemetry-captured searches per store. |
 
 Sequencing follows from the table. The first release is read-only and
 unscoped, needs only the state read, and meets reach, hygiene,
@@ -401,10 +455,11 @@ Resolved by the owner on 2026-10-17:
   (MR-024).
 - The budget estimator starts as serialized bytes ÷ 4 (MR-041).
 
-Still open:
-
-1. Defaults for the idle-close period and the open-store cap, given that each
-   open store loads its own embedder.
+- One open store at a time in this release, with the registry built for more
+  (§3.1, §3.2).
+- The idle timeout is configurable, defaults to 60 s, and 0 means never close.
+- Reconnection restores all engine-level state and needs no MCP-level refresh
+  (§3.2).
 
 Out of scope for this effort, and left open:
 

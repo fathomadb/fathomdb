@@ -185,6 +185,16 @@
         "sha256": "1a251ea94247d622b9ccce61854c8737dda5067d4c11785f2015d7009ac9870b",
         "plan_id": "comp02b-latency-v1"
       }
+    },
+    {
+      "run_id": "comp-02b-latency-20261017T1509Z-2412d988",
+      "record_sha256": "c7d33b5844aaa053f4f6520fcc0416866e33c22a06734f5ca35932c643a73947",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/comp-measurement-plans/comp02b-latency-v2-measurement-plan.v1.json",
+        "sha256": "34767f66b7f82e5c8049049301e4d851883ec6c8d4268e9380a523036bf73309",
+        "plan_id": "comp02b-latency-v2"
+      }
     }
   ],
   "external_artifact_locator_amendments": [

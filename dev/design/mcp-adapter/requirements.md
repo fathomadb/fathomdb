@@ -194,9 +194,10 @@ Meets AN-002.
 
 **MR-013 — Currency on every result.** Every result states its validity window
 relative to the response's validity instant and whether a newer record
-superseded it. Meets AN-003. **[engine]** for search hits: `SearchHit` carries
-id, kind, body, scores and `source_id` but no validity or supersession fields
-today; `NodeRecord` reads do.
+superseded it. Meets AN-003. **[engine]** for search hits and for fetch:
+`SearchHit` carries id, kind, body, scores and `source_id`, and `NodeRecord`
+carries `logical_id`, `kind`, `body` and `write_cursor`; neither carries
+validity or supersession fields, and `read.get` materialises active rows only.
 
 - MR-013.1 On a fixture with a superseded record and an expired record, every
   read tool that returns them, under a view that includes them, reports the

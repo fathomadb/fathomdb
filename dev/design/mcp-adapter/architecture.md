@@ -409,7 +409,7 @@ and each is read-side unless noted. The adapter reports the dependent signal as
 | **Content-free state read on a reader connection** | MR-050, MR-051, MR-041.2/.4 | **The first-release prerequisite.** Returns the existing visibility generation, the canonical write boundary and the projection cursor, with no writer lock and no row count. These are values the engine already maintains, so this is a small read verb. |
 | First-class origin field, filterable, on every hit path | MR-010, MR-011 | A data-model addition: an additive column under the no-data-migration rule. Gates the write family. |
 | Scope applied on every read path (preferably a `ReadView` member), stamped on write from policy | MR-014 | Point reads, neighbours, list, aggregates and change feed included. Gates scope binding and the write family. |
-| Validity and supersession fields on search hits | MR-013 | `NodeRecord` has them; `SearchHit` does not. |
+| Validity and supersession fields on search hits | MR-013 | Neither `SearchHit` nor `NodeRecord` has them. |
 | Kind enumeration; per-kind and per-class counts; time bounds | MR-022, MR-054 | Read-side aggregates. |
 | Bounded match count and saturation on search and list | MR-030 | Read-side. |
 | Raw per-arm similarity and BM25 scores | MR-031 | Fused scores are rank-only (reciprocal-rank sums); only the cross-encoder score is calibrated today. |

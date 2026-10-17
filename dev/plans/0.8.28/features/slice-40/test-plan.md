@@ -824,8 +824,13 @@ The targets are `pr_g8_dangling_edges`, `tc57_governed_write_race`
 
 - RED, from the investigation's export: pr_g8 failed 19 of 30 runs
   (default) and 29 of 30 (`test-hooks`); tc57 failed 30 of 30
-  (`test-hooks`). The counts on this branch before the guards are
-  recorded here at J-W2, with 30 runs per target.
+  (`test-hooks`). The before-counts on this branch are recorded below
+  per target and per feature set, 30 runs each.
+- A before-count of 0 of 30 for `pr_g3_read_collection` or
+  `truncate_wal` does not weaken the guard. Whether the raw-first test
+  wins the race depends on thread scheduling and on libtest's name
+  order, which can hide it. The guard is justified by the code shape
+  (§ 3i.2), not by an observed failure.
 - GREEN: 0 of 50 for each target and feature set.
 
 ## 4. Existing tests touched

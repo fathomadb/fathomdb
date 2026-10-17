@@ -50,7 +50,10 @@ The choice applies to the loaded SQLite runtime for the process lifetime.
 Performance disables SQLite global memory statistics and heap-limit enforcement;
 Diagnostics retains them. A same-mode repeat succeeds even after Engine open.
 A conflicting choice fails, as does a first request after SQLite was
-initialized elsewhere; changing mode requires restart. No path calls
+initialized elsewhere; changing mode requires restart. In a Rust process that
+also uses `rusqlite`, the first SQLite connection of any kind initializes the
+runtime, so `configure_runtime` or the first `Engine::open` must come before
+it; a process that has latched `TooLate` must restart. No path calls
 `sqlite3_shutdown()` to force the choice. The API is not a database connection
 permission or file-access boundary.
 

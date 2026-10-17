@@ -17,10 +17,17 @@
 //! max AC-073); these tests bind to the F10/G8 capability label from
 //! `dev/design/0.8.0-agent-memory-fit.md` §4 (row G8) / §7.
 
-use fathomdb_engine::{Engine, PreparedWrite};
+use fathomdb_engine::{configure_runtime, Engine, PreparedWrite, RuntimeSqliteMode};
 use fathomdb_schema::{migrate, SQLITE_SUFFIX};
 use rusqlite::Connection;
 use tempfile::TempDir;
+
+// The SQLite runtime latches on the first open in the process; a raw
+// `Connection::open` in a parallel test would otherwise make every later
+// `Engine::open` fail with `RuntimeConfiguration(TooLate)`.
+fn configure_test_runtime() {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
+}
 
 fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
@@ -235,6 +242,7 @@ fn s20_on_supersession_skips_earlier_keeps_final_active() {
 /// `SCAN canonical_nodes`. This is the write-latency guard for the cross-row pass.
 #[test]
 fn s20_endpoint_probe_hits_partial_index_no_scan() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let conn = Connection::open(db_path(&dir, "plan")).expect("open sqlite");
     migrate(&conn).expect("migrate to head");

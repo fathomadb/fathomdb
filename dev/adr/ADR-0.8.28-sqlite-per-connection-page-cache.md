@@ -4,7 +4,7 @@ date: 2026-10-16
 target_release: 0.8.28
 desc: The bundled SQLite is built without SQLITE_ENABLE_MEMORY_MANAGEMENT, so each connection has its own page cache and no global page-cache mutex; successor note to the page-cache premise of ADR-0.7.0-ac020-architectural-lever
 blast_radius: third_party/libsqlite3-sys-0.38.1/build.rs and its vendored-tree digest pins; every artifact built from this workspace; published Rust crates only through LIBSQLITE3_FLAGS
-status: proposed; implementation authorized by owner ruling 2026-10-16 (Slice 40 Unit I, ledger seq 308); acceptance recorded when the Unit I gate passes and the owner confirms
+status: proposed; implementation authorized by owner ruling 2026-10-16 (Slice 40 Unit I, ledger seq 308); acceptance recorded when the Unit I gate passes and the owner confirms; conditional approval by owner ruling 2026-10-16 ("If Unit I's gate passes, I approve the ADR"), to be recorded as accepted with the gate receipts once the gate is reported passed
 ---
 
 # ADR-0.8.28 — one SQLite page cache per connection

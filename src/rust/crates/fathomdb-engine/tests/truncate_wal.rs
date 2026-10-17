@@ -4,11 +4,19 @@
 use std::fs::{self, File};
 
 use fathomdb_engine::{
-    recover_truncate_wal, CorruptionKind, Engine, EngineOpenError, PreparedWrite, TruncateWalStatus,
+    configure_runtime, recover_truncate_wal, CorruptionKind, Engine, EngineOpenError,
+    PreparedWrite, RuntimeSqliteMode, TruncateWalStatus,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::{config::DbConfig, Connection};
 use tempfile::TempDir;
+
+// The SQLite runtime latches on the first open in the process; a raw
+// `Connection::open` in a parallel test would otherwise make every later
+// `Engine::open` fail with `RuntimeConfiguration(TooLate)`.
+fn configure_test_runtime() {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
+}
 
 #[path = "support/corruption.rs"]
 #[allow(dead_code)]
@@ -191,6 +199,7 @@ fn missing_and_zero_length_databases_are_not_bootstrapped() {
 
 #[test]
 fn noncurrent_database_is_refused_without_mutation() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("noncurrent{SQLITE_SUFFIX}"));
     let connection = Connection::open(&path).expect("create SQLite fixture");
@@ -271,6 +280,7 @@ fn healthy_wal_current_cookie_with_invalid_invariant_refuses_without_mutation() 
 
 #[test]
 fn malformed_wal_with_noncurrent_standalone_main_refuses_without_mutation() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("malformed_noncurrent{SQLITE_SUFFIX}"));
     let connection = Connection::open(&path).expect("create noncurrent main fixture");

@@ -14,10 +14,17 @@
 //! Consumes `dev/plans/0.8.0-implementation.md` § "Slice 30" and the design memo
 //! `dev/design/slice-30-design.md`. Binds gaps G3/F2/F4-READ + AC-074/REQ-053.
 
-use fathomdb_engine::{Engine, PreparedWrite};
+use fathomdb_engine::{configure_runtime, Engine, PreparedWrite, RuntimeSqliteMode};
 use fathomdb_schema::{migrate, SQLITE_SUFFIX};
 use rusqlite::Connection;
 use tempfile::TempDir;
+
+// The SQLite runtime latches on the first open in the process; a raw
+// `Connection::open` in a parallel test would otherwise make every later
+// `Engine::open` fail with `RuntimeConfiguration(TooLate)`.
+fn configure_test_runtime() {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
+}
 
 fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
@@ -172,6 +179,7 @@ fn read_collection_clamps_limit_to_the_one_million_cap() {
 /// when a small collection lives inside a large multi-collection log.
 #[test]
 fn read_collection_plan_is_index_driven_no_scan_no_temp_btree() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let conn = Connection::open(db_path(&dir, "plan")).expect("open sqlite");
     migrate(&conn).expect("migrate to head");

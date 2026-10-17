@@ -46,6 +46,8 @@ for phase 1 is `output.json` in this directory.
 | I harness (`comp03-slice40`) | fresh open per latency cell and per COMP-02b cohort: RED `d18b9c01a`, GREEN `d52d5d4a5`; summary v2, config v2, plan `comp02b-latency-v2`, `filtered-10000.v2.json`; `tests/experiments` 907 passed with the four known failures (test-plan § 3h.4) |
 | I-R1 plan review | APPROVE-WITH-FIXES (F1–F9) applied: successor ADR `ADR-0.8.28-sqlite-per-connection-page-cache` with an addendum in the 0.7.0 AC-020 ADR (F1); resident memory can rise toward the unchanged ceiling, twelve connections per engine by default (F2); Q-I1 (a) document only (F3); counter tests serialized (F4); AC40-96 arithmetic (F5); test fixture `default_cache_size` noted (F6); harness notes (F7, F8); gate references the H3 commit re-measured with v2 (F9). Q-I2 confirmed, Q-I3 ledger follow-up, Q-I4 confirmed |
 | J-W1 Unit J docs | done 2026-10-16 (owner ruling: pr_g8 race fix lands before Unit I's RED/GREEN; guard-only edits to existing tests approved): requirements § 1.8, REQ40-J1..J5, AC40-105..108; design § 2i; test-plan § 3i (sweep: five guard sites, every other hit cleared with reason) |
+| ADR approval | owner ruling 2026-10-16: "If Unit I's gate passes, I approve the ADR" (`ADR-0.8.28-sqlite-per-connection-page-cache`). Conditional: the status stays proposed and flips to accepted, citing this ruling and the gate receipts, only after the gate is reported passed |
+| J-W4 Unit J | guards at the five sites, `TooLate` message, `config.md` and `rust.md` sentences; loops 30 runs per target and feature set: tc57 30/30 → 0/30, pr_g8 default 2/30 → 0/30, every other cell 0 → 0 (test-plan § 3i.3) |
 
 ## Follow-ups (not in this slice)
 

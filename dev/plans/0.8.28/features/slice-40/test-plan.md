@@ -816,7 +816,7 @@ The test binaries are built once per feature set, then looped directly:
 ```bash
 cd src/rust
 cargo test -p fathomdb-engine --test <t> --no-run              # and --features test-hooks
-for i in $(seq 50); do <binary> >/dev/null 2>&1 || echo fail; done | wc -l
+for i in $(seq 30); do <binary> >/dev/null 2>&1 || echo fail; done | wc -l
 ```
 
 The targets are `pr_g8_dangling_edges`, `tc57_governed_write_race`
@@ -831,7 +831,28 @@ The targets are `pr_g8_dangling_edges`, `tc57_governed_write_race`
   wins the race depends on thread scheduling and on libtest's name
   order, which can hide it. The guard is justified by the code shape
   (§ 3i.2), not by an observed failure.
-- GREEN: 0 of 50 for each target and feature set.
+- GREEN: 0 of 30 for each target and feature set (owner, 2026-10-16:
+  30 iterations, independent binaries looped in parallel).
+
+Measured on this branch, 2026-10-16. "default" means no extra feature
+(`operator` for `truncate_wal`, which requires it); "hooks" adds
+`test-hooks`; `tc57` builds only with `test-hooks`. The before
+binaries were built at `0460e68dc`. The binaries were looped in
+parallel with each other, 30 runs each; every failure was `TooLate`.
+
+| Target | Feature set | Before (failed / 30) | After (failed / 30) |
+| --- | --- | ---: | ---: |
+| `pr_g8_dangling_edges` | default | 2 | 0 |
+| `pr_g8_dangling_edges` | hooks | 0 | 0 |
+| `tc57_governed_write_race` | hooks | 30 | 0 |
+| `pr_g3_read_collection` | default | 0 | 0 |
+| `pr_g3_read_collection` | hooks | 0 | 0 |
+| `truncate_wal` | default | 0 | 0 |
+| `truncate_wal` | hooks | 0 | 0 |
+
+The pr_g8 before-counts are lower than the export's (19 and 29 of 30),
+because the loops ran in parallel on a loaded host, which changes thread
+scheduling. As stated above, a zero before-count does not weaken a guard.
 
 ## 4. Existing tests touched
 

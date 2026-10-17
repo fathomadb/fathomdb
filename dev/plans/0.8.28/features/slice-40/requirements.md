@@ -1360,7 +1360,7 @@ open after an outside initialization still fails closed with `TooLate`.
 
 **REQ40-J5 — measured.** Each of the five guarded binaries is looped in
 parallel before and after the guards (test-plan § 3i.3). After the
-guards, 0 of 50 runs fail with `TooLate` for each binary under default
+guards, 0 of 30 runs fail for each binary under default
 features and under `test-hooks`.
 
 ## 3. Non-goals
@@ -1543,7 +1543,7 @@ tests are in the `fathomdb-query` test module (AC40-74),
 | AC40-103 | Unit I gate (REQ40-I6), at the Unit I commit against the H3 commit | orchestrator measurement after the code review | I6 |
 | AC40-104 | After a passed gate, the tc5-10k-latency and comp02b-10000 manifest entries take the Unit I values, the v2 commands and a method note; tolerances unchanged | orchestrator; `test_baseline_check.py` | I7 |
 | AC40-105 | Each of the five raw-first test sites calls `configure_runtime(RuntimeSqliteMode::Performance)` before its first raw open; no assertion, fixture or name changes | review of the diff; the sweep table (test-plan § 3i.2) | J1 |
-| AC40-106 | Parallel loops: after the guards, 0 of 50 runs fail for `pr_g8_dangling_edges`, `tc57_governed_write_race`, `pr_g3_read_collection` and `truncate_wal`, under default features and `test-hooks`; the before-counts are recorded | the loop in test-plan § 3i.3 | J1, J5 |
+| AC40-106 | Parallel loops: after the guards, 0 of 30 runs fail for `pr_g8_dangling_edges`, `tc57_governed_write_race`, `pr_g3_read_collection` and `truncate_wal`, under default features (`operator` for `truncate_wal`; `tc57` needs `test-hooks`) and `test-hooks`; the before-counts are recorded (owner, 2026-10-16: 30 iterations) | the loop in test-plan § 3i.3 | J1, J5 |
 | AC40-107 | The `TooLate` message is the REQ40-J2 text; the variant and the latch are unchanged | `cargo test -p fathomdb-engine` (the runtime-configuration tests pass unchanged); review | J2, J4 |
 | AC40-108 | `config.md` and `rust.md` carry the REQ40-J3 sentence; `agent-lint-docs.sh` and `agent-lint-md.sh` pass | review plus the two linters | J3 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

@@ -19,7 +19,9 @@ The choice is process-wide and lasts until restart. Repeating the effective
 mode succeeds, including after an Engine opens. A conflicting request raises
 `RuntimeConfigurationError` with the requested and effective modes. A first
 request made after another user of SQLite has initialized the runtime fails
-as too late, with an optional SQLite code. This API does not call
+as too late, with an optional SQLite code. In a Rust process that also uses
+`rusqlite`, the first SQLite connection of any kind initializes the runtime,
+so call `configure_runtime` or open the first Engine before it. This API does not call
 `sqlite3_shutdown()` and is not a database permission or file-access boundary.
 
 ## Engine configuration

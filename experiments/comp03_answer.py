@@ -56,6 +56,10 @@ class Comp03Error(RuntimeError):
     pass
 
 
+class Comp03CostCeiling(Comp03Error):
+    """The next question would take the run's spend past ``live.ceiling_usd``; rerun to resume."""
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -89,8 +93,11 @@ def _check_v4(config: Mapping[str, Any]) -> None:
         if not isinstance(arm.get("top_k"), int) or not isinstance(arm.get("renderer"), str):
             raise Comp03Error(f"{arm['id']}: v4 arms need an integer top_k and a renderer label")
         evidence = arm.get("evidence", {})
-        if set(evidence) - {"harness_rule"} != V4_EVIDENCE_KEYS or evidence["renderer"] != "pack_context" \
-                or evidence["item_source"] != "caller":
+        slice40 = evidence.get("renderer") == "comp03_answer.render_evidence" \
+            and set(evidence) == {"renderer", "policy", "chronological"}
+        pack = set(evidence) - {"harness_rule"} == V4_EVIDENCE_KEYS and evidence["renderer"] == "pack_context" \
+            and evidence["item_source"] == "caller"
+        if not (pack or (slice40 and config["schema_version"] == "comp-03.answer.v5")):
             raise Comp03Error(f"{arm['id']}: v4 evidence is pack_context over caller items")
         try:
             comp_fts.configured_arm(product_arm(arm), arm.get("engine_config"))
@@ -100,7 +107,8 @@ def _check_v4(config: Mapping[str, Any]) -> None:
 
 def load_config_obj(config: dict[str, Any]) -> dict[str, Any]:
     """Validate a config object (``load_config`` reads one from a file); returns it."""
-    keys = CONFIG_KEYS | ({"decision_rule"} if config.get("schema_version") == "comp-03.answer.v3" else set())
+    keys = CONFIG_KEYS | ({"decision_rule"} if config.get("schema_version") == "comp-03.answer.v3" else set()) \
+        | ({"reuse"} if config.get("schema_version") == "comp-03.answer.v5" else set())
     if set(config) != keys:
         raise Comp03Error(f"config keys mismatch: {sorted(set(config) ^ keys)}")
     if config.get("schema_version") == "comp-03.answer.v3" and set(config["evidence"]["policy"]) != {
@@ -111,6 +119,9 @@ def load_config_obj(config: dict[str, Any]) -> dict[str, Any]:
             raise Comp03Error("COMP-03 arms are fathomdb then lancedb")
     elif config["schema_version"] == "comp-03.answer.v4":
         _check_v4(config)
+    elif config["schema_version"] == "comp-03.answer.v5":
+        _check_v4(config)
+        _check_v5(config)
     elif config["schema_version"] in {"comp-03.answer.v2", "comp-03.answer.v3"}:
         if [arm["id"] for arm in config["arms"]] != V2_ARMS:
             raise Comp03Error(f"COMP-03 v2 arms are {', '.join(V2_ARMS)}")
@@ -119,6 +130,59 @@ def load_config_obj(config: dict[str, Any]) -> dict[str, Any]:
     else:
         raise Comp03Error("unsupported config schema_version")
     return config
+
+
+def _check_v5(config: Mapping[str, Any]) -> None:
+    """The 250-question run: pinned IDs with their digest, a pinned reusable prefix, reuse sources, a ceiling."""
+    sel = config["selection"]
+    ids = list(sel["question_ids"])
+    if len(set(ids)) != len(ids) or hashlib.sha256("\n".join(ids).encode("utf-8")).hexdigest() \
+            != sel["question_ids_sha256"]:
+        raise Comp03Error("selection.question_ids do not match selection.question_ids_sha256")
+    if not 0 <= sel["base_count"] <= len(ids):
+        raise Comp03Error("selection.base_count must lie within the selection")
+    arms = {arm["id"] for arm in config["arms"]}
+    for entry in config["reuse"]:
+        if set(entry) != {"arm", "source_attempt_root", "source_arm"} or entry["arm"] not in arms:
+            raise Comp03Error("each reuse entry names a config arm, a source attempt root and a source arm")
+    live = config["live"]
+    if not 0 < live["ceiling_usd"] <= live["max_usd"]:
+        raise Comp03Error("live.ceiling_usd must be positive and at most live.max_usd")
+
+
+def _arm_evidence_spec(config: Mapping[str, Any], arm_id: str) -> dict[str, Any]:
+    """What decides one arm's prompt evidence: product, retrieval depth, engine settings and renderer policy."""
+    arm = next((a for a in config["arms"] if a["id"] == arm_id), None)
+    if arm is None:
+        raise Comp03Error(f"reuse source has no arm {arm_id}")
+    evidence = arm.get("evidence", config["evidence"])
+    if evidence.get("renderer") == "pack_context":
+        renderer = {"kind": "pack_context", "pack": evidence["pack"], "item_source": evidence["item_source"],
+                    "harness_rule": evidence.get("harness_rule")}
+    else:
+        renderer = {"kind": "render_evidence", "policy": evidence.get("policy"),
+                    "caps": [evidence.get("max_item_chars"), evidence.get("max_total_chars")],
+                    "chronological": bool(evidence.get("chronological"))}
+    return {"product_arm": product_arm(arm), "top_k": arm.get("top_k", config["retrieval"]["top_k"]),
+            "engine_config": arm.get("engine_config"), "renderer": renderer}
+
+
+def check_reuse(config: Mapping[str, Any], arm_id: str, source: Mapping[str, Any], source_arm: str) -> None:
+    """Refuse reuse unless reader, judge, seeds, prompts, corpus and the arm's evidence policy all match."""
+    live, other = config["live"], source["live"]
+    checks = {
+        "corpus": config["corpus"]["sha256"] == source["corpus"]["sha256"],
+        "answerer": live["answerer"] == other["answerer"],
+        "judge": live["judge"] == other["judge"],
+        "seed": live["seed"] == other["seed"],
+        "temperature": live["temperature"] == other["temperature"],
+        "prompts": bool(config["evidence"].get("recency_instruction"))
+        == bool(source["evidence"].get("recency_instruction")),
+        "evidence policy": _arm_evidence_spec(config, arm_id) == _arm_evidence_spec(source, source_arm),
+    }
+    failed = [name for name, ok in checks.items() if not ok]
+    if failed:
+        raise Comp03Error(f"cannot reuse {source_arm} answers for {arm_id}: {', '.join(failed)} differ")
 
 
 def product_arm(arm: Mapping[str, Any]) -> str:
@@ -655,8 +719,12 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
     missing = [q for q in qids if q not in dataset]
     if missing:
         raise Comp03Error(f"selected questions missing from dataset: {missing[:3]}")
-    seeded = select_questions(list(dataset.values()), per_type=sel["per_type"], seed=sel["seed"]) \
-        if len(dataset) >= sel["per_type"] * len(QUESTION_TYPES) else None
+    v5 = config["schema_version"] == "comp-03.answer.v5"
+    if v5:
+        seeded = _v5_selection(list(dataset.values()), sel)
+    else:
+        seeded = select_questions(list(dataset.values()), per_type=sel["per_type"], seed=sel["seed"]) \
+            if len(dataset) >= sel["per_type"] * len(QUESTION_TYPES) else None
     if max_questions is not None:
         qids = qids[:max_questions]
     running, gate = active_arms(config, sweep_summary)
@@ -668,13 +736,30 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
     arm_k = {arm["id"]: arm.get("top_k", top_k) for arm in running}
     attempt_root.mkdir(parents=True, exist_ok=True)
     _write_json(attempt_root / "config.resolved.json", config)
-    spend = {"usd": sum(_read_json(p)["usd"] for p in attempt_root.glob("questions/*/*/*-call.json"))}
+    spend = {"usd": sum(c["usd"] for c in map(_read_json, attempt_root.glob("questions/*/*/*-call.json"))
+                        if "reused_from" not in c)}
+    reuse = _reuse_sources(config) if v5 else {}
+    reusable = set(sel["question_ids"][:sel["base_count"]]) if v5 else set()
+    largest_question = 0.0
     rows, retrieval_rows = [], []
     for index, qid in enumerate(qids):
         case, gold = convert_question(dataset[qid]), gold_for(dataset[qid])
         qdir = attempt_root / "questions" / qid
         order = arm_order(index, arms)
         verdicts: dict[str, bool] = {}
+        if v5 and qid in reusable:
+            for arm in order:
+                if arm in reuse and not (qdir / arm / "judge-call.json").exists():
+                    _reuse_question(reuse[arm], case, gold, dataset[qid], qdir / arm, arm_ev[arm],
+                                    bool(ev.get("recency_instruction")))
+        if v5 and not all((qdir / arm / "judge-call.json").exists() for arm in order):
+            estimate = max(live["question_usd_estimate"], largest_question)
+            if spend["usd"] + estimate > live["ceiling_usd"]:
+                raise Comp03CostCeiling(
+                    f"stopping before {qid} (question {index + 1} of {len(qids)}): spend ${spend['usd']:.4f} "
+                    f"+ estimate ${estimate:.4f} would exceed the ceiling ${live['ceiling_usd']:.2f}; "
+                    "rerun to resume")
+        question_start = spend["usd"]
         for arm in order:
             adir = qdir / arm
             if not (adir / "retrieval.json").exists():
@@ -708,6 +793,7 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
                 retrieval_rows.append({"arm": arm, "question_type": case["question_type"],
                                        **retrieval_scores(retrieval["ids"], gold["session_relevant"],
                                                           gold["turn_relevant"], k=top_k)})
+        largest_question = max(largest_question, spend["usd"] - question_start)
         rows.append({"question_id": qid, "question_type": case["question_type"],
                      "abstention": gold["abstention"], **verdicts})
         print(f"[{index + 1}/{len(qids)}] {qid} {verdicts} ${spend['usd']:.2f}", flush=True)
@@ -715,7 +801,10 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
     metrics["selection_matches_seed"] = seeded == list(sel["question_ids"])
     if config["schema_version"] != "comp-03.answer.v1":
         metrics["arm_gate"] = gate
-    if config["schema_version"] == "comp-03.answer.v4":
+    if v5:
+        metrics["reuse"] = _reuse_record(attempt_root, arms, reuse)
+        metrics["cost_ceiling"] = {"ceiling_usd": live["ceiling_usd"], "spend_usd": metrics["cost_usd"]}
+    if config["schema_version"] in {"comp-03.answer.v4", "comp-03.answer.v5"}:
         renderers = {arm: arm_spec[arm]["renderer"] for arm in arms}
         metrics["renderer_by_arm"] = renderers
         for table in ("timing", "retrieval"):
@@ -724,6 +813,65 @@ def run(config: dict[str, Any], *, dataset_path: Path, attempt_root: Path, clien
     _write_json(attempt_root / "summary.json", metrics)
     return write_receipt(config, metrics, attempt_root=attempt_root, dataset_path=dataset_path,
                          base_dir=base_dir, config_path=config_path, engine=engine)
+
+
+def _v5_selection(dataset: Sequence[Mapping[str, Any]], sel: Mapping[str, Any]) -> list[str] | None:
+    """The v5 rule recomputed on ``dataset``; ``None`` when the dataset cannot reproduce it."""
+    from experiments.comp03_answer250 import select_superset
+
+    try:
+        return select_superset(dataset, sel["question_ids"][:sel["base_count"]], sel["quotas"], seed=sel["seed"])
+    except (ValueError, KeyError):
+        return None
+
+
+def _reuse_sources(config: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    """Reuse entries by arm, each checked against its source run's resolved config."""
+    out = {}
+    for entry in config["reuse"]:
+        root = Path(entry["source_attempt_root"]).expanduser()
+        resolved = root / "config.resolved.json"
+        if not resolved.exists():
+            raise Comp03Error(f"reuse source {root} has no config.resolved.json")
+        check_reuse(config, entry["arm"], _read_json(resolved), entry["source_arm"])
+        out[entry["arm"]] = {"root": root, "arm": entry["source_arm"], "label": str(entry["source_attempt_root"])}
+    return out
+
+
+def _reuse_question(source: Mapping[str, Any], case: Mapping[str, Any], gold: Mapping[str, Any],
+                    item: Mapping[str, Any], adir: Path, evidence_spec: Mapping[str, Any], recency: bool) -> None:
+    """Copy one answered question, after checking its evidence and both prompts reproduce exactly."""
+    sdir = source["root"] / "questions" / case["question_id"] / source["arm"]
+    paths = [sdir / name for name in ("retrieval.json", "answer-call.json", "judge-call.json")]
+    if not all(p.exists() for p in paths):
+        raise Comp03Error(f"reuse source lacks {case['question_id']}/{source['arm']}")
+    retrieval, answer, judge = (_read_json(p) for p in paths)
+    evidence, _ = _render_for_run(case, retrieval["ids"], evidence_spec, item)
+    checks = {
+        "evidence": hashlib.sha256(evidence.encode("utf-8")).hexdigest() == retrieval["evidence_sha256"],
+        "answer prompt": _digest(answer_messages(case, evidence, recency_instruction=recency))
+        == answer["messages_sha256"],
+        "judge prompt": _digest(judge_messages(case["question_type"], case["question"], gold["answer"],
+                                               answer["content"], abstention=gold["abstention"]))
+        == judge["messages_sha256"],
+    }
+    failed = [name for name, ok in checks.items() if not ok]
+    if failed:
+        raise Comp03Error(f"cannot reuse {case['question_id']}/{source['arm']}: {', '.join(failed)} differ")
+    marker = {"attempt_root": source["label"], "arm": source["arm"]}
+    for path, record in zip(paths, (retrieval, answer, judge), strict=True):
+        _write_json(adir / path.name, {**record, "reused_from": marker})
+
+
+def _reuse_record(attempt_root: Path, arms: Sequence[str], reuse: Mapping[str, Any]) -> dict[str, Any]:
+    out = {}
+    for arm in arms:
+        calls = [(p.parent.parent.name, _read_json(p)) for p in sorted(attempt_root.glob(f"questions/*/{arm}/*-call.json"))]
+        reused = [(q, c) for q, c in calls if "reused_from" in c]
+        out[arm] = {"source": None if arm not in reuse else {"attempt_root": reuse[arm]["label"],
+                                                              "arm": reuse[arm]["arm"]},
+                    "questions": sorted({q for q, _ in reused}), "usd": sum(c["usd"] for _, c in reused)}
+    return out
 
 
 def _accuracy_only(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[str, Any]:
@@ -757,7 +905,8 @@ def summarize(rows: list[dict[str, Any]], retrieval_rows: list[dict[str, Any]], 
             "evidence_chars_p50": statistics.median(r["evidence_chars"] for r in rets) if rets else None,
             "answer_p50_s": statistics.median(c["elapsed_s"] for c in calls["answer"]) if calls["answer"] else None,
             "judge_p50_s": statistics.median(c["elapsed_s"] for c in calls["judge"]) if calls["judge"] else None,
-            "usd": sum(c["usd"] for stage in calls.values() for c in stage),
+            "usd": sum(c["usd"] for stage in calls.values() for c in stage if "reused_from" not in c),
+            "reused_usd": sum(c["usd"] for stage in calls.values() for c in stage if "reused_from" in c),
         }
     out: dict[str, Any] = {
         "answer": paired_summary(rows, arms[:2], seed=live["seed"]) if len(arms) >= 2 else _accuracy_only(rows, arms),

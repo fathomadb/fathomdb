@@ -334,3 +334,35 @@ async fn expand_bodies_fit_the_budget() {
     }
     harness.shutdown().await;
 }
+
+fn hub_with_leaves(leaves: usize) -> Vec<PreparedWrite> {
+    let mut writes = vec![node("hub", "topic", "hub body")];
+    for i in 0..leaves {
+        writes.push(node(&format!("leaf:{i:05}"), "note", "leaf"));
+        writes.push(edge("link", "hub", &format!("leaf:{i:05}")));
+    }
+    writes
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn expand_from_a_seed_with_1500_edges_returns_the_limit() {
+    let fixture = Fixture::new();
+    let harness = harness_with(&fixture, hub_with_leaves(1_500)).await;
+    let expanded = harness.ok("expand", json!({"refs": ["l:hub"], "limit": 5})).await;
+    assert_eq!(expanded["targets"].as_array().unwrap().len(), 5, "{expanded}");
+    assert_eq!(expanded["bound"], "result_limit");
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn expand_past_the_engine_work_bound_is_bound_exceeded() {
+    let fixture = Fixture::new();
+    let harness = harness_with(&fixture, hub_with_leaves(10_001)).await;
+    let error = harness.err("expand", json!({"refs": ["l:hub"], "limit": 5})).await;
+    assert_eq!(error["class"], "invalid_request", "{error}");
+    assert_eq!(error["code"], "bound_exceeded");
+    let remedy = error["remedy"].as_str().unwrap();
+    assert!(!remedy.contains("edge_kinds"), "kinds are filtered after counting: {remedy}");
+    assert!(error["message"].as_str().unwrap().contains("10000"), "{error}");
+    harness.shutdown().await;
+}

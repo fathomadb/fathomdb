@@ -48,8 +48,10 @@ def test_an_unlisted_run_with_the_same_shape_is_rejected():
     with pytest.raises(mc.ClassificationError):
         mc.runner_unrecoverable_quarantine(ROOT, other, external_summary_sha256=SUMMARY, rationale="test")
     with pytest.raises(mc.ClassificationError):
-        mc._parse_superseded_postcutover_runs([_entry(other)])
-    assert set(mc._parse_superseded_postcutover_runs([_entry()])) == {RUN}
+        mc._parse_runner_unrecoverable_runs([_entry(other)])
+    assert set(mc._parse_runner_unrecoverable_runs([_entry()])) == {RUN}
+    with pytest.raises(mc.ClassificationError):
+        mc._parse_superseded_postcutover_runs([_entry()]), "the superseded list keeps its single reason"
 
 
 def test_the_quarantine_needs_the_runner_to_be_absent_and_the_summary_digest_to_match():
@@ -66,3 +68,12 @@ def test_the_committed_tree_carries_the_quarantine_and_validates():
     document = json.loads(sidecar.read_text(encoding="utf-8"))
     assert document["schema_version"] == mc.QUARANTINE_SCHEMA_VERSION and document["run_id"] == RUN
     mc.validate_repository(ROOT)
+
+
+def test_the_policy_keeps_runner_unrecoverable_runs_in_their_own_list():
+    policy = json.loads((ROOT / "experiments" / mc.CURRENT_POLICY_NAME).read_text(encoding="utf-8"))
+    assert all(row["reason"] == "invalid_ancillary_locator_quarantined"
+               for row in policy["superseded_postcutover_runs"])
+    listed = {row["run_id"] for row in policy["runner_unrecoverable_runs"]}
+    assert listed == set(mc.RUNNER_UNRECOVERABLE_RUNS)
+    assert all(row["reason"] == mc.RUNNER_UNRECOVERABLE_REASON for row in policy["runner_unrecoverable_runs"])

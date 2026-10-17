@@ -179,8 +179,8 @@
   "ac": "AC-079; 0.8.21 Slice 60; 0.8.22 Slice 21 F5; 0.8.22 Slice 22 C5; 0.8.23 Slice 30; approved 0.8.25 Slices 20 and 25; approved 0.8.25 Slice 30; approved 0.8.25 Slice 35; approved 0.8.25 Slice 40; approved 0.8.25 Slice 45; approved 0.8.25 Slice 50; approved 0.8.25 Slice 55; approved 0.8.25 Slice 60; approved 0.8.25 Slice 79 under seq-276; approved 0.8.26 Slice 20 under seq-290; approved 0.8.28 Slice 41 by owner 2026-10-16",
   "covers": "Prior signed surfaces plus the approved 0.8.25 Slice 20 dependency registry, Slice 25 bounded atomic actuation, Slice 30 keyed closure-status read, Slice 35 optional frozen reads, Slice 40 projection-generation status reads, Slice 45 canonical pagination and operational-state reads, Slice 50 compact source evidence reads, Slice 55 governed dependency trace reads, Slice 60 bounded constrained graph expansion, Slice 79 startup-only runtime controls, 0.8.26 Slice 20 exact graph evidence, and 0.8.28 Slice 41 package-level context pack",
   "pinned_file": "src/conformance/governed-surface-allowlist.json",
-  "pinned_at_commit": "b485504149dce0d690af7fb32b71e7c1d0784006",
-  "pinned_at_commit_short": "b4855041",
+  "pinned_at_commit": "cd67d6dec7a3f364653a87eb86fd8952c3354c7e",
+  "pinned_at_commit_short": "cd67d6de",
   "git_blob_sha1": "ba5ed6849bf6f37f432e97ebdfa27c057449a379",
   "sha256": "c5ba1c18df61d962c9af6242aff0cfd4d576e22f02246ea828ac2bbe521ee80d",
   "counts": {

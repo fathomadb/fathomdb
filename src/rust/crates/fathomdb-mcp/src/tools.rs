@@ -51,8 +51,9 @@ pub(crate) struct Shared {
 pub(crate) struct Ctx<'a> {
     pub(crate) shared: &'a Shared,
     pub(crate) session: &'a Session,
-    /// Present when the request carried a progress token: the call may then
-    /// wait for an opening store (MR-006.4).
+    /// Present when the request carried a progress token: progress
+    /// notifications are sent while the call waits for an opening store
+    /// (MR-006.4).
     pub(crate) progress: Option<ProgressFn>,
 }
 
@@ -233,8 +234,9 @@ impl Ctx<'_> {
     }
 
     async fn acquire(&self, store: &str, deadline: Instant) -> Result<StoreGuard, ToolError> {
-        let wait = self.progress.as_ref().map(|_| deadline);
-        self.shared.registry.acquire(store, wait, self.progress.as_ref()).await
+        // Every call waits for an open in progress up to its deadline; only
+        // calls with a progress token are sent progress notifications.
+        self.shared.registry.acquire(store, Some(deadline), self.progress.as_ref()).await
     }
 
     async fn run<T, F>(&self, store: &str, f: F) -> Result<(Answered, T), ToolError>

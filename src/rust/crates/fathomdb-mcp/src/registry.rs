@@ -278,9 +278,11 @@ impl Registry {
     /// A ready store admits the call unless it is at its admission cap. A
     /// closed store starts opening (draining the least recently used idle
     /// store when the open limit is reached). A call with a deadline in
-    /// `wait_until` waits for the open, reporting progress; one without
-    /// returns `not_ready` with the phase at once, or the error the previous
-    /// open recorded while the retry starts (MR-003.2, MR-006.6).
+    /// `wait_until` waits for the open until then, reporting progress when
+    /// `progress` is given, and returns `not_ready` with the phase at the
+    /// deadline. Without a deadline (internal callers only) it returns
+    /// `not_ready` at once, or the error the previous open recorded while the
+    /// retry starts (MR-003.2, MR-006.6).
     pub(crate) async fn acquire(
         &self,
         name: &str,

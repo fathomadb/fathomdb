@@ -92,14 +92,15 @@ closed ──open()──▶ opening ──ok──▶ ready ──idle/switch�
 - **Acquire.** A call does `registry.acquire(name)`, which returns a guard that
   holds an increment of `in_flight` and reset `last_used`.
   - `ready`: proceed.
-  - `opening`, `reopening`, `draining`: return `not_ready` with the phase.
+  - `opening`, `reopening`, `draining`: wait (below).
   - `closed`: if `open_set.len() == limit`, start draining the LRU member whose
     `in_flight == 0`. If none is idle, return `busy`. Then transition this slot
-    to `opening` (`reopening` when `epoch > 0`), spawn the open, and return
-    `not_ready`.
-  - Calls that carry a progress token wait, up to the deadline, for the open to
-    finish and receive progress notifications (MR-006.4). Calls without one
-    return `not_ready` immediately.
+    to `opening` (`reopening` when `epoch > 0`), spawn the open, and wait.
+  - Every call waits, up to its call deadline, for an open or reopen in
+    progress to finish, whether or not it carries a progress token. Only calls
+    that carry a token receive progress notifications while they wait
+    (MR-006.4). At the deadline the call returns `not_ready` with the phase
+    (owner decision, 2026-10-17, FIX-1 CR-1).
 - **Open.** If the entry has `create: false` and the file does not exist, fail
   with `unavailable/missing_file`; `Engine::open` would otherwise create it. The
   race between this check and the open is accepted, because the directory is

@@ -130,7 +130,7 @@ impl ToolError {
             ErrorClass::NotReady,
             phase,
             format!("store {store:?} is not ready: {phase}"),
-            "retry shortly; pass a progress token to wait for the store",
+            "retry shortly; the call waited until its deadline",
         )
     }
 

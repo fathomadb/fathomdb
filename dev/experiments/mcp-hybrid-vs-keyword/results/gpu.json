@@ -1,0 +1,30 @@
+{
+  "devices": {
+    "0": "NVIDIA GeForce RTX 3090, GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+    "1": "NVIDIA GeForce RTX 3090, GPU-abda0cf9-d660-ca2b-ef17-ee6b89e3eca4",
+    "2": "Quadro K620 (display; excluded by CUDA_VISIBLE_DEVICES=0)"
+  },
+  "env": {"CUDA_VISIBLE_DEVICES": "0", "FATHOMDB_EMBED_DEVICE": "cuda:0"},
+  "sampler": "nvidia-smi --query-gpu=timestamp,index,name,utilization.gpu,memory.used --format=csv -lms 250",
+  "corpus_embedding_locomo_load": {
+    "wall_seconds": 39.8,
+    "turns": 5882,
+    "gpu0": {"samples": 204, "max_util_pct": 48, "nonzero_util_samples": 159, "mean_util_pct_when_nonzero": 35.3, "max_mem_mib": 480, "idle_mem_mib": 3},
+    "gpu1": {"max_util_pct": 0, "max_mem_mib": 2},
+    "gpu2_k620_display_baseline": {"max_util_pct": 25, "max_mem_mib": 951}
+  },
+  "query_embedding_mcp_server_first_run": {
+    "gpu0": {"samples": 137, "max_util_pct": 68, "nonzero_util_samples": 72, "mean_util_pct_when_nonzero": 31.4, "max_mem_mib": 544, "idle_mem_mib": 3},
+    "gpu1": {"max_util_pct": 0, "max_mem_mib": 2}
+  },
+  "query_embedding_mcp_server_final_run": {
+    "gpu0": {"samples": 320, "max_util_pct": 33, "nonzero_util_samples": 64, "mean_util_pct_when_nonzero": 20.9, "max_mem_mib": 448, "idle_mem_mib": 3},
+    "gpu1": {"max_util_pct": 0, "max_mem_mib": 2}
+  },
+  "compute_apps_second_run": {
+    "sampler": "nvidia-smi --query-compute-apps=timestamp,gpu_uuid,pid,process_name,used_memory --format=csv -lms 500",
+    "process": "fathomdb-mcp (embed-cuda build)",
+    "gpu_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+    "used_memory_mib_samples": {"298": 3, "396": 1, "436": 25}
+  }
+}

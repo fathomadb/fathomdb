@@ -523,20 +523,16 @@ def sdk_driver_duplicate_patch(root: Path, pin: dict[str, str | None]) -> bool:
     if pin["manifest"] != manifest or pin["mechanism"] != CANDLE_MECHANISM:
         return False
     package = pin["package"]
-    if package == SQLITE_PACKAGE:
-        expected = SQLITE_PATH
-    elif package == CUDARC_PACKAGE:
-        expected = CUDARC_PATH
-    elif package in CANDLE_PACKAGES:
+    if package in CANDLE_PACKAGES:
         return pin["path"] is None and pin["git"] == CANDLE_GIT and pin["rev"] == CANDLE_REV
-    else:
+    if package != SQLITE_PACKAGE:
         return False
     source = (root / manifest).parent / str(pin["path"])
     return (
         pin["git"] is None
         and pin["rev"] is None
         and pin["path"] is not None
-        and source.resolve() == (root / expected).resolve()
+        and source.resolve() == (root / SQLITE_PATH).resolve()
     )
 
 
@@ -578,7 +574,7 @@ def validate_cargo_pins(root: Path) -> list[str]:
         if rev != CANDLE_REV:
             failures.append(f"Candle patch {pin['package']} revision is not the approved immutable revision")
     if (root / "experiments/sdk_drivers/rust/Cargo.toml").is_file():
-        missing = ({SQLITE_PACKAGE, CUDARC_PACKAGE} | set(CANDLE_PACKAGES)) - driver_found
+        missing = ({SQLITE_PACKAGE} | set(CANDLE_PACKAGES)) - driver_found
         for package in sorted(missing):
             failures.append(f"missing SDK driver duplicate Cargo patch {package}")
     for manifest, mechanism, package in sorted(expected - found):

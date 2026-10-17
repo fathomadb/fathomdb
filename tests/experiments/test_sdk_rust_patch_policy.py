@@ -32,3 +32,32 @@ def test_driver_duplicate_patch_must_resolve_to_approved_root_source():
     assert not guard.sdk_driver_duplicate_patch(
         ROOT, {**valid, "manifest": "other/Cargo.toml"}
     )
+
+
+def test_driver_may_not_repeat_retired_cudarc_or_candle_patches():
+    manifest = "experiments/sdk_drivers/rust/Cargo.toml"
+    kernels = {
+        "manifest": manifest,
+        "mechanism": "patch.crates-io",
+        "package": "candle-kernels",
+        "path": None,
+        "git": "https://github.com/coreyt/candle-fathomdb.git",
+        "rev": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
+    }
+    assert guard.sdk_driver_duplicate_patch(ROOT, kernels)
+    assert not guard.sdk_driver_duplicate_patch(
+        ROOT, {**kernels, "rev": "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"}
+    )
+    assert not guard.sdk_driver_duplicate_patch(
+        ROOT, {**kernels, "package": "candle-core-fathomdb"}
+    )
+    assert not guard.sdk_driver_duplicate_patch(
+        ROOT,
+        {
+            **kernels,
+            "package": "cudarc",
+            "path": "../../../third_party/cudarc-0.19.7",
+            "git": None,
+            "rev": None,
+        },
+    )

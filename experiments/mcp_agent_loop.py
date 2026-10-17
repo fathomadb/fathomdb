@@ -548,11 +548,19 @@ ARM_SPECS: dict[str, dict[str, str]] = {
 }
 JUDGE_MODEL = "gpt-4o-mini"
 # The route must serve exactly the requested model; an alias remap stops the run.
-SERVED_MODEL_PREFIX = {"gpt-4o-mini": "openai/gpt-4o-mini", "gpt-5-mini": "openai/gpt-5-mini"}
+SERVED_MODEL_PREFIX = {
+    "gpt-4o-mini": "openai/gpt-4o-mini", "gpt-5-mini": "openai/gpt-5-mini", "gpt-5.4-mini": "openai/gpt-5.4-mini",
+}
 
 
 class ServedModelMismatch(RuntimeError):
     """Raised when the route answers with a different model than requested."""
+
+
+def check_served_model(model: str, served: str | None) -> None:
+    """Raise ``ServedModelMismatch`` unless ``served`` starts with the model's provider id."""
+    if served is None or not served.startswith(SERVED_MODEL_PREFIX[model]):
+        raise ServedModelMismatch(f"route served {served!r} for requested {model!r}")
 
 
 def load_harness_prompts(checkout: Path) -> Any:
@@ -778,8 +786,7 @@ class ChatClient:
         self.ledger.record(arm=self.arm, qid=qid, role=role, model=model, usage=usage,
                            route_cost_usd=route_cost_usd, served_model=served)
         self.served.setdefault(model, set()).add(str(served))
-        if served is None or not served.startswith(SERVED_MODEL_PREFIX[model]):
-            raise ServedModelMismatch(f"route served {served!r} for requested {model!r}")
+        check_served_model(model, served)
         message = response.choices[0].message
         calls = [ToolCall(id=c.id, name=c.function.name, arguments=c.function.arguments or "")
                  for c in (message.tool_calls or [])]

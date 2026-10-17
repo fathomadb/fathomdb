@@ -193,14 +193,7 @@ impl Config {
                 ))
             }
         }
-        config.validate_ranges()?;
-        if let Some(name) = &config.default_store {
-            if config.resolve(name).is_err() {
-                return Err(ConfigError::new(format!(
-                    "default_store: {name:?} is not an addressable store"
-                )));
-            }
-        }
+        config.validate()?;
         Ok(config)
     }
 
@@ -224,7 +217,12 @@ impl Config {
         Self::from_json_str(&text, &base)
     }
 
-    fn validate_ranges(&self) -> Result<(), ConfigError> {
+    /// Check the value rules of interface §2 on an already-built config
+    /// (fields are public, so a hand-built config is checked again here).
+    ///
+    /// # Errors
+    /// [`ConfigError`] naming the first key at fault.
+    pub fn validate(&self) -> Result<(), ConfigError> {
         if self.max_open_stores != 1 {
             return Err(ConfigError::new("max_open_stores: must be 1 in this release (MR-005.7)"));
         }
@@ -246,6 +244,20 @@ impl Config {
             return Err(ConfigError::new(
                 "search_mode: \"hybrid\" requires use_default_embedder: true",
             ));
+        }
+        for name in self.stores.keys() {
+            if validate_store_name(name).is_err() {
+                return Err(ConfigError::new(format!(
+                    "stores: {name:?} is not a valid store name"
+                )));
+            }
+        }
+        if let Some(name) = &self.default_store {
+            if self.resolve(name).is_err() {
+                return Err(ConfigError::new(format!(
+                    "default_store: {name:?} is not an addressable store"
+                )));
+            }
         }
         Ok(())
     }

@@ -9,6 +9,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use fathomdb_mcp::config::Config;
+use fathomdb_mcp::Adapter;
+use rmcp::ServiceExt;
 
 const USAGE: &str = "usage: fathomdb-mcp --config <path.json> [--check-config]";
 
@@ -59,6 +61,57 @@ fn main() -> ExitCode {
         eprintln!("{report}");
         return ExitCode::SUCCESS;
     }
-    eprintln!("fathomdb-mcp: serving is not available in this build");
-    ExitCode::from(1)
+    init_tracing();
+    serve(config)
+}
+
+// stderr only: stdout belongs to the protocol (MR-002.3). The level comes
+// from FATHOMDB_MCP_LOG (error, warn, info, debug, trace; default warn).
+fn init_tracing() {
+    let level = match std::env::var("FATHOMDB_MCP_LOG").as_deref() {
+        Ok("error") => tracing::Level::ERROR,
+        Ok("info") => tracing::Level::INFO,
+        Ok("debug") => tracing::Level::DEBUG,
+        Ok("trace") => tracing::Level::TRACE,
+        _ => tracing::Level::WARN,
+    };
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_ansi(false)
+        .with_max_level(level)
+        .init();
+}
+
+fn serve(config: Config) -> ExitCode {
+    let runtime = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            tracing::error!(%error, "cannot start the async runtime");
+            return ExitCode::from(1);
+        }
+    };
+    let code = runtime.block_on(async {
+        let adapter = match Adapter::new(config) {
+            Ok(adapter) => adapter,
+            Err(error) => {
+                tracing::error!(%error, "cannot start the adapter");
+                return ExitCode::from(1);
+            }
+        };
+        let running = match adapter.connection().serve(rmcp::transport::stdio()).await {
+            Ok(running) => running,
+            Err(error) => {
+                tracing::error!(%error, "MCP initialization failed");
+                adapter.shutdown().await;
+                return ExitCode::from(1);
+            }
+        };
+        let _ = running.waiting().await;
+        adapter.shutdown().await;
+        ExitCode::SUCCESS
+    });
+    // Abandoned engine calls may still hold blocking threads; do not let them
+    // delay exit indefinitely.
+    runtime.shutdown_timeout(std::time::Duration::from_secs(5));
+    code
 }

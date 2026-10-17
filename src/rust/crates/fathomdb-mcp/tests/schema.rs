@@ -96,3 +96,45 @@ async fn every_tool_result_and_error_validates_against_its_output_schema() {
     harness.err("list_stores", json!({"unexpected": 1})).await;
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn input_schemas_declare_the_argument_bounds() {
+    let harness = Harness::start(fathomdb_mcp::config::Config::default()).await;
+    let tools = serde_json::to_value(harness.tools().await).unwrap();
+    let property = |tool: &str, name: &str| -> Value {
+        let tool = tools.as_array().unwrap().iter().find(|t| t["name"] == tool).unwrap();
+        tool["inputSchema"]["properties"][name].clone()
+    };
+    let bounds = |schema: &Value, low: &str, high: &str| -> (Value, Value) {
+        (schema[low].clone(), schema[high].clone())
+    };
+    assert_eq!(
+        bounds(&property("fetch", "refs"), "minItems", "maxItems"),
+        (json!(1), json!(50)),
+        "fetch.refs"
+    );
+    assert_eq!(
+        bounds(&property("expand", "refs"), "minItems", "maxItems"),
+        (json!(1), json!(10)),
+        "expand.refs"
+    );
+    assert_eq!(
+        bounds(&property("expand", "max_depth"), "minimum", "maximum"),
+        (json!(0), json!(3)),
+        "expand.max_depth"
+    );
+    assert_eq!(
+        bounds(&property("expand", "limit"), "minimum", "maximum"),
+        (json!(1), json!(50)),
+        "expand.limit"
+    );
+    assert_eq!(
+        bounds(&property("search", "limit"), "minimum", "maximum"),
+        (json!(1), json!(100)),
+        "search.limit"
+    );
+    for tool in ["search", "fetch", "expand"] {
+        assert_eq!(property(tool, "max_tokens")["minimum"], json!(256), "{tool}.max_tokens");
+    }
+    harness.shutdown().await;
+}

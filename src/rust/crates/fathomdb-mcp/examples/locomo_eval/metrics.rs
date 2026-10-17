@@ -15,6 +15,13 @@ pub fn precision_at_k(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> f
     relevant_in_top(ranked, gold, k) as f64 / k as f64
 }
 
+/// Relevant references among the first `k` of `ranked`, divided by the gold
+/// set size.
+pub fn recall_at_k(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> f64 {
+    let _ = (ranked, gold, k);
+    0.0
+}
+
 fn relevant_in_top(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> usize {
     let mut seen = BTreeSet::new();
     ranked
@@ -60,5 +67,21 @@ mod tests {
     fn precision_counts_a_duplicate_reference_once() {
         let ranked = refs(&["a", "a", "b"]);
         assert!(close(precision_at_k(&ranked, &gold(&["a"]), 3), 1.0 / 3.0));
+    }
+
+    #[test]
+    fn recall_counts_relevant_in_the_top_k_over_the_gold_size() {
+        let ranked = refs(&["x", "a", "y", "b", "z"]);
+        let relevant = gold(&["a", "b", "c", "d"]);
+        assert!(close(recall_at_k(&ranked, &relevant, 5), 0.5));
+        assert!(close(recall_at_k(&ranked, &relevant, 2), 0.25));
+        assert!(close(recall_at_k(&ranked, &relevant, 1), 0.0));
+        assert!(close(recall_at_k(&ranked, &gold(&["b"]), 10), 1.0));
+    }
+
+    #[test]
+    fn recall_counts_a_duplicate_reference_once() {
+        let ranked = refs(&["a", "a"]);
+        assert!(close(recall_at_k(&ranked, &gold(&["a", "b"]), 5), 0.5));
     }
 }

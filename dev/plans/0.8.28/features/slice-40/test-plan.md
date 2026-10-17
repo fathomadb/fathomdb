@@ -668,7 +668,21 @@ regression unless it passes 1.10×.
 With the flag undefined (`LIBSQLITE3_FLAGS`, separate target directory),
 the same probe gave 2,053 KiB, zero misses on every other reader and
 option 0. The precondition (zero misses on the third pass) held in both
-builds. The RED run at W2 is recorded here when it happens.
+builds.
+
+**RED at I-W2** (2026-10-16, on `39255751d` plus the test file;
+`cargo test -p fathomdb-engine --features test-hooks --test
+slice40_reader_page_cache`): 3 failed, 1 ignored (the timing report).
+
+- `bundled_sqlite_keeps_a_page_cache_per_connection`: option used = 1.
+- `a_heavy_read_stays_inside_its_own_page_cache`: reader 0 holds
+  4,483,192 bytes against a bound of 2,252,800. The readers' bytes were
+  `[4483192, 4984, 4984, 4984, 405368, 475000, 475000, 475000]`.
+- `other_readers_keep_their_page_caches_after_a_heavy_read`: readers 1
+  to 4 missed 108, 108, 108 and 16 pages.
+
+The precondition (zero misses on the third warm pass) held, so each
+failure is the shared page cache and not the fixture.
 
 ### 3h.2 Pins and docs
 

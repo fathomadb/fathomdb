@@ -276,6 +276,10 @@ name = "slice40_cohort_prefilter"
 required-features = ["test-hooks"]
 
 [[test]]
+name = "slice40_reader_page_cache"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "slice40_vector_pool"
 required-features = ["test-hooks"]
 

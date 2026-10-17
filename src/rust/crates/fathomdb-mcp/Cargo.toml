@@ -32,9 +32,24 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["f
 [features]
 default = []
 default-embedder = ["fathomdb-sdk/default-embedder"]
+# The default embedder on CUDA (`FATHOMDB_EMBED_DEVICE=cuda:N`); used by the
+# hybrid-versus-text evaluation (dev/experiments/mcp-hybrid-vs-keyword/).
+embed-cuda = ["default-embedder", "fathomdb-sdk/embed-cuda"]
 # Adapter-only open and call hooks for the readiness, deadline and panic tests
 # (MR-003.1, MR-033.1, MR-002.2). No engine hook is involved.
 test-seams = []
+
+# Evaluation tools (dev/experiments/mcp-hybrid-vs-keyword/); not part of the
+# library. `test = true` runs the evaluator's metric unit tests under
+# `cargo test -p fathomdb-mcp`.
+[[example]]
+name = "locomo_load"
+path = "examples/locomo_load.rs"
+
+[[example]]
+name = "locomo_eval"
+path = "examples/locomo_eval/main.rs"
+test = true
 
 [dev-dependencies]
 # Self dev-dependency so every integration test target links the seams.

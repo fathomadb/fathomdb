@@ -1,0 +1,10 @@
+{"dense_readiness":"Some(Ready)","nodes":419,"pending":0,"readiness_state":"Ready","seconds":3.248761472,"store":"conv0","turns":419,"usable_embedder":true,"vector_rows":419}
+{"dense_readiness":"Some(Ready)","nodes":369,"pending":0,"readiness_state":"Ready","seconds":2.639293323,"store":"conv1","turns":369,"usable_embedder":true,"vector_rows":369}
+{"dense_readiness":"Some(Ready)","nodes":663,"pending":0,"readiness_state":"Ready","seconds":4.578351804,"store":"conv2","turns":663,"usable_embedder":true,"vector_rows":663}
+{"dense_readiness":"Some(Ready)","nodes":629,"pending":0,"readiness_state":"Ready","seconds":4.153649753,"store":"conv3","turns":629,"usable_embedder":true,"vector_rows":629}
+{"dense_readiness":"Some(Ready)","nodes":680,"pending":0,"readiness_state":"Ready","seconds":4.375500285,"store":"conv4","turns":680,"usable_embedder":true,"vector_rows":680}
+{"dense_readiness":"Some(Ready)","nodes":675,"pending":0,"readiness_state":"Ready","seconds":5.064728965,"store":"conv5","turns":675,"usable_embedder":true,"vector_rows":675}
+{"dense_readiness":"Some(Ready)","nodes":689,"pending":0,"readiness_state":"Ready","seconds":4.27341198,"store":"conv6","turns":689,"usable_embedder":true,"vector_rows":689}
+{"dense_readiness":"Some(Ready)","nodes":681,"pending":0,"readiness_state":"Ready","seconds":4.258184358,"store":"conv7","turns":681,"usable_embedder":true,"vector_rows":681}
+{"dense_readiness":"Some(Ready)","nodes":509,"pending":0,"readiness_state":"Ready","seconds":3.398863453,"store":"conv8","turns":509,"usable_embedder":true,"vector_rows":509}
+{"dense_readiness":"Some(Ready)","nodes":568,"pending":0,"readiness_state":"Ready","seconds":3.651460943,"store":"conv9","turns":568,"usable_embedder":true,"vector_rows":568}

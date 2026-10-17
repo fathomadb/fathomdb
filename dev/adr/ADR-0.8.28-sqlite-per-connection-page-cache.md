@@ -31,6 +31,15 @@ configuration gives each connection its own group with a null mutex
 (`dev/notes/performance-whitepaper-notes.md` § 12.2, § 12.4) was measured
 under the flag.
 
+Upstream: the flag entered rusqlite's bundled build in rusqlite PR #197 (merged 2016-12-31), copied from System.Data.SQLite's
+compile-option list with no rusqlite-specific reason. Upstream removed it
+on master in PR #1900 (commit
+`f31f7324a82894be13e5de1665cb9af45dc5f869`, merged 2026-09-04: it "forces
+the unified page cache … nothing in rusqlite itself needs it"). No
+`libsqlite3-sys` release on crates.io carries it yet (0.38.2 predates it).
+Third parties report the same global-mutex cost (BrokkAi/bifrost #21,
+cognica-io/uqa-engine #348).
+
 ## Decision
 
 - Workspace builds of the bundled SQLite drop
@@ -42,7 +51,10 @@ under the flag.
 - Published Rust crates resolve the registry `libsqlite3-sys` and keep the
   flag. They are documented, not mitigated:
   `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` gives the workspace
-  behaviour.
+  behaviour. They get the fix without the override from the first
+  `libsqlite3-sys` release containing `f31f7324`.
+- The vendored removal is temporary: it is dropped when FathomDB's
+  `libsqlite3-sys` pin reaches a release that contains `f31f7324`.
 - On the 0.7.0 ADR's option 1: the global page-cache mutex is removed by
   this build change, not by a custom allocator. A `SQLITE_CONFIG_PCACHE2`
   allocator is not needed for that purpose.

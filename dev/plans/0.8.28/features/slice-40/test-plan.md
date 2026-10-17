@@ -672,6 +672,10 @@ builds. The RED run at W2 is recorded here when it happens.
 
 ### 3h.2 Pins and docs
 
+- `cargo test -p fathomdb-engine --test runtime_configuration` stays in
+  the scoped run: its 1,024-byte hard heap limit test must still pass
+  (the hard limit does not depend on the flag).
+
 - `./scripts/check-pinned-override-rot.sh` with its fixture tests
   (AC40-98).
 - `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh`
@@ -1665,8 +1669,11 @@ gate's reference is the final-head baseline.
 Plan review (2026-10-16, APPROVE-WITH-FIXES, F1–F9 applied). Rulings:
 
 - **Q-I1:** option (a), document only (coordinator, on the reviewer's
-  recommendation). A consumer-facing report of the effective page-cache
-  mode is a ledger follow-up.
+  recommendation). Rust consumers get the fix when the upstream removal
+  (rusqlite commit `f31f7324`, PR #1900) ships in a `libsqlite3-sys`
+  release; `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` works
+  until then. A consumer-facing report of the effective page-cache mode
+  is a ledger follow-up.
 - **Q-I2:** 1.10× and 1.15× confirmed.
 - **Q-I3:** yes, as a ledger follow-up after this gate: one
   `body-after-c01` cell on the same open, as a deliberate interference

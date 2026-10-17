@@ -407,9 +407,17 @@ Sources:
 **What else the flag does in this build** (as read):
 
 - `sqlite3_release_memory()` is a no-op without it. FathomDB never calls
-  it.
+  it. rusqlite's `Connection::release_memory` calls the per-connection
+  `sqlite3_db_release_memory`, which SQLite documents as working without
+  the flag.
 - With it, a failed allocation retries after a malloc alarm. That runs
   only when a soft heap limit is set and memory statistics are on.
+  Without it the soft heap limit stays advisory (memory pressure still
+  makes caches recycle, per connection) but no longer frees memory
+  actively; the hard heap limit is enforced either way.
+  `tests/runtime_configuration.rs` sets a 1,024-byte hard limit and
+  expects an oversized `sqlite3_malloc64` to fail; that test must still
+  pass.
   FathomDB sets no heap limit, and its default `Performance` runtime
   mode turns memory statistics off (`SQLITE_CONFIG_MEMSTATUS = 0`,
   `runtime_configuration.rs`).
@@ -429,6 +437,17 @@ Root patches do not reach downstream users of the published Rust crates
 0.38.1, which keeps the flag. That build script honours
 `LIBSQLITE3_FLAGS`, and a `-U` entry is passed through after the
 built-in `-D` list (`build.rs`, lines 120–131).
+
+**Upstream** (external research, 2026-10-16,
+`sqlite-mm-research.md` in the session scratchpad). The flag entered
+rusqlite's bundled build in rusqlite PR #197 (merged 2016-12-31), copied from System.Data.SQLite's
+compile-option list with no rusqlite-specific reason. Upstream removed it
+on master in PR #1900 (commit
+`f31f7324a82894be13e5de1665cb9af45dc5f869`, merged 2026-09-04: it "forces
+the unified page cache … nothing in rusqlite itself needs it"). No crates.io release carries the removal yet: the
+latest, `libsqlite3-sys` 0.38.2 and `rusqlite` 0.40.2, predate it. Field
+reports of `SQLITE_MUTEX_STATIC_LRU` contention under the flag:
+BrokkAi/bifrost #21 and cognica-io/uqa-engine #348.
 
 **Effect on published numbers.** Both latency harnesses timed several
 cells on one open engine:
@@ -1210,7 +1229,10 @@ reviewer's recommendation, 2026-10-16) chose option (a), document only
     SQLite's shared page cache, where one large read can slow later
     reads until the engine is reopened;
   - `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time
-    gives the same behaviour as the workspace build.
+    gives the same behaviour as the workspace build;
+  - the flag is removed upstream (rusqlite commit `f31f7324`), so Rust
+    consumers get the fix from the first `libsqlite3-sys` release that
+    contains it, and the override is needed only until then.
 - No runtime check or mitigation in the engine. A consumer-facing
   surface that reports the effective mode (for example from
   `sqlite3_compileoption_used`, as `connection_runtime.rs` already does

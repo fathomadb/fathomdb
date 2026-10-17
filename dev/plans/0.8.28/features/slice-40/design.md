@@ -987,6 +987,19 @@ only) wants neither for Unit I. The review (F3) also rejected:
 
 ### 2h.3 The change
 
+Option A matches upstream. The flag entered rusqlite's bundled build in
+rusqlite PR #197 (merged 2016-12-31), copied from System.Data.SQLite's
+compile-option list with no rusqlite-specific reason. Upstream removed it
+on master in PR #1900 (commit
+`f31f7324a82894be13e5de1665cb9af45dc5f869`, merged 2026-09-04: it "forces
+the unified page cache … nothing in rusqlite itself needs it"). No
+`libsqlite3-sys` release on crates.io contains the removal yet (0.38.2
+and `rusqlite` 0.40.2 predate it). The vendored change is therefore
+temporary. It is dropped, with the rest of this vendored crate's
+reasons reviewed, when FathomDB moves to a `libsqlite3-sys` release
+that contains `f31f7324`. That exit condition is written into
+`FATHOMDB-PATCH.md` and the ledger.
+
 - `third_party/libsqlite3-sys-0.38.1/build.rs`: delete
   `.flag("-DSQLITE_ENABLE_MEMORY_MANAGEMENT")` in the bundled branch.
   The SQLCipher and WASI branches do not add it, so nothing else
@@ -1001,7 +1014,10 @@ only) wants neither for Unit I. The review (F3) also rejected:
 
   The amalgamation digest does not change. `FATHOMDB-PATCH.md` gains a
   section "Per-connection page caches". It gives the removed flag, the
-  `pcache1Init` comment that explains it, and a pointer to this design.
+  `pcache1Init` comment that explains it, the upstream removal (rusqlite
+  PR #1900, commit `f31f7324a82894be13e5de1665cb9af45dc5f869`), the exit
+  condition (drop this change when the pinned `libsqlite3-sys` release
+  contains that commit), and a pointer to this design.
 - The flag is not replaced by a FathomDB compile-option marker. The
   Windows patch needed `FATHOMDB_WIN_VERBATIM_SHM_SAFE` because no
   SQLite option told the two builds apart.
@@ -1057,6 +1073,9 @@ only) wants neither for Unit I. The review (F3) also rejected:
 - **Published Rust crates.** Their builds keep the shared cache unless
   the consumer sets the flag. The defect is a latency loss; results are
   correct. Unit I documents the flag and stops there (Q-I1 ruled (a)).
+  The upstream removal reaches them with the first `libsqlite3-sys`
+  release that contains `f31f7324`; the `LIBSQLITE3_FLAGS` override
+  covers the gap.
   A consumer-facing report of the effective mode is a ledger follow-up.
 
 ### 2h.5 Tests

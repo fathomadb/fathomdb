@@ -1145,6 +1145,33 @@
       "successor": null
     },
     {
+      "path": "dev/design/mcp-adapter/agent-needs.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-agent-needs",
+      "role": "needs",
+      "owner": "dev/design/mcp-adapter/agent-needs.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/architecture.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-architecture",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/architecture.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/requirements.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-requirements",
+      "role": "requirements",
+      "owner": "dev/design/mcp-adapter/requirements.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
       "path": "dev/design/memory-tiers-and-expiry.md",
       "class": "proposal",
       "topic": "memory-tiers-and-expiry",

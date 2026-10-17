@@ -76,8 +76,9 @@ pub fn completeness(
 /// `(run_limit, page_limit)` — how many ranked hits to request (never more
 /// than `ranked_cap`) and how many of them belong to this page.
 #[must_use]
-pub fn page_window(_offset: usize, _limit: usize, _ranked_cap: usize) -> (usize, usize) {
-    todo!()
+pub fn page_window(offset: usize, limit: usize, ranked_cap: usize) -> (usize, usize) {
+    let run_limit = (offset + limit).min(ranked_cap);
+    (run_limit, run_limit.saturating_sub(offset))
 }
 
 /// Where the next page starts, or `None` when there is no next page: the
@@ -85,13 +86,17 @@ pub fn page_window(_offset: usize, _limit: usize, _ranked_cap: usize) -> (usize,
 /// out of a window of `page_limit`.
 #[must_use]
 pub fn next_offset(
-    _offset: usize,
-    _kept: usize,
-    _page_hits: usize,
-    _page_limit: usize,
-    _ranked_cap: usize,
+    offset: usize,
+    kept: usize,
+    page_hits: usize,
+    page_limit: usize,
+    ranked_cap: usize,
 ) -> Option<usize> {
-    todo!()
+    // A page that kept nothing offers no continuation: repeating it under
+    // the same budget would never advance.
+    let more = kept < page_hits || page_hits >= page_limit;
+    let next = offset + kept;
+    (more && kept > 0 && next < ranked_cap).then_some(next)
 }
 
 /// Sort and deduplicate degradation entries so output order is canonical.

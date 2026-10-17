@@ -629,8 +629,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     }
     let mode = canonical.search_mode();
     let telemetry = guard.info.telemetry;
-    let run_limit = (offset + canonical.limit).min(MAX_RANKED);
-    let page_limit = run_limit.saturating_sub(offset);
+    let (run_limit, page_limit) = shape::page_window(offset, canonical.limit, MAX_RANKED);
     let view = ReadView { valid_as_of: Some(validity_instant), ..ReadView::default() };
     let request = canonical.clone();
     // While telemetry is on, hybrid searches run with explain so the query id
@@ -727,11 +726,10 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let mut kept = page.len();
     let (rendered, response_id, continuation) = loop {
         let cut = kept < page.len();
-        let next_offset = offset + kept;
-        let more = cut || page_hits >= page_limit;
-        let continuation = (more && kept > 0 && next_offset < MAX_RANKED).then(|| {
-            shape::handle('c', answered.epoch, &[&store, &canonical_json, &next_offset.to_string()])
-        });
+        let continuation =
+            shape::next_offset(offset, kept, page_hits, page_limit, MAX_RANKED).map(|next| {
+                shape::handle('c', answered.epoch, &[&store, &canonical_json, &next.to_string()])
+            });
         let refs: Vec<&str> =
             page[..kept].iter().map(|(hit, _, _)| hit.reference.as_str()).collect();
         let response_id = shape::handle(

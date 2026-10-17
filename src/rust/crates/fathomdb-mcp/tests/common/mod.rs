@@ -184,10 +184,59 @@ impl Harness {
 
 pub async fn call(client: &Client, tool: &str, args: Value) -> CallToolResult {
     let Value::Object(arguments) = args else { panic!("arguments must be an object") };
-    client
+    if OUTPUT_SCHEMAS.get().is_none() {
+        let tools = client.list_all_tools().await.expect("tools/list");
+        record_schemas(&serde_json::to_value(tools).unwrap());
+    }
+    let result = client
         .call_tool(CallToolRequestParams::new(tool.to_string()).with_arguments(arguments))
         .await
-        .unwrap_or_else(|error| panic!("{tool}: protocol error {error:?}"))
+        .unwrap_or_else(|error| panic!("{tool}: protocol error {error:?}"));
+    if let Some(structured) = &result.structured_content {
+        assert_output_valid(tool, structured);
+    }
+    result
+}
+
+/// Every tool's declared `outputSchema`, by name. The tool list is static
+/// (MR-012.1), so one listing serves every test in the binary.
+static OUTPUT_SCHEMAS: std::sync::OnceLock<std::collections::HashMap<String, Value>> =
+    std::sync::OnceLock::new();
+
+/// Record output schemas from a `tools/list` `tools` array.
+pub fn record_schemas(tools: &Value) {
+    let schemas = tools
+        .as_array()
+        .expect("tools array")
+        .iter()
+        .map(|tool| {
+            let name = tool["name"].as_str().expect("tool name").to_string();
+            (name, tool["outputSchema"].clone())
+        })
+        .collect();
+    let _ = OUTPUT_SCHEMAS.set(schemas);
+}
+
+/// MR-071.1: every `structuredContent` the suite sees validates against its
+/// tool's declared `outputSchema` (draft 2020-12).
+pub fn assert_output_valid(tool: &str, structured: &Value) {
+    let schemas = OUTPUT_SCHEMAS.get().expect("output schemas recorded before calls");
+    let schema = schemas.get(tool).unwrap_or_else(|| panic!("{tool} declares no outputSchema"));
+    assert!(schema.is_object(), "{tool} declares no outputSchema");
+    let compiled = jsonschema::JSONSchema::options()
+        .with_draft(jsonschema::Draft::Draft202012)
+        .compile(schema)
+        .unwrap_or_else(|error| panic!("{tool}: outputSchema does not compile: {error}"));
+    let messages: Vec<String> = match compiled.validate(structured) {
+        Ok(()) => Vec::new(),
+        Err(errors) => {
+            errors.map(|error| format!("{} at {}", error, error.instance_path)).collect()
+        }
+    };
+    assert!(
+        messages.is_empty(),
+        "{tool}: structuredContent violates its outputSchema: {messages:?}\n{structured}"
+    );
 }
 
 pub async fn ok(client: &Client, tool: &str, args: Value) -> Value {
@@ -216,7 +265,9 @@ pub async fn err_peer(peer: &rmcp::Peer<RoleClient>, tool: &str, args: Value) ->
         panic!("{tool}: expected a complete result");
     };
     assert_eq!(result.is_error, Some(true), "{tool} unexpectedly succeeded");
-    result.structured_content.expect("structuredContent")["error"].clone()
+    let structured = result.structured_content.expect("structuredContent");
+    assert_output_valid(tool, &structured);
+    structured["error"].clone()
 }
 
 /// The text block of a result.
@@ -256,6 +307,8 @@ impl RawClient {
         let mut client = Self { writer, reader: tokio::io::BufReader::new(reader), next_id: 1 };
         client.request("initialize", initialize_params()).await;
         client.notify("notifications/initialized", json!({})).await;
+        let tools = client.request("tools/list", json!({})).await;
+        record_schemas(&tools["result"]["tools"]);
         client
     }
 
@@ -286,7 +339,10 @@ impl RawClient {
     /// `tools/call` without a progress token; returns the JSON-RPC `result`.
     pub async fn call(&mut self, tool: &str, args: Value) -> Value {
         let response = self.request("tools/call", json!({"name": tool, "arguments": args})).await;
-        response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"))
+        let result =
+            response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"));
+        assert_output_valid(tool, &result["structuredContent"]);
+        result
     }
 }
 
@@ -349,6 +405,8 @@ impl Spawned {
     pub fn initialize(&mut self) -> Value {
         let response = self.request("initialize", initialize_params());
         self.notify("notifications/initialized", json!({}));
+        let tools = self.request("tools/list", json!({}));
+        record_schemas(&tools["result"]["tools"]);
         response
     }
 
@@ -400,20 +458,29 @@ impl Spawned {
         let token = format!("p{}", self.next_id);
         let params = json!({"name": tool, "arguments": args, "_meta": {"progressToken": token}});
         let response = self.request("tools/call", params);
-        response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"))
+        let result =
+            response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"));
+        assert_output_valid(tool, &result["structuredContent"]);
+        result
     }
 
     /// `tools/call` with a progress token; the response line as written.
     pub fn call_raw(&mut self, tool: &str, args: Value) -> String {
         let token = format!("p{}", self.next_id);
         let params = json!({"name": tool, "arguments": args, "_meta": {"progressToken": token}});
-        self.request_raw("tools/call", params)
+        let line = self.request_raw("tools/call", params);
+        let response: Value = serde_json::from_str(&line).expect("JSON-RPC response");
+        assert_output_valid(tool, &response["result"]["structuredContent"]);
+        line
     }
 
     /// `tools/call` without a progress token.
     pub fn call_without_progress(&mut self, tool: &str, args: Value) -> Value {
         let response = self.request("tools/call", json!({"name": tool, "arguments": args}));
-        response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"))
+        let result =
+            response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"));
+        assert_output_valid(tool, &result["structuredContent"]);
+        result
     }
 
     /// Close stdin and wait for the process to exit.

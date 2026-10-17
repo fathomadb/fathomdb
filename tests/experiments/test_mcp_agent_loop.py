@@ -361,6 +361,50 @@ def test_agent_arms_carry_their_prompt_variant_and_model() -> None:
         assert (spec["kind"], spec["mode"], spec["prompt"], spec["model"]) == ("agent", "hybrid", variant, model)
 
 
+# --- summary across runs -----------------------------------------------------
+
+
+def _checkpoint(run: Path, arm: str, scores: list[float]) -> None:
+    store = mal.ArmCheckpoint(run / "arms" / arm)
+    for i, score in enumerate(scores):
+        result = {"arm": arm, "category": 1 + i % 4, "score": score, "gold_hit_any": score == 1.0,
+                  "answer": "a", "judge": {"evidence_aware": True}, "calls": []}
+        if mal.ARM_SPECS[arm]["kind"] == "agent":
+            result.update({"tool_log": [], "tool_results": [], "n_searches": 0, "search_verbatim": [],
+                           "forced_reason": None})
+        else:
+            result.update({"degradation": [], "completeness": "limit_reached"})
+        store.save(f"conv0_q{i}", result)
+
+
+def test_summary_merges_arms_and_spend_from_an_earlier_run(tmp_path: Path) -> None:
+    run1, run2 = tmp_path / "run1", tmp_path / "run2"
+    _checkpoint(run1, "A2", [1.0, 1.0, 0.0, 1.0])
+    _checkpoint(run1, "B-4o", [1.0, 0.0, 0.0, 1.0])
+    _checkpoint(run2, "B-4o-guided", [1.0, 1.0, 1.0, 1.0])
+    mal.CostLedger(run1 / "ledger", cap_usd=5.0).record(
+        arm="B-4o", qid="conv0_q0", role="agent", model="gpt-4o-mini", usage=mal.Usage(1000, 0, 0, 0),
+        route_cost_usd=None)
+    mal.CostLedger(run2 / "ledger", cap_usd=5.0).record(
+        arm="B-4o-guided", qid="conv0_q0", role="agent", model="gpt-4o-mini", usage=mal.Usage(2000, 0, 0, 0),
+        route_cost_usd=None)
+    summary = mal.summarize(run2, include=[run1], resamples=200)
+    assert set(summary["arms"]) == {"A2", "B-4o", "B-4o-guided"}
+    assert summary["paired"]["B-4o-guided - B-4o"]["difference"] == pytest.approx(0.5)
+    assert summary["paired"]["B-4o-guided - A2"]["difference"] == pytest.approx(0.25)
+    assert summary["ledger_usd"]["by_arm"] == pytest.approx({"B-4o": 150e-6, "B-4o-guided": 300e-6})
+    assert summary["ledger_usd"]["total"] == pytest.approx(450e-6)
+    assert summary["ledger_usd"]["this_run"] == pytest.approx(300e-6)
+
+
+def test_summary_refuses_an_arm_present_in_two_runs(tmp_path: Path) -> None:
+    run1, run2 = tmp_path / "run1", tmp_path / "run2"
+    _checkpoint(run1, "B-4o", [1.0])
+    _checkpoint(run2, "B-4o", [0.0])
+    with pytest.raises(ValueError):
+        mal.summarize(run2, include=[run1], resamples=200)
+
+
 # --- model routing -----------------------------------------------------------
 
 

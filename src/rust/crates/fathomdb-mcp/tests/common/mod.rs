@@ -204,6 +204,21 @@ pub async fn err(client: &Client, tool: &str, args: Value) -> Value {
     structured["error"].clone()
 }
 
+/// Call through a cloned peer (usable from spawned tasks) and require a tool
+/// error; returns the `error` object.
+pub async fn err_peer(peer: &rmcp::Peer<RoleClient>, tool: &str, args: Value) -> Value {
+    let Value::Object(arguments) = args else { panic!("arguments must be an object") };
+    let response = peer
+        .call_tool_once(CallToolRequestParams::new(tool.to_string()).with_arguments(arguments))
+        .await
+        .unwrap_or_else(|error| panic!("{tool}: protocol error {error:?}"));
+    let rmcp::model::CallToolResponse::Complete(result) = response else {
+        panic!("{tool}: expected a complete result");
+    };
+    assert_eq!(result.is_error, Some(true), "{tool} unexpectedly succeeded");
+    result.structured_content.expect("structuredContent")["error"].clone()
+}
+
 /// The text block of a result.
 pub fn text_of(result: &CallToolResult) -> String {
     assert_eq!(result.content.len(), 1, "exactly one content block");

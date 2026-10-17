@@ -68,6 +68,16 @@ impl Seams {
         self.state().panicking_tools.insert(tool.to_string());
     }
 
+    /// Make every later engine call on `store` panic on its blocking thread.
+    pub fn panic_calls(&self, _store: &str) {
+        todo!()
+    }
+
+    /// Undo [`Seams::panic_calls`].
+    pub fn stop_panicking_calls(&self, _store: &str) {
+        todo!()
+    }
+
     pub(crate) fn before_open(&self, store: &str) {
         self.wait_while(|state| state.open_blocked.contains(store));
     }

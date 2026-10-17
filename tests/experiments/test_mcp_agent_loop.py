@@ -25,6 +25,12 @@ def test_reasoning_tokens_bill_as_output_once() -> None:
     assert mal.cost_usd("gpt-5-mini", usage) == pytest.approx((1000 * 0.25 + 300 * 2.00) / 1e6)
 
 
+def test_gpt_5_4_mini_bills_at_its_table_prices() -> None:
+    # 800 uncached * 0.75 + 200 cached * 0.075 + 300 out (incl. 200 reasoning) * 4.50, per million.
+    usage = mal.Usage(input_tokens=1000, cached_input_tokens=200, output_tokens=300, reasoning_tokens=200)
+    assert mal.cost_usd("gpt-5.4-mini", usage) == pytest.approx((800 * 0.75 + 200 * 0.075 + 300 * 4.50) / 1e6)
+
+
 def test_unknown_model_has_no_price() -> None:
     with pytest.raises(KeyError):
         mal.cost_usd("not-a-model", mal.Usage(1, 0, 1, 0))

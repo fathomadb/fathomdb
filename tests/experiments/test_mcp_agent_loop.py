@@ -370,6 +370,17 @@ def test_served_model_guard_rejects_other_models_for_gpt_5_4_mini(served: str | 
         mal.check_served_model("gpt-5.4-mini", served)
 
 
+def test_gpt_5_4_mini_is_requested_by_its_provider_id() -> None:
+    assert mal.request_model_id("gpt-5.4-mini") == "openai/gpt-5.4-mini"
+    assert mal.request_model_id("gpt-4o-mini") == "gpt-4o-mini"
+
+
+def test_gpt_5_4_mini_runs_at_low_reasoning_effort() -> None:
+    params = mal.request_params("gpt-5.4-mini", max_tokens=4096)
+    assert params == {"reasoning_effort": "low", "max_completion_tokens": 4096}
+    assert mal.request_params("gpt-4o-mini", max_tokens=4096) == {"temperature": 0, "max_tokens": 4096}
+
+
 def test_served_model_guard_still_rejects_the_gpt_5_mini_remap() -> None:
     with pytest.raises(mal.ServedModelMismatch):
         mal.check_served_model("gpt-5-mini", "openai/gpt-5.4-mini")

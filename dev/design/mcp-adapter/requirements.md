@@ -82,8 +82,8 @@ result for that store only. Meets AN-012, AN-018.
 **MR-004 — Embeddable in a Rust host.** A Rust application that holds open
 `Engine`s can register them in the adapter's store registry and serve the tools
 over a transport it chooses, so the application and its agents share stores
-without a second opener. Embedded mode is a Rust API only; the Python and
-TypeScript bindings do not expose it (owner decision, 2026-10-17). Meets AN-018.
+without a second opener. Embedded mode is the same server used as a Rust
+library (owner decision, 2026-10-17). Meets AN-018.
 
 - MR-004.1 A Rust application holding two open `Engine`s registers both under
   names, serves the tool set over an in-memory transport, and a client completes
@@ -107,8 +107,7 @@ supplies a filesystem path. Meets AN-020.
   separators, `..`, or an absolute path, fails as invalid request, and no file
   outside the registry is opened or created.
 - MR-005.4 A store is opened on first use and closed after an idle period
-  **[ADR]**, which releases its sidecar lock so its owning application can open
-  it. At most **[ADR]** stores are open at once; beyond that, the least recently
+  **[ADR]**, which releases its sidecar lock. At most **[ADR]** stores are open at once; beyond that, the least recently
   used idle store is closed first.
 - MR-005.5 The agent cannot create a new database file unless the operator's
   registry explicitly allows creation for that name.

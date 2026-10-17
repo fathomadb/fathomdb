@@ -163,13 +163,13 @@ use; the engine already has a `record_feedback` path behind opt-in telemetry.
 
 **AN-018 — Reach the stores through the standard protocol.** The agent's
 harness can attach, through the standard agent tool protocol and with no
-network service or bespoke glue, to FathomDB stores, including stores an
-application owns, with nothing on the protocol channel except protocol
-messages.
-*Observed:* the session's harness discovers tools by name over MCP; FathomDB's
-consumers (Memex, OpenClaw, Hermes) own their stores; the July market report
-names the missing MCP server as the largest integration gap. *Constraint:* the
-sidecar lock lets only one process open a database file.
+network service or bespoke glue, to FathomDB stores, with nothing on the
+protocol channel except protocol messages.
+*Observed:* the session's harness discovers tools by name over MCP; the July
+market report names the missing MCP server as the largest integration gap.
+*Constraint:* the sidecar lock lets only one process open a database file.
+Sharing a store between the MCP server and an application using an SDK is out
+of scope for this proposal.
 
 **AN-019 — Stay inside its scope.** An agent sees only the records the operator
 scoped it to (for example one user's or one project's), and cannot widen that

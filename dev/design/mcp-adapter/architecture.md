@@ -33,7 +33,7 @@ inputs:
 | Governed surface is the contract; public surface changes need an ADR (`AGENTS.md` §1) | The adapter is a client of `fathomdb-sdk` and adds no engine semantics. Missing capability arrives as SDK verbs under their own ADRs (§7), usable by every SDK, never as adapter-private SQL. |
 | Application query verbs stay out of the operator CLI (ADR-0.6.0-cli-scope) | A separate crate and binary; the operator CLI is unchanged. See §1.1: the adopting ADR must address this ADR explicitly. |
 | Sync engine surface (ADR-0.6.0-async-surface) | Async lives only inside the adapter's protocol edge; engine calls cross into blocking threads. |
-| One process owns a database file (sidecar lock ADRs) | Two deployment modes, embedded and standalone (§3). A file is never open in two processes at once. The standalone registry opens stores lazily and closes idle ones, so a store moves between an application and the adapter by hand-off, never by sharing (§3.1). |
+| One process owns a database file (sidecar lock ADRs) | Two deployment modes, embedded and standalone (§3). A file is never open in two processes at once. How the MCP server and an application using an SDK share one database is out of scope (§10). |
 | Deterministic, explainable retrieval; no model in the read path | The adapter shapes and labels. It never re-ranks with a model, summarises, or rewrites results. |
 | Frozen reads are reproduce-or-fail, not retained snapshots (ADR-0.8.25) | Consistency is reported (state identity and drift labels), not held (§5). |
 | JSON Schema 2020-12 (ADR-0.6.0-json-schema-policy) | Tool schemas are generated as 2020-12 (rmcp uses schemars 1.x). |
@@ -107,9 +107,7 @@ or amends cli-scope. It also amends ADR-0.6.0-crate-topology for the new crate.
 - **Tool handlers.** Validate, call the bridge, pass governed results to the
   shaper. No ranking, filtering or eligibility logic (MR-070).
 - **Response shaper.** Pure functions from governed results to agent-shaped
-  output. It does not depend on rmcp, so it can later be extracted into a crate
-  that the Python and TypeScript SDKs reuse; agent-shaped output then need not
-  be MCP-only.
+  output. It does not depend on rmcp, so it can be property-tested on its own.
 - **Engine bridge.** Owns the per-store readiness gate (§3), admission control
   and deadlines (§3), the hand-off to blocking threads, and the mapping from SDK
   `ErrorKind` to the MR-054 classes.
@@ -125,14 +123,10 @@ or amends cli-scope. It also amends ADR-0.6.0-crate-topology for the new crate.
 | Mode | Who opens each `Engine` | Transport | Use |
 | --- | --- | --- | --- |
 | **Standalone** | The `fathomdb-mcp` binary, through its store registry | stdio | Harness-launched access to any number of operator-addressable stores: Claude Code, OpenClaw, Hermes. |
-| **Embedded** | A Rust host application, which registers its open `Engine`s by name | Any rmcp transport the host chooses | Stores owned by a Rust application that its agents also use (MR-004). |
+| **Embedded** | A Rust host application, which registers its open `Engine`s by name | Any rmcp transport the host chooses | A Rust program that serves its own engines over MCP (MR-004). |
 
-Embedded mode is a Rust API only. The Python and TypeScript bindings do not
-expose it (owner decision, 2026-10-17): the purpose is to expose databases over
-MCP, not to grow new language bindings. A Python or TypeScript application
-shares a store with agents by releasing it to a standalone adapter, which can
-reach it because the registry closes idle stores and does not hold every file
-open (§3.1).
+The deliverable is a Rust MCP server. Embedded mode is the same server used as a
+Rust library, and nothing else (owner decision, 2026-10-17).
 
 ### 3.1 Store addressing
 
@@ -149,8 +143,7 @@ MR-005).
   session default. An orient-family tool lists the addressable stores with their
   open/closed and readiness state, and never their paths.
 - **Lazy open, idle close, capped.** A store opens on its first call and closes
-  after an idle period. Closing releases the sidecar lock, so the owning
-  application can take the file back. At most a capped number of stores are
+  after an idle period, which releases its sidecar lock. At most a capped number of stores are
   open at once, and the least recently used idle store is closed first. Each open
   `Engine` owns its own embedder provider and executors (ADR-0.8.27 runtime
   topology), so every open store costs model memory and threads; that cost is
@@ -341,7 +334,7 @@ and each is read-side unless noted. The adapter reports the dependent signal as
 
 | Addition | For | Note |
 | --- | --- | --- |
-| **Content-free state read on a reader connection** | MR-050, MR-051, MR-041.2/.4 | **The first-release prerequisite.** Returns the existing visibility generation, the canonical write boundary and the projection cursor, with no writer lock and no row count. These are values the engine already maintains, so this is a small read verb. It would also give Python and TypeScript SDK users cheap change detection. |
+| **Content-free state read on a reader connection** | MR-050, MR-051, MR-041.2/.4 | **The first-release prerequisite.** Returns the existing visibility generation, the canonical write boundary and the projection cursor, with no writer lock and no row count. These are values the engine already maintains, so this is a small read verb. |
 | First-class origin field, filterable, on every hit path | MR-010, MR-011 | A data-model addition: an additive column under the no-data-migration rule. Gates the write family. |
 | Scope applied on every read path (preferably a `ReadView` member), stamped on write from policy | MR-014 | Point reads, neighbours, list, aggregates and change feed included. Gates scope binding and the write family. |
 | Validity and supersession fields on search hits | MR-013 | `NodeRecord` has them; `SearchHit` does not. |
@@ -399,21 +392,22 @@ independently. `requirements.md` § First-release scope lists the exact split.
 
 Resolved by the owner on 2026-10-17:
 
-- Embedded mode is Rust-only and is not exposed through the Python or
-  TypeScript bindings.
+- The deliverable is a Rust MCP server; embedded mode is that server used as a
+  Rust library.
 - The adapter addresses many stores and is never tied to one file (§3.1).
+- Distribution is prebuilt binaries, one per platform and accelerator variant
+  the workspace already builds.
 - "This hit was used" feedback is accepted and recorded; its use is undecided
   (MR-024).
 - The budget estimator starts as serialized bytes ÷ 4 (MR-041).
 
 Still open:
 
-1. Distribution of the binary. Options are prebuilt release binaries (with
-   `cargo binstall`), `cargo install` from crates.io, a binary carried in the
-   Python wheel (`uvx` or `pipx`), npm platform packages (`npx`), and OS package
-   managers. The choice interacts with CUDA and Jetson variants.
-2. Defaults for the idle-close period and the open-store cap, given that each
+1. Defaults for the idle-close period and the open-store cap, given that each
    open store loads its own embedder.
-3. Whether a Python or TypeScript application that owns a store needs a
-   hand-off protocol with a standalone adapter beyond "close it and let the
-   adapter open it", for example when both want the store at once.
+
+Out of scope for this effort, and left open:
+
+- How the MCP server and an application using a FathomDB SDK share one
+  database. The sidecar lock allows one opener per file; this proposal neither
+  solves nor assumes a sharing protocol.

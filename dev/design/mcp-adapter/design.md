@@ -45,6 +45,7 @@ binary target, `fathomdb-mcp`.
 | `schemars` | 1 (the version rmcp uses) | — | Tool input and output schemas, draft 2020-12 (MR-071). |
 | `tracing`, `tracing-subscriber` | workspace-compatible | `fmt` to stderr | MR-002. |
 | `thiserror` | 1 or 2, matching the workspace | — | Error type. |
+| `sha2` | already in the lockfile | — | Deterministic response and continuation handles (MR-043). |
 
 Features: `default-embedder` (forwards to the SDK), `test-seams` (adapter-only
 delay and block hooks, MR-003.1, MR-033.1). Dev-dependencies add
@@ -79,11 +80,17 @@ closed ──open()──▶ opening ──ok──▶ ready ──idle/switch�
 ```
 
 - **Slot.** One `StoreSlot { name, path, state, epoch, engine: Option<Arc<Engine>>,
-  in_flight: usize, last_used: Instant, last_error: Option<OpenFailure> }` per
-  addressable name, behind one async mutex in `registry`. The registry also
-  holds `open_set` (names whose state is not `closed`) and `limit = 1`.
+  in_flight: Arc<AtomicUsize>, idle: Arc<Notify>, last_used, last_error }` per
+  addressable name. The registry also holds `open_set` (names whose state is not
+  `closed`) and `limit = 1`.
+- **Mutex discipline.** One registry mutex (a `std::sync::Mutex`) guards state
+  transitions only. It is **never held across an `.await`** or a blocking call.
+  Checking that a slot is `ready` and incrementing `in_flight` happen in one
+  critical section, so the idle task cannot mark a slot `draining` between
+  them. Dropping a guard decrements `in_flight` without taking the mutex and
+  calls `idle.notify_waiters()` when the count reaches zero.
 - **Acquire.** A call does `registry.acquire(name)`, which returns a guard that
-  increments `in_flight` and resets `last_used`, and decrements on drop.
+  holds an increment of `in_flight` and reset `last_used`.
   - `ready`: proceed.
   - `opening`, `reopening`, `draining`: return `not_ready` with the phase.
   - `closed`: if `open_set.len() == limit`, start draining the LRU member whose
@@ -93,16 +100,23 @@ closed ──open()──▶ opening ──ok──▶ ready ──idle/switch�
   - Calls that carry a progress token wait, up to the deadline, for the open to
     finish and receive progress notifications (MR-006.4). Calls without one
     return `not_ready` immediately.
-- **Open.** On a blocking thread: `Engine::open(path, OpenOptions)`, then the
-  apply-on-open list (§5). Success sets `ready`, `epoch += 1`. Failure records
+- **Open.** If the entry has `create: false` and the file does not exist, fail
+  with `unavailable/missing_file`; `Engine::open` would otherwise create it. The
+  race between this check and the open is accepted, because the directory is
+  operator-controlled. Then, on a blocking thread, `Engine::open(path,
+  OpenOptions)` and the apply-on-open list (§5). Success sets `ready`, `epoch += 1`. Failure records
   `last_error` and sets `closed`. The next acquire retries (MR-006.6) but returns
   the recorded error first if the retry also fails.
 - **Idle.** A single tokio task ticks every second (skipped when
   `idle_timeout_secs == 0`). It drains a `ready` slot when `in_flight == 0` and
   `last_used` is older than the timeout.
-- **Drain.** Set `draining`, wait for `in_flight == 0`, then on a blocking
-  thread call `engine.drain(deadline_ms)` and `engine.close()`, drop the
-  `Engine`, and set `closed`. A switch awaits the drain before opening the new
+- **Drain.** Under the mutex, move `ready → draining`, then release it. Await
+  `idle.notified()` until `in_flight == 0`, without holding the mutex. Then on
+  a blocking thread call `engine.drain(deadline_ms)`, and call `engine.close()`
+  **whether or not `drain` succeeded**. `drain` returns `EmbedderRequired` when
+  vector work is pending without an embedder, and `Scheduler` on timeout; a
+  failure is logged to stderr, never allowed to keep the file locked. Drop the
+  `Engine`, then under the mutex move `draining → closed`. A switch awaits the drain before opening the new
   store, so two files are never open at once (MR-005.7).
 - **Abandoned calls** keep their guard (and so `in_flight`) until the blocking
   thread returns. That is how admission (MR-033.2) and idle (MR-005.4) both see
@@ -143,13 +157,20 @@ search event).
 
 ## 7. Tool implementations
 
+- **Validity instant.** Every store-bound call resolves `as_of` (or now, in
+  epoch seconds, read once at the start of the call) and passes it as
+  `ReadView.valid_as_of`. The value is reported as `validity_instant` (MR-023.2).
 - **search.**
   - `mode=text` → `engine.search_text_only(query, TextSearchOptions{view, limit})`.
+    Filters are rejected in text mode. This path never captures telemetry, so
+    its responses carry no query id, and feedback on them returns `text_mode`.
   - `mode=hybrid` → `engine.search(query, SearchOptions{filter, view, limit, explain})`.
-  - When telemetry is enabled, `explain` is forced on, and the query id is taken
+    When telemetry is enabled, `explain` is forced on, and the query id is taken
     from `result.explanation.correlation_id` when it starts with `q`. The
     explanation is removed from output unless the caller asked for it
     (MR-024.6).
+  - `include_superseded` and `include_inactive` are never set on search; the
+    engine rejects them there.
   - The shaper builds `results` (snippet cut at `snippet_chars` on a character
     boundary, with `snippet_cut`), then `completeness`: `empty` or
     `empty_not_ready` (empty with a degradation entry, or `dense_disabled` in
@@ -160,12 +181,15 @@ search event).
     `ceil(bytes(structured + text) / 4) ≤ max_tokens`. If any were dropped, set
     `cut_by_budget` and store a continuation.
 - **Continuations.** The session stores `{store, epoch, args, offset}` under
-  `c<epoch>-<n>`. Continuing re-runs the same SDK call with
+  `c<epoch>-<hash>`, with the hash as in the interface §4 (SHA-256 over store,
+  canonical arguments and offset, first 16 hex digits). Continuing re-runs the same SDK call with
   `limit = min(100, offset + page)` and slices from `offset`. That is exact
   while the store is unchanged (MR-041.2, within the ranked cap). An epoch
   mismatch returns `invalid_request/stale_handle`.
-- **Response ids.** `r<epoch>-<n>` maps to `{query_id?, ref → write_cursor}`
-  for feedback. LRU of 256 per store.
+- **Response ids.** `r<epoch>-<hash>` (store, canonical arguments, result
+  references) maps to `{mode, query_id?, ref → write_cursor}` for feedback. LRU
+  of 256 per store. Handles are content-derived, so identical requests on
+  identical state produce identical output (MR-043).
 - **fetch.** Reject non-`l:` refs per item with `unsupported_ref`. Call
   `read::get_many(engine, ids, Some(&view))` once (one SDK read). `None` gives a
   per-item `not_found`. Bodies are budgeted like snippets, with `body_cut`.
@@ -176,7 +200,8 @@ search event).
   `unavailable`.
 - **feedback.** Look up `response_id`. Return `not_recorded` with
   `response_expired` if absent, `store_reopened` if the epoch differs,
-  `telemetry_disabled` if no `query_id` was captured. Otherwise map refs to
+  `telemetry_disabled` if telemetry is off, and `text_mode` if the response came
+  from the text path. Otherwise map refs to
   write cursors and call `engine.record_feedback(query_id, used, unused, "agent")`.
   Refs not in the response are `invalid_request`.
 - **list_stores / use_store.** Registry and session only; no engine.
@@ -209,12 +234,14 @@ returns an rmcp client.
 | --- | --- | --- |
 | 1 | `tests/config.rs` | Config grammar, defaults, invalid values (`max_open_stores ≠ 1`, `write: true`, `scope` non-null), name grammar, root resolution, path rejection (MR-005.3) |
 | 2 | `tests/manifest.rs` | MR-070.2 dependency lint; rmcp confinement |
-| 3 | `tests/protocol.rs` | Handshake, static `tools/list` across configs (MR-012.1, MR-006.7), stdio purity by spawning the binary (MR-002.1), panic isolation (MR-002.2), no listener (MR-001.2) |
-| 4 | `tests/lifecycle.rs` | Lazy open, `not_ready` during open with test seam (MR-003.1/.2), open failure without exit and retry (MR-003.3, MR-006.6), lock conflict (MR-004.2), idle close at the timeout and never at 0 (MR-005.4), one-open-at-a-time switch (MR-005.7), reopen re-applies settings (MR-006.1/.2), epoch handling |
+| 3 | `tests/protocol.rs` | Handshake, static `tools/list` across configs (MR-012.1, MR-006.7), stdio purity by spawning the binary (MR-002.1), diagnostics on stderr (MR-002.3), panic isolation (MR-002.2), no listener (MR-001.2) |
+| 4 | `tests/lifecycle.rs` | Lazy open, `not_ready` during open with test seam (MR-003.1/.2), open failure without exit and retry (MR-003.3, MR-006.6), lock conflict (MR-004.2), idle close at the timeout and never at 0 (MR-005.4), one-open-at-a-time switch (MR-005.7), reopen re-applies settings (MR-006.1/.2), epoch handling, close after a failed drain releases the lock (F-44), and a stall test: a call blocked past its deadline while idle expiry fires does not delay a call to another store beyond its deadline (F-42) |
+| 4b | `tests/stores.rs` | Three stores return their own records (MR-005.1), listing has no paths (MR-005.2), no creation without `create` (MR-005.5), handle from another store rejected (MR-005.6), embedded mode with two host engines (MR-004.1) |
 | 5 | `tests/bridge.rs` | Deadline returns `timeout` and keeps serving (MR-033.1); admission cap counts abandoned calls (MR-033.2) |
-| 6 | `tests/search.rs` | Text and hybrid paths, filters rejected in text mode, `as_of` (MR-023), snippet cap (MR-040.1), completeness values (MR-030.1, MR-032), continuation exact on an unchanged store and stale on a new epoch (MR-041.2/.5), budget fits (MR-041.1/.3) |
-| 7 | `tests/fetch_expand.rs` | Fetch order and per-item errors (MR-052), `l:` only (MR-042.2), same content as SDK (MR-040.2, MR-070.1), expand bounds (MR-053) |
-| 8 | `tests/feedback.rs` | `telemetry_disabled`, recorded with the right query id under concurrent searches (MR-024.6), `store_reopened` (MR-006.5), unique ids per sink file across epochs (MR-024.7), output unchanged after feedback (MR-024.3) |
+| 6 | `tests/search.rs` | Text and hybrid paths, filters rejected in text mode, `as_of` and `validity_instant` (MR-023), snippet cap (MR-040.1), completeness values (MR-030.1, MR-032), continuation exact on an unchanged store and stale on a new epoch (MR-041.2/.5), budget fits (MR-041.1/.3), references contain the logical id and are stable across restarts (MR-042.1/.3) |
+| 7 | `tests/fetch_expand.rs` | Fetch order and per-item errors (MR-052), `l:` only (MR-042.2), malformed versus missing reference (MR-054.2), same content as SDK (MR-040.2, MR-070.1), `as_of` on fetch (MR-023.1), expand bounds (MR-053) |
+| 8 | `tests/feedback.rs` | `telemetry_disabled` (MR-024.2), `text_mode`, recorded with the right query id under concurrent hybrid searches (MR-024.1/.6), available in read-only mode (MR-024.4), wrong store or foreign refs rejected (MR-024.5), `store_reopened` (MR-006.5), unique ids per sink file across epochs (MR-024.7), output unchanged after feedback (MR-024.3) |
+| 8b | `tests/readonly.rs` | After calling every tool, the canonical write cursor and a digest of canonical and op-store rows are unchanged (MR-060.1) |
 | 9 | `tests/determinism.rs` | Two process lifetimes, pinned `as_of`, byte-identical output (MR-043.1) |
 | 10 | `tests/schema.rs` | Every structured result validates against its `outputSchema`; schemas are draft 2020-12 (MR-071) |
 | — | `src/shape/*` unit + `proptest` | Budget never exceeded, snippet on char boundary, continuation pages have no gaps or duplicates, ordering stable |

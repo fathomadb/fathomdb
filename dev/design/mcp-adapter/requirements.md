@@ -279,9 +279,11 @@ What FathomDB later does with the signal is undecided (owner, 2026-10-17).
 Meets AN-021.
 
 - MR-024.1 A feedback call that names a search response and some of its
-  references is accepted. When the operator has enabled telemetry, the report
-  reaches the engine's existing feedback record (`record_feedback`) with label
-  source `agent`.
+  references is accepted. When the operator has enabled telemetry and the
+  response came from a hybrid search, the report reaches the engine's existing
+  feedback record (`record_feedback`) with label source `agent`. Text-only
+  searches are never captured by engine telemetry, so feedback on them returns
+  `not_recorded` with reason `text_mode`.
 - MR-024.2 With telemetry disabled, the call returns `not_recorded` with that
   reason, not an error.
 - MR-024.3 Search output for the same request on the same state is
@@ -290,9 +292,9 @@ Meets AN-021.
   the telemetry sink and not to the database (MR-060.1 still holds).
 - MR-024.5 Feedback naming a response from another store, or references not in
   that response, fails as invalid request.
-- MR-024.6 Under concurrent searches, feedback is credited to the search that
-  produced the named response. While telemetry is enabled, the adapter runs
-  searches with `explain=true` and takes the query id from that search's own
+- MR-024.6 Under concurrent hybrid searches, feedback is credited to the search
+  that produced the named response. While telemetry is enabled, the adapter runs
+  hybrid searches with `explain=true` and takes the query id from that search's own
   `explanation.correlation_id`, which the engine assigns under the sink lock. It
   never uses `last_telemetry_query_id`, which is engine-wide and can be swapped
   between concurrent searches. The explanation is dropped from the response

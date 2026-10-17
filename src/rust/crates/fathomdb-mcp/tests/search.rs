@@ -351,3 +351,17 @@ async fn identical_requests_give_identical_output_and_references_survive_restart
     assert_eq!(one.structured_content, three.structured_content);
     second.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_default_snippet_cap_is_exactly_300_characters() {
+    let body = format!("river {}", "abcdefghij".repeat(40));
+    assert!(body.chars().count() > 300);
+    let (_fixture, harness) = harness_with(vec![node("note:long", "note", &body)], json!({})).await;
+    let found = harness.ok("search", json!({"query": "river"})).await;
+    let hit = &found["results"][0];
+    let snippet = hit["snippet"].as_str().unwrap();
+    assert_eq!(snippet.chars().count(), 300, "MR-040.1 default cap");
+    assert!(body.starts_with(snippet));
+    assert_eq!(hit["snippet_cut"], true);
+    harness.shutdown().await;
+}

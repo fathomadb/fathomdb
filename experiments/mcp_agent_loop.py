@@ -1107,26 +1107,43 @@ def _histogram_str(values: list[Any]) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
-PAIRS = (("A2", "A1"), ("B-4o", "A2"), ("B-5mini", "A2"), ("B-5mini", "B-4o"))
+PAIRS = (
+    ("A2", "A1"), ("B-4o", "A2"), ("B-5mini", "A2"), ("B-5mini", "B-4o"),
+    ("B-5.4mini", "B-4o"), ("B-4o-guided", "B-4o"), ("B-5.4mini-guided", "B-5.4mini"),
+    ("B-4o-guided", "A2"), ("B-5.4mini-guided", "A2"), ("B-5.4mini", "A2"),
+)
 # A heuristic for "the answer says the memory lacks it"; reported as a rough rate only.
 ABSTENTION_PHRASE = re.compile(
     r"(do not know|don't know|does not (contain|provide|specify|mention)|not (specified|mentioned|available)"
     r"|no (specific )?information)", re.IGNORECASE)
 
 
-def summarize(out: Path, *, seed: int = BOOTSTRAP_SEED, resamples: int = BOOTSTRAP_RESAMPLES) -> dict[str, Any]:
-    """Content-free aggregates over every arm's checkpoints and the spend ledger."""
+def summarize(out: Path, *, include: Iterable[Path] = (), seed: int = BOOTSTRAP_SEED,
+              resamples: int = BOOTSTRAP_RESAMPLES) -> dict[str, Any]:
+    """Content-free aggregates over every arm's checkpoints and the spend ledgers.
+
+    ``include`` names earlier run directories whose arms and ledgers join this
+    run's; an arm with checkpoints in two directories raises ``ValueError``.
+    ``ledger_usd.this_run`` is the spend of ``out`` alone.
+    """
     import hashlib
 
     arms: dict[str, dict[str, dict[str, Any]]] = {}
-    for arm in ARM_SPECS:
-        results = ArmCheckpoint(out / "arms" / arm).load_all()
-        if results:
+    ledger_totals: dict[str, float] = {}
+    run_dirs = [out, *include]
+    for run_dir in run_dirs:
+        for arm in ARM_SPECS:
+            results = ArmCheckpoint(run_dir / "arms" / arm).load_all()
+            if not results:
+                continue
+            if arm in arms:
+                raise ValueError(f"arm {arm} has checkpoints in more than one run directory")
             arms[arm] = results
-    ledger = CostLedger(out / "ledger", cap_usd=float("inf"))
-    ledger_totals = ledger.arm_totals()
+        for arm, usd in CostLedger(run_dir / "ledger", cap_usd=float("inf")).arm_totals().items():
+            ledger_totals[arm] = ledger_totals.get(arm, 0.0) + usd
     summary: dict[str, Any] = {"arms": {}, "paired": {}, "ledger_usd": {
-        "by_arm": dict(sorted(ledger_totals.items())), "total": ledger.total_usd()}}
+        "by_arm": dict(sorted(ledger_totals.items())), "total": sum(ledger_totals.values()),
+        "this_run": CostLedger(out / "ledger", cap_usd=float("inf")).total_usd()}}
     rows: list[list[Any]] = []
     for arm, results in arms.items():
         ordered = sorted(results)
@@ -1314,9 +1331,11 @@ def main(argv: list[str] | None = None) -> int:
     est.add_argument("--out", required=True)
     summ = sub.add_parser("summarize")
     summ.add_argument("--out", required=True)
+    summ.add_argument("--include", action="append", default=[], help="earlier run directory")
     rec = sub.add_parser("receipt")
     rec.add_argument("--out", required=True)
     rec.add_argument("--binary", required=True)
+    rec.add_argument("--include", action="append", default=[], help="earlier run directory")
     rec.add_argument("--arm-status", action="append", default=[], help="ARM=status")
     rec.add_argument("--verdict", required=True)
     rec.add_argument("--read", required=True)
@@ -1328,13 +1347,13 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(estimate(Path(args.out)), indent=1))
         return 0
     if args.command == "summarize":
-        print(json.dumps(summarize(Path(args.out)), indent=1))
+        print(json.dumps(summarize(Path(args.out), include=[Path(p) for p in args.include]), indent=1))
         return 0
     import hashlib
     from datetime import datetime, timezone
 
     out = Path(args.out)
-    summary = summarize(out)
+    summary = summarize(out, include=[Path(p) for p in args.include])
     summary["gpu"] = gpu_evidence(out / "gpu.csv")
     validation = out / "estimate-10.json"
     if validation.is_file():

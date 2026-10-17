@@ -149,13 +149,26 @@ pub async fn connect(adapter: &Adapter) -> Client {
 pub struct Harness {
     pub adapter: Adapter,
     pub client: Client,
+    _release: SeamRelease,
+}
+
+/// Releases every held open and call when a test ends, including by panic:
+/// a blocking thread parked in a seam would otherwise keep the test
+/// runtime from shutting down.
+struct SeamRelease(fathomdb_mcp::seams::Seams);
+
+impl Drop for SeamRelease {
+    fn drop(&mut self) {
+        self.0.release_all();
+    }
 }
 
 impl Harness {
     pub async fn start(config: Config) -> Self {
         let adapter = Adapter::new(config).expect("adapter");
         let client = connect(&adapter).await;
-        Self { adapter, client }
+        let release = SeamRelease(adapter.seams().clone());
+        Self { adapter, client, _release: release }
     }
 
     pub async fn call(&self, tool: &str, args: Value) -> CallToolResult {
@@ -292,6 +305,8 @@ pub struct RawClient {
     writer: tokio::io::WriteHalf<tokio::io::DuplexStream>,
     reader: tokio::io::BufReader<tokio::io::ReadHalf<tokio::io::DuplexStream>>,
     next_id: u64,
+    /// Every server notification received so far.
+    pub notifications: Vec<Value>,
 }
 
 impl RawClient {
@@ -304,7 +319,12 @@ impl RawClient {
             }
         });
         let (reader, writer) = tokio::io::split(client_io);
-        let mut client = Self { writer, reader: tokio::io::BufReader::new(reader), next_id: 1 };
+        let mut client = Self {
+            writer,
+            reader: tokio::io::BufReader::new(reader),
+            next_id: 1,
+            notifications: Vec::new(),
+        };
         client.request("initialize", initialize_params()).await;
         client.notify("notifications/initialized", json!({})).await;
         let tools = client.request("tools/list", json!({})).await;
@@ -332,6 +352,9 @@ impl RawClient {
             let message: Value = serde_json::from_str(&buffer).unwrap();
             if message["id"] == json!(id) {
                 return message;
+            }
+            if message.get("id").is_none() {
+                self.notifications.push(message);
             }
         }
     }

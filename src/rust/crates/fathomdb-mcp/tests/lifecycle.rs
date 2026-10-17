@@ -40,7 +40,7 @@ async fn stores_open_lazily_on_first_use() {
 #[tokio::test(flavor = "multi_thread")]
 async fn handshake_and_tools_list_do_not_wait_for_a_blocked_open() {
     let fixture = Fixture::new();
-    let harness = Harness::start(two_stores(&fixture, json!({}))).await;
+    let harness = Harness::start(two_stores(&fixture, json!({"call_deadline_ms": 300}))).await;
     harness.adapter.seams().block_open("a");
     let mut raw = RawClient::connect(&harness.adapter).await;
     let pending = raw.call("search", json!({"store": "a", "query": "alpha"})).await;
@@ -57,32 +57,57 @@ async fn handshake_and_tools_list_do_not_wait_for_a_blocked_open() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_call_without_a_progress_token_gets_not_ready_with_the_phase() {
+async fn a_call_without_a_progress_token_waits_for_the_open_until_its_deadline() {
     let fixture = Fixture::new();
-    let harness = Harness::start(two_stores(&fixture, json!({}))).await;
+    let harness = Harness::start(two_stores(&fixture, json!({"call_deadline_ms": 600}))).await;
     harness.adapter.seams().block_open("a");
     let mut raw = RawClient::connect(&harness.adapter).await;
     let started = Instant::now();
     let result = raw.call("search", json!({"store": "a", "query": "alpha"})).await;
-    assert!(started.elapsed() < Duration::from_secs(1), "no waiting without a progress token");
+    let waited = started.elapsed();
+    assert!(waited >= Duration::from_millis(550), "waits for the open: {waited:?}");
+    assert!(waited < Duration::from_secs(3), "returns at the deadline: {waited:?}");
     assert_eq!(result["isError"], true);
     let error = &result["structuredContent"]["error"];
     assert_eq!(error["class"], "not_ready", "{result}");
     assert_eq!(error["code"], "opening");
     assert!(result["structuredContent"].get("results").is_none(), "not an empty result");
+    let progress: Vec<&Value> = raw
+        .notifications
+        .iter()
+        .filter(|message| message["method"] == "notifications/progress")
+        .collect();
+    assert!(progress.is_empty(), "no progress without a token: {progress:?}");
     // Store-independent tools still answer.
     let listed = raw.call("list_stores", json!({})).await;
-    assert_ne!(listed["isError"], true);
     assert_eq!(listed["structuredContent"]["stores"][0]["readiness"], "opening");
     // With one open store at a time, another store cannot open while `a` is
-    // mid-open: it is refused as busy, never answered from `a` (MR-005.7).
+    // mid-open: it is refused as busy at once, never answered from `a`.
+    let started = Instant::now();
     let other = raw.call("search", json!({"store": "b", "query": "beta"})).await;
     assert_eq!(other["structuredContent"]["error"]["class"], "busy", "{other}");
-
+    assert!(started.elapsed() < Duration::from_millis(500));
     harness.adapter.seams().release_open("a");
-    assert!(wait_for_readiness(&harness.client, "a", "ready", Duration::from_secs(10)).await);
-    let found = raw.call("search", json!({"store": "a", "query": "alpha"})).await;
-    assert_ne!(found["isError"], true, "{found}");
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_call_without_a_progress_token_succeeds_on_first_use_and_after_an_idle_close() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(two_stores(&fixture, json!({"idle_timeout_secs": 1}))).await;
+    let mut raw = RawClient::connect(&harness.adapter).await;
+    let first = raw.call("search", json!({"store": "a", "query": "alpha"})).await;
+    assert_ne!(first["isError"], true, "the first call waits for the open: {first}");
+    assert_eq!(first["structuredContent"]["results"][0]["ref"], "l:note:a");
+    assert_eq!(first["structuredContent"]["epoch"], 1);
+    assert!(wait_for_readiness(&harness.client, "a", "closed", Duration::from_secs(5)).await);
+    let again = raw.call("search", json!({"store": "a", "query": "alpha"})).await;
+    assert_ne!(
+        again["isError"], true,
+        "the first call after a close waits for the reopen: {again}"
+    );
+    assert_eq!(again["structuredContent"]["epoch"], 2);
+    assert!(raw.notifications.iter().all(|message| message["method"] != "notifications/progress"));
     harness.shutdown().await;
 }
 
@@ -159,8 +184,8 @@ async fn a_locked_store_reports_the_typed_lock_error_and_other_stores_keep_worki
     let other = harness.ok("search", json!({"store": "b", "query": "beta"})).await;
     assert_eq!(other["results"][0]["ref"], "l:note:b");
 
-    // Without a progress token the recorded error comes back at once while
-    // the retry starts.
+    // A call without a progress token waits for the retry, which fails again
+    // while the lock is still held.
     let mut raw = RawClient::connect(&harness.adapter).await;
     let again = raw.call("search", json!({"store": "a", "query": "alpha"})).await;
     assert_eq!(again["structuredContent"]["error"]["code"], "database_locked", "{again}");

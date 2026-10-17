@@ -405,6 +405,25 @@ def test_summary_refuses_an_arm_present_in_two_runs(tmp_path: Path) -> None:
         mal.summarize(run2, include=[run1], resamples=200)
 
 
+def test_receipt_config_records_both_prompts_both_binaries_and_gpt_5_4_mini() -> None:
+    import hashlib
+
+    def sha(text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()
+
+    config = mal.resolved_config(binary_sha256="run2-bin", arm_status={}, instructions="Use search.",
+                                 earlier_binary_sha256="run1-bin")
+    prompts = config["agent"]["prompts"]
+    assert prompts["neutral"]["system_prompt_sha256"] == sha(mal.AGENT_SYSTEM_PROMPT)
+    assert prompts["guided"]["client_prompt_sha256"] == sha(mal.GUIDED_CLIENT_PROMPT)
+    assert prompts["guided"]["instructions_sha256"] == sha("Use search.")
+    assert prompts["guided"]["system_prompt_sha256"] == sha("Use search.\n\n" + mal.GUIDED_CLIENT_PROMPT)
+    assert config["server"]["binary_sha256"] == "run2-bin"
+    assert config["server"]["earlier_binary_sha256"] == "run1-bin"
+    assert config["agent"]["params"]["gpt-5.4-mini"] == {
+        "request_model_id": "openai/gpt-5.4-mini", "reasoning_effort": "low", "max_completion_tokens": 4096}
+
+
 # --- model routing -----------------------------------------------------------
 
 

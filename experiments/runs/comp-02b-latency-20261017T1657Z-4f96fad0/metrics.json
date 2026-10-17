@@ -1,0 +1,48 @@
+{
+  "build_s": 2.6464496420230716,
+  "cells": {
+    "body-text-only": {
+      "n": 100,
+      "p50_ms": 5.545122490730137,
+      "p95_ms": 16.283477016258985,
+      "short_results": 0
+    },
+    "projected-c01": {
+      "n": 100,
+      "p50_ms": 12.163373990915716,
+      "p95_ms": 18.695869017392397,
+      "short_results": 6
+    },
+    "projected-c10": {
+      "n": 100,
+      "p50_ms": 6.578036496648565,
+      "p95_ms": 16.22099900851026,
+      "short_results": 0
+    },
+    "projected-c33": {
+      "n": 100,
+      "p50_ms": 5.207008012803271,
+      "p95_ms": 15.2262769988738,
+      "short_results": 0
+    },
+    "projected-single-term": {
+      "n": 20,
+      "p50_ms": 0.8778705087024719,
+      "p95_ms": 2.8416739660315216,
+      "short_results": 0
+    },
+    "projected-unfiltered": {
+      "n": 100,
+      "p50_ms": 2.8234045021235943,
+      "p95_ms": 5.3411920089274645,
+      "short_results": 0
+    }
+  },
+  "documents": 10000,
+  "inputs": {
+    "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+    "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+  },
+  "queries": 100,
+  "schema_version": "comp-02b.latency.summary.v1"
+}

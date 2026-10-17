@@ -77,6 +77,7 @@ MAX_MODEL_TURNS = 8
 PRICES_PER_MTOK: dict[str, dict[str, float]] = {
     "gpt-4o-mini": {"input": 0.15, "cached_input": 0.075, "output": 0.60},
     "gpt-5-mini": {"input": 0.25, "cached_input": 0.025, "output": 2.00},
+    "gpt-5.4-mini": {"input": 0.75, "cached_input": 0.075, "output": 4.50},
 }
 
 

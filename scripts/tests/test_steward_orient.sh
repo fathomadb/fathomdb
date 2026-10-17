@@ -571,6 +571,76 @@ else
   fail "arm 4b (zero folded todos): rc=$RC err=$ERR"
 fi
 
+# --- Arm 4c: UUID-form todo ids print as their shortest unique prefix -------
+# Spelled out in full, a UUID-form id (TC-<8>-<4>-<4>-<4>-<12>) costs ~40 bytes
+# and does not run-fold, so ~60 of them alone pushed the real briefing over its
+# 4 KB cap. Each prints as at least its first 8 hex digits, lengthened only
+# while that prefix would also match ANOTHER ledger id — across every bucket,
+# not just its own, so a printed prefix always names exactly one ledger id.
+# The abbreviated form must not join a numeric run either: `TC-12345678` beside
+# `TC-2..6,9` would read as numeric id 12345678.
+setup_fixture
+cat >"$FIX/dev/todos-and-considerations-ledger.jsonl" <<'EOF'
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 1, "id": "TC-2", "kind": "todo", "status": "open", "summary": "n"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 2, "id": "TC-3", "kind": "todo", "status": "open", "summary": "n"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 3, "id": "TC-4", "kind": "todo", "status": "open", "summary": "n"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 4, "id": "TC-5", "kind": "todo", "status": "open", "summary": "n"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 5, "id": "TC-6", "kind": "todo", "status": "open", "summary": "n"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 6, "id": "TC-9", "kind": "todo", "status": "open", "summary": "n"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 7, "id": "TC-f9fa3b87-6f23-427b-b027-6889e52b3bef", "kind": "todo", "status": "open", "summary": "u"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 8, "id": "TC-12345678-aaaa-4bbb-8ccc-dddddddddd12", "kind": "todo", "status": "open", "summary": "u"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 9, "id": "TC-abcd1234-5678-4aaa-8bbb-000000000001", "kind": "todo", "status": "open", "summary": "u"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 10, "id": "TC-abcd1234-56f0-4aaa-8bbb-000000000002", "kind": "todo", "status": "done", "summary": "u"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 11, "id": "TC-0badcafe-1111-4aaa-8bbb-000000000003", "kind": "todo", "status": "done", "summary": "u"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 12, "id": "TC-0badcafe-1122-4aaa-8bbb-000000000004", "kind": "todo", "status": "done", "summary": "u"}
+{"ts": "2026-01-01T00:00:00.000Z", "seq": 13, "id": "TC-ac020-successor-0825", "kind": "todo", "status": "closed", "summary": "z"}
+EOF
+run_orient "$FIX"
+TODO_OPEN="$(grep -E '^  open\(' <<<"$OUT" || true)"
+TODO_DONE="$(grep -E '^  done\(' <<<"$OUT" || true)"
+if [ "$RC" -eq 0 ] && grep -qE '^  open\(9\) ' <<<"$TODO_OPEN" && grep -qE '^  done\(3\) ' <<<"$TODO_DONE"; then
+  pass "UUID-form todos: the run is green and bucket counts are unchanged"
+else
+  fail "arm 4c (counts): rc=$RC err=$ERR out=$OUT"
+fi
+if grep -qE ' TC-f9fa3b87( |$)' <<<"$TODO_OPEN" && grep -qE ' TC-12345678( |$)' <<<"$TODO_OPEN"; then
+  pass "a UUID-form id with no collision prints as its first 8 hex digits"
+else
+  fail "arm 4c (8-hex prefix): open=$TODO_OPEN"
+fi
+if grep -qE ' TC-abcd1234-567( |$)' <<<"$TODO_OPEN" && grep -qE ' TC-abcd1234-56f( |$)' <<<"$TODO_DONE"; then
+  pass "UUIDs sharing 8 hex digits across buckets get longer, distinct prefixes"
+else
+  fail "arm 4c (cross-bucket collision): open=$TODO_OPEN done=$TODO_DONE"
+fi
+if grep -qE ' TC-0badcafe-111( |$)' <<<"$TODO_DONE" && grep -qE ' TC-0badcafe-112( |$)' <<<"$TODO_DONE"; then
+  pass "UUIDs sharing 8 hex digits in one bucket get longer, distinct prefixes"
+else
+  fail "arm 4c (same-bucket collision): done=$TODO_DONE"
+fi
+if grep -qE ' TC-2\.\.6,9( |$)' <<<"$TODO_OPEN"; then
+  pass "numeric todo ids still run-fold, and no UUID prefix joins the run"
+else
+  fail "arm 4c (numeric runs): open=$TODO_OPEN"
+fi
+# A numeric tail with a leading zero cannot round-trip through int(): it would
+# print as a DIFFERENT id (`-0825` -> `-825`), so it is passed through verbatim.
+if grep -qE '^  closed\(1\) TC-ac020-successor-0825$' <<<"$OUT"; then
+  pass "a zero-padded numeric tail is printed verbatim, not renumbered"
+else
+  fail "arm 4c (zero-padded tail): out=$OUT"
+fi
+if ! grep -qE '6f23|aaaa-4bbb|8bbb-0000' <<<"$OUT"; then
+  pass "no UUID-form id is spelled out in full"
+else
+  fail "arm 4c (full UUID printed): out=$OUT"
+fi
+if grep -iE 'uuid' <<<"$OUT" | grep -qF 'ledgerwatch --project'; then
+  pass "the TODOS section says UUID ids are prefixes and where the full ids live"
+else
+  fail "arm 4c (prefix note): out=$OUT"
+fi
+
 # --- Arm 5: NO STEWARD-SESSION-HANDOFF-* -> HARD fail ---------------------
 setup_fixture
 rm -f "$FIX"/dev/plans/runs/STEWARD-SESSION-HANDOFF-*.md

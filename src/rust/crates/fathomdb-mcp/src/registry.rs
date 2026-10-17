@@ -183,18 +183,28 @@ impl Registry {
         engine: Arc<Engine>,
     ) -> Result<(), RegisterError> {
         validate_store_name(name).map_err(|_| RegisterError::BadName)?;
+        // Reserve the name before touching the engine, so a rejected
+        // duplicate never re-runs apply-on-open (which would restart the
+        // engine's telemetry sequence). The list itself runs outside the
+        // mutex because it does file I/O.
+        {
+            let mut inner = self.lock();
+            if inner.slots.contains_key(name) || self.config.stores.contains_key(name) {
+                return Err(RegisterError::Duplicate);
+            }
+            let mut slot = Slot::new(Source::Hosted);
+            slot.phase = Phase::Opening;
+            inner.slots.insert(name.to_string(), slot);
+        }
         let info = apply_on_open(&engine, name, 1, &self.config, true);
         let mut inner = self.lock();
-        if inner.slots.contains_key(name) || self.config.stores.contains_key(name) {
-            return Err(RegisterError::Duplicate);
-        }
-        let mut slot = Slot::new(Source::Hosted);
+        let slot = inner.slots.get_mut(name).expect("reserved above");
         slot.phase = Phase::Ready;
         slot.epoch = 1;
         slot.attempt = 1;
         slot.engine = Some(engine);
         slot.info = Some(Arc::new(info));
-        inner.slots.insert(name.to_string(), slot);
+        slot.bump();
         Ok(())
     }
 

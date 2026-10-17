@@ -94,10 +94,15 @@ unless a placement decision adds a slice; it is never an implicit patch lane.
 
 ## Immediate next slice
 
-Slice 31 merged into `release/0.8.28` at `1ceefddd8`. Slice 40 is in
-progress; Slices 41 and 42 are planned, and 41 lands before 42. After them come
-the release-level steps: the open decisions, then the owner's publication
-decision (Slice 31 plan W8 and R-CODE-4).
+<!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 42** (`TEST-HYGIENE-PUBLISHED-CACHE`) — slice135 descriptor check independent of parallel tests; published-Rust page-cache investigation (todos ledger seq 312 and 313)
+
+**Remaining ladder:** 42.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+
+Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
+`0ec01bc22`. Slice 42 is next. After it come the release-level steps: the
+open decisions, then the owner's publication decision (Slice 31 plan W8 and
+R-CODE-4).
 
 ## Slice 42 — slice135 descriptor check and the published-Rust page cache
 

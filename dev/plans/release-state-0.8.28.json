@@ -4,10 +4,6 @@
   "board": "dev/plans/runs/STATUS-0.8.28.md",
   "plan": "dev/plans/plan-0.8.28.md",
   "active_ref": "refs/heads/release/0.8.28",
-  "completion": {
-    "ref": "origin/release/0.8.28",
-    "main_integration": "PENDING"
-  },
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
   "schema_version": 34,
   "origin_main_schema_version": 34,
@@ -17,7 +13,7 @@
     {"slice": 31, "short": "CUDARC-FORK", "title": "consume cudarc-fathomdb and the Candle fork from crates.io; delete the vendored cudarc (D28-13)", "depends_on": [30], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.28/features/slice-31/plan.md", "dev/plans/0.8.28/features/slice-31/design.md", "dev/plans/0.8.28/features/slice-31/status.md", "dev/plans/0.8.28/features/slice-31/qualification.md"], "sha": "1ceefddd894c041b0a8622856dc2677be3e49c88", "evidence": "Status COMPLETE on release/0.8.28: FathomDB consumes cudarc-fathomdb 0.19.10 and the Candle fork 0.11.0 from crates.io and the vendored cudarc is deleted; design revision 6 (N1 close release, D-19 probe read, CUDA features imply tegra-pool, SDK pool settings) implemented RED then GREEN; R-CODE-3 and R-VERIFY (Opus) findings fixed; qualification complete: T-CUDA and PERF-03 on the RTX 3090 (new/base 0.899), Orin windows P, A, B and C (G8 accepted as measured, Q39), GCP S-C3 and S-13 (CUDA 13.0) pass; Tegra on CUDA 13 UNMEASURED (Q5). Remaining in the slice plan: W8 publication (owner) and R-CODE-4."},
     {"slice": 40, "short": "FTS-RANKING", "title": "FTS ranking, latency and page-cache defects found by the COMP benchmarks (Defects A to C, Units D to J)", "depends_on": [31], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.28/features/slice-40/plan.md", "dev/plans/0.8.28/features/slice-40/requirements.md", "dev/plans/0.8.28/features/slice-40/design.md", "dev/plans/0.8.28/features/slice-40/test-plan.md", "dev/plans/0.8.28/features/slice-40/status.md"], "evidence": "Status COMPLETE on release/0.8.28: Defects A to C and Units D to J implemented RED then GREEN with Fable-medium plan and code reviews; Unit I gate (REQ40-I6) PASS on all four criteria at d10ad65d5 against the H3 commit 417eac27d, so ADR-0.8.28-sqlite-per-connection-page-cache is accepted (decision-index row 64); landing review (Fable-medium, codex fallback) LAND AFTER FIXES, P2 and doc P3 fixed at 4b1c67a67; COMP-01 FTS 0.3265 and hybrid 0.3555; COMP-02b c01 p50 29.7 to 6.6 ms. State in dev/plans/0.8.28/features/slice-40/status.md.", "sha": "869d6a9e100d40841efc5cb56688040f4b645e42"},
     {"slice": 41, "short": "SDK-CONTEXT-PACK", "title": "SDK context pack, full-render override, configurable query stop words", "depends_on": [40], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.28/features/slice-41/GOAL.md", "dev/plans/0.8.28/features/slice-41/requirements.md", "dev/plans/0.8.28/features/slice-41/design.md", "dev/plans/0.8.28/features/slice-41/test-plan.md", "dev/plans/0.8.28/features/slice-41/status.md"], "evidence": "Status COMPLETE on release/0.8.28: pack_context, the round-body codec, full_ids and EngineConfig.query_stop_words (empty extra list by default) across Rust, Python and TypeScript with shared fixtures, RED then GREEN with Fable-medium plan and code reviews; decision-index row 65 (opt-in role-tagged round body); landing review (Fable-medium, codex fallback) LAND, P3-1 to P3-3 fixed at a0c5fdadc; COMP-03 250-question paired answer run: FathomDB FTS pack 0.856 vs LanceDB FTS 0.784 (difference +0.072, 95% CI +0.028 to +0.116). State in dev/plans/0.8.28/features/slice-41/status.md.", "sha": "0ec01bc22197c641566830ef7b5ee6f446994f21"},
-    {"slice": 42, "short": "TEST-HYGIENE-PUBLISHED-CACHE", "title": "slice135 descriptor check independent of parallel tests (todos ledger seq 312, TC-f9fa3b87-6f23-427b-b027-6889e52b3bef); investigation of the published-Rust page cache (todos ledger seq 313, TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e)", "depends_on": [40], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.28/features/slice-42/plan.md", "dev/plans/0.8.28/features/slice-42/requirements.md", "dev/plans/0.8.28/features/slice-42/design.md", "dev/plans/0.8.28/features/slice-42/test-plan.md", "dev/plans/0.8.28/features/slice-42/status.md"], "evidence": "Planned on slice/0.8.28-42-test-hygiene-and-published-cache; plan review R1 APPROVE-WITH-FIXES applied. Lands after Slice 41."}
+    {"slice": 42, "short": "TEST-HYGIENE-PUBLISHED-CACHE", "title": "slice135 descriptor check independent of parallel tests; published-Rust page-cache investigation (todos ledger seq 312 and 313)", "depends_on": [40], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.28/features/slice-42/plan.md", "dev/plans/0.8.28/features/slice-42/requirements.md", "dev/plans/0.8.28/features/slice-42/design.md", "dev/plans/0.8.28/features/slice-42/test-plan.md", "dev/plans/0.8.28/features/slice-42/status.md"], "evidence": "Planned on slice/0.8.28-42-test-hygiene-and-published-cache; plan review R1 APPROVE-WITH-FIXES applied. Lands after Slice 41."}
   ],
   "landed": [],
   "next_slice": 42,
@@ -45,6 +41,9 @@
   "release_readiness": null,
   "published": null,
   "generated_views": [
-    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"}
+    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"},
+    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.28.md", "location": "Immediate next slice", "renders": "the next slice and remaining ladder"},
+    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Current state", "renders": "the next slice and release-branch completion set"},
+    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Immediate next action", "renders": "the lifecycle-aware next action"}
   ]
 }

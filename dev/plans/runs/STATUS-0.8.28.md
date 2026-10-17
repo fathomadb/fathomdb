@@ -12,7 +12,7 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
-**Slices 40, 41 and 42 are open.** Completed on `release/0.8.28`: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`).
+<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 42 (TEST-HYGIENE-PUBLISHED-CACHE), NOT_STARTED.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
 Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
@@ -40,7 +40,7 @@ Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
 
 | Step | Action |
 | --- | --- |
-| **Immediate next action** | **Continue Slice 40; then land Slice 41, then Slice 42.** Then the open decisions below, then publication of 0.8.28 (Slice 31 plan W8, then R-CODE-4). |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Commission Slice 42 (TEST-HYGIENE-PUBLISHED-CACHE)** — slice135 descriptor check independent of parallel tests; published-Rust page-cache investigation (todos ledger seq 312 and 313). **Remaining ladder:** 42.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
 
 Slice 31's qualification is complete: the Orin windows P, A, B and C, the
 RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured

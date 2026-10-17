@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — requirements and acceptance criteria
-status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C and Unit D landed; Units E, F, G added 2026-10-16 (owner ruling) and landed; Unit H added 2026-10-16 (owner ruling), code committed; Unit I added 2026-10-16 (owner ruling), docs for review
+status: REVISED AFTER R1 (APPROVE-WITH-FIXES, F1–F6); Defect C and Unit D landed; Units E, F, G added 2026-10-16 (owner ruling) and landed; Unit H added 2026-10-16 (owner ruling), code committed; Unit I added 2026-10-16 (owner ruling), plan reviewed (F1–F9 applied); Unit J added 2026-10-16 (owner ruling), docs for re-check
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -22,7 +22,10 @@ rule (H1), a hybrid vector candidate pool decoupled from `limit` (H2), and
 a cohort prefilter for selective attribute filters on projected search
 (H3). Unit I, added by owner ruling on the same day, gives each SQLite
 connection its own page cache, so one heavy read no longer slows every
-later read on the same engine. [design.md](design.md) gives the mechanism,
+later read on the same engine. Unit J, added by owner ruling on the same
+day and landed before Unit I, guards the tests that open a raw SQLite
+connection before any engine, so the runtime latch no longer makes test
+results depend on test order. [design.md](design.md) gives the mechanism,
 [test-plan.md](test-plan.md) the tests.
 
 ## 1. Evidence
@@ -360,10 +363,15 @@ Sources:
   freed again on unpin. It stays at about one page until the large
   cache gives pages back. That happens only on that connection's close,
   a `cache_size` change or a shrink.
-- FathomDB sets no `cache_size`, so each connection has SQLite's default
-  (`-2000`, 2,000 KiB). The engine opens one writer, eight readers, the
-  projection dispatcher and the projection workers. That is about
-  eleven 2,000 KiB budgets, which matches the 22.5 MB held by one reader.
+- FathomDB's production open path sets no `cache_size`, so each
+  connection has SQLite's default (`-2000`, 2,000 KiB). An engine keeps
+  twelve connections open by default: one writer, eight readers
+  (`READER_POOL_SIZE`, `reader_pool.rs`), the projection dispatcher and
+  two projection workers (`scheduler_runtime_threads` defaults to 2,
+  `runtime_configuration.rs`; the roles are listed in
+  `native_state_expected_roles`, `wal_attribution.rs`). Runtime probes
+  open and close transient connections. Twelve 2,000 KiB budgets are
+  24,000 KiB, which bounds the 22.5 MB one reader held.
 
 **Probes.**
 
@@ -434,6 +442,52 @@ cells on one open engine:
 The harness fix (`comp03-slice40`) opens the store afresh for each cell
 and each cohort (test-plan § 3h.4). Its numbers are a new measurement
 method and are not comparable with the manifest's values.
+
+### 1.8 Unit J evidence
+
+Source: the investigation of 2026-10-16
+(`pr-g8/proposal.md` in the session scratchpad, with `prototype-A.diff`
+and `prototype-A-tc57.diff`), run on a private export of `65a6e29b3`, and
+a sweep of this branch's test files made while writing this section.
+
+- `configure_runtime_locked` (`runtime_configuration.rs`) calls
+  `sqlite3_config(SQLITE_CONFIG_MEMSTATUS)` and then
+  `sqlite3_initialize`. If SQLite is already initialized,
+  `sqlite3_config` returns `SQLITE_MISUSE`. The engine maps that to
+  `RuntimeConfigurationError::TooLate` and latches it, so every later
+  `Engine::open` in the process fails. That is the behaviour
+  `ADR-0.8.25-sqlite-runtime-configuration.md` requires (fail closed, no
+  silent fallback, no `sqlite3_shutdown`).
+- The first raw `rusqlite::Connection::open` in a process initializes
+  SQLite. A test binary whose tests run in parallel latches `TooLate`
+  when a test opens a raw connection before any other test has opened
+  an `Engine`. The engine tests in that binary then fail with
+  `open: RuntimeConfiguration(TooLate)`.
+- Measured on the export (binary looped directly, 24-core host):
+
+  | Build | Target | Parallel runs failed | `--test-threads=1` |
+  | --- | --- | ---: | ---: |
+  | default features | `pr_g8_dangling_edges` | 19 of 30 | 0 of 30 |
+  | `test-hooks` | `pr_g8_dangling_edges` | 29 of 30 | not run |
+  | `test-hooks` | `tc57_governed_write_race` | 30 of 30 | not run |
+
+  With the guard of option A in place (the next bullet), it was 0 of
+  50 in each case.
+- The repository already has a convention for this:
+  `tests/pr_g0_identity.rs` (`configure_test_runtime`, with a comment
+  naming the latch) and seven other integration files call
+  `configure_runtime(RuntimeSqliteMode::Performance)` before their
+  first raw open. Slice 30 applied the same remedy to fourteen in-crate
+  tests at `6f5aec196`.
+- `TooLate` displays as *"SQLite runtime configuration is too late;
+  restart required"*. A process that latched it does need a restart,
+  but the remedy is ordering. A Rust consumer that opens its own
+  `rusqlite` connection before the first `Engine::open` shares the
+  same `libsqlite3-sys` and hits this. No test asserts the message
+  text (grep over `src/`, the bindings and their tests, 2026-10-16).
+- `slice135_robustness_first`'s fd-count failure is a different defect
+  (its raw open follows an `Engine::open`). It is not part of Unit J
+  and stays recorded as pre-existing.
 
 ## 2. Requirements
 
@@ -1111,7 +1165,9 @@ working set below its cache budget:
 - (i) after one reader runs a read that touches more pages than its
   budget, that reader's `SQLITE_DBSTATUS_CACHE_USED` is at most 1.10 ×
   2,048,000 bytes (SQLite's default `cache_size`, `-2000`, which the
-  engine keeps);
+  production open path keeps; the `_for_test` RSS fixture in
+  `graph_api.rs` persists `PRAGMA default_cache_size=64` into its own
+  store only). The arithmetic is in AC40-96;
 - (ii) the next pass of every other reader over its own working set has
   zero `SQLITE_DBSTATUS_CACHE_MISS` delta, as its pass just before the
   heavy read did;
@@ -1122,20 +1178,29 @@ working set below its cache budget:
 (i), (ii) and (iii) fail on today's build; § 1.7 gives the probe that
 shows it. The assertions use counters, not timing.
 
-**REQ40-I3 — no public surface and no memory change.**
+**REQ40-I3 — no public surface; the memory ceiling is unchanged.**
 
 - No `EngineConfig` knob, no new API, no `PRAGMA cache_size` change.
   Each connection keeps the 2,000 KiB default.
-- The memory ceiling is unchanged. Today it is the group's sum of
-  limits (about eleven 2,000 KiB budgets), which one reader can hold alone.
-  After Unit I each connection is held to its own 2,000 KiB, and the sum is
-  the same. Tegra and Jetson targets build the same `build.rs`, so the
-  same holds there.
+- The ceiling is unchanged. Today it is the group's sum of limits:
+  twelve 2,000 KiB budgets per engine by default (§ 1.7), about 24 MB
+  with SQLite's per-page header, which one reader can hold alone.
+  After Unit I each connection is held to its own 2,000 KiB, and the
+  sum is the same.
+- Resident page memory can rise toward that ceiling. In mode 2 the
+  active reader recycles idle connections' pages, so the resident
+  total tends toward the active working set. In mode 1 every
+  connection keeps up to its own 2,000 KiB, so a long-running engine
+  whose readers have all been used can hold close to the full 24 MB.
+  On Tegra and Jetson targets, which build the same `build.rs`, about
+  24 MB per open engine is small against the device memory, but it is
+  a real increase over a mostly idle mode-2 engine.
 - Results do not change (REQ40-I2 (iv); gate clause (iv)).
 
 **REQ40-I4 — published Rust crates, stated.** Root patches do not reach
-downstream Rust consumers (§ 1.7). The rest of this requirement depends
-on ruling Q-I1 (test-plan § 12). As drafted:
+downstream Rust consumers (§ 1.7). Ruling Q-I1 (coordinator, on the
+reviewer's recommendation, 2026-10-16) chose option (a), document only
+(test-plan § 12):
 
 - `dev/interfaces/rust.md` and `dev/interfaces/rust-sdk.md`, under
   "SQLite runtime configuration", say:
@@ -1146,7 +1211,10 @@ on ruling Q-I1 (test-plan § 12). As drafted:
     reads until the engine is reopened;
   - `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time
     gives the same behaviour as the workspace build.
-- No runtime check or mitigation in the engine.
+- No runtime check or mitigation in the engine. A consumer-facing
+  surface that reports the effective mode (for example from
+  `sqlite3_compileoption_used`, as `connection_runtime.rs` already does
+  for the Windows marker) is a ledger follow-up, not part of Unit I.
 - `CHANGELOG.md` gains one `### Fixed` entry under 0.8.28.
 
 **REQ40-I5 — report-only timing in a release build** (as F12 for H3).
@@ -1164,18 +1232,22 @@ and `cache_miss` delta. The implementer runs it with
 output in the test plan (§ 3h.3). It gates nothing.
 
 **REQ40-I6 — Unit I gate** (orchestrator, at the Unit I commit, after
-the code review). The reference is the H3 commit, measured with the
-same harness method. The baseline engine `5b09afd44` is measured too,
+the code review). The reference is the H3 commit, re-measured with the
+v2 harness (fresh open per cell and per cohort). The Unit H gates' v1
+numbers cannot serve: body, c10 and c33 there were measured after c01
+on one open. The baseline engine `5b09afd44` is measured too,
 for the record, but not gated. Verbatim:
 
 - *(i) `reader_page_cache_timing_report` at the Unit I commit: each of
   the three body passes after the c01 query has p50 at most 1.15 × the
   second body pass before it, on both routes;*
 - *(ii) tc5-10k-latency (fresh open per cell): every cell's p50 within
-  +25% and p95 within +35% of the H3 commit, or lower; short-result
+  +25% and p95 within +35% of the H3 commit re-measured with the v2
+  harness, or lower; short-result
   counts equal to the H3 commit's;*
 - *(iii) COMP-02b 10k (fresh open per cohort): FathomDB c01, c10 and
-  c33 p50 within +25% and p95 within +35% of the H3 commit, or lower;
+  c33 p50 within +25% and p95 within +35% of the H3 commit re-measured
+  with the v2 harness, or lower;
   violations 0; short-result counts equal to the H3 commit's;*
 - *(iv) COMP-01 FTS nDCG@10 and the COMP-03 sweep's FTS-arm metrics
   equal to the H3 commit's to every printed digit; COMP-01 hybrid and
@@ -1196,6 +1268,19 @@ page cache cannot change results.
     `measurement = fresh_open_per_cell`;
   - COMP-02b runs from `experiments/configs/comp-02/filtered-10000.v2.json`
     and records `fresh_open_per_cohort` per cell.
+- Harness notes (review F7, F8):
+  - the classifier writes `comp02b-latency-v2-measurement-plan.v1.json`
+    on the first classification of a v2 receipt; that plan file is
+    committed with the first v2 receipt;
+  - `run_filtered_cell` is arm-generic, so the SurrealDB arm also opens
+    per cohort now. v1 and v2 numbers are not comparable for either arm;
+  - each cell's timed pass still follows its own warm pass on the same
+    open, so c01 measures its own post-heavy state. That is inherent
+    and intended: the method isolates cells from each other, not a
+    query from its own cell;
+  - `peak_rss_mib` is the maximum of process RSS over the three opens.
+    RSS rarely falls after a close, so in practice it is the last
+    open's figure.
 - The baseline manifest's tc5-10k-latency and comp02b-10000 values were
   measured with the single-open method. After a passed gate, those two
   entries take:
@@ -1205,6 +1290,56 @@ page cache cannot change results.
 
   Their tolerances do not change. The other entries change only
   through REQ40-H10's re-run.
+
+**Unit J requirements** (added by owner ruling 2026-10-16). Remove the
+test-order dependency on the SQLite runtime latch (§ 1.8), so Unit I's
+test runs are not confounded by it. Unit J lands before Unit I's RED and
+GREEN. The owner approved the edits to existing tests: guards only, with
+no assertion or fixture change.
+
+**REQ40-J1 — guard every raw-first test.** Each test that can open a raw
+`rusqlite` connection before any `Engine::open` in its process, in a
+binary that also opens engines, calls
+`configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime")`
+first, following `pr_g0_identity.rs`. That means a file-level
+`configure_test_runtime()` helper with the latch comment, called at the
+top of the test, or of the shared helper where the raw open is. The
+sites are the five that the sweep (test-plan § 3i.2) confirms:
+
+- `pr_g8_dangling_edges.rs`, `s20_endpoint_probe_hits_partial_index_no_scan`;
+- `tc57_governed_write_race.rs`, `wal_pair` (the three `tc57_mechanism_*`
+  tests);
+- `pr_g3_read_collection.rs`, `read_collection_plan_is_index_driven_no_scan_no_temp_btree`;
+- `truncate_wal.rs`, `noncurrent_database_is_refused_without_mutation`;
+- `truncate_wal.rs`, `malformed_wal_with_noncurrent_standalone_main_refuses_without_mutation`.
+
+No assertion, fixture or test name changes.
+
+**REQ40-J2 — the `TooLate` message names the remedy.** The `Display`
+text of `RuntimeConfigurationError::TooLate` becomes:
+
+*"SQLite runtime configuration is too late: SQLite was initialized in
+this process before FathomDB configured it; call configure_runtime or
+open an Engine before any other SQLite connection (this process must
+restart)"*.
+
+The variant, the latch and the other messages do not change.
+
+**REQ40-J3 — docs.** `docs/reference/config.md` (Process-start SQLite
+mode) and `dev/interfaces/rust.md` (SQLite runtime configuration) gain
+one sentence each. It says that in a Rust process that also uses
+`rusqlite`, the first SQLite connection of any kind initializes the
+runtime, so `configure_runtime` or the first `Engine::open` must come
+before it.
+
+**REQ40-J4 — no engine behaviour change.**
+`ADR-0.8.25-sqlite-runtime-configuration` stays as it is: an implicit
+open after an outside initialization still fails closed with `TooLate`.
+
+**REQ40-J5 — measured.** Each of the five guarded binaries is looped in
+parallel before and after the guards (test-plan § 3i.3). After the
+guards, 0 of 50 runs fail with `TooLate` for each binary under default
+features and under `test-hooks`.
 
 ## 3. Non-goals
 
@@ -1241,7 +1376,7 @@ page cache cannot change results.
 - Unit I does not add a page-cache knob, change `cache_size`, install a
   custom page cache (`SQLITE_CONFIG_PCACHE2`) or change any other SQLite
   compile flag. It adds no runtime mitigation for published Rust crates
-  unless ruling Q-I1 asks for one.
+  (ruling Q-I1: option (a), document only).
 
 ## 4. Candidate bound of `search_text_only`: out of scope
 
@@ -1376,13 +1511,17 @@ tests are in the `fathomdb-query` test module (AC40-74),
 | AC40-93 | Interface docs, the hybrid guide and the CHANGELOG describe H2 and H3 (H1 superseded: no stop-list doc change on Slice 40); `agent-lint-docs.sh` passes | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | H2, H5 |
 | AC40-94 | Re-runs with receipts at the Unit H commit; baseline manifest updated as test-plan § 3g.7 | orchestrator | H10 |
 | AC40-95 | The bundled SQLite is built without `SQLITE_ENABLE_MEMORY_MANAGEMENT`: `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT") == 0` | `bundled_sqlite_keeps_a_page_cache_per_connection` (`tests/slice40_reader_page_cache.rs`) | I1, I2 |
-| AC40-96 | After one reader runs a read larger than its cache budget, that reader's `CACHE_USED` is at most 1.10 × 2,048,000 bytes | `a_heavy_read_stays_inside_its_own_page_cache` | I2 |
+| AC40-96 | After one reader runs a read larger than its cache budget, that reader's `CACHE_USED` is at most 1.10 × 2,048,000 bytes. Arithmetic, stated in the test comment: `cache_size = -2000` gives `nMax = 2,048,000 / (page + extra)` pages, and `CACHE_USED` counts each page at its full allocation (page, extra and `PgHdr1`), so a full cache reports about 2.6% over 2,048,000 bytes (the probe's 2,053 KiB); `mxPinned` lets about ten more pinned pages through. 1.10× covers both; today's build gives 4,378 KiB | `a_heavy_read_stays_inside_its_own_page_cache` | I2 |
 | AC40-97 | After that read, every other reader's next pass over its own working set has zero `CACHE_MISS` delta (as its pass before the read did), and every pass returns the same ids | `other_readers_keep_their_page_caches_after_a_heavy_read` | I2 |
 | AC40-98 | The vendored-tree digest is the same in `FATHOMDB-PATCH.md`, `pinned-override-rot.json` and the checker constant; the amalgamation digest is unchanged; the checker passes | `./scripts/check-pinned-override-rot.sh` and its fixture tests | I1 |
-| AC40-99 | `rust.md`, `rust-sdk.md`, `pinned-override-rot-guard.md`, `FATHOMDB-PATCH.md` and the CHANGELOG describe the change and the published-crate reach (REQ40-I4 as ruled under Q-I1); no knob, no `cache_size` change | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | I3, I4 |
+| AC40-99 | `rust.md`, `rust-sdk.md`, `pinned-override-rot-guard.md`, `FATHOMDB-PATCH.md` and the CHANGELOG describe the change and the published-crate reach (REQ40-I4, Q-I1 ruled (a)); no knob, no `cache_size` change | review plus `./scripts/agent-lint-docs.sh` and `./scripts/agent-lint-md.sh` | I3, I4 |
 | AC40-100 | The report-only timing ran in a release build at the H3 commit and at the Unit I commit; its output is in the test plan | `reader_page_cache_timing_report` (`#[ignore]`) | I5 |
-| AC40-101 | Latency harness: each cell is timed on its own engine open, closed before the next; summary v2 records the method, the open count and the cell order; receipt config version 2; a v2 summary is classified under plan `comp02b-latency-v2` and a v1 summary still under `comp02b-latency-v1` | `test_latency_harness_times_each_cell_on_its_own_open`, `test_latency_receipt_config_names_the_measurement_method`, `test_classification_reads_a_v2_latency_summary_under_its_own_plan` (`comp03-slice40`) | I7 |
+| AC40-101 | Latency harness: each cell is timed on its own engine open, closed before the next; summary v2 records the method, the open count and the cell order; receipt config version 2; a v2 summary is classified under plan `comp02b-latency-v2` and a v1 summary still under `comp02b-latency-v1`; the v2 plan file is committed with the first v2 receipt | `test_latency_harness_times_each_cell_on_its_own_open`, `test_latency_receipt_config_names_the_measurement_method`, `test_classification_reads_a_v2_latency_summary_under_its_own_plan` (`comp03-slice40`) | I7 |
 | AC40-102 | COMP-02b: each cohort pass runs on its own open, closed before the next, and records its open index and the cohort order; the seeded query orders equal the single-open method's; `filtered-10000.v2.json` keeps v1's inputs and arms | `test_filtered_cell_times_each_cohort_on_its_own_open`, `test_filtered_cohort_orders_match_the_single_open_method`, `test_comp02b_v2_config_names_the_fresh_open_per_cohort_method` (`comp03-slice40`) | I7 |
 | AC40-103 | Unit I gate (REQ40-I6), at the Unit I commit against the H3 commit | orchestrator measurement after the code review | I6 |
 | AC40-104 | After a passed gate, the tc5-10k-latency and comp02b-10000 manifest entries take the Unit I values, the v2 commands and a method note; tolerances unchanged | orchestrator; `test_baseline_check.py` | I7 |
+| AC40-105 | Each of the five raw-first test sites calls `configure_runtime(RuntimeSqliteMode::Performance)` before its first raw open; no assertion, fixture or name changes | review of the diff; the sweep table (test-plan § 3i.2) | J1 |
+| AC40-106 | Parallel loops: after the guards, 0 of 50 runs fail for `pr_g8_dangling_edges`, `tc57_governed_write_race`, `pr_g3_read_collection` and `truncate_wal`, under default features and `test-hooks`; the before-counts are recorded | the loop in test-plan § 3i.3 | J1, J5 |
+| AC40-107 | The `TooLate` message is the REQ40-J2 text; the variant and the latch are unchanged | `cargo test -p fathomdb-engine` (the runtime-configuration tests pass unchanged); review | J2, J4 |
+| AC40-108 | `config.md` and `rust.md` carry the REQ40-J3 sentence; `agent-lint-docs.sh` and `agent-lint-md.sh` pass | review plus the two linters | J3 |
 | AC40-24 | The full gate passes | `cargo test -p fathomdb-engine`, `cargo test -p fathomdb-query`, `./scripts/agent-lint.sh`, `./scripts/agent-lint-md.sh`, then `./scripts/agent-verify.sh` on the final W5 tree | all |

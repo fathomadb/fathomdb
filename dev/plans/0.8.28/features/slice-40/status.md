@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — status
-status: ACTIVE (Defects A–C and Units D–G landed and measured at engine 5b09afd44; Unit H added 2026-10-16, code committed; Unit I added 2026-10-16, docs for review)
+status: ACTIVE (Defects A–C and Units D–G landed and measured at engine 5b09afd44; Unit H added 2026-10-16, code committed; Unit I added 2026-10-16, plan reviewed; Unit J added 2026-10-16, docs for re-check)
 target_release: 0.8.28
 observed_on: 2026-10-15
 ---
@@ -44,6 +44,8 @@ for phase 1 is `output.json` in this directory.
 | H1 superseded | owner ruling 2026-10-16: the H1 words are not added to the default `STOPWORDS` (stays 63); Slice 41 adds a configurable extra stop-word list, empty by default, and the benchmarks pass `had`, `long`, `suggest` through it; H1 engine RED `ee0c5e917` reverted at `fb42f612e`; H2 gate reference is the final-head baseline |
 | I-W1 Unit I docs | done 2026-10-16 (owner ruling): requirements § 1.7, REQ40-I1..I7, AC40-95..104; design § 2h; test-plan § 3h, § 12 (Q-I1..Q-I4). Mechanism read from the bundled SQLite source and confirmed by a raw-SQLite and an engine probe, each RED with the vendored flags and GREEN with `-USQLITE_ENABLE_MEMORY_MANAGEMENT`; plan review pending |
 | I harness (`comp03-slice40`) | fresh open per latency cell and per COMP-02b cohort: RED `d18b9c01a`, GREEN `d52d5d4a5`; summary v2, config v2, plan `comp02b-latency-v2`, `filtered-10000.v2.json`; `tests/experiments` 907 passed with the four known failures (test-plan § 3h.4) |
+| I-R1 plan review | APPROVE-WITH-FIXES (F1–F9) applied: successor ADR `ADR-0.8.28-sqlite-per-connection-page-cache` with an addendum in the 0.7.0 AC-020 ADR (F1); resident memory can rise toward the unchanged ceiling, twelve connections per engine by default (F2); Q-I1 (a) document only (F3); counter tests serialized (F4); AC40-96 arithmetic (F5); test fixture `default_cache_size` noted (F6); harness notes (F7, F8); gate references the H3 commit re-measured with v2 (F9). Q-I2 confirmed, Q-I3 ledger follow-up, Q-I4 confirmed |
+| J-W1 Unit J docs | done 2026-10-16 (owner ruling: pr_g8 race fix lands before Unit I's RED/GREEN; guard-only edits to existing tests approved): requirements § 1.8, REQ40-J1..J5, AC40-105..108; design § 2i; test-plan § 3i (sweep: five guard sites, every other hit cleared with reason) |
 
 ## Follow-ups (not in this slice)
 

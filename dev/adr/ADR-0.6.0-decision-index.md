@@ -159,12 +159,13 @@ Slice-0 gate before Slices 15 and 25 open.
 | 60 | interface | Add a dedicated `fathomdb-sdk` Rust crate carrying the 44 governed Python/TypeScript operations, namespaces, defaults and error categories under fixed translation rules; check it in the operation map; amend (not supersede) BIND-RUST | accepted by repository-owner 2026-10-06 direction, conditioned on the reviewed Slice 132 design | ADR-0.8.27-rust-sdk-parity.md |
 | 61 | release | Distribute a separately named, dual-runtime CUDA Node addon for classic Jetson Orin as an exact-version tarball through the existing Tegra Pages route, not the npm registry, in 0.8.27; loader selects it only on detected Tegra with an exact version match | accepted by repository-owner 2026-10-09 (`slice-117-delivery-shape`; channel ruled 2026-10-05 by `slice-117-channel-tegra-pages`; follows 2026-10-05 supersession of D-80.7-3/D-80.6-2) | ADR-0.8.27-jetson-tegra-node-addon-distribution.md |
 
-## Phase 0.8.28 (Tegra private CUDA memory pool; CUDA version support)
+## Phase 0.8.28 (Tegra private CUDA memory pool; CUDA version support; SQLite page cache)
 
 | # | Category | Candidate decision | HITL verdict | ADR file |
 | - | -------- | ------------------ | ------------ | -------- |
 | 62 | architecture | On the Jetson AGX Orin 64 GB, behind the non-default `tegra-pool` feature, allocate every FathomDB CUDA context from one private capped pool with release threshold 0; decide once at first GPU use, fall back to the 0.8.27 path at the decision and fail closed with typed errors afterwards; amend ADR-0.6.0-embedder-protocol for three `EmbedderError` variants (axis E 0.7.0) | accepted (owner rulings 25–38; 2026-10-08 HITL); amended by Slice 31: published fork crates | ADR-0.8.28-tegra-private-cuda-pool.md |
 | 63 | release | FathomDB GPU artifacts support CUDA 12.x and 13.x libraries on Turing or newer GPUs; 12.6 is the shipping floor, 13.0 the next artifact, 11.x unsupported; every release re-reviews CUDA usage and importance | accepted (owner, 2026-10-11); amended by Slice 31: loaded-library check and GPU floor | ADR-0.8.28-cuda-version-support-policy.md |
+| 64 | architecture | Build the bundled SQLite without `SQLITE_ENABLE_MEMORY_MANAGEMENT` so each connection has its own page cache and no global page-cache mutex; no page-cache knob, ceiling unchanged; published Rust crates documented (`LIBSQLITE3_FLAGS`), not mitigated; corrects the page-cache premise of ADR-0.7.0-ac020-architectural-lever | accepted for implementation (owner ruling 2026-10-16, Slice 40 Unit I); effective when the Unit I gate passes | ADR-0.8.28-sqlite-per-connection-page-cache.md |
 
 ## Categories
 

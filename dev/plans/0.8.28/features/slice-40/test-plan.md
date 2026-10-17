@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 40 — test plan
-status: REVISED AFTER R1; Defect C and Units D–G GREEN (§ 5.4, § 5.6, § 5.8, § 5.10); Unit H tests planned 2026-10-16 (§ 3g, § 11), for review; Unit I tests planned 2026-10-16 (§ 3h, § 12), for review; Unit I harness GREEN (§ 3h.4)
+status: REVISED AFTER R1; Defect C and Units D–G GREEN (§ 5.4, § 5.6, § 5.8, § 5.10); Unit H tests planned 2026-10-16 (§ 3g, § 11), for review; Unit I tests planned 2026-10-16 (§ 3h, § 12), for review; Unit I harness GREEN (§ 3h.4); Unit I plan reviewed (§ 12); Unit J planned (§ 3i)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -635,7 +635,22 @@ documents with about 40 KB bodies, found by `s40ih`. Built, drained,
 closed and reopened. One *pass* is eight consecutive
 `search_text_only_with_limit(s40iw{w}, 100)` calls, where `w` is the
 value of `next_reader_worker_index_for_test()` before each call, so each
-reader runs its own set.
+reader runs its own set. Each call asserts its 40 rows, which proves it
+hit the intended set.
+
+The counter tests take a file-level `Mutex` (as the Defect C and H3
+files do, recovering a poisoned lock). In mode 2 every connection in the
+test process shares one group, so parallel tests would perturb each
+other's counters, and the RED record would not reproduce (review F4).
+At GREEN the lock is harmless.
+
+AC40-96's bound is written into the test comment with its arithmetic
+(review F5): `cache_size = -2000` gives `nMax = 2,048,000 / (page +
+extra)` pages; `CACHE_USED` counts each page at its full allocation
+(page, extra and `PgHdr1`), so a full cache reports about 2.6% over
+2,048,000 bytes, and `mxPinned` lets about ten more pinned pages
+through. A page-size or header-size change is therefore not a
+regression unless it passes 1.10×.
 
 | Test | Steps and assertions | AC |
 | --- | --- | --- |
@@ -738,6 +753,76 @@ python -m experiments.comp_record record experiments/configs/comp-02/filtered-10
 Then COMP-01 FTS and hybrid, COMP-02a 10k and 17k, and the COMP-03 sweep
 at the H3 commit and the Unit I commit, by the manifest's commands, for
 clause (iv).
+
+## 3i. Unit J tests
+
+### 3i.1 What changes
+
+No new test. Five existing test sites gain one guard call before their
+first raw open (REQ40-J1, owner-approved; no assertion change). The
+runtime-configuration tests pass unchanged under the new `TooLate`
+message: none asserts its text.
+
+### 3i.2 Sweep of raw-first tests (2026-10-16, this branch)
+
+Method:
+
+1. Scan every `crates/*/tests/*.rs` that has both a raw
+   `Connection::open` and an engine open.
+2. For each `#[test]`, find whether its first raw open comes before any
+   `Engine::open`, `configure_runtime` call or engine-opening helper.
+3. Read every hit by hand.
+
+The investigation's list (§ 1.5 of its proposal) was read file by file.
+
+| File | Test or helper | Verdict |
+| --- | --- | --- |
+| `pr_g8_dangling_edges.rs` | `s20_endpoint_probe_hits_partial_index_no_scan` (raw open l.239) | **guard**; l.121 and l.161 follow an engine open |
+| `tc57_governed_write_race.rs` | `wal_pair` (l.544), used by the three `tc57_mechanism_*` tests | **guard** in `wal_pair` |
+| `pr_g3_read_collection.rs` | `read_collection_plan_is_index_driven_no_scan_no_temp_btree` (l.176) | **guard** |
+| `truncate_wal.rs` | `noncurrent_database_is_refused_without_mutation` (l.196) | **guard** (found by this sweep) |
+| `truncate_wal.rs` | `malformed_wal_with_noncurrent_standalone_main_refuses_without_mutation` (l.276) | **guard** (found by this sweep) |
+| `truncate_wal.rs` | `counterfeit_current_schema_with_malformed_wal_refuses_without_mutation` | clear: `seed` opens an `Engine` first |
+| `tc90_transition_write_race.rs` | `tc90_mechanism_transition_sql_shape_on_real_schema_is_busy_5` | clear: `seeded_engine_db` opens an engine first |
+| `slice30_cuda_error_kinds.rs` | `the_projection_worker_records_the_pool_kind_stable_code` | clear: the raw open follows `opened.engine.close()` |
+| `eu5a2_machinery.rs` | three tests | clear: `open_noop` first |
+| `eu5b_lockflip.rs` | two tests | clear: `open_with_simulated_bge` first |
+| `eu5f_production_pin.rs` | four tests | clear: `open_caller` first |
+| `op_store.rs` | five tests | clear: `open_fixture` first |
+| `pr2b_mean_recompute.rs` | two tests | clear: `open_caller` first |
+| `tc33_edge_temporal_epoch.rs` | `tc33_p3_*`, `tc33_p5_*` | clear: `ingest` opens an engine first |
+| `tc68_probe_fingerprint_cache.rs` | two tests | clear: `seed_verified_workspace` opens an engine first |
+| `vector_equivalence_probe.rs` | five `*_fails_safe_not_open` tests | clear: `seed_references` opens an engine first |
+| `write_boundary_atomicity.rs` | `visibility_exhaustion_refusal_leaves_full_state_unchanged` | clear: `seeded` opens an engine first |
+| `correction_safe_erasure.rs` | seven tests | clear: `corrected_fixture*` opens an engine first |
+| `erasure_completeness.rs` | `child_holds_cross_process_wal_snapshot_windows` | clear: `#[ignore]`d child-process mode, alone in its process |
+| `opp12_lifecycle_verbs.rs` | `purge_erases_all_row_owned_targets_and_cascades_edges` | clear: `open` first |
+| `slice20_graph_evidence.rs` | three tests | clear: `fixture` / `canonical_target_fixture` first |
+| `slice50_evidence.rs` | two tests | clear: `open_with_fixed_embedder` / `graph_matrix_context` first |
+| `slice60_fix2_runtime.rs`, `slice60_fix4_dependency.rs` | one test each | clear: `open_populated` / `fixture` first |
+| `perf_gates_devloop.rs` | `ac_013b_devloop` | clear: `setup` opens the engine |
+| `slice40_fresh_database_cutover.rs` | `slice40_wal_fixture_child` | clear: child-process mode |
+| `fathomdb-cli/tests/slice30_operator_integrity_cli.rs` | two tests | clear: `fresh_database` opens an engine first |
+| `compatibility.rs`, `pr_g0_identity.rs` | four tests | already guarded |
+
+### 3i.3 Loops (RED before, GREEN after)
+
+The test binaries are built once per feature set, then looped directly:
+
+```bash
+cd src/rust
+cargo test -p fathomdb-engine --test <t> --no-run              # and --features test-hooks
+for i in $(seq 50); do <binary> >/dev/null 2>&1 || echo fail; done | wc -l
+```
+
+The targets are `pr_g8_dangling_edges`, `tc57_governed_write_race`
+(`test-hooks`), `pr_g3_read_collection` and `truncate_wal`.
+
+- RED, from the investigation's export: pr_g8 failed 19 of 30 runs
+  (default) and 29 of 30 (`test-hooks`); tc57 failed 30 of 30
+  (`test-hooks`). The counts on this branch before the guards are
+  recorded here at J-W2, with 30 runs per target.
+- GREEN: 0 of 50 for each target and feature set.
 
 ## 4. Existing tests touched
 
@@ -1576,6 +1661,21 @@ words. REQ40-H2, REQ40-H3 and AC40-74 to AC40-76 are superseded; the H2
 gate's reference is the final-head baseline.
 
 ## 12. Open questions for the Unit I plan review
+
+Plan review (2026-10-16, APPROVE-WITH-FIXES, F1–F9 applied). Rulings:
+
+- **Q-I1:** option (a), document only (coordinator, on the reviewer's
+  recommendation). A consumer-facing report of the effective page-cache
+  mode is a ledger follow-up.
+- **Q-I2:** 1.10× and 1.15× confirmed.
+- **Q-I3:** yes, as a ledger follow-up after this gate: one
+  `body-after-c01` cell on the same open, as a deliberate interference
+  metric with the body cell's tolerances. The fresh-open cells stay the
+  method of record.
+- **Q-I4:** confirmed: the gate reads the H3 commit's v2 attempts
+  through a scratch manifest copy, as § 3g.7 item 1.
+
+The questions as asked:
 
 - **Q-I1. Published Rust crates.** Builds that resolve the registry
   `libsqlite3-sys` keep the shared cache. Options:

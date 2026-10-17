@@ -9,8 +9,19 @@ use std::collections::BTreeSet;
 /// Relevant references among the first `k` of `ranked`, divided by `k` (not by
 /// the number returned: a list shorter than `k` is penalized).
 pub fn precision_at_k(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> f64 {
-    let _ = (ranked, gold, k);
-    0.0
+    if k == 0 {
+        return 0.0;
+    }
+    relevant_in_top(ranked, gold, k) as f64 / k as f64
+}
+
+fn relevant_in_top(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> usize {
+    let mut seen = BTreeSet::new();
+    ranked
+        .iter()
+        .take(k)
+        .filter(|reference| seen.insert(reference.as_str()) && gold.contains(*reference))
+        .count()
 }
 
 #[cfg(test)]

@@ -138,6 +138,7 @@ pub struct FetchArgs {
     /// Store name; defaults to the session default store.
     pub store: Option<String>,
     /// 1..=50 references (`l:<logical id>`).
+    #[schemars(length(min = 1, max = 50))]
     pub refs: Vec<String>,
     /// Validity instant, epoch seconds; defaults to now.
     pub as_of: Option<i64>,
@@ -166,11 +167,12 @@ pub struct ExpandArgs {
     /// Store name; defaults to the session default store.
     pub store: Option<String>,
     /// 1..=10 seed references (`l:<logical id>`).
+    #[schemars(length(min = 1, max = 10))]
     pub refs: Vec<String>,
     /// `out` (default), `in` or `both`.
     pub direction: Option<DirectionArg>,
     /// Hops, 0..=3; default 1.
-    #[schemars(range(max = 3))]
+    #[schemars(range(min = 0, max = 3))]
     pub max_depth: Option<u64>,
     /// Targets, 1..=50; default 20.
     #[schemars(range(min = 1, max = 50))]

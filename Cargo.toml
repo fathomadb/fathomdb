@@ -5,6 +5,7 @@ members = [
     "src/rust/crates/fathomdb-embedder",
     "src/rust/crates/fathomdb-embedder-api",
     "src/rust/crates/fathomdb-engine",
+    "src/rust/crates/fathomdb-mcp",
     "src/rust/crates/fathomdb-napi",
     "src/rust/crates/fathomdb-py",
     "src/rust/crates/fathomdb-query",
@@ -59,6 +60,7 @@ fathomdb              = { path = "src/rust/crates/fathomdb",              versio
 fathomdb-embedder     = { path = "src/rust/crates/fathomdb-embedder",     version = "0.8.27" }
 fathomdb-embedder-api = { path = "src/rust/crates/fathomdb-embedder-api", version = "0.6.1" }
 fathomdb-engine       = { path = "src/rust/crates/fathomdb-engine",       version = "0.8.27" }
+fathomdb-mcp          = { path = "src/rust/crates/fathomdb-mcp",          version = "0.8.27" }
 fathomdb-query        = { path = "src/rust/crates/fathomdb-query",        version = "0.8.27" }
 fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       version = "0.8.27" }
 fathomdb-sdk          = { path = "src/rust/crates/fathomdb-sdk",          version = "0.8.27" }

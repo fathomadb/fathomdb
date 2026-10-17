@@ -13,7 +13,9 @@
       "run_id": "measurement-classification-native-search-20260903T2255Z-b5f420c4",
       "record_sha256": "4f393460aab1be0ce7e58765879e0a2718c25ba747c69d8b4241b8c875d740ff",
       "reason": "invalid_ancillary_locator_quarantined"
-    },
+    }
+  ],
+  "runner_unrecoverable_runs": [
     {
       "run_id": "comp-03-hermes-answer-20261016T1239Z-2e410a4f",
       "record_sha256": "00ec2967fc7dc269c0744ebc56a0153ab385f50b8a757b97fba6a5a78fa7eb08",

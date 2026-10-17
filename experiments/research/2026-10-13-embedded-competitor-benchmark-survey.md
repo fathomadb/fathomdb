@@ -28,7 +28,7 @@ and the [competitive runner contract](../configs/competitive/README.md).
 ## Recommended next experiments
 
 1. **First: a real lexical retrieval workload.** Use the already acquired
-   [BEIR NFCorpus](../../data/corpus-data/raw/beir/nfcorpus/) test split:
+   BEIR NFCorpus (`data/corpus-data/raw/beir/nfcorpus/`, local and gitignored) test split:
    3,633 documents and 323 test query IDs with qrels are present locally.
    Freeze their hashes, document-to-record mapping, result unit, `top_k=10`,
    scoring definitions (nDCG@10, recall@10, MRR where justified), query order,

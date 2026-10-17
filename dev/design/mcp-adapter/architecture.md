@@ -421,6 +421,8 @@ and each is read-side unless noted. The adapter reports the dependent signal as
 | Interruptible search; scope-limited drift signal | MR-033, MR-051 | Quality improvements; not prerequisites. |
 | Telemetry sink nonce (optional) | MR-024.7 | `TelemetrySink.nonce` is always 0 and the sequence restarts on enable, so query ids repeat across re-enables on one sink file, and `record_feedback` accepts a reused id. The adapter works around this with per-epoch sink files; an engine nonce would fix it for every SDK user. Not a prerequisite. |
 
+Draft engine proposals for these additions, written after the adapter-only build, are indexed in [engine-proposals/README.md](engine-proposals/README.md).
+
 Sequencing follows from the table. The first release is read-only and
 unscoped, needs only the state read, and meets reach, hygiene,
 readiness, deadlines, as-of, fetch by logical id, expand, budget, determinism,

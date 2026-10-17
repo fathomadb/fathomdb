@@ -138,3 +138,184 @@ def test_run_arm_checks_the_budget_before_each_question(tmp_path: Path) -> None:
         mal.run_arm(_questions(3), process, checkpoint, resume=False, ledger=ledger)
     assert seen == ["conv0_q0"]
     assert checkpoint.done_ids() == {"conv0_q0"}
+
+
+# --- backoff -----------------------------------------------------------------
+
+
+class _HttpError(Exception):
+    def __init__(self, status_code: int, headers: dict | None = None) -> None:
+        super().__init__(f"http {status_code}")
+        self.status_code = status_code
+        self.response = type("R", (), {"headers": headers or {}})()
+
+
+def test_backoff_retries_429_honouring_retry_after_then_succeeds() -> None:
+    sleeps: list[float] = []
+    attempts = iter([_HttpError(429, {"retry-after": "30"}), _HttpError(503), "ok"])
+
+    def call() -> str:
+        item = next(attempts)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    assert mal.with_backoff(call, sleep=sleeps.append, base_seconds=2.0) == "ok"
+    assert sleeps[0] == pytest.approx(30.0)
+    assert len(sleeps) == 2 and sleeps[1] >= 2.0
+
+
+def test_backoff_does_not_retry_client_errors() -> None:
+    sleeps: list[float] = []
+
+    def call() -> str:
+        raise _HttpError(400)
+
+    with pytest.raises(_HttpError):
+        mal.with_backoff(call, sleep=sleeps.append)
+    assert sleeps == []
+
+
+def test_backoff_gives_up_after_the_attempt_limit() -> None:
+    sleeps: list[float] = []
+    calls: list[int] = []
+
+    def call() -> str:
+        calls.append(1)
+        raise _HttpError(500)
+
+    with pytest.raises(_HttpError):
+        mal.with_backoff(call, sleep=sleeps.append, max_attempts=3)
+    assert len(calls) == 3 and len(sleeps) == 2
+
+
+# --- gold mapping and parsing ------------------------------------------------
+
+
+def test_evidence_ids_are_split_repaired_and_filtered_like_the_rust_evaluator() -> None:
+    assert mal.normalize_evidence("D1:3") == ["D1:3"]
+    assert mal.normalize_evidence("D8:6; D9:17") == ["D8:6", "D9:17"]
+    assert mal.normalize_evidence("D9:1 D4:4 D4:6") == ["D9:1", "D4:4", "D4:6"]
+    assert mal.normalize_evidence("D:11:26") == ["D11:26"]
+    assert mal.normalize_evidence("D30:05") == ["D30:5"]
+    assert mal.normalize_evidence("D") == []
+
+
+def test_refs_are_extracted_from_tool_text() -> None:
+    text = '1. l:0:D1:17 kind="note"\nl:0:D12:3 body="x l:3:D1:1"'
+    assert mal.refs_in_text(text) == {"l:0:D1:17", "l:0:D12:3", "l:3:D1:1"}
+
+
+def test_judge_label_parsing_matches_the_official_harness() -> None:
+    assert mal.judge_score({"label": "CORRECT", "reasoning": "r"}) == 1.0
+    assert mal.judge_score({"label": "correct"}) == 1.0
+    assert mal.judge_score({"label": "WRONG"}) == 0.0
+    assert mal.judge_score({}) == 0.0
+    assert mal.unwrap_judge_json('{"final": {"label": "CORRECT"}}') == {"label": "CORRECT"}
+    assert mal.unwrap_judge_json('{"final": "{\\"label\\": \\"WRONG\\"}"}') == {"label": "WRONG"}
+
+
+def test_answer_extraction_takes_text_after_the_last_answer_marker() -> None:
+    assert mal.extract_answer("Step 1 ... ANSWER: x\nANSWER: Paris") == "Paris"
+    assert mal.extract_answer("Paris") == "Paris"
+
+
+def test_tools_become_functions_without_output_schema() -> None:
+    tools = [{"name": "search", "description": "Search.", "inputSchema": {"type": "object"},
+              "outputSchema": {"type": "object"}}]
+    assert mal.tools_to_functions(tools) == [
+        {"type": "function", "function": {"name": "search", "description": "Search.",
+                                          "parameters": {"type": "object"}}}
+    ]
+
+
+# --- agent budget ------------------------------------------------------------
+
+
+_FUNCTIONS = mal.tools_to_functions([
+    {"name": name, "description": name, "inputSchema": {"type": "object"}}
+    for name in ("search", "fetch", "orient")
+])
+
+
+class _Model:
+    """Scripted model: each turn returns the next list of (name, args) calls, or a final answer."""
+
+    def __init__(self, script: list) -> None:
+        self.script = list(script)
+        self.offered: list[tuple[list[str], str]] = []
+
+    def __call__(self, messages: list[dict], functions: list[dict], tool_choice: str) -> mal.ModelTurn:
+        self.offered.append(([f["function"]["name"] for f in functions], tool_choice))
+        usage = mal.Usage(100, 0, 10, 0)
+        if tool_choice == "none":
+            return mal.ModelTurn(content="forced answer", tool_calls=[], usage=usage)
+        step = self.script.pop(0) if self.script else "done"
+        if isinstance(step, str):
+            return mal.ModelTurn(content=step, tool_calls=[], usage=usage)
+        calls = [mal.ToolCall(id=f"c{len(self.offered)}-{i}", name=n, arguments=json.dumps(a))
+                 for i, (n, a) in enumerate(step)]
+        return mal.ModelTurn(content=None, tool_calls=calls, usage=usage)
+
+
+def _tool(name: str, args: dict) -> tuple[str, bool]:
+    return f"{name} result l:0:D1:1", False
+
+
+def test_agent_stops_offering_search_after_three_searches() -> None:
+    model = _Model([[("search", {"query": "a"})], [("search", {"query": "b"})],
+                    [("search", {"query": "c"})], [("orient", {})], "final"])
+    trace = mal.run_agent_loop("q?", system_prompt="s", functions=_FUNCTIONS, model_turn=model, call_tool=_tool)
+    executed = [c["name"] for c in trace.tool_log if c["executed"]]
+    assert executed == ["search", "search", "search", "orient"]
+    assert "search" not in model.offered[3][0]
+    assert trace.forced_final is True  # the fourth call spent the budget
+    assert trace.final_answer == "forced answer"
+    assert model.offered[-1][1] == "none"
+
+
+def test_agent_never_executes_more_than_four_calls_and_answers_every_call_id() -> None:
+    model = _Model([[("fetch", {"refs": ["l:0:D1:1"]})] * 3, [("fetch", {}), ("search", {"query": "x"})]])
+    seen_messages: list[list[dict]] = []
+
+    def recording_model(messages: list[dict], functions: list[dict], tool_choice: str) -> mal.ModelTurn:
+        seen_messages.append([dict(m) for m in messages])
+        return model(messages, functions, tool_choice)
+
+    trace = mal.run_agent_loop("q?", system_prompt="s", functions=_FUNCTIONS, model_turn=recording_model,
+                               call_tool=_tool)
+    assert sum(c["executed"] for c in trace.tool_log) == 4
+    assert [c["executed"] for c in trace.tool_log] == [True, True, True, True, False]
+    final_messages = seen_messages[-1]
+    call_ids = [tc["id"] for m in final_messages if m["role"] == "assistant" for tc in m.get("tool_calls", [])]
+    answered = [m["tool_call_id"] for m in final_messages if m["role"] == "tool"]
+    assert call_ids == answered
+    assert trace.forced_final is True
+
+
+def test_agent_that_answers_directly_is_not_forced() -> None:
+    model = _Model([[("search", {"query": "a"})], "the answer"])
+    trace = mal.run_agent_loop("q?", system_prompt="s", functions=_FUNCTIONS, model_turn=model, call_tool=_tool)
+    assert trace.final_answer == "the answer"
+    assert trace.forced_final is False
+    assert trace.refs_seen == {"l:0:D1:1"}
+    assert len(trace.turn_usage) == 2
+
+
+def test_tool_errors_are_passed_back_as_their_text() -> None:
+    model = _Model([[("search", {"query": "a"})], "x"])
+
+    def failing(name: str, args: dict) -> tuple[str, bool]:
+        return "error invalid_request/bad_argument: nope", True
+
+    trace = mal.run_agent_loop("q?", system_prompt="s", functions=_FUNCTIONS, model_turn=model, call_tool=failing)
+    assert trace.tool_log[0]["is_error"] is True
+    assert trace.messages[3]["content"] == "error invalid_request/bad_argument: nope"
+
+
+def test_bootstrap_ci_is_deterministic_for_a_seed() -> None:
+    values = [1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0]
+    first = mal.bootstrap_ci(values, seed=7, resamples=2000)
+    assert first == mal.bootstrap_ci(values, seed=7, resamples=2000)
+    assert first[0] <= sum(values) / len(values) <= first[1]
+    assert mal.bootstrap_ci([1.0] * 5, seed=1, resamples=100) == (1.0, 1.0)

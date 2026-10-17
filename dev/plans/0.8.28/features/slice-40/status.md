@@ -50,6 +50,7 @@ for phase 1 is `output.json` in this directory.
 | J-W4 Unit J | guards at the five sites, `TooLate` message, `config.md` and `rust.md` sentences; loops 30 runs per target and feature set: tc57 30/30 → 0/30, pr_g8 default 2/30 → 0/30, every other cell 0 → 0 (test-plan § 3i.3) |
 | I-W2/W4/W5 Unit I | RED `fdf1f0c72` (3 failed for the shared page cache); GREEN `65e6eff7e` (flag removed from the vendored `build.rs`, vendored-tree digest `ba21fdce…` in its three pins, patch note with the upstream exit condition, CHANGELOG and interface docs); scoped checks green except the known slice135 fd-count test (test-plan § 3h.1); timing report not run (no-benchmark instruction) |
 | I gate | REQ40-I6 PASS 2026-10-17 at `d10ad65d5` against H3 `417eac27d`, all four clauses (test-plan § 3h.6): after-c01 body ratio at most 1.02 (H3 2.7); every latency cell equal or lower (c01 11.98 → 6.80 ms); retrieval identical. `ADR-0.8.28-sqlite-per-connection-page-cache` accepted under the owner's conditional approval |
+| Landing review | Fable-medium, standing in for codex: LAND AFTER FIXES, no code defects. Fixed: P2, the false CHANGELOG sentence on the stop list (Defect B entry); P3, this file's stop-list follow-up marked done by D3; P3, the interface-doc leads in `rust.md`, `rust-sdk.md`, `python.md` and `typescript.md` no longer say "three search verbs". Two P3s stay follow-ups: a persistent non-syntax statement error runs the projected-search statement three times (`search.rs` near lines 296 and 468); the page-cache flag guard (`bundled_sqlite_keeps_a_page_cache_per_connection`) runs only under `test-hooks`, so move it to an ungated test file in Slice 42 |
 
 ## Follow-ups (not in this slice)
 
@@ -84,17 +85,13 @@ for phase 1 is `output.json` in this directory.
   near 100 and the fixed 100-row FTS window holds duplicate rows
   (requirements § 4). Pre-existing; the orchestrator files the ledger
   entry at landing.
-- Consider adding possessive/contraction fragments (s, t, ll, re, ve) to
-  STOPWORDS; needs its own measurement (R1 F2). First data point on the
-  10k TC-5 corpus: 50 of 100 queries carry a fragment, and `"s"` alone
-  matches 3,912 of 10,000 documents; the median candidate set per query
-  is 3,806 rows with fragments and 2,744 without. Second data point,
-  COMP-03 LongMemEval-S (60 questions): 41 carry a 1–2 character content
-  token after the Defect B fix, almost all short pronouns and particles
-  ("my", "me", "so", "up", "m", "ve"), not the "C"/"D3" cases the fix was
-  for; a retrieval-only rerun on this slice's engine changed 19 of 60
-  top-5 lists (session Recall@5 0.893 → 0.911, MRR 0.848 → 0.841). Extend
-  the list with short pronouns and particles as well as the fragments.
+- Done by Unit D3 at `5b09afd44` (REQ40-D5): the possessive and
+  contraction fragments (s, t, ll, re, ve, m) and the short pronouns and
+  particles named here (my, me, so, up) are in `STOPWORDS`, which now has
+  63 words; `d` stays a content token by ruling. The evidence that led to
+  it: on the 10k TC-5 corpus 50 of 100 queries carried a fragment and
+  `"s"` alone matched 3,912 of 10,000 documents; on COMP-03 41 of 60
+  questions carried a 1–2 character content token after the Defect B fix.
 - The public docs give `Σ 1/(60 + rank)`; the code uses `RRF_K = 30` and
   3:1 text weighting (design § 5).
 - COMP-01 NFCorpus re-run: done, see `nfcorpus-recovery.md` (nDCG@10

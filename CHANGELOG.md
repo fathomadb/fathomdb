@@ -163,8 +163,7 @@ AC-050c) gates merges against this invariant.
   as before. Agreement between arms still boosts a body.
 - (Slice 40) The text-query compiler keeps 1–2 character tokens ("C" in
   "Vitamin C", "D3", "II", "1" in "IGF-1"); before, they were dropped from
-  the FTS5 query. The stopword list is unchanged, so possessive and
-  contraction fragments such as "s" and "t" are now query terms too.
+  the FTS5 query.
 - (Slice 40) `search_projected_text` no longer sorts every matching row
   (with its body) before returning the top `limit`: it reads the
   projection's FTS5 index in rank order and stops once the limit and any

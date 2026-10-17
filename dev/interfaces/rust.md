@@ -1634,7 +1634,7 @@ cannot consume or disarm this pause. Arming twice before consumption panics.
 
 ## Search behaviour in 0.8.28 (Slice 40)
 
-The signatures are unchanged; the behaviour of three search verbs changed.
+The signatures are unchanged. The following search behaviour changed or is clarified.
 
 - **Query compilation** (`Engine::search_text_only`, and the text branch of `Engine::search`):
   the query is lowercased, split on non-alphanumeric characters, de-duplicated

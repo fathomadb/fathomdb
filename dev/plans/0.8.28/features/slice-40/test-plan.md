@@ -734,7 +734,23 @@ FATHOMDB_TC5_INPUTS=~/.cache/fathomdb-comp/tc5-10000 \
 ```
 
 Run at the H3 commit (the test file copied in, uncommitted there) and at
-the Unit I commit. Output: *not run yet*.
+the Unit I commit. Output: run by the orchestrator on 2026-10-17 at
+`d10ad65d5` and at H3 `417eac27d`, in a release build on a quiet host
+(full log `gate-unit-i.log` in the session scratchpad, sections
+`report-s40` and `report-h3`):
+
+| Commit | Route | Before pass 2 p50 | After c01: passes 1, 2, 3 p50 | Max ratio |
+| --- | --- | ---: | --- | ---: |
+| `d10ad65d5` | Defect C | 3.249 ms | 3.241, 3.203, 3.227 ms | 1.00 |
+| `d10ad65d5` | cohort | 3.286 ms | 3.358, 3.287, 3.322 ms | 1.02 |
+| H3 `417eac27d` | Defect C | 3.387 ms | 8.930, 9.088, 8.905 ms | 2.7 |
+| H3 `417eac27d` | cohort | 3.427 ms | 5.065, 5.919, 5.200 ms | 1.7 |
+
+- At H3, after the c01 query, the other readers' `cache_used_bytes`
+  collapse to about 4,957 bytes, and the per-pass `cache_miss` delta
+  rises from about 3,000 to about 80,000.
+- At `d10ad65d5`, every reader stays at 2,102,621 bytes, with about
+  3,000 misses per pass.
 
 ### 3h.4 Harness (`comp03-slice40`): fresh open per cell and per cohort
 
@@ -800,6 +816,56 @@ python -m experiments.comp_record record experiments/configs/comp-02/filtered-10
 Then COMP-01 FTS and hybrid, COMP-02a 10k and 17k, and the COMP-03 sweep
 at the H3 commit and the Unit I commit, by the manifest's commands, for
 clause (iv).
+
+### 3h.6 Unit I gate result (REQ40-I6): PASS
+
+Measured by the orchestrator on 2026-10-17, at the Unit I head
+`d10ad65d5`, against H3 `417eac27d` re-measured with the v2 harness, on a
+quiet host. All four clauses pass. As a result, the ADR is accepted
+under the owner's conditional approval.
+
+**(i) Timing report.** The max after/before ratio is 1.00 on the
+Defect C route and 1.02 on the cohort route, against a limit of 1.15.
+At H3 it was 2.7 and 1.7 (§ 3h.3).
+
+**(ii) tc5-10k-latency, fresh open per cell.** Short results are equal
+(c01 6, others 0). Baseline `5b09afd44` c01 p50, for the record:
+30.85 ms.
+
+| Cell | H3 p50 / p95 (ms) | `d10ad65d5` p50 / p95 (ms) |
+| --- | --- | --- |
+| body | 3.26 / 6.09 | 3.29 / 5.97 |
+| c01 | 11.98 / 18.76 | 6.80 / 10.31 |
+| c10 | 6.22 / 14.60 | 4.05 / 6.84 |
+| c33 | 3.12 / 5.76 | 3.00 / 5.70 |
+| single-term | 0.98 / 1.08 | 0.95 / 1.01 |
+| unfiltered | 2.81 / 5.43 | 2.75 / 5.28 |
+
+**(iii) COMP-02b, `filtered-10000.v2`.** FathomDB median p50 / p95 over
+four repetitions. Violations are 0. Short results are equal: 6 per
+repetition at c01, 0 for c10 and c33. Baseline c01 p50: 29.66 ms.
+
+| Cohort | H3 p50 / p95 (ms) | `d10ad65d5` p50 / p95 (ms) |
+| --- | --- | --- |
+| c01 | 12.12 / 18.75 | 6.55 / 10.00 |
+| c10 | 5.13 / 14.74 | 3.77 / 6.68 |
+| c33 | 3.17 / 5.81 | 2.99 / 5.63 |
+
+**(iv) Results and the other benchmarks.**
+
+- COMP-01 nDCG@10 is identical at both commits: FTS
+  0.32654556565017173, hybrid 0.3554819298444284.
+- COMP-03 retrieval sweep v1 (harness `821e649e5`): of 547 summary
+  leaves, the only 13 that differ are timing fields. Every retrieval
+  metric is identical for FTS, hybrid and LanceDB. No sweep receipts
+  were written, because the exported harness had no git repository. The
+  summaries are at `~/.cache/fathomdb-comp/ui-{h3,s40}-sweep/summary.json`.
+- COMP-02a FathomDB median query-ready / p50 / p95:
+
+  | Corpus | H3 | `d10ad65d5` |
+  | --- | --- | --- |
+  | 10k | 1.404 s / 3.82 / 12.49 ms | 1.400 s / 3.22 / 5.96 ms |
+  | 17k | 2.500 s / 6.32 / 20.74 ms | 2.486 s / 4.99 / 9.60 ms |
 
 ## 3i. Unit J tests
 

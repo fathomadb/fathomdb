@@ -49,6 +49,7 @@ for phase 1 is `output.json` in this directory.
 | ADR approval | owner ruling 2026-10-16: "If Unit I's gate passes, I approve the ADR" (`ADR-0.8.28-sqlite-per-connection-page-cache`). Conditional: the status stays proposed and flips to accepted, citing this ruling and the gate receipts, only after the gate is reported passed |
 | J-W4 Unit J | guards at the five sites, `TooLate` message, `config.md` and `rust.md` sentences; loops 30 runs per target and feature set: tc57 30/30 → 0/30, pr_g8 default 2/30 → 0/30, every other cell 0 → 0 (test-plan § 3i.3) |
 | I-W2/W4/W5 Unit I | RED `fdf1f0c72` (3 failed for the shared page cache); GREEN `65e6eff7e` (flag removed from the vendored `build.rs`, vendored-tree digest `ba21fdce…` in its three pins, patch note with the upstream exit condition, CHANGELOG and interface docs); scoped checks green except the known slice135 fd-count test (test-plan § 3h.1); timing report not run (no-benchmark instruction) |
+| I gate | REQ40-I6 PASS 2026-10-17 at `d10ad65d5` against H3 `417eac27d`, all four clauses (test-plan § 3h.6): after-c01 body ratio at most 1.02 (H3 2.7); every latency cell equal or lower (c01 11.98 → 6.80 ms); retrieval identical. `ADR-0.8.28-sqlite-per-connection-page-cache` accepted under the owner's conditional approval |
 
 ## Follow-ups (not in this slice)
 

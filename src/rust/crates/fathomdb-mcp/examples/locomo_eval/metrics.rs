@@ -27,20 +27,28 @@ pub fn recall_at_k(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> f64 
 /// Reciprocal rank of the first relevant reference within the first `k`;
 /// 0 when none is there.
 pub fn reciprocal_rank_at_k(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> f64 {
-    let _ = (ranked, gold, k);
-    0.0
+    ranked
+        .iter()
+        .take(k)
+        .position(|reference| gold.contains(reference))
+        .map_or(0.0, |index| 1.0 / (index + 1) as f64)
 }
 
 /// 1 when any of the first `k` references is relevant, else 0.
 pub fn hit_at_k(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> f64 {
-    let _ = (ranked, gold, k);
-    0.0
+    if relevant_in_top(ranked, gold, k) > 0 {
+        1.0
+    } else {
+        0.0
+    }
 }
 
 /// Arithmetic mean; 0 for no values.
 pub fn mean(values: &[f64]) -> f64 {
-    let _ = values;
-    0.0
+    if values.is_empty() {
+        return 0.0;
+    }
+    values.iter().sum::<f64>() / values.len() as f64
 }
 
 fn relevant_in_top(ranked: &[String], gold: &BTreeSet<String>, k: usize) -> usize {

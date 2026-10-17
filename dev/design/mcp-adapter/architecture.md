@@ -183,7 +183,8 @@ What a reopen must restore, and where it lives:
 | Frozen-read key, visibility generation, write cursor | Database file | Yes | Nothing to do: tokens, state identifiers and cursors stay valid. |
 | Continuation authentication key | Adapter process | Yes, within the process | Nothing to do. After a process restart, old continuations fail as invalid request with a remedy. |
 | Session's last state identifier and cursor, per store | Adapter session | Yes | Compared on the next read. If another process changed the store while it was closed, the response is labelled `state_advanced` (MR-006.3). |
-| Telemetry sink (`enable_telemetry`) | Engine instance | No | Re-applied from launch policy. Each sink has a new nonce, so pre-close feedback returns `not_recorded` (MR-006.5). |
+| Telemetry sink (`enable_telemetry`) | Engine instance | No | Re-enabled on a fresh sink file for the new open epoch (MR-024.7). The engine reuses query ids after re-enable (nonce fixed at 0, sequence restarts), so the adapter itself refuses feedback from an earlier epoch with `not_recorded` (MR-006.5). |
+| Open epoch | Adapter registry | Incremented on every open | Stamped into every response context; feedback and continuations are checked against it. |
 | Diagnostics subscriber (`attach_subscriber`), profiling, slow-query threshold | Engine instance | No | Re-applied from launch policy (MR-006.2). |
 | Embedder warm-up, open report, readiness | Engine instance | No | Recomputed; the store reports not-ready, phase `reopening`, until done (MR-006.4). |
 | Admission count, idle clock | Adapter bridge | Reset | Start from zero for the new engine. |
@@ -269,10 +270,28 @@ engine column is what §7 must add.
 
 Feedback is recorded and has no other effect. What FathomDB does with it is
 deliberately undecided (owner, 2026-10-17), so nothing in ranking, defaults or
-determinism may depend on it until a separate decision says so. The engine's
-feedback verb keys hits by numeric id and a telemetry query id. The adapter
-keeps that mapping inside the authenticated response context, so the agent
-names a response and references, never internal ids.
+determinism may depend on it until a separate decision says so.
+
+How feedback is credited to the right search, using only today's SDK:
+
+- **Per-search query id.** While telemetry is enabled, searches run with
+  `explain=true`. The engine assigns the telemetry query id to that search's
+  `explanation.correlation_id` while holding the sink lock, so each response
+  carries its own id. `last_telemetry_query_id` is never used: it is
+  engine-wide, and concurrent searches would swap it. The explanation is
+  removed from output unless requested, so responses stay byte-identical
+  (MR-043, MR-024.6).
+- **Response context.** The authenticated response context holds the store,
+  the open epoch, the query id and the reference-to-hit-id mapping that
+  `record_feedback` needs. The agent names a response and references, never
+  internal ids.
+- **Epochs and sink files.** Engine query ids are `q0-<seq>`, and the sequence
+  restarts on every `enable_telemetry`. The adapter therefore enables a fresh
+  sink file per open epoch, so ids are unique within each file (MR-024.7), and
+  refuses feedback whose epoch is not current (MR-006.5).
+
+An engine-side sink nonce would make ids unique even across re-enables on one
+file. That would help any SDK user, but the adapter does not depend on it (§7).
 
 Few tools with typed options, `search` over `list`, and a concise default with a
 detailed mode, per `dev/notes/agent-tools-regrade-of-query-interfaces.md`.
@@ -400,7 +419,7 @@ and each is read-side unless noted. The adapter reports the dependent signal as
 | Governed change feed keyed by write cursor and visibility generation | MR-055 | No suitable verb exists. |
 | Exact-duplicate rule on write | MR-062 | Engine-owned normalization. |
 | Interruptible search; scope-limited drift signal | MR-033, MR-051 | Quality improvements; not prerequisites. |
-| Search returns its own telemetry query id | MR-024.6 | `last_telemetry_query_id` is engine-wide; until this lands the adapter serialises telemetry-captured searches per store. |
+| Telemetry sink nonce (optional) | MR-024.7 | `TelemetrySink.nonce` is always 0 and the sequence restarts on enable, so query ids repeat across re-enables on one sink file, and `record_feedback` accepts a reused id. The adapter works around this with per-epoch sink files; an engine nonce would fix it for every SDK user. Not a prerequisite. |
 
 Sequencing follows from the table. The first release is read-only and
 unscoped, needs only the state read, and meets reach, hygiene,

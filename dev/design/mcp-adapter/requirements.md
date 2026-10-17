@@ -141,9 +141,12 @@ Reconnection needs no MCP-level refresh. Meets AN-013, AN-018.
   (MR-003.2), and a call that carries an MCP progress token receives progress
   notifications until the store is ready.
 - MR-006.5 Feedback (MR-024) naming a response issued before the close returns
-  `not_recorded` with reason `store_reopened`, never an error. The engine accepts
-  only query ids issued by the current telemetry sink, and each open creates a
-  new sink nonce, so such feedback cannot be recorded.
+  `not_recorded` with reason `store_reopened`, never an error, and nothing is
+  written to any sink. The adapter enforces this itself: each response context
+  records the store's open epoch, and feedback from an earlier epoch is
+  refused. The engine cannot enforce it: its telemetry nonce is always 0 and
+  its sequence restarts on every enable, so a pre-close query id is accepted by
+  `record_feedback` and would be credited to whichever new search reused it.
 - MR-006.6 A failed reopen (for example, another process took the lock while
   the store was closed) yields the typed open error for that store, and the next
   call retries the open; it does not stay failed for the life of the process.
@@ -286,11 +289,19 @@ Meets AN-021.
   the telemetry sink and not to the database (MR-060.1 still holds).
 - MR-024.5 Feedback naming a response from another store, or references not in
   that response, fails as invalid request.
-- MR-024.6 Under concurrent searches, feedback is attributed to the search that
-  produced the named response. **[engine]**: today the only way to get a query
-  id is `last_telemetry_query_id`, which is engine-wide, so concurrent searches
-  can swap ids. Until search returns its own query id, the adapter serialises
-  telemetry-captured searches per store.
+- MR-024.6 Under concurrent searches, feedback is credited to the search that
+  produced the named response. While telemetry is enabled, the adapter runs
+  searches with `explain=true` and takes the query id from that search's own
+  `explanation.correlation_id`, which the engine assigns under the sink lock. It
+  never uses `last_telemetry_query_id`, which is engine-wide and can be swapped
+  between concurrent searches. The explanation is dropped from the response
+  unless the caller asked for it, so output is unchanged (MR-043).
+- MR-024.7 Every telemetry query id the adapter records is unique within its
+  sink file. The adapter enables a fresh sink file on every open, named from the
+  operator's telemetry directory, the store and the open epoch, because
+  re-enabling on the same file would repeat ids (sequence restarts at 0). A
+  test runs two opens of one store with feedback in each and asserts that every
+  feedback record joins to exactly one capture event.
 
 ## Stopping
 

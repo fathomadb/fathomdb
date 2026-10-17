@@ -557,6 +557,22 @@ class ServedModelMismatch(RuntimeError):
     """Raised when the route answers with a different model than requested."""
 
 
+# Labels whose route model id differs from the label.
+REQUEST_MODEL_ID = {"gpt-5.4-mini": "openai/gpt-5.4-mini"}
+
+
+def request_model_id(model: str) -> str:
+    """The model id sent to the route for a model label."""
+    return REQUEST_MODEL_ID.get(model, model)
+
+
+def request_params(model: str, *, max_tokens: int) -> dict[str, Any]:
+    """Sampling parameters: reasoning models run at effort ``low``; others at temperature 0."""
+    if model.startswith("gpt-5"):
+        return {"reasoning_effort": "low", "max_completion_tokens": max_tokens}
+    return {"temperature": 0, "max_tokens": max_tokens}
+
+
 def check_served_model(model: str, served: str | None) -> None:
     """Raise ``ServedModelMismatch`` unless ``served`` starts with the model's provider id."""
     if served is None or not served.startswith(SERVED_MODEL_PREFIX[model]):
@@ -757,13 +773,8 @@ class ChatClient:
                  json_object: bool = False, max_tokens: int = 4096) -> ModelTurn:
         """One metered completion; raises ``BudgetExceeded`` before the call when the cap is reached."""
         self.ledger.check()
-        kwargs: dict[str, Any] = {"model": model, "messages": messages}
-        if model.startswith("gpt-5"):
-            kwargs["reasoning_effort"] = "low"
-            kwargs["max_completion_tokens"] = max_tokens
-        else:
-            kwargs["temperature"] = 0
-            kwargs["max_tokens"] = max_tokens
+        kwargs: dict[str, Any] = {"model": request_model_id(model), "messages": messages,
+                                  **request_params(model, max_tokens=max_tokens)}
         if functions is not None:
             kwargs["tools"] = functions
             kwargs["tool_choice"] = tool_choice or "auto"

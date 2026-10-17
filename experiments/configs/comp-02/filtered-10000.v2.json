@@ -34,7 +34,7 @@
   "roster": {
     "order": "AB/BA/BA/AB",
     "repetitions": 4,
-    "cell": "one arm x one fresh database, own subprocess; fresh open per cohort pass (c01, c10, c33), closed before the next; resume skips cells/*.json"
+    "cell": "one arm x one fresh database, own subprocess; fresh open per cohort pass (c01, c10, c33), closed before the next, for both arms; each pass's timed run follows its own warm run on the same open; v1 and v2 numbers are not comparable for either arm; peak_rss_mib is the maximum over the three opens; resume skips cells/*.json"
   },
   "run": "python -m experiments.comp_fts run --config experiments/configs/comp-02/filtered-10000.v2.json --inputs <inputs> --out <new attempt dir>",
   "report": "filtered",

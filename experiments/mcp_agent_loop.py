@@ -36,6 +36,38 @@ AGENT_SYSTEM_PROMPT = (
     "Use them to answer the user's question. Answer concisely. "
     "If the memory does not contain the answer, say that you do not know."
 )
+# The guided variant's client half; the server half is the live initialize
+# ``instructions``, prepended as a real MCP client does.
+GUIDED_CLIENT_PROMPT = (
+    "You answer questions from a memory store reached through the FathomDB tools. Always search before "
+    "answering, even if you think the memory will not have it. Use the key names, objects and events from "
+    "the question as the query, and keep the default limit of 10. Snippets show only the start of each "
+    "record; when a result looks relevant but its snippet is cut off or does not show the answer, fetch it. "
+    "If the first search misses, rephrase (synonyms, the other person's name, a related event) and search "
+    "again. Records may begin with a timestamp: use it to resolve relative times like \"last week\" into "
+    "absolute dates. Answer concisely from what you retrieved. Say you do not know only after at least two "
+    "searches found nothing relevant."
+)
+PROMPT_VARIANTS = ("neutral", "guided")
+
+
+def agent_system_prompt(variant: str, *, instructions: str | None) -> str:
+    """The agent's system prompt for a prompt variant.
+
+    ``neutral`` is the run-1 prompt and ignores ``instructions``. ``guided`` is
+    the server's initialize ``instructions``, a blank line, then
+    ``GUIDED_CLIENT_PROMPT``; it raises ``ValueError`` when the server sent no
+    instructions. Any other variant raises ``ValueError``.
+    """
+    if variant == "neutral":
+        return AGENT_SYSTEM_PROMPT
+    if variant == "guided":
+        if instructions is None or not instructions.strip():
+            raise ValueError("the guided prompt needs the server's initialize instructions")
+        return instructions + "\n\n" + GUIDED_CLIENT_PROMPT
+    raise ValueError(f"unknown prompt variant {variant!r}")
+
+
 MAX_TOOL_CALLS = 4
 MAX_SEARCH_CALLS = 3
 MAX_MODEL_TURNS = 8
@@ -508,8 +540,11 @@ BOOTSTRAP_RESAMPLES = 10_000
 ARM_SPECS: dict[str, dict[str, str]] = {
     "A1": {"kind": "single", "mode": "text", "model": "gpt-4o-mini"},
     "A2": {"kind": "single", "mode": "hybrid", "model": "gpt-4o-mini"},
-    "B-4o": {"kind": "agent", "mode": "hybrid", "model": "gpt-4o-mini"},
-    "B-5mini": {"kind": "agent", "mode": "hybrid", "model": "gpt-5-mini"},
+    "B-4o": {"kind": "agent", "mode": "hybrid", "model": "gpt-4o-mini", "prompt": "neutral"},
+    "B-5mini": {"kind": "agent", "mode": "hybrid", "model": "gpt-5-mini", "prompt": "neutral"},
+    "B-5.4mini": {"kind": "agent", "mode": "hybrid", "model": "gpt-5.4-mini", "prompt": "neutral"},
+    "B-4o-guided": {"kind": "agent", "mode": "hybrid", "model": "gpt-4o-mini", "prompt": "guided"},
+    "B-5.4mini-guided": {"kind": "agent", "mode": "hybrid", "model": "gpt-5.4-mini", "prompt": "guided"},
 }
 JUDGE_MODEL = "gpt-4o-mini"
 # The route must serve exactly the requested model; an alias remap stops the run.
@@ -634,6 +669,7 @@ class McpSession:
             "clientInfo": {"name": "mcp-agent-loop", "version": "1"},
         })
         self.server_info = init["result"].get("serverInfo", {})
+        self.instructions: str | None = init["result"].get("instructions")
         self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
 
     def _send(self, message: dict[str, Any]) -> None:
@@ -844,7 +880,7 @@ def _single_search(question: Question, *, mcp: McpSession, mode: str, grader: Gr
 
 
 def _agent(question: Question, *, mcp: McpSession, functions: list[dict[str, Any]], model: str,
-           grader: Grader) -> dict[str, Any]:
+           system_prompt: str, grader: Grader) -> dict[str, Any]:
     calls: list[dict[str, Any]] = []
     # The session default is per server; reset it so one question's use_store cannot leak into the next.
     mcp.call_tool("use_store", {"store": "conv0"})
@@ -876,7 +912,7 @@ def _agent(question: Question, *, mcp: McpSession, functions: list[dict[str, Any
         results.append(info)
         return text, is_error
 
-    trace = run_agent_loop(question.question, system_prompt=AGENT_SYSTEM_PROMPT, functions=functions,
+    trace = run_agent_loop(question.question, system_prompt=system_prompt, functions=functions,
                            model_turn=model_turn, call_tool=call_tool)
     generated = extract_answer(trace.final_answer)
     verdict = grader.judge(question, generated, calls)
@@ -907,6 +943,8 @@ def server_config(stores_dir: Path, mode: str) -> dict[str, Any]:
 
 def run_live(args: Any) -> int:
     """Run one arm against the live server and route, checkpointing each question."""
+    import hashlib
+
     spec = ARM_SPECS[args.arm]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -932,8 +970,16 @@ def run_live(args: Any) -> int:
             def process(question: Question) -> dict[str, Any]:
                 return _single_search(question, mcp=mcp, mode=spec["mode"], grader=grader)
         else:
+            system_prompt = agent_system_prompt(spec["prompt"], instructions=mcp.instructions)
+            prompt_record = {"arm": args.arm, "variant": spec["prompt"],
+                             "system_prompt_sha256": hashlib.sha256(system_prompt.encode()).hexdigest(),
+                             "instructions_sha256": hashlib.sha256((mcp.instructions or "").encode()).hexdigest(),
+                             "instructions_bytes": len((mcp.instructions or "").encode())}
+            (out / f"prompt-{args.arm}.json").write_text(json.dumps(prompt_record, indent=1), encoding="utf-8")
+
             def process(question: Question) -> dict[str, Any]:
-                return _agent(question, mcp=mcp, functions=functions, model=spec["model"], grader=grader)
+                return _agent(question, mcp=mcp, functions=functions, model=spec["model"],
+                              system_prompt=system_prompt, grader=grader)
         checkpoint = ArmCheckpoint(out / "arms" / args.arm)
         processed = run_arm(questions, lambda q: {"arm": args.arm, **process(q)}, checkpoint,
                             resume=args.resume, ledger=ledger)

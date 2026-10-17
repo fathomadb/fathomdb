@@ -670,7 +670,7 @@ the same probe gave 2,053 KiB, zero misses on every other reader and
 option 0. The precondition (zero misses on the third pass) held in both
 builds.
 
-**RED at I-W2** (2026-10-16, on `39255751d` plus the test file;
+**RED at I-W2** (2026-10-16, commit `fdf1f0c72`: `39255751d` plus the test file;
 `cargo test -p fathomdb-engine --features test-hooks --test
 slice40_reader_page_cache`): 3 failed, 1 ignored (the timing report).
 

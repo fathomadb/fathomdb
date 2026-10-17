@@ -52,6 +52,20 @@ for phase 1 is `output.json` in this directory.
 
 ## Follow-ups (not in this slice)
 
+- Slice 42 (owner ruling 2026-10-16), ledger seq 312
+  (`TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`):
+  `slice135_persistent_sqlite_full_preserves_state_until_cap_lifts` fails
+  its descriptor assertion in parallel runs of its binary.
+  - Rates: 9 of 10 parallel runs fail (fd 7 before, 12, 19 or 30 after).
+    The test alone passes 5 of 5, and with `--test-threads=1` 3 of 3
+    (4 and 4).
+  - Cause: it counts `/dev/fd` process-wide while the binary's other four
+    non-ignored tests open and close engines on parallel threads. The
+    result is therefore scheduling-dependent, and is not shown to be an
+    engine leak.
+  - The target requires `test-hooks`, so any parallel test-hooks run can
+    hit it.
+  - Unit I opens no descriptors.
 - Potential, not in this slice (ruling Q-E2): a build-info accessor
   (engine commit, features, `cuda_compiled`) in all three SDKs. It is a
   public-surface change that needs its own interface-doc and parity work.

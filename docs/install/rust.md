@@ -39,6 +39,16 @@ CLI:
 cargo install fathomdb-cli --version 0.8.27
 ```
 
+`cargo install` builds SQLite from the registry `libsqlite3-sys`, which shares
+one page cache across connections, so one large read can slow later reads
+until the CLI reopens the database. To build it with one page cache per
+connection, as builds from the FathomDB repository do from 0.8.28, set the
+flag for the install:
+
+```bash
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo install fathomdb-cli --version 0.8.27
+```
+
 For the immutable 0.8.27 data-plane inspection route, pin the exact version and
 verify the discovered binary:
 

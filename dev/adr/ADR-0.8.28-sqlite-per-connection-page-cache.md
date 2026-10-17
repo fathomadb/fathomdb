@@ -54,7 +54,10 @@ cognica-io/uqa-engine #348).
   behaviour. They get the fix without the override from the first
   `libsqlite3-sys` release containing `f31f7324`.
 - The vendored removal is temporary: it is dropped when FathomDB's
-  `libsqlite3-sys` pin reaches a release that contains `f31f7324`.
+  `libsqlite3-sys` pin reaches a release that contains `f31f7324`. The
+  guard test across that bump is
+  `bundled_sqlite_keeps_a_page_cache_per_connection`
+  (`tests/slice40_reader_page_cache.rs`), which fails if the flag returns.
 - On the 0.7.0 ADR's option 1: the global page-cache mutex is removed by
   this build change, not by a custom allocator. A `SQLITE_CONFIG_PCACHE2`
   allocator is not needed for that purpose.

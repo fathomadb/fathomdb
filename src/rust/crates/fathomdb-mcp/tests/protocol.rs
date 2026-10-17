@@ -93,6 +93,36 @@ async fn instructions_name_every_listed_tool_and_keep_the_data_rule() {
     harness.shutdown().await;
 }
 
+// The instructions are sent into every client session, so they stay compact,
+// and they tell the agent how to search and when to read past a snippet.
+#[tokio::test(flavor = "multi_thread")]
+async fn instructions_are_a_compact_usage_guide() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("note:1", "note", "alpha river")]);
+    let harness =
+        Harness::start(fixture.config(json!({"stores": {"a": {"path": "a.sqlite"}}}))).await;
+    let instructions = instructions_of(&harness);
+    for guidance in [
+        "Always search first",
+        "default limit of 10",
+        "rephrase",
+        "Snippets are the first N characters of each record, not the passage that matched",
+        "may return nothing when the store has no edges",
+        "after answering from a hybrid search",
+    ] {
+        assert!(
+            instructions.contains(guidance),
+            "instructions must say {guidance:?}: {instructions}"
+        );
+    }
+    assert!(
+        instructions.len() <= 1200,
+        "instructions are {} bytes; the cap is 1200",
+        instructions.len()
+    );
+    harness.shutdown().await;
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn tools_list_is_byte_identical_across_open_close_and_switch() {
     let fixture = Fixture::new();

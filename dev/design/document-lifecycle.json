@@ -1163,6 +1163,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/mcp-adapter/conformance-report.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-conformance-report",
+      "role": "evidence",
+      "owner": "dev/design/mcp-adapter/conformance-report.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
       "path": "dev/design/mcp-adapter/design.md",
       "class": "proposal",
       "topic": "mcp-adapter-design",

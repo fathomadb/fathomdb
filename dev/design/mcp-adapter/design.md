@@ -131,7 +131,11 @@ closed ──open()──▶ opening ──ok──▶ ready ──idle/switch�
 
 One ordered list, run after every successful open, first open or reopen:
 
-1. Read `open_report()` and `dense_disabled()` into the slot's readiness.
+1. Read `read::embedding_readiness` into the slot's open info:
+   `usable_embedder` decides whether hybrid searches carry the
+   `{arm: "vector", reason: "embedder_unavailable"}` degradation. It is sampled
+   once per open epoch, not per call; a host engine is sampled once, at
+   registration. `dense_disabled()` is read live on each hybrid search.
 2. If `telemetry_dir` is set: `enable_telemetry("<dir>/<store>.<pid>.<epoch>.jsonl")`.
    The engine's query ids are `q0-<seq>` and restart on each enable, so a fresh
    file per epoch keeps them unique per file (MR-024.7).
@@ -201,24 +205,41 @@ search event).
 - **orient.** `read::projections`, `read::projection_status`,
   `read::embedding_readiness`, `dense_disabled`. Kinds and counts are
   `unavailable`.
-- **feedback.** Look up `response_id`. Return `not_recorded` with
-  `response_expired` if absent, `store_reopened` if the epoch differs,
-  `telemetry_disabled` if telemetry is off, and `text_mode` if the response came
-  from the text path. Otherwise map refs to
-  write cursors and call `engine.record_feedback(query_id, used, unused, "agent")`.
-  Refs not in the response are `invalid_request`.
+- **feedback.** Look up `response_id`. Return `invalid_request/wrong_store`
+  if only another store's table holds it, and `not_recorded` with
+  `response_expired` if no table does. Refs not in the response are
+  `invalid_request`. Then return `not_recorded` with `store_reopened` if the
+  store is not ready at the response's epoch (closed or reopened since the
+  response: either way its sink no longer holds that query),
+  `telemetry_disabled` if telemetry is off or its sink could not be enabled,
+  and `text_mode` if the response came from the text path. Otherwise map refs
+  to write cursors and call
+  `engine.record_feedback(query_id, used, unused, "agent")`.
 - **list_stores / use_store.** Registry and session only; no engine.
 
 ## 8. rmcp usage
 
-- `#[tool_router]` on an `FathomServer` struct holding `Arc<Registry>`,
-  `Arc<Config>` and a per-connection `Session`. Each `#[tool]` takes
-  `Parameters<Args>` (`Args: Deserialize + JsonSchema`) and returns
-  `CallToolResult`. Structured content comes from the shaper's `serde_json::Value`
-  and the text block from its renderer; `is_error` is set for tool errors.
-- Output schemas: each tool's result type derives `JsonSchema`, and the router
-  attaches it as `outputSchema`. The MR-071 test validates every structured
-  result in the suite against it, which also guards rmcp issue #1374.
+- `#[tool_router]` on an `FathomServer` struct holding the shared registry and
+  config and a per-connection `Session`. Each `#[tool]` takes the raw argument
+  object (`JsonObject`) and parses it in the handler into a typed
+  `Args: Deserialize + JsonSchema` (`deny_unknown_fields`). A parse failure is
+  then a typed `invalid_request/bad_argument` tool error; with rmcp 3.5.1's
+  `Parameters<Args>` it would be an unstructured text error. The input schema
+  is attached explicitly from `Args`. Each tool returns `CallToolResult`:
+  structured content from the shaper and the text block from its renderer;
+  `is_error` is set for tool errors.
+- Output schemas: attached explicitly as `anyOf[<result>, {error}]` with a
+  root `"type": "object"`, because tool errors also carry structured content.
+  rmcp 3.5.1 derives an output schema only from a `Json<T>` return. The shared
+  test clients validate every structured result in the suite against it,
+  which also guards rmcp issue #1374.
+- Per-call task: `ServerHandler::call_tool` runs each call on its own detached
+  tokio task. A handler panic becomes a JSON-RPC internal error for that
+  request while the connection keeps serving (MR-002.2), because rmcp 3.5.1
+  does not catch handler panics. A client's `notifications/cancelled` stops
+  the client waiting, but it does not stop the engine call already running
+  on its blocking thread. That call keeps its admission slot until it
+  returns, exactly like a call abandoned at its deadline (§6).
 - `get_info` declares the tools capability only (no resources, prompts or
   logging) and static instructions text.
 - Progress: when the request carries a progress token and the store is opening,

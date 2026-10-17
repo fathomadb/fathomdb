@@ -139,6 +139,19 @@ Branch `slice/0.8.28-41-sdk-evidence-helper`, cut from
     `p8_position_error_wins_over_full_ids` pins the order. P3-6 sets
     `OpenReport.stop_words_sha256` when the report is built. P3-7 documents
     the stop-word API in the `fathomdb-query` README.
+14. Harness step (REQ41-Q8, M-series), on `slice/0.8.28-40-comp03`: RED
+    `afa63c2ae`, GREEN `9332c2468`. Orchestrator rulings, 2026-10-16:
+    - M1 uses the stop-word variants (`fathomdb-fts-stopwords`,
+      `fathomdb-hybrid-stopwords`), matching how the M3 arms open.
+    - MF1 (c) follows `variants.py` `promote`; design § 8.3 and § 5.4 here
+      are corrected to match.
+    - The M3 pack arms keep chronological order, carried over from the mix.
+    - Variant query timings come after a warm reopen of the parent store
+      and are not comparable to the parent's first-query latency.
+    - Not built, out of scope for this measurement pass: the `hits` item
+      mode with its retrieval-identity check (test-plan § 4.2; M3 uses
+      `caller` items), and the Unit E cross-SDK score-bits harness case
+      (REQ41-Q6).
 
 Pre-existing failures under `test-hooks` (the feature is turned on by
 unification in multi-crate runs), left as they are: `slice135_robustness_first`

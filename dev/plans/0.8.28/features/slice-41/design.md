@@ -370,8 +370,10 @@ is deferred to the next COMP-03 headline refresh.
 
 ### 8.3 Harness use (harness branch, specified only)
 
-- **(c)** `full_ids` = the ids of the hits whose group equals the rank-1
-  hit's group, first 10.
+- **(c)** `full_ids` = the hits past the first `full_items` whose group
+  equals the rank-1 hit's group, at most `10 − full_items` of them, so at
+  most 10 items render in full. This is `variants.py` `promote`, the
+  measured prototype (orchestrator ruling, 2026-10-16).
 - **(b)** `full_items = 8` when the question matches the
   assistant-reference patterns of `variants.py`.
 

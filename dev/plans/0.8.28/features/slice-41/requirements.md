@@ -545,7 +545,9 @@ that worktree.
 ### 5.4 Phase 2 measurement
 
 - **MF1 ($0).** Re-run variant (c) through `pack_context` with `full_ids`:
-  the rank-1 session's hits, up to 10. On the 414-question FTS selection set
+  the rank-1 session's hits past the first `full_items`, so that at most 10
+  items render in full (`variants.py` `promote`; design § 8.3). On the
+  414-question FTS selection set
   it must reproduce SSA .978 and weighted allfull .962, at the recorded
   cost of SSP .950 (−1 question against T3/A0/k30); that SSP value is the
   expected result, not a defect. Run (b) through

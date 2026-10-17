@@ -1,5 +1,6 @@
 use super::*;
 use rusqlite::OptionalExtension;
+use std::collections::HashSet;
 
 /// G9 — Reciprocal Rank Fusion constant. IR-C (2026-06-10b,
 /// `performance-output-and-compare.md`) found the standard `k≈60` slightly too
@@ -64,7 +65,11 @@ pub fn fuse_rrf(vector_hits: Vec<SearchHit>, text_hits: Vec<SearchHit>) -> Vec<S
 /// branch; `weight` = [`RRF_WEIGHT_VECTOR`] / [`RRF_WEIGHT_TEXT`] /
 /// [`RRF_WEIGHT_GRAPH`], text-dominant per IR-C), accumulated **keyed on
 /// `SearchHit.body`**, so a body surfaced by multiple branches accumulates all
-/// terms (agreement boosts it). The fused value is written into `SearchHit.score`.
+/// terms (agreement boosts it). Each branch contributes **at most once** per
+/// body, at the positional rank of the body's first occurrence in that branch;
+/// a later hit with the same body in the same branch (another row sharing the
+/// body) adds nothing and does not shift the ranks of the hits after it. The
+/// fused value is written into `SearchHit.score`.
 /// A body in multiple branches surfaces **once** with the **vector** branch's
 /// identity (vector-first), then graph arm identity for non-vector hits, then
 /// text. Output is sorted by score descending, then vector-first, then insertion
@@ -96,7 +101,13 @@ pub fn fuse_three_arms(
     }
     let mut entries: Vec<Entry> = Vec::new();
     let mut entry_by_hash: HashMap<u64, BodySlot> = HashMap::new();
-    let mut accumulate = |hit: SearchHit, rank0: usize, in_vector: bool, weight: f64| {
+    // `credited` holds the entry indices this branch has already scored, so a
+    // body shared by several rows in one branch is counted once.
+    let mut accumulate = |hit: SearchHit,
+                          rank0: usize,
+                          in_vector: bool,
+                          weight: f64,
+                          credited: &mut HashSet<usize>| {
         let contrib = weight / (RRF_K + (rank0 as f64 + 1.0));
         let body_hash = entry_by_hash.hasher().hash_one(&hit.body);
         let existing = entry_by_hash.get(&body_hash).and_then(|slot| match slot {
@@ -106,10 +117,13 @@ pub fn fuse_three_arms(
             }
         });
         if let Some(existing) = existing {
-            entries[existing].score += contrib;
+            if credited.insert(existing) {
+                entries[existing].score += contrib;
+            }
             return;
         }
         let order = entries.len();
+        credited.insert(order);
         match entry_by_hash.entry(body_hash) {
             std::collections::hash_map::Entry::Vacant(slot) => {
                 slot.insert(BodySlot::One(order));
@@ -126,18 +140,21 @@ pub fn fuse_three_arms(
         }
         entries.push(Entry { hit, score: contrib, in_vector, order });
     };
+    let mut credited = HashSet::new();
     for (rank0, hit) in vector_hits.into_iter().enumerate() {
-        accumulate(hit, rank0, true, RRF_WEIGHT_VECTOR);
+        accumulate(hit, rank0, true, RRF_WEIGHT_VECTOR, &mut credited);
     }
+    let mut credited = HashSet::new();
     for (rank0, hit) in text_hits.into_iter().enumerate() {
-        accumulate(hit, rank0, false, RRF_WEIGHT_TEXT);
+        accumulate(hit, rank0, false, RRF_WEIGHT_TEXT, &mut credited);
     }
+    let mut credited = HashSet::new();
     for (rank0, hit) in graph_hits.into_iter().enumerate() {
         // Graph arm: vector-first=false (never overrides an existing vector hit's
         // representative identity; only new bodies from the graph arm get GraphArm
         // as their branch identity). The in_vector=false ensures graph arm hits
         // never sort ahead of vector hits on exact score ties.
-        accumulate(hit, rank0, false, RRF_WEIGHT_GRAPH);
+        accumulate(hit, rank0, false, RRF_WEIGHT_GRAPH, &mut credited);
     }
     entries.sort_by(|a, b| {
         b.score

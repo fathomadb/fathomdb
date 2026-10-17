@@ -1,0 +1,332 @@
+{
+  "phase": "0.8.28-slice-40",
+  "baseline_sha": "574b09e788b04bbaff6ec949aa3a88de443bf477",
+  "branch": "slice/0.8.28-40-fts-ranking-defects",
+  "head_sha": "c6723cb4aa59fb76a7924a8245f4930bba678fc8",
+  "head_sha_note": "last commit before the commit that adds this file; the output.json commit sits on top",
+  "production_fix_sha": "13879d4af55e20646574d013c4cce596f1b18d40",
+  "commits": [
+    "2b0634706ecd621bebe614571f78f9864ade3b60: Plan Slice 40: FTS ranking defects (RRF in-arm double counting, short tokens dropped)",
+    "6360cd61a305a1dbd025e0d362815151b8965004: Add failing Slice 40 tests for once-per-arm RRF and short query tokens",
+    "23cdca4446fe0a5ff06bdbf29102237782751eb8: Apply Slice 40 R1 findings: short-token AC-038 rows, possessive tests, design detail",
+    "13879d4af55e20646574d013c4cce596f1b18d40: Credit each fusion arm once per body and keep short query tokens",
+    "0f3cdc40337214f9ff01eb51cef0e92b37862489: Record Slice 40 W5 engine-suite observations",
+    "9cdd3222bb882d509c1014a60853860084a4fb0a: Record Slice 40 W5 gate results",
+    "1d0031bc94cb86b265067c3bb9bb6e4ebf1c76e9: Add Slice 40 closure output",
+    "f67ae048b570c012615692bdb4cafe82ecf68e88: Record Slice 40 NFCorpus recovery measurement and durable-approach experiments",
+    "1f54bc3b893dde0ec91cf58e103d3055a25934ce: Record COMP-02b projected-FTS latency diagnosis and Slice 40 potentials",
+    "d01d711df1da96c121336fc9b894aef9ae063c4b: Plan Slice 40 Defect C: stream projected FTS search in rank order",
+    "04bf5e5e615098a186780821bb641b140c4c0995: Add failing Slice 40 tests for the projected FTS rank stream",
+    "a3830681d57caaa1d10be2c150b63400169bcba4: Stream projected FTS search in rank order instead of sorting every match",
+    "c86471cb3fc5b6b05cc58aceb58eadb3434c689c: Record Slice 40 Defect C GREEN run",
+    "941ca2b83c2d6a7ca6228127560e2b225f995769: Record Slice 40 Defect C gate results",
+    "de814c2c4de5810e4cfed3dbcde520c4db45c253: Update Slice 40 closure output for Defect C",
+    "47c54b78d626b19ff835e7e56301187384789fd9: Record Defect C latency recovery and Slice 40 deferred potentials",
+    "706bcab91da21cb2bf62244080c2fa8dc171bb74: Plan Slice 40 Unit D: COMP-03 retrieval sweep, three-arm answer run, stop-list extension",
+    "efa10e0c57367cef4f8bc8b9a6ddba2e6a30301c: Add failing Slice 40 Unit D3 tests for the extended stop list",
+    "5b09afd44112251ee634e034edf0368bbdce684d: Treat apostrophe fragments and short function words as query stopwords",
+    "8d5d93cef9be21d4d4d8bbaf8e0da997fd2687ea: Note the extended query stop list in the 0.8.28 changelog",
+    "e373aeca62ea05ad59d639a4f637047ff55910fc: Record Slice 40 Unit D rulings and GREEN runs",
+    "eb1059aa794f9d13db0263b0b732604288ace27f: Record Slice 40 Unit D gate results",
+    "ead1254dc9506490e9dc1cec51464972285f6a88: Update Slice 40 closure output for Unit D",
+    "b4e78102024bfeba07e6b24ea03027ed47643572: Record Slice 40 Unit D measurements: D3 gate pass, hybrid verdict, answer v2",
+    "269357c5bcaa8aebcc5b52c499533966c93b6fc8: Correct the hybrid-versus-FTS answer interval sign in the Unit D record",
+    "ad2773e6a8293c190e028e04c81b5da291ffaab4: Plan Slice 40 Units E, F, G: SDK parity, known-run baseline, evidence and recency levers",
+    "cee66c4b80311952d12fd3467b2564308cc74851: Document the Slice 40 search behaviour in the interface docs; correct the public RRF formula",
+    "d093beee3072501ed4c9e1503d1ccb28db7a7e16: Revise Slice 40 Unit G after review: untruncation-constrained policy rule, single-factor recency runs, best mix",
+    "cde1fb07dc31f8353aff3a834051bc76dcf8c5e5: Update Slice 40 closure output for Units E, F and the Unit G revision",
+    "f42483b7d2475ebbe16b80a25a78d3a04d2bf85a: Apply the Unit G re-review fixes: derived question counts, arm of record, v4c contingency, renderer caps",
+    "43a8589b31e984f57e47cd864a74a711032f4a05: Record Slice 40 Unit G W4/W5: evidence-policy verdict and GREEN run",
+    "37070674e: Update Slice 40 closure output for Unit G",
+    "e683900775f0e012fbc43ca7d6ae3032f7ac158e: Record Slice 40 Unit G measurements and the final-head re-runs",
+    "827928e5fa31ee1096536178e91a1d591a1d26f8: Update Slice 40 closure output for the Unit G measurements",
+    "c6723cb4aa59fb76a7924a8245f4930bba678fc8: Record the Slice 40 baseline mix-answer benchmark"
+  ],
+  "findings_addressed": [
+    "F1: AC-038 corpus gains 'vitamin d c 1 ii study' and 'igf 1 d3 b12 trial'; query alphabet gains d3, c, ii, 1; still 100 queries; RED before W4 (40 queries diverged), GREEN after",
+    "F2: possessive_and_contraction_fragments_are_content_tokens (query, RED->GREEN), text_only_possessive_query_ranks_topical_row_first (engine, guard), design § 4 risk row with measured numbers, status.md follow-up",
+    "F3: CHANGELOG.md 0.8.28 '### Fixed' with two Slice 40 entries (fusion entry says order can change on corpora with duplicate bodies)",
+    "F4: ran cargo test -p fathomdb-engine (default and --features test-hooks), fathomdb-query, agent-lint, agent-lint-md, agent-verify; failures recorded verbatim in test-plan § 6",
+    "F5: src/ts/package-lock.json restored; never committed; output.json committed last",
+    "F6: design § 1.1 states the mechanism: per-arm HashSet<usize> of accumulator entry indices, reusing the existing body-hash + equality lookup (equivalent to R1's hash-then-confirm; no body clone or second hash); implemented that way"
+  ],
+  "tests": {
+    "cargo test -p fathomdb-query": [
+      "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+    ],
+    "cargo test -p fathomdb-engine --test slice40_fts_ranking --test fts5_injection_safety": [
+      "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s",
+      "test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s"
+    ],
+    "cargo test -p fathomdb-engine --features test-hooks --test pr_g9_rrf_fusion": [
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s"
+    ],
+    "cargo test -p fathomdb-engine (default features)": "exit 0; 79 binaries; 474 passed, 0 failed, 7 ignored",
+    "cargo test -p fathomdb-engine --features test-hooks --no-fail-fast (not a gate invocation)": "exit 101; 1303 passed, 10 failed, 36 ignored; failures: pr_g8_dangling_edges x7 and tc57_governed_write_race x2 'open: RuntimeConfiguration(TooLate)', slice135_robustness_first x1 'no persistent descriptor growth left: Some(4) right: Some(33)'; none reaches search; all pass under default features. An earlier fail-fast run also failed 2 slice90 close timing tests in the lib (pass alone; lib suite then 111 passed twice)",
+    "pytest src/python/tests (agent-test command, clean tree)": "run 1: 1 failed (test_slice100_logging_subscriber::test_handler_database_reentry_is_rejected_without_recursion, AssertionError: 6 != 3), 1616 passed; run 2: 1617 passed, 36 skipped, exit 0; receipt verifier exit 0"
+  },
+  "gates": {
+    "agent-lint.sh": "exit 0",
+    "agent-lint-md.sh": "exit 0",
+    "agent-verify.sh": "exit 1 at 13879d4af: registered=202 ran=202 passed=198 failed=4; FAILED SUITES: test-check-board-currency test-commission-manifest test-python test-python-native-receipt; test-rust rc=0. Python suites failed only on an unclean tree and pass on rerun at 0f3cdc403. The two release-state suites fail on baseline state in release-state-0.8.28.json / STATUS-0.8.28.md (Slices 30 and 31 not LANDED; Slice 31 landing SHA 1ceefddd8 not cited on the board row at STATUS-0.8.28.md:66), files this slice may not edit"
+  },
+  "agent_verify_result": "fail only on the two orchestrator-owned release-state suites; all code suites pass",
+  "blockers_encountered": [
+    {
+      "id": "W5-release-state",
+      "description": "test-check-board-currency and test-commission-manifest fail on dev/plans/release-state-0.8.28.json and dev/plans/runs/STATUS-0.8.28.md from the baseline; untouched by this slice",
+      "resolution": "stopped for an orchestrator ruling per F4; not edited"
+    }
+  ],
+  "additional_changes_made_in_scope": [
+    "fathomdb-query/README.md: removed 'tokens shorter than three characters'",
+    "doc comments on fuse_three_arms, content_tokens and compile_text_query updated"
+  ],
+  "deliberately_left_out": [
+    "collect_complete_rank_boundary / limit-near-100 shortfall (Q2 follow-up)",
+    "Possessive/contraction fragments in STOPWORDS (follow-up, needs measurement)",
+    "Stale public-doc formula Σ 1/(60 + rank)",
+    "tests/support/ir_retrieval.rs frozen harness",
+    "NFCorpus re-run",
+    "release-state JSON, STATUS board, plan ladder (orchestrator-owned)",
+    "baseline comparison of the --features test-hooks engine failures (would need a second checkout)"
+  ],
+  "next_step_for_orchestrator": "Review and land both branches.",
+  "defect_c": {
+    "production_fix_sha": "a3830681d",
+    "rulings": {
+      "Q4": "keep projected_ route prefix",
+      "Q5": "no CROSS JOIN",
+      "Q6": "slice35 seam unchanged"
+    },
+    "findings_addressed": [
+      "F1: stream statement keeps p.attr_name = ?1 in WHERE",
+      "F2: explicit test list run and recorded (test-plan § 5.4)",
+      "F3: CHANGELOG third ### Fixed entry",
+      "F4: design § 2b.2 sentence on test-hooks-only regression net",
+      "F5: why-comment at the stream call site only; search_projected_text doc comment unchanged",
+      "F6: no test edited; full lints and agent-verify once on a clean tree"
+    ],
+    "tests_green": {
+      "projected_search_matches_documented_order_across_tie_boundaries": "GREEN (was GREEN)",
+      "projected_search_uses_rank_stream_without_temp_order_by_btree": "GREEN (was RED)",
+      "projected_search_falls_back_to_full_sort_when_stream_fails": "GREEN (was RED)",
+      "projected_search_attribute_filter_keeps_cohort_and_order": "GREEN (was GREEN)",
+      "projected_search_returns_exactly_limit_rows_at_strict_boundaries": "GREEN (was GREEN)"
+    },
+    "test_commands": {
+      "--features test-hooks --test slice40_projected_fts_stream": "ok. 5 passed",
+      "--features test-hooks --test pr_g9_rrf_fusion": "ok. 10 passed",
+      "--test slice40_fts_ranking": "ok. 19 passed",
+      "--test fts5_injection_safety": "ok. 2 passed",
+      "--features test-hooks --test slice35_virtual_mutation_manifest": "ok. 2 passed",
+      "--features test-hooks --test slice35_eligibility_pretruncation": "ok. 3 passed",
+      "--features test-hooks --test slice20_fts_rank_stream": "ok. 3 passed",
+      "--features test-hooks --test slice18_retrieval_result_limits": "ok. 4 passed",
+      "--features test-hooks --test slice45_nested_source_projections": "ok. 10 passed",
+      "--features test-hooks --test slice30_dependency_closure": "ok. 27 passed",
+      "--features test-hooks --test slice80_search_view_paths": "ok. 2 passed",
+      "cargo test -p fathomdb-engine (default)": "exit 0; 474 passed, 0 failed, 7 ignored",
+      "cargo test -p fathomdb-query": "ok. 15 passed; ok. 1 passed; ok. 0 passed"
+    },
+    "gates": {
+      "agent-lint.sh": "exit 0",
+      "agent-lint-md.sh": "exit 0",
+      "agent-verify.sh": "exit 1 at c86471cb3 (clean tree): registered=202 ran=202 passed=200 failed=2; FAILED SUITES: test-check-board-currency test-commission-manifest (release-state files, unchanged from phase 2 W5); test-rust, test-python, test-python-native-receipt pass"
+    }
+  },
+  "unit_d": {
+    "rulings": {
+      "Q-D1": "delete possessive_and_contraction_fragments_are_content_tokens in the D3 commit",
+      "Q-D2": "hybrid arm uses plain bodies plus ProjectionSpec(name='dense', SEARCHABLE, vector=True); fathomdb-fts-projected dropped",
+      "Q-D3": "AC-038 private stop-list copy synced, fixture unchanged",
+      "Q-D4": "lancedb==0.40.0 pyarrow==26.0.0 installed in the comp03-slice40 .venv",
+      "Q-D5": "comp01-hybrid campaign accepted"
+    },
+    "slice_branch": {
+      "d3_commit": "5b09afd44",
+      "changelog_commit": "8d5d93cef",
+      "readme": "unchanged: it names 'a small English stopword list' and lists no words"
+    },
+    "harness_branch": {
+      "branch": "slice/0.8.28-40-comp03",
+      "worktree": "/home/coreyt/projects/fathomdb-worktrees/comp03-slice40",
+      "base": "0e246ad31",
+      "head": "8ef511554bc5649e3968a3d40525f1dc28d159e9",
+      "commits": [
+        "990f094adb90e41caeefcfa8bfdcafcc9d4a3e9b: Add failing COMP-03 retrieval-sweep and three-arm answer tests (Slice 40 Unit D)",
+        "34cacdf8729ce4a1c2ac56cf78098bae294f9005: Align COMP-03 sweep tests with the plain-body hybrid arm; drop the projected-FTS variant",
+        "c08a25691f18bdaff6debde5baac1240f1904a6f: Expect at_10 metric names in the COMP-03 v2 answer config",
+        "8ef511554bc5649e3968a3d40525f1dc28d159e9: Add the COMP-03 retrieval sweep, a FathomDB hybrid arm, and a three-arm v2 answer config"
+      ]
+    },
+    "tests": {
+      "cargo test -p fathomdb-query": "ok. 19 passed; ok. 1 passed; ok. 0 passed",
+      "cargo test -p fathomdb-engine --test slice40_fts_ranking --test fts5_injection_safety": "ok. 2 passed; ok. 19 passed",
+      "cargo test -p fathomdb-engine --features test-hooks --test slice40_projected_fts_stream": "ok. 5 passed",
+      "cargo test -p fathomdb-engine (default)": "exit 0; 474 passed, 0 failed, 7 ignored",
+      "harness: test_comp03_retrieval.py + test_comp03_answer.py": "37 passed, 3 warnings (LanceDB create_fts_index deprecation)",
+      "harness: tests/experiments": "4 failed, 811 passed, 23 skipped; the 4 fail identically with the Unit D changes stashed (pre-existing, non-COMP)"
+    },
+    "gates": {
+      "slice agent-lint.sh": "exit 0",
+      "slice agent-lint-md.sh": "exit 0",
+      "slice agent-verify.sh": "exit 1 at e373aeca6: registered=202 ran=202 passed=200 failed=2; FAILED SUITES: test-check-board-currency test-commission-manifest (unchanged release-state failures); test-rust, test-python, test-python-native-receipt pass",
+      "harness agent-lint.sh": "exit 1 at first step: measurement-classification classification_missing for comp-03-hermes-answer-20261016T1239Z-2e410a4f (receipt committed at 0e246ad31, pre-existing); ruff run directly on src/python experiments tests/experiments: All checks passed!"
+    },
+    "test_edits_in_phase": [
+      "fathomdb-query: possessive_and_contraction_fragments_are_content_tokens deleted (Q-D1)",
+      "fts5_injection_safety.rs: stop-list copy synced (Q-D3)",
+      "harness: test_fts_projected_arm... removed, sweep arm list cut to three, plain-body assertion added (Q-D2, 34cacdf87)",
+      "harness: v2 metrics assertion reads v1 names at _at_10 (c08a25691)"
+    ],
+    "product_finding": "a plain doc write under use_default_embedder=True embeds nothing; declaring a SEARCHABLE vector=True projection enrols the node kind; the projection worker embeds the full canonical_nodes.body"
+  },
+  "units_efg": {
+    "harness_branch": {
+      "branch": "slice/0.8.28-40-comp03",
+      "head": "5a1d0eb124b2c6eba0be749ac70dd6fc5adf02ca",
+      "commits": [
+        "9d864e39e5b5652b8351bda4fb4bdc9ccf101660: Add failing tests for Slice 40 Units E, F, G: SDK parity, baseline check, evidence policy and recency",
+        "d1bc2c9f6c1a4fa8ce299849808b5b348666e6e6: Add a failing test: the evidence policy must also hold for fathomdb-fts alone",
+        "bc4ca421be67157bfce9f98e87808d55df78044f: Add the Slice 40 known-run baseline: manifest, drift check, latency harness, engine identity in receipts",
+        "d709db1a89c2ebfd968c35dbbfbcc7562c944aa0: Add cross-SDK parity cases for the verbs Slice 40 changed: fixtures, Python oracle, five-operation drivers",
+        "5e6ff1a348b1a04e8a58787a9a048c4d71f00bcc: Check TypeScript wrapper digests against the attested package root; add fused dense parity queries",
+        "fa9d6ad0296505d750817cbd5f7031dfbac2b46f: Rewrite the Unit G tests for the revised rule, one evidence implementation, single-factor runs and the mix",
+        "3b812cce4f59e8e9051edccc90ee7d9d90a3bad0: Extend the Unit G tests for the re-review: derived counts, arm of record, v4c, renderer caps",
+        "1419aae4f4108eaf7c00abde01e22a66466c2be6: Implement Unit G: offline evidence-policy evaluator and verdict, policy renderer, recency factors, v3/v4a/v4b/v4c configs, best-mix builder",
+        "fcef83b84013a47268d951a3a9ba161c2a80b99c: Ignore Markdown under nested cargo target directories",
+        "8295401bb47307523c1351c007370789ea314471: Give the COMP-01 hybrid campaign a typed config so it can be recorded",
+        "7ef4ae8433981b2b5a6304da7033515495122038: Record the COMP-03 Unit G answer runs, mix config, and final re-runs",
+        "2fde9a445d6ecc3a723fe66d9b1d89e0dfb5e109: Record final-head receipt comp-01-comp01-3633-20261016T1755Z-b9aa1214",
+        "6e0a09bdc8ffd0313a17addf5fde731f6706a3d9: Record final-head receipt comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec",
+        "8734a95d413c26abc4b10e4b0b6c501db04131f7: Record final-head receipt comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7",
+        "69bfa97ce08df05683eb5b37af888d6b47aa4890: Record final-head receipt comp-02a-comp02a-17272-20261016T1756Z-eede35ef",
+        "cfcdd98f79399decb264b32a962a573fe741b94c: Record final-head receipt comp-02b-comp02b-10000-20261016T1757Z-d91933b9",
+        "fb658a937e63f2266d2f2f7fb7cf3fddaff98332: Classify the final-head COMP-01/02/03 receipts",
+        "f59472d4c47d594bf85713717e7fae1ed7ea2db6: Record the COMP-03 Unit G result and final-head baseline values",
+        "5a1d0eb124b2c6eba0be749ac70dd6fc5adf02ca: Add the COMP-03 mix answer run to the Slice 40 baseline as a sixth benchmark"
+      ]
+    },
+    "unit_e": {
+      "status": "done",
+      "rulings": {
+        "Q-E1": "three capability assertions updated to five operations (superseded by REQ40-E1)",
+        "Q-E2": "declared commit plus artifact digests; build-info accessor recorded as a potential",
+        "Q-E3": "package_root added, default unchanged"
+      },
+      "cross_sdk_run": {
+        "engine_commit": "ad2773e6a8293c190e028e04c81b5da291ffaab4",
+        "result": "every case, every SDK, every repetition equal to the Python oracle on (id, score, branch)",
+        "cases": {
+          "text-only": "29 hits/rep",
+          "projected-unfiltered": "10 hits/rep",
+          "projected-cohort-c1": "10 hits/rep",
+          "dense-hybrid": "70 hits/rep (fused on q06, q07)"
+        },
+        "digests": {
+          "python_wheel": "7f2cf1a108eb6a4768280026a8b43ab72c9a024f31848eeb9a8b70cf50d0ff52",
+          "python_native": "6ef917cb42f7744a172803ec945d21b833cfad42d701c83e6d34f0e865bf16db",
+          "typescript_native": "b7691e8973d78d647566b72eea463723e6fa79c7a256b37f0674837b289faec7",
+          "rust_driver": "8d1fe37b099bd9766569bedf6f0515537942c3103ed910fa621e74fb4b5bfab0"
+        },
+        "artifacts": "/tmp/claude-1000/-home-coreyt-projects-fathomdb/88b3dde6-4831-4ff9-a66b-ca910b3cdcac/scratchpad/sdk-parity/"
+      },
+      "docs": "dev/interfaces/{python,typescript,rust,rust-sdk}.md Slice 40 section; docs/ RRF formula corrected; agent-lint-docs exit 0"
+    },
+    "unit_f": {
+      "status": "done",
+      "manifest": "experiments/configs/baselines/slice-40-baseline.v1.json (51 metrics, provisional, engine commit per metric)",
+      "self_check": "comp01 8/8, comp01-hybrid 5/5, sweep 30/30, answer 3/3 PASS against the Unit D attempts"
+    },
+    "unit_g": {
+      "status": "measured (orchestrator runs; records by implementer)",
+      "review": "REJECT (F1-F10) -> revised; re-review APPROVE-WITH-FIXES (N1-N4, v4c) applied",
+      "verdict": {
+        "file": "experiments/configs/comp-03/evidence-policy-verdict.v1.json",
+        "sha256": "6f9fc2dc32c2796bbee7400788a22280e6b55ce70fcbf2781546b907164a2d2c",
+        "policy": "4000/30000/on",
+        "matches_reviewer_replay": true,
+        "questions": {
+          "scored": 470,
+          "selection": 414,
+          "answer_set_ids": 60,
+          "answer_set_scored": 56
+        },
+        "answer_set_expectation": {
+          "pooled_has_answer": 2,
+          "fathomdb-fts_has_answer": 0
+        }
+      },
+      "configs": [
+        "hermes-answer.v3.json",
+        "hermes-answer.v4a.json",
+        "hermes-answer.v4b.json",
+        "hermes-answer.v4c.json"
+      ],
+      "tests": "test_comp03_evidence.py 26 passed (RED 26 at 3b812cce4)",
+      "measured": {
+        "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+        "factor_verdicts": {
+          "v3": "reject (recency rule, report-only)",
+          "v4a": "reject",
+          "v4b": "adopt",
+          "v4c": "adopt"
+        },
+        "mix": "policy 4000/30000/on plus chronological, no recency sentence; equals v4c evidence",
+        "correct_of_60": {
+          "v3": "51/50/50",
+          "v3rep": "50/49/49",
+          "v4a": "49/52/50",
+          "v4b": "49/50/53",
+          "v4c": "53/50/54",
+          "mix": "53/52/54"
+        },
+        "noise": "v3 vs v3rep 3 discordant per arm; v4c vs mix 2/4/2",
+        "receipts_kept": [
+          "comp-03-hermes-answer-20261016T1610Z-33d78241 (v3)",
+          "comp-03-hermes-answer-20261016T1732Z-33d78241 (v3rep)",
+          "comp-03-hermes-answer-20261016T1609Z-22869ddc (v4a)",
+          "comp-03-hermes-answer-20261016T1609Z-1c856c71 (v4b)",
+          "comp-03-hermes-answer-20261016T1732Z-50579949 (v4c)",
+          "comp-03-hermes-answer-20261016T1747Z-4e56afa9 (mix)"
+        ],
+        "result_note": "dev/performance-benchmarking/2026-10-16-comp-03-unit-g-result.md (harness branch)"
+      }
+    },
+    "tests": {
+      "tests/experiments": "19 failed (15 then-held Unit G + 4 pre-existing, unchanged names), 849 passed, 12 skipped, before the G rewrite",
+      "unit_e": "9 passed",
+      "unit_f": "8 passed",
+      "ts_driver": "11 passed, 1 skipped",
+      "rust_driver": "protocol 5, real_database 1 passed",
+      "unit_g_revised": "23 failed (RED by design)",
+      "tests/experiments_final": "4 failed (the four pre-existing), 878 passed, 9 skipped",
+      "tests/experiments_after_records": "4 failed (the four pre-existing), 884 passed, 20 skipped"
+    },
+    "gates": {
+      "slice agent-lint-docs.sh": "exit 0",
+      "slice agent-lint-md.sh": "exit 0",
+      "harness agent-lint-md.sh": "exit 2: only the two pre-existing data/corpus-data links",
+      "harness ruff": "All checks passed!",
+      "agent-verify": "not run (docs-only W-slice change)",
+      "harness agent-lint-md.sh (final)": "exit 2: only the two pre-existing data/corpus-data nfcorpus links (nested target/ ignored since fcef83b84)"
+    },
+    "final_reruns": {
+      "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "receipts": [
+        "comp-01-comp01-3633-20261016T1755Z-b9aa1214",
+        "comp-01-comp01-hybrid-3633-20261016T1755Z-c1693bec",
+        "comp-02a-comp02a-10000-20261016T1756Z-09ac6bd7",
+        "comp-02a-comp02a-17272-20261016T1756Z-eede35ef",
+        "comp-02b-comp02b-10000-20261016T1757Z-d91933b9",
+        "comp-02b-latency-20261016T1700Z-4f96fad0",
+        "comp-03-retrieval-sweep-20261016T1725Z-17773486"
+      ],
+      "baseline": "comp01-nfcorpus, comp01-hybrid, comp03-retrieval-sweep, tc5-10k-latency expected values replaced with final-head values (provenance final); comp03-answer-v2 stays provisional; comp03-answer-mix added by owner ruling (53/52/54 of 60, ±3 questions, report-only, provisional); baseline_check PASS on comp03-run-mix",
+      "classification": "all new receipts classified and validated; tree validator still fails on pre-existing unclassified comp-03-hermes-answer-20261016T1239Z-2e410a4f"
+    }
+  }
+}

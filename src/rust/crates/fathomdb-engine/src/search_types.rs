@@ -347,6 +347,25 @@ pub struct Bm25fQueryPlan {
 // Public-visible so the EU-5a2 machinery test can assert the value.
 pub const TOP_K_BIT_CANDIDATES: usize = 192;
 
+/// Fewest surviving vector candidates hybrid `search` hydrates before fusion.
+///
+/// The vector branch hydrates `max(limit, VECTOR_FUSION_POOL)` rows, so every
+/// limit up to the pool fuses the same vector list and `search(limit = k)` is
+/// the first `k` of `search(limit = k')` for `k < k' <= VECTOR_FUSION_POOL`
+/// (rerank depth 0, no graph arm). Chosen by the Slice 40 H2 selection rule
+/// (`vector-pool-verdict.v1.json`); must stay at most `TOP_K_BIT_CANDIDATES`.
+pub(crate) const VECTOR_FUSION_POOL: usize = 10;
+
+const _: () = assert!(VECTOR_FUSION_POOL <= TOP_K_BIT_CANDIDATES);
+
+/// `VECTOR_FUSION_POOL`, for tests that must not hard-code it.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+#[must_use]
+pub fn vector_fusion_pool_for_test() -> usize {
+    VECTOR_FUSION_POOL
+}
+
 /// Historical name for the public default ranked-result count (10).
 ///
 /// Vector candidate fanout is separately at least the caller-requested result

@@ -196,7 +196,7 @@ cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
   CE score for in-pool reranked hits, `null` otherwise).
 
 > **Ranking is RRF (behavior-compat event).** Results are ordered by Reciprocal
-> Rank Fusion (`Σ 1/(60 + rank)`) of the vector and text branches — the
+> Rank Fusion (`Σ w/(30 + rank)`, text weight 3, vector weight 1) of the vector and text branches — the
 > deliberate, documented 0.8.0 ranking change; pre-0.8.0 union-dedup ordering is
 > not retained. See [hybrid search guide](../guides/hybrid-search-filtering.md).
 
@@ -655,7 +655,7 @@ interface SearchHit {
   id: IdSpace; // typed, non-null, id-space-total hit identity
   kind: string;
   body: string;
-  score: number; // G9 RRF-fused relevance (Σ 1/(60+rank)); higher = better
+  score: number; // G9 RRF-fused relevance (Σ w/(30+rank), text w=3, vector w=1); higher = better
   branch: SoftFallbackBranch; // "vector" | "text" | "text_edge" | "graph_arm"
   sourceId: string | null; // provenance (`eraseSource` arg); set on EVERY hit (TC-31)
   ceScore: number | null; // 0.8.5 CE score (sigmoid logit) for in-pool reranked hits

@@ -67,12 +67,22 @@
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::{Event, EventSource, Subscriber};
-use fathomdb_engine::{Engine, EngineError, InitialState, PreparedWrite, SourceId};
+use fathomdb_engine::{
+    configure_runtime, Engine, EngineError, InitialState, PreparedWrite, RuntimeSqliteMode,
+    SourceId,
+};
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
+
+// The SQLite runtime latches on the first open in the process; a raw
+// `Connection::open` in a parallel test would otherwise make every later
+// `Engine::open` fail with `RuntimeConfiguration(TooLate)`.
+fn configure_test_runtime() {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
+}
 
 // ---------------------------------------------------------------------------
 // Fixture
@@ -541,6 +551,7 @@ fn tc57_mechanism_control_write_first_is_retryable() {
 /// the three mechanism pins so the only variable between them is the lock
 /// choreography.
 fn wal_pair(path: &std::path::Path) -> (rusqlite::Connection, rusqlite::Connection) {
+    configure_test_runtime();
     let a = rusqlite::Connection::open(path).expect("open a");
     a.pragma_update(None, "journal_mode", "WAL").expect("wal a");
     a.execute_batch("CREATE TABLE t(id INTEGER PRIMARY KEY, v INTEGER NOT NULL);").expect("create");

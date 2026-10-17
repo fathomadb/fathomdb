@@ -20,8 +20,8 @@ The 0.8.x line is under active development. The public surface can change betwee
 ## What it does
 
 `compile_text_query` lowercases the input, splits on non-alphanumeric characters, drops a small
-English stopword list and tokens shorter than three characters, de-duplicates the rest in first-seen
-order, and OR-joins them as quoted FTS5 literals:
+English stopword list, de-duplicates the rest in first-seen order, and OR-joins them as quoted FTS5
+literals. Tokens of every length are kept, so "vitamin D3" searches for `d3`:
 
 ```rust
 use fathomdb_query::compile_text_query;

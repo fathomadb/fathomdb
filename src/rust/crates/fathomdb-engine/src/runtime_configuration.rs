@@ -39,7 +39,12 @@ pub enum RuntimeConfigurationError {
 impl Display for RuntimeConfigurationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::TooLate => write!(f, "SQLite runtime configuration is too late; restart required"),
+            Self::TooLate => write!(
+                f,
+                "SQLite runtime configuration is too late: SQLite was initialized in this process \
+                 before FathomDB configured it; call configure_runtime or open an Engine before \
+                 any other SQLite connection (this process must restart)"
+            ),
             Self::Conflict { requested, effective } => write!(
                 f,
                 "SQLite runtime is already configured as {effective:?}, not {requested:?}; restart required"

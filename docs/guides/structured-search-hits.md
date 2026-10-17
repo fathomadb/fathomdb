@@ -41,8 +41,9 @@ by `transition` / `purge`.
 `kind == "edge_fact"`), and `graph_arm` (a node reached only through the
 opt-in graph BFS arm).
 
-`score` is the **G9 RRF-fused** relevance (`Σ 1/(60 + rank)`; higher = more
-relevant). The vector (`vec_distance_l2`) and text (`bm25()`) branches are fused
+`score` is the **G9 RRF-fused** relevance
+(`Σ_branch w_branch / (30 + rank_branch)`, with weight 3 for the text branch and
+1 for the vector and graph branches; higher = more relevant). The vector (`vec_distance_l2`) and text (`bm25()`) branches are fused
 on **rank**, never compared raw. Results are sorted by the fused score
 descending (vector-first tiebreak), deduplicated on body. See
 [Hybrid search & filtering](hybrid-search-filtering.md) for the full ranking +

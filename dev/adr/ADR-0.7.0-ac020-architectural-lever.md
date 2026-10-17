@@ -379,3 +379,16 @@ this ADR and `ADR-0.7.0-text-query-latency-gates-revised` read
   change per release on a high-blast-radius surface),
   `feedback_tdd` (RED test asserting the revised budget on the
   canonical runner before the lever lands).
+
+## Addendum 2026-10-16 (0.8.28 Slice 40 Unit I)
+
+This addendum does not change the decision above, which
+`ADR-0.8.25-absolute-read-performance-successor` superseded. It corrects
+one premise. The residual cause listed first under "Options compared" —
+`pcache1` mutex acquires on every hit-path page fetch, which "canonical
+SQLite cannot eliminate without a custom page-cache allocator" — was an
+effect of the vendored build flag `SQLITE_ENABLE_MEMORY_MANAGEMENT`, which
+puts every connection in one page-cache group under a global mutex.
+Without the flag, each connection has its own group with no mutex. The
+measured 6.29% page-cache share dates from builds with the flag. See
+`ADR-0.8.28-sqlite-per-connection-page-cache.md`.

@@ -50,9 +50,27 @@ The choice applies to the loaded SQLite runtime for the process lifetime.
 Performance disables SQLite global memory statistics and heap-limit enforcement;
 Diagnostics retains them. A same-mode repeat succeeds even after Engine open.
 A conflicting choice fails, as does a first request after SQLite was
-initialized elsewhere; changing mode requires restart. No path calls
+initialized elsewhere; changing mode requires restart. In a Rust process that
+also uses `rusqlite`, the first SQLite connection of any kind initializes the
+runtime, so `configure_runtime` or the first `Engine::open` must come before
+it; a process that has latched `TooLate` must restart. No path calls
 `sqlite3_shutdown()` to force the choice. The API is not a database connection
 permission or file-access boundary.
+
+SQLite page cache (0.8.28 Slice 40). Artifacts built from this repository
+(the Python wheel, the npm addon and a CLI built from this workspace) build
+the bundled SQLite without
+`SQLITE_ENABLE_MEMORY_MANAGEMENT`, so each SQLite connection keeps its own
+page cache of SQLite's default 2,000 KiB. A Rust build that resolves the
+registry `libsqlite3-sys` keeps SQLite's shared page cache, where one large
+read can slow later reads until the engine is reopened. rusqlite removed the
+flag upstream (commit `f31f7324`); Rust consumers get the fix from the first
+`libsqlite3-sys` release that contains it, and until then
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives the
+same behaviour as the workspace build. `cargo install fathomdb-cli` is such a
+registry build: it keeps the shared page cache until a `libsqlite3-sys` release
+contains `f31f7324`, unless `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`
+is set for the install.
 
 ## Per-engine configuration (0.8.27 Slice 90)
 
@@ -1613,3 +1631,39 @@ is idempotent, and guard destruction releases a parked reader and disarms an
 unconsumed pause on normal return or unwind. Keep the guard local to any scoped
 thread closure so cleanup runs before scoped joins on failure. Another Engine
 cannot consume or disarm this pause. Arming twice before consumption panics.
+
+## Search behaviour in 0.8.28 (Slice 40)
+
+The signatures are unchanged. The following search behaviour changed or is clarified.
+
+- **Query compilation** (`Engine::search_text_only`, and the text branch of `Engine::search`):
+  the query is lowercased, split on non-alphanumeric characters, de-duplicated
+  in first-seen order and OR-joined. Tokens of every length are kept, so "C",
+  "D3", "II" and the "1" of "IGF-1" are query terms. A fixed English stop list
+  is dropped. It now also holds the fragments an apostrophe leaves (`s`, `t`,
+  `ll`, `re`, `ve`, `m`) and `my`, `me`, `us`, `am`, `so`, `up`. A query made
+  only of stop words falls back to its raw whitespace tokens.
+- **Fusion** (`Engine::search_text_only`, `Engine::search`): each branch credits a body once, at
+  the rank of its first occurrence, so several rows sharing a byte-identical
+  body no longer outrank the best match. A body found by more than one branch
+  still accumulates one term per branch:
+  `score = Σ_branch w_branch / (30 + rank_branch)`, with `w` 3 for the text
+  branch and 1 for the vector and graph branches.
+- **`Engine::search_projected_text`**: the projection's FTS5 index is read in rank order and
+  reading stops once `limit` rows and any rows tied with the last one are
+  read, instead of sorting every match. Results and their order are unchanged:
+  bm25 ascending, then write order.
+  With an attribute filter whose smallest attribute cohort holds at most 256
+  rows, the rank stream skips rows outside that cohort before reading them;
+  results, scores and order are the same.
+- **Dense retrieval in `Engine::search`**: the vector branch needs a declared
+  `SEARCHABLE` projection with `vector: Some(..)` (`Engine::configure_projections`) before the rows are
+  written; that declaration enrols the node kind for embedding. Opening with
+  an embedder alone embeds nothing, and `Engine::search` then returns text hits
+  only. The engine embeds each node's full body, not the projected attribute.
+- **Vector pool in `Engine::search`**: the vector branch fuses at least its ten nearest
+  surviving rows, whatever the limit. This changes only calls with a limit
+  below 10; limits of 10 and above rank as before. For one database state, with
+  rerank depth 0 and no graph arm, a search with limit `k` returns the first `k` results of the same
+  search with limit `k2` for every `k < k2 <= 10`, with bit-identical scores. Above 10 this is not
+  guaranteed.

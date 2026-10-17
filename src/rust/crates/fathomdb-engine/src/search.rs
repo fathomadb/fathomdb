@@ -247,7 +247,81 @@ pub(crate) fn read_projected_text_in_tx(
         params.push(rusqlite::types::Value::Integer(now));
     }
     let filter_predicate = append_node_eligibility_sql(filter, "n", &mut params);
+    #[cfg(feature = "test-hooks")]
+    let force_full_sort =
+        std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
+    #[cfg(not(feature = "test-hooks"))]
+    let force_full_sort = false;
+    if !force_full_sort {
+        if let Some(results) = read_projected_cohort_stream(
+            &tx,
+            filter,
+            &node_predicate,
+            &filter_predicate,
+            &params,
+            limit,
+        )? {
+            let projection_cursor = load_projection_cursor(&tx)?;
+            return Ok(SearchResult {
+                projection_cursor,
+                soft_fallback: None,
+                results,
+                explanation: None,
+            });
+        }
+    }
+    // Like the body path's rank stream: FTS5 yields rows in bm25 order, so only
+    // rows up to the limit's tie group are joined and read, instead of sorting
+    // every match with its body. The full sort stays as the fallback.
+    let streamed = if force_full_sort {
+        None
+    } else {
+        #[cfg(feature = "test-hooks")]
+        let rank_mapping = if std::env::var_os("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST").is_some() {
+            "missing_ranker()"
+        } else {
+            "bm25()"
+        };
+        #[cfg(not(feature = "test-hooks"))]
+        let rank_mapping = "bm25()";
+        let stream_sql =
+            property_fts_rank_stream_sql(&node_predicate, &filter_predicate, rank_mapping);
+        #[cfg(feature = "test-hooks")]
+        record_fts_query_plan_for_test(&tx, &stream_sql, &params);
+        tx.prepare(&stream_sql)
+            .and_then(|mut statement| {
+                let mut rows = statement.query(rusqlite::params_from_iter(params.iter()))?;
+                collect_complete_rank_boundary(&mut rows, limit)
+            })
+            .ok()
+    };
+    if let Some((mut results, _crossed_boundary_tie)) = streamed {
+        #[cfg(feature = "test-hooks")]
+        record_fts_route_for_test(if _crossed_boundary_tie {
+            "projected_rank_stream_tie_completed"
+        } else {
+            "projected_rank_stream_strict_boundary"
+        });
+        for hit in &mut results {
+            hit.score = -hit.score;
+        }
+        let projection_cursor = load_projection_cursor(&tx)?;
+        return Ok(SearchResult {
+            projection_cursor,
+            soft_fallback: None,
+            results,
+            explanation: None,
+        });
+    }
+    #[cfg(feature = "test-hooks")]
+    record_fts_route_for_test(if force_full_sort {
+        "projected_full_sort_forced"
+    } else {
+        "projected_full_sort_fallback"
+    });
     let sql = property_fts_rank_sql(&node_predicate, &filter_predicate);
+    #[cfg(feature = "test-hooks")]
+    record_fts_query_plan_for_test(&tx, &sql, &params);
     let mut stmt = tx.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
         Ok((
@@ -278,6 +352,127 @@ pub(crate) fn read_projected_text_in_tx(
     }
     let projection_cursor = load_projection_cursor(&tx)?;
     Ok(SearchResult { projection_cursor, soft_fallback: None, results, explanation: None })
+}
+
+/// Largest attribute cohort that takes the cohort-prefiltered rank stream.
+/// Fixed by the Slice 40 H3 rule from a plan probe, before measurement; the
+/// engine timing report in the Slice 40 test plan (§ 3g.4) shows the same
+/// direction. Not tuned from timings.
+const COHORT_PREFILTER_MAX_ROWS: i64 = 256;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CohortPrefilterMode {
+    Auto,
+    #[cfg_attr(not(feature = "test-hooks"), allow(dead_code))]
+    On,
+    #[cfg_attr(not(feature = "test-hooks"), allow(dead_code))]
+    Off,
+}
+
+fn cohort_prefilter_mode() -> CohortPrefilterMode {
+    #[cfg(feature = "test-hooks")]
+    match std::env::var("FATHOMDB_FTS_COHORT_PREFILTER_FOR_TEST").as_deref() {
+        Ok("on") => return CohortPrefilterMode::On,
+        Ok("off") => return CohortPrefilterMode::Off,
+        _ => {}
+    }
+    CohortPrefilterMode::Auto
+}
+
+/// The attribute pair with the smallest cohort, first in filter order on ties,
+/// with its count capped at `COHORT_PREFILTER_MAX_ROWS + 1`. Each probe reads
+/// at most that many entries of `canonical_attributes_name_value_idx`.
+fn smallest_cohort<'f>(
+    tx: &rusqlite::Transaction<'_>,
+    filter: &'f SearchFilter,
+) -> Result<Option<(&'f str, &'f str, i64)>, SearchReaderError> {
+    let mut statement = tx.prepare_cached(
+        "SELECT count(*) FROM (SELECT 1 FROM canonical_attributes          WHERE attr_name = ?1 AND attr_value = ?2 LIMIT ?3)",
+    )?;
+    let mut best: Option<(&str, &str, i64)> = None;
+    for (name, value) in &filter.attributes {
+        let count: i64 = statement
+            .query_row(rusqlite::params![name, value, COHORT_PREFILTER_MAX_ROWS + 1], |row| {
+                row.get(0)
+            })?;
+        if best.is_none_or(|(_, _, smallest)| count < smallest) {
+            best = Some((name.as_str(), value.as_str(), count));
+        }
+    }
+    Ok(best)
+}
+
+/// The cohort-prefiltered rank stream, when the filter's smallest attribute
+/// cohort is at most `COHORT_PREFILTER_MAX_ROWS`. `None` means the caller
+/// continues with the Defect C stream: no attribute pair, a cohort above the
+/// threshold, or a cohort statement that failed (recorded as the fallback).
+fn read_projected_cohort_stream(
+    tx: &rusqlite::Transaction<'_>,
+    filter: Option<&SearchFilter>,
+    node_predicate: &str,
+    filter_predicate: &str,
+    params: &[rusqlite::types::Value],
+    limit: usize,
+) -> Result<Option<Vec<SearchHit>>, SearchReaderError> {
+    let mode = cohort_prefilter_mode();
+    let Some(filter) = filter else {
+        return Ok(None);
+    };
+    if mode == CohortPrefilterMode::Off || filter.attributes.is_empty() {
+        return Ok(None);
+    }
+    let Some((name, value, count)) = smallest_cohort(tx, filter)? else {
+        return Ok(None);
+    };
+    if mode == CohortPrefilterMode::Auto && count > COHORT_PREFILTER_MAX_ROWS {
+        return Ok(None);
+    }
+    let mut cohort_params = params.to_vec();
+    cohort_params.push(rusqlite::types::Value::Text(name.to_string()));
+    let name_index = cohort_params.len();
+    cohort_params.push(rusqlite::types::Value::Text(value.to_string()));
+    let value_index = cohort_params.len();
+    #[cfg(feature = "test-hooks")]
+    let attributes_table = if std::env::var_os("FATHOMDB_FTS_FAIL_COHORT_FOR_TEST").is_some() {
+        "missing_cohort_attributes"
+    } else {
+        "canonical_attributes"
+    };
+    #[cfg(not(feature = "test-hooks"))]
+    let attributes_table = "canonical_attributes";
+    let sql = property_fts_cohort_stream_sql(
+        node_predicate,
+        filter_predicate,
+        "bm25()",
+        attributes_table,
+        name_index,
+        value_index,
+    );
+    #[cfg(feature = "test-hooks")]
+    record_fts_query_plan_for_test(tx, &sql, &cohort_params);
+    let streamed = tx.prepare(&sql).and_then(|mut statement| {
+        let mut rows = statement.query(rusqlite::params_from_iter(cohort_params.iter()))?;
+        collect_complete_rank_boundary(&mut rows, limit)
+    });
+    match streamed {
+        Ok((mut results, _crossed_boundary_tie)) => {
+            #[cfg(feature = "test-hooks")]
+            record_fts_route_for_test(if _crossed_boundary_tie {
+                "projected_cohort_stream_tie_completed"
+            } else {
+                "projected_cohort_stream_strict_boundary"
+            });
+            for hit in &mut results {
+                hit.score = -hit.score;
+            }
+            Ok(Some(results))
+        }
+        Err(_) => {
+            #[cfg(feature = "test-hooks")]
+            record_fts_route_for_test("projected_cohort_stream_fallback");
+            Ok(None)
+        }
+    }
 }
 
 // The 8th parameter (`vector_stage_only`) is the additive GA-2 / ◆ B-1
@@ -553,6 +748,7 @@ fn record_fts_query_plan_for_test(
                 "uses_temp_btree_for_order_by": details
                     .iter()
                     .any(|detail| detail.contains("USE TEMP B-TREE FOR ORDER BY")),
+                "details": details,
             })
         });
     if let Ok(observation) = observation {
@@ -1516,18 +1712,17 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // Why overfetch rather than filtering in SQL: the natural fix is to
             // join `canonical_nodes` into the candidate query, but (i) phase 1
             // is a `vec0` KNN and ADR-0.8.11 D3 forbids demoting it with
-            // non-metadata predicates, and (ii) there is NO index on
-            // `canonical_nodes(write_cursor)`, so an `EXISTS` per candidate
-            // would be a full scan × the whole pool on EVERY query — a
-            // guaranteed cost to fix a degenerate case.
+            // non-metadata predicates, and (ii) an `EXISTS` per candidate
+            // would probe `canonical_nodes_write_cursor_idx` for the whole
+            // pool on EVERY query — a guaranteed cost to fix a degenerate
+            // case.
             //
             // Overfetching is free by comparison: phase 2 already computes
             // `vec_distance_l2` for all `TOP_K_BIT_CANDIDATES` in order to sort
             // them, so raising the LIMIT only returns more of a result set that
             // was already materialized. No extra vec0 work, no schema change,
             // no new index, no second query. The hydration loop below then
-            // stops at `final_limit` SURVIVING hits, so the common case does
-            // exactly as many hydration probes as before.
+            // stops at `max(final_limit, VECTOR_FUSION_POOL)` SURVIVING hits.
             //
             // `max` (not a bare constant) preserves both the test seam's
             // deeper candidate fanout and the caller's requested result limit.
@@ -1573,11 +1768,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // canonical row's OWN `source_id` so a vector hit carries the provenance
         // `erase_source` consumes. These statements already read the canonical
         // row by `write_cursor`, so this is one extra COLUMN on an existing
-        // lookup — NOT an extra query. (A per-hit `WHERE write_cursor = ?`
-        // probe would be a full scan: there is no index on
-        // `canonical_nodes(write_cursor)`. This site already pays that cost by
-        // construction; TC-31 must not add a second one.) Read-only additive
-        // column — row-set, ordering and scores are untouched.
+        // lookup — NOT an extra query. (Each lookup is one probe of
+        // `canonical_nodes_write_cursor_idx`; TC-31 must not add a second
+        // one.) Read-only additive column — row-set, ordering and scores are
+        // untouched.
         // fix-2 (codex §9 [P2]): the validity conjunct comes from
         // `ReadView::validity_sql` — the SAME generator the five read verbs use.
         // It is NOT hand-rolled here: Slice 10's whole design is that the
@@ -1632,11 +1826,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // exact-L2 order, so the caller's cutoff is applied HERE — after
             // the validity/existence filter, not before it. Bounded worst case:
             // at most `TOP_K_BIT_CANDIDATES` hydration probes when nearly every
-            // candidate is filtered out; exactly `final_limit` (i.e. unchanged)
-            // when nothing is. Ordering is unchanged — the surviving rows are
-            // still emitted nearest-first — so on a corpus with no windows this
-            // loop yields byte-identical results to the pre-fix code.
-            if results.len() >= final_limit {
+            // candidate is filtered out; exactly `max(final_limit,
+            // VECTOR_FUSION_POOL)` when nothing is. Ordering is unchanged — the
+            // surviving rows are still emitted nearest-first. The pool floor
+            // makes every limit up to the pool fuse the same vector list, so a
+            // smaller limit is a prefix of a larger one; fusion still truncates
+            // to `final_limit`.
+            if results.len() >= final_limit.max(VECTOR_FUSION_POOL) {
                 break;
             }
             if let Some((kind, body, logical_id, source_id)) = node_stmt
@@ -2428,7 +2624,8 @@ use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{
     append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
-    build_vector_phase1_sql, edge_fts_rank_sql, hit_attributes_pass_filter, property_fts_rank_sql,
+    build_vector_phase1_sql, edge_fts_rank_sql, hit_attributes_pass_filter,
+    property_fts_cohort_stream_sql, property_fts_rank_sql, property_fts_rank_stream_sql,
     validate_filter_attributes_on_snapshot, vector_filter_values, SearchFilter,
     SnapshotFilterError,
 };
@@ -2453,7 +2650,7 @@ use crate::search_types::{
     QueryTrace, SearchHit, SearchResult, SoftFallback, SoftFallbackBranch,
     StructuralDegradationCodeV1, StructuralInclusionStateV1, StructuralInclusionV1,
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, MAX_SEARCH_RESULT_LIMIT,
-    TOP_K_BIT_CANDIDATES,
+    TOP_K_BIT_CANDIDATES, VECTOR_FUSION_POOL,
 };
 use crate::structural_state::structural_dependency_state;
 #[cfg(feature = "tc5-benchmark")]

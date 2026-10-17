@@ -68,6 +68,20 @@ AC-050c) gates merges against this invariant.
 
 ### Changed
 
+- (Slice 40) The text-query compiler also drops the fragments that
+  splitting on an apostrophe leaves ("s", "t", "ll", "re", "ve", "m", as in
+  "Cow's", "don't", "we'll", "they're", "I've", "I'm") and the short function
+  words "my", "me", "us", "am", "so" and "up". Short content tokens such as
+  "d", "c", "d3", "ii" and "1" are still query terms. A query made only of
+  these words falls back to its raw tokens, as an all-stopword query already
+  did. Text and hybrid result order can change for queries that contain them.
+- (Slice 40) Hybrid `search` with a limit below 10 now fuses the vector
+  branch's ten nearest surviving rows instead of only `limit` of them, so its
+  results are the first results of a limit-10 search, scores bit-identical
+  (no rerank, no graph arm). Calls with a limit of 10 or more are unchanged.
+  Results and scores of a hybrid search with a limit below 10 can change,
+  and the explain trace's `vector_hits` reports the rows hydrated (at least
+  10 when that many survive).
 - **Potentially breaking (Tegra Python wheel only):** importing `fathomdb`
   starts the CUDA driver. A `multiprocessing` child created with `fork` after
   the import cannot use CUDA; use `spawn` or `forkserver`, or set
@@ -126,6 +140,41 @@ AC-050c) gates merges against this invariant.
 - (Slice 31) Documented floors for the CUDA 12.6 artifacts: NVIDIA driver
   560.28.03 or later, compute capability 7.5 or later on x86_64, CUDA 12
   cuBLAS and cuRAND (tested with cuBLAS 12.1 to 12.9).
+
+### Fixed
+
+- (Slice 40) A large read no longer slows later reads on the same engine.
+  Each SQLite connection now has its own page cache: the bundled build
+  drops `SQLITE_ENABLE_MEMORY_MANAGEMENT`, which made one connection's
+  heavy read take the other connections' cached pages until the engine was
+  reopened (about 2.5× slower reads afterwards). Results are unchanged. The
+  page-cache ceiling is unchanged (2,000 KiB per connection, twelve
+  connections per engine by default), but resident page memory can now
+  rise toward it, up to about 24 MB per engine. Rust builds that resolve
+  the registry `libsqlite3-sys` keep the shared cache until a release
+  contains rusqlite commit `f31f7324`; until then,
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives
+  the same behaviour.
+- (Slice 40) Search ranking: each fusion arm (vector, text, graph) now
+  credits a body at most once, at the rank of its first occurrence. Before,
+  rows sharing a byte-identical body each added a term, so a duplicated
+  body deep in the text results could outrank the best match. Result order
+  can change on corpora with duplicate bodies; corpora without them rank
+  as before. Agreement between arms still boosts a body.
+- (Slice 40) The text-query compiler keeps 1–2 character tokens ("C" in
+  "Vitamin C", "D3", "II", "1" in "IGF-1"); before, they were dropped from
+  the FTS5 query.
+- (Slice 40) `search_projected_text` no longer sorts every matching row
+  (with its body) before returning the top `limit`: it reads the
+  projection's FTS5 index in rank order and stops once the limit and any
+  rows tied at the boundary are read, as body search already does. Results
+  and their order are unchanged. If the streamed statement fails, the
+  previous full sort runs.
+- (Slice 40) `search_projected_text` with a selective attribute filter is
+  faster: when the filter's smallest attribute cohort holds at most 256 rows,
+  the rank stream skips rows outside the cohort before joining the node.
+  Results, scores and order are unchanged; larger cohorts and unfiltered
+  searches take the previous stream.
 
 ## 0.8.27 — 2026-10-10
 

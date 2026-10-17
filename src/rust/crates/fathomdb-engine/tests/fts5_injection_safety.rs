@@ -18,7 +18,7 @@
 //!      FTS5 unicode61-equivalent semantics (lowercase, drop
 //!      non-alphanumerics) and — mirroring the IR-C **content-OR**
 //!      compiler (`fathomdb-query`) — asserts that ANY content
-//!      q-token (≥3 chars, stopwords stripped) appears in the body's
+//!      q-token (any length, stopwords stripped) appears in the body's
 //!      token set. The injection property is unchanged by AND→OR:
 //!      every q-token still reaches SQLite as a literal phrase, so
 //!      control syntax (`*`, `NEAR()`, `^`, `:`, quotes) never acts
@@ -45,6 +45,9 @@ const CORPUS: &[&str] = &[
     "alpha delta golf kilo",
     "bravo echo hotel lima",
     "charlie foxtrot india mike",
+    // Short tokens (1–2 characters) must reach FTS5 as content.
+    "vitamin d c 1 ii study",
+    "igf 1 d3 b12 trial",
 ];
 
 fn fts5_token_set(text: &str) -> HashSet<String> {
@@ -61,7 +64,8 @@ const STOPWORDS: &[&str] = &[
     "the", "and", "for", "are", "was", "were", "what", "when", "where", "who", "whom", "which",
     "how", "why", "did", "does", "do", "is", "of", "to", "in", "on", "at", "by", "an", "a", "it",
     "its", "this", "that", "these", "those", "with", "from", "as", "be", "or", "if", "about",
-    "into", "over", "than", "then", "they", "them", "their", "you", "your", "we", "our", "i",
+    "into", "over", "than", "then", "they", "them", "their", "you", "your", "we", "our", "i", "s",
+    "t", "ll", "re", "ve", "m", "my", "me", "us", "am", "so", "up",
 ];
 
 fn content_tokens(query: &str) -> Vec<String> {
@@ -69,14 +73,14 @@ fn content_tokens(query: &str) -> Vec<String> {
     query
         .to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
-        .filter(|t| t.len() >= 3 && !stop.contains(t))
+        .filter(|t| !t.is_empty() && !stop.contains(t))
         .map(|t| t.to_string())
         .collect()
 }
 
 fn safe_reference_matches(query: &str, body: &str) -> bool {
     // Safe-grammar reference, mirroring the content-OR compiler: strip FTS5
-    // syntax to leave alphanumeric content tokens (≥3 chars, stopwords removed),
+    // syntax to leave alphanumeric content tokens (any length, stopwords removed),
     // then surface the body iff ANY content token is present (OR). All-stopword /
     // symbol-only queries fall back to any raw whitespace token — matching the
     // compiler's fallback. Empty query never matches.
@@ -100,9 +104,11 @@ fn fixture_queries() -> Vec<String> {
     // 100 queries — 10 templates × 10 token-substitutions. The
     // alphabet is drawn from the corpus so a fraction of queries
     // intentionally hit non-empty result sets (proves parity is not
-    // vacuously satisfied by all-empty matches).
+    // vacuously satisfied by all-empty matches). It includes 1–2
+    // character tokens, so some queries mix a short token with a long one.
     let tokens = [
-        "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet",
+        "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india",
+        "juliet", "d3", "c", "ii", "1",
     ];
     let templates: &[fn(&str, &str) -> String] = &[
         |a, b| format!("\"{a} {b}\""),

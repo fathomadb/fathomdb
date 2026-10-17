@@ -420,3 +420,21 @@ async fn the_idle_clock_restarts_when_a_long_call_returns() {
     }
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shutdown_waits_for_a_stuck_call_only_for_the_deadline_plus_a_margin() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(two_stores(&fixture, json!({"call_deadline_ms": 200}))).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    harness.adapter.seams().block_calls("a");
+    let error = harness.err("search", json!({"store": "a", "query": "alpha"})).await;
+    assert_eq!(error["class"], "timeout");
+    // The abandoned call never returns while the seam holds it, so the drain
+    // cannot finish; shutdown must give up after call_deadline_ms + 5 s.
+    let started = Instant::now();
+    let finished = tokio::time::timeout(Duration::from_secs(15), harness.adapter.shutdown()).await;
+    assert!(finished.is_ok(), "CR-8: shutdown still waiting after 15 s");
+    let elapsed = started.elapsed();
+    assert!(elapsed >= Duration::from_secs(5), "gave up too early: {elapsed:?}");
+    assert!(elapsed < Duration::from_secs(8), "bound is deadline + 5 s: {elapsed:?}");
+}

@@ -353,3 +353,23 @@ def test_agent_arms_carry_their_prompt_variant_and_model() -> None:
     for arm, (variant, model) in expected.items():
         spec = mal.ARM_SPECS[arm]
         assert (spec["kind"], spec["mode"], spec["prompt"], spec["model"]) == ("agent", "hybrid", variant, model)
+
+
+# --- model routing -----------------------------------------------------------
+
+
+@pytest.mark.parametrize("served", ["openai/gpt-5.4-mini", "openai/gpt-5.4-mini-2026-03-17"])
+def test_served_model_guard_accepts_gpt_5_4_mini(served: str) -> None:
+    mal.check_served_model("gpt-5.4-mini", served)
+
+
+@pytest.mark.parametrize("served", [None, "openai/gpt-5-mini", "openai/gpt-4o-mini", "gpt-5.4-mini",
+                                    "openrouter/openai/gpt-5.4-mini"])
+def test_served_model_guard_rejects_other_models_for_gpt_5_4_mini(served: str | None) -> None:
+    with pytest.raises(mal.ServedModelMismatch):
+        mal.check_served_model("gpt-5.4-mini", served)
+
+
+def test_served_model_guard_still_rejects_the_gpt_5_mini_remap() -> None:
+    with pytest.raises(mal.ServedModelMismatch):
+        mal.check_served_model("gpt-5-mini", "openai/gpt-5.4-mini")

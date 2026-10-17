@@ -292,3 +292,25 @@ async fn feedback_never_changes_later_output() {
     assert_eq!(text_of(&before), text_of(&after));
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn feedback_with_no_used_refs_on_a_hybrid_response_is_recorded() {
+    let fixture = Fixture::new();
+    let harness = start(&fixture, true, json!({})).await;
+    let found = harness.ok("search", json!({"query": "alpha", "mode": "hybrid"})).await;
+    let hit_refs = refs(&found);
+    let feedback = harness
+        .ok(
+            "feedback",
+            json!({"response_id": found["response_id"], "used": [], "unused": [hit_refs[0]]}),
+        )
+        .await;
+    assert_eq!(feedback["status"], "recorded", "{feedback}");
+    let all = records(&sink(&fixture, "a", 1));
+    let labels = of_type(&all, "feedback");
+    assert_eq!(labels.len(), 1);
+    assert_eq!(labels[0]["relevant_ids"], json!([]));
+    let event = of_type(&all, "event")[0];
+    assert_eq!(labels[0]["irrelevant_ids"], json!([event["result_ids"][0]]));
+    harness.shutdown().await;
+}

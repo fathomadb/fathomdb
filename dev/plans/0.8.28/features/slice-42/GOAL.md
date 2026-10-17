@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — goal
-status: PLANNED (docs written 2026-10-16; plan review R1 APPROVE-WITH-FIXES applied; Q-A1 pending)
+status: PLANNED (docs written 2026-10-16; plan review R1 APPROVE-WITH-FIXES applied; Q-A1 ruled 2026-10-16; implementation waits for the coordinator's go, after Slices 40 and 41)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---

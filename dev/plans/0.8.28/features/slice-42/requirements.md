@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — requirements and acceptance criteria
-status: PLANNED (R1 APPROVE-WITH-FIXES applied; Q-A1 pending; Q-B1, Q-B2 ruled)
+status: PLANNED (R1 APPROVE-WITH-FIXES applied; Q-A1 ruled 2026-10-16; Q-B1, Q-B2 ruled)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -95,9 +95,13 @@ todos ledger seq 308, 309 and 311; Slice 40 design § 2h;
   threads.
 - **REQ42-A2.** The assertion still fails when the engine leaves a
   descriptor open on the test's database files.
-- **REQ42-A3.** Only the lines the owner rules on (design § 1.4, Q-A1)
+- **REQ42-A3.** Only the lines the owner ruled on (design § 1.4, Q-A1,
+  ruled 2026-10-16: a helper after line 56, lines 366 and 429)
   change. No other test changes, no engine source changes, and the
   assertion message on line 437 stays.
+- **Accepted gap (Q-A1).** On macOS and Windows the helper returns
+  `None`, so the check is vacuous there. No job runs this binary on
+  those platforms.
 - **REQ42-A4.** Runs that pass today still pass: the test alone, and the
   binary with `--test-threads=1`.
 

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — design
-status: PLANNED (R1 APPROVE-WITH-FIXES applied; Q-A1 pending; Q-B1, Q-B2 ruled)
+status: PLANNED (R1 APPROVE-WITH-FIXES applied; Q-A1 ruled 2026-10-16; Q-B1, Q-B2 ruled)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -47,7 +47,7 @@ the test directory passes. The engine opens no such descriptor today: no
 socket, no pipe, no event descriptor. If one is added later, its own
 tests have to cover it.
 
-### 1.4 The edit (owner ruling Q-A1)
+### 1.4 The edit (owner ruling Q-A1, 2026-10-16: approved as written)
 
 In `src/rust/crates/fathomdb-engine/tests/slice135_robustness_first.rs`
 at the slice base `d10ad65d5`:
@@ -225,13 +225,14 @@ It is reviewed (R-INV) before it goes to the owner.
 
 ## 3. Open questions
 
-- **Q-A1 (owner), pending.** Approve the edit in § 1.4: a new helper
-  after line 56 and the changes to lines 366 and 429 of
-  `slice135_robustness_first.rs`, nothing else. Option 2 is the
-  recommendation (R1 agreed); the alternatives are option 1 (a lock in
-  all five tests) or option 3 (a child process). R1 also noted that
-  asserting `fd_after == Some(0)` would be more direct, but would widen
-  the ruled edit; it is not proposed.
+- **Q-A1 (owner), ruled 2026-10-16.** Option 2 is approved exactly as
+  written in § 1.4: add `fd_count_under(dir)` after line 56 of
+  `slice135_robustness_first.rs`; line 366 becomes
+  `let fd_before = fd_count_under(dir.path());` and line 429
+  `let fd_after = fd_count_under(dir.path());`; the assertion on line 437
+  is unchanged; nothing else. The gap on macOS and Windows, where the
+  check becomes `None == None`, is accepted and recorded (§ 1.2). The
+  `fd_after == Some(0)` variant R1 mentioned is not part of the ruling.
 - **Q-B1 (owner), ruled 2026-10-16.** The C3 threshold is 10%, with the
   precision in § 2.4.
 - **Q-B2 (owner), ruled 2026-10-16.** Allowed, scratch directory only:

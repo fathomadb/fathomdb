@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — test plan
-status: PLANNED (for plan review)
+status: PLANNED (R1 APPROVE-WITH-FIXES applied)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -111,12 +111,17 @@ LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT \
 strings "$SCRATCH/cli-pc/bin/fathomdb" | grep -x ENABLE_MEMORY_MANAGEMENT   # expected: absent
 ```
 
-Needs owner question Q-B2.
+Then the no-file form, expected absent too:
+`cargo install fathomdb-cli --version '=0.8.27' --locked --root "$SCRATCH/cli-cfg" --config 'env.LIBSQLITE3_FLAGS="-USQLITE_ENABLE_MEMORY_MANAGEMENT"'`.
+
+Allowed by owner ruling Q-B2: scratch directory only, no publish, no tag.
 
 ### 3.3 Route measurements (AC42-10)
 
-As design § 2.5. Each run records host, commit, profile, mode and
-command. The engine timing report runs with `--release --ignored
+As design § 2.5, with the C3 precision in design § 2.4: at least 3
+runs per cell, median p50, mode 1 and the route on the same host, binary
+and session, counters alongside, on an idle host. Each run records host,
+commit, profile, mode, load average, `nproc` and command. The engine timing report runs with `--release --ignored
 --exact reader_page_cache_timing_report` and `FATHOMDB_TC5_INPUTS` set.
 
 ### 3.4 Scope (AC42-12)

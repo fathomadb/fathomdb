@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — requirements and acceptance criteria
-status: PLANNED (for plan review)
+status: PLANNED (R1 APPROVE-WITH-FIXES applied; Q-A1 pending; Q-B1, Q-B2 ruled)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -16,7 +16,8 @@ the options and the method, [test-plan.md](test-plan.md) the runs.
 
 ### 1.1 Unit A
 
-Ledger seq 312 (`TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`), characterised
+Todos ledger (`dev/todos-and-considerations-ledger.jsonl`, not the steward
+ledger) seq 312 (`TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`), characterised
 on `slice/0.8.28-40-fts-ranking-defects` at `d42c8a7c6`:
 
 - The test is
@@ -35,7 +36,10 @@ on `slice/0.8.28-40-fts-ranking-defects` at `d42c8a7c6`:
   `--test-threads=1` passes 3 of 3 (4 and 4).
 - The file header says to run it with `--test-threads=1`. The
   feature-complete gate does that (`scripts/lib/feature_complete.py`
-  passes `--test-threads=1`), so the repository gate passes. An ad hoc
+  passes `--test-threads=1`), so the repository gate passes. No CI
+  workflow runs this binary: the engine `cargo test` lines in `ci.yml`
+  select other tests. Only local feature-complete runs and ad hoc runs
+  reach it. An ad hoc
   `cargo test -p fathomdb-engine --features test-hooks` runs threads in
   parallel and fails, as it did in the Slice 40 Unit I checks.
 - The target requires `test-hooks` (`fathomdb-engine/Cargo.toml`).
@@ -46,8 +50,8 @@ on `slice/0.8.28-40-fts-ranking-defects` at `d42c8a7c6`:
 
 ### 1.2 Unit B
 
-Ledger seq 313 (`TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`); context seq
-308, 309 and 311; Slice 40 design § 2h;
+Todos ledger seq 313 (`TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`); context
+todos ledger seq 308, 309 and 311; Slice 40 design § 2h;
 [ADR-0.8.28-sqlite-per-connection-page-cache](../../../../adr/ADR-0.8.28-sqlite-per-connection-page-cache.md).
 
 - Slice 40 Unit I removed `-DSQLITE_ENABLE_MEMORY_MANAGEMENT` from the
@@ -135,6 +139,6 @@ Ledger seq 313 (`TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`); context seq
 | AC42-07 | REQ42-B1 | `investigation.md` records, for the 0.8.27 CLI from `cargo install` and for a scratch consumer of this branch's engine, the resolved `libsqlite3-sys` source and whether `ENABLE_MEMORY_MANAGEMENT` is compiled in |
 | AC42-08 | REQ42-B1 | The Unit I tests (AC40-95 to AC40-97), run in the scratch consumer: RED without `LIBSQLITE3_FLAGS`, GREEN with `-USQLITE_ENABLE_MEMORY_MANAGEMENT` |
 | AC42-09 | REQ42-B2 | Each route row in `investigation.md` fills every criterion in design § 2.4 and cites its evidence |
-| AC42-10 | REQ42-B2 | The measured routes (design § 2.5) have numbers from the Unit I timing report or the raw-SQLite probe, in both page-cache modes |
+| AC42-10 | REQ42-B2 | The measured routes (design § 2.5) have numbers from the Unit I timing report or the raw-SQLite probe, in both page-cache modes, taken as design § 2.4 C3 specifies (at least 3 runs, median p50, counters alongside) |
 | AC42-11 | REQ42-B3 | `investigation.md` ends with one recommendation and numbered owner questions |
 | AC42-12 | REQ42-B4 | `git diff --stat` for Unit B lists only files in this directory |

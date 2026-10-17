@@ -21,10 +21,15 @@ onto forked, published crates:
   each fork, first (owner ruling Q14).
 - **Slice 40:** FTS ranking, latency and page-cache defects found by the
   COMP benchmarks. In progress on `slice/0.8.28-40-fts-ranking-defects`.
+- **Slice 41 (`SDK-CONTEXT-PACK`, owner ruling 2026-10-16):** SDK
+  context pack, full-render override, configurable query stop words.
+  Reserved here; planned on `slice/0.8.28-41-sdk-evidence-helper`, whose
+  slice docs are not on this branch. Depends on Slice 40; lands before
+  Slice 42.
 - **Slice 42 (owner ruling 2026-10-16):** make the slice135 descriptor
-  check independent of parallel tests (ledger seq 312), and investigate
-  how published Rust artifacts get per-connection page caches (ledger seq
-  313). Depends on Slice 40.
+  check independent of parallel tests (todos ledger (`dev/todos-and-considerations-ledger.jsonl`) seq 312, `TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`), and investigate how published
+  Rust artifacts get per-connection page caches (todos ledger seq 313, `TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`). Depends on Slice 40;
+  lands after Slice 41.
 
 The other entries in the [draft scope](0.8.28-draft-scope.md) are not on the
 ladder. D28-09 to D28-12 are owner-directed but not yet placed; D28-01 to
@@ -90,13 +95,13 @@ unless a placement decision adds a slice; it is never an implicit patch lane.
 ## Immediate next slice
 
 Slice 31 merged into `release/0.8.28` at `1ceefddd8`. Slice 40 is in
-progress; Slice 42 is planned and its plan review is next. After them come
+progress; Slices 41 and 42 are planned, and 41 lands before 42. After them come
 the release-level steps: the open decisions, then the owner's publication
 decision (Slice 31 plan W8 and R-CODE-4).
 
 ## Slice 42 — slice135 descriptor check and the published-Rust page cache
 
-Placed by owner ruling on 2026-10-16 (ledger seq 312 and 313). Branch
+Placed by owner ruling on 2026-10-16 (todos ledger (`dev/todos-and-considerations-ledger.jsonl`) seq 312, `TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`; todos ledger seq 313, `TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`). Branch
 `slice/0.8.28-42-test-hygiene-and-published-cache`, cut from the Slice 40
 branch at `d10ad65d5`. Plan:
 [slice-42/plan.md](0.8.28/features/slice-42/plan.md).
@@ -126,4 +131,5 @@ slice.
 | 30 | Tegra private CUDA memory pool (D28-08) | [slice-30/plan.md](0.8.28/features/slice-30/plan.md) |
 | 31 | cudarc and Candle forks from crates.io (D28-13) | [slice-31/plan.md](0.8.28/features/slice-31/plan.md) |
 | 40 | FTS ranking, latency and page-cache defects (COMP benchmarks) | [slice-40/plan.md](0.8.28/features/slice-40/plan.md) |
+| 41 | SDK context pack, full-render override, configurable query stop words (reserved; docs on `slice/0.8.28-41-sdk-evidence-helper`) | not on this branch |
 | 42 | slice135 descriptor check; published-Rust page-cache investigation | [slice-42/plan.md](0.8.28/features/slice-42/plan.md) |

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — design
-status: PLANNED (for plan review)
+status: PLANNED (R1 APPROVE-WITH-FIXES applied; Q-A1 pending; Q-B1, Q-B2 ruled)
 target_release: 0.8.28
 observed_on: 2026-10-16
 ---
@@ -28,7 +28,7 @@ closed its files (requirements § 1.1).
 | Option | What it does | For | Against |
 | --- | --- | --- | --- |
 | **1. Serialise the binary** | A file-level `static` `Mutex` taken first by all five non-ignored tests, as `slice40_reader_page_cache.rs` and `slice40_projected_fts_stream.rs` do | Keeps the process-wide count, so it still sees any descriptor kind (pipes, sockets, event descriptors). Matches the header's `--test-threads=1` | Edits all five tests. The count is still process-wide, so a future test that forgets the lock breaks it again. The binary loses its parallelism |
-| **2. Count only the test's own files** (recommended) | Read `/proc/self/fd`, follow each link, and count the links whose target is under the test's `TempDir` | Exact for the leak this test is about: the engine keeping its database files open. Independent of other threads by construction. Touches one test and adds one helper | Linux only (it returns `None` elsewhere, as `/dev/fd` already does on Windows). Does not see a leaked pipe, socket or event descriptor, or a file outside the directory |
+| **2. Count only the test's own files** (recommended) | Read `/proc/self/fd`, follow each link, and count the links whose target is under the test's `TempDir` | Exact for the leak this test is about: the engine keeping its database files open. Independent of other threads by construction. Touches one test and adds one helper | Linux only. It returns `None` elsewhere, so the check becomes `None == None` on macOS (where `/dev/fd` counts today) as well as on Windows (where it is already `None`). No macOS or Windows job runs this binary; those runners only build wheels. Does not see a leaked pipe, socket or event descriptor, or a file outside the directory |
 | **3. Run the scenario in a child process** | The test re-runs its own binary with `--exact` on an ignored victim test, as `slice135_crash_victim` does, and the child counts its own `/dev/fd` | Process-wide count, every descriptor kind, no cross-test effect | Most code: the scenario and its assertions move into a victim, and failures come back as an exit status and captured output. A larger edit to rule on |
 
 ### 1.3 Choice
@@ -116,39 +116,50 @@ are not the target.
 ### 2.2 Current behaviour (evidence E1–E3)
 
 - **E1, the installed CLI.** `cargo install fathomdb-cli --version
-  '=0.8.27' --locked --root <scratch>`. Record the `libsqlite3-sys`
-  version in the install log, and check whether the binary carries
+  '=0.8.27' --locked --root <scratch>` (Q-B2: allowed, scratch directory
+  only; no publish, no tag). Record the `libsqlite3-sys` version in the
+  install log, and check whether the binary carries
   `ENABLE_MEMORY_MANAGEMENT` in SQLite's compile-option table
-  (`strings <bin> | grep -x ENABLE_MEMORY_MANAGEMENT`). Repeat with
-  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`; the string should
-  be gone.
+  (`strings <bin> | grep -x ENABLE_MEMORY_MANAGEMENT`; the table drops
+  the `SQLITE_` prefix). Repeat with
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, and with the
+  no-file form `cargo install … --config
+  'env.LIBSQLITE3_FLAGS="-USQLITE_ENABLE_MEMORY_MANAGEMENT"'`; the string
+  should be gone in both. The with/without pair is the control: once R2
+  puts the literal into engine code, every binary contains it and
+  `strings` stops telling the builds apart.
 - **E2, a crate consumer.** A scratch crate outside the workspace, so the
   root `[patch]` does not apply, with a path dependency on this branch's
   `fathomdb-engine` (`features = ["test-hooks"]`). Record
-  `cargo tree -i libsqlite3-sys` (it must show the registry source). Copy
-  `tests/slice40_reader_page_cache.rs` into it and run AC40-95 to
-  AC40-97: expected RED.
+  `cargo tree -i libsqlite3-sys` (it must show the registry source and
+  version 0.38.2, not the vendored 0.38.1). The crate gets a fresh
+  lockfile, so record the resolved `rusqlite` and other SQLite-related
+  versions. Copy `tests/slice40_reader_page_cache.rs` into it with the
+  same dev-dependencies and run AC40-95 to AC40-97: expected RED. No CUDA
+  feature is enabled, so the `candle-kernels` patch does not matter.
 - **E3, the override.** E2 again with
   `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`: expected GREEN.
   Then E2 again with the variable set in the scratch crate's
   `.cargo/config.toml` `[env]` table instead of the shell: this shows
-  whether a config file reaches the dependency's build script.
+  whether a config file reaches the dependency's build script
+  (`build.rs` line 332 declares `rerun-if-env-changed=LIBSQLITE3_FLAGS`,
+  and line 323 appends `-U…` after the fixed `-D` list, so it wins).
 
 ### 2.3 Routes
 
 | Id | Route | Reaches | First reading |
 | --- | --- | --- | --- |
-| R1 | Prebuilt CLI binaries built in the workspace, attached to the GitHub release for each target, with `[package.metadata.binstall]` so `cargo binstall fathomdb-cli` fetches them; install docs lead with them | CLI users | Per-connection cache and the Windows WAL backport, from the same vendored crate the wheels use. Release-pipeline work: a build job per target, checksums, smoke. Does nothing for crate consumers |
-| R2 | Report the mode at run time (ledger seq 309): read `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT")` at open; report it in the open report or runtime configuration, warn once, and show it in `doctor` | Everyone, as information | Small, follows the Windows marker precedent. Fixes nothing. A public field needs interface docs and parity in three SDKs |
-| R3 | Document the persistent override: `LIBSQLITE3_FLAGS` in the consumer's `.cargo/config.toml` `[env]` or in `~/.cargo/config.toml` (which `cargo install` also reads) | Users who read the docs | Free. Depends on E3 showing that `[env]` reaches the build script |
-| R4 | A system SQLite: `LIBSQLITE3_SYS_USE_PKG_CONFIG=1` makes `libsqlite3-sys` link a system library even with `bundled` on (0.38.2 `build.rs` line 80). Or make `bundled` a default feature that consumers can turn off | Users who opt in | Still a user-set variable or a feature change in three crates. The system library may be older, may lack FTS5, may itself set the flag, and lacks the Windows WAL backport. Evidence: `PRAGMA compile_options` of the system SQLite on Ubuntu 22.04, 24.04 and macOS |
+| R1 | Prebuilt CLI binaries built in the workspace, attached to the GitHub release for each target, so `cargo binstall fathomdb-cli` fetches them (its default template needs no `[package.metadata.binstall]` if assets are named `{name}-{target}-v{version}.tgz`); install docs lead with them | CLI users | Per-connection cache and the Windows WAL backport, from the same vendored crate the wheels use. Today the GitHub release carries only the Python distributions. Release-pipeline work: a build job per target, including aarch64 Linux for Jetson and Tegra (the sealed CUDA CLI archive is a starting point), checksums, smoke. Does nothing for crate consumers |
+| R2 | Report the mode at run time (todos ledger seq 309): read `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT")` at open; report it in the open report or runtime configuration, warn once, and show it in `doctor` | Everyone, as information | Small, follows the Windows marker precedent. Fixes nothing. A public field needs interface docs and parity in three SDKs. The warning text points at the R3 one-line override |
+| R3 | Document the persistent override: `LIBSQLITE3_FLAGS` in the consumer's `.cargo/config.toml` `[env]` or in `$CARGO_HOME/config.toml` (which `cargo install` also reads), or the one-line `cargo install fathomdb-cli --config 'env.LIBSQLITE3_FLAGS="-USQLITE_ENABLE_MEMORY_MANAGEMENT"'` | Users who read the docs | Free. Depends on E1 and E3 showing that `[env]` and `--config` reach the build script |
+| R4 | A system SQLite: `LIBSQLITE3_SYS_USE_PKG_CONFIG=1` makes `libsqlite3-sys` link a system library even with `bundled` on (0.38.2 `build.rs` line 80). Or make `bundled` a default feature that consumers can turn off | Users who opt in | Still a user-set variable or a feature change in three crates. The system library may be older, may lack FTS5, may itself set the flag, drops the 3.53.2 version pin, and lacks the vendored amalgamation patches, including the Windows WAL backport. Evidence: `PRAGMA compile_options` of the system SQLite on Ubuntu 22.04, 24.04 and macOS |
 | R5 | `PRAGMA mmap_size` on reader connections, so pages that are not in the WAL are read from the mapping | Everyone | Canonical. Hypothesis to measure: the pager looks a page up in the cache before using the mapping, so the group mutex stays, but fewer pages occupy the cache and the robbing matters less. Changes runtime configuration for every build (ADR-0.8.25-sqlite-runtime-configuration), with `SIGBUS` risk on I/O errors or truncation; could be applied only when E2's mode is detected |
 | R6 | A larger `cache_size` per reader | Everyone | Slice 40 § 1.7: `-8000` delays the defect but does not remove it, and the ceiling grows four times. Measure how large a heavy read must be to trigger it at each size |
 | R7 | Fewer readers | Everyone | Fewer connections share the group. Costs read concurrency. Measure with the reader count at 2, 4 and 8 |
 | R8 | Release memory after a heavy read (`sqlite3_db_release_memory`), Slice 40 option D | Everyone | Rejected in Unit I: it empties every connection's cache in mode 2. Carried for completeness |
 | R9 | A FathomDB page cache through `SQLITE_CONFIG_PCACHE2`, Slice 40 option E: a per-connection cache, a port of the separate-cache path of `pcache1` | Everyone | Canonical SQLite and stock crates. Estimated 400 to 600 lines of unsafe FFI on the read path. Process-wide: must be installed before `sqlite3_initialize`, so it also applies to the consumer's own SQLite use in the process and conflicts with any other `sqlite3_config` caller (the runtime latch of Slice 40 Unit J). Evidence: line count and a feasibility spike only if the owner asks |
-| R10 | A build-time check or a cargo feature | — | Desk check: `fathomdb-engine`'s build script cannot see `libsqlite3-sys`'s compiler flags, and a feature cannot change them. `libsqlite3-sys` 0.38.2 exports `include` and `lib_dir` (`build.rs` lines 147 and 336), not the flags. A direct dependent's build script could link a probe against `DEP_SQLITE3_LIB_DIR` and call `sqlite3_compileoption_used`, but only when host and target match; assess, do not build |
-| R11 | Wait for a `libsqlite3-sys` release that contains `f31f7324`, then bump (ledger seq 311) | Everyone | Owner prefers not to wait. Remains the exit of the vendored change. Record the release history only; no upstream request |
+| R10 | A build-time check or a cargo feature | — | Desk check: `fathomdb-engine`'s build script cannot see `libsqlite3-sys`'s compiler flags, and a feature cannot change them. `libsqlite3-sys` 0.38.2 exports `include` and `lib_dir` (`build.rs` lines 147 and 336), not the flags. A direct dependent's build script could link a probe against `DEP_SQLITE3_LIB_DIR` and call `sqlite3_compileoption_used`, but only when host and target match; assess, do not build. A `cargo:warning` from a registry dependency's build script is not shown to consumers (Cargo shows warnings only for path and workspace members), so a build-time warning cannot reach crate consumers; that leaves R2 |
+| R11 | Wait for a `libsqlite3-sys` release that contains `f31f7324`, then bump (todos ledger seq 311) | Everyone | Owner prefers not to wait. Remains the exit of the vendored change. Record the release history only; no upstream request |
 | R12 | A FathomDB-published `libsqlite3-sys` with a `rusqlite` fork | Everyone | Owner prefers not to. Needs its own `links` key; a consumer that also uses stock `rusqlite` would then link two SQLite images. Desk assessment only |
 
 ### 2.4 Decision criteria
@@ -162,7 +173,13 @@ Each route is scored on:
 - **C3 Effect, measured.** In the Unit I timing report, the ratio of
   body-search p50 after one selective projected query to p50 before it;
   and the AC40-96 and AC40-97 counters. Mode 1 is the reference. A route
-  passes C3 if its ratio is within 10% of mode 1's on the same host.
+  passes C3 if its ratio is within 10% of mode 1's (owner ruling Q-B1,
+  2026-10-16), measured as follows: at least 3 runs, median p50; mode 1
+  and the route on the same host, binary and session; the AC40-96 and
+  AC40-97 counters reported alongside (the counters are the deterministic
+  signal, timing confirms them); on an idle host, with load average and
+  `nproc` recorded. The timing report has never been run (Slice 40 status,
+  I-W2/W4/W5), so this slice produces the mode-1 reference numbers too.
 - **C4 Risk.** Unsafe code, new crash or correctness exposure on the read
   path, and effects on other SQLite users in the consumer's process.
 - **C5 Memory.** The change in the page-cache ceiling and in resident
@@ -208,12 +225,16 @@ It is reviewed (R-INV) before it goes to the owner.
 
 ## 3. Open questions
 
-- **Q-A1 (owner).** Approve the edit in § 1.4: a new helper after line
-  56 and the changes to lines 366 and 429 of `slice135_robustness_first.rs`,
-  nothing else. Or choose option 1 (a lock in all five tests) or option 3
-  (a child process).
-- **Q-B1 (owner).** Confirm the C3 threshold: within 10% of mode 1's
-  ratio.
-- **Q-B2 (owner).** May the investigation install the 0.8.27 CLI from
-  crates.io into the scratch directory (E1)? It is a registry download
-  and a local build only.
+- **Q-A1 (owner), pending.** Approve the edit in § 1.4: a new helper
+  after line 56 and the changes to lines 366 and 429 of
+  `slice135_robustness_first.rs`, nothing else. Option 2 is the
+  recommendation (R1 agreed); the alternatives are option 1 (a lock in
+  all five tests) or option 3 (a child process). R1 also noted that
+  asserting `fd_after == Some(0)` would be more direct, but would widen
+  the ruled edit; it is not proposed.
+- **Q-B1 (owner), ruled 2026-10-16.** The C3 threshold is 10%, with the
+  precision in § 2.4.
+- **Q-B2 (owner), ruled 2026-10-16.** Allowed, scratch directory only:
+  `cargo install fathomdb-cli --version =0.8.27 --locked --root
+  <scratch>`; no publish, no tag, nothing written outside the scratch
+  directory.

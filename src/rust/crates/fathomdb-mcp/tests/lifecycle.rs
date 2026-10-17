@@ -347,3 +347,17 @@ async fn a_stalled_call_does_not_delay_a_call_to_another_store() {
     assert_eq!(found["results"][0]["ref"], "l:note:b");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn eager_stores_open_at_launch() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("note:a", "note", "alpha")]);
+    let harness = Harness::start(fixture.config(json!({
+        "stores": {"a": {"path": "a.sqlite", "eager": true}},
+        "idle_timeout_secs": 0
+    })))
+    .await;
+    assert!(wait_for_readiness(&harness.client, "a", "ready", Duration::from_secs(10)).await);
+    assert!(!can_open(&fixture.path("a.sqlite")), "opened before any call");
+    harness.shutdown().await;
+}

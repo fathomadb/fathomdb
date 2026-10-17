@@ -190,3 +190,23 @@ async fn embedded_mode_serves_host_engines_without_a_second_open() {
     one.close().unwrap();
     two.close().unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn embedded_continuations_are_marked_inexact() {
+    let fixture = Fixture::new();
+    let writes: Vec<_> =
+        (0..4).map(|i| node(&format!("note:{i}"), "note", &format!("host river {i}"))).collect();
+    fixture.store("one.sqlite", writes);
+    let one = Arc::new(Engine::open(fixture.path("one.sqlite"), OpenOptions::default()).unwrap());
+    let adapter = Adapter::new(Config::default()).unwrap();
+    adapter.register_engine("one", one.clone()).unwrap();
+    let client = connect(&adapter).await;
+    let page =
+        common::ok(&client, "search", json!({"store": "one", "query": "river", "limit": 2})).await;
+    assert!(page["continuation"].is_string());
+    // The host may write between pages (interface §5).
+    assert_eq!(page["continuation_exact"], false);
+    let _ = client.cancel().await;
+    adapter.shutdown().await;
+    one.close().unwrap();
+}

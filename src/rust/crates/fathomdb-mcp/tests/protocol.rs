@@ -245,3 +245,22 @@ async fn adapter_requires_no_store_to_serve_the_handshake() {
     let _ = client.cancel().await;
     adapter.shutdown().await;
 }
+
+#[test]
+fn closing_stdin_drains_open_stores_and_releases_their_locks() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("note:1", "note", "alpha river")]);
+    let config = fixture.config_file(json!({
+        "stores": {"a": {"path": "a.sqlite"}},
+        "idle_timeout_secs": 0
+    }));
+    let mut server = Spawned::start(&config);
+    server.initialize();
+    let search = server.call("search", json!({"store": "a", "query": "alpha"}));
+    assert_ne!(search["isError"], true, "{search}");
+    assert!(!common::can_open(&fixture.path("a.sqlite")), "the server holds the lock");
+    let (status, lines, _) = server.finish();
+    assert_eq!(status.code(), Some(0));
+    assert_json_rpc_only(&lines);
+    assert!(common::can_open(&fixture.path("a.sqlite")), "released on shutdown");
+}

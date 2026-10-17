@@ -1077,7 +1077,12 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 })
                 .collect(),
             complete: result.complete,
-            bound: bound.clone(),
+            // Dropping targets to fit the budget is the cap the agent hit.
+            bound: if kept < result.targets.len() {
+                Some("budget".to_string())
+            } else {
+                bound.clone()
+            },
         }
     };
     shape::cut_bodies(&mut bodies, |bodies| {

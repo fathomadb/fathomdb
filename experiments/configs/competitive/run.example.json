@@ -1,0 +1,41 @@
+{
+  "schema_version": "competitive.run.v1",
+  "case_id": "example-local-retrieval",
+  "scoreboard": "retrieval",
+  "product": {
+    "name": "FathomDB",
+    "version": "0.8.27",
+    "deployment": "embedded"
+  },
+  "evidence": {
+    "kind": "local",
+    "reference_url": null
+  },
+  "workload": {
+    "name": "example-corpus",
+    "corpus_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "queries_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "items": 1000,
+    "queries": 100,
+    "search_mode": "fts",
+    "top_k": 10,
+    "filter": "none"
+  },
+  "measurement": {
+    "boundary": "public API call through materialized hits",
+    "cache_state": "steady",
+    "concurrency": 1,
+    "repetitions": 3,
+    "seed": 7
+  },
+  "target_hardware": {
+    "cpu": "published reference CPU model",
+    "cores": 8,
+    "ram_gib": 32,
+    "storage": "NVMe SSD",
+    "gpu": "none"
+  },
+  "settings": {
+    "reader_threads": 1
+  }
+}

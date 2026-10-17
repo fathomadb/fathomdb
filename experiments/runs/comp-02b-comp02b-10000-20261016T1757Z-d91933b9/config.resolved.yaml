@@ -1,0 +1,50 @@
+{
+  "arms": [
+    {
+      "embedder": "none",
+      "id": "fathomdb",
+      "method": "Engine.search_projected_text('text', SearchFilter(attributes=bench_cohort))",
+      "tokenizer": "FTS5 porter unicode61 remove_diacritics 2",
+      "version": "0.8.27 (repo build)"
+    },
+    {
+      "analyzer": "crud-bench: blank,class + lowercase,ascii, BM25",
+      "driver": "experiments/comp_drivers/surrealdb (Cargo.lock committed)",
+      "id": "surrealdb",
+      "query": "body @0,OR@ $q AND cohort = $c ORDER BY search::score(0) DESC; btree on cohort",
+      "version": "3.3.0 (Rust crate, embedded RocksDB)"
+    }
+  ],
+  "campaign": "COMP-02b",
+  "claim_boundary": "filtered FTS only; vector KNN unsupported in 0.8.27 public API",
+  "harness_campaign": "comp02b",
+  "inputs": {
+    "build": "python -m experiments.comp02_inputs --size 10000 --output <inputs>",
+    "dir_hint": "~/.cache/fathomdb-comp/tc5-10000",
+    "files": {
+      "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+      "manifest.json": "a042ef6b1dac40eb9c9d1e526ec7af706ec1a48ba4abfd7b6577c45538db3e29",
+      "probes.json": "7d7096874c1c21b5a48f622e635fafc491fe03de87929e1844022ba3a219bf12",
+      "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+    },
+    "source": "SCALE-02 qualified TC-5 input pack v1 with hashed bench_cohort"
+  },
+  "metrics": [
+    "p50_ms",
+    "p95_ms",
+    "violations",
+    "short_results",
+    "selectivity"
+  ],
+  "program_track": null,
+  "report": "filtered",
+  "result_note": "dev/performance-benchmarking/2026-10-15-comp-02b-filtered-fts-result.md",
+  "roster": {
+    "cell": "one arm x one fresh database, own subprocess; resume skips cells/*.json",
+    "order": "AB/BA/BA/AB",
+    "repetitions": 4
+  },
+  "run": "python -m experiments.comp_fts run --config experiments/configs/comp-02/filtered-10000.v1.json --inputs <inputs> --out <new attempt dir>",
+  "schema_version": "comp-fts.campaign.v1",
+  "title": "COMP-02b filtered FTS at 1/10/33% selectivity, 10k TC-5 documents, FathomDB vs SurrealDB"
+}

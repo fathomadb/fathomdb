@@ -1388,6 +1388,42 @@
       "successor": null
     },
     {
+      "path": "dev/design/sdk-driver-python.md",
+      "class": "proposal",
+      "topic": "sdk-driver-python",
+      "role": "design",
+      "owner": "dev/design/sdk-driver-python.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/sdk-driver-rust.md",
+      "class": "proposal",
+      "topic": "sdk-driver-rust",
+      "role": "design",
+      "owner": "dev/design/sdk-driver-rust.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/sdk-driver-typescript.md",
+      "class": "proposal",
+      "topic": "sdk-driver-typescript",
+      "role": "design",
+      "owner": "dev/design/sdk-driver-typescript.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/sdk-performance-driver.md",
+      "class": "proposal",
+      "topic": "sdk-performance-driver",
+      "role": "design",
+      "owner": "dev/design/sdk-performance-driver.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
       "path": "dev/design/slice-0-adr-plan.md",
       "class": "historical",
       "topic": "design",

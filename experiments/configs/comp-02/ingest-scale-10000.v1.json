@@ -1,0 +1,53 @@
+{
+  "schema_version": "comp-fts.campaign.v1",
+  "program_track": null,
+  "campaign": "COMP-02a",
+  "harness_campaign": "comp02a",
+  "title": "COMP-02a ingest-to-queryable and scale, 10000 TC-5 documents, FathomDB vs SurrealDB",
+  "inputs": {
+    "dir_hint": "~/.cache/fathomdb-comp/tc5-10000",
+    "source": "SCALE-02 qualified TC-5 input pack v1, data/performance-benchmarking/scale-02/inputs/input-pack-v1/tc5",
+    "build": "python -m experiments.comp02_inputs --size 10000 --output <inputs>",
+    "files": {
+      "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+      "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb",
+      "probes.json": "7d7096874c1c21b5a48f622e635fafc491fe03de87929e1844022ba3a219bf12",
+      "manifest.json": "a042ef6b1dac40eb9c9d1e526ec7af706ec1a48ba4abfd7b6577c45538db3e29"
+    }
+  },
+  "arms": [
+    {
+      "id": "fathomdb",
+      "version": "0.8.27 (repo build)",
+      "method": "Engine.search_text_only",
+      "tokenizer": "FTS5 porter unicode61 remove_diacritics 2",
+      "embedder": "none"
+    },
+    {
+      "id": "surrealdb",
+      "version": "3.3.0 (Rust crate, embedded RocksDB)",
+      "driver": "experiments/comp_drivers/surrealdb (Cargo.lock committed)",
+      "analyzer": "crud-bench: blank,class + lowercase,ascii, BM25",
+      "query": "body @0,OR@ $q ORDER BY search::score(0) DESC"
+    }
+  ],
+  "roster": {
+    "order": "AB/BA/BA/AB",
+    "repetitions": 4,
+    "cell": "one arm x one fresh database, own subprocess; resume skips cells/*.json"
+  },
+  "run": "python -m experiments.comp_fts run --config experiments/configs/comp-02/ingest-scale-10000.v1.json --inputs <inputs> --out <new attempt dir>",
+  "report": "scale",
+  "metrics": [
+    "ingest_ack_s",
+    "query_ready_s",
+    "reopen_s",
+    "steady_p50_ms",
+    "steady_p95_ms",
+    "steady_p99_ms",
+    "disk_mib",
+    "peak_rss_mib"
+  ],
+  "result_note": "dev/performance-benchmarking/2026-10-15-comp-02a-ingest-ready-scale-result.md",
+  "claim_boundary": "our runner with the crud-bench SurrealDB protocol, not a crud-bench run"
+}

@@ -232,6 +232,18 @@ def test_engine_search_text_only_is_a_distinct_supported_operation(tmp_path):
     mc.validate_classification(document, repository_root=tmp_path, authority=authority)
 
 
+def test_engine_search_projected_text_is_a_supported_engine_operation(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    authority["call_paths"][0]["operation"] = "Engine.search_projected_text"
+    authority["components"][0]["name"] = "FathomDB Engine.search_projected_text"
+    document["call_paths"] = copy.deepcopy(authority["call_paths"])
+    document["components"] = copy.deepcopy(authority["components"])
+    document["migration"]["measurement_plan_sha256"] = mc.canonical_sha256(authority)
+    document["classification_id"] = mc.classification_id(document)
+
+    mc.validate_classification(document, repository_root=tmp_path, authority=authority)
+
+
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [

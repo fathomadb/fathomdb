@@ -1,0 +1,49 @@
+{
+  "schema_version": "sdk.experiment.v1",
+  "program_track": null,
+  "suite_id": "synthetic-fts-v1",
+  "fixtures": {
+    "manifest": {
+      "path": "/absolute/external/sdk-fixture.json",
+      "sha256": "<SHA-256 of fixture file>"
+    }
+  },
+  "arms": [
+    {"sdk": "python", "artifact": {"path": "/absolute/external/python-arm.json", "sha256": "<SHA-256 of arm file>"}},
+    {"sdk": "typescript", "artifact": {"path": "/absolute/external/typescript-arm.json", "sha256": "<SHA-256 of arm file>"}},
+    {"sdk": "rust", "artifact": {"path": "/absolute/external/rust-arm.json", "sha256": "<SHA-256 of arm file>"}}
+  ],
+  "cases": [
+    {
+      "id": "fts-retrieval",
+      "family": "retrieval",
+      "operation_id": "engine.search_text_only",
+      "operation_version": 1,
+      "scale_tier": "embedded-synthetic",
+      "required": true,
+      "arguments": {"query_set": "all", "limit": 10, "view": {"valid_as_of": 1700000000}},
+      "setup": "canonical-nodes-v1",
+      "boundary": "sdk_call_to_materialized_result"
+    },
+    {
+      "id": "fts-latency",
+      "family": "latency_capacity",
+      "operation_id": "engine.search_text_only",
+      "operation_version": 1,
+      "scale_tier": "embedded-synthetic",
+      "required": true,
+      "arguments": {"query_set": "all", "limit": 10, "view": {"valid_as_of": 1700000000}},
+      "setup": "canonical-nodes-v1",
+      "boundary": "sdk_call_to_materialized_result"
+    }
+  ],
+  "sampling": {
+    "warmup_per_query": 0,
+    "repetitions": 3,
+    "seed": 7,
+    "cache_state": "first_pass_after_populated_reopen",
+    "concurrency": 1,
+    "order": "balanced"
+  },
+  "output": {"result_schema": "sdk.result.v1", "metrics": ["recall_at_10", "p50_ms", "database_bytes", "driver_peak_rss_bytes"]}
+}

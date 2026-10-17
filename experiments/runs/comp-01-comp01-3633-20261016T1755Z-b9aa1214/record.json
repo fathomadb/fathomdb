@@ -1,0 +1,401 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "comp-01-comp01-3633-20261016T1755Z-b9aa1214",
+  "experiment": "comp-01-comp01-3633",
+  "title": "COMP-01 NFCorpus FTS, FathomDB vs LanceDB",
+  "verdict": "complete",
+  "read": "COMP-01 NFCorpus FTS, FathomDB vs LanceDB; result note dev/performance-benchmarking/2026-10-15-comp-01-nfcorpus-fts-result.md",
+  "code": {
+    "git_sha": "7ef4ae8433981b2b5a6304da7033515495122038",
+    "dirty": false,
+    "branch": "slice/0.8.28-40-comp03",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "b9aa1214c7bb0715f5ca68361603f76ed52ec5efbf638d66063f178d34169248",
+    "path": "experiments/configs/comp-01/nfcorpus-fts.v1.json",
+    "resolved": {
+      "schema_version": "comp-fts.campaign.v1",
+      "program_track": null,
+      "campaign": "COMP-01",
+      "harness_campaign": "comp01",
+      "title": "COMP-01 NFCorpus FTS, FathomDB vs LanceDB",
+      "inputs": {
+        "dir_hint": "~/.cache/fathomdb-comp/nfcorpus-input",
+        "source": "BEIR NFCorpus test split, data/corpus-data/raw/beir/nfcorpus",
+        "build": "python -m experiments.comp01_nfcorpus --source data/corpus-data/raw/beir/nfcorpus --output <inputs>",
+        "files": {
+          "corpus.json": "1895269ad24ec66b3a1fef9de806e6369b1f8f8376ec063f809097a41a315022",
+          "queries.json": "a352f9ad9b20b8bc75fe37488c681030f1fe31675e733b6e9665d1296bbbe383",
+          "gold.json": "6b226d8849aa2e080edafe3d3ca778931fc8ab68e420f28e7ece7ae26a55e105",
+          "manifest.json": "c2abd951fdba912d0a0fd9bfd5fdbb47ebf209ce51fcd06ff841f4b4006b4266"
+        }
+      },
+      "arms": [
+        {
+          "id": "fathomdb",
+          "version": "0.8.27 (repo build)",
+          "method": "Engine.search_text_only",
+          "tokenizer": "FTS5 porter unicode61 remove_diacritics 2",
+          "embedder": "none"
+        },
+        {
+          "id": "lancedb",
+          "version": "0.40.0",
+          "method": "table.search(query_type='fts')",
+          "index": "native FTS (use_tantivy=False), library defaults"
+        }
+      ],
+      "roster": {
+        "order": "AB/BA/BA/AB",
+        "repetitions": 4,
+        "cell": "one arm x one fresh database, own subprocess; resume skips cells/*.json"
+      },
+      "run": "python -m experiments.comp_fts run --config experiments/configs/comp-01/nfcorpus-fts.v1.json --inputs <inputs> --out <new attempt dir>",
+      "report": "fts",
+      "metrics": [
+        "ndcg_at_10",
+        "recall_at_10",
+        "mrr_at_10",
+        "steady_p50_ms",
+        "steady_p95_ms",
+        "disk_mib",
+        "peak_rss_mib"
+      ],
+      "result_note": "dev/performance-benchmarking/2026-10-15-comp-01-nfcorpus-fts-result.md",
+      "claim_boundary": "local paired FTS only; top-10; linear-gain nDCG"
+    }
+  },
+  "corpus": {
+    "source": "BEIR NFCorpus test split, data/corpus-data/raw/beir/nfcorpus",
+    "manifest_sha256": "c2abd951fdba912d0a0fd9bfd5fdbb47ebf209ce51fcd06ff841f4b4006b4266",
+    "datasets": [
+      {
+        "name": "corpus.json",
+        "sha256": "1895269ad24ec66b3a1fef9de806e6369b1f8f8376ec063f809097a41a315022"
+      },
+      {
+        "name": "gold.json",
+        "sha256": "6b226d8849aa2e080edafe3d3ca778931fc8ab68e420f28e7ece7ae26a55e105"
+      },
+      {
+        "name": "manifest.json",
+        "sha256": "c2abd951fdba912d0a0fd9bfd5fdbb47ebf209ce51fcd06ff841f4b4006b4266"
+      },
+      {
+        "name": "queries.json",
+        "sha256": "a352f9ad9b20b8bc75fe37488c681030f1fe31675e733b6e9665d1296bbbe383"
+      }
+    ]
+  },
+  "seeds": {
+    "steady_order": "1000 + repetition"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.27",
+      "lancedb": "0.40.0",
+      "fathomdb_engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "fathomdb_native_sha256": "9bda8cd2fb4eeb19e8292c97a29913afd7b356821d4ebf04cffc6bb0b57faebf"
+    }
+  },
+  "metrics": {
+    "roster": [
+      "r1-fathomdb",
+      "r1-lancedb",
+      "r2-lancedb",
+      "r2-fathomdb",
+      "r3-lancedb",
+      "r3-fathomdb",
+      "r4-fathomdb",
+      "r4-lancedb"
+    ],
+    "cells_complete": [
+      "r1-fathomdb",
+      "r1-lancedb",
+      "r2-fathomdb",
+      "r2-lancedb",
+      "r3-fathomdb",
+      "r3-lancedb",
+      "r4-fathomdb",
+      "r4-lancedb"
+    ],
+    "host": {
+      "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+      "cores": 24,
+      "python": "3.12.3",
+      "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39"
+    },
+    "median_by_arm": {
+      "fathomdb": {
+        "queries": 323.0,
+        "empty_results": 15.0,
+        "p50_ms": 1.1195840000000001,
+        "p95_ms": 4.7940155,
+        "p99_ms": 8.2412425,
+        "first_query_ms": 0.6785304999999999,
+        "ingest_ack_s": 0.488153299986152,
+        "build_return_s": 0.491284295974765,
+        "reopen_s": 0.00876863399753347,
+        "disk_mib": 28.8554744720459,
+        "peak_rss_mib": 88.546875,
+        "ndcg_at_10": 0.32654556565017173,
+        "ndcg_at_10_unaffected": 0.3018276589064471,
+        "recall_at_10": 0.15627234564168285,
+        "recall_at_10_unaffected": 0.20683657415411266,
+        "mrr_at_10": 0.5312496928596,
+        "mrr_at_10_unaffected": 0.4862584472732988
+      },
+      "lancedb": {
+        "queries": 323.0,
+        "empty_results": 15.0,
+        "p50_ms": 1.5409435,
+        "p95_ms": 1.7951290000000002,
+        "p99_ms": 1.961368,
+        "first_query_ms": 4.631834,
+        "ingest_ack_s": 0.03996982050011866,
+        "build_return_s": 0.3114330520038493,
+        "reopen_s": 0.0011609609937295318,
+        "disk_mib": 4.6955389976501465,
+        "peak_rss_mib": 253.875,
+        "ndcg_at_10": 0.3265000650928575,
+        "ndcg_at_10_unaffected": 0.29875417566354073,
+        "recall_at_10": 0.1529105130954599,
+        "recall_at_10_unaffected": 0.19994727915934224,
+        "mrr_at_10": 0.5282581453634085,
+        "mrr_at_10_unaffected": 0.4815024359578815
+      }
+    },
+    "cells": [
+      {
+        "arm": "fathomdb",
+        "repetition": 1,
+        "queries": 323,
+        "empty_results": 15,
+        "p50_ms": 1.09092,
+        "p95_ms": 5.898244,
+        "p99_ms": 9.027502,
+        "first_query_ms": 0.644858,
+        "ingest_ack_s": 0.4938820779789239,
+        "build_return_s": 0.4968394709867425,
+        "reopen_s": 0.008857881010044366,
+        "disk_mib": 28.8554744720459,
+        "peak_rss_mib": 88.1875,
+        "ndcg_at_10": 0.32654556565017173,
+        "ndcg_at_10_unaffected": 0.3018276589064471,
+        "recall_at_10": 0.15627234564168285,
+        "recall_at_10_unaffected": 0.20683657415411266,
+        "mrr_at_10": 0.5312496928596,
+        "mrr_at_10_unaffected": 0.4862584472732988
+      },
+      {
+        "arm": "lancedb",
+        "repetition": 1,
+        "queries": 323,
+        "empty_results": 15,
+        "p50_ms": 1.492697,
+        "p95_ms": 1.72163,
+        "p99_ms": 1.859831,
+        "first_query_ms": 4.060716,
+        "ingest_ack_s": 0.039647014986258,
+        "build_return_s": 0.31105761998333037,
+        "reopen_s": 0.0008859520312398672,
+        "disk_mib": 4.693036079406738,
+        "peak_rss_mib": 252.2890625,
+        "ndcg_at_10": 0.3265000650928575,
+        "ndcg_at_10_unaffected": 0.29875417566354073,
+        "recall_at_10": 0.1529105130954599,
+        "recall_at_10_unaffected": 0.19994727915934224,
+        "mrr_at_10": 0.5282581453634085,
+        "mrr_at_10_unaffected": 0.4815024359578815
+      },
+      {
+        "arm": "fathomdb",
+        "repetition": 2,
+        "queries": 323,
+        "empty_results": 15,
+        "p50_ms": 1.100598,
+        "p95_ms": 4.820781,
+        "p99_ms": 9.400927,
+        "first_query_ms": 0.675164,
+        "ingest_ack_s": 0.4771724590100348,
+        "build_return_s": 0.4801933820126578,
+        "reopen_s": 0.00855505996150896,
+        "disk_mib": 28.8554744720459,
+        "peak_rss_mib": 89.51171875,
+        "ndcg_at_10": 0.32654556565017173,
+        "ndcg_at_10_unaffected": 0.3018276589064471,
+        "recall_at_10": 0.15627234564168285,
+        "recall_at_10_unaffected": 0.20683657415411266,
+        "mrr_at_10": 0.5312496928596,
+        "mrr_at_10_unaffected": 0.4862584472732988
+      },
+      {
+        "arm": "lancedb",
+        "repetition": 2,
+        "queries": 323,
+        "empty_results": 15,
+        "p50_ms": 1.535007,
+        "p95_ms": 1.771284,
+        "p99_ms": 1.92788,
+        "first_query_ms": 4.599272,
+        "ingest_ack_s": 0.04085761000169441,
+        "build_return_s": 0.31387385999551043,
+        "reopen_s": 0.001221204991452396,
+        "disk_mib": 4.698041915893555,
+        "peak_rss_mib": 254.1796875,
+        "ndcg_at_10": 0.3265000650928575,
+        "ndcg_at_10_unaffected": 0.29875417566354073,
+        "recall_at_10": 0.1529105130954599,
+        "recall_at_10_unaffected": 0.19994727915934224,
+        "mrr_at_10": 0.5282581453634085,
+        "mrr_at_10_unaffected": 0.4815024359578815
+      },
+      {
+        "arm": "fathomdb",
+        "repetition": 3,
+        "queries": 323,
+        "empty_results": 15,
+        "p50_ms": 1.13857,
+        "p95_ms": 4.606286,
+        "p99_ms": 7.449834,
+        "first_query_ms": 0.681897,
+        "ingest_ack_s": 0.48242452199338004,
+        "build_return_s": 0.4857291209627874,
+        "reopen_s": 0.008794382039923221,
+        "disk_mib": 28.8554744720459,
+        "peak_rss_mib": 88.90625,
+        "ndcg_at_10": 0.32654556565017173,
+        "ndcg_at_10_unaffected": 0.3018276589064471,
+        "recall_at_10": 0.15627234564168285,
+        "recall_at_10_unaffected": 0.20683657415411266,
+        "mrr_at_10": 0.5312496928596,
+        "mrr_at_10_unaffected": 0.4862584472732988
+      },
+      {
+        "arm": "lancedb",
+        "repetition": 3,
+        "queries": 323,
+        "empty_results": 15,
+        "p50_ms": 1.54688,
+        "p95_ms": 1.818974,
+        "p99_ms": 2.070319,
+        "first_query_ms": 5.056145,
+        "ingest_ack_s": 0.039328414015471935,
+        "build_return_s": 0.3104195350315422,
+        "reopen_s": 0.0011780830100178719,
+        "disk_mib": 4.689008712768555,
+        "peak_rss_mib": 253.5703125,
+        "ndcg_at_10": 0.3265000650928575,
+        "ndcg_at_10_unaffected": 0.29875417566354073,
+        "recall_at_10": 0.1529105130954599,
+        "recall_at_10_unaffected": 0.19994727915934224,
+        "mrr_at_10": 0.5282581453634085,
+        "mrr_at_10_unaffected": 0.4815024359578815
+      },
+      {
+        "arm": "fathomdb",
+        "repetition": 4,
+        "queries": 323,
+        "empty_results": 15,
+        "p50_ms": 1.177943,
+        "p95_ms": 4.76725,
+        "p99_ms": 7.454983,
+        "first_query_ms": 0.758462,
+        "ingest_ack_s": 0.4949009289848618,
+        "build_return_s": 0.4979691909975372,
+        "reopen_s": 0.00874288595514372,
+        "disk_mib": 28.8554744720459,
+        "peak_rss_mib": 88.1015625,
+        "ndcg_at_10": 0.32654556565017173,
+        "ndcg_at_10_unaffected": 0.3018276589064471,
+        "recall_at_10": 0.15627234564168285,
+        "recall_at_10_unaffected": 0.20683657415411266,
+        "mrr_at_10": 0.5312496928596,
+        "mrr_at_10_unaffected": 0.4862584472732988
+      },
+      {
+        "arm": "lancedb",
+        "repetition": 4,
+        "queries": 323,
+        "empty_results": 15,
+        "p50_ms": 1.549595,
+        "p95_ms": 1.83767,
+        "p99_ms": 1.994856,
+        "first_query_ms": 4.664396,
+        "ingest_ack_s": 0.040292626013979316,
+        "build_return_s": 0.3118084840243682,
+        "reopen_s": 0.0011438389774411917,
+        "disk_mib": 4.721906661987305,
+        "peak_rss_mib": 255.83203125,
+        "ndcg_at_10": 0.3265000650928575,
+        "ndcg_at_10_unaffected": 0.29875417566354073,
+        "recall_at_10": 0.1529105130954599,
+        "recall_at_10_unaffected": 0.19994727915934224,
+        "mrr_at_10": 0.5282581453634085,
+        "mrr_at_10_unaffected": 0.4815024359578815
+      }
+    ],
+    "affected_queries": 121,
+    "versions": {
+      "fathomdb": "0.8.27",
+      "lancedb": "0.40.0"
+    },
+    "documents": 3633
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "manifest",
+      "sha256": "026bec939836b05f811d969630534b6a2974ec1b78d8a6bdc3039f2d1bdc72ba"
+    },
+    {
+      "kind": "cell",
+      "name": "r1-fathomdb",
+      "sha256": "cc7264035f6b7e7a94a249b2f3ae5e0dceb518d1ee6ce3de078681492562b445"
+    },
+    {
+      "kind": "cell",
+      "name": "r1-lancedb",
+      "sha256": "881a23e88842a9d8cd3e3bb8e0a7b5408ef344daded77230a3e5703d056c802c"
+    },
+    {
+      "kind": "cell",
+      "name": "r2-fathomdb",
+      "sha256": "5bce984f6ae38290653050fb152575772ff61c1695069858182fcdfd71458e1f"
+    },
+    {
+      "kind": "cell",
+      "name": "r2-lancedb",
+      "sha256": "847e2759e5472dc17431fb0fb152e61f7e0a7d355ef388151712b098d103e8ac"
+    },
+    {
+      "kind": "cell",
+      "name": "r3-fathomdb",
+      "sha256": "b9f6b22e5eb60bb5cc27c870b6576b1d2b35c7ef2be1ead020606a30b6e62a43"
+    },
+    {
+      "kind": "cell",
+      "name": "r3-lancedb",
+      "sha256": "232283eb90b550f4a803df39e3bdd9ad0709b8095f6af53ccf5814fcc27a4bbf"
+    },
+    {
+      "kind": "cell",
+      "name": "r4-fathomdb",
+      "sha256": "eefdb3b2bafc9d74059c8965b6315a0146504e11d27d5094037e1a051eee6908"
+    },
+    {
+      "kind": "cell",
+      "name": "r4-lancedb",
+      "sha256": "cfa5369c41305daa591c8d4a0b0d9058a2055f682ab8fb5d9edbcd7a302cb7f6"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

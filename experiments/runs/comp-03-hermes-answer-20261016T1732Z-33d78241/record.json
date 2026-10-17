@@ -1,0 +1,1239 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "comp-03-hermes-answer-20261016T1732Z-33d78241",
+  "experiment": "comp-03-hermes-answer",
+  "title": "COMP-03 Hermes-style LongMemEval-S answer comparison",
+  "verdict": "complete",
+  "read": "fathomdb-fts 0.833 vs fathomdb-hybrid 0.817 answer accuracy on 60 paired questions (difference +0.017, bootstrap 95% -0.033..+0.083); lancedb-fts 0.817",
+  "code": {
+    "git_sha": "fcef83b84013a47268d951a3a9ba161c2a80b99c",
+    "dirty": false,
+    "branch": "slice/0.8.28-40-comp03",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "33d782414aa84897b4ad38b02da0a40e8a5eee53ba9a2a49dde312bf00e810b6",
+    "path": "/home/coreyt/projects/fathomdb-worktrees/comp03-slice40/experiments/configs/comp-03/hermes-answer.v3.json",
+    "resolved": {
+      "schema_version": "comp-03.answer.v3",
+      "program_track": null,
+      "campaign": "COMP-03",
+      "corpus": {
+        "identifier": "longmemeval-s-cleaned",
+        "source": "huggingface xiaowu0162/longmemeval-cleaned@98d7416c24c778c2fee6e6f3006e7a073259d48f longmemeval_s_cleaned.json",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+        "storage": "external_only"
+      },
+      "selection": {
+        "per_type": 10,
+        "seed": 303,
+        "rule": "random.Random(f'{seed}:{type}').sample(sorted ids of type, per_type), sorted within type; types sorted",
+        "question_ids": [
+          "184da446",
+          "42ec0761",
+          "6a1eabeb",
+          "89941a93",
+          "89941a94",
+          "b6019101",
+          "c6853660",
+          "ce6d2d27",
+          "eace081b",
+          "f685340e_abs",
+          "09ba9854",
+          "4f54b7c9",
+          "67e0d0f2",
+          "8979f9ec",
+          "8e91e7d9",
+          "d23cf73b",
+          "e5ba910e_abs",
+          "e6041065",
+          "gpt4_372c3eed",
+          "gpt4_f2262a51",
+          "3249768e",
+          "352ab8bd",
+          "41275add",
+          "4c36ccef",
+          "6ae235be",
+          "70b3e69b",
+          "71a3fd6b",
+          "ceb54acb",
+          "e3fc4d6e",
+          "e8a79c70",
+          "06878be2",
+          "1a1907b4",
+          "1c0ddc50",
+          "1da05512",
+          "505af2f5",
+          "6b7dfb22",
+          "75832dbd",
+          "95228167",
+          "b6025781",
+          "d6233ab6",
+          "21436231",
+          "29f2956b",
+          "545bd2b5",
+          "6ade9755",
+          "6f9b354f",
+          "86f00804",
+          "bc8a6e93_abs",
+          "c14c00dd",
+          "e01b8e2f",
+          "f4f1d8a4_abs",
+          "4dfccbf7",
+          "gpt4_65aabe59",
+          "gpt4_68e94287",
+          "gpt4_6dc9b45b",
+          "gpt4_78cf46a3",
+          "gpt4_7a0daae1",
+          "gpt4_7bc6cf22",
+          "gpt4_98f46fc6",
+          "gpt4_d31cdae3",
+          "gpt4_e414231e"
+        ]
+      },
+      "document_unit": {
+        "unit": "round",
+        "rule": "one user turn plus the assistant turns that follow it; leading assistant turns form their own round",
+        "id": "s<session position:03d>-r<round position:03d>",
+        "indexed_body": "turn contents joined by newline",
+        "excluded": [
+          "answer",
+          "answer_session_ids",
+          "haystack_session_ids",
+          "has_answer"
+        ],
+        "blank_rounds": "blank (whitespace-only) rounds are not indexed by any arm; round IDs stay positional, so every other round's ID and the gold are unchanged; the count is recorded per question as blank_rounds_skipped"
+      },
+      "arms": [
+        {
+          "id": "fathomdb-fts",
+          "product_arm": "fathomdb",
+          "method": "Engine.search_text_only",
+          "setup": "fathomdb_test_setup, embedder none, cpu; plain round bodies (v1 store shape)"
+        },
+        {
+          "id": "fathomdb-hybrid",
+          "product_arm": "fathomdb-hybrid",
+          "method": "Engine.search, rerank_depth 0, no graph arm",
+          "setup": "fathomdb_test_setup, embedder default, FATHOMDB_EMBED_DEVICE; plain round bodies plus ProjectionSpec(name='dense', SEARCHABLE, vector=True); vector coverage checked per store",
+          "requires_sweep_verdict": "adopt"
+        },
+        {
+          "id": "lancedb-fts",
+          "product_arm": "lancedb",
+          "method": "table.search(query_type='fts'), native FTS index, library defaults"
+        }
+      ],
+      "retrieval": {
+        "top_k": 10,
+        "query": "question text verbatim",
+        "order": "arms rotate by question position: arm_order(index, arms) = arms[index % n:] + arms[:index % n]; for two arms this is v1's AB/BA alternation"
+      },
+      "evidence": {
+        "fields": [
+          "session date",
+          "round text"
+        ],
+        "renderer": "comp03_answer.render_evidence (policy from comp03_retrieval.evidence_rounds)",
+        "policy": {
+          "per_round_chars": 4000,
+          "total_chars": 30000,
+          "session_expansion": true
+        },
+        "policy_verdict": "experiments/configs/comp-03/evidence-policy-verdict.v1.json",
+        "policy_verdict_sha256": "6f9fc2dc32c2796bbee7400788a22280e6b55ce70fcbf2781546b907164a2d2c",
+        "chronological": false,
+        "recency_instruction": false
+      },
+      "live": {
+        "route": "Airlock loopback http://127.0.0.1:4000, OpenAI upstream",
+        "answerer": {
+          "model": "openai/gpt-5.4",
+          "prompt": "LongMemEval reading prompt (comp03_answer.answer_messages)",
+          "max_tokens": 1024,
+          "input_usd_per_million": 2.5,
+          "output_usd_per_million": 15.0
+        },
+        "judge": {
+          "model": "openai/gpt-5.4",
+          "prompt": "LongMemEval evaluate_qa per-type answer check, blinded to product",
+          "max_tokens": 16,
+          "input_usd_per_million": 2.5,
+          "output_usd_per_million": 15.0
+        },
+        "temperature": 0,
+        "seed": 0,
+        "max_usd": 15.0,
+        "max_retries": 4
+      },
+      "metrics": [
+        "answer_accuracy_paired",
+        "answer_accuracy_per_type",
+        "session_recall_any_at_10",
+        "session_mrr_at_10",
+        "turn_recall_any_at_10",
+        "turn_mrr_at_10",
+        "retrieval_latency_ms",
+        "answer_latency_s",
+        "judge_latency_s",
+        "cost_usd"
+      ],
+      "claim_boundary": {
+        "reference": "LanceDB Hermes LongMemEval-S experiment: 60 questions, top-5, answerer gpt-5.4, judge gpt-5.4-mini",
+        "deviation": "judge is gpt-5.4 (one step stronger than the reference judge), owner 2026-10-16",
+        "scope": "FTS arms plus FathomDB hybrid when the COMP-03 retrieval sweep verdict is adopt (--sweep-summary); top_k 10 for every arm; published Hermes scores and network-inclusive latency are context",
+        "v1_difference": "top_k 10 (v1: 5); arm IDs fathomdb-fts, lancedb-fts name the v1 arms fathomdb, lancedb",
+        "unit_g": "evidence policy 4000/30000/on from the offline G1/G2 verdict; recency off"
+      },
+      "decision_rule": {
+        "compare_to": "hermes-answer.v2",
+        "rule": "report only: v3 minus v2, paired per arm and per type; read against the verdict's answer_set_expectation",
+        "arm_of_record": "fathomdb-fts",
+        "provisional": true,
+        "mde_net_discordant": 6,
+        "gate": "adoption into the best mix follows the per-type direction on fathomdb-fts plus the 470-question offline metrics, not answer-run significance"
+      }
+    }
+  },
+  "corpus": {
+    "source": "longmemeval-s-cleaned",
+    "manifest_sha256": null,
+    "datasets": [
+      {
+        "name": "longmemeval_s_cleaned.json",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+      }
+    ]
+  },
+  "seeds": {
+    "selection": 303,
+    "model": 0
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb-fts": "0.8.27",
+      "fathomdb-hybrid": "0.8.27",
+      "lancedb-fts": "0.40.0",
+      "fathomdb_engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+      "fathomdb_native_sha256": "9bda8cd2fb4eeb19e8292c97a29913afd7b356821d4ebf04cffc6bb0b57faebf",
+      "answerer": "openai/gpt-5.4",
+      "judge": "openai/gpt-5.4"
+    }
+  },
+  "metrics": {
+    "answer": {
+      "n": 60,
+      "accuracy": {
+        "fathomdb-fts": 0.8333333333333334,
+        "fathomdb-hybrid": 0.8166666666666667
+      },
+      "difference": 0.016666666666666666,
+      "difference_bootstrap_95": [
+        -0.03333333333333333,
+        0.08333333333333333
+      ],
+      "discordant": {
+        "fathomdb-fts_only": 2,
+        "fathomdb-hybrid_only": 1
+      },
+      "per_type": {
+        "knowledge-update": {
+          "fathomdb-fts": {
+            "correct": 7,
+            "n": 10,
+            "rate": 0.7,
+            "wilson_95": [
+              0.39677321997956516,
+              0.892210712513788
+            ]
+          },
+          "fathomdb-hybrid": {
+            "correct": 7,
+            "n": 10,
+            "rate": 0.7,
+            "wilson_95": [
+              0.39677321997956516,
+              0.892210712513788
+            ]
+          }
+        },
+        "multi-session": {
+          "fathomdb-fts": {
+            "correct": 5,
+            "n": 10,
+            "rate": 0.5,
+            "wilson_95": [
+              0.23658959361548731,
+              0.7634104063845126
+            ]
+          },
+          "fathomdb-hybrid": {
+            "correct": 6,
+            "n": 10,
+            "rate": 0.6,
+            "wilson_95": [
+              0.3126695474501864,
+              0.8318224187964902
+            ]
+          }
+        },
+        "single-session-assistant": {
+          "fathomdb-fts": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          },
+          "fathomdb-hybrid": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          }
+        },
+        "single-session-preference": {
+          "fathomdb-fts": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          },
+          "fathomdb-hybrid": {
+            "correct": 8,
+            "n": 10,
+            "rate": 0.8,
+            "wilson_95": [
+              0.49015684672072335,
+              0.9433190520193067
+            ]
+          }
+        },
+        "single-session-user": {
+          "fathomdb-fts": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          },
+          "fathomdb-hybrid": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          }
+        },
+        "temporal-reasoning": {
+          "fathomdb-fts": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          },
+          "fathomdb-hybrid": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          }
+        }
+      }
+    },
+    "abstention_n": 4,
+    "retrieval": {
+      "fathomdb-fts": {
+        "n": 56,
+        "session_recall_any_at_10": 0.9642857142857143,
+        "session_recall_any_at_10_n": 56,
+        "session_mrr_at_10": 0.8570861678004534,
+        "session_mrr_at_10_n": 56,
+        "turn_recall_any_at_10": 0.9107142857142857,
+        "turn_recall_any_at_10_n": 56,
+        "turn_mrr_at_10": 0.6384566326530612,
+        "turn_mrr_at_10_n": 56
+      },
+      "fathomdb-hybrid": {
+        "n": 56,
+        "session_recall_any_at_10": 0.9464285714285714,
+        "session_recall_any_at_10_n": 56,
+        "session_mrr_at_10": 0.871031746031746,
+        "session_mrr_at_10_n": 56,
+        "turn_recall_any_at_10": 0.9285714285714286,
+        "turn_recall_any_at_10_n": 56,
+        "turn_mrr_at_10": 0.6424603174603174,
+        "turn_mrr_at_10_n": 56
+      },
+      "lancedb-fts": {
+        "n": 56,
+        "session_recall_any_at_10": 0.9642857142857143,
+        "session_recall_any_at_10_n": 56,
+        "session_mrr_at_10": 0.8232568027210885,
+        "session_mrr_at_10_n": 56,
+        "turn_recall_any_at_10": 0.9107142857142857,
+        "turn_recall_any_at_10_n": 56,
+        "turn_mrr_at_10": 0.6100127551020408,
+        "turn_mrr_at_10_n": 56
+      }
+    },
+    "timing": {
+      "fathomdb-fts": {
+        "version": "0.8.27",
+        "retrieval_first_p50_ms": 1.2976785,
+        "retrieval_warm_p50_ms": 1.292524,
+        "retrieval_warm_p95_ms": 1.76755,
+        "build_p50_s": 0.03422442250302993,
+        "evidence_chars_p50": 30531.0,
+        "answer_p50_s": 1.3015769369958434,
+        "judge_p50_s": 0.7323185800050851,
+        "usd": 1.1260775
+      },
+      "fathomdb-hybrid": {
+        "version": "0.8.27",
+        "retrieval_first_p50_ms": 6.672473500000001,
+        "retrieval_warm_p50_ms": 6.508671,
+        "retrieval_warm_p95_ms": 7.126508,
+        "build_p50_s": 2.393474056996638,
+        "evidence_chars_p50": 30531.0,
+        "answer_p50_s": 1.3287614310102072,
+        "judge_p50_s": 0.7365447119809687,
+        "usd": 1.11526
+      },
+      "lancedb-fts": {
+        "version": "0.40.0",
+        "retrieval_first_p50_ms": 4.43398,
+        "retrieval_warm_p50_ms": 1.630271,
+        "retrieval_warm_p95_ms": 1.808311,
+        "build_p50_s": 0.03829205350484699,
+        "evidence_chars_p50": 30531.0,
+        "answer_p50_s": 1.2944432405056432,
+        "judge_p50_s": 0.7271487420075573,
+        "usd": 1.122705
+      }
+    },
+    "cost_usd": 3.3640425,
+    "answer_pairs": {
+      "fathomdb-fts_vs_fathomdb-hybrid": {
+        "n": 60,
+        "accuracy": {
+          "fathomdb-fts": 0.8333333333333334,
+          "fathomdb-hybrid": 0.8166666666666667
+        },
+        "difference": 0.016666666666666666,
+        "difference_bootstrap_95": [
+          -0.03333333333333333,
+          0.08333333333333333
+        ],
+        "discordant": {
+          "fathomdb-fts_only": 2,
+          "fathomdb-hybrid_only": 1
+        },
+        "per_type": {
+          "knowledge-update": {
+            "fathomdb-fts": {
+              "correct": 7,
+              "n": 10,
+              "rate": 0.7,
+              "wilson_95": [
+                0.39677321997956516,
+                0.892210712513788
+              ]
+            },
+            "fathomdb-hybrid": {
+              "correct": 7,
+              "n": 10,
+              "rate": 0.7,
+              "wilson_95": [
+                0.39677321997956516,
+                0.892210712513788
+              ]
+            }
+          },
+          "multi-session": {
+            "fathomdb-fts": {
+              "correct": 5,
+              "n": 10,
+              "rate": 0.5,
+              "wilson_95": [
+                0.23658959361548731,
+                0.7634104063845126
+              ]
+            },
+            "fathomdb-hybrid": {
+              "correct": 6,
+              "n": 10,
+              "rate": 0.6,
+              "wilson_95": [
+                0.3126695474501864,
+                0.8318224187964902
+              ]
+            }
+          },
+          "single-session-assistant": {
+            "fathomdb-fts": {
+              "correct": 10,
+              "n": 10,
+              "rate": 1.0,
+              "wilson_95": [
+                0.7224598312333834,
+                1.0
+              ]
+            },
+            "fathomdb-hybrid": {
+              "correct": 10,
+              "n": 10,
+              "rate": 1.0,
+              "wilson_95": [
+                0.7224598312333834,
+                1.0
+              ]
+            }
+          },
+          "single-session-preference": {
+            "fathomdb-fts": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            },
+            "fathomdb-hybrid": {
+              "correct": 8,
+              "n": 10,
+              "rate": 0.8,
+              "wilson_95": [
+                0.49015684672072335,
+                0.9433190520193067
+              ]
+            }
+          },
+          "single-session-user": {
+            "fathomdb-fts": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            },
+            "fathomdb-hybrid": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            }
+          },
+          "temporal-reasoning": {
+            "fathomdb-fts": {
+              "correct": 10,
+              "n": 10,
+              "rate": 1.0,
+              "wilson_95": [
+                0.7224598312333834,
+                1.0
+              ]
+            },
+            "fathomdb-hybrid": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            }
+          }
+        }
+      },
+      "fathomdb-fts_vs_lancedb-fts": {
+        "n": 60,
+        "accuracy": {
+          "fathomdb-fts": 0.8333333333333334,
+          "lancedb-fts": 0.8166666666666667
+        },
+        "difference": 0.016666666666666666,
+        "difference_bootstrap_95": [
+          -0.03333333333333333,
+          0.08333333333333333
+        ],
+        "discordant": {
+          "fathomdb-fts_only": 2,
+          "lancedb-fts_only": 1
+        },
+        "per_type": {
+          "knowledge-update": {
+            "fathomdb-fts": {
+              "correct": 7,
+              "n": 10,
+              "rate": 0.7,
+              "wilson_95": [
+                0.39677321997956516,
+                0.892210712513788
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 7,
+              "n": 10,
+              "rate": 0.7,
+              "wilson_95": [
+                0.39677321997956516,
+                0.892210712513788
+              ]
+            }
+          },
+          "multi-session": {
+            "fathomdb-fts": {
+              "correct": 5,
+              "n": 10,
+              "rate": 0.5,
+              "wilson_95": [
+                0.23658959361548731,
+                0.7634104063845126
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 6,
+              "n": 10,
+              "rate": 0.6,
+              "wilson_95": [
+                0.3126695474501864,
+                0.8318224187964902
+              ]
+            }
+          },
+          "single-session-assistant": {
+            "fathomdb-fts": {
+              "correct": 10,
+              "n": 10,
+              "rate": 1.0,
+              "wilson_95": [
+                0.7224598312333834,
+                1.0
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 10,
+              "n": 10,
+              "rate": 1.0,
+              "wilson_95": [
+                0.7224598312333834,
+                1.0
+              ]
+            }
+          },
+          "single-session-preference": {
+            "fathomdb-fts": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 8,
+              "n": 10,
+              "rate": 0.8,
+              "wilson_95": [
+                0.49015684672072335,
+                0.9433190520193067
+              ]
+            }
+          },
+          "single-session-user": {
+            "fathomdb-fts": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            }
+          },
+          "temporal-reasoning": {
+            "fathomdb-fts": {
+              "correct": 10,
+              "n": 10,
+              "rate": 1.0,
+              "wilson_95": [
+                0.7224598312333834,
+                1.0
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            }
+          }
+        }
+      },
+      "fathomdb-hybrid_vs_lancedb-fts": {
+        "n": 60,
+        "accuracy": {
+          "fathomdb-hybrid": 0.8166666666666667,
+          "lancedb-fts": 0.8166666666666667
+        },
+        "difference": 0.0,
+        "difference_bootstrap_95": [
+          0.0,
+          0.0
+        ],
+        "discordant": {
+          "fathomdb-hybrid_only": 0,
+          "lancedb-fts_only": 0
+        },
+        "per_type": {
+          "knowledge-update": {
+            "fathomdb-hybrid": {
+              "correct": 7,
+              "n": 10,
+              "rate": 0.7,
+              "wilson_95": [
+                0.39677321997956516,
+                0.892210712513788
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 7,
+              "n": 10,
+              "rate": 0.7,
+              "wilson_95": [
+                0.39677321997956516,
+                0.892210712513788
+              ]
+            }
+          },
+          "multi-session": {
+            "fathomdb-hybrid": {
+              "correct": 6,
+              "n": 10,
+              "rate": 0.6,
+              "wilson_95": [
+                0.3126695474501864,
+                0.8318224187964902
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 6,
+              "n": 10,
+              "rate": 0.6,
+              "wilson_95": [
+                0.3126695474501864,
+                0.8318224187964902
+              ]
+            }
+          },
+          "single-session-assistant": {
+            "fathomdb-hybrid": {
+              "correct": 10,
+              "n": 10,
+              "rate": 1.0,
+              "wilson_95": [
+                0.7224598312333834,
+                1.0
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 10,
+              "n": 10,
+              "rate": 1.0,
+              "wilson_95": [
+                0.7224598312333834,
+                1.0
+              ]
+            }
+          },
+          "single-session-preference": {
+            "fathomdb-hybrid": {
+              "correct": 8,
+              "n": 10,
+              "rate": 0.8,
+              "wilson_95": [
+                0.49015684672072335,
+                0.9433190520193067
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 8,
+              "n": 10,
+              "rate": 0.8,
+              "wilson_95": [
+                0.49015684672072335,
+                0.9433190520193067
+              ]
+            }
+          },
+          "single-session-user": {
+            "fathomdb-hybrid": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            }
+          },
+          "temporal-reasoning": {
+            "fathomdb-hybrid": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            },
+            "lancedb-fts": {
+              "correct": 9,
+              "n": 10,
+              "rate": 0.9,
+              "wilson_95": [
+                0.5958436145024278,
+                0.9821242504842788
+              ]
+            }
+          }
+        }
+      }
+    },
+    "accuracy_by_arm": {
+      "fathomdb-fts": 0.8333333333333334,
+      "fathomdb-hybrid": 0.8166666666666667,
+      "lancedb-fts": 0.8166666666666667
+    },
+    "selection_matches_seed": true,
+    "arm_gate": {
+      "sweep_verdict": "adopt",
+      "sweep_summary_sha256": "130e00a6c4c6013f1d85279de7295c829894bbe4da7e6b6880b444d1140b5cd1",
+      "excluded_arms": []
+    },
+    "question_outcomes": [
+      {
+        "question_id": "184da446",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "42ec0761",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6a1eabeb",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "89941a93",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "89941a94",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "b6019101",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "c6853660",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "ce6d2d27",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "eace081b",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "f685340e_abs",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "09ba9854",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "4f54b7c9",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "67e0d0f2",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "8979f9ec",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "8e91e7d9",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "d23cf73b",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e5ba910e_abs",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e6041065",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_372c3eed",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_f2262a51",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "3249768e",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "352ab8bd",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "41275add",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "4c36ccef",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6ae235be",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "70b3e69b",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "71a3fd6b",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "ceb54acb",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e3fc4d6e",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e8a79c70",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "06878be2",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "1a1907b4",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "1c0ddc50",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "1da05512",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "505af2f5",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6b7dfb22",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "75832dbd",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "95228167",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "b6025781",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "d6233ab6",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "21436231",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "29f2956b",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "545bd2b5",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6ade9755",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "6f9b354f",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "86f00804",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "bc8a6e93_abs",
+        "fathomdb-fts": false,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "c14c00dd",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "e01b8e2f",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "f4f1d8a4_abs",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "4dfccbf7",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_65aabe59",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": false,
+        "lancedb-fts": false
+      },
+      {
+        "question_id": "gpt4_68e94287",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_6dc9b45b",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_78cf46a3",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_7a0daae1",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_7bc6cf22",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_98f46fc6",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_d31cdae3",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      },
+      {
+        "question_id": "gpt4_e414231e",
+        "fathomdb-fts": true,
+        "fathomdb-hybrid": true,
+        "lancedb-fts": true
+      }
+    ]
+  },
+  "cost_usd": 3.364,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_attempt",
+      "summary_sha256": "1e778f1fbd6d6fdeebadeee65fe2cde4a4ba826b9773b01967d134ddf30ee12a"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

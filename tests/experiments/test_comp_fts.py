@@ -1,0 +1,139 @@
+"""Measurement-correctness checks for the COMP side-plan FTS harness."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+from pathlib import Path
+
+import pytest
+
+from experiments import comp_fts
+
+
+def test_roster_balances_arm_order_across_four_repetitions():
+    assert comp_fts.roster(("a", "b")) == [
+        "r1-a", "r1-b", "r2-b", "r2-a", "r3-b", "r3-a", "r4-a", "r4-b",
+    ]
+
+
+def test_pending_skips_recorded_cells(tmp_path: Path):
+    (tmp_path / "cells").mkdir()
+    (tmp_path / "cells" / "r1-a.json").write_text("{}")
+    assert comp_fts.pending(["r1-a", "r1-b"], tmp_path) == ["r1-b"]
+
+
+def test_score_query_matches_hand_computed_values():
+    judgments = {"d1": 2, "d2": 1, "d3": 0, "d4": 1}
+    scores = comp_fts.score_query(["x", "d2", "d1"], judgments)
+    dcg = 1 / math.log2(3) + 2 / math.log2(4)
+    idcg = 2 / math.log2(2) + 1 / math.log2(3) + 1 / math.log2(4)
+    assert scores["ndcg_at_10"] == pytest.approx(dcg / idcg)
+    assert scores["recall_at_10"] == pytest.approx(2 / 3)
+    assert scores["mrr_at_10"] == pytest.approx(1 / 2)
+
+
+def test_score_query_ignores_hits_beyond_cutoff():
+    scores = comp_fts.score_query([f"x{i}" for i in range(10)] + ["d1"], {"d1": 1})
+    assert scores == {"ndcg_at_10": 0.0, "recall_at_10": 0.0, "mrr_at_10": 0.0}
+
+
+def _available(arm: str) -> None:
+    if arm == "surrealdb":
+        if not comp_fts.SURREAL_DRIVER.exists():
+            pytest.skip("surrealdb driver not built")
+    else:
+        pytest.importorskip(arm)
+
+
+def _inputs(tmp_path: Path) -> Path:
+    inputs = tmp_path / "in"
+    inputs.mkdir()
+    docs = [
+        {"id": "d1", "body": "zebra migration across the savanna", "cohort": "c01"},
+        {"id": "d2", "body": "penguin colonies on antarctic ice", "cohort": "c10"},
+        {"id": "d3", "body": "volcanic soil and coffee farming", "cohort": "c33"},
+        {"id": "d4", "body": "penguin chicks huddle on ice", "cohort": "c33"},
+    ]
+    (inputs / "corpus.json").write_text(json.dumps(docs))
+    (inputs / "queries.json").write_text(json.dumps([
+        {"id": "q1", "text": "penguin colonies"}, {"id": "q2", "text": "volcanic coffee"},
+    ]))
+    (inputs / "probes.json").write_text(json.dumps([
+        {"position": 0, "id": "d1", "text": "zebra"}, {"position": 3, "id": "d4", "text": "chicks"},
+    ]))
+    return inputs
+
+
+@pytest.mark.parametrize("arm", ["fathomdb", "lancedb", "surrealdb"])
+def test_real_cell_returns_expected_document_first(arm: str, tmp_path: Path):
+    _available(arm)
+    inputs = _inputs(tmp_path)
+    cell = comp_fts.run_cell(arm, 1, inputs, tmp_path / "work")
+    top = {r["query_id"]: r["ids"][0] for r in cell["results"]}
+    assert top == {"q1": "d2", "q2": "d3"}
+    assert all(r["latency_ms"] > 0 for r in cell["results"])
+    assert cell["disk_bytes"] > 0 and not (tmp_path / "work").exists()
+
+
+@pytest.mark.parametrize("arm", ["fathomdb", "surrealdb"])
+def test_real_scale_cell_reaches_ready_and_survives_reopen(arm: str, tmp_path: Path):
+    _available(arm)
+    cell = comp_fts.run_scale_cell(arm, 1, _inputs(tmp_path), tmp_path / "work", batch=2)
+    assert cell["query_ready_s"] is not None and cell["probe_failing"] == []
+    assert cell["sentinel_found_after_reopen"]
+    assert len(cell["cold"]) == 2 and len(cell["steady"]) == 20
+    assert cell["ingest_ack_s"] <= cell["build_return_s"] <= cell["query_ready_s"]
+
+
+@pytest.mark.parametrize("arm", ["fathomdb", "surrealdb"])
+def test_real_filtered_cell_returns_only_the_requested_cohort(arm: str, tmp_path: Path):
+    _available(arm)
+    cell = comp_fts.run_filtered_cell(arm, 1, _inputs(tmp_path), tmp_path / "work")
+    c33 = cell["passes"]["c33"]
+    assert c33["violations"] == 0
+    top = {r["query_id"]: r["ids"] for r in c33["results"]}
+    assert top["q1"] == ["d4"] and top["q2"] == ["d3"]
+    assert {r["query_id"]: r["ids"] for r in cell["passes"]["c10"]["results"]} == {"q1": ["d2"], "q2": []}
+
+
+def test_campaign_config_rejects_drifted_inputs_and_records_a_receipt(tmp_path: Path):
+    from experiments import comp_record
+
+    inputs = _inputs(tmp_path)
+    (inputs / "gold.json").write_text(json.dumps({"q1": {"d2": 1}, "q2": {"d3": 1}}))
+    (inputs / "manifest.json").write_text(json.dumps({"queries_with_relevant_duplicate_body": []}))
+    config = comp_record.load_config(Path("experiments/configs/comp-01/nfcorpus-fts.v1.json"))
+    config["inputs"]["files"] = {"corpus.json": "0" * 64}
+    with pytest.raises(comp_record.CompRecordError):
+        comp_record.verify_inputs(config, inputs)
+    config["inputs"]["files"] = {"corpus.json": hashlib.sha256((inputs / "corpus.json").read_bytes()).hexdigest()}
+    out = tmp_path / "out"
+    (out / "cells").mkdir(parents=True)
+    cells = ["r1-fathomdb", "r1-lancedb"]
+    for cell in cells:
+        _available(cell[3:])
+        result = comp_fts.run_cell(cell[3:], 1, inputs, tmp_path / "work")
+        (out / "cells" / f"{cell}.json").write_text(json.dumps(result))
+    (out / "manifest.json").write_text(json.dumps({
+        "campaign": "comp01", "roster": cells, "host": {},
+        "attempts": [{"cell": c, "status": "complete"} for c in cells],
+    }))
+    _, run_dir = comp_record.record(config, inputs=inputs, out=out, base_dir=tmp_path / "exp", config_path=None)
+    receipt = json.loads((run_dir / "record.json").read_text())
+    assert receipt["verdict"] == "complete"
+    assert receipt["metrics"]["median_by_arm"]["fathomdb"]["ndcg_at_10"] == pytest.approx(1.0)
+
+
+def test_every_campaign_has_a_loadable_config_with_its_arms():
+    from experiments import comp_record
+
+    configs = {}
+    for path in sorted(Path("experiments/configs").glob("comp-0[12]/*.json")):
+        config = comp_record.load_config(path)
+        configs.setdefault(config["harness_campaign"], config)
+    assert set(configs) == set(comp_fts.CAMPAIGNS)
+    for campaign, (arms, report) in comp_fts.CAMPAIGNS.items():
+        assert [arm["id"] for arm in configs[campaign]["arms"]] == list(arms)
+        assert configs[campaign]["report"] == report

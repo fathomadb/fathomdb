@@ -1,0 +1,177 @@
+{
+  "roster": [
+    "r1-fathomdb",
+    "r1-surrealdb",
+    "r2-surrealdb",
+    "r2-fathomdb",
+    "r3-surrealdb",
+    "r3-fathomdb",
+    "r4-fathomdb",
+    "r4-surrealdb"
+  ],
+  "cells_complete": [
+    "r1-fathomdb",
+    "r1-surrealdb",
+    "r2-fathomdb",
+    "r2-surrealdb",
+    "r3-fathomdb",
+    "r3-surrealdb",
+    "r4-fathomdb",
+    "r4-surrealdb"
+  ],
+  "host": {
+    "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+    "cores": 24,
+    "python": "3.12.3",
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39"
+  },
+  "medians": [
+    {
+      "documents": 10000,
+      "arm": "fathomdb",
+      "reps": 4,
+      "ingest_ack_s": 1.4295088255021255,
+      "ingest_ack_s_range": [
+        1.3918089619837701,
+        1.4432897539809346
+      ],
+      "build_return_s": 1.4341460765281226,
+      "build_return_s_range": [
+        1.3965235999785364,
+        1.4479592079878785
+      ],
+      "query_ready_s": 1.438480309501756,
+      "query_ready_s_range": [
+        1.400893978017848,
+        1.452072151005268
+      ],
+      "probe_failing": 0.0,
+      "probe_failing_range": [
+        0,
+        0
+      ],
+      "reopen_s": 0.008584626513766125,
+      "reopen_s_range": [
+        0.008543625997845083,
+        0.008623636967968196
+      ],
+      "first_query_after_reopen_ms": 0.44034147867932916,
+      "first_query_after_reopen_ms_range": [
+        0.435834052041173,
+        0.6383860018104315
+      ],
+      "sentinel_after_reopen": true,
+      "cold_p50_ms": 3.7747935,
+      "cold_p50_ms_range": [
+        3.7171,
+        3.972576
+      ],
+      "steady_p50_ms": 3.8770915,
+      "steady_p50_ms_range": [
+        3.848759,
+        4.229532
+      ],
+      "steady_p95_ms": 12.5646865,
+      "steady_p95_ms_range": [
+        11.302729,
+        13.250196
+      ],
+      "steady_p99_ms": 16.5347315,
+      "steady_p99_ms_range": [
+        16.136465,
+        17.774765
+      ],
+      "empty_steady": 0.0,
+      "empty_steady_range": [
+        0,
+        0
+      ],
+      "disk_mib": 74.5937557220459,
+      "disk_mib_range": [
+        74.5937557220459,
+        74.5937557220459
+      ],
+      "peak_rss_mib": 163.18359375,
+      "peak_rss_mib_range": [
+        162.9921875,
+        163.53515625
+      ]
+    },
+    {
+      "documents": 10000,
+      "arm": "surrealdb",
+      "reps": 4,
+      "ingest_ack_s": 4.395471746480325,
+      "ingest_ack_s_range": [
+        4.253089730977081,
+        4.5122673329897225
+      ],
+      "build_return_s": 4.395738485472975,
+      "build_return_s_range": [
+        4.25331570697017,
+        4.512613606988452
+      ],
+      "query_ready_s": 4.398381519480608,
+      "query_ready_s_range": [
+        4.256071401992813,
+        4.515226102957968
+      ],
+      "probe_failing": 0.0,
+      "probe_failing_range": [
+        0,
+        0
+      ],
+      "reopen_s": 1.7028010145004373,
+      "reopen_s_range": [
+        1.6153369169915095,
+        1.807953976036515
+      ],
+      "first_query_after_reopen_ms": 2.297780505614355,
+      "first_query_after_reopen_ms_range": [
+        2.1487209596671164,
+        2.302340988535434
+      ],
+      "sentinel_after_reopen": true,
+      "cold_p50_ms": 142.9121505,
+      "cold_p50_ms_range": [
+        141.473243,
+        145.635701
+      ],
+      "steady_p50_ms": 145.94143050000002,
+      "steady_p50_ms_range": [
+        144.370838,
+        148.752201
+      ],
+      "steady_p95_ms": 159.19192700000002,
+      "steady_p95_ms_range": [
+        158.490406,
+        171.293972
+      ],
+      "steady_p99_ms": 172.0071615,
+      "steady_p99_ms_range": [
+        166.842429,
+        244.89491
+      ],
+      "empty_steady": 0.0,
+      "empty_steady_range": [
+        0,
+        0
+      ],
+      "disk_mib": 22.828667163848877,
+      "disk_mib_range": [
+        22.332273483276367,
+        22.84591007232666
+      ],
+      "peak_rss_mib": 317.291015625,
+      "peak_rss_mib_range": [
+        315.5703125,
+        319.05078125
+      ]
+    }
+  ],
+  "versions": {
+    "fathomdb": "0.8.27",
+    "surrealdb": "3.3.0 (embedded rocksdb, Rust crate)"
+  },
+  "documents": 10000
+}

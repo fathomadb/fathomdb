@@ -86,7 +86,7 @@ The complete controlled track set is `SAFETY-01`, `TRACE-01`, `LOCOMO-01`,
 `PARENT-01`, `SCALE-01`, `CORPUS-01`, `ANSWER-01`, `MEMORY-01`, `SCALE-02`,
 `TEMPORAL-01`, `EXTRACT-01`, `LATENT-01`, `GRAPH-01`, `GLOBAL-01`,
 `REASON-01`, `SEARCH-01`, `GRAPH-EVIDENCE-01`, `GRAPH-EXPAND-01`, and
-`GRAPH-RETRIEVAL-01`. Their individual status and decision questions remain
+`GRAPH-RETRIEVAL-01`, and `COMP-01`. Their individual status and decision questions remain
 authoritative in PROGRAM and their plans; Track Runner governs how any
 non-historical work on them moves.
 

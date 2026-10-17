@@ -1,0 +1,51 @@
+{
+  "arms": [
+    {
+      "embedder": "none",
+      "id": "fathomdb",
+      "method": "Engine.search_text_only",
+      "tokenizer": "FTS5 porter unicode61 remove_diacritics 2",
+      "version": "0.8.27 (repo build)"
+    },
+    {
+      "id": "lancedb",
+      "index": "native FTS (use_tantivy=False), library defaults",
+      "method": "table.search(query_type='fts')",
+      "version": "0.40.0"
+    }
+  ],
+  "campaign": "COMP-01",
+  "claim_boundary": "local paired FTS only; top-10; linear-gain nDCG",
+  "harness_campaign": "comp01",
+  "inputs": {
+    "build": "python -m experiments.comp01_nfcorpus --source data/corpus-data/raw/beir/nfcorpus --output <inputs>",
+    "dir_hint": "~/.cache/fathomdb-comp/nfcorpus-input",
+    "files": {
+      "corpus.json": "1895269ad24ec66b3a1fef9de806e6369b1f8f8376ec063f809097a41a315022",
+      "gold.json": "6b226d8849aa2e080edafe3d3ca778931fc8ab68e420f28e7ece7ae26a55e105",
+      "manifest.json": "c2abd951fdba912d0a0fd9bfd5fdbb47ebf209ce51fcd06ff841f4b4006b4266",
+      "queries.json": "a352f9ad9b20b8bc75fe37488c681030f1fe31675e733b6e9665d1296bbbe383"
+    },
+    "source": "BEIR NFCorpus test split, data/corpus-data/raw/beir/nfcorpus"
+  },
+  "metrics": [
+    "ndcg_at_10",
+    "recall_at_10",
+    "mrr_at_10",
+    "steady_p50_ms",
+    "steady_p95_ms",
+    "disk_mib",
+    "peak_rss_mib"
+  ],
+  "program_track": null,
+  "report": "fts",
+  "result_note": "dev/performance-benchmarking/2026-10-15-comp-01-nfcorpus-fts-result.md",
+  "roster": {
+    "cell": "one arm x one fresh database, own subprocess; resume skips cells/*.json",
+    "order": "AB/BA/BA/AB",
+    "repetitions": 4
+  },
+  "run": "python -m experiments.comp_fts run --config experiments/configs/comp-01/nfcorpus-fts.v1.json --inputs <inputs> --out <new attempt dir>",
+  "schema_version": "comp-fts.campaign.v1",
+  "title": "COMP-01 NFCorpus FTS, FathomDB vs LanceDB"
+}

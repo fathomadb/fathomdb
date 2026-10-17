@@ -1,0 +1,62 @@
+{
+  "schema_version": "comp-03.vector-pool-selection.v1",
+  "campaign": "COMP-03",
+  "corpus": {
+    "identifier": "longmemeval-s-cleaned",
+    "source": "huggingface xiaowu0162/longmemeval-cleaned@98d7416c24c778c2fee6e6f3006e7a073259d48f longmemeval_s_cleaned.json",
+    "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+    "storage": "external_only"
+  },
+  "answer_set": {
+    "config": "experiments/configs/comp-03/hermes-answer.v2.json",
+    "question_ids": 60,
+    "note": "the 60 answer-run question IDs (the same in v2, v3, v4a-c and mix); reported, not used"
+  },
+  "selection": {
+    "rule": "scored (non-abstention) questions not among the answer-set question IDs (414)"
+  },
+  "arm": {
+    "id": "fathomdb-hybrid",
+    "product_arm": "fathomdb-hybrid",
+    "retrieval": "comp03_answer.retrieve",
+    "method": "Engine.search(text, limit=P), rerank_depth 0, no graph arm, as the sweep",
+    "store": "the sweep's hybrid store build, device check and vector coverage check"
+  },
+  "engine_commit": "5b09afd44112251ee634e034edf0368bbdce684d",
+  "candidates": [
+    10,
+    20,
+    50,
+    100
+  ],
+  "reference": 10,
+  "ks": [
+    5,
+    10,
+    20
+  ],
+  "constraints": {
+    "per_type": [
+      "session_recall_any_at_5",
+      "session_recall_any_at_10"
+    ],
+    "overall": [
+      "session_recall_any_at_5",
+      "session_recall_any_at_10",
+      "session_recall_all_at_10"
+    ],
+    "tolerance_questions": 1
+  },
+  "rule": "REQ40-H4. Pool P0 at k ≤ P0 ranks as the first k of search(limit=P0), measured by calling comp03_answer.retrieve with the fathomdb-hybrid arm at top_k = P for P in {10, 20, 50, 100}. Reference: P0 = 10. Constraints on the selection set: for every type, the session Recall-any@5 and Recall-any@10 counts are at least the reference minus 1; overall, the Recall-any@5, Recall-any@10 and Recall-all@10 counts are at least the reference minus 1. Choice: the largest P0 that meets every constraint; the reference meets them by construction. k = 20 and the answer set are reported, not used.",
+  "device": {
+    "env": "FATHOMDB_EMBED_DEVICE",
+    "values": "cuda:0 (ruling Q-H4)",
+    "cuda_fallback": "refused: a cuda:N request must resolve to an effective CUDA device with a selected UUID"
+  },
+  "verdict_path": "experiments/configs/comp-03/vector-pool-verdict.v1.json",
+  "claim_boundary": {
+    "statement": "selects VECTOR_FUSION_POOL for H2; the H2 gate (REQ40-H6) re-measures on the engine",
+    "cost": "four store builds per question (one per P), as retrieve builds a fresh store per call",
+    "scope": "retrieval only; no answerer or judge"
+  }
+}

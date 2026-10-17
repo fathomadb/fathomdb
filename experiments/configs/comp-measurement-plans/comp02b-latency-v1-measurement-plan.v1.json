@@ -1,0 +1,523 @@
+{
+  "schema_version": "measurement.plan.v3",
+  "plan_id": "comp02b-latency-v1",
+  "components": [
+    {
+      "id": "corpus",
+      "kind": "corpus_gold",
+      "name": "SCALE-02 TC-5 input pack with hashed bench_cohort (comp02_inputs)"
+    },
+    {
+      "id": "body",
+      "kind": "fathomdb_engine_search",
+      "name": "FathomDB Engine.search_text_only over node bodies"
+    },
+    {
+      "id": "projected",
+      "kind": "fathomdb_engine_search",
+      "name": "FathomDB Engine.search_projected_text over the text projection, optional bench_cohort filter"
+    },
+    {
+      "id": "metric",
+      "kind": "deterministic_metric",
+      "name": "COMP-02 latency percentiles and build, ingest, and reopen medians"
+    }
+  ],
+  "call_paths": [
+    {
+      "id": "body-path",
+      "operation": "Engine.search_text_only",
+      "source_artifact_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "projected-path",
+      "operation": "Engine.search_projected_text",
+      "source_artifact_ids": [
+        "metrics"
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "latency-projected-vs-body",
+      "arms": [
+        {
+          "id": "latency-projected",
+          "component_ids": [
+            "corpus",
+            "metric",
+            "projected"
+          ],
+          "execution_witness_ids": [
+            "latency-projected-search"
+          ]
+        },
+        {
+          "id": "latency-body",
+          "component_ids": [
+            "body",
+            "corpus",
+            "metric"
+          ],
+          "execution_witness_ids": [
+            "latency-body-search"
+          ]
+        }
+      ],
+      "shared_component_ids": [
+        "corpus",
+        "metric"
+      ],
+      "differing_component_ids": [
+        "body",
+        "projected"
+      ]
+    }
+  ],
+  "metric_bindings": [
+    {
+      "id": "build_s",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/build_s",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.body-text-only.n",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/body-text-only/n",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "cells.body-text-only.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/body-text-only/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "latency-body-search"
+      ]
+    },
+    {
+      "id": "cells.body-text-only.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/body-text-only/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "latency-body-search"
+      ]
+    },
+    {
+      "id": "cells.body-text-only.short_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/body-text-only/short_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "body",
+        "corpus",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "latency-body-search"
+      ]
+    },
+    {
+      "id": "cells.projected-c01.n",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c01/n",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "cells.projected-c01.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c01/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-c01.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c01/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-c01.short_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c01/short_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-c10.n",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c10/n",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "cells.projected-c10.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c10/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-c10.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c10/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-c10.short_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c10/short_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-c33.n",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c33/n",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "cells.projected-c33.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c33/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-c33.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c33/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-c33.short_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-c33/short_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-single-term.n",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-single-term/n",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "cells.projected-single-term.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-single-term/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-single-term.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-single-term/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-single-term.short_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-single-term/short_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-unfiltered.n",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-unfiltered/n",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "cells.projected-unfiltered.p50_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-unfiltered/p50_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-unfiltered.p95_ms",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-unfiltered/p95_ms",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "cells.projected-unfiltered.short_results",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/cells/projected-unfiltered/short_results",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "metric",
+        "projected"
+      ],
+      "execution_witness_ids": [
+        "latency-projected-search"
+      ]
+    },
+    {
+      "id": "documents",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/documents",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "queries",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/queries",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    }
+  ],
+  "measurement_roots": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointers": [
+        "/build_s",
+        "/cells",
+        "/documents",
+        "/queries"
+      ]
+    }
+  ],
+  "metric_exclusions": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/inputs/corpus.json",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/inputs/queries.json",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/schema_version",
+      "reason": "run_control"
+    }
+  ],
+  "claims": [
+    {
+      "id": "latency-p50-by-cell",
+      "layer": "data_plane",
+      "metric_ids": [
+        "cells.body-text-only.p50_ms",
+        "cells.projected-c01.p50_ms",
+        "cells.projected-c10.p50_ms",
+        "cells.projected-c33.p50_ms",
+        "cells.projected-single-term.p50_ms",
+        "cells.projected-unfiltered.p50_ms"
+      ]
+    }
+  ],
+  "execution_witness_bindings": []
+}

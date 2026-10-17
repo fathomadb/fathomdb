@@ -1,0 +1,14 @@
+{
+  "schema_version": "sdk.arm.v1",
+  "sdk": "python",
+  "sdk_version": "0.8.27",
+  "engine_revision": "<source commit or explicit local synthetic build ID>",
+  "dependency_closure_sha256": "<SHA-256 of resolved shared dependency closure>",
+  "wrapper_sha256": "<SHA-256 of public SDK wrapper tree; use wrapper_sha256 helper>",
+  "features": [],
+  "device": "cpu",
+  "runtime": {"path": "/absolute/path/to/runtime", "sha256": "<SHA-256>"},
+  "driver": {"path": "/absolute/path/to/fixed/driver", "sha256": "<SHA-256>"},
+  "native": {"path": "/absolute/path/to/loaded/native/binary", "sha256": "<SHA-256>"},
+  "bootstrap_cli": {"path": "/absolute/path/to/fathomdb-cli", "sha256": "<SHA-256>"}
+}

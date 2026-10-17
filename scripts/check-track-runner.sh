@@ -116,6 +116,7 @@ track_bindings=(
   "GLOBAL-01 tracks/global-01-native-graphrag.md"
   "REASON-01 tracks/reason-01-native-hipporag2.md"
   "SEARCH-01 tracks/search-01-ir-c-baseline.md"
+  "COMP-01 tracks/comp-01-nfcorpus-fts.md"
 )
 for binding in "${track_bindings[@]}"; do
   track_id="${binding%% *}"

@@ -80,6 +80,45 @@ its download bytes and elapsed time are retained outside the measured cell; the
 subsequent open records the resolved device and allocation witness. The safe
 setup metadata belongs beside external artifacts, not in a committed receipt.
 
+## Competitive experiment runner
+
+The [embedded competitor benchmark survey](research/2026-10-13-embedded-competitor-benchmark-survey.md)
+records primary-source workload definitions and a ranked list of candidate
+next tests. It is research, not a result or a registered comparison.
+
+[`configs/competitive/experiment.example.json`](configs/competitive/experiment.example.json)
+shows the single versioned input for a repeatable embedded-product benchmark.
+[`competitive_runner`](competitive_runner.py) verifies the adapter and input
+digests, invokes the fixed adapter protocol, validates its output artifact, and
+writes an execution witness plus the standard `experiments.record.v1` receipt
+and append-only index row. Repeated attempts reuse the same configuration with
+distinct external output directories. [`competitive_run`](competitive_run.py)
+validates the aggregate result and renders latency/capacity, retrieval, and
+answer views from receipts. Published reference rows remain context only.
+
+See [the competitive config guide](configs/competitive/README.md) for commands
+and the result fields. Historical receipts are not rewritten.
+
+The successor `competitive.experiment.v2` path in
+[`competitive_product.py`](competitive_product.py) keeps private paths and
+source material in external execution artifacts. Its safe receipt records
+hashes and aggregate results; [`competitive_run.py`](competitive_run.py)
+labels historical v1 rows `legacy_path_bearing` and context only.
+
+## Cross-SDK performance suites
+
+[`configs/sdk/README.md`](configs/sdk/README.md) describes the versioned
+`sdk.experiment.v1` file and synthetic fixture. Run it with
+`python -m experiments.sdk_benchmark validate|run <file> <new-external-root>`.
+The coordinator checks the pinned Python, TypeScript, and Rust drivers,
+creates fresh databases, schedules balanced repetitions, and writes one safe
+receipt per case and SDK arm. A completed retrieval result binds its external
+evidence by digest; a same-suite answer case binds that retrieval result and
+evidence from the same attempt and arm. The local answerer is a deterministic
+fixture. Render validated latency, retrieval, and answer views with
+`python -m experiments.sdk_scoreboard <file> <suite-manifest> <receipts-root>`.
+Its optional product receipt inputs remain on a separate product axis.
+
 ## SCALE-02 local-first envelope
 
 `python -m experiments.scale_02` owns the A0 FTS-only efficiency envelope. Its

@@ -57,7 +57,7 @@ ARTIFACT_ROLES = {
     "derivation_spec",
 }
 LOCATOR_KINDS = {"repository_path", "external_path", "git_blob"}
-ENGINE_OPERATIONS = {"Engine.search", "Engine.search_text_only"}
+ENGINE_OPERATIONS = {"Engine.search", "Engine.search_text_only", "Engine.search_projected_text"}
 OPERATIONS = ENGINE_OPERATIONS | {"external_retrieval"}
 EVIDENCE_KINDS = {
     "instrumented_call",

@@ -1,0 +1,7 @@
+{
+  "schema_version": "sdk.fixture.v1",
+  "corpus": [{"id": "doc-1", "body": "amber otter"}],
+  "queries": [{"id": "q1", "text": "amber"}],
+  "gold": {"q1": ["doc-1"]},
+  "oracles": {"engine.search_text_only": {"q1": ["l:doc-1"]}}
+}

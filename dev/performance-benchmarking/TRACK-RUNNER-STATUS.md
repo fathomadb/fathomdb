@@ -5,7 +5,7 @@ Current coordination state for the
 [`experiments/`](../../experiments/README.md) holds execution receipts and the
 append-only evidence index.
 
-- **Last reconciled:** 2026-09-21
+- **Last reconciled:** 2026-10-13
 - **Branch:** `main`
 
 ## Immediate sequence
@@ -15,6 +15,8 @@ optional gauntlet suite are implemented, and the zero-paid-model smoke passes.
 GRAPH-RETRIEVAL-01's GPU-only seed qualification and historical-300 scored run
 are complete. Both native expansion depths produced a 100% no-op rate and zero
 retrieval delta on the qualified frozen seeds.
+COMP-01 is preparing the first CPU-only FathomDB NFCorpus FTS cell; no measured
+attempt has been run.
 
 ## Track status
 
@@ -39,6 +41,7 @@ retrieval delta on the qualified frozen seeds.
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Complete, rejected | Preserve the [held-out result](2026-08-29-global-01-lazy-coverage-result.md) and [receipt](../../experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json); retain the source-linked map-reduce control. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Complete, rejected | Preserve the [held-out result](2026-08-30-reason-01-result.md), [v2 result](2026-08-30-reason-01-compact-ledger-v2-result.md), and [v2 receipt](../../experiments/runs/reason-01-compact-ledger-v2-20260830T2156Z-572f51ea/record.json). Retain A0; no confirmation, native HippoRAG-2 run, or MEMORY-01 refresh is eligible. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
+| [COMP-01](tracks/comp-01-nfcorpus-fts.md) | Preparation | Freeze inputs and qualify the FathomDB adapter, runner, receipt, and 0.8.27 build before measurement. |
 
 ## Board rules
 

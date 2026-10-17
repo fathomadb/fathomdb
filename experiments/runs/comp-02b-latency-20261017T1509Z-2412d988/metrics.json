@@ -1,0 +1,60 @@
+{
+  "build_s": 2.568240294000134,
+  "cells": {
+    "body-text-only": {
+      "n": 100,
+      "p50_ms": 3.2888635178096592,
+      "p95_ms": 5.967631994280964,
+      "short_results": 0
+    },
+    "projected-c01": {
+      "n": 100,
+      "p50_ms": 6.796625006245449,
+      "p95_ms": 10.306074982509017,
+      "short_results": 6
+    },
+    "projected-c10": {
+      "n": 100,
+      "p50_ms": 4.05415499699302,
+      "p95_ms": 6.836263986770064,
+      "short_results": 0
+    },
+    "projected-c33": {
+      "n": 100,
+      "p50_ms": 2.9991850024089217,
+      "p95_ms": 5.704745999537408,
+      "short_results": 0
+    },
+    "projected-single-term": {
+      "n": 20,
+      "p50_ms": 0.9459285065531731,
+      "p95_ms": 1.006432983558625,
+      "short_results": 0
+    },
+    "projected-unfiltered": {
+      "n": 100,
+      "p50_ms": 2.747739985352382,
+      "p95_ms": 5.281644989736378,
+      "short_results": 0
+    }
+  },
+  "documents": 10000,
+  "inputs": {
+    "corpus.json": "f2b89248c47669a54673ccbd4cccba663241add8d06f1b8a36dbfa481c9c27bc",
+    "queries.json": "2e0cb9d309c22b0c74e90f185fb90bf3be49603e7bb70d428b5cfd84545d3ccb"
+  },
+  "measurement": {
+    "cell_order": [
+      "projected-unfiltered",
+      "projected-c01",
+      "projected-c10",
+      "projected-c33",
+      "body-text-only",
+      "projected-single-term"
+    ],
+    "method": "fresh_open_per_cell",
+    "opens": 6
+  },
+  "queries": 100,
+  "schema_version": "comp-02b.latency.summary.v2"
+}

@@ -1,0 +1,701 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "comp-03-hermes-answer-20261016T1239Z-2e410a4f",
+  "experiment": "comp-03-hermes-answer",
+  "title": "COMP-03 Hermes-style LongMemEval-S answer comparison",
+  "verdict": "complete",
+  "read": "fathomdb 0.700 vs lancedb 0.700 answer accuracy on 60 paired questions (difference +0.000, bootstrap 95% -0.050..+0.050)",
+  "code": {
+    "git_sha": "6b4bd8e1f5e8b68fecc959e10ca9efc1bb22a6cc",
+    "dirty": true,
+    "branch": "llm/comp-01",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "2e410a4f1eb63d8ccce6788390dea7a893f22afab9865728a2410f7ad6e979fd",
+    "path": "experiments/configs/comp-03/hermes-answer.v1.json",
+    "resolved": {
+      "schema_version": "comp-03.answer.v1",
+      "program_track": null,
+      "campaign": "COMP-03",
+      "corpus": {
+        "identifier": "longmemeval-s-cleaned",
+        "source": "huggingface xiaowu0162/longmemeval-cleaned@98d7416c24c778c2fee6e6f3006e7a073259d48f longmemeval_s_cleaned.json",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+        "storage": "external_only"
+      },
+      "selection": {
+        "per_type": 10,
+        "seed": 303,
+        "rule": "random.Random(f'{seed}:{type}').sample(sorted ids of type, per_type), sorted within type; types sorted",
+        "question_ids": [
+          "184da446",
+          "42ec0761",
+          "6a1eabeb",
+          "89941a93",
+          "89941a94",
+          "b6019101",
+          "c6853660",
+          "ce6d2d27",
+          "eace081b",
+          "f685340e_abs",
+          "09ba9854",
+          "4f54b7c9",
+          "67e0d0f2",
+          "8979f9ec",
+          "8e91e7d9",
+          "d23cf73b",
+          "e5ba910e_abs",
+          "e6041065",
+          "gpt4_372c3eed",
+          "gpt4_f2262a51",
+          "3249768e",
+          "352ab8bd",
+          "41275add",
+          "4c36ccef",
+          "6ae235be",
+          "70b3e69b",
+          "71a3fd6b",
+          "ceb54acb",
+          "e3fc4d6e",
+          "e8a79c70",
+          "06878be2",
+          "1a1907b4",
+          "1c0ddc50",
+          "1da05512",
+          "505af2f5",
+          "6b7dfb22",
+          "75832dbd",
+          "95228167",
+          "b6025781",
+          "d6233ab6",
+          "21436231",
+          "29f2956b",
+          "545bd2b5",
+          "6ade9755",
+          "6f9b354f",
+          "86f00804",
+          "bc8a6e93_abs",
+          "c14c00dd",
+          "e01b8e2f",
+          "f4f1d8a4_abs",
+          "4dfccbf7",
+          "gpt4_65aabe59",
+          "gpt4_68e94287",
+          "gpt4_6dc9b45b",
+          "gpt4_78cf46a3",
+          "gpt4_7a0daae1",
+          "gpt4_7bc6cf22",
+          "gpt4_98f46fc6",
+          "gpt4_d31cdae3",
+          "gpt4_e414231e"
+        ]
+      },
+      "document_unit": {
+        "unit": "round",
+        "rule": "one user turn plus the assistant turns that follow it; leading assistant turns form their own round",
+        "id": "s<session position:03d>-r<round position:03d>",
+        "indexed_body": "turn contents joined by newline",
+        "excluded": [
+          "answer",
+          "answer_session_ids",
+          "haystack_session_ids",
+          "has_answer"
+        ]
+      },
+      "arms": [
+        {
+          "id": "fathomdb",
+          "method": "Engine.search_text_only",
+          "setup": "fathomdb_test_setup, embedder none, cpu"
+        },
+        {
+          "id": "lancedb",
+          "method": "table.search(query_type='fts'), native FTS index, library defaults"
+        }
+      ],
+      "retrieval": {
+        "top_k": 5,
+        "query": "question text verbatim",
+        "order": "arms alternate AB/BA by question position"
+      },
+      "evidence": {
+        "max_item_chars": 4000,
+        "max_total_chars": 20000,
+        "fields": [
+          "session date",
+          "round text"
+        ],
+        "renderer": "comp03_answer.render_evidence"
+      },
+      "live": {
+        "route": "Airlock loopback http://127.0.0.1:4000, OpenAI upstream",
+        "answerer": {
+          "model": "openai/gpt-5.4",
+          "prompt": "LongMemEval reading prompt (comp03_answer.answer_messages)",
+          "max_tokens": 1024,
+          "input_usd_per_million": 2.5,
+          "output_usd_per_million": 15.0
+        },
+        "judge": {
+          "model": "openai/gpt-5.4",
+          "prompt": "LongMemEval evaluate_qa per-type answer check, blinded to product",
+          "max_tokens": 16,
+          "input_usd_per_million": 2.5,
+          "output_usd_per_million": 15.0
+        },
+        "temperature": 0,
+        "seed": 0,
+        "max_usd": 15.0,
+        "max_retries": 4
+      },
+      "metrics": [
+        "answer_accuracy_paired",
+        "answer_accuracy_per_type",
+        "session_recall_any_at_5",
+        "session_mrr_at_5",
+        "turn_recall_any_at_5",
+        "turn_mrr_at_5",
+        "retrieval_latency_ms",
+        "answer_latency_s",
+        "judge_latency_s",
+        "cost_usd"
+      ],
+      "claim_boundary": {
+        "reference": "LanceDB Hermes LongMemEval-S experiment: 60 questions, top-5, answerer gpt-5.4, judge gpt-5.4-mini",
+        "deviation": "judge is gpt-5.4 (one step stronger than the reference judge), owner 2026-10-16",
+        "scope": "FTS arms only; published Hermes scores and network-inclusive latency are context"
+      }
+    }
+  },
+  "corpus": {
+    "source": "longmemeval-s-cleaned",
+    "manifest_sha256": null,
+    "datasets": [
+      {
+        "name": "longmemeval_s_cleaned.json",
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+      }
+    ]
+  },
+  "seeds": {
+    "selection": 303,
+    "model": 0
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.27",
+      "lancedb": "0.40.0",
+      "answerer": "openai/gpt-5.4",
+      "judge": "openai/gpt-5.4"
+    }
+  },
+  "metrics": {
+    "answer": {
+      "n": 60,
+      "accuracy": {
+        "fathomdb": 0.7,
+        "lancedb": 0.7
+      },
+      "difference": 0.0,
+      "difference_bootstrap_95": [
+        -0.05,
+        0.05
+      ],
+      "discordant": {
+        "fathomdb_only": 1,
+        "lancedb_only": 1
+      },
+      "per_type": {
+        "knowledge-update": {
+          "fathomdb": {
+            "correct": 6,
+            "n": 10,
+            "rate": 0.6,
+            "wilson_95": [
+              0.3126695474501864,
+              0.8318224187964902
+            ]
+          },
+          "lancedb": {
+            "correct": 6,
+            "n": 10,
+            "rate": 0.6,
+            "wilson_95": [
+              0.3126695474501864,
+              0.8318224187964902
+            ]
+          }
+        },
+        "multi-session": {
+          "fathomdb": {
+            "correct": 5,
+            "n": 10,
+            "rate": 0.5,
+            "wilson_95": [
+              0.23658959361548731,
+              0.7634104063845126
+            ]
+          },
+          "lancedb": {
+            "correct": 4,
+            "n": 10,
+            "rate": 0.4,
+            "wilson_95": [
+              0.16817758120350967,
+              0.6873304525498135
+            ]
+          }
+        },
+        "single-session-assistant": {
+          "fathomdb": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          },
+          "lancedb": {
+            "correct": 10,
+            "n": 10,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7224598312333834,
+              1.0
+            ]
+          }
+        },
+        "single-session-preference": {
+          "fathomdb": {
+            "correct": 3,
+            "n": 10,
+            "rate": 0.3,
+            "wilson_95": [
+              0.10778928748621183,
+              0.6032267800204347
+            ]
+          },
+          "lancedb": {
+            "correct": 4,
+            "n": 10,
+            "rate": 0.4,
+            "wilson_95": [
+              0.16817758120350967,
+              0.6873304525498135
+            ]
+          }
+        },
+        "single-session-user": {
+          "fathomdb": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          },
+          "lancedb": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          }
+        },
+        "temporal-reasoning": {
+          "fathomdb": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          },
+          "lancedb": {
+            "correct": 9,
+            "n": 10,
+            "rate": 0.9,
+            "wilson_95": [
+              0.5958436145024278,
+              0.9821242504842788
+            ]
+          }
+        }
+      }
+    },
+    "abstention_n": 4,
+    "retrieval": {
+      "fathomdb": {
+        "n": 56,
+        "session_recall_any_at_5": 0.8928571428571429,
+        "session_recall_any_at_5_n": 56,
+        "session_mrr_at_5": 0.8482142857142857,
+        "session_mrr_at_5_n": 56,
+        "turn_recall_any_at_5": 0.8392857142857143,
+        "turn_recall_any_at_5_n": 56,
+        "turn_mrr_at_5": 0.6270833333333333,
+        "turn_mrr_at_5_n": 56
+      },
+      "lancedb": {
+        "n": 56,
+        "session_recall_any_at_5": 0.8928571428571429,
+        "session_recall_any_at_5_n": 56,
+        "session_mrr_at_5": 0.8145833333333333,
+        "session_mrr_at_5_n": 56,
+        "turn_recall_any_at_5": 0.8392857142857143,
+        "turn_recall_any_at_5_n": 56,
+        "turn_mrr_at_5": 0.6008928571428571,
+        "turn_mrr_at_5_n": 56
+      }
+    },
+    "timing": {
+      "fathomdb": {
+        "version": "0.8.27",
+        "retrieval_first_p50_ms": 1.4655555,
+        "retrieval_warm_p50_ms": 1.4493895,
+        "retrieval_warm_p95_ms": 2.664177,
+        "build_p50_s": 0.03841238346649334,
+        "evidence_chars_p50": 11890.0,
+        "answer_p50_s": 1.229491088015493,
+        "judge_p50_s": 0.7137416469922755,
+        "usd": 0.5033725
+      },
+      "lancedb": {
+        "version": "0.40.0",
+        "retrieval_first_p50_ms": 4.9600565,
+        "retrieval_warm_p50_ms": 1.7654975,
+        "retrieval_warm_p95_ms": 3.351646,
+        "build_p50_s": 0.039435703511117026,
+        "evidence_chars_p50": 11366.5,
+        "answer_p50_s": 1.1963088874763343,
+        "judge_p50_s": 0.7324411780282389,
+        "usd": 0.50396
+      }
+    },
+    "cost_usd": 1.0073325,
+    "selection_matches_seed": true,
+    "question_outcomes": [
+      {
+        "question_id": "184da446",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "42ec0761",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "6a1eabeb",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "89941a93",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "89941a94",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "b6019101",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "c6853660",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "ce6d2d27",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "eace081b",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "f685340e_abs",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "09ba9854",
+        "fathomdb": true,
+        "lancedb": false
+      },
+      {
+        "question_id": "4f54b7c9",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "67e0d0f2",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "8979f9ec",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "8e91e7d9",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "d23cf73b",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "e5ba910e_abs",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "e6041065",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "gpt4_372c3eed",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "gpt4_f2262a51",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "3249768e",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "352ab8bd",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "41275add",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "4c36ccef",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "6ae235be",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "70b3e69b",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "71a3fd6b",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "ceb54acb",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "e3fc4d6e",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "e8a79c70",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "06878be2",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "1a1907b4",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "1c0ddc50",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "1da05512",
+        "fathomdb": false,
+        "lancedb": true
+      },
+      {
+        "question_id": "505af2f5",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "6b7dfb22",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "75832dbd",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "95228167",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "b6025781",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "d6233ab6",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "21436231",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "29f2956b",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "545bd2b5",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "6ade9755",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "6f9b354f",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "86f00804",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "bc8a6e93_abs",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "c14c00dd",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "e01b8e2f",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "f4f1d8a4_abs",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "4dfccbf7",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "gpt4_65aabe59",
+        "fathomdb": false,
+        "lancedb": false
+      },
+      {
+        "question_id": "gpt4_68e94287",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "gpt4_6dc9b45b",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "gpt4_78cf46a3",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "gpt4_7a0daae1",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "gpt4_7bc6cf22",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "gpt4_98f46fc6",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "gpt4_d31cdae3",
+        "fathomdb": true,
+        "lancedb": true
+      },
+      {
+        "question_id": "gpt4_e414231e",
+        "fathomdb": true,
+        "lancedb": true
+      }
+    ]
+  },
+  "cost_usd": 1.0073,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_attempt",
+      "summary_sha256": "f129662f6055d6042b5fc6151e93a7108d88d9e2aae9ca8dc4ebf371714dba14"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

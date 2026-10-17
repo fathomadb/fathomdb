@@ -1,0 +1,129 @@
+{
+  "schema_version": "comp-03.pack-coverage.v1",
+  "campaign": "COMP-03",
+  "corpus": {
+    "identifier": "longmemeval-s-cleaned",
+    "source": "huggingface xiaowu0162/longmemeval-cleaned@98d7416c24c778c2fee6e6f3006e7a073259d48f longmemeval_s_cleaned.json",
+    "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+    "storage": "external_only"
+  },
+  "answer_set": {
+    "config": "experiments/configs/comp-03/hermes-answer.mix.json",
+    "question_ids": 60,
+    "note": "the selection set is the scored questions not in this answer set (414 at Slice 40), counted from the data"
+  },
+  "arms": {
+    "fts": "fathomdb-fts-stopwords",
+    "hybrid": "fathomdb-hybrid-stopwords"
+  },
+  "base_policy": {
+    "budget_chars": 30000,
+    "item_chars": 4000,
+    "keep_roles": [
+      "user"
+    ],
+    "expand_groups": true
+  },
+  "control": {
+    "name": "mix",
+    "full_items": 1000000,
+    "compact_chars": 300,
+    "k": 10,
+    "order": "chronological"
+  },
+  "grid": [
+    {
+      "name": "T3/A300/k30",
+      "full_items": 3,
+      "compact_chars": 300,
+      "k": 30
+    },
+    {
+      "name": "T3/A0/k30",
+      "full_items": 3,
+      "compact_chars": 0,
+      "k": 30
+    },
+    {
+      "name": "T5/A300/k50",
+      "full_items": 5,
+      "compact_chars": 300,
+      "k": 50
+    },
+    {
+      "name": "T5/A0/k50",
+      "full_items": 5,
+      "compact_chars": 0,
+      "k": 50
+    }
+  ],
+  "weights": {
+    "multi-session": 0.266,
+    "temporal-reasoning": 0.266,
+    "knowledge-update": 0.156,
+    "single-session-user": 0.14,
+    "single-session-assistant": 0.112,
+    "single-session-preference": 0.06
+  },
+  "guard": {
+    "ssa_min": 0.89,
+    "other_tolerance": 0.02
+  },
+  "rule": {
+    "text": "Slice 41 test-plan 4.1, fixed before the run, applied to the selection set only; it picks the harness policy, not the SDK defaults. 1. Keep the policies that pass REQ41-M2 on both arms (SSA allfull >= .89; every other type's allfull >= the mix control's minus .02). 2. Of those, adopt the one with the highest mean weighted allfull over the two arms; ties: the smaller k, then the larger compact_chars. 3. Adopt only if its weighted allfull beats the control by at least .05 on both arms. 4. If none qualifies, M3 uses T3/A300 (the SDK default) and the result is reported to the owner.",
+    "min_gain": 0.05,
+    "fallback": "T3/A300/k30"
+  },
+  "mf1": {
+    "rows": [
+      {
+        "name": "T3/A0/k30",
+        "full_items": 3,
+        "compact_chars": 0,
+        "k": 30,
+        "rule": null
+      },
+      {
+        "name": "(c) rank-1 session <= 10",
+        "full_items": 3,
+        "compact_chars": 0,
+        "k": 30,
+        "rule": {
+          "name": "rank1_session",
+          "cap": 10
+        }
+      },
+      {
+        "name": "(b) assistant reference -> T8",
+        "full_items": 3,
+        "compact_chars": 0,
+        "k": 30,
+        "rule": {
+          "name": "assistant_reference",
+          "full_items": 8
+        }
+      }
+    ],
+    "expected": {
+      "(c) rank-1 session <= 10": {
+        "SSA": 0.978,
+        "weighted": 0.962,
+        "SSP": 0.95
+      },
+      "(b) assistant reference -> T8": {
+        "weighted": 0.967
+      }
+    },
+    "source": "REQ41 5.4: on the recorded FTS top-100 at engine 5b09afd44 (sweep100_fts.jsonl, key ids100), the 414-question selection set; (c)'s SSP .950 is the expected cost, not a defect",
+    "rules": "(c) full_ids = the hits of the rank-1 hit's session past the first full_items, up to cap - full_items, so at most cap items render in full (variants.py promote); (b) full_items = 8 when the question matches the assistant-reference detector of variants.py. Both are harness heuristics (REQ41-F6)."
+  },
+  "ac41_27": {
+    "policy": "comp03_pack.MIX_POLICY: full_items 10**6, 4000/30000, expansion on, chronological",
+    "records": "every recorded comp03-run-mix questions/<qid>/<arm>/retrieval.json (ids, evidence_sha256), FTS, hybrid and LanceDB alike",
+    "pass": "every recorded evidence_sha256 matches; a mismatch blocks M1"
+  },
+  "claim_boundary": {
+    "statement": "offline, deterministic coverage through fathomdb.pack_context with caller items; no model calls",
+    "arms": "the stop-word variants of the v2 sweep, so M1 ranks like the M3 arms that open with REQ41-Q8's setting; set arms to fathomdb-fts / fathomdb-hybrid to measure the default list"
+  }
+}

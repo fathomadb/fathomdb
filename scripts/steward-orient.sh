@@ -16,9 +16,9 @@
 #    for the current checkout and one locked and detached exception (each
 #    path/branch/SHA), then state exact omitted-row counts plus `git worktree
 #    list` for full follow-up; ledger preview is five headline-first entries; and
-#    todo IDs are losslessly run-folded. THE STANDING EXPOSURE is the board's
-#    next-action cell: it is verbatim by contract and its length is set by its
-#    writer. Keep §1's next action short; do not raise the cap or truncate the
+#    todo IDs are run-folded, UUID-form ones shown by unique prefix. THE
+#    STANDING EXPOSURE is the board's next-action cell: it is verbatim by
+#    contract and its length is set by its writer. Keep §1's next action short; do not raise the cap or truncate the
 #    cell — the suite asserts both the cap and verbatim reproduction independently.
 # 2. WRITES NOTHING. No repo file, no ledger, no cursor, no commit. The only
 #    filesystem touch is one mktemp -d sandbox, removed by an EXIT trap, used as
@@ -533,7 +533,9 @@ if not rows:
 
 def split_id(i):
     m = re.search(r"(\d+)$", i)
-    return (i, None) if not m else (i[: m.start()], int(m.group(1)))
+    if not m or (len(m.group(1)) > 1 and m.group(1)[0] == "0"):
+        return (i, None)
+    return (i[: m.start()], int(m.group(1)))
 
 
 def natural(i):
@@ -541,17 +543,48 @@ def natural(i):
     return (prefix, -1 if num is None else num)
 
 
-# LOSSLESS COMPRESSION, not a truncation. Spelled out in full, one bucket of 91
-# ids costs 577 bytes, 273 of them the string "TC-" repeated. So: emit the shared
-# stem once per run and collapse consecutive numbers into `a..b`. Every id is
-# still exactly reconstructable and the counts are unchanged; the section costs
-# about a quarter of what it did. An id with no trailing number, or with a
-# non-numeric tail (TC-99-VEC0), is passed through verbatim rather than guessed
-# at — it simply forms its own single-member run.
+UUID_ID = re.compile(
+    r"^(.*?)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+ALL_IDS = [str(r.get("id")) for r in rows]
+
+
+def abbreviate(i):
+    m = UUID_ID.match(i)
+    if not m:
+        return None
+    n = len(m.group(1)) + 8
+    while n < len(i):
+        p = i[:n]
+        if not p.endswith("-") and sum(o.startswith(p) for o in ALL_IDS) == 1:
+            return p
+        n += 1
+    return i
+
+
+# COMPRESSION THAT KEEPS EVERY ID IDENTIFIABLE, not a truncation. Spelled out in
+# full, one bucket of 91 ids costs 577 bytes, 273 of them the string "TC-"
+# repeated. So: emit the shared stem once per run and collapse consecutive
+# numbers into `a..b`; every numeric id is still exactly reconstructable and the
+# counts are unchanged. An id with no trailing number, a non-numeric tail
+# (TC-99-VEC0), or a zero-padded tail (TC-ac020-successor-0825, which int()
+# would renumber) is passed through verbatim rather than guessed at — it simply
+# forms its own single-member run.
+# UUID-form ids (<stem><8>-<4>-<4>-<4>-<12> hex) do not fold and cost ~40 bytes
+# each, so they print as their shortest prefix of at least 8 hex digits that is
+# a prefix of NO OTHER id in the whole ledger (not just this bucket): each
+# printed prefix still names exactly one ledger id with no lookup needed, and
+# `ledgerwatch --project` gives the full id. Abbreviated ids are verbatim
+# members, kept out of numeric runs (TC-12345678 is not numeric id 12345678).
 def compress(ids):
+    keyed = []
+    for i in ids:
+        short = abbreviate(i)
+        keyed.append(((0, natural(i)), i, False) if short is None else ((1, (short, 0)), short, True))
+
     groups = []
-    for i in sorted(ids, key=natural):
-        prefix, num = split_id(i)
+    for _, i, verbatim in sorted(keyed):
+        prefix, num = (i, None) if verbatim else split_id(i)
         if num is None:
             groups.append([None, [i]])
         elif groups and groups[-1][0] == prefix:
@@ -585,6 +618,8 @@ for r in rows:
     buckets.setdefault(str(r.get("status", "?")), []).append(str(r.get("id")))
 for status in sorted(buckets, key=lambda s: (-len(buckets[s]), s)):
     print(f"  {status}({len(buckets[status])}) {compress(buckets[status])}")
+if any(abbreviate(i) for i in ALL_IDS):
+    print("  (UUID ids shown by unique prefix; full ids: ledgerwatch --project)")
 PY
   )"
   TODOS_OUT="$(python3 -c "$TODOS_PY" <<<"$TODOS_RAW")"

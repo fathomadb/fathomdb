@@ -87,7 +87,10 @@ impl Adapter {
 
     /// Register a host-owned open engine under `name` (MR-004). The adapter
     /// serves it but never opens, drains or closes it, and it does not count
-    /// toward the open-store limit.
+    /// toward the open-store limit. Its epoch is fixed at 1. When the config
+    /// sets `telemetry_dir`, the apply-on-open list enables a sink
+    /// `<dir>/<name>.<pid>.1.jsonl` on the engine, replacing any sink the host
+    /// had enabled.
     ///
     /// # Errors
     /// [`AdapterError::BadStoreName`] for a name outside the grammar and

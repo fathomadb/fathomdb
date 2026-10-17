@@ -319,3 +319,37 @@ def test_bootstrap_ci_is_deterministic_for_a_seed() -> None:
     assert first == mal.bootstrap_ci(values, seed=7, resamples=2000)
     assert first[0] <= sum(values) / len(values) <= first[1]
     assert mal.bootstrap_ci([1.0] * 5, seed=1, resamples=100) == (1.0, 1.0)
+
+
+# --- prompt variants ---------------------------------------------------------
+
+
+def test_guided_prompt_is_the_server_instructions_then_the_client_prompt() -> None:
+    instructions = "FathomDB memory stores, read-only. Always search first."
+    prompt = mal.agent_system_prompt("guided", instructions=instructions)
+    assert prompt == instructions + "\n\n" + mal.GUIDED_CLIENT_PROMPT
+    assert mal.GUIDED_CLIENT_PROMPT.startswith("You answer questions from a memory store")
+
+
+def test_neutral_prompt_excludes_the_server_instructions() -> None:
+    prompt = mal.agent_system_prompt("neutral", instructions="FathomDB memory stores, read-only.")
+    assert prompt == mal.AGENT_SYSTEM_PROMPT
+    assert "FathomDB" not in prompt
+
+
+@pytest.mark.parametrize("instructions", [None, "", "   "])
+def test_guided_prompt_refuses_missing_instructions(instructions: str | None) -> None:
+    with pytest.raises(ValueError):
+        mal.agent_system_prompt("guided", instructions=instructions)
+
+
+def test_agent_arms_carry_their_prompt_variant_and_model() -> None:
+    expected = {
+        "B-4o": ("neutral", "gpt-4o-mini"),
+        "B-5.4mini": ("neutral", "gpt-5.4-mini"),
+        "B-4o-guided": ("guided", "gpt-4o-mini"),
+        "B-5.4mini-guided": ("guided", "gpt-5.4-mini"),
+    }
+    for arm, (variant, model) in expected.items():
+        spec = mal.ARM_SPECS[arm]
+        assert (spec["kind"], spec["mode"], spec["prompt"], spec["model"]) == ("agent", "hybrid", variant, model)

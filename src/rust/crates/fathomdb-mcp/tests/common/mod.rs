@@ -427,3 +427,64 @@ pub fn assert_json_rpc_only(lines: &[String]) {
         assert_eq!(message["jsonrpc"], "2.0", "not a JSON-RPC message: {line}");
     }
 }
+
+/// `readiness` of `store` from `list_stores`.
+pub async fn readiness(client: &Client, store: &str) -> String {
+    let listed = ok(client, "list_stores", json!({})).await;
+    listed["stores"]
+        .as_array()
+        .expect("stores")
+        .iter()
+        .find(|row| row["name"] == store)
+        .map(|row| row["readiness"].as_str().expect("readiness").to_string())
+        .unwrap_or_else(|| panic!("{store} is not listed: {listed}"))
+}
+
+/// Poll `list_stores` until `store` reports `want`; false on timeout.
+pub async fn wait_for_readiness(
+    client: &Client,
+    store: &str,
+    want: &str,
+    timeout: Duration,
+) -> bool {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        if readiness(client, store).await == want {
+            return true;
+        }
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// Whether this process can open (and so lock) the file at `path` now.
+pub fn can_open(path: &Path) -> bool {
+    match Engine::open(path, OpenOptions::default()) {
+        Ok(engine) => {
+            engine.close().expect("close probe");
+            true
+        }
+        Err(error) if error.kind() == fathomdb_sdk::ErrorKind::DatabaseLocked => false,
+        Err(error) => panic!("unexpected open error: {error}"),
+    }
+}
+
+/// A node edge whose body needs an embedder: without one, `drain` reports
+/// `EmbedderRequired`.
+pub fn body_edge(kind: &str, from: &str, to: &str, body: &str) -> PreparedWrite {
+    PreparedWrite::Edge {
+        kind: kind.into(),
+        from: from.into(),
+        to: to.into(),
+        source_id: SourceId::new("fixture").expect("source id"),
+        logical_id: Some(format!("{from}->{to}")),
+        body: Some(body.into()),
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        extractor_model_id: None,
+        temporal_fallback: None,
+    }
+}

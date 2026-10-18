@@ -1266,8 +1266,9 @@ and 7.2.
     the first line break or at the last word boundary at or before
     `head_bytes`.
   - `max_windows > 1` adds windows for identities that no window shows. The
-    first window then takes `1 / max_windows` of the budget, unless no whole
-    span fits that narrower window.
+    first window then takes `1 / max_windows` of the budget, but only when
+    a whole span fits that narrower window and at least 80 bytes remain
+    beside it.
   - Windows 16 bytes apart or less merge. If the merged text does not fit,
     its end snaps back, never before a counted span or the head's end.
 - Output is deterministic per build. Word, sentence and grapheme boundaries

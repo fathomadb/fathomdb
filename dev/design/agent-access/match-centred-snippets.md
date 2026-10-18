@@ -508,9 +508,11 @@ SnippetV1` (§ 7.2). Its inputs are the body, its spans `[s, e)`, `max_bytes`,
    *As built (S5a):* a full-width first window would leave less than 80
    bytes, so the split is decided up front. When identities lie outside the
    full-width first window, that window is re-chosen at `full / max_windows`
-   bytes. Each later window takes an equal share of what remains. If no whole
-   span fits the narrower first window, the full-width choice stands and no
-   window is added.
+   bytes, but only if at least 80 bytes would remain beside it. Each later
+   window takes an equal share of what remains. If no whole span fits the
+   narrower first window, or too little budget would remain, the full-width
+   choice stands and no window is added. The result is then the same as with
+   `max_windows = 1`.
 8. **Merge.** If two windows are 16 bytes apart or less, merge them into one
    window that includes the gap, provided it fits. Otherwise drop the
    lower-scoring window.

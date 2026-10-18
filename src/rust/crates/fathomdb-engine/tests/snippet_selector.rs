@@ -396,3 +396,34 @@ fn t5_no_window_edge_splits_a_grapheme_cluster() {
         }
     }
 }
+
+// § 6.6: `head_bytes > 0` shows the record start as its own window before
+// the match window, cut at the first newline or the last UAX #29 word
+// boundary at or before `head_bytes`, whichever comes first.
+#[test]
+fn head_window_precedes_the_match_window() {
+    let header = "(unknown date) [8 May 2023] Caroline: Hello there, ";
+    let body = format!("{header}{}pear {}", pad(1500 - header.len()), pad(1500));
+    let pear = body.find("pear").unwrap();
+    let spans = [(pear as u32, pear as u32 + 4)];
+    let headed = SnippetOptions { head_bytes: 40, ..opts(300) };
+    let s = snippet_for(&body, &spans, &headed);
+    assert_eq!(s.windows[0], (0, 37), "{s:?}");
+    assert_eq!(s.windows.len(), 2);
+    assert!(s.text.starts_with("(unknown date) [8 May 2023] Caroline: … "), "{s:?}");
+    assert!(shows(&s, spans[0]));
+    assert_eq!(s.anchor, SnippetAnchor::Match);
+    assert!(s.text.len() <= 300);
+
+    // A newline before `head_bytes` ends the head.
+    let body = format!("Title line\n{}pear {}", pad(1500), pad(1500));
+    let pear = body.find("pear").unwrap();
+    let spans = [(pear as u32, pear as u32 + 4)];
+    let s = snippet_for(&body, &spans, &headed);
+    assert_eq!(s.windows[0], (0, 10), "{s:?}");
+    assert!(s.text.starts_with("Title line … "));
+    assert!(shows(&s, spans[0]));
+
+    // Without spans the head changes nothing: the prefix already starts there.
+    assert_eq!(snippet_for(&body, &[], &headed), snippet_for(&body, &[], &opts(300)));
+}

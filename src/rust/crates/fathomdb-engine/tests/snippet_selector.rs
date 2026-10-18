@@ -510,3 +510,137 @@ fn rule8_close_windows_merge() {
         assert_disjoint_with_gaps(&snippet_for(&body, &spans, &windows_opts(400, 3)));
     }
 }
+
+mod t4 {
+    use super::{grapheme_boundaries, joined};
+    use fathomdb_engine::{snippet_for, SnippetAnchor, SnippetOptions};
+    use proptest::prelude::*;
+
+    const FRAGMENTS: &[&str] = &[
+        "pear",
+        "Plum",
+        "apple",
+        "the",
+        "don't",
+        "e-mail",
+        " ",
+        " ",
+        " ",
+        ". ",
+        "? ",
+        ", ",
+        "\n",
+        "\r\n",
+        "  ",
+        "e\u{301}",
+        "a\u{308}\u{301}",
+        "\u{1F469}\u{200D}\u{1F469}\u{200D}\u{1F467}",
+        "\u{1F1EB}\u{1F1F7}",
+        "\u{1F44D}\u{1F3FD}",
+        "\u{6F22}\u{5B57}",
+        "\u{2026}",
+        "\u{E000}",
+        "\u{200B}",
+        "Caf\u{E9}",
+        "1.5",
+        "x",
+    ];
+
+    fn body() -> impl Strategy<Value = String> {
+        prop_oneof![
+            4 => prop::collection::vec(prop::sample::select(FRAGMENTS), 0..500)
+                .prop_map(|parts| parts.concat()),
+            1 => any::<String>(),
+        ]
+    }
+
+    fn floor_char(body: &str, mut i: usize) -> usize {
+        i = i.min(body.len());
+        while !body.is_char_boundary(i) {
+            i -= 1;
+        }
+        i
+    }
+
+    fn options() -> impl Strategy<Value = SnippetOptions> {
+        (40u32..=700, 1u8..=3, 0u32..=350, any::<bool>()).prop_map(
+            |(max_bytes, max_windows, head, highlights)| SnippetOptions {
+                max_bytes,
+                max_windows,
+                head_bytes: head.min(max_bytes / 2),
+                highlights,
+                ..SnippetOptions::default()
+            },
+        )
+    }
+
+    proptest! {
+        // T-4: windows are sorted, disjoint and on grapheme boundaries; text
+        // is their ellipsis join; every highlight lies inside text; length is
+        // at most max_bytes; a body that fits comes back unchanged.
+        #[test]
+        fn t4_snippet_invariants(
+            body in body(),
+            raw in prop::collection::vec((any::<u16>(), 0u16..64, any::<bool>()), 0..24),
+            o in options(),
+        ) {
+            let len = body.len();
+            let spans: Vec<(u32, u32)> = raw
+                .iter()
+                .map(|&(at, width, snap)| {
+                    let start = if len == 0 { 0 } else { usize::from(at) % (len + 1) };
+                    let end = start + usize::from(width);
+                    if snap {
+                        (floor_char(&body, start) as u32, floor_char(&body, end) as u32)
+                    } else {
+                        (start as u32, end as u32)
+                    }
+                })
+                .collect();
+            let s = snippet_for(&body, &spans, &o);
+            prop_assert_eq!(&s, &snippet_for(&body, &spans, &o), "deterministic");
+
+            let bounds = grapheme_boundaries(&body);
+            prop_assert!(s.text.len() <= o.max_bytes as usize, "{} > {}", s.text.len(), o.max_bytes);
+            prop_assert_eq!(&s.text, &joined(&body, &s.windows));
+            for &(a, b) in &s.windows {
+                prop_assert!(a < b, "empty window {:?}", s.windows);
+                prop_assert!(bounds.contains(&(a as usize)) && bounds.contains(&(b as usize)));
+            }
+            for pair in s.windows.windows(2) {
+                prop_assert!(pair[0].1 < pair[1].0, "unsorted or overlapping {:?}", s.windows);
+            }
+            for pair in s.spans.windows(2) {
+                prop_assert!(pair[0].1 <= pair[1].0);
+            }
+            for &(a, b) in &s.spans {
+                prop_assert!(a < b && bounds.contains(&(a as usize)) && bounds.contains(&(b as usize)));
+            }
+            if o.highlights {
+                for &(a, b) in &s.highlights {
+                    prop_assert!(a < b && (b as usize) <= s.text.len());
+                    prop_assert!(s.text.is_char_boundary(a as usize) && s.text.is_char_boundary(b as usize));
+                }
+            } else {
+                prop_assert!(s.highlights.is_empty());
+            }
+            if len <= o.max_bytes as usize {
+                prop_assert_eq!(&s.text, &body);
+                prop_assert_eq!(s.anchor, SnippetAnchor::Whole);
+                prop_assert!(!s.cut);
+            } else {
+                prop_assert!(s.cut);
+                prop_assert!(s.anchor != SnippetAnchor::Whole);
+                if s.anchor == SnippetAnchor::Match {
+                    let shown = s.spans.iter().any(|&(a, b)| {
+                        s.windows.iter().any(|&(wa, wb)| wa <= a && b <= wb)
+                    });
+                    prop_assert!(shown, "anchor Match shows a span");
+                } else {
+                    prop_assert_eq!(s.windows.len(), 1);
+                    prop_assert_eq!(s.windows[0].0, 0);
+                }
+            }
+        }
+    }
+}

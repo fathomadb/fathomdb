@@ -269,6 +269,21 @@ impl PySoftFallback {
     }
 }
 
+/// The binding form of an engine degradation list: `None` when empty.
+pub(super) fn degradations_from_rust(
+    degradations: &[fathomdb_engine::ArmDegradation],
+) -> Option<Vec<PyArmDegradation>> {
+    (!degradations.is_empty()).then(|| {
+        degradations
+            .iter()
+            .map(|entry| PyArmDegradation {
+                arm: branch_word(entry.arm).to_string(),
+                reason: entry.reason.as_str().to_string(),
+            })
+            .collect()
+    })
+}
+
 fn branch_word(branch: SoftFallbackBranch) -> &'static str {
     match branch {
         SoftFallbackBranch::Vector => "vector",
@@ -385,15 +400,7 @@ impl PySearchResult {
             soft_fallback: r.soft_fallback.as_ref().map(PySoftFallback::from_rust),
             results: r.results.iter().map(PySearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(PyExplanation::from_rust),
-            degradations: (!r.degradations.is_empty()).then(|| {
-                r.degradations
-                    .iter()
-                    .map(|entry| PyArmDegradation {
-                        arm: branch_word(entry.arm).to_string(),
-                        reason: entry.reason.as_str().to_string(),
-                    })
-                    .collect()
-            }),
+            degradations: degradations_from_rust(&r.degradations),
         }
     }
 }

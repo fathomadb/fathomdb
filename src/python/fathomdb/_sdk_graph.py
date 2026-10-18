@@ -8,6 +8,7 @@ import re
 from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from fathomdb._sdk_search import (
+    _map_native_degradations,
     _map_native_node,
     _map_native_search_hit,
     _to_native_frozen_context,
@@ -740,4 +741,5 @@ def _map_native_search_expand_result(native: Any) -> SearchExpandResult:
             for item in native.expanded
         ],
         all_logical_ids=list(native.all_logical_ids),
+        degradations=_map_native_degradations(native),
     )

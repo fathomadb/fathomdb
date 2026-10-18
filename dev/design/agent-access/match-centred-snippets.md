@@ -746,8 +746,19 @@ variant is worth an experiment.
 
 ## 10. Open questions for the owner
 
-These stay open for the owner. The view of the Fable-medium design review is
-recorded under each.
+**Owner decisions, 2026-10-18.**
+
+1. `snippet_bytes`: keep 300 until M2 decides.
+2. Record head: MCP keeps a head, snapped to a word boundary at or before
+   `head_bytes`.
+3. Highlights: off by default, opt-in argument.
+4. Term identity: the reviewer's exact answer (one `highlight()` per OR term,
+   only under the stated conditions); the auxiliary function stays a later
+   option.
+5. Chunked embedding: added to `dev/ROADMAP.md` under "Requested". Until it
+   ships, vector-only hits keep the record-start fallback.
+
+The questions as originally put, with the Fable-medium reviewer's view:
 
 1. **Default `snippet_bytes`.** Keep 300, which is comparable with past runs,
    or raise it to 600 once windows are centred? M2 gives the evidence.

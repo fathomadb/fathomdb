@@ -45,6 +45,7 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 | **Review checkpoint** | A date to decide whether to run or promote an experiment; not a product commitment. |
 | **Backlog** | Preserved work with no release slot. Scheduling requires an HITL decision. |
 | **Parked** | Deliberately outside the release path until named evidence or an architecture decision reopens it. |
+| **Requested** | Work the owner has asked to be added, with a recorded reason; no release slot until an HITL decision places it. |
 
 ## Release map
 
@@ -203,6 +204,21 @@ Promotion requires a bounded family that improves held-out answer use without
 correctness, groundedness, attribution, latency, lifecycle, or accepted-default
 regression.
 
+**Placed experiments (owner ruling 2026-10-18), from the agent-access work
+([`design/agent-access/README.md`](design/agent-access/README.md)):**
+
+- **Coalescing concurrent work.** Test whether running identical concurrent
+  calls once (single-flight), or batching a burst's query embeddings on the
+  GPU, pays for itself after the admission queue lands. Today a query embedding
+  takes about 10 ms, so neither is the known bottleneck. See
+  [`design/agent-access/queue-manager-research.md`](design/agent-access/queue-manager-research.md)
+  § 10, question 4.
+- **Hints sidecar default for the SDK.** Hints are on by default for MCP.
+  Measure whether SDK callers benefit and what the overhead is, then decide
+  the SDK default. See
+  [`design/agent-access/hints-sidecar.md`](design/agent-access/hints-sidecar.md)
+  § 10, question 3.
+
 **Placed work, not a checkpoint (owner ruling 2026-10-07):** make FathomDB
 survive a co-resident library resetting the CUDA primary context (todo
 `TC-281155a1-4767-4379-9506-ef97b2ed51a9`). Today cudarc's `CudaSlice` drop
@@ -302,6 +318,21 @@ FathomDB Engine is open against the same file in the same process is unsafe
 because the process contains distinct SQLite library copies. Separate-process
 inspection remains the safe route. This is a documentation obligation, not an
 engine defect or a new release commitment.
+
+## Requested
+
+Requested by the owner; no release slot yet.
+
+- **Chunked embedding for long records** (requested 2026-10-18). The vector
+  arm embeds only the first 512 tokens of each record. Text after that is
+  invisible to vector search, so a long record whose relevant passage comes
+  late can only be found lexically. It also leaves vector-only hits with no
+  match position: the match-centred snippet design has to fall back to the
+  start of the record for them. With chunks, the matching chunk is the
+  natural snippet anchor and that fallback becomes temporary. See
+  [`design/agent-access/match-centred-snippets.md`](design/agent-access/match-centred-snippets.md)
+  § 3.4 and § 10, question 5, and engine proposal
+  [`design/mcp-adapter/engine-proposals/EP-17-match-centred-snippets.md`](design/mcp-adapter/engine-proposals/EP-17-match-centred-snippets.md).
 
 ## Longer-horizon proposals
 

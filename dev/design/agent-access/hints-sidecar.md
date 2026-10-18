@@ -652,7 +652,12 @@ Stage 2 (SDK):
 
 ## 10. Open questions for the owner
 
-Each question stays open. The reviewer's suggested answer follows it.
+**Owner decisions, 2026-10-18.** The reviewer's answer is accepted for
+questions 1, 2, 4, 5 and 6. Question 3: hints are **on for MCP**; the SDK
+default is decided by tests in 0.8.29 (placed on `dev/ROADMAP.md`) and is
+off until then.
+
+The questions as originally put, with the reviewer's suggested answer:
 
 1. Stage 1 placement: the pure engine subset in `fathomdb-engine` now, or
    start in `fathomdb-sdk` and move it down at stage 2?

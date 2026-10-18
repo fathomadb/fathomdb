@@ -575,6 +575,23 @@ Not made here. For the owner and the design's reviewer:
 
 ## 10. Open questions for the owner
 
+**Owner decisions, 2026-10-18.** All five are answered:
+
+1. Absorb, not refuse: accepted.
+2. Queue depth: a backstop of 32, accepted. The predicted-wait test at
+   arrival is **not** adopted: the queue simulation found it halves
+   throughput under overload for no gain. The shed rule is instead the p90
+   start check in `queue-admission.md` § 6.1.
+3. Fairness: accepted as written.
+4. Coalescing: after the queue lands. Placed on `dev/ROADMAP.md` as a 0.8.29
+   test experiment.
+5. Advertising the limit: no. **Monitor in 0.8.30**: check from traces
+   whether agents still fan out past the queue or retry blindly on `busy`,
+   and revisit only if they do. This is deliberately not on the roadmap
+   today.
+
+The questions as originally put:
+
 1. **Absorb, not refuse.** Accept that the goal is no refusals for any
    burst a closed-loop client can send, with `busy` reserved for sustained
    overload, a backstop depth and stuck work?

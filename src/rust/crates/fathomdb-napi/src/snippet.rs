@@ -76,3 +76,43 @@ impl SnippetV1 {
 pub(crate) fn snippets_from_rust(snippets: Option<&Vec<RustSnippetV1>>) -> Option<Vec<SnippetV1>> {
     snippets.map(|all| all.iter().map(SnippetV1::from_rust).collect())
 }
+
+impl SnippetOptionsInput {
+    /// The options for `snippetFor`, which never fails: each value
+    /// saturates into its field type, and the selector clamps it into range.
+    fn to_rust_clamped(&self) -> RustSnippetOptions {
+        let defaults = RustSnippetOptions::default();
+        let u32_of =
+            |v: Option<i64>, d: u32| v.map_or(d, |v| u32::try_from(v.max(0)).unwrap_or(u32::MAX));
+        let u8_of =
+            |v: Option<i64>, d: u8| v.map_or(d, |v| u8::try_from(v.max(0)).unwrap_or(u8::MAX));
+        RustSnippetOptions {
+            max_bytes: u32_of(self.max_bytes, defaults.max_bytes),
+            max_windows: u8_of(self.max_windows, defaults.max_windows),
+            head_bytes: u32_of(self.head_bytes, defaults.head_bytes),
+            highlights: self.highlights.unwrap_or(defaults.highlights),
+            max_point_queries: u8_of(self.max_point_queries, defaults.max_point_queries),
+        }
+    }
+}
+
+/// EP-17 pure selector (`fathomdb_engine::snippet_for`): the snippet of
+/// `body` for match `spans` (`[start, end]` UTF-8 byte ranges). Spans that are
+/// not pairs of `u32` are ignored, as the selector ignores spans that run past
+/// the body. Never fails; out-of-range options are clamped.
+#[napi(js_name = "snippetFor")]
+pub fn snippet_for(
+    body: String,
+    spans: Vec<Vec<i64>>,
+    options: Option<SnippetOptionsInput>,
+) -> SnippetV1 {
+    let spans: Vec<(u32, u32)> = spans
+        .iter()
+        .filter_map(|span| match span.as_slice() {
+            &[start, end] => Some((u32::try_from(start).ok()?, u32::try_from(end).ok()?)),
+            _ => None,
+        })
+        .collect();
+    let options = options.map_or_else(RustSnippetOptions::default, |o| o.to_rust_clamped());
+    SnippetV1::from_rust(&fathomdb_engine::snippet_for(&body, &spans, &options))
+}

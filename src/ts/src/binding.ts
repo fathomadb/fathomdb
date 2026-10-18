@@ -898,6 +898,8 @@ export interface NativeModule {
   };
   /** Module-level CLS-pooled batch embedder (Python: `embed_batch_cls`). */
   embedBatchCls(texts: string[]): Promise<number[][]>;
+  /** EP-17 pure snippet selector (Python: `snippet_for`). */
+  snippetFor(body: string, spans: number[][], options?: NativeSnippetOptions): NativeSnippetV1;
   /** Module-level standalone reranker (Python: `rerank`). */
   rerank(
     query: string,

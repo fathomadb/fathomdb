@@ -78,6 +78,7 @@ export {
   SnippetAnchor,
   SnippetOptions,
   SnippetV1,
+  snippetFor,
   mapNativeSearchResult,
   FilterTerm,
   Filter,

@@ -9,7 +9,8 @@ import {
   type NativeSnippetV1,
 } from "./binding.js";
 import { FathomDbError, FrozenReadError, InvalidArgumentError, InvalidFilterError } from "./errors.js";
-import { intercept } from "./native-call.js";
+import { native } from "./binding.js";
+import { intercept, interceptSync } from "./native-call.js";
 import { validateFfiString } from "./validation.js";
 import type { SearchExpandResult } from "./graph.js";
 import type { Predicate, ReadView } from "./read.js";
@@ -204,6 +205,18 @@ const SNIPPET_INTEGER_FIELDS = ["maxBytes", "maxWindows", "headBytes", "maxPoint
  * exactly.
  */
 export function validateSnippetOptions(snippet: unknown): void {
+  validateSnippetOptionTypes(snippet);
+  if (snippet === undefined) return;
+  const fields = snippet as Record<string, unknown>;
+  for (const name of SNIPPET_INTEGER_FIELDS) {
+    const value = fields[name];
+    if (typeof value === "number" && !Number.isSafeInteger(value)) {
+      throw new InvalidArgumentError(`snippet ${name} is out of range, got ${value}`);
+    }
+  }
+}
+
+function validateSnippetOptionTypes(snippet: unknown): void {
   if (snippet === undefined) return;
   if (typeof snippet !== "object" || snippet === null || Array.isArray(snippet)) {
     throw new TypeError(`snippet must be a SnippetOptions object, got ${typeof snippet}`);
@@ -212,17 +225,60 @@ export function validateSnippetOptions(snippet: unknown): void {
   const fields = snippet as Record<string, unknown>;
   for (const name of SNIPPET_INTEGER_FIELDS) {
     const value = fields[name];
-    if (value === undefined) continue;
-    if (typeof value !== "number" || !Number.isInteger(value)) {
+    if (value !== undefined && (typeof value !== "number" || !Number.isInteger(value))) {
       throw new TypeError(`snippet ${name} must be an integer, got ${String(value)}`);
-    }
-    if (!Number.isSafeInteger(value)) {
-      throw new InvalidArgumentError(`snippet ${name} is out of range, got ${value}`);
     }
   }
   if (fields.highlights !== undefined && typeof fields.highlights !== "boolean") {
     throw new TypeError(`snippet highlights must be a boolean, got ${typeof fields.highlights}`);
   }
+}
+
+/**
+ * EP-17 pure snippet selector, the same function search uses. `spans` are
+ * match spans as `[start, end]` UTF-8 byte offsets into `body` (not UTF-16
+ * indices); spans that are empty, run past the body or split a character are
+ * ignored. `options` defaults to all-default `SnippetOptions`; values out of
+ * range are clamped, so this does not throw for a well-typed call. No
+ * database is involved.
+ *
+ * @throws TypeError when `body` is not a string, a span is not a pair of
+ *   integers, or an option has the wrong type.
+ * @throws InvalidArgumentError when `options` has an unknown key.
+ */
+export function snippetFor(
+  body: string,
+  spans: readonly (readonly [number, number])[],
+  options?: SnippetOptions,
+): SnippetV1 {
+  if (typeof body !== "string") {
+    throw new TypeError(`body must be a string, got ${typeof body}`);
+  }
+  if (!Array.isArray(spans)) {
+    throw new TypeError("spans must be an array of [start, end] pairs");
+  }
+  const nativeSpans: number[][] = [];
+  for (const span of spans) {
+    if (!Array.isArray(span) || span.length !== 2 || !span.every(Number.isInteger)) {
+      throw new TypeError(`each span must be a [start, end] pair of integers, got ${String(span)}`);
+    }
+    // napi cannot carry an unsafe integer exactly; no body reaches that far.
+    if (span.every(Number.isSafeInteger)) nativeSpans.push([span[0]!, span[1]!]);
+  }
+  validateSnippetOptionTypes(options);
+  let nativeOptions = options;
+  if (options !== undefined) {
+    const bound = Number.MAX_SAFE_INTEGER;
+    const clamp = (v: number | undefined) => (v === undefined ? v : Math.max(-bound, Math.min(bound, v)));
+    nativeOptions = {
+      maxBytes: clamp(options.maxBytes),
+      maxWindows: clamp(options.maxWindows),
+      headBytes: clamp(options.headBytes),
+      highlights: options.highlights,
+      maxPointQueries: clamp(options.maxPointQueries),
+    };
+  }
+  return mapNativeSnippet(interceptSync(() => native.snippetFor(body, nativeSpans, nativeOptions)));
 }
 
 export function splitSearchOptions(options: SearchOptions | undefined): {

@@ -26,3 +26,16 @@ test("typescript search result omits degradations when none are reported", () =>
     assert.equal("degradations" in mapped, false);
   }
 });
+
+test("typescript search expand results report embedder_overloaded", async () => {
+  const { mapNativeGraphSearchExpandResult } = await import("../src/graph.js");
+  const { mapNativeSearchExpandFrozenResult } = await import("../src/search.js");
+  const base = { searchHits: [], expanded: [], allLogicalIds: [] };
+  const reported = { ...base, degradations: [{ arm: "vector", reason: "embedder_overloaded" }] };
+  for (const map of [mapNativeGraphSearchExpandResult, mapNativeSearchExpandFrozenResult]) {
+    assert.deepEqual(map(reported).degradations, [{ arm: "vector", reason: "embedder_overloaded" }]);
+    for (const absent of [base, { ...base, degradations: null }, { ...base, degradations: [] }]) {
+      assert.equal("degradations" in map(absent), false);
+    }
+  }
+});

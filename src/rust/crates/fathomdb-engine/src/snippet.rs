@@ -157,10 +157,14 @@ pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -
     let sentences = Boundaries::sentence_starts(body);
     let text = Text { body, graphemes: &graphemes, words: &words, sentences: &sentences };
     let ids = approximate_identities(body, &spans);
-    let width = max_bytes - LEADING.len() - TRAILING.len();
+    let head = text.head(options.head_bytes as usize);
+    let width = max_bytes - TRAILING.len() - head.map_or(LEADING.len(), |(_, h)| h + BETWEEN.len());
     let pool: Vec<usize> = (0..spans.len()).collect();
     let (windows, anchor) = match text.best_window(&spans, &ids, &pool, width) {
-        Some(choice) => (vec![text.place(&spans, &choice, width)], SnippetAnchor::Match),
+        Some(choice) => {
+            let window = text.place(&spans, &choice, width);
+            (head.into_iter().chain([window]).collect(), SnippetAnchor::Match)
+        }
         None => (vec![text.prefix(max_bytes - TRAILING.len())], SnippetAnchor::Start),
     };
     let (text_out, highlights) = assemble(body, &windows, &spans, options.highlights);
@@ -307,6 +311,20 @@ impl Text<'_> {
             start = next;
         }
         start
+    }
+
+    /// § 6.6: the record head, `[0, h)`, cut at the first newline or the
+    /// last word boundary at or before `head_bytes`, whichever comes first.
+    /// `None` when `head_bytes` is 0 or the cut leaves nothing.
+    fn head(&self, head_bytes: usize) -> Option<(usize, usize)> {
+        if head_bytes == 0 {
+            return None;
+        }
+        let word = self.words.at_or_before(head_bytes.min(self.body.len()));
+        // `\r` first: a CRLF pair is one grapheme cluster.
+        let end = self.body[..word].find(['\n', '\r']).unwrap_or(word);
+        let end = self.trim_end(0, end);
+        (end > 0).then_some((0, end))
     }
 
     /// Rule 2: the prefix within `budget` bytes, on a word boundary.

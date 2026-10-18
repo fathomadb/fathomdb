@@ -532,3 +532,65 @@ async fn highlights_are_opt_in_byte_ranges_into_the_snippet() {
     assert!(next["results"][0]["highlights"].is_array(), "{next}");
     harness.shutdown().await;
 }
+
+/// Review fix (S5c P2): the engine's snippet point-query cap covers the
+/// whole run window (offset + limit), so a long record ranked past 20, on a
+/// later continuation page, is still centred on its match.
+#[tokio::test(flavor = "multi_thread")]
+async fn long_hits_past_rank_20_are_centred_on_continuation_pages() {
+    let writes: Vec<PreparedWrite> = (0..30)
+        .map(|i| {
+            node(
+                &format!("note:{i:02}"),
+                "note",
+                &format!("{} doc{i}", long_body(3000, "zanzibar", 4096)),
+            )
+        })
+        .collect();
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+    let mut page =
+        harness.ok("search", json!({"query": "zanzibar", "limit": 10, "max_tokens": 20000})).await;
+    let mut seen = 0;
+    loop {
+        for hit in page["results"].as_array().unwrap() {
+            assert_eq!(hit["snippet_anchor"], "match", "rank {}: {hit}", seen + 1);
+            seen += 1;
+        }
+        let Some(next) = page["continuation"].as_str().map(str::to_string) else { break };
+        page = harness.ok("search", json!({"continuation": next, "max_tokens": 20000})).await;
+    }
+    assert_eq!(seen, 30);
+    harness.shutdown().await;
+}
+
+/// Review fix (S5c P2): `highlights` is presentation only. With short hits
+/// ranked above long ones, asking for highlights (which makes fitting hits
+/// use point queries) must not change any hit's snippet text or anchor.
+#[tokio::test(flavor = "multi_thread")]
+async fn highlights_do_not_change_snippet_text_or_anchor() {
+    let mut writes: Vec<PreparedWrite> = (0..25)
+        .map(|i| node(&format!("note:s{i:02}"), "note", &format!("zanzibar note {i}")))
+        .collect();
+    writes.extend((0..5).map(|i| {
+        node(
+            &format!("note:l{i}"),
+            "note",
+            &format!("{} doc{i}", long_body(3000, "zanzibar", 4096)),
+        )
+    }));
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+    let args = |highlights: bool| json!({"query": "zanzibar", "limit": 30, "max_tokens": 20000, "highlights": highlights});
+    let plain = harness.ok("search", args(false)).await;
+    let lit = harness.ok("search", args(true)).await;
+    let view = |page: &Value| -> Vec<(Value, Value, Value)> {
+        page["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|hit| (hit["ref"].clone(), hit["snippet"].clone(), hit["snippet_anchor"].clone()))
+            .collect()
+    };
+    assert_eq!(view(&plain).len(), 30);
+    assert_eq!(view(&lit), view(&plain));
+    harness.shutdown().await;
+}

@@ -182,3 +182,123 @@ fn a_queued_embed_request_past_its_deadline_is_reported_as_embedder_overloaded()
     assert_text_only_with_overload(&result);
     Arc::try_unwrap(engine).ok().expect("sole owner").close().expect("close");
 }
+
+fn digest(body: &str) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// A provenanced fixture (evidence search needs full source provenance) on an
+/// engine whose embed deadline is short, so a queued request expires.
+fn open_provenanced_engine(dir: &TempDir, embedder: Arc<GatedEmbedder>) -> Arc<Engine> {
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, ProvenancedNodeV1, SourceLocator, SourceRevisionId,
+        SourceVersionId, WriteProvenanceV1,
+    };
+    let path = dir.path().join(format!("ep03-frozen{SQLITE_SUFFIX}"));
+    let engine = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(embedder),
+        EngineConfig {
+            embedder_pool_size: Some(1),
+            embedder_call_timeout_ms: Some(300),
+            ..EngineConfig::default()
+        },
+    )
+    .expect("open")
+    .engine;
+    let source_body = "ep03 canonical source bytes";
+    engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "document".into(),
+                body: source_body.into(),
+                source_id: SourceId::new("ep03-source").unwrap(),
+                logical_id: Some("ep03-source-logical".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("ep03-source-r1").unwrap(),
+                    SourceVersionId::new("ep03-source-v1").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "claim".into(),
+                body: "ep03needle claim".into(),
+                source_id: SourceId::new("ep03-source").unwrap(),
+                logical_id: Some("ep03-claim-logical".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("ep03-claim-r1").unwrap(),
+                    SourceVersionId::new("ep03-source-v1").unwrap(),
+                    SourceRevisionId::new("ep03-source-r1").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(digest(source_body)).unwrap(),
+                ),
+            }),
+        ])
+        .expect("write provenanced fixture");
+    engine.drain(30_000).expect("drain");
+    Arc::new(engine)
+}
+
+/// Occupy the only provider worker until the gate opens. The holder's own
+/// call ends in a started timeout; every request submitted meanwhile queues
+/// and expires (QueuedExpired).
+fn hold_the_only_worker(
+    engine: &Arc<Engine>,
+    embedder: &GatedEmbedder,
+) -> thread::JoinHandle<Result<Vec<f32>, fathomdb_engine::EngineError>> {
+    embedder.close();
+    let holder = {
+        let engine = Arc::clone(engine);
+        thread::spawn(move || engine.embed_text("hold the worker"))
+    };
+    wait_until("the active embed", || embedder.blocked.load(Ordering::SeqCst) == 1);
+    holder
+}
+
+#[test]
+fn a_frozen_search_reports_embedder_overloaded() {
+    use fathomdb_engine::{EvidenceSearchRequestV1, ReadContextV1, ReadView, SearchFilter};
+    let dir = TempDir::new().unwrap();
+    let embedder = GatedEmbedder::new();
+    let engine = open_provenanced_engine(&dir, Arc::clone(&embedder));
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let holder = hold_the_only_worker(&engine, &embedder);
+
+    let plain = engine
+        .search_frozen(QUERY, &frozen, 0, false, 0.3, 0, false, 10)
+        .expect("frozen search degrades");
+    let evidence = engine
+        .search_with_evidence(&EvidenceSearchRequestV1 {
+            schema_version: 1,
+            query: QUERY.into(),
+            context: frozen.clone(),
+            rerank_depth: 0,
+            use_graph_arm: false,
+            alpha: 0.3,
+            pool_n: 0,
+            include_explanation: false,
+            limit: 10,
+        })
+        .expect("evidence search degrades");
+
+    embedder.open();
+    assert!(holder.join().unwrap().is_err(), "the holder's started call timed out");
+    assert_text_only_with_overload(&plain);
+    assert_text_only_with_overload(&evidence.search_result);
+    assert_eq!(evidence.evidence.len(), evidence.search_result.results.len());
+
+    let healthy = engine
+        .search_frozen(QUERY, &frozen, 0, false, 0.3, 0, false, 10)
+        .expect("healthy frozen search");
+    assert!(healthy.degradations.is_empty(), "a served frozen embed reports nothing");
+    Arc::try_unwrap(engine).ok().expect("sole owner").close().expect("close");
+}

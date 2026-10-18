@@ -223,3 +223,57 @@ async fn hint_bounds_hold() {
     assert_eq!(cut["refs_omitted"], 10, "6 long refs and 4 beyond 50");
     harness.shutdown().await;
 }
+
+fn paging_hints(found: &Value) -> Vec<Value> {
+    hints_of(found)
+        .into_iter()
+        .filter(|hint| hint["reason"] == "more_results" || hint["reason"] == "cut_by_budget")
+        .collect()
+}
+
+/// § 8 test 4 and § 2.2: `more_results` and `cut_by_budget` carry exactly the
+/// result's `continuation`, never both, and neither without one.
+#[tokio::test(flavor = "multi_thread")]
+async fn continuation_hint_equals_result_continuation() {
+    let (_fixture, harness) =
+        harness_with(river_notes(30, 400), json!({"snippet_chars": 40})).await;
+    let full = harness.ok("search", json!({"query": "river", "limit": 5})).await;
+    assert_eq!(full["completeness"], "limit_reached");
+    assert_eq!(
+        paging_hints(&full),
+        vec![
+            json!({"action": "search", "reason": "more_results", "continuation": full["continuation"]})
+        ]
+    );
+    let cut = harness.ok("search", json!({"query": "river", "limit": 20, "max_tokens": 700})).await;
+    assert_eq!(cut["completeness"], "cut_by_budget");
+    assert_eq!(
+        paging_hints(&cut),
+        vec![json!({
+            "action": "search",
+            "reason": "cut_by_budget",
+            "continuation": cut["continuation"],
+            "max_tokens": 700
+        })]
+    );
+    let last = harness.ok("search", json!({"query": "river", "limit": 50})).await;
+    assert_eq!(last["continuation"], Value::Null);
+    assert_eq!(paging_hints(&last), Vec::<Value>::new(), "no continuation, no paging hint");
+    for max_tokens in [256, 400, 700, 1500, 4000] {
+        for limit in [1, 5, 20, 30] {
+            let found = harness
+                .ok("search", json!({"query": "river", "limit": limit, "max_tokens": max_tokens}))
+                .await;
+            let paging = paging_hints(&found);
+            assert!(paging.len() <= 1, "never both: {paging:?}");
+            match paging.first() {
+                Some(hint) => assert_eq!(hint["continuation"], found["continuation"]),
+                None => assert!(
+                    found["continuation"].is_null() || found["hints"].is_null(),
+                    "a continuation gets a paging hint unless hints were dropped: {found}"
+                ),
+            }
+        }
+    }
+    harness.shutdown().await;
+}

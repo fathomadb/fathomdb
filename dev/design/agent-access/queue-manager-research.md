@@ -126,7 +126,8 @@ models:
   clients, or service that has stalled.
 - **Fork-join latency is the maximum of the *k* call latencies.** "The Tail
   at Scale" (Dean and Barroso, CACM 2013,
-  <https://pdos.csail.mit.edu/6.824/papers/tail-dean.pdf>) shows that the
+  <https://pdos.csail.mit.edu/6.824/papers/tail-dean.pdf>; **unverified**,
+  known from search summaries only, the PDF was not opened) shows that the
   tail of each part dominates a fan-out. One refused call in a burst of 6
   delays the whole turn as much as six refused calls would.
 
@@ -472,8 +473,8 @@ for a server configured in the parent session, they do.
   agent honours a numeric retry delay in a tool result. Practitioner
   material on agent retries treats rate limits as something the *harness*
   retries automatically (for example LangChain Deep Agents,
-  <https://docs.langchain.com/oss/python/deepagents/fault-tolerance>), not
-  the model.
+  <https://docs.langchain.com/oss/python/deepagents/fault-tolerance>;
+  **unverified**, search summary only), not the model.
 - **An agent cannot wait 50 ms.** A model's next action comes one turn
   later. Its effective retry delay is its own turn latency, seconds, which
   is longer than any `retry_after_ms` the formulas in queue-admission.md
@@ -589,3 +590,67 @@ Not made here. For the owner and the design's reviewer:
 5. **Advertising the limit.** MCP has no field for it. Should the server
    mention its concurrency in `instructions` or in `orient`? This research
    leans no: with bursts absorbed, agents do not need to know.
+
+## 11. Sources
+
+All accessed 2026-10-18. **Primary**: the specification, official
+documentation, the paper itself or the source code. **Secondary**: a
+summary or report by someone else. **Verified**: the claim was read on the
+page itself during this research. **Unverified**: known only from a search
+summary, or the relevant part of the page was not read.
+
+### 11.1 Cited
+
+| # | Source | Kind | Status | Supports |
+| --- | --- | --- | --- | --- |
+| S1 | Kubernetes, "API Priority and Fairness", <https://kubernetes.io/docs/concepts/cluster-administration/flow-control/> | Primary | Verified (quotes); `Retry-After` and default queue values unverified | § 3.1: burst queuing aim, flows and distinguishers, shuffle sharding, per-flow bound `handSize × queueLengthLimit`, seats, 429 on reject, queuing time limit |
+| S2 | RFC 8289, "Controlled Delay Active Queue Management", <https://www.rfc-editor.org/rfc/rfc8289.html> | Primary | Verified | § 3.2: good versus bad queue, sojourn time, TARGET 5 ms, INTERVAL 100 ms, control law, bursts not dropped |
+| S3 | RFC 8290, "The Flow Queue CoDel Packet Scheduler and Active Queue Management Algorithm", <https://www.rfc-editor.org/rfc/rfc8290.html> | Primary | Verified | § 3.2: 1 024 flow queues, DRR, new and old flow lists, per-queue CoDel, drop from fattest queue, limit 10 240 |
+| S4 | nginx, "Module ngx_http_limit_req_module", <https://nginx.org/en/docs/http/ngx_http_limit_req_module.html> | Primary | Verified | § 3.3: leaky bucket, `burst` default 0, `nodelay`, `delay`, `limit_req_status` 503 |
+| S5 | Envoy, "Adaptive Concurrency" filter, <https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/adaptive_concurrency_filter> | Primary | Verified | § 3.4: minRTT pinning to `min_concurrency`, example 60 s / 50 requests / p90, 503s during the minRTT window |
+| S6 | Netflix, `concurrency-limits` README, <https://github.com/Netflix/concurrency-limits> | Primary | Verified | § 3.4: Little's-law framing, Vegas, Gradient2, partitioned limiter, blocking limiter |
+| S7 | tower 0.5.3, `Buffer`, <https://docs.rs/tower/0.5.3/tower/buffer/struct.Buffer.html> | Primary | Verified | § 3.5: `bound` definition; advice to set `bound` ≥ maximum concurrent requests |
+| S8 | PgBouncer, "Configuration", <https://www.pgbouncer.org/config.html> | Primary | Verified in queue-admission.md § 5.2; not re-fetched here | § 3.6: `max_client_conn` 100, `default_pool_size` 20, `query_wait_timeout` 120 s |
+| S9 | Welsh, Culler, Brewer, "SEDA: An Architecture for Well-Conditioned, Scalable Internet Services", SOSP 2001, <https://www.cs.princeton.edu/courses/archive/fall15/cos518/papers/seda.pdf> | Primary | Verified (text extracted from the PDF) | § 3.7: finite stage queues, thread pool and batching controllers, 5 s average response-time controller |
+| S10 | Welsh, Culler, "Adaptive Overload Control for Busy Internet Servers", USITS 2003, <https://static.usenix.org/events/usits03/tech/full_papers/welsh/welsh_html/index.html> | Primary | Verified | § 3.7: 90th-percentile target, token-bucket rate, AIMD, `nreq` and `timeout` triggers |
+| S11 | MCP specification 2025-06-18, "Tools", <https://modelcontextprotocol.io/specification/2025-06-18/server/tools> | Primary | Verified | § 3.8: servers MUST rate-limit; protocol versus tool execution errors (`isError`) |
+| S12 | MCP specification 2025-06-18, "Lifecycle", <https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle> | Primary | Verified | § 3.8: request timeouts, cancellation, optional reset on progress, maximum timeout |
+| S13 | MCP draft schema, `schema.ts`, <https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/main/schema/draft/schema.ts> | Primary | Verified (searched for concurrency, rate, retry, parallel) | § 3.8: `ServerCapabilities` fields; no concurrency or retry field; `ToolAnnotations` are hints |
+| S14 | Claude API, "Parallel tool use", <https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use> | Primary | Verified | § 6.1: parallel calls by default; execution order not prescribed; all results returned together |
+| S15 | Claude API, "Handle tool calls", <https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls> | Primary | Verified | § 6.3: instructive error advice ("Retry after 60 seconds"); 2–3 retries for invalid calls |
+| S16 | Claude Code, "Subagents", <https://code.claude.com/docs/en/sub-agents> | Primary | Verified | § 6.2: subagents inherit MCP tools; string references share the parent's connection; 20 concurrent subagents |
+| S17 | Claude Code, "Environment variables", <https://code.claude.com/docs/en/env-vars> | Primary | Verified text; per-agent or per-session scope unverified | § 6.2: `CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY` default 10 |
+| S18 | Claude Code, "MCP", <https://code.claude.com/docs/en/mcp> | Primary | Verified | § 3.8: per-server `timeout` is a hard limit; progress does not extend it |
+| S19 | Google SRE book, "Handling Overload", <https://sre.google/sre-book/handling-overload/> | Primary | Verified | § 6.3: per-request retry budget of three; per-client retry ratio below 10 %; criticality |
+| S20 | Dean, Barroso, "The Tail at Scale", CACM 2013, <https://pdos.csail.mit.edu/6.824/papers/tail-dean.pdf> | Primary | **Unverified** (search summaries only; PDF not opened) | § 2.1: fan-out latency dominated by the tail of each part |
+| S21 | LangChain, "Deep Agents: fault tolerance", <https://docs.langchain.com/oss/python/deepagents/fault-tolerance> | Primary | **Unverified** (search summary only) | § 6.3: harness retries transient failures; model gets recoverable errors |
+| S22 | D. Vaughan, "MCP readOnlyHint in Codex CLI", <https://codex.danielvaughan.com/2026/05/27/codex-cli-mcp-readonlyhint-concurrent-tool-execution-annotations-parallelism/> | Secondary | **Unverified** (search summary only) | § 3.8: Codex CLI runs read-only MCP tools concurrently |
+
+In-repo inputs (`queue-admission.md`, `README.md`, `fathomdb-mcp/src/edge.rs`)
+are in the frontmatter and were read directly.
+
+### 11.2 Visited or fetched, not cited
+
+| Source | Kind | Why not used |
+| --- | --- | --- |
+| <https://docs.claude.com/en/docs/agents-and-tools/tool-use/implement-tool-use> | Primary | Redirect only (302 to platform.claude.com); no content |
+| <https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use> | Primary | Served the "Define tools" page; nothing on parallel calls or errors. Superseded by S14 and S15 |
+| <https://modelcontextprotocol.io/specification/2025-06-18/schema> | Primary | Fetched but truncated before `ToolAnnotations` and `ServerCapabilities`. Superseded by S13 |
+
+### 11.3 Web searches run
+
+Result pages listed here were seen only as search results and were not
+opened, unless they appear in § 11.1 or § 11.2.
+
+| Query (abridged) | Used |
+| --- | --- |
+| SEDA Welsh 2001 admission control 90th percentile | Led to S9; Wikipedia, the Welsh thesis and course slides (secondary) not opened |
+| LLM agent tool call rate limit retry_after study | S21; fast.io, praison.ai, apxml, kodekloud practitioner pages (secondary) not opened; no study found |
+| Claude Code parallel tool calls readOnlyHint concurrency | S22; other Codex CLI blog posts and verdent.ai, claudecodeguides.com (secondary) not opened |
+| Welsh Culler Adaptive Overload Control 90th percentile | Led to S10 |
+| tokio Semaphore FIFO; tower ConcurrencyLimit | Tokio fairness already verified in queue-admission.md § 6.1 from source; mirrors (Mozilla DXR, Teaclave) and Java/Kotlin semaphore docs not used |
+| The Tail at Scale fan-out 99th percentile | S20; acolyer.org and other summaries (secondary) not opened |
+
+Counts: 22 sources cited (18 verified on the page this session, 1 verified
+earlier in queue-admission.md, 3 unverified); 3 further pages visited and
+not cited; 6 web searches.

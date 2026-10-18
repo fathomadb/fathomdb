@@ -309,3 +309,13 @@ fn shared_types_are_nameable() {
     named::<RerankerDeviceResolution>();
     named::<GpuAllocationWitness>();
 }
+
+/// EP-17: the pure snippet selector and its types (match-centred-snippets.md
+/// § 7.2) resolve through the SDK.
+#[test]
+fn snippet_selector_signatures() {
+    use fathomdb_sdk::{snippet_for, SnippetAnchor, SnippetOptions, SnippetV1};
+    let _: fn(&str, &[(u32, u32)], &SnippetOptions) -> SnippetV1 = snippet_for;
+    let s = snippet_for("pear", &[(0, 4)], &SnippetOptions::default());
+    assert_eq!((s.text.as_str(), s.anchor), ("pear", SnippetAnchor::Whole));
+}

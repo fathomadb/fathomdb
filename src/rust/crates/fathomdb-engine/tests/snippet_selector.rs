@@ -264,3 +264,60 @@ fn rule6_window_edges_snap_to_word_boundaries() {
         assert!(s.text.len() <= 300);
     }
 }
+
+/// Space-separated `x` words, exactly `len` bytes (at least 2), ending in a
+/// space.
+fn pad(len: usize) -> String {
+    let mut s = String::new();
+    while len - s.len() > 10 {
+        s.push_str("xxxx ");
+    }
+    s.push_str(&"x".repeat(len - s.len() - 1));
+    s.push(' ');
+    s
+}
+
+/// `head`, then `a`, a gap, and `b`, with `b`'s span ending exactly
+/// `width − 1` bytes after `a`'s span starts, so the centred window's end
+/// target falls one byte past `b`'s span. Returns the body and both spans.
+fn edge_case(
+    a: &str,
+    a_span: (usize, usize),
+    b: &str,
+    b_span: (usize, usize),
+) -> (String, Vec<(u32, u32)>) {
+    let width = 120 - 8;
+    let head = pad(1000);
+    let a_start = head.len() + a_span.0;
+    let gap = width - 1 - (a.len() - a_span.0) - b_span.1 - 1;
+    let body = format!("{head}{a} {}{b} {}", pad(gap), pad(1000));
+    let b_start = head.len() + a.len() + 1 + gap;
+    let spans = vec![
+        (a_start as u32, (head.len() + a_span.1) as u32),
+        ((b_start + b_span.0) as u32, (b_start + b_span.1) as u32),
+    ];
+    assert_eq!(spans[1].1 - spans[0].0, (width - 1) as u32);
+    (body, spans)
+}
+
+// § 6.3 rule 6 (T-18): UAX #29 words and unicode61 tokens differ (`don't` is
+// one UAX word, two tokens; `e-mails` is three UAX words), so snapping to a
+// word boundary could cut a counted span. Every span counted in rule 4 is
+// still inside the window after snapping.
+#[test]
+fn rule6_snapping_keeps_every_counted_span() {
+    let cases = [
+        // `don` ends inside the UAX word `don't` at the end edge.
+        edge_case("pear", (0, 4), "don't", (0, 3)),
+        // `t` starts inside the UAX word `don't` at the start edge.
+        edge_case("don't", (4, 5), "pear", (0, 4)),
+        // `e-mail` ends inside `e-mails` at the end edge.
+        edge_case("pear", (0, 4), "e-mails", (0, 6)),
+    ];
+    for (body, spans) in cases {
+        let s = snippet_for(&body, &spans, &opts(120));
+        let shown: Vec<&str> = spans.iter().map(|&(a, b)| &body[a as usize..b as usize]).collect();
+        assert!(spans.iter().all(|&sp| shows(&s, sp)), "{shown:?} not all shown: {s:?}");
+        assert!(s.text.len() <= 120);
+    }
+}

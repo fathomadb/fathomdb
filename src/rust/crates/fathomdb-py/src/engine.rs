@@ -216,7 +216,7 @@ impl PyEngine {
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let context = context.inner.clone();
-        let snippet = snippet.map(|options| options.to_rust());
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         call_engine(py, move || {
             engine.search_frozen_with_snippets(
                 &query,
@@ -501,7 +501,7 @@ impl PyEngine {
         let pool_n = pool_n.unwrap_or(rerank_depth);
         // Resolved BEFORE the GIL is released, exactly as the read verbs do.
         let view = read_view_or_default(view);
-        let snippet = snippet.map(|options| options.to_rust());
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         // 0.8.8 EXP-OBS: `explain=True` routes to `search_explained` (same retrieval,
         // plus the sidecar); `explain=False` (default) stays on `search_reranked`.
         // fix-2: ONE call now that the view rides the full-arity entry point —
@@ -600,7 +600,7 @@ impl PyEngine {
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let view = read_view_or_default(view);
-        let snippet = snippet.map(|options| options.to_rust());
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let result = call_engine(py, move || {
             engine.search_text_only_view_with_snippets(&query, &view, limit, snippet.as_ref())
         })?;

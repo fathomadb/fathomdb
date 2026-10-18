@@ -424,6 +424,15 @@ class SnippetOptions:
     highlights: bool = False
     max_point_queries: int = 20
 
+    def __post_init__(self) -> None:
+        for name in ("max_bytes", "max_windows", "head_bytes", "max_point_queries"):
+            value = getattr(self, name)
+            # bool is an int subclass; reject it like the other SDK guards.
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise TypeError(f"{name} must be an int, got {type(value).__name__!r}")
+        if not isinstance(self.highlights, bool):
+            raise TypeError(f"highlights must be a bool, got {type(self.highlights).__name__!r}")
+
 
 @dataclass(frozen=True)
 class SnippetV1:

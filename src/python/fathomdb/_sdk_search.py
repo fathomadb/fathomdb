@@ -80,6 +80,11 @@ def _map_native_search_result(result: Any) -> SearchResult:
     )
 
 
+def _validate_snippet(snippet: object) -> None:
+    if not isinstance(snippet, (SnippetOptions, type(None))):
+        raise TypeError(f"snippet must be a SnippetOptions or None, got {type(snippet).__name__!r}")
+
+
 def _map_native_snippets(result: Any) -> list[SnippetV1] | None:
     """A native result's EP-17 snippet sidecar, or ``None`` when absent."""
     native_snippets = getattr(result, "snippets", None)
@@ -459,6 +464,7 @@ def search(
             raise ValueError(f"pool_n must be >= 0, got {pool_n!r}")
     if not isinstance(view, (ReadView, type(None))):
         raise TypeError(f"view must be a ReadView or None, got {type(view).__name__!r}")
+    _validate_snippet(snippet)
     limit = _validate_ranked_result_limit("limit", limit)
     native_view = _to_native_view(view)
     # 0.8.11 Slice 40 (#17) — accept the unified Filter on the vec0 search
@@ -590,6 +596,7 @@ def search_frozen(
             raise InvalidArgumentError(f"pool_n must be >= 0, got {pool_n!r}")
     if not isinstance(explain, bool):
         raise TypeError("explain must be a bool")
+    _validate_snippet(snippet)
     _validate_ranked_result_limit("limit", limit)
     native = self._native.search_frozen(
         query,
@@ -658,6 +665,7 @@ def search_text_only(
 ) -> SearchResult:
     if not isinstance(view, (ReadView, type(None))):
         raise TypeError(f"view must be a ReadView or None, got {type(view).__name__!r}")
+    _validate_snippet(snippet)
     limit = _validate_ranked_result_limit("limit", limit)
     result = self._native.search_text_only(
         query, view=_to_native_view(view), limit=limit, snippet=snippet

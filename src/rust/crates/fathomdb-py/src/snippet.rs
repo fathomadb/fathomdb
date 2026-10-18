@@ -17,36 +17,30 @@ pub(super) struct PySnippetOptionsArg {
 }
 
 impl PySnippetOptionsArg {
-    /// Saturates each value into its field type; the engine's range check
-    /// then rejects what is out of range.
-    pub(super) fn to_rust(&self) -> RustSnippetOptions {
-        RustSnippetOptions {
-            max_bytes: saturate(self.max_bytes),
-            max_windows: saturate(self.max_windows),
-            head_bytes: saturate(self.head_bytes),
+    /// The engine options for a search. A value that does not fit its field
+    /// type is `InvalidArgumentError`, like a value the engine's range check
+    /// rejects.
+    pub(super) fn to_rust(&self) -> PyResult<RustSnippetOptions> {
+        Ok(RustSnippetOptions {
+            max_bytes: checked("max_bytes", self.max_bytes, u32::MAX.into())?,
+            max_windows: checked("max_windows", self.max_windows, u8::MAX.into())?,
+            head_bytes: checked("head_bytes", self.head_bytes, u32::MAX.into())?,
             highlights: self.highlights,
-            max_point_queries: saturate(self.max_point_queries),
-        }
+            max_point_queries: checked(
+                "max_point_queries",
+                self.max_point_queries,
+                u8::MAX.into(),
+            )?,
+        })
     }
 }
 
-fn saturate<T: TryFrom<i64> + Bounded>(value: i64) -> T {
-    T::try_from(value).unwrap_or(if value < 0 { T::MIN } else { T::MAX })
-}
-
-trait Bounded {
-    const MIN: Self;
-    const MAX: Self;
-}
-
-impl Bounded for u32 {
-    const MIN: Self = u32::MIN;
-    const MAX: Self = u32::MAX;
-}
-
-impl Bounded for u8 {
-    const MIN: Self = u8::MIN;
-    const MAX: Self = u8::MAX;
+fn checked<T: TryFrom<i64>>(name: &str, value: i64, max: u64) -> PyResult<T> {
+    T::try_from(value).map_err(|_| {
+        engine_error_to_py(RustEngineError::InvalidArgument {
+            msg: format!("snippet {name} must be in 0..={max}, got {value}"),
+        })
+    })
 }
 
 /// One hit's snippet. Offsets are UTF-8 byte offsets: `windows` and `spans`

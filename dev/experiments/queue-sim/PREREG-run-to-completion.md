@@ -146,6 +146,7 @@ as written (step 4 re-checks `deadline − now ≥ need` after any permit), not 
   with `rtc_p90cap_rl60` in place of `rtc_p90_rl60` (R1x). R1 stays the decision. If R1 and R1x disagree,
   both go to the owner.
 - **Rule clarifications** (review B2, N1): when R1 keeps a percentile check, the candidates are p90, p95
-  and p99 in the deciding cell. R2 then uses that check's run-limit arms. EP-09 arms exist only for p90,
+  and p99 in the deciding cell; one qualifies if its `ttd_p99` is at most 10 % above wait-only's (median
+  paired ratio), and the qualifying one with the lowest mean `fail_rate` is chosen. R2 then uses that check's run-limit arms. EP-09 arms exist only for p90,
   wait-only and capped p90; if R1 picks p95 or p99, R4 uses p90's EP-09 arms and says so. R4's "within
   0.01 points" is one-sided: a shorter limit with a lower fail rate qualifies.

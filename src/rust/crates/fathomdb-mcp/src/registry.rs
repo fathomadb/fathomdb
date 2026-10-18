@@ -107,9 +107,9 @@ pub(crate) struct Admission<'a> {
     pub(crate) cancel: Option<&'a Cancel>,
 }
 
-/// Progress callback for a call that waits on an open or for an admission
-/// permit: `(progress, message)`.
-pub(crate) type ProgressFn = Arc<dyn Fn(f64, String) + Send + Sync>;
+/// Progress callback for a call that waits on an open, waits for an
+/// admission permit or runs: the message; the edge numbers them.
+pub(crate) type ProgressFn = Arc<dyn Fn(String) + Send + Sync>;
 
 enum Source {
     Managed { path: PathBuf, create: bool },
@@ -603,7 +603,6 @@ impl Registry {
         let wait_until = call.wait_until;
         self.ensure_slot(name)?;
         let mut waited_attempt: Option<u64> = None;
-        let mut ticks = 0_u32;
         loop {
             let next = {
                 let mut inner = self.lock();
@@ -647,7 +646,7 @@ impl Registry {
             };
             let (mut changed, phase) = match next {
                 Next::Admit { load, epoch, changed } => {
-                    match self.admit(name, load, epoch, changed, call, &mut ticks).await? {
+                    match self.admit(name, load, epoch, changed, call).await? {
                         Some(guard) => return Ok(guard),
                         None => continue,
                     }
@@ -660,8 +659,7 @@ impl Registry {
                 return Err(ToolError::not_ready(name, phase.as_str()));
             }
             if let Some(progress) = call.progress {
-                progress(f64::from(ticks), format!("store {}", phase.as_str()));
-                ticks += 1;
+                progress(format!("store {}", phase.as_str()));
             }
             let step = (deadline - now).min(Duration::from_secs(1));
             let _ = tokio::time::timeout(step, changed.changed()).await;
@@ -678,7 +676,6 @@ impl Registry {
         epoch: u64,
         mut changed: watch::Receiver<u64>,
         call: &Admission<'_>,
-        ticks: &mut u32,
     ) -> Result<Option<StoreGuard>, ToolError> {
         let refuse = |reason| {
             let busy = load.busy(reason);
@@ -760,8 +757,7 @@ impl Registry {
                                         load.queued.load(Ordering::SeqCst),
                                         load.in_flight()
                                     );
-                                    progress(f64::from(*ticks), message);
-                                    *ticks += 1;
+                                    progress(message);
                                 }
                             }
                         }

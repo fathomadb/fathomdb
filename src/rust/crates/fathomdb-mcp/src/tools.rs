@@ -269,7 +269,15 @@ impl Ctx<'_> {
         F: FnOnce(&fathomdb_sdk::Engine) -> fathomdb_sdk::Result<T> + Send + 'static,
     {
         let guard = self.acquire(store, kind, self.deadline()).await?;
-        bridge::call(guard, self.run_limit(), &self.cancel, &self.shared.hooks, f).await
+        bridge::call(
+            guard,
+            self.run_limit(),
+            &self.cancel,
+            self.progress.as_ref(),
+            &self.shared.hooks,
+            f,
+        )
+        .await
     }
 }
 
@@ -665,8 +673,13 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     // `last_telemetry_query_id` (MR-024.6).
     let explain = request.explain || telemetry;
     let started_limit = ctx.run_limit();
-    let (answered, run) =
-        bridge::call(guard, started_limit, &ctx.cancel, &ctx.shared.hooks, move |engine| {
+    let (answered, run) = bridge::call(
+        guard,
+        started_limit,
+        &ctx.cancel,
+        ctx.progress.as_ref(),
+        &ctx.shared.hooks,
+        move |engine| {
             let result = match mode {
                 SearchMode::Text => engine.search_text_only(
                     &request.query,
@@ -689,8 +702,9 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
                 dense_disabled: engine.dense_disabled(),
             })
-        })
-        .await?;
+        },
+    )
+    .await?;
 
     let mut degradation = Vec::new();
     if mode == SearchMode::Hybrid {
@@ -1222,7 +1236,7 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
         return Ok(not_recorded(&store, guard.epoch, NotRecordedReason::StoreReopened, max_tokens));
     }
     let (answered, ()) =
-        bridge::call(guard, ctx.run_limit(), &ctx.cancel, &ctx.shared.hooks, move |engine| {
+        bridge::call(guard, ctx.run_limit(), &ctx.cancel, None, &ctx.shared.hooks, move |engine| {
             engine.record_feedback(&query_id, &used, &unused, "agent")
         })
         .await?;

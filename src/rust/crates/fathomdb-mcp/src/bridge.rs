@@ -14,7 +14,7 @@ use fathomdb_sdk::Engine;
 
 use crate::error::{BusyReason, ToolError};
 use crate::hooks::Hooks;
-use crate::registry::{Cancel, OpenInfo, StoreGuard};
+use crate::registry::{Cancel, OpenInfo, ProgressFn, StoreGuard};
 
 /// What a call learned about the store it ran on.
 #[derive(Clone)]
@@ -28,6 +28,7 @@ pub(crate) async fn call<T, F>(
     guard: StoreGuard,
     run_limit: Duration,
     cancel: &Cancel,
+    progress: Option<&ProgressFn>,
     hooks: &Hooks,
     f: F,
 ) -> Result<(Answered, T), ToolError>
@@ -48,24 +49,35 @@ where
         f(&guard.engine)
     });
     let mut cancel = cancel.clone();
-    let joined = tokio::select! {
-        biased;
-        joined = tokio::time::timeout_at(run_until.into(), task) => joined,
-        () = cancel.cancelled() => {
-            // The read cannot be stopped: it keeps its permit until it
-            // returns, and the client is answered at once (rmcp then
-            // discards the answer of a cancelled request).
-            if abandoner.abandon() {
-                let load = abandoner.busy(BusyReason::Deadline);
-                tracing::warn!(
-                    store = %answered.store,
-                    in_flight = load.in_flight,
-                    queued = load.queued,
-                    abandoned = load.abandoned,
-                    "running call cancelled by the client; its engine work keeps its permit"
-                );
+    let run = tokio::time::timeout_at(run_until.into(), task);
+    tokio::pin!(run);
+    // A running call with a progress token hears so at once, then each second.
+    let mut tick = tokio::time::interval(Duration::from_secs(1));
+    let joined = loop {
+        tokio::select! {
+            biased;
+            joined = &mut run => break joined,
+            _ = tick.tick(), if progress.is_some() => {
+                if let Some(progress) = progress {
+                    progress("running".to_string());
+                }
             }
-            return Err(ToolError::cancelled());
+            () = cancel.cancelled() => {
+                // The read cannot be stopped: it keeps its permit until it
+                // returns, and the client is answered at once (rmcp then
+                // discards the answer of a cancelled request).
+                if abandoner.abandon() {
+                    let load = abandoner.busy(BusyReason::Deadline);
+                    tracing::warn!(
+                        store = %answered.store,
+                        in_flight = load.in_flight,
+                        queued = load.queued,
+                        abandoned = load.abandoned,
+                        "running call cancelled by the client; its engine work keeps its permit"
+                    );
+                }
+                return Err(ToolError::cancelled());
+            }
         }
     };
     match joined {

@@ -89,8 +89,8 @@ impl FathomServer {
             cancel: cancel_signal(&context),
         };
         if let Some(progress) = &ctx.progress {
-            for tick in 1..=self.shared.hooks.progress_burst(tool) {
-                progress(f64::from(tick), "store burst".to_string());
+            for _ in 0..self.shared.hooks.progress_burst(tool) {
+                progress("store burst".to_string());
             }
         }
         let outcome = match tool {
@@ -110,19 +110,22 @@ impl FathomServer {
 fn progress_fn(context: &RequestContext<RoleServer>) -> Option<ProgressFn> {
     let token = context.meta.get_progress_token()?;
     let peer = context.peer.clone();
-    // One sender per call: a single task drains the queue in order, so the
-    // client sees progress values in the order they were reported. The task
-    // ends once the call drops the progress function.
-    let (sender, mut queue) = tokio::sync::mpsc::unbounded_channel::<ProgressNotificationParam>();
+    // One sender per call: a single task drains the queue in order and
+    // numbers the notifications, so the client sees one increasing progress
+    // sequence across the open wait, the queue and the run, in the order
+    // they were reported. The task ends once the call drops the function.
+    let (sender, mut queue) = tokio::sync::mpsc::unbounded_channel::<String>();
     tokio::spawn(async move {
-        while let Some(notification) = queue.recv().await {
+        let mut progress = 0_u32;
+        while let Some(message) = queue.recv().await {
+            let notification = ProgressNotificationParam::new(token.clone(), f64::from(progress))
+                .with_message(message);
+            progress += 1;
             let _ = peer.notify_progress(notification).await;
         }
     });
-    Some(Arc::new(move |progress: f64, message: String| {
-        let notification =
-            ProgressNotificationParam::new(token.clone(), progress).with_message(message);
-        let _ = sender.send(notification);
+    Some(Arc::new(move |message: String| {
+        let _ = sender.send(message);
     }))
 }
 

@@ -283,6 +283,43 @@ pub enum HintCause {
     ProjectionDegraded,
 }
 
+impl HintArm {
+    /// The wire word of an engine arm; `None` for one this adapter does not
+    /// know yet.
+    pub(crate) fn from_engine(arm: fathomdb_sdk::HintArm) -> Option<Self> {
+        use fathomdb_sdk::HintArm as R;
+        Some(match arm {
+            R::Vector => Self::Vector,
+            R::Text => Self::Text,
+            R::TextEdge => Self::TextEdge,
+            R::GraphArm => Self::GraphArm,
+            R::Graph => Self::Graph,
+            _ => return None,
+        })
+    }
+}
+
+impl HintCause {
+    /// The wire word of an engine cause; `None` for one this adapter does
+    /// not know yet.
+    pub(crate) fn from_engine(cause: fathomdb_sdk::HintCause) -> Option<Self> {
+        use fathomdb_sdk::HintCause as C;
+        Some(match cause {
+            C::SoftFallback => Self::SoftFallback,
+            C::DenseDisabled => Self::DenseDisabled,
+            C::EmbedderUnavailable => Self::EmbedderUnavailable,
+            C::EmbedderOverloaded => Self::EmbedderOverloaded,
+            C::QuerySeedTextFallback => Self::QuerySeedTextFallback,
+            C::ProjectionLegacyUnverified => Self::ProjectionLegacyUnverified,
+            C::ProjectionProcessing => Self::ProjectionProcessing,
+            C::ProjectionBlocked => Self::ProjectionBlocked,
+            C::ProjectionDeferred => Self::ProjectionDeferred,
+            C::ProjectionDegraded => Self::ProjectionDegraded,
+            _ => return None,
+        })
+    }
+}
+
 /// One suggested next call, authored by FathomDB (ADR-0.8.29). Every string
 /// is a closed-enum word, an adapter handle, an operator store name or a ref
 /// from the same response; never record content. Which optional fields are
@@ -341,7 +378,7 @@ impl TryFrom<fathomdb_sdk::Hint> for Hint {
 
     fn try_from(hint: fathomdb_sdk::Hint) -> Result<Self, Self::Error> {
         use fathomdb_sdk::HintReason as W;
-        use fathomdb_sdk::{HintAction as A, HintArm as R, HintCause as C, HintMode as M};
+        use fathomdb_sdk::{HintAction as A, HintMode as M};
         let action = match hint.action {
             A::Search => HintAction::Search,
             A::None => HintAction::None,
@@ -361,26 +398,17 @@ impl TryFrom<fathomdb_sdk::Hint> for Hint {
         };
         let arm = match hint.arm {
             None => None,
-            Some(R::Vector) => Some(HintArm::Vector),
-            Some(R::Text) => Some(HintArm::Text),
-            Some(R::TextEdge) => Some(HintArm::TextEdge),
-            Some(R::GraphArm) => Some(HintArm::GraphArm),
-            Some(R::Graph) => Some(HintArm::Graph),
-            Some(_) => return Err(hint),
+            Some(arm) => match HintArm::from_engine(arm) {
+                Some(arm) => Some(arm),
+                None => return Err(hint),
+            },
         };
         let cause = match hint.cause {
             None => None,
-            Some(C::SoftFallback) => Some(HintCause::SoftFallback),
-            Some(C::DenseDisabled) => Some(HintCause::DenseDisabled),
-            Some(C::EmbedderUnavailable) => Some(HintCause::EmbedderUnavailable),
-            Some(C::EmbedderOverloaded) => Some(HintCause::EmbedderOverloaded),
-            Some(C::QuerySeedTextFallback) => Some(HintCause::QuerySeedTextFallback),
-            Some(C::ProjectionLegacyUnverified) => Some(HintCause::ProjectionLegacyUnverified),
-            Some(C::ProjectionProcessing) => Some(HintCause::ProjectionProcessing),
-            Some(C::ProjectionBlocked) => Some(HintCause::ProjectionBlocked),
-            Some(C::ProjectionDeferred) => Some(HintCause::ProjectionDeferred),
-            Some(C::ProjectionDegraded) => Some(HintCause::ProjectionDegraded),
-            Some(_) => return Err(hint),
+            Some(cause) => match HintCause::from_engine(cause) {
+                Some(cause) => Some(cause),
+                None => return Err(hint),
+            },
         };
         // `more_results{limit}` becomes `more_results{continuation}` in the
         // adapter, which attaches its own handle; the limit is not carried.

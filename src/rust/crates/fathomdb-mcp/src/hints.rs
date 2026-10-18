@@ -258,8 +258,11 @@ pub(crate) fn enabled(given: Option<bool>, configured: bool) -> bool {
 /// The `degraded` hint of a non-search response (`expand`): one hint naming
 /// the first entry of the canonical degradation list.
 pub(crate) fn degraded(degradation: &[Degradation]) -> Option<Hint> {
-    let _ = degradation;
-    None
+    let (arm, cause) = engine_degradation(degradation.first()?)?;
+    let mut hint = Hint::new(HintAction::None, HintReason::Degraded);
+    hint.arm = Some(crate::output::HintArm::from_engine(arm)?);
+    hint.cause = Some(crate::output::HintCause::from_engine(cause)?);
+    Some(hint)
 }
 
 #[cfg(test)]

@@ -1273,7 +1273,10 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 .zip(bodies)
                 .filter(|(_, (_, cut))| *cut)
                 .map(|(reference, _)| reference.as_str());
-            hints::body_cut(refs, uncut_whole.get()).into_iter().collect()
+            hints::degraded(&degradation)
+                .into_iter()
+                .chain(hints::body_cut(refs, uncut_whole.get()))
+                .collect()
         } else {
             Vec::new()
         };

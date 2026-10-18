@@ -723,3 +723,106 @@ impl SearchResult {
         }
     }
 }
+
+#[cfg(test)]
+mod degradation_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Condvar, Mutex};
+    use std::time::{Duration, Instant};
+
+    use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+    use fathomdb_engine::{
+        EmbedderChoice, Engine as EngEngine, EngineConfig, InitialState, PreparedWrite, SourceId,
+    };
+
+    /// Blocks in `embed` while closed, so one held call occupies the only
+    /// provider worker and a queued query embedding expires (QueuedExpired).
+    #[derive(Debug, Default)]
+    struct Gate {
+        closed: Mutex<bool>,
+        changed: Condvar,
+        blocked: AtomicUsize,
+    }
+
+    impl Embedder for Gate {
+        fn identity(&self) -> EmbedderIdentity {
+            EmbedderIdentity::new("napi-ep03-gate", "rev-a", 8)
+        }
+
+        fn embed(&self, _text: &str) -> std::result::Result<Vector, EmbedderError> {
+            let closed = self.closed.lock().unwrap();
+            if *closed {
+                self.blocked.fetch_add(1, Ordering::SeqCst);
+                let _open = self
+                    .changed
+                    .wait_timeout_while(closed, Duration::from_secs(10), |closed| *closed)
+                    .unwrap();
+            }
+            Ok(vec![1.0; 8])
+        }
+    }
+
+    /// One real overloaded hybrid search and one healthy one, from a real store.
+    fn overloaded_and_healthy_results() -> (RustSearchResult, RustSearchResult) {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join(format!("napi_ep03{}", fathomdb_schema::SQLITE_SUFFIX));
+        let gate = Arc::new(Gate::default());
+        let engine = Arc::new(
+            EngEngine::open_with_choice_and_config(
+                &path,
+                EmbedderChoice::Caller(gate.clone()),
+                EngineConfig {
+                    embedder_pool_size: Some(1),
+                    embedder_call_timeout_ms: Some(300),
+                    ..EngineConfig::default()
+                },
+            )
+            .unwrap()
+            .engine,
+        );
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "note".to_string(),
+                body: "napiep03needle note".to_string(),
+                source_id: SourceId::new("test:napi-ep03").unwrap(),
+                logical_id: Some("napi-ep03".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        engine.drain(30_000).unwrap();
+        *gate.closed.lock().unwrap() = true;
+        let holder = {
+            let engine = Arc::clone(&engine);
+            std::thread::spawn(move || engine.embed_text("hold"))
+        };
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while gate.blocked.load(Ordering::SeqCst) == 0 {
+            assert!(Instant::now() < deadline, "the held embed never started");
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let overloaded = engine.search("napiep03needle").unwrap();
+        *gate.closed.lock().unwrap() = false;
+        gate.changed.notify_all();
+        let _ = holder.join().unwrap();
+        let healthy = engine.search("napiep03needle").unwrap();
+        Arc::try_unwrap(engine).ok().unwrap().close().unwrap();
+        (overloaded, healthy)
+    }
+
+    #[test]
+    fn typescript_search_result_reports_embedder_overloaded() {
+        let (overloaded, healthy) = overloaded_and_healthy_results();
+        assert_eq!(overloaded.degradations.len(), 1, "precondition: a real overloaded result");
+
+        let converted = SearchResult::from_rust(overloaded);
+        let words: Option<Vec<(String, String)>> = converted
+            .degradations
+            .map(|entries| entries.into_iter().map(|entry| (entry.arm, entry.reason)).collect());
+        assert_eq!(words, Some(vec![("vector".to_string(), "embedder_overloaded".to_string())]));
+        assert!(SearchResult::from_rust(healthy).degradations.is_none());
+    }
+}

@@ -427,3 +427,39 @@ fn head_window_precedes_the_match_window() {
     // Without spans the head changes nothing: the prefix already starts there.
     assert_eq!(snippet_for(&body, &[], &headed), snippet_for(&body, &[], &opts(300)));
 }
+
+fn windows_opts(max_bytes: u32, max_windows: u8) -> SnippetOptions {
+    SnippetOptions { max_windows, ..opts(max_bytes) }
+}
+
+// § 6.3 rule 7 (T-11, first half): with `max_windows > 1`, distinct terms
+// 2 KiB apart give one window each, joined by `" … "`; terms close together
+// give one window.
+#[test]
+fn rule7_far_apart_terms_get_a_window_each() {
+    let (body, spans) = body_with(&[(500, "pear"), (2548, "plum")], 4000);
+    let s = snippet_for(&body, &spans, &windows_opts(300, 2));
+    assert_eq!(s.windows.len(), 2, "{s:?}");
+    assert!(shows(&s, spans[0]) && shows(&s, spans[1]), "{s:?}");
+    assert_eq!(s.text, joined(&body, &s.windows));
+    assert_eq!(s.text.matches(" … ").count(), 1);
+    assert!(s.windows[0].1 < s.windows[1].0);
+    assert!(s.text.len() <= 300);
+
+    // The default stays one window.
+    let s = snippet_for(&body, &spans, &opts(300));
+    assert_eq!(s.windows.len(), 1);
+
+    // Three windows for three far-apart terms when allowed.
+    let (body, spans) = body_with(&[(500, "pear"), (1500, "plum"), (2500, "fig")], 4000);
+    let s = snippet_for(&body, &spans, &windows_opts(400, 3));
+    assert_eq!(s.windows.len(), 3, "{s:?}");
+    assert!(spans.iter().all(|&sp| shows(&s, sp)), "{s:?}");
+    assert!(s.text.len() <= 400);
+
+    // Terms 10 bytes apart share one window.
+    let (body, spans) = body_with(&[(2000, "pear"), (2010, "plum")], 4000);
+    let s = snippet_for(&body, &spans, &windows_opts(300, 2));
+    assert_eq!(s.windows.len(), 1, "{s:?}");
+    assert!(shows(&s, spans[0]) && shows(&s, spans[1]));
+}

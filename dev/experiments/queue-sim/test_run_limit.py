@@ -135,3 +135,12 @@ def test_false_refusal_under_run_to_completion_means_it_would_have_started_in_ti
     sc += [(16.0, *T(reader=13.5)), (20.0, *T(reader=1.0))]
     s = script_run(sc, cap=1, admission="fifo_shed", threshold=P90, run_limit=60.0)
     assert s.metrics()["false_refusal_rate"] == pytest.approx(1 / 10)
+
+
+def test_timeout_cause_window_ends_at_the_run_limit():
+    # b waits 6 s for a, then runs 70 s and is abandoned at 66 s: inside [0, 66] its own run (60 s) dominates
+    # its admission wait (6 s). With the window cut at the 10 s wait deadline, admission would win (6 > 4)
+    s = script_run([(0.0, *T(reader=6.0)), (0.0, *T(reader=70.0))], cap=1, admission="fifo", run_limit=60.0)
+    m = s.metrics()
+    assert s.calls[1].outcome == "timeout" and s.calls[1].t_res == pytest.approx(66.0)
+    assert m["to_run"] == pytest.approx(0.5) and m["to_admission"] == 0.0

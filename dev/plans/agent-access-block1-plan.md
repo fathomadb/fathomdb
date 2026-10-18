@@ -57,4 +57,6 @@ run one after another.
 
 | Slice | Branch | Landed at | Review | Status |
 | --- | --- | --- | --- | --- |
-| S0 | `feat/aa-b1-s0` | — | — | planned |
+| S0 | `feat/aa-b1-s0` (`ba992064e`..`e519273d2`) | `47c560615` | Fable-medium (codex blocked by the harness): PASS-WITH-FIXES, non-blocking; drain defect filed as a todo | landed |
+| S2 | `feat/aa-b1-s2` (`7f995d843`..`54c1451ab`) | `54f762a53` | Fable-medium: PASS-WITH-FIXES, doc fixes applied | landed |
+| S1a | `feat/aa-b1-s1a` | — | — | in progress |

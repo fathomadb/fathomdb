@@ -594,3 +594,27 @@ async fn highlights_do_not_change_snippet_text_or_anchor() {
     assert_eq!(view(&lit), view(&plain));
     harness.shutdown().await;
 }
+
+/// Owner decision 2 (match-centred-snippets.md § 10): MCP keeps the record
+/// head. A LoCoMo-style record whose match is near byte 3000 gets a snippet
+/// that begins with the header and still holds the match.
+#[tokio::test(flavor = "multi_thread")]
+async fn match_snippets_keep_the_record_head() {
+    let header = "(unknown date) [8 May 2023] Caroline: ";
+    let mut body = header.to_string();
+    while body.len() < 2995 {
+        body.push_str("we talked ");
+    }
+    body.push_str("zanzibar");
+    body.push_str(&" again".repeat(200));
+    let (_fixture, harness) =
+        harness_with(vec![node("note:locomo", "note", &body)], json!({})).await;
+    let found = harness.ok("search", json!({"query": "zanzibar"})).await;
+    let hit = &found["results"][0];
+    let snippet = hit["snippet"].as_str().unwrap();
+    assert_eq!(hit["snippet_anchor"], "match", "{hit}");
+    assert!(snippet.starts_with("(unknown date) [8 May 2023] Caroline:"), "{snippet:?}");
+    assert!(snippet.contains("zanzibar"), "{snippet:?}");
+    assert!(snippet.len() <= 300);
+    harness.shutdown().await;
+}

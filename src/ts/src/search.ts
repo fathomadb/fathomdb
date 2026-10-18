@@ -6,6 +6,7 @@ import {
   type NativeSearchExpandResult,
   type NativePerHitExplain,
   type NativeSearchResult,
+  type NativeSnippetV1,
 } from "./binding.js";
 import { FathomDbError, FrozenReadError, InvalidArgumentError, InvalidFilterError } from "./errors.js";
 import { intercept } from "./native-call.js";
@@ -31,6 +32,44 @@ export type DegradationReason = "embedder_overloaded";
 export interface ArmDegradation {
   arm: SoftFallbackBranch;
   reason: DegradationReason;
+}
+
+/**
+ * EP-17 match-centred snippet options (`snippet` on `search`,
+ * `searchTextOnly` and `searchFrozen`). Every field is optional; an omitted
+ * field takes its default. `maxBytes` (default 300, `40..=4000`) is the output
+ * budget in UTF-8 bytes, ellipses included; `maxWindows` (default 1, `1..=3`);
+ * `headBytes` (default 0, `0..=maxBytes / 2`) reserves the record start as its
+ * own window; `highlights` (default false) asks for highlight ranges;
+ * `maxPointQueries` (default 20, `0..=255`) caps per-search span queries in
+ * rank order, and later hits get the record start. Search rejects a value out
+ * of range with `InvalidArgumentError`; {@link snippetFor} clamps instead.
+ */
+export interface SnippetOptions {
+  maxBytes?: number;
+  maxWindows?: number;
+  headBytes?: number;
+  highlights?: boolean;
+  maxPointQueries?: number;
+}
+
+/** Where a snippet's text comes from: the whole body, a match window, or the record start. */
+export type SnippetAnchor = "whole" | "match" | "start";
+
+/**
+ * One hit's snippet. Ranges are `[start, end]` UTF-8 byte offsets (not
+ * UTF-16 indices): `windows` and `spans` into the record body, `highlights`
+ * into `text`. `text` is at most `maxBytes` bytes: the windows joined in body
+ * order with `"… "`, `" … "` and `" …"`. `highlights` is empty unless
+ * requested; `cut` is true when any of the body is left out.
+ */
+export interface SnippetV1 {
+  text: string;
+  anchor: SnippetAnchor;
+  windows: [number, number][];
+  spans: [number, number][];
+  highlights: [number, number][];
+  cut: boolean;
 }
 
 /**
@@ -129,9 +168,14 @@ export interface FrozenSearchOptions {
   limit?: number;
 }
 
-/** Options shared by ranked search methods. `limit` defaults to 10 and is 1–100. */
+/**
+ * Options shared by ranked search methods. `limit` defaults to 10 and is 1–100.
+ * `snippet` (EP-17; `search` and `searchTextOnly` only) fills
+ * `SearchResult.snippets`.
+ */
 export type SearchOptions = ReadView & {
   limit?: number;
+  snippet?: SnippetOptions;
 };
 
 /** Options for the initial ranked hits returned by {@link graph.searchExpand}. */
@@ -150,12 +194,14 @@ export function validateRankedResultLimit(name: string, limit: number | undefine
 export function splitSearchOptions(options: SearchOptions | undefined): {
   limit: number;
   view: ReadView | undefined;
+  snippet: SnippetOptions | undefined;
 } {
-  if (options === undefined) return { limit: 10, view: undefined };
-  const { limit, ...view } = options;
+  if (options === undefined) return { limit: 10, view: undefined, snippet: undefined };
+  const { limit, snippet, ...view } = options;
   return {
     limit: validateRankedResultLimit("limit", limit),
     view: Object.keys(view).length === 0 ? undefined : view,
+    snippet,
   };
 }
 
@@ -182,6 +228,27 @@ export function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
     })),
     explanation: e ? mapCandidateNativeExplanation(e, r.results) : null,
     ...mapNativeDegradations(r.degradations),
+  };
+}
+
+/** `{ snippets }` when the native sidecar is present, else `{}`. */
+export function mapNativeSnippets(
+  native: NativeSnippetV1[] | null | undefined,
+): { snippets?: SnippetV1[] } {
+  if (native === null || native === undefined) return {};
+  return { snippets: native.map(mapNativeSnippet) };
+}
+
+function mapNativeSnippet(native: NativeSnippetV1): SnippetV1 {
+  const pairs = (ranges: number[][]): [number, number][] =>
+    ranges.map((range) => [range[0]!, range[1]!]);
+  return {
+    text: native.text,
+    anchor: native.anchor as SnippetAnchor,
+    windows: pairs(native.windows),
+    spans: pairs(native.spans),
+    highlights: pairs(native.highlights),
+    cut: native.cut,
   };
 }
 
@@ -620,6 +687,11 @@ export interface SearchResult {
   explanation: Explanation | null;
   /** Requested arms that did not run; absent when every requested arm ran. */
   degradations?: ArmDegradation[];
+  /**
+   * EP-17 snippet sidecar: one {@link SnippetV1} per hit, in `results` order,
+   * when the search asked for snippets; absent otherwise.
+   */
+  snippets?: SnippetV1[];
 }
 
 export async function freezeReadContext(nativeEngine: NativeEngine, context: ReadContextV1): Promise<FrozenReadContextV1> {
@@ -826,7 +898,12 @@ export async function searchTextOnly(nativeEngine: NativeEngine, query: string, 
     validateFfiString(query);
     const searchOptions = splitSearchOptions(view);
     const r = await intercept(() =>
-      nativeEngine.searchTextOnly(query, searchOptions.view, searchOptions.limit),
+      nativeEngine.searchTextOnly(
+        query,
+        searchOptions.view,
+        searchOptions.limit,
+        searchOptions.snippet,
+      ),
     );
     const branch = r.softFallback?.branch;
     return {
@@ -848,6 +925,7 @@ export async function searchTextOnly(nativeEngine: NativeEngine, query: string, 
         ceScore: h.ceScore ?? null,
       })),
       explanation: null,
+      ...mapNativeSnippets(r.snippets),
     };
   }
 

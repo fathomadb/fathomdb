@@ -563,11 +563,15 @@ impl Engine {
     #[napi]
     ///
     /// 0.8.20 Slice 15b fix-2 — takes the same optional `view` as `search`.
+    ///
+    /// EP-17 — `snippet` fills `SearchResult.snippets`; omitted leaves it
+    /// absent.
     pub async fn search_text_only(
         &self,
         query: String,
         view: Option<ReadViewInput>,
         limit: Option<u32>,
+        snippet: Option<SnippetOptionsInput>,
     ) -> Result<SearchResult> {
         validate_ffi_string_napi(&query)?;
         if query.trim().is_empty() {
@@ -579,10 +583,12 @@ impl Engine {
         }
         let view = read_view_or_default(view);
         let limit = limit.unwrap_or(10) as usize;
+        let snippet = snippet.map(|options| options.to_rust());
         let engine = Arc::clone(&self.inner);
-        let result =
-            call_engine(move || engine.search_text_only_view_with_limit(&query, &view, limit))
-                .await?;
+        let result = call_engine(move || {
+            engine.search_text_only_view_with_snippets(&query, &view, limit, snippet.as_ref())
+        })
+        .await?;
         Ok(SearchResult::from_rust(result))
     }
 

@@ -727,6 +727,9 @@ pub struct SearchResult {
     pub explanation: Option<Explanation>,
     /// Requested arms that did not run; absent when every requested arm ran.
     pub degradations: Option<Vec<ArmDegradation>>,
+    /// EP-17 snippet sidecar, one per hit in `results` order; absent unless
+    /// the search asked for snippets.
+    pub snippets: Option<Vec<SnippetV1>>,
 }
 
 impl SearchResult {
@@ -740,6 +743,7 @@ impl SearchResult {
             results: r.results.iter().map(SearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(Explanation::from_rust),
             degradations: degradations_from_rust(&r.degradations),
+            snippets: snippets_from_rust(r.snippets.as_ref()),
         }
     }
 }

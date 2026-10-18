@@ -17,9 +17,14 @@ pub struct QueryAst {
     pub raw: String,
 }
 
+/// A raw query compiled for FTS5.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CompiledQuery {
+    /// The FTS5 MATCH expression: `terms` joined by `" OR "`.
     pub match_expression: String,
+    /// The OR operands as compiled, each a quoted, escaped FTS5 string that
+    /// is itself a valid MATCH expression. Empty when the query has no tokens.
+    pub terms: Vec<String>,
 }
 
 /// Function words stripped from the content-OR query (they add false matches
@@ -71,17 +76,16 @@ fn content_tokens(raw: &str) -> Vec<String> {
 pub fn compile_text_query(raw: impl Into<String>) -> CompiledQuery {
     let raw = raw.into();
     let content = content_tokens(&raw);
-    let match_expression = if content.is_empty() {
+    let terms: Vec<String> = if content.is_empty() {
         raw.split_whitespace()
             .filter(|token| !token.is_empty())
             .map(|token| format!("\"{}\"", token.replace('"', "\"\"")))
-            .collect::<Vec<_>>()
-            .join(" OR ")
+            .collect()
     } else {
-        content.into_iter().map(|token| format!("\"{token}\"")).collect::<Vec<_>>().join(" OR ")
+        content.into_iter().map(|token| format!("\"{token}\"")).collect()
     };
 
-    CompiledQuery { match_expression }
+    CompiledQuery { match_expression: terms.join(" OR "), terms }
 }
 
 #[cfg(test)]

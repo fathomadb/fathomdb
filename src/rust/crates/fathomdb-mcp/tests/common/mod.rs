@@ -338,6 +338,23 @@ impl RawClient {
         self.writer.flush().await.unwrap();
     }
 
+    /// Send a request without waiting for its response; returns its id. A
+    /// later `request` skips the response when it arrives.
+    pub async fn send_request(&mut self, method: &str, params: Value) -> u64 {
+        let id = self.next_id;
+        self.next_id += 1;
+        let line =
+            json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}).to_string();
+        self.writer.write_all(format!("{line}\n").as_bytes()).await.unwrap();
+        self.writer.flush().await.unwrap();
+        id
+    }
+
+    /// Cancel request `id` (`notifications/cancelled`).
+    pub async fn cancel(&mut self, id: u64) {
+        self.notify("notifications/cancelled", json!({"requestId": id, "reason": "test"})).await;
+    }
+
     pub async fn request(&mut self, method: &str, params: Value) -> Value {
         let id = self.next_id;
         self.next_id += 1;

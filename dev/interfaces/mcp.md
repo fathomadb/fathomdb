@@ -43,8 +43,10 @@ fathomdb-mcp --config <path.json> --check-config
 | `default_store` | string or null | null | Session default when a call omits `store`. Must be addressable. |
 | `idle_timeout_secs` | integer ≥ 0 | 60 | 0 = never close (MR-005.4). |
 | `max_open_stores` | integer | 1 | Must be 1 in this release (MR-005.7); any other value is invalid. |
-| `admission_cap` | integer ≥ 1 | 4 | Engine calls in flight per store, including abandoned ones (MR-033.2). Must be < 8. A call is refused as `busy/admission` when `in_flight >= admission_cap`. |
-| `call_deadline_ms` | integer ≥ 100 | 10000 | Per tool call (MR-033). |
+| `admission_cap` | integer ≥ 1 | 4 | Engine calls in flight per store, including abandoned ones (MR-033.2). Must be < 8. A call that finds every permit held waits for one in arrival (FIFO) order while its deadline allows; it is refused as `busy/admission` only when the line is full or it cannot start in time (§ 6). |
+| `queue_limit` | integer ≥ 1 | 32 | Calls that may wait for a permit per store. A call that arrives when no permit is free and `queue_limit` calls already wait is refused at once as `busy/admission`, `busy.reason` `queue_full`. |
+| `call_deadline_ms` | integer ≥ 100 | 10000 | Per tool call (MR-033), measured from arrival. It bounds the wait for an opening store and for a permit, and the decision to start: a waiting call is started only if the p90 service time of the last 128 completed calls of its tool kind (`search` text, `search` hybrid, `fetch`, `expand`, `orient`; 50 ms while a kind has fewer than 8) fits in the time it has left; otherwise it is refused as `busy/admission`, `busy.reason` `deadline`. A started call is also bounded by it in this release (`timeout/deadline`). |
+| `run_limit_ms` | integer ≥ `call_deadline_ms` | 60000, or `call_deadline_ms` when that is larger | Reserved bound on a started call's run time, measured from its admission. Validated, not yet applied in this release. |
 | `default_max_tokens` | integer ≥ 256 | 4000 | Budget when a call omits `max_tokens` (MR-041.3). |
 | `snippet_chars` | integer 40..2000 | 300 | Snippet cap (MR-040). |
 | `search_mode` | `"text"` or `"hybrid"` | `"text"` | Default search path. `"text"` until the MR-021 evaluation shows hybrid at or above BM25 precision@3. |
@@ -210,6 +212,9 @@ reasons, every ref in `used` and `unused` must belong to it
 (`invalid_request/bad_argument` otherwise). A response from another store is `invalid_request/wrong_store`
 (MR-024.5). `used` may be empty. Recorded feedback reaches `record_feedback`
 with label source `agent` (MR-024.1). Feedback never alters later results.
+Feedback takes an admission permit but never queues for one: with no free
+permit it is refused at once as `busy/admission`, `busy.reason`
+`deadline`.
 
 ### Not present in this release
 
@@ -237,7 +242,7 @@ one that was dropped fails as `invalid_request/stale_handle` with remedy
 ## 6. Errors
 
 Tool errors are MCP tool results with `isError: true` and structured content
-`{error: {class, code, message, remedy, candidates?, detail?}}`. `detail` is
+`{error: {class, code, message, remedy, candidates?, detail?, busy?}}`. `detail` is
 the SDK `ErrorKind` class name (for example `DatabaseLockedError`) when the
 error came from the SDK. Messages are adapter templates and never quote SDK
 message text. JSON-RPC errors are reserved for protocol faults; a panicking
@@ -249,12 +254,30 @@ tool handler is a JSON-RPC internal error for that request (MR-002.2).
 | `not_found` | `not_found` | Absent record (per item in `fetch`) |
 | `not_ready` | `opening`, `reopening`, `draining`, `embedder_not_ready`, `vector_disabled` | Readiness gate: the code is the phase word. Every call waits for an open or reopen in progress up to its deadline before returning it; calls with a progress token also get progress notifications (MR-003.2, MR-006.4). SDK `EmbedderNotConfigured`, `KindNotVectorIndexed` (`embedder_not_ready`); SDK `VectorEquivalenceMismatch` (`vector_disabled`): a hybrid search on a store whose dense side the open-time equivalence check disabled; remedy: use mode `"text"` |
 | `unavailable` | `open_failed`, `database_locked`, `corrupt`, `migration_refused`, `missing_file` | Store open failure (MR-003.3) |
-| `timeout` | `deadline` | Call deadline (MR-033.1) |
-| `busy` | `admission` | Admission cap (MR-033.2), or another store is open with calls in flight or mid-open, so this one cannot open (MR-005.7) |
+| `timeout` | `deadline`, `cancelled` | `deadline`: the call deadline passed while the call ran (MR-033.1); the call is abandoned and keeps its admission permit until its engine work returns. `cancelled`: the client cancelled the call (`notifications/cancelled`) while it waited for a permit; it leaves the queue. rmcp discards the response of a cancelled request, so clients do not see this result |
+| `busy` | `admission`, `store_switch` | `admission`: the call could not get an admission permit (MR-033.2); `busy.reason` says why. `store_switch`: another store is open with calls in flight or mid-open, so this one cannot open (MR-005.7); use the open store or retry in a later turn |
 | `internal` | `internal`, `panic` | Anything else; message never contains record content (MR-012.2) |
 
 `candidates` is present only for `unknown_store` (from the registry). Kind
 candidates wait for the engine kind enumeration.
+
+`busy` is present only for `busy/admission`:
+
+```json
+{"error": {"class": "busy", "code": "admission", "message": "…", "remedy": "…",
+  "busy": {"reason": "deadline", "in_flight": 4, "queued": 8, "abandoned": 0, "stuck": false}}}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `reason` | `queue_full`: `queue_limit` calls already waited on arrival. `deadline`: no permit came in time, or too little deadline was left to start (§ 2 `call_deadline_ms`). `engine_overloaded`: SDK `Overloaded`. The action is the same for all three: retry in a later turn, or issue fewer calls at once |
+| `in_flight` | Admission permits held, including abandoned calls |
+| `queued` | Calls waiting for a permit |
+| `abandoned` | Calls past their deadline whose engine work still holds a permit |
+| `stuck` | `true` when abandoned work holds every permit |
+
+No busy result carries an advised wait (`retry_after_ms`); the object admits
+no other field.
 
 ## 7. Embedding (Rust) API
 

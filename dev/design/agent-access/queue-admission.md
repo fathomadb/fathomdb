@@ -359,10 +359,15 @@ deadline a call must have left to be started.
   effectively none, about 28 h (REPORT § 2). So:
   - `bridge::call` races the closure against `run_limit_ms`, a new
     configuration key measured from the permit, proposed default 60 s. It
-    exists only to report stuck work. A call past it is abandoned and fails
+    is never below `call_deadline_ms`; when it is not set and the deadline
+    is above 60 s, it equals the deadline, so existing long-deadline
+    configurations stay valid. It exists only to report stuck work. A call past it is abandoned and fails
     with `timeout/deadline`, as today.
-  - A client cancel of a running call returns an error result at once and
-    marks the call abandoned; the read still runs to its end.
+  - A client cancel of a running call returns `timeout/cancelled` at once
+    and marks the call abandoned; the read still runs to its end. rmcp
+    discards that response (step 6), so the effects are visible only to
+    other calls: `abandoned: 1` in their busy objects until the thread
+    returns.
   - Progress notifications continue while the call runs, if it has a
     progress token.
   - When EP-09 (interruptible reads) lands, a timeout can actually stop the
@@ -409,20 +414,38 @@ The sequence:
    `busy/admission`, reason `queue_full`. Nothing else is tested on
    arrival.
 3. Otherwise take a `QueueTicket` and await `acquire_owned()` under
-   `timeout_at(deadline − need)`, in a `select!` with the client's cancel
-   token (`context.ct`, H1) and the slot's phase watch.
+   `timeout_at(deadline − need)`, with `need` read from the window on
+   arrival, in a `select!` with the client's cancel token (`context.ct`,
+   H1) and the slot's phase watch.
 4. On a permit, re-check under the registry mutex that the slot is still
-   `Ready` at the same epoch, and that `deadline − now ≥ need`. If both hold,
-   build the `StoreGuard` holding the permit. If the time check fails,
-   drop the permit and refuse: `busy/admission`, reason `deadline`.
+   `Ready` at the same epoch, and that `deadline − now ≥ need`, with `need`
+   recomputed from the window now: calls that completed during the wait may
+   have changed it (a cold kind can become warm, a fast window slow). If
+   both hold, build the `StoreGuard` holding the permit. If the time check
+   fails, drop the permit and refuse: `busy/admission`, reason `deadline`.
+   A guard records its sample before it returns its permit, so the next
+   waiter's step 4 sees it. Calls that panicked or were abandoned leave no
+   sample.
+
+   **Constraint for the run-to-completion slice (S1b).** Step 4 also
+   applies to a call that got its permit at once. Once started calls run
+   past the wait deadline and their service times are recorded, a kind
+   whose p90 reaches `call_deadline_ms` would refuse every call of that
+   kind, including calls that never waited, and so would never record a
+   new sample to bring the p90 down. S1b must either clamp `need` below
+   `call_deadline_ms` or skip step 4 for a call that got its permit
+   without waiting.
 5. If the wait in step 3 times out, refuse: `busy/admission`, reason
    `deadline`, at once. This sheds on time spent waiting, as CoDel does:
    a call that cannot finish before its deadline is not started.
-6. On client cancel, drop out of the queue and return an error result. The
-   MCP specification says the server should not respond to a cancelled
-   request, but rmcp sends whatever the handler returns
-   (`rmcp-3.5.1/src/service.rs:1603-1617`), so the client receives an error
-   it ignores. There is no JSON-RPC "cancelled" result to send.
+6. On client cancel, drop out of the queue and return `timeout/cancelled`.
+   No client sees that result: rmcp 3.5.1 removes the request from its
+   pool when the cancel arrives (`rmcp-3.5.1/src/service.rs:1648-1652`) and
+   then drops the handler's response
+   (`service.rs:1500-1503`, "dropping response for cancelled request"),
+   which is what the MCP specification asks of a server. The handler's
+   result is still defined, and the cancel is observable through other
+   calls: `queued` drops by one and the next waiter is admitted.
 7. If the phase changed to `Draining` or `Closed` while waiting, fall back
    into the existing open wait with the remaining deadline.
 
@@ -466,7 +489,8 @@ is its own code.
 **Field placement.** The error object is `{class, code, message, remedy,
 candidates?, detail?}` and `detail` is reserved for the SDK `ErrorKind`
 name (`dev/interfaces/mcp.md` § 6). The busy fields go in one optional
-sub-object, present only when `class` is `busy`:
+sub-object, present only for `busy/admission` (for `store_switch` its load
+fields would describe another store):
 
 ```json
 {"error": {"class": "busy", "code": "admission", "message": "…", "remedy": "…",

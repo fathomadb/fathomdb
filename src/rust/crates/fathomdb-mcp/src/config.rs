@@ -85,6 +85,12 @@ pub struct Config {
     pub admission_cap: u32,
     /// Per tool call deadline (MR-033.1).
     pub call_deadline_ms: u64,
+    /// Bound on a started call's run time, from its admission. Never below
+    /// `call_deadline_ms`.
+    pub run_limit_ms: u64,
+    /// Calls that may wait for an admission permit per store; one more is
+    /// refused as `busy/admission`, reason `queue_full`.
+    pub queue_limit: u32,
     /// Budget when a call omits `max_tokens` (MR-041.3).
     pub default_max_tokens: u32,
     /// Snippet cap in characters (MR-040.1).
@@ -108,6 +114,8 @@ impl Default for Config {
             max_open_stores: 1,
             admission_cap: 4,
             call_deadline_ms: 10_000,
+            run_limit_ms: 60_000,
+            queue_limit: 32,
             default_max_tokens: 4_000,
             snippet_chars: 300,
             search_mode: SearchMode::Text,
@@ -146,6 +154,8 @@ const TOP_LEVEL_KEYS: &[&str] = &[
     "max_open_stores",
     "admission_cap",
     "call_deadline_ms",
+    "run_limit_ms",
+    "queue_limit",
     "default_max_tokens",
     "snippet_chars",
     "search_mode",
@@ -172,6 +182,7 @@ impl Config {
         };
         reject_unknown(&object, TOP_LEVEL_KEYS, "")?;
         let defaults = Config::default();
+        let call_deadline_ms = integer(&object, "call_deadline_ms", defaults.call_deadline_ms)?;
         let config = Config {
             stores: parse_stores(object.get("stores"), base_dir)?,
             roots: parse_roots(object.get("roots"), base_dir)?,
@@ -183,7 +194,13 @@ impl Config {
                 u64::from(defaults.max_open_stores),
             )?,
             admission_cap: narrow(&object, "admission_cap", u64::from(defaults.admission_cap))?,
-            call_deadline_ms: integer(&object, "call_deadline_ms", defaults.call_deadline_ms)?,
+            call_deadline_ms,
+            run_limit_ms: integer(
+                &object,
+                "run_limit_ms",
+                defaults.run_limit_ms.max(call_deadline_ms),
+            )?,
+            queue_limit: narrow(&object, "queue_limit", u64::from(defaults.queue_limit))?,
             default_max_tokens: narrow(
                 &object,
                 "default_max_tokens",
@@ -247,6 +264,12 @@ impl Config {
         }
         if self.call_deadline_ms < 100 {
             return Err(ConfigError::new("call_deadline_ms: must be at least 100"));
+        }
+        if self.run_limit_ms < self.call_deadline_ms {
+            return Err(ConfigError::new("run_limit_ms: must be at least call_deadline_ms"));
+        }
+        if self.queue_limit < 1 {
+            return Err(ConfigError::new("queue_limit: must be at least 1"));
         }
         if self.default_max_tokens < 256 {
             return Err(ConfigError::new("default_max_tokens: must be at least 256"));

@@ -11,7 +11,7 @@ use std::time::Instant;
 
 use fathomdb_sdk::Engine;
 
-use crate::error::ToolError;
+use crate::error::{BusyReason, ToolError};
 use crate::hooks::Hooks;
 use crate::registry::{OpenInfo, StoreGuard};
 
@@ -35,6 +35,7 @@ where
 {
     let answered =
         Answered { store: guard.name.clone(), epoch: guard.epoch, info: guard.info.clone() };
+    let abandoner = guard.abandoner();
     let hooks = hooks.clone();
     let task = tokio::task::spawn_blocking(move || {
         let guard = guard;
@@ -42,7 +43,19 @@ where
         f(&guard.engine)
     });
     match tokio::time::timeout_at(deadline.into(), task).await {
-        Err(_) => Err(ToolError::deadline(Some(&answered.store))),
+        Err(_) => {
+            if abandoner.abandon() {
+                let load = abandoner.busy(BusyReason::Deadline);
+                tracing::warn!(
+                    store = %answered.store,
+                    in_flight = load.in_flight,
+                    queued = load.queued,
+                    abandoned = load.abandoned,
+                    "call abandoned at its deadline; its engine work keeps its permit"
+                );
+            }
+            Err(ToolError::deadline(Some(&answered.store)))
+        }
         Ok(Err(join)) if join.is_panic() => {
             tracing::error!(store = %answered.store, "engine call panicked");
             Err(ToolError::panic())
@@ -50,7 +63,11 @@ where
         Ok(Err(_)) => Err(ToolError::internal()),
         Ok(Ok(Err(error))) => {
             tracing::debug!(store = %answered.store, kind = error.kind().name(), "engine call failed");
-            Err(ToolError::from_sdk(&answered.store, &error))
+            let mut mapped = ToolError::from_sdk(&answered.store, &error);
+            if let Some(busy) = mapped.busy.as_mut() {
+                **busy = abandoner.busy(busy.reason);
+            }
+            Err(mapped)
         }
         Ok(Ok(Ok(value))) => Ok((answered, value)),
     }

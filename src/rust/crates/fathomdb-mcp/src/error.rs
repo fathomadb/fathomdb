@@ -35,11 +35,55 @@ pub struct ToolError {
     /// The SDK error class name when the error came from the SDK.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<&'static str>,
+    /// Why the call was refused and the store's load; present only for
+    /// `busy/admission`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub busy: Option<Box<Busy>>,
+}
+
+/// Why an admission was refused (`busy.reason`).
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BusyReason {
+    /// The waiting line was full on arrival (`queue_limit`).
+    QueueFull,
+    /// No permit came in time, or too little deadline was left to start.
+    Deadline,
+    /// The engine refused the work as overloaded (SDK `Overloaded`).
+    EngineOverloaded,
+}
+
+impl BusyReason {
+    /// The wire spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::QueueFull => "queue_full",
+            Self::Deadline => "deadline",
+            Self::EngineOverloaded => "engine_overloaded",
+        }
+    }
+}
+
+/// The `busy` sub-object of a `busy/admission` error. It carries no advised
+/// wait: agents re-issue a call in a later turn.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Busy {
+    pub reason: BusyReason,
+    /// Permits held: running calls, including abandoned ones.
+    pub in_flight: usize,
+    /// Calls waiting for a permit.
+    pub queued: usize,
+    /// Calls past their deadline whose engine work still holds a permit.
+    pub abandoned: usize,
+    /// Every permit is held by abandoned work.
+    pub stuck: bool,
 }
 
 impl ToolError {
     fn new(class: ErrorClass, code: &'static str, message: String, remedy: &'static str) -> Self {
-        Self { class, code, message, remedy, candidates: None, detail: None }
+        Self { class, code, message, remedy, candidates: None, detail: None, busy: None }
     }
 
     fn with_detail(mut self, kind: ErrorKind) -> Self {
@@ -180,13 +224,48 @@ impl ToolError {
         )
     }
 
-    pub(crate) fn busy(store: &str) -> Self {
+    /// Another store is open with calls in flight, or mid-open, so `store`
+    /// cannot open (one open store at a time, MR-005.7).
+    pub(crate) fn store_switch(store: &str) -> Self {
         Self::new(
             ErrorClass::Busy,
-            "admission",
-            format!("store {store:?} is at its admission cap, or another store is in use"),
-            "retry after in-flight calls finish",
+            "store_switch",
+            format!("store {store:?} cannot open while another store is in use"),
+            "use the open store, or retry in a later turn",
         )
+    }
+
+    /// The client cancelled the call. rmcp discards the response of a
+    /// cancelled request, so no client sees this result.
+    pub(crate) fn cancelled() -> Self {
+        Self::new(
+            ErrorClass::Timeout,
+            "cancelled",
+            "the client cancelled this call".to_string(),
+            "none; the call was cancelled by the client",
+        )
+    }
+
+    pub(crate) fn admission(store: &str, busy: Busy) -> Self {
+        let message = match busy.reason {
+            BusyReason::QueueFull => {
+                format!("store {store:?} has as many calls waiting as its queue_limit allows")
+            }
+            BusyReason::Deadline => {
+                format!("store {store:?} could not start this call before its deadline")
+            }
+            BusyReason::EngineOverloaded => {
+                format!("store {store:?}: the engine is overloaded")
+            }
+        };
+        let mut error = Self::new(
+            ErrorClass::Busy,
+            "admission",
+            message,
+            "retry in a later turn, or issue fewer calls at once",
+        );
+        error.busy = Some(Box::new(busy));
+        error
     }
 
     pub(crate) fn internal() -> Self {
@@ -251,7 +330,17 @@ impl ToolError {
             }
             ErrorKind::VectorEquivalenceMismatch => Self::vector_disabled(),
             ErrorKind::GraphExpansion => graph_error(error),
-            ErrorKind::Overloaded => Self::busy(store),
+            // The load fields are the bridge's to fill in.
+            ErrorKind::Overloaded => Self::admission(
+                store,
+                Busy {
+                    reason: BusyReason::EngineOverloaded,
+                    in_flight: 0,
+                    queued: 0,
+                    abandoned: 0,
+                    stuck: false,
+                },
+            ),
             ErrorKind::Closing => Self::not_ready(store, "draining"),
             _ => Self::internal(),
         };
@@ -334,5 +423,17 @@ mod tests {
             assert_eq!(mapped.code, "embedder_not_ready");
             assert_eq!(mapped.detail, Some(detail));
         }
+    }
+
+    // `Overloaded` comes only from the engine's embed queue, which no read
+    // path the adapter calls reports, so the mapping is checked directly.
+    #[test]
+    fn sdk_overloaded_maps_to_admission_engine_overloaded() {
+        let mapped = ToolError::from_sdk("notes", &SdkError::Engine(EngineError::Overloaded));
+        assert_eq!(mapped.class, ErrorClass::Busy);
+        assert_eq!(mapped.code, "admission");
+        assert_eq!(mapped.detail, Some("OverloadedError"));
+        let json = serde_json::to_value(&mapped).unwrap();
+        assert_eq!(json["busy"]["reason"], "engine_overloaded", "{json}");
     }
 }

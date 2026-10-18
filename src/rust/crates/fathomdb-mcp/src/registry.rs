@@ -6,17 +6,17 @@
 //! across an `.await` or an engine call: opens and drains run on spawned
 //! tasks and blocking threads, and report back under the mutex.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 
 use fathomdb_sdk::{read, Engine, OpenOptions};
-use tokio::sync::{watch, Notify};
+use tokio::sync::{watch, Notify, OwnedSemaphorePermit, Semaphore};
 
 use crate::config::Config;
-use crate::error::ToolError;
+use crate::error::{Busy, BusyReason, ToolError};
 use crate::hooks::Hooks;
 use crate::names::{validate_store_name, NameError};
 
@@ -53,8 +53,63 @@ pub(crate) struct OpenInfo {
     pub(crate) hosted: bool,
 }
 
-/// Progress callback for a call that waits on an open: `(progress, phase)`.
-pub(crate) type ProgressFn = Arc<dyn Fn(f64, &'static str) + Send + Sync>;
+/// Fires when the client cancels the call (`notifications/cancelled`).
+#[derive(Clone)]
+pub(crate) struct Cancel(watch::Receiver<bool>);
+
+impl Cancel {
+    pub(crate) fn new(cancelled: watch::Receiver<bool>) -> Self {
+        Self(cancelled)
+    }
+
+    /// Resolves once the call is cancelled; never, if it is not.
+    async fn cancelled(&mut self) {
+        if self.0.wait_for(|cancelled| *cancelled).await.is_err() {
+            std::future::pending::<()>().await;
+        }
+    }
+}
+
+/// The tool kinds with their own service-time window (queue-admission
+/// § 6.1). Search is split by mode.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub(crate) enum ToolKind {
+    SearchText,
+    SearchHybrid,
+    Fetch,
+    Expand,
+    Orient,
+    /// Takes a permit but never waits and leaves no sample.
+    Feedback,
+}
+
+impl ToolKind {
+    fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "search_text" => Some(Self::SearchText),
+            "search_hybrid" => Some(Self::SearchHybrid),
+            "fetch" => Some(Self::Fetch),
+            "expand" => Some(Self::Expand),
+            "orient" => Some(Self::Orient),
+            _ => None,
+        }
+    }
+}
+
+/// What a call brings to admission.
+pub(crate) struct Admission<'a> {
+    pub(crate) kind: ToolKind,
+    /// The call deadline; `None` (internal callers only) never waits.
+    pub(crate) wait_until: Option<Instant>,
+    /// Progress notifications while the call waits.
+    pub(crate) progress: Option<&'a ProgressFn>,
+    /// The client's cancel; a waiting call leaves the queue on it.
+    pub(crate) cancel: Option<&'a Cancel>,
+}
+
+/// Progress callback for a call that waits on an open or for an admission
+/// permit: `(progress, message)`.
+pub(crate) type ProgressFn = Arc<dyn Fn(f64, String) + Send + Sync>;
 
 enum Source {
     Managed { path: PathBuf, create: bool },
@@ -68,15 +123,14 @@ struct Slot {
     attempt: u64,
     engine: Option<Arc<Engine>>,
     info: Option<Arc<OpenInfo>>,
-    in_flight: Arc<AtomicUsize>,
-    idle: Arc<Notify>,
+    load: Arc<Load>,
     last_used: LastUsed,
     last_error: Option<ToolError>,
     changed: watch::Sender<u64>,
 }
 
 impl Slot {
-    fn new(source: Source) -> Self {
+    fn new(source: Source, cap: usize) -> Self {
         Self {
             source,
             phase: Phase::Closed,
@@ -84,8 +138,7 @@ impl Slot {
             attempt: 0,
             engine: None,
             info: None,
-            in_flight: Arc::new(AtomicUsize::new(0)),
-            idle: Arc::new(Notify::new()),
+            load: Arc::new(Load::new(cap)),
             last_used: LastUsed::default(),
             last_error: None,
             changed: watch::channel(0).0,
@@ -105,6 +158,145 @@ impl Slot {
             (Phase::Closed, Some(_)) => "failed",
             (phase, _) => phase.as_str(),
         }
+    }
+}
+
+/// The least deadline a call of a tool kind with no history must have left
+/// to be started (queue-admission § 6.1, early-shed rule).
+const NEED_FLOOR: Duration = Duration::from_millis(50);
+/// Completed calls per tool kind kept in a store's service-time window.
+const WINDOW_SAMPLES: usize = 128;
+/// Completed calls of a kind before its window replaces the floor.
+const WARM_SAMPLES: usize = 8;
+/// The share of recent calls of a kind that must fit in the time a waiter
+/// has left. Provisional: the run-to-completion follow-up decides whether
+/// the check stays.
+const NEED_QUANTILE: f64 = 0.9;
+
+/// Admission state of one store. Kept across reopens, so waiters survive a
+/// drain.
+struct Load {
+    cap: usize,
+    /// `admission_cap` permits, handed out in request order.
+    permits: Arc<Semaphore>,
+    /// Calls waiting for a permit.
+    queued: AtomicUsize,
+    /// Abandoned calls whose engine work still holds a permit.
+    abandoned: AtomicUsize,
+    /// Fires when the last permit is returned.
+    idle: Notify,
+    /// Service times of the last `WINDOW_SAMPLES` completed calls, per tool
+    /// kind, oldest first.
+    windows: Mutex<BTreeMap<ToolKind, VecDeque<Duration>>>,
+}
+
+impl Load {
+    fn new(cap: usize) -> Self {
+        Self {
+            cap,
+            permits: Arc::new(Semaphore::new(cap)),
+            queued: AtomicUsize::new(0),
+            abandoned: AtomicUsize::new(0),
+            idle: Notify::new(),
+            windows: Mutex::new(BTreeMap::new()),
+        }
+    }
+
+    fn windows(&self) -> MutexGuard<'_, BTreeMap<ToolKind, VecDeque<Duration>>> {
+        self.windows.lock().unwrap_or_else(|poison| poison.into_inner())
+    }
+
+    fn record(&self, kind: ToolKind, sample: Duration) {
+        if kind != ToolKind::Feedback {
+            let mut windows = self.windows();
+            let window = windows.entry(kind).or_default();
+            if window.len() == WINDOW_SAMPLES {
+                window.pop_front();
+            }
+            window.push_back(sample);
+        }
+    }
+
+    /// The early-shed threshold: the least time a call of `kind` must have
+    /// left to be started.
+    fn need(&self, kind: ToolKind) -> Duration {
+        let windows = self.windows();
+        let Some(window) = windows.get(&kind).filter(|window| window.len() >= WARM_SAMPLES) else {
+            return NEED_FLOOR;
+        };
+        let mut sorted: Vec<Duration> = window.iter().copied().collect();
+        sorted.sort_unstable();
+        // Nearest rank: the smallest sample at or above the quantile.
+        let rank = (NEED_QUANTILE * sorted.len() as f64).ceil() as usize;
+        sorted[rank.clamp(1, sorted.len()) - 1]
+    }
+
+    /// Permits held. A call counts from the moment it holds a permit, before
+    /// its guard exists, so idle expiry and drains never miss it.
+    fn in_flight(&self) -> usize {
+        self.cap - self.permits.available_permits()
+    }
+
+    /// Calls holding or waiting for a permit.
+    fn busy_calls(&self) -> usize {
+        self.in_flight() + self.queued.load(Ordering::SeqCst)
+    }
+
+    fn busy(&self, reason: BusyReason) -> Busy {
+        let abandoned = self.abandoned.load(Ordering::SeqCst);
+        Busy {
+            reason,
+            in_flight: self.in_flight(),
+            queued: self.queued.load(Ordering::SeqCst),
+            abandoned,
+            // Abandoned work has no known end, so a store whose every permit
+            // it holds cannot say when it frees up.
+            stuck: abandoned >= self.cap,
+        }
+    }
+}
+
+/// An admission permit. Dropping it returns the permit and wakes drains
+/// waiting for the store to go idle.
+struct Permit {
+    permit: Option<OwnedSemaphorePermit>,
+    load: Arc<Load>,
+}
+
+impl Drop for Permit {
+    fn drop(&mut self) {
+        drop(self.permit.take());
+        if self.load.in_flight() == 0 {
+            self.load.idle.notify_waiters();
+        }
+    }
+}
+
+/// One call counted in `queued`. Dropping it, on every exit from the wait
+/// (permit, timeout, cancel, phase change, panic), uncounts it.
+struct QueueTicket<'a>(&'a Load);
+
+impl<'a> QueueTicket<'a> {
+    /// Join the line. When no permit is free the line is bounded by
+    /// `limit`; the test and the increment are one atomic step, so
+    /// concurrent arrivals cannot overfill it.
+    fn join(load: &'a Load, no_free_permit: bool, limit: usize) -> Option<Self> {
+        if no_free_permit {
+            load.queued
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |queued| {
+                    (queued < limit).then_some(queued + 1)
+                })
+                .ok()?;
+        } else {
+            load.queued.fetch_add(1, Ordering::SeqCst);
+        }
+        Some(Self(load))
+    }
+}
+
+impl Drop for QueueTicket<'_> {
+    fn drop(&mut self) {
+        self.0.queued.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
@@ -150,9 +342,14 @@ pub(crate) struct StoreGuard {
     pub(crate) epoch: u64,
     pub(crate) engine: Arc<Engine>,
     pub(crate) info: Arc<OpenInfo>,
-    in_flight: Arc<AtomicUsize>,
-    idle: Arc<Notify>,
     last_used: LastUsed,
+    kind: ToolKind,
+    /// When the permit was acquired.
+    started: Instant,
+    run: Arc<AtomicU8>,
+    // Dropped after `drop` below has run, so the sample is in the window
+    // before the next waiter gets the permit and computes its need.
+    permit: Permit,
 }
 
 impl Drop for StoreGuard {
@@ -160,10 +357,72 @@ impl Drop for StoreGuard {
         // Stamp before releasing the slot, so the idle clock never sees a
         // finished call as idle since its start (FIX-1 CR-5).
         self.last_used.touch();
-        if self.in_flight.fetch_sub(1, Ordering::SeqCst) == 1 {
-            self.idle.notify_waiters();
+        let load = &self.permit.load;
+        match self.run.compare_exchange(RUNNING, DONE, Ordering::SeqCst, Ordering::SeqCst) {
+            // A guard dropped while its thread unwinds belongs to a call that
+            // panicked, not one that completed.
+            Ok(_) if std::thread::panicking() => {}
+            Ok(_) => load.record(self.kind, self.started.elapsed()),
+            // Abandoned calls leave no sample; the window would otherwise
+            // learn from work nobody waited for.
+            Err(_) => {
+                load.abandoned.fetch_sub(1, Ordering::SeqCst);
+            }
         }
     }
+}
+
+const RUNNING: u8 = 0;
+const DONE: u8 = 1;
+const ABANDONED: u8 = 2;
+
+impl StoreGuard {
+    /// A handle that marks this call abandoned after the guard has moved
+    /// into the blocking closure.
+    pub(crate) fn abandoner(&self) -> Abandoner {
+        Abandoner { run: self.run.clone(), load: self.permit.load.clone() }
+    }
+}
+
+/// Marks a running call abandoned: its permit stays held until its thread
+/// returns, it is counted in `abandoned`, and it leaves no sample.
+pub(crate) struct Abandoner {
+    run: Arc<AtomicU8>,
+    load: Arc<Load>,
+}
+
+impl Abandoner {
+    /// Returns false when the call had already finished.
+    pub(crate) fn abandon(&self) -> bool {
+        // Counted before the flag flips, so the guard's decrement can never
+        // run first and wrap the counter.
+        self.load.abandoned.fetch_add(1, Ordering::SeqCst);
+        if self.run.compare_exchange(RUNNING, ABANDONED, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+        {
+            return true;
+        }
+        self.load.abandoned.fetch_sub(1, Ordering::SeqCst);
+        false
+    }
+
+    /// The store's load as a busy object with `reason`.
+    pub(crate) fn busy(&self, reason: BusyReason) -> Busy {
+        self.load.busy(reason)
+    }
+}
+
+/// What `acquire` does after one look at the slot under the mutex.
+enum Next {
+    Admit { load: Arc<Load>, epoch: u64, changed: watch::Receiver<u64> },
+    Wait(watch::Receiver<u64>, Phase),
+}
+
+/// How a wait for a permit ended.
+enum Waited {
+    Permit(OwnedSemaphorePermit),
+    Expired,
+    Moved,
+    Cancelled,
 }
 
 /// Why a host engine could not be registered.
@@ -195,6 +454,10 @@ impl Registry {
         })
     }
 
+    fn cap(&self) -> usize {
+        self.config.admission_cap as usize
+    }
+
     fn lock(&self) -> MutexGuard<'_, Inner> {
         self.inner.lock().unwrap_or_else(|poison| poison.into_inner())
     }
@@ -220,7 +483,7 @@ impl Registry {
             if inner.slots.contains_key(name) || self.config.stores.contains_key(name) {
                 return Err(RegisterError::Duplicate);
             }
-            let mut slot = Slot::new(Source::Hosted);
+            let mut slot = Slot::new(Source::Hosted, self.cap());
             slot.phase = Phase::Opening;
             inner.slots.insert(name.to_string(), slot);
         }
@@ -248,8 +511,12 @@ impl Registry {
         match self.config.resolve(name) {
             Ok(resolution) => {
                 let mut inner = self.lock();
+                let cap = self.cap();
                 inner.slots.entry(name.to_string()).or_insert_with(|| {
-                    Slot::new(Source::Managed { path: resolution.path, create: resolution.create })
+                    Slot::new(
+                        Source::Managed { path: resolution.path, create: resolution.create },
+                        cap,
+                    )
                 });
                 Ok(())
             }
@@ -313,48 +580,43 @@ impl Registry {
 
     /// Admit one call on `name`.
     ///
-    /// A ready store admits the call unless it is at its admission cap. A
-    /// closed store starts opening (draining the least recently used idle
-    /// store when the open limit is reached). A call with a deadline in
-    /// `wait_until` waits for the open until then, reporting progress when
-    /// `progress` is given, and returns `not_ready` with the phase at the
-    /// deadline. Without a deadline (internal callers only) it returns
-    /// `not_ready` at once, or the error the previous open recorded while the
-    /// retry starts (MR-003.2, MR-006.6).
+    /// A ready store admits the call when a permit is free; otherwise the
+    /// call waits for one, in arrival order, while at least `need` of its
+    /// deadline (`call.wait_until`) is left (queue-admission § 6.1). It is
+    /// refused as `busy/admission` when the line is full on arrival
+    /// (`queue_full`) or when it cannot start in time (`deadline`), and
+    /// returns `timeout/cancelled` when the client cancels it while it
+    /// waits. A closed store starts opening (draining the least recently
+    /// used idle store when the open limit is reached, else
+    /// `busy/store_switch`). A call with a deadline waits for the open until
+    /// then and returns `not_ready` with the phase at the deadline. Waiting
+    /// calls with `call.progress` get progress notifications. Without a
+    /// deadline (internal callers only) it never waits: it is refused
+    /// `busy/admission` when no permit is free, returns `not_ready` at once
+    /// on a store that is not ready, or the error the previous open recorded
+    /// while the retry starts (MR-003.2, MR-006.6).
     pub(crate) async fn acquire(
         &self,
         name: &str,
-        wait_until: Option<Instant>,
-        progress: Option<&ProgressFn>,
+        call: &Admission<'_>,
     ) -> Result<StoreGuard, ToolError> {
+        let wait_until = call.wait_until;
         self.ensure_slot(name)?;
-        let cap = self.config.admission_cap as usize;
         let mut waited_attempt: Option<u64> = None;
         let mut ticks = 0_u32;
         loop {
-            let (mut changed, phase) = {
+            let next = {
                 let mut inner = self.lock();
                 if inner.shutting_down {
                     return Err(ToolError::not_ready(name, "draining"));
                 }
                 let slot = inner.slots.get_mut(name).expect("slot exists after ensure_slot");
                 match slot.phase {
-                    Phase::Ready => {
-                        if slot.in_flight.load(Ordering::SeqCst) >= cap {
-                            return Err(ToolError::busy(name));
-                        }
-                        slot.in_flight.fetch_add(1, Ordering::SeqCst);
-                        slot.last_used.touch();
-                        return Ok(StoreGuard {
-                            name: name.to_string(),
-                            epoch: slot.epoch,
-                            engine: slot.engine.clone().expect("ready slots hold an engine"),
-                            info: slot.info.clone().expect("ready slots hold open info"),
-                            in_flight: slot.in_flight.clone(),
-                            idle: slot.idle.clone(),
-                            last_used: slot.last_used.clone(),
-                        });
-                    }
+                    Phase::Ready => Next::Admit {
+                        load: slot.load.clone(),
+                        epoch: slot.epoch,
+                        changed: slot.changed.subscribe(),
+                    },
                     Phase::Closed => {
                         if let (Some(attempt), Some(error)) = (waited_attempt, &slot.last_error) {
                             if slot.attempt == attempt {
@@ -370,7 +632,7 @@ impl Registry {
                             }));
                         }
                         waited_attempt = Some(slot.attempt);
-                        (slot.changed.subscribe(), slot.phase)
+                        Next::Wait(slot.changed.subscribe(), slot.phase)
                     }
                     phase @ (Phase::Opening | Phase::Reopening | Phase::Draining) => {
                         if wait_until.is_none() {
@@ -379,22 +641,183 @@ impl Registry {
                         if phase != Phase::Draining {
                             waited_attempt = Some(slot.attempt);
                         }
-                        (slot.changed.subscribe(), phase)
+                        Next::Wait(slot.changed.subscribe(), phase)
                     }
                 }
+            };
+            let (mut changed, phase) = match next {
+                Next::Admit { load, epoch, changed } => {
+                    match self.admit(name, load, epoch, changed, call, &mut ticks).await? {
+                        Some(guard) => return Ok(guard),
+                        None => continue,
+                    }
+                }
+                Next::Wait(changed, phase) => (changed, phase),
             };
             let deadline = wait_until.expect("only waiting calls reach here");
             let now = Instant::now();
             if now >= deadline {
                 return Err(ToolError::not_ready(name, phase.as_str()));
             }
-            if let Some(progress) = progress {
-                progress(f64::from(ticks), phase.as_str());
+            if let Some(progress) = call.progress {
+                progress(f64::from(ticks), format!("store {}", phase.as_str()));
                 ticks += 1;
             }
             let step = (deadline - now).min(Duration::from_secs(1));
             let _ = tokio::time::timeout(step, changed.changed()).await;
         }
+    }
+
+    /// Wait for a permit of a ready store. `None` means the store left
+    /// `Ready` (or reopened) meanwhile, and the caller goes back to the open
+    /// wait.
+    async fn admit(
+        &self,
+        name: &str,
+        load: Arc<Load>,
+        epoch: u64,
+        mut changed: watch::Receiver<u64>,
+        call: &Admission<'_>,
+        ticks: &mut u32,
+    ) -> Result<Option<StoreGuard>, ToolError> {
+        let refuse = |reason| {
+            let busy = load.busy(reason);
+            tracing::info!(
+                store = %name,
+                reason = busy.reason.as_str(),
+                in_flight = busy.in_flight,
+                queued = busy.queued,
+                abandoned = busy.abandoned,
+                "admission refused"
+            );
+            ToolError::admission(name, busy)
+        };
+        let arrived = Instant::now();
+        let mut must_wait = false;
+        for (kind, sample) in self.hooks.seeded_service_times(name) {
+            if let Some(kind) = ToolKind::from_name(&kind) {
+                load.record(kind, sample);
+            }
+        }
+        let permit = match call.wait_until {
+            None => load
+                .permits
+                .clone()
+                .try_acquire_owned()
+                .map_err(|_| refuse(BusyReason::Deadline))?,
+            Some(deadline) => {
+                // Step 2: the only test on arrival.
+                must_wait = load.permits.available_permits() == 0;
+                let Some(ticket) =
+                    QueueTicket::join(&load, must_wait, self.config.queue_limit as usize)
+                else {
+                    return Err(refuse(BusyReason::QueueFull));
+                };
+                self.hooks.after_arrival_check(name).await;
+                self.hooks.after_queued(name);
+                let waited = async {
+                    // Pinned once: dropping the acquire future would lose
+                    // the call's place in the queue.
+                    let acquire = load.permits.clone().acquire_owned();
+                    tokio::pin!(acquire);
+                    // A call is started only if it has at least `need` left
+                    // (step 3), so the wait ends `need` before the deadline.
+                    let need = load.need(call.kind);
+                    let wait_end = deadline.checked_sub(need).unwrap_or(deadline);
+                    let expired = tokio::time::sleep_until(wait_end.into());
+                    tokio::pin!(expired);
+                    let mut cancel = call.cancel.cloned();
+                    let cancelled = async {
+                        match cancel.as_mut() {
+                            Some(cancel) => cancel.cancelled().await,
+                            None => std::future::pending().await,
+                        }
+                    };
+                    tokio::pin!(cancelled);
+                    // The first tick is immediate: a queued call hears so at
+                    // once, then each second.
+                    let mut progress_tick = tokio::time::interval(Duration::from_secs(1));
+                    loop {
+                        tokio::select! {
+                            biased;
+                            permit = &mut acquire => {
+                                return Waited::Permit(
+                                    permit.expect("admission semaphores are never closed"),
+                                );
+                            }
+                            () = &mut expired => return Waited::Expired,
+                            () = &mut cancelled => return Waited::Cancelled,
+                            _ = changed.changed() => {
+                                if self.ready_epoch(name) != Some(epoch) {
+                                    return Waited::Moved;
+                                }
+                            }
+                            _ = progress_tick.tick(), if call.progress.is_some() => {
+                                if let Some(progress) = call.progress {
+                                    let message = format!(
+                                        "queued: {} waiting, {} running",
+                                        load.queued.load(Ordering::SeqCst),
+                                        load.in_flight()
+                                    );
+                                    progress(f64::from(*ticks), message);
+                                    *ticks += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                .await;
+                drop(ticket);
+                match waited {
+                    Waited::Permit(permit) => permit,
+                    Waited::Expired => return Err(refuse(BusyReason::Deadline)),
+                    Waited::Moved => return Ok(None),
+                    Waited::Cancelled => return Err(ToolError::cancelled()),
+                }
+            }
+        };
+        let started = Instant::now();
+        let permit = Permit { permit: Some(permit), load: load.clone() };
+        self.hooks.after_permit(name).await;
+        let mut inner = self.lock();
+        if inner.shutting_down {
+            return Err(ToolError::not_ready(name, "draining"));
+        }
+        let slot = inner.slots.get_mut(name).expect("slot exists after ensure_slot");
+        if slot.phase != Phase::Ready || slot.epoch != epoch {
+            return Ok(None);
+        }
+        // Step 4: need is re-evaluated, since calls that completed during the
+        // wait may have changed it.
+        if let Some(deadline) = call.wait_until {
+            if deadline.saturating_duration_since(Instant::now()) < load.need(call.kind) {
+                drop(permit);
+                return Err(refuse(BusyReason::Deadline));
+            }
+        }
+        slot.last_used.touch();
+        if must_wait {
+            let busy = load.busy(BusyReason::Deadline);
+            tracing::debug!(
+                store = %name,
+                waited_ms = arrived.elapsed().as_millis() as u64,
+                in_flight = busy.in_flight,
+                queued = busy.queued,
+                abandoned = busy.abandoned,
+                "admitted after a wait"
+            );
+        }
+        Ok(Some(StoreGuard {
+            name: name.to_string(),
+            epoch: slot.epoch,
+            engine: slot.engine.clone().expect("ready slots hold an engine"),
+            info: slot.info.clone().expect("ready slots hold open info"),
+            last_used: slot.last_used.clone(),
+            kind: call.kind,
+            started,
+            run: Arc::new(AtomicU8::new(RUNNING)),
+            permit,
+        }))
     }
 
     fn start_open_locked(&self, inner: &mut Inner, name: &str) -> Result<(), ToolError> {
@@ -406,12 +829,7 @@ impl Registry {
                 other.as_str() != name && slot.managed() && slot.phase != Phase::Closed
             })
             .map(|(other, slot)| {
-                (
-                    other.clone(),
-                    slot.phase,
-                    slot.in_flight.load(Ordering::SeqCst),
-                    slot.last_used.get(),
-                )
+                (other.clone(), slot.phase, slot.load.busy_calls(), slot.last_used.get())
             })
             .collect();
         let mut waits = Vec::new();
@@ -419,7 +837,7 @@ impl Registry {
             let mut to_free = others.len() + 1 - limit;
             let mut drainable: Vec<&(String, Phase, usize, Instant)> = others
                 .iter()
-                .filter(|(_, phase, in_flight, _)| *phase == Phase::Ready && *in_flight == 0)
+                .filter(|(_, phase, busy_calls, _)| *phase == Phase::Ready && *busy_calls == 0)
                 .collect();
             drainable.sort_by_key(|(_, _, _, last_used)| *last_used);
             let draining: Vec<&String> = others
@@ -428,7 +846,7 @@ impl Registry {
                 .map(|(other, _, _, _)| other)
                 .collect();
             if draining.len() + drainable.len() < to_free {
-                return Err(ToolError::busy(name));
+                return Err(ToolError::store_switch(name));
             }
             for other in draining.into_iter().take(to_free) {
                 waits.push(other.clone());
@@ -518,13 +936,12 @@ impl Registry {
         slot.phase = Phase::Draining;
         slot.bump();
         let engine = slot.engine.clone();
-        let in_flight = slot.in_flight.clone();
-        let idle = slot.idle.clone();
+        let load = slot.load.clone();
         let registry = self.this();
         let name = name.to_string();
         let drain_ms = self.config.call_deadline_ms;
         tokio::spawn(async move {
-            wait_idle(&in_flight, &idle).await;
+            wait_idle(&load).await;
             if let Some(engine) = engine {
                 let store = name.clone();
                 // `close` runs whether or not `drain` succeeded, so a failed
@@ -592,7 +1009,7 @@ impl Registry {
             .filter(|(_, slot)| {
                 slot.managed()
                     && slot.phase == Phase::Ready
-                    && slot.in_flight.load(Ordering::SeqCst) == 0
+                    && slot.load.busy_calls() == 0
                     && slot.last_used.get().elapsed() >= timeout
             })
             .map(|(name, _)| name.clone())
@@ -637,12 +1054,12 @@ impl Registry {
     }
 }
 
-async fn wait_idle(in_flight: &AtomicUsize, idle: &Notify) {
+async fn wait_idle(load: &Load) {
     loop {
-        let notified = idle.notified();
+        let notified = load.idle.notified();
         tokio::pin!(notified);
         notified.as_mut().enable();
-        if in_flight.load(Ordering::SeqCst) == 0 {
+        if load.in_flight() == 0 {
             return;
         }
         notified.await;

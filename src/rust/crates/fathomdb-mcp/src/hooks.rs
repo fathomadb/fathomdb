@@ -21,6 +21,32 @@ impl Hooks {
     }
 
     #[inline]
+    pub(crate) fn after_queued(&self, _store: &str) {
+        #[cfg(feature = "test-seams")]
+        self.seams.after_queued(_store);
+    }
+
+    #[inline]
+    pub(crate) async fn after_arrival_check(&self, _store: &str) {
+        #[cfg(feature = "test-seams")]
+        self.seams.after_arrival_check(_store).await;
+    }
+
+    #[inline]
+    pub(crate) async fn after_permit(&self, _store: &str) {
+        #[cfg(feature = "test-seams")]
+        self.seams.after_permit(_store).await;
+    }
+
+    #[inline]
+    pub(crate) fn seeded_service_times(&self, _store: &str) -> Vec<(String, std::time::Duration)> {
+        #[cfg(feature = "test-seams")]
+        return self.seams.take_seeded_service_times(_store);
+        #[cfg(not(feature = "test-seams"))]
+        Vec::new()
+    }
+
+    #[inline]
     pub(crate) fn tool_panics(&self, _tool: &str) -> bool {
         #[cfg(feature = "test-seams")]
         return self.seams.tool_panics(_tool);

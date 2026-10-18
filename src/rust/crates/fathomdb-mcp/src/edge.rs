@@ -1,7 +1,8 @@
 //! Protocol edge: the only module (with `main.rs`) that names rmcp types
 //! (design §3, §8). It declares the static tool set, converts tool outcomes
 //! to `CallToolResult`, turns handler panics into JSON-RPC errors and sends
-//! progress notifications for calls that wait on an opening store.
+//! progress notifications for calls that wait on an opening store or for an
+//! admission permit.
 
 use std::sync::Arc;
 
@@ -20,7 +21,7 @@ use crate::output::{
     ErrorOutput, ExpandOutput, FeedbackOutput, FetchOutput, ListStoresOutput, OrientOutput,
     SearchOutput, ToolResult, UseStoreOutput,
 };
-use crate::registry::ProgressFn;
+use crate::registry::{Cancel, ProgressFn};
 use crate::session::Session;
 use crate::tools::{
     self, Ctx, ExpandArgs, FeedbackArgs, FetchArgs, ListStoresArgs, OrientArgs, Outcome,
@@ -81,11 +82,15 @@ impl FathomServer {
         if self.shared.hooks.tool_panics(tool) {
             panic!("test seam: forced panic in tool {tool}");
         }
-        let ctx =
-            Ctx { shared: &self.shared, session: &self.session, progress: progress_fn(&context) };
+        let ctx = Ctx {
+            shared: &self.shared,
+            session: &self.session,
+            progress: progress_fn(&context),
+            cancel: cancel_signal(&context),
+        };
         if let Some(progress) = &ctx.progress {
             for tick in 1..=self.shared.hooks.progress_burst(tool) {
-                progress(f64::from(tick), "burst");
+                progress(f64::from(tick), "store burst".to_string());
             }
         }
         let outcome = match tool {
@@ -114,11 +119,28 @@ fn progress_fn(context: &RequestContext<RoleServer>) -> Option<ProgressFn> {
             let _ = peer.notify_progress(notification).await;
         }
     });
-    Some(Arc::new(move |progress: f64, phase: &'static str| {
-        let notification = ProgressNotificationParam::new(token.clone(), progress)
-            .with_message(format!("store {phase}"));
+    Some(Arc::new(move |progress: f64, message: String| {
+        let notification =
+            ProgressNotificationParam::new(token.clone(), progress).with_message(message);
         let _ = sender.send(notification);
     }))
+}
+
+// The request's cancellation token, as a signal the registry can wait on
+// without naming rmcp types. The forwarding task ends when the call drops
+// its signal.
+fn cancel_signal(context: &RequestContext<RoleServer>) -> Cancel {
+    let (sender, receiver) = tokio::sync::watch::channel(false);
+    let token = context.ct.clone();
+    tokio::spawn(async move {
+        tokio::select! {
+            () = token.cancelled() => {
+                let _ = sender.send(true);
+            }
+            () = sender.closed() => {}
+        }
+    });
+    Cancel::new(receiver)
 }
 
 fn to_result(outcome: Outcome) -> CallToolResult {

@@ -66,4 +66,4 @@ run one after another.
 | S5a | `feat/aa-b1-s5a` (`6b1520d3b`..`acfa50d5f`) | `367bf40c0` | Fable-medium: PASS-WITH-FIXES, fixed (window and head edge cases) | landed |
 | S5b | `feat/aa-b1-s5b` (`8aa229d87`..`3760d812d`) | `25d7da5da` | Fable-medium: PASS | landed |
 | S5c | `feat/aa-b1-s5c` | — | — | in progress |
-| S5d | `feat/aa-b1-s5d` | — | — | in progress |
+| S5d | `feat/aa-b1-s5d` (`3530d6d15`..`bbf71f2ca`) | `8075dc7cd` | Fable-medium: PASS-WITH-FIXES, fixed; also fixed the S3 Python/TS degradations passthrough gap | landed |

@@ -17,28 +17,32 @@ pub struct SnippetOptionsInput {
 }
 
 impl SnippetOptionsInput {
-    /// Saturates each value into its field type; the engine's range check
-    /// then rejects what is out of range.
-    pub(crate) fn to_rust(&self) -> RustSnippetOptions {
+    /// The engine options for a search. A value that does not fit its field
+    /// type is `FDB_INVALID_ARGUMENT`, like a value the engine's range check
+    /// rejects.
+    pub(crate) fn to_rust(&self) -> Result<RustSnippetOptions> {
         let defaults = RustSnippetOptions::default();
-        RustSnippetOptions {
-            max_bytes: self.max_bytes.map_or(defaults.max_bytes, saturate_u32),
-            max_windows: self.max_windows.map_or(defaults.max_windows, saturate_u8),
-            head_bytes: self.head_bytes.map_or(defaults.head_bytes, saturate_u32),
+        Ok(RustSnippetOptions {
+            max_bytes: checked("max_bytes", self.max_bytes, defaults.max_bytes)?,
+            max_windows: checked("max_windows", self.max_windows, defaults.max_windows)?,
+            head_bytes: checked("head_bytes", self.head_bytes, defaults.head_bytes)?,
             highlights: self.highlights.unwrap_or(defaults.highlights),
-            max_point_queries: self
-                .max_point_queries
-                .map_or(defaults.max_point_queries, saturate_u8),
-        }
+            max_point_queries: checked(
+                "max_point_queries",
+                self.max_point_queries,
+                defaults.max_point_queries,
+            )?,
+        })
     }
 }
 
-fn saturate_u32(value: i64) -> u32 {
-    u32::try_from(value.max(0)).unwrap_or(u32::MAX)
-}
-
-fn saturate_u8(value: i64) -> u8 {
-    u8::try_from(value.max(0)).unwrap_or(u8::MAX)
+fn checked<T: TryFrom<i64>>(name: &str, value: Option<i64>, default: T) -> Result<T> {
+    let Some(value) = value else { return Ok(default) };
+    T::try_from(value).map_err(|_| {
+        engine_error_to_napi(RustEngineError::InvalidArgument {
+            msg: format!("snippet {name} is out of range, got {value}"),
+        })
+    })
 }
 
 /// One hit's snippet. Ranges are `[start, end]` UTF-8 byte offsets:

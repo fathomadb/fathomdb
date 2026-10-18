@@ -353,7 +353,7 @@ impl Engine {
             pool_n.map(|value| usize::try_from(value).unwrap_or(usize::MAX)).unwrap_or(depth);
         let explain = explain.unwrap_or(false);
         let limit = usize::try_from(limit.unwrap_or(10)).unwrap_or(usize::MAX);
-        let snippet = snippet.map(|options| options.to_rust());
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let engine = Arc::clone(&self.inner);
         let result = call_engine(move || {
             engine.search_frozen_with_snippets(
@@ -535,7 +535,7 @@ impl Engine {
         let explain = explain.unwrap_or(false);
         let view = read_view_or_default(view);
         let limit = limit.unwrap_or(10) as usize;
-        let snippet = snippet.map(|options| options.to_rust());
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let engine = Arc::clone(&self.inner);
         // fix-2: ONE call — `explain` is a parameter of the full-arity view entry
         // point, so the two arms can no longer drift on `view`.
@@ -609,7 +609,7 @@ impl Engine {
         }
         let view = read_view_or_default(view);
         let limit = limit.unwrap_or(10) as usize;
-        let snippet = snippet.map(|options| options.to_rust());
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let engine = Arc::clone(&self.inner);
         let result = call_engine(move || {
             engine.search_text_only_view_with_snippets(&query, &view, limit, snippet.as_ref())

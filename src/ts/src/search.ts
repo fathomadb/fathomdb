@@ -195,6 +195,36 @@ export function validateRankedResultLimit(name: string, limit: number | undefine
   return resolved;
 }
 
+const SNIPPET_INTEGER_FIELDS = ["maxBytes", "maxWindows", "headBytes", "maxPointQueries"] as const;
+
+/**
+ * Type-checks EP-17 snippet options before the native call. Ranges are the
+ * engine's check (`InvalidArgumentError`); an integer past the safe range is
+ * out of every range and is refused here, because napi cannot carry it
+ * exactly.
+ */
+export function validateSnippetOptions(snippet: unknown): void {
+  if (snippet === undefined) return;
+  if (typeof snippet !== "object" || snippet === null || Array.isArray(snippet)) {
+    throw new TypeError(`snippet must be a SnippetOptions object, got ${typeof snippet}`);
+  }
+  assertKnownKeys(snippet, [...SNIPPET_INTEGER_FIELDS, "highlights"], "SnippetOptions");
+  const fields = snippet as Record<string, unknown>;
+  for (const name of SNIPPET_INTEGER_FIELDS) {
+    const value = fields[name];
+    if (value === undefined) continue;
+    if (typeof value !== "number" || !Number.isInteger(value)) {
+      throw new TypeError(`snippet ${name} must be an integer, got ${String(value)}`);
+    }
+    if (!Number.isSafeInteger(value)) {
+      throw new InvalidArgumentError(`snippet ${name} is out of range, got ${value}`);
+    }
+  }
+  if (fields.highlights !== undefined && typeof fields.highlights !== "boolean") {
+    throw new TypeError(`snippet highlights must be a boolean, got ${typeof fields.highlights}`);
+  }
+}
+
 export function splitSearchOptions(options: SearchOptions | undefined): {
   limit: number;
   view: ReadView | undefined;
@@ -202,6 +232,7 @@ export function splitSearchOptions(options: SearchOptions | undefined): {
 } {
   if (options === undefined) return { limit: 10, view: undefined, snippet: undefined };
   const { limit, snippet, ...view } = options;
+  validateSnippetOptions(snippet);
   return {
     limit: validateRankedResultLimit("limit", limit),
     view: Object.keys(view).length === 0 ? undefined : view,
@@ -775,6 +806,7 @@ export async function searchFrozen(nativeEngine: NativeEngine, query: string, co
       throw new TypeError(`explain must be a boolean, got ${typeof options.explain}`);
     }
     validateRankedResultLimit("limit", options.limit);
+    validateSnippetOptions(options.snippet);
     const result = await intercept(() =>
       nativeEngine.searchFrozen(
         query,
@@ -952,6 +984,9 @@ export async function searchProjectedText(nativeEngine: NativeEngine, query: str
       }
     }
     const searchOptions = splitSearchOptions(view);
+    if (searchOptions.snippet !== undefined) {
+      throw new InvalidArgumentError("searchProjectedText takes no snippet option");
+    }
     const r = await intercept(() =>
       nativeEngine.searchProjectedText(
         query,

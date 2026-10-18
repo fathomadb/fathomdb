@@ -1361,8 +1361,9 @@ impl Engine {
         self.reader_pool.live_count()
     }
 
-    /// Return the worker index that the next round-robin read dispatch will use.
-    /// This test-only witness does not mutate scheduling state.
+    /// Return the round-robin cursor: the worker the next read dispatch offers
+    /// the request to first, and the worker it waits on if every worker is
+    /// busy. This test-only witness does not mutate scheduling state.
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn next_reader_worker_index_for_test(&self) -> usize {

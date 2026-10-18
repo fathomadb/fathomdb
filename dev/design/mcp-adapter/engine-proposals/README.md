@@ -50,6 +50,7 @@ write-path change, or a change across several read paths.
 | [EP-15](EP-15-fetch-by-content-id.md) | Point reads by content id (h:) | P2 | MR-042.2 | `canonical_nodes.body_sha256`; new `read::get_many_by_id` | M |
 | [EP-16](EP-16-governed-change-feed.md) | Governed change feed keyed by write cursor | P2 | MR-055 | New `read::changes`; change log table or stamped column | L |
 | [EP-17](EP-17-match-centred-snippets.md) | Match-centred snippets on search results | P1 | MR-040 (snippet shows the match) | `SearchOptions.snippet`, `TextSearchOptions.snippet`; `SearchResult.snippets` sidecar; `snippet_for` selector | M |
+| [EP-18](EP-18-reader-dispatch-and-pool-size.md) | Work-conserving reader dispatch and a configurable reader pool. Part A accepted and built; part B waits for the live sweep | P1 | MR-033.1/.2 | `ReaderWorkerPool` dispatch and shutdown (A); `EngineConfig.reader_pool_size` (B) | M |
 
 ## Suggested order
 

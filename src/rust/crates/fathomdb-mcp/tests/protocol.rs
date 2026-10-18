@@ -322,3 +322,17 @@ fn closing_stdin_drains_open_stores_and_releases_their_locks() {
     assert_json_rpc_only(&lines);
     assert!(common::can_open(&fixture.path("a.sqlite")), "released on shutdown");
 }
+
+/// Hints sidecar (ADR-0.8.29): the server instructions name the `hints`
+/// field in one sentence, within the compact-guide cap.
+#[tokio::test(flavor = "multi_thread")]
+async fn instructions_say_hints_lists_suggested_next_calls() {
+    let harness = Harness::start(fathomdb_mcp::config::Config::default()).await;
+    let instructions = instructions_of(&harness);
+    assert!(
+        instructions.contains("`hints` lists suggested next calls"),
+        "instructions must name the hints field: {instructions}"
+    );
+    assert!(instructions.len() <= 1200, "{} bytes", instructions.len());
+    harness.shutdown().await;
+}

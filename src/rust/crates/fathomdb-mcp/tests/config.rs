@@ -317,3 +317,15 @@ fn invalid_arguments_and_configs_exit_two_without_serving() {
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
 }
+
+/// Hints sidecar § 5: a process-wide `hints` key, a boolean.
+#[test]
+fn config_accepts_a_boolean_hints_key() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path();
+    assert!(parse(r#"{"hints": true}"#, base).is_ok());
+    assert!(parse(r#"{"hints": false}"#, base).is_ok());
+    assert!(parse(r#"{"hints": false}"#, base).unwrap() != parse("{}", base).unwrap());
+    assert_eq!(parse(r#"{"hints": true}"#, base).unwrap(), parse("{}", base).unwrap());
+    assert!(invalid(r#"{"hints": "yes"}"#, base).contains("hints"));
+}

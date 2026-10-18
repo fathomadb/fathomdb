@@ -237,3 +237,195 @@ impl Seams {
         self.state().progress_bursts.get(tool).copied().unwrap_or(0)
     }
 }
+
+/// One ranked hit of a synthetic search page for [`shape_search_page`].
+#[derive(Clone, Debug, Default)]
+pub struct SyntheticHit {
+    /// The prefixed reference, for example `l:note:1`.
+    pub reference: String,
+    pub kind: String,
+    /// The whole body; the seam cuts it to `snippet_chars` as `search` does.
+    pub body: String,
+    pub source_id: Option<String>,
+    pub score: f64,
+}
+
+/// A synthetic search answer: the engine's ranked list and the request
+/// facts the shaping step reads. Build with `..Default::default()`.
+#[derive(Clone, Debug, Default)]
+pub struct SearchPageInput {
+    /// The ranked list as the engine returned it (at most 100 hits).
+    pub ranked: Vec<SyntheticHit>,
+    /// Hits already served by earlier pages.
+    pub offset: usize,
+    /// The request's `limit`.
+    pub limit: usize,
+    pub snippet_chars: usize,
+    pub max_tokens: u32,
+    /// Hybrid rather than text mode.
+    pub hybrid: bool,
+    /// `(arm, reason)` degradation entries, in any order.
+    pub degradation: Vec<(String, String)>,
+    /// Whether a hybrid run could use the vector arm (§ 3.3).
+    pub hybrid_available: bool,
+    /// The resolved hints setting; `None` skips hint planning altogether,
+    /// the no-hints baseline of the allocation test.
+    pub hints: Option<bool>,
+}
+
+/// A page prepared for shaping: the snippet cut is done, so measuring
+/// [`shape_search_page`] measures the budget loop alone.
+pub struct PreparedSearchPage {
+    page: Vec<(crate::output::Hit, u64, Option<crate::output::PerHitOut>)>,
+    page_limit: usize,
+    offset: usize,
+    max_tokens: u32,
+    degradation: Vec<crate::output::Degradation>,
+    canonical: crate::shape::CanonicalSearch,
+    canonical_json: String,
+    hybrid: bool,
+    hybrid_available: bool,
+    hints: Option<bool>,
+}
+
+/// What the search tool would answer for a prepared page.
+#[derive(Clone, Debug)]
+pub struct ShapedSearchPage {
+    pub structured: serde_json::Value,
+    pub text: String,
+    /// Hits kept after the budget loop.
+    pub kept: usize,
+    /// Times the budget loop rendered the page.
+    pub iterations: usize,
+    /// The offset a continuation of this page resumes at, when it has one.
+    pub next_offset: Option<usize>,
+}
+
+/// Cut the page of `input` to snippets, as `search` does before its budget
+/// loop.
+#[must_use]
+pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
+    let (run_limit, page_limit) =
+        crate::shape::page_window(input.offset, input.limit, crate::tools::MAX_RANKED);
+    let page = input
+        .ranked
+        .iter()
+        .take(run_limit)
+        .skip(input.offset)
+        .enumerate()
+        .map(|(index, hit)| {
+            let (snippet, snippet_cut) = crate::shape::snippet(&hit.body, input.snippet_chars);
+            (
+                crate::output::Hit {
+                    reference: hit.reference.clone(),
+                    kind: hit.kind.clone(),
+                    snippet,
+                    snippet_cut,
+                    source_id: hit.source_id.clone(),
+                    score: hit.score,
+                    arm: "text".to_string(),
+                    ce_score: None,
+                },
+                index as u64,
+                None,
+            )
+        })
+        .collect();
+    let canonical = crate::shape::CanonicalSearch {
+        query: "synthetic".to_string(),
+        mode: if input.hybrid { "hybrid" } else { "text" },
+        kind: None,
+        source_type: None,
+        status: None,
+        created_after: None,
+        attributes: Vec::new(),
+        as_of: Some(0),
+        limit: input.limit,
+        explain: false,
+    };
+    let canonical_json = serde_json::to_string(&canonical).expect("serializes");
+    PreparedSearchPage {
+        page,
+        page_limit,
+        offset: input.offset,
+        max_tokens: input.max_tokens,
+        degradation: crate::shape::canonical_degradation(
+            input
+                .degradation
+                .iter()
+                .map(|(arm, reason)| crate::output::Degradation {
+                    arm: arm.clone(),
+                    reason: reason.clone(),
+                })
+                .collect(),
+        ),
+        canonical,
+        canonical_json,
+        hybrid: input.hybrid,
+        hybrid_available: input.hybrid_available,
+        hints: input.hints,
+    }
+}
+
+/// Plan the hints of a prepared page, as `search` does before its budget
+/// loop. `None` returns the empty plan without planning.
+#[must_use]
+pub fn plan_search_hints(page: &PreparedSearchPage) -> PlannedHints {
+    PlannedHints(match page.hints {
+        None => crate::hints::SearchPlan::default(),
+        Some(enabled) => crate::hints::SearchPlan::new(
+            enabled,
+            &crate::hints::SearchPageFacts {
+                page: &page.page,
+                page_limit: page.page_limit,
+                hybrid: page.hybrid,
+                degradation: &page.degradation,
+                hybrid_available: page.hybrid_available,
+            },
+        ),
+    })
+}
+
+/// A planned set of hints for one page.
+pub struct PlannedHints(crate::hints::SearchPlan);
+
+/// Run the search budget loop on a prepared page with its planned hints.
+#[must_use]
+pub fn shape_planned_search_page(
+    page: &PreparedSearchPage,
+    plan: &PlannedHints,
+) -> ShapedSearchPage {
+    shape_with(page, &plan.0)
+}
+
+/// Plan the page's hints and run the search budget loop on it (epoch 1,
+/// store `s`), as `search` does.
+#[must_use]
+pub fn shape_search_page(page: &PreparedSearchPage) -> ShapedSearchPage {
+    shape_with(page, &plan_search_hints(page).0)
+}
+
+fn shape_with(page: &PreparedSearchPage, plan: &crate::hints::SearchPlan) -> ShapedSearchPage {
+    let shaped = crate::tools::shape_search_page(&crate::tools::SearchShape {
+        store: "s",
+        epoch: 1,
+        validity_instant: 0,
+        degradation: &page.degradation,
+        max_tokens: page.max_tokens,
+        canonical: &page.canonical,
+        canonical_json: &page.canonical_json,
+        offset: page.offset,
+        page: &page.page,
+        page_limit: page.page_limit,
+        trace: None,
+        hosted: false,
+        hints: plan,
+    });
+    ShapedSearchPage {
+        next_offset: shaped.continuation.as_ref().map(|_| page.offset + shaped.kept),
+        structured: shaped.rendered.structured,
+        text: shaped.rendered.text,
+        kept: shaped.kept,
+        iterations: shaped.iterations,
+    }
+}

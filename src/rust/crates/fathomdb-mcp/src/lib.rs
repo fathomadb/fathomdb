@@ -13,6 +13,7 @@ mod bridge;
 pub mod config;
 pub mod edge;
 mod error;
+mod hints;
 mod hooks;
 mod names;
 mod output;

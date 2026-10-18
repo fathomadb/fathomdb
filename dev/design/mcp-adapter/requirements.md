@@ -547,6 +547,32 @@ every structured output validates against its output schema.
   tool's declared `outputSchema`.
 - MR-071.2 All schemas are JSON Schema draft 2020-12.
 
+**MR-072 — Hints sidecar.** Results carry a `hints` array of suggested next
+calls authored by FathomDB, so an agent can act on a cut, an empty or degraded
+search, or a default store without inferring it from flags
+(ADR-0.8.29-agent-hints-sidecar; `dev/design/agent-access/hints-sidecar.md`).
+Meets AN-009.
+
+- MR-072.1 Data-free: every hint string is a closed-enum word, an adapter
+  handle, an operator store name or a ref from the same response; no record
+  content, kind names, `source_id` or SDK error text.
+- MR-072.2 Separate and advisory: hints live only in `hints`, never replace a
+  typed field, and ignoring them never makes a result wrong.
+- MR-072.3 Derived: computed only from values the call already holds; no
+  extra query, read, embed or lock.
+- MR-072.4 Deterministic: identical requests on identical state with the
+  same hints setting give byte-identical hints (MR-043).
+- MR-072.5 Bounds: at most one hint per reason; a cut-ref hint lists every
+  cut ref up to 50 and counts the rest, and refs over 128 bytes are left out
+  and counted.
+- MR-072.6 Configuration: per call, then the `hints` config key, then on.
+  With hints off, every output is byte-identical to the output without
+  hints.
+- MR-072.7 Budget: hints count against `max_tokens` (MR-041.1 holds with
+  them). A `search` page may keep fewer results, but never none because of
+  hints. A `fetch` whose items fit only without the `body_cut` hint is still
+  refused, as when they cannot fit at all.
+
 ## First-release scope
 
 The first release ships only what the 0.8.27 SDK supports plus one engine
@@ -573,7 +599,7 @@ binding.
 | AN-006 | MR-023 |
 | AN-007 | MR-030, MR-032 |
 | AN-008 | MR-031 |
-| AN-009 | MR-040, MR-041 |
+| AN-009 | MR-040, MR-041, MR-072 |
 | AN-010 | MR-042 |
 | AN-011 | MR-043 |
 | AN-012 | MR-003, MR-033 |

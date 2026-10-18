@@ -52,6 +52,7 @@ fathomdb-mcp --config <path.json> --check-config
 | `search_mode` | `"text"` or `"hybrid"` | `"text"` | Default search path. `"text"` until the MR-021 evaluation shows hybrid at or above BM25 precision@3. |
 | `use_default_embedder` | bool | false | Passed to `OpenOptions`. Required for `"hybrid"`. |
 | `telemetry_dir` | path or null | null | Absolute or relative to the config file. When set, a fresh sink `<dir>/<store>.<pid>.<epoch>.jsonl` is enabled on every open and feedback is recorded (MR-024, MR-024.7). |
+| `hints` | bool | true | Whether results carry the `hints` sidecar of suggested next calls (§ 3) when a call does not pass its own `hints` argument. Precedence: the call's argument, then this key, then the default. |
 | `write` | bool | false | Must be false in this release. |
 | `scope` | null | null | Must be null in this release (MR-014.4). |
 
@@ -63,12 +64,19 @@ Store names match `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$` and must not be `.` or
 Every tool except `list_stores` takes `store` (string, optional: falls back to
 `use_store` or `default_store`; error if none).
 
+Every tool, including a continuation call of `search`, takes `hints` (bool,
+optional): whether the result carries the `hints` sidecar. It defaults to the
+configured `hints` key (§ 2). It is not part of the canonical request, so it
+never changes a `response_id` or `continuation` hash.
+
 Every successful result carries `structuredContent` (an object, schema
 declared as the tool's `outputSchema`) and one `text` content block that is a
 compact rendering of the same data. Each `outputSchema` is
 `anyOf[<result>, {error}]` with a root `"type": "object"`, because tool errors
 also carry `structuredContent` (§6, MR-071.1). Field order is fixed; maps are sorted by
 key; no wall-clock or random values appear except `validity_instant` (MR-043).
+In text blocks, record content and every `ref` (hit, item, target and hint
+lines) are JSON-quoted, so a writer-chosen id reads as data.
 
 Common envelope fields (present on every store-bound result):
 
@@ -81,13 +89,59 @@ Common envelope fields (present on every store-bound result):
 | `degradation` | array of `{arm, reason}` | MR-032. Empty when nothing degraded. |
 | `budget` | `{max_tokens, used_tokens, cut}` | `used_tokens` = ceil(bytes ÷ 4) of the serialized structured content (with `budget` itself elided) plus the text block. It is computed before `budget` is inserted, so the value is stable (MR-041). |
 
+### Hints (ADR-0.8.29-agent-hints-sidecar)
+
+`search`, `fetch`, `expand` and `list_stores` results may carry `hints`: an
+array of suggested next calls authored by FathomDB, absent when there are none
+or hints are off (`hints` argument, else the `hints` config key, else on).
+Every string in a hint is a closed-enum word, an adapter handle
+(`continuation`), an operator store name or a `ref` from the same response;
+a hint never carries record content. Hints are advisory and never replace a
+typed field (`snippet_cut`, `continuation`, `completeness`, `degradation`).
+Clients must ignore a hint whose `action` or `reason` they do not know; new
+reasons, actions and fields are additive. There is no per-response version
+field: the vocabulary version is this document's revision, and the output
+schemas list the closed enums.
+
+This is the one vocabulary table (MR-072):
+
+| `reason` | `action` | Fields | Tools | When |
+| --- | --- | --- | --- | --- |
+| `degraded` | `none` | `arm`, `cause` | `search`, `expand` | a degradation entry is present; names the first entry in canonical order |
+| `no_results` | `search` | `mode?` | `search` | zero hits on the page; `mode: "hybrid"` only for a text search on a store with a usable embedder the configuration permits and the dense arm on, otherwise rephrase |
+| `snippet_cut` | `fetch` | `refs`, `refs_omitted?` | `search` | kept hits with `snippet_cut: true` |
+| `body_cut` | `fetch` | `refs`, `refs_omitted?`, `max_tokens` | `fetch`, `expand` | items or targets with `body_cut: true`; `max_tokens` is the whole-response estimate with every body uncut (at least 256) |
+| `cut_by_budget` | `search` | `continuation`, `max_tokens` | `search` | hits were dropped to fit `max_tokens` (this call's) and a continuation exists |
+| `more_results` | `search` | `continuation` | `search` | the page reached its limit (below 100) and a continuation exists |
+| `default_store_set` | `search` | `store` | `list_stores` | the session has a default store |
+
+- Closed values: `action` is `fetch`, `search` or `none`; `mode` is `text` or
+  `hybrid`; `arm` is `vector`, `text`, `text_edge`, `graph_arm` or `graph`;
+  `cause` is `soft_fallback`, `dense_disabled`, `embedder_unavailable`,
+  `embedder_overloaded`, or a graph code (`query_seed_text_fallback`,
+  `projection_legacy_unverified`, `projection_processing`,
+  `projection_blocked`, `projection_deferred`, `projection_degraded`).
+- Bounds: at most one hint per reason, in the table's order. `cut_by_budget`
+  and `more_results` exclude each other. A cut-ref hint lists every cut ref
+  in result order up to 50; refs beyond 50, and refs longer than 128 bytes
+  (left out of hints, still in results), are counted in `refs_omitted`.
+- Budget: `hints` counts against `max_tokens`; with hints on, a page may keep
+  fewer results. Each response stays internally consistent: its continuation
+  resumes at its own offset plus kept count. Hints never cost a search page
+  every hit: a page that would keep no hit with hints, or an empty page that
+  would not fit, is shaped again without them.
+- Text block: one line per hint after the header and before the hits, from a
+  fixed template per reason, for example `hint: fetch ["l:a","l:b"]
+  (snippet_cut: snippets are prefixes; fetch to read the full record)`.
+
 ## 4. Tools
 
 ### `list_stores`
 
-No arguments. Result: `stores` — array of `{name, open, readiness, default}`
+Args: `hints`. Result: `stores` — array of `{name, open, readiness, default}`
 in name order, where `readiness` is one of `closed`, `opening`, `reopening`,
-`ready`, `draining`, `failed`. Never includes paths (MR-005.2).
+`ready`, `draining`, `failed`. Never includes paths (MR-005.2). `hints`:
+`default_store_set` (§ 3).
 
 ### `use_store`
 
@@ -117,7 +171,7 @@ Args: `store`. Result adds:
 | `limit` | integer 1..100 | 10 | Ranked cap is 100 (MR-041.2). |
 | `max_tokens` | integer ≥ 256 | config | MR-041. |
 | `explain` | bool | false | Include per-hit explanation. |
-| `continuation` | string | none | From a prior result. Only `store` and `max_tokens` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
+| `continuation` | string | none | From a prior result. Only `store`, `max_tokens` and `hints` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
 
 `include_superseded` and `include_inactive` are not search arguments: the
 engine rejects them on every search path (`reject_existence_relaxation_on_search`)
@@ -152,6 +206,8 @@ Result adds:
   ranked cap.
 - `continuation_exact`: `false`, present only in embedded mode (§5, §7).
 - `explanation`: present only when `explain` is true.
+- `hints`: `degraded`, `no_results`, `snippet_cut`, then `cut_by_budget` or
+  `more_results` (§ 3).
 
 `ref` is the hit's `IdSpace` prefixed form (`l:<logical_id>`, `h:<hash>`,
 `p:<n>`). Only `l:` references are accepted by other tools in this release
@@ -168,7 +224,9 @@ per-item `invalid_request/unsupported_ref`. Bodies are shortened (`body_cut`)
 to fit `max_tokens`. When the items cannot fit even with every body empty
 (for example 50 refs at 256 tokens), the call fails as
 `invalid_request/bad_argument`, because `fetch` must return one item per ref
-and has no continuation.
+and has no continuation. `hints`: `body_cut` (§ 3), which is sized with the
+response; if its own bytes keep the items from fitting, the same refusal
+applies.
 
 ### `expand`
 
@@ -192,6 +250,8 @@ and `bound`, the cap that was reached (MR-053.2):
   body was cut.
 - `"unspecified"`: the engine reported `complete: false`.
 - `null`: no cap was reached.
+
+`hints`: `degraded` (graph codes), then `body_cut` (§ 3).
 
 A non-`l:` seed is `invalid_request/unsupported_ref`; a seed that is not
 visible is `not_found`.
@@ -233,6 +293,8 @@ last 256 of each per store (least recently used dropped; an identical hash
 overwrites an identical entry). A handle from another store, another epoch, or
 one that was dropped fails as `invalid_request/stale_handle` with remedy
 "re-run the search".
+A continuation call takes only `store`, `continuation`, `max_tokens` and
+`hints`; any other argument is `invalid_request/bad_argument`.
 
 - **Standalone, read-only:** the adapter is the sole opener and nothing writes,
   so a store cannot change within an epoch and a same-epoch continuation is

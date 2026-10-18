@@ -63,6 +63,11 @@ mod frozen_read;
 mod fusion;
 mod graph_api;
 mod graph_expand;
+mod hints;
+pub use hints::{
+    search_hints, Hint, HintAction, HintArm, HintCause, HintMode, HintReason, SearchFacts,
+    HINT_LIMIT_CAP,
+};
 mod identity;
 mod index_projector;
 mod ingest;

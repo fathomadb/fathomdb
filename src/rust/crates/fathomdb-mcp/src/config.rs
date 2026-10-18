@@ -104,6 +104,9 @@ pub struct Config {
     pub use_default_embedder: bool,
     /// When set, a fresh telemetry sink is enabled on every open (MR-024.7).
     pub telemetry_dir: Option<PathBuf>,
+    /// Whether results carry the `hints` sidecar when a call does not say;
+    /// a call's own `hints` argument wins.
+    pub hints: bool,
 }
 
 impl Default for Config {
@@ -123,6 +126,7 @@ impl Default for Config {
             search_mode: SearchMode::Text,
             use_default_embedder: false,
             telemetry_dir: None,
+            hints: true,
         }
     }
 }
@@ -163,6 +167,7 @@ const TOP_LEVEL_KEYS: &[&str] = &[
     "search_mode",
     "use_default_embedder",
     "telemetry_dir",
+    "hints",
     "write",
     "scope",
 ];
@@ -213,6 +218,7 @@ impl Config {
             use_default_embedder: boolean(&object, "use_default_embedder", false)?,
             telemetry_dir: optional_string(&object, "telemetry_dir")?
                 .map(|path| absolutize(base_dir, &path)),
+            hints: boolean(&object, "hints", defaults.hints)?,
         };
         if boolean(&object, "write", false)? {
             return Err(ConfigError::new("write: must be false in this release (read-only)"));

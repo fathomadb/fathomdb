@@ -1181,6 +1181,38 @@ and is never silently clamped. The hybrid family also exposes
 private test seam can only raise candidate fanout, never public result cardinality.
 `graph_neighbors` remains separately capped at 50.
 
+## Hints engine subset (ADR-0.8.29-agent-hints-sidecar)
+
+`fathomdb_engine::search_hints(facts: &SearchFacts, out: &mut Vec<Hint>)` is a
+pure function (no SQL, I/O, clock or locks) that appends the suggested next
+actions for one search page. `fathomdb-sdk` re-exports it with its types. No
+engine search path calls it in this stage; the MCP adapter calls it with its
+own page facts, and `SearchResult` is unchanged. The agent vocabulary table
+is `dev/interfaces/mcp.md` § 3; this section documents only the engine subset.
+
+- `SearchFacts::new(returned, limit, mode)`, with `with_degradations(&[(HintArm,
+  HintCause)])` (canonical order; only the first entry is named) and
+  `with_hybrid_available(bool)` (usable embedder, hybrid permitted by
+  configuration, dense arm not disabled). Defaults: no degradation, no hybrid.
+- Emission, at most one hint per reason, in this order:
+  - `Degraded` (`HintAction::None`, `arm`, `cause`) when a degradation entry is
+    present.
+  - `NoResults` (`HintAction::Search`) when `returned` is zero. `mode` is
+    `Some(HintMode::Hybrid)` only for a text-mode search with
+    `hybrid_available`; otherwise `None`.
+  - `MoreResults` (`HintAction::Search`, `limit`) when `returned >= limit`
+    and `limit < HINT_LIMIT_CAP` (100); `limit` is `min(2 × limit, 100)`.
+- `HintCause` carries every cause word a degradation can have:
+  `soft_fallback`, `dense_disabled`, `embedder_unavailable`,
+  `embedder_overloaded`, and the graph-expansion codes
+  `query_seed_text_fallback`, `projection_legacy_unverified`,
+  `projection_processing`, `projection_blocked`, `projection_deferred`,
+  `projection_degraded`. `HintArm` is `vector`, `text`, `text_edge`,
+  `graph_arm` or `graph`. Every type's `as_str()` returns its wire word.
+- `Hint`, `HintAction`, `HintReason`, `HintMode`, `HintArm`, `HintCause` and
+  `SearchFacts` are `#[non_exhaustive]`; new reasons, words and fields are
+  additive.
+
 ## Errors
 
 ### Cross-encoder device policy (0.8.23 Slice 71)

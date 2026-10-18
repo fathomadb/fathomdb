@@ -20,6 +20,7 @@ use serde_json::{Map, Value};
 use crate::bridge::{self, Answered};
 use crate::config::{Config, SearchMode};
 use crate::error::ToolError;
+use crate::hints::{self, SearchPageFacts, SearchPlan};
 use crate::hooks::Hooks;
 use crate::output::{
     Budget, Degradation, DenseDisabled, EmbeddingReadinessOut, Envelope, ExpandOutput,
@@ -74,7 +75,11 @@ pub(crate) type Outcome = Result<Rendered, ToolError>;
 /// `list_stores` takes no arguments.
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ListStoresArgs {}
+pub struct ListStoresArgs {
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    pub hints: Option<bool>,
+}
 
 /// `use_store` arguments.
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -82,6 +87,11 @@ pub struct ListStoresArgs {}
 pub struct UseStoreArgs {
     /// Store name to use as the session default.
     pub store: String,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    // Accepted so every tool takes the same argument; this tool emits no hints.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
 }
 
 /// `orient` arguments.
@@ -90,6 +100,11 @@ pub struct UseStoreArgs {
 pub struct OrientArgs {
     /// Store name; defaults to the session default store.
     pub store: Option<String>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    // Accepted so every tool takes the same argument; this tool emits no hints.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
 }
 
 /// Search path.
@@ -130,8 +145,11 @@ pub struct SearchArgs {
     pub max_tokens: Option<u64>,
     /// Include a per-hit explanation.
     pub explain: Option<bool>,
-    /// Handle from a previous result; then only store and max_tokens may be given.
+    /// Handle from a previous result; then only store, max_tokens and hints may be given.
     pub continuation: Option<String>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    pub hints: Option<bool>,
 }
 
 /// `fetch` arguments.
@@ -152,6 +170,9 @@ pub struct FetchArgs {
     /// Response budget in estimated tokens (bytes / 4), at least 256.
     #[schemars(range(min = 256))]
     pub max_tokens: Option<u64>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    pub hints: Option<bool>,
 }
 
 /// Traversal direction.
@@ -189,6 +210,9 @@ pub struct ExpandArgs {
     /// Response budget in estimated tokens (bytes / 4), at least 256.
     #[schemars(range(min = 256))]
     pub max_tokens: Option<u64>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    pub hints: Option<bool>,
 }
 
 /// `feedback` arguments.
@@ -203,6 +227,11 @@ pub struct FeedbackArgs {
     pub used: Vec<String>,
     /// References from that response that were not used.
     pub unused: Option<Vec<String>>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    // Accepted so every tool takes the same argument; this tool emits no hints.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
 }
 
 fn parse<T: DeserializeOwned>(arguments: Map<String, Value>) -> Result<T, ToolError> {
@@ -345,7 +374,7 @@ fn bytes_over(whole_tokens: u64, max_tokens: u32) -> usize {
 // ------------------------------------------------------------------- tools
 
 pub(crate) async fn list_stores(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
-    let _: ListStoresArgs = parse(arguments)?;
+    let args: ListStoresArgs = parse(arguments)?;
     let default = ctx.session.default_store();
     let stores: Vec<StoreRow> = ctx
         .shared
@@ -366,7 +395,13 @@ pub(crate) async fn list_stores(ctx: &Ctx<'_>, arguments: Map<String, Value>) ->
             name: row.name,
         })
         .collect();
+    let hints: Vec<_> = if hints::enabled(args.hints, ctx.shared.config.hints) {
+        hints::default_store_set(default.as_deref()).into_iter().collect()
+    } else {
+        Vec::new()
+    };
     let mut text = format!("stores: {}", stores.len());
+    hints::render(&hints, &mut text);
     for row in &stores {
         let readiness = serde_json::to_value(row.readiness).expect("serializes");
         text.push_str(&format!(
@@ -377,7 +412,7 @@ pub(crate) async fn list_stores(ctx: &Ctx<'_>, arguments: Map<String, Value>) ->
             if row.default { " default" } else { "" }
         ));
     }
-    Ok(plain(&ListStoresOutput { stores }, text))
+    Ok(plain(&ListStoresOutput { stores, hints }, text))
 }
 
 pub(crate) async fn use_store(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
@@ -601,6 +636,7 @@ fn render_search(output: &SearchOutput) -> String {
         output.continuation.as_deref().unwrap_or("none"),
         shape::render_degradation(&output.envelope.degradation),
     );
+    hints::render(&output.hints, &mut text);
     let per_hit = match &output.explanation {
         Some(ExplanationOut::Detail { per_hit, .. }) => Some(per_hit),
         _ => None,
@@ -609,7 +645,7 @@ fn render_search(output: &SearchOutput) -> String {
         text.push_str(&format!(
             "\n{}. {} kind={} score={} arm={} source={} snippet={}{}",
             index + 1,
-            hit.reference,
+            shape::quote(&hit.reference),
             shape::quote(&hit.kind),
             hit.score,
             hit.arm,
@@ -634,6 +670,127 @@ fn render_search(output: &SearchOutput) -> String {
     text
 }
 
+/// Everything the search budget loop reads: the page as cut to snippets, and
+/// the request facts that the handles and envelope are derived from.
+pub(crate) struct SearchShape<'a> {
+    pub(crate) store: &'a str,
+    pub(crate) epoch: u64,
+    pub(crate) validity_instant: i64,
+    pub(crate) degradation: &'a [Degradation],
+    pub(crate) max_tokens: u32,
+    pub(crate) canonical: &'a CanonicalSearch,
+    pub(crate) canonical_json: &'a str,
+    pub(crate) offset: usize,
+    /// `(hit, write cursor, per-hit explanation)` in rank order.
+    pub(crate) page: &'a [(Hit, u64, Option<PerHitOut>)],
+    pub(crate) page_limit: usize,
+    pub(crate) trace: Option<&'a TraceOut>,
+    pub(crate) hosted: bool,
+    pub(crate) hints: &'a SearchPlan,
+}
+
+/// A shaped search page: the response, its handles, how many hits it kept,
+/// and how many times the budget loop rendered it.
+pub(crate) struct Shaped {
+    pub(crate) rendered: Rendered,
+    pub(crate) response_id: String,
+    pub(crate) continuation: Option<String>,
+    pub(crate) kept: usize,
+    pub(crate) iterations: usize,
+}
+
+/// The search budget loop: render the page and drop trailing hits until the
+/// whole response fits `max_tokens` or nothing is left. Pure and synchronous.
+pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
+    let SearchShape {
+        store,
+        epoch,
+        validity_instant,
+        degradation,
+        max_tokens,
+        canonical,
+        canonical_json,
+        offset,
+        page,
+        page_limit,
+        trace,
+        hosted,
+        hints,
+    } = *input;
+    let mode = canonical.search_mode();
+    let page_hits = page.len();
+    let mut kept = page.len();
+    let mut iterations = 0;
+    let mut with_hints = true;
+    loop {
+        iterations += 1;
+        let cut = kept < page.len();
+        let continuation = shape::next_offset(offset, kept, page_hits, page_limit, MAX_RANKED)
+            .map(|next| shape::handle('c', epoch, &[store, canonical_json, &next.to_string()]));
+        let refs: Vec<&str> =
+            page[..kept].iter().map(|(hit, _, _)| hit.reference.as_str()).collect();
+        let response_id = shape::handle(
+            'r',
+            epoch,
+            &[store, canonical_json, &offset.to_string(), &refs.join("\n")],
+        );
+        let explanation = canonical.explain.then(|| match (trace, mode) {
+            (Some(trace), SearchMode::Hybrid) => ExplanationOut::Detail {
+                trace: trace.clone(),
+                per_hit: page[..kept]
+                    .iter()
+                    .filter_map(|(_, _, explain)| explain.clone())
+                    .collect(),
+            },
+            _ => ExplanationOut::Unavailable {
+                status: UnavailableWord::Unavailable,
+                reason: if mode == SearchMode::Text { "text_mode" } else { "not_returned" }
+                    .to_string(),
+            },
+        });
+        let output = SearchOutput {
+            envelope: envelope(store, epoch, validity_instant, degradation.to_vec(), max_tokens),
+            mode: match mode {
+                SearchMode::Text => ModeWord::Text,
+                SearchMode::Hybrid => ModeWord::Hybrid,
+            },
+            response_id: response_id.clone(),
+            results: page[..kept].iter().map(|(hit, _, _)| hit.clone()).collect(),
+            completeness: shape::completeness(
+                kept,
+                page_hits,
+                page_limit,
+                cut,
+                !degradation.is_empty(),
+            ),
+            verdict: UnavailableWord::Unavailable,
+            continuation: continuation.clone(),
+            continuation_exact: hosted.then_some(false),
+            explanation,
+            hints: if with_hints {
+                hints.emit(page, kept, continuation.as_deref(), cut, max_tokens)
+            } else {
+                Vec::new()
+            },
+        };
+        let text = render_search(&output);
+        let (rendered, whole) = finish(&output, text, max_tokens, cut);
+        let fits = whole <= u64::from(max_tokens);
+        if kept == 0 && with_hints && hints.is_enabled() && (!fits || !page.is_empty()) {
+            // Hints are advisory: they never cost the page every hit (which
+            // would also end its continuation chain) nor push an empty page
+            // over max_tokens. Shape the page again without them.
+            with_hints = false;
+            kept = page.len();
+            continue;
+        }
+        if fits || kept == 0 {
+            return Shaped { rendered, response_id, continuation, kept, iterations };
+        }
+        kept -= 1;
+    }
+}
+
 pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
     let args: SearchArgs = parse(arguments)?;
     let store = resolve_store(ctx, args.store.as_deref())?;
@@ -652,7 +809,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 && args.explain.is_none();
             if !only_paging {
                 return Err(ToolError::bad_argument(
-                    "a continuation call takes only store, continuation and max_tokens",
+                    "a continuation call takes only store, continuation, max_tokens and hints",
                 ));
             }
             ctx.shared.registry.ensure_slot(&store)?;
@@ -790,71 +947,39 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             )
         })
         .collect();
-    let page_hits = page.len();
     let canonical_json = serde_json::to_string(&canonical).expect("serializes");
     let trace = run.explanation.as_ref().map(trace_out);
-
-    let mut kept = page.len();
-    let (rendered, response_id, continuation) = loop {
-        let cut = kept < page.len();
-        let continuation =
-            shape::next_offset(offset, kept, page_hits, page_limit, MAX_RANKED).map(|next| {
-                shape::handle('c', answered.epoch, &[&store, &canonical_json, &next.to_string()])
-            });
-        let refs: Vec<&str> =
-            page[..kept].iter().map(|(hit, _, _)| hit.reference.as_str()).collect();
-        let response_id = shape::handle(
-            'r',
-            answered.epoch,
-            &[&store, &canonical_json, &offset.to_string(), &refs.join("\n")],
-        );
-        let explanation = canonical.explain.then(|| match (&trace, mode) {
-            (Some(trace), SearchMode::Hybrid) => ExplanationOut::Detail {
-                trace: trace.clone(),
-                per_hit: page[..kept]
-                    .iter()
-                    .filter_map(|(_, _, explain)| explain.clone())
-                    .collect(),
-            },
-            _ => ExplanationOut::Unavailable {
-                status: UnavailableWord::Unavailable,
-                reason: if mode == SearchMode::Text { "text_mode" } else { "not_returned" }
-                    .to_string(),
-            },
-        });
-        let output = SearchOutput {
-            envelope: envelope(
-                &store,
-                answered.epoch,
-                validity_instant,
-                degradation.clone(),
-                max_tokens,
-            ),
-            mode: match mode {
-                SearchMode::Text => ModeWord::Text,
-                SearchMode::Hybrid => ModeWord::Hybrid,
-            },
-            response_id: response_id.clone(),
-            results: page[..kept].iter().map(|(hit, _, _)| hit.clone()).collect(),
-            completeness: shape::completeness(
-                kept,
-                page_hits,
-                page_limit,
-                cut,
-                !degradation.is_empty(),
-            ),
-            verdict: UnavailableWord::Unavailable,
-            continuation: continuation.clone(),
-            continuation_exact: answered.info.hosted.then_some(false),
-            explanation,
-        };
-        let text = render_search(&output);
-        let (rendered, whole) = finish(&output, text, max_tokens, cut);
-        if whole <= u64::from(max_tokens) || kept == 0 {
-            break (rendered, response_id, continuation);
-        }
-        kept -= 1;
-    };
+    // § 3.3: a text search may suggest hybrid only when the store has a
+    // usable embedder the configuration permits and the dense arm is on.
+    let hybrid_available = answered.info.embedder_usable
+        && (answered.info.hosted || ctx.shared.config.use_default_embedder)
+        && !run.dense_disabled;
+    let plan = SearchPlan::new(
+        hints::enabled(args.hints, ctx.shared.config.hints),
+        &SearchPageFacts {
+            page: &page,
+            page_limit,
+            hybrid: mode == SearchMode::Hybrid,
+            degradation: &degradation,
+            hybrid_available,
+        },
+    );
+    let shaped = shape_search_page(&SearchShape {
+        store: &store,
+        epoch: answered.epoch,
+        validity_instant,
+        degradation: &degradation,
+        max_tokens,
+        canonical: &canonical,
+        canonical_json: &canonical_json,
+        offset,
+        page: &page,
+        page_limit,
+        trace: trace.as_ref(),
+        hosted: answered.info.hosted,
+        hints: &plan,
+    });
+    let Shaped { rendered, response_id, continuation, kept, .. } = shaped;
 
     if let Some(handle) = continuation {
         ctx.session.put_continuation(
@@ -892,11 +1017,12 @@ fn render_fetch(output: &FetchOutput) -> String {
         output.items.len(),
         output.envelope.validity_instant
     );
+    hints::render(&output.hints, &mut text);
     for item in &output.items {
         match item {
             FetchItem::Record { reference, record } => text.push_str(&format!(
                 "\n{} kind={} body={}{}",
-                reference,
+                shape::quote(reference),
                 shape::quote(&record.kind),
                 shape::quote(&record.body),
                 if record.body_cut { " (cut)" } else { "" }
@@ -971,7 +1097,20 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
             },
         }
     }
+    let with_hints = hints::enabled(args.hints, ctx.shared.config.hints);
+    let uncut_whole = std::cell::Cell::new(0_u64);
     let build = |bodies: &[(String, bool)]| -> FetchOutput {
+        let hints = if with_hints && bodies.iter().any(|(_, cut)| *cut) {
+            let mut cut = bodies.iter().map(|(_, cut)| *cut);
+            let refs = resolved
+                .iter()
+                .filter(|(_, kind, _)| kind.is_some())
+                .map(|(reference, _, _)| reference.as_str())
+                .filter(|_| cut.next().unwrap_or(false));
+            hints::body_cut(refs, uncut_whole.get()).into_iter().collect()
+        } else {
+            Vec::new()
+        };
         let mut bodies = bodies.iter();
         let items = resolved
             .iter()
@@ -992,12 +1131,17 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
         FetchOutput {
             envelope: envelope(&store, answered.epoch, validity_instant, vec![], max_tokens),
             items,
+            hints,
         }
     };
     shape::cut_bodies(&mut bodies, |bodies| {
         let output = build(bodies);
         let cut = bodies.iter().any(|(_, cut)| *cut);
-        bytes_over(finish(&output, render_fetch(&output), max_tokens, cut).1, max_tokens)
+        let whole = finish(&output, render_fetch(&output), max_tokens, cut).1;
+        if !cut {
+            uncut_whole.set(whole);
+        }
+        bytes_over(whole, max_tokens)
     });
     let output = build(&bodies);
     let cut = bodies.iter().any(|(_, cut)| *cut);
@@ -1034,10 +1178,11 @@ fn render_expand(output: &ExpandOutput) -> String {
         output.envelope.validity_instant,
         shape::render_degradation(&output.envelope.degradation)
     );
+    hints::render(&output.hints, &mut text);
     for target in &output.targets {
         text.push_str(&format!(
             "\n{} kind={} hops={} via={} body={}{}",
-            target.reference,
+            shape::quote(&target.reference),
             shape::quote(&target.kind),
             target.hop_count,
             shape::quote(&target.terminal_edge_kind),
@@ -1121,7 +1266,27 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let mut bodies: Vec<(String, bool)> =
         result.targets.iter().map(|target| (target.body.clone(), false)).collect();
     let mut kept = result.targets.len();
+    let with_hints = hints::enabled(args.hints, ctx.shared.config.hints);
+    let uncut_whole = std::cell::Cell::new(0_u64);
+    let references: Vec<String> = result
+        .targets
+        .iter()
+        .map(|target| IdSpace::logical(target.logical_id.clone()).to_prefixed())
+        .collect();
     let build = |bodies: &[(String, bool)], kept: usize| -> ExpandOutput {
+        let hints = if with_hints {
+            let refs = references[..kept]
+                .iter()
+                .zip(bodies)
+                .filter(|(_, (_, cut))| *cut)
+                .map(|(reference, _)| reference.as_str());
+            hints::degraded(&degradation)
+                .into_iter()
+                .chain(hints::body_cut(refs, uncut_whole.get()))
+                .collect()
+        } else {
+            Vec::new()
+        };
         ExpandOutput {
             envelope: envelope(
                 &store,
@@ -1133,8 +1298,9 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             targets: result.targets[..kept]
                 .iter()
                 .zip(bodies)
-                .map(|(target, (body, body_cut))| Target {
-                    reference: IdSpace::logical(target.logical_id.clone()).to_prefixed(),
+                .zip(&references)
+                .map(|((target, (body, body_cut)), reference)| Target {
+                    reference: reference.clone(),
                     kind: target.kind.clone(),
                     hop_count: target.origin.hop_count,
                     terminal_edge_kind: target.origin.terminal_edge_kind.clone(),
@@ -1149,12 +1315,17 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             } else {
                 bound.clone()
             },
+            hints,
         }
     };
     shape::cut_bodies(&mut bodies, |bodies| {
         let output = build(bodies, kept);
         let cut = bodies.iter().any(|(_, cut)| *cut);
-        bytes_over(finish(&output, render_expand(&output), max_tokens, cut).1, max_tokens)
+        let whole = finish(&output, render_expand(&output), max_tokens, cut).1;
+        if !cut {
+            uncut_whole.set(whole);
+        }
+        bytes_over(whole, max_tokens)
     });
     loop {
         let output = build(&bodies[..kept], kept);

@@ -69,7 +69,11 @@ proptest! {
             .into_iter()
             .filter(|hint| hint["reason"] == "snippet_cut")
             .collect();
-        if cut.is_empty() {
+        // A page that keeps hits only by dropping its hints carries none
+        // (the hints-on-may-shrink-kept property); otherwise the hint is
+        // complete.
+        let carries_hints = shaped.structured.get("hints").is_some();
+        if cut.is_empty() || !carries_hints {
             prop_assert!(hinted.is_empty());
         } else {
             prop_assert_eq!(hinted.len(), 1);

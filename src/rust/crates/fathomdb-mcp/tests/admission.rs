@@ -777,3 +777,39 @@ async fn concurrent_arrivals_never_overfill_the_queue() {
     assert_eq!(refused, 1, "one of the two arrivals is refused queue_full");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn panicked_calls_are_not_service_time_samples() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 3000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    // Seven fast samples: one more makes the kind warm.
+    seams.seed_service_times("a", "fetch", &millis(&[10; 7]));
+    seams.block_calls("a");
+    seams.panic_calls("a");
+    let panicking = spawn_call(&harness, "fetch", fetch_a());
+    wait_for("the panicking call to be held", Duration::from_secs(5), || {
+        seams.held_calls("a") == 1
+    })
+    .await;
+    let started = Instant::now();
+    let waiter = spawn_call(&harness, "fetch", fetch_a());
+    // The held call panics after about 2.5 s, when the waiter has about
+    // 500 ms left. Had it been a sample, the p90 of eight fetch samples
+    // would be 2.5 s and the waiter would be refused.
+    tokio::time::sleep_until((started + Duration::from_millis(2500)).into()).await;
+    assert!(seams.release_one_call("a"));
+    let panicked = error_of(&panicking.await.unwrap());
+    assert_eq!(panicked["code"], "panic", "{panicked}");
+    // The waiter, once admitted, is held until its own call may not panic.
+    seams.stop_panicking_calls("a");
+    seams.release_calls("a");
+    let waiter = waiter.await.unwrap();
+    assert_ne!(waiter.is_error, Some(true), "{:?}", waiter.structured_content);
+    harness.shutdown().await;
+}

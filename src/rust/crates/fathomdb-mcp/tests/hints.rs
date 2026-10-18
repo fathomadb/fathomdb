@@ -330,3 +330,30 @@ async fn fetch_body_cut_emits_hint_with_sufficient_max_tokens() {
     }
     harness.shutdown().await;
 }
+
+/// § 2.1 and review fix 5: `list_stores` emits `default_store_set` naming the
+/// session default store, and nothing when the session has none.
+#[tokio::test(flavor = "multi_thread")]
+async fn list_stores_emits_default_store_set_hint() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", river_notes(1, 40));
+    let harness =
+        Harness::start(fixture.config(json!({"stores": {"a": {"path": "a.sqlite"}}}))).await;
+    let none = harness.ok("list_stores", json!({})).await;
+    assert_eq!(hints_of(&none), Vec::<Value>::new(), "no default store, no hint");
+    harness.ok("use_store", json!({"store": "a"})).await;
+    let result = harness.call("list_stores", json!({})).await;
+    let listed = result.structured_content.clone().unwrap();
+    assert_eq!(
+        hints_of(&listed),
+        vec![json!({"action": "search", "reason": "default_store_set", "store": "a"})]
+    );
+    let text = common::text_of(&result);
+    assert!(
+        text.lines().any(|line| line.starts_with("hint: search store=\"a\" (default_store_set: ")),
+        "{text}"
+    );
+    let off = harness.ok("list_stores", json!({"hints": false})).await;
+    assert_eq!(hints_of(&off), Vec::<Value>::new());
+    harness.shutdown().await;
+}

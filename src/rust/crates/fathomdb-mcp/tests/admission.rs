@@ -648,3 +648,63 @@ async fn another_store_in_use_is_busy_store_switch() {
     let _ = running.await.unwrap();
     harness.shutdown().await;
 }
+
+fn has_key(value: &Value, key: &str) -> bool {
+    match value {
+        Value::Object(map) => map.contains_key(key) || map.values().any(|v| has_key(v, key)),
+        Value::Array(items) => items.iter().any(|v| has_key(v, key)),
+        _ => false,
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn no_busy_result_carries_retry_after_ms() {
+    let fixture = Fixture::new();
+    fixture.store("b.sqlite", vec![node("note:c", "note", "gamma river crossing")]);
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({
+            "stores": {"a": {"path": "a.sqlite"}, "b": {"path": "b.sqlite"}},
+            "admission_cap": 1,
+            "queue_limit": 1,
+            "call_deadline_ms": 600
+        }),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let waiting = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    // Each result was validated against the output schema by the client.
+    let queue_full = error_of(&spawn_call(&harness, "search", search_a()).await.unwrap());
+    let store_switch = harness.err("search", json!({"store": "b", "query": "gamma"})).await;
+    let deadline = error_of(&waiting.await.unwrap());
+    assert_eq!(queue_full["busy"]["reason"], "queue_full");
+    assert_eq!(store_switch["code"], "store_switch");
+    assert_eq!(deadline["busy"]["reason"], "deadline");
+    let mut overloaded = deadline.clone();
+    overloaded["busy"]["reason"] = json!("engine_overloaded");
+
+    let tools = serde_json::to_value(harness.tools().await).unwrap();
+    let search = tools.as_array().unwrap().iter().find(|tool| tool["name"] == "search").unwrap();
+    let schema = jsonschema::JSONSchema::options()
+        .with_draft(jsonschema::Draft::Draft202012)
+        .compile(&search["outputSchema"])
+        .unwrap();
+    for error in [&queue_full, &store_switch, &deadline, &overloaded] {
+        assert!(!has_key(error, "retry_after_ms"), "{error}");
+        assert!(schema.is_valid(&json!({"error": error})), "{error}");
+        if error.get("busy").is_some() {
+            let mut advised = error.clone();
+            advised["busy"]["retry_after_ms"] = json!(250);
+            assert!(!schema.is_valid(&json!({"error": advised})), "schema admits {advised}");
+        }
+    }
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    harness.shutdown().await;
+}

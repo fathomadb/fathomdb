@@ -173,3 +173,11 @@ def test_refusals_with_a_free_permit_are_counted():
     m = s.metrics()
     assert all(c.reason == "deadline" for c in s.calls[9:])  # locked out: p90 is 20 s
     assert m["rf_with_permit"] == pytest.approx(20 / 29)
+
+
+def test_abandoned_permit_seconds_count_only_calls_after_warm_up():
+    sc = [(0.0, *T(reader=70.0)), (61.0, *T(reader=0.1))]
+    cfg = Config(arrivals="script", script=sc, n_calls=10**9, warmup_frac=0.5, cap=1, admission="fifo",
+                 run_limit=60.0)
+    m = simulate(cfg).metrics()
+    assert m["n"] == 1 and m["ab_permit_s_per_kcall"] == 0.0  # the only abandonment is in the warm-up

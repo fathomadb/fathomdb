@@ -359,3 +359,49 @@ async fn the_default_queue_refuses_the_33rd_waiter() {
     }
     harness.shutdown().await;
 }
+
+fn fetch_a() -> Value {
+    json!({"store": "a", "refs": ["l:note:a"]})
+}
+
+fn millis(samples: &[u64]) -> Vec<Duration> {
+    samples.iter().copied().map(Duration::from_millis).collect()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_late_permit_is_not_used() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    // Seven samples: still cold, so the wait itself uses the 50 ms floor.
+    seams.seed_service_times("a", "fetch", &millis(&[500; 7]));
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "fetch", fetch_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let waiter_started = Instant::now();
+    let waiter = spawn_call(&harness, "fetch", fetch_a());
+    // The running call completes as the eighth sample (about 750 ms), when
+    // the waiter has about 250 ms left: less than the p90 it now needs.
+    tokio::time::sleep_until((waiter_started + Duration::from_millis(750)).into()).await;
+    seams.release_calls("a");
+    let running = running.await.unwrap();
+    assert_ne!(running.is_error, Some(true), "{:?}", running.structured_content);
+    let waiter = waiter.await.unwrap();
+    let elapsed = waiter_started.elapsed();
+    let error = error_of(&waiter);
+    assert_eq!(error["busy"]["reason"], "deadline", "{error}");
+    assert!(elapsed >= Duration::from_millis(740), "refused before the permit came: {elapsed:?}");
+    assert!(elapsed < Duration::from_millis(940), "refused at the step-3 timeout: {elapsed:?}");
+    // The refused waiter gave its permit back.
+    let started = Instant::now();
+    let next = spawn_call(&harness, "fetch", fetch_a()).await.unwrap();
+    assert_ne!(next.is_error, Some(true), "{:?}", next.structured_content);
+    assert!(started.elapsed() < Duration::from_millis(300), "the permit is free");
+    harness.shutdown().await;
+}

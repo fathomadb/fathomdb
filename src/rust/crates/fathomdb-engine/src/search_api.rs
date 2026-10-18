@@ -137,6 +137,7 @@ impl Engine {
         limit: usize,
         snippet: Option<&SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
+        validate_snippet(snippet)?;
         self.search_frozen_inner(
             query,
             frozen,
@@ -900,6 +901,7 @@ impl Engine {
         snippet: Option<&SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
+        validate_snippet(snippet)?;
         self.search_reranked_with_explain(
             query,
             filter,
@@ -1181,6 +1183,7 @@ impl Engine {
         snippet: Option<&SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
+        validate_snippet(snippet)?;
         self.ensure_open()?;
         view.reject_existence_relaxation_on_search()?;
         if query.trim().is_empty() {
@@ -1709,4 +1712,8 @@ pub(crate) fn query_vector_or_degradation(
         }
         Err(_) => None,
     }
+}
+
+fn validate_snippet(snippet: Option<&SnippetOptions>) -> Result<(), EngineError> {
+    snippet.map_or(Ok(()), SnippetOptions::validate)
 }

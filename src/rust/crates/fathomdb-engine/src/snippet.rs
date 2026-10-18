@@ -144,13 +144,77 @@ pub struct SnippetV1 {
 /// tables; ties break toward the earlier byte offset.
 #[must_use]
 pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1 {
-    let _ = (body, spans, options);
+    let options = clamped(options);
+    let spans = normalised_spans(body, spans);
+    let max_bytes = options.max_bytes as usize;
+    if body.len() <= max_bytes {
+        return whole(body, &spans, &options);
+    }
     SnippetV1 {
         text: String::new(),
         anchor: SnippetAnchor::Start,
         windows: Vec::new(),
-        spans: Vec::new(),
+        spans: to_ranges(&spans),
         highlights: Vec::new(),
+        cut: false,
+    }
+}
+
+/// A match span in body bytes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Span {
+    start: usize,
+    end: usize,
+}
+
+fn clamped(options: &SnippetOptions) -> SnippetOptions {
+    let max_bytes = options.max_bytes.clamp(SnippetOptions::MIN_BYTES, SnippetOptions::MAX_BYTES);
+    SnippetOptions {
+        max_bytes,
+        max_windows: options.max_windows.clamp(1, SnippetOptions::MAX_WINDOWS),
+        head_bytes: options.head_bytes.min(max_bytes / 2),
+        ..*options
+    }
+}
+
+fn normalised_spans(body: &str, spans: &[(u32, u32)]) -> Vec<Span> {
+    let mut out: Vec<Span> = spans
+        .iter()
+        .map(|&(s, e)| Span { start: s as usize, end: e as usize })
+        .filter(|s| {
+            s.start < s.end
+                && s.end <= body.len()
+                && body.is_char_boundary(s.start)
+                && body.is_char_boundary(s.end)
+        })
+        .collect();
+    out.sort_by_key(|s| (s.start, s.end));
+    let mut merged: Vec<Span> = Vec::with_capacity(out.len());
+    for span in out {
+        match merged.last_mut() {
+            Some(last) if span.start < last.end => last.end = last.end.max(span.end),
+            _ => merged.push(span),
+        }
+    }
+    merged
+}
+
+fn to_u32(offset: usize) -> u32 {
+    u32::try_from(offset).unwrap_or(u32::MAX)
+}
+
+fn to_ranges(spans: &[Span]) -> Vec<(u32, u32)> {
+    spans.iter().map(|s| (to_u32(s.start), to_u32(s.end))).collect()
+}
+
+fn whole(body: &str, spans: &[Span], options: &SnippetOptions) -> SnippetV1 {
+    let ranges = to_ranges(spans);
+    SnippetV1 {
+        text: body.to_owned(),
+        anchor: SnippetAnchor::Whole,
+        windows: if body.is_empty() { Vec::new() } else { vec![(0, to_u32(body.len()))] },
+        highlights: if options.highlights { ranges.clone() } else { Vec::new() },
+        spans: ranges,
         cut: false,
     }
 }

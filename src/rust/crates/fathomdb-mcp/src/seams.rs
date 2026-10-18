@@ -6,6 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
+use std::time::Duration;
 
 #[derive(Default)]
 struct State {
@@ -21,6 +22,8 @@ struct State {
     panicking_waiters: BTreeSet<String>,
     admitted_blocked: BTreeSet<String>,
     admitted_held: BTreeMap<String, usize>,
+    /// Service times waiting to be added to a store's window, oldest first.
+    seeded: BTreeMap<String, Vec<(String, Duration)>>,
     progress_bursts: BTreeMap<String, u32>,
 }
 
@@ -134,6 +137,21 @@ impl Seams {
     /// How many calls on `store` are held between permit and guard.
     pub fn admitted_held(&self, store: &str) -> usize {
         self.state().admitted_held.get(store).copied().unwrap_or(0)
+    }
+
+    /// Add `samples` to the service-time window of tool kind `kind`
+    /// (`search_text`, `search_hybrid`, `fetch`, `expand` or `orient`) on
+    /// `store`, as if that many calls had completed in those times. They
+    /// are added when the next call on `store` asks for admission.
+    pub fn seed_service_times(&self, store: &str, kind: &str, samples: &[Duration]) {
+        let mut state = self.state();
+        let seeded = state.seeded.entry(store.to_string()).or_default();
+        seeded.extend(samples.iter().map(|sample| (kind.to_string(), *sample)));
+    }
+
+    /// Take the samples seeded for `store`, oldest first.
+    pub fn take_seeded_service_times(&self, store: &str) -> Vec<(String, Duration)> {
+        self.state().seeded.remove(store).unwrap_or_default()
     }
 
     /// Make every later call to `tool` that carries a progress token send `n`

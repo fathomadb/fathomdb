@@ -39,10 +39,10 @@ Each RED test is its own failing commit. Test names are the designs' names.
 | Slice | Scope | Crates | RED tests |
 | --- | --- | --- | --- |
 | S0 | Item 6: ordered progress; exit 0 on stdin close; `VectorEquivalenceMismatch` → `not_ready` | `fathomdb-mcp` | `progress_notifications_arrive_in_order`, `stdin_closed_before_initialize_exits_zero`, `hybrid_on_dense_disabled_store_is_not_ready_use_text` |
-| S1a | Queue core: queue-admission § 6.1 acquire sequence, busy object, `queue_limit`, `run_limit_ms` config, start check and window | `fathomdb-mcp` | queue-admission § 9 tests 1–12, 17–19, 21, 25–27 |
+| S1a | Queue core: queue-admission § 6.1 acquire sequence, busy object, `queue_limit`, `run_limit_ms` config, start check and window | `fathomdb-mcp` | queue-admission § 9 tests 1–12, 17–19, 21, 25–27 (26 moves to S3 if the SDK error cannot be built in a unit test) |
 | S1b | Run to completion: run limit, abandoned, stuck, idle/drain/shutdown with waiters | `fathomdb-mcp` | § 9 tests 13–16, 20, 22–24 |
 | S2 | EP-18 part A: idle-first reader dispatch | `fathomdb-engine` | § 9 tests 28, 29 |
-| S3 | EP-03 `embedder_overloaded`: engine `degradations`, bindings, adapter mapping (`engine_overloaded` busy too) | engine, py, napi, `fathomdb-mcp` | § 9 test 30, plus the EP-03 byte test |
+| S3 | EP-03 `embedder_overloaded`: engine `degradations` (incl. frozen and `search_expand`), bindings, adapter mapping | engine, py, napi, `fathomdb-mcp` | § 9 test 30, plus the EP-03 byte test |
 | S4 | Hints stage 1: engine `hints.rs`, adapter wire type and reasons, `hints` config and argument, ADR, perf-gates row | engine, `fathomdb-mcp` | hints-sidecar § 8 Block 1 tests 1–18 |
 | S5a | EP-17 pure selector `snippet_for` | engine, sdk | T-4, T-5, T-11, T-17, T-18 |
 | S5b | EP-17 engine point queries and sidecar | engine, sdk | T-1, T-2, T-3, T-6, T-7, T-8, T-9, T-10, T-14, T-15, T-16, T-19, T-20 |

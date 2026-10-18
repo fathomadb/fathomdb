@@ -473,6 +473,7 @@ class Engine:
         pool_n: int | None = ...,
         explain: bool = ...,
         limit: int = ...,
+        snippet: object | None = ...,
     ) -> SearchResult: ...
     def search_with_evidence(
         self,

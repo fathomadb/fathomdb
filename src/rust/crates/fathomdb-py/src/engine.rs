@@ -192,9 +192,11 @@ impl PyEngine {
     }
 
     /// Search using eligibility and validity authenticated by a frozen context.
+    /// `snippet` (EP-17) is presentation: it fills `SearchResult.snippets`
+    /// and is not part of the frozen context.
     #[pyo3(signature = (
         query, context, rerank_depth=0, use_graph_arm=false, alpha=0.3,
-        pool_n=None, explain=false, limit=10
+        pool_n=None, explain=false, limit=10, snippet=None
     ))]
     #[allow(clippy::too_many_arguments)]
     fn search_frozen(
@@ -208,13 +210,15 @@ impl PyEngine {
         pool_n: Option<i64>,
         explain: bool,
         limit: i64,
+        snippet: Option<PySnippetOptionsArg>,
     ) -> PyResult<PySearchResult> {
         let pool_n = pool_n.unwrap_or(rerank_depth);
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let context = context.inner.clone();
+        let snippet = snippet.map(|options| options.to_rust());
         call_engine(py, move || {
-            engine.search_frozen(
+            engine.search_frozen_with_snippets(
                 &query,
                 &context,
                 usize::try_from(rerank_depth).unwrap_or(usize::MAX),
@@ -223,6 +227,7 @@ impl PyEngine {
                 usize::try_from(pool_n).unwrap_or(usize::MAX),
                 explain,
                 usize::try_from(limit).unwrap_or(usize::MAX),
+                snippet.as_ref(),
             )
         })
         .map(PySearchResult::from_rust)

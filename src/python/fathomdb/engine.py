@@ -382,12 +382,15 @@ class Engine:
         pool_n: int | None = None,
         explain: bool = False,
         limit: int = 10,
+        snippet: SnippetOptions | None = None,
     ) -> SearchResult:
         """Search under an Engine-authenticated frozen context.
 
         ``pool_n=None`` uses ``rerank_depth``; this changes the former frozen
         default of zero to match ordinary search and the other SDKs.
         ``explain=True`` returns a finalized non-empty correlation identity.
+        ``snippet`` (EP-17) fills ``SearchResult.snippets``; it is
+        presentation, not part of the frozen context.
         """
         return _sdk_search.search_frozen(
             self,
@@ -399,6 +402,7 @@ class Engine:
             pool_n=pool_n,
             explain=explain,
             limit=limit,
+            snippet=snippet,
         )
 
     def search_with_evidence(

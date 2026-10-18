@@ -76,6 +76,7 @@ def _map_native_search_result(result: Any) -> SearchResult:
         ],
         explanation=explanation,
         degradations=degradations,
+        snippets=_map_native_snippets(result),
     )
 
 
@@ -566,6 +567,7 @@ def search_frozen(
     pool_n: int | None = None,
     explain: bool = False,
     limit: int = 10,
+    snippet: SnippetOptions | None = None,
 ) -> SearchResult:
     if not isinstance(context, FrozenReadContextV1):
         raise TypeError(f"context must be a FrozenReadContextV1, got {type(context).__name__!r}")
@@ -598,6 +600,7 @@ def search_frozen(
         pool_n=rerank_depth if pool_n is None else pool_n,
         explain=explain,
         limit=limit,
+        snippet=snippet,
     )
     return _map_native_search_result(native)
 

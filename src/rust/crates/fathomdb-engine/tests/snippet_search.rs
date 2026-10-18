@@ -303,3 +303,26 @@ fn t19_a_body_that_fits_needs_no_point_query() {
     assert_eq!(snippet.spans, vec![(8, 12)]);
     assert_eq!(snippet.highlights, vec![(8, 12)]);
 }
+
+// T-20: the point-query cap. With 30 long hits and max_point_queries = 20,
+// hits 1–20 in rank order are anchored on the match and hits 21–30 get the
+// record start, with 20 point queries, the same on repeat.
+#[test]
+fn t20_point_query_cap_anchors_the_rest_at_the_start() {
+    let _guard = lock();
+    let bodies: Vec<String> =
+        (0..30).map(|i| format!("{} doc{i}", long_body(3000, "zanzibar", 4096))).collect();
+    let refs: Vec<&str> = bodies.iter().map(String::as_str).collect();
+    let s = store(&refs);
+    let capped = SnippetOptions { max_point_queries: 20, ..SnippetOptions::default() };
+    take_slice71_search_statement_trace_for_test();
+    let first = text(s.engine(), "zanzibar", 30, Some(&capped));
+    assert_eq!(highlight_queries(), 20);
+    assert_eq!(first.results.len(), 30);
+    let anchors: Vec<SnippetAnchor> =
+        first.snippets.as_ref().expect("sidecar").iter().map(|s| s.anchor).collect();
+    assert_eq!(&anchors[..20], &[SnippetAnchor::Match; 20]);
+    assert_eq!(&anchors[20..], &[SnippetAnchor::Start; 10]);
+    let again = text(s.engine(), "zanzibar", 30, Some(&capped));
+    assert_eq!(again.snippets, first.snippets);
+}

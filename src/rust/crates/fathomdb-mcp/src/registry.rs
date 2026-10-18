@@ -786,7 +786,7 @@ impl Registry {
                 .map(|(other, _, _, _)| other)
                 .collect();
             if draining.len() + drainable.len() < to_free {
-                return Err(ToolError::busy(name));
+                return Err(ToolError::store_switch(name));
             }
             for other in draining.into_iter().take(to_free) {
                 waits.push(other.clone());

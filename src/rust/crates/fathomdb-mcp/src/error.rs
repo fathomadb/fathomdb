@@ -212,12 +212,14 @@ impl ToolError {
         )
     }
 
-    pub(crate) fn busy(store: &str) -> Self {
+    /// Another store is open with calls in flight, or mid-open, so `store`
+    /// cannot open (one open store at a time, MR-005.7).
+    pub(crate) fn store_switch(store: &str) -> Self {
         Self::new(
             ErrorClass::Busy,
-            "admission",
-            format!("store {store:?} is at its admission cap, or another store is in use"),
-            "retry after in-flight calls finish",
+            "store_switch",
+            format!("store {store:?} cannot open while another store is in use"),
+            "use the open store, or retry in a later turn",
         )
     }
 

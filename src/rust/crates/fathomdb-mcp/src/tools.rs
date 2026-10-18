@@ -887,7 +887,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             let result = match mode {
                 SearchMode::Text => engine.search_text_only(
                     &request.query,
-                    TextSearchOptions { view, limit: run_limit },
+                    TextSearchOptions { view, limit: run_limit, snippet: None },
                 )?,
                 SearchMode::Hybrid => engine.search(
                     &request.query,

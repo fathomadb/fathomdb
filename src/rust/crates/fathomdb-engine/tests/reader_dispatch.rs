@@ -125,3 +125,30 @@ fn with_every_reader_busy_dispatch_falls_back_to_round_robin() {
     assert!(!result.expect("search").results.is_empty());
     assert!(elapsed < Duration::from_secs(4), "fallback read took {elapsed:?}");
 }
+
+#[test]
+fn close_while_a_reader_is_busy_returns() {
+    let (_dir, opened) = seeded_engine("close_while_busy");
+    let (snapshot_ready, release) = opened.engine.pause_reader_with_timeout_for_test();
+    snapshot_ready
+        .recv_timeout(Duration::from_secs(2))
+        .expect("worker zero must acquire its snapshot");
+
+    let engine = Arc::new(opened.engine);
+    let (closed_tx, closed_rx) = mpsc::channel();
+    let closing = Arc::clone(&engine);
+    // Not joined: if close hangs, this thread must not hang the test.
+    thread::spawn(move || {
+        let _ = closed_tx.send(closing.close());
+    });
+
+    let premature = closed_rx.recv_timeout(Duration::from_millis(500));
+    assert!(premature.is_err(), "close returned while a reader was mid-read");
+    let released = Instant::now();
+    release.send(()).expect("release held reader");
+    let result = closed_rx
+        .recv_timeout(Duration::from_secs(3))
+        .expect("close must return once the busy reader finishes");
+    assert!(result.is_ok(), "close={result:?}");
+    assert!(released.elapsed() < Duration::from_secs(3));
+}

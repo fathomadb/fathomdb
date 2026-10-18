@@ -346,9 +346,12 @@ response names what ran, what did not, and why. Meets AN-007.
 **[ADR: 10 s]** with what it has, labelled per MR-032, or a typed timeout.
 Meets AN-012.
 
-- MR-033.1 With an engine call blocked past the deadline by the bridge's test
-  seam, the tool returns a typed timeout at the deadline, and the adapter keeps
-  serving other calls.
+- MR-033.1 The deadline bounds waiting and starting; a started call runs to
+  completion and returns its result (owner decision 2026-10-18;
+  `dev/design/agent-access/queue-admission.md` § 6.1). With an engine call
+  blocked past the run limit by the bridge's test seam, the tool returns a
+  typed timeout at the run limit, measured from the call's admission, and the
+  adapter keeps serving other calls.
 - MR-033.2 The number of engine calls in flight never exceeds the adapter's
   admission cap **[ADR]**; excess calls wait, in arrival order, while their
   deadline allows, then return a typed busy result (owner decision

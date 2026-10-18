@@ -439,9 +439,9 @@ pub(crate) struct Registry {
     me: Weak<Registry>,
 }
 
-/// How long shutdown waits beyond the call deadline for stores to drain: an
-/// abandoned call cannot outlive its deadline by more than this unless it
-/// is stuck, and a stuck call must not hold the process open.
+/// How long shutdown waits beyond the call deadline for stores to drain. A
+/// started call may run longer (up to the run limit), and a stuck one
+/// forever; neither may hold the process open.
 const SHUTDOWN_MARGIN: Duration = Duration::from_secs(5);
 
 impl Registry {

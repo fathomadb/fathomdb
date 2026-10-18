@@ -45,8 +45,8 @@ fathomdb-mcp --config <path.json> --check-config
 | `max_open_stores` | integer | 1 | Must be 1 in this release (MR-005.7); any other value is invalid. |
 | `admission_cap` | integer ≥ 1 | 4 | Engine calls in flight per store, including abandoned ones (MR-033.2). Must be < 8. A call that finds every permit held waits for one in arrival (FIFO) order while its deadline allows; it is refused as `busy/admission` only when the line is full or it cannot start in time (§ 6). |
 | `queue_limit` | integer ≥ 1 | 32 | Calls that may wait for a permit per store. A call that arrives when no permit is free and `queue_limit` calls already wait is refused at once as `busy/admission`, `busy.reason` `queue_full`. |
-| `call_deadline_ms` | integer ≥ 100 | 10000 | Per tool call (MR-033), measured from arrival. It bounds the wait for an opening store and for a permit, and the decision to start: a waiting call is started only if the p90 service time of the last 128 completed calls of its tool kind (`search` text, `search` hybrid, `fetch`, `expand`, `orient`; 50 ms while a kind has fewer than 8) fits in the time it has left; otherwise it is refused as `busy/admission`, `busy.reason` `deadline`. A started call is also bounded by it in this release (`timeout/deadline`). |
-| `run_limit_ms` | integer ≥ `call_deadline_ms` | 60000, or `call_deadline_ms` when that is larger | Reserved bound on a started call's run time, measured from its admission. Validated, not yet applied in this release. |
+| `call_deadline_ms` | integer ≥ 100 | 10000 | Per tool call (MR-033), measured from arrival. It bounds the wait for an opening store and for a permit, and the decision to start: a waiting call is started only if the p90 service time of the last 128 completed calls of its tool kind (`search` text, `search` hybrid, `fetch`, `expand`, `orient`; 50 ms while a kind has fewer than 8) fits in the time it has left; otherwise it is refused as `busy/admission`, `busy.reason` `deadline`. A call that finds a permit free starts at once, without that check. It does not bound a started call: that call runs to completion and returns its result, even after this deadline (`run_limit_ms`). |
+| `run_limit_ms` | integer ≥ `call_deadline_ms` | 60000, or `call_deadline_ms` when that is larger | Bound on a started call, measured from its admission permit. It exists to report stuck work: a call still running at the limit returns `timeout/deadline` and is abandoned (its read keeps its permit until it returns, and it is counted in `busy.abandoned`). Engine reads cannot be interrupted, so the limit frees nothing. |
 | `default_max_tokens` | integer ≥ 256 | 4000 | Budget when a call omits `max_tokens` (MR-041.3). |
 | `snippet_chars` | integer 40..2000 | 300 | Snippet cap (MR-040). |
 | `search_mode` | `"text"` or `"hybrid"` | `"text"` | Default search path. `"text"` until the MR-021 evaluation shows hybrid at or above BM25 precision@3. |
@@ -173,7 +173,7 @@ default `out`), `max_depth` (0..3, default 1), `limit` (1..50, default 20),
 `edge_kinds`, `target_kinds`, `as_of`, `max_tokens`. Calls `graph.expand` with
 an `Explicit` seed, a `Current` read context, `include_explanation: true` (for
 hop counts), `result_limit = limit`, and
-`max_work_units = 10000`, the engine maximum; the call deadline bounds the time.
+`max_work_units = 10000`, the engine maximum; `run_limit_ms` bounds the time.
 A seed whose expansion examines more edges fails as
 `invalid_request/bound_exceeded` (edge and target kinds are filtered after the
 edges are counted, so they do not help). The ranges are the engine's own
@@ -254,7 +254,7 @@ tool handler is a JSON-RPC internal error for that request (MR-002.2).
 | `not_found` | `not_found` | Absent record (per item in `fetch`) |
 | `not_ready` | `opening`, `reopening`, `draining`, `embedder_not_ready`, `vector_disabled` | Readiness gate: the code is the phase word. Every call waits for an open or reopen in progress up to its deadline before returning it; calls with a progress token also get progress notifications (MR-003.2, MR-006.4). SDK `EmbedderNotConfigured`, `KindNotVectorIndexed` (`embedder_not_ready`); SDK `VectorEquivalenceMismatch` (`vector_disabled`): a hybrid search on a store whose dense side the open-time equivalence check disabled; remedy: use mode `"text"` |
 | `unavailable` | `open_failed`, `database_locked`, `corrupt`, `migration_refused`, `missing_file` | Store open failure (MR-003.3) |
-| `timeout` | `deadline`, `cancelled` | `deadline`: the call deadline passed while the call ran (MR-033.1); the call is abandoned and keeps its admission permit until its engine work returns. `cancelled`: the client cancelled the call (`notifications/cancelled`) while it waited for a permit; it leaves the queue. rmcp discards the response of a cancelled request, so clients do not see this result |
+| `timeout` | `deadline`, `cancelled` | `deadline`: the call was still running at `run_limit_ms` after its admission (MR-033.1); it is abandoned and keeps its admission permit until its engine work returns. `cancelled`: the client cancelled the call (`notifications/cancelled`). A waiting call leaves the queue; a running call is abandoned at once and its read runs to its end. rmcp discards the response of a cancelled request, so clients do not see this result |
 | `busy` | `admission`, `store_switch` | `admission`: the call could not get an admission permit (MR-033.2); `busy.reason` says why. `store_switch`: another store is open with calls in flight or mid-open, so this one cannot open (MR-005.7); use the open store or retry in a later turn |
 | `internal` | `internal`, `panic` | Anything else; message never contains record content (MR-012.2) |
 
@@ -307,7 +307,8 @@ is crate-private.
   response ids). Serve it with rmcp's `ServiceExt::serve` on any transport.
 - **`Adapter::shutdown(&self)` (async).** Stops admitting calls, then drains
   and closes every adapter-opened store, waiting at most five seconds past
-  `call_deadline_ms`. Hosted engines stay open.
+  `call_deadline_ms`; a store whose started or abandoned call is still
+  running then is not waited for. Hosted engines stay open.
 - **`edge::FathomServer`.** The rmcp `ServerHandler` (tools capability only,
   the static tool list of §4, server info `fathomdb-mcp`). It is `Clone`;
   clones share one session.

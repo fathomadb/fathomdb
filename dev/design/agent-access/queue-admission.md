@@ -434,7 +434,12 @@ The sequence:
    kind, including calls that never waited, and so would never record a
    new sample to bring the p90 down. S1b must either clamp `need` below
    `call_deadline_ms` or skip step 4 for a call that got its permit
-   without waiting.
+   without waiting. **Chosen: skip.** A call first tries to take a free
+   permit (`try_acquire_owned`, which fails while others wait); one that
+   gets it takes no queue ticket and is not checked. Clamping `need` would
+   also shorten the wait of slow kinds behind a full cap, which the
+   early-shed rule decides on purpose; skipping changes nothing for calls
+   that waited.
 5. If the wait in step 3 times out, refuse: `busy/admission`, reason
    `deadline`, at once. This sheds on time spent waiting, as CoDel does:
    a call that cannot finish before its deadline is not started.
@@ -803,7 +808,10 @@ by the first two, together with the interface change.
     waiter is admitted on release.
 22. `a_store_with_queued_calls_does_not_expire_idle`: `idle_timeout_secs` 1,
     a call queued for 2 s; the store stays ready.
-23. `a_drain_during_the_wait_returns_waiters_to_the_open_wait`.
+23. `a_drain_during_the_wait_returns_waiters_to_the_open_wait`. Not
+    buildable: idle expiry and the LRU drain both require `in_flight == 0`
+    and `queued == 0` (§ 6.1, Drain, idle close and shutdown), so the only
+    drain that can start while calls wait is shutdown, which is test 24.
 24. `shutdown_wakes_queued_calls_with_not_ready_draining`.
 25. `another_store_in_use_is_busy_store_switch`.
 26. `sdk_overloaded_maps_to_admission_engine_overloaded`.

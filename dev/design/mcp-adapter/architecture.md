@@ -230,10 +230,13 @@ handshake timeout.
 
 - A small tokio runtime runs the edge: owned by the binary in standalone mode,
   supplied by the host in embedded mode. Engine calls run on blocking threads.
-- SDK calls have no interrupt, deadline or progress hook. **Cancellation is
-  cooperative at return only:** a cancelled or timed-out call stops waiting and
-  answers the client (MR-033.1), but its blocking thread runs to completion and
-  still holds a reader-pool slot.
+- SDK calls have no interrupt, deadline or progress hook. The call deadline
+  bounds waiting for an open and for an admission permit, and the decision to
+  start; a started call runs to completion and answers when its read returns.
+  **Cancellation is cooperative at return only:** a call cancelled by the
+  client, or still running at the run limit, stops waiting and answers at once
+  (MR-033.1), but its blocking thread runs to completion and still holds a
+  reader-pool slot and its admission permit.
 - Admission is a per-store FIFO queue in front of N permits
   (`admission_cap`), and an abandoned call keeps its permit until its thread
   actually returns. Excess calls wait in arrival order while their deadline

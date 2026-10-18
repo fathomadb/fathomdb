@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from fathomdb._fathomdb import FrozenReadContextV1 as _NativeFrozenReadContextV1
@@ -108,16 +109,46 @@ def snippet_for(
             or not all(isinstance(v, int) and not isinstance(v, bool) for v in span)
         ):
             raise TypeError(f"each span must be a (start, end) pair of ints, got {span!r}")
-        native_spans.append((span[0], span[1]))
+        # A span past u32 cannot lie inside a body; it is ignored like any
+        # span that runs past the body.
+        if all(0 <= v <= _U32_MAX for v in span):
+            native_spans.append((span[0], span[1]))
     if options is None:
         options = SnippetOptions()
-    _validate_snippet(options)
-    return _map_native_snippet(_native_snippet_for(body, native_spans, options))
+    _check_snippet_type(options)
+    # The native layer reads i64; saturating there keeps clamping exact.
+    clamped = replace(
+        options,
+        **{name: _clamp_i64(getattr(options, name)) for name in _SNIPPET_INT_FIELDS},
+    )
+    return _map_native_snippet(_native_snippet_for(body, native_spans, clamped))
+
+
+_U32_MAX = 2**32 - 1
+_I64_MIN = -(2**63)
+_I64_MAX = 2**63 - 1
+_SNIPPET_INT_FIELDS = ("max_bytes", "max_windows", "head_bytes", "max_point_queries")
+
+
+def _clamp_i64(value: int) -> int:
+    return max(_I64_MIN, min(_I64_MAX, value))
+
+
+def _check_snippet_type(snippet: object) -> None:
+    if not isinstance(snippet, (SnippetOptions, type(None))):
+        raise TypeError(f"snippet must be a SnippetOptions or None, got {type(snippet).__name__!r}")
 
 
 def _validate_snippet(snippet: object) -> None:
-    if not isinstance(snippet, (SnippetOptions, type(None))):
-        raise TypeError(f"snippet must be a SnippetOptions or None, got {type(snippet).__name__!r}")
+    """Search-side check: the type, then a refusal for ints the native
+    layer cannot carry (every field range lies far inside i64)."""
+    _check_snippet_type(snippet)
+    if snippet is None:
+        return
+    for name in _SNIPPET_INT_FIELDS:
+        value = getattr(snippet, name)
+        if not _I64_MIN <= value <= _I64_MAX:
+            raise InvalidArgumentError(f"snippet {name} is out of range, got {value}")
 
 
 def _map_native_snippets(result: Any) -> list[SnippetV1] | None:

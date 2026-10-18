@@ -22,23 +22,19 @@ impl PySnippetOptionsArg {
     /// rejects.
     pub(super) fn to_rust(&self) -> PyResult<RustSnippetOptions> {
         Ok(RustSnippetOptions {
-            max_bytes: checked("max_bytes", self.max_bytes, u32::MAX.into())?,
-            max_windows: checked("max_windows", self.max_windows, u8::MAX.into())?,
-            head_bytes: checked("head_bytes", self.head_bytes, u32::MAX.into())?,
+            max_bytes: checked("max_bytes", self.max_bytes)?,
+            max_windows: checked("max_windows", self.max_windows)?,
+            head_bytes: checked("head_bytes", self.head_bytes)?,
             highlights: self.highlights,
-            max_point_queries: checked(
-                "max_point_queries",
-                self.max_point_queries,
-                u8::MAX.into(),
-            )?,
+            max_point_queries: checked("max_point_queries", self.max_point_queries)?,
         })
     }
 }
 
-fn checked<T: TryFrom<i64>>(name: &str, value: i64, max: u64) -> PyResult<T> {
+fn checked<T: TryFrom<i64>>(name: &str, value: i64) -> PyResult<T> {
     T::try_from(value).map_err(|_| {
         engine_error_to_py(RustEngineError::InvalidArgument {
-            msg: format!("snippet {name} must be in 0..={max}, got {value}"),
+            msg: format!("snippet {name} is out of range, got {value}"),
         })
     })
 }

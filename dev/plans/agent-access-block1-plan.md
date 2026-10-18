@@ -60,4 +60,5 @@ run one after another.
 | S0 | `feat/aa-b1-s0` (`ba992064e`..`e519273d2`) | `47c560615` | Fable-medium (codex blocked by the harness): PASS-WITH-FIXES, non-blocking; drain defect filed as a todo | landed |
 | S2 | `feat/aa-b1-s2` (`7f995d843`..`54c1451ab`) | `54f762a53` | Fable-medium: PASS-WITH-FIXES, doc fixes applied | landed |
 | S1a | `feat/aa-b1-s1a` (`4cf0c7013`..`e4b246658`) | `baa124647` | Fable-medium: PASS-WITH-FIXES, fixed (atomic `queue_full`, no sample from panics) | landed |
-| S1b | `feat/aa-b1-s1b` | — | — | in progress |
+| S1b | `feat/aa-b1-s1b` (`693873ea0`..`8a46c04b8`) | `96fa30d6f` | Fable-medium: PASS-WITH-FIXES, fixed (progress while running); test 23 not buildable; shutdown bound kept at `call_deadline_ms` + 5 s for owner review | landed |
+| S3 | `feat/aa-b1-s3` | — | — | in progress |

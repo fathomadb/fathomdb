@@ -1,7 +1,7 @@
 ---
 title: Hints sidecar for agents (SDK and MCP)
 date: 2026-10-18
-status: PROPOSED
+status: ACTIVE
 desc: Design for a FathomDB-authored `hints` sidecar of suggested next actions — vocabulary, where each hint is computed (engine/SDK versus MCP adapter), cost budget, configuration, budget accounting, the Block 2 rows B2-1..B2-6, public-surface impact, the RED test plan and a draft ADR.
 inputs:
   - dev/design/agent-access/README.md
@@ -20,8 +20,10 @@ inputs:
 # Hints sidecar for agents (SDK and MCP)
 
 Work item 2 of [README.md](README.md), and the design home of Block 2 rows
-B2-1..B2-6. This is a design only. No code or test is written until the owner's
-HITL review is done. The Fable-medium review (APPROVE-WITH-FIXES) is folded in.
+B2-1..B2-6. The owner approved it on 2026-10-18 (§ 10), and it is filed as
+[ADR-0.8.29-agent-hints-sidecar](../../adr/ADR-0.8.29-agent-hints-sidecar.md).
+Stage 1 (Block 1) is implemented; stage 2 and Block 2 are not. The
+Fable-medium review (APPROVE-WITH-FIXES) is folded in.
 
 Paths are relative to `src/rust/crates/` unless given in full. Line numbers
 are at `9ea33ff19`.
@@ -210,7 +212,9 @@ I/O, clock or locks.**
 **Adapter wire type: `fathomdb-mcp/src/output.rs`.**
 
 - `output.rs` owns the serialized `Hint` that agents see, with
-  `impl From<fathomdb_sdk::Hint>`. The conversion is where the adapter
+  `impl TryFrom<fathomdb_sdk::Hint>` (the engine enums are
+  `#[non_exhaustive]`, so an engine word the adapter does not know is
+  dropped rather than mapped lossily). The conversion is where the adapter
   rewrites `more_results{limit}` into `more_results{continuation}`, attaching
   its own handle (`tools.rs:734-737`). With no continuation, the adapter drops
   that hint. With a budget cut, it emits `cut_by_budget` instead.
@@ -358,8 +362,8 @@ with a blocking catastrophic ceiling and notify-only soft bounds
    per-AC gate map in `dev/design/perf-gates.md`:
    `hints overhead (MCP shaping) | fathomdb-mcp/tests/hints_overhead.rs |
    per-push | synthetic | BLOCK ≤200 µs @ limit 100 + alloc deltas; 10/25 µs
-   notify-only; E2E report-only`. The row is not added now: a gate row for a
-   test that does not exist would be stale (AGENTS.md § 1).
+   notify-only; E2E report-only`. The row was added with the tests; it names
+   both binaries, `hints_overhead.rs` and `hints_allocation.rs`.
 
 ## 5. Configuration
 
@@ -409,6 +413,11 @@ with a blocking catastrophic ceiling and notify-only soft bounds
 - Hints are emitted from `page[..kept]`, so dropping a hit also drops its ref
   from the hint. The loop's exit rule stays (`tools.rs:787-790`). With
   `kept == 0` there is no continuation (`shape.rs:97-101`).
+- **Fallback (as built).** Hints never cost a `search` page every hit: when
+  the loop reaches `kept == 0` with hints on and the page had hits, or an
+  empty page still does not fit, the page is shaped again without hints. So a
+  page that fits a hit only without hints returns the hit and its
+  continuation, the chain keeps advancing, and `kept_on ≤ kept_off` holds.
 - In `fetch` and `expand`, the `body_cut` hint is part of what
   `shape::cut_bodies` sizes (`tools.rs:931-935`, `tools.rs:1088-1092`). It is
   re-emitted from the current cut flags on each sizing step, and the ref list
@@ -678,8 +687,10 @@ The questions as originally put, with the reviewer's suggested answer:
 
 ## 11. Draft ADR — Agent hints sidecar
 
-Status: draft, **not accepted**. It is one ADR, with stage 2 as a section,
-and it would be filed under `dev/adr/` on owner approval.
+Status: accepted by the owner on 2026-10-18 and filed as
+[ADR-0.8.29-agent-hints-sidecar](../../adr/ADR-0.8.29-agent-hints-sidecar.md),
+which is authoritative. The draft below is kept as the design record; it is
+one ADR, with stage 2 as a section.
 
 **Context.** § 1. Precedent: the HITL-ratified explanation sidecar, which
 added an optional field on `SearchResult`, `None` and zero-cost when off,

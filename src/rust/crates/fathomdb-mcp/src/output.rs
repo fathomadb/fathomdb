@@ -364,6 +364,33 @@ pub struct Hint {
     /// The store the suggested call addresses.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub store: Option<String>,
+    /// For `snippet_cut`: the anchors of the cut hits, which pick the text
+    /// line's sentence. Not on the wire; `snippet_anchor` is per hit.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) cut_anchors: CutAnchors,
+}
+
+/// Which `snippet_anchor` values the cut hits of a page carry.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum CutAnchors {
+    #[default]
+    None,
+    Match,
+    Start,
+    Mixed,
+}
+
+impl CutAnchors {
+    /// Folds one more cut hit's anchor word in.
+    pub(crate) fn with(self, anchor: &str) -> Self {
+        let next = if anchor == "match" { Self::Match } else { Self::Start };
+        match self {
+            Self::None => next,
+            current if current == next => current,
+            _ => Self::Mixed,
+        }
+    }
 }
 
 impl Hint {
@@ -379,6 +406,7 @@ impl Hint {
             continuation: None,
             max_tokens: None,
             store: None,
+            cut_anchors: CutAnchors::None,
         }
     }
 }

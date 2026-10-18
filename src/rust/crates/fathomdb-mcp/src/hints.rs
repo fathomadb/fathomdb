@@ -5,7 +5,9 @@
 
 use fathomdb_sdk::{search_hints, HintArm, HintCause, HintMode, SearchFacts};
 
-use crate::output::{Degradation, Hint, HintAction, HintReason, Hit, ModeWord, PerHitOut};
+use crate::output::{
+    CutAnchors, Degradation, Hint, HintAction, HintReason, Hit, ModeWord, PerHitOut,
+};
 use crate::shape;
 
 /// Refs listed in one cut-ref hint (`MAX_FETCH_REFS`), so the hint is one
@@ -106,10 +108,13 @@ impl SearchPlan {
             }
         }
         let kept_cut = self.snippet_cut.iter().take_while(|index| **index < kept);
-        if let Some(hint) = fetch_hint(
+        if let Some(mut hint) = fetch_hint(
             HintReason::SnippetCut,
-            kept_cut.map(|index| page[*index].0.reference.as_str()),
+            kept_cut.clone().map(|index| page[*index].0.reference.as_str()),
         ) {
+            hint.cut_anchors = kept_cut.fold(CutAnchors::None, |anchors, index| {
+                anchors.with(&page[*index].0.snippet_anchor)
+            });
             hints.push(hint);
         }
         if let Some(continuation) = continuation {
@@ -205,7 +210,16 @@ fn template(hint: &Hint) -> &'static str {
             "try this mode, or rephrase with synonyms, names or related events"
         }
         HintReason::NoResults => "rephrase with synonyms, names or related events",
-        HintReason::SnippetCut => "snippets are prefixes; fetch to read the full record",
+        HintReason::SnippetCut => match hint.cut_anchors {
+            CutAnchors::Match => "snippets are centred on the match; fetch to read the full record",
+            CutAnchors::Mixed => {
+                "snippets are centred on the match or are the record start; fetch to read the \
+                 full record"
+            }
+            CutAnchors::Start | CutAnchors::None => {
+                "snippets are the record start; fetch to read the full record"
+            }
+        },
         HintReason::BodyCut => {
             "bodies were shortened; fetch with this max_tokens to read them whole"
         }

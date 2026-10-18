@@ -45,7 +45,9 @@ pub(crate) fn snippets_for_hits(
 ) -> rusqlite::Result<Vec<SnippetV1>> {
     hits.iter()
         .map(|hit| {
-            let spans = match rows.get(&hit.write_cursor) {
+            // Rule 0: spans are needed only to cut the body or to highlight.
+            let needs_spans = hit.body.len() > options.max_bytes as usize || options.highlights;
+            let spans = match rows.get(&hit.write_cursor).filter(|_| needs_spans) {
                 Some(&(table, rowid)) => {
                     match_spans(tx, table, rowid, match_expression, &hit.body)?.unwrap_or_default()
                 }

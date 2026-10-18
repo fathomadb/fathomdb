@@ -600,3 +600,26 @@ async fn the_window_keeps_the_last_128_completed_calls() {
     assert!(elapsed < Duration::from_millis(550), "refused late: {elapsed:?}");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn abandoned_calls_are_not_service_time_samples() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 500}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.seed_service_times("a", "fetch", &millis(&[10; 8]));
+    seams.block_calls("a");
+    let error = harness.err("fetch", fetch_a()).await;
+    assert_eq!(error["class"], "timeout", "the call is abandoned at its deadline: {error}");
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    // The abandoned call returns after about 1.5 s. Had it been a sample,
+    // the p90 of nine fetch samples would be 1.5 s, more than any fetch has.
+    seams.release_calls("a");
+    let next = harness.call("fetch", fetch_a()).await;
+    assert_ne!(next.is_error, Some(true), "{:?}", next.structured_content);
+    harness.shutdown().await;
+}

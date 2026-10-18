@@ -277,9 +277,20 @@ impl Drop for Permit {
 struct QueueTicket<'a>(&'a Load);
 
 impl<'a> QueueTicket<'a> {
-    fn new(load: &'a Load) -> Self {
-        load.queued.fetch_add(1, Ordering::SeqCst);
-        Self(load)
+    /// Join the line. When no permit is free the line is bounded by
+    /// `limit`; the test and the increment are one atomic step, so
+    /// concurrent arrivals cannot overfill it.
+    fn join(load: &'a Load, no_free_permit: bool, limit: usize) -> Option<Self> {
+        if no_free_permit {
+            load.queued
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |queued| {
+                    (queued < limit).then_some(queued + 1)
+                })
+                .ok()?;
+        } else {
+            load.queued.fetch_add(1, Ordering::SeqCst);
+        }
+        Some(Self(load))
     }
 }
 
@@ -693,14 +704,13 @@ impl Registry {
                 .map_err(|_| refuse(BusyReason::Deadline))?,
             Some(deadline) => {
                 // Step 2: the only test on arrival.
-                if load.permits.available_permits() == 0
-                    && load.queued.load(Ordering::SeqCst) >= self.config.queue_limit as usize
-                {
-                    return Err(refuse(BusyReason::QueueFull));
-                }
-                self.hooks.after_arrival_check(name).await;
                 must_wait = load.permits.available_permits() == 0;
-                let ticket = QueueTicket::new(&load);
+                let Some(ticket) =
+                    QueueTicket::join(&load, must_wait, self.config.queue_limit as usize)
+                else {
+                    return Err(refuse(BusyReason::QueueFull));
+                };
+                self.hooks.after_arrival_check(name).await;
                 self.hooks.after_queued(name);
                 let waited = async {
                     // Pinned once: dropping the acquire future would lose

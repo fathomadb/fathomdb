@@ -1,9 +1,10 @@
 //! Adapter-only test seams (feature `test-seams`): hold a store's open or
-//! its engine calls on the blocking thread, or panic inside a tool handler.
+//! its engine calls on the blocking thread, panic inside a tool handler, or
+//! send a burst of progress notifications from one.
 //! They live in the adapter's bridge and need no engine hook (MR-003.1,
 //! MR-033.1, MR-002.2).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 #[derive(Default)]
@@ -12,6 +13,7 @@ struct State {
     calls_blocked: BTreeSet<String>,
     panicking_tools: BTreeSet<String>,
     panicking_calls: BTreeSet<String>,
+    progress_bursts: BTreeMap<String, u32>,
 }
 
 /// Injectable delays and faults, shared by every clone.
@@ -79,6 +81,12 @@ impl Seams {
         self.state().panicking_calls.remove(store);
     }
 
+    /// Make every later call to `tool` that carries a progress token send `n`
+    /// progress notifications (values 1..=n) before the tool body runs.
+    pub fn burst_progress(&self, tool: &str, n: u32) {
+        self.state().progress_bursts.insert(tool.to_string(), n);
+    }
+
     pub(crate) fn before_open(&self, store: &str) {
         self.wait_while(|state| state.open_blocked.contains(store));
     }
@@ -92,5 +100,9 @@ impl Seams {
 
     pub(crate) fn tool_panics(&self, tool: &str) -> bool {
         self.state().panicking_tools.contains(tool)
+    }
+
+    pub(crate) fn progress_burst(&self, tool: &str) -> u32 {
+        self.state().progress_bursts.get(tool).copied().unwrap_or(0)
     }
 }

@@ -365,3 +365,87 @@ async fn the_default_snippet_cap_is_exactly_300_characters() {
     assert_eq!(hit["snippet_cut"], true);
     harness.shutdown().await;
 }
+
+/// A store whose open-time vector-equivalence check fails, through the real
+/// engine path: references persisted by the default embedder are negated and
+/// the cached verdict cleared, so the next open re-runs the check, finds the
+/// embedder diverges from its references and disables the dense side.
+#[cfg(feature = "default-embedder")]
+fn dense_disabled_store(fixture: &Fixture) {
+    let path = fixture.path("a.sqlite");
+    let options = fathomdb_sdk::OpenOptions { use_default_embedder: true, ..Default::default() };
+    // The first open declares a vector projection and writes nodes, which
+    // registers their kind; the second, seeing the kind registered, persists
+    // the probe references.
+    let engine = fathomdb_sdk::Engine::open(&path, options.clone()).expect("open with embedder");
+    let spec = fathomdb_sdk::ProjectionSpec {
+        name: "text".into(),
+        roles: [fathomdb_sdk::ProjectionRole::Searchable].into_iter().collect(),
+        fts: Some(fathomdb_sdk::ProjectionFts { tokenizer: None }),
+        vector: Some(fathomdb_sdk::ProjectionVector { embedder: None, dense_readiness: None }),
+        source: None,
+    };
+    engine.configure_projections(&[spec], &[]).expect("declare a vector projection");
+    engine.write(&river_notes(3)).expect("write notes");
+    // Embed them now: once the dense side is disabled nothing embeds them,
+    // and the adapter's shutdown drain would wait out its whole deadline.
+    engine.drain(600_000).expect("drain the vector work");
+    engine.close().expect("close");
+    let engine = fathomdb_sdk::Engine::open(&path, options).expect("reopen with embedder");
+    engine.close().expect("close");
+
+    let conn = rusqlite::Connection::open(&path).expect("raw connection");
+    let references: Vec<(i64, Vec<u8>)> = conn
+        .prepare("SELECT probe_ordinal, reference_vec FROM _fathomdb_embed_probe")
+        .unwrap()
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(!references.is_empty(), "the reopen persisted probe references");
+    for (ordinal, mut vector) in references {
+        // Little-endian f32: flip the sign bit of every component.
+        for component in vector.chunks_exact_mut(4) {
+            component[3] ^= 0x80;
+        }
+        conn.execute(
+            "UPDATE _fathomdb_embed_probe SET reference_vec = ?1 WHERE probe_ordinal = ?2",
+            rusqlite::params![vector, ordinal],
+        )
+        .unwrap();
+    }
+    conn.execute(
+        "DELETE FROM _fathomdb_open_state WHERE key = 'vector_equivalence_verified_fingerprint'",
+        [],
+    )
+    .unwrap();
+}
+
+#[cfg(feature = "default-embedder")]
+#[tokio::test(flavor = "multi_thread")]
+async fn hybrid_on_dense_disabled_store_is_not_ready_use_text() {
+    let fixture = Fixture::new();
+    dense_disabled_store(&fixture);
+    let config = fixture.config(json!({
+        "stores": {"a": {"path": "a.sqlite"}},
+        "default_store": "a",
+        "use_default_embedder": true,
+        // The open re-runs the equivalence check, embedding every probe; an
+        // unoptimized build takes minutes.
+        "call_deadline_ms": 900000
+    }));
+    let harness = Harness::start(config).await;
+    let orient = harness.ok("orient", json!({})).await;
+    assert_eq!(orient["dense_disabled"]["disabled"], true, "precondition: {orient}");
+
+    let error = harness.err("search", json!({"query": "river", "mode": "hybrid"})).await;
+    assert_eq!(error["class"], "not_ready", "{error}");
+    assert_eq!(error["code"], "vector_disabled", "{error}");
+    assert_eq!(error["detail"], "VectorEquivalenceMismatchError", "{error}");
+    let remedy = error["remedy"].as_str().expect("remedy");
+    assert!(remedy.contains("mode") && remedy.contains("text"), "{remedy}");
+
+    let found = harness.ok("search", json!({"query": "river", "mode": "text"})).await;
+    assert!(!refs(&found).is_empty(), "text search still answers: {found}");
+    harness.shutdown().await;
+}

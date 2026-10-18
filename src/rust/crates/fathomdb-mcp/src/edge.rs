@@ -83,6 +83,11 @@ impl FathomServer {
         }
         let ctx =
             Ctx { shared: &self.shared, session: &self.session, progress: progress_fn(&context) };
+        if let Some(progress) = &ctx.progress {
+            for tick in 1..=self.shared.hooks.progress_burst(tool) {
+                progress(f64::from(tick), "burst");
+            }
+        }
         let outcome = match tool {
             "list_stores" => tools::list_stores(&ctx, arguments).await,
             "use_store" => tools::use_store(&ctx, arguments).await,
@@ -100,13 +105,19 @@ impl FathomServer {
 fn progress_fn(context: &RequestContext<RoleServer>) -> Option<ProgressFn> {
     let token = context.meta.get_progress_token()?;
     let peer = context.peer.clone();
+    // One sender per call: a single task drains the queue in order, so the
+    // client sees progress values in the order they were reported. The task
+    // ends once the call drops the progress function.
+    let (sender, mut queue) = tokio::sync::mpsc::unbounded_channel::<ProgressNotificationParam>();
+    tokio::spawn(async move {
+        while let Some(notification) = queue.recv().await {
+            let _ = peer.notify_progress(notification).await;
+        }
+    });
     Some(Arc::new(move |progress: f64, phase: &'static str| {
-        let peer = peer.clone();
         let notification = ProgressNotificationParam::new(token.clone(), progress)
             .with_message(format!("store {phase}"));
-        tokio::spawn(async move {
-            let _ = peer.notify_progress(notification).await;
-        });
+        let _ = sender.send(notification);
     }))
 }
 

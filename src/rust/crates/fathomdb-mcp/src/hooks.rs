@@ -27,4 +27,12 @@ impl Hooks {
         #[cfg(not(feature = "test-seams"))]
         false
     }
+
+    #[inline]
+    pub(crate) fn progress_burst(&self, _tool: &str) -> u32 {
+        #[cfg(feature = "test-seams")]
+        return self.seams.progress_burst(_tool);
+        #[cfg(not(feature = "test-seams"))]
+        0
+    }
 }

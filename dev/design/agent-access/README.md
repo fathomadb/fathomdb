@@ -1,7 +1,7 @@
 ---
 title: Agent access — work list after the LoCoMo MCP evaluations
 date: 2026-10-18
-status: PROPOSED
+status: ACTIVE
 desc: Enumerated work items raised by the MCP agent-loop and Claude-subagent LoCoMo runs — admission queue, hints sidecar, match-centred snippets, compact text block — with their gates.
 inputs:
   - dev/experiments/mcp-agent-loop/README.md
@@ -98,9 +98,27 @@ changes code until its design passes review and the owner approves.
    tuned on (conv1), with all ten conversations in one store and one agent
    per question.
 
+6. **MCP server defects found during the evaluations.** Each is fixed
+   test-first (its own RED commit) as part of the Block 1 build:
+   1. **Progress notifications can arrive out of order.** Each one is sent
+      from its own `tokio::spawn` (`fathomdb-mcp/src/edge.rs:107-108`), so
+      two in a row can be delivered in either order. Send them in order
+      from one task per call.
+   2. **Exit code when stdin closes before `initialize`.** The server exits
+      1. `dev/interfaces/mcp.md` § 1 says 0 for "normal shutdown (stdin
+      closed)", which was written for a shutdown after a session. Decide the
+      contract, then make `main.rs` match it.
+   3. **A store with the vector side disabled reports `internal`.** Hybrid
+      search on such a store falls through the catch-all in
+      `fathomdb-mcp/src/error.rs:244` to `internal`. It should be a
+      degradation (EP-03) or a named, actionable error.
+   4. **The full gate has not run.** `./scripts/agent-verify.sh` was never
+      run on `experiment/mcp`. Run it on the Block 1 build before claiming
+      green.
+
 ## Block 2 — agent feedback signals
 
-Block 1 is items 1–5 above. Block 2 is the feedback table below. Block 2 is
+Block 1 is items 1–6 above. Block 2 is the feedback table below. Block 2 is
 **implemented only after Block 1 is complete and passing all tests**. The
 Block 1 designs must still account for it now: the hints sidecar (item 2)
 and the queue (item 1) define the shapes these signals use, so Block 2 adds
@@ -120,11 +138,13 @@ entries rather than redesigning.
 
 - **HITL review before any code.** No code for Block 1 or Block 2 is
   written until the owner has reviewed the designs, after the Fable-medium
-  reviews and their fixes.
+  reviews and their fixes. **Block 1 designs approved by the owner on
+  2026-10-18.** The p90 start check and `run_limit_ms` stay provisional
+  until the follow-up test (`dev/plans/prompts/queue-run-to-completion-test-prompt.md`).
 - Block 2 code starts only after Block 1 is complete and every test passes.
 
 ## Order
 
 Items 1, 2 and 3 are designed in parallel. Each gets a Fable-medium review,
 then the review fixes, then HITL review. Item 4 waits for 2 and 3. Item 5
-waits for the build of 1–3. Block 2 follows Block 1.
+waits for the build of 1–3. Item 6 is fixed during that build. Block 2 follows Block 1.

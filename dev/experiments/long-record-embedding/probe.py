@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import sqlite3
 import time
 from pathlib import Path
 
@@ -43,12 +44,41 @@ def _strata(data: Path) -> tuple[list[dict], dict[str, str]]:
     return rows, corpus.bodies
 
 
-def build(db: Path, data: Path) -> None:
+def _vector_rows(db: Path) -> int:
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        return con.execute("SELECT count(*) FROM _fathomdb_vector_rows WHERE kind = 'doc'").fetchone()[0]
+    finally:
+        con.close()
+
+
+def _drain(db: Path, engine, expected: int) -> int:
+    # drain() returning idle is not proof of coverage; count the vector rows.
+    last, stalls = -1, 0
+    while True:
+        try:
+            engine.drain(timeout_s=300)
+        except Exception as exc:  # noqa: BLE001 - timeout means still embedding
+            print(f"drain slice not idle: {type(exc).__name__}", flush=True)
+        n = _vector_rows(db)
+        print(f"embedded {n}/{expected}", flush=True)
+        if n >= expected:
+            return n
+        stalls = stalls + 1 if n == last else 0
+        if stalls >= 3:
+            return n
+        last = n
+
+
+def build(db: Path, data: Path, max_chars: int | None = None, max_records: int | None = None) -> None:
     from fathomdb.engine import Engine
 
-    from eval.p0a_base_retrieval import _drain_until_embedded
-
     _, bodies = _strata(data)
+    # Latency attribution only: short bodies and/or fewer records.
+    if max_chars:
+        bodies = {k: v[:max_chars] for k, v in bodies.items()}
+    if max_records:
+        bodies = dict(list(bodies.items())[:max_records])
     if db.exists():
         raise SystemExit(f"{db} exists; probe builds a fresh store")
     db.parent.mkdir(parents=True, exist_ok=True)
@@ -59,13 +89,14 @@ def build(db: Path, data: Path) -> None:
     for start in range(0, len(items), 500):
         engine.write([{"kind": "doc", "body": b, "source_id": sid} for sid, b in items[start:start + 500]])
     t_write = time.time() - t0
-    rep = _drain_until_embedded(db, engine, expected_docs=len(items))
+    embedded = _drain(db, engine, len(items))
     meta = {
         "docs": len(items), "write_s": round(t_write, 1), "embed_wall_s": round(time.time() - t0, 1),
-        "coverage": rep.coverage, "open_report": repr(engine.open_report()),
+        "coverage": embedded / len(items), "open_report": repr(engine.open_report()),
     }
     RESULTS.mkdir(exist_ok=True)
-    (RESULTS / "probe_build.json").write_text(json.dumps(meta, indent=2) + "\n")
+    name = "probe_build" + (f"_short{max_chars}" if max_chars else "") + (f"_n{max_records}" if max_records else "")
+    (RESULTS / f"{name}.json").write_text(json.dumps(meta, indent=2) + "\n")
     print(json.dumps(meta, indent=2))
 
 
@@ -154,8 +185,13 @@ def main() -> None:
     ap.add_argument("cmd", choices=["build", "run"])
     ap.add_argument("--db", type=Path, required=True)
     ap.add_argument("--data", type=Path, default=sc.DEFAULT_DATA)
+    ap.add_argument("--max-chars", type=int, default=None)
+    ap.add_argument("--max-records", type=int, default=None)
     a = ap.parse_args()
-    (build if a.cmd == "build" else run)(a.db, a.data)
+    if a.cmd == "build":
+        build(a.db, a.data, a.max_chars, a.max_records)
+    else:
+        run(a.db, a.data)
 
 
 if __name__ == "__main__":

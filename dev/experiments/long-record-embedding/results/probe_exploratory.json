@@ -1,0 +1,36 @@
+{
+  "E(vector)@5": {
+    "point": 0.11971393034825867,
+    "ci95": [
+      0.011738184079602004,
+      0.22924440298507465
+    ]
+  },
+  "E(hybrid)@5": {
+    "point": 0.04322139303482586,
+    "ci95": [
+      -0.019434079601990006,
+      0.10883084577114432
+    ]
+  },
+  "B: hybrid@10 hit, text@10 miss": 7,
+  "B: text@10 hit, hybrid@10 miss": 8,
+  "B: vector@10 hit, text@10 miss": 13,
+  "P: hybrid@10 hit, text@10 miss": 4,
+  "P: text@10 hit, hybrid@10 miss": 6,
+  "P: vector@10 hit, text@10 miss": 3,
+  "types": {
+    "B/knowledge-update": 10,
+    "B/multi-session": 58,
+    "B/single-session-assistant": 24,
+    "B/single-session-preference": 12,
+    "B/single-session-user": 7,
+    "B/temporal-reasoning": 81,
+    "P/knowledge-update": 23,
+    "P/multi-session": 11,
+    "P/single-session-assistant": 17,
+    "P/single-session-preference": 12,
+    "P/single-session-user": 55,
+    "P/temporal-reasoning": 16
+  }
+}

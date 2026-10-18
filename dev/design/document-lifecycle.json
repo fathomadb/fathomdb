@@ -1199,6 +1199,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/long-record-embedding.md",
+      "class": "proposal",
+      "topic": "long-record-embedding",
+      "role": "design",
+      "owner": "dev/design/long-record-embedding.md",
+      "release": "future:requested",
+      "successor": null
+    },
+    {
       "path": "dev/design/mcp-adapter/agent-needs.md",
       "class": "proposal",
       "topic": "mcp-adapter-agent-needs",

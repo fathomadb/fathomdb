@@ -333,6 +333,15 @@ Requested by the owner; no release slot yet.
   [`design/agent-access/match-centred-snippets.md`](design/agent-access/match-centred-snippets.md)
   § 3.4 and § 10, question 5, and engine proposal
   [`design/mcp-adapter/engine-proposals/EP-17-match-centred-snippets.md`](design/mcp-adapter/engine-proposals/EP-17-match-centred-snippets.md).
+  - Findings (2026-10-18), in
+    [`design/long-record-embedding.md`](design/long-record-embedding.md):
+    - Session- and document-level records put 19–37 % of gold past the cut;
+      turn-level records put almost none there.
+    - A preregistered probe shows the cut costs the vector arm 0.14 R@10 but
+      hybrid only 0.01 (CI includes 0).
+    - Every chunking option multiplies the O(N) vector scan.
+    - Proposed: a guard now (embedded span and a `partly_embedded` hint),
+      plus one gated overflow-chunking experiment. Awaiting owner review.
 
 ## Longer-horizon proposals
 

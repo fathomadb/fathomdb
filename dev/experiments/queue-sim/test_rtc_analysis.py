@@ -81,6 +81,17 @@ def test_r2_picks_the_smallest_run_limit_meeting_both_tails():
     assert ra.r2(ix, "wait") == (120, False)
 
 
+def test_load_jsonl_keeps_only_configurations_with_every_arm(tmp_path):
+    import json
+    p = tmp_path / "x.jsonl"
+    full = [{"band": "realistic", "cfg_i": 0, "arm": a, "tail": t, "dispatch": d, "_key": "k"}
+            for a in ARMS for t in ("base", "long") for d in ("P0", "P2")]
+    part = [dict(full[0], cfg_i=1)]
+    p.write_text("\n".join(json.dumps(r) for r in full + part) + '\n{"_key": "e", "_error": "x"}\n{"torn')
+    rows = ra.load(str(p))
+    assert len(rows) == len(full) and {r["cfg_i"] for r in rows} == {"0"} and "_key" not in rows[0]
+
+
 def test_r4_uses_p90_ep09_arms_when_the_check_has_none():
     chk, pick = ra.r4(synth({("base", "P2", "rtc_p90_ep09_rl10"): {"fail_rate": 0.5}}), "p95")
     assert chk == "p90" and pick == 30

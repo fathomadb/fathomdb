@@ -896,3 +896,21 @@ async fn a_running_call_is_abandoned_at_the_run_limit() {
     seams.release_calls("a");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_kind_slower_than_the_deadline_still_starts_on_a_free_permit() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000, "run_limit_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    // Recent fetches took 2 s, more than the 1 s deadline. A fetch that
+    // finds a permit free has not waited, so the start check does not
+    // apply: it starts, and its own time becomes a new sample.
+    harness.adapter.seams().seed_service_times("a", "fetch", &millis(&[2000; 8]));
+    let started = harness.call("fetch", fetch_a()).await;
+    assert_ne!(started.is_error, Some(true), "{:?}", started.structured_content);
+    harness.shutdown().await;
+}

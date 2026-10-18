@@ -302,3 +302,30 @@ fn a_frozen_search_reports_embedder_overloaded() {
     assert!(healthy.degradations.is_empty(), "a served frozen embed reports nothing");
     Arc::try_unwrap(engine).ok().expect("sole owner").close().expect("close");
 }
+
+#[test]
+fn search_expand_reports_embedder_overloaded() {
+    use fathomdb_engine::{ReadContextV1, ReadView, SearchFilter};
+    let dir = TempDir::new().unwrap();
+    let embedder = GatedEmbedder::new();
+    let engine = open_provenanced_engine(&dir, Arc::clone(&embedder));
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let holder = hold_the_only_worker(&engine, &embedder);
+
+    let expanded = engine.search_expand(QUERY, None, 1).expect("search_expand degrades");
+    let expanded_frozen =
+        engine.search_expand_frozen(QUERY, &frozen, 1, 10).expect("frozen expand degrades");
+
+    embedder.open();
+    assert!(holder.join().unwrap().is_err(), "the holder's started call timed out");
+    for result in [&expanded, &expanded_frozen] {
+        assert_eq!(result.degradations, overloaded());
+        assert!(!result.search_hits.is_empty(), "the text arm still answers");
+        assert!(result.search_hits.iter().all(|hit| hit.branch == SoftFallbackBranch::Text));
+    }
+
+    let healthy = engine.search_expand(QUERY, None, 1).expect("healthy search_expand");
+    assert!(healthy.degradations.is_empty(), "a served embed reports nothing");
+    Arc::try_unwrap(engine).ok().expect("sole owner").close().expect("close");
+}

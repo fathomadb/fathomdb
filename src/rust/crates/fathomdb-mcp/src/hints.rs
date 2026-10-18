@@ -74,6 +74,11 @@ impl SearchPlan {
         Self { enabled, engine, snippet_cut }
     }
 
+    /// Whether hints are on for this response.
+    pub(crate) fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
     /// The hints of the response that keeps the first `kept` hits of `page`
     /// and carries `continuation`; `cut` when the budget dropped hits.
     /// `more_results` becomes the adapter's continuation form, is dropped

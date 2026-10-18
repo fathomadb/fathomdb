@@ -776,10 +776,12 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
         let text = render_search(&output);
         let (rendered, whole) = finish(&output, text, max_tokens, cut);
         let fits = whole <= u64::from(max_tokens);
-        if kept == 0 && !fits && with_hints && !output.hints.is_empty() {
-            // Hints are advisory: an empty page that still does not fit
-            // drops them rather than exceed max_tokens.
+        if kept == 0 && with_hints && hints.is_enabled() && (!fits || !page.is_empty()) {
+            // Hints are advisory: they never cost the page every hit (which
+            // would also end its continuation chain) nor push an empty page
+            // over max_tokens. Shape the page again without them.
             with_hints = false;
+            kept = page.len();
             continue;
         }
         if fits || kept == 0 {

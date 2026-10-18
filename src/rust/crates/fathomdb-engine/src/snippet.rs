@@ -158,13 +158,8 @@ pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -
     let text = Text { body, graphemes: &graphemes, words: &words, sentences: &sentences };
     let ids = approximate_identities(body, &spans);
     let head = text.head(options.head_bytes as usize);
-    let width = max_bytes - TRAILING.len() - head.map_or(LEADING.len(), |(_, h)| h + BETWEEN.len());
-    let pool: Vec<usize> = (0..spans.len()).collect();
-    let (windows, anchor) = match text.best_window(&spans, &ids, &pool, width) {
-        Some(choice) => {
-            let window = text.place(&spans, &choice, width);
-            (head.into_iter().chain([window]).collect(), SnippetAnchor::Match)
-        }
+    let (windows, anchor) = match text.match_windows(&spans, &ids, head, &options) {
+        Some(windows) => (windows, SnippetAnchor::Match),
         None => (vec![text.prefix(max_bytes - TRAILING.len())], SnippetAnchor::Start),
     };
     let (text_out, highlights) = assemble(body, &windows, &spans, options.highlights);
@@ -225,24 +220,97 @@ struct Choice {
 /// How far before the first span a sentence start earns the rule 4.3 bonus.
 const SENTENCE_REACH: usize = 64;
 
+/// Rule 4's lexicographic score: distinct identities, spans, sentence bonus.
+type Score = (usize, usize, bool);
+
+/// Fewest bytes rule 7 needs left before it adds another window.
+const MIN_EXTRA_WINDOW: usize = 80;
+
 impl Text<'_> {
+    /// Rules 4–7: the head (if any) and the match windows, sorted. `None`
+    /// when no window can hold a whole span.
+    fn match_windows(
+        &self,
+        spans: &[Span],
+        ids: &[u32],
+        head: Option<(usize, usize)>,
+        options: &SnippetOptions,
+    ) -> Option<Vec<(usize, usize)>> {
+        let max_bytes = options.max_bytes as usize;
+        let max_windows = usize::from(options.max_windows);
+        let all = (0, self.body.len());
+        let full =
+            max_bytes - TRAILING.len() - head.map_or(LEADING.len(), |(_, h)| h + BETWEEN.len());
+        let pool: Vec<usize> = (0..spans.len()).collect();
+        let (mut choice, _) = self.best_window(spans, ids, &pool, full, all)?;
+        let mut width = full;
+        let mut windows: Vec<(usize, usize)> = head.into_iter().collect();
+        if max_windows > 1 {
+            let first = self.place(spans, &choice, full, all);
+            let with_first = sorted_with(&windows, first);
+            if !self.uncovered(spans, ids, &with_first).is_empty() {
+                // Leave room for the windows rule 7 will add.
+                width = full / max_windows;
+                choice = self.best_window(spans, ids, &pool, width, all)?.0;
+            }
+        }
+        windows = sorted_with(&windows, self.place(spans, &choice, width, all));
+
+        for left in (1..max_windows).rev() {
+            let remaining = max_bytes.saturating_sub(assembled_len(self.body.len(), &windows));
+            if remaining < MIN_EXTRA_WINDOW {
+                break;
+            }
+            let eligible = self.uncovered(spans, ids, &windows);
+            let width = (remaining - BETWEEN.len()) / left;
+            let mut best: Option<(Choice, Score, (usize, usize))> = None;
+            for gap in gaps(self.body.len(), &windows) {
+                let pool: Vec<usize> = eligible
+                    .iter()
+                    .copied()
+                    .filter(|&j| gap.0 <= spans[j].start && spans[j].end <= gap.1)
+                    .collect();
+                if let Some((c, score)) = self.best_window(spans, ids, &pool, width, gap) {
+                    if best.is_none_or(|(_, b, _)| score > b) {
+                        best = Some((c, score, gap));
+                    }
+                }
+            }
+            let Some((c, _, gap)) = best else { break };
+            windows = sorted_with(&windows, self.place(spans, &c, width, gap));
+        }
+        Some(windows)
+    }
+
+    /// Rule 7's pool: spans outside every window whose identity no window
+    /// shows.
+    fn uncovered(&self, spans: &[Span], ids: &[u32], windows: &[(usize, usize)]) -> Vec<usize> {
+        let inside = |s: &Span| windows.iter().any(|&(a, b)| a <= s.start && s.end <= b);
+        let shown: Vec<u32> =
+            (0..spans.len()).filter(|&j| inside(&spans[j])).map(|j| ids[j]).collect();
+        (0..spans.len()).filter(|&j| !inside(&spans[j]) && !shown.contains(&ids[j])).collect()
+    }
+
     /// Rule 4: for each span start in `pool` (indices into `spans`, sorted),
-    /// scores the window of `width` bytes that begins there and returns the
-    /// best. `None` when no window holds a whole span.
+    /// scores the window of `width` bytes that begins there, within
+    /// `region`, and returns the best. `None` when no window holds a whole
+    /// span.
     fn best_window(
         &self,
         spans: &[Span],
         ids: &[u32],
         pool: &[usize],
         width: usize,
-    ) -> Option<Choice> {
-        let mut best: Option<(Choice, (usize, usize, bool))> = None;
+        region: (usize, usize),
+    ) -> Option<(Choice, Score)> {
+        let mut best: Option<(Choice, Score)> = None;
         for first in 0..pool.len() {
             let start = spans[pool[first]].start;
+            let limit = (start + width).min(region.1);
             let mut last = None;
             let mut distinct: Vec<u32> = Vec::new();
             for (k, &j) in pool.iter().enumerate().skip(first) {
-                if spans[j].end > start + width {
+                if spans[j].end > limit {
                     break;
                 }
                 last = Some(k);
@@ -252,45 +320,59 @@ impl Text<'_> {
             }
             let Some(last) = last else { continue };
             let sentence = Some(self.sentences.at_or_before(start))
-                .filter(|&ss| ss + SENTENCE_REACH >= start && ss <= start);
+                .filter(|&ss| ss >= region.0 && ss + SENTENCE_REACH >= start && ss <= start);
             let score = (distinct.len(), last - first + 1, sentence.is_some());
             // Strictly greater only: an equal score keeps the earlier start.
             if best.is_none_or(|(_, b)| score > b) {
                 best = Some((Choice { first: pool[first], last: pool[last], sentence }, score));
             }
         }
-        best.map(|(choice, _)| choice)
+        best
     }
 
-    /// Rule 5: centres a window of `width` bytes on the chosen spans,
-    /// clamped to the body, on grapheme boundaries.
-    fn place(&self, spans: &[Span], choice: &Choice, width: usize) -> (usize, usize) {
+    /// Rules 5 and 6: centres a window of `width` bytes on the chosen spans
+    /// inside `region`, then snaps its edges.
+    fn place(
+        &self,
+        spans: &[Span],
+        choice: &Choice,
+        width: usize,
+        region: (usize, usize),
+    ) -> (usize, usize) {
+        let (lo, hi) = region;
         let (first_s, last_e) = (spans[choice.first].start, spans[choice.last].end);
         if let Some(ss) = choice.sentence.filter(|&ss| ss + width >= last_e) {
-            let end = self.snap_end_back((ss + width).min(self.body.len()), last_e);
+            let end = self.snap_end_back((ss + width).min(hi), last_e);
             return (ss, self.trim_end(last_e, end));
         }
         let slack = width - (last_e - first_s);
-        let centred = first_s.saturating_sub(slack / 2).min(self.body.len().saturating_sub(width));
+        let centred = first_s.saturating_sub(slack / 2).min(hi.saturating_sub(width)).max(lo);
         let start = self.snap_start(
             self.graphemes.at_or_after(centred).min(first_s),
-            first_s,
+            (lo, first_s),
             last_e,
             width,
         );
-        let end = self.snap_end_back((start + width).min(self.body.len()), last_e);
+        let end = self.snap_end_back((start + width).min(hi), last_e);
         let start = self.trim_start(start, first_s);
         (start, self.trim_end(last_e, end))
     }
 
     /// Rule 6, start edge, for a window of `width` bytes that must keep
     /// `[first_s, last_e)`: the largest word boundary in
-    /// `[target − WORD_REACH, target]` that still leaves `last_e` in budget;
-    /// else the smallest word boundary in `[target, target + WORD_REACH]` not
-    /// past `first_s`; else `target` itself (a grapheme boundary).
-    fn snap_start(&self, target: usize, first_s: usize, last_e: usize, width: usize) -> usize {
+    /// `[target − WORD_REACH, target]`, not before `lo`, that still leaves
+    /// `last_e` in budget; else the smallest word boundary in
+    /// `[target, target + WORD_REACH]` not past `first_s`; else `target`
+    /// itself (a grapheme boundary).
+    fn snap_start(
+        &self,
+        target: usize,
+        (lo, first_s): (usize, usize),
+        last_e: usize,
+        width: usize,
+    ) -> usize {
         let back = self.words.at_or_before(target);
-        if back + WORD_REACH >= target && back + width >= last_e {
+        if back >= lo && back + WORD_REACH >= target && back + width >= last_e {
             return back;
         }
         let forward = self.words.at_or_after(target);
@@ -357,6 +439,38 @@ impl Text<'_> {
         }
         end
     }
+}
+
+/// `windows` (sorted, disjoint) with `window` inserted in order.
+fn sorted_with(windows: &[(usize, usize)], window: (usize, usize)) -> Vec<(usize, usize)> {
+    let mut out = windows.to_vec();
+    let at = out.partition_point(|w| *w < window);
+    out.insert(at, window);
+    out
+}
+
+/// The body ranges between and around `windows` (sorted, disjoint).
+fn gaps(len: usize, windows: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    let mut out = Vec::with_capacity(windows.len() + 1);
+    let mut lo = 0;
+    for &(a, b) in windows {
+        if a > lo {
+            out.push((lo, a));
+        }
+        lo = lo.max(b);
+    }
+    if lo < len {
+        out.push((lo, len));
+    }
+    out
+}
+
+/// The byte length [`assemble`] gives `windows`.
+fn assembled_len(len: usize, windows: &[(usize, usize)]) -> usize {
+    let content: usize = windows.iter().map(|&(a, b)| b - a).sum();
+    let leading = windows.first().map_or(0, |&(a, _)| if a > 0 { LEADING.len() } else { 0 });
+    let trailing = windows.last().map_or(0, |&(_, b)| if b < len { TRAILING.len() } else { 0 });
+    content + leading + trailing + BETWEEN.len() * windows.len().saturating_sub(1)
 }
 
 /// Rule 9: joins the windows in body order with ellipses. With `highlights`,

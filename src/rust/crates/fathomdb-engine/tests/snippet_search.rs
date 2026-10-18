@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     Engine, InitialState, OpenedEngine, PreparedWrite, ReadContextV1, ReadView, SearchFilter,
-    SearchResult, SnippetOptions, SourceId,
+    SearchResult, SnippetAnchor, SnippetOptions, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -203,5 +203,34 @@ fn entry_points_reject_invalid_snippet_options() {
             matches!(result, Err(fathomdb_engine::EngineError::InvalidArgument { .. })),
             "{path}: {result:?}"
         );
+    }
+}
+
+fn snippet_of<'a>(result: &'a SearchResult, body: &str) -> &'a fathomdb_engine::SnippetV1 {
+    let index = result
+        .results
+        .iter()
+        .position(|hit| hit.body == body)
+        .unwrap_or_else(|| panic!("hit missing: {result:?}"));
+    &result.snippets.as_ref().expect("sidecar")[index]
+}
+
+// T-1: a 4 KiB record whose only query term is at byte 3000 gets a window
+// centred on the term; today's prefix would miss it.
+#[test]
+fn t1_term_far_into_a_long_record_anchors_the_snippet() {
+    let _guard = lock();
+    let body = long_body(3000, "zanzibar", 4096);
+    let s = store(&[&body]);
+    let options = SnippetOptions::default();
+    for (path, result) in [
+        ("text", text(s.engine(), "zanzibar", 10, Some(&options))),
+        ("hybrid", hybrid(s.engine(), "zanzibar", Some(&options))),
+    ] {
+        let snippet = snippet_of(&result, &body);
+        assert_eq!(snippet.anchor, SnippetAnchor::Match, "{path}: {snippet:?}");
+        assert!(snippet.text.contains("zanzibar"), "{path}: {snippet:?}");
+        assert!(snippet.text.len() <= 300);
+        assert_eq!(snippet.spans, vec![(3000, 3008)], "{path}");
     }
 }

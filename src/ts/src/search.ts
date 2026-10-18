@@ -1020,6 +1020,7 @@ export async function searchTextOnly(nativeEngine: NativeEngine, query: string, 
         ceScore: h.ceScore ?? null,
       })),
       explanation: null,
+      ...mapNativeDegradations(r.degradations),
       ...mapNativeSnippets(r.snippets),
     };
   }

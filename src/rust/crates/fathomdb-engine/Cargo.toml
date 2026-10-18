@@ -788,3 +788,7 @@ rusqlite = { version = "0.40", features = ["bundled", "fallible_uint", "hooks"] 
 serde_json = "1"
 sha2 = "0.11"
 tempfile = "3"
+
+[[test]]
+name = "snippet_search"
+required-features = ["test-hooks"]

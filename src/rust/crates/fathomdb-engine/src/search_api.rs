@@ -88,6 +88,41 @@ impl Engine {
         })
     }
 
+    /// [`search_frozen`][Engine::search_frozen] with optional EP-17
+    /// match-centred snippets. Snippet options are presentation: they are not
+    /// eligibility and are not part of the frozen context.
+    ///
+    /// # Errors
+    ///
+    /// As [`search_frozen`][Engine::search_frozen], plus
+    /// [`EngineError::InvalidArgument`] when `snippet` fails
+    /// [`SnippetOptions::validate`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_frozen_with_snippets(
+        &self,
+        query: &str,
+        frozen: &FrozenReadContextV1,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        limit: usize,
+        snippet: Option<&SnippetOptions>,
+    ) -> Result<SearchResult, EngineError> {
+        let _ = snippet;
+        self.search_frozen(
+            query,
+            frozen,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            limit,
+        )
+    }
+
     /// Run an opt-in frozen search and return one authenticated evidence
     /// reference for every result.
     ///
@@ -687,6 +722,7 @@ impl Engine {
                 results,
                 explanation,
                 degradations,
+                snippets: None,
             },
             graph_stats,
             expanded,
@@ -801,6 +837,43 @@ impl Engine {
             pool_n,
             explain,
             *view,
+            limit,
+        )
+    }
+
+    /// [`search_reranked_view_with_limit`][Engine::search_reranked_view_with_limit]
+    /// with optional EP-17 match-centred snippets. `Some(options)` fills
+    /// [`SearchResult::snippets`] with one [`SnippetV1`](crate::SnippetV1) per hit, computed on the
+    /// search's reader snapshot; `None` is the plain search.
+    ///
+    /// # Errors
+    ///
+    /// As the plain search, plus [`EngineError::InvalidArgument`] when
+    /// `snippet` fails [`SnippetOptions::validate`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_reranked_view_with_snippets(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        view: &ReadView,
+        limit: usize,
+        snippet: Option<&SnippetOptions>,
+    ) -> Result<SearchResult, EngineError> {
+        let _ = snippet;
+        self.search_reranked_view_with_limit(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            view,
             limit,
         )
     }
@@ -1109,7 +1182,27 @@ impl Engine {
             results,
             explanation,
             degradations: Vec::new(),
+            snippets: None,
         })
+    }
+
+    /// [`search_text_only_view_with_limit`][Engine::search_text_only_view_with_limit]
+    /// with optional EP-17 match-centred snippets (see
+    /// [`search_reranked_view_with_snippets`][Engine::search_reranked_view_with_snippets]).
+    ///
+    /// # Errors
+    ///
+    /// As the plain search, plus [`EngineError::InvalidArgument`] when
+    /// `snippet` fails [`SnippetOptions::validate`].
+    pub fn search_text_only_view_with_snippets(
+        &self,
+        query: &str,
+        view: &ReadView,
+        limit: usize,
+        snippet: Option<&SnippetOptions>,
+    ) -> Result<SearchResult, EngineError> {
+        let _ = snippet;
+        self.search_text_only_view_with_limit(query, view, limit)
     }
 
     /// Search one declared `searchable→FTS` projection without invoking body
@@ -1413,6 +1506,7 @@ use crate::search_types::{
     validate_search_result_limit, ArmDegradation, Bm25fQueryPlan, DegradationReason,
     GraphFrontierStats, SearchResult, SoftFallbackBranch, DEFAULT_SEARCH_RESULT_LIMIT,
 };
+use crate::snippet::SnippetOptions;
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::ReadView;

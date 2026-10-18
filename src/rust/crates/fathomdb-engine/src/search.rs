@@ -283,6 +283,7 @@ pub(crate) fn read_projected_text_in_tx(
         results,
         explanation: None,
         degradations: Vec::new(),
+        snippets: None,
     })
 }
 
@@ -836,6 +837,7 @@ impl SearchOriginCapture for EvidenceCapture {
             results,
             explanation,
             degradations,
+            snippets: None,
         };
         evidence::build_search_result(
             connection,

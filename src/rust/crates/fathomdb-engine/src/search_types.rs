@@ -1,5 +1,6 @@
 use crate::errors::EngineError;
 use crate::identity::IdSpace;
+use crate::snippet::SnippetV1;
 
 /// Soft-fallback signal carried on hybrid `search` results.
 ///
@@ -198,6 +199,10 @@ pub struct SearchResult {
     /// allocation) when every requested arm ran. Results, ranking,
     /// `soft_fallback` and `explanation` are the same with or without it.
     pub degradations: Vec<ArmDegradation>,
+    /// EP-17 match-centred snippets: a sidecar parallel to `results` (same
+    /// length, same order) when the search asked for snippets; `None`
+    /// otherwise, with no per-hit work.
+    pub snippets: Option<Vec<SnippetV1>>,
 }
 
 /// 0.8.8 EXP-OBS (Slice 5) — the opt-in retrieval explanation payload returned

@@ -439,6 +439,10 @@ name = "reader_pool"
 required-features = ["test-hooks"]
 
 [[test]]
+name = "reader_dispatch"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "search_result_shape"
 required-features = ["test-hooks"]
 

@@ -116,6 +116,8 @@ struct Load {
     /// `admission_cap` permits, handed out in request order.
     permits: Arc<Semaphore>,
     in_flight: AtomicUsize,
+    /// Calls waiting for a permit.
+    queued: AtomicUsize,
     idle: Notify,
 }
 
@@ -124,6 +126,7 @@ impl Load {
         Self {
             permits: Arc::new(Semaphore::new(cap)),
             in_flight: AtomicUsize::new(0),
+            queued: AtomicUsize::new(0),
             idle: Notify::new(),
         }
     }
@@ -132,7 +135,7 @@ impl Load {
         Busy {
             reason,
             in_flight: self.in_flight.load(Ordering::SeqCst),
-            queued: 0,
+            queued: self.queued.load(Ordering::SeqCst),
             abandoned: 0,
             stuck: false,
         }
@@ -201,6 +204,13 @@ impl Drop for StoreGuard {
 enum Next {
     Admit { load: Arc<Load>, epoch: u64, changed: watch::Receiver<u64> },
     Wait(watch::Receiver<u64>, Phase),
+}
+
+/// How a wait for a permit ended.
+enum Waited {
+    Permit(OwnedSemaphorePermit),
+    Expired,
+    Moved,
 }
 
 /// Why a host engine could not be registered.
@@ -460,28 +470,46 @@ impl Registry {
                 .try_acquire_owned()
                 .map_err(|_| refuse(BusyReason::Deadline))?,
             Some(deadline) => {
-                // Pinned once: dropping the acquire future would lose the
-                // call's place in the queue.
-                let acquire = load.permits.clone().acquire_owned();
-                tokio::pin!(acquire);
-                // A call is started only if it has at least `need` left
-                // (step 3), so the wait ends `need` before the deadline.
-                let wait_end = deadline.checked_sub(NEED_FLOOR).unwrap_or(deadline);
-                let expired = tokio::time::sleep_until(wait_end.into());
-                tokio::pin!(expired);
-                loop {
-                    tokio::select! {
-                        biased;
-                        permit = &mut acquire => {
-                            break permit.expect("admission semaphores are never closed");
-                        }
-                        () = &mut expired => return Err(refuse(BusyReason::Deadline)),
-                        _ = changed.changed() => {
-                            if self.ready_epoch(name) != Some(epoch) {
-                                return Ok(None);
+                // Step 2: the only test on arrival.
+                if load.permits.available_permits() == 0
+                    && load.queued.load(Ordering::SeqCst) >= self.config.queue_limit as usize
+                {
+                    return Err(refuse(BusyReason::QueueFull));
+                }
+                load.queued.fetch_add(1, Ordering::SeqCst);
+                let waited = async {
+                    // Pinned once: dropping the acquire future would lose
+                    // the call's place in the queue.
+                    let acquire = load.permits.clone().acquire_owned();
+                    tokio::pin!(acquire);
+                    // A call is started only if it has at least `need` left
+                    // (step 3), so the wait ends `need` before the deadline.
+                    let wait_end = deadline.checked_sub(NEED_FLOOR).unwrap_or(deadline);
+                    let expired = tokio::time::sleep_until(wait_end.into());
+                    tokio::pin!(expired);
+                    loop {
+                        tokio::select! {
+                            biased;
+                            permit = &mut acquire => {
+                                return Waited::Permit(
+                                    permit.expect("admission semaphores are never closed"),
+                                );
+                            }
+                            () = &mut expired => return Waited::Expired,
+                            _ = changed.changed() => {
+                                if self.ready_epoch(name) != Some(epoch) {
+                                    return Waited::Moved;
+                                }
                             }
                         }
                     }
+                }
+                .await;
+                load.queued.fetch_sub(1, Ordering::SeqCst);
+                match waited {
+                    Waited::Permit(permit) => permit,
+                    Waited::Expired => return Err(refuse(BusyReason::Deadline)),
+                    Waited::Moved => return Ok(None),
                 }
             }
         };

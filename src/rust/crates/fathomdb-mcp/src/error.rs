@@ -45,6 +45,8 @@ pub struct ToolError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BusyReason {
+    /// The waiting line was full on arrival (`queue_limit`).
+    QueueFull,
     /// No permit came in time, or too little deadline was left to start.
     Deadline,
 }
@@ -219,6 +221,9 @@ impl ToolError {
 
     pub(crate) fn admission(store: &str, busy: Busy) -> Self {
         let message = match busy.reason {
+            BusyReason::QueueFull => {
+                format!("store {store:?} has as many calls waiting as its queue_limit allows")
+            }
             BusyReason::Deadline => {
                 format!("store {store:?} could not start this call before its deadline")
             }

@@ -126,3 +126,12 @@ def test_time_to_data_charges_a_failure_one_think_and_one_retry():
     m = s.metrics()
     assert m["ttd_mean"] == pytest.approx((1.0 + 4.0) / 2)
     assert m["ttd_p99"] == pytest.approx(4.0)
+
+
+def test_false_refusal_under_run_to_completion_means_it_would_have_started_in_time():
+    # p90 sheds c at 28.0; the permit frees at 29.5, before c's wait deadline 30.0: under run to completion
+    # c would have started and answered, so the shed counts as a false refusal
+    sc = [(i * 2.0, *T(reader=2.0)) for i in range(8)]
+    sc += [(16.0, *T(reader=13.5)), (20.0, *T(reader=1.0))]
+    s = script_run(sc, cap=1, admission="fifo_shed", threshold=P90, run_limit=60.0)
+    assert s.metrics()["false_refusal_rate"] == pytest.approx(1 / 10)

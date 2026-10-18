@@ -269,14 +269,20 @@ impl Text<'_> {
             if self.uncovered(spans, ids, &with_first).is_empty() {
                 extra_windows = false;
             } else if let Some(narrow) =
-                self.best_window(spans, ids, &pool, full / max_windows, all)
+                self.best_window(spans, ids, &pool, full / max_windows, all).filter(|(c, _)| {
+                    let mut shown = ranges(&windows);
+                    shown.push(self.place(spans, c, full / max_windows, all));
+                    shown.sort_unstable();
+                    max_bytes.saturating_sub(assembled_len(self.body.len(), &shown))
+                        >= MIN_EXTRA_WINDOW
+                })
             {
                 // Leave room for the windows rule 7 will add.
                 width = full / max_windows;
                 (choice, score) = narrow;
             } else {
-                // No whole span fits the narrower window: keep the full-width
-                // match rather than lose it, and add no windows.
+                // No whole span fits the narrower window, or no later window
+                // could fit beside it: keep the full-width window and add none.
                 extra_windows = false;
             }
         }

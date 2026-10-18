@@ -672,3 +672,29 @@ fn more_windows_never_lose_the_match() {
     // choice stands unchanged.
     assert_eq!(snippet_for(&body, &spans, &windows_opts(40, 3)), one);
 }
+
+// Review fix 2 (§ 6.6, rule 8): a head 6–16 bytes before the first match
+// window merges with it. When the plain merge does not fit, the merged
+// window's end is snapped back (never before the last counted span) rather
+// than the head being dropped.
+#[test]
+fn head_close_to_the_match_window_merges_instead_of_dropping() {
+    for f in 5..=13 {
+        let body = format!(
+            "{}{}{}pear {}",
+            "h ".repeat(25),
+            "f".repeat(f),
+            "w ".repeat(10),
+            "t ".repeat(300)
+        );
+        let pear = body.find("pear").unwrap() as u32;
+        let spans = [(pear, pear + 4)];
+        let headed = SnippetOptions { head_bytes: 50, ..opts(100) };
+        let s = snippet_for(&body, &spans, &headed);
+        assert_eq!(s.windows[0].0, 0, "f={f}: the head survives: {s:?}");
+        assert!(s.text.starts_with("h h h"), "f={f}: {s:?}");
+        assert!(shows(&s, spans[0]), "f={f}: {s:?}");
+        assert_eq!(s.text, joined(&body, &s.windows));
+        assert!(s.text.len() <= 100);
+    }
+}

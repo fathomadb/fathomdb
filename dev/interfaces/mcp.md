@@ -198,6 +198,11 @@ Result adds:
     engine's per-search snippet cap).
   - `snippet_cut` is true when any of the record is left out.
   - The budget loop drops whole hits; it never re-cuts a snippet.
+  - Cost: the engine's per-search snippet cap (`max_point_queries`) is set
+    to the run window, `offset + limit` (at most 100). A search therefore
+    runs at most one `highlight()` point query per long hit in the run
+    window, plus per-term queries for multi-term queries; with `highlights`
+    it also runs one per hit that fits. M1 has not yet measured this cost.
   - The text line for a hit carries `anchor=<snippet_anchor>`.
 - `completeness`: one of `complete` (fewer results than `limit`, no
   degradation), `limit_reached` (exactly `limit`; total unknown),

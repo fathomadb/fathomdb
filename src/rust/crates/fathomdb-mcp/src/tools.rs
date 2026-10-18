@@ -891,7 +891,10 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         max_windows: 1,
         head_bytes: ctx.shared.config.snippet_head_bytes(),
         highlights: args.highlights.unwrap_or(false),
-        ..SnippetOptions::default()
+        // One point query per hit of the run window, so every page of a
+        // continuation chain is anchored alike and `highlights` (which also
+        // queries hits that fit) never changes another hit's snippet.
+        max_point_queries: u8::try_from(run_limit).unwrap_or(u8::MAX),
     });
     let started_limit = ctx.run_limit();
     let (answered, run) = bridge::call(

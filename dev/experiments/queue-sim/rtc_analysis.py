@@ -120,14 +120,16 @@ def r1(ix, check="p90", exclude=None):
             for d in ("P2", "P0"):
                 if not ix[(b, t, d, a)]:
                     continue
+                ex = exclude((b, t, d)) if callable(exclude) else exclude
                 cells[(b, t, d)] = {
-                    "dF": paired_ci(*pair(ix, b, t, d, a, w, "fail_rate", exclude)),
-                    "dbusy": paired_ci(*pair(ix, b, t, d, a, w, "refuse_rate", exclude)),
-                    "dab": paired_ci(*pair(ix, b, t, d, a, w, "timeout_rate", exclude)),
-                    "ratio": ttd_ratio(ix, b, t, d, w, a, exclude),
-                    "late": mean(vals(ix, b, t, d, w, "ok_late_share", exclude)),
-                    "late30": mean(vals(ix, b, t, d, w, "ok_late30_rate", exclude))}
+                    "dF": paired_ci(*pair(ix, b, t, d, a, w, "fail_rate", ex)),
+                    "dbusy": paired_ci(*pair(ix, b, t, d, a, w, "refuse_rate", ex)),
+                    "dab": paired_ci(*pair(ix, b, t, d, a, w, "timeout_rate", ex)),
+                    "ratio": ttd_ratio(ix, b, t, d, w, a, ex),
+                    "late": mean(vals(ix, b, t, d, w, "ok_late_share", ex)),
+                    "late30": mean(vals(ix, b, t, d, w, "ok_late30_rate", ex))}
     c = cells[DECIDE]
+    exclude = exclude(DECIDE) if callable(exclude) else exclude
     guard = all(cells[("realistic", t, "P2")]["late"] <= 0.01 and cells[("realistic", t, "P2")]["late30"] <= 0.001
                 for t in ("base", "long"))
     c1 = not c["dF"][2] < 0
@@ -266,9 +268,9 @@ def main(path):
                                       for x in ("p90", "p95", "p99", "p90cap", "wait")),
                            f"{len(lockups(ix, b, t, d, 'old_p90'))} / {n}"])
     table(out, ["band", "tail", "dispatch", "p90", "p95", "p99", "p90 capped", "wait-only", "old p90"], lk)
-    locked = lockups(ix, *DECIDE, "rtc_p90_rl60")
-    r1_section(out, r1(ix, exclude=locked),
-               f"### R1 without the {len(locked)} locked configurations of the deciding cell (exploratory)")
+    n_locked = len(lockups(ix, *DECIDE, "rtc_p90_rl60"))
+    r1_section(out, r1(ix, exclude=lambda cell: lockups(ix, *cell, "rtc_p90_rl60")),
+               f"### R1 without each cell's locked configurations ({n_locked} in the deciding cell; exploratory)")
     r1_section(out, r1(ix, check="p90cap"), "### R1x: capped p90 against wait-only (exploratory)")
 
     rl, met = r2(ix, chk)

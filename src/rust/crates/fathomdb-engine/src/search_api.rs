@@ -1526,8 +1526,7 @@ impl Engine {
         }
     }
 }
-use crate::embed_dispatch::DispatchError;
-use crate::embedding::dispatch_embed_vector;
+use crate::embedding::{dispatch_embed_vector, query_vector_or_degradation};
 use crate::errors::EngineError;
 use crate::evidence::{
     self, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1, EvidenceErrorReasonV1,
@@ -1557,8 +1556,8 @@ use crate::search::{bm25f_search_inner, FrozenQueryRuntime, SearchReaderError, S
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::search_types::SEARCH_RERANK_LIMIT;
 use crate::search_types::{
-    validate_search_result_limit, ArmDegradation, Bm25fQueryPlan, DegradationReason,
-    GraphFrontierStats, SearchResult, SoftFallbackBranch, DEFAULT_SEARCH_RESULT_LIMIT,
+    validate_search_result_limit, Bm25fQueryPlan, GraphFrontierStats, SearchResult,
+    DEFAULT_SEARCH_RESULT_LIMIT,
 };
 use crate::snippet::SnippetOptions;
 #[cfg(feature = "tc5-benchmark")]
@@ -1690,28 +1689,6 @@ pub fn take_slice71_search_statement_trace_for_test() -> Vec<String> {
         .lock()
         .map(|mut trace| std::mem::take(&mut *trace))
         .unwrap_or_default()
-}
-
-/// The query vector, or `None` with the reason recorded when the embedding was
-/// refused for a reason the search reports instead of failing on. Errors other
-/// than queue overload keep today's silent text-only behaviour; a provider panic
-/// resumes on the caller.
-pub(crate) fn query_vector_or_degradation(
-    embedded: Result<Vec<f32>, DispatchError>,
-    degradations: &mut Vec<ArmDegradation>,
-) -> Option<Vec<f32>> {
-    match embedded {
-        Ok(vector) => Some(vector),
-        Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
-        Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
-            degradations.push(ArmDegradation::new(
-                SoftFallbackBranch::Vector,
-                DegradationReason::EmbedderOverloaded,
-            ));
-            None
-        }
-        Err(_) => None,
-    }
 }
 
 fn validate_snippet(snippet: Option<&SnippetOptions>) -> Result<(), EngineError> {

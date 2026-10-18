@@ -7,10 +7,10 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use fathomdb_sdk::{
-    graph, read, Explanation, GraphExpandRequestV1, GraphExpansionDegradationCodeV1,
-    GraphReadContextV1, GraphSeedV1, IdSpace, IdSpaceKind, PerHitExplain, ReadContextV1, ReadView,
-    SearchFilter, SearchFilterArg, SearchHit, SearchOptions, SearchResult, SoftFallbackBranch,
-    TextSearchOptions, TraversalDirection,
+    graph, read, ArmDegradation, Explanation, GraphExpandRequestV1,
+    GraphExpansionDegradationCodeV1, GraphReadContextV1, GraphSeedV1, IdSpace, IdSpaceKind,
+    PerHitExplain, ReadContextV1, ReadView, SearchFilter, SearchFilterArg, SearchHit,
+    SearchOptions, SearchResult, SoftFallbackBranch, TextSearchOptions, TraversalDirection,
 };
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
@@ -485,6 +485,7 @@ struct SearchRun {
     explanation: Option<Explanation>,
     soft_fallback: Option<SoftFallbackBranch>,
     dense_disabled: bool,
+    degradations: Vec<ArmDegradation>,
 }
 
 impl SearchRun {
@@ -494,6 +495,7 @@ impl SearchRun {
             explanation: result.explanation,
             soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
             dense_disabled,
+            degradations: result.degradations,
         }
     }
 }
@@ -524,6 +526,10 @@ fn search_degradations(
                 reason: "embedder_unavailable".to_string(),
             });
         }
+        degradation.extend(run.degradations.iter().map(|entry| Degradation {
+            arm: branch_str(entry.arm).to_string(),
+            reason: entry.reason.as_str().to_string(),
+        }));
     }
     degradation
 }

@@ -225,3 +225,25 @@ fn rule9_assembly_joins_windows_and_maps_highlights_into_text() {
     let s = snippet_for(&body, &spans, &opts(120));
     assert!(s.highlights.is_empty());
 }
+
+// § 6.3 rule 5: the window is shifted so its spans sit in the middle,
+// clamped to the body. Snapping (rule 6) may move each edge by up to 32 bytes.
+#[test]
+fn rule5_window_is_centred_on_its_spans() {
+    let (body, spans) = body_with(&[(2000, "pear")], 4000);
+    let s = snippet_for(&body, &spans, &opts(300));
+    let (ws, we) = s.windows[0];
+    let before = spans[0].0 - ws;
+    let after = we - spans[0].1;
+    assert!(before.abs_diff(after) <= 70, "before {before}, after {after}: {s:?}");
+    assert!(we - ws >= 292 - 70, "the window uses its budget: {s:?}");
+
+    // Near the end the window is clamped to the body and keeps its width.
+    let (body, spans) = body_with(&[(2000, "pear")], 2010);
+    let s = snippet_for(&body, &spans, &opts(300));
+    let (ws, we) = s.windows[0];
+    assert_eq!(we as usize, body.len());
+    assert!(!s.text.ends_with('…'));
+    assert!(we - ws >= 296 - 70, "{s:?}");
+    assert!(s.text.len() <= 300);
+}

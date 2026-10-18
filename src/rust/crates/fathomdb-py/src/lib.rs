@@ -138,6 +138,8 @@ mod graph_evidence;
 use graph_evidence::*;
 mod embedding;
 use embedding::*;
+mod snippet;
+use snippet::*;
 #[cfg(any(test, feature = "test-hooks"))]
 mod test_support;
 #[cfg(any(test, feature = "test-hooks"))]
@@ -166,6 +168,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyIdSpace>()?;
     m.add_class::<PySearchHit>()?;
     m.add_class::<PySearchResult>()?;
+    m.add_class::<PySnippetV1>()?;
     m.add_class::<PyEvidenceSidecarEntryV1>()?;
     m.add_class::<PyEvidenceSearchResultV1>()?;
     m.add_class::<PyEvidenceContributionV1>()?;

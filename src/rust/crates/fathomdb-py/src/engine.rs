@@ -574,20 +574,26 @@ impl PyEngine {
     /// `limit`; no vector recall, CE rerank, or graph arm runs on this path.
     ///
     /// 0.8.20 Slice 15b fix-2 — takes the same optional `view` as `search`.
-    #[pyo3(signature = (query, view=None, limit=10))]
+    ///
+    /// EP-17 — `snippet` (a `fathomdb.SnippetOptions`) fills
+    /// `SearchResult.snippets`; `None` leaves it `None`.
+    #[pyo3(signature = (query, view=None, limit=10, snippet=None))]
     fn search_text_only(
         &self,
         py: Python<'_>,
         query: &str,
         view: Option<&PyReadView>,
         limit: usize,
+        snippet: Option<PySnippetOptionsArg>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let view = read_view_or_default(view);
-        let result =
-            call_engine(py, move || engine.search_text_only_view_with_limit(&query, &view, limit))?;
+        let snippet = snippet.map(|options| options.to_rust());
+        let result = call_engine(py, move || {
+            engine.search_text_only_view_with_snippets(&query, &view, limit, snippet.as_ref())
+        })?;
         Ok(PySearchResult::from_rust(result))
     }
 

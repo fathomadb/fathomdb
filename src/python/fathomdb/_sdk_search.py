@@ -34,6 +34,8 @@ from fathomdb.types import (
     SearchFilter,
     SearchHit,
     SearchResult,
+    SnippetOptions,
+    SnippetV1,
     SoftFallback,
     SoftFallbackBranch,
     StructuralInclusionV1,
@@ -74,6 +76,25 @@ def _map_native_search_result(result: Any) -> SearchResult:
         ],
         explanation=explanation,
         degradations=degradations,
+    )
+
+
+def _map_native_snippets(result: Any) -> list[SnippetV1] | None:
+    """A native result's EP-17 snippet sidecar, or ``None`` when absent."""
+    native_snippets = getattr(result, "snippets", None)
+    if native_snippets is None:
+        return None
+    return [_map_native_snippet(entry) for entry in native_snippets]
+
+
+def _map_native_snippet(entry: Any) -> SnippetV1:
+    return SnippetV1(
+        text=entry.text,
+        anchor=entry.anchor,
+        windows=[(int(a), int(b)) for a, b in entry.windows],
+        spans=[(int(a), int(b)) for a, b in entry.spans],
+        highlights=[(int(a), int(b)) for a, b in entry.highlights],
+        cut=entry.cut,
     )
 
 
@@ -621,12 +642,19 @@ def search_projected_text(
 
 
 def search_text_only(
-    self: Engine, query: str, view: ReadView | None = None, *, limit: int = 10
+    self: Engine,
+    query: str,
+    view: ReadView | None = None,
+    *,
+    limit: int = 10,
+    snippet: SnippetOptions | None = None,
 ) -> SearchResult:
     if not isinstance(view, (ReadView, type(None))):
         raise TypeError(f"view must be a ReadView or None, got {type(view).__name__!r}")
     limit = _validate_ranked_result_limit("limit", limit)
-    result = self._native.search_text_only(query, view=_to_native_view(view), limit=limit)
+    result = self._native.search_text_only(
+        query, view=_to_native_view(view), limit=limit, snippet=snippet
+    )
     fallback = result.soft_fallback
     soft = (
         SoftFallback(branch=cast(SoftFallbackBranch, fallback.branch))
@@ -649,4 +677,5 @@ def search_text_only(
             for hit in result.results
         ],
         explanation=None,
+        snippets=_map_native_snippets(result),
     )

@@ -72,6 +72,7 @@ from fathomdb.types import (
     SearchExpandResult,
     SearchFilter,
     SearchResult,
+    SnippetOptions,
     SourceDependencyRegistrationV1,
     SourceDependencyV1,
     WriteReceipt,
@@ -444,7 +445,12 @@ class Engine:
         return _sdk_search.search_projected_text(self, query, name, filter, view=view, limit=limit)
 
     def search_text_only(
-        self, query: str, view: ReadView | None = None, *, limit: int = 10
+        self,
+        query: str,
+        view: ReadView | None = None,
+        *,
+        limit: int = 10,
+        snippet: SnippetOptions | None = None,
     ) -> SearchResult:
         """0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only / FTS-only search.
 
@@ -456,8 +462,11 @@ class Engine:
         body-deduplicated and ranked before ``limit`` is applied. For one
         immutable selection and effective validity time, smaller accepted limits
         are prefixes of larger limits; this does not extend to hybrid search.
+
+        ``snippet`` (EP-17) fills ``SearchResult.snippets`` with one
+        match-centred ``SnippetV1`` per hit; ``None`` leaves it ``None``.
         """
-        return _sdk_search.search_text_only(self, query, view, limit=limit)
+        return _sdk_search.search_text_only(self, query, view, limit=limit, snippet=snippet)
 
     def dense_disabled(self) -> bool:
         """0.8.18 Slice 5 (R-VEQ-6) — ``True`` iff the engine opened degraded.

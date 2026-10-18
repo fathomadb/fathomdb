@@ -182,6 +182,18 @@ class SearchResult:
     explanation: Explanation | None
     # None when every requested arm ran.
     degradations: list[ArmDegradation] | None
+    # EP-17: one per hit when the search passed `snippet`; None otherwise.
+    snippets: list[SnippetV1] | None
+
+class SnippetV1:
+    # UTF-8 byte offsets: windows/spans into the body, highlights into text.
+    text: str
+    # "whole" | "match" | "start"
+    anchor: str
+    windows: list[tuple[int, int]]
+    spans: list[tuple[int, int]]
+    highlights: list[tuple[int, int]]
+    cut: bool
 
 class EvidenceSidecarEntryV1:
     schema_version: int
@@ -550,8 +562,13 @@ class Engine:
     ) -> SearchResult: ...
     # 0.8.18 Slice 5 (R-VEQ-4) — text-only / FTS-only path; takes the same
     # optional validity view as `search` (0.8.20 Slice 15b fix-2).
+    # EP-17: `snippet` is a `fathomdb.SnippetOptions` (read by attribute).
     def search_text_only(
-        self, query: str, view: ReadView | None = ..., limit: int = ...
+        self,
+        query: str,
+        view: ReadView | None = ...,
+        limit: int = ...,
+        snippet: object | None = ...,
     ) -> SearchResult: ...
     def dense_disabled(self) -> bool: ...
     def dense_disabled_reason(self) -> str | None: ...

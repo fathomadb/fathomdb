@@ -244,7 +244,7 @@ pub struct SyntheticHit {
     /// The prefixed reference, for example `l:note:1`.
     pub reference: String,
     pub kind: String,
-    /// The whole body; the seam cuts it to `snippet_bytes` as `search` does.
+    /// The whole body; the seam selects its snippet as `search` does, with no match spans.
     pub body: String,
     pub source_id: Option<String>,
     pub score: f64,
@@ -314,14 +314,26 @@ pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
         .skip(input.offset)
         .enumerate()
         .map(|(index, hit)| {
-            let (snippet, snippet_cut) =
-                crate::shape::snippet_bytes(&hit.body, input.snippet_bytes);
+            let bytes = u32::try_from(input.snippet_bytes).unwrap_or(u32::MAX);
+            // Synthetic hits carry no match spans, as a hit the engine did
+            // not anchor; the options are the ones `search` requests.
+            let snippet = fathomdb_sdk::snippet_for(
+                &hit.body,
+                &[],
+                &fathomdb_sdk::SnippetOptions {
+                    max_bytes: bytes,
+                    max_windows: 1,
+                    head_bytes: 48.min(bytes / 2),
+                    ..fathomdb_sdk::SnippetOptions::default()
+                },
+            );
             (
                 crate::output::Hit {
                     reference: hit.reference.clone(),
                     kind: hit.kind.clone(),
-                    snippet,
-                    snippet_cut,
+                    snippet: snippet.text,
+                    snippet_cut: snippet.cut,
+                    snippet_anchor: snippet.anchor.as_str().to_string(),
                     source_id: hit.source_id.clone(),
                     score: hit.score,
                     arm: "text".to_string(),

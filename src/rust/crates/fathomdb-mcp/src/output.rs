@@ -181,7 +181,12 @@ pub struct Hit {
     pub reference: String,
     pub kind: String,
     pub snippet: String,
+    /// True when any of the record is left out of `snippet`.
     pub snippet_cut: bool,
+    /// Where `snippet` comes from: `whole` (the record fitted), `match` (a
+    /// window centred on the matched words) or `start` (the record start:
+    /// no lexical match, as for vector-only hits).
+    pub snippet_anchor: String,
     pub source_id: Option<String>,
     pub score: f64,
     pub arm: String,

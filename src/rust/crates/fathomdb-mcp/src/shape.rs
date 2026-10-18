@@ -19,20 +19,6 @@ pub fn snippet(body: &str, cap: usize) -> (String, bool) {
     }
 }
 
-/// Cut `body` to at most `cap` bytes on a character boundary. Returns the
-/// text and whether anything was cut.
-#[must_use]
-pub fn snippet_bytes(body: &str, cap: usize) -> (String, bool) {
-    if body.len() <= cap {
-        return (body.to_string(), false);
-    }
-    let mut end = cap;
-    while !body.is_char_boundary(end) {
-        end -= 1;
-    }
-    (body[..end].to_string(), true)
-}
-
 /// The budget estimator (MR-041): ceil(bytes / 4).
 #[must_use]
 pub fn estimate_tokens(bytes: usize) -> u64 {

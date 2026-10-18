@@ -247,3 +247,20 @@ fn rule5_window_is_centred_on_its_spans() {
     assert!(we - ws >= 296 - 70, "{s:?}");
     assert!(s.text.len() <= 300);
 }
+
+// § 6.3 rule 6: window edges snap to UAX #29 word boundaries, so no window
+// starts or ends inside a word, and none starts or ends with whitespace.
+#[test]
+fn rule6_window_edges_snap_to_word_boundaries() {
+    for at in 2000..2040 {
+        let (body, spans) = body_with(&[(at, "pear")], 4000);
+        let s = snippet_for(&body, &spans, &opts(300));
+        let (ws, we) = (s.windows[0].0 as usize, s.windows[0].1 as usize);
+        let shown = &body[ws..we];
+        assert!(body.as_bytes()[ws - 1] == b' ', "start inside a word: {shown:?}");
+        assert!(body.as_bytes()[we] == b' ', "end inside a word: {shown:?}");
+        assert_eq!(shown.trim(), shown, "no edge whitespace");
+        assert!(shows(&s, spans[0]));
+        assert!(s.text.len() <= 300);
+    }
+}

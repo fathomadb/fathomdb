@@ -621,6 +621,8 @@ class SearchExpandResult:
     search_hits: list[SearchHit]
     expanded: list[ExpandedNode]
     all_logical_ids: list[str]
+    # None when every requested search arm ran.
+    degradations: list[ArmDegradation] | None
 
 class RuntimeConfiguration:
     @property

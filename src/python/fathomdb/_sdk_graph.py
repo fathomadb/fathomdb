@@ -729,6 +729,10 @@ def search_expand_frozen(
         depth,
         limit=limit,
     )
+    return _map_native_search_expand_result(native)
+
+
+def _map_native_search_expand_result(native: Any) -> SearchExpandResult:
     return SearchExpandResult(
         search_hits=[_map_native_search_hit(hit) for hit in native.search_hits],
         expanded=[

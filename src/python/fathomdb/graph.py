@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import re
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, NoReturn, cast
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from fathomdb._fathomdb import NodeRecord as _NativeNodeRecord
 from fathomdb._fathomdb import SearchHit as _NativeSearchHit
@@ -181,6 +181,10 @@ def search_expand(
         status,
         search_limit,
     )
+    return _to_search_expand_result(native_result)
+
+
+def _to_search_expand_result(native_result: Any) -> SearchExpandResult:
     search_hits = [_to_search_hit(hit) for hit in native_result.search_hits]
     expanded = [
         ExpandedNode(

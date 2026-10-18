@@ -2,6 +2,7 @@ import type { NativeEngine } from "./binding.js";
 // Private search owner for the TypeScript SDK package root.
 import {
   type NativeFrozenReadContextV1,
+  type NativeSearchExpandResult,
   type NativePerHitExplain,
   type NativeSearchResult,
 } from "./binding.js";
@@ -722,22 +723,7 @@ export async function searchExpandFrozen(nativeEngine: NativeEngine, query: stri
     const result = await intercept(() =>
       nativeEngine.searchExpandFrozen(query, nativeContext, depth, options.searchLimit),
     );
-    return {
-      searchHits: result.searchHits.map((hit) => ({
-        id: { space: hit.id.space, value: hit.id.value },
-        kind: hit.kind,
-        body: hit.body,
-        score: hit.score,
-        branch:
-          hit.branch === "vector" || hit.branch === "text_edge" || hit.branch === "graph_arm"
-            ? hit.branch
-            : "text",
-        sourceId: hit.sourceId ?? null,
-        ceScore: hit.ceScore ?? null,
-      })),
-      expanded: result.expanded,
-      allLogicalIds: result.allLogicalIds,
-    };
+    return mapNativeSearchExpandFrozenResult(result);
   }
 
 export async function search(nativeEngine: NativeEngine, query: string, filter?: SearchFilter | Filter, rerankDepth?: number, useGraphArm?: boolean, alpha?: number, poolN?: number, explain?: boolean, view?: SearchOptions): Promise<SearchResult> {
@@ -895,3 +881,23 @@ export async function searchProjectedText(nativeEngine: NativeEngine, query: str
       explanation: null,
     };
   }
+
+/** Maps the native `searchExpandFrozen` result to the public shape. */
+export function mapNativeSearchExpandFrozenResult(result: NativeSearchExpandResult): SearchExpandResult {
+  return {
+    searchHits: result.searchHits.map((hit) => ({
+      id: { space: hit.id.space, value: hit.id.value },
+      kind: hit.kind,
+      body: hit.body,
+      score: hit.score,
+      branch:
+        hit.branch === "vector" || hit.branch === "text_edge" || hit.branch === "graph_arm"
+          ? hit.branch
+          : "text",
+      sourceId: hit.sourceId ?? null,
+      ceScore: hit.ceScore ?? null,
+    })),
+    expanded: result.expanded,
+    allLogicalIds: result.allLogicalIds,
+  };
+}

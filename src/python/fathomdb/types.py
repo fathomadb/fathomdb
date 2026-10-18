@@ -1475,6 +1475,8 @@ class SearchExpandResult:
     search_hits: list[SearchHit]
     expanded: list[ExpandedNode]
     all_logical_ids: list[str]
+    #: Requested search arms that did not run; ``None`` when every arm ran.
+    degradations: list[ArmDegradation] | None = None
 
 
 @dataclass(frozen=True)

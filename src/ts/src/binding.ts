@@ -670,6 +670,8 @@ export interface NativeSearchExpandResult {
   searchHits: NativeSearchHit[];
   expanded: NativeExpandedNode[];
   allLogicalIds: string[];
+  /** Requested search arms that did not run; absent or null when every arm ran. */
+  degradations?: NativeArmDegradation[] | null;
 }
 
 // G11 (Slice 15) — BYO-LLM ingest receipt.

@@ -6,7 +6,7 @@
 //! across an `.await` or an engine call: opens and drains run on spawned
 //! tasks and blocking threads, and report back under the mutex.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
@@ -163,6 +163,8 @@ impl Slot {
 /// The least deadline a call of a tool kind with no history must have left
 /// to be started (queue-admission § 6.1, early-shed rule).
 const NEED_FLOOR: Duration = Duration::from_millis(50);
+/// Completed calls per tool kind kept in a store's service-time window.
+const WINDOW_SAMPLES: usize = 128;
 /// Completed calls of a kind before its window replaces the floor.
 const WARM_SAMPLES: usize = 8;
 /// The share of recent calls of a kind that must fit in the time a waiter
@@ -180,8 +182,9 @@ struct Load {
     queued: AtomicUsize,
     /// Fires when the last permit is returned.
     idle: Notify,
-    /// Service times of completed calls, per tool kind.
-    windows: Mutex<BTreeMap<ToolKind, Vec<Duration>>>,
+    /// Service times of the last `WINDOW_SAMPLES` completed calls, per tool
+    /// kind, oldest first.
+    windows: Mutex<BTreeMap<ToolKind, VecDeque<Duration>>>,
 }
 
 impl Load {
@@ -195,13 +198,18 @@ impl Load {
         }
     }
 
-    fn windows(&self) -> MutexGuard<'_, BTreeMap<ToolKind, Vec<Duration>>> {
+    fn windows(&self) -> MutexGuard<'_, BTreeMap<ToolKind, VecDeque<Duration>>> {
         self.windows.lock().unwrap_or_else(|poison| poison.into_inner())
     }
 
     fn record(&self, kind: ToolKind, sample: Duration) {
         if kind != ToolKind::Feedback {
-            self.windows().entry(kind).or_default().push(sample);
+            let mut windows = self.windows();
+            let window = windows.entry(kind).or_default();
+            if window.len() == WINDOW_SAMPLES {
+                window.pop_front();
+            }
+            window.push_back(sample);
         }
     }
 
@@ -212,7 +220,7 @@ impl Load {
         let Some(window) = windows.get(&kind).filter(|window| window.len() >= WARM_SAMPLES) else {
             return NEED_FLOOR;
         };
-        let mut sorted = window.clone();
+        let mut sorted: Vec<Duration> = window.iter().copied().collect();
         sorted.sort_unstable();
         // Nearest rank: the smallest sample at or above the quantile.
         let rank = (NEED_QUANTILE * sorted.len() as f64).ceil() as usize;

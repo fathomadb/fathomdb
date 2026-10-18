@@ -785,6 +785,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/agent-access/queue-lock-trace.md",
+      "class": "proposal",
+      "topic": "agent-access-queue-lock-trace",
+      "role": "analysis",
+      "owner": "dev/design/agent-access/queue-lock-trace.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
       "path": "dev/design/agent-access/queue-manager-research.md",
       "class": "proposal",
       "topic": "agent-access-queue-manager-research",

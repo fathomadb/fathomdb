@@ -540,11 +540,13 @@ impl Engine {
         // mirrors the write path: identity must be MC-required AND a
         // mean_vec must be pinned. NoopEmbedder collapses to
         // `query_vector_bin == query_vector` until EU-5b.
+        let mut degradations = Vec::new();
         let raw_query_vector = (!is_frozen)
-            .then(|| match dispatch_embed_vector(&self.embed_dispatch, query) {
-                Ok(vector) => Some(vector),
-                Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
-                Err(_) => None,
+            .then(|| {
+                query_vector_or_degradation(
+                    dispatch_embed_vector(&self.embed_dispatch, query),
+                    &mut degradations,
+                )
             })
             .flatten();
         let query_vector_bin = match raw_query_vector.as_ref() {
@@ -622,38 +624,52 @@ impl Engine {
             return Err(EngineError::Closing);
         }
         let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
-        let (cursor, soft_fallback, results, graph_stats, explanation, expanded) =
-            match search_result {
-                Ok(result) => result,
-                // fix-3 (codex §9 [P2]) — an undeclared `filterable` attribute is caught
-                // on the reader's OWN snapshot (validate + vec0 query = one transaction),
-                // so it surfaces as the EXISTING typed `InvalidFilter` and can never be
-                // the opaque `no such column` `Storage` error the TOCTOU race produced.
-                Err(SearchReaderError::InvalidFilter(reason)) => {
-                    return Err(EngineError::InvalidFilter { reason });
-                }
-                Err(SearchReaderError::Evidence(error)) => return Err(error),
-                Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                    return Err(EngineError::RerankerDevicePolicy(error));
-                }
-                Err(SearchReaderError::FrozenRead(error)) => {
-                    return Err(EngineError::FrozenRead(error));
-                }
-                Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                    self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
-                    return Err(EngineError::VectorEquivalenceMismatch { reason });
-                }
-                Err(SearchReaderError::WriteValidation) => {
-                    return Err(EngineError::WriteValidation);
-                }
-                Err(SearchReaderError::InvalidArgument(msg)) => {
-                    return Err(EngineError::InvalidArgument { msg });
-                }
-                Err(SearchReaderError::Sqlite(err)) => {
-                    self.emit_sqlite_internal_error(&err);
-                    return Err(EngineError::Storage);
-                }
-            };
+        let (
+            cursor,
+            soft_fallback,
+            results,
+            graph_stats,
+            explanation,
+            mut expanded,
+            frozen_degradations,
+        ) = match search_result {
+            Ok(result) => result,
+            // fix-3 (codex §9 [P2]) — an undeclared `filterable` attribute is caught
+            // on the reader's OWN snapshot (validate + vec0 query = one transaction),
+            // so it surfaces as the EXISTING typed `InvalidFilter` and can never be
+            // the opaque `no such column` `Storage` error the TOCTOU race produced.
+            Err(SearchReaderError::InvalidFilter(reason)) => {
+                return Err(EngineError::InvalidFilter { reason });
+            }
+            Err(SearchReaderError::Evidence(error)) => return Err(error),
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                return Err(EngineError::RerankerDevicePolicy(error));
+            }
+            Err(SearchReaderError::FrozenRead(error)) => {
+                return Err(EngineError::FrozenRead(error));
+            }
+            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
+                return Err(EngineError::VectorEquivalenceMismatch { reason });
+            }
+            Err(SearchReaderError::WriteValidation) => {
+                return Err(EngineError::WriteValidation);
+            }
+            Err(SearchReaderError::InvalidArgument(msg)) => {
+                return Err(EngineError::InvalidArgument { msg });
+            }
+            Err(SearchReaderError::Sqlite(err)) => {
+                self.emit_sqlite_internal_error(&err);
+                return Err(EngineError::Storage);
+            }
+        };
+
+        // Exactly one side embeds the query: this function when not frozen, the
+        // reader when frozen.
+        degradations.extend(frozen_degradations);
+        if let Some(expanded) = expanded.as_mut() {
+            expanded.degradations.clone_from(&degradations);
+        }
 
         // The worker (`read_search_in_tx`) has no embedder identity; fill the
         // trace's `embedder_id` here, where `self.runtime_embedder_identity` is in
@@ -665,7 +681,13 @@ impl Engine {
         });
 
         Ok((
-            SearchResult { projection_cursor: cursor, soft_fallback, results, explanation },
+            SearchResult {
+                projection_cursor: cursor,
+                soft_fallback,
+                results,
+                explanation,
+                degradations,
+            },
             graph_stats,
             expanded,
         ))
@@ -1050,7 +1072,7 @@ impl Engine {
             return Err(EngineError::Closing);
         }
         let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
-        let (cursor, soft_fallback, results, _graph_stats, explanation, _expanded) =
+        let (cursor, soft_fallback, results, _graph_stats, explanation, _expanded, _degradations) =
             match search_result {
                 Ok(result) => result,
                 // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
@@ -1081,7 +1103,13 @@ impl Engine {
                     return Err(EngineError::Storage);
                 }
             };
-        Ok(SearchResult { projection_cursor: cursor, soft_fallback, results, explanation })
+        Ok(SearchResult {
+            projection_cursor: cursor,
+            soft_fallback,
+            results,
+            explanation,
+            degradations: Vec::new(),
+        })
     }
 
     /// Search one declared `searchable→FTS` projection without invoking body
@@ -1312,11 +1340,13 @@ impl Engine {
         // 0.8.5: depth=0 → no rerank, so α/pool_n (0.3, 0) are inert here.
         let search_result =
             self.search_inner(query, filter, 0, false, 0.3, 0, false, ReadView::default(), limit)?;
+        let degradations = search_result.degradations;
         if search_result.results.is_empty() {
             return Ok(SearchExpandResult {
                 search_hits: Vec::new(),
                 expanded: Vec::new(),
                 all_logical_ids: Vec::new(),
+                degradations,
             });
         }
         // Step 2: dispatch to the reader pool to resolve logical_ids and run BFS.
@@ -1335,7 +1365,7 @@ impl Engine {
             return Err(EngineError::Closing);
         }
         match response_rx.recv().map_err(|_| EngineError::Storage)? {
-            Ok(result) => Ok(result),
+            Ok(result) => Ok(SearchExpandResult { degradations, ..result }),
             Err(graph_expand::SearchExpandHandlerError::InvalidFilter(reason)) => {
                 Err(EngineError::InvalidFilter { reason })
             }
@@ -1380,8 +1410,8 @@ use crate::search::{bm25f_search_inner, FrozenQueryRuntime, SearchReaderError, S
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::search_types::SEARCH_RERANK_LIMIT;
 use crate::search_types::{
-    validate_search_result_limit, Bm25fQueryPlan, GraphFrontierStats, SearchResult,
-    DEFAULT_SEARCH_RESULT_LIMIT,
+    validate_search_result_limit, ArmDegradation, Bm25fQueryPlan, DegradationReason,
+    GraphFrontierStats, SearchResult, SoftFallbackBranch, DEFAULT_SEARCH_RESULT_LIMIT,
 };
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
@@ -1512,4 +1542,26 @@ pub fn take_slice71_search_statement_trace_for_test() -> Vec<String> {
         .lock()
         .map(|mut trace| std::mem::take(&mut *trace))
         .unwrap_or_default()
+}
+
+/// The query vector, or `None` with the reason recorded when the embedding was
+/// refused for a reason the search reports instead of failing on. Errors other
+/// than queue overload keep today's silent text-only behaviour; a provider panic
+/// resumes on the caller.
+pub(crate) fn query_vector_or_degradation(
+    embedded: Result<Vec<f32>, DispatchError>,
+    degradations: &mut Vec<ArmDegradation>,
+) -> Option<Vec<f32>> {
+    match embedded {
+        Ok(vector) => Some(vector),
+        Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
+        Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
+            degradations.push(ArmDegradation::new(
+                SoftFallbackBranch::Vector,
+                DegradationReason::EmbedderOverloaded,
+            ));
+            None
+        }
+        Err(_) => None,
+    }
 }

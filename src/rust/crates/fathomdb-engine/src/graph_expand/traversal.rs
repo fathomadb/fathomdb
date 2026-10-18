@@ -8,7 +8,7 @@ use crate::filter::{
 use crate::frozen_read::{self, FrozenReadError};
 use crate::read::NodeRecord;
 use crate::reader_transaction::begin_attributed_reader_tx;
-use crate::search_types::{SearchHit, SoftFallbackBranch};
+use crate::search_types::{ArmDegradation, SearchHit, SoftFallbackBranch};
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::{edge_validity_sql_for_view, BoundaryCrossing, FrozenView, ReadView};
@@ -51,6 +51,9 @@ pub struct SearchExpandResult {
     pub expanded: Vec<(NodeRecord, u32)>,
     /// Deduplicated union of all logical_ids (search hits first, then expanded).
     pub all_logical_ids: Vec<String>,
+    /// Requested search arms that did not run; same contract as
+    /// [`SearchResult::degradations`](crate::SearchResult::degradations).
+    pub degradations: Vec<ArmDegradation>,
 }
 
 // ---------------------------------------------------------------------------
@@ -491,7 +494,12 @@ pub(crate) fn search_expand_on_snapshot(
         }
     }
 
-    Ok(SearchExpandResult { search_hits: resolved_hits, expanded, all_logical_ids })
+    Ok(SearchExpandResult {
+        search_hits: resolved_hits,
+        expanded,
+        all_logical_ids,
+        degradations: Vec::new(),
+    })
 }
 
 /// Slice 20 test seam — run `EXPLAIN QUERY PLAN` on the BFS CTE SQL and return

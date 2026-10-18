@@ -16,6 +16,7 @@ T = TypeVar("T")
 #: added in 0.8.8 (Slice 10) to match Rust/TS — it surfaces via
 #: ``PerHitExplain.arm`` (and, for graph-arm hits, ``SearchHit.branch``).
 SoftFallbackBranch = Literal["vector", "text", "text_edge", "graph_arm"]
+DegradationReason = Literal["embedder_overloaded"]
 DependencyTraceDirectionV1 = Literal["to_source", "to_dependents"]
 StructuralInclusionStateV1 = Literal["included", "degraded"]
 StructuralProjectionOriginV1 = Literal[
@@ -399,6 +400,19 @@ class SoftFallback:
     """
 
     branch: SoftFallbackBranch
+
+
+@dataclass(frozen=True)
+class ArmDegradation:
+    """One search arm that was requested but did not run, and why.
+
+    `reason` ``"embedder_overloaded"``: the query embedding was refused because
+    the embed queue was full, or it expired in that queue. The search still
+    returned the hits of its other arms.
+    """
+
+    arm: SoftFallbackBranch
+    reason: DegradationReason
 
 
 @dataclass(frozen=True)
@@ -1177,6 +1191,8 @@ class SearchResult:
     #: retrieval explicitly requests explanation. New optional field with a
     #: default (the Python evolution rule), so the non-explain shape is unchanged.
     explanation: Explanation | None = None
+    #: Requested arms that did not run; ``None`` when every requested arm ran.
+    degradations: list[ArmDegradation] | None = None
 
 
 @dataclass(frozen=True)
@@ -1459,6 +1475,8 @@ class SearchExpandResult:
     search_hits: list[SearchHit]
     expanded: list[ExpandedNode]
     all_logical_ids: list[str]
+    #: Requested search arms that did not run; ``None`` when every arm ran.
+    degradations: list[ArmDegradation] | None = None
 
 
 @dataclass(frozen=True)
@@ -1545,6 +1563,8 @@ __all__ = [
     "SearchResult",
     "SoftFallback",
     "SoftFallbackBranch",
+    "ArmDegradation",
+    "DegradationReason",
     "UnknownEmbedderEvent",
     "WriteReceipt",
     "is_known_embedder_event",

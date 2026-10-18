@@ -641,6 +641,14 @@ name = "slice90_foreground_dispatch"
 required-features = ["test-hooks"]
 
 [[test]]
+name = "ep03_embedder_overloaded"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ep03_degradation_bytes"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "slice90_projection_capacity"
 required-features = ["test-hooks"]
 

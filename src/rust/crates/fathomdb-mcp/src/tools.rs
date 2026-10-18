@@ -7,10 +7,10 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use fathomdb_sdk::{
-    graph, read, Explanation, GraphExpandRequestV1, GraphExpansionDegradationCodeV1,
-    GraphReadContextV1, GraphSeedV1, IdSpace, IdSpaceKind, PerHitExplain, ReadContextV1, ReadView,
-    SearchFilter, SearchFilterArg, SearchHit, SearchOptions, SoftFallbackBranch, TextSearchOptions,
-    TraversalDirection,
+    graph, read, ArmDegradation, Explanation, GraphExpandRequestV1,
+    GraphExpansionDegradationCodeV1, GraphReadContextV1, GraphSeedV1, IdSpace, IdSpaceKind,
+    PerHitExplain, ReadContextV1, ReadView, SearchFilter, SearchFilterArg, SearchHit,
+    SearchOptions, SearchResult, SoftFallbackBranch, TextSearchOptions, TraversalDirection,
 };
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
@@ -485,6 +485,53 @@ struct SearchRun {
     explanation: Option<Explanation>,
     soft_fallback: Option<SoftFallbackBranch>,
     dense_disabled: bool,
+    degradations: Vec<ArmDegradation>,
+}
+
+impl SearchRun {
+    fn from_result(result: SearchResult, dense_disabled: bool) -> Self {
+        Self {
+            hits: result.results,
+            explanation: result.explanation,
+            soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
+            dense_disabled,
+            degradations: result.degradations,
+        }
+    }
+}
+
+/// The `degradation` list of a search answer, before canonical ordering.
+fn search_degradations(
+    mode: SearchMode,
+    run: &SearchRun,
+    embedder_usable: bool,
+) -> Vec<Degradation> {
+    let mut degradation = Vec::new();
+    if mode == SearchMode::Hybrid {
+        if let Some(branch) = run.soft_fallback {
+            degradation.push(Degradation {
+                arm: branch_str(branch).to_string(),
+                reason: "soft_fallback".to_string(),
+            });
+        }
+        if run.dense_disabled {
+            degradation.push(Degradation {
+                arm: "vector".to_string(),
+                reason: "dense_disabled".to_string(),
+            });
+        }
+        if !embedder_usable {
+            degradation.push(Degradation {
+                arm: "vector".to_string(),
+                reason: "embedder_unavailable".to_string(),
+            });
+        }
+        degradation.extend(run.degradations.iter().map(|entry| Degradation {
+            arm: branch_str(entry.arm).to_string(),
+            reason: entry.reason.as_str().to_string(),
+        }));
+    }
+    degradation
 }
 
 fn search_filter(canonical: &CanonicalSearch) -> Option<SearchFilter> {
@@ -696,38 +743,16 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                     },
                 )?,
             };
-            Ok(SearchRun {
-                hits: result.results,
-                explanation: result.explanation,
-                soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
-                dense_disabled: engine.dense_disabled(),
-            })
+            Ok(SearchRun::from_result(result, engine.dense_disabled()))
         },
     )
     .await?;
 
-    let mut degradation = Vec::new();
-    if mode == SearchMode::Hybrid {
-        if let Some(branch) = run.soft_fallback {
-            degradation.push(Degradation {
-                arm: branch_str(branch).to_string(),
-                reason: "soft_fallback".to_string(),
-            });
-        }
-        if run.dense_disabled {
-            degradation.push(Degradation {
-                arm: "vector".to_string(),
-                reason: "dense_disabled".to_string(),
-            });
-        }
-        if !answered.info.embedder_usable {
-            degradation.push(Degradation {
-                arm: "vector".to_string(),
-                reason: "embedder_unavailable".to_string(),
-            });
-        }
-    }
-    let degradation = shape::canonical_degradation(degradation);
+    let degradation = shape::canonical_degradation(search_degradations(
+        mode,
+        &run,
+        answered.info.embedder_usable,
+    ));
     let query_id = match (&run.explanation, telemetry && mode == SearchMode::Hybrid) {
         (Some(explanation), true) if explanation.correlation_id.starts_with('q') => {
             Some(explanation.correlation_id.clone())
@@ -1247,4 +1272,62 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     };
     let text = format!("feedback store={store} status=recorded");
     Ok(finish(&output, text, max_tokens, false).0)
+}
+
+#[cfg(test)]
+mod degradation_tests {
+    use super::*;
+    use fathomdb_sdk::{
+        ArmDegradation, DegradationReason, Engine, InitialState, OpenOptions, PreparedWrite,
+        SourceId,
+    };
+
+    fn entry(arm: &str, reason: &str) -> Degradation {
+        Degradation { arm: arm.to_string(), reason: reason.to_string() }
+    }
+
+    /// A real hybrid `SearchResult` from a store opened through the SDK the
+    /// adapter uses. The SDK cannot saturate the engine's embed queue (no
+    /// caller-embedder route), so the engine's overloaded report is appended to
+    /// this real value; the engine side of the report is tested in
+    /// `fathomdb-engine/tests/ep03_embedder_overloaded.rs`.
+    fn overloaded_hybrid_result() -> SearchResult {
+        let dir = tempfile::TempDir::new().unwrap();
+        let engine = Engine::open(dir.path().join("mcp-ep03.sqlite"), OpenOptions::default())
+            .expect("open through the SDK");
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "note".to_string(),
+                body: "mcpep03needle note".to_string(),
+                source_id: SourceId::new("test:mcp-ep03").unwrap(),
+                logical_id: Some("mcp-ep03".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        let mut result = engine.search("mcpep03needle", SearchOptions::default()).unwrap();
+        engine.close().unwrap();
+        assert!(!result.results.is_empty(), "precondition: the text arm answered");
+        result.degradations.push(ArmDegradation::new(
+            SoftFallbackBranch::Vector,
+            DegradationReason::EmbedderOverloaded,
+        ));
+        result
+    }
+
+    #[test]
+    fn hybrid_search_reports_embedder_overloaded_degradation() {
+        let run = SearchRun::from_result(overloaded_hybrid_result(), false);
+        assert_eq!(
+            search_degradations(SearchMode::Hybrid, &run, true),
+            vec![entry("vector", "embedder_overloaded")]
+        );
+        assert_eq!(
+            shape::canonical_degradation(search_degradations(SearchMode::Hybrid, &run, false)),
+            vec![entry("vector", "embedder_overloaded"), entry("vector", "embedder_unavailable")],
+            "the existing entries stay"
+        );
+    }
 }

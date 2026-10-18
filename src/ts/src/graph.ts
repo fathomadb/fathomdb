@@ -1,5 +1,5 @@
 // Private graph owner for the TypeScript SDK package root.
-import { native } from "./binding.js";
+import { native, type NativeSearchExpandResult } from "./binding.js";
 import { GraphExpansionError, InvalidArgumentError } from "./errors.js";
 import type { NodeRecord, ReadView } from "./read.js";
 
@@ -10,6 +10,7 @@ import { LifecycleState, SourceDependencyV1 } from "./write.js";
 import type { Engine } from "./core.js";
 
 import {
+  ArmDegradation,
   SoftFallbackBranch,
   IdSpace,
   SearchHit,
@@ -18,6 +19,7 @@ import {
   FrozenReadContextV1,
   SearchExpandOptions,
   validateRankedResultLimit,
+  mapNativeDegradations,
   StructuralDependencyStateV1,
   StructuralLifecycleStateV1,
 } from "./search.js";
@@ -52,6 +54,8 @@ export interface SearchExpandResult {
   searchHits: SearchHit[];
   expanded: ExpandedNode[];
   allLogicalIds: string[];
+  /** Requested search arms that did not run; absent when every requested arm ran. */
+  degradations?: ArmDegradation[];
 }
 
 /** Direction to follow when traversing `canonical_edges`. */
@@ -1011,25 +1015,31 @@ export const graph = {
         searchLimit,
       ),
     );
-    return {
-      searchHits: r.searchHits.map((h) => ({
-        id: { space: h.id.space, value: h.id.value },
-        kind: h.kind,
-        body: h.body,
-        score: h.score,
-        branch:
-          h.branch === "vector" || h.branch === "text_edge"
-            ? (h.branch as SoftFallbackBranch)
-            : "text",
-        sourceId: h.sourceId ?? null,
-        // 0.8.5 — searchExpand never reranks (depth=0) → ceScore is always null.
-        ceScore: h.ceScore ?? null,
-      })),
-      expanded: r.expanded.map((e) => ({
-        node: e.node,
-        hopCount: e.hopCount,
-      })),
-      allLogicalIds: r.allLogicalIds,
-    };
+    return mapNativeGraphSearchExpandResult(r);
   },
 };
+
+/** Maps the native `graph.searchExpand` result to the public shape. */
+export function mapNativeGraphSearchExpandResult(r: NativeSearchExpandResult): SearchExpandResult {
+  return {
+    searchHits: r.searchHits.map((h) => ({
+      id: { space: h.id.space, value: h.id.value },
+      kind: h.kind,
+      body: h.body,
+      score: h.score,
+      branch:
+        h.branch === "vector" || h.branch === "text_edge"
+          ? (h.branch as SoftFallbackBranch)
+          : "text",
+      sourceId: h.sourceId ?? null,
+      // 0.8.5 — searchExpand never reranks (depth=0) → ceScore is always null.
+      ceScore: h.ceScore ?? null,
+    })),
+    expanded: r.expanded.map((e) => ({
+      node: e.node,
+      hopCount: e.hopCount,
+    })),
+    allLogicalIds: r.allLogicalIds,
+    ...mapNativeDegradations(r.degradations),
+  };
+}

@@ -21,6 +21,8 @@ from fathomdb.filter import Filter
 # `fathomdb.engine` only under TYPE_CHECKING, so this is not circular at runtime.
 from fathomdb.read import _to_native_view
 from fathomdb.types import (
+    ArmDegradation,
+    DegradationReason,
     Explanation,
     FrozenReadContextV1,
     IdSpace,
@@ -54,6 +56,7 @@ def _map_native_search_result(result: Any) -> SearchResult:
         if native_exp is not None
         else None
     )
+    degradations = _map_native_degradations(result)
     return SearchResult(
         projection_cursor=result.projection_cursor,
         soft_fallback=soft,
@@ -70,7 +73,22 @@ def _map_native_search_result(result: Any) -> SearchResult:
             for hit in result.results
         ],
         explanation=explanation,
+        degradations=degradations,
     )
+
+
+def _map_native_degradations(result: Any) -> list[ArmDegradation] | None:
+    """A native result's degradation list, or ``None`` when absent or empty."""
+    native_degradations = getattr(result, "degradations", None)
+    if not native_degradations:
+        return None
+    return [
+        ArmDegradation(
+            arm=cast(SoftFallbackBranch, entry.arm),
+            reason=cast(DegradationReason, entry.reason),
+        )
+        for entry in native_degradations
+    ]
 
 
 def _to_native_read_context(context: ReadContextV1) -> Any:

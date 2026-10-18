@@ -104,6 +104,10 @@ class MutationProjectionStatusV1:
 class SoftFallback:
     branch: str
 
+class ArmDegradation:
+    arm: str
+    reason: str
+
 # C-2 (0.8.19 / TC-8) — typed id-space carrier for SearchHit.id.
 class IdSpace:
     # "logical" | "content" | "passage"
@@ -176,6 +180,8 @@ class SearchResult:
     results: list[SearchHit]
     # Opt-in; None unless ordinary or frozen retrieval requests explanation.
     explanation: Explanation | None
+    # None when every requested arm ran.
+    degradations: list[ArmDegradation] | None
 
 class EvidenceSidecarEntryV1:
     schema_version: int
@@ -615,6 +621,8 @@ class SearchExpandResult:
     search_hits: list[SearchHit]
     expanded: list[ExpandedNode]
     all_logical_ids: list[str]
+    # None when every requested search arm ran.
+    degradations: list[ArmDegradation] | None
 
 class RuntimeConfiguration:
     @property

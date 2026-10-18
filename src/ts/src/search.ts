@@ -2,6 +2,8 @@ import type { NativeEngine } from "./binding.js";
 // Private search owner for the TypeScript SDK package root.
 import {
   type NativeFrozenReadContextV1,
+  type NativeArmDegradation,
+  type NativeSearchExpandResult,
   type NativePerHitExplain,
   type NativeSearchResult,
 } from "./binding.js";
@@ -15,6 +17,20 @@ export type SoftFallbackBranch = "vector" | "text" | "text_edge" | "graph_arm";
 
 export interface SoftFallback {
   branch: SoftFallbackBranch;
+}
+
+/** Why a requested search arm did not run. */
+export type DegradationReason = "embedder_overloaded";
+
+/**
+ * One search arm that was requested but did not run, and why.
+ * `embedder_overloaded`: the query embedding was refused because the embed
+ * queue was full, or it expired in that queue; the search still returned the
+ * hits of its other arms.
+ */
+export interface ArmDegradation {
+  arm: SoftFallbackBranch;
+  reason: DegradationReason;
 }
 
 /**
@@ -165,6 +181,23 @@ export function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
       ceScore: hit.ceScore ?? null,
     })),
     explanation: e ? mapCandidateNativeExplanation(e, r.results) : null,
+    ...mapNativeDegradations(r.degradations),
+  };
+}
+
+/**
+ * `{ degradations }` when the native list is non-empty, else `{}`, so the key
+ * is absent when every requested arm ran.
+ */
+export function mapNativeDegradations(
+  native: NativeArmDegradation[] | null | undefined,
+): { degradations?: ArmDegradation[] } {
+  if (!native || native.length === 0) return {};
+  return {
+    degradations: native.map((entry) => ({
+      arm: entry.arm as SoftFallbackBranch,
+      reason: entry.reason as DegradationReason,
+    })),
   };
 }
 
@@ -585,6 +618,8 @@ export interface SearchResult {
    * Opt-in explanation sidecar; `null` unless the retrieval requests explanation.
    */
   explanation: Explanation | null;
+  /** Requested arms that did not run; absent when every requested arm ran. */
+  degradations?: ArmDegradation[];
 }
 
 export async function freezeReadContext(nativeEngine: NativeEngine, context: ReadContextV1): Promise<FrozenReadContextV1> {
@@ -698,22 +733,7 @@ export async function searchExpandFrozen(nativeEngine: NativeEngine, query: stri
     const result = await intercept(() =>
       nativeEngine.searchExpandFrozen(query, nativeContext, depth, options.searchLimit),
     );
-    return {
-      searchHits: result.searchHits.map((hit) => ({
-        id: { space: hit.id.space, value: hit.id.value },
-        kind: hit.kind,
-        body: hit.body,
-        score: hit.score,
-        branch:
-          hit.branch === "vector" || hit.branch === "text_edge" || hit.branch === "graph_arm"
-            ? hit.branch
-            : "text",
-        sourceId: hit.sourceId ?? null,
-        ceScore: hit.ceScore ?? null,
-      })),
-      expanded: result.expanded,
-      allLogicalIds: result.allLogicalIds,
-    };
+    return mapNativeSearchExpandFrozenResult(result);
   }
 
 export async function search(nativeEngine: NativeEngine, query: string, filter?: SearchFilter | Filter, rerankDepth?: number, useGraphArm?: boolean, alpha?: number, poolN?: number, explain?: boolean, view?: SearchOptions): Promise<SearchResult> {
@@ -871,3 +891,24 @@ export async function searchProjectedText(nativeEngine: NativeEngine, query: str
       explanation: null,
     };
   }
+
+/** Maps the native `searchExpandFrozen` result to the public shape. */
+export function mapNativeSearchExpandFrozenResult(result: NativeSearchExpandResult): SearchExpandResult {
+  return {
+    searchHits: result.searchHits.map((hit) => ({
+      id: { space: hit.id.space, value: hit.id.value },
+      kind: hit.kind,
+      body: hit.body,
+      score: hit.score,
+      branch:
+        hit.branch === "vector" || hit.branch === "text_edge" || hit.branch === "graph_arm"
+          ? hit.branch
+          : "text",
+      sourceId: hit.sourceId ?? null,
+      ceScore: hit.ceScore ?? null,
+    })),
+    expanded: result.expanded,
+    allLogicalIds: result.allLogicalIds,
+    ...mapNativeDegradations(result.degradations),
+  };
+}

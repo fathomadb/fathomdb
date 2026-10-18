@@ -478,6 +478,7 @@ pub(crate) type ReaderResponse = Result<
         GraphFrontierStats,
         Option<Explanation>,
         Option<SearchExpandResult>,
+        Vec<ArmDegradation>,
     ),
     SearchReaderError,
 >;
@@ -1322,7 +1323,9 @@ use crate::search::{
     read_projected_text_in_tx, read_search_work_in_tx, EvidenceCapture, NoEvidenceCapture,
     ProjectedTextReaderResponse, SearchReaderError, SearchReaderWork,
 };
-use crate::search_types::{Explanation, GraphFrontierStats, SearchHit, SoftFallback};
+use crate::search_types::{
+    ArmDegradation, Explanation, GraphFrontierStats, SearchHit, SoftFallback,
+};
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::{BoundaryCrossing, ReadView};

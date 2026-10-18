@@ -434,6 +434,38 @@ pub struct SoftFallback {
     pub branch: String,
 }
 
+/// The binding form of an engine degradation list: `None` when empty.
+pub(crate) fn degradations_from_rust(
+    degradations: &[fathomdb_engine::ArmDegradation],
+) -> Option<Vec<ArmDegradation>> {
+    (!degradations.is_empty()).then(|| {
+        degradations
+            .iter()
+            .map(|entry| ArmDegradation {
+                arm: branch_word(entry.arm).to_string(),
+                reason: entry.reason.as_str().to_string(),
+            })
+            .collect()
+    })
+}
+
+fn branch_word(branch: SoftFallbackBranch) -> &'static str {
+    match branch {
+        SoftFallbackBranch::Vector => "vector",
+        SoftFallbackBranch::Text => "text",
+        SoftFallbackBranch::TextEdge => "text_edge",
+        SoftFallbackBranch::GraphArm => "graph_arm",
+    }
+}
+
+/// One requested search arm that did not run (`arm`, spelled like
+/// `SoftFallback.branch`) and why (`reason`, e.g. `"embedder_overloaded"`).
+#[napi(object)]
+pub struct ArmDegradation {
+    pub arm: String,
+    pub reason: String,
+}
+
 /// C-2 (0.8.19 / OPP-12 Phase-1, TC-8) — the typed id-space carrier for
 /// [`SearchHit::id`], surfaced to JS as `{ space, value }`. `space` is the
 /// lowercase discriminant (`"logical"` | `"content"` | `"passage"`), mirroring
@@ -693,22 +725,145 @@ pub struct SearchResult {
     /// (`explanation` in JS). Present only when `search(..., explain=true)`; `null`
     /// (default) keeps the payload byte-identical to the pre-0.8.8 shape.
     pub explanation: Option<Explanation>,
+    /// Requested arms that did not run; absent when every requested arm ran.
+    pub degradations: Option<Vec<ArmDegradation>>,
 }
 
 impl SearchResult {
     pub(crate) fn from_rust(r: RustSearchResult) -> Self {
         Self {
             projection_cursor: r.projection_cursor as i64,
-            soft_fallback: r.soft_fallback.as_ref().map(|s| SoftFallback {
-                branch: match s.branch {
-                    SoftFallbackBranch::Vector => "vector".to_string(),
-                    SoftFallbackBranch::Text => "text".to_string(),
-                    SoftFallbackBranch::TextEdge => "text_edge".to_string(),
-                    SoftFallbackBranch::GraphArm => "graph_arm".to_string(),
-                },
-            }),
+            soft_fallback: r
+                .soft_fallback
+                .as_ref()
+                .map(|s| SoftFallback { branch: branch_word(s.branch).to_string() }),
             results: r.results.iter().map(SearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(Explanation::from_rust),
+            degradations: degradations_from_rust(&r.degradations),
         }
+    }
+}
+
+#[cfg(test)]
+mod degradation_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Condvar, Mutex};
+    use std::time::{Duration, Instant};
+
+    use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+    use fathomdb_engine::{
+        EmbedderChoice, Engine as EngEngine, EngineConfig, InitialState, PreparedWrite, SourceId,
+    };
+
+    /// Blocks in `embed` while closed, so one held call occupies the only
+    /// provider worker and a queued query embedding expires (QueuedExpired).
+    #[derive(Debug, Default)]
+    struct Gate {
+        closed: Mutex<bool>,
+        changed: Condvar,
+        blocked: AtomicUsize,
+    }
+
+    impl Embedder for Gate {
+        fn identity(&self) -> EmbedderIdentity {
+            EmbedderIdentity::new("napi-ep03-gate", "rev-a", 8)
+        }
+
+        fn embed(&self, _text: &str) -> std::result::Result<Vector, EmbedderError> {
+            let closed = self.closed.lock().unwrap();
+            if *closed {
+                self.blocked.fetch_add(1, Ordering::SeqCst);
+                let _open = self
+                    .changed
+                    .wait_timeout_while(closed, Duration::from_secs(10), |closed| *closed)
+                    .unwrap();
+            }
+            Ok(vec![1.0; 8])
+        }
+    }
+
+    /// One real overloaded hybrid search and one healthy one, from a real store.
+    fn overloaded_and_healthy_results() -> (RustSearchResult, RustSearchResult) {
+        overloaded_and_healthy(|engine| engine.search("napiep03needle").unwrap())
+    }
+
+    /// Runs `op` once while the only provider worker is held (its query
+    /// embedding expires in the queue) and once on a healthy dispatcher.
+    fn overloaded_and_healthy<T>(op: fn(&EngEngine) -> T) -> (T, T) {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join(format!("napi_ep03{}", fathomdb_schema::SQLITE_SUFFIX));
+        let gate = Arc::new(Gate::default());
+        let engine = Arc::new(
+            EngEngine::open_with_choice_and_config(
+                &path,
+                EmbedderChoice::Caller(gate.clone()),
+                EngineConfig {
+                    embedder_pool_size: Some(1),
+                    embedder_call_timeout_ms: Some(300),
+                    ..EngineConfig::default()
+                },
+            )
+            .unwrap()
+            .engine,
+        );
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "note".to_string(),
+                body: "napiep03needle note".to_string(),
+                source_id: SourceId::new("test:napi-ep03").unwrap(),
+                logical_id: Some("napi-ep03".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        engine.drain(30_000).unwrap();
+        *gate.closed.lock().unwrap() = true;
+        let holder = {
+            let engine = Arc::clone(&engine);
+            std::thread::spawn(move || engine.embed_text("hold"))
+        };
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while gate.blocked.load(Ordering::SeqCst) == 0 {
+            assert!(Instant::now() < deadline, "the held embed never started");
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let overloaded = op(&engine);
+        *gate.closed.lock().unwrap() = false;
+        gate.changed.notify_all();
+        let _ = holder.join().unwrap();
+        let healthy = op(&engine);
+        Arc::try_unwrap(engine).ok().unwrap().close().unwrap();
+        (overloaded, healthy)
+    }
+
+    #[test]
+    fn typescript_search_result_reports_embedder_overloaded() {
+        let (overloaded, healthy) = overloaded_and_healthy_results();
+        assert_eq!(overloaded.degradations.len(), 1, "precondition: a real overloaded result");
+
+        let converted = SearchResult::from_rust(overloaded);
+        let words: Option<Vec<(String, String)>> = converted
+            .degradations
+            .map(|entries| entries.into_iter().map(|entry| (entry.arm, entry.reason)).collect());
+        assert_eq!(words, Some(vec![("vector".to_string(), "embedder_overloaded".to_string())]));
+        assert!(SearchResult::from_rust(healthy).degradations.is_none());
+    }
+
+    #[test]
+    fn search_expand_result_reports_embedder_overloaded() {
+        let (overloaded, healthy) = overloaded_and_healthy(|engine| {
+            engine.search_expand("napiep03needle", None, 1).unwrap()
+        });
+        assert_eq!(overloaded.degradations.len(), 1, "precondition: a real overloaded result");
+
+        let converted = SearchExpandResult::from_rust(overloaded);
+        let words: Option<Vec<(String, String)>> = converted
+            .degradations
+            .map(|entries| entries.into_iter().map(|entry| (entry.arm, entry.reason)).collect());
+        assert_eq!(words, Some(vec![("vector".to_string(), "embedder_overloaded".to_string())]));
+        assert!(SearchExpandResult::from_rust(healthy).degradations.is_none());
     }
 }

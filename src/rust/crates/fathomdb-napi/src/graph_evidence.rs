@@ -25,6 +25,8 @@ pub struct SearchExpandResult {
     pub search_hits: Vec<SearchHit>,
     pub expanded: Vec<ExpandedNode>,
     pub all_logical_ids: Vec<String>,
+    /// Requested search arms that did not run; absent when every arm ran.
+    pub degradations: Option<Vec<ArmDegradation>>,
 }
 
 impl SearchExpandResult {
@@ -40,6 +42,7 @@ impl SearchExpandResult {
                 })
                 .collect(),
             all_logical_ids: r.all_logical_ids,
+            degradations: degradations_from_rust(&r.degradations),
         }
     }
 }

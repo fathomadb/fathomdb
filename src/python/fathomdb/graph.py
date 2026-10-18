@@ -21,12 +21,13 @@ from __future__ import annotations
 import json
 import re
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, NoReturn, cast
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from fathomdb._fathomdb import NodeRecord as _NativeNodeRecord
 from fathomdb._fathomdb import SearchHit as _NativeSearchHit
 from fathomdb._fathomdb import graph_neighbors as _native_graph_neighbors
 from fathomdb._fathomdb import search_expand as _native_search_expand
+from fathomdb._sdk_search import _map_native_degradations
 from fathomdb.read import _to_native_view
 from fathomdb.types import (
     CurrentGraphReadContextV1,
@@ -181,6 +182,10 @@ def search_expand(
         status,
         search_limit,
     )
+    return _to_search_expand_result(native_result)
+
+
+def _to_search_expand_result(native_result: Any) -> SearchExpandResult:
     search_hits = [_to_search_hit(hit) for hit in native_result.search_hits]
     expanded = [
         ExpandedNode(
@@ -193,6 +198,7 @@ def search_expand(
         search_hits=search_hits,
         expanded=expanded,
         all_logical_ids=list(native_result.all_logical_ids),
+        degradations=_map_native_degradations(native_result),
     )
 
 

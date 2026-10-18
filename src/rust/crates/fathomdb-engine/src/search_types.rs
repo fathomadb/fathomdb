@@ -33,6 +33,51 @@ pub enum SoftFallbackBranch {
     GraphArm,
 }
 
+/// One retrieval arm that a search asked for but could not run, and why.
+///
+/// Carried in [`SearchResult::degradations`] and
+/// [`SearchExpandResult::degradations`](crate::SearchExpandResult). The search
+/// still returns the hits of the arms that did run; this record only reports the
+/// missing arm. Wire spelling: `arm` uses the [`SoftFallbackBranch`] words
+/// (`"vector"`, `"text"`, `"text_edge"`, `"graph_arm"`) and `reason` uses
+/// [`DegradationReason::as_str`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct ArmDegradation {
+    /// The arm that did not contribute.
+    pub arm: SoftFallbackBranch,
+    /// Why it did not contribute.
+    pub reason: DegradationReason,
+}
+
+impl ArmDegradation {
+    /// Build one degradation record. Engine searches build these themselves;
+    /// the constructor exists for callers that map or replay results.
+    pub const fn new(arm: SoftFallbackBranch, reason: DegradationReason) -> Self {
+        Self { arm, reason }
+    }
+}
+
+/// Why a requested retrieval arm did not contribute to a search.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum DegradationReason {
+    /// The query embedding was refused because the embed dispatcher's waiting
+    /// queue was full, or the request expired in that queue before any provider
+    /// worker started it. The vector arm was skipped and the search ran on the
+    /// remaining arms. Wire word `embedder_overloaded`.
+    EmbedderOverloaded,
+}
+
+impl DegradationReason {
+    /// The stable wire word every binding and the MCP adapter use.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::EmbedderOverloaded => "embedder_overloaded",
+        }
+    }
+}
+
 /// A single structured search hit (G1 / AC-057a-clean).
 ///
 /// Both retrieval branches emit this shape. `id` is a typed [`IdSpace`] — the
@@ -149,6 +194,10 @@ pub struct SearchResult {
     /// PROPOSED/ratification-pending; additive inside `Explanation` so later
     /// amendments do not reshape `SearchResult`/`SearchHit`.
     pub explanation: Option<Explanation>,
+    /// Requested arms that did not run, in the order arm then reason. Empty (no
+    /// allocation) when every requested arm ran. Results, ranking,
+    /// `soft_fallback` and `explanation` are the same with or without it.
+    pub degradations: Vec<ArmDegradation>,
 }
 
 /// 0.8.8 EXP-OBS (Slice 5) — the opt-in retrieval explanation payload returned

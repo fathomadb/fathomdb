@@ -65,6 +65,8 @@ export {
 export {
   SoftFallbackBranch,
   SoftFallback,
+  DegradationReason,
+  ArmDegradation,
   IdSpace,
   SearchHit,
   SearchFilter,
